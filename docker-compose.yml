@@ -1,0 +1,16 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ypp
+      POSTGRES_PASSWORD: ypp
+      POSTGRES_DB: ypp_pathways
+    volumes:
+      - ypp_db_data:/var/lib/postgresql/data
+
+volumes:
+  ypp_db_data:
