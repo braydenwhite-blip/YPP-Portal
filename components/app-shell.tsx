@@ -1,4 +1,5 @@
 import Nav from "@/components/nav";
+import LogoutButton from "@/components/logout-button";
 
 export default function AppShell({
   children,
@@ -24,6 +25,9 @@ export default function AppShell({
           <p style={{ marginTop: 8, opacity: 0.9 }}>
             {primaryRole ? `Primary Role: ${primaryRole}` : "Role-based dashboards enabled"}
           </p>
+          <div className="sidebar-actions">
+            <LogoutButton />
+          </div>
         </div>
       </aside>
       <main>{children}</main>

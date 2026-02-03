@@ -9,7 +9,8 @@ import {
   createMentorship,
   createPathway,
   createTrainingModule,
-  createUser
+  createUser,
+  updateEnrollmentStatus
 } from "@/lib/admin-actions";
 import {
   CourseFormat,
@@ -37,9 +38,14 @@ export default async function AdminPage() {
 
   const instructors = users.filter((user) => user.roles.some((role) => role.role === "INSTRUCTOR"));
   const mentors = users.filter((user) => user.roles.some((role) => role.role === "MENTOR"));
-  const mentees = users.filter((user) =>
-    user.roles.some((role) => role.role === "INSTRUCTOR" || role.role === "STUDENT")
-  );
+  const instructorMentees = users.filter((user) => user.roles.some((role) => role.role === "INSTRUCTOR"));
+  const studentMentees = users.filter((user) => user.roles.some((role) => role.role === "STUDENT"));
+
+  const pendingEnrollments = await prisma.enrollment.findMany({
+    where: { status: "PENDING" },
+    include: { user: true, course: true },
+    orderBy: { createdAt: "asc" }
+  });
 
   return (
     <div>
@@ -337,8 +343,9 @@ export default async function AdminPage() {
 
       <div className="grid two" style={{ marginTop: 24 }}>
         <div className="card">
-          <h3>Create Mentorship Pairing</h3>
+          <h3>Assign Instructor Mentor</h3>
           <form action={createMentorship} className="form-grid">
+            <input type="hidden" name="type" value={MentorshipType.INSTRUCTOR} />
             <label className="form-row">
               Mentor
               <select className="input" name="mentorId" required>
@@ -350,21 +357,11 @@ export default async function AdminPage() {
               </select>
             </label>
             <label className="form-row">
-              Mentee
+              Instructor (Mentee)
               <select className="input" name="menteeId" required>
-                {mentees.map((mentee) => (
+                {instructorMentees.map((mentee) => (
                   <option key={mentee.id} value={mentee.id}>
                     {mentee.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="form-row">
-              Type
-              <select className="input" name="type" defaultValue={MentorshipType.INSTRUCTOR}>
-                {Object.values(MentorshipType).map((type) => (
-                  <option key={type} value={type}>
-                    {type}
                   </option>
                 ))}
               </select>
@@ -374,9 +371,83 @@ export default async function AdminPage() {
               <textarea className="input" name="notes" rows={3} />
             </label>
             <button className="button" type="submit">
-              Create Mentorship
+              Assign Instructor Mentor
             </button>
           </form>
+        </div>
+
+        <div className="card">
+          <h3>Assign Student Mentor</h3>
+          <form action={createMentorship} className="form-grid">
+            <input type="hidden" name="type" value={MentorshipType.STUDENT} />
+            <label className="form-row">
+              Mentor
+              <select className="input" name="mentorId" required>
+                {mentors.map((mentor) => (
+                  <option key={mentor.id} value={mentor.id}>
+                    {mentor.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="form-row">
+              Student (Mentee)
+              <select className="input" name="menteeId" required>
+                {studentMentees.map((mentee) => (
+                  <option key={mentee.id} value={mentee.id}>
+                    {mentee.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="form-row">
+              Notes
+              <textarea className="input" name="notes" rows={3} />
+            </label>
+            <button className="button" type="submit">
+              Assign Student Mentor
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <div className="grid two" style={{ marginTop: 24 }}>
+        <div className="card">
+          <h3>Enrollment Requests</h3>
+          {pendingEnrollments.length === 0 ? (
+            <p>No pending enrollment requests.</p>
+          ) : (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Course</th>
+                  <th>Requested</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingEnrollments.map((enrollment) => (
+                  <tr key={enrollment.id}>
+                    <td>{enrollment.user.name}</td>
+                    <td>{enrollment.course.title}</td>
+                    <td>{new Date(enrollment.createdAt).toLocaleDateString()}</td>
+                    <td>
+                      <form action={updateEnrollmentStatus} style={{ display: "inline-flex", gap: 8 }}>
+                        <input type="hidden" name="enrollmentId" value={enrollment.id} />
+                        <button className="button small" type="submit" name="status" value="ENROLLED">
+                          Approve
+                        </button>
+                        <button className="button small secondary" type="submit" name="status" value="DECLINED">
+                          Decline
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
 
         <div className="card">

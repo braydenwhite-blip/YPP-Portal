@@ -88,7 +88,11 @@ export default async function OverviewPage() {
       })
     : null;
 
-  const enrolledCourseIds = new Set(enrollments.map((enrollment) => enrollment.courseId));
+  const enrolledCourseIds = new Set(
+    enrollments
+      .filter((enrollment) => enrollment.status === "ENROLLED")
+      .map((enrollment) => enrollment.courseId)
+  );
   const nextSteps = pathways
     .map((pathway) => {
       const nextStep = pathway.steps.find((step) => !enrolledCourseIds.has(step.courseId));
@@ -198,6 +202,7 @@ export default async function OverviewPage() {
                     <tr>
                       <th>Course</th>
                       <th>Format</th>
+                      <th>Status</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -209,6 +214,7 @@ export default async function OverviewPage() {
                             ? enrollment.course.level.replace("LEVEL_", "")
                             : enrollment.course.format.replace("_", " ")}
                         </td>
+                        <td>{enrollment.status.replace("_", " ")}</td>
                       </tr>
                     ))}
                   </tbody>

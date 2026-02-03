@@ -185,3 +185,21 @@ export async function createMentorship(formData: FormData) {
   revalidatePath("/admin");
   revalidatePath("/mentorship");
 }
+
+export async function updateEnrollmentStatus(formData: FormData) {
+  await requireAdmin();
+  const enrollmentId = getString(formData, "enrollmentId");
+  const status = getString(formData, "status");
+  if (!["PENDING", "ENROLLED", "DECLINED"].includes(status)) {
+    throw new Error("Invalid status");
+  }
+
+  await prisma.enrollment.update({
+    where: { id: enrollmentId },
+    data: { status }
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/");
+  revalidatePath("/curriculum");
+}

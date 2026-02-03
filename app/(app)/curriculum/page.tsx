@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { requestEnrollment } from "@/lib/enrollment-actions";
 
 const formatLabels: Record<string, string> = {
   ONE_OFF: "One-off Classes",
@@ -18,9 +21,34 @@ function levelClassName(level?: string | null) {
 }
 
 export default async function CurriculumPage() {
-  const courses = await prisma.course.findMany({
-    orderBy: [{ format: "asc" }, { level: "asc" }]
-  });
+  const session = await getServerSession(authOptions);
+  const roles = session?.user?.roles ?? [];
+  const isStudent = roles.includes("STUDENT");
+  const userId = session?.user?.id;
+
+  const [courses, pathwaySteps, enrollments] = await Promise.all([
+    prisma.course.findMany({
+      orderBy: [{ format: "asc" }, { level: "asc" }]
+    }),
+    prisma.pathwayStep.findMany({
+      include: { pathway: true }
+    }),
+    isStudent && userId
+      ? prisma.enrollment.findMany({ where: { userId } })
+      : Promise.resolve([])
+  ]);
+
+  const pathwayByCourse = new Map<string, string[]>();
+  for (const step of pathwaySteps) {
+    const list = pathwayByCourse.get(step.courseId) ?? [];
+    list.push(step.pathway.name);
+    pathwayByCourse.set(step.courseId, list);
+  }
+
+  const enrollmentByCourse = new Map<string, string>();
+  for (const enrollment of enrollments) {
+    enrollmentByCourse.set(enrollment.courseId, enrollment.status);
+  }
 
   const grouped = courses.reduce<Record<string, typeof courses>>((acc, course) => {
     const key = course.format;
@@ -36,6 +64,13 @@ export default async function CurriculumPage() {
           <h1 className="page-title">Curriculum Dashboard</h1>
         </div>
       </div>
+
+      {isStudent ? (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <strong>Student Enrollment:</strong> Request the courses you want to join. Admin approval is required
+          before you are officially enrolled.
+        </div>
+      ) : null}
 
       <div className="grid two">
         <div className="card">
@@ -66,6 +101,8 @@ export default async function CurriculumPage() {
                     <th>Interest Area</th>
                     <th>Level</th>
                     <th>Mode</th>
+                    <th>Pathway</th>
+                    {isStudent ? <th>Request</th> : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -83,6 +120,39 @@ export default async function CurriculumPage() {
                         )}
                       </td>
                       <td>{course.isVirtual ? "Virtual" : "In-person first"}</td>
+                      <td>
+                        {pathwayByCourse.get(course.id)?.length ? (
+                          <span className="pill pill-pathway">
+                            {pathwayByCourse.get(course.id)?.join(", ")}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      {isStudent ? (
+                        <td>
+                          {(() => {
+                            const status = enrollmentByCourse.get(course.id);
+                            if (status === "PENDING") {
+                              return <span className="pill pill-pending">Pending</span>;
+                            }
+                            if (status === "ENROLLED") {
+                              return <span className="pill pill-success">Enrolled</span>;
+                            }
+                            if (status === "DECLINED") {
+                              return <span className="pill pill-declined">Declined</span>;
+                            }
+                            return (
+                              <form action={requestEnrollment}>
+                                <input type="hidden" name="courseId" value={course.id} />
+                                <button className="button small secondary" type="submit">
+                                  Request
+                                </button>
+                              </form>
+                            );
+                          })()}
+                        </td>
+                      ) : null}
                     </tr>
                   ))}
                 </tbody>

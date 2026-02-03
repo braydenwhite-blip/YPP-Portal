@@ -1,0 +1,10 @@
+.DS_Store
+.env
+.env.*
+node_modules/
+.next/
+dist/
+out/
+*.log
+eval "$(ssh-agent -s)"
+eval "$(ssh-agent -s)".pub
