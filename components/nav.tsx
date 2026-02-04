@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const baseItems = [
   { href: "/", label: "Overview" },
+  { href: "/announcements", label: "Announcements" },
   { href: "/pathways", label: "Pathways" },
   { href: "/curriculum", label: "Courses" },
   { href: "/programs", label: "Programs" },
@@ -50,6 +51,11 @@ const alumniItems = [
 
 const adminItems = [
   { href: "/admin", label: "Admin Dashboard" },
+  { href: "/admin/announcements", label: "Manage Announcements" },
+  { href: "/admin/instructors", label: "All Instructors" },
+  { href: "/admin/students", label: "All Students" },
+  { href: "/admin/chapters", label: "All Chapters" },
+  { href: "/admin/staff", label: "Staff Reflections" },
   { href: "/admin/goals", label: "Manage Goals" },
   { href: "/admin/reflections", label: "View Reflections" },
   { href: "/admin/reflection-forms", label: "Manage Forms" },

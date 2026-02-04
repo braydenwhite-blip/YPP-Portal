@@ -572,3 +572,100 @@ export async function getChapterApplicants() {
     orderBy: { submittedAt: "desc" },
   });
 }
+
+// ============================================
+// ADMIN CHAPTER MANAGEMENT
+// ============================================
+
+async function requireAdmin() {
+  const session = await getServerSession(authOptions);
+  const roles = session?.user?.roles ?? [];
+  if (!roles.includes("ADMIN")) {
+    throw new Error("Unauthorized - Admin only");
+  }
+  return session;
+}
+
+function getString(formData: FormData, key: string, required = true) {
+  const value = formData.get(key);
+  if (required && (!value || String(value).trim() === "")) {
+    throw new Error(`Missing ${key}`);
+  }
+  return value ? String(value).trim() : "";
+}
+
+export async function createChapter(formData: FormData) {
+  await requireAdmin();
+
+  const name = getString(formData, "name");
+  const city = getString(formData, "city", false);
+  const region = getString(formData, "region", false);
+  const partnerSchool = getString(formData, "partnerSchool", false);
+  const programNotes = getString(formData, "programNotes", false);
+
+  await prisma.chapter.create({
+    data: {
+      name,
+      city: city || null,
+      region: region || null,
+      partnerSchool: partnerSchool || null,
+      programNotes: programNotes || null
+    }
+  });
+
+  revalidatePath("/admin/chapters");
+  revalidatePath("/chapters");
+}
+
+export async function updateChapter(formData: FormData) {
+  await requireAdmin();
+
+  const id = getString(formData, "id");
+  const name = getString(formData, "name");
+  const city = getString(formData, "city", false);
+  const region = getString(formData, "region", false);
+  const partnerSchool = getString(formData, "partnerSchool", false);
+  const programNotes = getString(formData, "programNotes", false);
+
+  await prisma.chapter.update({
+    where: { id },
+    data: {
+      name,
+      city: city || null,
+      region: region || null,
+      partnerSchool: partnerSchool || null,
+      programNotes: programNotes || null
+    }
+  });
+
+  revalidatePath("/admin/chapters");
+  revalidatePath("/chapters");
+}
+
+export async function deleteChapter(formData: FormData) {
+  await requireAdmin();
+
+  const id = getString(formData, "id");
+
+  // Check if chapter has users
+  const usersCount = await prisma.user.count({ where: { chapterId: id } });
+  if (usersCount > 0) {
+    throw new Error("Cannot delete chapter with existing users. Remove users first.");
+  }
+
+  // Delete related records
+  await prisma.announcement.deleteMany({ where: { chapterId: id } });
+  await prisma.position.deleteMany({ where: { chapterId: id } });
+  await prisma.event.deleteMany({ where: { chapterId: id } });
+  await prisma.course.updateMany({ where: { chapterId: id }, data: { chapterId: null } });
+  await prisma.goalTemplate.deleteMany({ where: { chapterId: id } });
+  await prisma.marketingStats.deleteMany({ where: { chapterId: id } });
+  await prisma.marketingGoal.deleteMany({ where: { chapterId: id } });
+  await prisma.chapterUpdate.deleteMany({ where: { chapterId: id } });
+
+  // Delete chapter
+  await prisma.chapter.delete({ where: { id } });
+
+  revalidatePath("/admin/chapters");
+  revalidatePath("/chapters");
+}
