@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import AnnouncementBanner from "@/components/announcement-banner";
 
 export default async function OverviewPage() {
   const session = await getServerSession(authOptions);
@@ -88,6 +89,38 @@ export default async function OverviewPage() {
       })
     : null;
 
+  // Fetch announcements for the user's roles and chapter
+  const now = new Date();
+  const announcements = await prisma.announcement.findMany({
+    where: {
+      isActive: true,
+      OR: [
+        { expiresAt: null },
+        { expiresAt: { gt: now } }
+      ],
+      AND: [
+        {
+          OR: [
+            { chapterId: null },
+            { chapterId: user?.chapterId ?? undefined }
+          ]
+        },
+        {
+          OR: roles.length > 0
+            ? roles.map((role) => ({
+                targetRoles: { has: role as any }
+              }))
+            : [{ targetRoles: { isEmpty: false } }]
+        }
+      ]
+    },
+    include: {
+      author: { select: { name: true } }
+    },
+    orderBy: { publishedAt: "desc" },
+    take: 5
+  });
+
   const enrolledCourseIds = new Set(
     enrollments
       .filter((enrollment) => enrollment.status === "ENROLLED")
@@ -112,6 +145,8 @@ export default async function OverviewPage() {
           {roles.length ? roles.join(" · ") : "Portal User"}
         </div>
       </div>
+
+      <AnnouncementBanner announcements={announcements} />
 
       {isAdmin && globalStats ? (
         <div className="grid three">
