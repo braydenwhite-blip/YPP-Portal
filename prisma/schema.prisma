@@ -159,6 +159,7 @@ model Chapter {
   goalTemplates  GoalTemplate[]
   marketingStats MarketingStats[]
   marketingGoals MarketingGoal[]
+  chapterUpdates ChapterUpdate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -209,6 +210,7 @@ model User {
   studentLinks       ParentStudent[] @relation("StudentLinks")
   certificates       Certificate[]
   analyticsEvents    AnalyticsEvent[]
+  chapterUpdates     ChapterUpdate[] @relation("ChapterUpdatesAuthored")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -744,6 +746,25 @@ model CollegeAdvisorship {
   notes     String?
 
   @@unique([advisorId, adviseeId])
+}
+
+// ============================================
+// CHAPTER UPDATE MODELS (for Chapter Presidents)
+// ============================================
+
+model ChapterUpdate {
+  id          String     @id @default(cuid())
+  chapterId   String
+  chapter     Chapter    @relation(fields: [chapterId], references: [id])
+  authorId    String
+  author      User       @relation("ChapterUpdatesAuthored", fields: [authorId], references: [id])
+  title       String
+  content     String
+  targetRoles RoleType[] // Which roles should see this update
+  isPinned    Boolean    @default(false)
+  publishedAt DateTime   @default(now())
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 }
 
 // ============================================

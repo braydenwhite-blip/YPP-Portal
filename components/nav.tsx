@@ -16,6 +16,10 @@ const baseItems = [
   { href: "/profile", label: "My Profile" }
 ];
 
+const reflectionItems = [
+  { href: "/reflection", label: "Monthly Reflection" }
+];
+
 const applicantItems = [
   { href: "/positions", label: "Open Positions" },
   { href: "/applications", label: "My Applications" }
@@ -25,6 +29,10 @@ const mentorItems = [
   { href: "/mentorship/mentees", label: "My Mentees" }
 ];
 
+const chapterLeadItems = [
+  { href: "/chapter", label: "My Chapter" }
+];
+
 const parentItems = [
   { href: "/parent", label: "Parent Portal" }
 ];
@@ -32,6 +40,8 @@ const parentItems = [
 const adminItems = [
   { href: "/admin", label: "Admin Dashboard" },
   { href: "/admin/goals", label: "Manage Goals" },
+  { href: "/admin/reflections", label: "View Reflections" },
+  { href: "/admin/reflection-forms", label: "Manage Forms" },
   { href: "/admin/analytics", label: "Analytics" }
 ];
 
@@ -39,10 +49,18 @@ export default function Nav({ roles = [] }: { roles?: string[] }) {
   const pathname = usePathname();
   const isAdmin = roles.includes("ADMIN");
   const isMentor = roles.includes("MENTOR") || roles.includes("CHAPTER_LEAD");
+  const isChapterLead = roles.includes("CHAPTER_LEAD");
   const isParent = roles.includes("PARENT");
+  const isInstructor = roles.includes("INSTRUCTOR");
   const isApplicant = roles.includes("STUDENT") || roles.includes("INSTRUCTOR") || roles.includes("STAFF");
 
   let items = [...baseItems];
+
+  // Add reflection for instructors and chapter leads
+  if (isInstructor || isChapterLead) {
+    const goalsIndex = items.findIndex(i => i.href === "/goals");
+    items.splice(goalsIndex + 1, 0, ...reflectionItems);
+  }
 
   // Add applicant items for users who might apply to positions
   if (isApplicant || isAdmin) {
@@ -54,6 +72,12 @@ export default function Nav({ roles = [] }: { roles?: string[] }) {
     // Insert mentor items after Mentorship
     const mentorshipIndex = items.findIndex(i => i.href === "/mentorship");
     items.splice(mentorshipIndex + 1, 0, ...mentorItems);
+  }
+
+  // Add chapter dashboard for chapter leads
+  if (isChapterLead) {
+    const chaptersIndex = items.findIndex(i => i.href === "/chapters");
+    items.splice(chaptersIndex + 1, 0, ...chapterLeadItems);
   }
 
   if (isParent) {
