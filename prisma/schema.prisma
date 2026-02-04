@@ -3,9 +3,19 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
+
+// Note: For Vercel deployment with connection pooling (e.g., PgBouncer):
+// - DATABASE_URL should point to the pooler (port 6543)
+// - DIRECT_URL should point to the direct connection (port 5432)
+// If not using a pooler, both can point to the same URL
+
+// ============================================
+// ENUMS
+// ============================================
 
 enum RoleType {
   ADMIN
@@ -73,17 +83,82 @@ enum EventType {
   FESTIVAL
   COMPETITION
   WORKSHOP
+  ALUMNI_EVENT
 }
 
+// New enums for Phase 1
+
+enum PositionType {
+  INSTRUCTOR
+  CHAPTER_PRESIDENT
+  MENTOR
+  STAFF
+  GLOBAL_ADMIN
+}
+
+enum ApplicationStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  INTERVIEW_SCHEDULED
+  INTERVIEW_COMPLETED
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+enum ProgressStatus {
+  BEHIND_SCHEDULE
+  GETTING_STARTED
+  ON_TRACK
+  ABOVE_AND_BEYOND
+}
+
+enum QuestionType {
+  TEXT
+  TEXTAREA
+  RATING_1_5
+  MULTIPLE_CHOICE
+}
+
+enum ProgramType {
+  PASSION_LAB
+  COMPETITION_PREP
+  EXPERIENCE
+  SEQUENCE
+}
+
+enum AwardType {
+  BRONZE_INSTRUCTOR
+  SILVER_INSTRUCTOR
+  GOLD_INSTRUCTOR
+  BRONZE_ACHIEVEMENT
+  SILVER_ACHIEVEMENT
+  GOLD_ACHIEVEMENT
+}
+
+// ============================================
+// CORE MODELS
+// ============================================
+
 model Chapter {
-  id        String   @id @default(cuid())
-  name      String
-  city      String?
-  region    String?
-  users     User[]
-  courses   Course[]
-  events    Event[]
-  feedbacks Feedback[]
+  id            String   @id @default(cuid())
+  name          String
+  city          String?
+  region        String?
+  partnerSchool String?
+  programNotes  String?
+
+  // Relations
+  users          User[]
+  courses        Course[]
+  events         Event[]
+  feedbacks      Feedback[]
+  positions      Position[]
+  announcements  Announcement[]
+  goalTemplates  GoalTemplate[]
+  marketingStats MarketingStats[]
+  marketingGoals MarketingGoal[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -97,18 +172,37 @@ model User {
   primaryRole  RoleType
   chapterId    String?
   chapter      Chapter?   @relation(fields: [chapterId], references: [id])
-  roles        UserRole[]
-  courses      Course[]   @relation("InstructorCourses")
-  enrollments  Enrollment[]
-  trainings    TrainingAssignment[]
-  approvals    InstructorApproval[]
-  mentorPairs  Mentorship[] @relation("MentorLinks")
-  menteePairs  Mentorship[] @relation("MenteeLinks")
+
+  // Existing relations
+  roles         UserRole[]
+  courses       Course[]   @relation("InstructorCourses")
+  enrollments   Enrollment[]
+  trainings     TrainingAssignment[]
+  approvals     InstructorApproval[]
+  mentorPairs   Mentorship[] @relation("MentorLinks")
+  menteePairs   Mentorship[] @relation("MenteeLinks")
   feedbackGiven Feedback[] @relation("FeedbackSource")
-  feedbackFor  Feedback[] @relation("FeedbackTarget")
-  awards       Award[]
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  feedbackFor   Feedback[] @relation("FeedbackTarget")
+  awards        Award[]
+
+  // New relations for Phase 1
+  applications           Application[]
+  interviewNotesAuthored InterviewNote[] @relation("InterviewNotesAuthored")
+  decisionsMade          Decision[]      @relation("DecisionsMade")
+  announcements          Announcement[]
+  goals                  Goal[]
+  progressUpdatesSubmitted ProgressUpdate[] @relation("ProgressUpdatesSubmitted")
+  progressUpdatesReceived  ProgressUpdate[] @relation("ProgressUpdatesReceived")
+  reflectionSubmissions  ReflectionSubmission[]
+  specialProgramsLed     SpecialProgram[] @relation("ProgramsLed")
+  specialProgramEnrollments SpecialProgramEnrollment[]
+  alumniProfile          AlumniProfile?
+  collegeAdvisor         CollegeAdvisor?
+  collegeAdviseeships    CollegeAdvisorship[] @relation("CollegeAdviseeships")
+  profile                UserProfile?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model UserRole {
@@ -119,23 +213,44 @@ model UserRole {
   @@id([userId, role])
 }
 
+model UserProfile {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id])
+  bio           String?
+  avatarUrl     String?
+  curriculumUrl String?
+  interests     String[]
+  grade         Int?
+  school        String?
+  parentEmail   String?
+  parentPhone   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================
+// COURSE & PATHWAY MODELS
+// ============================================
+
 model Course {
-  id              String        @id @default(cuid())
-  title           String
-  description     String
-  format          CourseFormat
-  level           CourseLevel?
-  interestArea    String
-  isVirtual       Boolean       @default(false)
-  chapterId       String?
-  chapter         Chapter?      @relation(fields: [chapterId], references: [id])
+  id               String        @id @default(cuid())
+  title            String
+  description      String
+  format           CourseFormat
+  level            CourseLevel?
+  interestArea     String
+  isVirtual        Boolean       @default(false)
+  chapterId        String?
+  chapter          Chapter?      @relation(fields: [chapterId], references: [id])
   leadInstructorId String?
-  leadInstructor  User?         @relation("InstructorCourses", fields: [leadInstructorId], references: [id])
-  enrollments     Enrollment[]
-  pathwaySteps    PathwayStep[]
-  feedback        Feedback[]
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  leadInstructor   User?         @relation("InstructorCourses", fields: [leadInstructorId], references: [id])
+  enrollments      Enrollment[]
+  pathwaySteps     PathwayStep[]
+  feedback         Feedback[]
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 }
 
 model Pathway {
@@ -169,30 +284,34 @@ model Enrollment {
   updatedAt DateTime @updatedAt
 }
 
+// ============================================
+// TRAINING MODELS
+// ============================================
+
 model TrainingModule {
-  id          String              @id @default(cuid())
-  title       String
-  description String
-  materialUrl String?
+  id            String              @id @default(cuid())
+  title         String
+  description   String
+  materialUrl   String?
   materialNotes String?
-  type        TrainingModuleType
-  required    Boolean             @default(true)
-  sortOrder   Int
-  assignments TrainingAssignment[]
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  type          TrainingModuleType
+  required      Boolean             @default(true)
+  sortOrder     Int
+  assignments   TrainingAssignment[]
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
 }
 
 model TrainingAssignment {
-  id         String         @id @default(cuid())
-  userId     String
-  moduleId   String
-  status     TrainingStatus @default(NOT_STARTED)
+  id          String         @id @default(cuid())
+  userId      String
+  moduleId    String
+  status      TrainingStatus @default(NOT_STARTED)
   completedAt DateTime?
-  user       User           @relation(fields: [userId], references: [id])
-  module     TrainingModule @relation(fields: [moduleId], references: [id])
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
+  user        User           @relation(fields: [userId], references: [id])
+  module      TrainingModule @relation(fields: [moduleId], references: [id])
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 }
 
 model InstructorApproval {
@@ -207,12 +326,16 @@ model InstructorApproval {
 }
 
 model InstructorApprovalLevel {
-  id            String      @id @default(cuid())
-  approvalId    String
-  level         CourseLevel
-  approvedAt    DateTime    @default(now())
-  approval      InstructorApproval @relation(fields: [approvalId], references: [id])
+  id         String             @id @default(cuid())
+  approvalId String
+  level      CourseLevel
+  approvedAt DateTime           @default(now())
+  approval   InstructorApproval @relation(fields: [approvalId], references: [id])
 }
+
+// ============================================
+// MENTORSHIP MODELS
+// ============================================
 
 model Mentorship {
   id        String           @id @default(cuid())
@@ -237,6 +360,10 @@ model MentorshipCheckIn {
   mentorship   Mentorship @relation(fields: [mentorshipId], references: [id])
 }
 
+// ============================================
+// EVENT & FEEDBACK MODELS
+// ============================================
+
 model Event {
   id          String    @id @default(cuid())
   title       String
@@ -246,6 +373,7 @@ model Event {
   endDate     DateTime
   chapterId   String?
   chapter     Chapter?  @relation(fields: [chapterId], references: [id])
+  isAlumniOnly Boolean  @default(false)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
@@ -267,10 +395,315 @@ model Feedback {
 }
 
 model Award {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   name        String
   description String
+  type        AwardType?
   recipientId String
-  awardedAt   DateTime @default(now())
-  recipient   User     @relation(fields: [recipientId], references: [id])
+  awardedAt   DateTime  @default(now())
+  recipient   User      @relation(fields: [recipientId], references: [id])
+}
+
+// ============================================
+// APPLICATION & RECRUITMENT MODELS
+// ============================================
+
+model Position {
+  id           String       @id @default(cuid())
+  title        String
+  type         PositionType
+  description  String?
+  requirements String?
+  chapterId    String?
+  chapter      Chapter?     @relation(fields: [chapterId], references: [id])
+  isOpen       Boolean      @default(true)
+  applications Application[]
+  createdAt    DateTime     @default(now())
+  closedAt     DateTime?
+  updatedAt    DateTime     @updatedAt
+}
+
+model Application {
+  id                  String            @id @default(cuid())
+  positionId          String
+  position            Position          @relation(fields: [positionId], references: [id])
+  applicantId         String
+  applicant           User              @relation(fields: [applicantId], references: [id])
+  status              ApplicationStatus @default(SUBMITTED)
+  resumeUrl           String?
+  coverLetter         String?
+  additionalMaterials String?
+  interviewSlots      InterviewSlot[]
+  interviewNotes      InterviewNote[]
+  decision            Decision?
+  submittedAt         DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+}
+
+model InterviewSlot {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id])
+  scheduledAt   DateTime
+  duration      Int         @default(30)
+  meetingLink   String?
+  isConfirmed   Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+}
+
+model InterviewNote {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id])
+  authorId      String
+  author        User        @relation("InterviewNotesAuthored", fields: [authorId], references: [id])
+  content       String
+  rating        Int?
+  createdAt     DateTime    @default(now())
+}
+
+model Decision {
+  id            String      @id @default(cuid())
+  applicationId String      @unique
+  application   Application @relation(fields: [applicationId], references: [id])
+  decidedById   String
+  decidedBy     User        @relation("DecisionsMade", fields: [decidedById], references: [id])
+  accepted      Boolean
+  notes         String?
+  decidedAt     DateTime    @default(now())
+}
+
+// ============================================
+// ANNOUNCEMENTS MODEL
+// ============================================
+
+model Announcement {
+  id          String     @id @default(cuid())
+  title       String
+  content     String
+  authorId    String
+  author      User       @relation(fields: [authorId], references: [id])
+  targetRoles RoleType[]
+  chapterId   String?
+  chapter     Chapter?   @relation(fields: [chapterId], references: [id])
+  publishedAt DateTime   @default(now())
+  expiresAt   DateTime?
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+// ============================================
+// GOALS & PROGRESS MODELS (Phase 5)
+// ============================================
+
+model GoalTemplate {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  roleType    RoleType
+  chapterId   String?
+  chapter     Chapter?  @relation(fields: [chapterId], references: [id])
+  isActive    Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  goals       Goal[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Goal {
+  id           String           @id @default(cuid())
+  templateId   String
+  template     GoalTemplate     @relation(fields: [templateId], references: [id])
+  userId       String
+  user         User             @relation(fields: [userId], references: [id])
+  targetDate   DateTime?
+  timetable    String?
+  progress     ProgressUpdate[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+model ProgressUpdate {
+  id            String         @id @default(cuid())
+  goalId        String
+  goal          Goal           @relation(fields: [goalId], references: [id])
+  submittedById String
+  submittedBy   User           @relation("ProgressUpdatesSubmitted", fields: [submittedById], references: [id])
+  forUserId     String
+  forUser       User           @relation("ProgressUpdatesReceived", fields: [forUserId], references: [id])
+  status        ProgressStatus
+  comments      String?
+  createdAt     DateTime       @default(now())
+}
+
+// ============================================
+// REFLECTION FORM MODELS
+// ============================================
+
+model ReflectionForm {
+  id          String               @id @default(cuid())
+  title       String
+  description String?
+  roleType    RoleType
+  questions   ReflectionQuestion[]
+  submissions ReflectionSubmission[]
+  isActive    Boolean              @default(true)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+}
+
+model ReflectionQuestion {
+  id        String       @id @default(cuid())
+  formId    String
+  form      ReflectionForm @relation(fields: [formId], references: [id])
+  question  String
+  type      QuestionType
+  options   String[]
+  required  Boolean      @default(true)
+  sortOrder Int
+  responses ReflectionResponse[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model ReflectionSubmission {
+  id          String               @id @default(cuid())
+  userId      String
+  user        User                 @relation(fields: [userId], references: [id])
+  formId      String
+  form        ReflectionForm       @relation(fields: [formId], references: [id])
+  month       DateTime
+  responses   ReflectionResponse[]
+  submittedAt DateTime             @default(now())
+}
+
+model ReflectionResponse {
+  id           String               @id @default(cuid())
+  submissionId String
+  submission   ReflectionSubmission @relation(fields: [submissionId], references: [id])
+  questionId   String
+  question     ReflectionQuestion   @relation(fields: [questionId], references: [id])
+  value        String
+  createdAt    DateTime             @default(now())
+}
+
+// ============================================
+// SPECIAL PROGRAMMING MODELS
+// ============================================
+
+model SpecialProgram {
+  id           String        @id @default(cuid())
+  name         String
+  description  String?
+  interestArea String
+  type         ProgramType
+  isVirtual    Boolean       @default(true)
+  isActive     Boolean       @default(true)
+  leaderId     String?
+  leader       User?         @relation("ProgramsLed", fields: [leaderId], references: [id])
+  participants SpecialProgramEnrollment[]
+  sessions     ProgramSession[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model ProgramSession {
+  id          String         @id @default(cuid())
+  programId   String
+  program     SpecialProgram @relation(fields: [programId], references: [id])
+  title       String
+  description String?
+  scheduledAt DateTime
+  duration    Int
+  meetingLink String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model SpecialProgramEnrollment {
+  id         String         @id @default(cuid())
+  programId  String
+  program    SpecialProgram @relation(fields: [programId], references: [id])
+  userId     String
+  user       User           @relation(fields: [userId], references: [id])
+  enrolledAt DateTime       @default(now())
+
+  @@unique([programId, userId])
+}
+
+// ============================================
+// ALUMNI & COLLEGE ADVISOR MODELS
+// ============================================
+
+model AlumniProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id])
+  graduationYear Int?
+  college        String?
+  major          String?
+  currentRole    String?
+  bio            String?
+  isVisible      Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model CollegeAdvisor {
+  id           String             @id @default(cuid())
+  userId       String             @unique
+  user         User               @relation(fields: [userId], references: [id])
+  college      String
+  major        String?
+  availability String?
+  bio          String?
+  isActive     Boolean            @default(true)
+  advisees     CollegeAdvisorship[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+}
+
+model CollegeAdvisorship {
+  id        String         @id @default(cuid())
+  advisorId String
+  advisor   CollegeAdvisor @relation(fields: [advisorId], references: [id])
+  adviseeId String
+  advisee   User           @relation("CollegeAdviseeships", fields: [adviseeId], references: [id])
+  startDate DateTime       @default(now())
+  endDate   DateTime?
+  notes     String?
+
+  @@unique([advisorId, adviseeId])
+}
+
+// ============================================
+// MARKETING MODELS (for Chapter Presidents)
+// ============================================
+
+model MarketingStats {
+  id           String   @id @default(cuid())
+  chapterId    String
+  chapter      Chapter  @relation(fields: [chapterId], references: [id])
+  month        DateTime
+  socialReach  Int?
+  newInquiries Int?
+  enrollments  Int?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([chapterId, month])
+}
+
+model MarketingGoal {
+  id        String    @id @default(cuid())
+  chapterId String
+  chapter   Chapter   @relation(fields: [chapterId], references: [id])
+  metric    String
+  target    Int
+  deadline  DateTime?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
