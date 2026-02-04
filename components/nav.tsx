@@ -7,6 +7,7 @@ const baseItems = [
   { href: "/", label: "Overview" },
   { href: "/pathways", label: "Pathways" },
   { href: "/curriculum", label: "Courses" },
+  { href: "/programs", label: "Programs" },
   { href: "/goals", label: "My Goals" },
   { href: "/instructor-training", label: "Instructor Training" },
   { href: "/mentorship", label: "Mentorship" },
@@ -14,6 +15,11 @@ const baseItems = [
   { href: "/chapters", label: "Chapters" },
   { href: "/certificates", label: "My Certificates" },
   { href: "/profile", label: "My Profile" }
+];
+
+const studentItems = [
+  { href: "/my-courses", label: "My Courses" },
+  { href: "/my-mentor", label: "My Mentor" }
 ];
 
 const reflectionItems = [
@@ -37,22 +43,33 @@ const parentItems = [
   { href: "/parent", label: "Parent Portal" }
 ];
 
+const alumniItems = [
+  { href: "/alumni", label: "Alumni" },
+  { href: "/college-advisor", label: "College Advisor" }
+];
+
 const adminItems = [
   { href: "/admin", label: "Admin Dashboard" },
   { href: "/admin/goals", label: "Manage Goals" },
   { href: "/admin/reflections", label: "View Reflections" },
   { href: "/admin/reflection-forms", label: "Manage Forms" },
+  { href: "/admin/programs", label: "Manage Programs" },
+  { href: "/admin/alumni", label: "Manage Alumni" },
   { href: "/admin/analytics", label: "Analytics" }
 ];
 
-export default function Nav({ roles = [] }: { roles?: string[] }) {
+export default function Nav({ roles = [], awardTier }: { roles?: string[]; awardTier?: string }) {
   const pathname = usePathname();
   const isAdmin = roles.includes("ADMIN");
   const isMentor = roles.includes("MENTOR") || roles.includes("CHAPTER_LEAD");
   const isChapterLead = roles.includes("CHAPTER_LEAD");
   const isParent = roles.includes("PARENT");
   const isInstructor = roles.includes("INSTRUCTOR");
+  const isStudent = roles.includes("STUDENT");
   const isApplicant = roles.includes("STUDENT") || roles.includes("INSTRUCTOR") || roles.includes("STAFF");
+
+  // Check if user has any award tier (Bronze, Silver, or Gold)
+  const hasAward = awardTier && ["BRONZE", "SILVER", "GOLD"].includes(awardTier);
 
   let items = [...baseItems];
 
@@ -78,6 +95,18 @@ export default function Nav({ roles = [] }: { roles?: string[] }) {
   if (isChapterLead) {
     const chaptersIndex = items.findIndex(i => i.href === "/chapters");
     items.splice(chaptersIndex + 1, 0, ...chapterLeadItems);
+  }
+
+  // Add student-specific items
+  if (isStudent) {
+    const coursesIndex = items.findIndex(i => i.href === "/curriculum");
+    items.splice(coursesIndex + 1, 0, ...studentItems);
+  }
+
+  // Add alumni items for users with awards
+  if (hasAward || isAdmin) {
+    const profileIndex = items.findIndex(i => i.href === "/profile");
+    items.splice(profileIndex, 0, ...alumniItems);
   }
 
   if (isParent) {

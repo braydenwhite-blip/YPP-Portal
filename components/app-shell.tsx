@@ -5,12 +5,14 @@ export default function AppShell({
   children,
   userName,
   roles,
-  primaryRole
+  primaryRole,
+  awardTier
 }: {
   children: React.ReactNode;
   userName?: string | null;
   roles?: string[];
   primaryRole?: string | null;
+  awardTier?: string;
 }) {
   return (
     <div className="app-shell">
@@ -18,7 +20,7 @@ export default function AppShell({
         <div className="brand">
           YPP <span>Pathways</span>
         </div>
-        <Nav roles={roles} />
+        <Nav roles={roles} awardTier={awardTier} />
         <div className="sidebar-card">
           <h4>Signed In</h4>
           <p>{userName ?? "Portal User"}</p>
