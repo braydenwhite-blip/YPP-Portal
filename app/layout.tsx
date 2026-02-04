@@ -1,21 +1,14 @@
 import "./globals.css";
-import { Space_Grotesk, Work_Sans } from "next/font/google";
+import { Metadata } from "next";
 
-const displayFont = Space_Grotesk({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-display"
-});
-
-const bodyFont = Work_Sans({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-body"
-});
-
-export const metadata = {
-  title: "YPP Pathways Portal",
-  description: "Portal for YPP Pathways curriculum, training, and mentorship."
+export const metadata: Metadata = {
+  title: "Youth Passion Project - Pathways Portal",
+  description: "Portal for Youth Passion Project curriculum, training, mentorship, and chapter management.",
+  icons: {
+    icon: "/favicon.svg",
+    apple: "/logo-icon.svg"
+  },
+  themeColor: "#7c3aed"
 };
 
 export default function RootLayout({
@@ -24,7 +17,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${displayFont.variable} ${bodyFont.variable}`}>
+    <html lang="en">
       <body>{children}</body>
     </html>
   );
