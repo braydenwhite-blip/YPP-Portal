@@ -24,6 +24,7 @@ enum RoleType {
   MENTOR
   CHAPTER_LEAD
   STAFF
+  PARENT
 }
 
 enum CourseFormat {
@@ -201,6 +202,14 @@ model User {
   collegeAdviseeships    CollegeAdvisorship[] @relation("CollegeAdviseeships")
   profile                UserProfile?
 
+  // Video, Calendar, Parent, Certificate, Analytics relations
+  videoProgress      VideoProgress[]
+  eventRsvps         EventRsvp[]
+  parentLinks        ParentStudent[] @relation("ParentLinks")
+  studentLinks       ParentStudent[] @relation("StudentLinks")
+  certificates       Certificate[]
+  analyticsEvents    AnalyticsEvent[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -249,6 +258,7 @@ model Course {
   enrollments      Enrollment[]
   pathwaySteps     PathwayStep[]
   feedback         Feedback[]
+  certificates     Certificate[]
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 }
@@ -260,6 +270,7 @@ model Pathway {
   interestArea String
   isActive     Boolean       @default(true)
   steps        PathwayStep[]
+  certificates Certificate[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 }
@@ -297,9 +308,24 @@ model TrainingModule {
   type          TrainingModuleType
   required      Boolean             @default(true)
   sortOrder     Int
-  assignments   TrainingAssignment[]
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+
+  // Video Integration
+  videoUrl       String?
+  videoProvider  VideoProvider?
+  videoDuration  Int?              // Duration in seconds
+  videoThumbnail String?
+
+  assignments    TrainingAssignment[]
+  videoProgress  VideoProgress[]
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+}
+
+enum VideoProvider {
+  YOUTUBE
+  VIMEO
+  LOOM
+  CUSTOM
 }
 
 model TrainingAssignment {
@@ -312,6 +338,22 @@ model TrainingAssignment {
   module      TrainingModule @relation(fields: [moduleId], references: [id])
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
+}
+
+model VideoProgress {
+  id              String         @id @default(cuid())
+  userId          String
+  moduleId        String
+  user            User           @relation(fields: [userId], references: [id])
+  module          TrainingModule @relation(fields: [moduleId], references: [id])
+  watchedSeconds  Int            @default(0)
+  completed       Boolean        @default(false)
+  lastPosition    Int            @default(0)  // Last watched position in seconds
+  completedAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([userId, moduleId])
 }
 
 model InstructorApproval {
@@ -365,17 +407,44 @@ model MentorshipCheckIn {
 // ============================================
 
 model Event {
-  id          String    @id @default(cuid())
-  title       String
-  description String
-  eventType   EventType
-  startDate   DateTime
-  endDate     DateTime
-  chapterId   String?
-  chapter     Chapter?  @relation(fields: [chapterId], references: [id])
-  isAlumniOnly Boolean  @default(false)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id           String    @id @default(cuid())
+  title        String
+  description  String
+  eventType    EventType
+  startDate    DateTime
+  endDate      DateTime
+  chapterId    String?
+  chapter      Chapter?  @relation(fields: [chapterId], references: [id])
+  isAlumniOnly Boolean   @default(false)
+
+  // Calendar Integration
+  location     String?
+  meetingUrl   String?
+  calendarUid  String?   @unique @default(cuid())  // For iCal UID
+
+  // RSVP tracking
+  rsvps        EventRsvp[]
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model EventRsvp {
+  id        String      @id @default(cuid())
+  eventId   String
+  event     Event       @relation(fields: [eventId], references: [id])
+  userId    String
+  user      User        @relation(fields: [userId], references: [id])
+  status    RsvpStatus  @default(GOING)
+  createdAt DateTime    @default(now())
+
+  @@unique([eventId, userId])
+}
+
+enum RsvpStatus {
+  GOING
+  MAYBE
+  NOT_GOING
 }
 
 model Feedback {
@@ -706,4 +775,96 @@ model MarketingGoal {
   isActive  Boolean   @default(true)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+}
+
+// ============================================
+// PARENT PORTAL MODELS
+// ============================================
+
+model ParentStudent {
+  id         String   @id @default(cuid())
+  parentId   String
+  parent     User     @relation("ParentLinks", fields: [parentId], references: [id])
+  studentId  String
+  student    User     @relation("StudentLinks", fields: [studentId], references: [id])
+  relationship String @default("Parent")  // Parent, Guardian, etc.
+  isPrimary  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@unique([parentId, studentId])
+}
+
+// ============================================
+// CERTIFICATE MODELS
+// ============================================
+
+model CertificateTemplate {
+  id           String        @id @default(cuid())
+  name         String
+  description  String?
+  type         CertificateType
+  templateHtml String?       // HTML template for rendering
+  isActive     Boolean       @default(true)
+  certificates Certificate[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Certificate {
+  id            String              @id @default(cuid())
+  templateId    String
+  template      CertificateTemplate @relation(fields: [templateId], references: [id])
+  recipientId   String
+  recipient     User                @relation(fields: [recipientId], references: [id])
+  courseId      String?
+  course        Course?             @relation(fields: [courseId], references: [id])
+  pathwayId     String?
+  pathway       Pathway?            @relation(fields: [pathwayId], references: [id])
+  title         String
+  description   String?
+  issuedAt      DateTime            @default(now())
+  certificateNumber String          @unique @default(cuid())
+  pdfUrl        String?
+
+  @@index([recipientId])
+}
+
+enum CertificateType {
+  COURSE_COMPLETION
+  PATHWAY_COMPLETION
+  TRAINING_COMPLETION
+  ACHIEVEMENT
+  INSTRUCTOR_CERTIFICATION
+}
+
+// ============================================
+// ANALYTICS MODELS
+// ============================================
+
+model AnalyticsEvent {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  eventType  String   // page_view, course_start, video_watch, etc.
+  eventData  Json?
+  sessionId  String?
+  userAgent  String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([eventType])
+  @@index([createdAt])
+}
+
+model DailyStats {
+  id              String   @id @default(cuid())
+  date            DateTime @unique
+  totalUsers      Int      @default(0)
+  activeUsers     Int      @default(0)
+  newEnrollments  Int      @default(0)
+  courseCompletions Int    @default(0)
+  videoWatchMinutes Int    @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
