@@ -135,12 +135,22 @@ export async function createTrainingModule(formData: FormData) {
   await requireAdmin();
   const title = getString(formData, "title");
   const description = getString(formData, "description");
+  const materialUrl = getString(formData, "materialUrl", false);
+  const materialNotes = getString(formData, "materialNotes", false);
   const type = getString(formData, "type") as TrainingModuleType;
   const required = formData.get("required") === "on";
   const sortOrder = Number(getString(formData, "sortOrder"));
 
   await prisma.trainingModule.create({
-    data: { title, description, type, required, sortOrder }
+    data: {
+      title,
+      description,
+      materialUrl: materialUrl || null,
+      materialNotes: materialNotes || null,
+      type,
+      required,
+      sortOrder
+    }
   });
 
   revalidatePath("/admin");

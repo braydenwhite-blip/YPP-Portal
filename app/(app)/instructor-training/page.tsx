@@ -36,6 +36,18 @@ export default async function InstructorTrainingPage() {
               <div key={module.id} className="timeline-item">
                 <strong>{module.title}</strong>
                 <div style={{ color: "var(--muted)", fontSize: 13 }}>{module.description}</div>
+                {module.materialUrl ? (
+                  <div style={{ marginTop: 8 }}>
+                    <a className="link" href={module.materialUrl} target="_blank" rel="noreferrer">
+                      Open training material
+                    </a>
+                  </div>
+                ) : null}
+                {module.materialNotes ? (
+                  <div style={{ color: "var(--muted)", fontSize: 12, marginTop: 6 }}>
+                    {module.materialNotes}
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>

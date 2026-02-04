@@ -5,14 +5,15 @@ import { getToken } from "next-auth/jwt";
 export async function middleware(request: NextRequest) {
   const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
   const isLogin = request.nextUrl.pathname.startsWith("/login");
+  const isSignup = request.nextUrl.pathname.startsWith("/signup");
 
-  if (!token && !isLogin) {
+  if (!token && !isLogin && !isSignup) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     return NextResponse.redirect(loginUrl);
   }
 
-  if (token && isLogin) {
+  if (token && (isLogin || isSignup)) {
     const appUrl = request.nextUrl.clone();
     appUrl.pathname = "/";
     return NextResponse.redirect(appUrl);

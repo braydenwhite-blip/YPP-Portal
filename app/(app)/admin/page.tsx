@@ -271,6 +271,14 @@ export default async function AdminPage() {
               <textarea className="input" name="description" rows={3} required />
             </label>
             <label className="form-row">
+              Material Link (optional)
+              <input className="input" name="materialUrl" type="url" placeholder="https://..." />
+            </label>
+            <label className="form-row">
+              Material Notes (optional)
+              <textarea className="input" name="materialNotes" rows={2} />
+            </label>
+            <label className="form-row">
               Type
               <select className="input" name="type" defaultValue={TrainingModuleType.WORKSHOP}>
                 {Object.values(TrainingModuleType).map((type) => (
@@ -461,6 +469,7 @@ export default async function AdminPage() {
                   <th>Module</th>
                   <th>Type</th>
                   <th>Required</th>
+                  <th>Material</th>
                 </tr>
               </thead>
               <tbody>
@@ -469,6 +478,15 @@ export default async function AdminPage() {
                     <td>{module.title}</td>
                     <td>{module.type.replace("_", " ")}</td>
                     <td>{module.required ? "Yes" : "No"}</td>
+                    <td>
+                      {module.materialUrl ? (
+                        <a className="link" href={module.materialUrl} target="_blank" rel="noreferrer">
+                          Open
+                        </a>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

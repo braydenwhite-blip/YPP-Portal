@@ -173,6 +173,8 @@ model TrainingModule {
   id          String              @id @default(cuid())
   title       String
   description String
+  materialUrl String?
+  materialNotes String?
   type        TrainingModuleType
   required    Boolean             @default(true)
   sortOrder   Int

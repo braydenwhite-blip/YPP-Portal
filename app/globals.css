@@ -39,6 +39,12 @@ a {
   text-decoration: none;
 }
 
+.link {
+  color: var(--accent-3);
+  text-decoration: underline;
+  font-weight: 600;
+}
+
 main {
   padding: 32px;
 }

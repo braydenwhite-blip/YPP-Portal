@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { signIn } from "next-auth/react";
 
 export default function LoginPage() {
@@ -102,6 +103,9 @@ export default function LoginPage() {
           <div className="login-help">
             Need a demo login? Use the credentials listed in the README.
           </div>
+          <Link className="button secondary" style={{ display: "block", textAlign: "center", marginTop: 12 }} href="/signup">
+            Sign Up
+          </Link>
         </div>
       </div>
     </div>
