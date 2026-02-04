@@ -133,7 +133,7 @@ export default async function MenteesPage() {
                   : 3;
               });
             const avgStatus = statuses.length > 0
-              ? statuses.reduce((a, b) => a + b, 0) / statuses.length
+              ? (statuses as number[]).reduce((a, b) => a + b, 0) / statuses.length
               : null;
             const overallLabel =
               avgStatus === null

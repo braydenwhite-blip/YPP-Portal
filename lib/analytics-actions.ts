@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { getServerSession } from "next-auth";
+import { Prisma } from "@prisma/client";
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
@@ -19,7 +20,7 @@ async function requireAdmin() {
 
 export async function trackEvent(
   eventType: string,
-  eventData?: Record<string, unknown>
+  eventData?: Prisma.InputJsonValue
 ) {
   const session = await getServerSession(authOptions);
 
@@ -27,7 +28,7 @@ export async function trackEvent(
     data: {
       userId: session?.user?.id || null,
       eventType,
-      eventData: eventData || null
+      eventData: eventData
     }
   });
 }
@@ -295,6 +296,7 @@ export async function getUserEngagementStats(userId: string) {
       certificates: true,
       goals: {
         include: {
+          template: true,
           progress: {
             orderBy: { createdAt: "desc" },
             take: 1

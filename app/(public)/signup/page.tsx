@@ -2,10 +2,11 @@
 
 import { useFormState } from "react-dom";
 import Link from "next/link";
+import Image from "next/image";
 import { signUp } from "@/lib/signup-actions";
 import { useEffect, useState } from "react";
 
-const initialState = { status: "idle", message: "" };
+const initialState = { status: "idle" as const, message: "" };
 
 export default function SignupPage() {
   const [state, formAction] = useFormState(signUp, initialState);
@@ -24,12 +25,22 @@ export default function SignupPage() {
   return (
     <div className="login-shell">
       <div className="login-card">
-        <h1 className="page-title" style={{ marginBottom: 8 }}>
-          Create your account
-        </h1>
-        <p style={{ color: "var(--muted)", marginBottom: 24 }}>
-          This creates a student account. Admin approval is required to enroll in courses.
-        </p>
+        <div className="login-card-header">
+          <Image
+            src="/logo-icon.svg"
+            alt="YPP"
+            width={48}
+            height={48}
+          />
+          <div>
+            <h1 className="page-title" style={{ marginBottom: 4, fontSize: 22 }}>
+              Join Youth Passion Project
+            </h1>
+            <p style={{ color: "var(--muted)", margin: 0, fontSize: 14 }}>
+              Create your account to get started
+            </p>
+          </div>
+        </div>
         <form action={formAction}>
           <label style={{ fontSize: 13, fontWeight: 600 }}>
             Full Name

@@ -60,64 +60,6 @@ export default async function ReflectionHistoryPage() {
         </div>
       )}
 
-      <style jsx>{`
-        .page-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 2rem;
-        }
-        .reflections-list {
-          display: flex;
-          flex-direction: column;
-          gap: 1.5rem;
-        }
-        .reflection-card {
-          padding: 1.5rem;
-        }
-        .reflection-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 0.5rem;
-        }
-        .reflection-header h3 {
-          margin: 0;
-        }
-        .month-badge {
-          background: var(--primary);
-          color: white;
-          padding: 0.25rem 0.75rem;
-          border-radius: 1rem;
-          font-size: 0.875rem;
-        }
-        .submitted-date {
-          color: var(--muted);
-          font-size: 0.875rem;
-          margin-bottom: 1rem;
-        }
-        .responses {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-          border-top: 1px solid var(--border);
-          padding-top: 1rem;
-        }
-        .response-item {
-          padding: 0.75rem;
-          background: var(--background);
-          border-radius: 0.5rem;
-        }
-        .question {
-          font-weight: 600;
-          margin-bottom: 0.5rem;
-          font-size: 0.875rem;
-        }
-        .answer {
-          margin: 0;
-          white-space: pre-wrap;
-        }
-      `}</style>
     </main>
   );
 }

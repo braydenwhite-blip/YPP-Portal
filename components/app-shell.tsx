@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Nav from "@/components/nav";
 import LogoutButton from "@/components/logout-button";
 
@@ -16,7 +17,16 @@ export default function AppShell({
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          YPP <span>Pathways</span>
+          <Image
+            src="/logo-icon.svg"
+            alt="YPP Logo"
+            width={40}
+            height={40}
+            className="brand-logo"
+          />
+          <span className="brand-text">
+            Youth Passion <span>Project</span>
+          </span>
         </div>
         <Nav roles={roles} />
         <div className="sidebar-card">

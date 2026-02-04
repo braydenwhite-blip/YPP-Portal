@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { signIn } from "next-auth/react";
 
 export default function LoginPage() {
@@ -29,7 +30,16 @@ export default function LoginPage() {
     <div className="login-shell">
       <div className="login-grid">
         <section className="login-hero">
-          <p className="badge">YPP Pathways</p>
+          <div className="login-logo">
+            <Image
+              src="/logo-icon.svg"
+              alt="Youth Passion Project"
+              width={60}
+              height={60}
+            />
+            <span className="login-logo-text">Youth Passion Project</span>
+          </div>
+          <p className="badge">Pathways Portal</p>
           <h1 className="page-title" style={{ margin: "10px 0 12px" }}>
             Build a full learning journey, not just a class.
           </h1>
@@ -68,12 +78,22 @@ export default function LoginPage() {
         </section>
 
         <div className="login-card">
-          <h2 className="page-title" style={{ marginBottom: 8 }}>
-            YPP Pathways Portal
-          </h2>
-          <p style={{ color: "var(--muted)", marginBottom: 24 }}>
-            Sign in to manage Pathways, mentorship, and instructor training.
-          </p>
+          <div className="login-card-header">
+            <Image
+              src="/logo-icon.svg"
+              alt="YPP"
+              width={48}
+              height={48}
+            />
+            <div>
+              <h2 className="page-title" style={{ marginBottom: 4, fontSize: 22 }}>
+                Welcome Back
+              </h2>
+              <p style={{ color: "var(--muted)", margin: 0, fontSize: 14 }}>
+                Sign in to your Pathways Portal
+              </p>
+            </div>
+          </div>
           <form onSubmit={handleSubmit}>
             <label style={{ fontSize: 13, fontWeight: 600 }}>
               Email

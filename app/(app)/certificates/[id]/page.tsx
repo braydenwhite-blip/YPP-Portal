@@ -116,27 +116,6 @@ export default async function CertificateDetailPage({ params }: { params: Promis
         </div>
       </div>
 
-      <style jsx global>{`
-        @media print {
-          .topbar, .sidebar, nav, .button {
-            display: none !important;
-          }
-          .card {
-            border: none !important;
-            box-shadow: none !important;
-          }
-          .grid {
-            display: block !important;
-          }
-          .grid > *:first-child {
-            display: none !important;
-          }
-          .grid > *:last-child div {
-            transform: none !important;
-            width: 100% !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }
