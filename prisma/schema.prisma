@@ -212,6 +212,15 @@ model User {
   analyticsEvents    AnalyticsEvent[]
   chapterUpdates     ChapterUpdate[] @relation("ChapterUpdatesAuthored")
 
+  // Phase 15-20 relations
+  notifications              Notification[]
+  notificationPreference     NotificationPreference?
+  conversationParticipations ConversationParticipant[]
+  messagesSent               Message[]           @relation("MessagesSent")
+  attendanceRecords          AttendanceRecord[]
+  attendanceSessionsCreated  AttendanceSession[] @relation("AttendanceSessionsCreated")
+  resourcesUploaded          Resource[]          @relation("ResourcesUploaded")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -261,6 +270,8 @@ model Course {
   pathwaySteps     PathwayStep[]
   feedback         Feedback[]
   certificates     Certificate[]
+  attendanceSessions AttendanceSession[]
+  resources        Resource[]
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 }
@@ -426,6 +437,7 @@ model Event {
 
   // RSVP tracking
   rsvps        EventRsvp[]
+  attendanceSessions AttendanceSession[]
 
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -888,4 +900,157 @@ model DailyStats {
   videoWatchMinutes Int    @default(0)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+// ============================================
+// NOTIFICATION MODELS (Phase 15)
+// ============================================
+
+enum NotificationType {
+  ANNOUNCEMENT
+  MENTOR_FEEDBACK
+  GOAL_DEADLINE
+  COURSE_UPDATE
+  REFLECTION_REMINDER
+  ATTENDANCE
+  MESSAGE
+  SYSTEM
+}
+
+model Notification {
+  id         String           @id @default(cuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id])
+  type       NotificationType
+  title      String
+  body       String
+  link       String?
+  isRead     Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+}
+
+model NotificationPreference {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id])
+  emailEnabled   Boolean  @default(true)
+  inAppEnabled   Boolean  @default(true)
+  announcements  Boolean  @default(true)
+  mentorUpdates  Boolean  @default(true)
+  goalReminders  Boolean  @default(true)
+  courseUpdates   Boolean  @default(true)
+  reflectionReminders Boolean @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// ============================================
+// MESSAGING MODELS (Phase 17)
+// ============================================
+
+model Conversation {
+  id          String    @id @default(cuid())
+  subject     String?
+  isGroup     Boolean   @default(false)
+  participants ConversationParticipant[]
+  messages    Message[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  lastReadAt     DateTime     @default(now())
+  createdAt      DateTime     @default(now())
+
+  @@unique([conversationId, userId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  senderId       String
+  sender         User         @relation("MessagesSent", fields: [senderId], references: [id])
+  content        String
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+// ============================================
+// ATTENDANCE MODELS (Phase 18)
+// ============================================
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+model AttendanceSession {
+  id        String   @id @default(cuid())
+  courseId   String?
+  course     Course?  @relation(fields: [courseId], references: [id])
+  eventId    String?
+  event      Event?   @relation(fields: [eventId], references: [id])
+  title      String
+  date       DateTime
+  createdById String
+  createdBy  User     @relation("AttendanceSessionsCreated", fields: [createdById], references: [id])
+  records    AttendanceRecord[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model AttendanceRecord {
+  id        String           @id @default(cuid())
+  sessionId String
+  session   AttendanceSession @relation(fields: [sessionId], references: [id])
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  status    AttendanceStatus @default(PRESENT)
+  notes     String?
+  checkedInAt DateTime       @default(now())
+
+  @@unique([sessionId, userId])
+}
+
+// ============================================
+// RESOURCE MODELS (Phase 19)
+// ============================================
+
+enum ResourceType {
+  DOCUMENT
+  SLIDE
+  VIDEO_LINK
+  WORKSHEET
+  TEMPLATE
+  OTHER
+}
+
+model Resource {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  type        ResourceType
+  url         String
+  fileSize    Int?
+  courseId     String?
+  course      Course?      @relation(fields: [courseId], references: [id])
+  uploadedById String
+  uploadedBy  User         @relation("ResourcesUploaded", fields: [uploadedById], references: [id])
+  isPublic    Boolean      @default(false)
+  tags        String[]
+  downloads   Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 }
