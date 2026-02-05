@@ -1,9 +1,13 @@
-import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { submitParentFeedback } from "@/lib/parent-actions";
+import {
+  getLinkedStudents,
+  getStudentProgress,
+  linkStudent,
+  unlinkStudent,
+} from "@/lib/parent-actions";
 
 export default async function ParentPortalPage() {
   const session = await getServerSession(authOptions);
@@ -17,267 +21,257 @@ export default async function ParentPortalPage() {
     redirect("/");
   }
 
-  const parentLinks = await prisma.parentStudent.findMany({
-    where: { parentId: session.user.id },
-    include: {
-      student: {
-        include: {
-          enrollments: {
-            where: { status: "ENROLLED" },
-            include: {
-              course: {
-                include: {
-                  leadInstructor: { select: { name: true, email: true } },
-                  chapter: { select: { name: true } }
-                }
-              }
-            }
-          },
-          chapter: true,
-          profile: true,
-          goals: {
-            include: {
-              template: true,
-              progress: {
-                orderBy: { createdAt: "desc" },
-                take: 1
-              }
-            }
-          },
-          certificates: {
-            include: { template: true },
-            orderBy: { issuedAt: "desc" },
-            take: 3
-          }
-        }
+  // Fetch all linked students
+  const linkedStudents = await getLinkedStudents();
+
+  // Fetch progress data for each linked student in parallel
+  const progressData = await Promise.all(
+    linkedStudents.map(async (student) => {
+      try {
+        const progress = await getStudentProgress(student.studentId);
+        return { studentId: student.studentId, progress };
+      } catch {
+        return { studentId: student.studentId, progress: null };
       }
-    }
-  });
+    })
+  );
 
-  const chapterIds = parentLinks
-    .map(p => p.student.chapterId)
-    .filter(Boolean) as string[];
-
-  const upcomingEvents = await prisma.event.findMany({
-    where: {
-      startDate: { gte: new Date() },
-      OR: [
-        { chapterId: null },
-        { chapterId: { in: chapterIds } }
-      ],
-      isAlumniOnly: false
-    },
-    include: { chapter: true },
-    orderBy: { startDate: "asc" },
-    take: 5
-  });
-
-  if (parentLinks.length === 0) {
-    return (
-      <div>
-        <div className="topbar">
-          <div>
-            <p className="badge">Parent Portal</p>
-            <h1 className="page-title">Welcome, Parent</h1>
-          </div>
-        </div>
-        <div className="card">
-          <div style={{ textAlign: "center", padding: 40 }}>
-            <p style={{ color: "var(--muted)", marginBottom: 16 }}>
-              No students are linked to your account yet. Please contact an administrator
-              to link your student&apos;s account.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Build a lookup map for easy access
+  const progressMap = new Map(
+    progressData.map((p) => [p.studentId, p.progress])
+  );
 
   return (
-    <div>
+    <div className="main-content">
       <div className="topbar">
         <div>
           <p className="badge">Parent Portal</p>
-          <h1 className="page-title">My Children&apos;s Progress</h1>
+          <h1 className="page-title">Parent Dashboard</h1>
         </div>
       </div>
 
-      {parentLinks.map(({ student, relationship }) => (
-        <div key={student.id} style={{ marginBottom: 32 }}>
-          <div className="section-title" style={{ marginBottom: 16 }}>
-            {student.name} ({relationship})
+      <div className="page-header">
+        <p className="subtitle">
+          Monitor your children&apos;s progress, enrollments, and achievements
+          across the Young People&apos;s Project.
+        </p>
+      </div>
+
+      {/* ============================================
+          LINK A NEW STUDENT
+          ============================================ */}
+      <div className="card">
+        <h3>Link a Student</h3>
+        <p>
+          Enter your child&apos;s email address to link their account. They must
+          already be registered as a student in the system.
+        </p>
+        <form action={linkStudent} className="form-grid">
+          <div className="form-row">
+            <label>Student Email</label>
+            <input
+              className="input"
+              name="email"
+              type="email"
+              placeholder="student@example.com"
+              required
+            />
+          </div>
+          <div className="form-row">
+            <label>Relationship</label>
+            <select className="input" name="relationship" defaultValue="Parent">
+              <option value="Parent">Parent</option>
+              <option value="Guardian">Guardian</option>
+              <option value="Grandparent">Grandparent</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <button type="submit" className="button">
+            Link Student
+          </button>
+        </form>
+      </div>
+
+      {/* ============================================
+          LINKED STUDENTS
+          ============================================ */}
+      {linkedStudents.length === 0 ? (
+        <div className="card">
+          <p className="empty">
+            No students are linked to your account yet. Use the form above to
+            link your child&apos;s student account by their email address.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="section-title" style={{ marginTop: 24, marginBottom: 16 }}>
+            Linked Students ({linkedStudents.length})
           </div>
 
-          <div className="grid two">
-            <div className="card">
-              <h3 style={{ margin: "0 0 12px" }}>Student Info</h3>
-              <p style={{ margin: 0 }}>
-                <strong>Email:</strong> {student.email}
-              </p>
-              {student.chapter && (
-                <p style={{ margin: "4px 0 0" }}>
-                  <strong>Chapter:</strong> {student.chapter.name}
-                </p>
-              )}
-              {student.profile?.school && (
-                <p style={{ margin: "4px 0 0" }}>
-                  <strong>School:</strong> {student.profile.school}
-                </p>
-              )}
-              {student.profile?.grade && (
-                <p style={{ margin: "4px 0 0" }}>
-                  <strong>Grade:</strong> {student.profile.grade}
-                </p>
-              )}
-            </div>
+          {linkedStudents.map((student) => {
+            const progress = progressMap.get(student.studentId);
 
-            <div className="card">
-              <h3 style={{ margin: "0 0 12px" }}>Current Enrollments</h3>
-              {student.enrollments.length === 0 ? (
-                <p style={{ color: "var(--muted)" }}>Not currently enrolled in any courses.</p>
-              ) : (
-                <div className="timeline">
-                  {student.enrollments.map(enrollment => (
-                    <div key={enrollment.id} className="timeline-item">
-                      <strong>{enrollment.course.title}</strong>
-                      <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--muted)" }}>
-                        {enrollment.course.format === "LEVELED" && enrollment.course.level
-                          ? enrollment.course.level.replace("LEVEL_", "Level ")
-                          : enrollment.course.format.replace("_", " ")}
-                        {enrollment.course.leadInstructor &&
-                          ` · Instructor: ${enrollment.course.leadInstructor.name}`}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+            // Compute summary stats
+            const enrollmentCount = progress?.enrollments?.length ?? 0;
+            const activeEnrollments =
+              progress?.enrollments?.filter((e) => e.status === "ENROLLED")
+                .length ?? 0;
+            const trainingTotal = progress?.training?.total ?? 0;
+            const trainingCompleted = progress?.training?.completed ?? 0;
+            const trainingPct =
+              trainingTotal > 0
+                ? Math.round((trainingCompleted / trainingTotal) * 100)
+                : 0;
+            const certificateCount = progress?.certificates?.length ?? 0;
+            const attendanceTotal = progress?.attendance?.totalSessions ?? 0;
+            const attendancePresent = progress?.attendance?.presentCount ?? 0;
+            const attendanceRate =
+              attendanceTotal > 0
+                ? Math.round((attendancePresent / attendanceTotal) * 100)
+                : 0;
 
-          {student.goals.length > 0 && (
-            <div className="card" style={{ marginTop: 16 }}>
-              <h3 style={{ margin: "0 0 12px" }}>Goals Progress</h3>
-              <div className="timeline">
-                {student.goals.map(goal => (
-                  <div key={goal.id} className="timeline-item">
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <strong>{goal.template.title}</strong>
-                      {goal.progress[0] && (
-                        <span
-                          className={`pill ${
-                            goal.progress[0].status === "ON_TRACK"
-                              ? "pill-success"
-                              : goal.progress[0].status === "BEHIND_SCHEDULE"
-                              ? "pill-pending"
-                              : goal.progress[0].status === "ABOVE_AND_BEYOND"
-                              ? "pill-pathway"
-                              : ""
-                          }`}
-                        >
-                          {goal.progress[0].status.replace(/_/g, " ")}
+            return (
+              <div key={student.id} className="card" style={{ marginBottom: 16 }}>
+                {/* Student Header */}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    marginBottom: 16,
+                  }}
+                >
+                  <div>
+                    <h3 style={{ margin: 0 }}>{student.name}</h3>
+                    <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--muted)" }}>
+                      {student.email}
+                    </p>
+                    <div style={{ display: "flex", gap: 12, marginTop: 8, flexWrap: "wrap" }}>
+                      {student.chapter && (
+                        <span className="pill">
+                          {student.chapter.name}
+                        </span>
+                      )}
+                      <span className="pill pill-pathway">
+                        {student.relationship}
+                      </span>
+                      {student.grade && (
+                        <span className="pill pill-pending">
+                          Grade {student.grade}
+                        </span>
+                      )}
+                      {student.school && (
+                        <span className="pill">
+                          {student.school}
                         </span>
                       )}
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {student.certificates.length > 0 && (
-            <div className="card" style={{ marginTop: 16 }}>
-              <h3 style={{ margin: "0 0 12px" }}>Certificates Earned</h3>
-              <div className="timeline">
-                {student.certificates.map(cert => (
-                  <div key={cert.id} className="timeline-item">
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <strong>{cert.title}</strong>
-                      <span style={{ fontSize: 12, color: "var(--muted)" }}>
-                        {new Date(cert.issuedAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--muted)" }}>
-                      {cert.template.name}
-                    </p>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <Link href={`/parent/${student.studentId}`} className="button small">
+                      View Details
+                    </Link>
+                    <form action={unlinkStudent} style={{ margin: 0 }}>
+                      <input type="hidden" name="id" value={student.id} />
+                      <button type="submit" className="button small secondary">
+                        Unlink
+                      </button>
+                    </form>
                   </div>
-                ))}
+                </div>
+
+                {/* Stats Grid */}
+                <div className="stats-grid">
+                  <div className="stat-card">
+                    <span className="stat-label">Enrollments</span>
+                    <span className="stat-value">{enrollmentCount}</span>
+                    <span className="stat-link">
+                      {activeEnrollments} active
+                    </span>
+                  </div>
+                  <div className="stat-card">
+                    <span className="stat-label">Training Progress</span>
+                    <span className="stat-value">{trainingPct}%</span>
+                    <span className="stat-link">
+                      {trainingCompleted}/{trainingTotal} complete
+                    </span>
+                  </div>
+                  <div className="stat-card">
+                    <span className="stat-label">Certificates</span>
+                    <span className="stat-value">{certificateCount}</span>
+                    <span className="stat-link">earned</span>
+                  </div>
+                  <div className="stat-card">
+                    <span className="stat-label">Attendance Rate</span>
+                    <span className="stat-value">
+                      {attendanceTotal > 0 ? `${attendanceRate}%` : "N/A"}
+                    </span>
+                    <span className="stat-link">
+                      {attendancePresent}/{attendanceTotal} sessions
+                    </span>
+                  </div>
+                </div>
+
+                {/* Goals Summary (if available) */}
+                {progress?.goals && progress.goals.length > 0 && (
+                  <div style={{ marginTop: 12 }}>
+                    <div className="section-title" style={{ fontSize: 13, marginBottom: 8 }}>
+                      Active Goals
+                    </div>
+                    <div className="enrollments-list">
+                      {progress.goals.map((goal) => (
+                        <div key={goal.id} className="enrollment-item">
+                          <div>
+                            <strong>{goal.title}</strong>
+                            {goal.description && (
+                              <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--muted)" }}>
+                                {goal.description}
+                              </p>
+                            )}
+                          </div>
+                          {goal.latestStatus && (
+                            <span
+                              className={`pill ${
+                                goal.latestStatus === "ON_TRACK"
+                                  ? "pill-success"
+                                  : goal.latestStatus === "BEHIND_SCHEDULE"
+                                  ? "pill-pending"
+                                  : goal.latestStatus === "ABOVE_AND_BEYOND"
+                                  ? "pill-pathway"
+                                  : ""
+                              }`}
+                            >
+                              {goal.latestStatus.replace(/_/g, " ")}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recent Certificates (if available) */}
+                {progress?.certificates && progress.certificates.length > 0 && (
+                  <div style={{ marginTop: 12 }}>
+                    <div className="section-title" style={{ fontSize: 13, marginBottom: 8 }}>
+                      Recent Certificates
+                    </div>
+                    <div className="enrollments-list">
+                      {progress.certificates.slice(0, 3).map((cert) => (
+                        <div key={cert.id} className="enrollment-item">
+                          <strong>{cert.title}</strong>
+                          <span style={{ fontSize: 12, color: "var(--muted)" }}>
+                            {new Date(cert.issuedAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
-
-          {student.enrollments.length > 0 && (
-            <div className="card" style={{ marginTop: 16 }}>
-              <h3 style={{ margin: "0 0 12px" }}>Submit Feedback</h3>
-              <p style={{ color: "var(--muted)", fontSize: 13, marginBottom: 16 }}>
-                Help us improve by sharing your feedback about your child&apos;s courses.
-              </p>
-              <form action={submitParentFeedback} className="form-grid">
-                <div className="form-row">
-                  <label>Select Course</label>
-                  <select name="courseId" className="input" required>
-                    <option value="">Choose a course...</option>
-                    {student.enrollments.map(e => (
-                      <option key={e.course.id} value={e.course.id}>
-                        {e.course.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-row">
-                  <label>Rating</label>
-                  <select name="rating" className="input">
-                    <option value="">Select rating...</option>
-                    <option value="5">5 - Excellent</option>
-                    <option value="4">4 - Good</option>
-                    <option value="3">3 - Average</option>
-                    <option value="2">2 - Below Average</option>
-                    <option value="1">1 - Poor</option>
-                  </select>
-                </div>
-                <div className="form-row">
-                  <label>Comments *</label>
-                  <textarea
-                    name="comments"
-                    className="input"
-                    rows={3}
-                    required
-                    placeholder="Share your thoughts about the course, instructor, or your child's experience..."
-                  />
-                </div>
-                <button type="submit" className="button">
-                  Submit Feedback
-                </button>
-              </form>
-            </div>
-          )}
-        </div>
-      ))}
-
-      {upcomingEvents.length > 0 && (
-        <div className="card">
-          <div className="section-title">Upcoming Events</div>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Event</th>
-                <th>Date</th>
-                <th>Chapter</th>
-              </tr>
-            </thead>
-            <tbody>
-              {upcomingEvents.map(event => (
-                <tr key={event.id}>
-                  <td>{event.title}</td>
-                  <td>{new Date(event.startDate).toLocaleDateString()}</td>
-                  <td>{event.chapter?.name || "All Chapters"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <Link href="/events" className="link" style={{ display: "block", marginTop: 12, fontSize: 13 }}>
-            View all events &rarr;
-          </Link>
-        </div>
+            );
+          })}
+        </>
       )}
     </div>
   );
