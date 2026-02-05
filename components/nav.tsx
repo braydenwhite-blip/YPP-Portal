@@ -3,72 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const baseItems = [
-  { href: "/", label: "Overview" },
-  { href: "/announcements", label: "Announcements" },
-  { href: "/notifications", label: "Notifications" },
-  { href: "/messages", label: "Messages" },
-  { href: "/pathways", label: "Pathways" },
-  { href: "/curriculum", label: "Courses" },
-  { href: "/programs", label: "Programs" },
-  { href: "/goals", label: "My Goals" },
-  { href: "/instructor-training", label: "Instructor Training" },
-  { href: "/mentorship", label: "Mentorship" },
-  { href: "/events", label: "Events & Prep" },
-  { href: "/attendance", label: "Attendance" },
-  { href: "/chapters", label: "Chapters" },
-  { href: "/certificates", label: "My Certificates" },
-  { href: "/profile", label: "My Profile" }
-];
+interface NavItem {
+  href: string;
+  label: string;
+  icon: string;
+}
 
-const studentItems = [
-  { href: "/my-courses", label: "My Courses" },
-  { href: "/my-mentor", label: "My Mentor" }
-];
+interface NavSection {
+  label: string;
+  items: NavItem[];
+}
 
-const reflectionItems = [
-  { href: "/reflection", label: "Monthly Reflection" }
-];
-
-const applicantItems = [
-  { href: "/positions", label: "Open Positions" },
-  { href: "/applications", label: "My Applications" }
-];
-
-const mentorItems = [
-  { href: "/mentorship/mentees", label: "My Mentees" }
-];
-
-const chapterLeadItems = [
-  { href: "/chapter", label: "My Chapter" }
-];
-
-const parentItems = [
-  { href: "/parent", label: "Parent Portal" }
-];
-
-const alumniItems = [
-  { href: "/alumni", label: "Alumni" },
-  { href: "/college-advisor", label: "College Advisor" }
-];
-
-const adminItems = [
-  { href: "/admin", label: "Admin Dashboard" },
-  { href: "/admin/announcements", label: "Manage Announcements" },
-  { href: "/admin/instructors", label: "All Instructors" },
-  { href: "/admin/students", label: "All Students" },
-  { href: "/admin/chapters", label: "All Chapters" },
-  { href: "/admin/staff", label: "Staff Reflections" },
-  { href: "/admin/goals", label: "Manage Goals" },
-  { href: "/admin/reflections", label: "View Reflections" },
-  { href: "/admin/reflection-forms", label: "Manage Forms" },
-  { href: "/admin/programs", label: "Manage Programs" },
-  { href: "/admin/alumni", label: "Manage Alumni" },
-  { href: "/admin/analytics", label: "Analytics" }
-];
-
-export default function Nav({ roles = [], awardTier }: { roles?: string[]; awardTier?: string }) {
-  const pathname = usePathname();
+function buildSections(roles: string[], awardTier?: string): NavSection[] {
   const isAdmin = roles.includes("ADMIN");
   const isMentor = roles.includes("MENTOR") || roles.includes("CHAPTER_LEAD");
   const isChapterLead = roles.includes("CHAPTER_LEAD");
@@ -76,71 +22,153 @@ export default function Nav({ roles = [], awardTier }: { roles?: string[]; award
   const isInstructor = roles.includes("INSTRUCTOR");
   const isStudent = roles.includes("STUDENT");
   const isApplicant = roles.includes("STUDENT") || roles.includes("INSTRUCTOR") || roles.includes("STAFF");
-
-  // Check if user has any award tier (Bronze, Silver, or Gold)
   const hasAward = awardTier && ["BRONZE", "SILVER", "GOLD"].includes(awardTier);
 
-  let items = [...baseItems];
+  const sections: NavSection[] = [];
 
-  // Add reflection for instructors and chapter leads
-  if (isInstructor || isChapterLead) {
-    const goalsIndex = items.findIndex(i => i.href === "/goals");
-    items.splice(goalsIndex + 1, 0, ...reflectionItems);
-  }
-
-  // Add applicant items for users who might apply to positions
-  if (isApplicant || isAdmin) {
-    const chaptersIndex = items.findIndex(i => i.href === "/chapters");
-    items.splice(chaptersIndex + 1, 0, ...applicantItems);
-  }
-
-  if (isMentor || isAdmin) {
-    // Insert mentor items after Mentorship
-    const mentorshipIndex = items.findIndex(i => i.href === "/mentorship");
-    items.splice(mentorshipIndex + 1, 0, ...mentorItems);
-  }
-
-  // Add chapter dashboard for chapter leads
-  if (isChapterLead) {
-    const chaptersIndex = items.findIndex(i => i.href === "/chapters");
-    items.splice(chaptersIndex + 1, 0, ...chapterLeadItems);
-  }
-
-  // Add student-specific items
-  if (isStudent) {
-    const coursesIndex = items.findIndex(i => i.href === "/curriculum");
-    items.splice(coursesIndex + 1, 0, ...studentItems);
-  }
-
-  // Add alumni items for users with awards
-  if (hasAward || isAdmin) {
-    const profileIndex = items.findIndex(i => i.href === "/profile");
-    items.splice(profileIndex, 0, ...alumniItems);
-  }
-
+  // Parent Portal (if applicable)
   if (isParent) {
-    items = [...parentItems, ...items];
+    sections.push({
+      label: "Family",
+      items: [{ href: "/parent", label: "Parent Portal", icon: "\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67" }]
+    });
   }
 
-  if (isAdmin) {
-    items = [...items, ...adminItems];
+  // Main section
+  sections.push({
+    label: "Main",
+    items: [
+      { href: "/", label: "Overview", icon: "\u25CB" },
+      { href: "/announcements", label: "Announcements", icon: "\u25CB" },
+      { href: "/notifications", label: "Notifications", icon: "\u25CB" },
+      { href: "/messages", label: "Messages", icon: "\u25CB" }
+    ]
+  });
+
+  // Learning
+  const learningItems: NavItem[] = [
+    { href: "/pathways", label: "Pathways", icon: "\u25CB" },
+    { href: "/curriculum", label: "Courses", icon: "\u25CB" }
+  ];
+  if (isStudent) {
+    learningItems.push({ href: "/my-courses", label: "My Courses", icon: "\u25CB" });
   }
+  learningItems.push({ href: "/programs", label: "Programs", icon: "\u25CB" });
+  sections.push({ label: "Learning", items: learningItems });
+
+  // Growth & Progress
+  const growthItems: NavItem[] = [
+    { href: "/goals", label: "My Goals", icon: "\u25CB" }
+  ];
+  if (isInstructor || isChapterLead) {
+    growthItems.push({ href: "/reflection", label: "Monthly Reflection", icon: "\u25CB" });
+  }
+  growthItems.push({ href: "/instructor-training", label: "Instructor Training", icon: "\u25CB" });
+  sections.push({ label: "Growth", items: growthItems });
+
+  // Community
+  const communityItems: NavItem[] = [
+    { href: "/mentorship", label: "Mentorship", icon: "\u25CB" }
+  ];
+  if (isMentor || isAdmin) {
+    communityItems.push({ href: "/mentorship/mentees", label: "My Mentees", icon: "\u25CB" });
+  }
+  if (isStudent) {
+    communityItems.push({ href: "/my-mentor", label: "My Mentor", icon: "\u25CB" });
+  }
+  communityItems.push(
+    { href: "/events", label: "Events & Prep", icon: "\u25CB" },
+    { href: "/attendance", label: "Attendance", icon: "\u25CB" }
+  );
+  sections.push({ label: "Community", items: communityItems });
+
+  // Chapters
+  const chapterItems: NavItem[] = [
+    { href: "/chapters", label: "Chapters", icon: "\u25CB" }
+  ];
+  if (isChapterLead) {
+    chapterItems.push({ href: "/chapter", label: "My Chapter", icon: "\u25CB" });
+  }
+  if (isApplicant || isAdmin) {
+    chapterItems.push(
+      { href: "/positions", label: "Open Positions", icon: "\u25CB" },
+      { href: "/applications", label: "My Applications", icon: "\u25CB" }
+    );
+  }
+  sections.push({ label: "Chapters", items: chapterItems });
+
+  // Achievements
+  const achievementItems: NavItem[] = [
+    { href: "/certificates", label: "My Certificates", icon: "\u25CB" }
+  ];
+  if (hasAward || isAdmin) {
+    achievementItems.push(
+      { href: "/alumni", label: "Alumni", icon: "\u25CB" },
+      { href: "/college-advisor", label: "College Advisor", icon: "\u25CB" }
+    );
+  }
+  achievementItems.push({ href: "/profile", label: "My Profile", icon: "\u25CB" });
+  sections.push({ label: "Account", items: achievementItems });
+
+  // Admin
+  if (isAdmin) {
+    sections.push({
+      label: "Admin",
+      items: [
+        { href: "/admin", label: "Dashboard", icon: "\u25CB" },
+        { href: "/admin/announcements", label: "Announcements", icon: "\u25CB" },
+        { href: "/admin/instructors", label: "All Instructors", icon: "\u25CB" },
+        { href: "/admin/students", label: "All Students", icon: "\u25CB" },
+        { href: "/admin/chapters", label: "All Chapters", icon: "\u25CB" },
+        { href: "/admin/staff", label: "Staff Reflections", icon: "\u25CB" },
+        { href: "/admin/goals", label: "Goals", icon: "\u25CB" },
+        { href: "/admin/reflections", label: "Reflections", icon: "\u25CB" },
+        { href: "/admin/reflection-forms", label: "Forms", icon: "\u25CB" },
+        { href: "/admin/programs", label: "Programs", icon: "\u25CB" },
+        { href: "/admin/alumni", label: "Alumni", icon: "\u25CB" },
+        { href: "/admin/analytics", label: "Analytics", icon: "\u25CB" }
+      ]
+    });
+  }
+
+  return sections;
+}
+
+export default function Nav({
+  roles = [],
+  awardTier,
+  onNavigate
+}: {
+  roles?: string[];
+  awardTier?: string;
+  onNavigate?: () => void;
+}) {
+  const pathname = usePathname();
+  const sections = buildSections(roles, awardTier);
 
   return (
     <nav className="nav">
-      {items.map((item) => {
-        const isActive = pathname === item.href ||
-          (item.href !== "/" && pathname.startsWith(item.href));
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={isActive ? "active" : undefined}
-          >
-            {item.label}
-          </Link>
-        );
-      })}
+      {sections.map((section) => (
+        <div key={section.label} className="nav-section">
+          <div className="nav-section-label">{section.label}</div>
+          {section.items.map((item) => {
+            const isActive =
+              pathname === item.href ||
+              (item.href !== "/" && pathname.startsWith(item.href));
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={isActive ? "active" : undefined}
+                onClick={onNavigate}
+              >
+                <span className="nav-icon">{item.icon}</span>
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      ))}
     </nav>
   );
 }

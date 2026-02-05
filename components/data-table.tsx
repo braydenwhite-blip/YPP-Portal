@@ -166,7 +166,7 @@ export default function DataTable<T extends { id: string }>({
             </div>
           )}
           {exportFilename && (
-            <button className="button small" onClick={handleExport}>
+            <button className="button small outline" onClick={handleExport}>
               Export CSV
             </button>
           )}
@@ -192,7 +192,11 @@ export default function DataTable<T extends { id: string }>({
                 style={{ cursor: col.sortable !== false ? "pointer" : "default" }}
               >
                 {col.label}
-                {sortKey === col.key && (sortDir === "asc" ? " ↑" : " ↓")}
+                {sortKey === col.key && (
+                  <span style={{ marginLeft: 4, opacity: 0.6 }}>
+                    {sortDir === "asc" ? "\u2191" : "\u2193"}
+                  </span>
+                )}
               </th>
             ))}
             {actions && <th>Actions</th>}
@@ -201,8 +205,12 @@ export default function DataTable<T extends { id: string }>({
         <tbody>
           {filteredData.length === 0 ? (
             <tr>
-              <td colSpan={columns.length + (onSelectionChange ? 1 : 0) + (actions ? 1 : 0)}>
-                No data found.
+              <td
+                colSpan={columns.length + (onSelectionChange ? 1 : 0) + (actions ? 1 : 0)}
+                className="empty"
+                style={{ textAlign: "center", padding: 32 }}
+              >
+                No matching records found.
               </td>
             </tr>
           ) : (
