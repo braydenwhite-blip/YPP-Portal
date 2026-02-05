@@ -256,6 +256,54 @@ export async function startConversation(formData: FormData) {
     throw new Error("You cannot start a conversation with yourself");
   }
 
+  // Verify the recipient is in the caller's messageable users list
+  const currentUser = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { roles: true },
+  });
+  const roleTypes = currentUser?.roles.map((r) => r.role) ?? [];
+  const isAdmin = roleTypes.includes("ADMIN");
+
+  if (!isAdmin) {
+    // Build the allowed recipient set (same logic as getMessageableUsers)
+    const allowedIds = new Set<string>();
+
+    if (roleTypes.includes("MENTOR") || roleTypes.includes("CHAPTER_LEAD")) {
+      const mentorships = await prisma.mentorship.findMany({
+        where: { mentorId: userId, status: "ACTIVE" },
+        select: { menteeId: true },
+      });
+      mentorships.forEach((m) => allowedIds.add(m.menteeId));
+    }
+
+    if (roleTypes.includes("INSTRUCTOR")) {
+      const courses = await prisma.course.findMany({
+        where: { leadInstructorId: userId },
+        include: { enrollments: { select: { userId: true } } },
+      });
+      courses.forEach((c) => c.enrollments.forEach((e) => allowedIds.add(e.userId)));
+    }
+
+    if (roleTypes.includes("STUDENT")) {
+      const enrollments = await prisma.enrollment.findMany({
+        where: { userId },
+        include: { course: { select: { leadInstructorId: true } } },
+      });
+      enrollments.forEach((e) => {
+        if (e.course.leadInstructorId) allowedIds.add(e.course.leadInstructorId);
+      });
+      const mentorships = await prisma.mentorship.findMany({
+        where: { menteeId: userId, status: "ACTIVE" },
+        select: { mentorId: true },
+      });
+      mentorships.forEach((m) => allowedIds.add(m.mentorId));
+    }
+
+    if (!allowedIds.has(recipientId)) {
+      throw new Error("You are not allowed to message this user");
+    }
+  }
+
   // Check if a 1:1 conversation already exists between these two users
   const existingConversation = await prisma.conversation.findFirst({
     where: {

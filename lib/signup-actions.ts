@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { RoleType } from "@prisma/client";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 type FormState = {
   status: "idle" | "error" | "success";
@@ -25,13 +26,27 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
     const phone = getString(formData, "phone", false);
     const chapterId = getString(formData, "chapterId", false);
 
-    if (password.length < 6) {
-      return { status: "error", message: "Password must be at least 6 characters." };
+    // Rate limit: 5 signup attempts per email per 15 minutes
+    const rl = checkRateLimit(`signup:${email}`, 5, 15 * 60 * 1000);
+    if (!rl.success) {
+      return { status: "error", message: "Too many attempts. Please try again later." };
+    }
+
+    // M1: Stronger password policy (8+ chars, at least one number and one letter)
+    if (password.length < 8) {
+      return { status: "error", message: "Password must be at least 8 characters." };
+    }
+    if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+      return { status: "error", message: "Password must contain at least one letter and one number." };
     }
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
-      return { status: "error", message: "An account with this email already exists." };
+      // M2: Generic message to prevent user enumeration
+      return {
+        status: "success",
+        message: "If this email is not already registered, your account has been created. Please check your email or try signing in."
+      };
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -52,7 +67,7 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
 
     return {
       status: "success",
-      message: "Account created. Please sign in."
+      message: "If this email is not already registered, your account has been created. Please check your email or try signing in."
     };
   } catch (error) {
     return {

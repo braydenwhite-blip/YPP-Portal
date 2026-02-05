@@ -113,6 +113,8 @@ export async function issueCourseCompletionCertificate(
   userId: string,
   courseId: string
 ) {
+  await requireAdmin();
+
   // Find or create course completion template
   let template = await prisma.certificateTemplate.findFirst({
     where: {
@@ -168,6 +170,8 @@ export async function issuePathwayCompletionCertificate(
   userId: string,
   pathwayId: string
 ) {
+  await requireAdmin();
+
   let template = await prisma.certificateTemplate.findFirst({
     where: {
       type: "PATHWAY_COMPLETION",
@@ -218,6 +222,8 @@ export async function issuePathwayCompletionCertificate(
 }
 
 export async function issueTrainingCompletionCertificate(userId: string) {
+  await requireAdmin();
+
   let template = await prisma.certificateTemplate.findFirst({
     where: {
       type: "TRAINING_COMPLETION",
@@ -262,11 +268,15 @@ export async function issueTrainingCompletionCertificate(userId: string) {
 // ============================================
 
 export async function getUserCertificates(userId?: string) {
-  const session = await getServerSession(authOptions);
-  const targetUserId = userId || session?.user?.id;
+  const session = await requireAuth();
+  const targetUserId = userId || session.user.id;
 
-  if (!targetUserId) {
-    return [];
+  // Users can view their own; admins/mentors/chapter leads can view others'
+  if (targetUserId !== session.user.id) {
+    const roles = session.user.roles ?? [];
+    if (!roles.includes("ADMIN") && !roles.includes("MENTOR") && !roles.includes("CHAPTER_LEAD")) {
+      throw new Error("Unauthorized");
+    }
   }
 
   return prisma.certificate.findMany({
@@ -281,6 +291,8 @@ export async function getUserCertificates(userId?: string) {
 }
 
 export async function getCertificateById(certificateId: string) {
+  await requireAuth();
+
   const certificate = await prisma.certificate.findUnique({
     where: { id: certificateId },
     include: {
@@ -295,6 +307,8 @@ export async function getCertificateById(certificateId: string) {
 }
 
 export async function verifyCertificate(certificateNumber: string) {
+  await requireAuth();
+
   const certificate = await prisma.certificate.findUnique({
     where: { certificateNumber },
     include: {
@@ -457,7 +471,18 @@ function getDefaultTemplate(type: CertificateType): string {
 // CERTIFICATE RENDERING
 // ============================================
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export async function renderCertificateHtml(certificateId: string): Promise<string> {
+  await requireAuth();
+
   const certificate = await prisma.certificate.findUnique({
     where: { id: certificateId },
     include: {
@@ -474,19 +499,19 @@ export async function renderCertificateHtml(certificateId: string): Promise<stri
 
   let html = certificate.template.templateHtml || getDefaultTemplate(certificate.template.type);
 
-  // Replace placeholders
+  // Replace placeholders with HTML-escaped values to prevent XSS
   html = html
-    .replace(/{{recipientName}}/g, certificate.recipient.name)
-    .replace(/{{title}}/g, certificate.title)
-    .replace(/{{description}}/g, certificate.description || "")
-    .replace(/{{courseTitle}}/g, certificate.course?.title || "")
-    .replace(/{{pathwayName}}/g, certificate.pathway?.name || "")
-    .replace(/{{issuedDate}}/g, certificate.issuedAt.toLocaleDateString("en-US", {
+    .replace(/{{recipientName}}/g, escapeHtml(certificate.recipient.name))
+    .replace(/{{title}}/g, escapeHtml(certificate.title))
+    .replace(/{{description}}/g, escapeHtml(certificate.description || ""))
+    .replace(/{{courseTitle}}/g, escapeHtml(certificate.course?.title || ""))
+    .replace(/{{pathwayName}}/g, escapeHtml(certificate.pathway?.name || ""))
+    .replace(/{{issuedDate}}/g, escapeHtml(certificate.issuedAt.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric"
-    }))
-    .replace(/{{certificateNumber}}/g, certificate.certificateNumber);
+    })))
+    .replace(/{{certificateNumber}}/g, escapeHtml(certificate.certificateNumber));
 
   return html;
 }

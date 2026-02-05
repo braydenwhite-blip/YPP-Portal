@@ -95,7 +95,7 @@ export async function markAllAsRead() {
 }
 
 // ---------------------------------------------------------------------------
-// 5. createNotification – internal helper to create a single notification
+// 5. createNotification – requires admin to call directly via server action
 // ---------------------------------------------------------------------------
 export async function createNotification(
   userId: string,
@@ -104,6 +104,13 @@ export async function createNotification(
   body: string,
   link?: string
 ) {
+  // Require admin when called as a server action
+  const session = await requireAuth();
+  const roles = session.user.roles ?? [];
+  if (!roles.includes("ADMIN")) {
+    throw new Error("Unauthorized - Admin access required");
+  }
+
   const notification = await prisma.notification.create({
     data: {
       userId,
@@ -121,7 +128,7 @@ export async function createNotification(
 }
 
 // ---------------------------------------------------------------------------
-// 6. createBulkNotifications – send the same notification to multiple users
+// 6. createBulkNotifications – requires admin to call directly
 // ---------------------------------------------------------------------------
 export async function createBulkNotifications(
   userIds: string[],
@@ -130,6 +137,13 @@ export async function createBulkNotifications(
   body: string,
   link?: string
 ) {
+  // Require admin when called as a server action
+  const session = await requireAuth();
+  const roles = session.user.roles ?? [];
+  if (!roles.includes("ADMIN")) {
+    throw new Error("Unauthorized - Admin access required");
+  }
+
   if (userIds.length === 0) return [];
 
   const data = userIds.map((userId) => ({

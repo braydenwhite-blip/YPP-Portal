@@ -90,7 +90,7 @@ export async function getStudentProgress(studentId: string) {
     },
   });
 
-  if (!link) {
+  if (!link || !link.isPrimary) {
     throw new Error("You do not have access to this student's progress");
   }
 
@@ -258,16 +258,44 @@ export async function linkStudent(formData: FormData) {
     throw new Error("You are already linked to this student");
   }
 
+  // Create link in pending state — requires admin approval before parent can view data
   await prisma.parentStudent.create({
     data: {
       parentId,
       studentId: student.id,
       relationship,
-      isPrimary: true,
+      isPrimary: false, // isPrimary=false means pending approval
     },
   });
 
   revalidatePath("/parent");
+}
+
+// ============================================
+// ADMIN: APPROVE PARENT-STUDENT LINK
+// ============================================
+
+export async function approveParentLink(formData: FormData) {
+  const session = await requireAuth();
+  const roles = session.user.roles ?? [];
+  if (!roles.includes("ADMIN")) {
+    throw new Error("Unauthorized - Admin access required");
+  }
+
+  const id = getString(formData, "id");
+
+  const link = await prisma.parentStudent.findUnique({ where: { id } });
+  if (!link) {
+    throw new Error("Link not found");
+  }
+
+  await prisma.parentStudent.update({
+    where: { id },
+    data: { isPrimary: true },
+  });
+
+  revalidatePath("/parent");
+  revalidatePath("/admin/students");
 }
 
 // ============================================

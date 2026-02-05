@@ -13,6 +13,7 @@ import {
   RoleType,
   TrainingModuleType
 } from "@prisma/client";
+import { validateEnum } from "@/lib/validate-enum";
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
@@ -37,9 +38,9 @@ export async function createUser(formData: FormData) {
   const email = getString(formData, "email");
   const phone = getString(formData, "phone", false);
   const password = getString(formData, "password");
-  const primaryRole = getString(formData, "primaryRole") as RoleType;
+  const primaryRole = validateEnum(RoleType, getString(formData, "primaryRole"), "primaryRole");
   const chapterId = getString(formData, "chapterId", false);
-  const selectedRoles = formData.getAll("roles").map((role) => String(role)) as RoleType[];
+  const selectedRoles = formData.getAll("roles").map((role) => validateEnum(RoleType, String(role), "role"));
   const roles = selectedRoles.length ? selectedRoles : [primaryRole];
   if (!roles.includes(primaryRole)) {
     roles.push(primaryRole);
@@ -73,7 +74,7 @@ export async function createCourse(formData: FormData) {
   await requireAdmin();
   const title = getString(formData, "title");
   const description = getString(formData, "description");
-  const format = getString(formData, "format") as CourseFormat;
+  const format = validateEnum(CourseFormat, getString(formData, "format"), "format");
   const levelValue = getString(formData, "level", false);
   const level = levelValue ? (levelValue as CourseLevel) : null;
   if (format === "LEVELED" && !level) {
@@ -137,7 +138,7 @@ export async function createTrainingModule(formData: FormData) {
   const description = getString(formData, "description");
   const materialUrl = getString(formData, "materialUrl", false);
   const materialNotes = getString(formData, "materialNotes", false);
-  const type = getString(formData, "type") as TrainingModuleType;
+  const type = validateEnum(TrainingModuleType, getString(formData, "type"), "type");
   const required = formData.get("required") === "on";
   const sortOrder = Number(getString(formData, "sortOrder"));
 
@@ -161,7 +162,7 @@ export async function createEvent(formData: FormData) {
   await requireAdmin();
   const title = getString(formData, "title");
   const description = getString(formData, "description");
-  const eventType = getString(formData, "eventType") as EventType;
+  const eventType = validateEnum(EventType, getString(formData, "eventType"), "eventType");
   const startDate = new Date(getString(formData, "startDate"));
   const endDate = new Date(getString(formData, "endDate"));
   const chapterId = getString(formData, "chapterId", false);
@@ -185,7 +186,7 @@ export async function createMentorship(formData: FormData) {
   await requireAdmin();
   const mentorId = getString(formData, "mentorId");
   const menteeId = getString(formData, "menteeId");
-  const type = getString(formData, "type") as MentorshipType;
+  const type = validateEnum(MentorshipType, getString(formData, "type"), "type");
   const notes = getString(formData, "notes", false);
 
   await prisma.mentorship.create({
