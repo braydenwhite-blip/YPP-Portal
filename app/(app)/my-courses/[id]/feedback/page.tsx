@@ -27,7 +27,7 @@ export default async function CourseFeedbackPage({
   const existingFeedback = course.feedback[0];
 
   return (
-    <main className="main-content">
+    <main className="main-content my-courses-id-feedback-page">
       <div className="page-header">
         <div>
           <Link href={`/my-courses/${course.id}`} className="back-link">
@@ -119,54 +119,55 @@ export default async function CourseFeedbackPage({
         </div>
       </form>
 
-      <style jsx>{`
-        .page-header {
+      <style>{`
+
+        .my-courses-id-feedback-page .page-header {
           margin-bottom: 2rem;
         }
-        .back-link {
+        .my-courses-id-feedback-page .back-link {
           color: var(--muted);
           text-decoration: none;
           font-size: 0.875rem;
         }
-        .back-link:hover {
+        .my-courses-id-feedback-page .back-link:hover {
           color: var(--primary);
         }
-        .subtitle {
+        .my-courses-id-feedback-page .subtitle {
           color: var(--muted);
           margin: 0.5rem 0 0;
         }
-        .feedback-form {
+        .my-courses-id-feedback-page .feedback-form {
           max-width: 700px;
           padding: 2rem;
         }
-        .form-section {
+        .my-courses-id-feedback-page .form-section {
           margin-bottom: 2rem;
           padding-bottom: 2rem;
           border-bottom: 1px solid var(--border);
         }
-        .form-section:last-of-type {
+        .my-courses-id-feedback-page .form-section:last-of-type {
           border-bottom: none;
           margin-bottom: 0;
           padding-bottom: 0;
         }
-        .form-section h2 {
+        .my-courses-id-feedback-page .form-section h2 {
           margin: 0 0 0.5rem 0;
           font-size: 1.25rem;
         }
-        .form-section h3 {
+        .my-courses-id-feedback-page .form-section h3 {
           margin: 0 0 0.5rem 0;
         }
-        .section-desc {
+        .my-courses-id-feedback-page .section-desc {
           color: var(--muted);
           margin: 0 0 1rem;
           font-size: 0.875rem;
         }
-        .rating-input {
+        .my-courses-id-feedback-page .rating-input {
           display: flex;
           gap: 1rem;
           flex-wrap: wrap;
         }
-        .rating-option {
+        .my-courses-id-feedback-page .rating-option {
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -177,31 +178,31 @@ export default async function CourseFeedbackPage({
           transition: all 0.2s;
           min-width: 90px;
         }
-        .rating-option:hover {
+        .my-courses-id-feedback-page .rating-option:hover {
           border-color: var(--primary);
         }
-        .rating-option input {
+        .my-courses-id-feedback-page .rating-option input {
           display: none;
         }
-        .rating-option input:checked + .rating-star {
+        .my-courses-id-feedback-page .rating-option input:checked + .rating-star {
           color: #eab308;
           transform: scale(1.2);
         }
-        .rating-option input:checked ~ .rating-label {
+        .my-courses-id-feedback-page .rating-option input:checked ~ .rating-label {
           color: var(--primary);
           font-weight: 600;
         }
-        .rating-star {
+        .my-courses-id-feedback-page .rating-star {
           font-size: 2rem;
           color: var(--border);
           transition: all 0.2s;
         }
-        .rating-label {
+        .my-courses-id-feedback-page .rating-label {
           font-size: 0.75rem;
           margin-top: 0.5rem;
           color: var(--muted);
         }
-        textarea {
+        .my-courses-id-feedback-page textarea {
           width: 100%;
           padding: 1rem;
           border: 1px solid var(--border);
@@ -210,17 +211,17 @@ export default async function CourseFeedbackPage({
           resize: vertical;
           font-family: inherit;
         }
-        textarea:focus {
+        .my-courses-id-feedback-page textarea:focus {
           outline: none;
           border-color: var(--primary);
         }
-        .feedback-prompts {
+        .my-courses-id-feedback-page .feedback-prompts {
           display: flex;
           flex-direction: column;
           gap: 0.75rem;
           margin-top: 1rem;
         }
-        .prompt {
+        .my-courses-id-feedback-page .prompt {
           display: flex;
           align-items: center;
           gap: 0.75rem;
@@ -229,10 +230,10 @@ export default async function CourseFeedbackPage({
           border-radius: 0.5rem;
           font-size: 0.875rem;
         }
-        .prompt .icon {
+        .my-courses-id-feedback-page .prompt .icon {
           font-size: 1.25rem;
         }
-        .form-actions {
+        .my-courses-id-feedback-page .form-actions {
           display: flex;
           justify-content: flex-end;
           gap: 1rem;
@@ -240,7 +241,8 @@ export default async function CourseFeedbackPage({
           padding-top: 2rem;
           border-top: 1px solid var(--border);
         }
-      `}</style>
+      
+`}</style>
     </main>
   );
 }

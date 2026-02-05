@@ -21,7 +21,7 @@ export default async function AlumniPage() {
 
   if (!hasAccess) {
     return (
-      <main className="main-content">
+      <main className="main-content alumni-page">
         <h1>Alumni Directory</h1>
         <div className="card locked">
           <div className="lock-icon">🔒</div>
@@ -63,79 +63,81 @@ export default async function AlumniPage() {
           )}
         </div>
 
-        <style jsx>{`
-          .locked {
+        <style>{`
+
+          .alumni-page .locked {
             text-align: center;
             padding: 3rem;
             max-width: 600px;
             margin: 2rem auto;
           }
-          .lock-icon {
+          .alumni-page .lock-icon {
             font-size: 4rem;
             margin-bottom: 1rem;
           }
-          .locked h2 {
+          .alumni-page .locked h2 {
             margin: 0 0 1rem;
           }
-          .locked p {
+          .alumni-page .locked p {
             color: var(--muted);
             margin: 0.5rem 0;
           }
-          .award-tiers {
+          .alumni-page .award-tiers {
             margin: 2rem 0;
             padding: 1.5rem;
             background: var(--background);
             border-radius: 0.5rem;
             text-align: left;
           }
-          .award-tiers h3 {
+          .alumni-page .award-tiers h3 {
             margin: 0 0 1rem;
           }
-          .tier {
+          .alumni-page .tier {
             display: flex;
             align-items: center;
             gap: 1rem;
             padding: 0.75rem 0;
             border-bottom: 1px solid var(--border);
           }
-          .tier:last-child {
+          .alumni-page .tier:last-child {
             border-bottom: none;
           }
-          .tier-badge {
+          .alumni-page .tier-badge {
             padding: 0.25rem 0.75rem;
             border-radius: 1rem;
             font-size: 0.75rem;
             font-weight: 600;
             text-transform: uppercase;
           }
-          .tier-badge.bronze {
+          .alumni-page .tier-badge.bronze {
             background: #fef3c7;
             color: #92400e;
           }
-          .tier-badge.silver {
+          .alumni-page .tier-badge.silver {
             background: #e5e7eb;
             color: #374151;
           }
-          .tier-badge.gold {
+          .alumni-page .tier-badge.gold {
             background: #fef9c3;
             color: #854d0e;
           }
-          .locked h4 {
+          .alumni-page .locked h4 {
             margin: 1.5rem 0 0.5rem;
           }
-          .no-awards {
+          .alumni-page .no-awards {
             font-style: italic;
           }
-          .awards-list {
+          .alumni-page .awards-list {
             list-style: none;
             padding: 0;
             text-align: left;
           }
-          .awards-list li {
+          .alumni-page .awards-list li {
             padding: 0.5rem 0;
             border-bottom: 1px solid var(--border);
           }
-        `}</style>
+        
+`}</style>
       </main>
     );
   }
@@ -144,7 +146,7 @@ export default async function AlumniPage() {
   const myProfile = await getMyAlumniProfile();
 
   return (
-    <main className="main-content">
+    <main className="main-content alumni-page">
       <div className="page-header">
         <div>
           <h1>Alumni Directory</h1>
@@ -292,90 +294,91 @@ export default async function AlumniPage() {
         )}
       </section>
 
-      <style jsx>{`
-        .page-header {
+      <style>{`
+
+        .alumni-page .page-header {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
           margin-bottom: 2rem;
         }
-        .subtitle {
+        .alumni-page .subtitle {
           display: flex;
           align-items: center;
           gap: 0.5rem;
           color: var(--muted);
           margin: 0.5rem 0 0;
         }
-        .tier-badge {
+        .alumni-page .tier-badge {
           padding: 0.25rem 0.75rem;
           border-radius: 1rem;
           font-size: 0.75rem;
           font-weight: 600;
         }
-        .tier-bronze {
+        .alumni-page .tier-bronze {
           background: #fef3c7;
           color: #92400e;
         }
-        .tier-silver {
+        .alumni-page .tier-silver {
           background: #e5e7eb;
           color: #374151;
         }
-        .tier-gold {
+        .alumni-page .tier-gold {
           background: #fef9c3;
           color: #854d0e;
         }
-        .profile-section {
+        .alumni-page .profile-section {
           padding: 1.5rem;
           margin-bottom: 2rem;
         }
-        .profile-section h2 {
+        .alumni-page .profile-section h2 {
           margin: 0 0 1rem;
         }
-        .form-row {
+        .alumni-page .form-row {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
           gap: 1rem;
           align-items: end;
         }
-        .form-group {
+        .alumni-page .form-group {
           margin-bottom: 1rem;
         }
-        .form-group label {
+        .alumni-page .form-group label {
           display: block;
           font-weight: 600;
           margin-bottom: 0.5rem;
           font-size: 0.875rem;
         }
-        input,
-        textarea {
+        .alumni-page input,
+        .alumni-page textarea {
           width: 100%;
           padding: 0.75rem;
           border: 1px solid var(--border);
           border-radius: 0.5rem;
         }
-        .checkbox-label {
+        .alumni-page .checkbox-label {
           display: flex;
           align-items: center;
           gap: 0.5rem;
           cursor: pointer;
         }
-        .directory-section h2 {
+        .alumni-page .directory-section h2 {
           margin: 0 0 1rem;
         }
-        .alumni-grid {
+        .alumni-page .alumni-grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
           gap: 1.5rem;
         }
-        .alumni-card {
+        .alumni-page .alumni-card {
           padding: 1.5rem;
         }
-        .alumni-header {
+        .alumni-page .alumni-header {
           display: flex;
           gap: 1rem;
           margin-bottom: 1rem;
         }
-        .avatar {
+        .alumni-page .avatar {
           width: 48px;
           height: 48px;
           border-radius: 50%;
@@ -387,21 +390,21 @@ export default async function AlumniPage() {
           font-weight: 700;
           font-size: 1.25rem;
         }
-        .alumni-info h3 {
+        .alumni-page .alumni-info h3 {
           margin: 0;
         }
-        .year {
+        .alumni-page .year {
           font-size: 0.875rem;
           color: var(--muted);
         }
-        .detail {
+        .alumni-page .detail {
           display: flex;
           align-items: center;
           gap: 0.5rem;
           margin-bottom: 0.5rem;
           font-size: 0.875rem;
         }
-        .bio {
+        .alumni-page .bio {
           font-size: 0.875rem;
           color: var(--muted);
           margin: 1rem 0;
@@ -409,20 +412,20 @@ export default async function AlumniPage() {
           background: var(--background);
           border-radius: 0.5rem;
         }
-        .awards {
+        .alumni-page .awards {
           display: flex;
           flex-wrap: wrap;
           gap: 0.5rem;
           margin-bottom: 1rem;
         }
-        .award-badge {
+        .alumni-page .award-badge {
           font-size: 0.75rem;
           padding: 0.25rem 0.5rem;
           background: #fef3c7;
           color: #92400e;
           border-radius: 0.25rem;
         }
-        .contact-btn {
+        .alumni-page .contact-btn {
           display: block;
           text-align: center;
           padding: 0.75rem;
@@ -432,14 +435,15 @@ export default async function AlumniPage() {
           border-radius: 0.5rem;
           font-weight: 500;
         }
-        .contact-btn:hover {
+        .alumni-page .contact-btn:hover {
           opacity: 0.9;
         }
-        .empty {
+        .alumni-page .empty {
           color: var(--muted);
           font-style: italic;
         }
-      `}</style>
+      
+`}</style>
     </main>
   );
 }

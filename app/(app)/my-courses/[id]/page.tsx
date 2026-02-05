@@ -23,7 +23,7 @@ export default async function CourseDetailPage({
   const isEnrolled = enrollment?.status === "ENROLLED";
 
   return (
-    <main className="main-content">
+    <main className="main-content my-courses-id-page">
       <div className="page-header">
         <div>
           <Link href="/my-courses" className="back-link">
@@ -202,103 +202,104 @@ export default async function CourseDetailPage({
         </div>
       </div>
 
-      <style jsx>{`
-        .page-header {
+      <style>{`
+
+        .my-courses-id-page .page-header {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
           margin-bottom: 2rem;
         }
-        .back-link {
+        .my-courses-id-page .back-link {
           color: var(--muted);
           text-decoration: none;
           font-size: 0.875rem;
         }
-        .back-link:hover {
+        .my-courses-id-page .back-link:hover {
           color: var(--primary);
         }
-        .course-badges {
+        .my-courses-id-page .course-badges {
           display: flex;
           gap: 0.5rem;
           margin-top: 0.5rem;
         }
-        .format-badge,
-        .level-badge,
-        .virtual-badge {
+        .my-courses-id-page .format-badge,
+        .my-courses-id-page .level-badge,
+        .my-courses-id-page .virtual-badge {
           font-size: 0.75rem;
           padding: 0.25rem 0.75rem;
           border-radius: 1rem;
           text-transform: uppercase;
         }
-        .format-badge {
+        .my-courses-id-page .format-badge {
           background: var(--primary);
           color: white;
         }
-        .level-badge {
+        .my-courses-id-page .level-badge {
           background: #dbeafe;
           color: #1e40af;
         }
-        .virtual-badge {
+        .my-courses-id-page .virtual-badge {
           background: #dcfce7;
           color: #166534;
         }
-        .course-grid {
+        .my-courses-id-page .course-grid {
           display: grid;
           grid-template-columns: 2fr 1fr;
           gap: 1.5rem;
         }
         @media (max-width: 768px) {
-          .course-grid {
+          .my-courses-id-page .course-grid {
             grid-template-columns: 1fr;
           }
         }
-        .card {
+        .my-courses-id-page .card {
           padding: 1.5rem;
           margin-bottom: 1.5rem;
         }
-        .card h2 {
+        .my-courses-id-page .card h2 {
           margin: 0 0 1rem 0;
           font-size: 1.125rem;
         }
-        .description {
+        .my-courses-id-page .description {
           margin: 0 0 1rem;
           line-height: 1.6;
         }
-        .interest-area {
+        .my-courses-id-page .interest-area {
           padding-top: 1rem;
           border-top: 1px solid var(--border);
         }
-        .pathways-list {
+        .my-courses-id-page .pathways-list {
           display: flex;
           flex-direction: column;
           gap: 0.5rem;
         }
-        .pathway-item {
+        .my-courses-id-page .pathway-item {
           display: flex;
           justify-content: space-between;
           padding: 0.75rem;
           background: var(--background);
           border-radius: 0.5rem;
         }
-        .pathway-name {
+        .my-courses-id-page .pathway-name {
           font-weight: 500;
         }
-        .step-number {
+        .my-courses-id-page .step-number {
           font-size: 0.875rem;
           color: var(--muted);
         }
-        .classmates-grid {
+        .my-courses-id-page .classmates-grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
           gap: 1rem;
         }
-        .classmate {
+        .my-courses-id-page .classmate {
           display: flex;
           flex-direction: column;
           align-items: center;
           text-align: center;
         }
-        .avatar {
+        .my-courses-id-page .avatar {
           width: 48px;
           height: 48px;
           border-radius: 50%;
@@ -310,105 +311,106 @@ export default async function CourseDetailPage({
           font-weight: 700;
           margin-bottom: 0.5rem;
         }
-        .avatar.large {
+        .my-courses-id-page .avatar.large {
           width: 64px;
           height: 64px;
           font-size: 1.5rem;
         }
-        .classmate .name {
+        .my-courses-id-page .classmate .name {
           font-size: 0.875rem;
         }
-        .empty {
+        .my-courses-id-page .empty {
           color: var(--muted);
           font-style: italic;
         }
-        .feedback-display {
+        .my-courses-id-page .feedback-display {
           padding: 1rem;
           background: var(--background);
           border-radius: 0.5rem;
         }
-        .rating {
+        .my-courses-id-page .rating {
           margin-bottom: 0.5rem;
         }
-        .star {
+        .my-courses-id-page .star {
           color: var(--border);
           font-size: 1.25rem;
         }
-        .star.filled {
+        .my-courses-id-page .star.filled {
           color: #eab308;
         }
-        .comments {
+        .my-courses-id-page .comments {
           margin: 0.5rem 0;
         }
-        .feedback-date {
+        .my-courses-id-page .feedback-date {
           font-size: 0.75rem;
           color: var(--muted);
         }
-        .enrollment-status {
+        .my-courses-id-page .enrollment-status {
           text-align: center;
         }
-        .status {
+        .my-courses-id-page .status {
           display: inline-block;
           padding: 0.5rem 1rem;
           border-radius: 1rem;
           font-weight: 600;
         }
-        .status-enrolled {
+        .my-courses-id-page .status-enrolled {
           background: #dcfce7;
           color: #166534;
         }
-        .status-completed {
+        .my-courses-id-page .status-completed {
           background: #dbeafe;
           color: #1e40af;
         }
-        .status-dropped {
+        .my-courses-id-page .status-dropped {
           background: #fee2e2;
           color: #991b1b;
         }
-        .enrolled-date {
+        .my-courses-id-page .enrolled-date {
           margin-top: 0.5rem;
           font-size: 0.875rem;
           color: var(--muted);
         }
-        .not-enrolled {
+        .my-courses-id-page .not-enrolled {
           color: var(--muted);
         }
-        .instructor-info {
+        .my-courses-id-page .instructor-info {
           display: flex;
           gap: 1rem;
           align-items: center;
         }
-        .instructor-info .details {
+        .my-courses-id-page .instructor-info .details {
           flex: 1;
         }
-        .instructor-info .email,
-        .instructor-info .phone {
+        .my-courses-id-page .instructor-info .email,
+        .my-courses-id-page .instructor-info .phone {
           margin: 0.25rem 0 0;
           font-size: 0.875rem;
           color: var(--muted);
         }
-        .chapter-name {
+        .my-courses-id-page .chapter-name {
           font-weight: 600;
           margin: 0;
         }
-        .chapter-location {
+        .my-courses-id-page .chapter-location {
           margin: 0.25rem 0 0;
           font-size: 0.875rem;
           color: var(--muted);
         }
-        .btn-danger {
+        .my-courses-id-page .btn-danger {
           background: #fee2e2;
           color: #991b1b;
           border: none;
         }
-        .btn-danger:hover {
+        .my-courses-id-page .btn-danger:hover {
           background: #fecaca;
         }
-        .btn-sm {
+        .my-courses-id-page .btn-sm {
           padding: 0.5rem 1rem;
           font-size: 0.875rem;
         }
-      `}</style>
+      
+`}</style>
     </main>
   );
 }

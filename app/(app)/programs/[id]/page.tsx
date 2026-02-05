@@ -37,7 +37,7 @@ export default async function ProgramDetailPage({
   );
 
   return (
-    <main className="main-content">
+    <main className="main-content programs-id-page">
       <div className="page-header">
         <div>
           <Link href="/programs" className="back-link">
@@ -238,45 +238,46 @@ export default async function ProgramDetailPage({
         </div>
       </div>
 
-      <style jsx>{`
-        .page-header {
+      <style>{`
+
+        .programs-id-page .page-header {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
           margin-bottom: 1.5rem;
         }
-        .back-link {
+        .programs-id-page .back-link {
           color: var(--muted);
           text-decoration: none;
           font-size: 0.875rem;
         }
-        .back-link:hover {
+        .programs-id-page .back-link:hover {
           color: var(--primary);
         }
-        .badges {
+        .programs-id-page .badges {
           display: flex;
           gap: 0.5rem;
           margin: 0.5rem 0;
         }
-        .type-badge {
+        .programs-id-page .type-badge {
           font-size: 0.75rem;
           color: white;
           padding: 0.25rem 0.75rem;
           border-radius: 1rem;
           text-transform: uppercase;
         }
-        .virtual-badge {
+        .programs-id-page .virtual-badge {
           font-size: 0.75rem;
           background: #dcfce7;
           color: #166534;
           padding: 0.25rem 0.75rem;
           border-radius: 1rem;
         }
-        .interest-area {
+        .programs-id-page .interest-area {
           color: var(--muted);
           margin: 0;
         }
-        .enrolled-banner {
+        .programs-id-page .enrolled-banner {
           background: #dcfce7;
           color: #166534;
           padding: 1rem;
@@ -285,48 +286,48 @@ export default async function ProgramDetailPage({
           font-weight: 600;
           margin-bottom: 1.5rem;
         }
-        .program-grid {
+        .programs-id-page .program-grid {
           display: grid;
           grid-template-columns: 2fr 1fr;
           gap: 1.5rem;
         }
         @media (max-width: 768px) {
-          .program-grid {
+          .programs-id-page .program-grid {
             grid-template-columns: 1fr;
           }
         }
-        .card {
+        .programs-id-page .card {
           padding: 1.5rem;
           margin-bottom: 1.5rem;
         }
-        .card h2,
-        .card h3 {
+        .programs-id-page .card h2,
+        .programs-id-page .card h3 {
           margin: 0 0 1rem;
         }
-        .description {
+        .programs-id-page .description {
           margin: 0;
           line-height: 1.6;
         }
-        .empty {
+        .programs-id-page .empty {
           color: var(--muted);
           font-style: italic;
         }
-        .sessions-list {
+        .programs-id-page .sessions-list {
           display: flex;
           flex-direction: column;
           gap: 1rem;
         }
-        .session-item {
+        .programs-id-page .session-item {
           display: flex;
           gap: 1rem;
           padding: 1rem;
           background: var(--background);
           border-radius: 0.5rem;
         }
-        .session-item.past {
+        .programs-id-page .session-item.past {
           opacity: 0.6;
         }
-        .session-date {
+        .programs-id-page .session-date {
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -337,63 +338,63 @@ export default async function ProgramDetailPage({
           color: white;
           border-radius: 0.5rem;
         }
-        .session-date.past {
+        .programs-id-page .session-date.past {
           background: var(--muted);
         }
-        .session-date .day {
+        .programs-id-page .session-date .day {
           font-size: 1.5rem;
           font-weight: 700;
           line-height: 1;
         }
-        .session-date .month {
+        .programs-id-page .session-date .month {
           font-size: 0.75rem;
           text-transform: uppercase;
         }
-        .session-details {
+        .programs-id-page .session-details {
           flex: 1;
         }
-        .session-details h4 {
+        .programs-id-page .session-details h4 {
           margin: 0 0 0.5rem;
         }
-        .session-desc {
+        .programs-id-page .session-desc {
           font-size: 0.875rem;
           color: var(--muted);
           margin: 0 0 0.5rem;
         }
-        .session-meta {
+        .programs-id-page .session-meta {
           display: flex;
           gap: 1rem;
           font-size: 0.875rem;
         }
-        .time,
-        .duration {
+        .programs-id-page .time,
+        .programs-id-page .duration {
           color: var(--muted);
         }
-        .meeting-link {
+        .programs-id-page .meeting-link {
           color: var(--primary);
           font-weight: 500;
         }
-        .info-item {
+        .programs-id-page .info-item {
           display: flex;
           justify-content: space-between;
           padding: 0.75rem 0;
           border-bottom: 1px solid var(--border);
         }
-        .info-item:last-child {
+        .programs-id-page .info-item:last-child {
           border-bottom: none;
         }
-        .info-item .label {
+        .programs-id-page .info-item .label {
           color: var(--muted);
         }
-        .info-item .value {
+        .programs-id-page .info-item .value {
           font-weight: 600;
         }
-        .leader-info {
+        .programs-id-page .leader-info {
           display: flex;
           align-items: center;
           gap: 1rem;
         }
-        .avatar {
+        .programs-id-page .avatar {
           width: 48px;
           height: 48px;
           border-radius: 50%;
@@ -405,17 +406,17 @@ export default async function ProgramDetailPage({
           font-weight: 700;
           font-size: 1.25rem;
         }
-        .leader-info .email {
+        .programs-id-page .leader-info .email {
           display: block;
           font-size: 0.875rem;
           color: var(--primary);
         }
-        .quick-links {
+        .programs-id-page .quick-links {
           display: flex;
           flex-direction: column;
           gap: 0.5rem;
         }
-        .quick-link {
+        .programs-id-page .quick-link {
           padding: 0.75rem;
           background: var(--background);
           border-radius: 0.5rem;
@@ -423,19 +424,20 @@ export default async function ProgramDetailPage({
           color: inherit;
           font-weight: 500;
         }
-        .quick-link:hover {
+        .programs-id-page .quick-link:hover {
           background: var(--primary);
           color: white;
         }
-        .btn-danger {
+        .programs-id-page .btn-danger {
           background: #fee2e2;
           color: #991b1b;
           border: none;
         }
-        .btn-danger:hover {
+        .programs-id-page .btn-danger:hover {
           background: #fecaca;
         }
-      `}</style>
+      
+`}</style>
     </main>
   );
 }

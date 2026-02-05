@@ -31,7 +31,7 @@ export default async function ProgramsPage() {
   };
 
   return (
-    <main className="main-content">
+    <main className="main-content programs-page">
       <div className="page-header">
         <div>
           <h1>Special Programs</h1>
@@ -110,46 +110,48 @@ export default async function ProgramsPage() {
         </div>
       )}
 
-      <style jsx>{`
-        .page-header {
+      <style>{`
+
+        .programs-page .page-header {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
           margin-bottom: 2rem;
         }
-        .subtitle {
+        .programs-page .subtitle {
           color: var(--muted);
           margin: 0.5rem 0 0;
         }
-        .stats-row {
+        .programs-page .stats-row {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
           gap: 1rem;
           margin-bottom: 2rem;
         }
-        .stat-card {
+        .programs-page .stat-card {
           background: var(--card-bg);
           border: 1px solid var(--border);
           border-radius: 0.5rem;
           padding: 1rem;
           text-align: center;
         }
-        .stat-value {
+        .programs-page .stat-value {
           display: block;
           font-size: 2rem;
           font-weight: 700;
           color: var(--primary);
         }
-        .stat-label {
+        .programs-page .stat-label {
           color: var(--muted);
           font-size: 0.875rem;
         }
-        .empty {
+        .programs-page .empty {
           text-align: center;
           padding: 3rem;
           color: var(--muted);
         }
-      `}</style>
+      
+`}</style>
     </main>
   );
 }
@@ -216,35 +218,36 @@ function ProgramSection({
         ))}
       </div>
 
-      <style jsx>{`
-        .program-section {
+      <style>{`
+
+        .programs-page .program-section {
           margin-bottom: 3rem;
         }
-        .section-header {
+        .programs-page .section-header {
           display: flex;
           align-items: center;
           gap: 1rem;
           margin-bottom: 1.5rem;
         }
-        .section-icon {
+        .programs-page .section-icon {
           width: 8px;
           height: 48px;
           border-radius: 4px;
         }
-        .section-header h2 {
+        .programs-page .section-header h2 {
           margin: 0;
         }
-        .section-desc {
+        .programs-page .section-desc {
           margin: 0.25rem 0 0;
           color: var(--muted);
           font-size: 0.875rem;
         }
-        .programs-grid {
+        .programs-page .programs-grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
           gap: 1.5rem;
         }
-        .program-card {
+        .programs-page .program-card {
           display: block;
           background: var(--card-bg);
           border: 1px solid var(--border);
@@ -254,52 +257,52 @@ function ProgramSection({
           color: inherit;
           transition: all 0.2s;
         }
-        .program-card:hover {
+        .programs-page .program-card:hover {
           border-color: var(--primary);
           transform: translateY(-2px);
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
-        .program-header {
+        .programs-page .program-header {
           display: flex;
           gap: 0.5rem;
           margin-bottom: 0.75rem;
         }
-        .type-badge {
+        .programs-page .type-badge {
           font-size: 0.75rem;
           color: white;
           padding: 0.25rem 0.75rem;
           border-radius: 1rem;
           text-transform: uppercase;
         }
-        .virtual-badge {
+        .programs-page .virtual-badge {
           font-size: 0.75rem;
           background: #dcfce7;
           color: #166534;
           padding: 0.25rem 0.75rem;
           border-radius: 1rem;
         }
-        .program-card h3 {
+        .programs-page .program-card h3 {
           margin: 0 0 0.5rem;
         }
-        .description {
+        .programs-page .description {
           font-size: 0.875rem;
           color: var(--muted);
           margin: 0 0 1rem;
         }
-        .program-meta {
+        .programs-page .program-meta {
           display: flex;
           flex-wrap: wrap;
           gap: 0.5rem;
           margin-bottom: 1rem;
         }
-        .interest,
-        .leader {
+        .programs-page .interest,
+        .programs-page .leader {
           font-size: 0.75rem;
           background: var(--background);
           padding: 0.25rem 0.5rem;
           border-radius: 0.25rem;
         }
-        .program-stats {
+        .programs-page .program-stats {
           display: flex;
           justify-content: space-between;
           font-size: 0.875rem;
@@ -307,13 +310,14 @@ function ProgramSection({
           padding-top: 1rem;
           border-top: 1px solid var(--border);
         }
-        .next-session {
+        .programs-page .next-session {
           margin-top: 0.75rem;
           font-size: 0.875rem;
           color: var(--primary);
           font-weight: 500;
         }
-      `}</style>
+      
+`}</style>
     </section>
   );
 }

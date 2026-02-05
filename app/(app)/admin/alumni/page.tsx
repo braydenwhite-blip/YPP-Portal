@@ -38,7 +38,7 @@ export default async function AdminAlumniPage() {
   });
 
   return (
-    <main className="main-content">
+    <main className="main-content admin-alumni-page">
       <h1>Manage Alumni & Awards</h1>
 
       <div className="admin-grid">
@@ -222,59 +222,60 @@ export default async function AdminAlumniPage() {
         </section>
       </div>
 
-      <style jsx>{`
-        .admin-grid {
+      <style>{`
+
+        .admin-alumni-page .admin-grid {
           display: grid;
           grid-template-columns: repeat(2, 1fr);
           gap: 1.5rem;
         }
         @media (max-width: 768px) {
-          .admin-grid {
+          .admin-alumni-page .admin-grid {
             grid-template-columns: 1fr;
           }
         }
-        .card {
+        .admin-alumni-page .card {
           padding: 1.5rem;
         }
-        .card h2 {
+        .admin-alumni-page .card h2 {
           margin: 0 0 1rem;
         }
-        .form-group {
+        .admin-alumni-page .form-group {
           margin-bottom: 1rem;
         }
-        .form-group label {
+        .admin-alumni-page .form-group label {
           display: block;
           font-weight: 600;
           margin-bottom: 0.5rem;
           font-size: 0.875rem;
         }
-        input,
-        textarea,
-        select {
+        .admin-alumni-page input,
+        .admin-alumni-page textarea,
+        .admin-alumni-page select {
           width: 100%;
           padding: 0.75rem;
           border: 1px solid var(--border);
           border-radius: 0.5rem;
         }
-        .form-row {
+        .admin-alumni-page .form-row {
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 1rem;
         }
-        .advisors-section,
-        .profiles-section {
+        .admin-alumni-page .advisors-section,
+        .admin-alumni-page .profiles-section {
           grid-column: span 2;
         }
-        .empty {
+        .admin-alumni-page .empty {
           color: var(--muted);
           font-style: italic;
         }
-        .advisors-list {
+        .admin-alumni-page .advisors-list {
           display: flex;
           flex-direction: column;
           gap: 0.5rem;
         }
-        .advisor-item {
+        .admin-alumni-page .advisor-item {
           display: flex;
           justify-content: space-between;
           align-items: center;
@@ -282,80 +283,81 @@ export default async function AdminAlumniPage() {
           background: var(--background);
           border-radius: 0.5rem;
         }
-        .advisor-info {
+        .admin-alumni-page .advisor-info {
           display: flex;
           flex-direction: column;
         }
-        .college {
+        .admin-alumni-page .college {
           font-size: 0.875rem;
           color: var(--muted);
         }
-        .advisor-stats {
+        .admin-alumni-page .advisor-stats {
           display: flex;
           gap: 1rem;
           align-items: center;
           font-size: 0.875rem;
         }
-        .status {
+        .admin-alumni-page .status {
           padding: 0.25rem 0.5rem;
           border-radius: 0.25rem;
           font-size: 0.75rem;
         }
-        .status.active {
+        .admin-alumni-page .status.active {
           background: #dcfce7;
           color: #166534;
         }
-        .status.inactive {
+        .admin-alumni-page .status.inactive {
           background: #fee2e2;
           color: #991b1b;
         }
-        .profiles-table-wrapper {
+        .admin-alumni-page .profiles-table-wrapper {
           overflow-x: auto;
         }
-        .profiles-table {
+        .admin-alumni-page .profiles-table {
           width: 100%;
           border-collapse: collapse;
         }
-        .profiles-table th,
-        .profiles-table td {
+        .admin-alumni-page .profiles-table th,
+        .admin-alumni-page .profiles-table td {
           padding: 0.75rem;
           text-align: left;
           border-bottom: 1px solid var(--border);
         }
-        .profiles-table th {
+        .admin-alumni-page .profiles-table th {
           font-weight: 600;
           font-size: 0.875rem;
           color: var(--muted);
           background: var(--background);
         }
-        .email {
+        .admin-alumni-page .email {
           display: block;
           font-size: 0.75rem;
           color: var(--muted);
         }
-        .awards {
+        .admin-alumni-page .awards {
           display: flex;
           flex-wrap: wrap;
           gap: 0.25rem;
         }
-        .award-badge {
+        .admin-alumni-page .award-badge {
           font-size: 0.75rem;
           padding: 0.125rem 0.5rem;
           background: #fef3c7;
           color: #92400e;
           border-radius: 0.25rem;
         }
-        .more {
+        .admin-alumni-page .more {
           font-size: 0.75rem;
           color: var(--muted);
         }
-        .visible {
+        .admin-alumni-page .visible {
           color: #166534;
         }
-        .hidden {
+        .admin-alumni-page .hidden {
           color: #991b1b;
         }
-      `}</style>
+      
+`}</style>
     </main>
   );
 }

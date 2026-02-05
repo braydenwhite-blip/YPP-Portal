@@ -16,7 +16,7 @@ export default async function AlumniEventsPage() {
 
   if (!hasAccess) {
     return (
-      <main className="main-content">
+      <main className="main-content alumni-events-page">
         <h1>Alumni Events</h1>
         <div className="card locked">
           <div className="lock-icon">🔒</div>
@@ -30,25 +30,27 @@ export default async function AlumniEventsPage() {
           </Link>
         </div>
 
-        <style jsx>{`
-          .locked {
+        <style>{`
+
+          .alumni-events-page .locked {
             text-align: center;
             padding: 3rem;
             max-width: 500px;
             margin: 2rem auto;
           }
-          .lock-icon {
+          .alumni-events-page .lock-icon {
             font-size: 4rem;
             margin-bottom: 1rem;
           }
-          .locked h2 {
+          .alumni-events-page .locked h2 {
             margin: 0 0 1rem;
           }
-          .locked p {
+          .alumni-events-page .locked p {
             color: var(--muted);
             margin: 0 0 1.5rem;
           }
-        `}</style>
+        
+`}</style>
       </main>
     );
   }
@@ -56,7 +58,7 @@ export default async function AlumniEventsPage() {
   const events = await getAlumniEvents();
 
   return (
-    <main className="main-content">
+    <main className="main-content alumni-events-page">
       <div className="page-header">
         <div>
           <Link href="/alumni" className="back-link">
@@ -179,55 +181,56 @@ export default async function AlumniEventsPage() {
         </div>
       )}
 
-      <style jsx>{`
-        .page-header {
+      <style>{`
+
+        .alumni-events-page .page-header {
           margin-bottom: 2rem;
         }
-        .back-link {
+        .alumni-events-page .back-link {
           color: var(--muted);
           text-decoration: none;
           font-size: 0.875rem;
         }
-        .back-link:hover {
+        .alumni-events-page .back-link:hover {
           color: var(--primary);
         }
-        .subtitle {
+        .alumni-events-page .subtitle {
           color: var(--muted);
           margin: 0.5rem 0 0;
         }
-        .empty {
+        .alumni-events-page .empty {
           text-align: center;
           padding: 3rem;
           max-width: 500px;
           margin: 2rem auto;
         }
-        .empty-icon {
+        .alumni-events-page .empty-icon {
           font-size: 4rem;
           margin-bottom: 1rem;
         }
-        .empty h2 {
+        .alumni-events-page .empty h2 {
           margin: 0 0 1rem;
         }
-        .empty p {
+        .alumni-events-page .empty p {
           color: var(--muted);
           margin: 0;
         }
-        .events-list {
+        .alumni-events-page .events-list {
           display: flex;
           flex-direction: column;
           gap: 1.5rem;
         }
-        .event-card {
+        .alumni-events-page .event-card {
           display: flex;
           gap: 1.5rem;
           padding: 1.5rem;
         }
         @media (max-width: 640px) {
-          .event-card {
+          .alumni-events-page .event-card {
             flex-direction: column;
           }
         }
-        .event-date {
+        .alumni-events-page .event-date {
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -238,70 +241,70 @@ export default async function AlumniEventsPage() {
           color: white;
           border-radius: 0.5rem;
         }
-        .event-date .day {
+        .alumni-events-page .event-date .day {
           font-size: 2rem;
           font-weight: 700;
           line-height: 1;
         }
-        .event-date .month {
+        .alumni-events-page .event-date .month {
           font-size: 0.875rem;
           text-transform: uppercase;
         }
-        .event-date .year {
+        .alumni-events-page .event-date .year {
           font-size: 0.75rem;
           opacity: 0.8;
         }
-        .event-details {
+        .alumni-events-page .event-details {
           flex: 1;
         }
-        .event-header {
+        .alumni-events-page .event-header {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
           margin-bottom: 0.5rem;
         }
-        .event-header h3 {
+        .alumni-events-page .event-header h3 {
           margin: 0;
         }
-        .event-type {
+        .alumni-events-page .event-type {
           font-size: 0.75rem;
           padding: 0.25rem 0.75rem;
           background: var(--background);
           border-radius: 1rem;
           text-transform: uppercase;
         }
-        .description {
+        .alumni-events-page .description {
           color: var(--muted);
           margin: 0 0 1rem;
         }
-        .event-meta {
+        .alumni-events-page .event-meta {
           display: flex;
           flex-wrap: wrap;
           gap: 1rem;
           margin-bottom: 1rem;
         }
-        .meta-item {
+        .alumni-events-page .meta-item {
           display: flex;
           align-items: center;
           gap: 0.5rem;
           font-size: 0.875rem;
         }
-        .rsvp-section {
+        .alumni-events-page .rsvp-section {
           display: flex;
           align-items: center;
           gap: 1rem;
           padding: 1rem 0;
           border-top: 1px solid var(--border);
         }
-        .rsvp-label {
+        .alumni-events-page .rsvp-label {
           font-weight: 600;
           font-size: 0.875rem;
         }
-        .rsvp-buttons {
+        .alumni-events-page .rsvp-buttons {
           display: flex;
           gap: 0.5rem;
         }
-        .rsvp-btn {
+        .alumni-events-page .rsvp-btn {
           padding: 0.5rem 1rem;
           border: 1px solid var(--border);
           background: white;
@@ -310,15 +313,15 @@ export default async function AlumniEventsPage() {
           font-size: 0.875rem;
           transition: all 0.2s;
         }
-        .rsvp-btn:hover {
+        .alumni-events-page .rsvp-btn:hover {
           border-color: var(--primary);
         }
-        .rsvp-btn.active {
+        .alumni-events-page .rsvp-btn.active {
           background: var(--primary);
           color: white;
           border-color: var(--primary);
         }
-        .join-btn {
+        .alumni-events-page .join-btn {
           display: inline-block;
           margin-top: 1rem;
           padding: 0.75rem 1.5rem;
@@ -328,10 +331,11 @@ export default async function AlumniEventsPage() {
           border-radius: 0.5rem;
           font-weight: 500;
         }
-        .join-btn:hover {
+        .alumni-events-page .join-btn:hover {
           opacity: 0.9;
         }
-      `}</style>
+      
+`}</style>
     </main>
   );
 }

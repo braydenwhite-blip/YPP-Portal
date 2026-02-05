@@ -11,7 +11,7 @@ export default async function MyMentorPage() {
 
   if (!mentorship) {
     return (
-      <main className="main-content">
+      <main className="main-content my-mentor-page">
         <h1>My Mentor</h1>
         <div className="card no-mentor">
           <div className="icon">👤</div>
@@ -23,25 +23,27 @@ export default async function MyMentorPage() {
           </p>
         </div>
 
-        <style jsx>{`
-          .no-mentor {
+        <style>{`
+
+          .my-mentor-page .no-mentor {
             text-align: center;
             padding: 3rem;
             max-width: 500px;
             margin: 2rem auto;
           }
-          .icon {
+          .my-mentor-page .icon {
             font-size: 4rem;
             margin-bottom: 1rem;
           }
-          .no-mentor h2 {
+          .my-mentor-page .no-mentor h2 {
             margin: 0 0 1rem;
           }
-          .no-mentor p {
+          .my-mentor-page .no-mentor p {
             color: var(--muted);
             margin: 0;
           }
-        `}</style>
+        
+`}</style>
       </main>
     );
   }
@@ -49,7 +51,7 @@ export default async function MyMentorPage() {
   const mentor = mentorship.mentor;
 
   return (
-    <main className="main-content">
+    <main className="main-content my-mentor-page">
       <h1>My Mentor</h1>
 
       <div className="mentor-grid">
@@ -152,24 +154,25 @@ export default async function MyMentorPage() {
         </section>
       </div>
 
-      <style jsx>{`
-        .mentor-grid {
+      <style>{`
+
+        .my-mentor-page .mentor-grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 1.5rem;
         }
         @media (max-width: 768px) {
-          .mentor-grid {
+          .my-mentor-page .mentor-grid {
             grid-template-columns: 1fr;
           }
         }
-        .card {
+        .my-mentor-page .card {
           padding: 1.5rem;
         }
-        .mentor-profile {
+        .my-mentor-page .mentor-profile {
           grid-row: span 2;
         }
-        .mentor-header {
+        .my-mentor-page .mentor-header {
           display: flex;
           gap: 1.5rem;
           align-items: center;
@@ -177,7 +180,7 @@ export default async function MyMentorPage() {
           padding-bottom: 1.5rem;
           border-bottom: 1px solid var(--border);
         }
-        .avatar {
+        .my-mentor-page .avatar {
           width: 80px;
           height: 80px;
           border-radius: 50%;
@@ -190,127 +193,128 @@ export default async function MyMentorPage() {
           font-weight: 700;
           overflow: hidden;
         }
-        .avatar img {
+        .my-mentor-page .avatar img {
           width: 100%;
           height: 100%;
           object-fit: cover;
         }
-        .mentor-info h2 {
+        .my-mentor-page .mentor-info h2 {
           margin: 0;
         }
-        .role {
+        .my-mentor-page .role {
           color: var(--muted);
           font-size: 0.875rem;
         }
-        .bio {
+        .my-mentor-page .bio {
           margin-bottom: 1.5rem;
         }
-        .bio h3,
-        .contact-section h3 {
+        .my-mentor-page .bio h3,
+        .my-mentor-page .contact-section h3 {
           margin: 0 0 0.75rem;
           font-size: 1rem;
         }
-        .bio p {
+        .my-mentor-page .bio p {
           margin: 0;
           color: var(--muted);
         }
-        .contact-section {
+        .my-mentor-page .contact-section {
           margin-bottom: 1.5rem;
         }
-        .contact-item {
+        .my-mentor-page .contact-item {
           display: flex;
           align-items: center;
           gap: 0.75rem;
           padding: 0.5rem 0;
         }
-        .contact-item .icon {
+        .my-mentor-page .contact-item .icon {
           font-size: 1.25rem;
         }
-        .contact-item a {
+        .my-mentor-page .contact-item a {
           color: var(--primary);
           text-decoration: none;
         }
-        .contact-item a:hover {
+        .my-mentor-page .contact-item a:hover {
           text-decoration: underline;
         }
-        .actions {
+        .my-mentor-page .actions {
           padding-top: 1.5rem;
           border-top: 1px solid var(--border);
         }
-        .mentorship-details h3,
-        .check-ins h3 {
+        .my-mentor-page .mentorship-details h3,
+        .my-mentor-page .check-ins h3 {
           margin: 0 0 1rem;
         }
-        .detail-item {
+        .my-mentor-page .detail-item {
           display: flex;
           justify-content: space-between;
           padding: 0.75rem 0;
           border-bottom: 1px solid var(--border);
         }
-        .detail-item:last-child {
+        .my-mentor-page .detail-item:last-child {
           border-bottom: none;
         }
-        .label {
+        .my-mentor-page .label {
           color: var(--muted);
         }
-        .status {
+        .my-mentor-page .status {
           padding: 0.25rem 0.75rem;
           border-radius: 1rem;
           font-size: 0.75rem;
           font-weight: 500;
         }
-        .status-active {
+        .my-mentor-page .status-active {
           background: #dcfce7;
           color: #166534;
         }
-        .notes {
+        .my-mentor-page .notes {
           margin-top: 1rem;
         }
-        .notes .label {
+        .my-mentor-page .notes .label {
           display: block;
           margin-bottom: 0.5rem;
         }
-        .notes p {
+        .my-mentor-page .notes p {
           margin: 0;
           padding: 0.75rem;
           background: var(--background);
           border-radius: 0.5rem;
         }
-        .empty {
+        .my-mentor-page .empty {
           color: var(--muted);
           font-style: italic;
         }
-        .check-ins-list {
+        .my-mentor-page .check-ins-list {
           display: flex;
           flex-direction: column;
           gap: 1rem;
         }
-        .check-in-item {
+        .my-mentor-page .check-in-item {
           padding: 1rem;
           background: var(--background);
           border-radius: 0.5rem;
         }
-        .check-in-header {
+        .my-mentor-page .check-in-header {
           display: flex;
           justify-content: space-between;
           margin-bottom: 0.5rem;
         }
-        .date {
+        .my-mentor-page .date {
           font-size: 0.875rem;
           color: var(--muted);
         }
-        .rating .star {
+        .my-mentor-page .rating .star {
           color: var(--border);
         }
-        .rating .star.filled {
+        .my-mentor-page .rating .star.filled {
           color: #eab308;
         }
-        .check-in-item .notes {
+        .my-mentor-page .check-in-item .notes {
           margin: 0;
           padding: 0;
           background: none;
         }
-      `}</style>
+      
+`}</style>
     </main>
   );
 }

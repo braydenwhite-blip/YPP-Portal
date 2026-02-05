@@ -20,7 +20,7 @@ export default async function CollegeAdvisorPage() {
 
   if (!hasAccess) {
     return (
-      <main className="main-content">
+      <main className="main-content college-advisor-page">
         <h1>College Advisor</h1>
         <div className="card locked">
           <div className="lock-icon">🎓</div>
@@ -45,25 +45,27 @@ export default async function CollegeAdvisorPage() {
           </Link>
         </div>
 
-        <style jsx>{`
-          .locked {
+        <style>{`
+
+          .college-advisor-page .locked {
             text-align: center;
             padding: 3rem;
             max-width: 500px;
             margin: 2rem auto;
           }
-          .lock-icon {
+          .college-advisor-page .lock-icon {
             font-size: 4rem;
             margin-bottom: 1rem;
           }
-          .locked h2 {
+          .college-advisor-page .locked h2 {
             margin: 0 0 1rem;
           }
-          .locked p {
+          .college-advisor-page .locked p {
             color: var(--muted);
             margin: 0.5rem 0 1.5rem;
           }
-        `}</style>
+        
+`}</style>
       </main>
     );
   }
@@ -76,7 +78,7 @@ export default async function CollegeAdvisorPage() {
     const user = advisor.user;
 
     return (
-      <main className="main-content">
+      <main className="main-content college-advisor-page">
         <h1>My College Advisor</h1>
 
         <div className="advisor-grid">
@@ -162,24 +164,25 @@ export default async function CollegeAdvisorPage() {
           </section>
         </div>
 
-        <style jsx>{`
-          .advisor-grid {
+        <style>{`
+
+          .college-advisor-page .advisor-grid {
             display: grid;
             grid-template-columns: 2fr 1fr;
             gap: 1.5rem;
           }
           @media (max-width: 768px) {
-            .advisor-grid {
+            .college-advisor-page .advisor-grid {
               grid-template-columns: 1fr;
             }
           }
-          .card {
+          .college-advisor-page .card {
             padding: 1.5rem;
           }
-          .advisor-profile {
+          .college-advisor-page .advisor-profile {
             grid-row: span 2;
           }
-          .advisor-header {
+          .college-advisor-page .advisor-header {
             display: flex;
             gap: 1.5rem;
             align-items: center;
@@ -187,7 +190,7 @@ export default async function CollegeAdvisorPage() {
             padding-bottom: 1.5rem;
             border-bottom: 1px solid var(--border);
           }
-          .avatar {
+          .college-advisor-page .avatar {
             width: 80px;
             height: 80px;
             border-radius: 50%;
@@ -199,108 +202,109 @@ export default async function CollegeAdvisorPage() {
             font-size: 2rem;
             font-weight: 700;
           }
-          .advisor-info h2 {
+          .college-advisor-page .advisor-info h2 {
             margin: 0;
           }
-          .role {
+          .college-advisor-page .role {
             color: var(--muted);
           }
-          .details {
+          .college-advisor-page .details {
             margin-bottom: 1.5rem;
           }
-          .detail-item {
+          .college-advisor-page .detail-item {
             display: flex;
             align-items: center;
             gap: 0.75rem;
             padding: 0.5rem 0;
           }
-          .icon {
+          .college-advisor-page .icon {
             font-size: 1.25rem;
           }
-          .major {
+          .college-advisor-page .major {
             color: var(--muted);
           }
-          .bio {
+          .college-advisor-page .bio {
             margin-bottom: 1.5rem;
             padding: 1rem;
             background: var(--background);
             border-radius: 0.5rem;
           }
-          .bio h3 {
+          .college-advisor-page .bio h3 {
             margin: 0 0 0.5rem;
             font-size: 0.875rem;
           }
-          .bio p {
+          .college-advisor-page .bio p {
             margin: 0;
             color: var(--muted);
           }
-          .contact-section {
+          .college-advisor-page .contact-section {
             margin-bottom: 1.5rem;
           }
-          .contact-section h3 {
+          .college-advisor-page .contact-section h3 {
             margin: 0 0 0.75rem;
             font-size: 0.875rem;
           }
-          .contact-item {
+          .college-advisor-page .contact-item {
             display: flex;
             align-items: center;
             gap: 0.75rem;
             padding: 0.5rem 0;
           }
-          .contact-item a {
+          .college-advisor-page .contact-item a {
             color: var(--primary);
             text-decoration: none;
           }
-          .contact-btn {
+          .college-advisor-page .contact-btn {
             width: 100%;
             text-align: center;
             text-decoration: none;
           }
-          .advisorship-details h3,
-          .tips-section h3 {
+          .college-advisor-page .advisorship-details h3,
+          .college-advisor-page .tips-section h3 {
             margin: 0 0 1rem;
           }
-          .detail-row {
+          .college-advisor-page .detail-row {
             display: flex;
             justify-content: space-between;
             padding: 0.75rem 0;
             border-bottom: 1px solid var(--border);
           }
-          .label {
+          .college-advisor-page .label {
             color: var(--muted);
           }
-          .value {
+          .college-advisor-page .value {
             font-weight: 600;
           }
-          .notes {
+          .college-advisor-page .notes {
             margin-top: 1rem;
           }
-          .notes .label {
+          .college-advisor-page .notes .label {
             display: block;
             margin-bottom: 0.5rem;
           }
-          .notes p {
+          .college-advisor-page .notes p {
             margin: 0;
             padding: 0.75rem;
             background: var(--background);
             border-radius: 0.5rem;
           }
-          .tips-list {
+          .college-advisor-page .tips-list {
             margin: 0;
             padding-left: 1.5rem;
           }
-          .tips-list li {
+          .college-advisor-page .tips-list li {
             padding: 0.5rem 0;
             color: var(--muted);
           }
-        `}</style>
+        
+`}</style>
       </main>
     );
   }
 
   // No advisor - show available advisors
   return (
-    <main className="main-content">
+    <main className="main-content college-advisor-page">
       <h1>College Advisor</h1>
       <p className="intro">
         Connect with a YPP alumni who can guide you through your college
@@ -361,42 +365,43 @@ export default async function CollegeAdvisorPage() {
         </div>
       )}
 
-      <style jsx>{`
-        .intro {
+      <style>{`
+
+        .college-advisor-page .intro {
           color: var(--muted);
           margin-bottom: 2rem;
         }
-        .empty {
+        .college-advisor-page .empty {
           text-align: center;
           padding: 3rem;
           max-width: 500px;
           margin: 2rem auto;
         }
-        .empty-icon {
+        .college-advisor-page .empty-icon {
           font-size: 4rem;
           margin-bottom: 1rem;
         }
-        .empty h2 {
+        .college-advisor-page .empty h2 {
           margin: 0 0 1rem;
         }
-        .empty p {
+        .college-advisor-page .empty p {
           color: var(--muted);
           margin: 0;
         }
-        .advisors-grid {
+        .college-advisor-page .advisors-grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
           gap: 1.5rem;
         }
-        .advisor-card {
+        .college-advisor-page .advisor-card {
           padding: 1.5rem;
         }
-        .advisor-header {
+        .college-advisor-page .advisor-header {
           display: flex;
           gap: 1rem;
           margin-bottom: 1rem;
         }
-        .avatar {
+        .college-advisor-page .avatar {
           width: 48px;
           height: 48px;
           border-radius: 50%;
@@ -408,21 +413,21 @@ export default async function CollegeAdvisorPage() {
           font-weight: 700;
           font-size: 1.25rem;
         }
-        .advisor-info h3 {
+        .college-advisor-page .advisor-info h3 {
           margin: 0;
         }
-        .college {
+        .college-advisor-page .college {
           font-size: 0.875rem;
           color: var(--muted);
         }
-        .detail {
+        .college-advisor-page .detail {
           display: flex;
           align-items: center;
           gap: 0.5rem;
           font-size: 0.875rem;
           margin-bottom: 0.5rem;
         }
-        .bio {
+        .college-advisor-page .bio {
           font-size: 0.875rem;
           color: var(--muted);
           margin: 1rem 0;
@@ -430,10 +435,11 @@ export default async function CollegeAdvisorPage() {
           background: var(--background);
           border-radius: 0.5rem;
         }
-        .request-btn {
+        .college-advisor-page .request-btn {
           width: 100%;
         }
-      `}</style>
+      
+`}</style>
     </main>
   );
 }

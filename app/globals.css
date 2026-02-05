@@ -17,6 +17,7 @@
   --bg-2: #f3f0ff;
   --surface: #ffffff;
   --surface-alt: #f9f7ff;
+  --background: var(--surface);
   --text: #1b1f24;
   --muted: #5c6672;
   --accent: #7c3aed;

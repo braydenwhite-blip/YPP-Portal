@@ -41,7 +41,7 @@ export default async function AdminProgramsPage() {
   };
 
   return (
-    <main className="main-content">
+    <main className="main-content admin-programs-page">
       <h1>Manage Special Programs</h1>
 
       {/* Create Program Form */}
@@ -222,94 +222,95 @@ export default async function AdminProgramsPage() {
         )}
       </section>
 
-      <style jsx>{`
-        .create-section {
+      <style>{`
+
+        .admin-programs-page .create-section {
           padding: 1.5rem;
           margin-bottom: 2rem;
         }
-        .create-section h2 {
+        .admin-programs-page .create-section h2 {
           margin: 0 0 1rem;
         }
-        .form-row {
+        .admin-programs-page .form-row {
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 1rem;
           align-items: end;
         }
-        .form-group {
+        .admin-programs-page .form-group {
           margin-bottom: 1rem;
         }
-        .form-group label {
+        .admin-programs-page .form-group label {
           display: block;
           font-weight: 600;
           margin-bottom: 0.5rem;
           font-size: 0.875rem;
         }
-        input,
-        textarea,
-        select {
+        .admin-programs-page input,
+        .admin-programs-page textarea,
+        .admin-programs-page select {
           width: 100%;
           padding: 0.75rem;
           border: 1px solid var(--border);
           border-radius: 0.5rem;
         }
-        .checkbox-label {
+        .admin-programs-page .checkbox-label {
           display: flex;
           align-items: center;
           gap: 0.5rem;
           cursor: pointer;
         }
-        .programs-section h2 {
+        .admin-programs-page .programs-section h2 {
           margin: 0 0 1rem;
         }
-        .programs-list {
+        .admin-programs-page .programs-list {
           display: flex;
           flex-direction: column;
           gap: 1.5rem;
         }
-        .program-card {
+        .admin-programs-page .program-card {
           padding: 1.5rem;
         }
-        .program-header {
+        .admin-programs-page .program-header {
           display: flex;
           justify-content: space-between;
           margin-bottom: 1rem;
         }
-        .badges {
+        .admin-programs-page .badges {
           display: flex;
           gap: 0.5rem;
           margin-bottom: 0.5rem;
         }
-        .type-badge {
+        .admin-programs-page .type-badge {
           font-size: 0.75rem;
           color: white;
           padding: 0.25rem 0.75rem;
           border-radius: 1rem;
           text-transform: uppercase;
         }
-        .virtual-badge {
+        .admin-programs-page .virtual-badge {
           font-size: 0.75rem;
           background: #dcfce7;
           color: #166534;
           padding: 0.25rem 0.75rem;
           border-radius: 1rem;
         }
-        .inactive-badge {
+        .admin-programs-page .inactive-badge {
           font-size: 0.75rem;
           background: #fee2e2;
           color: #991b1b;
           padding: 0.25rem 0.75rem;
           border-radius: 1rem;
         }
-        .program-card h3 {
+        .admin-programs-page .program-card h3 {
           margin: 0;
         }
-        .interest {
+        .admin-programs-page .interest {
           color: var(--muted);
           font-size: 0.875rem;
           margin: 0.25rem 0 0;
         }
-        .stats {
+        .admin-programs-page .stats {
           display: flex;
           flex-direction: column;
           align-items: flex-end;
@@ -317,33 +318,33 @@ export default async function AdminProgramsPage() {
           font-size: 0.875rem;
           color: var(--muted);
         }
-        .leader {
+        .admin-programs-page .leader {
           font-size: 0.875rem;
           margin: 0 0 1rem;
         }
-        .sessions-section {
+        .admin-programs-page .sessions-section {
           padding: 1rem;
           background: var(--background);
           border-radius: 0.5rem;
           margin-bottom: 1rem;
         }
-        .sessions-section h4 {
+        .admin-programs-page .sessions-section h4 {
           margin: 0 0 0.75rem;
           font-size: 0.875rem;
         }
-        .empty-sessions {
+        .admin-programs-page .empty-sessions {
           color: var(--muted);
           font-size: 0.875rem;
           font-style: italic;
           margin: 0;
         }
-        .sessions-list {
+        .admin-programs-page .sessions-list {
           display: flex;
           flex-direction: column;
           gap: 0.5rem;
           margin-bottom: 1rem;
         }
-        .session-item {
+        .admin-programs-page .session-item {
           display: flex;
           gap: 1rem;
           font-size: 0.875rem;
@@ -351,45 +352,46 @@ export default async function AdminProgramsPage() {
           background: white;
           border-radius: 0.25rem;
         }
-        .session-date {
+        .admin-programs-page .session-date {
           color: var(--muted);
           min-width: 100px;
         }
-        .session-title {
+        .admin-programs-page .session-title {
           flex: 1;
           font-weight: 500;
         }
-        .session-duration {
+        .admin-programs-page .session-duration {
           color: var(--muted);
         }
-        .add-session {
+        .admin-programs-page .add-session {
           margin-top: 1rem;
         }
-        .add-session summary {
+        .admin-programs-page .add-session summary {
           cursor: pointer;
           color: var(--primary);
           font-weight: 600;
           font-size: 0.875rem;
         }
-        .session-form {
+        .admin-programs-page .session-form {
           margin-top: 1rem;
           padding: 1rem;
           background: white;
           border-radius: 0.5rem;
         }
-        .program-actions {
+        .admin-programs-page .program-actions {
           display: flex;
           gap: 0.5rem;
         }
-        .btn-sm {
+        .admin-programs-page .btn-sm {
           padding: 0.5rem 1rem;
           font-size: 0.875rem;
         }
-        .empty {
+        .admin-programs-page .empty {
           color: var(--muted);
           font-style: italic;
         }
-      `}</style>
+      
+`}</style>
     </main>
   );
 }

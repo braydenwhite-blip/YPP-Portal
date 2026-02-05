@@ -18,7 +18,7 @@ export default async function MyProgramsPage() {
   };
 
   return (
-    <main className="main-content">
+    <main className="main-content programs-my-page">
       <div className="page-header">
         <div>
           <h1>My Programs</h1>
@@ -140,87 +140,88 @@ export default async function MyProgramsPage() {
         </div>
       )}
 
-      <style jsx>{`
-        .page-header {
+      <style>{`
+
+        .programs-my-page .page-header {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
           margin-bottom: 2rem;
         }
-        .subtitle {
+        .programs-my-page .subtitle {
           color: var(--muted);
           margin: 0.5rem 0 0;
         }
-        .empty {
+        .programs-my-page .empty {
           text-align: center;
           padding: 3rem;
           max-width: 500px;
           margin: 2rem auto;
         }
-        .empty-icon {
+        .programs-my-page .empty-icon {
           font-size: 4rem;
           margin-bottom: 1rem;
         }
-        .empty h2 {
+        .programs-my-page .empty h2 {
           margin: 0 0 1rem;
         }
-        .empty p {
+        .programs-my-page .empty p {
           color: var(--muted);
           margin: 0 0 1.5rem;
         }
-        .programs-list {
+        .programs-my-page .programs-list {
           display: flex;
           flex-direction: column;
           gap: 1.5rem;
         }
-        .program-card {
+        .programs-my-page .program-card {
           padding: 1.5rem;
         }
-        .program-header {
+        .programs-my-page .program-header {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
           margin-bottom: 1rem;
         }
-        .badges {
+        .programs-my-page .badges {
           display: flex;
           gap: 0.5rem;
         }
-        .type-badge {
+        .programs-my-page .type-badge {
           font-size: 0.75rem;
           color: white;
           padding: 0.25rem 0.75rem;
           border-radius: 1rem;
           text-transform: uppercase;
         }
-        .virtual-badge {
+        .programs-my-page .virtual-badge {
           font-size: 0.75rem;
           background: #dcfce7;
           color: #166534;
           padding: 0.25rem 0.75rem;
           border-radius: 1rem;
         }
-        .program-link {
+        .programs-my-page .program-link {
           text-decoration: none;
           color: inherit;
         }
-        .program-link:hover h3 {
+        .programs-my-page .program-link:hover h3 {
           color: var(--primary);
         }
-        .program-card h3 {
+        .programs-my-page .program-card h3 {
           margin: 0 0 0.5rem;
           transition: color 0.2s;
         }
-        .interest {
+        .programs-my-page .interest {
           font-size: 0.875rem;
           color: var(--muted);
           margin: 0 0 0.5rem;
         }
-        .leader {
+        .programs-my-page .leader {
           font-size: 0.875rem;
           margin: 0 0 1rem;
         }
-        .program-stats {
+        .programs-my-page .program-stats {
           display: flex;
           gap: 2rem;
           font-size: 0.875rem;
@@ -228,23 +229,23 @@ export default async function MyProgramsPage() {
           padding-bottom: 1rem;
           border-bottom: 1px solid var(--border);
         }
-        .next-session {
+        .programs-my-page .next-session {
           margin: 1rem 0;
           padding: 1rem;
           background: var(--background);
           border-radius: 0.5rem;
         }
-        .next-session h4 {
+        .programs-my-page .next-session h4 {
           margin: 0 0 0.75rem;
           font-size: 0.875rem;
           color: var(--muted);
           text-transform: uppercase;
         }
-        .session-info {
+        .programs-my-page .session-info {
           display: flex;
           gap: 1rem;
         }
-        .session-date {
+        .programs-my-page .session-date {
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -255,26 +256,26 @@ export default async function MyProgramsPage() {
           color: white;
           border-radius: 0.5rem;
         }
-        .session-date .day {
+        .programs-my-page .session-date .day {
           font-size: 1.25rem;
           font-weight: 700;
           line-height: 1;
         }
-        .session-date .month {
+        .programs-my-page .session-date .month {
           font-size: 0.625rem;
           text-transform: uppercase;
         }
-        .session-details {
+        .programs-my-page .session-details {
           flex: 1;
           display: flex;
           flex-direction: column;
           gap: 0.25rem;
         }
-        .session-details .time {
+        .programs-my-page .session-details .time {
           font-size: 0.875rem;
           color: var(--muted);
         }
-        .join-btn {
+        .programs-my-page .join-btn {
           display: inline-block;
           margin-top: 0.5rem;
           padding: 0.5rem 1rem;
@@ -286,29 +287,30 @@ export default async function MyProgramsPage() {
           font-weight: 500;
           width: fit-content;
         }
-        .join-btn:hover {
+        .programs-my-page .join-btn:hover {
           background: var(--primary-dark);
         }
-        .view-details {
+        .programs-my-page .view-details {
           display: block;
           margin-top: 1rem;
           color: var(--primary);
           text-decoration: none;
           font-weight: 500;
         }
-        .btn-sm {
+        .programs-my-page .btn-sm {
           padding: 0.25rem 0.75rem;
           font-size: 0.75rem;
         }
-        .btn-danger {
+        .programs-my-page .btn-danger {
           background: #fee2e2;
           color: #991b1b;
           border: none;
         }
-        .btn-danger:hover {
+        .programs-my-page .btn-danger:hover {
           background: #fecaca;
         }
-      `}</style>
+      
+`}</style>
     </main>
   );
 }
