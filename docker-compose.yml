@@ -6,9 +6,9 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: ypp
-      POSTGRES_PASSWORD: ypp
-      POSTGRES_DB: ypp_pathways
+      POSTGRES_USER: ${POSTGRES_USER:-ypp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ypp}
+      POSTGRES_DB: ${POSTGRES_DB:-ypp_pathways}
     volumes:
       - ypp_db_data:/var/lib/postgresql/data
 

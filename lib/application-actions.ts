@@ -284,6 +284,22 @@ export async function makeDecision(formData: FormData) {
 
         const newRole = roleMap[application.position.type];
 
+        // Audit log: track role escalation
+        await tx.analyticsEvent.create({
+          data: {
+            userId: session.user.id,
+            eventType: "role_escalation",
+            eventData: {
+              action: "grant_role",
+              targetUserId: application.applicantId,
+              newRole,
+              positionType: application.position.type,
+              applicationId,
+              decidedBy: session.user.id,
+            },
+          },
+        });
+
         // Add role to user
         await tx.userRole.upsert({
           where: {

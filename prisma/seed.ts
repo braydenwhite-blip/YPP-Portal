@@ -4,7 +4,11 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
-  const passwordHash = await bcrypt.hash("ypp-demo-2026", 10);
+  const seedPassword = process.env.SEED_PASSWORD;
+  if (!seedPassword) {
+    throw new Error("SEED_PASSWORD environment variable is required. Set it before running seed.");
+  }
+  const passwordHash = await bcrypt.hash(seedPassword, 10);
 
   const frisch = await prisma.chapter.create({
     data: {

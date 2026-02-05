@@ -23,10 +23,11 @@ export async function trackEvent(
   eventData?: Prisma.InputJsonValue
 ) {
   const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return;
 
   await prisma.analyticsEvent.create({
     data: {
-      userId: session?.user?.id || null,
+      userId: session.user.id,
       eventType,
       eventData: eventData
     }
@@ -35,10 +36,11 @@ export async function trackEvent(
 
 export async function trackPageView(path: string) {
   const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return;
 
   await prisma.analyticsEvent.create({
     data: {
-      userId: session?.user?.id || null,
+      userId: session.user.id,
       eventType: "page_view",
       eventData: { path }
     }

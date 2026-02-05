@@ -70,7 +70,7 @@ Dedicated portal for YPP Pathways (curriculum structure, instructor training, me
 | `avery.lin@youthpassionproject.org` | Instructor |
 | `jordan.patel@youthpassionproject.org` | Student |
 
-**Password for all demo users:** `ypp-demo-2026`
+**Password for all demo users:** Set via the `SEED_PASSWORD` environment variable before running `npm run db:seed`.
 
 ## Vercel Deployment
 
@@ -93,21 +93,21 @@ Dedicated portal for YPP Pathways (curriculum structure, instructor training, me
    DATABASE_URL=your_database_connection_string
    DIRECT_URL=your_direct_database_url (for migrations)
    NEXTAUTH_SECRET=generate_with_openssl_rand_base64_32
+   SEED_PASSWORD=a_strong_password_for_demo_accounts
    ```
+   Generate `NEXTAUTH_SECRET` with: `openssl rand -base64 32`
 
-3. **Run Database Migrations**
-   After first deployment, run migrations:
-   ```bash
-   npx prisma migrate deploy
+3. **Set Build Command**
+   In Vercel project settings under **Build & Development Settings**, set the build command to:
    ```
-   Or use Vercel's build command override:
+   prisma migrate deploy && prisma generate && next build
    ```
-   prisma migrate deploy && next build
-   ```
+   This ensures migrations run on every deployment before the build.
 
 4. **Seed Initial Data (Optional)**
+   After your first deployment, seed the database from a machine with network access to your DB:
    ```bash
-   npm run db:seed
+   SEED_PASSWORD="your-strong-password" npx prisma db seed
    ```
 
 ### Database Connection Pooling

@@ -653,18 +653,18 @@ export async function deleteChapter(formData: FormData) {
     throw new Error("Cannot delete chapter with existing users. Remove users first.");
   }
 
-  // Delete related records
-  await prisma.announcement.deleteMany({ where: { chapterId: id } });
-  await prisma.position.deleteMany({ where: { chapterId: id } });
-  await prisma.event.deleteMany({ where: { chapterId: id } });
-  await prisma.course.updateMany({ where: { chapterId: id }, data: { chapterId: null } });
-  await prisma.goalTemplate.deleteMany({ where: { chapterId: id } });
-  await prisma.marketingStats.deleteMany({ where: { chapterId: id } });
-  await prisma.marketingGoal.deleteMany({ where: { chapterId: id } });
-  await prisma.chapterUpdate.deleteMany({ where: { chapterId: id } });
-
-  // Delete chapter
-  await prisma.chapter.delete({ where: { id } });
+  // Delete related records atomically in a transaction
+  await prisma.$transaction([
+    prisma.announcement.deleteMany({ where: { chapterId: id } }),
+    prisma.position.deleteMany({ where: { chapterId: id } }),
+    prisma.event.deleteMany({ where: { chapterId: id } }),
+    prisma.course.updateMany({ where: { chapterId: id }, data: { chapterId: null } }),
+    prisma.goalTemplate.deleteMany({ where: { chapterId: id } }),
+    prisma.marketingStats.deleteMany({ where: { chapterId: id } }),
+    prisma.marketingGoal.deleteMany({ where: { chapterId: id } }),
+    prisma.chapterUpdate.deleteMany({ where: { chapterId: id } }),
+    prisma.chapter.delete({ where: { id } }),
+  ]);
 
   revalidatePath("/admin/chapters");
   revalidatePath("/chapters");

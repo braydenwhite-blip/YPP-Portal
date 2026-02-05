@@ -328,6 +328,12 @@ export async function submitBulkProgressUpdates(formData: FormData) {
 // ============================================
 
 export async function getUserGoalsWithProgress(userId: string) {
+  const session = await requireAuth();
+  // Users can view their own goals; mentors/admins can view others'
+  if (session.user.id !== userId) {
+    await requireMentorOrAdmin();
+  }
+
   const goals = await prisma.goal.findMany({
     where: { userId },
     include: {
@@ -359,6 +365,8 @@ export async function getUserGoalsWithProgress(userId: string) {
 }
 
 export async function getMenteeGoalsForFeedback(menteeId: string) {
+  await requireMentorOrAdmin();
+
   const goals = await prisma.goal.findMany({
     where: { userId: menteeId },
     include: {

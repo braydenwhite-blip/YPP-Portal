@@ -167,7 +167,7 @@ export async function getAttendanceSessions() {
 // ============================================
 
 export async function getSessionWithRecords(sessionId: string) {
-  await requireAuth();
+  await requireStaffRole();
 
   const session = await prisma.attendanceSession.findUnique({
     where: { id: sessionId },
@@ -313,7 +313,16 @@ export async function bulkRecordAttendance(formData: FormData) {
 // ============================================
 
 export async function getStudentAttendanceSummary(userId: string) {
-  await requireAuth();
+  const session = await requireAuth();
+  const callerRoles = session.user.roles ?? [];
+
+  // Students can view their own summary; staff roles can view anyone's
+  if (session.user.id !== userId &&
+      !callerRoles.includes("ADMIN") &&
+      !callerRoles.includes("INSTRUCTOR") &&
+      !callerRoles.includes("CHAPTER_LEAD")) {
+    throw new Error("Unauthorized");
+  }
 
   const records = await prisma.attendanceRecord.findMany({
     where: { userId },
@@ -355,7 +364,7 @@ export async function getStudentAttendanceSummary(userId: string) {
 // ============================================
 
 export async function getCourseAttendanceReport(courseId: string) {
-  await requireAuth();
+  await requireStaffRole();
 
   // Get all sessions for this course with their records
   const sessions = await prisma.attendanceSession.findMany({
