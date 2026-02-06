@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "rm -rf .next node_modules/.prisma && if [ \"$VERCEL\" = \"1\" ]; then prisma migrate deploy; fi && prisma generate && next build",
+    "build": "rm -rf .next node_modules/.prisma && prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "next lint",
