@@ -220,6 +220,7 @@ model User {
   attendanceRecords          AttendanceRecord[]
   attendanceSessionsCreated  AttendanceSession[] @relation("AttendanceSessionsCreated")
   resourcesUploaded          Resource[]          @relation("ResourcesUploaded")
+  passwordResetTokens        PasswordResetToken[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -231,6 +232,19 @@ model UserRole {
   user   User @relation(fields: [userId], references: [id])
 
   @@id([userId, role])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([userId])
 }
 
 model UserProfile {
