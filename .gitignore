@@ -7,5 +7,6 @@ dist/
 out/
 *.log
 public/uploads/
+tsconfig.tsbuildinfo
 eval "$(ssh-agent -s)"
 eval "$(ssh-agent -s)".pub

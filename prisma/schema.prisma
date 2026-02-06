@@ -220,9 +220,7 @@ model User {
   attendanceRecords          AttendanceRecord[]
   attendanceSessionsCreated  AttendanceSession[] @relation("AttendanceSessionsCreated")
   resourcesUploaded          Resource[]          @relation("ResourcesUploaded")
-
-  // Onboarding
-  onboarding                 OnboardingProgress?
+  passwordResetTokens        PasswordResetToken[]
 
   // File Uploads
   uploads                    FileUpload[]
@@ -237,6 +235,19 @@ model UserRole {
   user   User @relation(fields: [userId], references: [id])
 
   @@id([userId, role])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([userId])
 }
 
 model UserProfile {
@@ -1033,21 +1044,6 @@ model AttendanceRecord {
 // ============================================
 // RESOURCE MODELS (Phase 19)
 // ============================================
-
-// ============================================
-// ONBOARDING MODELS
-// ============================================
-
-model OnboardingProgress {
-  id               String    @id @default(cuid())
-  userId           String    @unique
-  user             User      @relation(fields: [userId], references: [id])
-  currentStep      Int       @default(0)
-  profileCompleted Boolean   @default(false)
-  completedAt      DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-}
 
 enum ResourceType {
   DOCUMENT
