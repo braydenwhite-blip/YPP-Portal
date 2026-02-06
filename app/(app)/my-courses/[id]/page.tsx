@@ -2,7 +2,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { getCourseDetail, dropCourse } from "@/lib/student-actions";
+import { submitAssignment } from "@/lib/upload-actions";
 import Link from "next/link";
+import FileUpload from "@/components/file-upload";
 
 export default async function CourseDetailPage({
   params,
@@ -101,6 +103,41 @@ export default async function CourseDetailPage({
               </div>
             )}
           </section>
+
+          {/* Assignment Submission */}
+          {isEnrolled && (
+            <section className="card">
+              <h2>Submit Assignment</h2>
+              <p style={{ marginBottom: 16, color: "var(--muted)", fontSize: 14 }}>
+                Upload your assignment, project file, or any course-related submission.
+              </p>
+              <form action={submitAssignment}>
+                <input type="hidden" name="courseId" value={course.id} />
+                <FileUpload
+                  category="ASSIGNMENT_SUBMISSION"
+                  entityId={course.id}
+                  entityType="course"
+                  maxSizeMB={10}
+                  label="Upload Assignment"
+                />
+                <div style={{ marginTop: 12 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)" }}>
+                    Notes (optional)
+                  </label>
+                  <textarea
+                    name="notes"
+                    className="input"
+                    rows={2}
+                    placeholder="Any notes about this submission..."
+                    style={{ marginTop: 4 }}
+                  />
+                </div>
+                <button type="submit" className="button small" style={{ marginTop: 12 }}>
+                  Submit
+                </button>
+              </form>
+            </section>
+          )}
 
           {/* Previous Feedback */}
           {hasGivenFeedback && course.feedback[0] && (

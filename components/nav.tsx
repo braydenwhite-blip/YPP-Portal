@@ -78,6 +78,7 @@ function buildSections(roles: string[], awardTier?: string): NavSection[] {
   }
   communityItems.push(
     { href: "/events", label: "Events & Prep", icon: "\u25CB" },
+    { href: "/calendar", label: "Calendar", icon: "\u25CB" },
     { href: "/attendance", label: "Attendance", icon: "\u25CB" }
   );
   sections.push({ label: "Community", items: communityItems });

@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { updateProfile, updateBasicInfo } from "@/lib/profile-actions";
+import FileUpload from "@/components/file-upload";
 
 export default async function ProfilePage() {
   const session = await getServerSession(authOptions);
@@ -134,13 +135,18 @@ export default async function ProfilePage() {
             </div>
 
             <div className="form-row">
-              <label>Avatar URL</label>
+              <label>Profile Photo</label>
+              <FileUpload
+                category="PROFILE_PHOTO"
+                label="Upload Photo"
+                compact={false}
+                currentFileUrl={user.profile?.avatarUrl}
+                maxSizeMB={5}
+              />
               <input
-                type="url"
+                type="hidden"
                 name="avatarUrl"
-                className="input"
                 defaultValue={user.profile?.avatarUrl || ""}
-                placeholder="https://..."
               />
             </div>
 
