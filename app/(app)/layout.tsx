@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 import AppShell from "@/components/app-shell";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -20,6 +21,18 @@ export default async function AppLayout({
   const session = await getServerSession(authOptions);
   const roles = session?.user?.roles ?? [];
   const primaryRole = session?.user?.primaryRole ?? null;
+
+  // Redirect to onboarding if not completed yet
+  if (session?.user?.id) {
+    const onboarding = await prisma.onboardingProgress.findUnique({
+      where: { userId: session.user.id },
+      select: { completedAt: true },
+    });
+
+    if (!onboarding?.completedAt) {
+      redirect("/onboarding");
+    }
+  }
 
   // Get user's highest award tier for navigation
   let awardTier: string | undefined;
