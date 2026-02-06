@@ -9,10 +9,12 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    setLoading(true);
 
     const result = await signIn("credentials", {
       email,
@@ -22,8 +24,9 @@ export default function LoginPage() {
     });
 
     if (result?.error) {
-      setError("Invalid login. Try the demo credentials from README.");
+      setError("Invalid email or password. Please try again.");
     }
+    setLoading(false);
   }
 
   return (
@@ -34,16 +37,16 @@ export default function LoginPage() {
             <Image
               src="/logo-icon.svg"
               alt="Youth Passion Project"
-              width={60}
-              height={60}
+              width={52}
+              height={52}
             />
             <span className="login-logo-text">Youth Passion Project</span>
           </div>
           <p className="badge">Pathways Portal</p>
-          <h1 className="page-title" style={{ margin: "10px 0 12px" }}>
+          <h1 className="page-title mt-8">
             Build a full learning journey, not just a class.
           </h1>
-          <p className="hero-subtitle">
+          <p className="hero-subtitle mt-12">
             The Pathways Portal connects curriculum, mentorship, events, and instructor training so every
             chapter can guide students from their first class to a portfolio-ready project.
           </p>
@@ -63,7 +66,7 @@ export default function LoginPage() {
           </div>
           <div className="hero-metrics">
             <div>
-              <div className="kpi">101 → 301</div>
+              <div className="kpi">101 &rarr; 301</div>
               <div className="kpi-label">Leveled Pathways</div>
             </div>
             <div>
@@ -82,49 +85,51 @@ export default function LoginPage() {
             <Image
               src="/logo-icon.svg"
               alt="YPP"
-              width={48}
-              height={48}
+              width={44}
+              height={44}
             />
             <div>
-              <h2 className="page-title" style={{ marginBottom: 4, fontSize: 22 }}>
+              <h2 className="page-title" style={{ fontSize: 20 }}>
                 Welcome Back
               </h2>
-              <p style={{ color: "var(--muted)", margin: 0, fontSize: 14 }}>
+              <p className="page-subtitle mt-0" style={{ fontSize: 13 }}>
                 Sign in to your Pathways Portal
               </p>
             </div>
           </div>
           <form onSubmit={handleSubmit}>
-            <label style={{ fontSize: 13, fontWeight: 600 }}>
+            <label className="form-label" style={{ marginTop: 0 }}>
               Email
               <input
                 className="input"
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@example.com"
                 required
               />
             </label>
-            <label style={{ fontSize: 13, fontWeight: 600, marginTop: 12, display: "block" }}>
+            <label className="form-label">
               Password
               <input
                 className="input"
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
+                placeholder="Enter your password"
                 required
               />
             </label>
-            {error ? <p style={{ color: "#b91c1c", marginTop: 12 }}>{error}</p> : null}
-            <button className="button" type="submit">
-              Sign In
+            {error && <div className="form-error">{error}</div>}
+            <button className="button" type="submit" disabled={loading}>
+              {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
           <div className="login-help">
             Need a demo login? Use the credentials listed in the README.
           </div>
-          <Link className="button secondary" style={{ display: "block", textAlign: "center", marginTop: 12 }} href="/signup">
-            Sign Up
+          <Link className="button secondary" style={{ display: "block", textAlign: "center" }} href="/signup">
+            Create Account
           </Link>
         </div>
       </div>

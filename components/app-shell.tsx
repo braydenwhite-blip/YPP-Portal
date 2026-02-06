@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
 import Nav from "@/components/nav";
 import LogoutButton from "@/components/logout-button";
@@ -15,33 +18,63 @@ export default function AppShell({
   primaryRole?: string | null;
   awardTier?: string;
 }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
     <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand">
-          <Image
-            src="/logo-icon.svg"
-            alt="YPP Logo"
-            width={40}
-            height={40}
-            className="brand-logo"
-          />
-          <span className="brand-text">
-            Youth Passion <span>Project</span>
-          </span>
+      {/* Mobile menu toggle */}
+      <button
+        className="sidebar-toggle"
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        aria-label="Toggle navigation"
+        type="button"
+      >
+        {sidebarOpen ? "\u2715" : "\u2630"}
+      </button>
+
+      {/* Mobile backdrop */}
+      <div
+        className={`sidebar-backdrop ${sidebarOpen ? "open" : ""}`}
+        onClick={() => setSidebarOpen(false)}
+      />
+
+      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
+        {/* Header — fixed */}
+        <div className="sidebar-header">
+          <div className="brand">
+            <Image
+              src="/logo-icon.svg"
+              alt="YPP Logo"
+              width={36}
+              height={36}
+              className="brand-logo"
+            />
+            <span className="brand-text">
+              Youth Passion <span>Project</span>
+            </span>
+          </div>
         </div>
-        <Nav roles={roles} awardTier={awardTier} />
-        <div className="sidebar-card">
-          <h4>Signed In</h4>
-          <p>{userName ?? "Portal User"}</p>
-          <p style={{ marginTop: 8, opacity: 0.9 }}>
-            {primaryRole ? `Primary Role: ${primaryRole}` : "Role-based dashboards enabled"}
-          </p>
-          <div className="sidebar-actions">
-            <LogoutButton />
+
+        {/* Scrollable navigation */}
+        <div className="sidebar-nav">
+          <Nav roles={roles} awardTier={awardTier} onNavigate={() => setSidebarOpen(false)} />
+        </div>
+
+        {/* Footer — fixed */}
+        <div className="sidebar-footer">
+          <div className="sidebar-card">
+            <h4>Signed In</h4>
+            <p className="user-name">{userName ?? "Portal User"}</p>
+            <p className="user-role">
+              {primaryRole ? primaryRole.replace("_", " ") : "Portal Access"}
+            </p>
+            <div className="sidebar-actions">
+              <LogoutButton />
+            </div>
           </div>
         </div>
       </aside>
+
       <main>{children}</main>
     </div>
   );

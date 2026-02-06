@@ -1,5 +1,12 @@
 import "./globals.css";
 import { Metadata } from "next";
+import { Inter } from "next/font/google";
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter"
+});
 
 export const metadata: Metadata = {
   title: "Youth Passion Project - Pathways Portal",
@@ -17,8 +24,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="en" className={inter.variable}>
+      <body style={{ fontFamily: "var(--font-inter), system-ui, -apple-system, sans-serif" }}>
+        {children}
+      </body>
     </html>
   );
 }

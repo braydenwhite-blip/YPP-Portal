@@ -24,41 +24,41 @@ export default function SignupPage() {
 
   return (
     <div className="login-shell">
-      <div className="login-card">
+      <div className="login-card" style={{ justifySelf: "center" }}>
         <div className="login-card-header">
           <Image
             src="/logo-icon.svg"
             alt="YPP"
-            width={48}
-            height={48}
+            width={44}
+            height={44}
           />
           <div>
-            <h1 className="page-title" style={{ marginBottom: 4, fontSize: 22 }}>
+            <h1 className="page-title" style={{ fontSize: 20 }}>
               Join Youth Passion Project
             </h1>
-            <p style={{ color: "var(--muted)", margin: 0, fontSize: 14 }}>
+            <p className="page-subtitle mt-0" style={{ fontSize: 13 }}>
               Create your account to get started
             </p>
           </div>
         </div>
         <form action={formAction}>
-          <label style={{ fontSize: 13, fontWeight: 600 }}>
+          <label className="form-label" style={{ marginTop: 0 }}>
             Full Name
-            <input className="input" name="name" required />
+            <input className="input" name="name" placeholder="Your full name" required />
           </label>
-          <label style={{ fontSize: 13, fontWeight: 600, marginTop: 12, display: "block" }}>
+          <label className="form-label">
             Email
-            <input className="input" name="email" type="email" required />
+            <input className="input" name="email" type="email" placeholder="you@example.com" required />
           </label>
-          <label style={{ fontSize: 13, fontWeight: 600, marginTop: 12, display: "block" }}>
+          <label className="form-label">
             Phone (optional)
-            <input className="input" name="phone" type="tel" />
+            <input className="input" name="phone" type="tel" placeholder="(555) 123-4567" />
           </label>
-          <label style={{ fontSize: 13, fontWeight: 600, marginTop: 12, display: "block" }}>
+          <label className="form-label">
             Password
-            <input className="input" name="password" type="password" required />
+            <input className="input" name="password" type="password" placeholder="Min 8 characters" required />
           </label>
-          <label style={{ fontSize: 13, fontWeight: 600, marginTop: 12, display: "block" }}>
+          <label className="form-label">
             Chapter (optional)
             <select className="input" name="chapterId" defaultValue="">
               <option value="">Select a chapter</option>
@@ -69,11 +69,11 @@ export default function SignupPage() {
               ))}
             </select>
           </label>
-          {state.message ? (
-            <p style={{ color: state.status === "error" ? "#b91c1c" : "#166534", marginTop: 12 }}>
+          {state.message && (
+            <div className={state.status === "error" ? "form-error" : "form-success"}>
               {state.message}
-            </p>
-          ) : null}
+            </div>
+          )}
           <button className="button" type="submit">
             Create Account
           </button>
