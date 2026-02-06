@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useFormState } from "react-dom";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -10,6 +10,14 @@ import { validateResetToken, resetPassword, ActionResult } from "@/lib/password-
 const initialState: ActionResult = { status: "idle", message: "" };
 
 export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<ResetPasswordLoading />}>
+      <ResetPasswordPageContent />
+    </Suspense>
+  );
+}
+
+function ResetPasswordPageContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token") || "";
 
@@ -39,13 +47,7 @@ export default function ResetPasswordPage() {
   }, [token]);
 
   if (validating) {
-    return (
-      <div className="login-shell">
-        <div className="login-card" style={{ justifySelf: "center", textAlign: "center" }}>
-          <p style={{ color: "var(--muted)" }}>Validating reset link...</p>
-        </div>
-      </div>
-    );
+    return <ResetPasswordLoading />;
   }
 
   if (!tokenValid) {
@@ -168,6 +170,16 @@ export default function ResetPasswordPage() {
         <div className="login-help">
           Remember your password? <Link href="/login">Sign in</Link>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ResetPasswordLoading() {
+  return (
+    <div className="login-shell">
+      <div className="login-card" style={{ justifySelf: "center", textAlign: "center" }}>
+        <p style={{ color: "var(--muted)" }}>Validating reset link...</p>
       </div>
     </div>
   );
