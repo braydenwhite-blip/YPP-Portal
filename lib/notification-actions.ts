@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 import { NotificationType } from "@prisma/client";
+import { sendNotificationEmail, isEmailConfigured } from "@/lib/email";
 
 async function requireAuth() {
   const session = await getServerSession(authOptions);
@@ -20,6 +21,54 @@ function getString(formData: FormData, key: string, required = true) {
     throw new Error(`Missing ${key}`);
   }
   return value ? String(value).trim() : "";
+}
+
+// ---------------------------------------------------------------------------
+// Helper: Send email notification if user has it enabled
+// ---------------------------------------------------------------------------
+async function sendEmailNotificationIfEnabled(
+  userId: string,
+  title: string,
+  body: string,
+  link?: string
+) {
+  if (!isEmailConfigured()) return;
+
+  try {
+    // Get user and their preferences
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        email: true,
+        name: true,
+        notificationPreference: {
+          select: { emailEnabled: true }
+        }
+      }
+    });
+
+    if (!user) return;
+
+    // Check if email is enabled (default to true if no preferences set)
+    const emailEnabled = user.notificationPreference?.emailEnabled ?? true;
+    if (!emailEnabled) return;
+
+    // Build full URL for link
+    const baseUrl = process.env.NEXTAUTH_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+    const fullLink = link ? `${baseUrl}${link.startsWith("/") ? link : `/${link}`}` : undefined;
+
+    await sendNotificationEmail({
+      to: user.email,
+      name: user.name,
+      title,
+      body,
+      link: fullLink
+    });
+  } catch (error) {
+    // Log but don't fail the notification creation
+    console.error("[Notification] Failed to send email:", error);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -121,6 +170,9 @@ export async function createNotification(
     },
   });
 
+  // Send email notification (non-blocking)
+  sendEmailNotificationIfEnabled(userId, title, body, link || undefined);
+
   revalidatePath("/notifications");
   revalidatePath("/");
 
@@ -155,6 +207,11 @@ export async function createBulkNotifications(
   }));
 
   const result = await prisma.notification.createMany({ data });
+
+  // Send email notifications to all users (non-blocking, in background)
+  for (const userId of userIds) {
+    sendEmailNotificationIfEnabled(userId, title, body, link || undefined);
+  }
 
   revalidatePath("/notifications");
   revalidatePath("/");
@@ -253,4 +310,64 @@ export async function deleteNotification(formData: FormData) {
 
   revalidatePath("/notifications");
   revalidatePath("/");
+}
+
+// ---------------------------------------------------------------------------
+// 10. createSystemNotification – internal use, no auth check (for server-side)
+// ---------------------------------------------------------------------------
+export async function createSystemNotification(
+  userId: string,
+  type: NotificationType,
+  title: string,
+  body: string,
+  link?: string,
+  sendEmail = true
+) {
+  const notification = await prisma.notification.create({
+    data: {
+      userId,
+      type,
+      title,
+      body,
+      link: link || null,
+    },
+  });
+
+  // Send email notification if enabled
+  if (sendEmail) {
+    sendEmailNotificationIfEnabled(userId, title, body, link || undefined);
+  }
+
+  return notification;
+}
+
+// ---------------------------------------------------------------------------
+// 11. createBulkSystemNotifications – internal use, no auth check
+// ---------------------------------------------------------------------------
+export async function createBulkSystemNotifications(
+  userIds: string[],
+  type: NotificationType,
+  title: string,
+  body: string,
+  link?: string,
+  sendEmail = true
+) {
+  if (userIds.length === 0) return;
+
+  const data = userIds.map((uid) => ({
+    userId: uid,
+    type,
+    title,
+    body,
+    link: link || null,
+  }));
+
+  await prisma.notification.createMany({ data });
+
+  // Send email notifications
+  if (sendEmail) {
+    for (const uid of userIds) {
+      sendEmailNotificationIfEnabled(uid, title, body, link || undefined);
+    }
+  }
 }
