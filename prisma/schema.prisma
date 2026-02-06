@@ -221,9 +221,6 @@ model User {
   attendanceSessionsCreated  AttendanceSession[] @relation("AttendanceSessionsCreated")
   resourcesUploaded          Resource[]          @relation("ResourcesUploaded")
 
-  // Onboarding
-  onboarding                 OnboardingProgress?
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -1030,21 +1027,6 @@ model AttendanceRecord {
 // ============================================
 // RESOURCE MODELS (Phase 19)
 // ============================================
-
-// ============================================
-// ONBOARDING MODELS
-// ============================================
-
-model OnboardingProgress {
-  id               String    @id @default(cuid())
-  userId           String    @unique
-  user             User      @relation(fields: [userId], references: [id])
-  currentStep      Int       @default(0)
-  profileCompleted Boolean   @default(false)
-  completedAt      DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-}
 
 enum ResourceType {
   DOCUMENT

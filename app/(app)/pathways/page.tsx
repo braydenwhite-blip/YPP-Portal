@@ -24,7 +24,7 @@ export default async function PathwaysPage() {
           <h3>Core Components</h3>
           <p>
             Pathways connects curriculum structure, events & competition prep, mentorship, and instructor
-            onboarding into one clear progression across chapters.
+            development into one clear progression across chapters.
           </p>
           <div className="timeline" style={{ marginTop: 16 }}>
             <div className="timeline-item">
@@ -38,9 +38,6 @@ export default async function PathwaysPage() {
             <div className="timeline-item">
               <strong>Mentorship:</strong> monthly and quarterly check-ins for instructors and students to stay
               on track.
-            </div>
-            <div className="timeline-item">
-              <strong>Onboarding:</strong> approved-by-level instructor training to ensure quality instruction.
             </div>
           </div>
         </div>
