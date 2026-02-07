@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import Link from "next/link";
 
 export default async function EventsPage() {
   const events = await prisma.event.findMany({ orderBy: { startDate: "asc" } });
@@ -12,6 +13,14 @@ export default async function EventsPage() {
         <div>
           <p className="badge">Events & Prep</p>
           <h1 className="page-title">Festivals, Showcases, & Competitions</h1>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Link href="/calendar" className="button small">
+            Visual Calendar
+          </Link>
+          <a href="/api/calendar" className="button small outline" download>
+            Export iCal
+          </a>
         </div>
       </div>
 

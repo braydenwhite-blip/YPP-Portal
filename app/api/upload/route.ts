@@ -1,0 +1,138 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { writeFile, mkdir } from "fs/promises";
+import { join } from "path";
+import { randomUUID } from "crypto";
+
+const ALLOWED_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+const VALID_CATEGORIES = [
+  "PROFILE_PHOTO",
+  "ASSIGNMENT_SUBMISSION",
+  "TRAINING_EVIDENCE",
+  "OTHER",
+] as const;
+
+type UploadCategory = (typeof VALID_CATEGORIES)[number];
+
+export async function POST(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const formData = await request.formData();
+    const file = formData.get("file") as File | null;
+    const category = formData.get("category") as string;
+    const entityId = formData.get("entityId") as string | null;
+    const entityType = formData.get("entityType") as string | null;
+
+    if (!file) {
+      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    }
+
+    if (!VALID_CATEGORIES.includes(category as UploadCategory)) {
+      return NextResponse.json({ error: "Invalid category" }, { status: 400 });
+    }
+
+    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+      return NextResponse.json(
+        { error: "File type not allowed. Use JPG, PNG, WebP, GIF, PDF, or DOC." },
+        { status: 400 }
+      );
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: "File too large. Maximum size is 10MB." },
+        { status: 400 }
+      );
+    }
+
+    // Sanitize original filename
+    const originalName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+
+    // Generate a unique filename
+    const ext = originalName.split(".").pop() || "bin";
+    const filename = `${randomUUID()}.${ext}`;
+
+    // Save to uploads directory
+    const uploadsDir = join(process.cwd(), "public", "uploads");
+    await mkdir(uploadsDir, { recursive: true });
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const filePath = join(uploadsDir, filename);
+    await writeFile(filePath, buffer);
+
+    const url = `/uploads/${filename}`;
+
+    // Save metadata to database
+    const upload = await prisma.fileUpload.create({
+      data: {
+        filename,
+        originalName,
+        mimeType: file.type,
+        size: file.size,
+        url,
+        category: category as UploadCategory,
+        userId: session.user.id,
+        entityId: entityId || null,
+        entityType: entityType || null,
+      },
+    });
+
+    // If this is a profile photo, update the user's profile
+    if (category === "PROFILE_PHOTO") {
+      await prisma.userProfile.upsert({
+        where: { userId: session.user.id },
+        create: { userId: session.user.id, avatarUrl: url },
+        update: { avatarUrl: url },
+      });
+    }
+
+    return NextResponse.json({
+      id: upload.id,
+      url: upload.url,
+      originalName: upload.originalName,
+      size: upload.size,
+    });
+  } catch {
+    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+  }
+}
+
+export async function GET(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const category = searchParams.get("category");
+  const entityId = searchParams.get("entityId");
+
+  const where: Record<string, unknown> = { userId: session.user.id };
+  if (category) where.category = category;
+  if (entityId) where.entityId = entityId;
+
+  const uploads = await prisma.fileUpload.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+
+  return NextResponse.json(uploads);
+}

@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { submitTrainingEvidence } from "@/lib/upload-actions";
+import FileUpload from "@/components/file-upload";
 
 export default async function InstructorTrainingPage() {
   const modules = await prisma.trainingModule.findMany({
@@ -82,6 +84,50 @@ export default async function InstructorTrainingPage() {
               </tbody>
             </table>
           )}
+        </div>
+      </div>
+
+      <div style={{ marginTop: 24 }}>
+        <div className="section-title">Submit Training Evidence</div>
+        <div className="card">
+          <h3>Upload Completion Evidence</h3>
+          <p style={{ marginBottom: 16 }}>
+            Upload certificates, screenshots, or documents as evidence of training completion.
+          </p>
+          <form action={submitTrainingEvidence}>
+            <div className="form-row">
+              <label>Training Module</label>
+              <select name="moduleId" className="input" required>
+                <option value="">Select module...</option>
+                {modules.map((mod) => (
+                  <option key={mod.id} value={mod.id}>
+                    {mod.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="form-row" style={{ marginTop: 12 }}>
+              <label>Evidence File</label>
+              <FileUpload
+                category="TRAINING_EVIDENCE"
+                entityType="training_module"
+                maxSizeMB={10}
+                label="Upload Evidence"
+              />
+            </div>
+            <div className="form-row" style={{ marginTop: 12 }}>
+              <label>Notes (optional)</label>
+              <textarea
+                name="notes"
+                className="input"
+                rows={2}
+                placeholder="Any notes about this submission..."
+              />
+            </div>
+            <button type="submit" className="button small" style={{ marginTop: 12 }}>
+              Submit Evidence
+            </button>
+          </form>
         </div>
       </div>
 
