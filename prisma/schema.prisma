@@ -240,6 +240,17 @@ model User {
   auditLogs                  AuditLog[]       @relation("AuditLogsPerformed")
   waitlistEntries            WaitlistEntry[]
 
+  // Student Feature Enhancements (Features 1-5)
+  studyGroupsCreated             StudyGroup[]            @relation("StudyGroupsCreated")
+  studyGroupMemberships          StudyGroupMember[]
+  studyGroupMessages             StudyGroupMessage[]     @relation("StudyGroupMessagesAuthored")
+  studyGroupResourcesUploaded    StudyGroupResource[]    @relation("StudyGroupResourcesUploaded")
+  learningNotes                  LearningNote[]
+  assignmentsCreated             Assignment[]            @relation("AssignmentsCreated")
+  assignmentSubmissions          AssignmentSubmission[]  @relation("AssignmentSubmissionsSubmitted")
+  assignmentSubmissionsGraded    AssignmentSubmission[]  @relation("AssignmentSubmissionsGraded")
+  skillBadges                    SkillBadge[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -306,6 +317,9 @@ model Course {
   certificates     Certificate[]
   attendanceSessions AttendanceSession[]
   resources        Resource[]
+  studyGroups      StudyGroup[]
+  learningNotes    LearningNote[]
+  assignments      Assignment[]
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 }
@@ -1285,4 +1299,181 @@ model WaitlistEntry {
   @@unique([userId, courseId])
   @@index([courseId, status])
   @@index([status])
+}
+
+// ============================================
+// STUDENT FEATURE ENHANCEMENTS (Features 1-5)
+// ============================================
+
+// Feature 2: Peer Study Groups
+model StudyGroup {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  courseId    String
+  course      Course    @relation(fields: [courseId], references: [id])
+  createdById String
+  createdBy   User      @relation("StudyGroupsCreated", fields: [createdById], references: [id])
+  isActive    Boolean   @default(true)
+  maxMembers  Int?
+  members     StudyGroupMember[]
+  messages    StudyGroupMessage[]
+  resources   StudyGroupResource[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([courseId])
+}
+
+model StudyGroupMember {
+  id        String     @id @default(cuid())
+  groupId   String
+  group     StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User       @relation(fields: [userId], references: [id])
+  role      StudyGroupRole @default(MEMBER)
+  joinedAt  DateTime   @default(now())
+
+  @@unique([groupId, userId])
+}
+
+enum StudyGroupRole {
+  CREATOR
+  MODERATOR
+  MEMBER
+}
+
+model StudyGroupMessage {
+  id        String     @id @default(cuid())
+  groupId   String
+  group     StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User       @relation("StudyGroupMessagesAuthored", fields: [userId], references: [id])
+  content   String
+  createdAt DateTime   @default(now())
+
+  @@index([groupId, createdAt])
+}
+
+model StudyGroupResource {
+  id          String       @id @default(cuid())
+  groupId     String
+  group       StudyGroup   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  url         String
+  uploadedById String
+  uploadedBy  User         @relation("StudyGroupResourcesUploaded", fields: [uploadedById], references: [id])
+  createdAt   DateTime     @default(now())
+
+  @@index([groupId])
+}
+
+// Feature 3: Personal Learning Notes
+model LearningNote {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  courseId   String?
+  course     Course?  @relation(fields: [courseId], references: [id])
+  lessonTitle String?
+  content    String
+  isPinned   Boolean  @default(false)
+  tags       String[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId, courseId])
+}
+
+// Feature 4: Assignment Submission Portal
+enum AssignmentType {
+  INDIVIDUAL
+  GROUP
+  PEER_REVIEW
+}
+
+enum SubmissionStatus {
+  NOT_SUBMITTED
+  SUBMITTED
+  GRADED
+  RETURNED
+}
+
+model Assignment {
+  id          String         @id @default(cuid())
+  courseId    String
+  course      Course         @relation(fields: [courseId], references: [id])
+  title       String
+  description String
+  type        AssignmentType @default(INDIVIDUAL)
+  maxPoints   Int?
+  dueDate     DateTime?
+  allowLateSubmission Boolean @default(true)
+  instructions String?
+  attachmentUrl String?
+  isPublished Boolean        @default(true)
+  createdById String
+  createdBy   User           @relation("AssignmentsCreated", fields: [createdById], references: [id])
+  submissions AssignmentSubmission[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([courseId])
+}
+
+model AssignmentSubmission {
+  id           String           @id @default(cuid())
+  assignmentId String
+  assignment   Assignment       @relation(fields: [assignmentId], references: [id])
+  studentId    String
+  student      User             @relation("AssignmentSubmissionsSubmitted", fields: [studentId], references: [id])
+  status       SubmissionStatus @default(NOT_SUBMITTED)
+  submissionUrl String?
+  submissionText String?
+  submittedAt  DateTime?
+  grade        Int?
+  feedback     String?
+  gradedAt     DateTime?
+  gradedById   String?
+  gradedBy     User?            @relation("AssignmentSubmissionsGraded", fields: [gradedById], references: [id])
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([assignmentId, studentId])
+  @@index([studentId])
+}
+
+// Feature 5: Skill Badge Display
+model Skill {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  description String?
+  category    String?
+  iconUrl     String?
+  badges      SkillBadge[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+enum BadgeLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+model SkillBadge {
+  id          String     @id @default(cuid())
+  skillId     String
+  skill       Skill      @relation(fields: [skillId], references: [id])
+  userId      String
+  user        User       @relation(fields: [userId], references: [id])
+  level       BadgeLevel @default(BEGINNER)
+  earnedAt    DateTime   @default(now())
+  evidence    String?
+  isVisible   Boolean    @default(true)
+
+  @@unique([skillId, userId])
+  @@index([userId])
 }
