@@ -68,7 +68,17 @@ export default async function OverviewPage() {
   });
 
   const instructorCourses = isInstructor && userId
-    ? await prisma.course.findMany({ where: { leadInstructorId: userId } })
+    ? await prisma.course.findMany({
+        where: { leadInstructorId: userId },
+        // Avoid selecting new columns (like maxEnrollment) if the DB
+        // hasn't been migrated yet.
+        select: {
+          id: true,
+          title: true,
+          format: true,
+          level: true,
+        }
+      })
     : [];
 
   const trainingAssignments = isInstructor && userId
@@ -89,7 +99,16 @@ export default async function OverviewPage() {
   const enrollments = isStudent && userId
     ? await prisma.enrollment.findMany({
         where: { userId },
-        include: { course: true }
+        include: {
+          course: {
+            select: {
+              id: true,
+              title: true,
+              format: true,
+              level: true,
+            }
+          }
+        }
       })
     : [];
 
@@ -97,7 +116,16 @@ export default async function OverviewPage() {
     ? await prisma.pathway.findMany({
         include: {
           steps: {
-            include: { course: true },
+            include: {
+              course: {
+                select: {
+                  id: true,
+                  title: true,
+                  format: true,
+                  level: true,
+                }
+              }
+            },
             orderBy: { stepOrder: "asc" }
           }
         }
@@ -114,7 +142,11 @@ export default async function OverviewPage() {
   const chapter = isChapterLead && user?.chapterId
     ? await prisma.chapter.findUnique({
         where: { id: user.chapterId },
-        include: { users: true, courses: true, events: true }
+        select: {
+          id: true,
+          name: true,
+          _count: { select: { users: true, courses: true, events: true } }
+        }
       })
     : null;
 
@@ -486,15 +518,15 @@ export default async function OverviewPage() {
             <h3>{chapter.name}</h3>
             <div className="stats-grid mt-16">
               <div className="stat-card">
-                <span className="stat-value">{chapter.users.length}</span>
+                <span className="stat-value">{chapter._count.users}</span>
                 <span className="stat-label">Members</span>
               </div>
               <div className="stat-card">
-                <span className="stat-value">{chapter.courses.length}</span>
+                <span className="stat-value">{chapter._count.courses}</span>
                 <span className="stat-label">Classes</span>
               </div>
               <div className="stat-card">
-                <span className="stat-value">{chapter.events.length}</span>
+                <span className="stat-value">{chapter._count.events}</span>
                 <span className="stat-label">Events</span>
               </div>
             </div>
