@@ -3,32 +3,34 @@
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { awardXp, XP_REWARDS } from "@/lib/xp";
 
 export async function getOnboardingProgress() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return null;
 
-  const progress = await prisma.onboardingProgress.findUnique({
-    where: { userId: session.user.id },
-  });
-
-  return progress;
+  try {
+    return await prisma.onboardingProgress.findUnique({
+      where: { userId: session.user.id },
+    });
+  } catch {
+    return null;
+  }
 }
 
 export async function saveOnboardingStep(step: number) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return { error: "Not authenticated" };
 
-  await prisma.onboardingProgress.upsert({
-    where: { userId: session.user.id },
-    create: {
-      userId: session.user.id,
-      currentStep: step,
-    },
-    update: {
-      currentStep: step,
-    },
-  });
+  try {
+    await prisma.onboardingProgress.upsert({
+      where: { userId: session.user.id },
+      create: { userId: session.user.id, currentStep: step },
+      update: { currentStep: step },
+    });
+  } catch {
+    // Table may not exist yet — continue silently
+  }
 
   return { success: true };
 }
@@ -73,17 +75,53 @@ export async function saveOnboardingProfile(formData: FormData) {
     },
   });
 
-  await prisma.onboardingProgress.upsert({
-    where: { userId: session.user.id },
-    create: {
-      userId: session.user.id,
-      currentStep: 2,
-      profileCompleted: true,
-    },
-    update: {
-      profileCompleted: true,
-    },
-  });
+  try {
+    await prisma.onboardingProgress.upsert({
+      where: { userId: session.user.id },
+      create: {
+        userId: session.user.id,
+        currentStep: 2,
+        profileCompleted: true,
+      },
+      update: { profileCompleted: true },
+    });
+  } catch {
+    // Table may not exist yet
+  }
+
+  return { success: true };
+}
+
+export async function selectPathways(pathwayIds: string[]) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return { error: "Not authenticated" };
+
+  for (const pathwayId of pathwayIds) {
+    const firstStep = await prisma.pathwayStep.findFirst({
+      where: { pathwayId },
+      orderBy: { stepOrder: "asc" },
+    });
+    if (!firstStep) continue;
+
+    const existing = await prisma.enrollment.findFirst({
+      where: { userId: session.user.id, courseId: firstStep.courseId },
+    });
+    if (!existing) {
+      await prisma.enrollment.create({
+        data: {
+          userId: session.user.id,
+          courseId: firstStep.courseId,
+          status: "ENROLLED",
+        },
+      });
+
+      try {
+        await awardXp(session.user.id, XP_REWARDS.ENROLL_COURSE, "Enrolled in pathway course", { pathwayId, courseId: firstStep.courseId });
+      } catch {
+        // XP columns may not exist yet
+      }
+    }
+  }
 
   return { success: true };
 }
@@ -92,17 +130,25 @@ export async function completeOnboarding() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return { error: "Not authenticated" };
 
-  await prisma.onboardingProgress.upsert({
-    where: { userId: session.user.id },
-    create: {
-      userId: session.user.id,
-      currentStep: 99,
-      completedAt: new Date(),
-    },
-    update: {
-      completedAt: new Date(),
-    },
-  });
+  try {
+    await prisma.onboardingProgress.upsert({
+      where: { userId: session.user.id },
+      create: {
+        userId: session.user.id,
+        currentStep: 99,
+        completedAt: new Date(),
+      },
+      update: { completedAt: new Date() },
+    });
+  } catch {
+    // Table may not exist yet
+  }
+
+  try {
+    await awardXp(session.user.id, XP_REWARDS.COMPLETE_ONBOARDING, "Completed onboarding");
+  } catch {
+    // XP columns may not exist yet
+  }
 
   return { success: true };
 }

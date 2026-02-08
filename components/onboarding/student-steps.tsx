@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import type { PathwayOption } from "./onboarding-wizard";
 
 interface StudentStepsProps {
   currentStep: number;
@@ -14,6 +15,10 @@ interface StudentStepsProps {
     parentEmail?: string | null;
     parentPhone?: string | null;
   } | null;
+  pathways: PathwayOption[];
+  selectedPathwayIds: Set<string>;
+  onPathwaySelect: (id: string) => void;
+  onPathwayContinue: () => void;
   onNext: () => void;
   onBack: () => void;
   onProfileSave: (formData: FormData) => void;
@@ -26,6 +31,10 @@ export default function StudentSteps({
   userName,
   chapterName,
   profileData,
+  pathways,
+  selectedPathwayIds,
+  onPathwaySelect,
+  onPathwayContinue,
   onNext,
   onBack,
   onProfileSave,
@@ -35,6 +44,7 @@ export default function StudentSteps({
   const formRef = useRef<HTMLFormElement>(null);
   const firstName = userName.split(" ")[0];
 
+  // Step 0: Welcome
   if (currentStep === 0) {
     return (
       <div className="onboarding-step">
@@ -56,21 +66,21 @@ export default function StudentSteps({
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
             </div>
             <h3>Learn Your Way</h3>
-            <p>Follow structured pathways from 101 through 301, building skills step by step in topics you love.</p>
+            <p>Follow structured pathways from 101 through 301, building skills step by step.</p>
           </div>
           <div className="onboarding-feature-card">
             <div className="onboarding-feature-icon">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
             </div>
             <h3>Get Mentored</h3>
-            <p>Connect with experienced mentors who&apos;ll guide your progress and help you reach your goals.</p>
+            <p>Connect with mentors who&apos;ll guide your progress and help you reach your goals.</p>
           </div>
           <div className="onboarding-feature-card">
             <div className="onboarding-feature-icon">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
             </div>
-            <h3>Earn & Grow</h3>
-            <p>Track your goals, earn certificates, attend events, and build a portfolio that stands out.</p>
+            <h3>Earn XP &amp; Level Up</h3>
+            <p>Earn experience points, level up, and unlock achievements as you progress.</p>
           </div>
         </div>
 
@@ -92,7 +102,88 @@ export default function StudentSteps({
     );
   }
 
+  // Step 1: Choose Your Pathway
   if (currentStep === 1) {
+    return (
+      <div className="onboarding-step">
+        <div className="onboarding-icon-large">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--ypp-purple)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <polygon points="10 8 16 12 10 16 10 8" />
+          </svg>
+        </div>
+        <h1 className="onboarding-title">Choose Your Pathway</h1>
+        <p className="onboarding-subtitle">
+          Pick one or more pathways that match your interests. Each pathway takes you from
+          foundations (101) through mastery (301) and beyond.
+        </p>
+
+        {pathways.length === 0 ? (
+          <div className="onboarding-callout">
+            No pathways available yet. Your chapter admin will add pathways soon.
+            You can skip this step and choose later from the Pathways page.
+          </div>
+        ) : (
+          <div className="pathway-selection-grid">
+            {pathways.map((pathway) => {
+              const isSelected = selectedPathwayIds.has(pathway.id);
+              return (
+                <button
+                  key={pathway.id}
+                  type="button"
+                  className={`pathway-selection-card ${isSelected ? "selected" : ""}`}
+                  onClick={() => onPathwaySelect(pathway.id)}
+                >
+                  <div className="pathway-selection-header">
+                    <div className="pathway-selection-check">
+                      {isSelected ? (
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--ypp-purple)" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="4" /><polyline points="17 8 10 16 7 13" /></svg>
+                      ) : (
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="4" /></svg>
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="pathway-selection-name">{pathway.name}</h3>
+                      <span className="pathway-selection-area">{pathway.interestArea}</span>
+                    </div>
+                  </div>
+                  <p className="pathway-selection-desc">{pathway.description}</p>
+                  <div className="pathway-selection-steps">
+                    {pathway.steps.map((step, idx) => (
+                      <span key={step.id} className="pathway-step-pill">
+                        {idx > 0 && <span className="pathway-step-arrow">&rarr;</span>}
+                        {step.courseLevel
+                          ? step.courseLevel.replace("LEVEL_", "")
+                          : step.courseFormat.replace("_", " ")}
+                      </span>
+                    ))}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="onboarding-actions">
+          <button
+            className="button"
+            onClick={onPathwayContinue}
+            disabled={isPending}
+          >
+            {selectedPathwayIds.size > 0
+              ? `Continue with ${selectedPathwayIds.size} pathway${selectedPathwayIds.size > 1 ? "s" : ""}`
+              : "Continue without selecting"}
+          </button>
+          <button type="button" className="button outline small" onClick={onBack} disabled={isPending}>
+            Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 2: Profile Setup
+  if (currentStep === 2) {
     return (
       <div className="onboarding-step">
         <div className="onboarding-icon-large">
@@ -104,7 +195,7 @@ export default function StudentSteps({
         <h1 className="onboarding-title">Set Up Your Profile</h1>
         <p className="onboarding-subtitle">
           Tell us a bit about yourself so we can personalize your experience.
-          You can always update this later in your settings.
+          You can always update this later.
         </p>
 
         <form
@@ -118,86 +209,40 @@ export default function StudentSteps({
         >
           <div className="form-row">
             <label htmlFor="school">School</label>
-            <input
-              id="school"
-              name="school"
-              className="input"
-              placeholder="e.g. Lincoln High School"
-              defaultValue={profileData?.school ?? ""}
-            />
+            <input id="school" name="school" className="input" placeholder="e.g. Lincoln High School" defaultValue={profileData?.school ?? ""} />
           </div>
-
           <div className="form-row">
             <label htmlFor="grade">Grade Level</label>
             <select id="grade" name="grade" className="input" defaultValue={profileData?.grade ?? ""}>
               <option value="">Select your grade</option>
               {[6, 7, 8, 9, 10, 11, 12].map((g) => (
-                <option key={g} value={g}>
-                  Grade {g}
-                </option>
+                <option key={g} value={g}>Grade {g}</option>
               ))}
             </select>
           </div>
-
           <div className="form-row">
             <label htmlFor="interests">Interests</label>
-            <input
-              id="interests"
-              name="interests"
-              className="input"
-              placeholder="e.g. Music, Coding, Art, Science"
-              defaultValue={profileData?.interests?.join(", ") ?? ""}
-            />
+            <input id="interests" name="interests" className="input" placeholder="e.g. Music, Coding, Art, Science" defaultValue={profileData?.interests?.join(", ") ?? ""} />
             <span className="onboarding-hint">Separate with commas</span>
           </div>
-
           <div className="form-row">
             <label htmlFor="bio">About You</label>
-            <textarea
-              id="bio"
-              name="bio"
-              className="input"
-              placeholder="Share a little about yourself, your passions, and what you hope to learn..."
-              rows={3}
-              defaultValue={profileData?.bio ?? ""}
-            />
+            <textarea id="bio" name="bio" className="input" placeholder="Share a little about yourself..." rows={3} defaultValue={profileData?.bio ?? ""} />
           </div>
-
           <div className="form-row">
             <label htmlFor="parentEmail">Parent/Guardian Email (optional)</label>
-            <input
-              id="parentEmail"
-              name="parentEmail"
-              type="email"
-              className="input"
-              placeholder="parent@email.com"
-              defaultValue={profileData?.parentEmail ?? ""}
-            />
+            <input id="parentEmail" name="parentEmail" type="email" className="input" placeholder="parent@email.com" defaultValue={profileData?.parentEmail ?? ""} />
           </div>
-
           <div className="form-row">
             <label htmlFor="parentPhone">Parent/Guardian Phone (optional)</label>
-            <input
-              id="parentPhone"
-              name="parentPhone"
-              type="tel"
-              className="input"
-              placeholder="(555) 123-4567"
-              defaultValue={profileData?.parentPhone ?? ""}
-            />
+            <input id="parentPhone" name="parentPhone" type="tel" className="input" placeholder="(555) 123-4567" defaultValue={profileData?.parentPhone ?? ""} />
           </div>
 
           <div className="onboarding-actions">
-            <button type="submit" className="button" disabled={isPending}>
-              Save &amp; Continue
-            </button>
+            <button type="submit" className="button" disabled={isPending}>Save &amp; Continue</button>
             <div className="onboarding-actions-secondary">
-              <button type="button" className="button outline small" onClick={onBack} disabled={isPending}>
-                Back
-              </button>
-              <button type="button" className="onboarding-skip" onClick={onNext} disabled={isPending}>
-                Skip for now
-              </button>
+              <button type="button" className="button outline small" onClick={onBack} disabled={isPending}>Back</button>
+              <button type="button" className="onboarding-skip" onClick={onNext} disabled={isPending}>Skip for now</button>
             </div>
           </div>
         </form>
@@ -205,72 +250,7 @@ export default function StudentSteps({
     );
   }
 
-  if (currentStep === 2) {
-    return (
-      <div className="onboarding-step">
-        <div className="onboarding-icon-large">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--ypp-purple)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10" />
-            <polygon points="10 8 16 12 10 16 10 8" />
-          </svg>
-        </div>
-        <h1 className="onboarding-title">How Pathways Work</h1>
-        <p className="onboarding-subtitle">
-          YPP uses a structured pathway system to help you build skills progressively
-          in the subjects you care about most.
-        </p>
-
-        <div className="onboarding-pathway-visual">
-          <div className="pathway-level">
-            <div className="pathway-level-badge level-101">101</div>
-            <div className="pathway-level-info">
-              <h3>Foundations</h3>
-              <p>Get introduced to a new topic. Learn the basics and discover what excites you.</p>
-            </div>
-          </div>
-          <div className="pathway-connector" />
-          <div className="pathway-level">
-            <div className="pathway-level-badge level-201">201</div>
-            <div className="pathway-level-info">
-              <h3>Deep Dive</h3>
-              <p>Build on your foundations with intermediate projects and more hands-on learning.</p>
-            </div>
-          </div>
-          <div className="pathway-connector" />
-          <div className="pathway-level">
-            <div className="pathway-level-badge level-301">301</div>
-            <div className="pathway-level-info">
-              <h3>Mastery</h3>
-              <p>Apply your skills to advanced challenges, lead projects, and mentor others.</p>
-            </div>
-          </div>
-          <div className="pathway-connector" />
-          <div className="pathway-level">
-            <div className="pathway-level-badge level-lab">Labs</div>
-            <div className="pathway-level-info">
-              <h3>Passion Labs &amp; Beyond</h3>
-              <p>Join specialized labs, competitions, and showcases to put your skills on display.</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="onboarding-callout">
-          <strong>You can browse all available pathways</strong> from the Pathways page
-          and enroll in courses that match your interests.
-        </div>
-
-        <div className="onboarding-actions">
-          <button className="button" onClick={onNext} disabled={isPending}>
-            Continue
-          </button>
-          <button type="button" className="button outline small" onClick={onBack} disabled={isPending}>
-            Back
-          </button>
-        </div>
-      </div>
-    );
-  }
-
+  // Step 3: Goals & Mentorship
   if (currentStep === 3) {
     return (
       <div className="onboarding-step">
@@ -282,17 +262,13 @@ export default function StudentSteps({
         </div>
         <h1 className="onboarding-title">Goals &amp; Mentorship</h1>
         <p className="onboarding-subtitle">
-          YPP is all about growth. Here&apos;s how we help you stay on track and
-          reach your potential.
+          YPP is all about growth. Here&apos;s how we help you stay on track.
         </p>
 
         <div className="onboarding-info-grid">
           <div className="onboarding-info-card">
             <h3>Set Personal Goals</h3>
-            <p>
-              Choose from goal templates or create your own. Set target dates and track
-              your progress with a four-level system.
-            </p>
+            <p>Choose from goal templates or create your own. Track progress with a four-level system.</p>
             <div className="onboarding-progress-demo">
               <div className="demo-level" style={{ background: "var(--progress-behind)" }} />
               <div className="demo-level" style={{ background: "var(--progress-getting-started)" }} />
@@ -303,34 +279,21 @@ export default function StudentSteps({
           </div>
           <div className="onboarding-info-card">
             <h3>Your Mentor</h3>
-            <p>
-              You&apos;ll be paired with a mentor who will check in with you monthly,
-              provide feedback on your goals, and help you navigate your pathway.
-            </p>
+            <p>You&apos;ll be paired with a mentor who will check in monthly and help you navigate your pathway.</p>
           </div>
           <div className="onboarding-info-card">
-            <h3>Monthly Reflections</h3>
-            <p>
-              Each month, you&apos;ll complete a short reflection to think about
-              what you&apos;ve learned, what&apos;s going well, and where you want to improve.
-            </p>
+            <h3>Earn XP</h3>
+            <p>Every course you complete, event you attend, and goal you hit earns experience points. Level up from Explorer to Legend!</p>
           </div>
           <div className="onboarding-info-card">
             <h3>Events &amp; Community</h3>
-            <p>
-              Attend showcases, festivals, workshops, and competitions. RSVP to
-              upcoming events and track your attendance record.
-            </p>
+            <p>Attend showcases, festivals, workshops, and competitions. RSVP and build your attendance record.</p>
           </div>
         </div>
 
         <div className="onboarding-actions">
-          <button className="button" onClick={onNext} disabled={isPending}>
-            Continue
-          </button>
-          <button type="button" className="button outline small" onClick={onBack} disabled={isPending}>
-            Back
-          </button>
+          <button className="button" onClick={onNext} disabled={isPending}>Continue</button>
+          <button type="button" className="button outline small" onClick={onBack} disabled={isPending}>Back</button>
         </div>
       </div>
     );
@@ -355,14 +318,14 @@ export default function StudentSteps({
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polygon points="10 8 16 12 10 16 10 8" /></svg>
           <div>
             <strong>Browse Pathways</strong>
-            <span>Find a pathway that matches your interests</span>
+            <span>Find more pathways that match your interests</span>
           </div>
         </a>
-        <a href="/curriculum" className="onboarding-quicklink">
+        <a href="/my-courses" className="onboarding-quicklink">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
           <div>
-            <strong>Explore Courses</strong>
-            <span>See all available classes and labs</span>
+            <strong>My Courses</strong>
+            <span>See the courses you&apos;re enrolled in</span>
           </div>
         </a>
         <a href="/goals" className="onboarding-quicklink">
@@ -377,13 +340,6 @@ export default function StudentSteps({
           <div>
             <strong>Upcoming Events</strong>
             <span>RSVP to showcases, workshops, and more</span>
-          </div>
-        </a>
-        <a href="/messages" className="onboarding-quicklink">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
-          <div>
-            <strong>Messages</strong>
-            <span>Connect with mentors and peers</span>
           </div>
         </a>
       </div>

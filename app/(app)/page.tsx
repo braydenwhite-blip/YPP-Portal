@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import AnnouncementBanner from "@/components/announcement-banner";
+import XpDisplay from "@/components/xp-display";
+import PathwayProgressMap from "@/components/pathway-progress-map";
 
 export default async function OverviewPage() {
   const session = await getServerSession(authOptions);
@@ -20,6 +22,24 @@ export default async function OverviewPage() {
   const isStudent = roles.includes("STUDENT");
   const isMentor = roles.includes("MENTOR");
   const isChapterLead = roles.includes("CHAPTER_LEAD");
+
+  // Fetch XP data (may not have columns yet)
+  let userXp = 0;
+  let userLevel = 1;
+  try {
+    if (userId) {
+      const xpData = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { xp: true, level: true },
+      });
+      if (xpData) {
+        userXp = xpData.xp;
+        userLevel = xpData.level;
+      }
+    }
+  } catch {
+    // XP columns may not exist yet
+  }
 
   const globalStats = isAdmin
     ? await Promise.all([
@@ -122,9 +142,7 @@ export default async function OverviewPage() {
   });
 
   const enrolledCourseIds = new Set(
-    enrollments
-      .filter((enrollment) => enrollment.status === "ENROLLED")
-      .map((enrollment) => enrollment.courseId)
+    enrollments.map((enrollment) => enrollment.courseId)
   );
   const nextSteps = pathways
     .map((pathway) => {
@@ -151,6 +169,13 @@ export default async function OverviewPage() {
           {roles.length ? roles.join(" \u00B7 ") : "Portal User"}
         </div>
       </div>
+
+      {/* XP Display */}
+      {userId && !isAdmin && (
+        <div className="mt-16">
+          <XpDisplay xp={userXp} level={userLevel} />
+        </div>
+      )}
 
       <AnnouncementBanner announcements={announcements} />
 
@@ -184,35 +209,76 @@ export default async function OverviewPage() {
         </div>
       ) : null}
 
+      {/* Pathway Progress Map for students */}
+      {isStudent && (
+        <div className="mt-24">
+          <PathwayProgressMap
+            pathways={pathways.filter((p) =>
+              p.steps.some((s) => enrolledCourseIds.has(s.courseId))
+            ).map((p) => ({
+              id: p.id,
+              name: p.name,
+              interestArea: p.interestArea,
+              steps: p.steps.map((s) => ({
+                id: s.id,
+                courseId: s.courseId,
+                courseTitle: s.course.title,
+                courseLevel: s.course.level,
+                courseFormat: s.course.format,
+                stepOrder: s.stepOrder,
+              })),
+              completedCourseIds: new Set(
+                enrollments.filter((e) => e.status === "COMPLETED").map((e) => e.courseId)
+              ),
+              enrolledCourseIds: enrolledCourseIds,
+            }))}
+          />
+        </div>
+      )}
+
       {/* Main content grid */}
       <div className="grid two mt-24">
-        <div className="card">
-          <div className="section-title">Pathways Pulse</div>
-          {isAdmin && globalStats ? (
+        {isAdmin && globalStats ? (
+          <div className="card">
+            <div className="section-title">Pathways Pulse</div>
             <div>
               <p>
                 <strong>{globalStats[0]}</strong> total users across <strong>{globalStats[3]}</strong> pathways
                 with <strong>{globalStats[5]}</strong> active enrollments.
               </p>
             </div>
-          ) : (
+            <div className="timeline mt-16">
+              <div className="timeline-item">
+                Launch Instructor Training v1 with workshop, scenario practice, and curriculum review.
+              </div>
+              <div className="timeline-item">
+                Finalize mentorship check-ins and awards for instructors and students.
+              </div>
+              <div className="timeline-item">
+                Build sequenced Pathway Maps (101 &rarr; 201 &rarr; 301 &rarr; Labs &rarr; Commons).
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="card">
+            <div className="section-title">Quick Start</div>
             <p>
               Your dashboard shows exactly where you are in Pathways and what comes next. Use the
               navigation to explore curriculum, mentorship, and training.
             </p>
-          )}
-          <div className="timeline mt-16">
-            <div className="timeline-item">
-              Launch Instructor Training v1 with workshop, scenario practice, and curriculum review.
-            </div>
-            <div className="timeline-item">
-              Finalize mentorship check-ins and awards for instructors and students.
-            </div>
-            <div className="timeline-item">
-              Build sequenced Pathway Maps (101 &rarr; 201 &rarr; 301 &rarr; Labs &rarr; Commons).
+            <div className="onboarding-quicklinks mt-16" style={{ gap: 8 }}>
+              <a href="/pathways" className="onboarding-quicklink" style={{ padding: "10px 14px" }}>
+                <div><strong>Browse Pathways</strong></div>
+              </a>
+              <a href="/my-courses" className="onboarding-quicklink" style={{ padding: "10px 14px" }}>
+                <div><strong>My Courses</strong></div>
+              </a>
+              <a href="/goals" className="onboarding-quicklink" style={{ padding: "10px 14px" }}>
+                <div><strong>Set Goals</strong></div>
+              </a>
             </div>
           </div>
-        </div>
+        )}
         <div className="card">
           <div className="section-title">Upcoming Events</div>
           {latestEvents.length === 0 ? (

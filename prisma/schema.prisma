@@ -228,6 +228,11 @@ model User {
   // Onboarding
   onboarding                 OnboardingProgress?
 
+  // XP & Leveling
+  xp                         Int              @default(0)
+  level                      Int              @default(1)
+  xpTransactions             XpTransaction[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -1061,6 +1066,23 @@ model OnboardingProgress {
   completedAt      DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
+}
+
+// ============================================
+// XP & LEVELING MODELS
+// ============================================
+
+model XpTransaction {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  amount    Int
+  reason    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 enum ResourceType {

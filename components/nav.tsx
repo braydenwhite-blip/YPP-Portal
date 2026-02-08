@@ -63,7 +63,9 @@ function buildSections(roles: string[], awardTier?: string): NavSection[] {
   if (isInstructor || isChapterLead) {
     growthItems.push({ href: "/reflection", label: "Monthly Reflection", icon: "\u25CB" });
   }
-  growthItems.push({ href: "/instructor-training", label: "Instructor Training", icon: "\u25CB" });
+  if (isInstructor || isAdmin || isChapterLead) {
+    growthItems.push({ href: "/instructor-training", label: "Instructor Training", icon: "\u25CB" });
+  }
   sections.push({ label: "Growth", items: growthItems });
 
   // Community
@@ -78,9 +80,11 @@ function buildSections(roles: string[], awardTier?: string): NavSection[] {
   }
   communityItems.push(
     { href: "/events", label: "Events & Prep", icon: "\u25CB" },
-    { href: "/calendar", label: "Calendar", icon: "\u25CB" },
-    { href: "/attendance", label: "Attendance", icon: "\u25CB" }
+    { href: "/calendar", label: "Calendar", icon: "\u25CB" }
   );
+  if (isInstructor || isAdmin || isChapterLead) {
+    communityItems.push({ href: "/attendance", label: "Attendance", icon: "\u25CB" });
+  }
   sections.push({ label: "Community", items: communityItems });
 
   // Chapters

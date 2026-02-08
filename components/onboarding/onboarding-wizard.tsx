@@ -2,9 +2,24 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { saveOnboardingStep, saveOnboardingProfile, completeOnboarding } from "@/lib/onboarding-actions";
+import { saveOnboardingStep, saveOnboardingProfile, completeOnboarding, selectPathways } from "@/lib/onboarding-actions";
 import StudentSteps from "./student-steps";
 import InstructorSteps from "./instructor-steps";
+
+export interface PathwayOption {
+  id: string;
+  name: string;
+  description: string;
+  interestArea: string;
+  steps: {
+    id: string;
+    courseId: string;
+    courseTitle: string;
+    courseLevel: string | null;
+    courseFormat: string;
+    stepOrder: number;
+  }[];
+}
 
 interface OnboardingWizardProps {
   userName: string;
@@ -21,6 +36,8 @@ interface OnboardingWizardProps {
     parentPhone?: string | null;
     curriculumUrl?: string | null;
   } | null;
+  pathways: PathwayOption[];
+  enrolledCourseIds: string[];
 }
 
 export default function OnboardingWizard({
@@ -30,11 +47,24 @@ export default function OnboardingWizard({
   chapterName,
   initialStep,
   profileData,
+  pathways,
+  enrolledCourseIds,
 }: OnboardingWizardProps) {
   const isInstructor = primaryRole === "INSTRUCTOR" || roles.includes("INSTRUCTOR");
   const totalSteps = 5;
   const [currentStep, setCurrentStep] = useState(initialStep);
   const [isPending, startTransition] = useTransition();
+  const [selectedPathwayIds, setSelectedPathwayIds] = useState<Set<string>>(() => {
+    // Pre-select pathways where user is already enrolled in the first course
+    const selected = new Set<string>();
+    for (const pathway of pathways) {
+      const firstStep = pathway.steps[0];
+      if (firstStep && enrolledCourseIds.includes(firstStep.courseId)) {
+        selected.add(pathway.id);
+      }
+    }
+    return selected;
+  });
   const router = useRouter();
 
   function goNext() {
@@ -66,7 +96,30 @@ export default function OnboardingWizard({
   function handleProfileSave(formData: FormData) {
     startTransition(async () => {
       await saveOnboardingProfile(formData);
-      setCurrentStep(2);
+      setCurrentStep(currentStep + 1);
+    });
+  }
+
+  function handlePathwaySelect(pathwayId: string) {
+    setSelectedPathwayIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(pathwayId)) {
+        next.delete(pathwayId);
+      } else {
+        next.add(pathwayId);
+      }
+      return next;
+    });
+  }
+
+  function handlePathwayContinue() {
+    startTransition(async () => {
+      if (selectedPathwayIds.size > 0) {
+        await selectPathways(Array.from(selectedPathwayIds));
+      }
+      const nextStep = currentStep + 1;
+      await saveOnboardingStep(nextStep);
+      setCurrentStep(nextStep);
     });
   }
 
@@ -80,7 +133,7 @@ export default function OnboardingWizard({
 
   const stepLabels = isInstructor
     ? ["Welcome", "Your Profile", "Training", "Teaching", "Ready!"]
-    : ["Welcome", "Your Profile", "Pathways", "Your Goals", "Ready!"];
+    : ["Welcome", "Your Pathway", "Your Profile", "Your Goals", "Ready!"];
 
   return (
     <div className="onboarding-shell">
@@ -132,6 +185,10 @@ export default function OnboardingWizard({
               userName={userName}
               chapterName={chapterName}
               profileData={profileData}
+              pathways={pathways}
+              selectedPathwayIds={selectedPathwayIds}
+              onPathwaySelect={handlePathwaySelect}
+              onPathwayContinue={handlePathwayContinue}
               onNext={goNext}
               onBack={goBack}
               onProfileSave={handleProfileSave}
