@@ -257,6 +257,19 @@ model User {
   alumniQuestionsReceived        AlumniQuestion[]        @relation("AlumniQuestionsReceived")
   customGoals                    CustomGoal[]
 
+  // Student Feature Enhancements (Features 11-17)
+  recognitionsGiven              PeerRecognition[]       @relation("RecognitionsGiven")
+  recognitionsReceived           PeerRecognition[]       @relation("RecognitionsReceived")
+  portfolio                      Portfolio?
+  officeHoursHosted              OfficeHours[]           @relation("OfficeHoursHosted")
+  officeHoursBooked              OfficeHoursBooking[]    @relation("OfficeHoursBooked")
+  resourceBookmarks              ResourceBookmark[]
+  bookmarkFolders                BookmarkFolder[]
+
+  // Instructor Features
+  courseProposalsCreated         CourseProposal[]        @relation("CourseProposalsCreated")
+  courseProposalsReviewed        CourseProposal[]        @relation("CourseProposalsReviewed")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -327,6 +340,8 @@ model Course {
   learningNotes    LearningNote[]
   assignments      Assignment[]
   reviews          CourseReview[]
+  portfolioItems   PortfolioItem[]
+  proposals        CourseProposal[]
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 }
@@ -1149,6 +1164,7 @@ model Resource {
   isPublic    Boolean      @default(false)
   tags        String[]
   downloads   Int          @default(0)
+  bookmarks   ResourceBookmark[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
@@ -1597,4 +1613,170 @@ model SelfCheckIn {
 
   @@index([code])
   @@index([sessionId])
+}
+
+// ============================================
+// STUDENT FEATURE ENHANCEMENTS (Features 11-17)
+// ============================================
+
+// Feature 12: Peer Recognition
+model PeerRecognition {
+  id          String   @id @default(cuid())
+  fromUserId  String
+  fromUser    User     @relation("RecognitionsGiven", fields: [fromUserId], references: [id])
+  toUserId    String
+  toUser      User     @relation("RecognitionsReceived", fields: [toUserId], references: [id])
+  message     String
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@index([toUserId])
+  @@index([fromUserId])
+  @@index([createdAt])
+}
+
+// Feature 13: Portfolio
+model Portfolio {
+  id        String          @id @default(cuid())
+  userId    String          @unique
+  user      User            @relation(fields: [userId], references: [id])
+  title     String
+  bio       String?
+  isPublic  Boolean         @default(false)
+  items     PortfolioItem[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
+
+model PortfolioItem {
+  id          String    @id @default(cuid())
+  portfolioId String
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  type        PortfolioItemType
+  title       String
+  description String?
+  url         String?
+  imageUrl    String?
+  courseId    String?
+  course      Course?   @relation(fields: [courseId], references: [id])
+  sortOrder   Int
+  createdAt   DateTime  @default(now())
+
+  @@index([portfolioId, sortOrder])
+}
+
+enum PortfolioItemType {
+  PROJECT
+  CERTIFICATE
+  ASSIGNMENT
+  ACHIEVEMENT
+  COURSE
+  OTHER
+}
+
+// Feature 14: Office Hours
+model OfficeHours {
+  id           String              @id @default(cuid())
+  instructorId String
+  instructor   User                @relation("OfficeHoursHosted", fields: [instructorId], references: [id])
+  dayOfWeek    Int                 // 0-6 (Sunday-Saturday)
+  startTime    String              // HH:MM format
+  endTime      String              // HH:MM format
+  slotDuration Int                 @default(30) // minutes
+  isActive     Boolean             @default(true)
+  bookings     OfficeHoursBooking[]
+  createdAt    DateTime            @default(now())
+
+  @@index([instructorId, isActive])
+}
+
+model OfficeHoursBooking {
+  id            String       @id @default(cuid())
+  officeHoursId String
+  officeHours   OfficeHours  @relation(fields: [officeHoursId], references: [id])
+  studentId     String
+  student       User         @relation("OfficeHoursBooked", fields: [studentId], references: [id])
+  date          DateTime
+  startTime     String       // HH:MM format
+  endTime       String       // HH:MM format
+  topic         String?
+  notes         String?
+  status        BookingStatus @default(SCHEDULED)
+  createdAt     DateTime     @default(now())
+
+  @@unique([officeHoursId, date, startTime])
+  @@index([studentId])
+}
+
+enum BookingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+// Feature 16: Resource Bookmarks
+model ResourceBookmark {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  resourceId String
+  resource   Resource @relation(fields: [resourceId], references: [id])
+  folderId   String?
+  folder     BookmarkFolder? @relation(fields: [folderId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, resourceId])
+  @@index([userId, folderId])
+}
+
+model BookmarkFolder {
+  id        String             @id @default(cuid())
+  userId    String
+  user      User               @relation(fields: [userId], references: [id])
+  name      String
+  bookmarks ResourceBookmark[]
+  createdAt DateTime           @default(now())
+
+  @@index([userId])
+}
+
+// ============================================
+// INSTRUCTOR FEATURES (Bonus: Course Proposals)
+// ============================================
+
+model CourseProposal {
+  id               String           @id @default(cuid())
+  proposedById     String
+  proposedBy       User             @relation("CourseProposalsCreated", fields: [proposedById], references: [id])
+  title            String
+  description      String
+  format           CourseFormat
+  level            CourseLevel?
+  interestArea     String
+  targetAudience   String?
+  prerequisites    String?
+  learningOutcomes String?
+  resources        String?
+  maxEnrollment    Int?
+  status           ProposalStatus   @default(PENDING)
+  reviewedById     String?
+  reviewedBy       User?            @relation("CourseProposalsReviewed", fields: [reviewedById], references: [id])
+  reviewNotes      String?
+  reviewedAt       DateTime?
+  approvedCourseId String?
+  approvedCourse   Course?          @relation(fields: [approvedCourseId], references: [id])
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([proposedById, status])
+  @@index([status])
+}
+
+enum ProposalStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  REVISION_REQUESTED
 }
