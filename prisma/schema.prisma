@@ -269,6 +269,12 @@ model User {
   // Instructor Features
   courseProposalsCreated         CourseProposal[]        @relation("CourseProposalsCreated")
   courseProposalsReviewed        CourseProposal[]        @relation("CourseProposalsReviewed")
+  coInstructorAssignments        CourseInstructor[]      @relation("CoInstructorAssignments")
+  observationsGiven              PeerObservation[]       @relation("ObservationsGiven")
+  observationsReceived           PeerObservation[]       @relation("ObservationsReceived")
+
+  // Student Features (16-17)
+  competitionChecklists          CompetitionChecklist[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -342,6 +348,8 @@ model Course {
   reviews          CourseReview[]
   portfolioItems   PortfolioItem[]
   proposals        CourseProposal[]
+  coInstructors    CourseInstructor[]
+  observations     PeerObservation[]
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 }
@@ -508,6 +516,7 @@ model Event {
   // RSVP tracking
   rsvps        EventRsvp[]
   attendanceSessions AttendanceSession[]
+  checklists   CompetitionChecklist[]
 
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -1779,4 +1788,100 @@ enum ProposalStatus {
   APPROVED
   REJECTED
   REVISION_REQUESTED
+}
+
+// ============================================
+// STUDENT FEATURE: Competition Prep (Feature 17)
+// ============================================
+
+model CompetitionChecklist {
+  id            String                    @id @default(cuid())
+  userId        String
+  user          User                      @relation(fields: [userId], references: [id])
+  competitionId String?
+  eventId       String?
+  event         Event?                    @relation(fields: [eventId], references: [id])
+  title         String
+  items         CompetitionChecklistItem[]
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  @@index([userId])
+}
+
+model CompetitionChecklistItem {
+  id          String                @id @default(cuid())
+  checklistId String
+  checklist   CompetitionChecklist  @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  category    ChecklistCategory     @default(PREPARATION)
+  completed   Boolean               @default(false)
+  completedAt DateTime?
+  dueDate     DateTime?
+  sortOrder   Int
+  createdAt   DateTime              @default(now())
+
+  @@index([checklistId, sortOrder])
+}
+
+enum ChecklistCategory {
+  PREPARATION
+  MATERIALS
+  SKILLS
+  RESEARCH
+  PRACTICE
+  LOGISTICS
+}
+
+// ============================================
+// INSTRUCTOR FEATURES (18-23)
+// ============================================
+
+// Feature 18: Co-Instructor Support
+model CourseInstructor {
+  id           String   @id @default(cuid())
+  courseId     String
+  course       Course   @relation(fields: [courseId], references: [id])
+  instructorId String
+  instructor   User     @relation("CoInstructorAssignments", fields: [instructorId], references: [id])
+  role         InstructorRole @default(CO_INSTRUCTOR)
+  addedAt      DateTime @default(now())
+
+  @@unique([courseId, instructorId])
+  @@index([instructorId])
+}
+
+enum InstructorRole {
+  LEAD
+  CO_INSTRUCTOR
+  ASSISTANT
+}
+
+// Feature 23: Peer Observation
+model PeerObservation {
+  id           String            @id @default(cuid())
+  observerId   String
+  observer     User              @relation("ObservationsGiven", fields: [observerId], references: [id])
+  observeeId   String
+  observee     User              @relation("ObservationsReceived", fields: [observeeId], references: [id])
+  courseId     String?
+  course       Course?           @relation(fields: [courseId], references: [id])
+  scheduledAt  DateTime
+  completedAt  DateTime?
+  status       ObservationStatus @default(SCHEDULED)
+  feedback     String?
+  ratings      Json?             // Structured ratings object
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([observerId])
+  @@index([observeeId])
+  @@index([scheduledAt])
+}
+
+enum ObservationStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
 }
