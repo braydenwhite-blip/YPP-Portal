@@ -76,3 +76,78 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
     };
   }
 }
+
+export async function signUpParent(prevState: FormState, formData: FormData): Promise<FormState> {
+  try {
+    const name = getString(formData, "name");
+    const email = getString(formData, "email").toLowerCase();
+    const password = getString(formData, "password");
+    const phone = getString(formData, "phone", false);
+    const childEmail = getString(formData, "childEmail", false).toLowerCase();
+    const relationship = getString(formData, "relationship", false) || "Parent";
+
+    const rl = checkRateLimit(`signup:${email}`, 5, 15 * 60 * 1000);
+    if (!rl.success) {
+      return { status: "error", message: "Too many attempts. Please try again later." };
+    }
+
+    if (password.length < 8) {
+      return { status: "error", message: "Password must be at least 8 characters." };
+    }
+    if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+      return { status: "error", message: "Password must contain at least one letter and one number." };
+    }
+
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      return {
+        status: "success",
+        message: "If this email is not already registered, your account has been created. You can now sign in."
+      };
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const parent = await prisma.user.create({
+      data: {
+        name,
+        email,
+        phone: phone || null,
+        passwordHash,
+        primaryRole: RoleType.PARENT,
+        roles: {
+          create: [{ role: RoleType.PARENT }]
+        }
+      }
+    });
+
+    // If child email provided, try to link
+    if (childEmail) {
+      const child = await prisma.user.findUnique({
+        where: { email: childEmail },
+        include: { roles: true },
+      });
+
+      if (child && child.roles.some((r) => r.role === "STUDENT")) {
+        await prisma.parentStudent.create({
+          data: {
+            parentId: parent.id,
+            studentId: child.id,
+            relationship,
+            isPrimary: false, // Requires admin approval
+          },
+        });
+      }
+    }
+
+    return {
+      status: "success",
+      message: "Your parent account has been created! You can now sign in. If you linked a child, an admin will approve the connection."
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message: "Something went wrong. Please try again."
+    };
+  }
+}

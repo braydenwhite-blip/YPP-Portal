@@ -65,6 +65,7 @@ function buildSections(roles: string[], awardTier?: string): NavSection[] {
   }
   if (isInstructor || isAdmin || isChapterLead) {
     growthItems.push({ href: "/instructor-training", label: "Instructor Training", icon: "\u25CB" });
+    growthItems.push({ href: "/lesson-plans", label: "Lesson Plans", icon: "\u25CB" });
   }
   sections.push({ label: "Growth", items: growthItems });
 
