@@ -60,6 +60,10 @@ export default async function AdminAnnouncementsPage() {
               </select>
             </label>
             <label className="form-row">
+              Schedule Publish (optional - leave blank to publish now)
+              <input className="input" name="scheduledPublishAt" type="datetime-local" />
+            </label>
+            <label className="form-row">
               Expires At (optional)
               <input className="input" name="expiresAt" type="datetime-local" />
             </label>
@@ -105,6 +109,12 @@ export default async function AdminAnnouncementsPage() {
                         {announcement.chapter && (
                           <span className="pill pill-small">{announcement.chapter.name}</span>
                         )}
+                        {announcement.scheduledPublishAt &&
+                          new Date(announcement.scheduledPublishAt) > new Date() && (
+                            <span className="pill pill-small">
+                              Scheduled: {new Date(announcement.scheduledPublishAt).toLocaleString()}
+                            </span>
+                          )}
                         {!announcement.isActive && (
                           <span className="pill pill-small pill-declined">Inactive</span>
                         )}

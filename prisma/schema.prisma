@@ -236,6 +236,10 @@ model User {
   level                      Int              @default(1)
   xpTransactions             XpTransaction[]
 
+  // Audit & Waitlist
+  auditLogs                  AuditLog[]       @relation("AuditLogsPerformed")
+  waitlistEntries            WaitlistEntry[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -290,11 +294,13 @@ model Course {
   level            CourseLevel?
   interestArea     String
   isVirtual        Boolean       @default(false)
+  maxEnrollment    Int?          // null = unlimited
   chapterId        String?
   chapter          Chapter?      @relation(fields: [chapterId], references: [id])
   leadInstructorId String?
   leadInstructor   User?         @relation("InstructorCourses", fields: [leadInstructorId], references: [id])
   enrollments      Enrollment[]
+  waitlistEntries  WaitlistEntry[]
   pathwaySteps     PathwayStep[]
   feedback         Feedback[]
   certificates     Certificate[]
@@ -589,19 +595,20 @@ model Decision {
 // ============================================
 
 model Announcement {
-  id          String     @id @default(cuid())
-  title       String
-  content     String
-  authorId    String
-  author      User       @relation(fields: [authorId], references: [id])
-  targetRoles RoleType[]
-  chapterId   String?
-  chapter     Chapter?   @relation(fields: [chapterId], references: [id])
-  publishedAt DateTime   @default(now())
-  expiresAt   DateTime?
-  isActive    Boolean    @default(true)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id                 String     @id @default(cuid())
+  title              String
+  content            String
+  authorId           String
+  author             User       @relation(fields: [authorId], references: [id])
+  targetRoles        RoleType[]
+  chapterId          String?
+  chapter            Chapter?   @relation(fields: [chapterId], references: [id])
+  publishedAt        DateTime   @default(now())
+  scheduledPublishAt DateTime?  // null = publish immediately
+  expiresAt          DateTime?
+  isActive           Boolean    @default(true)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
 }
 
 // ============================================
@@ -842,15 +849,24 @@ model MarketingGoal {
 // PARENT PORTAL MODELS
 // ============================================
 
+enum ParentLinkStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model ParentStudent {
-  id         String   @id @default(cuid())
-  parentId   String
-  parent     User     @relation("ParentLinks", fields: [parentId], references: [id])
-  studentId  String
-  student    User     @relation("StudentLinks", fields: [studentId], references: [id])
-  relationship String @default("Parent")  // Parent, Guardian, etc.
-  isPrimary  Boolean  @default(true)
-  createdAt  DateTime @default(now())
+  id             String           @id @default(cuid())
+  parentId       String
+  parent         User             @relation("ParentLinks", fields: [parentId], references: [id])
+  studentId      String
+  student        User             @relation("StudentLinks", fields: [studentId], references: [id])
+  relationship   String           @default("Parent")  // Parent, Guardian, etc.
+  isPrimary      Boolean          @default(true)
+  approvalStatus ParentLinkStatus @default(PENDING)
+  reviewedAt     DateTime?
+  reviewedById   String?
+  createdAt      DateTime         @default(now())
 
   @@unique([parentId, studentId])
 }
@@ -1189,4 +1205,84 @@ model LessonActivity {
   notes        String?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
+}
+
+// ============================================
+// AUDIT LOG MODELS
+// ============================================
+
+enum AuditAction {
+  USER_CREATED
+  USER_UPDATED
+  USER_DELETED
+  ROLE_CHANGED
+  COURSE_CREATED
+  COURSE_UPDATED
+  COURSE_DELETED
+  ENROLLMENT_APPROVED
+  ENROLLMENT_DECLINED
+  PATHWAY_CREATED
+  PATHWAY_UPDATED
+  MODULE_CREATED
+  MODULE_UPDATED
+  ANNOUNCEMENT_CREATED
+  ANNOUNCEMENT_UPDATED
+  ANNOUNCEMENT_DELETED
+  CERTIFICATE_ISSUED
+  MENTORSHIP_CREATED
+  MENTORSHIP_UPDATED
+  EVENT_CREATED
+  EVENT_UPDATED
+  PARENT_LINK_APPROVED
+  PARENT_LINK_REJECTED
+  WAITLIST_PROMOTED
+  SETTINGS_CHANGED
+}
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  action      AuditAction
+  actorId     String
+  actor       User        @relation("AuditLogsPerformed", fields: [actorId], references: [id])
+  targetType  String?     // e.g. "User", "Course", "Enrollment"
+  targetId    String?
+  description String
+  metadata    Json?
+  ipAddress   String?
+  createdAt   DateTime    @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+}
+
+// ============================================
+// WAITLIST MODELS
+// ============================================
+
+enum WaitlistStatus {
+  WAITING
+  OFFERED
+  ENROLLED
+  EXPIRED
+  CANCELLED
+}
+
+model WaitlistEntry {
+  id         String         @id @default(cuid())
+  userId     String
+  user       User           @relation(fields: [userId], references: [id])
+  courseId    String
+  course     Course         @relation(fields: [courseId], references: [id])
+  position   Int
+  status     WaitlistStatus @default(WAITING)
+  notifiedAt DateTime?
+  expiresAt  DateTime?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@unique([userId, courseId])
+  @@index([courseId, status])
+  @@index([status])
 }
