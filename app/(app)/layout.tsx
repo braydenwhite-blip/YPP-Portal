@@ -35,11 +35,12 @@ export default async function AppLayout({
       }
     } catch (e: unknown) {
       // If the OnboardingProgress table doesn't exist yet (P2021),
-      // skip the check and let the user through rather than crashing.
+      // redirect to onboarding so users still see it.
       const isPrismaError = e !== null && typeof e === "object" && "code" in e;
-      if (!isPrismaError || (e as { code: string }).code !== "P2021") {
-        throw e;
+      if (isPrismaError && (e as { code: string }).code === "P2021") {
+        redirect("/onboarding");
       }
+      throw e;
     }
   }
 
