@@ -1,7 +1,17 @@
 import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
 // Initialize Resend client (lazy - only when API key is set)
 let resendClient: Resend | null = null;
+let smtpTransporter: nodemailer.Transporter | null = null;
+
+type EmailProvider = "auto" | "smtp" | "resend";
+
+function getEmailProvider(): EmailProvider {
+  const raw = (process.env.EMAIL_PROVIDER || "auto").toLowerCase().trim();
+  if (raw === "smtp" || raw === "resend" || raw === "auto") return raw;
+  return "auto";
+}
 
 function getResendClient(): Resend | null {
   if (!process.env.RESEND_API_KEY) {
@@ -13,8 +23,49 @@ function getResendClient(): Resend | null {
   return resendClient;
 }
 
-// Default sender - should be configured per environment
-const DEFAULT_FROM = process.env.EMAIL_FROM || "Youth Passion Project <noreply@youthpassionproject.org>";
+function parseBool(v: string | undefined): boolean {
+  if (!v) return false;
+  return ["1", "true", "yes", "y", "on"].includes(v.toLowerCase().trim());
+}
+
+function getDefaultFrom(): string {
+  const from = process.env.EMAIL_FROM?.trim();
+  if (from) return from;
+  // If using SMTP and user forgot to set EMAIL_FROM, fall back to the SMTP user.
+  const smtpUser = process.env.SMTP_USER?.trim();
+  if (smtpUser) return smtpUser;
+  return "Youth Passion Project <noreply@youthpassionproject.org>";
+}
+
+function isSmtpConfigured(): boolean {
+  return !!(
+    process.env.SMTP_HOST?.trim() &&
+    process.env.SMTP_PORT?.trim() &&
+    process.env.SMTP_USER?.trim() &&
+    process.env.SMTP_PASS?.trim()
+  );
+}
+
+function getSmtpTransporter(): nodemailer.Transporter | null {
+  if (!isSmtpConfigured()) return null;
+
+  if (!smtpTransporter) {
+    const port = Number.parseInt(process.env.SMTP_PORT || "587", 10);
+    const secure = parseBool(process.env.SMTP_SECURE) || port === 465;
+
+    smtpTransporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port,
+      secure,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
+    });
+  }
+
+  return smtpTransporter;
+}
 
 export interface EmailResult {
   success: boolean;
@@ -36,35 +87,67 @@ export async function sendEmail({
   html: string;
   text?: string;
 }): Promise<EmailResult> {
-  const client = getResendClient();
+  const provider = getEmailProvider();
+  const from = getDefaultFrom();
+  const toList = Array.isArray(to) ? to.join(", ") : to;
+  const textBody = text || stripHtml(html);
 
-  if (!client) {
-    console.warn("[Email] RESEND_API_KEY not configured - email not sent");
-    return { success: false, error: "Email service not configured" };
+  // Provider order:
+  // - If EMAIL_PROVIDER is set, honor it.
+  // - Otherwise (auto), prefer SMTP if configured, else Resend.
+  const trySmtp = provider === "smtp" || (provider === "auto" && isSmtpConfigured());
+  const tryResend = provider === "resend" || provider === "auto";
+
+  if (trySmtp) {
+    const transporter = getSmtpTransporter();
+    if (!transporter) {
+      console.warn("[Email] SMTP not configured - email not sent");
+      return { success: false, error: "Email service not configured" };
+    }
+    try {
+      const info = await transporter.sendMail({
+        from,
+        to: toList,
+        subject,
+        html,
+        text: textBody
+      });
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      console.error("[Email] Error sending email via SMTP:", error);
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+    }
   }
 
-  try {
-    const result = await client.emails.send({
-      from: DEFAULT_FROM,
-      to: Array.isArray(to) ? to : [to],
-      subject,
-      html,
-      text: text || stripHtml(html)
-    });
-
-    if (result.error) {
-      console.error("[Email] Failed to send:", result.error);
-      return { success: false, error: result.error.message };
+  if (tryResend) {
+    const client = getResendClient();
+    if (!client) {
+      console.warn("[Email] RESEND_API_KEY not configured - email not sent");
+      return { success: false, error: "Email service not configured" };
     }
 
-    return { success: true, messageId: result.data?.id };
-  } catch (error) {
-    console.error("[Email] Error sending email:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error"
-    };
+    try {
+      const result = await client.emails.send({
+        from,
+        to: Array.isArray(to) ? to : [to],
+        subject,
+        html,
+        text: textBody
+      });
+
+      if (result.error) {
+        console.error("[Email] Failed to send via Resend:", result.error);
+        return { success: false, error: result.error.message };
+      }
+
+      return { success: true, messageId: result.data?.id };
+    } catch (error) {
+      console.error("[Email] Error sending email via Resend:", error);
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+    }
   }
+
+  return { success: false, error: "Email provider not configured" };
 }
 
 /**
@@ -330,5 +413,8 @@ function stripHtml(html: string): string {
  * Check if email service is configured
  */
 export function isEmailConfigured(): boolean {
-  return !!process.env.RESEND_API_KEY;
+  const provider = getEmailProvider();
+  if (provider === "smtp") return isSmtpConfigured();
+  if (provider === "resend") return !!process.env.RESEND_API_KEY;
+  return isSmtpConfigured() || !!process.env.RESEND_API_KEY;
 }
