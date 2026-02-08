@@ -277,6 +277,7 @@ img {
 }
 
 main {
+  grid-column: 2;
   padding: 32px 40px;
   min-width: 0;
 }
@@ -1543,6 +1544,7 @@ select.input {
   }
 
   main {
+    grid-column: 1;
     padding: 24px 20px;
     padding-top: 72px;
   }

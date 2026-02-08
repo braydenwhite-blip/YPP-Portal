@@ -24,13 +24,22 @@ export default async function AppLayout({
 
   // Redirect to onboarding if not completed yet
   if (session?.user?.id) {
-    const onboarding = await prisma.onboardingProgress.findUnique({
-      where: { userId: session.user.id },
-      select: { completedAt: true },
-    });
+    try {
+      const onboarding = await prisma.onboardingProgress.findUnique({
+        where: { userId: session.user.id },
+        select: { completedAt: true },
+      });
 
-    if (!onboarding?.completedAt) {
-      redirect("/onboarding");
+      if (!onboarding?.completedAt) {
+        redirect("/onboarding");
+      }
+    } catch (e: unknown) {
+      // If the OnboardingProgress table doesn't exist yet (P2021),
+      // skip the check and let the user through rather than crashing.
+      const isPrismaError = e !== null && typeof e === "object" && "code" in e;
+      if (!isPrismaError || (e as { code: string }).code !== "P2021") {
+        throw e;
+      }
     }
   }
 
