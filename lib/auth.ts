@@ -10,6 +10,10 @@ const credentialsSchema = z.object({
   password: z.string().min(8)
 });
 
+// Track consecutive failed login attempts (in-memory; for lockout alerts)
+const failedAttempts = new Map<string, number>();
+const LOCKOUT_THRESHOLD = 5;
+
 export const authOptions: NextAuthOptions = {
   providers: [
     Credentials({
@@ -24,16 +28,16 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        const email = parsed.data.email.toLowerCase();
+
         // Rate limit: 10 login attempts per email per 15 minutes
-        const rl = checkRateLimit(`login:${parsed.data.email}`, 10, 15 * 60 * 1000);
+        const rl = checkRateLimit(`login:${email}`, 10, 15 * 60 * 1000);
         if (!rl.success) {
           throw new Error("Too many login attempts. Please try again later.");
         }
 
         const user = await prisma.user.findUnique({
-          where: { email: parsed.data.email },
-          // Use explicit select so deploys don't break if new columns
-          // (like xp/level) haven't been migrated yet.
+          where: { email },
           select: {
             id: true,
             name: true,
@@ -50,8 +54,31 @@ export const authOptions: NextAuthOptions = {
 
         const isValid = await compare(parsed.data.password, user.passwordHash);
         if (!isValid) {
+          // Track failed attempts and create audit log after lockout threshold
+          const current = (failedAttempts.get(email) || 0) + 1;
+          failedAttempts.set(email, current);
+
+          if (current === LOCKOUT_THRESHOLD) {
+            // Log to audit if available (non-blocking, best effort)
+            try {
+              const { logAuditEvent } = await import("@/lib/audit-log-actions");
+              await logAuditEvent({
+                action: "SETTINGS_CHANGED",
+                actorId: user.id,
+                targetType: "User",
+                targetId: user.id,
+                description: `Account lockout alert: ${LOCKOUT_THRESHOLD} failed login attempts for ${email}`,
+              });
+            } catch {
+              // Audit logging failure should not block auth
+            }
+          }
+
           return null;
         }
+
+        // Clear failed attempts on success
+        failedAttempts.delete(email);
 
         return {
           id: user.id,

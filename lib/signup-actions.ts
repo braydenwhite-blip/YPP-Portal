@@ -134,7 +134,8 @@ export async function signUpParent(prevState: FormState, formData: FormData): Pr
             parentId: parent.id,
             studentId: child.id,
             relationship,
-            isPrimary: false, // Requires admin approval
+            isPrimary: false,
+            approvalStatus: "PENDING",
           },
         });
       }

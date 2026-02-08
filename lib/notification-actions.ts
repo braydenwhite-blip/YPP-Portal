@@ -313,7 +313,9 @@ export async function deleteNotification(formData: FormData) {
 }
 
 // ---------------------------------------------------------------------------
-// 10. createSystemNotification – internal use, no auth check (for server-side)
+// 10. createSystemNotification – requires at least authentication.
+//     Called by other server actions (which have their own auth) and guards
+//     against direct unauthenticated client calls.
 // ---------------------------------------------------------------------------
 export async function createSystemNotification(
   userId: string,
@@ -321,8 +323,14 @@ export async function createSystemNotification(
   title: string,
   body: string,
   link?: string,
-  sendEmail = true
+  doSendEmail = true
 ) {
+  // Require at least an authenticated session to prevent abuse
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    throw new Error("Unauthorized");
+  }
+
   const notification = await prisma.notification.create({
     data: {
       userId,
@@ -333,8 +341,7 @@ export async function createSystemNotification(
     },
   });
 
-  // Send email notification if enabled
-  if (sendEmail) {
+  if (doSendEmail) {
     sendEmailNotificationIfEnabled(userId, title, body, link || undefined);
   }
 
@@ -342,7 +349,7 @@ export async function createSystemNotification(
 }
 
 // ---------------------------------------------------------------------------
-// 11. createBulkSystemNotifications – internal use, no auth check
+// 11. createBulkSystemNotifications – requires authentication
 // ---------------------------------------------------------------------------
 export async function createBulkSystemNotifications(
   userIds: string[],
@@ -350,8 +357,13 @@ export async function createBulkSystemNotifications(
   title: string,
   body: string,
   link?: string,
-  sendEmail = true
+  doSendEmail = true
 ) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    throw new Error("Unauthorized");
+  }
+
   if (userIds.length === 0) return;
 
   const data = userIds.map((uid) => ({
@@ -364,8 +376,7 @@ export async function createBulkSystemNotifications(
 
   await prisma.notification.createMany({ data });
 
-  // Send email notifications
-  if (sendEmail) {
+  if (doSendEmail) {
     for (const uid of userIds) {
       sendEmailNotificationIfEnabled(uid, title, body, link || undefined);
     }
