@@ -177,13 +177,30 @@ export async function GET(req: NextRequest) {
     }
 
     case "audit-logs": {
-      const logs = await prisma.auditLog.findMany({
-        include: {
-          actor: { select: { name: true, email: true } },
-        },
-        orderBy: { createdAt: "desc" },
-        take: 5000,
-      });
+      let logs: Array<{
+        action: string;
+        actor: { name: string; email: string };
+        targetType: string | null;
+        targetId: string | null;
+        description: string;
+        createdAt: Date;
+      }> = [];
+
+      try {
+        logs = await prisma.auditLog.findMany({
+          include: {
+            actor: { select: { name: true, email: true } },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 5000,
+        });
+      } catch (err: any) {
+        const missingAuditLogTable =
+          err?.code === "P2021" && err?.meta?.table === "public.AuditLog";
+        if (!missingAuditLogTable) throw err;
+        logs = [];
+      }
+
       headers = ["action", "actorName", "actorEmail", "targetType", "targetId", "description", "createdAt"];
       rows = logs.map((l) => ({
         action: l.action,

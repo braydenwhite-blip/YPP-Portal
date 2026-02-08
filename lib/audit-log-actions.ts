@@ -88,18 +88,29 @@ export async function getAuditLogs(filters?: {
     };
   }
 
-  const [logs, total] = await Promise.all([
-    prisma.auditLog.findMany({
-      where,
-      include: {
-        actor: { select: { id: true, name: true, email: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      skip,
-      take: perPage,
-    }),
-    prisma.auditLog.count({ where }),
-  ]);
+  let logs: Array<unknown> = [];
+  let total = 0;
+  try {
+    [logs, total] = await Promise.all([
+      prisma.auditLog.findMany({
+        where,
+        include: {
+          actor: { select: { id: true, name: true, email: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: perPage,
+      }),
+      prisma.auditLog.count({ where }),
+    ]);
+  } catch (err: any) {
+    const missingAuditLogTable =
+      err?.code === "P2021" && err?.meta?.table === "public.AuditLog";
+    if (!missingAuditLogTable) throw err;
+    // If the table doesn't exist yet, return an empty feed.
+    logs = [];
+    total = 0;
+  }
 
   return {
     logs,
@@ -121,17 +132,31 @@ export async function getAuditLogStats() {
   const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const last7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  const [total, last24hCount, last7dCount, byAction] = await Promise.all([
-    prisma.auditLog.count(),
-    prisma.auditLog.count({ where: { createdAt: { gte: last24h } } }),
-    prisma.auditLog.count({ where: { createdAt: { gte: last7d } } }),
-    prisma.auditLog.groupBy({
-      by: ["action"],
-      _count: { id: true },
-      orderBy: { _count: { id: "desc" } },
-      take: 10,
-    }),
-  ]);
+  let total = 0;
+  let last24hCount = 0;
+  let last7dCount = 0;
+  let byAction: Array<{ action: AuditAction; _count: { id: number } }> = [];
+  try {
+    [total, last24hCount, last7dCount, byAction] = await Promise.all([
+      prisma.auditLog.count(),
+      prisma.auditLog.count({ where: { createdAt: { gte: last24h } } }),
+      prisma.auditLog.count({ where: { createdAt: { gte: last7d } } }),
+      prisma.auditLog.groupBy({
+        by: ["action"],
+        _count: { id: true },
+        orderBy: { _count: { id: "desc" } },
+        take: 10,
+      }),
+    ]);
+  } catch (err: any) {
+    const missingAuditLogTable =
+      err?.code === "P2021" && err?.meta?.table === "public.AuditLog";
+    if (!missingAuditLogTable) throw err;
+    total = 0;
+    last24hCount = 0;
+    last7dCount = 0;
+    byAction = [];
+  }
 
   return {
     total,

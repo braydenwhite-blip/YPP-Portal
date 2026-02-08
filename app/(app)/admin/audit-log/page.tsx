@@ -30,24 +30,48 @@ export default async function AuditLogPage({
     };
   }
 
-  const [logs, total, stats24h, stats7d] = await Promise.all([
-    prisma.auditLog.findMany({
-      where,
-      include: {
-        actor: { select: { name: true, email: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      skip,
-      take: perPage,
-    }),
-    prisma.auditLog.count({ where }),
-    prisma.auditLog.count({
-      where: { createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
-    }),
-    prisma.auditLog.count({
-      where: { createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
-    }),
-  ]);
+  type AuditLogRow = {
+    id: string;
+    createdAt: Date;
+    action: AuditAction;
+    actor: { name: string; email: string };
+    description: string;
+    targetType: string | null;
+    targetId: string | null;
+  };
+
+  let logs: AuditLogRow[] = [];
+  let total = 0;
+  let stats24h = 0;
+  let stats7d = 0;
+  let auditTableMissing = false;
+
+  try {
+    [logs, total, stats24h, stats7d] = await Promise.all([
+      prisma.auditLog.findMany({
+        where,
+        include: {
+          actor: { select: { name: true, email: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: perPage,
+      }),
+      prisma.auditLog.count({ where }),
+      prisma.auditLog.count({
+        where: { createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+      }),
+      prisma.auditLog.count({
+        where: { createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
+      }),
+    ]);
+  } catch (err: any) {
+    // If the DB hasn't been migrated yet, the AuditLog table may not exist.
+    const missingAuditLogTable =
+      err?.code === "P2021" && err?.meta?.table === "public.AuditLog";
+    if (!missingAuditLogTable) throw err;
+    auditTableMissing = true;
+  }
 
   const totalPages = Math.ceil(total / perPage);
 
@@ -59,6 +83,18 @@ export default async function AuditLogPage({
           <h1 className="page-title">Audit Log / Activity Feed</h1>
         </div>
       </div>
+
+      {auditTableMissing ? (
+        <div className="card" style={{ marginTop: 16 }}>
+          <h3>Audit Log Not Enabled Yet</h3>
+          <p style={{ marginTop: 8 }}>
+            Your database does not have the <code>AuditLog</code> table yet, so this page can’t show activity history.
+          </p>
+          <p style={{ marginTop: 8 }}>
+            Fix: create the table by applying the latest Prisma migrations (or run <code>prisma db push</code> once from a machine that can reach your database).
+          </p>
+        </div>
+      ) : null}
 
       <div className="grid three">
         <div className="card">
@@ -110,13 +146,15 @@ export default async function AuditLogPage({
       <div className="card" style={{ marginTop: 24 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h3>Activity History ({total} events)</h3>
-          <a
-            href="/api/export?table=audit-logs&format=csv"
-            className="button small secondary"
-            style={{ textDecoration: "none" }}
-          >
-            Export CSV
-          </a>
+          {!auditTableMissing ? (
+            <a
+              href="/api/export?table=audit-logs&format=csv"
+              className="button small secondary"
+              style={{ textDecoration: "none" }}
+            >
+              Export CSV
+            </a>
+          ) : null}
         </div>
         {logs.length === 0 ? (
           <p>No audit events found.</p>
