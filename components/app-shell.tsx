@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Nav from "@/components/nav";
 import LogoutButton from "@/components/logout-button";
+import AdminQuickActions from "@/components/admin-quick-actions";
 
 export default function AppShell({
   children,
@@ -76,6 +77,9 @@ export default function AppShell({
       </aside>
 
       <main>{children}</main>
+
+      {/* Admin Quick Actions Floating Bar */}
+      {roles?.includes("ADMIN") && <AdminQuickActions />}
     </div>
   );
 }

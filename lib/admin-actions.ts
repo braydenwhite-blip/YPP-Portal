@@ -14,14 +14,18 @@ import {
   TrainingModuleType
 } from "@prisma/client";
 import { validateEnum } from "@/lib/validate-enum";
+import { logAuditEvent } from "@/lib/audit-log-actions";
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
-  const roles = session?.user?.roles ?? [];
+  if (!session?.user?.id) {
+    throw new Error("Unauthorized");
+  }
+  const roles = session.user.roles ?? [];
   if (!roles.includes("ADMIN")) {
     throw new Error("Unauthorized");
   }
-  return session;
+  return session as typeof session & { user: { id: string; roles: string[] } };
 }
 
 function getString(formData: FormData, key: string, required = true) {
@@ -33,7 +37,7 @@ function getString(formData: FormData, key: string, required = true) {
 }
 
 export async function createUser(formData: FormData) {
-  await requireAdmin();
+  const session = await requireAdmin();
   const name = getString(formData, "name");
   const email = getString(formData, "email");
   const phone = getString(formData, "phone", false);
@@ -53,7 +57,7 @@ export async function createUser(formData: FormData) {
 
   const passwordHash = await bcrypt.hash(password, 10);
 
-  await prisma.user.create({
+  const newUser = await prisma.user.create({
     data: {
       name,
       email,
@@ -67,11 +71,20 @@ export async function createUser(formData: FormData) {
     }
   });
 
+  await logAuditEvent({
+    action: "USER_CREATED",
+    actorId: session.user.id,
+    targetType: "User",
+    targetId: newUser.id,
+    description: `Created user ${name} (${email}) with role ${primaryRole}`,
+    metadata: { roles, primaryRole },
+  });
+
   revalidatePath("/admin");
 }
 
 export async function createCourse(formData: FormData) {
-  await requireAdmin();
+  const session = await requireAdmin();
   const title = getString(formData, "title");
   const description = getString(formData, "description");
   const format = validateEnum(CourseFormat, getString(formData, "format"), "format");
@@ -85,7 +98,7 @@ export async function createCourse(formData: FormData) {
   const chapterId = getString(formData, "chapterId", false);
   const leadInstructorId = getString(formData, "leadInstructorId", false);
 
-  await prisma.course.create({
+  const course = await prisma.course.create({
     data: {
       title,
       description,
@@ -96,6 +109,14 @@ export async function createCourse(formData: FormData) {
       chapterId: chapterId || null,
       leadInstructorId: leadInstructorId || null
     }
+  });
+
+  await logAuditEvent({
+    action: "COURSE_CREATED",
+    actorId: session.user.id,
+    targetType: "Course",
+    targetId: course.id,
+    description: `Created course "${title}" (${format})`,
   });
 
   revalidatePath("/admin");
@@ -198,16 +219,26 @@ export async function createMentorship(formData: FormData) {
 }
 
 export async function updateEnrollmentStatus(formData: FormData) {
-  await requireAdmin();
+  const session = await requireAdmin();
   const enrollmentId = getString(formData, "enrollmentId");
   const status = getString(formData, "status");
   if (!["PENDING", "ENROLLED", "DECLINED"].includes(status)) {
     throw new Error("Invalid status");
   }
 
-  await prisma.enrollment.update({
+  const enrollment = await prisma.enrollment.update({
     where: { id: enrollmentId },
-    data: { status }
+    data: { status },
+    include: { user: { select: { name: true } }, course: { select: { title: true } } },
+  });
+
+  const action = status === "ENROLLED" ? "ENROLLMENT_APPROVED" : "ENROLLMENT_DECLINED";
+  await logAuditEvent({
+    action: action as "ENROLLMENT_APPROVED" | "ENROLLMENT_DECLINED",
+    actorId: session.user.id,
+    targetType: "Enrollment",
+    targetId: enrollmentId,
+    description: `${status === "ENROLLED" ? "Approved" : "Declined"} enrollment for ${enrollment.user.name} in ${enrollment.course.title}`,
   });
 
   revalidatePath("/admin");

@@ -134,7 +134,12 @@ function buildSections(roles: string[], awardTier?: string): NavSection[] {
         { href: "/admin/alumni", label: "Alumni", icon: "\u25CB" },
         { href: "/admin/training", label: "Training Modules", icon: "\u25CB" },
         { href: "/admin/mentor-match", label: "Mentor Match", icon: "\u25CB" },
-        { href: "/admin/analytics", label: "Analytics", icon: "\u25CB" }
+        { href: "/admin/analytics", label: "Analytics", icon: "\u25CB" },
+        { href: "/admin/audit-log", label: "Audit Log", icon: "\u25CB" },
+        { href: "/admin/waitlist", label: "Waitlist", icon: "\u25CB" },
+        { href: "/admin/instructor-readiness", label: "Instructor Readiness", icon: "\u25CB" },
+        { href: "/admin/export", label: "Data Export", icon: "\u25CB" },
+        { href: "/admin/parent-approvals", label: "Parent Approvals", icon: "\u25CB" }
       ]
     });
   }

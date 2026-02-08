@@ -3561,3 +3561,118 @@ select.input {
 .parent-enroll-item:hover {
   border-color: var(--ypp-purple-200);
 }
+
+/* ============================================
+   ADMIN QUICK ACTIONS BAR
+   ============================================ */
+
+.admin-quick-actions {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+}
+
+.admin-quick-actions-toggle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--ypp-gradient);
+  color: white;
+  border: none;
+  font-size: 22px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.35);
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-quick-actions-toggle:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
+}
+
+.admin-quick-actions-menu {
+  position: absolute;
+  bottom: 60px;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  padding: 8px 0;
+  min-width: 220px;
+  animation: quickActionsIn 0.15s ease-out;
+}
+
+@keyframes quickActionsIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.admin-quick-action-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 13px;
+  transition: background 0.15s;
+}
+
+.admin-quick-action-item:hover {
+  background: var(--ypp-purple-50);
+  color: var(--ypp-purple-700);
+}
+
+.admin-quick-action-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: var(--ypp-purple-100);
+  color: var(--ypp-purple-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.admin-quick-action-label {
+  white-space: nowrap;
+}
+
+/* Grid four helper for instructor readiness */
+.grid.four {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .grid.four {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .grid.four {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-quick-actions {
+    bottom: 16px;
+    right: 16px;
+  }
+}
