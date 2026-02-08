@@ -2,12 +2,14 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { prisma } from "@/lib/prisma";
 import {
   getLinkedStudents,
   getStudentProgress,
   linkStudent,
   unlinkStudent,
 } from "@/lib/parent-actions";
+import ParentEnroll from "@/components/parent-enroll";
 
 export default async function ParentPortalPage() {
   const session = await getServerSession(authOptions);
@@ -21,8 +23,14 @@ export default async function ParentPortalPage() {
     redirect("/");
   }
 
-  // Fetch all linked students
-  const linkedStudents = await getLinkedStudents();
+  // Fetch all linked students and available courses
+  const [linkedStudents, allCourses] = await Promise.all([
+    getLinkedStudents(),
+    prisma.course.findMany({
+      select: { id: true, title: true, format: true, level: true },
+      orderBy: { title: "asc" },
+    }),
+  ]);
 
   // Fetch progress data for each linked student in parallel
   const progressData = await Promise.all(
@@ -267,6 +275,18 @@ export default async function ParentPortalPage() {
                       ))}
                     </div>
                   </div>
+                )}
+
+                {/* Enroll in Course */}
+                {student.isPrimary && (
+                  <ParentEnroll
+                    studentId={student.studentId}
+                    studentName={student.name}
+                    courses={allCourses}
+                    enrolledCourseIds={
+                      progress?.enrollments?.map((e) => e.course.id) ?? []
+                    }
+                  />
                 )}
               </div>
             );

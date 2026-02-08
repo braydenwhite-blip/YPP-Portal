@@ -329,6 +329,49 @@ export async function unlinkStudent(formData: FormData) {
 }
 
 // ============================================
+// ENROLL CHILD IN COURSE
+// ============================================
+
+export async function enrollChildInCourse(formData: FormData) {
+  const session = await requireParent();
+  const parentId = session.user.id;
+
+  const studentId = getString(formData, "studentId");
+  const courseId = getString(formData, "courseId");
+
+  // Verify the parent has an approved link to this student
+  const link = await prisma.parentStudent.findUnique({
+    where: {
+      parentId_studentId: { parentId, studentId },
+    },
+  });
+
+  if (!link || !link.isPrimary) {
+    throw new Error("You do not have access to enroll this student");
+  }
+
+  // Check if already enrolled
+  const existing = await prisma.enrollment.findFirst({
+    where: { userId: studentId, courseId },
+  });
+
+  if (existing) {
+    throw new Error("Student is already enrolled in this course");
+  }
+
+  await prisma.enrollment.create({
+    data: {
+      userId: studentId,
+      courseId,
+      status: "ENROLLED",
+    },
+  });
+
+  revalidatePath("/parent");
+  revalidatePath(`/parent/${studentId}`);
+}
+
+// ============================================
 // PARENT FEEDBACK SUBMISSION
 // ============================================
 
