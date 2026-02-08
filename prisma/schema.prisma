@@ -251,6 +251,12 @@ model User {
   assignmentSubmissionsGraded    AssignmentSubmission[]  @relation("AssignmentSubmissionsGraded")
   skillBadges                    SkillBadge[]
 
+  // Student Feature Enhancements (Features 6-10)
+  courseReviews                  CourseReview[]
+  alumniQuestionsAsked           AlumniQuestion[]        @relation("AlumniQuestionsAsked")
+  alumniQuestionsReceived        AlumniQuestion[]        @relation("AlumniQuestionsReceived")
+  customGoals                    CustomGoal[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -320,6 +326,7 @@ model Course {
   studyGroups      StudyGroup[]
   learningNotes    LearningNote[]
   assignments      Assignment[]
+  reviews          CourseReview[]
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 }
@@ -1063,10 +1070,11 @@ model AttendanceSession {
   title      String
   date       DateTime
   createdById String
-  createdBy  User     @relation("AttendanceSessionsCreated", fields: [createdById], references: [id])
-  records    AttendanceRecord[]
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdBy   User     @relation("AttendanceSessionsCreated", fields: [createdById], references: [id])
+  records     AttendanceRecord[]
+  selfCheckIn SelfCheckIn?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model AttendanceRecord {
@@ -1476,4 +1484,117 @@ model SkillBadge {
 
   @@unique([skillId, userId])
   @@index([userId])
+}
+
+// ============================================
+// STUDENT FEATURE ENHANCEMENTS (Features 6-10)
+// ============================================
+
+// Feature 7: Course Reviews
+model CourseReview {
+  id          String   @id @default(cuid())
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id])
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  rating      Int      // 1-5 stars
+  review      String?
+  isAnonymous Boolean  @default(false)
+  isVisible   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([courseId, userId])
+  @@index([courseId, rating])
+  @@index([userId])
+}
+
+// Feature 8: Ask an Alum
+model AlumniQuestion {
+  id         String   @id @default(cuid())
+  studentId  String
+  student    User     @relation("AlumniQuestionsAsked", fields: [studentId], references: [id])
+  advisorId  String?
+  advisor    User?    @relation("AlumniQuestionsReceived", fields: [advisorId], references: [id])
+  subject    String
+  question   String
+  answer     String?
+  answeredAt DateTime?
+  status     QuestionStatus @default(PENDING)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([advisorId])
+  @@index([status])
+}
+
+enum QuestionStatus {
+  PENDING
+  ASSIGNED
+  ANSWERED
+  CLOSED
+}
+
+// Feature 9: Custom Goals
+model CustomGoal {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  title       String
+  description String?
+  category    String?
+  targetDate  DateTime?
+  milestones  CustomGoalMilestone[]
+  progress    CustomGoalUpdate[]
+  status      GoalStatus @default(ACTIVE)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId, status])
+}
+
+enum GoalStatus {
+  ACTIVE
+  COMPLETED
+  PAUSED
+  CANCELLED
+}
+
+model CustomGoalMilestone {
+  id          String     @id @default(cuid())
+  goalId      String
+  goal        CustomGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  title       String
+  completed   Boolean    @default(false)
+  completedAt DateTime?
+  sortOrder   Int
+  createdAt   DateTime   @default(now())
+
+  @@index([goalId])
+}
+
+model CustomGoalUpdate {
+  id        String     @id @default(cuid())
+  goalId    String
+  goal      CustomGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  note      String
+  progress  Int        // 0-100 percentage
+  createdAt DateTime   @default(now())
+
+  @@index([goalId, createdAt])
+}
+
+// Feature 10: Self Check-in (extends existing AttendanceSession)
+model SelfCheckIn {
+  id        String    @id @default(cuid())
+  sessionId String
+  session   AttendanceSession @relation(fields: [sessionId], references: [id])
+  code      String    @unique  // QR code or PIN
+  expiresAt DateTime
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+
+  @@index([code])
+  @@index([sessionId])
 }
