@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 function escapeCSV(value: unknown): string {
   if (value === null || value === undefined) return "";
@@ -22,9 +23,16 @@ function toCSV(headers: string[], rows: Record<string, unknown>[]): string {
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
+  const userId = (session?.user as { id?: string })?.id;
   const roles = (session?.user as { roles?: string[] })?.roles ?? [];
-  if (!roles.includes("ADMIN")) {
+  if (!userId || !roles.includes("ADMIN")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Rate limit: 10 exports per admin per 5 minutes
+  const rl = checkRateLimit(`export:${userId}`, 10, 5 * 60 * 1000);
+  if (!rl.success) {
+    return NextResponse.json({ error: "Too many export requests. Please try again later." }, { status: 429 });
   }
 
   const { searchParams } = new URL(req.url);

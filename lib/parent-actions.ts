@@ -90,7 +90,7 @@ export async function getStudentProgress(studentId: string) {
     },
   });
 
-  if (!link || !link.isPrimary) {
+  if (!link || link.approvalStatus !== "APPROVED") {
     throw new Error("You do not have access to this student's progress");
   }
 
@@ -264,7 +264,8 @@ export async function linkStudent(formData: FormData) {
       parentId,
       studentId: student.id,
       relationship,
-      isPrimary: false, // isPrimary=false means pending approval
+      isPrimary: false, // Set to true after admin approval
+      approvalStatus: "PENDING",
     },
   });
 
@@ -291,11 +292,17 @@ export async function approveParentLink(formData: FormData) {
 
   await prisma.parentStudent.update({
     where: { id },
-    data: { isPrimary: true },
+    data: {
+      isPrimary: true,
+      approvalStatus: "APPROVED",
+      reviewedAt: new Date(),
+      reviewedById: session.user.id,
+    },
   });
 
   revalidatePath("/parent");
   revalidatePath("/admin/students");
+  revalidatePath("/admin/parent-approvals");
 }
 
 // ============================================
@@ -346,7 +353,7 @@ export async function enrollChildInCourse(formData: FormData) {
     },
   });
 
-  if (!link || !link.isPrimary) {
+  if (!link || link.approvalStatus !== "APPROVED") {
     throw new Error("You do not have access to enroll this student");
   }
 

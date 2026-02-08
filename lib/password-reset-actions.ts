@@ -41,7 +41,18 @@ export async function requestPasswordReset(
 
   // Check if email service is configured
   if (!isEmailConfigured()) {
-    console.warn("[Password Reset] Email service not configured");
+    console.error(
+      "[Password Reset] Email service not configured! " +
+      "Set RESEND_API_KEY or SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS env vars. " +
+      "See .env.example for details."
+    );
+    // In development, give a clear error so admins know email isn't set up
+    if (process.env.NODE_ENV === "development") {
+      return {
+        status: "error",
+        message: "Email service is not configured. Please set up email in your .env file (see .env.example)."
+      };
+    }
     return { status: "success", message: successMessage };
   }
 

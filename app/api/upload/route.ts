@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { randomUUID } from "crypto";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const ALLOWED_MIME_TYPES = [
   "image/jpeg",
@@ -31,6 +32,12 @@ export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Rate limit: 20 uploads per user per 10 minutes
+  const rl = checkRateLimit(`upload:${session.user.id}`, 20, 10 * 60 * 1000);
+  if (!rl.success) {
+    return NextResponse.json({ error: "Too many upload requests. Please try again later." }, { status: 429 });
   }
 
   try {
