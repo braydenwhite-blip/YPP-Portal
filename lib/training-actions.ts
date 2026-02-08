@@ -286,6 +286,76 @@ export async function updateTrainingStatus(formData: FormData) {
 }
 
 // ============================================
+// MODULE DELETION
+// ============================================
+
+export async function deleteTrainingModule(formData: FormData) {
+  await requireAdmin();
+
+  const moduleId = getString(formData, "moduleId");
+
+  // Delete related records first
+  await prisma.videoProgress.deleteMany({ where: { moduleId } });
+  await prisma.trainingAssignment.deleteMany({ where: { moduleId } });
+
+  await prisma.trainingModule.delete({ where: { id: moduleId } });
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/training");
+  revalidatePath("/instructor-training");
+}
+
+// ============================================
+// BULK ASSIGNMENT
+// ============================================
+
+export async function bulkAssignModuleToInstructors(formData: FormData) {
+  await requireAdmin();
+
+  const moduleId = getString(formData, "moduleId");
+
+  const instructors = await prisma.user.findMany({
+    where: { roles: { some: { role: "INSTRUCTOR" } } },
+    select: { id: true },
+  });
+
+  const existing = await prisma.trainingAssignment.findMany({
+    where: { moduleId },
+    select: { userId: true },
+  });
+  const assignedUserIds = new Set(existing.map((a) => a.userId));
+
+  const newAssignments = instructors
+    .filter((i) => !assignedUserIds.has(i.id))
+    .map((i) => ({
+      userId: i.id,
+      moduleId,
+      status: "NOT_STARTED" as TrainingStatus,
+    }));
+
+  if (newAssignments.length > 0) {
+    await prisma.trainingAssignment.createMany({ data: newAssignments });
+  }
+
+  revalidatePath("/admin/training");
+  revalidatePath("/instructor-training");
+}
+
+export async function markTrainingComplete(formData: FormData) {
+  await requireAdmin();
+
+  const assignmentId = getString(formData, "assignmentId");
+
+  await prisma.trainingAssignment.update({
+    where: { id: assignmentId },
+    data: { status: "COMPLETE", completedAt: new Date() },
+  });
+
+  revalidatePath("/admin/training");
+  revalidatePath("/instructor-training");
+}
+
+// ============================================
 // CURRICULUM FEEDBACK
 // ============================================
 

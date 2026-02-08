@@ -131,6 +131,8 @@ function buildSections(roles: string[], awardTier?: string): NavSection[] {
         { href: "/admin/reflection-forms", label: "Forms", icon: "\u25CB" },
         { href: "/admin/programs", label: "Programs", icon: "\u25CB" },
         { href: "/admin/alumni", label: "Alumni", icon: "\u25CB" },
+        { href: "/admin/training", label: "Training Modules", icon: "\u25CB" },
+        { href: "/admin/mentor-match", label: "Mentor Match", icon: "\u25CB" },
         { href: "/admin/analytics", label: "Analytics", icon: "\u25CB" }
       ]
     });
