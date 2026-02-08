@@ -39,26 +39,56 @@ export async function createAnnouncement(formData: FormData) {
   const scheduledPublishAt = scheduledPublishAtStr ? new Date(scheduledPublishAtStr) : null;
   const isScheduled = scheduledPublishAt && scheduledPublishAt > new Date();
 
-  const announcement = await prisma.announcement.create({
-    data: {
-      title,
-      content,
-      authorId,
-      chapterId: chapterId || null,
-      expiresAt: expiresAtStr ? new Date(expiresAtStr) : null,
-      scheduledPublishAt,
-      targetRoles: targetRoles.length > 0 ? targetRoles : Object.values(RoleType),
-      isActive: !isScheduled, // inactive if scheduled for later
-      publishedAt: isScheduled ? scheduledPublishAt : new Date(),
-    }
-  });
+  let announcement;
+  let schedulePersisted = true;
+  try {
+    announcement = await prisma.announcement.create({
+      data: {
+        title,
+        content,
+        authorId,
+        chapterId: chapterId || null,
+        expiresAt: expiresAtStr ? new Date(expiresAtStr) : null,
+        scheduledPublishAt,
+        targetRoles: targetRoles.length > 0 ? targetRoles : Object.values(RoleType),
+        isActive: !isScheduled, // inactive if scheduled for later
+        publishedAt: isScheduled ? scheduledPublishAt : new Date(),
+      }
+    });
+  } catch (err: any) {
+    // Older DBs may not have the scheduling column yet.
+    const missingScheduledPublishAt =
+      err?.code === "P2022" && err?.meta?.column === "Announcement.scheduledPublishAt";
+    if (!missingScheduledPublishAt) throw err;
+
+    schedulePersisted = false;
+    announcement = await prisma.announcement.create({
+      data: {
+        title,
+        content,
+        authorId,
+        chapterId: chapterId || null,
+        expiresAt: expiresAtStr ? new Date(expiresAtStr) : null,
+        targetRoles: targetRoles.length > 0 ? targetRoles : Object.values(RoleType),
+        // If scheduling isn't supported by the DB yet, publish immediately.
+        isActive: true,
+        publishedAt: new Date(),
+      }
+    });
+  }
 
   await logAuditEvent({
     action: "ANNOUNCEMENT_CREATED",
     actorId: authorId,
     targetType: "Announcement",
     targetId: announcement.id,
-    description: `Created announcement "${title}"${isScheduled ? ` (scheduled for ${scheduledPublishAt!.toLocaleDateString()})` : ""}`,
+    description: `Created announcement "${title}"${
+      isScheduled
+        ? schedulePersisted
+          ? ` (scheduled for ${scheduledPublishAt!.toLocaleDateString()})`
+          : " (schedule requested but DB missing scheduledPublishAt column; published immediately)"
+        : ""
+    }`,
   });
 
   revalidatePath("/announcements");

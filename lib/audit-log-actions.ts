@@ -33,16 +33,23 @@ export async function logAuditEvent({
   description: string;
   metadata?: Record<string, unknown>;
 }) {
-  await prisma.auditLog.create({
-    data: {
-      action,
-      actorId,
-      targetType: targetType || null,
-      targetId: targetId || null,
-      description,
-      metadata: metadata ? JSON.parse(JSON.stringify(metadata)) : undefined,
-    },
-  });
+  try {
+    await prisma.auditLog.create({
+      data: {
+        action,
+        actorId,
+        targetType: targetType || null,
+        targetId: targetId || null,
+        description,
+        metadata: metadata ? JSON.parse(JSON.stringify(metadata)) : undefined,
+      },
+    });
+  } catch (err: any) {
+    // Audit logs should never break product functionality.
+    const code = err?.code ?? "unknown";
+    const message = err?.message ?? String(err);
+    console.warn(`[audit] Skipping audit log write (code=${code}): ${message}`);
+  }
 }
 
 // ============================================

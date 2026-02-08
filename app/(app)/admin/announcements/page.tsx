@@ -16,16 +16,64 @@ export default async function AdminAnnouncementsPage() {
     redirect("/");
   }
 
-  const [announcements, chapters] = await Promise.all([
-    prisma.announcement.findMany({
-      include: {
+  const chaptersPromise = prisma.chapter.findMany({ orderBy: { name: "asc" } });
+
+  let announcements: Array<{
+    id: string;
+    title: string;
+    content: string;
+    publishedAt: Date;
+    scheduledPublishAt: Date | null;
+    expiresAt: Date | null;
+    isActive: boolean;
+    targetRoles: RoleType[];
+    author: { name: string };
+    chapter: { name: string } | null;
+  }> = [];
+
+  try {
+    announcements = await prisma.announcement.findMany({
+      // Explicit select keeps this page working even if the database
+      // hasn't been migrated yet (e.g. scheduledPublishAt missing).
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        publishedAt: true,
+        scheduledPublishAt: true,
+        expiresAt: true,
+        isActive: true,
+        targetRoles: true,
         author: { select: { name: true } },
-        chapter: { select: { name: true } }
+        chapter: { select: { name: true } },
       },
       orderBy: { publishedAt: "desc" }
-    }),
-    prisma.chapter.findMany({ orderBy: { name: "asc" } })
-  ]);
+    });
+  } catch (err: any) {
+    const missingScheduledPublishAt =
+      err?.code === "P2022" && err?.meta?.column === "Announcement.scheduledPublishAt";
+    if (!missingScheduledPublishAt) throw err;
+
+    const fallback = await prisma.announcement.findMany({
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        publishedAt: true,
+        expiresAt: true,
+        isActive: true,
+        targetRoles: true,
+        author: { select: { name: true } },
+        chapter: { select: { name: true } },
+      },
+      orderBy: { publishedAt: "desc" }
+    });
+
+    // If the DB doesn't have scheduledPublishAt yet, treat it as null.
+    announcements = fallback.map((a) => ({ ...a, scheduledPublishAt: null }));
+  }
+
+  const chapters = await chaptersPromise;
 
   return (
     <div>
