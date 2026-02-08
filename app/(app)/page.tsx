@@ -175,8 +175,14 @@ export default async function OverviewPage() {
         }
       ]
     },
-    include: {
-      author: { select: { name: true } }
+    // Explicit select keeps this page working even if the database
+    // hasn't been migrated yet (e.g. scheduledPublishAt missing).
+    select: {
+      id: true,
+      title: true,
+      content: true,
+      publishedAt: true,
+      author: { select: { name: true } },
     },
     orderBy: { publishedAt: "desc" },
     take: 5
