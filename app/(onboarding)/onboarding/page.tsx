@@ -13,10 +13,25 @@ export default async function OnboardingPage() {
   // Fetch user WITHOUT the onboarding relation (in case table doesn't exist)
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    include: {
-      roles: true,
-      chapter: true,
-      profile: true,
+    // Explicit select keeps onboarding working even if the database
+    // hasn't been migrated yet (e.g. xp/level columns missing).
+    select: {
+      id: true,
+      name: true,
+      primaryRole: true,
+      roles: { select: { role: true } },
+      chapter: { select: { id: true, name: true } },
+      profile: {
+        select: {
+          bio: true,
+          school: true,
+          grade: true,
+          interests: true,
+          parentEmail: true,
+          parentPhone: true,
+          curriculumUrl: true,
+        },
+      },
     },
   });
 

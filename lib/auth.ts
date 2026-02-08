@@ -32,7 +32,16 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findUnique({
           where: { email: parsed.data.email },
-          include: { roles: true }
+          // Use explicit select so deploys don't break if new columns
+          // (like xp/level) haven't been migrated yet.
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            passwordHash: true,
+            primaryRole: true,
+            roles: { select: { role: true } }
+          }
         });
 
         if (!user) {
@@ -73,7 +82,10 @@ export const authOptions: NextAuthOptions = {
         try {
           const dbUser = await prisma.user.findUnique({
             where: { id: token.id as string },
-            include: { roles: true },
+            select: {
+              primaryRole: true,
+              roles: { select: { role: true } }
+            }
           });
           if (dbUser) {
             token.roles = dbUser.roles.map((r) => r.role);

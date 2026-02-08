@@ -12,7 +12,16 @@ export default async function OverviewPage() {
   const user = userId
     ? await prisma.user.findUnique({
         where: { id: userId },
-        include: { roles: true, chapter: true }
+        // Explicit select keeps this page working even if the database
+        // hasn't been migrated yet (e.g. xp/level columns missing).
+        select: {
+          id: true,
+          name: true,
+          primaryRole: true,
+          chapterId: true,
+          roles: { select: { role: true } },
+          chapter: { select: { id: true, name: true } },
+        }
       })
     : null;
 
