@@ -82,10 +82,11 @@ export async function requestPasswordReset(
     });
 
     // Build reset URL
-    const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : "http://localhost:3000";
-    const resetUrl = `${baseUrl}/reset-password?token=${token}`;
+    const rawBaseUrl =
+      (process.env.NEXTAUTH_URL && process.env.NEXTAUTH_URL.trim()) ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+    const baseUrl = rawBaseUrl.replace(/\/$/, "");
+    const resetUrl = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
 
     // Send email
     const emailResult = await sendPasswordResetEmail({
