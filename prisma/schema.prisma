@@ -1885,3 +1885,152 @@ enum ObservationStatus {
   COMPLETED
   CANCELLED
 }
+
+// ============================================
+// INSTRUCTOR FEATURES (24-34)
+// ============================================
+
+// Feature 24: Feedback Templates
+model FeedbackTemplate {
+  id          String   @id @default(cuid())
+  instructorId String
+  instructor  User     @relation(fields: [instructorId], references: [id])
+  title       String
+  content     String
+  category    String?
+  isPublic    Boolean  @default(false)
+  usageCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([instructorId])
+}
+
+// Feature 26: Session Recap
+model SessionRecap {
+  id               String            @id @default(cuid())
+  sessionId        String            @unique
+  attendanceSession AttendanceSession @relation(fields: [sessionId], references: [id])
+  instructorId     String
+  instructor       User              @relation(fields: [instructorId], references: [id])
+  whatCovered      String
+  whatWorked       String?
+  whatToImprove    String?
+  nextSteps        String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([instructorId])
+}
+
+// Feature 30: Substitute Requests
+model SubstituteRequest {
+  id           String          @id @default(cuid())
+  courseId     String
+  course       Course          @relation(fields: [courseId], references: [id])
+  requestedById String
+  requestedBy  User            @relation("SubstituteRequestsCreated", fields: [requestedById], references: [id])
+  sessionDate  DateTime
+  reason       String?
+  status       SubstituteStatus @default(PENDING)
+  assignedToId String?
+  assignedTo   User?           @relation("SubstituteRequestsAssigned", fields: [assignedToId], references: [id])
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([courseId])
+  @@index([requestedById])
+  @@index([status])
+}
+
+enum SubstituteStatus {
+  PENDING
+  ASSIGNED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+// Feature 31: Professional Development
+model ProfessionalDevelopment {
+  id           String    @id @default(cuid())
+  instructorId String
+  instructor   User      @relation(fields: [instructorId], references: [id])
+  title        String
+  type         PDType
+  provider     String?
+  date         DateTime
+  hours        Float?
+  description  String?
+  certificate  String?   // URL to certificate
+  createdAt    DateTime  @default(now())
+
+  @@index([instructorId])
+  @@index([date])
+}
+
+enum PDType {
+  CONFERENCE
+  WORKSHOP
+  COURSE
+  WEBINAR
+  CERTIFICATION
+  OTHER
+}
+
+// Feature 32: Curriculum Feedback
+model CurriculumFeedback {
+  id          String           @id @default(cuid())
+  instructorId String
+  instructor  User             @relation(fields: [instructorId], references: [id])
+  courseId    String?
+  course      Course?          @relation(fields: [courseId], references: [id])
+  type        FeedbackType
+  subject     String
+  details     String
+  status      FeedbackStatus   @default(SUBMITTED)
+  reviewedById String?
+  reviewedBy  User?            @relation("CurriculumFeedbackReviewed", fields: [reviewedById], references: [id])
+  response    String?
+  reviewedAt  DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([instructorId])
+  @@index([status])
+}
+
+enum FeedbackType {
+  BUG
+  IMPROVEMENT
+  NEW_CONTENT
+  REMOVAL
+  GENERAL
+}
+
+enum FeedbackStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  ACCEPTED
+  REJECTED
+  IMPLEMENTED
+}
+
+// Feature 33: Student Spotlight
+model StudentSpotlight {
+  id           String   @id @default(cuid())
+  studentId    String
+  student      User     @relation("StudentSpotlights", fields: [studentId], references: [id])
+  nominatedById String
+  nominatedBy  User     @relation("SpotlightNominations", fields: [nominatedById], references: [id])
+  courseId     String?
+  course       Course?  @relation(fields: [courseId], references: [id])
+  term         String
+  reason       String
+  achievements String?
+  createdAt    DateTime @default(now())
+
+  @@index([studentId])
+  @@index([nominatedById])
+  @@index([term])
+}
