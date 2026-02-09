@@ -342,6 +342,11 @@ model User {
   classAttendanceRecords         ClassAttendanceRecord[] @relation("ClassAttendanceRecords")
   classRemindersReceived         ClassReminder[]         @relation("ClassRemindersReceived")
 
+  // Phase 10: Enjoyment-Focused Assignments Relations
+  classAssignmentsCreated        ClassAssignment[]            @relation("ClassAssignmentsCreated")
+  classSubmissions               ClassAssignmentSubmission[]  @relation("ClassSubmissions")
+  groupMemberships               GroupMember[]                @relation("GroupMemberships")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -3813,6 +3818,7 @@ model ClassOffering {
   sessions        ClassSession[]
   enrollments     ClassEnrollment[]
   reminders       ClassReminder[]
+  assignments     ClassAssignment[]
 
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
@@ -3930,5 +3936,187 @@ model ClassReminder {
   @@index([userId])
   @@index([scheduledFor])
   @@index([status])
+}
+
+// ============================================
+// PHASE 10: ENJOYMENT-FOCUSED ASSIGNMENT SYSTEM
+// ============================================
+
+enum ClassAssignmentType {
+  PRACTICE       // Skill-building exercise
+  PROJECT        // Creative project
+  EXPLORATION    // Open-ended exploration
+  GROUP          // Group collaboration
+  REFLECTION     // Reflective writing
+}
+
+enum FeedbackStyle {
+  NARRATIVE      // Written narrative feedback
+  CHECKLIST      // Checklist of skills demonstrated
+  VIDEO          // Video feedback from instructor
+  PEER_REVIEW    // Peer-to-peer feedback
+}
+
+enum GradingStyle {
+  COMPLETION     // Completed or not (no judgment)
+  FEEDBACK_ONLY  // Narrative feedback, no score
+  OPTIONAL_GRADE // Student can opt into receiving a grade
+}
+
+enum ClassSubmissionStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED
+  FEEDBACK_GIVEN
+  REVISED
+}
+
+// Enjoyment-focused assignment tied to class offerings (Feature #43)
+model ClassAssignment {
+  id              String              @id @default(cuid())
+  offeringId      String
+  offering        ClassOffering       @relation(fields: [offeringId], references: [id])
+  createdById     String
+  createdBy       User                @relation("ClassAssignmentsCreated", fields: [createdById], references: [id])
+
+  title           String
+  description     String              @db.Text
+  type            ClassAssignmentType @default(PRACTICE)
+
+  // Enjoyment-focused options
+  feedbackStyle   FeedbackStyle       @default(NARRATIVE)
+  gradingStyle    GradingStyle        @default(FEEDBACK_ONLY)
+
+  // Flexible deadlines
+  suggestedDueDate DateTime?          // "Aim to complete by..."
+  hardDeadline     DateTime?          // Only if truly time-sensitive
+  allowLateSubmissions Boolean        @default(true)
+
+  // Instructions & materials
+  instructions    String?             @db.Text
+  referenceLinks  String[]            // Links to helpful resources
+  exampleWorkUrls String[]            // Show examples of what good looks like
+  attachmentUrl   String?
+
+  // Group settings
+  isGroupAssignment Boolean           @default(false)
+  groupSize       Int?                // Suggested group size
+  allowSelfSelect Boolean             @default(true) // Can students pick groups?
+
+  // Encouragement
+  encouragementNote String?           @db.Text // Instructor message to motivate
+
+  isPublished     Boolean             @default(true)
+  sessionId       String?             // Optionally tied to a class session
+
+  // Relations
+  submissions     ClassAssignmentSubmission[]
+  groups          GroupProject[]
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([offeringId])
+}
+
+// Student submission with enjoyment metrics instead of grades
+model ClassAssignmentSubmission {
+  id              String                @id @default(cuid())
+  assignmentId    String
+  assignment      ClassAssignment       @relation(fields: [assignmentId], references: [id])
+  studentId       String
+  student         User                  @relation("ClassSubmissions", fields: [studentId], references: [id])
+  groupId         String?               // If group assignment
+  group           GroupProject?         @relation(fields: [groupId], references: [id])
+
+  // Submission
+  workUrl         String?               // Link to work (Drive, YouTube, etc.)
+  workText        String?               @db.Text // Written work or description
+  submittedAt     DateTime?
+
+  status          ClassSubmissionStatus @default(NOT_STARTED)
+
+  // Instructor feedback (NOT grades)
+  instructorFeedback  String?           @db.Text  // Detailed narrative feedback
+  celebratoryNote     String?           @db.Text  // "I love how you experimented!"
+  suggestionsForNext  String?           @db.Text  // "Try adding more contrast next time"
+  feedbackGivenAt     DateTime?
+
+  // Student self-reflection
+  studentReflection   String?           @db.Text  // "What did you learn?"
+  enjoymentRating     Int?              // 1-5: "How much fun did you have?"
+  difficultyRating    Int?              // 1-5: "How challenging was this?"
+  whatWentWell        String?           @db.Text
+  whatToImprove       String?           @db.Text
+  wouldRecommend      Boolean?          // "Would you recommend this to a classmate?"
+
+  // Completion celebration (not perfection)
+  completionBadge     Boolean           @default(false) // Earned just for finishing!
+
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@unique([assignmentId, studentId])
+  @@index([studentId])
+  @@index([assignmentId])
+}
+
+// Group project for collaborative assignments (Feature #69)
+model GroupProject {
+  id              String              @id @default(cuid())
+  assignmentId    String
+  assignment      ClassAssignment     @relation(fields: [assignmentId], references: [id])
+
+  groupName       String
+  description     String?             @db.Text
+
+  // Members
+  members         GroupMember[]
+
+  // Coordination
+  communicationChannel String?        // "Slack", "Discord", "Group Text"
+  sharedDocLinks  String[]            // Links to collaborative docs
+
+  // Milestones
+  milestones      GroupMilestone[]
+
+  // Final submission
+  submissions     ClassAssignmentSubmission[]
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([assignmentId])
+}
+
+model GroupMember {
+  id              String       @id @default(cuid())
+  groupId         String
+  group           GroupProject @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User         @relation("GroupMemberships", fields: [userId], references: [id])
+
+  // Flexible roles (student-defined, not rigid)
+  role            String?      // e.g., "Visual Lead", "Research", "Presenter"
+  joinedAt        DateTime     @default(now())
+
+  @@unique([groupId, userId])
+  @@index([userId])
+}
+
+model GroupMilestone {
+  id              String       @id @default(cuid())
+  groupId         String
+  group           GroupProject @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  title           String
+  description     String?
+  targetDate      DateTime?
+  completedAt     DateTime?
+  isComplete      Boolean      @default(false)
+
+  sortOrder       Int          @default(0)
+
+  createdAt       DateTime     @default(now())
 }
 

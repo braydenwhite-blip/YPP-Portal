@@ -78,14 +78,19 @@ export default async function ClassDetailPage({
           </Link>
           <h1 className="page-title" style={{ marginTop: 4 }}>{offering.title}</h1>
         </div>
-        {isInstructor && (
-          <Link
-            href={`/instructor/class-settings?offering=${offering.id}`}
-            className="button secondary"
-          >
-            Manage Class
+        <div style={{ display: "flex", gap: 8 }}>
+          <Link href={`/classes/${id}/assignments`} className="button secondary">
+            Assignments
           </Link>
-        )}
+          {isInstructor && (
+            <Link
+              href={`/instructor/class-settings?offering=${offering.id}`}
+              className="button secondary"
+            >
+              Manage Class
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Class Header */}
