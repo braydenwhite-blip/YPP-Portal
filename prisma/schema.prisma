@@ -293,6 +293,21 @@ model User {
   learningStyle                  LearningStyleProfile?   @relation("LearningStyle")
   personalBests                  PersonalBest[]          @relation("PersonalBests")
 
+  // Phase 3: Progress Tracking Relations
+  timelineEntries                TimelineEntry[]         @relation("TimelineEntries")
+  workshopEnrollments            WorkshopEnrollment[]    @relation("WorkshopEnrollments")
+  earnedCertifications           StudentCertification[]  @relation("EarnedCertifications")
+  projects                       ProjectTracker[]        @relation("StudentProjects")
+  progressComparisons            ProgressComparison[]    @relation("ProgressComparisons")
+
+  // Phase 4: Awards & Recognition Relations
+  studentAwards                  StudentAward[]          @relation("StudentAwards")
+  awardNominations               StudentAward[]          @relation("AwardNominations")
+  breakthroughMoments            BreakthroughMoment[]    @relation("BreakthroughMoments")
+  showcasePresentations          ShowcasePresentation[]  @relation("ShowcasePresentations")
+  wallOfFameEntries              WallOfFame[]            @relation("WallOfFameEntries")
+  studentOfMonthAwards           StudentOfMonth[]        @relation("StudentOfMonthAwards")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -2892,4 +2907,161 @@ model ProgressComparison {
   @@index([studentId])
   @@index([passionId])
   @@index([isPublic])
+}
+
+// ============================================
+// PHASE 4: AWARDS & RECOGNITION
+// ============================================
+
+// Awards - Recognition categories
+model Award {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  category    String   // "PURSUIT", "BREAKTHROUGH", "PERSISTENCE", "IMPROVEMENT", "SHOWCASE"
+  icon        String
+  criteria    Json     // What qualifies for this award
+  xpReward    Int
+  isActive    Boolean  @default(true)
+  studentAwards StudentAward[]
+  createdAt   DateTime @default(now())
+
+  @@index([category])
+  @@index([isActive])
+}
+
+// Student awards received
+model StudentAward {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("StudentAwards", fields: [studentId], references: [id])
+  awardId     String
+  award       Award    @relation(fields: [awardId], references: [id])
+  passionId   String?
+  reason      String
+  awardedBy   String?  // Instructor/admin who nominated
+  nominatedBy User?    @relation("AwardNominations", fields: [awardedBy], references: [id])
+  awardedAt   DateTime @default(now())
+  isPublic    Boolean  @default(true)
+  mediaUrl    String?  // Photo/certificate
+
+  @@index([studentId])
+  @@index([awardId])
+  @@index([awardedAt])
+}
+
+// Breakthrough moments - "Aha!" moments
+model BreakthroughMoment {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("BreakthroughMoments", fields: [studentId], references: [id])
+  passionId   String
+  title       String
+  description String
+  date        DateTime @default(now())
+  isRecognized Boolean @default(false)
+  celebrationCount Int @default(0) // How many people celebrated
+  mediaUrls   String[]
+  isPublic    Boolean  @default(true)
+
+  @@index([studentId])
+  @@index([passionId])
+  @@index([date])
+}
+
+// Showcase events
+model PassionShowcase {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  date        DateTime
+  location    String?
+  isVirtual   Boolean  @default(true)
+  chapterId   String?
+  registrationDeadline DateTime?
+  maxPresenters Int?
+  presentations ShowcasePresentation[]
+  status      String   // "UPCOMING", "REGISTRATION_OPEN", "COMPLETED"
+  createdAt   DateTime @default(now())
+
+  @@index([date])
+  @@index([status])
+  @@index([chapterId])
+}
+
+// Showcase presentations
+model ShowcasePresentation {
+  id          String   @id @default(cuid())
+  showcaseId  String
+  showcase    PassionShowcase @relation(fields: [showcaseId], references: [id])
+  studentId   String
+  student     User     @relation("ShowcasePresentations", fields: [studentId], references: [id])
+  passionId   String
+  title       String
+  description String
+  presentationUrl String? // Video recording or slides
+  thumbnailUrl String?
+  votes       Int      @default(0)
+  registeredAt DateTime @default(now())
+
+  @@index([showcaseId])
+  @@index([studentId])
+}
+
+// Wall of Fame entries
+model WallOfFame {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("WallOfFameEntries", fields: [studentId], references: [id])
+  achievement String
+  passionId   String
+  description String
+  date        DateTime
+  mediaUrl    String?
+  featuredUntil DateTime? // How long to display
+  displayOrder Int
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@index([studentId])
+  @@index([passionId])
+  @@index([displayOrder])
+  @@index([isActive])
+}
+
+// Student of the Month
+model StudentOfMonth {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("StudentOfMonthAwards", fields: [studentId], references: [id])
+  month       DateTime
+  chapterId   String?
+  nomination  String   // Why they were chosen
+  achievements String[]
+  storyUrl    String?  // Featured story link
+  photoUrl    String?
+  announcedAt DateTime @default(now())
+
+  @@index([studentId])
+  @@index([month])
+  @@index([chapterId])
+}
+
+// Team Achievement Awards
+model TeamAchievement {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  category    String   // "COLLABORATION", "COMMUNITY", "INNOVATION"
+  teamMembers String[] // User IDs
+  passionIds  String[]
+  projectId   String?
+  reason      String
+  awardedBy   String?
+  awardedAt   DateTime @default(now())
+  mediaUrl    String?
+  xpRewardPerMember Int @default(0)
+
+  @@index([awardedAt])
+  @@index([category])
 }
