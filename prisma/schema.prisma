@@ -285,6 +285,14 @@ model User {
   challengeCompletions           ChallengeCompletion[]   @relation("ChallengeCompletions")
   sessionWatchHistory            SessionWatchHistory[]   @relation("SessionWatchHistory")
 
+  // Phase 2: Learning Infrastructure Relations
+  skillProgress                  StudentSkillProgress[]  @relation("StudentSkillProgress")
+  moduleWatchProgress            ModuleWatchProgress[]   @relation("ModuleWatchProgress")
+  practiceLogs                   PracticeLog[]           @relation("PracticeLogs")
+  skillChallengeCompletions      SkillChallengeCompletion[] @relation("SkillChallengeCompletions")
+  learningStyle                  LearningStyleProfile?   @relation("LearningStyle")
+  personalBests                  PersonalBest[]          @relation("PersonalBests")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -2313,4 +2321,266 @@ model SessionWatchHistory {
 
   @@unique([studentId, sessionId])
   @@index([studentId])
+}
+
+// ============================================
+// PHASE 2: LEARNING INFRASTRUCTURE
+// ============================================
+
+// Skill Trees - Visual progression paths
+model SkillTree {
+  id          String     @id @default(cuid())
+  passionId   String
+  name        String
+  description String?
+  isActive    Boolean    @default(true)
+  order       Int        @default(0)
+  nodes       SkillNode[]
+  createdAt   DateTime   @default(now())
+
+  @@index([passionId])
+}
+
+// Individual skills in a skill tree
+model SkillNode {
+  id            String     @id @default(cuid())
+  treeId        String
+  tree          SkillTree  @relation(fields: [treeId], references: [id])
+  name          String
+  description   String
+  level         SkillLevel
+  prerequisiteIds String[] // IDs of required skills
+  xpRequired    Int        @default(0)
+  videoUrl      String?
+  thumbnailUrl  String?
+  resources     Json?      // Links to tutorials, articles
+  position      Json       // {x, y} coordinates for visualization
+  order         Int        @default(0)
+
+  studentProgress StudentSkillProgress[]
+
+  @@index([treeId])
+  @@index([level])
+}
+
+// Student progress on individual skills
+model StudentSkillProgress {
+  id          String     @id @default(cuid())
+  studentId   String
+  student     User       @relation("StudentSkillProgress", fields: [studentId], references: [id])
+  skillNodeId String
+  skillNode   SkillNode  @relation(fields: [skillNodeId], references: [id])
+  status      String     @default("LOCKED") // "LOCKED", "IN_PROGRESS", "COMPLETED"
+  progress    Int        @default(0) // 0-100
+  personalBest Json?     // Track best performance/achievement
+  startedAt   DateTime?
+  completedAt DateTime?
+  notes       String?
+
+  @@unique([studentId, skillNodeId])
+  @@index([studentId])
+  @@index([status])
+}
+
+// Micro-learning video modules
+model LearningModule {
+  id          String   @id @default(cuid())
+  passionId   String
+  title       String
+  description String?
+  duration    Int      // minutes
+  level       SkillLevel
+  videoUrl    String
+  thumbnailUrl String?
+  transcript  String?
+  resources   String[] // Additional resource URLs
+  tags        String[]
+  viewCount   Int      @default(0)
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  watchProgress ModuleWatchProgress[]
+
+  @@index([passionId])
+  @@index([level])
+  @@index([isActive])
+}
+
+// Track student video watch progress
+model ModuleWatchProgress {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("ModuleWatchProgress", fields: [studentId], references: [id])
+  moduleId    String
+  module      LearningModule @relation(fields: [moduleId], references: [id])
+  watchTime   Int      @default(0) // seconds watched
+  completed   Boolean  @default(false)
+  lastWatchedAt DateTime @default(now())
+  rating      Int?     // 1-5 stars
+  notes       String?
+
+  @@unique([studentId, moduleId])
+  @@index([studentId])
+}
+
+// Practice session logging
+model PracticeLog {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("PracticeLogs", fields: [studentId], references: [id])
+  passionId   String
+  date        DateTime @default(now())
+  duration    Int      // minutes
+  activity    String
+  skillsFocused String[] // Which skills practiced
+  notes       String?
+  mood        String?  // "GREAT", "GOOD", "OK", "FRUSTRATED"
+  mediaUrls   String[] // Photos/videos of practice
+  isPublic    Boolean  @default(false)
+
+  @@index([studentId])
+  @@index([passionId])
+  @@index([date])
+}
+
+// Skill-specific challenges (different from talent discovery challenges)
+model SkillChallenge {
+  id          String   @id @default(cuid())
+  passionId   String
+  title       String
+  description String
+  difficulty  SkillLevel
+  instructions String
+  estimatedTime Int    // minutes
+  successCriteria Json
+  videoDemo   String?
+  thumbnailUrl String?
+  materials   String?  // Materials needed
+  resources   String[]
+  xpReward    Int      @default(0)
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  completionCount Int  @default(0)
+
+  completions SkillChallengeCompletion[]
+
+  @@index([passionId])
+  @@index([difficulty])
+  @@index([isActive])
+}
+
+// Skill challenge completions
+model SkillChallengeCompletion {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("SkillChallengeCompletions", fields: [studentId], references: [id])
+  challengeId String
+  challenge   SkillChallenge @relation(fields: [challengeId], references: [id])
+  completedAt DateTime @default(now())
+  timeSpent   Int?     // minutes
+  rating      Int?     // 1-5 difficulty rating
+  reflection  String?
+  mediaUrls   String[]
+  xpEarned    Int      @default(0)
+
+  @@unique([studentId, challengeId])
+  @@index([studentId])
+}
+
+// Learning style assessment
+model LearningStyleProfile {
+  id          String   @id @default(cuid())
+  studentId   String   @unique
+  student     User     @relation("LearningStyle", fields: [studentId], references: [id])
+  visualScore Int      // 0-100
+  auditoryScore Int
+  kinestheticScore Int
+  readingScore Int
+  socialScore Int      // Learn with others
+  solitaryScore Int    // Learn alone
+  preferences Json     // Detailed preferences and recommendations
+  assessedAt  DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Resource recommendations
+model ResourceRecommendation {
+  id          String   @id @default(cuid())
+  passionId   String
+  title       String
+  description String
+  url         String
+  resourceType String  // "VIDEO", "ARTICLE", "BOOK", "COURSE", "TOOL", "WEBSITE"
+  level       SkillLevel
+  isFree      Boolean  @default(true)
+  rating      Float?
+  tags        String[]
+  addedBy     String?  // User ID of who added it
+  isVerified  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([passionId])
+  @@index([resourceType])
+  @@index([level])
+}
+
+// Technique library
+model Technique {
+  id          String   @id @default(cuid())
+  passionId   String
+  name        String
+  description String
+  level       SkillLevel
+  instructions String
+  videoUrl    String?
+  thumbnailUrl String?
+  tips        String?
+  commonMistakes String?
+  relatedTechniques String[] // IDs of related techniques
+  tags        String[]
+  viewCount   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@index([passionId])
+  @@index([level])
+  @@index([isActive])
+}
+
+// Personal bests / milestones
+model PersonalBest {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("PersonalBests", fields: [studentId], references: [id])
+  passionId   String
+  title       String
+  description String?
+  value       String   // The achievement (e.g., "3 minutes", "10 paintings")
+  unit        String?  // "time", "count", "score"
+  previousBest String?
+  improvement String?  // Calculated improvement
+  achievedAt  DateTime @default(now())
+  mediaUrls   String[]
+  isPublic    Boolean  @default(false)
+  celebrationCount Int @default(0)
+
+  @@index([studentId])
+  @@index([passionId])
+  @@index([achievedAt])
+}
+
+// Cross-skill connections
+model SkillConnection {
+  id          String   @id @default(cuid())
+  skill1      String   // Skill name or passion area
+  skill2      String
+  connectionType String // "COMPLEMENTARY", "PREREQUISITE", "SIMILAR"
+  strength    Float    // 0-1
+  explanation String?
+  examples    String?
+
+  @@unique([skill1, skill2])
+  @@index([skill1])
+  @@index([skill2])
 }
