@@ -327,6 +327,13 @@ model User {
   parentConnections              ParentStudentConnection[] @relation("ParentStudentConnections")
   progressReports                ProgressReport[]        @relation("StudentProgressReports")
 
+  // Phase 8: Experience & Personalization Relations
+  onboarding                     StudentOnboarding?      @relation("StudentOnboarding")
+  personalization                PersonalizationSettings? @relation("PersonalizationSettings")
+  feedbackSubmissions            UserFeedback[]          @relation("UserFeedback")
+  quickActions                   QuickAction[]           @relation("QuickActions")
+  bookmarks                      Bookmark[]              @relation("Bookmarks")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -3524,5 +3531,150 @@ enum ParentResourceCategory {
   TIME_MANAGEMENT
   PARENT_INVOLVEMENT
   SUCCESS_STORIES
+}
+
+
+// ============================================
+// PHASE 8: EXPERIENCE & PERSONALIZATION
+// ============================================
+
+model StudentOnboarding {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation("StudentOnboarding", fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Onboarding steps
+  completedIntro          Boolean  @default(false)
+  completedPassionQuiz    Boolean  @default(false)
+  completedProfileSetup   Boolean  @default(false)
+  completedFirstTryIt     Boolean  @default(false)
+  completedFirstPractice  Boolean  @default(false)
+  
+  // Preferences from onboarding
+  learningGoals           String[] // e.g., ["college_prep", "hobby", "career"]
+  availableHours          Int?     // Hours per week they can dedicate
+  preferredLearningStyle  String?  // "visual", "hands_on", "reading", "video"
+  
+  completedAt             DateTime?
+  currentStep             String   @default("intro")
+  
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
+model PersonalizationSettings {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation("PersonalizationSettings", fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Dashboard preferences
+  dashboardLayout         String   @default("default") // "default", "minimal", "detailed"
+  showXPProgress          Boolean  @default(true)
+  showStreaks             Boolean  @default(true)
+  showUpcomingEvents      Boolean  @default(true)
+  showPeerActivity        Boolean  @default(true)
+  
+  // Content preferences
+  autoPlayVideos          Boolean  @default(false)
+  videoQuality            String   @default("auto") // "auto", "high", "medium", "low"
+  
+  // Notification preferences
+  dailyReminders          Boolean  @default(true)
+  reminderTime            String?  // "09:00", "18:00", etc.
+  weeklyDigest            Boolean  @default(true)
+  
+  // Privacy preferences
+  showProfilePublicly     Boolean  @default(true)
+  showProgressToClassmates Boolean @default(true)
+  allowPeerMessages       Boolean  @default(true)
+  
+  // Theme
+  theme                   String   @default("light") // "light", "dark", "auto"
+  accentColor             String   @default("#6366f1")
+  
+  updatedAt               DateTime @updatedAt
+}
+
+model UserFeedback {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation("UserFeedback", fields: [userId], references: [id], onDelete: Cascade)
+  
+  category      FeedbackCategory
+  rating        Int?     // 1-5 stars
+  message       String   @db.Text
+  page          String?  // Which page they were on
+  screenshotUrl String?
+  
+  status        FeedbackStatus @default(PENDING)
+  adminResponse String?  @db.Text
+  respondedBy   String?
+  respondedAt   DateTime?
+  
+  createdAt     DateTime @default(now())
+}
+
+enum FeedbackCategory {
+  BUG_REPORT
+  FEATURE_REQUEST
+  USABILITY_ISSUE
+  CONTENT_SUGGESTION
+  GENERAL_FEEDBACK
+  COMPLIMENT
+}
+
+enum FeedbackStatus {
+  PENDING
+  REVIEWING
+  IN_PROGRESS
+  RESOLVED
+  WONT_FIX
+}
+
+model QuickAction {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation("QuickActions", fields: [userId], references: [id], onDelete: Cascade)
+  
+  actionType  String   // "log_practice", "continue_module", "view_feedback", etc.
+  actionData  Json     // Flexible data for the action
+  displayText String
+  iconEmoji   String
+  priority    Int      @default(0)
+  
+  expiresAt   DateTime?
+  completedAt DateTime?
+  dismissedAt DateTime?
+  
+  createdAt   DateTime @default(now())
+}
+
+model Bookmark {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation("Bookmarks", fields: [userId], references: [id], onDelete: Cascade)
+  
+  resourceType String  // "module", "video", "article", "mentor_resource", etc.
+  resourceId   String
+  resourceTitle String
+  resourceUrl  String
+  
+  notes        String?  @db.Text
+  tags         String[]
+  
+  createdAt    DateTime @default(now())
+  
+  @@unique([userId, resourceType, resourceId])
+}
+
+model DailyInspiration {
+  id          String   @id @default(cuid())
+  date        DateTime @unique
+  quote       String   @db.Text
+  author      String
+  category    String   // "persistence", "creativity", "courage", etc.
+  imageUrl    String?
+  
+  createdAt   DateTime @default(now())
 }
 
