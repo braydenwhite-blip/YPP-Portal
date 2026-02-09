@@ -317,6 +317,11 @@ model User {
   curatedResourcesShared         CuratedResource[]       @relation("CuratedResourcesShared")
   motivationBoostsReceived       StudentMotivationLog[]  @relation("MotivationBoostsReceived")
 
+  // Phase 6: Portfolio & Projects Relations
+  resourceRequests               ResourceRequest[]       @relation("ResourceRequests")
+  projectFeedbackGiven           ProjectFeedback[]       @relation("ProjectFeedbackGiven")
+  publicPortfolio                PublicPortfolio?        @relation("PublicPortfolio")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -3219,4 +3224,115 @@ model StudentMotivationLog {
 
   @@index([studentId])
   @@index([boostId])
+}
+
+// ============================================
+// PHASE 6: PORTFOLIO & PROJECTS
+// ============================================
+
+// Resource requests for projects
+model ResourceRequest {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("ResourceRequests", fields: [studentId], references: [id])
+  projectId   String?
+  passionId   String
+  itemName    String
+  description String
+  estimatedCost Float?
+  reason      String   // Why they need it
+  status      String   // "PENDING", "APPROVED", "DENIED", "FULFILLED"
+  requestedAt DateTime @default(now())
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  reviewNotes String?
+
+  @@index([studentId])
+  @@index([status])
+  @@index([passionId])
+}
+
+// Project feedback cycles
+model ProjectFeedbackCycle {
+  id          String   @id @default(cuid())
+  projectId   String
+  cycleNumber Int
+  submittedAt DateTime @default(now())
+  workSamples String[] // URLs to photos/videos of work
+  studentReflection String
+  feedback    ProjectFeedback[]
+  status      String   // "AWAITING_FEEDBACK", "IN_PROGRESS", "COMPLETED"
+
+  @@index([projectId])
+  @@index([status])
+}
+
+// Individual feedback on project cycles
+model ProjectFeedback {
+  id          String   @id @default(cuid())
+  cycleId     String
+  cycle       ProjectFeedbackCycle @relation(fields: [cycleId], references: [id])
+  reviewerId  String
+  reviewer    User     @relation("ProjectFeedbackGiven", fields: [reviewerId], references: [id])
+  reviewerType String  // "PEER", "MENTOR", "INSTRUCTOR"
+  strengths   String
+  improvements String
+  suggestions String?
+  encouragement String
+  givenAt     DateTime @default(now())
+
+  @@index([cycleId])
+  @@index([reviewerId])
+}
+
+// Student portfolios (Note: Portfolio model already exists from previous phases)
+// Adding portfolio-specific models for sections and items
+
+model PortfolioSection {
+  id          String   @id @default(cuid())
+  portfolioId String
+  passionId   String?
+  title       String
+  description String?
+  order       Int
+  items       PortfolioItem[]
+  createdAt   DateTime @default(now())
+
+  @@index([portfolioId])
+  @@index([order])
+}
+
+model PortfolioItem {
+  id          String   @id @default(cuid())
+  sectionId   String
+  section     PortfolioSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  mediaUrls   String[]
+  projectLink String?
+  date        DateTime?
+  tags        String[]
+  order       Int
+  createdAt   DateTime @default(now())
+
+  @@index([sectionId, order])
+}
+
+// Public portfolio (shareable version)
+model PublicPortfolio {
+  id          String   @id @default(cuid())
+  studentId   String   @unique
+  student     User     @relation("PublicPortfolio", fields: [studentId], references: [id])
+  title       String
+  bio         String?
+  theme       String   @default("default")
+  customUrl   String?  @unique
+  isPublic    Boolean  @default(false)
+  sections    Json     // Serialized portfolio sections
+  views       Int      @default(0)
+  lastUpdated DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@index([customUrl])
+  @@index([isPublic])
 }
