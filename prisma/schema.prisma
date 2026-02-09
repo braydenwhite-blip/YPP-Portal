@@ -276,6 +276,15 @@ model User {
   // Student Features (16-17)
   competitionChecklists          CompetitionChecklist[]
 
+  // Phase 1: Passion Discovery Relations
+  passionInterests               StudentInterest[]       @relation("StudentPassionInterests")
+  passionQuizResults             PassionQuizResult[]     @relation("PassionQuizResults")
+  xpProfile                      StudentXP?              @relation("StudentXPProfile")
+  xpTransactionHistory           XPTransaction[]         @relation("StudentXPTransactions")
+  earnedBadges                   StudentBadge[]          @relation("StudentBadges")
+  challengeCompletions           ChallengeCompletion[]   @relation("ChallengeCompletions")
+  sessionWatchHistory            SessionWatchHistory[]   @relation("SessionWatchHistory")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -2016,6 +2025,42 @@ enum FeedbackStatus {
   IMPLEMENTED
 }
 
+// Phase 1: Passion Discovery Enums
+enum PassionCategory {
+  ARTS
+  SPORTS
+  STEM
+  BUSINESS
+  SERVICE
+  HEALTH_WELLNESS
+  TRADES
+  ENTERTAINMENT
+  WRITING
+  MUSIC
+  OTHER
+}
+
+enum InterestLevel {
+  EXPLORING
+  DEVELOPING
+  ADVANCING
+  MASTERING
+}
+
+enum QuizType {
+  DISCOVERY
+  PERSONALITY
+  COMPATIBILITY
+  LEARNING_STYLE
+}
+
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
 // Feature 33: Student Spotlight
 model StudentSpotlight {
   id           String   @id @default(cuid())
@@ -2033,4 +2078,239 @@ model StudentSpotlight {
   @@index([studentId])
   @@index([nominatedById])
   @@index([term])
+}
+
+// ============================================
+// PHASE 1: PASSION DISCOVERY FEATURES
+// ============================================
+
+// Passion Areas - Core categories of interests
+model PassionArea {
+  id          String          @id @default(cuid())
+  name        String          @unique
+  category    PassionCategory
+  description String
+  icon        String?
+  color       String?         // Hex color for UI
+  videoIntroUrl String?       // Try-It session video
+  thumbnailUrl String?
+  relatedAreaIds String[]     // IDs of related passions
+  isActive    Boolean         @default(true)
+  order       Int             @default(0)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  studentInterests StudentInterest[]
+  quizResults     PassionQuizResult[]
+
+  @@index([category])
+  @@index([isActive])
+}
+
+// Student's interests and progress in passion areas
+model StudentInterest {
+  id          String        @id @default(cuid())
+  studentId   String
+  student     User          @relation("StudentPassionInterests", fields: [studentId], references: [id])
+  passionId   String
+  passion     PassionArea   @relation(fields: [passionId], references: [id])
+  level       InterestLevel @default(EXPLORING)
+  xpPoints    Int           @default(0)
+  currentLevel Int          @default(1)
+  startedAt   DateTime      @default(now())
+  lastActiveAt DateTime     @default(now())
+  isPrimary   Boolean       @default(false) // Is this their main passion?
+  notes       String?
+
+  @@unique([studentId, passionId])
+  @@index([studentId])
+  @@index([passionId])
+  @@index([level])
+}
+
+// Passion quiz results
+model PassionQuizResult {
+  id          String      @id @default(cuid())
+  studentId   String
+  student     User        @relation("PassionQuizResults", fields: [studentId], references: [id])
+  quizType    QuizType
+  results     Json        // Store detailed quiz data
+  topPassionIds String[]  // Top recommended passion area IDs
+  scores      Json        // Scores for each passion area
+  createdAt   DateTime    @default(now())
+
+  @@index([studentId])
+  @@index([quizType])
+}
+
+// Gamification: Student XP and levels
+model StudentXP {
+  id          String   @id @default(cuid())
+  studentId   String   @unique
+  student     User     @relation("StudentXPProfile", fields: [studentId], references: [id])
+  totalXP     Int      @default(0)
+  currentLevel Int     @default(1)
+  xpToNextLevel Int    @default(100)
+  rank        String?  // Overall rank/title
+  updatedAt   DateTime @updatedAt
+
+  @@index([totalXP])
+  @@index([currentLevel])
+}
+
+// XP transactions log
+model XPTransaction {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("StudentXPTransactions", fields: [studentId], references: [id])
+  amount      Int
+  reason      String
+  sourceType  String   // "QUIZ", "VIDEO_WATCH", "CHALLENGE", "PRACTICE", "BADGE"
+  sourceId    String?
+  passionId   String?
+  createdAt   DateTime @default(now())
+
+  @@index([studentId])
+  @@index([createdAt])
+}
+
+// Badges/Achievements
+model Badge {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  icon        String
+  category    String   // "DISCOVERY", "PERSISTENCE", "MASTERY", "SOCIAL"
+  rarity      String   @default("COMMON") // COMMON, UNCOMMON, RARE, EPIC, LEGENDARY
+  xpReward    Int      @default(0)
+  criteria    Json     // Criteria to earn
+  passionId   String?  // null for general badges
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  studentBadges StudentBadge[]
+
+  @@index([category])
+  @@index([rarity])
+}
+
+// Student's earned badges
+model StudentBadge {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("StudentBadges", fields: [studentId], references: [id])
+  badgeId     String
+  badge       Badge    @relation(fields: [badgeId], references: [id])
+  earnedAt    DateTime @default(now())
+  isPinned    Boolean  @default(false)
+
+  @@unique([studentId, badgeId])
+  @@index([studentId])
+  @@index([earnedAt])
+}
+
+// Quiz questions for discovery
+model QuizQuestion {
+  id          String   @id @default(cuid())
+  quizType    QuizType
+  question    String
+  questionType String  // "MULTIPLE_CHOICE", "SCALE", "RANKING"
+  options     Json?    // For multiple choice
+  passionMappings Json // Maps answers to passion areas
+  order       Int
+  isActive    Boolean  @default(true)
+
+  @@index([quizType])
+  @@index([isActive])
+}
+
+// Interest connections - which passions work well together
+model InterestConnection {
+  id          String   @id @default(cuid())
+  passion1Id  String
+  passion2Id  String
+  strength    Float    // 0-1 compatibility score
+  description String?
+  reasoning   String?  // Why these complement each other
+
+  @@unique([passion1Id, passion2Id])
+  @@index([passion1Id])
+  @@index([passion2Id])
+}
+
+// Hidden Talents Challenges
+model TalentChallenge {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  instructions String
+  passionIds  String[] // Which passions this might reveal
+  difficulty  String   @default("EASY") // EASY, MEDIUM, HARD
+  estimatedMinutes Int
+  videoUrl    String?
+  thumbnailUrl String?
+  materialsNeeded String?
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  completions Int      @default(0)
+
+  studentCompletions ChallengeCompletion[]
+
+  @@index([isActive])
+}
+
+// Student challenge completions
+model ChallengeCompletion {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("ChallengeCompletions", fields: [studentId], references: [id])
+  challengeId String
+  challenge   TalentChallenge @relation(fields: [challengeId], references: [id])
+  completedAt DateTime @default(now())
+  enjoymentRating Int? // 1-5
+  reflectionText String?
+  discoveredPassions String[] // Passion area IDs they might be interested in
+
+  @@unique([studentId, challengeId])
+  @@index([studentId])
+}
+
+// Try-It Sessions (short intro videos)
+model TryItSession {
+  id          String   @id @default(cuid())
+  passionId   String
+  title       String
+  description String
+  videoUrl    String
+  thumbnailUrl String?
+  duration    Int      // minutes
+  whatYoullLearn String?
+  materialsNeeded String?
+  presenter   String?  // Name of person in video
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  views       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  watchHistory SessionWatchHistory[]
+
+  @@index([passionId])
+  @@index([isActive])
+}
+
+// Track video watch history
+model SessionWatchHistory {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("SessionWatchHistory", fields: [studentId], references: [id])
+  sessionId   String
+  session     TryItSession @relation(fields: [sessionId], references: [id])
+  watchedAt   DateTime @default(now())
+  completed   Boolean  @default(false)
+  watchTime   Int      @default(0) // seconds watched
+  liked       Boolean?
+
+  @@unique([studentId, sessionId])
+  @@index([studentId])
 }
