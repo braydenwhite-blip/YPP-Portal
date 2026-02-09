@@ -240,6 +240,100 @@ model User {
   auditLogs                  AuditLog[]       @relation("AuditLogsPerformed")
   waitlistEntries            WaitlistEntry[]
 
+  // Student Feature Enhancements (Features 1-5)
+  studyGroupsCreated             StudyGroup[]            @relation("StudyGroupsCreated")
+  studyGroupMemberships          StudyGroupMember[]
+  studyGroupMessages             StudyGroupMessage[]     @relation("StudyGroupMessagesAuthored")
+  studyGroupResourcesUploaded    StudyGroupResource[]    @relation("StudyGroupResourcesUploaded")
+  learningNotes                  LearningNote[]
+  assignmentsCreated             Assignment[]            @relation("AssignmentsCreated")
+  assignmentSubmissions          AssignmentSubmission[]  @relation("AssignmentSubmissionsSubmitted")
+  assignmentSubmissionsGraded    AssignmentSubmission[]  @relation("AssignmentSubmissionsGraded")
+  skillBadges                    SkillBadge[]
+
+  // Student Feature Enhancements (Features 6-10)
+  courseReviews                  CourseReview[]
+  alumniQuestionsAsked           AlumniQuestion[]        @relation("AlumniQuestionsAsked")
+  alumniQuestionsReceived        AlumniQuestion[]        @relation("AlumniQuestionsReceived")
+  customGoals                    CustomGoal[]
+
+  // Student Feature Enhancements (Features 11-17)
+  recognitionsGiven              PeerRecognition[]       @relation("RecognitionsGiven")
+  recognitionsReceived           PeerRecognition[]       @relation("RecognitionsReceived")
+  portfolio                      Portfolio?
+  officeHoursHosted              OfficeHours[]           @relation("OfficeHoursHosted")
+  officeHoursBooked              OfficeHoursBooking[]    @relation("OfficeHoursBooked")
+  resourceBookmarks              ResourceBookmark[]
+  bookmarkFolders                BookmarkFolder[]
+
+  // Instructor Features
+  courseProposalsCreated         CourseProposal[]        @relation("CourseProposalsCreated")
+  courseProposalsReviewed        CourseProposal[]        @relation("CourseProposalsReviewed")
+  coInstructorAssignments        CourseInstructor[]      @relation("CoInstructorAssignments")
+  observationsGiven              PeerObservation[]       @relation("ObservationsGiven")
+  observationsReceived           PeerObservation[]       @relation("ObservationsReceived")
+
+  // Student Features (16-17)
+  competitionChecklists          CompetitionChecklist[]
+
+  // Phase 1: Passion Discovery Relations
+  passionInterests               StudentInterest[]       @relation("StudentPassionInterests")
+  passionQuizResults             PassionQuizResult[]     @relation("PassionQuizResults")
+  xpProfile                      StudentXP?              @relation("StudentXPProfile")
+  xpTransactionHistory           XPTransaction[]         @relation("StudentXPTransactions")
+  earnedBadges                   StudentBadge[]          @relation("StudentBadges")
+  challengeCompletions           ChallengeCompletion[]   @relation("ChallengeCompletions")
+  sessionWatchHistory            SessionWatchHistory[]   @relation("SessionWatchHistory")
+
+  // Phase 2: Learning Infrastructure Relations
+  skillProgress                  StudentSkillProgress[]  @relation("StudentSkillProgress")
+  moduleWatchProgress            ModuleWatchProgress[]   @relation("ModuleWatchProgress")
+  practiceLogs                   PracticeLog[]           @relation("PracticeLogs")
+  skillChallengeCompletions      SkillChallengeCompletion[] @relation("SkillChallengeCompletions")
+  learningStyle                  LearningStyleProfile?   @relation("LearningStyle")
+  personalBests                  PersonalBest[]          @relation("PersonalBests")
+
+  // Phase 3: Progress Tracking Relations
+  timelineEntries                TimelineEntry[]         @relation("TimelineEntries")
+  workshopEnrollments            WorkshopEnrollment[]    @relation("WorkshopEnrollments")
+  earnedCertifications           StudentCertification[]  @relation("EarnedCertifications")
+  projects                       ProjectTracker[]        @relation("StudentProjects")
+  progressComparisons            ProgressComparison[]    @relation("ProgressComparisons")
+
+  // Phase 4: Awards & Recognition Relations
+  studentAwards                  StudentAward[]          @relation("StudentAwards")
+  awardNominations               StudentAward[]          @relation("AwardNominations")
+  breakthroughMoments            BreakthroughMoment[]    @relation("BreakthroughMoments")
+  showcasePresentations          ShowcasePresentation[]  @relation("ShowcasePresentations")
+  wallOfFameEntries              WallOfFame[]            @relation("WallOfFameEntries")
+  studentOfMonthAwards           StudentOfMonth[]        @relation("StudentOfMonthAwards")
+
+  // Phase 5: Mentorship Light Relations
+  mentorFeedbackRequests         MentorFeedbackRequest[] @relation("MentorFeedbackRequests")
+  mentorResponsesGiven           MentorResponse[]        @relation("MentorResponsesGiven")
+  mentorQuestionsAsked           MentorQuestion[]        @relation("MentorQuestionsAsked")
+  mentorAnswersGiven             MentorAnswer[]          @relation("MentorAnswersGiven")
+  successStories                 SuccessStory[]          @relation("SuccessStories")
+  curatedResourcesShared         CuratedResource[]       @relation("CuratedResourcesShared")
+  motivationBoostsReceived       StudentMotivationLog[]  @relation("MotivationBoostsReceived")
+
+  // Phase 6: Portfolio & Projects Relations
+  resourceRequests               ResourceRequest[]       @relation("ResourceRequests")
+  projectFeedbackGiven           ProjectFeedback[]       @relation("ProjectFeedbackGiven")
+  publicPortfolio                PublicPortfolio?        @relation("PublicPortfolio")
+
+  // Phase 7: Parent Features Relations
+  parentProfile                  ParentProfile?
+  parentConnections              ParentStudentConnection[] @relation("ParentStudentConnections")
+  progressReports                ProgressReport[]        @relation("StudentProgressReports")
+
+  // Phase 8: Experience & Personalization Relations
+  onboarding                     StudentOnboarding?      @relation("StudentOnboarding")
+  personalization                PersonalizationSettings? @relation("PersonalizationSettings")
+  feedbackSubmissions            UserFeedback[]          @relation("UserFeedback")
+  quickActions                   QuickAction[]           @relation("QuickActions")
+  bookmarks                      Bookmark[]              @relation("Bookmarks")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -306,6 +400,14 @@ model Course {
   certificates     Certificate[]
   attendanceSessions AttendanceSession[]
   resources        Resource[]
+  studyGroups      StudyGroup[]
+  learningNotes    LearningNote[]
+  assignments      Assignment[]
+  reviews          CourseReview[]
+  portfolioItems   PortfolioItem[]
+  proposals        CourseProposal[]
+  coInstructors    CourseInstructor[]
+  observations     PeerObservation[]
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 }
@@ -472,6 +574,7 @@ model Event {
   // RSVP tracking
   rsvps        EventRsvp[]
   attendanceSessions AttendanceSession[]
+  checklists   CompetitionChecklist[]
 
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -1049,10 +1152,11 @@ model AttendanceSession {
   title      String
   date       DateTime
   createdById String
-  createdBy  User     @relation("AttendanceSessionsCreated", fields: [createdById], references: [id])
-  records    AttendanceRecord[]
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdBy   User     @relation("AttendanceSessionsCreated", fields: [createdById], references: [id])
+  records     AttendanceRecord[]
+  selfCheckIn SelfCheckIn?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model AttendanceRecord {
@@ -1127,6 +1231,7 @@ model Resource {
   isPublic    Boolean      @default(false)
   tags        String[]
   downloads   Int          @default(0)
+  bookmarks   ResourceBookmark[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
@@ -1286,3 +1391,2290 @@ model WaitlistEntry {
   @@index([courseId, status])
   @@index([status])
 }
+
+// ============================================
+// STUDENT FEATURE ENHANCEMENTS (Features 1-5)
+// ============================================
+
+// Feature 2: Peer Study Groups
+model StudyGroup {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  courseId    String
+  course      Course    @relation(fields: [courseId], references: [id])
+  createdById String
+  createdBy   User      @relation("StudyGroupsCreated", fields: [createdById], references: [id])
+  isActive    Boolean   @default(true)
+  maxMembers  Int?
+  members     StudyGroupMember[]
+  messages    StudyGroupMessage[]
+  resources   StudyGroupResource[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([courseId])
+}
+
+model StudyGroupMember {
+  id        String     @id @default(cuid())
+  groupId   String
+  group     StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User       @relation(fields: [userId], references: [id])
+  role      StudyGroupRole @default(MEMBER)
+  joinedAt  DateTime   @default(now())
+
+  @@unique([groupId, userId])
+}
+
+enum StudyGroupRole {
+  CREATOR
+  MODERATOR
+  MEMBER
+}
+
+model StudyGroupMessage {
+  id        String     @id @default(cuid())
+  groupId   String
+  group     StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User       @relation("StudyGroupMessagesAuthored", fields: [userId], references: [id])
+  content   String
+  createdAt DateTime   @default(now())
+
+  @@index([groupId, createdAt])
+}
+
+model StudyGroupResource {
+  id          String       @id @default(cuid())
+  groupId     String
+  group       StudyGroup   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  url         String
+  uploadedById String
+  uploadedBy  User         @relation("StudyGroupResourcesUploaded", fields: [uploadedById], references: [id])
+  createdAt   DateTime     @default(now())
+
+  @@index([groupId])
+}
+
+// Feature 3: Personal Learning Notes
+model LearningNote {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  courseId   String?
+  course     Course?  @relation(fields: [courseId], references: [id])
+  lessonTitle String?
+  content    String
+  isPinned   Boolean  @default(false)
+  tags       String[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId, courseId])
+}
+
+// Feature 4: Assignment Submission Portal
+enum AssignmentType {
+  INDIVIDUAL
+  GROUP
+  PEER_REVIEW
+}
+
+enum SubmissionStatus {
+  NOT_SUBMITTED
+  SUBMITTED
+  GRADED
+  RETURNED
+}
+
+model Assignment {
+  id          String         @id @default(cuid())
+  courseId    String
+  course      Course         @relation(fields: [courseId], references: [id])
+  title       String
+  description String
+  type        AssignmentType @default(INDIVIDUAL)
+  maxPoints   Int?
+  dueDate     DateTime?
+  allowLateSubmission Boolean @default(true)
+  instructions String?
+  attachmentUrl String?
+  isPublished Boolean        @default(true)
+  createdById String
+  createdBy   User           @relation("AssignmentsCreated", fields: [createdById], references: [id])
+  submissions AssignmentSubmission[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([courseId])
+}
+
+model AssignmentSubmission {
+  id           String           @id @default(cuid())
+  assignmentId String
+  assignment   Assignment       @relation(fields: [assignmentId], references: [id])
+  studentId    String
+  student      User             @relation("AssignmentSubmissionsSubmitted", fields: [studentId], references: [id])
+  status       SubmissionStatus @default(NOT_SUBMITTED)
+  submissionUrl String?
+  submissionText String?
+  submittedAt  DateTime?
+  grade        Int?
+  feedback     String?
+  gradedAt     DateTime?
+  gradedById   String?
+  gradedBy     User?            @relation("AssignmentSubmissionsGraded", fields: [gradedById], references: [id])
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([assignmentId, studentId])
+  @@index([studentId])
+}
+
+// Feature 5: Skill Badge Display
+model Skill {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  description String?
+  category    String?
+  iconUrl     String?
+  badges      SkillBadge[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+enum BadgeLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+model SkillBadge {
+  id          String     @id @default(cuid())
+  skillId     String
+  skill       Skill      @relation(fields: [skillId], references: [id])
+  userId      String
+  user        User       @relation(fields: [userId], references: [id])
+  level       BadgeLevel @default(BEGINNER)
+  earnedAt    DateTime   @default(now())
+  evidence    String?
+  isVisible   Boolean    @default(true)
+
+  @@unique([skillId, userId])
+  @@index([userId])
+}
+
+// ============================================
+// STUDENT FEATURE ENHANCEMENTS (Features 6-10)
+// ============================================
+
+// Feature 7: Course Reviews
+model CourseReview {
+  id          String   @id @default(cuid())
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id])
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  rating      Int      // 1-5 stars
+  review      String?
+  isAnonymous Boolean  @default(false)
+  isVisible   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([courseId, userId])
+  @@index([courseId, rating])
+  @@index([userId])
+}
+
+// Feature 8: Ask an Alum
+model AlumniQuestion {
+  id         String   @id @default(cuid())
+  studentId  String
+  student    User     @relation("AlumniQuestionsAsked", fields: [studentId], references: [id])
+  advisorId  String?
+  advisor    User?    @relation("AlumniQuestionsReceived", fields: [advisorId], references: [id])
+  subject    String
+  question   String
+  answer     String?
+  answeredAt DateTime?
+  status     QuestionStatus @default(PENDING)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([advisorId])
+  @@index([status])
+}
+
+enum QuestionStatus {
+  PENDING
+  ASSIGNED
+  ANSWERED
+  CLOSED
+}
+
+// Feature 9: Custom Goals
+model CustomGoal {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  title       String
+  description String?
+  category    String?
+  targetDate  DateTime?
+  milestones  CustomGoalMilestone[]
+  progress    CustomGoalUpdate[]
+  status      GoalStatus @default(ACTIVE)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId, status])
+}
+
+enum GoalStatus {
+  ACTIVE
+  COMPLETED
+  PAUSED
+  CANCELLED
+}
+
+model CustomGoalMilestone {
+  id          String     @id @default(cuid())
+  goalId      String
+  goal        CustomGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  title       String
+  completed   Boolean    @default(false)
+  completedAt DateTime?
+  sortOrder   Int
+  createdAt   DateTime   @default(now())
+
+  @@index([goalId])
+}
+
+model CustomGoalUpdate {
+  id        String     @id @default(cuid())
+  goalId    String
+  goal      CustomGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  note      String
+  progress  Int        // 0-100 percentage
+  createdAt DateTime   @default(now())
+
+  @@index([goalId, createdAt])
+}
+
+// Feature 10: Self Check-in (extends existing AttendanceSession)
+model SelfCheckIn {
+  id        String    @id @default(cuid())
+  sessionId String
+  session   AttendanceSession @relation(fields: [sessionId], references: [id])
+  code      String    @unique  // QR code or PIN
+  expiresAt DateTime
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+
+  @@index([code])
+  @@index([sessionId])
+}
+
+// ============================================
+// STUDENT FEATURE ENHANCEMENTS (Features 11-17)
+// ============================================
+
+// Feature 12: Peer Recognition
+model PeerRecognition {
+  id          String   @id @default(cuid())
+  fromUserId  String
+  fromUser    User     @relation("RecognitionsGiven", fields: [fromUserId], references: [id])
+  toUserId    String
+  toUser      User     @relation("RecognitionsReceived", fields: [toUserId], references: [id])
+  message     String
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@index([toUserId])
+  @@index([fromUserId])
+  @@index([createdAt])
+}
+
+// Feature 13: Portfolio
+model Portfolio {
+  id        String          @id @default(cuid())
+  userId    String          @unique
+  user      User            @relation(fields: [userId], references: [id])
+  title     String
+  bio       String?
+  isPublic  Boolean         @default(false)
+  items     PortfolioItem[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
+
+model PortfolioItem {
+  id          String    @id @default(cuid())
+  portfolioId String
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  type        PortfolioItemType
+  title       String
+  description String?
+  url         String?
+  imageUrl    String?
+  courseId    String?
+  course      Course?   @relation(fields: [courseId], references: [id])
+  sortOrder   Int
+  createdAt   DateTime  @default(now())
+
+  @@index([portfolioId, sortOrder])
+}
+
+enum PortfolioItemType {
+  PROJECT
+  CERTIFICATE
+  ASSIGNMENT
+  ACHIEVEMENT
+  COURSE
+  OTHER
+}
+
+// Feature 14: Office Hours
+model OfficeHours {
+  id           String              @id @default(cuid())
+  instructorId String
+  instructor   User                @relation("OfficeHoursHosted", fields: [instructorId], references: [id])
+  dayOfWeek    Int                 // 0-6 (Sunday-Saturday)
+  startTime    String              // HH:MM format
+  endTime      String              // HH:MM format
+  slotDuration Int                 @default(30) // minutes
+  isActive     Boolean             @default(true)
+  bookings     OfficeHoursBooking[]
+  createdAt    DateTime            @default(now())
+
+  @@index([instructorId, isActive])
+}
+
+model OfficeHoursBooking {
+  id            String       @id @default(cuid())
+  officeHoursId String
+  officeHours   OfficeHours  @relation(fields: [officeHoursId], references: [id])
+  studentId     String
+  student       User         @relation("OfficeHoursBooked", fields: [studentId], references: [id])
+  date          DateTime
+  startTime     String       // HH:MM format
+  endTime       String       // HH:MM format
+  topic         String?
+  notes         String?
+  status        BookingStatus @default(SCHEDULED)
+  createdAt     DateTime     @default(now())
+
+  @@unique([officeHoursId, date, startTime])
+  @@index([studentId])
+}
+
+enum BookingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+// Feature 16: Resource Bookmarks
+model ResourceBookmark {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  resourceId String
+  resource   Resource @relation(fields: [resourceId], references: [id])
+  folderId   String?
+  folder     BookmarkFolder? @relation(fields: [folderId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, resourceId])
+  @@index([userId, folderId])
+}
+
+model BookmarkFolder {
+  id        String             @id @default(cuid())
+  userId    String
+  user      User               @relation(fields: [userId], references: [id])
+  name      String
+  bookmarks ResourceBookmark[]
+  createdAt DateTime           @default(now())
+
+  @@index([userId])
+}
+
+// ============================================
+// INSTRUCTOR FEATURES (Bonus: Course Proposals)
+// ============================================
+
+model CourseProposal {
+  id               String           @id @default(cuid())
+  proposedById     String
+  proposedBy       User             @relation("CourseProposalsCreated", fields: [proposedById], references: [id])
+  title            String
+  description      String
+  format           CourseFormat
+  level            CourseLevel?
+  interestArea     String
+  targetAudience   String?
+  prerequisites    String?
+  learningOutcomes String?
+  resources        String?
+  maxEnrollment    Int?
+  status           ProposalStatus   @default(PENDING)
+  reviewedById     String?
+  reviewedBy       User?            @relation("CourseProposalsReviewed", fields: [reviewedById], references: [id])
+  reviewNotes      String?
+  reviewedAt       DateTime?
+  approvedCourseId String?
+  approvedCourse   Course?          @relation(fields: [approvedCourseId], references: [id])
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([proposedById, status])
+  @@index([status])
+}
+
+enum ProposalStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  REVISION_REQUESTED
+}
+
+// ============================================
+// STUDENT FEATURE: Competition Prep (Feature 17)
+// ============================================
+
+model CompetitionChecklist {
+  id            String                    @id @default(cuid())
+  userId        String
+  user          User                      @relation(fields: [userId], references: [id])
+  competitionId String?
+  eventId       String?
+  event         Event?                    @relation(fields: [eventId], references: [id])
+  title         String
+  items         CompetitionChecklistItem[]
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  @@index([userId])
+}
+
+model CompetitionChecklistItem {
+  id          String                @id @default(cuid())
+  checklistId String
+  checklist   CompetitionChecklist  @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  category    ChecklistCategory     @default(PREPARATION)
+  completed   Boolean               @default(false)
+  completedAt DateTime?
+  dueDate     DateTime?
+  sortOrder   Int
+  createdAt   DateTime              @default(now())
+
+  @@index([checklistId, sortOrder])
+}
+
+enum ChecklistCategory {
+  PREPARATION
+  MATERIALS
+  SKILLS
+  RESEARCH
+  PRACTICE
+  LOGISTICS
+}
+
+// ============================================
+// INSTRUCTOR FEATURES (18-23)
+// ============================================
+
+// Feature 18: Co-Instructor Support
+model CourseInstructor {
+  id           String   @id @default(cuid())
+  courseId     String
+  course       Course   @relation(fields: [courseId], references: [id])
+  instructorId String
+  instructor   User     @relation("CoInstructorAssignments", fields: [instructorId], references: [id])
+  role         InstructorRole @default(CO_INSTRUCTOR)
+  addedAt      DateTime @default(now())
+
+  @@unique([courseId, instructorId])
+  @@index([instructorId])
+}
+
+enum InstructorRole {
+  LEAD
+  CO_INSTRUCTOR
+  ASSISTANT
+}
+
+// Feature 23: Peer Observation
+model PeerObservation {
+  id           String            @id @default(cuid())
+  observerId   String
+  observer     User              @relation("ObservationsGiven", fields: [observerId], references: [id])
+  observeeId   String
+  observee     User              @relation("ObservationsReceived", fields: [observeeId], references: [id])
+  courseId     String?
+  course       Course?           @relation(fields: [courseId], references: [id])
+  scheduledAt  DateTime
+  completedAt  DateTime?
+  status       ObservationStatus @default(SCHEDULED)
+  feedback     String?
+  ratings      Json?             // Structured ratings object
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([observerId])
+  @@index([observeeId])
+  @@index([scheduledAt])
+}
+
+enum ObservationStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+// ============================================
+// INSTRUCTOR FEATURES (24-34)
+// ============================================
+
+// Feature 24: Feedback Templates
+model FeedbackTemplate {
+  id          String   @id @default(cuid())
+  instructorId String
+  instructor  User     @relation(fields: [instructorId], references: [id])
+  title       String
+  content     String
+  category    String?
+  isPublic    Boolean  @default(false)
+  usageCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([instructorId])
+}
+
+// Feature 26: Session Recap
+model SessionRecap {
+  id               String            @id @default(cuid())
+  sessionId        String            @unique
+  attendanceSession AttendanceSession @relation(fields: [sessionId], references: [id])
+  instructorId     String
+  instructor       User              @relation(fields: [instructorId], references: [id])
+  whatCovered      String
+  whatWorked       String?
+  whatToImprove    String?
+  nextSteps        String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([instructorId])
+}
+
+// Feature 30: Substitute Requests
+model SubstituteRequest {
+  id           String          @id @default(cuid())
+  courseId     String
+  course       Course          @relation(fields: [courseId], references: [id])
+  requestedById String
+  requestedBy  User            @relation("SubstituteRequestsCreated", fields: [requestedById], references: [id])
+  sessionDate  DateTime
+  reason       String?
+  status       SubstituteStatus @default(PENDING)
+  assignedToId String?
+  assignedTo   User?           @relation("SubstituteRequestsAssigned", fields: [assignedToId], references: [id])
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([courseId])
+  @@index([requestedById])
+  @@index([status])
+}
+
+enum SubstituteStatus {
+  PENDING
+  ASSIGNED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+// Feature 31: Professional Development
+model ProfessionalDevelopment {
+  id           String    @id @default(cuid())
+  instructorId String
+  instructor   User      @relation(fields: [instructorId], references: [id])
+  title        String
+  type         PDType
+  provider     String?
+  date         DateTime
+  hours        Float?
+  description  String?
+  certificate  String?   // URL to certificate
+  createdAt    DateTime  @default(now())
+
+  @@index([instructorId])
+  @@index([date])
+}
+
+enum PDType {
+  CONFERENCE
+  WORKSHOP
+  COURSE
+  WEBINAR
+  CERTIFICATION
+  OTHER
+}
+
+// Feature 32: Curriculum Feedback
+model CurriculumFeedback {
+  id          String           @id @default(cuid())
+  instructorId String
+  instructor  User             @relation(fields: [instructorId], references: [id])
+  courseId    String?
+  course      Course?          @relation(fields: [courseId], references: [id])
+  type        FeedbackType
+  subject     String
+  details     String
+  status      FeedbackStatus   @default(SUBMITTED)
+  reviewedById String?
+  reviewedBy  User?            @relation("CurriculumFeedbackReviewed", fields: [reviewedById], references: [id])
+  response    String?
+  reviewedAt  DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([instructorId])
+  @@index([status])
+}
+
+enum FeedbackType {
+  BUG
+  IMPROVEMENT
+  NEW_CONTENT
+  REMOVAL
+  GENERAL
+}
+
+enum FeedbackStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  ACCEPTED
+  REJECTED
+  IMPLEMENTED
+}
+
+// Phase 1: Passion Discovery Enums
+enum PassionCategory {
+  ARTS
+  SPORTS
+  STEM
+  BUSINESS
+  SERVICE
+  HEALTH_WELLNESS
+  TRADES
+  ENTERTAINMENT
+  WRITING
+  MUSIC
+  OTHER
+}
+
+enum InterestLevel {
+  EXPLORING
+  DEVELOPING
+  ADVANCING
+  MASTERING
+}
+
+enum QuizType {
+  DISCOVERY
+  PERSONALITY
+  COMPATIBILITY
+  LEARNING_STYLE
+}
+
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+// Feature 33: Student Spotlight
+model StudentSpotlight {
+  id           String   @id @default(cuid())
+  studentId    String
+  student      User     @relation("StudentSpotlights", fields: [studentId], references: [id])
+  nominatedById String
+  nominatedBy  User     @relation("SpotlightNominations", fields: [nominatedById], references: [id])
+  courseId     String?
+  course       Course?  @relation(fields: [courseId], references: [id])
+  term         String
+  reason       String
+  achievements String?
+  createdAt    DateTime @default(now())
+
+  @@index([studentId])
+  @@index([nominatedById])
+  @@index([term])
+}
+
+// ============================================
+// PHASE 1: PASSION DISCOVERY FEATURES
+// ============================================
+
+// Passion Areas - Core categories of interests
+model PassionArea {
+  id          String          @id @default(cuid())
+  name        String          @unique
+  category    PassionCategory
+  description String
+  icon        String?
+  color       String?         // Hex color for UI
+  videoIntroUrl String?       // Try-It session video
+  thumbnailUrl String?
+  relatedAreaIds String[]     // IDs of related passions
+  isActive    Boolean         @default(true)
+  order       Int             @default(0)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  studentInterests StudentInterest[]
+  quizResults     PassionQuizResult[]
+
+  @@index([category])
+  @@index([isActive])
+}
+
+// Student's interests and progress in passion areas
+model StudentInterest {
+  id          String        @id @default(cuid())
+  studentId   String
+  student     User          @relation("StudentPassionInterests", fields: [studentId], references: [id])
+  passionId   String
+  passion     PassionArea   @relation(fields: [passionId], references: [id])
+  level       InterestLevel @default(EXPLORING)
+  xpPoints    Int           @default(0)
+  currentLevel Int          @default(1)
+  startedAt   DateTime      @default(now())
+  lastActiveAt DateTime     @default(now())
+  isPrimary   Boolean       @default(false) // Is this their main passion?
+  notes       String?
+
+  @@unique([studentId, passionId])
+  @@index([studentId])
+  @@index([passionId])
+  @@index([level])
+}
+
+// Passion quiz results
+model PassionQuizResult {
+  id          String      @id @default(cuid())
+  studentId   String
+  student     User        @relation("PassionQuizResults", fields: [studentId], references: [id])
+  quizType    QuizType
+  results     Json        // Store detailed quiz data
+  topPassionIds String[]  // Top recommended passion area IDs
+  scores      Json        // Scores for each passion area
+  createdAt   DateTime    @default(now())
+
+  @@index([studentId])
+  @@index([quizType])
+}
+
+// Gamification: Student XP and levels
+model StudentXP {
+  id          String   @id @default(cuid())
+  studentId   String   @unique
+  student     User     @relation("StudentXPProfile", fields: [studentId], references: [id])
+  totalXP     Int      @default(0)
+  currentLevel Int     @default(1)
+  xpToNextLevel Int    @default(100)
+  rank        String?  // Overall rank/title
+  updatedAt   DateTime @updatedAt
+
+  @@index([totalXP])
+  @@index([currentLevel])
+}
+
+// XP transactions log
+model XPTransaction {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("StudentXPTransactions", fields: [studentId], references: [id])
+  amount      Int
+  reason      String
+  sourceType  String   // "QUIZ", "VIDEO_WATCH", "CHALLENGE", "PRACTICE", "BADGE"
+  sourceId    String?
+  passionId   String?
+  createdAt   DateTime @default(now())
+
+  @@index([studentId])
+  @@index([createdAt])
+}
+
+// Badges/Achievements
+model Badge {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  icon        String
+  category    String   // "DISCOVERY", "PERSISTENCE", "MASTERY", "SOCIAL"
+  rarity      String   @default("COMMON") // COMMON, UNCOMMON, RARE, EPIC, LEGENDARY
+  xpReward    Int      @default(0)
+  criteria    Json     // Criteria to earn
+  passionId   String?  // null for general badges
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  studentBadges StudentBadge[]
+
+  @@index([category])
+  @@index([rarity])
+}
+
+// Student's earned badges
+model StudentBadge {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("StudentBadges", fields: [studentId], references: [id])
+  badgeId     String
+  badge       Badge    @relation(fields: [badgeId], references: [id])
+  earnedAt    DateTime @default(now())
+  isPinned    Boolean  @default(false)
+
+  @@unique([studentId, badgeId])
+  @@index([studentId])
+  @@index([earnedAt])
+}
+
+// Quiz questions for discovery
+model QuizQuestion {
+  id          String   @id @default(cuid())
+  quizType    QuizType
+  question    String
+  questionType String  // "MULTIPLE_CHOICE", "SCALE", "RANKING"
+  options     Json?    // For multiple choice
+  passionMappings Json // Maps answers to passion areas
+  order       Int
+  isActive    Boolean  @default(true)
+
+  @@index([quizType])
+  @@index([isActive])
+}
+
+// Interest connections - which passions work well together
+model InterestConnection {
+  id          String   @id @default(cuid())
+  passion1Id  String
+  passion2Id  String
+  strength    Float    // 0-1 compatibility score
+  description String?
+  reasoning   String?  // Why these complement each other
+
+  @@unique([passion1Id, passion2Id])
+  @@index([passion1Id])
+  @@index([passion2Id])
+}
+
+// Hidden Talents Challenges
+model TalentChallenge {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  instructions String
+  passionIds  String[] // Which passions this might reveal
+  difficulty  String   @default("EASY") // EASY, MEDIUM, HARD
+  estimatedMinutes Int
+  videoUrl    String?
+  thumbnailUrl String?
+  materialsNeeded String?
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  completions Int      @default(0)
+
+  studentCompletions ChallengeCompletion[]
+
+  @@index([isActive])
+}
+
+// Student challenge completions
+model ChallengeCompletion {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("ChallengeCompletions", fields: [studentId], references: [id])
+  challengeId String
+  challenge   TalentChallenge @relation(fields: [challengeId], references: [id])
+  completedAt DateTime @default(now())
+  enjoymentRating Int? // 1-5
+  reflectionText String?
+  discoveredPassions String[] // Passion area IDs they might be interested in
+
+  @@unique([studentId, challengeId])
+  @@index([studentId])
+}
+
+// Try-It Sessions (short intro videos)
+model TryItSession {
+  id          String   @id @default(cuid())
+  passionId   String
+  title       String
+  description String
+  videoUrl    String
+  thumbnailUrl String?
+  duration    Int      // minutes
+  whatYoullLearn String?
+  materialsNeeded String?
+  presenter   String?  // Name of person in video
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  views       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  watchHistory SessionWatchHistory[]
+
+  @@index([passionId])
+  @@index([isActive])
+}
+
+// Track video watch history
+model SessionWatchHistory {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("SessionWatchHistory", fields: [studentId], references: [id])
+  sessionId   String
+  session     TryItSession @relation(fields: [sessionId], references: [id])
+  watchedAt   DateTime @default(now())
+  completed   Boolean  @default(false)
+  watchTime   Int      @default(0) // seconds watched
+  liked       Boolean?
+
+  @@unique([studentId, sessionId])
+  @@index([studentId])
+}
+
+// ============================================
+// PHASE 2: LEARNING INFRASTRUCTURE
+// ============================================
+
+// Skill Trees - Visual progression paths
+model SkillTree {
+  id          String     @id @default(cuid())
+  passionId   String
+  name        String
+  description String?
+  isActive    Boolean    @default(true)
+  order       Int        @default(0)
+  nodes       SkillNode[]
+  createdAt   DateTime   @default(now())
+
+  @@index([passionId])
+}
+
+// Individual skills in a skill tree
+model SkillNode {
+  id            String     @id @default(cuid())
+  treeId        String
+  tree          SkillTree  @relation(fields: [treeId], references: [id])
+  name          String
+  description   String
+  level         SkillLevel
+  prerequisiteIds String[] // IDs of required skills
+  xpRequired    Int        @default(0)
+  videoUrl      String?
+  thumbnailUrl  String?
+  resources     Json?      // Links to tutorials, articles
+  position      Json       // {x, y} coordinates for visualization
+  order         Int        @default(0)
+
+  studentProgress StudentSkillProgress[]
+
+  @@index([treeId])
+  @@index([level])
+}
+
+// Student progress on individual skills
+model StudentSkillProgress {
+  id          String     @id @default(cuid())
+  studentId   String
+  student     User       @relation("StudentSkillProgress", fields: [studentId], references: [id])
+  skillNodeId String
+  skillNode   SkillNode  @relation(fields: [skillNodeId], references: [id])
+  status      String     @default("LOCKED") // "LOCKED", "IN_PROGRESS", "COMPLETED"
+  progress    Int        @default(0) // 0-100
+  personalBest Json?     // Track best performance/achievement
+  startedAt   DateTime?
+  completedAt DateTime?
+  notes       String?
+
+  @@unique([studentId, skillNodeId])
+  @@index([studentId])
+  @@index([status])
+}
+
+// Micro-learning video modules
+model LearningModule {
+  id          String   @id @default(cuid())
+  passionId   String
+  title       String
+  description String?
+  duration    Int      // minutes
+  level       SkillLevel
+  videoUrl    String
+  thumbnailUrl String?
+  transcript  String?
+  resources   String[] // Additional resource URLs
+  tags        String[]
+  viewCount   Int      @default(0)
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  watchProgress ModuleWatchProgress[]
+
+  @@index([passionId])
+  @@index([level])
+  @@index([isActive])
+}
+
+// Track student video watch progress
+model ModuleWatchProgress {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("ModuleWatchProgress", fields: [studentId], references: [id])
+  moduleId    String
+  module      LearningModule @relation(fields: [moduleId], references: [id])
+  watchTime   Int      @default(0) // seconds watched
+  completed   Boolean  @default(false)
+  lastWatchedAt DateTime @default(now())
+  rating      Int?     // 1-5 stars
+  notes       String?
+
+  @@unique([studentId, moduleId])
+  @@index([studentId])
+}
+
+// Practice session logging
+model PracticeLog {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("PracticeLogs", fields: [studentId], references: [id])
+  passionId   String
+  date        DateTime @default(now())
+  duration    Int      // minutes
+  activity    String
+  skillsFocused String[] // Which skills practiced
+  notes       String?
+  mood        String?  // "GREAT", "GOOD", "OK", "FRUSTRATED"
+  mediaUrls   String[] // Photos/videos of practice
+  isPublic    Boolean  @default(false)
+
+  @@index([studentId])
+  @@index([passionId])
+  @@index([date])
+}
+
+// Skill-specific challenges (different from talent discovery challenges)
+model SkillChallenge {
+  id          String   @id @default(cuid())
+  passionId   String
+  title       String
+  description String
+  difficulty  SkillLevel
+  instructions String
+  estimatedTime Int    // minutes
+  successCriteria Json
+  videoDemo   String?
+  thumbnailUrl String?
+  materials   String?  // Materials needed
+  resources   String[]
+  xpReward    Int      @default(0)
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  completionCount Int  @default(0)
+
+  completions SkillChallengeCompletion[]
+
+  @@index([passionId])
+  @@index([difficulty])
+  @@index([isActive])
+}
+
+// Skill challenge completions
+model SkillChallengeCompletion {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("SkillChallengeCompletions", fields: [studentId], references: [id])
+  challengeId String
+  challenge   SkillChallenge @relation(fields: [challengeId], references: [id])
+  completedAt DateTime @default(now())
+  timeSpent   Int?     // minutes
+  rating      Int?     // 1-5 difficulty rating
+  reflection  String?
+  mediaUrls   String[]
+  xpEarned    Int      @default(0)
+
+  @@unique([studentId, challengeId])
+  @@index([studentId])
+}
+
+// Learning style assessment
+model LearningStyleProfile {
+  id          String   @id @default(cuid())
+  studentId   String   @unique
+  student     User     @relation("LearningStyle", fields: [studentId], references: [id])
+  visualScore Int      // 0-100
+  auditoryScore Int
+  kinestheticScore Int
+  readingScore Int
+  socialScore Int      // Learn with others
+  solitaryScore Int    // Learn alone
+  preferences Json     // Detailed preferences and recommendations
+  assessedAt  DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Resource recommendations
+model ResourceRecommendation {
+  id          String   @id @default(cuid())
+  passionId   String
+  title       String
+  description String
+  url         String
+  resourceType String  // "VIDEO", "ARTICLE", "BOOK", "COURSE", "TOOL", "WEBSITE"
+  level       SkillLevel
+  isFree      Boolean  @default(true)
+  rating      Float?
+  tags        String[]
+  addedBy     String?  // User ID of who added it
+  isVerified  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([passionId])
+  @@index([resourceType])
+  @@index([level])
+}
+
+// Technique library
+model Technique {
+  id          String   @id @default(cuid())
+  passionId   String
+  name        String
+  description String
+  level       SkillLevel
+  instructions String
+  videoUrl    String?
+  thumbnailUrl String?
+  tips        String?
+  commonMistakes String?
+  relatedTechniques String[] // IDs of related techniques
+  tags        String[]
+  viewCount   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@index([passionId])
+  @@index([level])
+  @@index([isActive])
+}
+
+// Personal bests / milestones
+model PersonalBest {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("PersonalBests", fields: [studentId], references: [id])
+  passionId   String
+  title       String
+  description String?
+  value       String   // The achievement (e.g., "3 minutes", "10 paintings")
+  unit        String?  // "time", "count", "score"
+  previousBest String?
+  improvement String?  // Calculated improvement
+  achievedAt  DateTime @default(now())
+  mediaUrls   String[]
+  isPublic    Boolean  @default(false)
+  celebrationCount Int @default(0)
+
+  @@index([studentId])
+  @@index([passionId])
+  @@index([achievedAt])
+}
+
+// Cross-skill connections
+model SkillConnection {
+  id          String   @id @default(cuid())
+  skill1      String   // Skill name or passion area
+  skill2      String
+  connectionType String // "COMPLEMENTARY", "PREREQUISITE", "SIMILAR"
+  strength    Float    // 0-1
+  explanation String?
+  examples    String?
+
+  @@unique([skill1, skill2])
+  @@index([skill1])
+  @@index([skill2])
+}
+
+// Additional relations for User model (add these manually to User model above)
+model User {
+  // ... existing fields ...
+  
+  // Phase 3: Progress Tracking Relations
+  timelineEntries              TimelineEntry[]         @relation("TimelineEntries")
+  workshopEnrollments          WorkshopEnrollment[]    @relation("WorkshopEnrollments")
+  earnedCertifications         StudentCertification[]  @relation("EarnedCertifications")
+  projects                     ProjectTracker[]        @relation("StudentProjects")
+  progressComparisons          ProgressComparison[]    @relation("ProgressComparisons")
+  
+  // Relations for instructor/mentor roles
+  sessionRecaps                SessionRecap[]          @relation("SessionRecaps")
+  feedbackTemplates            FeedbackTemplate[]      @relation("FeedbackTemplates")
+  substituteRequestsCreated    SubstituteRequest[]     @relation("SubstituteRequestsCreated")
+  substituteRequestsAssigned   SubstituteRequest[]     @relation("SubstituteRequestsAssigned")
+  professionalDevelopment      ProfessionalDevelopment[] @relation("ProfessionalDevelopment")
+  curriculumFeedbackSubmitted  CurriculumFeedback[]    @relation("CurriculumFeedbackSubmitted")
+  curriculumFeedbackReviewed   CurriculumFeedback[]    @relation("CurriculumFeedbackReviewed")
+  studentSpotlights            StudentSpotlight[]      @relation("StudentSpotlights")
+  spotlightNominations         StudentSpotlight[]      @relation("SpotlightNominations")
+}
+
+// ============================================
+// PHASE 3: PROGRESS TRACKING & MILESTONES
+// ============================================
+
+// Passion Timeline - Visual journey tracker
+model PassionTimeline {
+  id          String   @id @default(cuid())
+  studentId   String
+  passionId   String
+  startDate   DateTime @default(now())
+  title       String
+  description String?
+  isActive    Boolean  @default(true)
+  entries     TimelineEntry[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([studentId, passionId])
+  @@index([studentId])
+  @@index([passionId])
+}
+
+// Timeline entries - Events in the passion journey
+model TimelineEntry {
+  id          String          @id @default(cuid())
+  timelineId  String?
+  timeline    PassionTimeline? @relation(fields: [timelineId], references: [id])
+  studentId   String
+  student     User            @relation("TimelineEntries", fields: [studentId], references: [id])
+  passionId   String
+  entryType   TimelineEntryType
+  title       String
+  description String?
+  date        DateTime        @default(now())
+  metadata    Json?           // Store type-specific data
+  mediaUrls   String[]
+  milestoneLevel String?      // "MINOR", "MAJOR", "BREAKTHROUGH"
+  xpAwarded   Int             @default(0)
+  isPinned    Boolean         @default(false)
+  isPublic    Boolean         @default(false)
+  tags        String[]
+  createdAt   DateTime        @default(now())
+
+  @@index([studentId, date])
+  @@index([passionId])
+  @@index([entryType])
+}
+
+enum TimelineEntryType {
+  STARTED_PASSION
+  FIRST_VIDEO
+  PRACTICE_SESSION
+  CHALLENGE_COMPLETED
+  SKILL_MASTERED
+  WORKSHOP_ATTENDED
+  PROJECT_COMPLETED
+  CERTIFICATION_EARNED
+  MILESTONE_REACHED
+  PERSONAL_BEST
+  SHOWCASE
+  AWARD_RECEIVED
+  BREAKTHROUGH_MOMENT
+  COLLABORATION
+  CUSTOM
+}
+
+// Workshop Series - Multi-session learning experiences
+model WorkshopSeries {
+  id          String   @id @default(cuid())
+  passionId   String
+  title       String
+  description String
+  instructorName String?
+  difficulty  SkillLevel
+  totalSessions Int
+  estimatedHours Float
+  thumbnailUrl String?
+  prerequisites String?
+  learningOutcomes String[]
+  materials   String?
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  sessions    WorkshopSession[]
+  enrollments WorkshopEnrollment[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([passionId])
+  @@index([difficulty])
+  @@index([isActive])
+}
+
+// Individual sessions within a workshop series
+model WorkshopSession {
+  id          String          @id @default(cuid())
+  seriesId    String
+  series      WorkshopSeries  @relation(fields: [seriesId], references: [id])
+  sessionNumber Int
+  title       String
+  description String?
+  videoUrl    String
+  duration    Int             // minutes
+  resources   String[]
+  assignments String?
+  quizData    Json?           // Optional quiz/assessment
+  order       Int
+  createdAt   DateTime        @default(now())
+
+  @@index([seriesId, sessionNumber])
+}
+
+// Student enrollment and progress in workshops
+model WorkshopEnrollment {
+  id          String          @id @default(cuid())
+  studentId   String
+  student     User            @relation("WorkshopEnrollments", fields: [studentId], references: [id])
+  seriesId    String
+  series      WorkshopSeries  @relation(fields: [seriesId], references: [id])
+  enrolledAt  DateTime        @default(now())
+  lastAccessedAt DateTime     @default(now())
+  progress    Json            // Track completed sessions, quiz scores
+  completedSessions Int       @default(0)
+  isCompleted Boolean         @default(false)
+  completedAt DateTime?
+  certificateEarned Boolean   @default(false)
+  rating      Int?            // 1-5 stars
+  feedback    String?
+
+  @@unique([studentId, seriesId])
+  @@index([studentId])
+  @@index([seriesId])
+}
+
+// Passion-specific certifications
+model PassionCertification {
+  id          String   @id @default(cuid())
+  passionId   String
+  name        String
+  description String
+  level       SkillLevel
+  requirements Json    // What's needed to earn it
+  badgeImageUrl String?
+  certificateTemplateUrl String?
+  xpReward    Int      @default(0)
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  studentCertifications StudentCertification[]
+
+  @@index([passionId])
+  @@index([level])
+  @@index([isActive])
+}
+
+// Student's earned certifications
+model StudentCertification {
+  id              String              @id @default(cuid())
+  studentId       String
+  student         User                @relation("EarnedCertifications", fields: [studentId], references: [id])
+  certificationId String
+  certification   PassionCertification @relation(fields: [certificationId], references: [id])
+  earnedAt        DateTime            @default(now())
+  certificateUrl  String?             // PDF/image URL
+  verificationCode String             @unique @default(cuid())
+  isPublic        Boolean             @default(true)
+  isPinned        Boolean             @default(false)
+
+  @@unique([studentId, certificationId])
+  @@index([studentId])
+  @@index([earnedAt])
+}
+
+// Project tracker - Long-term projects
+model ProjectTracker {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("StudentProjects", fields: [studentId], references: [id])
+  passionId   String
+  title       String
+  description String?
+  startDate   DateTime @default(now())
+  targetEndDate DateTime?
+  status      ProjectStatus @default(IN_PROGRESS)
+  visibility  ProjectVisibility @default(PRIVATE)
+  thumbnailUrl String?
+  tags        String[]
+  collaborators String[] // User IDs of collaborators
+  milestones  ProjectMilestone[]
+  documentation ProjectDocumentation[]
+  progressNotes String?
+  completedAt DateTime?
+  showcaseUrl String?  // URL to final showcase/presentation
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([passionId])
+  @@index([status])
+}
+
+enum ProjectStatus {
+  PLANNING
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum ProjectVisibility {
+  PRIVATE
+  MENTORS_ONLY
+  PUBLIC
+}
+
+// Project milestones
+model ProjectMilestone {
+  id          String         @id @default(cuid())
+  projectId   String
+  project     ProjectTracker @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  dueDate     DateTime?
+  isCompleted Boolean        @default(false)
+  completedAt DateTime?
+  notes       String?
+  mediaUrls   String[]
+  order       Int
+  createdAt   DateTime       @default(now())
+
+  @@index([projectId, order])
+}
+
+// Project documentation
+model ProjectDocumentation {
+  id          String         @id @default(cuid())
+  projectId   String
+  project     ProjectTracker @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  docType     ProjectDocType
+  title       String
+  content     String
+  mediaUrls   String[]
+  tags        String[]
+  version     Int            @default(1)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([projectId, docType])
+}
+
+enum ProjectDocType {
+  PLAN
+  PROGRESS_UPDATE
+  SKETCH
+  RESEARCH_NOTES
+  REFLECTION
+  FINAL_REPORT
+  PRESENTATION
+  OTHER
+}
+
+// Before/After Progress Comparisons
+model ProgressComparison {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("ProgressComparisons", fields: [studentId], references: [id])
+  passionId   String
+  title       String
+  description String?
+  beforeDate  DateTime
+  afterDate   DateTime
+  beforeMediaUrl String // Photo/video showing "before" state
+  afterMediaUrl String  // Photo/video showing "after" state
+  improvements String[] // List of specific improvements
+  skillsGained String[]
+  reflectionText String?
+  xpAwarded   Int      @default(0)
+  isPublic    Boolean  @default(false)
+  likes       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([studentId])
+  @@index([passionId])
+  @@index([isPublic])
+}
+
+// ============================================
+// PHASE 4: AWARDS & RECOGNITION
+// ============================================
+
+// Awards - Recognition categories
+model Award {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  category    String   // "PURSUIT", "BREAKTHROUGH", "PERSISTENCE", "IMPROVEMENT", "SHOWCASE"
+  icon        String
+  criteria    Json     // What qualifies for this award
+  xpReward    Int
+  isActive    Boolean  @default(true)
+  studentAwards StudentAward[]
+  createdAt   DateTime @default(now())
+
+  @@index([category])
+  @@index([isActive])
+}
+
+// Student awards received
+model StudentAward {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("StudentAwards", fields: [studentId], references: [id])
+  awardId     String
+  award       Award    @relation(fields: [awardId], references: [id])
+  passionId   String?
+  reason      String
+  awardedBy   String?  // Instructor/admin who nominated
+  nominatedBy User?    @relation("AwardNominations", fields: [awardedBy], references: [id])
+  awardedAt   DateTime @default(now())
+  isPublic    Boolean  @default(true)
+  mediaUrl    String?  // Photo/certificate
+
+  @@index([studentId])
+  @@index([awardId])
+  @@index([awardedAt])
+}
+
+// Breakthrough moments - "Aha!" moments
+model BreakthroughMoment {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("BreakthroughMoments", fields: [studentId], references: [id])
+  passionId   String
+  title       String
+  description String
+  date        DateTime @default(now())
+  isRecognized Boolean @default(false)
+  celebrationCount Int @default(0) // How many people celebrated
+  mediaUrls   String[]
+  isPublic    Boolean  @default(true)
+
+  @@index([studentId])
+  @@index([passionId])
+  @@index([date])
+}
+
+// Showcase events
+model PassionShowcase {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  date        DateTime
+  location    String?
+  isVirtual   Boolean  @default(true)
+  chapterId   String?
+  registrationDeadline DateTime?
+  maxPresenters Int?
+  presentations ShowcasePresentation[]
+  status      String   // "UPCOMING", "REGISTRATION_OPEN", "COMPLETED"
+  createdAt   DateTime @default(now())
+
+  @@index([date])
+  @@index([status])
+  @@index([chapterId])
+}
+
+// Showcase presentations
+model ShowcasePresentation {
+  id          String   @id @default(cuid())
+  showcaseId  String
+  showcase    PassionShowcase @relation(fields: [showcaseId], references: [id])
+  studentId   String
+  student     User     @relation("ShowcasePresentations", fields: [studentId], references: [id])
+  passionId   String
+  title       String
+  description String
+  presentationUrl String? // Video recording or slides
+  thumbnailUrl String?
+  votes       Int      @default(0)
+  registeredAt DateTime @default(now())
+
+  @@index([showcaseId])
+  @@index([studentId])
+}
+
+// Wall of Fame entries
+model WallOfFame {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("WallOfFameEntries", fields: [studentId], references: [id])
+  achievement String
+  passionId   String
+  description String
+  date        DateTime
+  mediaUrl    String?
+  featuredUntil DateTime? // How long to display
+  displayOrder Int
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@index([studentId])
+  @@index([passionId])
+  @@index([displayOrder])
+  @@index([isActive])
+}
+
+// Student of the Month
+model StudentOfMonth {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("StudentOfMonthAwards", fields: [studentId], references: [id])
+  month       DateTime
+  chapterId   String?
+  nomination  String   // Why they were chosen
+  achievements String[]
+  storyUrl    String?  // Featured story link
+  photoUrl    String?
+  announcedAt DateTime @default(now())
+
+  @@index([studentId])
+  @@index([month])
+  @@index([chapterId])
+}
+
+// Team Achievement Awards
+model TeamAchievement {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  category    String   // "COLLABORATION", "COMMUNITY", "INNOVATION"
+  teamMembers String[] // User IDs
+  passionIds  String[]
+  projectId   String?
+  reason      String
+  awardedBy   String?
+  awardedAt   DateTime @default(now())
+  mediaUrl    String?
+  xpRewardPerMember Int @default(0)
+
+  @@index([awardedAt])
+  @@index([category])
+}
+
+// ============================================
+// PHASE 5: MENTORSHIP LIGHT
+// ============================================
+
+// Mentor feedback requests
+model MentorFeedbackRequest {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("MentorFeedbackRequests", fields: [studentId], references: [id])
+  passionId   String
+  projectId   String?
+  question    String
+  mediaUrls   String[] // Work samples
+  status      String   // "PENDING", "ANSWERED", "ARCHIVED"
+  createdAt   DateTime @default(now())
+  responses   MentorResponse[]
+
+  @@index([studentId])
+  @@index([passionId])
+  @@index([status])
+}
+
+// Mentor responses to feedback requests
+model MentorResponse {
+  id          String   @id @default(cuid())
+  requestId   String
+  request     MentorFeedbackRequest @relation(fields: [requestId], references: [id])
+  mentorId    String
+  mentor      User     @relation("MentorResponsesGiven", fields: [mentorId], references: [id])
+  feedback    String
+  videoUrl    String?  // Optional video response
+  resources   String[] // Helpful links
+  respondedAt DateTime @default(now())
+  isHelpful   Boolean? // Student rating
+
+  @@index([requestId])
+  @@index([mentorId])
+}
+
+// General mentor questions (Ask a Mentor)
+model MentorQuestion {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("MentorQuestionsAsked", fields: [studentId], references: [id])
+  passionId   String?
+  question    String
+  isAnonymous Boolean  @default(false)
+  status      String   // "PENDING", "ANSWERED"
+  views       Int      @default(0)
+  createdAt   DateTime @default(now())
+  answers     MentorAnswer[]
+
+  @@index([studentId])
+  @@index([passionId])
+  @@index([status])
+}
+
+// Answers to mentor questions
+model MentorAnswer {
+  id          String   @id @default(cuid())
+  questionId  String
+  question    MentorQuestion @relation(fields: [questionId], references: [id])
+  mentorId    String
+  mentor      User     @relation("MentorAnswersGiven", fields: [mentorId], references: [id])
+  answer      String
+  videoUrl    String?
+  helpful     Int      @default(0) // Upvotes
+  answeredAt  DateTime @default(now())
+
+  @@index([questionId])
+  @@index([mentorId])
+}
+
+// Success stories from alumni/students
+model SuccessStory {
+  id          String   @id @default(cuid())
+  personId    String?  // Can be user or external person
+  person      User?    @relation("SuccessStories", fields: [personId], references: [id])
+  name        String
+  passionId   String
+  title       String
+  story       String
+  videoUrl    String?
+  thumbnailUrl String?
+  currentRole String?  // What they do now
+  advice      String?
+  tags        String[]
+  featured    Boolean  @default(false)
+  views       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([passionId])
+  @@index([featured])
+  @@index([views])
+}
+
+// Curated resources from mentors
+model CuratedResource {
+  id          String   @id @default(cuid())
+  mentorId    String
+  mentor      User     @relation("CuratedResourcesShared", fields: [mentorId], references: [id])
+  passionId   String
+  title       String
+  description String?
+  url         String
+  resourceType String  // "VIDEO", "ARTICLE", "BOOK", "COURSE", "TOOL"
+  level       String   // "BEGINNER", "INTERMEDIATE", "ADVANCED"
+  rating      Float?
+  saves       Int      @default(0)
+  sharedAt    DateTime @default(now())
+
+  @@index([passionId])
+  @@index([resourceType])
+  @@index([level])
+}
+
+// Motivation boost messages
+model MotivationBoost {
+  id          String   @id @default(cuid())
+  category    String   // "STUCK", "FRUSTRATED", "DOUBTFUL", "BURNOUT", "GENERAL"
+  message     String
+  author      String?
+  videoUrl    String?
+  passionId   String?
+  useCount    Int      @default(0)
+  isActive    Boolean  @default(true)
+  logs        StudentMotivationLog[]
+
+  @@index([category])
+  @@index([isActive])
+}
+
+// Track when students request motivation
+model StudentMotivationLog {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("MotivationBoostsReceived", fields: [studentId], references: [id])
+  boostId     String
+  boost       MotivationBoost @relation(fields: [boostId], references: [id])
+  requestedAt DateTime @default(now())
+  wasHelpful  Boolean?
+
+  @@index([studentId])
+  @@index([boostId])
+}
+
+// ============================================
+// PHASE 6: PORTFOLIO & PROJECTS
+// ============================================
+
+// Resource requests for projects
+model ResourceRequest {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("ResourceRequests", fields: [studentId], references: [id])
+  projectId   String?
+  passionId   String
+  itemName    String
+  description String
+  estimatedCost Float?
+  reason      String   // Why they need it
+  status      String   // "PENDING", "APPROVED", "DENIED", "FULFILLED"
+  requestedAt DateTime @default(now())
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  reviewNotes String?
+
+  @@index([studentId])
+  @@index([status])
+  @@index([passionId])
+}
+
+// Project feedback cycles
+model ProjectFeedbackCycle {
+  id          String   @id @default(cuid())
+  projectId   String
+  cycleNumber Int
+  submittedAt DateTime @default(now())
+  workSamples String[] // URLs to photos/videos of work
+  studentReflection String
+  feedback    ProjectFeedback[]
+  status      String   // "AWAITING_FEEDBACK", "IN_PROGRESS", "COMPLETED"
+
+  @@index([projectId])
+  @@index([status])
+}
+
+// Individual feedback on project cycles
+model ProjectFeedback {
+  id          String   @id @default(cuid())
+  cycleId     String
+  cycle       ProjectFeedbackCycle @relation(fields: [cycleId], references: [id])
+  reviewerId  String
+  reviewer    User     @relation("ProjectFeedbackGiven", fields: [reviewerId], references: [id])
+  reviewerType String  // "PEER", "MENTOR", "INSTRUCTOR"
+  strengths   String
+  improvements String
+  suggestions String?
+  encouragement String
+  givenAt     DateTime @default(now())
+
+  @@index([cycleId])
+  @@index([reviewerId])
+}
+
+// Student portfolios (Note: Portfolio model already exists from previous phases)
+// Adding portfolio-specific models for sections and items
+
+model PortfolioSection {
+  id          String   @id @default(cuid())
+  portfolioId String
+  passionId   String?
+  title       String
+  description String?
+  order       Int
+  items       PortfolioItem[]
+  createdAt   DateTime @default(now())
+
+  @@index([portfolioId])
+  @@index([order])
+}
+
+model PortfolioItem {
+  id          String   @id @default(cuid())
+  sectionId   String
+  section     PortfolioSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  mediaUrls   String[]
+  projectLink String?
+  date        DateTime?
+  tags        String[]
+  order       Int
+  createdAt   DateTime @default(now())
+
+  @@index([sectionId, order])
+}
+
+// Public portfolio (shareable version)
+model PublicPortfolio {
+  id          String   @id @default(cuid())
+  studentId   String   @unique
+  student     User     @relation("PublicPortfolio", fields: [studentId], references: [id])
+  title       String
+  bio         String?
+  theme       String   @default("default")
+  customUrl   String?  @unique
+  isPublic    Boolean  @default(false)
+  sections    Json     // Serialized portfolio sections
+  views       Int      @default(0)
+  lastUpdated DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@index([customUrl])
+  @@index([isPublic])
+}
+
+// ============================================
+// PHASE 7: PARENT FEATURES
+// ============================================
+
+model ParentProfile {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  students      ParentStudentConnection[]
+  notifications ParentNotification[]
+  messages      ParentMessage[]
+  settings      ParentSettings?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model ParentStudentConnection {
+  id              String   @id @default(cuid())
+  parentId        String
+  parent          ParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  studentId       String
+  student         User     @relation("ParentStudentConnections", fields: [studentId], references: [id], onDelete: Cascade)
+  relationship    String   // "Mother", "Father", "Guardian", etc.
+  isPrimary       Boolean  @default(false)
+  canViewProgress Boolean  @default(true)
+  canReceiveReports Boolean @default(true)
+  approvedAt      DateTime?
+  createdAt       DateTime @default(now())
+  
+  @@unique([parentId, studentId])
+}
+
+model ParentNotification {
+  id          String   @id @default(cuid())
+  parentId    String
+  parent      ParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  studentId   String
+  type        ParentNotificationType
+  title       String
+  message     String
+  actionUrl   String?
+  isRead      Boolean  @default(false)
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
+}
+
+enum ParentNotificationType {
+  ACHIEVEMENT
+  MILESTONE
+  ATTENDANCE
+  SHOWCASE
+  REPORT_READY
+  NEW_PASSION
+  AWARD_EARNED
+  FEEDBACK_RECEIVED
+  RESOURCE_APPROVED
+  UPCOMING_EVENT
+}
+
+model ProgressReport {
+  id              String   @id @default(cuid())
+  studentId       String
+  student         User     @relation("StudentProgressReports", fields: [studentId], references: [id], onDelete: Cascade)
+  periodStart     DateTime
+  periodEnd       DateTime
+  reportType      ReportType
+  
+  // Summary stats
+  totalXPEarned   Int
+  passionsActive  Int
+  hoursLogged     Float
+  projectsCompleted Int
+  
+  // Narrative sections
+  highlights      String   // Key achievements this period
+  areasOfGrowth   String   // Skills developing
+  recommendations String   // What to focus on next
+  instructorNotes String?  // Optional notes from instructors
+  
+  // Attachments
+  showcaseItems   String[] // URLs to notable work
+  
+  generatedAt     DateTime @default(now())
+  sentToParents   Boolean  @default(false)
+  sentAt          DateTime?
+}
+
+enum ReportType {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  SEMESTER
+  ANNUAL
+}
+
+model ParentMessage {
+  id            String   @id @default(cuid())
+  parentId      String
+  parent        ParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  studentId     String
+  instructorId  String?
+  subject       String
+  message       String
+  response      String?
+  respondedBy   String?
+  respondedAt   DateTime?
+  status        MessageStatus
+  priority      MessagePriority @default(NORMAL)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+enum MessageStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum MessagePriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model ParentSettings {
+  id                      String   @id @default(cuid())
+  parentId                String   @unique
+  parent                  ParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  
+  // Notification preferences
+  emailNotifications      Boolean  @default(true)
+  smsNotifications        Boolean  @default(false)
+  weeklyDigest            Boolean  @default(true)
+  achievementAlerts       Boolean  @default(true)
+  attendanceAlerts        Boolean  @default(true)
+  
+  // Privacy settings
+  allowPhotoSharing       Boolean  @default(true)
+  allowPublicPortfolio    Boolean  @default(true)
+  
+  // Report preferences
+  reportFrequency         ReportFrequency @default(MONTHLY)
+  
+  updatedAt               DateTime @updatedAt
+}
+
+enum ReportFrequency {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  QUARTERLY
+}
+
+model ParentResource {
+  id            String   @id @default(cuid())
+  title         String
+  description   String
+  category      ParentResourceCategory
+  content       String   @db.Text
+  resourceUrl   String?
+  thumbnailUrl  String?
+  tags          String[]
+  ageGroup      String[] // e.g., ["Elementary", "Middle School", "High School"]
+  featured      Boolean  @default(false)
+  viewCount     Int      @default(0)
+  createdBy     String
+  publishedAt   DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+enum ParentResourceCategory {
+  SUPPORTING_PASSION
+  COLLEGE_PREP
+  MENTAL_HEALTH
+  YOUTH_DEVELOPMENT
+  SCHOLARSHIPS
+  TIME_MANAGEMENT
+  PARENT_INVOLVEMENT
+  SUCCESS_STORIES
+}
+
+
+// ============================================
+// PHASE 8: EXPERIENCE & PERSONALIZATION
+// ============================================
+
+model StudentOnboarding {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation("StudentOnboarding", fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Onboarding steps
+  completedIntro          Boolean  @default(false)
+  completedPassionQuiz    Boolean  @default(false)
+  completedProfileSetup   Boolean  @default(false)
+  completedFirstTryIt     Boolean  @default(false)
+  completedFirstPractice  Boolean  @default(false)
+  
+  // Preferences from onboarding
+  learningGoals           String[] // e.g., ["college_prep", "hobby", "career"]
+  availableHours          Int?     // Hours per week they can dedicate
+  preferredLearningStyle  String?  // "visual", "hands_on", "reading", "video"
+  
+  completedAt             DateTime?
+  currentStep             String   @default("intro")
+  
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
+model PersonalizationSettings {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation("PersonalizationSettings", fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Dashboard preferences
+  dashboardLayout         String   @default("default") // "default", "minimal", "detailed"
+  showXPProgress          Boolean  @default(true)
+  showStreaks             Boolean  @default(true)
+  showUpcomingEvents      Boolean  @default(true)
+  showPeerActivity        Boolean  @default(true)
+  
+  // Content preferences
+  autoPlayVideos          Boolean  @default(false)
+  videoQuality            String   @default("auto") // "auto", "high", "medium", "low"
+  
+  // Notification preferences
+  dailyReminders          Boolean  @default(true)
+  reminderTime            String?  // "09:00", "18:00", etc.
+  weeklyDigest            Boolean  @default(true)
+  
+  // Privacy preferences
+  showProfilePublicly     Boolean  @default(true)
+  showProgressToClassmates Boolean @default(true)
+  allowPeerMessages       Boolean  @default(true)
+  
+  // Theme
+  theme                   String   @default("light") // "light", "dark", "auto"
+  accentColor             String   @default("#6366f1")
+  
+  updatedAt               DateTime @updatedAt
+}
+
+model UserFeedback {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation("UserFeedback", fields: [userId], references: [id], onDelete: Cascade)
+  
+  category      FeedbackCategory
+  rating        Int?     // 1-5 stars
+  message       String   @db.Text
+  page          String?  // Which page they were on
+  screenshotUrl String?
+  
+  status        FeedbackStatus @default(PENDING)
+  adminResponse String?  @db.Text
+  respondedBy   String?
+  respondedAt   DateTime?
+  
+  createdAt     DateTime @default(now())
+}
+
+enum FeedbackCategory {
+  BUG_REPORT
+  FEATURE_REQUEST
+  USABILITY_ISSUE
+  CONTENT_SUGGESTION
+  GENERAL_FEEDBACK
+  COMPLIMENT
+}
+
+enum FeedbackStatus {
+  PENDING
+  REVIEWING
+  IN_PROGRESS
+  RESOLVED
+  WONT_FIX
+}
+
+model QuickAction {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation("QuickActions", fields: [userId], references: [id], onDelete: Cascade)
+  
+  actionType  String   // "log_practice", "continue_module", "view_feedback", etc.
+  actionData  Json     // Flexible data for the action
+  displayText String
+  iconEmoji   String
+  priority    Int      @default(0)
+  
+  expiresAt   DateTime?
+  completedAt DateTime?
+  dismissedAt DateTime?
+  
+  createdAt   DateTime @default(now())
+}
+
+model Bookmark {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation("Bookmarks", fields: [userId], references: [id], onDelete: Cascade)
+  
+  resourceType String  // "module", "video", "article", "mentor_resource", etc.
+  resourceId   String
+  resourceTitle String
+  resourceUrl  String
+  
+  notes        String?  @db.Text
+  tags         String[]
+  
+  createdAt    DateTime @default(now())
+  
+  @@unique([userId, resourceType, resourceId])
+}
+
+model DailyInspiration {
+  id          String   @id @default(cuid())
+  date        DateTime @unique
+  quote       String   @db.Text
+  author      String
+  category    String   // "persistence", "creativity", "courage", etc.
+  imageUrl    String?
+  
+  createdAt   DateTime @default(now())
+}
+
