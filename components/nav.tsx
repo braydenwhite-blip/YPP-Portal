@@ -62,6 +62,10 @@ function buildSections(roles: string[], awardTier?: string): NavSection[] {
   const growthItems: NavItem[] = [
     { href: "/goals", label: "My Goals", icon: "\u25CB" }
   ];
+  if (isStudent) {
+    growthItems.push({ href: "/analytics", label: "Analytics", icon: "\u25CB" });
+    growthItems.push({ href: "/learn/path-generator", label: "Learning Paths", icon: "\u25CB" });
+  }
   if (isInstructor || isChapterLead) {
     growthItems.push({ href: "/reflection", label: "Monthly Reflection", icon: "\u25CB" });
   }

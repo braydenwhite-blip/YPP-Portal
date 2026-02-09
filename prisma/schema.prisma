@@ -347,6 +347,11 @@ model User {
   classSubmissions               ClassAssignmentSubmission[]  @relation("ClassSubmissions")
   groupMemberships               GroupMember[]                @relation("GroupMemberships")
 
+  // Phase 11: AI & Personalization Relations
+  learningPaths                  LearningPath[]               @relation("LearningPaths")
+  analyticsSnapshots             AnalyticsSnapshot[]          @relation("AnalyticsSnapshots")
+  progressPredictions            ProgressPrediction[]         @relation("ProgressPredictions")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -4118,5 +4123,140 @@ model GroupMilestone {
   sortOrder       Int          @default(0)
 
   createdAt       DateTime     @default(now())
+}
+
+// ============================================
+// PHASE 11: AI & PERSONALIZATION
+// ============================================
+
+enum LearningPathStatus {
+  ACTIVE
+  COMPLETED
+  PAUSED
+  ABANDONED
+}
+
+enum PredictionType {
+  LEVEL_UP
+  SKILL_MASTERY
+  COURSE_COMPLETION
+  STREAK_MILESTONE
+}
+
+// AI-generated personalized learning roadmap (Feature #8)
+model LearningPath {
+  id                String             @id @default(cuid())
+  studentId         String
+  student           User               @relation("LearningPaths", fields: [studentId], references: [id])
+  passionArea       String
+
+  // Generation info
+  generatedBy       String             @default("ai") // "ai", "instructor", "student"
+
+  // Goals
+  targetSkillLevel  String             @default("intermediate") // beginner, intermediate, advanced, expert
+  timeframeDays     Int                @default(90)
+  weeklyHoursAvailable Int             @default(5)
+
+  // Path structure
+  milestones        Json               @default("[]") // [{week, goal, resources[], tasks[], isComplete}]
+  recommendedClasses String[]          // Class offering IDs
+  recommendedModules String[]          // Module IDs
+  practiceGoals     Json               @default("{}") // {drawing: "30min/day", painting: "1hr 3x/week"}
+
+  // Tracking
+  status            LearningPathStatus @default(ACTIVE)
+  startedAt         DateTime?
+  completedAt       DateTime?
+  currentMilestone  Int                @default(0)
+  completionPct     Float              @default(0)
+
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([studentId])
+  @@index([passionArea])
+  @@index([status])
+}
+
+// Point-in-time analytics snapshot for a student (Feature #22)
+model AnalyticsSnapshot {
+  id                String   @id @default(cuid())
+  studentId         String
+  student           User     @relation("AnalyticsSnapshots", fields: [studentId], references: [id])
+  date              DateTime @default(now())
+
+  // Core metrics
+  totalXP           Int      @default(0)
+  level             Int      @default(1)
+  activePassions    Int      @default(0)
+
+  // Time metrics
+  practiceMinutesThisWeek  Int   @default(0)
+  practiceMinutesLastWeek  Int   @default(0)
+  practiceMinutesAvg       Float @default(0)
+  longestStreak            Int   @default(0)
+  currentStreak            Int   @default(0)
+
+  // Productivity patterns
+  mostProductiveDay        String? // "Wednesday"
+  mostProductiveHour       Int?    // 16 (4 PM)
+  preferredSessionLength   Int?    // minutes
+  totalSessionsThisMonth   Int     @default(0)
+
+  // Skill progression
+  skillProgressions        Json    @default("{}") // {area: {level, weeksAtLevel, trend}}
+
+  // Class engagement
+  classesEnrolled          Int     @default(0)
+  classesCompleted         Int     @default(0)
+  assignmentsCompleted     Int     @default(0)
+  averageEnjoymentRating   Float?
+
+  // Weekly comparison
+  xpGainedThisWeek        Int     @default(0)
+  xpGainedLastWeek        Int     @default(0)
+
+  createdAt               DateTime @default(now())
+
+  @@index([studentId, date])
+  @@index([date])
+}
+
+// Progress predictions (Feature #25)
+model ProgressPrediction {
+  id                String         @id @default(cuid())
+  studentId         String
+  student           User           @relation("ProgressPredictions", fields: [studentId], references: [id])
+  passionArea       String?
+
+  predictionType    PredictionType
+  title             String         // "Reach Advanced level in Watercolor"
+  description       String?
+
+  // Current and target state
+  currentValue      Float          // e.g., current XP or skill level
+  targetValue       Float          // e.g., target XP or skill level
+  progressPct       Float          @default(0) // 0-100
+
+  // Prediction
+  predictedDate     DateTime
+  confidence        Float          @default(0.7) // 0.0 to 1.0
+
+  // Assumptions
+  assumedWeeklyHours  Float        @default(5)
+  assumedPace         String       @default("current") // "current", "increased", "decreased"
+
+  // Outcome tracking
+  isAchieved        Boolean        @default(false)
+  achievedAt        DateTime?
+  accuracyScore     Float?         // How accurate was the prediction (0-1)?
+
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([studentId])
+  @@index([predictionType])
+  @@index([predictedDate])
 }
 
