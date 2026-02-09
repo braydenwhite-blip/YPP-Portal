@@ -308,6 +308,15 @@ model User {
   wallOfFameEntries              WallOfFame[]            @relation("WallOfFameEntries")
   studentOfMonthAwards           StudentOfMonth[]        @relation("StudentOfMonthAwards")
 
+  // Phase 5: Mentorship Light Relations
+  mentorFeedbackRequests         MentorFeedbackRequest[] @relation("MentorFeedbackRequests")
+  mentorResponsesGiven           MentorResponse[]        @relation("MentorResponsesGiven")
+  mentorQuestionsAsked           MentorQuestion[]        @relation("MentorQuestionsAsked")
+  mentorAnswersGiven             MentorAnswer[]          @relation("MentorAnswersGiven")
+  successStories                 SuccessStory[]          @relation("SuccessStories")
+  curatedResourcesShared         CuratedResource[]       @relation("CuratedResourcesShared")
+  motivationBoostsReceived       StudentMotivationLog[]  @relation("MotivationBoostsReceived")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -3064,4 +3073,150 @@ model TeamAchievement {
 
   @@index([awardedAt])
   @@index([category])
+}
+
+// ============================================
+// PHASE 5: MENTORSHIP LIGHT
+// ============================================
+
+// Mentor feedback requests
+model MentorFeedbackRequest {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("MentorFeedbackRequests", fields: [studentId], references: [id])
+  passionId   String
+  projectId   String?
+  question    String
+  mediaUrls   String[] // Work samples
+  status      String   // "PENDING", "ANSWERED", "ARCHIVED"
+  createdAt   DateTime @default(now())
+  responses   MentorResponse[]
+
+  @@index([studentId])
+  @@index([passionId])
+  @@index([status])
+}
+
+// Mentor responses to feedback requests
+model MentorResponse {
+  id          String   @id @default(cuid())
+  requestId   String
+  request     MentorFeedbackRequest @relation(fields: [requestId], references: [id])
+  mentorId    String
+  mentor      User     @relation("MentorResponsesGiven", fields: [mentorId], references: [id])
+  feedback    String
+  videoUrl    String?  // Optional video response
+  resources   String[] // Helpful links
+  respondedAt DateTime @default(now())
+  isHelpful   Boolean? // Student rating
+
+  @@index([requestId])
+  @@index([mentorId])
+}
+
+// General mentor questions (Ask a Mentor)
+model MentorQuestion {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("MentorQuestionsAsked", fields: [studentId], references: [id])
+  passionId   String?
+  question    String
+  isAnonymous Boolean  @default(false)
+  status      String   // "PENDING", "ANSWERED"
+  views       Int      @default(0)
+  createdAt   DateTime @default(now())
+  answers     MentorAnswer[]
+
+  @@index([studentId])
+  @@index([passionId])
+  @@index([status])
+}
+
+// Answers to mentor questions
+model MentorAnswer {
+  id          String   @id @default(cuid())
+  questionId  String
+  question    MentorQuestion @relation(fields: [questionId], references: [id])
+  mentorId    String
+  mentor      User     @relation("MentorAnswersGiven", fields: [mentorId], references: [id])
+  answer      String
+  videoUrl    String?
+  helpful     Int      @default(0) // Upvotes
+  answeredAt  DateTime @default(now())
+
+  @@index([questionId])
+  @@index([mentorId])
+}
+
+// Success stories from alumni/students
+model SuccessStory {
+  id          String   @id @default(cuid())
+  personId    String?  // Can be user or external person
+  person      User?    @relation("SuccessStories", fields: [personId], references: [id])
+  name        String
+  passionId   String
+  title       String
+  story       String
+  videoUrl    String?
+  thumbnailUrl String?
+  currentRole String?  // What they do now
+  advice      String?
+  tags        String[]
+  featured    Boolean  @default(false)
+  views       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([passionId])
+  @@index([featured])
+  @@index([views])
+}
+
+// Curated resources from mentors
+model CuratedResource {
+  id          String   @id @default(cuid())
+  mentorId    String
+  mentor      User     @relation("CuratedResourcesShared", fields: [mentorId], references: [id])
+  passionId   String
+  title       String
+  description String?
+  url         String
+  resourceType String  // "VIDEO", "ARTICLE", "BOOK", "COURSE", "TOOL"
+  level       String   // "BEGINNER", "INTERMEDIATE", "ADVANCED"
+  rating      Float?
+  saves       Int      @default(0)
+  sharedAt    DateTime @default(now())
+
+  @@index([passionId])
+  @@index([resourceType])
+  @@index([level])
+}
+
+// Motivation boost messages
+model MotivationBoost {
+  id          String   @id @default(cuid())
+  category    String   // "STUCK", "FRUSTRATED", "DOUBTFUL", "BURNOUT", "GENERAL"
+  message     String
+  author      String?
+  videoUrl    String?
+  passionId   String?
+  useCount    Int      @default(0)
+  isActive    Boolean  @default(true)
+  logs        StudentMotivationLog[]
+
+  @@index([category])
+  @@index([isActive])
+}
+
+// Track when students request motivation
+model StudentMotivationLog {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation("MotivationBoostsReceived", fields: [studentId], references: [id])
+  boostId     String
+  boost       MotivationBoost @relation(fields: [boostId], references: [id])
+  requestedAt DateTime @default(now())
+  wasHelpful  Boolean?
+
+  @@index([studentId])
+  @@index([boostId])
 }
