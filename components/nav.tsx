@@ -48,10 +48,12 @@ function buildSections(roles: string[], awardTier?: string): NavSection[] {
   // Learning
   const learningItems: NavItem[] = [
     { href: "/pathways", label: "Pathways", icon: "\u25CB" },
-    { href: "/curriculum", label: "Courses", icon: "\u25CB" }
+    { href: "/curriculum", label: "Courses", icon: "\u25CB" },
+    { href: "/classes/catalog", label: "Class Catalog", icon: "\u25CB" }
   ];
   if (isStudent) {
     learningItems.push({ href: "/my-courses", label: "My Courses", icon: "\u25CB" });
+    learningItems.push({ href: "/classes/schedule", label: "My Schedule", icon: "\u25CB" });
   }
   learningItems.push({ href: "/programs", label: "Programs", icon: "\u25CB" });
   sections.push({ label: "Learning", items: learningItems });
@@ -66,6 +68,7 @@ function buildSections(roles: string[], awardTier?: string): NavSection[] {
   if (isInstructor || isAdmin || isChapterLead) {
     growthItems.push({ href: "/instructor-training", label: "Instructor Training", icon: "\u25CB" });
     growthItems.push({ href: "/lesson-plans", label: "Lesson Plans", icon: "\u25CB" });
+    growthItems.push({ href: "/instructor/curriculum-builder", label: "Curriculum Builder", icon: "\u25CB" });
   }
   sections.push({ label: "Growth", items: growthItems });
 

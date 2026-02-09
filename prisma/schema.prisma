@@ -160,6 +160,7 @@ model Chapter {
   marketingStats MarketingStats[]
   marketingGoals MarketingGoal[]
   chapterUpdates ChapterUpdate[]
+  classTemplates ClassTemplate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -333,6 +334,13 @@ model User {
   feedbackSubmissions            UserFeedback[]          @relation("UserFeedback")
   quickActions                   QuickAction[]           @relation("QuickActions")
   bookmarks                      Bookmark[]              @relation("Bookmarks")
+
+  // Phase 9: Class Management & Scheduling Relations
+  classTemplatesCreated          ClassTemplate[]         @relation("ClassTemplatesCreated")
+  classOfferingsInstructed       ClassOffering[]         @relation("ClassOfferingsInstructed")
+  classEnrollments               ClassEnrollment[]       @relation("ClassEnrollments")
+  classAttendanceRecords         ClassAttendanceRecord[] @relation("ClassAttendanceRecords")
+  classRemindersReceived         ClassReminder[]         @relation("ClassRemindersReceived")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1062,6 +1070,7 @@ enum NotificationType {
   ATTENDANCE
   MESSAGE
   SYSTEM
+  CLASS_REMINDER
 }
 
 model Notification {
@@ -3674,7 +3683,252 @@ model DailyInspiration {
   author      String
   category    String   // "persistence", "creativity", "courage", etc.
   imageUrl    String?
-  
+
   createdAt   DateTime @default(now())
+}
+
+// ============================================
+// PHASE 9: CLASS MANAGEMENT & SCHEDULING
+// ============================================
+
+enum DifficultyLevel {
+  LEVEL_101
+  LEVEL_201
+  LEVEL_301
+  LEVEL_401
+}
+
+enum DeliveryMode {
+  IN_PERSON
+  VIRTUAL
+  HYBRID
+}
+
+enum ClassEnrollmentStatus {
+  ENROLLED
+  WAITLISTED
+  DROPPED
+  COMPLETED
+}
+
+enum ClassOfferingStatus {
+  DRAFT
+  PUBLISHED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ReminderType {
+  TWENTY_FOUR_HOUR
+  ONE_HOUR
+  CUSTOM
+}
+
+enum ReminderStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+// Class template: reusable curriculum design (Feature #61, #62, #63, #64)
+model ClassTemplate {
+  id               String          @id @default(cuid())
+  title            String
+  description      String          @db.Text
+  interestArea     String          // Passion area (matches existing pattern)
+  difficultyLevel  DifficultyLevel @default(LEVEL_101)
+  prerequisites    String[]        // e.g., ["ART-101", "ART-102"]
+
+  // Curriculum (Feature #61)
+  weeklyTopics     Json            @default("[]") // [{week, topic, milestone, materials}]
+  learningOutcomes String[]        // What students achieve (Feature #63)
+  estimatedHours   Int             @default(0) // Total student time commitment
+  durationWeeks    Int             @default(8) // Course length in weeks
+  sessionsPerWeek  Int             @default(1)
+
+  // Class size optimization (Feature #64)
+  minStudents      Int             @default(3)
+  maxStudents      Int             @default(25)
+  idealSize        Int             @default(12)
+  sizeNotes        String?         // Why this size works
+
+  // Delivery (Feature #83)
+  deliveryModes    String[]        @default(["VIRTUAL"]) // IN_PERSON, VIRTUAL, HYBRID
+
+  // Meta
+  isPublished      Boolean         @default(false)
+  createdById      String
+  createdBy        User            @relation("ClassTemplatesCreated", fields: [createdById], references: [id])
+  chapterId        String?
+  chapter          Chapter?        @relation(fields: [chapterId], references: [id])
+
+  offerings        ClassOffering[]
+
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([interestArea])
+  @@index([difficultyLevel])
+  @@index([createdById])
+}
+
+// Specific offering of a class template (Feature #80, #83)
+model ClassOffering {
+  id              String              @id @default(cuid())
+  templateId      String
+  template        ClassTemplate       @relation(fields: [templateId], references: [id])
+  instructorId    String
+  instructor      User                @relation("ClassOfferingsInstructed", fields: [instructorId], references: [id])
+
+  // Schedule (Feature #80)
+  title           String              // Can override template title
+  startDate       DateTime
+  endDate         DateTime
+  meetingDays     String[]            // ["Monday", "Wednesday"]
+  meetingTime     String              // "16:00-18:00"
+  timezone        String              @default("America/New_York")
+
+  // Location (Feature #83)
+  deliveryMode    DeliveryMode        @default(VIRTUAL)
+  locationName    String?             // Physical location name
+  locationAddress String?
+  zoomLink        String?
+  meetingId       String?             // Zoom/Teams meeting ID
+
+  // Enrollment
+  capacity        Int                 @default(25)
+  enrollmentOpen  Boolean             @default(true)
+
+  // Reminders (Feature #81)
+  send24HrReminder Boolean           @default(true)
+  send1HrReminder  Boolean           @default(true)
+
+  // Status
+  status          ClassOfferingStatus @default(DRAFT)
+  chapterId       String?
+  semester        String?             // "Spring 2025", "Fall 2025"
+
+  // Relations
+  sessions        ClassSession[]
+  enrollments     ClassEnrollment[]
+  reminders       ClassReminder[]
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([templateId])
+  @@index([instructorId])
+  @@index([startDate])
+  @@index([status])
+}
+
+// Individual class session (meeting) within an offering
+model ClassSession {
+  id              String   @id @default(cuid())
+  offeringId      String
+  offering        ClassOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+
+  sessionNumber   Int
+  date            DateTime
+  startTime       String   // "16:00"
+  endTime         String   // "18:00"
+  topic           String
+  description     String?  @db.Text
+  learningOutcomes String[]
+  milestone       String?  // Key milestone for this session
+
+  // Materials
+  materialsUrl    String?
+  recordingUrl    String?
+  notesUrl        String?
+
+  // Status
+  isCancelled     Boolean  @default(false)
+  cancelReason    String?
+
+  // Attendance
+  attendance      ClassAttendanceRecord[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([offeringId, sessionNumber])
+  @@index([offeringId])
+  @@index([date])
+}
+
+// Student enrollment in a class offering
+model ClassEnrollment {
+  id              String                @id @default(cuid())
+  studentId       String
+  student         User                  @relation("ClassEnrollments", fields: [studentId], references: [id])
+  offeringId      String
+  offering        ClassOffering         @relation(fields: [offeringId], references: [id])
+
+  status          ClassEnrollmentStatus @default(ENROLLED)
+  enrolledAt      DateTime              @default(now())
+  droppedAt       DateTime?
+  completedAt     DateTime?
+
+  // Progress tracking (Feature #63)
+  sessionsAttended Int                  @default(0)
+  outcomesAchieved String[]             // IDs of achieved learning outcomes
+  instructorNotes  String?              @db.Text
+
+  // Waitlist position (if waitlisted)
+  waitlistPosition Int?
+
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@unique([studentId, offeringId])
+  @@index([studentId])
+  @@index([offeringId])
+  @@index([status])
+}
+
+// Attendance for individual class sessions
+model ClassAttendanceRecord {
+  id              String       @id @default(cuid())
+  sessionId       String
+  session         ClassSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  studentId       String
+  student         User         @relation("ClassAttendanceRecords", fields: [studentId], references: [id])
+
+  status          AttendanceStatus @default(PRESENT)
+  notes           String?
+  checkedInAt     DateTime     @default(now())
+
+  @@unique([sessionId, studentId])
+  @@index([sessionId])
+  @@index([studentId])
+}
+
+// Class reminders (Feature #81)
+model ClassReminder {
+  id              String         @id @default(cuid())
+  offeringId      String
+  offering        ClassOffering  @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  sessionId       String?        // Specific session, or null for general
+  userId          String
+  user            User           @relation("ClassRemindersReceived", fields: [userId], references: [id])
+
+  type            ReminderType
+  scheduledFor    DateTime
+  sentAt          DateTime?
+  status          ReminderStatus @default(PENDING)
+
+  // Content
+  subject         String
+  body            String         @db.Text
+  zoomLink        String?
+
+  createdAt       DateTime       @default(now())
+
+  @@index([offeringId])
+  @@index([userId])
+  @@index([scheduledFor])
+  @@index([status])
 }
 
