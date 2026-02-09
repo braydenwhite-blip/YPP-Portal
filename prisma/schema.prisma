@@ -322,6 +322,11 @@ model User {
   projectFeedbackGiven           ProjectFeedback[]       @relation("ProjectFeedbackGiven")
   publicPortfolio                PublicPortfolio?        @relation("PublicPortfolio")
 
+  // Phase 7: Parent Features Relations
+  parentProfile                  ParentProfile?
+  parentConnections              ParentStudentConnection[] @relation("ParentStudentConnections")
+  progressReports                ProgressReport[]        @relation("StudentProgressReports")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -3336,3 +3341,188 @@ model PublicPortfolio {
   @@index([customUrl])
   @@index([isPublic])
 }
+
+// ============================================
+// PHASE 7: PARENT FEATURES
+// ============================================
+
+model ParentProfile {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  students      ParentStudentConnection[]
+  notifications ParentNotification[]
+  messages      ParentMessage[]
+  settings      ParentSettings?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model ParentStudentConnection {
+  id              String   @id @default(cuid())
+  parentId        String
+  parent          ParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  studentId       String
+  student         User     @relation("ParentStudentConnections", fields: [studentId], references: [id], onDelete: Cascade)
+  relationship    String   // "Mother", "Father", "Guardian", etc.
+  isPrimary       Boolean  @default(false)
+  canViewProgress Boolean  @default(true)
+  canReceiveReports Boolean @default(true)
+  approvedAt      DateTime?
+  createdAt       DateTime @default(now())
+  
+  @@unique([parentId, studentId])
+}
+
+model ParentNotification {
+  id          String   @id @default(cuid())
+  parentId    String
+  parent      ParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  studentId   String
+  type        ParentNotificationType
+  title       String
+  message     String
+  actionUrl   String?
+  isRead      Boolean  @default(false)
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
+}
+
+enum ParentNotificationType {
+  ACHIEVEMENT
+  MILESTONE
+  ATTENDANCE
+  SHOWCASE
+  REPORT_READY
+  NEW_PASSION
+  AWARD_EARNED
+  FEEDBACK_RECEIVED
+  RESOURCE_APPROVED
+  UPCOMING_EVENT
+}
+
+model ProgressReport {
+  id              String   @id @default(cuid())
+  studentId       String
+  student         User     @relation("StudentProgressReports", fields: [studentId], references: [id], onDelete: Cascade)
+  periodStart     DateTime
+  periodEnd       DateTime
+  reportType      ReportType
+  
+  // Summary stats
+  totalXPEarned   Int
+  passionsActive  Int
+  hoursLogged     Float
+  projectsCompleted Int
+  
+  // Narrative sections
+  highlights      String   // Key achievements this period
+  areasOfGrowth   String   // Skills developing
+  recommendations String   // What to focus on next
+  instructorNotes String?  // Optional notes from instructors
+  
+  // Attachments
+  showcaseItems   String[] // URLs to notable work
+  
+  generatedAt     DateTime @default(now())
+  sentToParents   Boolean  @default(false)
+  sentAt          DateTime?
+}
+
+enum ReportType {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  SEMESTER
+  ANNUAL
+}
+
+model ParentMessage {
+  id            String   @id @default(cuid())
+  parentId      String
+  parent        ParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  studentId     String
+  instructorId  String?
+  subject       String
+  message       String
+  response      String?
+  respondedBy   String?
+  respondedAt   DateTime?
+  status        MessageStatus
+  priority      MessagePriority @default(NORMAL)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+enum MessageStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum MessagePriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model ParentSettings {
+  id                      String   @id @default(cuid())
+  parentId                String   @unique
+  parent                  ParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  
+  // Notification preferences
+  emailNotifications      Boolean  @default(true)
+  smsNotifications        Boolean  @default(false)
+  weeklyDigest            Boolean  @default(true)
+  achievementAlerts       Boolean  @default(true)
+  attendanceAlerts        Boolean  @default(true)
+  
+  // Privacy settings
+  allowPhotoSharing       Boolean  @default(true)
+  allowPublicPortfolio    Boolean  @default(true)
+  
+  // Report preferences
+  reportFrequency         ReportFrequency @default(MONTHLY)
+  
+  updatedAt               DateTime @updatedAt
+}
+
+enum ReportFrequency {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  QUARTERLY
+}
+
+model ParentResource {
+  id            String   @id @default(cuid())
+  title         String
+  description   String
+  category      ParentResourceCategory
+  content       String   @db.Text
+  resourceUrl   String?
+  thumbnailUrl  String?
+  tags          String[]
+  ageGroup      String[] // e.g., ["Elementary", "Middle School", "High School"]
+  featured      Boolean  @default(false)
+  viewCount     Int      @default(0)
+  createdBy     String
+  publishedAt   DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+enum ParentResourceCategory {
+  SUPPORTING_PASSION
+  COLLEGE_PREP
+  MENTAL_HEALTH
+  YOUTH_DEVELOPMENT
+  SCHOLARSHIPS
+  TIME_MANAGEMENT
+  PARENT_INVOLVEMENT
+  SUCCESS_STORIES
+}
+
