@@ -48,10 +48,12 @@ function buildSections(roles: string[], awardTier?: string): NavSection[] {
   // Learning
   const learningItems: NavItem[] = [
     { href: "/pathways", label: "Pathways", icon: "\u25CB" },
-    { href: "/curriculum", label: "Courses", icon: "\u25CB" }
+    { href: "/curriculum", label: "Courses", icon: "\u25CB" },
+    { href: "/classes/catalog", label: "Class Catalog", icon: "\u25CB" }
   ];
   if (isStudent) {
     learningItems.push({ href: "/my-courses", label: "My Courses", icon: "\u25CB" });
+    learningItems.push({ href: "/classes/schedule", label: "My Schedule", icon: "\u25CB" });
   }
   learningItems.push({ href: "/programs", label: "Programs", icon: "\u25CB" });
   sections.push({ label: "Learning", items: learningItems });
@@ -60,14 +62,42 @@ function buildSections(roles: string[], awardTier?: string): NavSection[] {
   const growthItems: NavItem[] = [
     { href: "/goals", label: "My Goals", icon: "\u25CB" }
   ];
+  if (isStudent) {
+    growthItems.push({ href: "/analytics", label: "Analytics", icon: "\u25CB" });
+    growthItems.push({ href: "/learn/path-generator", label: "Learning Paths", icon: "\u25CB" });
+  }
   if (isInstructor || isChapterLead) {
     growthItems.push({ href: "/reflection", label: "Monthly Reflection", icon: "\u25CB" });
   }
   if (isInstructor || isAdmin || isChapterLead) {
     growthItems.push({ href: "/instructor-training", label: "Instructor Training", icon: "\u25CB" });
     growthItems.push({ href: "/lesson-plans", label: "Lesson Plans", icon: "\u25CB" });
+    growthItems.push({ href: "/instructor/curriculum-builder", label: "Curriculum Builder", icon: "\u25CB" });
   }
   sections.push({ label: "Growth", items: growthItems });
+
+  // Challenges & Achievements
+  const challengeItems: NavItem[] = [
+    { href: "/challenges", label: "Challenges", icon: "\u25CB" },
+    { href: "/challenges/weekly", label: "Weekly Prompts", icon: "\u25CB" },
+    { href: "/challenges/passport", label: "Passion Passport", icon: "\u25CB" },
+    { href: "/competitions", label: "Competitions", icon: "\u25CB" },
+    { href: "/achievements/badges", label: "Badge Gallery", icon: "\u25CB" }
+  ];
+  sections.push({ label: "Challenges", items: challengeItems });
+
+  // Real World (Phase 13)
+  const realWorldItems: NavItem[] = [
+    { href: "/internships", label: "Opportunities", icon: "\u25CB" },
+    { href: "/service-projects", label: "Service Projects", icon: "\u25CB" },
+    { href: "/resource-exchange", label: "Resource Exchange", icon: "\u25CB" },
+    { href: "/portfolio/templates", label: "Portfolio Templates", icon: "\u25CB" },
+    { href: "/events/map", label: "Chapter Events Map", icon: "\u25CB" }
+  ];
+  if (isInstructor || isAdmin) {
+    realWorldItems.push({ href: "/instructor/certification-pathway", label: "Cert Pathway", icon: "\u25CB" });
+  }
+  sections.push({ label: "Real World", items: realWorldItems });
 
   // Community
   const communityItems: NavItem[] = [

@@ -160,6 +160,7 @@ model Chapter {
   marketingStats MarketingStats[]
   marketingGoals MarketingGoal[]
   chapterUpdates ChapterUpdate[]
+  classTemplates ClassTemplate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -344,6 +345,40 @@ model User {
   feedbackSubmissions            UserFeedback[]          @relation("UserFeedback")
   quickActions                   QuickAction[]           @relation("QuickActions")
   bookmarks                      Bookmark[]              @relation("Bookmarks")
+
+  // Phase 9: Class Management & Scheduling Relations
+  classTemplatesCreated          ClassTemplate[]         @relation("ClassTemplatesCreated")
+  classOfferingsInstructed       ClassOffering[]         @relation("ClassOfferingsInstructed")
+  classEnrollments               ClassEnrollment[]       @relation("ClassEnrollments")
+  classAttendanceRecords         ClassAttendanceRecord[] @relation("ClassAttendanceRecords")
+  classRemindersReceived         ClassReminder[]         @relation("ClassRemindersReceived")
+
+  // Phase 10: Enjoyment-Focused Assignments Relations
+  classAssignmentsCreated        ClassAssignment[]            @relation("ClassAssignmentsCreated")
+  classSubmissions               ClassAssignmentSubmission[]  @relation("ClassSubmissions")
+  groupMemberships               GroupMember[]                @relation("GroupMemberships")
+
+  // Phase 11: AI & Personalization Relations
+  learningPaths                  LearningPath[]               @relation("LearningPaths")
+  analyticsSnapshots             AnalyticsSnapshot[]          @relation("AnalyticsSnapshots")
+  progressPredictions            ProgressPrediction[]         @relation("ProgressPredictions")
+
+  // Phase 12: Challenges & Gamification Relations
+  challengeParticipations        ChallengeParticipant[]       @relation("ChallengeParticipations")
+  challengeSubmissions           ChallengeSubmission[]        @relation("ChallengeSubmissions")
+  passionPassports               PassionPassport[]            @relation("PassionPassports")
+  competitionEntries             CompetitionEntry[]           @relation("CompetitionEntries")
+  competitionJudgings            SeasonalCompetition[]        @relation("CompetitionJudges")
+  competitionVotes               CompetitionVote[]            @relation("CompetitionVotes")
+
+  // Phase 13: Real-World Connections Relations
+  internshipApplications         InternshipApplication[]      @relation("InternshipApplications")
+  internshipListingsPosted       InternshipListing[]          @relation("InternshipListingsPosted")
+  serviceProjectsCreated         ServiceProject[]             @relation("ServiceProjectsCreated")
+  serviceVolunteering            ServiceVolunteer[]           @relation("ServiceVolunteering")
+  instructorCertifications       InstructorCertification[]    @relation("InstructorCertifications")
+  resourceExchangeListings       ResourceExchangeListing[]    @relation("ResourceExchangeListings")
+  resourceExchangeRequests       ResourceExchangeRequest[]    @relation("ResourceExchangeRequests")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1076,6 +1111,7 @@ enum NotificationType {
   ATTENDANCE
   MESSAGE
   SYSTEM
+  CLASS_REMINDER
 }
 
 model Notification {
@@ -3665,6 +3701,1142 @@ model DailyInspiration {
   author      String
   category    String   // "persistence", "creativity", "courage", etc.
   imageUrl    String?
-  
+
   createdAt   DateTime @default(now())
+}
+
+// ============================================
+// PHASE 9: CLASS MANAGEMENT & SCHEDULING
+// ============================================
+
+enum DifficultyLevel {
+  LEVEL_101
+  LEVEL_201
+  LEVEL_301
+  LEVEL_401
+}
+
+enum DeliveryMode {
+  IN_PERSON
+  VIRTUAL
+  HYBRID
+}
+
+enum ClassEnrollmentStatus {
+  ENROLLED
+  WAITLISTED
+  DROPPED
+  COMPLETED
+}
+
+enum ClassOfferingStatus {
+  DRAFT
+  PUBLISHED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ReminderType {
+  TWENTY_FOUR_HOUR
+  ONE_HOUR
+  CUSTOM
+}
+
+enum ReminderStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+// Class template: reusable curriculum design (Feature #61, #62, #63, #64)
+model ClassTemplate {
+  id               String          @id @default(cuid())
+  title            String
+  description      String          @db.Text
+  interestArea     String          // Passion area (matches existing pattern)
+  difficultyLevel  DifficultyLevel @default(LEVEL_101)
+  prerequisites    String[]        // e.g., ["ART-101", "ART-102"]
+
+  // Curriculum (Feature #61)
+  weeklyTopics     Json            @default("[]") // [{week, topic, milestone, materials}]
+  learningOutcomes String[]        // What students achieve (Feature #63)
+  estimatedHours   Int             @default(0) // Total student time commitment
+  durationWeeks    Int             @default(8) // Course length in weeks
+  sessionsPerWeek  Int             @default(1)
+
+  // Class size optimization (Feature #64)
+  minStudents      Int             @default(3)
+  maxStudents      Int             @default(25)
+  idealSize        Int             @default(12)
+  sizeNotes        String?         // Why this size works
+
+  // Delivery (Feature #83)
+  deliveryModes    String[]        @default(["VIRTUAL"]) // IN_PERSON, VIRTUAL, HYBRID
+
+  // Meta
+  isPublished      Boolean         @default(false)
+  createdById      String
+  createdBy        User            @relation("ClassTemplatesCreated", fields: [createdById], references: [id])
+  chapterId        String?
+  chapter          Chapter?        @relation(fields: [chapterId], references: [id])
+
+  offerings        ClassOffering[]
+
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([interestArea])
+  @@index([difficultyLevel])
+  @@index([createdById])
+}
+
+// Specific offering of a class template (Feature #80, #83)
+model ClassOffering {
+  id              String              @id @default(cuid())
+  templateId      String
+  template        ClassTemplate       @relation(fields: [templateId], references: [id])
+  instructorId    String
+  instructor      User                @relation("ClassOfferingsInstructed", fields: [instructorId], references: [id])
+
+  // Schedule (Feature #80)
+  title           String              // Can override template title
+  startDate       DateTime
+  endDate         DateTime
+  meetingDays     String[]            // ["Monday", "Wednesday"]
+  meetingTime     String              // "16:00-18:00"
+  timezone        String              @default("America/New_York")
+
+  // Location (Feature #83)
+  deliveryMode    DeliveryMode        @default(VIRTUAL)
+  locationName    String?             // Physical location name
+  locationAddress String?
+  zoomLink        String?
+  meetingId       String?             // Zoom/Teams meeting ID
+
+  // Enrollment
+  capacity        Int                 @default(25)
+  enrollmentOpen  Boolean             @default(true)
+
+  // Reminders (Feature #81)
+  send24HrReminder Boolean           @default(true)
+  send1HrReminder  Boolean           @default(true)
+
+  // Status
+  status          ClassOfferingStatus @default(DRAFT)
+  chapterId       String?
+  semester        String?             // "Spring 2025", "Fall 2025"
+
+  // Relations
+  sessions        ClassSession[]
+  enrollments     ClassEnrollment[]
+  reminders       ClassReminder[]
+  assignments     ClassAssignment[]
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([templateId])
+  @@index([instructorId])
+  @@index([startDate])
+  @@index([status])
+}
+
+// Individual class session (meeting) within an offering
+model ClassSession {
+  id              String   @id @default(cuid())
+  offeringId      String
+  offering        ClassOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+
+  sessionNumber   Int
+  date            DateTime
+  startTime       String   // "16:00"
+  endTime         String   // "18:00"
+  topic           String
+  description     String?  @db.Text
+  learningOutcomes String[]
+  milestone       String?  // Key milestone for this session
+
+  // Materials
+  materialsUrl    String?
+  recordingUrl    String?
+  notesUrl        String?
+
+  // Status
+  isCancelled     Boolean  @default(false)
+  cancelReason    String?
+
+  // Attendance
+  attendance      ClassAttendanceRecord[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([offeringId, sessionNumber])
+  @@index([offeringId])
+  @@index([date])
+}
+
+// Student enrollment in a class offering
+model ClassEnrollment {
+  id              String                @id @default(cuid())
+  studentId       String
+  student         User                  @relation("ClassEnrollments", fields: [studentId], references: [id])
+  offeringId      String
+  offering        ClassOffering         @relation(fields: [offeringId], references: [id])
+
+  status          ClassEnrollmentStatus @default(ENROLLED)
+  enrolledAt      DateTime              @default(now())
+  droppedAt       DateTime?
+  completedAt     DateTime?
+
+  // Progress tracking (Feature #63)
+  sessionsAttended Int                  @default(0)
+  outcomesAchieved String[]             // IDs of achieved learning outcomes
+  instructorNotes  String?              @db.Text
+
+  // Waitlist position (if waitlisted)
+  waitlistPosition Int?
+
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@unique([studentId, offeringId])
+  @@index([studentId])
+  @@index([offeringId])
+  @@index([status])
+}
+
+// Attendance for individual class sessions
+model ClassAttendanceRecord {
+  id              String       @id @default(cuid())
+  sessionId       String
+  session         ClassSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  studentId       String
+  student         User         @relation("ClassAttendanceRecords", fields: [studentId], references: [id])
+
+  status          AttendanceStatus @default(PRESENT)
+  notes           String?
+  checkedInAt     DateTime     @default(now())
+
+  @@unique([sessionId, studentId])
+  @@index([sessionId])
+  @@index([studentId])
+}
+
+// Class reminders (Feature #81)
+model ClassReminder {
+  id              String         @id @default(cuid())
+  offeringId      String
+  offering        ClassOffering  @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  sessionId       String?        // Specific session, or null for general
+  userId          String
+  user            User           @relation("ClassRemindersReceived", fields: [userId], references: [id])
+
+  type            ReminderType
+  scheduledFor    DateTime
+  sentAt          DateTime?
+  status          ReminderStatus @default(PENDING)
+
+  // Content
+  subject         String
+  body            String         @db.Text
+  zoomLink        String?
+
+  createdAt       DateTime       @default(now())
+
+  @@index([offeringId])
+  @@index([userId])
+  @@index([scheduledFor])
+  @@index([status])
+}
+
+// ============================================
+// PHASE 10: ENJOYMENT-FOCUSED ASSIGNMENT SYSTEM
+// ============================================
+
+enum ClassAssignmentType {
+  PRACTICE       // Skill-building exercise
+  PROJECT        // Creative project
+  EXPLORATION    // Open-ended exploration
+  GROUP          // Group collaboration
+  REFLECTION     // Reflective writing
+}
+
+enum FeedbackStyle {
+  NARRATIVE      // Written narrative feedback
+  CHECKLIST      // Checklist of skills demonstrated
+  VIDEO          // Video feedback from instructor
+  PEER_REVIEW    // Peer-to-peer feedback
+}
+
+enum GradingStyle {
+  COMPLETION     // Completed or not (no judgment)
+  FEEDBACK_ONLY  // Narrative feedback, no score
+  OPTIONAL_GRADE // Student can opt into receiving a grade
+}
+
+enum ClassSubmissionStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED
+  FEEDBACK_GIVEN
+  REVISED
+}
+
+// Enjoyment-focused assignment tied to class offerings (Feature #43)
+model ClassAssignment {
+  id              String              @id @default(cuid())
+  offeringId      String
+  offering        ClassOffering       @relation(fields: [offeringId], references: [id])
+  createdById     String
+  createdBy       User                @relation("ClassAssignmentsCreated", fields: [createdById], references: [id])
+
+  title           String
+  description     String              @db.Text
+  type            ClassAssignmentType @default(PRACTICE)
+
+  // Enjoyment-focused options
+  feedbackStyle   FeedbackStyle       @default(NARRATIVE)
+  gradingStyle    GradingStyle        @default(FEEDBACK_ONLY)
+
+  // Flexible deadlines
+  suggestedDueDate DateTime?          // "Aim to complete by..."
+  hardDeadline     DateTime?          // Only if truly time-sensitive
+  allowLateSubmissions Boolean        @default(true)
+
+  // Instructions & materials
+  instructions    String?             @db.Text
+  referenceLinks  String[]            // Links to helpful resources
+  exampleWorkUrls String[]            // Show examples of what good looks like
+  attachmentUrl   String?
+
+  // Group settings
+  isGroupAssignment Boolean           @default(false)
+  groupSize       Int?                // Suggested group size
+  allowSelfSelect Boolean             @default(true) // Can students pick groups?
+
+  // Encouragement
+  encouragementNote String?           @db.Text // Instructor message to motivate
+
+  isPublished     Boolean             @default(true)
+  sessionId       String?             // Optionally tied to a class session
+
+  // Relations
+  submissions     ClassAssignmentSubmission[]
+  groups          GroupProject[]
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([offeringId])
+}
+
+// Student submission with enjoyment metrics instead of grades
+model ClassAssignmentSubmission {
+  id              String                @id @default(cuid())
+  assignmentId    String
+  assignment      ClassAssignment       @relation(fields: [assignmentId], references: [id])
+  studentId       String
+  student         User                  @relation("ClassSubmissions", fields: [studentId], references: [id])
+  groupId         String?               // If group assignment
+  group           GroupProject?         @relation(fields: [groupId], references: [id])
+
+  // Submission
+  workUrl         String?               // Link to work (Drive, YouTube, etc.)
+  workText        String?               @db.Text // Written work or description
+  submittedAt     DateTime?
+
+  status          ClassSubmissionStatus @default(NOT_STARTED)
+
+  // Instructor feedback (NOT grades)
+  instructorFeedback  String?           @db.Text  // Detailed narrative feedback
+  celebratoryNote     String?           @db.Text  // "I love how you experimented!"
+  suggestionsForNext  String?           @db.Text  // "Try adding more contrast next time"
+  feedbackGivenAt     DateTime?
+
+  // Student self-reflection
+  studentReflection   String?           @db.Text  // "What did you learn?"
+  enjoymentRating     Int?              // 1-5: "How much fun did you have?"
+  difficultyRating    Int?              // 1-5: "How challenging was this?"
+  whatWentWell        String?           @db.Text
+  whatToImprove       String?           @db.Text
+  wouldRecommend      Boolean?          // "Would you recommend this to a classmate?"
+
+  // Completion celebration (not perfection)
+  completionBadge     Boolean           @default(false) // Earned just for finishing!
+
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@unique([assignmentId, studentId])
+  @@index([studentId])
+  @@index([assignmentId])
+}
+
+// Group project for collaborative assignments (Feature #69)
+model GroupProject {
+  id              String              @id @default(cuid())
+  assignmentId    String
+  assignment      ClassAssignment     @relation(fields: [assignmentId], references: [id])
+
+  groupName       String
+  description     String?             @db.Text
+
+  // Members
+  members         GroupMember[]
+
+  // Coordination
+  communicationChannel String?        // "Slack", "Discord", "Group Text"
+  sharedDocLinks  String[]            // Links to collaborative docs
+
+  // Milestones
+  milestones      GroupMilestone[]
+
+  // Final submission
+  submissions     ClassAssignmentSubmission[]
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([assignmentId])
+}
+
+model GroupMember {
+  id              String       @id @default(cuid())
+  groupId         String
+  group           GroupProject @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User         @relation("GroupMemberships", fields: [userId], references: [id])
+
+  // Flexible roles (student-defined, not rigid)
+  role            String?      // e.g., "Visual Lead", "Research", "Presenter"
+  joinedAt        DateTime     @default(now())
+
+  @@unique([groupId, userId])
+  @@index([userId])
+}
+
+model GroupMilestone {
+  id              String       @id @default(cuid())
+  groupId         String
+  group           GroupProject @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  title           String
+  description     String?
+  targetDate      DateTime?
+  completedAt     DateTime?
+  isComplete      Boolean      @default(false)
+
+  sortOrder       Int          @default(0)
+
+  createdAt       DateTime     @default(now())
+}
+
+// ============================================
+// PHASE 11: AI & PERSONALIZATION
+// ============================================
+
+enum LearningPathStatus {
+  ACTIVE
+  COMPLETED
+  PAUSED
+  ABANDONED
+}
+
+enum PredictionType {
+  LEVEL_UP
+  SKILL_MASTERY
+  COURSE_COMPLETION
+  STREAK_MILESTONE
+}
+
+// AI-generated personalized learning roadmap (Feature #8)
+model LearningPath {
+  id                String             @id @default(cuid())
+  studentId         String
+  student           User               @relation("LearningPaths", fields: [studentId], references: [id])
+  passionArea       String
+
+  // Generation info
+  generatedBy       String             @default("ai") // "ai", "instructor", "student"
+
+  // Goals
+  targetSkillLevel  String             @default("intermediate") // beginner, intermediate, advanced, expert
+  timeframeDays     Int                @default(90)
+  weeklyHoursAvailable Int             @default(5)
+
+  // Path structure
+  milestones        Json               @default("[]") // [{week, goal, resources[], tasks[], isComplete}]
+  recommendedClasses String[]          // Class offering IDs
+  recommendedModules String[]          // Module IDs
+  practiceGoals     Json               @default("{}") // {drawing: "30min/day", painting: "1hr 3x/week"}
+
+  // Tracking
+  status            LearningPathStatus @default(ACTIVE)
+  startedAt         DateTime?
+  completedAt       DateTime?
+  currentMilestone  Int                @default(0)
+  completionPct     Float              @default(0)
+
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([studentId])
+  @@index([passionArea])
+  @@index([status])
+}
+
+// Point-in-time analytics snapshot for a student (Feature #22)
+model AnalyticsSnapshot {
+  id                String   @id @default(cuid())
+  studentId         String
+  student           User     @relation("AnalyticsSnapshots", fields: [studentId], references: [id])
+  date              DateTime @default(now())
+
+  // Core metrics
+  totalXP           Int      @default(0)
+  level             Int      @default(1)
+  activePassions    Int      @default(0)
+
+  // Time metrics
+  practiceMinutesThisWeek  Int   @default(0)
+  practiceMinutesLastWeek  Int   @default(0)
+  practiceMinutesAvg       Float @default(0)
+  longestStreak            Int   @default(0)
+  currentStreak            Int   @default(0)
+
+  // Productivity patterns
+  mostProductiveDay        String? // "Wednesday"
+  mostProductiveHour       Int?    // 16 (4 PM)
+  preferredSessionLength   Int?    // minutes
+  totalSessionsThisMonth   Int     @default(0)
+
+  // Skill progression
+  skillProgressions        Json    @default("{}") // {area: {level, weeksAtLevel, trend}}
+
+  // Class engagement
+  classesEnrolled          Int     @default(0)
+  classesCompleted         Int     @default(0)
+  assignmentsCompleted     Int     @default(0)
+  averageEnjoymentRating   Float?
+
+  // Weekly comparison
+  xpGainedThisWeek        Int     @default(0)
+  xpGainedLastWeek        Int     @default(0)
+
+  createdAt               DateTime @default(now())
+
+  @@index([studentId, date])
+  @@index([date])
+}
+
+// Progress predictions (Feature #25)
+model ProgressPrediction {
+  id                String         @id @default(cuid())
+  studentId         String
+  student           User           @relation("ProgressPredictions", fields: [studentId], references: [id])
+  passionArea       String?
+
+  predictionType    PredictionType
+  title             String         // "Reach Advanced level in Watercolor"
+  description       String?
+
+  // Current and target state
+  currentValue      Float          // e.g., current XP or skill level
+  targetValue       Float          // e.g., target XP or skill level
+  progressPct       Float          @default(0) // 0-100
+
+  // Prediction
+  predictedDate     DateTime
+  confidence        Float          @default(0.7) // 0.0 to 1.0
+
+  // Assumptions
+  assumedWeeklyHours  Float        @default(5)
+  assumedPace         String       @default("current") // "current", "increased", "decreased"
+
+  // Outcome tracking
+  isAchieved        Boolean        @default(false)
+  achievedAt        DateTime?
+  accuracyScore     Float?         // How accurate was the prediction (0-1)?
+
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([studentId])
+  @@index([predictionType])
+  @@index([predictedDate])
+}
+
+// ============================================
+// PHASE 12: CHALLENGES & GAMIFICATION
+// ============================================
+
+enum ChallengeType {
+  DAILY
+  WEEKLY
+  THIRTY_DAY
+  SEASONAL
+}
+
+enum ChallengeStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum ParticipantStatus {
+  ACTIVE
+  COMPLETED
+  DROPPED
+}
+
+enum StampSource {
+  TRY_IT
+  CLASS
+  PROJECT
+  PRACTICE_HOURS
+}
+
+enum RarityTier {
+  COMMON
+  UNCOMMON
+  RARE
+  EPIC
+  LEGENDARY
+  MYTHIC
+}
+
+enum CompetitionStatus {
+  UPCOMING
+  OPEN_FOR_SUBMISSIONS
+  JUDGING
+  VOTING
+  COMPLETED
+}
+
+// 30-Day Challenges, Weekly Challenges, Seasonal Challenges
+model Challenge {
+  id                String          @id @default(cuid())
+  title             String
+  description       String          @db.Text
+  type              ChallengeType
+
+  passionArea       String?
+
+  // Timing
+  startDate         DateTime
+  endDate           DateTime
+
+  // Requirements
+  dailyGoal         String?         // "Sketch for 15 minutes"
+  weeklyGoal        String?         // "Complete 3 paintings"
+  submissionRequired Boolean        @default(false)
+
+  // Leaderboard
+  trackProgress     Boolean         @default(true)
+  showLeaderboard   Boolean         @default(true)
+
+  // Rewards
+  completionBadgeId String?
+  xpReward          Int             @default(50)
+  specialRecognition String?        // "Featured in newsletter"
+
+  // Status
+  status            ChallengeStatus @default(DRAFT)
+
+  // Weekly challenge specific
+  promptText        String?         @db.Text // Monday prompt for weekly challenges
+  votingEnabled     Boolean         @default(false)
+  votingDeadline    DateTime?
+
+  createdById       String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  participants      ChallengeParticipant[]
+  submissions       ChallengeSubmission[]
+
+  @@index([type, status])
+  @@index([startDate, endDate])
+  @@index([passionArea])
+}
+
+// Challenge participant with streak tracking
+model ChallengeParticipant {
+  id                String            @id @default(cuid())
+  challengeId       String
+  challenge         Challenge         @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  studentId         String
+  student           User              @relation("ChallengeParticipations", fields: [studentId], references: [id])
+
+  joinedAt          DateTime          @default(now())
+  currentStreak     Int               @default(0)
+  longestStreak     Int               @default(0)
+  daysCompleted     Int               @default(0)
+  totalProgress     Float             @default(0) // 0.0 to 1.0
+
+  status            ParticipantStatus @default(ACTIVE)
+  completedAt       DateTime?
+
+  leaderboardRank   Int?
+  lastCheckIn       DateTime?
+
+  @@unique([challengeId, studentId])
+  @@index([studentId])
+  @@index([challengeId, status])
+  @@index([leaderboardRank])
+}
+
+// Challenge submissions (daily check-ins, weekly submissions)
+model ChallengeSubmission {
+  id                String    @id @default(cuid())
+  challengeId       String
+  challenge         Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  studentId         String
+  student           User      @relation("ChallengeSubmissions", fields: [studentId], references: [id])
+
+  // Content
+  title             String?
+  description       String?   @db.Text
+  workUrl           String?   // Link to work
+  mediaUrl          String?   // Image/video upload
+
+  // Check-in data
+  dayNumber         Int?      // Day 1-30 for 30-day challenges
+  minutesPracticed  Int?
+  reflection        String?
+
+  // Voting (for weekly challenges)
+  voteCount         Int       @default(0)
+
+  submittedAt       DateTime  @default(now())
+
+  @@index([challengeId, studentId])
+  @@index([challengeId, voteCount])
+  @@index([submittedAt])
+}
+
+// Passion Passport - collecting stamps for exploring sub-areas
+model PassionPassport {
+  id                    String          @id @default(cuid())
+  studentId             String
+  student               User            @relation("PassionPassports", fields: [studentId], references: [id])
+  passionArea           String          // e.g., "Art", "Music", "Writing"
+
+  totalStamps           Int             @default(0)
+  completionPercentage  Float           @default(0) // 0-100
+
+  stamps                PassportStamp[]
+
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  @@unique([studentId, passionArea])
+  @@index([studentId])
+}
+
+// Individual stamps in a passion passport
+model PassportStamp {
+  id                String          @id @default(cuid())
+  passportId        String
+  passport          PassionPassport @relation(fields: [passportId], references: [id], onDelete: Cascade)
+
+  subArea           String          // e.g., "Watercolor", "Oil Painting", "Digital Art"
+  description       String?
+
+  earnedAt          DateTime        @default(now())
+  earnedBy          StampSource
+
+  hoursLogged       Int?
+  projectsCompleted Int?
+  evidence          String?         // URL or description of what earned the stamp
+
+  @@unique([passportId, subArea])
+  @@index([passportId])
+}
+
+// Badge rarity tracking (updated periodically)
+model BadgeRarity {
+  id                String    @id @default(cuid())
+  badgeId           String    @unique
+  badgeName         String
+
+  totalAwarded      Int       @default(0)
+  totalStudents     Int       @default(0)
+  rarityPercentage  Float     @default(100) // % of students who have this badge
+  rarityTier        RarityTier @default(COMMON)
+
+  updatedAt         DateTime  @updatedAt
+
+  @@index([rarityTier])
+  @@index([rarityPercentage])
+}
+
+// Seasonal competitions (quarterly themed events)
+model SeasonalCompetition {
+  id                    String            @id @default(cuid())
+  season                String            // "Winter 2025"
+  theme                 String            // "Winter Landscapes"
+  passionArea           String?
+
+  startDate             DateTime
+  endDate               DateTime
+  submissionDeadline    DateTime
+
+  rules                 String            @db.Text
+  judgingCriteria        Json             @default("[]") // [{name, weight, description}]
+
+  // Judging
+  judges                User[]           @relation("CompetitionJudges")
+  votingEnabled         Boolean          @default(false)
+  communityVoteWeight   Float            @default(0.3) // 30% community, 70% judges
+
+  status                CompetitionStatus @default(UPCOMING)
+
+  // Rewards
+  xpReward              Int              @default(100)
+  firstPlaceReward      String?
+  secondPlaceReward     String?
+  thirdPlaceReward      String?
+
+  entries               CompetitionEntry[]
+  votes                 CompetitionVote[]
+
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  @@index([status])
+  @@index([passionArea])
+  @@index([startDate, endDate])
+}
+
+// Competition entries
+model CompetitionEntry {
+  id                String             @id @default(cuid())
+  competitionId     String
+  competition       SeasonalCompetition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  studentId         String
+  student           User               @relation("CompetitionEntries", fields: [studentId], references: [id])
+
+  title             String
+  description       String?            @db.Text
+  workUrl           String?
+  mediaUrl          String?
+
+  // Scoring
+  judgeScore        Float?             // Average of judge scores
+  communityScore    Float?             // Average community vote
+  finalScore        Float?             // Weighted combination
+  placement         Int?               // 1st, 2nd, 3rd, etc.
+
+  submittedAt       DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  votes             CompetitionVote[]
+
+  @@unique([competitionId, studentId])
+  @@index([competitionId, finalScore])
+  @@index([studentId])
+}
+
+// Community votes for competition entries
+model CompetitionVote {
+  id                String             @id @default(cuid())
+  competitionId     String
+  competition       SeasonalCompetition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  entryId           String
+  entry             CompetitionEntry   @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  voterId           String
+  voter             User               @relation("CompetitionVotes", fields: [voterId], references: [id])
+
+  score             Int                // 1-5 stars
+  comment           String?
+
+  votedAt           DateTime           @default(now())
+
+  @@unique([entryId, voterId])
+  @@index([competitionId])
+  @@index([entryId])
+}
+
+// ============================================
+// PHASE 13: REAL-WORLD CONNECTIONS
+// ============================================
+
+enum InternshipType {
+  IN_PERSON
+  REMOTE
+  HYBRID
+}
+
+enum InternshipStatus {
+  OPEN
+  CLOSED
+  FILLED
+}
+
+enum ApplicationState {
+  APPLIED
+  REVIEWING
+  INTERVIEW
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+enum ServiceProjectStatus {
+  RECRUITING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum CertificationStatus {
+  IN_PROGRESS
+  SUBMITTED
+  UNDER_REVIEW
+  CERTIFIED
+  EXPIRED
+}
+
+enum ExchangeListingType {
+  OFFER
+  REQUEST
+}
+
+enum ExchangeListingStatus {
+  AVAILABLE
+  PENDING
+  CLAIMED
+  COMPLETED
+}
+
+// Portfolio Templates
+model PortfolioTemplate {
+  id              String   @id @default(cuid())
+  name            String
+  description     String
+  passionArea     String?  // null = general template
+  previewImageUrl String?
+
+  // Template structure
+  layout          String   @default("grid") // "grid", "timeline", "showcase", "minimal"
+  colorScheme     String   @default("default") // "default", "dark", "warm", "cool", "vibrant"
+  sections        Json     @default("[]") // [{title, type, placeholder, order}]
+
+  // Tips for this template
+  tips            Json     @default("[]") // ["Tip 1", "Tip 2"]
+
+  isActive        Boolean  @default(true)
+  order           Int      @default(0)
+  usageCount      Int      @default(0)
+
+  createdAt       DateTime @default(now())
+
+  @@index([passionArea])
+  @@index([isActive, order])
+}
+
+// Internship / Opportunity Board
+model InternshipListing {
+  id              String           @id @default(cuid())
+  title           String
+  organization    String
+  description     String           @db.Text
+  passionArea     String?
+
+  type            InternshipType
+  location        String?          // City, State or "Remote"
+  duration        String?          // "6 weeks", "Summer 2025"
+  hoursPerWeek    Int?
+  isPaid          Boolean          @default(false)
+  compensation    String?          // "$15/hr", "Stipend"
+
+  // Requirements
+  ageRange        String?          // "14-18"
+  requirements    Json             @default("[]") // ["Portfolio required", "Interview"]
+  applicationUrl  String?          // External link
+
+  // Contact
+  contactName     String?
+  contactEmail    String?
+
+  status          InternshipStatus @default(OPEN)
+  deadline        DateTime?
+
+  postedById      String
+  postedBy        User             @relation("InternshipListingsPosted", fields: [postedById], references: [id])
+
+  applications    InternshipApplication[]
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([status])
+  @@index([passionArea])
+  @@index([type])
+  @@index([deadline])
+}
+
+model InternshipApplication {
+  id              String           @id @default(cuid())
+  listingId       String
+  listing         InternshipListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  studentId       String
+  student         User             @relation("InternshipApplications", fields: [studentId], references: [id])
+
+  coverLetter     String?          @db.Text
+  portfolioUrl    String?
+  resumeUrl       String?
+
+  status          ApplicationState @default(APPLIED)
+  reviewNotes     String?
+
+  appliedAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@unique([listingId, studentId])
+  @@index([studentId])
+  @@index([status])
+}
+
+// Service Projects (Community Impact)
+model ServiceProject {
+  id              String               @id @default(cuid())
+  title           String
+  description     String               @db.Text
+  passionArea     String?
+
+  // Organization
+  partnerOrg      String?              // "Local Library", "Habitat for Humanity"
+  location        String?
+  chapterId       String?
+
+  // Timing
+  startDate       DateTime?
+  endDate         DateTime?
+  totalHoursGoal  Int?                 // Target volunteer hours
+
+  // Impact tracking
+  currentHours    Int                  @default(0)
+  volunteersNeeded Int                 @default(5)
+  impactSummary   String?              @db.Text
+
+  // Rewards
+  xpReward        Int                  @default(50)
+  certificateOnComplete Boolean        @default(false)
+
+  status          ServiceProjectStatus @default(RECRUITING)
+
+  createdById     String
+  createdBy       User                 @relation("ServiceProjectsCreated", fields: [createdById], references: [id])
+
+  volunteers      ServiceVolunteer[]
+
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([status])
+  @@index([passionArea])
+  @@index([chapterId])
+}
+
+model ServiceVolunteer {
+  id              String         @id @default(cuid())
+  projectId       String
+  project         ServiceProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  studentId       String
+  student         User           @relation("ServiceVolunteering", fields: [studentId], references: [id])
+
+  hoursLogged     Int            @default(0)
+  role            String?        // "Team Lead", "Volunteer", "Coordinator"
+  reflection      String?        @db.Text
+  completedAt     DateTime?
+
+  joinedAt        DateTime       @default(now())
+
+  @@unique([projectId, studentId])
+  @@index([studentId])
+}
+
+// Instructor Certifications
+model InstructorCertification {
+  id              String              @id @default(cuid())
+  instructorId    String
+  instructor      User                @relation("InstructorCertifications", fields: [instructorId], references: [id])
+
+  certType        String              // "Foundational", "Advanced", "Specialist"
+  passionArea     String?
+
+  // Requirements tracking
+  requirements    Json                @default("[]") // [{name, completed, evidence}]
+  totalRequired   Int                 @default(5)
+  totalCompleted  Int                 @default(0)
+  progressPct     Float               @default(0)
+
+  // Submission & Review
+  status          CertificationStatus @default(IN_PROGRESS)
+  submittedAt     DateTime?
+  reviewedAt      DateTime?
+  reviewerNotes   String?
+  certificateUrl  String?
+
+  // Validity
+  certifiedAt     DateTime?
+  expiresAt       DateTime?
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@unique([instructorId, certType, passionArea])
+  @@index([instructorId])
+  @@index([status])
+}
+
+// Resource Exchange (Peer-to-Peer)
+model ResourceExchangeListing {
+  id              String                 @id @default(cuid())
+  userId          String
+  user            User                   @relation("ResourceExchangeListings", fields: [userId], references: [id])
+
+  title           String
+  description     String?
+  type            ExchangeListingType    // OFFER or REQUEST
+  category        String                 // "Instrument", "Art Supplies", "Books", "Equipment", "Software"
+  passionArea     String?
+  imageUrl        String?
+
+  condition       String?                // "New", "Like New", "Good", "Fair"
+  estimatedValue  Float?
+
+  status          ExchangeListingStatus  @default(AVAILABLE)
+
+  requests        ResourceExchangeRequest[]
+
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@index([type, status])
+  @@index([category])
+  @@index([passionArea])
+  @@index([userId])
+}
+
+model ResourceExchangeRequest {
+  id              String                  @id @default(cuid())
+  listingId       String
+  listing         ResourceExchangeListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  requesterId     String
+  requester       User                    @relation("ResourceExchangeRequests", fields: [requesterId], references: [id])
+
+  message         String?
+  status          String                  @default("PENDING") // PENDING, ACCEPTED, DECLINED
+
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@unique([listingId, requesterId])
+  @@index([requesterId])
 }
