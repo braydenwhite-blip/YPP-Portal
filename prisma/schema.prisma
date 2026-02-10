@@ -371,6 +371,16 @@ model User {
   competitionJudgings            SeasonalCompetition[]        @relation("CompetitionJudges")
   competitionVotes               CompetitionVote[]            @relation("CompetitionVotes")
 
+  // Phase 2 Engagement: New Feature Relations
+  studentContents                StudentContent[]             @relation("StudentContents")
+  contentLikes                   ContentLike[]                @relation("ContentLikes")
+  contentComments                ContentComment[]             @relation("ContentComments")
+  randomRewards                  RandomReward[]               @relation("RandomRewards")
+  leaderboardEntries             LeaderboardEntry[]           @relation("LeaderboardEntries")
+  mysteryBoxes                   MysteryBox[]                 @relation("MysteryBoxes")
+  challengesNominated            StudentNominatedChallenge[]  @relation("ChallengesNominated")
+  nominationVotes                NominationVote[]             @relation("NominationVotes")
+
   // Phase 13: Real-World Connections Relations
   internshipApplications         InternshipApplication[]      @relation("InternshipApplications")
   internshipListingsPosted       InternshipListing[]          @relation("InternshipListingsPosted")
@@ -4559,6 +4569,241 @@ model CompetitionVote {
   @@unique([entryId, voterId])
   @@index([competitionId])
   @@index([entryId])
+}
+
+// ============================================
+// PHASE 2 ENGAGEMENT: STUDENT CONTENT SHOWCASE (#24)
+// ============================================
+
+enum ContentType {
+  VIDEO
+  ARTICLE
+  PROJECT
+  TUTORIAL
+  ART
+  MUSIC
+  CODE
+  OTHER
+}
+
+enum ContentStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  FEATURED
+  REJECTED
+}
+
+model StudentContent {
+  id              String        @id @default(cuid())
+  studentId       String
+  student         User          @relation("StudentContents", fields: [studentId], references: [id])
+
+  title           String
+  description     String?       @db.Text
+  contentType     ContentType
+  mediaUrl        String?       // Link to uploaded content
+  thumbnailUrl    String?
+  passionArea     String?
+
+  // Moderation & status
+  status          ContentStatus @default(DRAFT)
+  reviewedById    String?
+  reviewNote      String?
+
+  // Engagement
+  viewCount       Int           @default(0)
+  likeCount       Int           @default(0)
+  isFeatured      Boolean       @default(false)
+  featuredAt      DateTime?
+
+  // Rewards
+  xpAwarded       Int           @default(0)
+
+  likes           ContentLike[]
+  comments        ContentComment[]
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([studentId])
+  @@index([status])
+  @@index([contentType])
+  @@index([passionArea])
+  @@index([isFeatured])
+}
+
+model ContentLike {
+  id              String         @id @default(cuid())
+  contentId       String
+  content         StudentContent @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User           @relation("ContentLikes", fields: [userId], references: [id])
+
+  createdAt       DateTime       @default(now())
+
+  @@unique([contentId, userId])
+  @@index([userId])
+}
+
+model ContentComment {
+  id              String         @id @default(cuid())
+  contentId       String
+  content         StudentContent @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  authorId        String
+  author          User           @relation("ContentComments", fields: [authorId], references: [id])
+
+  text            String
+  createdAt       DateTime       @default(now())
+
+  @@index([contentId])
+  @@index([authorId])
+}
+
+// ============================================
+// PHASE 2 ENGAGEMENT: RANDOM ACTS OF LEARNING (#26)
+// ============================================
+
+model RandomReward {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation("RandomRewards", fields: [userId], references: [id])
+
+  rewardType      String   // "BONUS_XP", "SURPRISE_BADGE", "STREAK_SHIELD", "DOUBLE_XP"
+  title           String
+  description     String?
+  xpAmount        Int      @default(0)
+  badgeId         String?  // If reward is a badge
+
+  isRedeemed      Boolean  @default(false)
+  redeemedAt      DateTime?
+  expiresAt       DateTime?
+
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+  @@index([isRedeemed])
+}
+
+// ============================================
+// PHASE 2 ENGAGEMENT: LEADERBOARDS (#29)
+// ============================================
+
+enum LeaderboardPeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+  ALL_TIME
+}
+
+model LeaderboardEntry {
+  id              String            @id @default(cuid())
+  userId          String
+  user            User              @relation("LeaderboardEntries", fields: [userId], references: [id])
+
+  category        String            // "XP", "STREAKS", "CHALLENGES", "PRACTICE_HOURS", "CONTENT_CREATED"
+  period          LeaderboardPeriod
+  periodStart     DateTime          // Start of the period window
+  score           Float             @default(0)
+  rank            Int?
+  passionArea     String?           // null = global, otherwise passion-specific
+
+  updatedAt       DateTime          @updatedAt
+
+  @@unique([userId, category, period, periodStart, passionArea])
+  @@index([category, period, periodStart])
+  @@index([category, period, score])
+  @@index([userId])
+}
+
+// ============================================
+// PHASE 2 ENGAGEMENT: MYSTERY REWARDS (#30)
+// ============================================
+
+model MysteryBox {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation("MysteryBoxes", fields: [userId], references: [id])
+
+  // Trigger
+  triggerType     String   // "STREAK_MILESTONE", "LEVEL_UP", "CHALLENGE_COMPLETE", "RANDOM_DROP"
+  triggerDetail   String?  // e.g. "7_day_streak", "level_5"
+
+  // Reward inside
+  rewardType      String   // "XP_BOOST", "RARE_BADGE", "TITLE", "THEME_UNLOCK", "STREAK_SHIELD"
+  rewardTitle     String
+  rewardDescription String?
+  xpAmount        Int      @default(0)
+  badgeId         String?
+  metadata        Json?    // Extra reward data
+
+  // State
+  isOpened        Boolean  @default(false)
+  openedAt        DateTime?
+  expiresAt       DateTime?
+
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+  @@index([isOpened])
+}
+
+// ============================================
+// PHASE 2 ENGAGEMENT: STUDENT-NOMINATED CHALLENGES (#31)
+// ============================================
+
+enum NominationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PROMOTED    // Promoted to official challenge
+}
+
+model StudentNominatedChallenge {
+  id              String           @id @default(cuid())
+  nominatorId     String
+  nominator       User             @relation("ChallengesNominated", fields: [nominatorId], references: [id])
+
+  title           String
+  description     String           @db.Text
+  category        String?          // Passion area
+  difficulty      String           @default("MEDIUM") // EASY, MEDIUM, HARD
+  suggestedXp     Int              @default(25)
+  suggestedDuration String?        // "1 day", "1 week"
+
+  // Voting by community
+  upvotes         Int              @default(0)
+  downvotes       Int              @default(0)
+
+  // Status
+  status          NominationStatus @default(PENDING)
+  reviewedById    String?
+  reviewNote      String?
+  promotedChallengeId String?      // ID of created Challenge if promoted
+
+  votes           NominationVote[]
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([nominatorId])
+  @@index([status])
+  @@index([upvotes])
+}
+
+model NominationVote {
+  id              String                    @id @default(cuid())
+  nominationId    String
+  nomination      StudentNominatedChallenge @relation(fields: [nominationId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User                      @relation("NominationVotes", fields: [userId], references: [id])
+
+  isUpvote        Boolean
+
+  createdAt       DateTime                  @default(now())
+
+  @@unique([nominationId, userId])
+  @@index([userId])
 }
 
 // ============================================
