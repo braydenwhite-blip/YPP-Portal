@@ -19,7 +19,7 @@ export default async function SharedResourcesPage() {
   // Get resources shared by this instructor
   const sharedResources = await prisma.resource.findMany({
     where: {
-      uploaderId: session.user.id,
+      uploadedById: session.user.id,
       isPublic: true
     },
     include: {
@@ -28,9 +28,8 @@ export default async function SharedResourcesPage() {
     orderBy: { createdAt: "desc" }
   });
 
-  const now = new Date();
-  const activeResources = sharedResources.filter(r => !r.expiresAt || new Date(r.expiresAt) > now);
-  const expiredResources = sharedResources.filter(r => r.expiresAt && new Date(r.expiresAt) <= now);
+  const linkedResources = sharedResources.filter(r => r.courseId !== null).length;
+  const generalResources = sharedResources.length - linkedResources;
 
   return (
     <div>
@@ -54,120 +53,61 @@ export default async function SharedResourcesPage() {
 
       <div className="grid three" style={{ marginBottom: 28 }}>
         <div className="card">
-          <div className="kpi">{activeResources.length}</div>
-          <div className="kpi-label">Active Resources</div>
-        </div>
-        <div className="card">
-          <div className="kpi">{expiredResources.length}</div>
-          <div className="kpi-label">Expired Resources</div>
-        </div>
-        <div className="card">
           <div className="kpi">{sharedResources.length}</div>
           <div className="kpi-label">Total Shared</div>
         </div>
+        <div className="card">
+          <div className="kpi">{linkedResources}</div>
+          <div className="kpi-label">Linked to Course</div>
+        </div>
+        <div className="card">
+          <div className="kpi">{generalResources}</div>
+          <div className="kpi-label">General Resources</div>
+        </div>
       </div>
 
-      {/* Active resources */}
-      {activeResources.length > 0 && (
+      {sharedResources.length > 0 && (
         <div style={{ marginBottom: 28 }}>
-          <div className="section-title">Active Shared Resources</div>
+          <div className="section-title">Shared Resources</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {activeResources.map(resource => {
-              const daysUntilExpiry = resource.expiresAt
-                ? Math.ceil((new Date(resource.expiresAt).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-                : null;
-
-              return (
-                <div key={resource.id} className="card">
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                        <h3>{resource.title}</h3>
-                        <span className="pill success">Active</span>
-                        {daysUntilExpiry !== null && daysUntilExpiry <= 7 && (
-                          <span className="pill" style={{ backgroundColor: "var(--warning-bg)", color: "var(--warning-color)" }}>
-                            Expires in {daysUntilExpiry} days
-                          </span>
-                        )}
-                      </div>
-
-                      {resource.description && (
-                        <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 8 }}>
-                          {resource.description}
-                        </p>
-                      )}
-
-                      <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                        {resource.course && `Course: ${resource.course.title} • `}
-                        Type: {resource.type}
-                      </div>
-
-                      {resource.expiresAt && (
-                        <div style={{ fontSize: 13, marginTop: 8 }}>
-                          🕐 Expires: {new Date(resource.expiresAt).toLocaleDateString()}
-                        </div>
-                      )}
-
-                      {!resource.expiresAt && (
-                        <div style={{ fontSize: 13, marginTop: 8, color: "var(--success-color)" }}>
-                          ♾️ No expiration date
-                        </div>
-                      )}
-                    </div>
-
-                    <div style={{ marginLeft: 16, display: "flex", gap: 8 }}>
-                      <a
-                        href={resource.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="button secondary small"
-                      >
-                        View
-                      </a>
-                      <form action="/api/resources/delete" method="POST">
-                        <input type="hidden" name="resourceId" value={resource.id} />
-                        <button type="submit" className="button secondary small">
-                          Remove
-                        </button>
-                      </form>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Expired resources */}
-      {expiredResources.length > 0 && (
-        <div>
-          <div className="section-title">Expired Resources</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {expiredResources.map(resource => (
-              <div
-                key={resource.id}
-                className="card"
-                style={{ opacity: 0.6 }}
-              >
+            {sharedResources.map(resource => (
+              <div key={resource.id} className="card">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                      <h4>{resource.title}</h4>
-                      <span className="pill" style={{ backgroundColor: "var(--error-bg)", color: "var(--error-color)" }}>
-                        Expired
-                      </span>
+                      <h3>{resource.title}</h3>
+                      <span className="pill success">Public</span>
+                      <span className="pill">{resource.type}</span>
                     </div>
+
+                    {resource.description && (
+                      <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 8 }}>
+                        {resource.description}
+                      </p>
+                    )}
+
                     <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                      Expired on: {new Date(resource.expiresAt!).toLocaleDateString()}
+                      {resource.course ? `Course: ${resource.course.title} • ` : ""}
+                      Created {new Date(resource.createdAt).toLocaleDateString()}
                     </div>
                   </div>
-                  <form action="/api/resources/delete" method="POST">
-                    <input type="hidden" name="resourceId" value={resource.id} />
-                    <button type="submit" className="button secondary small">
-                      Delete
-                    </button>
-                  </form>
+
+                  <div style={{ marginLeft: 16, display: "flex", gap: 8 }}>
+                    <a
+                      href={resource.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="button secondary small"
+                    >
+                      View
+                    </a>
+                    <form action="/api/resources/delete" method="POST">
+                      <input type="hidden" name="resourceId" value={resource.id} />
+                      <button type="submit" className="button secondary small">
+                        Remove
+                      </button>
+                    </form>
+                  </div>
                 </div>
               </div>
             ))}

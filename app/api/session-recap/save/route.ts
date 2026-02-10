@@ -2,7 +2,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { redirect } from "next/navigation";
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -25,6 +24,13 @@ export async function POST(request: Request) {
 
   if (!attendanceSession) {
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
+  }
+
+  if (!attendanceSession.course || !attendanceSession.courseId) {
+    return NextResponse.json(
+      { error: "Session is missing a course" },
+      { status: 400 }
+    );
   }
 
   const isInstructor =
@@ -54,5 +60,7 @@ export async function POST(request: Request) {
     }
   });
 
-  redirect(`/courses/${attendanceSession.courseId}`);
+  return NextResponse.redirect(
+    new URL(`/courses/${attendanceSession.courseId}`, request.url)
+  );
 }

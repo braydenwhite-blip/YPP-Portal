@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { redirect } from "next/navigation";
+import { MessagePriority } from "@prisma/client";
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -15,7 +16,11 @@ export async function POST(request: Request) {
   const instructorId = formData.get("instructorId") as string;
   const subject = formData.get("subject") as string;
   const message = formData.get("message") as string;
-  const priority = formData.get("priority") as string || "NORMAL";
+  const priorityRaw = formData.get("priority");
+  const priority =
+    typeof priorityRaw === "string" && Object.values(MessagePriority).includes(priorityRaw as MessagePriority)
+      ? (priorityRaw as MessagePriority)
+      : MessagePriority.NORMAL;
 
   // Get parent profile
   const parentProfile = await prisma.parentProfile.findUnique({

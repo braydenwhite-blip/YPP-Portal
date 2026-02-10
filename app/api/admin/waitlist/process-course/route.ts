@@ -11,9 +11,14 @@ export async function POST(request: Request) {
   }
 
   const formData = await request.formData();
-  const courseId = formData.get("courseId") as string;
+  const courseIdRaw = formData.get("courseId");
+  if (typeof courseIdRaw !== "string" || !courseIdRaw) {
+    return NextResponse.json({ error: "Missing courseId" }, { status: 400 });
+  }
+  const courseId = courseIdRaw;
 
-  const processed = await processWaitlist(courseId);
+  const offered = await processWaitlist(courseId);
+  const processed = offered ? 1 : 0;
 
   redirect("/admin/waitlist?processed=" + processed);
 }

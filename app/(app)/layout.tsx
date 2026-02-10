@@ -4,6 +4,10 @@ import AppShell from "@/components/app-shell";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+// Force runtime rendering so `next build` doesn't try to prerender pages that
+// require auth/database access (which can fail in build environments).
+export const dynamic = "force-dynamic";
+
 // Helper to determine highest award tier from awards
 function getHighestAwardTier(awards: { type: string | null }[]): string | undefined {
   const tiers = awards.map(a => a.type).filter(Boolean);

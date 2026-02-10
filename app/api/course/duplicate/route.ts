@@ -11,12 +11,19 @@ export async function POST(request: Request) {
   }
 
   const formData = await request.formData();
-  const courseId = formData.get("courseId") as string;
-  const title = formData.get("title") as string;
-  const code = formData.get("code") as string;
-  const startDate = formData.get("startDate") as string;
-  const endDate = formData.get("endDate") as string;
-  const description = formData.get("description") as string | null;
+  const courseIdRaw = formData.get("courseId");
+  const titleRaw = formData.get("title");
+  const descriptionRaw = formData.get("description");
+
+  if (typeof courseIdRaw !== "string" || !courseIdRaw) {
+    return NextResponse.json({ error: "Missing courseId" }, { status: 400 });
+  }
+  if (typeof titleRaw !== "string" || !titleRaw.trim()) {
+    return NextResponse.json({ error: "Missing title" }, { status: 400 });
+  }
+  const courseId = courseIdRaw;
+  const title = titleRaw.trim();
+  const description = typeof descriptionRaw === "string" ? descriptionRaw : null;
 
   // Get the original course with all related data
   const originalCourse = await prisma.course.findUnique({
@@ -43,17 +50,14 @@ export async function POST(request: Request) {
   const newCourse = await prisma.course.create({
     data: {
       title,
-      code,
-      description: description || originalCourse.description,
+      description: description ?? originalCourse.description,
       leadInstructorId: session.user.id,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
+      chapterId: originalCourse.chapterId,
+      format: originalCourse.format,
       level: originalCourse.level,
-      category: originalCourse.category,
-      status: "DRAFT", // Start as draft
-      maxStudents: originalCourse.maxStudents,
-      location: originalCourse.location,
-      meetingTime: originalCourse.meetingTime
+      interestArea: originalCourse.interestArea,
+      isVirtual: originalCourse.isVirtual,
+      maxEnrollment: originalCourse.maxEnrollment
     }
   });
 
@@ -65,10 +69,13 @@ export async function POST(request: Request) {
         title: assignment.title,
         description: assignment.description,
         type: assignment.type,
-        dueDate: assignment.dueDate, // You might want to adjust dates
-        points: assignment.points,
+        maxPoints: assignment.maxPoints,
+        dueDate: assignment.dueDate,
+        allowLateSubmission: assignment.allowLateSubmission,
         instructions: assignment.instructions,
-        rubric: assignment.rubric
+        attachmentUrl: assignment.attachmentUrl,
+        isPublished: assignment.isPublished,
+        createdById: session.user.id
       }
     });
   }
@@ -78,13 +85,14 @@ export async function POST(request: Request) {
     await prisma.resource.create({
       data: {
         courseId: newCourse.id,
-        uploaderId: session.user.id,
+        uploadedById: session.user.id,
         title: resource.title,
         description: resource.description,
         type: resource.type,
         url: resource.url,
+        fileSize: resource.fileSize,
         isPublic: resource.isPublic,
-        expiresAt: resource.expiresAt
+        tags: resource.tags
       }
     });
   }

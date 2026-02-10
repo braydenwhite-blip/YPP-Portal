@@ -9,10 +9,10 @@ export default async function WaitlistAutomationPage() {
     redirect("/");
   }
 
-  const waitlistEntries = await prisma.courseWaitlist.findMany({
+  const waitlistEntries = await prisma.waitlistEntry.findMany({
     where: { status: "WAITING" },
     include: {
-      student: true,
+      user: true,
       course: {
         include: {
           _count: {
@@ -21,7 +21,7 @@ export default async function WaitlistAutomationPage() {
         }
       }
     },
-    orderBy: { joinedAt: "asc" }
+    orderBy: { createdAt: "asc" }
   });
 
   // Group by course
@@ -75,8 +75,8 @@ export default async function WaitlistAutomationPage() {
         </div>
       ) : (
         Object.values(waitlistByCourse).map((item: any) => {
-          const spotsAvailable = item.course.maxStudents
-            ? item.course.maxStudents - item.course._count.enrollments
+          const spotsAvailable = item.course.maxEnrollment
+            ? item.course.maxEnrollment - item.course._count.enrollments
             : 0;
 
           return (
@@ -85,7 +85,7 @@ export default async function WaitlistAutomationPage() {
                 <div>
                   <h3>{item.course.title}</h3>
                   <div style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 4 }}>
-                    {item.course._count.enrollments} / {item.course.maxStudents || "∞"} enrolled
+                    {item.course._count.enrollments} / {item.course.maxEnrollment || "∞"} enrolled
                     • {item.entries.length} waiting
                     {spotsAvailable > 0 && (
                       <span style={{ color: "var(--success-color)", marginLeft: 8 }}>
@@ -116,9 +116,9 @@ export default async function WaitlistAutomationPage() {
                     }}
                   >
                     <div>
-                      <div style={{ fontWeight: 600 }}>#{index + 1} - {entry.student.name}</div>
+                      <div style={{ fontWeight: 600 }}>#{index + 1} - {entry.user.name}</div>
                       <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>
-                        Joined waitlist: {new Date(entry.joinedAt).toLocaleDateString()}
+                        Joined waitlist: {new Date(entry.createdAt).toLocaleDateString()}
                       </div>
                     </div>
                     {index === 0 && spotsAvailable > 0 && (

@@ -49,7 +49,7 @@ export default async function AutomatedRemindersPage() {
               <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
                 Days Before Due Date
               </label>
-              <select name="daysBefo re" required style={{ width: "100%", padding: "8px 12px", border: "1px solid var(--border-color)", borderRadius: 6 }}>
+              <select name="daysBefore" required style={{ width: "100%", padding: "8px 12px", border: "1px solid var(--border-color)", borderRadius: 6 }}>
                 <option value="1">1 day before</option>
                 <option value="2">2 days before</option>
                 <option value="3">3 days before</option>
@@ -95,7 +95,8 @@ export default async function AutomatedRemindersPage() {
               <div key={assignment.id} style={{ padding: 12, backgroundColor: "var(--accent-bg)", borderRadius: 6 }}>
                 <div style={{ fontWeight: 600 }}>{assignment.title}</div>
                 <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 4 }}>
-                  {assignment.course.title} • Due {new Date(assignment.dueDate).toLocaleDateString()}
+                  {assignment.course.title} • Due{" "}
+                  {assignment.dueDate ? assignment.dueDate.toLocaleDateString() : "TBD"}
                 </div>
               </div>
             ))

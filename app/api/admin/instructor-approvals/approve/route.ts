@@ -11,31 +11,35 @@ export async function POST(request: Request) {
   }
 
   const formData = await request.formData();
-  const instructorId = formData.get("instructorId") as string;
+  const instructorIdRaw = formData.get("instructorId");
   const level_101 = formData.get("level_101") === "true";
   const level_201 = formData.get("level_201") === "true";
   const level_301 = formData.get("level_301") === "true";
   const notes = formData.get("notes") as string | null;
 
+  if (typeof instructorIdRaw !== "string" || !instructorIdRaw) {
+    return NextResponse.json({ error: "Missing instructorId" }, { status: 400 });
+  }
+  const instructorId = instructorIdRaw;
+
   // Create approval
   const approval = await prisma.instructorApproval.create({
     data: {
       instructorId,
-      approvedById: session.user.id,
-      approvedAt: new Date(),
+      status: "APPROVED",
       notes: notes || null
     }
   });
 
   // Create level approvals
-  const levels = [];
+  const levels: { approvalId: string; level: "LEVEL_101" | "LEVEL_201" | "LEVEL_301" }[] = [];
   if (level_101) levels.push({ approvalId: approval.id, level: "LEVEL_101" });
   if (level_201) levels.push({ approvalId: approval.id, level: "LEVEL_201" });
   if (level_301) levels.push({ approvalId: approval.id, level: "LEVEL_301" });
 
   if (levels.length > 0) {
-    await prisma.approvedLevel.createMany({
-      data: levels as any
+    await prisma.instructorApprovalLevel.createMany({
+      data: levels
     });
   }
 
