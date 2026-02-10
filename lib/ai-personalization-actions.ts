@@ -6,6 +6,15 @@ import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { LEVELS } from "@/lib/xp-config";
 
+type LearningPathMilestone = {
+  week: number;
+  goal: string;
+  resources: string[];
+  tasks: string[];
+  isComplete: boolean;
+  level: string;
+};
+
 // ============================================
 // HELPERS
 // ============================================
@@ -127,8 +136,8 @@ function generateMilestones(
   targetLevel: string,
   totalWeeks: number,
   weeklyHours: number
-): unknown[] {
-  const milestones: unknown[] = [];
+): LearningPathMilestone[] {
+  const milestones: LearningPathMilestone[] = [];
   const levels = ["beginner", "intermediate", "advanced", "expert"];
   const startIdx = levels.indexOf(currentLevel);
   const endIdx = levels.indexOf(targetLevel);
@@ -202,7 +211,7 @@ export async function updateLearningPathProgress(pathId: string, milestoneIndex:
   const path = await prisma.learningPath.findUnique({ where: { id: pathId } });
   if (!path || path.studentId !== session.user.id) throw new Error("Not found");
 
-  const milestones = (path.milestones as Array<Record<string, unknown>>) || [];
+  const milestones = (path.milestones as unknown as LearningPathMilestone[]) || [];
   if (milestoneIndex >= 0 && milestoneIndex < milestones.length) {
     milestones[milestoneIndex].isComplete = !milestones[milestoneIndex].isComplete;
   }

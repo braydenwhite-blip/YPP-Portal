@@ -201,7 +201,7 @@ export default async function AssignmentDetailPage({
                       {group.members.map((m) => m.user.name).join(", ")}
                     </div>
                     <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>
-                      {group._count.milestones} milestone{group._count.milestones !== 1 ? "s" : ""}
+                      {group.milestones.length} milestone{group.milestones.length !== 1 ? "s" : ""}
                     </div>
                   </Link>
                 );

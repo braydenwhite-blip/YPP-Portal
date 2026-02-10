@@ -5,6 +5,13 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
+type WeeklyTopic = {
+  week?: number;
+  topic?: string;
+  milestone?: string;
+  materials?: string;
+};
+
 // ============================================
 // HELPERS
 // ============================================
@@ -86,10 +93,11 @@ export async function createClassTemplate(formData: FormData) {
     : ["VIRTUAL"];
 
   const weeklyTopicsRaw = getString(formData, "weeklyTopics", false);
-  let weeklyTopics: unknown[] = [];
+  let weeklyTopics: WeeklyTopic[] = [];
   if (weeklyTopicsRaw) {
     try {
-      weeklyTopics = JSON.parse(weeklyTopicsRaw);
+      const parsed: unknown = JSON.parse(weeklyTopicsRaw);
+      weeklyTopics = Array.isArray(parsed) ? (parsed as WeeklyTopic[]) : [];
     } catch {
       weeklyTopics = [];
     }
@@ -166,10 +174,11 @@ export async function updateClassTemplate(formData: FormData) {
     : ["VIRTUAL"];
 
   const weeklyTopicsRaw = getString(formData, "weeklyTopics", false);
-  let weeklyTopics: unknown[] = [];
+  let weeklyTopics: WeeklyTopic[] = [];
   if (weeklyTopicsRaw) {
     try {
-      weeklyTopics = JSON.parse(weeklyTopicsRaw);
+      const parsed: unknown = JSON.parse(weeklyTopicsRaw);
+      weeklyTopics = Array.isArray(parsed) ? (parsed as WeeklyTopic[]) : [];
     } catch {
       weeklyTopics = [];
     }

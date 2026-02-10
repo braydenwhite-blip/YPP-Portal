@@ -29,6 +29,9 @@ export default async function GroupProjectsPage({
   const selectedGroup = selectedGroupId
     ? assignment.groups.find((g) => g.id === selectedGroupId)
     : myGroup || null;
+  const selectedGroupSubmissions = selectedGroup
+    ? assignment.submissions.filter((s) => s.groupId === selectedGroup.id)
+    : [];
 
   return (
     <div>
@@ -248,11 +251,11 @@ export default async function GroupProjectsPage({
               </div>
 
               {/* Submissions from this group */}
-              {selectedGroup.submissions.length > 0 && (
+              {selectedGroupSubmissions.length > 0 && (
                 <div className="card">
                   <h3>Group Submissions</h3>
                   <div style={{ marginTop: 8 }}>
-                    {selectedGroup.submissions.map((sub) => (
+                    {selectedGroupSubmissions.map((sub) => (
                       <div
                         key={sub.id}
                         style={{
