@@ -7,7 +7,7 @@ import Link from "next/link";
 export default async function BookmarksPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    redirect("/public/login");
+    redirect("/login");
   }
 
   // Get user's bookmarks with resources

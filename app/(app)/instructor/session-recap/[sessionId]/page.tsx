@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 export default async function SessionRecapPage({ params }: { params: { sessionId: string } }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    redirect("/public/login");
+    redirect("/login");
   }
 
   const attendanceSession = await prisma.attendanceSession.findUnique({

@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 export default async function NewSubstituteRequestPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    redirect("/public/login");
+    redirect("/login");
   }
 
   const isInstructor = session.user.primaryRole === "INSTRUCTOR" || session.user.primaryRole === "ADMIN";
