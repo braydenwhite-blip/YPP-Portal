@@ -16,13 +16,13 @@ export async function POST(request: Request) {
         select: { enrollments: true }
       }
     },
-    orderBy: { startDate: 'desc' }
+    orderBy: { createdAt: "desc" }
   });
 
   const csv = [
-    "Course Title,Code,Instructor,Enrollments,Start Date,End Date",
+    "Course Title,Instructor,Enrollments,Max Enrollment,Format,Level,Interest Area,Virtual,Created At",
     ...courses.map(course =>
-      `"${course.title}","${course.code}","${course.leadInstructor.name}",${course._count.enrollments},"${new Date(course.startDate).toISOString().split('T')[0]}","${new Date(course.endDate).toISOString().split('T')[0]}"`
+      `"${course.title}","${course.leadInstructor?.name ?? ""}",${course._count.enrollments},${course.maxEnrollment ?? ""},"${course.format}","${course.level ?? ""}","${course.interestArea}",${course.isVirtual},"${course.createdAt.toISOString()}"`
     )
   ].join("\n");
 

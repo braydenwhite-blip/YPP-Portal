@@ -21,6 +21,7 @@ export default async function PeerObservationPage() {
     where: { observerId: session.user.id },
     include: {
       observee: true,
+      observer: true,
       course: true
     },
     orderBy: { scheduledAt: "desc" }
@@ -31,6 +32,7 @@ export default async function PeerObservationPage() {
     where: { observeeId: session.user.id },
     include: {
       observer: true,
+      observee: true,
       course: true
     },
     orderBy: { scheduledAt: "desc" }

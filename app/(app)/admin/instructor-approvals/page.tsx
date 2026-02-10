@@ -14,7 +14,7 @@ export default async function InstructorApprovalsPage() {
     where: {
       primaryRole: "INSTRUCTOR",
       NOT: {
-        instructorApprovals: {
+        approvals: {
           some: {}
         }
       }
@@ -25,10 +25,9 @@ export default async function InstructorApprovalsPage() {
   const approvals = await prisma.instructorApproval.findMany({
     include: {
       instructor: true,
-      approvedBy: true,
       levels: true
     },
-    orderBy: { approvedAt: "desc" }
+    orderBy: { updatedAt: "desc" }
   });
 
   return (
@@ -55,7 +54,7 @@ export default async function InstructorApprovalsPage() {
           <div className="kpi-label">Total Approvals</div>
         </div>
         <div className="card">
-          <div className="kpi">{approvals.filter(a => new Date(a.approvedAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).length}</div>
+          <div className="kpi">{approvals.filter(a => new Date(a.updatedAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).length}</div>
           <div className="kpi-label">Last 30 Days</div>
         </div>
       </div>
@@ -115,7 +114,7 @@ export default async function InstructorApprovalsPage() {
                     Approved for: {approval.levels.map(l => l.level.replace("LEVEL_", "Level ")).join(", ")}
                   </div>
                   <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>
-                    By {approval.approvedBy.name} on {new Date(approval.approvedAt).toLocaleDateString()}
+                    Updated {new Date(approval.updatedAt).toLocaleDateString()}
                   </div>
                   {approval.notes && (
                     <div style={{ fontSize: 13, marginTop: 8, padding: 8, backgroundColor: "var(--accent-bg)", borderRadius: 4 }}>

@@ -12,18 +12,9 @@ export async function POST(request: Request) {
   }
 
   // Get all courses with active waitlists
-  const waitlistEntries = await prisma.courseWaitlist.findMany({
+  const waitlistEntries = await prisma.waitlistEntry.findMany({
     where: { status: "WAITING" },
-    include: {
-      course: {
-        include: {
-          _count: {
-            select: { enrollments: true }
-          }
-        }
-      }
-    },
-    orderBy: { joinedAt: "asc" }
+    select: { courseId: true }
   });
 
   // Group by course and process
@@ -31,8 +22,8 @@ export async function POST(request: Request) {
   let totalProcessed = 0;
 
   for (const courseId of courseIds) {
-    const processed = await processWaitlist(courseId);
-    totalProcessed += processed;
+    const offered = await processWaitlist(courseId);
+    totalProcessed += offered ? 1 : 0;
   }
 
   redirect("/admin/waitlist?processed=" + totalProcessed);

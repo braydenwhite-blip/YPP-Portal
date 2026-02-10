@@ -14,7 +14,7 @@ export default async function EventCalendarManagementPage() {
   const events = await prisma.event.findMany({
     include: {
       chapter: true,
-      registrations: {
+      rsvps: {
         include: {
           user: true
         }
@@ -54,7 +54,7 @@ export default async function EventCalendarManagementPage() {
           <div className="kpi-label">Upcoming Events</div>
         </div>
         <div className="card">
-          <div className="kpi">{events.reduce((sum, e) => sum + e.registrations.length, 0)}</div>
+          <div className="kpi">{events.reduce((sum, e) => sum + e.rsvps.length, 0)}</div>
           <div className="kpi-label">Total Registrations</div>
         </div>
       </div>
@@ -65,21 +65,14 @@ export default async function EventCalendarManagementPage() {
           <div className="section-title">Upcoming Events</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {upcomingEvents.map(event => {
-              const spotsLeft = event.capacity ? event.capacity - event.registrations.length : null;
-              const isFull = spotsLeft !== null && spotsLeft <= 0;
-
               return (
                 <div key={event.id} className="card">
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                         <h3>{event.title}</h3>
-                        {isFull && <span className="pill" style={{ backgroundColor: "var(--error-bg)", color: "var(--error-color)" }}>Full</span>}
-                        {event.isPublic ? (
-                          <span className="pill success">Public</span>
-                        ) : (
-                          <span className="pill">Private</span>
-                        )}
+                        <span className="pill">{event.eventType.replace("_", " ")}</span>
+                        {event.isAlumniOnly && <span className="pill">Alumni Only</span>}
                       </div>
                       {event.description && (
                         <p style={{ fontSize: 14, marginBottom: 8 }}>{event.description}</p>
@@ -98,13 +91,7 @@ export default async function EventCalendarManagementPage() {
                         </div>
                       )}
                       <div style={{ fontSize: 14, marginTop: 8 }}>
-                        👥 {event.registrations.length} registered
-                        {event.capacity && ` / ${event.capacity} capacity`}
-                        {spotsLeft !== null && spotsLeft > 0 && (
-                          <span style={{ color: "var(--success-color)", marginLeft: 8 }}>
-                            ({spotsLeft} spots left)
-                          </span>
-                        )}
+                        👥 {event.rsvps.length} registered
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 8, marginLeft: 16 }}>
@@ -134,7 +121,7 @@ export default async function EventCalendarManagementPage() {
                   <div>
                     <h4>{event.title}</h4>
                     <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 4 }}>
-                      {new Date(event.startDate).toLocaleDateString()} • {event.registrations.length} attended
+                      {new Date(event.startDate).toLocaleDateString()} • {event.rsvps.length} RSVPs
                     </div>
                   </div>
                   <Link href={`/admin/events/${event.id}/registrations`} className="button secondary small">

@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { redirect } from "next/navigation";
+import { ProjectVisibility } from "@prisma/client";
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -16,7 +17,11 @@ export async function POST(request: Request) {
   const description = formData.get("description") as string;
   const startDate = formData.get("startDate") as string;
   const targetEndDate = formData.get("targetEndDate") as string;
-  const visibility = formData.get("visibility") as string;
+  const visibilityRaw = formData.get("visibility");
+  const visibility =
+    typeof visibilityRaw === "string" && Object.values(ProjectVisibility).includes(visibilityRaw as ProjectVisibility)
+      ? (visibilityRaw as ProjectVisibility)
+      : ProjectVisibility.PRIVATE;
 
   // Create project
   const project = await prisma.projectTracker.create({
@@ -28,7 +33,7 @@ export async function POST(request: Request) {
       startDate: startDate ? new Date(startDate) : new Date(),
       targetEndDate: targetEndDate ? new Date(targetEndDate) : null,
       status: "PLANNING",
-      visibility: visibility || "PRIVATE",
+      visibility,
       tags: [],
       collaborators: []
     }

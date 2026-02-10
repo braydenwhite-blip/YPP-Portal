@@ -3,6 +3,8 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { redirect } from "next/navigation";
+import { hash } from "bcryptjs";
+import { randomBytes } from "node:crypto";
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -52,11 +54,14 @@ export async function POST(request: Request) {
       }
 
       // Create user
+      // Users imported in bulk should set their password via the forgot-password flow.
+      const passwordHash = await hash(randomBytes(32).toString("hex"), 10);
       await prisma.user.create({
         data: {
           name,
           email,
-          primaryRole: role as any
+          primaryRole: role as any,
+          passwordHash
         }
       });
 

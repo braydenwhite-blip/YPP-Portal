@@ -19,10 +19,9 @@ export default async function InstructorCertificationsPage() {
   const approvals = await prisma.instructorApproval.findMany({
     where: { instructorId: session.user.id },
     include: {
-      levels: true,
-      approvedBy: true
+      levels: true
     },
-    orderBy: { approvedAt: "desc" }
+    orderBy: { updatedAt: "desc" }
   });
 
   // Get completed training modules
@@ -114,8 +113,7 @@ export default async function InstructorCertificationsPage() {
                       {approval.levels.map(l => l.level.replace("LEVEL_", "Level ")).join(", ")}
                     </h3>
                     <div style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 4 }}>
-                      Approved by {approval.approvedBy.name} on{" "}
-                      {new Date(approval.approvedAt).toLocaleDateString()}
+                      Updated {new Date(approval.updatedAt).toLocaleDateString()}
                     </div>
                     {approval.notes && (
                       <div style={{
@@ -129,7 +127,7 @@ export default async function InstructorCertificationsPage() {
                       </div>
                     )}
                   </div>
-                  <span className="pill success">Active</span>
+                  <span className="pill success">{approval.status.replaceAll("_", " ")}</span>
                 </div>
               </div>
             ))}

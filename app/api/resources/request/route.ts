@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   await prisma.resourceRequest.create({
     data: {
       studentId: session.user.id,
-      passionId: passionId || null,
+      passionId,
       projectId: projectId || null,
       itemName,
       description,

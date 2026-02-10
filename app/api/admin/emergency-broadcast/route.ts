@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     data: users.map(user => ({
       userId: user.id,
       title,
-      message,
+      body: message,
       type: "ANNOUNCEMENT"
     }))
   });

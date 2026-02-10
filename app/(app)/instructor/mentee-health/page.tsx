@@ -36,13 +36,13 @@ export default async function MenteeHealthPage() {
               }
             }
           },
-          reflectionEntries: {
+          reflectionSubmissions: {
             where: {
-              createdAt: {
+              submittedAt: {
                 gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
               }
             },
-            orderBy: { createdAt: "desc" },
+            orderBy: { submittedAt: "desc" },
             take: 1
           }
         }
@@ -55,9 +55,9 @@ export default async function MenteeHealthPage() {
     const mentee = mentorship.mentee;
     const activeEnrollments = mentee.enrollments.filter(e => e.status === "ENROLLED");
     const recentSubmissions = mentee.assignmentSubmissions.length;
-    const lastReflection = mentee.reflectionEntries[0];
+    const lastReflection = mentee.reflectionSubmissions[0];
     const daysSinceReflection = lastReflection
-      ? Math.floor((Date.now() - new Date(lastReflection.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+      ? Math.floor((Date.now() - lastReflection.submittedAt.getTime()) / (1000 * 60 * 60 * 24))
       : 999;
 
     // Health score calculation
@@ -80,8 +80,7 @@ export default async function MenteeHealthPage() {
       recentSubmissions,
       daysSinceReflection,
       healthScore,
-      status,
-      lastReflection
+      status
     };
   }).sort((a, b) => a.healthScore - b.healthScore);
 
@@ -126,7 +125,7 @@ export default async function MenteeHealthPage() {
         <div style={{ marginBottom: 28 }}>
           <div className="section-title">🚨 At-Risk Mentees - Action Needed</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {atRisk.map(({ mentee, activeEnrollments, recentSubmissions, daysSinceReflection, lastReflection }) => (
+            {atRisk.map(({ mentee, activeEnrollments, recentSubmissions, daysSinceReflection }) => (
               <div
                 key={mentee.id}
                 className="card"
@@ -150,17 +149,6 @@ export default async function MenteeHealthPage() {
                             : `${daysSinceReflection} days ago`}
                         </strong>
                       </div>
-                      {lastReflection && (
-                        <div style={{
-                          marginTop: 8,
-                          padding: 12,
-                          backgroundColor: "var(--accent-bg)",
-                          borderRadius: 6,
-                          fontSize: 13
-                        }}>
-                          <strong>Last mood:</strong> {lastReflection.mood}
-                        </div>
-                      )}
                     </div>
                   </div>
                   <div style={{ marginLeft: 16, display: "flex", flexDirection: "column", gap: 8 }}>
