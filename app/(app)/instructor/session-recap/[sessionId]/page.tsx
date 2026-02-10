@@ -13,11 +13,15 @@ export default async function SessionRecapPage({ params }: { params: { sessionId
     where: { id: params.sessionId },
     include: {
       course: true,
-      recap: true
+      sessionRecap: true
     }
   });
 
   if (!attendanceSession) {
+    redirect("/courses");
+  }
+
+  if (!attendanceSession.course || !attendanceSession.courseId) {
     redirect("/courses");
   }
 
@@ -50,7 +54,7 @@ export default async function SessionRecapPage({ params }: { params: { sessionId
       </div>
 
       <div className="card">
-        <h3>{attendanceSession.recap ? "Edit Session Recap" : "Create Session Recap"}</h3>
+        <h3>{attendanceSession.sessionRecap ? "Edit Session Recap" : "Create Session Recap"}</h3>
         <p style={{ marginBottom: 20, color: "var(--text-secondary)" }}>
           Document what was covered, what worked well, and areas for improvement.
           This helps with planning future sessions and tracking progress.
@@ -68,7 +72,7 @@ export default async function SessionRecapPage({ params }: { params: { sessionId
               name="whatCovered"
               required
               rows={6}
-              defaultValue={attendanceSession.recap?.whatCovered || ""}
+              defaultValue={attendanceSession.sessionRecap?.whatCovered || ""}
               placeholder="Summarize the main topics, activities, and learning objectives covered in this session..."
               style={{
                 width: "100%",
@@ -90,7 +94,7 @@ export default async function SessionRecapPage({ params }: { params: { sessionId
               id="whatWorked"
               name="whatWorked"
               rows={4}
-              defaultValue={attendanceSession.recap?.whatWorked || ""}
+              defaultValue={attendanceSession.sessionRecap?.whatWorked || ""}
               placeholder="Note successful teaching strategies, student engagement moments, or effective activities..."
               style={{
                 width: "100%",
@@ -112,7 +116,7 @@ export default async function SessionRecapPage({ params }: { params: { sessionId
               id="whatToImprove"
               name="whatToImprove"
               rows={4}
-              defaultValue={attendanceSession.recap?.whatToImprove || ""}
+              defaultValue={attendanceSession.sessionRecap?.whatToImprove || ""}
               placeholder="Identify challenges, pacing issues, or topics that need more attention..."
               style={{
                 width: "100%",
@@ -134,7 +138,7 @@ export default async function SessionRecapPage({ params }: { params: { sessionId
               id="nextSteps"
               name="nextSteps"
               rows={4}
-              defaultValue={attendanceSession.recap?.nextSteps || ""}
+              defaultValue={attendanceSession.sessionRecap?.nextSteps || ""}
               placeholder="Plan for the next session, follow-up items, or student needs to address..."
               style={{
                 width: "100%",
@@ -150,7 +154,7 @@ export default async function SessionRecapPage({ params }: { params: { sessionId
 
           <div style={{ display: "flex", gap: 12 }}>
             <button type="submit" className="button primary">
-              {attendanceSession.recap ? "Update Recap" : "Save Recap"}
+              {attendanceSession.sessionRecap ? "Update Recap" : "Save Recap"}
             </button>
             <a href={`/courses/${attendanceSession.courseId}`} className="button secondary">
               Cancel

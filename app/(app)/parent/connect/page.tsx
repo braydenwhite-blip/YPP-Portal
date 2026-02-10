@@ -5,6 +5,12 @@ import { useState } from "react";
 export default function ParentConnectPage() {
   const [showAddStudentForm, setShowAddStudentForm] = useState(false);
 
+  type PendingConnection = {
+    id: string;
+    studentName: string;
+    requestedAt: string;
+  };
+
   // Sample data - in production, fetch from database
   const connectedStudents = [
     {
@@ -22,9 +28,7 @@ export default function ParentConnectPage() {
     }
   ];
 
-  const pendingConnections = [
-    // Empty for now - would show students awaiting approval
-  ];
+  const pendingConnections: PendingConnection[] = [];
 
   return (
     <div>

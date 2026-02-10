@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
-export default async function ProposeCourse Page() {
+export default async function ProposeCoursePage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     redirect("/public/login");

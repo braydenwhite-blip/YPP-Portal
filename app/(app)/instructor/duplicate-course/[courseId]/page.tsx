@@ -96,68 +96,6 @@ export default async function DuplicateCoursePage({ params }: { params: { course
             />
           </div>
 
-          <div style={{ marginBottom: 20 }}>
-            <label htmlFor="code" style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
-              Course Code *
-            </label>
-            <input
-              type="text"
-              id="code"
-              name="code"
-              required
-              defaultValue={`${course.code}-COPY`}
-              placeholder="e.g., CS101-FALL2026"
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                border: "1px solid var(--border-color)",
-                borderRadius: 6,
-                fontSize: 14
-              }}
-            />
-          </div>
-
-          <div className="grid two" style={{ gap: 16, marginBottom: 20 }}>
-            <div>
-              <label htmlFor="startDate" style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
-                Start Date *
-              </label>
-              <input
-                type="date"
-                id="startDate"
-                name="startDate"
-                required
-                defaultValue={new Date().toISOString().split('T')[0]}
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  border: "1px solid var(--border-color)",
-                  borderRadius: 6,
-                  fontSize: 14
-                }}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="endDate" style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
-                End Date *
-              </label>
-              <input
-                type="date"
-                id="endDate"
-                name="endDate"
-                required
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  border: "1px solid var(--border-color)",
-                  borderRadius: 6,
-                  fontSize: 14
-                }}
-              />
-            </div>
-          </div>
-
           <div style={{ marginBottom: 24 }}>
             <label htmlFor="description" style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
               Description
@@ -186,8 +124,8 @@ export default async function DuplicateCoursePage({ params }: { params: { course
             borderRadius: 6,
             fontSize: 14
           }}>
-            <strong>Note:</strong> The duplicated course will be created in DRAFT status.
-            You can make any necessary adjustments before publishing it to students.
+            <strong>Note:</strong> The duplicated course will copy the original course structure,
+            assignments, and resources. Student enrollments and submissions are not copied.
           </div>
 
           <div style={{ display: "flex", gap: 12 }}>

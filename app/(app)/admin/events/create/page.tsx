@@ -51,6 +51,24 @@ export default async function CreateEventPage() {
             />
           </div>
 
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
+              Event Type *
+            </label>
+            <select
+              name="eventType"
+              required
+              style={{ width: "100%", padding: "8px 12px", border: "1px solid var(--border-color)", borderRadius: 6 }}
+            >
+              <option value="">Select type</option>
+              <option value="SHOWCASE">Showcase</option>
+              <option value="FESTIVAL">Festival</option>
+              <option value="COMPETITION">Competition</option>
+              <option value="WORKSHOP">Workshop</option>
+              <option value="ALUMNI_EVENT">Alumni Event</option>
+            </select>
+          </div>
+
           <div className="grid two" style={{ gap: 16, marginBottom: 16 }}>
             <div>
               <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
@@ -65,11 +83,12 @@ export default async function CreateEventPage() {
             </div>
             <div>
               <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
-                End Date & Time
+                End Date & Time *
               </label>
               <input
                 type="datetime-local"
                 name="endDate"
+                required
                 style={{ width: "100%", padding: "8px 12px", border: "1px solid var(--border-color)", borderRadius: 6 }}
               />
             </div>
@@ -87,41 +106,27 @@ export default async function CreateEventPage() {
             />
           </div>
 
-          <div className="grid two" style={{ gap: 16, marginBottom: 16 }}>
-            <div>
-              <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
-                Chapter
-              </label>
-              <select
-                name="chapterId"
-                style={{ width: "100%", padding: "8px 12px", border: "1px solid var(--border-color)", borderRadius: 6 }}
-              >
-                <option value="">All Chapters</option>
-                {chapters.map(chapter => (
-                  <option key={chapter.id} value={chapter.id}>
-                    {chapter.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
-                Capacity (optional)
-              </label>
-              <input
-                type="number"
-                name="capacity"
-                min="1"
-                placeholder="Leave blank for unlimited"
-                style={{ width: "100%", padding: "8px 12px", border: "1px solid var(--border-color)", borderRadius: 6 }}
-              />
-            </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
+              Chapter
+            </label>
+            <select
+              name="chapterId"
+              style={{ width: "100%", padding: "8px 12px", border: "1px solid var(--border-color)", borderRadius: 6 }}
+            >
+              <option value="">All Chapters</option>
+              {chapters.map(chapter => (
+                <option key={chapter.id} value={chapter.id}>
+                  {chapter.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <input type="checkbox" name="isPublic" value="true" defaultChecked />
-              <span style={{ fontSize: 14 }}>Public event (visible to all users)</span>
+              <input type="checkbox" name="isAlumniOnly" value="true" />
+              <span style={{ fontSize: 14 }}>Alumni-only event</span>
             </label>
           </div>
 

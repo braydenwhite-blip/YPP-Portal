@@ -118,24 +118,29 @@ export default async function CourseReviewsPage({ params }: { params: { id: stri
               <input type="hidden" name="courseId" value={params.id} />
 
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: "block", fontWeight: 600, marginBottom: 8 }}>
+                <label htmlFor="rating" style={{ display: "block", fontWeight: 600, marginBottom: 8 }}>
                   Rating *
                 </label>
-                <div style={{ display: "flex", gap: 8 }}>
-                  {[1, 2, 3, 4, 5].map(star => (
-                    <label key={star} style={{ cursor: "pointer" }}>
-                      <input
-                        type="radio"
-                        name="rating"
-                        value={star}
-                        required
-                        style={{ display: "none" }}
-                        className="star-input"
-                      />
-                      <span style={{ fontSize: 32 }}>☆</span>
-                    </label>
-                  ))}
-                </div>
+                <select
+                  id="rating"
+                  name="rating"
+                  required
+                  style={{
+                    width: "100%",
+                    padding: 10,
+                    border: "1px solid var(--border-color)",
+                    borderRadius: 4,
+                    fontSize: 14,
+                    backgroundColor: "white"
+                  }}
+                >
+                  <option value="">Select a rating</option>
+                  <option value="5">5 - Excellent</option>
+                  <option value="4">4 - Good</option>
+                  <option value="3">3 - OK</option>
+                  <option value="2">2 - Not great</option>
+                  <option value="1">1 - Poor</option>
+                </select>
               </div>
 
               <div style={{ marginBottom: 16 }}>
@@ -232,12 +237,6 @@ export default async function CourseReviewsPage({ params }: { params: { id: stri
         )}
       </div>
 
-      <style jsx>{`
-        .star-input:checked ~ span,
-        .star-input:checked ~ .star-input ~ span {
-          content: "★";
-        }
-      `}</style>
     </div>
   );
 }

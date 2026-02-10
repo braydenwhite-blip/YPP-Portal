@@ -7,7 +7,7 @@ import Link from "next/link";
 export default async function AssignmentDetailPage({
   params
 }: {
-  params: { courseId: string; assignmentId: string };
+  params: { id: string; assignmentId: string };
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -30,8 +30,8 @@ export default async function AssignmentDetailPage({
     }
   });
 
-  if (!assignment || assignment.courseId !== params.courseId) {
-    redirect(`/courses/${params.courseId}/assignments`);
+  if (!assignment || assignment.courseId !== params.id) {
+    redirect(`/courses/${params.id}/assignments`);
   }
 
   const isInstructor =
@@ -40,7 +40,7 @@ export default async function AssignmentDetailPage({
   const userSubmission = assignment.submissions.find(s => s.studentId === session.user.id);
 
   const isOverdue =
-    assignment.dueDate && new Date(assignment.dueDate) < new Date() && !userSubmission?.submittedAt;
+    assignment.dueDate !== null && assignment.dueDate < new Date() && !userSubmission?.submittedAt;
 
   return (
     <div>
@@ -48,7 +48,7 @@ export default async function AssignmentDetailPage({
         <div>
           <p className="badge">
             <Link
-              href={`/courses/${params.courseId}/assignments`}
+              href={`/courses/${params.id}/assignments`}
               style={{ color: "inherit", textDecoration: "none" }}
             >
               Assignments
@@ -246,13 +246,13 @@ export default async function AssignmentDetailPage({
               ) : (
                 <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
                   {assignment.submissions.map(submission => (
-                    <Link
-                      key={submission.id}
-                      href={`/courses/${params.courseId}/assignments/${assignment.id}/grade/${submission.id}`}
-                      className="card"
-                      style={{
-                        textDecoration: "none",
-                        color: "inherit",
+                      <Link
+                        key={submission.id}
+                      href={`/courses/${params.id}/assignments/${assignment.id}/grade/${submission.id}`}
+                        className="card"
+                        style={{
+                          textDecoration: "none",
+                          color: "inherit",
                         border: "1px solid var(--border-color)"
                       }}
                     >

@@ -13,13 +13,10 @@ export default async function ChapterLeadDashboardPage() {
     redirect("/");
   }
 
-  // Get chapter where user is lead
+  // Get chapter associated with the current user (via User.chapterId)
   const chapter = await prisma.chapter.findFirst({
     where: {
-      OR: [
-        { leadId: session.user.id },
-        { users: { some: { id: session.user.id, primaryRole: "CHAPTER_LEAD" } } }
-      ]
+      users: { some: { id: session.user.id } }
     },
     include: {
       users: true,
@@ -94,10 +91,10 @@ export default async function ChapterLeadDashboardPage() {
       <div style={{ marginBottom: 28 }}>
         <div className="section-title">Active Courses</div>
         {chapter.courses.map(course => (
-          <div key={course.id} className="card" style={{ marginBottom: 12 }}>
+            <div key={course.id} className="card" style={{ marginBottom: 12 }}>
             <h4>{course.title}</h4>
             <div style={{ fontSize: 14, color: "var(--text-secondary)" }}>
-              Instructor: {course.leadInstructor.name} • {course._count.enrollments} students
+              Instructor: {course.leadInstructor?.name || "Unassigned"} • {course._count.enrollments} students
             </div>
           </div>
         ))}

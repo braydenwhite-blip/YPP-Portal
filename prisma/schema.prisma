@@ -274,6 +274,17 @@ model User {
   observationsGiven              PeerObservation[]       @relation("ObservationsGiven")
   observationsReceived           PeerObservation[]       @relation("ObservationsReceived")
 
+  // Instructor / Mentor Enhancements (Features 24-34)
+  feedbackTemplates              FeedbackTemplate[]      @relation("FeedbackTemplates")
+  sessionRecaps                  SessionRecap[]          @relation("SessionRecaps")
+  substituteRequestsCreated      SubstituteRequest[]     @relation("SubstituteRequestsCreated")
+  substituteRequestsAssigned     SubstituteRequest[]     @relation("SubstituteRequestsAssigned")
+  professionalDevelopment        ProfessionalDevelopment[] @relation("ProfessionalDevelopment")
+  curriculumFeedbackSubmitted    CurriculumFeedback[]    @relation("CurriculumFeedbackSubmitted")
+  curriculumFeedbackReviewed     CurriculumFeedback[]    @relation("CurriculumFeedbackReviewed")
+  studentSpotlights              StudentSpotlight[]      @relation("StudentSpotlights")
+  spotlightNominations           StudentSpotlight[]      @relation("SpotlightNominations")
+
   // Student Features (16-17)
   competitionChecklists          CompetitionChecklist[]
 
@@ -329,7 +340,7 @@ model User {
   progressReports                ProgressReport[]        @relation("StudentProgressReports")
 
   // Phase 8: Experience & Personalization Relations
-  onboarding                     StudentOnboarding?      @relation("StudentOnboarding")
+  studentOnboarding              StudentOnboarding?      @relation("StudentOnboarding")
   personalization                PersonalizationSettings? @relation("PersonalizationSettings")
   feedbackSubmissions            UserFeedback[]          @relation("UserFeedback")
   quickActions                   QuickAction[]           @relation("QuickActions")
@@ -443,6 +454,9 @@ model Course {
   proposals        CourseProposal[]
   coInstructors    CourseInstructor[]
   observations     PeerObservation[]
+  substituteRequests SubstituteRequest[]
+  curriculumFeedback CurriculumFeedback[]
+  studentSpotlights  StudentSpotlight[]
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 }
@@ -1191,6 +1205,7 @@ model AttendanceSession {
   createdBy   User     @relation("AttendanceSessionsCreated", fields: [createdById], references: [id])
   records     AttendanceRecord[]
   selfCheckIn SelfCheckIn?
+  sessionRecap SessionRecap?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -1707,7 +1722,7 @@ model CustomGoalUpdate {
 // Feature 10: Self Check-in (extends existing AttendanceSession)
 model SelfCheckIn {
   id        String    @id @default(cuid())
-  sessionId String
+  sessionId String    @unique
   session   AttendanceSession @relation(fields: [sessionId], references: [id])
   code      String    @unique  // QR code or PIN
   expiresAt DateTime
@@ -1988,7 +2003,7 @@ enum ObservationStatus {
 model FeedbackTemplate {
   id          String   @id @default(cuid())
   instructorId String
-  instructor  User     @relation(fields: [instructorId], references: [id])
+  instructor  User     @relation("FeedbackTemplates", fields: [instructorId], references: [id])
   title       String
   content     String
   category    String?
@@ -2006,7 +2021,7 @@ model SessionRecap {
   sessionId        String            @unique
   attendanceSession AttendanceSession @relation(fields: [sessionId], references: [id])
   instructorId     String
-  instructor       User              @relation(fields: [instructorId], references: [id])
+  instructor       User              @relation("SessionRecaps", fields: [instructorId], references: [id])
   whatCovered      String
   whatWorked       String?
   whatToImprove    String?
@@ -2049,7 +2064,7 @@ enum SubstituteStatus {
 model ProfessionalDevelopment {
   id           String    @id @default(cuid())
   instructorId String
-  instructor   User      @relation(fields: [instructorId], references: [id])
+  instructor   User      @relation("ProfessionalDevelopment", fields: [instructorId], references: [id])
   title        String
   type         PDType
   provider     String?
@@ -2076,7 +2091,7 @@ enum PDType {
 model CurriculumFeedback {
   id          String           @id @default(cuid())
   instructorId String
-  instructor  User             @relation(fields: [instructorId], references: [id])
+  instructor  User             @relation("CurriculumFeedbackSubmitted", fields: [instructorId], references: [id])
   courseId    String?
   course      Course?          @relation(fields: [courseId], references: [id])
   type        FeedbackType
@@ -2186,7 +2201,6 @@ model PassionArea {
   updatedAt   DateTime        @updatedAt
 
   studentInterests StudentInterest[]
-  quizResults     PassionQuizResult[]
 
   @@index([category])
   @@index([isActive])
@@ -2662,29 +2676,6 @@ model SkillConnection {
   @@index([skill2])
 }
 
-// Additional relations for User model (add these manually to User model above)
-model User {
-  // ... existing fields ...
-  
-  // Phase 3: Progress Tracking Relations
-  timelineEntries              TimelineEntry[]         @relation("TimelineEntries")
-  workshopEnrollments          WorkshopEnrollment[]    @relation("WorkshopEnrollments")
-  earnedCertifications         StudentCertification[]  @relation("EarnedCertifications")
-  projects                     ProjectTracker[]        @relation("StudentProjects")
-  progressComparisons          ProgressComparison[]    @relation("ProgressComparisons")
-  
-  // Relations for instructor/mentor roles
-  sessionRecaps                SessionRecap[]          @relation("SessionRecaps")
-  feedbackTemplates            FeedbackTemplate[]      @relation("FeedbackTemplates")
-  substituteRequestsCreated    SubstituteRequest[]     @relation("SubstituteRequestsCreated")
-  substituteRequestsAssigned   SubstituteRequest[]     @relation("SubstituteRequestsAssigned")
-  professionalDevelopment      ProfessionalDevelopment[] @relation("ProfessionalDevelopment")
-  curriculumFeedbackSubmitted  CurriculumFeedback[]    @relation("CurriculumFeedbackSubmitted")
-  curriculumFeedbackReviewed   CurriculumFeedback[]    @relation("CurriculumFeedbackReviewed")
-  studentSpotlights            StudentSpotlight[]      @relation("StudentSpotlights")
-  spotlightNominations         StudentSpotlight[]      @relation("SpotlightNominations")
-}
-
 // ============================================
 // PHASE 3: PROGRESS TRACKING & MILESTONES
 // ============================================
@@ -2976,7 +2967,7 @@ model ProgressComparison {
 // ============================================
 
 // Awards - Recognition categories
-model Award {
+model RecognitionAward {
   id          String   @id @default(cuid())
   name        String
   description String
@@ -2998,7 +2989,7 @@ model StudentAward {
   studentId   String
   student     User     @relation("StudentAwards", fields: [studentId], references: [id])
   awardId     String
-  award       Award    @relation(fields: [awardId], references: [id])
+  award       RecognitionAward    @relation(fields: [awardId], references: [id])
   passionId   String?
   reason      String
   awardedBy   String?  // Instructor/admin who nominated
@@ -3343,14 +3334,14 @@ model PortfolioSection {
   title       String
   description String?
   order       Int
-  items       PortfolioItem[]
+  items       PortfolioSectionItem[]
   createdAt   DateTime @default(now())
 
   @@index([portfolioId])
   @@index([order])
 }
 
-model PortfolioItem {
+model PortfolioSectionItem {
   id          String   @id @default(cuid())
   sectionId   String
   section     PortfolioSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
@@ -3642,7 +3633,7 @@ model UserFeedback {
   page          String?  // Which page they were on
   screenshotUrl String?
   
-  status        FeedbackStatus @default(PENDING)
+  status        UserFeedbackStatus @default(PENDING)
   adminResponse String?  @db.Text
   respondedBy   String?
   respondedAt   DateTime?
@@ -3659,7 +3650,7 @@ enum FeedbackCategory {
   COMPLIMENT
 }
 
-enum FeedbackStatus {
+enum UserFeedbackStatus {
   PENDING
   REVIEWING
   IN_PROGRESS
@@ -4849,4 +4840,3 @@ model ResourceExchangeRequest {
   @@unique([listingId, requesterId])
   @@index([requesterId])
 }
-

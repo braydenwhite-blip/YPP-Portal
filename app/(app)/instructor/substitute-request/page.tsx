@@ -91,8 +91,9 @@ export default async function SubstituteRequestPage() {
               const isPast = new Date(request.sessionDate) < new Date();
               const statusColor =
                 request.status === "CONFIRMED" ? "success" :
-                request.status === "DECLINED" ? "error" :
+                request.status === "COMPLETED" ? "success" :
                 request.status === "CANCELLED" ? "secondary" :
+                request.status === "ASSIGNED" ? "primary" :
                 "warning";
 
               return (

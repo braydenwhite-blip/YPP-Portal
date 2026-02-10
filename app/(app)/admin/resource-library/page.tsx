@@ -11,7 +11,7 @@ export default async function ResourceLibraryPage() {
 
   const resources = await prisma.resource.findMany({
     include: {
-      uploader: true,
+      uploadedBy: true,
       course: true
     },
     orderBy: { createdAt: "desc" }
@@ -72,9 +72,8 @@ export default async function ResourceLibraryPage() {
                       <p style={{ fontSize: 14, marginBottom: 8 }}>{resource.description}</p>
                     )}
                     <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                      Uploaded by {resource.uploader.name}
+                      Uploaded by {resource.uploadedBy.name}
                       {resource.course && ` • ${resource.course.title}`}
-                      {resource.expiresAt && ` • Expires ${new Date(resource.expiresAt).toLocaleDateString()}`}
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 8, marginLeft: 16 }}>

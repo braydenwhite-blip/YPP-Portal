@@ -15,13 +15,13 @@ export async function POST(request: Request) {
   const type = formData.get("type") as string;
   const content = formData.get("content") as string;
 
-  // Create anonymous feedback (no userId stored for anonymity)
-  await prisma.anonymousFeedback.create({
+  // Store as user feedback (session is required for this endpoint).
+  await prisma.userFeedback.create({
     data: {
-      category,
-      type,
-      content,
-      submittedAt: new Date()
+      userId: session.user.id,
+      category: category as any,
+      message: content,
+      page: type || null
     }
   });
 
