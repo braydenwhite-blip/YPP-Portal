@@ -360,6 +360,15 @@ model User {
   competitionJudgings            SeasonalCompetition[]        @relation("CompetitionJudges")
   competitionVotes               CompetitionVote[]            @relation("CompetitionVotes")
 
+  // Phase 13: Real-World Connections Relations
+  internshipApplications         InternshipApplication[]      @relation("InternshipApplications")
+  internshipListingsPosted       InternshipListing[]          @relation("InternshipListingsPosted")
+  serviceProjectsCreated         ServiceProject[]             @relation("ServiceProjectsCreated")
+  serviceVolunteering            ServiceVolunteer[]           @relation("ServiceVolunteering")
+  instructorCertifications       InstructorCertification[]    @relation("InstructorCertifications")
+  resourceExchangeListings       ResourceExchangeListing[]    @relation("ResourceExchangeListings")
+  resourceExchangeRequests       ResourceExchangeRequest[]    @relation("ResourceExchangeRequests")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -4559,5 +4568,285 @@ model CompetitionVote {
   @@unique([entryId, voterId])
   @@index([competitionId])
   @@index([entryId])
+}
+
+// ============================================
+// PHASE 13: REAL-WORLD CONNECTIONS
+// ============================================
+
+enum InternshipType {
+  IN_PERSON
+  REMOTE
+  HYBRID
+}
+
+enum InternshipStatus {
+  OPEN
+  CLOSED
+  FILLED
+}
+
+enum ApplicationState {
+  APPLIED
+  REVIEWING
+  INTERVIEW
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+enum ServiceProjectStatus {
+  RECRUITING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum CertificationStatus {
+  IN_PROGRESS
+  SUBMITTED
+  UNDER_REVIEW
+  CERTIFIED
+  EXPIRED
+}
+
+enum ExchangeListingType {
+  OFFER
+  REQUEST
+}
+
+enum ExchangeListingStatus {
+  AVAILABLE
+  PENDING
+  CLAIMED
+  COMPLETED
+}
+
+// Portfolio Templates
+model PortfolioTemplate {
+  id              String   @id @default(cuid())
+  name            String
+  description     String
+  passionArea     String?  // null = general template
+  previewImageUrl String?
+
+  // Template structure
+  layout          String   @default("grid") // "grid", "timeline", "showcase", "minimal"
+  colorScheme     String   @default("default") // "default", "dark", "warm", "cool", "vibrant"
+  sections        Json     @default("[]") // [{title, type, placeholder, order}]
+
+  // Tips for this template
+  tips            Json     @default("[]") // ["Tip 1", "Tip 2"]
+
+  isActive        Boolean  @default(true)
+  order           Int      @default(0)
+  usageCount      Int      @default(0)
+
+  createdAt       DateTime @default(now())
+
+  @@index([passionArea])
+  @@index([isActive, order])
+}
+
+// Internship / Opportunity Board
+model InternshipListing {
+  id              String           @id @default(cuid())
+  title           String
+  organization    String
+  description     String           @db.Text
+  passionArea     String?
+
+  type            InternshipType
+  location        String?          // City, State or "Remote"
+  duration        String?          // "6 weeks", "Summer 2025"
+  hoursPerWeek    Int?
+  isPaid          Boolean          @default(false)
+  compensation    String?          // "$15/hr", "Stipend"
+
+  // Requirements
+  ageRange        String?          // "14-18"
+  requirements    Json             @default("[]") // ["Portfolio required", "Interview"]
+  applicationUrl  String?          // External link
+
+  // Contact
+  contactName     String?
+  contactEmail    String?
+
+  status          InternshipStatus @default(OPEN)
+  deadline        DateTime?
+
+  postedById      String
+  postedBy        User             @relation("InternshipListingsPosted", fields: [postedById], references: [id])
+
+  applications    InternshipApplication[]
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([status])
+  @@index([passionArea])
+  @@index([type])
+  @@index([deadline])
+}
+
+model InternshipApplication {
+  id              String           @id @default(cuid())
+  listingId       String
+  listing         InternshipListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  studentId       String
+  student         User             @relation("InternshipApplications", fields: [studentId], references: [id])
+
+  coverLetter     String?          @db.Text
+  portfolioUrl    String?
+  resumeUrl       String?
+
+  status          ApplicationState @default(APPLIED)
+  reviewNotes     String?
+
+  appliedAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@unique([listingId, studentId])
+  @@index([studentId])
+  @@index([status])
+}
+
+// Service Projects (Community Impact)
+model ServiceProject {
+  id              String               @id @default(cuid())
+  title           String
+  description     String               @db.Text
+  passionArea     String?
+
+  // Organization
+  partnerOrg      String?              // "Local Library", "Habitat for Humanity"
+  location        String?
+  chapterId       String?
+
+  // Timing
+  startDate       DateTime?
+  endDate         DateTime?
+  totalHoursGoal  Int?                 // Target volunteer hours
+
+  // Impact tracking
+  currentHours    Int                  @default(0)
+  volunteersNeeded Int                 @default(5)
+  impactSummary   String?              @db.Text
+
+  // Rewards
+  xpReward        Int                  @default(50)
+  certificateOnComplete Boolean        @default(false)
+
+  status          ServiceProjectStatus @default(RECRUITING)
+
+  createdById     String
+  createdBy       User                 @relation("ServiceProjectsCreated", fields: [createdById], references: [id])
+
+  volunteers      ServiceVolunteer[]
+
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([status])
+  @@index([passionArea])
+  @@index([chapterId])
+}
+
+model ServiceVolunteer {
+  id              String         @id @default(cuid())
+  projectId       String
+  project         ServiceProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  studentId       String
+  student         User           @relation("ServiceVolunteering", fields: [studentId], references: [id])
+
+  hoursLogged     Int            @default(0)
+  role            String?        // "Team Lead", "Volunteer", "Coordinator"
+  reflection      String?        @db.Text
+  completedAt     DateTime?
+
+  joinedAt        DateTime       @default(now())
+
+  @@unique([projectId, studentId])
+  @@index([studentId])
+}
+
+// Instructor Certifications
+model InstructorCertification {
+  id              String              @id @default(cuid())
+  instructorId    String
+  instructor      User                @relation("InstructorCertifications", fields: [instructorId], references: [id])
+
+  certType        String              // "Foundational", "Advanced", "Specialist"
+  passionArea     String?
+
+  // Requirements tracking
+  requirements    Json                @default("[]") // [{name, completed, evidence}]
+  totalRequired   Int                 @default(5)
+  totalCompleted  Int                 @default(0)
+  progressPct     Float               @default(0)
+
+  // Submission & Review
+  status          CertificationStatus @default(IN_PROGRESS)
+  submittedAt     DateTime?
+  reviewedAt      DateTime?
+  reviewerNotes   String?
+  certificateUrl  String?
+
+  // Validity
+  certifiedAt     DateTime?
+  expiresAt       DateTime?
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@unique([instructorId, certType, passionArea])
+  @@index([instructorId])
+  @@index([status])
+}
+
+// Resource Exchange (Peer-to-Peer)
+model ResourceExchangeListing {
+  id              String                 @id @default(cuid())
+  userId          String
+  user            User                   @relation("ResourceExchangeListings", fields: [userId], references: [id])
+
+  title           String
+  description     String?
+  type            ExchangeListingType    // OFFER or REQUEST
+  category        String                 // "Instrument", "Art Supplies", "Books", "Equipment", "Software"
+  passionArea     String?
+  imageUrl        String?
+
+  condition       String?                // "New", "Like New", "Good", "Fair"
+  estimatedValue  Float?
+
+  status          ExchangeListingStatus  @default(AVAILABLE)
+
+  requests        ResourceExchangeRequest[]
+
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@index([type, status])
+  @@index([category])
+  @@index([passionArea])
+  @@index([userId])
+}
+
+model ResourceExchangeRequest {
+  id              String                  @id @default(cuid())
+  listingId       String
+  listing         ResourceExchangeListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  requesterId     String
+  requester       User                    @relation("ResourceExchangeRequests", fields: [requesterId], references: [id])
+
+  message         String?
+  status          String                  @default("PENDING") // PENDING, ACCEPTED, DECLINED
+
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@unique([listingId, requesterId])
+  @@index([requesterId])
 }
 

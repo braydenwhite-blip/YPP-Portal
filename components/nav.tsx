@@ -86,6 +86,19 @@ function buildSections(roles: string[], awardTier?: string): NavSection[] {
   ];
   sections.push({ label: "Challenges", items: challengeItems });
 
+  // Real World (Phase 13)
+  const realWorldItems: NavItem[] = [
+    { href: "/internships", label: "Opportunities", icon: "\u25CB" },
+    { href: "/service-projects", label: "Service Projects", icon: "\u25CB" },
+    { href: "/resource-exchange", label: "Resource Exchange", icon: "\u25CB" },
+    { href: "/portfolio/templates", label: "Portfolio Templates", icon: "\u25CB" },
+    { href: "/events/map", label: "Chapter Events Map", icon: "\u25CB" }
+  ];
+  if (isInstructor || isAdmin) {
+    realWorldItems.push({ href: "/instructor/certification-pathway", label: "Cert Pathway", icon: "\u25CB" });
+  }
+  sections.push({ label: "Real World", items: realWorldItems });
+
   // Community
   const communityItems: NavItem[] = [
     { href: "/mentorship", label: "Mentorship", icon: "\u25CB" }
