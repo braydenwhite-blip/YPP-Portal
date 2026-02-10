@@ -352,6 +352,14 @@ model User {
   analyticsSnapshots             AnalyticsSnapshot[]          @relation("AnalyticsSnapshots")
   progressPredictions            ProgressPrediction[]         @relation("ProgressPredictions")
 
+  // Phase 12: Challenges & Gamification Relations
+  challengeParticipations        ChallengeParticipant[]       @relation("ChallengeParticipations")
+  challengeSubmissions           ChallengeSubmission[]        @relation("ChallengeSubmissions")
+  passionPassports               PassionPassport[]            @relation("PassionPassports")
+  competitionEntries             CompetitionEntry[]           @relation("CompetitionEntries")
+  competitionJudgings            SeasonalCompetition[]        @relation("CompetitionJudges")
+  competitionVotes               CompetitionVote[]            @relation("CompetitionVotes")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -4258,5 +4266,298 @@ model ProgressPrediction {
   @@index([studentId])
   @@index([predictionType])
   @@index([predictedDate])
+}
+
+// ============================================
+// PHASE 12: CHALLENGES & GAMIFICATION
+// ============================================
+
+enum ChallengeType {
+  DAILY
+  WEEKLY
+  THIRTY_DAY
+  SEASONAL
+}
+
+enum ChallengeStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum ParticipantStatus {
+  ACTIVE
+  COMPLETED
+  DROPPED
+}
+
+enum StampSource {
+  TRY_IT
+  CLASS
+  PROJECT
+  PRACTICE_HOURS
+}
+
+enum RarityTier {
+  COMMON
+  UNCOMMON
+  RARE
+  EPIC
+  LEGENDARY
+  MYTHIC
+}
+
+enum CompetitionStatus {
+  UPCOMING
+  OPEN_FOR_SUBMISSIONS
+  JUDGING
+  VOTING
+  COMPLETED
+}
+
+// 30-Day Challenges, Weekly Challenges, Seasonal Challenges
+model Challenge {
+  id                String          @id @default(cuid())
+  title             String
+  description       String          @db.Text
+  type              ChallengeType
+
+  passionArea       String?
+
+  // Timing
+  startDate         DateTime
+  endDate           DateTime
+
+  // Requirements
+  dailyGoal         String?         // "Sketch for 15 minutes"
+  weeklyGoal        String?         // "Complete 3 paintings"
+  submissionRequired Boolean        @default(false)
+
+  // Leaderboard
+  trackProgress     Boolean         @default(true)
+  showLeaderboard   Boolean         @default(true)
+
+  // Rewards
+  completionBadgeId String?
+  xpReward          Int             @default(50)
+  specialRecognition String?        // "Featured in newsletter"
+
+  // Status
+  status            ChallengeStatus @default(DRAFT)
+
+  // Weekly challenge specific
+  promptText        String?         @db.Text // Monday prompt for weekly challenges
+  votingEnabled     Boolean         @default(false)
+  votingDeadline    DateTime?
+
+  createdById       String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  participants      ChallengeParticipant[]
+  submissions       ChallengeSubmission[]
+
+  @@index([type, status])
+  @@index([startDate, endDate])
+  @@index([passionArea])
+}
+
+// Challenge participant with streak tracking
+model ChallengeParticipant {
+  id                String            @id @default(cuid())
+  challengeId       String
+  challenge         Challenge         @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  studentId         String
+  student           User              @relation("ChallengeParticipations", fields: [studentId], references: [id])
+
+  joinedAt          DateTime          @default(now())
+  currentStreak     Int               @default(0)
+  longestStreak     Int               @default(0)
+  daysCompleted     Int               @default(0)
+  totalProgress     Float             @default(0) // 0.0 to 1.0
+
+  status            ParticipantStatus @default(ACTIVE)
+  completedAt       DateTime?
+
+  leaderboardRank   Int?
+  lastCheckIn       DateTime?
+
+  @@unique([challengeId, studentId])
+  @@index([studentId])
+  @@index([challengeId, status])
+  @@index([leaderboardRank])
+}
+
+// Challenge submissions (daily check-ins, weekly submissions)
+model ChallengeSubmission {
+  id                String    @id @default(cuid())
+  challengeId       String
+  challenge         Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  studentId         String
+  student           User      @relation("ChallengeSubmissions", fields: [studentId], references: [id])
+
+  // Content
+  title             String?
+  description       String?   @db.Text
+  workUrl           String?   // Link to work
+  mediaUrl          String?   // Image/video upload
+
+  // Check-in data
+  dayNumber         Int?      // Day 1-30 for 30-day challenges
+  minutesPracticed  Int?
+  reflection        String?
+
+  // Voting (for weekly challenges)
+  voteCount         Int       @default(0)
+
+  submittedAt       DateTime  @default(now())
+
+  @@index([challengeId, studentId])
+  @@index([challengeId, voteCount])
+  @@index([submittedAt])
+}
+
+// Passion Passport - collecting stamps for exploring sub-areas
+model PassionPassport {
+  id                    String          @id @default(cuid())
+  studentId             String
+  student               User            @relation("PassionPassports", fields: [studentId], references: [id])
+  passionArea           String          // e.g., "Art", "Music", "Writing"
+
+  totalStamps           Int             @default(0)
+  completionPercentage  Float           @default(0) // 0-100
+
+  stamps                PassportStamp[]
+
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  @@unique([studentId, passionArea])
+  @@index([studentId])
+}
+
+// Individual stamps in a passion passport
+model PassportStamp {
+  id                String          @id @default(cuid())
+  passportId        String
+  passport          PassionPassport @relation(fields: [passportId], references: [id], onDelete: Cascade)
+
+  subArea           String          // e.g., "Watercolor", "Oil Painting", "Digital Art"
+  description       String?
+
+  earnedAt          DateTime        @default(now())
+  earnedBy          StampSource
+
+  hoursLogged       Int?
+  projectsCompleted Int?
+  evidence          String?         // URL or description of what earned the stamp
+
+  @@unique([passportId, subArea])
+  @@index([passportId])
+}
+
+// Badge rarity tracking (updated periodically)
+model BadgeRarity {
+  id                String    @id @default(cuid())
+  badgeId           String    @unique
+  badgeName         String
+
+  totalAwarded      Int       @default(0)
+  totalStudents     Int       @default(0)
+  rarityPercentage  Float     @default(100) // % of students who have this badge
+  rarityTier        RarityTier @default(COMMON)
+
+  updatedAt         DateTime  @updatedAt
+
+  @@index([rarityTier])
+  @@index([rarityPercentage])
+}
+
+// Seasonal competitions (quarterly themed events)
+model SeasonalCompetition {
+  id                    String            @id @default(cuid())
+  season                String            // "Winter 2025"
+  theme                 String            // "Winter Landscapes"
+  passionArea           String?
+
+  startDate             DateTime
+  endDate               DateTime
+  submissionDeadline    DateTime
+
+  rules                 String            @db.Text
+  judgingCriteria        Json             @default("[]") // [{name, weight, description}]
+
+  // Judging
+  judges                User[]           @relation("CompetitionJudges")
+  votingEnabled         Boolean          @default(false)
+  communityVoteWeight   Float            @default(0.3) // 30% community, 70% judges
+
+  status                CompetitionStatus @default(UPCOMING)
+
+  // Rewards
+  xpReward              Int              @default(100)
+  firstPlaceReward      String?
+  secondPlaceReward     String?
+  thirdPlaceReward      String?
+
+  entries               CompetitionEntry[]
+  votes                 CompetitionVote[]
+
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  @@index([status])
+  @@index([passionArea])
+  @@index([startDate, endDate])
+}
+
+// Competition entries
+model CompetitionEntry {
+  id                String             @id @default(cuid())
+  competitionId     String
+  competition       SeasonalCompetition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  studentId         String
+  student           User               @relation("CompetitionEntries", fields: [studentId], references: [id])
+
+  title             String
+  description       String?            @db.Text
+  workUrl           String?
+  mediaUrl          String?
+
+  // Scoring
+  judgeScore        Float?             // Average of judge scores
+  communityScore    Float?             // Average community vote
+  finalScore        Float?             // Weighted combination
+  placement         Int?               // 1st, 2nd, 3rd, etc.
+
+  submittedAt       DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  votes             CompetitionVote[]
+
+  @@unique([competitionId, studentId])
+  @@index([competitionId, finalScore])
+  @@index([studentId])
+}
+
+// Community votes for competition entries
+model CompetitionVote {
+  id                String             @id @default(cuid())
+  competitionId     String
+  competition       SeasonalCompetition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  entryId           String
+  entry             CompetitionEntry   @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  voterId           String
+  voter             User               @relation("CompetitionVotes", fields: [voterId], references: [id])
+
+  score             Int                // 1-5 stars
+  comment           String?
+
+  votedAt           DateTime           @default(now())
+
+  @@unique([entryId, voterId])
+  @@index([competitionId])
+  @@index([entryId])
 }
 

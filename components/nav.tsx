@@ -76,6 +76,16 @@ function buildSections(roles: string[], awardTier?: string): NavSection[] {
   }
   sections.push({ label: "Growth", items: growthItems });
 
+  // Challenges & Achievements
+  const challengeItems: NavItem[] = [
+    { href: "/challenges", label: "Challenges", icon: "\u25CB" },
+    { href: "/challenges/weekly", label: "Weekly Prompts", icon: "\u25CB" },
+    { href: "/challenges/passport", label: "Passion Passport", icon: "\u25CB" },
+    { href: "/competitions", label: "Competitions", icon: "\u25CB" },
+    { href: "/achievements/badges", label: "Badge Gallery", icon: "\u25CB" }
+  ];
+  sections.push({ label: "Challenges", items: challengeItems });
+
   // Community
   const communityItems: NavItem[] = [
     { href: "/mentorship", label: "Mentorship", icon: "\u25CB" }
