@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 export default async function WallOfFamePage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    redirect("/public/login");
+    redirect("/login");
   }
 
   // Sample data - in production, fetch from database

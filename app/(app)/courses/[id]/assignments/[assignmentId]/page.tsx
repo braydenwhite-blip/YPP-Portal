@@ -11,7 +11,7 @@ export default async function AssignmentDetailPage({
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    redirect("/public/login");
+    redirect("/login");
   }
 
   const assignment = await prisma.assignment.findUnique({
