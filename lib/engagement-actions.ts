@@ -394,7 +394,9 @@ export async function getLeaderboard(
       where: {
         category,
         period: period as any,
-        ...(passionArea ? { passionArea } : { passionArea: null }),
+        ...(passionArea
+          ? { passionArea }
+          : { OR: [{ passionArea: "" }, { passionArea: null }] }),
       },
       include: {
         user: { select: { id: true, name: true, level: true } },
@@ -495,7 +497,7 @@ export async function updateLeaderboards(userId: string) {
             period,
             periodStart: start,
             score,
-            passionArea: null,
+            passionArea: "",
           },
           update: { score },
         });
@@ -506,7 +508,12 @@ export async function updateLeaderboards(userId: string) {
     for (const { period, start } of periods) {
       for (const { category } of categories) {
         const entries = await prisma.leaderboardEntry.findMany({
-          where: { category, period, periodStart: start, passionArea: null },
+          where: {
+            category,
+            period,
+            periodStart: start,
+            OR: [{ passionArea: "" }, { passionArea: null }],
+          },
           orderBy: { score: "desc" },
         });
         for (let i = 0; i < entries.length; i++) {
