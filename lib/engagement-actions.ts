@@ -16,6 +16,16 @@ async function requireAuth() {
   return session;
 }
 
+function isMissingTableError(err: unknown, table: string) {
+  if (!err || typeof err !== "object") return false;
+  const candidate = err as { code?: string; meta?: { table?: string } };
+  return candidate.code === "P2021" && candidate.meta?.table === table;
+}
+
+const CHALLENGE_NOMINATIONS_UNAVAILABLE_MESSAGE =
+  "Challenge nominations are temporarily unavailable while database updates finish. Please try again in a few minutes.";
+const LEADERBOARD_UNAVAILABLE_TABLE = "public.LeaderboardEntry";
+
 // ============================================
 // STUDENT CONTENT SHOWCASE (Feature #24)
 // ============================================
@@ -379,20 +389,31 @@ export async function getLeaderboard(
 ) {
   await requireAuth();
 
-  const entries = await prisma.leaderboardEntry.findMany({
-    where: {
-      category,
-      period: period as any,
-      ...(passionArea ? { passionArea } : { passionArea: null }),
-    },
-    include: {
-      user: { select: { id: true, name: true, level: true } },
-    },
-    orderBy: { score: "desc" },
-    take: 50,
-  });
+  try {
+    const entries = await prisma.leaderboardEntry.findMany({
+      where: {
+        category,
+        period: period as any,
+        ...(passionArea
+          ? { passionArea }
+          : { OR: [{ passionArea: "" }, { passionArea: null }] }),
+      },
+      include: {
+        user: { select: { id: true, name: true, level: true } },
+      },
+      orderBy: { score: "desc" },
+      take: 50,
+    });
 
-  return entries;
+    return entries;
+  } catch (err) {
+    const missingLeaderboardTable = isMissingTableError(
+      err,
+      LEADERBOARD_UNAVAILABLE_TABLE
+    );
+    if (!missingLeaderboardTable) throw err;
+    return [];
+  }
 }
 
 /**
@@ -456,46 +477,59 @@ export async function updateLeaderboards(userId: string) {
     { category: "PRACTICE_HOURS", score: practiceHours },
   ];
 
-  // Upsert leaderboard entries for each category and period
-  for (const { period, start } of periods) {
-    for (const { category, score } of categories) {
-      await prisma.leaderboardEntry.upsert({
-        where: {
-          userId_category_period_periodStart_passionArea: {
+  try {
+    // Upsert leaderboard entries for each category and period
+    for (const { period, start } of periods) {
+      for (const { category, score } of categories) {
+        await prisma.leaderboardEntry.upsert({
+          where: {
+            userId_category_period_periodStart_passionArea: {
+              userId,
+              category,
+              period,
+              periodStart: start,
+              passionArea: "",
+            },
+          },
+          create: {
             userId,
             category,
             period,
             periodStart: start,
+            score,
             passionArea: "",
           },
-        },
-        create: {
-          userId,
-          category,
-          period,
-          periodStart: start,
-          score,
-          passionArea: null,
-        },
-        update: { score },
-      });
-    }
-  }
-
-  // Recalculate ranks for all affected categories and periods
-  for (const { period, start } of periods) {
-    for (const { category } of categories) {
-      const entries = await prisma.leaderboardEntry.findMany({
-        where: { category, period, periodStart: start, passionArea: null },
-        orderBy: { score: "desc" },
-      });
-      for (let i = 0; i < entries.length; i++) {
-        await prisma.leaderboardEntry.update({
-          where: { id: entries[i].id },
-          data: { rank: i + 1 },
+          update: { score },
         });
       }
     }
+
+    // Recalculate ranks for all affected categories and periods
+    for (const { period, start } of periods) {
+      for (const { category } of categories) {
+        const entries = await prisma.leaderboardEntry.findMany({
+          where: {
+            category,
+            period,
+            periodStart: start,
+            OR: [{ passionArea: "" }, { passionArea: null }],
+          },
+          orderBy: { score: "desc" },
+        });
+        for (let i = 0; i < entries.length; i++) {
+          await prisma.leaderboardEntry.update({
+            where: { id: entries[i].id },
+            data: { rank: i + 1 },
+          });
+        }
+      }
+    }
+  } catch (err) {
+    const missingLeaderboardTable = isMissingTableError(
+      err,
+      LEADERBOARD_UNAVAILABLE_TABLE
+    );
+    if (!missingLeaderboardTable) throw err;
   }
 }
 
@@ -505,12 +539,21 @@ export async function updateLeaderboards(userId: string) {
 export async function getMyRankings() {
   const session = await requireAuth();
 
-  const entries = await prisma.leaderboardEntry.findMany({
-    where: { userId: session.user.id },
-    orderBy: [{ category: "asc" }, { period: "asc" }],
-  });
+  try {
+    const entries = await prisma.leaderboardEntry.findMany({
+      where: { userId: session.user.id },
+      orderBy: [{ category: "asc" }, { period: "asc" }],
+    });
 
-  return entries;
+    return entries;
+  } catch (err) {
+    const missingLeaderboardTable = isMissingTableError(
+      err,
+      LEADERBOARD_UNAVAILABLE_TABLE
+    );
+    if (!missingLeaderboardTable) throw err;
+    return [];
+  }
 }
 
 // ============================================
@@ -666,15 +709,24 @@ export async function generateMysteryBox(
 export async function getNominatedChallenges() {
   await requireAuth();
 
-  const nominations = await prisma.studentNominatedChallenge.findMany({
-    include: {
-      nominator: { select: { id: true, name: true } },
-      _count: { select: { votes: true } },
-    },
-    orderBy: { upvotes: "desc" },
-  });
+  try {
+    const nominations = await prisma.studentNominatedChallenge.findMany({
+      include: {
+        nominator: { select: { id: true, name: true } },
+        _count: { select: { votes: true } },
+      },
+      orderBy: { upvotes: "desc" },
+    });
 
-  return nominations;
+    return nominations;
+  } catch (err) {
+    const missingNominationsTable = isMissingTableError(
+      err,
+      "public.StudentNominatedChallenge"
+    );
+    if (!missingNominationsTable) throw err;
+    return [];
+  }
 }
 
 /**
@@ -694,22 +746,32 @@ export async function nominateChallenge(formData: FormData) {
     throw new Error("Title and description are required");
   }
 
-  const nomination = await prisma.studentNominatedChallenge.create({
-    data: {
-      nominatorId: session.user.id,
-      title,
-      description,
-      category,
-      difficulty,
-      suggestedXp,
-      suggestedDuration,
-    },
-  });
+  let nomination;
+  try {
+    nomination = await prisma.studentNominatedChallenge.create({
+      data: {
+        nominatorId: session.user.id,
+        title,
+        description,
+        category,
+        difficulty,
+        suggestedXp,
+        suggestedDuration,
+      },
+    });
+  } catch (err) {
+    const missingNominationsTable = isMissingTableError(
+      err,
+      "public.StudentNominatedChallenge"
+    );
+    if (!missingNominationsTable) throw err;
+    throw new Error(CHALLENGE_NOMINATIONS_UNAVAILABLE_MESSAGE);
+  }
 
   // Award 10 XP for nominating a challenge
   await awardXp(session.user.id, 10, `Nominated challenge: ${title}`);
 
-  revalidatePath("/challenges/nominations");
+  revalidatePath("/challenges/nominate");
   return nomination;
 }
 
@@ -720,58 +782,79 @@ export async function nominateChallenge(formData: FormData) {
 export async function voteOnNomination(nominationId: string, isUpvote: boolean) {
   const session = await requireAuth();
 
-  const existing = await prisma.nominationVote.findUnique({
-    where: { nominationId_userId: { nominationId, userId: session.user.id } },
-  });
-
-  if (existing) {
-    if (existing.isUpvote === isUpvote) {
-      // Same vote direction: remove the vote (toggle off)
-      await prisma.nominationVote.delete({
-        where: { id: existing.id },
-      });
-
-      // Decrement the relevant counter
-      await prisma.studentNominatedChallenge.update({
-        where: { id: nominationId },
-        data: isUpvote
-          ? { upvotes: { decrement: 1 } }
-          : { downvotes: { decrement: 1 } },
-      });
-    } else {
-      // Different vote direction: switch the vote
-      await prisma.nominationVote.update({
-        where: { id: existing.id },
-        data: { isUpvote },
-      });
-
-      // Swap counts: decrement old, increment new
-      await prisma.studentNominatedChallenge.update({
-        where: { id: nominationId },
-        data: isUpvote
-          ? { upvotes: { increment: 1 }, downvotes: { decrement: 1 } }
-          : { upvotes: { decrement: 1 }, downvotes: { increment: 1 } },
-      });
-    }
-  } else {
-    // New vote
-    await prisma.nominationVote.create({
-      data: {
-        nominationId,
-        userId: session.user.id,
-        isUpvote,
-      },
+  let existing;
+  try {
+    existing = await prisma.nominationVote.findUnique({
+      where: { nominationId_userId: { nominationId, userId: session.user.id } },
     });
-
-    await prisma.studentNominatedChallenge.update({
-      where: { id: nominationId },
-      data: isUpvote
-        ? { upvotes: { increment: 1 } }
-        : { downvotes: { increment: 1 } },
-    });
+  } catch (err) {
+    const missingVotesTable = isMissingTableError(err, "public.NominationVote");
+    const missingNominationsTable = isMissingTableError(
+      err,
+      "public.StudentNominatedChallenge"
+    );
+    if (!missingVotesTable && !missingNominationsTable) throw err;
+    throw new Error(CHALLENGE_NOMINATIONS_UNAVAILABLE_MESSAGE);
   }
 
-  revalidatePath("/challenges/nominations");
+  try {
+    if (existing) {
+      if (existing.isUpvote === isUpvote) {
+        // Same vote direction: remove the vote (toggle off)
+        await prisma.nominationVote.delete({
+          where: { id: existing.id },
+        });
+
+        // Decrement the relevant counter
+        await prisma.studentNominatedChallenge.update({
+          where: { id: nominationId },
+          data: isUpvote
+            ? { upvotes: { decrement: 1 } }
+            : { downvotes: { decrement: 1 } },
+        });
+      } else {
+        // Different vote direction: switch the vote
+        await prisma.nominationVote.update({
+          where: { id: existing.id },
+          data: { isUpvote },
+        });
+
+        // Swap counts: decrement old, increment new
+        await prisma.studentNominatedChallenge.update({
+          where: { id: nominationId },
+          data: isUpvote
+            ? { upvotes: { increment: 1 }, downvotes: { decrement: 1 } }
+            : { upvotes: { decrement: 1 }, downvotes: { increment: 1 } },
+        });
+      }
+    } else {
+      // New vote
+      await prisma.nominationVote.create({
+        data: {
+          nominationId,
+          userId: session.user.id,
+          isUpvote,
+        },
+      });
+
+      await prisma.studentNominatedChallenge.update({
+        where: { id: nominationId },
+        data: isUpvote
+          ? { upvotes: { increment: 1 } }
+          : { downvotes: { increment: 1 } },
+      });
+    }
+  } catch (err) {
+    const missingVotesTable = isMissingTableError(err, "public.NominationVote");
+    const missingNominationsTable = isMissingTableError(
+      err,
+      "public.StudentNominatedChallenge"
+    );
+    if (!missingVotesTable && !missingNominationsTable) throw err;
+    throw new Error(CHALLENGE_NOMINATIONS_UNAVAILABLE_MESSAGE);
+  }
+
+  revalidatePath("/challenges/nominate");
 }
 
 /**
@@ -781,9 +864,19 @@ export async function voteOnNomination(nominationId: string, isUpvote: boolean) 
 export async function promoteNomination(nominationId: string) {
   const session = await requireAuth();
 
-  const nomination = await prisma.studentNominatedChallenge.findUnique({
-    where: { id: nominationId },
-  });
+  let nomination;
+  try {
+    nomination = await prisma.studentNominatedChallenge.findUnique({
+      where: { id: nominationId },
+    });
+  } catch (err) {
+    const missingNominationsTable = isMissingTableError(
+      err,
+      "public.StudentNominatedChallenge"
+    );
+    if (!missingNominationsTable) throw err;
+    throw new Error(CHALLENGE_NOMINATIONS_UNAVAILABLE_MESSAGE);
+  }
   if (!nomination) throw new Error("Nomination not found");
   if (nomination.status === "PROMOTED") {
     throw new Error("Nomination already promoted");
@@ -815,16 +908,25 @@ export async function promoteNomination(nominationId: string) {
     },
   });
 
-  await prisma.studentNominatedChallenge.update({
-    where: { id: nominationId },
-    data: {
-      status: "PROMOTED",
-      reviewedById: session.user.id,
-      promotedChallengeId: challenge.id,
-    },
-  });
+  try {
+    await prisma.studentNominatedChallenge.update({
+      where: { id: nominationId },
+      data: {
+        status: "PROMOTED",
+        reviewedById: session.user.id,
+        promotedChallengeId: challenge.id,
+      },
+    });
+  } catch (err) {
+    const missingNominationsTable = isMissingTableError(
+      err,
+      "public.StudentNominatedChallenge"
+    );
+    if (!missingNominationsTable) throw err;
+    throw new Error(CHALLENGE_NOMINATIONS_UNAVAILABLE_MESSAGE);
+  }
 
-  revalidatePath("/challenges/nominations");
+  revalidatePath("/challenges/nominate");
   revalidatePath("/challenges");
   return challenge;
 }
