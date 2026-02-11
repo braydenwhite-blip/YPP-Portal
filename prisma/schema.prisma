@@ -381,6 +381,13 @@ model User {
   challengesNominated            StudentNominatedChallenge[]  @relation("ChallengesNominated")
   nominationVotes                NominationVote[]             @relation("NominationVotes")
 
+  // Passion Project Incubator Relations
+  incubatorApplications          IncubatorApplication[]       @relation("IncubatorApplications")
+  incubatorProjects              IncubatorProject[]           @relation("IncubatorProjects")
+  incubatorMentoring             IncubatorMentor[]            @relation("IncubatorMentoring")
+  incubatorUpdates               IncubatorUpdate[]            @relation("IncubatorUpdates")
+  pitchFeedbackGiven             PitchFeedback[]              @relation("PitchFeedbackGiven")
+
   // Phase 13: Real-World Connections Relations
   internshipApplications         InternshipApplication[]      @relation("InternshipApplications")
   internshipListingsPosted       InternshipListing[]          @relation("InternshipListingsPosted")
@@ -4804,6 +4811,214 @@ model NominationVote {
 
   @@unique([nominationId, userId])
   @@index([userId])
+}
+
+// ============================================
+// PASSION PROJECT INCUBATOR (Feature #35)
+// ============================================
+
+enum IncubatorPhase {
+  IDEATION         // Brainstorm, research, define the project
+  PLANNING         // Set milestones, gather resources, find mentor
+  BUILDING         // Active work on the project
+  FEEDBACK         // Submit for peer/mentor feedback rounds
+  POLISHING        // Refine based on feedback
+  SHOWCASE         // Present / pitch the final project
+}
+
+enum IncubatorCohortStatus {
+  DRAFT
+  ACCEPTING_APPLICATIONS
+  IN_PROGRESS
+  SHOWCASE_PHASE
+  COMPLETED
+  ARCHIVED
+}
+
+enum IncubatorAppStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  ACCEPTED
+  WAITLISTED
+  REJECTED
+  WITHDRAWN
+}
+
+// A cohort / batch of the incubator program
+model IncubatorCohort {
+  id              String                 @id @default(cuid())
+  name            String                 // e.g. "Spring 2026 Cohort"
+  description     String?                @db.Text
+  season          String?                // FALL, WINTER, SPRING, SUMMER
+  year            Int
+
+  // Timing
+  applicationOpen DateTime?
+  applicationClose DateTime?
+  startDate       DateTime
+  endDate         DateTime
+  showcaseDate    DateTime?
+
+  // Config
+  maxProjects     Int                    @default(20)
+  passionAreas    String[]               // Which passions this cohort covers (empty = all)
+  status          IncubatorCohortStatus  @default(DRAFT)
+
+  // Relations
+  applications    IncubatorApplication[]
+  projects        IncubatorProject[]
+  mentorAssignments IncubatorMentor[]
+
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  @@index([status])
+  @@index([year, season])
+}
+
+// Student application to join an incubator cohort
+model IncubatorApplication {
+  id              String              @id @default(cuid())
+  cohortId        String
+  cohort          IncubatorCohort     @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  studentId       String
+  student         User                @relation("IncubatorApplications", fields: [studentId], references: [id])
+
+  // Application content
+  projectTitle    String
+  projectIdea     String              @db.Text  // What do you want to build?
+  passionArea     String
+  whyThisProject  String              @db.Text  // Why does this matter to you?
+  priorExperience String?             @db.Text  // What have you done so far?
+  goals           String              @db.Text  // What do you hope to achieve?
+  needsMentor     Boolean             @default(true)
+  mentorPreference String?            // What kind of mentor help?
+
+  // Review
+  status          IncubatorAppStatus  @default(SUBMITTED)
+  reviewedById    String?
+  reviewNote      String?
+  reviewedAt      DateTime?
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@unique([cohortId, studentId])
+  @@index([studentId])
+  @@index([status])
+}
+
+// An active project within the incubator (wraps ProjectTracker with incubator context)
+model IncubatorProject {
+  id              String            @id @default(cuid())
+  cohortId        String
+  cohort          IncubatorCohort   @relation(fields: [cohortId], references: [id])
+  studentId       String
+  student         User              @relation("IncubatorProjects", fields: [studentId], references: [id])
+  projectTrackerId String?          // Links to existing ProjectTracker
+
+  // Project info
+  title           String
+  description     String            @db.Text
+  passionArea     String
+  currentPhase    IncubatorPhase    @default(IDEATION)
+
+  // Progress tracking
+  ideationComplete  Boolean         @default(false)
+  planningComplete  Boolean         @default(false)
+  buildingComplete  Boolean         @default(false)
+  feedbackComplete  Boolean         @default(false)
+  polishingComplete Boolean         @default(false)
+  showcaseComplete  Boolean         @default(false)
+
+  // Pitch / Showcase
+  pitchVideoUrl   String?
+  pitchDeckUrl    String?
+  finalShowcaseUrl String?
+  pitchDate       DateTime?
+
+  // XP
+  xpEarned        Int               @default(0)
+
+  // Relations
+  mentors         IncubatorMentor[]
+  updates         IncubatorUpdate[]
+  pitchFeedback   PitchFeedback[]
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@unique([cohortId, studentId])
+  @@index([cohortId])
+  @@index([studentId])
+  @@index([currentPhase])
+}
+
+// Mentor assignment for incubator projects
+model IncubatorMentor {
+  id              String            @id @default(cuid())
+  cohortId        String
+  cohort          IncubatorCohort   @relation(fields: [cohortId], references: [id])
+  projectId       String
+  project         IncubatorProject  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  mentorId        String
+  mentor          User              @relation("IncubatorMentoring", fields: [mentorId], references: [id])
+
+  role            String            @default("MENTOR") // MENTOR, ADVISOR, PEER_MENTOR
+  notes           String?
+  isActive        Boolean           @default(true)
+
+  assignedAt      DateTime          @default(now())
+
+  @@unique([projectId, mentorId])
+  @@index([mentorId])
+  @@index([cohortId])
+}
+
+// Progress updates / check-ins posted by students
+model IncubatorUpdate {
+  id              String            @id @default(cuid())
+  projectId       String
+  project         IncubatorProject  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  authorId        String
+  author          User              @relation("IncubatorUpdates", fields: [authorId], references: [id])
+
+  title           String
+  content         String            @db.Text
+  phase           IncubatorPhase    // Which phase this update is for
+  mediaUrls       String[]
+  hoursSpent      Float?
+
+  createdAt       DateTime          @default(now())
+
+  @@index([projectId])
+  @@index([authorId])
+}
+
+// Feedback on pitches / showcases
+model PitchFeedback {
+  id              String            @id @default(cuid())
+  projectId       String
+  project         IncubatorProject  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reviewerId      String
+  reviewer        User              @relation("PitchFeedbackGiven", fields: [reviewerId], references: [id])
+
+  // Scoring (1-5)
+  clarityScore    Int?              // How clear is the project vision?
+  passionScore    Int?              // How passionate is the student?
+  executionScore  Int?              // How well did they execute?
+  impactScore     Int?              // What's the potential impact?
+  overallScore    Int?
+
+  strengths       String?           @db.Text
+  improvements    String?           @db.Text
+  encouragement   String?           @db.Text
+
+  createdAt       DateTime          @default(now())
+
+  @@unique([projectId, reviewerId])
+  @@index([projectId])
+  @@index([reviewerId])
 }
 
 // ============================================

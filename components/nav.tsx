@@ -92,12 +92,15 @@ function buildSections(roles: string[], awardTier?: string): NavSection[] {
   ];
   sections.push({ label: "Challenges", items: challengeItems });
 
-  // Showcase & Community Content
-  const showcaseItems: NavItem[] = [
+  // Incubator & Projects
+  const incubatorItems: NavItem[] = [
+    { href: "/incubator", label: "Project Incubator", icon: "\u25CB" },
+    { href: "/incubator/apply", label: "Apply", icon: "\u25CB" },
+    { href: "/projects/tracker", label: "My Projects", icon: "\u25CB" },
     { href: "/showcase", label: "Student Showcase", icon: "\u25CB" },
     { href: "/showcase/submit", label: "Share Your Work", icon: "\u25CB" }
   ];
-  sections.push({ label: "Showcase", items: showcaseItems });
+  sections.push({ label: "Incubator", items: incubatorItems });
 
   // Real World (Phase 13)
   const realWorldItems: NavItem[] = [
@@ -166,6 +169,7 @@ function buildSections(roles: string[], awardTier?: string): NavSection[] {
       label: "Admin",
       items: [
         { href: "/admin", label: "Dashboard", icon: "\u25CB" },
+        { href: "/admin/incubator", label: "Incubator Mgmt", icon: "\u25CB" },
         { href: "/admin/announcements", label: "Announcements", icon: "\u25CB" },
         { href: "/admin/instructors", label: "All Instructors", icon: "\u25CB" },
         { href: "/admin/students", label: "All Students", icon: "\u25CB" },
