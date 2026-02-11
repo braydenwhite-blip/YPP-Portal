@@ -7,7 +7,7 @@ import Link from "next/link";
 export default async function SubstituteRequestPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    redirect("/public/login");
+    redirect("/login");
   }
 
   const isInstructor = session.user.primaryRole === "INSTRUCTOR" || session.user.primaryRole === "ADMIN";

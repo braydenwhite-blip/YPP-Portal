@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 export default async function ManageOfficeHoursPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    redirect("/public/login");
+    redirect("/login");
   }
 
   const isInstructor = session.user.primaryRole === "INSTRUCTOR" || session.user.primaryRole === "ADMIN";

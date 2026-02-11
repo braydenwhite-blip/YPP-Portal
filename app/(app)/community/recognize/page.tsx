@@ -7,7 +7,7 @@ import Link from "next/link";
 export default async function GiveRecognitionPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    redirect("/public/login");
+    redirect("/login");
   }
 
   // Get all users except current user

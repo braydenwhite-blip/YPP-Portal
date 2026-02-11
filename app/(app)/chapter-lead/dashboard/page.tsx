@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 export default async function ChapterLeadDashboardPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    redirect("/public/login");
+    redirect("/login");
   }
 
   if (session.user.primaryRole !== "CHAPTER_LEAD" && session.user.primaryRole !== "ADMIN") {

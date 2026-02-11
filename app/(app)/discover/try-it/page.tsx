@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 export default async function TryItSessionsPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    redirect("/public/login");
+    redirect("/login");
   }
 
   // Get all try-it sessions - in production these would be from database

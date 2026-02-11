@@ -38,7 +38,9 @@ const ENTRY_TYPE_COLORS: Record<string, string> = {
 
 export default async function PassionTimelinePage() {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) redirect("/login");
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
 
   const timelineEntries = await getMyTimeline();
   const entries = timelineEntries as any[];

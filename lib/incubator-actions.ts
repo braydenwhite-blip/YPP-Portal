@@ -492,6 +492,7 @@ export async function requestResource(formData: FormData) {
       description,
       reason,
       estimatedCost,
+      status: "PENDING",
     },
   });
 }

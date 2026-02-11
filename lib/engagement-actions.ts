@@ -249,6 +249,8 @@ const RANDOM_REWARD_TYPES = [
   { type: "DOUBLE_XP", title: "Double XP Boost", weight: 20 },
 ] as const;
 
+type RandomRewardType = (typeof RANDOM_REWARD_TYPES)[number];
+
 /**
  * Called on page loads. 10% chance of generating a random reward.
  * Ensures user hasn't received a reward in the last 24 hours.
@@ -274,7 +276,7 @@ export async function checkRandomReward() {
   // Weighted random selection of reward type
   const totalWeight = RANDOM_REWARD_TYPES.reduce((sum, r) => sum + r.weight, 0);
   let roll = Math.random() * totalWeight;
-  let selectedType = RANDOM_REWARD_TYPES[0];
+  let selectedType: RandomRewardType = RANDOM_REWARD_TYPES[0];
   for (const rewardDef of RANDOM_REWARD_TYPES) {
     roll -= rewardDef.weight;
     if (roll <= 0) {

@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 export default async function DuplicateCoursePage({ params }: { params: { courseId: string } }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    redirect("/public/login");
+    redirect("/login");
   }
 
   const course = await prisma.course.findUnique({

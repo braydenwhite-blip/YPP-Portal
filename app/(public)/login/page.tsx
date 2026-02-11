@@ -131,7 +131,7 @@ export default function LoginPage() {
             </button>
           </form>
           <div className="login-help">
-            Need a demo login? Use the credentials listed in the README.
+            Need help signing in? Contact your chapter administrator.
           </div>
           <Link className="button secondary" style={{ display: "block", textAlign: "center" }} href="/signup">
             Create Account

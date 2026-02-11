@@ -7,7 +7,7 @@ import Link from "next/link";
 export default async function StudyGroupPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    redirect("/public/login");
+    redirect("/login");
   }
 
   const group = await prisma.studyGroup.findUnique({
