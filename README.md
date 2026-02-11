@@ -62,7 +62,7 @@ Dedicated portal for YPP Pathways (curriculum structure, instructor training, me
    npm run dev
    ```
 
-## Demo Logins (seeded)
+## Login Accounts (seeded)
 | Email | Role |
 |-------|------|
 | `brayden.white@youthpassionproject.org` | Admin + Instructor |
@@ -70,7 +70,44 @@ Dedicated portal for YPP Pathways (curriculum structure, instructor training, me
 | `avery.lin@youthpassionproject.org` | Instructor |
 | `jordan.patel@youthpassionproject.org` | Student |
 
-**Password for all demo users:** Set via the `SEED_PASSWORD` environment variable before running `npm run db:seed`.
+**Password for all seeded users:** Set via the `SEED_PASSWORD` environment variable before running `npm run db:seed`.
+
+## Database Deployment
+
+### Environment Variables
+
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | Pooled connection (e.g. port 6543 via PgBouncer). Used at runtime by the app. |
+| `DIRECT_URL` | Direct connection (e.g. port 5432). Used by Prisma for migrations. |
+
+Both are required for production. If you are not using connection pooling, they can be the same URL.
+
+### Running Migrations
+
+**Locally:**
+```bash
+npx prisma migrate dev          # create + apply migrations during development
+npx prisma migrate deploy       # apply pending migrations (CI/production)
+```
+
+**On Vercel (automatic):**
+The build script (`scripts/maybe-db-sync.mjs`) runs `prisma migrate deploy` automatically during each Vercel build. This safely applies any pending migrations without dropping data.
+
+| Env var | Effect |
+|---------|--------|
+| `SKIP_DB_SYNC=1` or `DISABLE_DB_SYNC=1` | Skip migration during build |
+| `REQUIRE_DB_SYNC=1` | Fail the build if migration fails (recommended for production) |
+
+**Manual deployment (if not using the build hook):**
+```bash
+DATABASE_URL="..." DIRECT_URL="..." npx prisma migrate deploy
+```
+
+### Important Notes
+- Never use `prisma db push` in production — it can drop columns/data.
+- Always use `prisma migrate deploy` which only applies committed migration files.
+- `DIRECT_URL` must point to a non-pooled connection for migrations to work.
 
 ## Vercel Deployment
 
@@ -90,19 +127,16 @@ Dedicated portal for YPP Pathways (curriculum structure, instructor training, me
 2. **Set Environment Variables**
    In Vercel project settings, add:
    ```
-   DATABASE_URL=your_database_connection_string
+   DATABASE_URL=your_pooled_database_connection_string
    DIRECT_URL=your_direct_database_url (for migrations)
    NEXTAUTH_SECRET=generate_with_openssl_rand_base64_32
-   SEED_PASSWORD=a_strong_password_for_demo_accounts
+   SEED_PASSWORD=a_strong_password_for_seeded_accounts
    ```
    Generate `NEXTAUTH_SECRET` with: `openssl rand -base64 32`
 
-3. **Set Build Command**
-   In Vercel project settings under **Build & Development Settings**, set the build command to:
-   ```
-   prisma migrate deploy && prisma generate && next build
-   ```
-   This ensures migrations run on every deployment before the build.
+3. **Deploy**
+   The build command runs `prisma migrate deploy` + `prisma generate` + `next build` automatically.
+   Set `REQUIRE_DB_SYNC=1` to ensure the build fails if migrations can't be applied.
 
 4. **Seed Initial Data (Optional)**
    After your first deployment, seed the database from a machine with network access to your DB:
@@ -136,10 +170,12 @@ app/
 
 components/
 ├── progress-bar.tsx    # Progress bar components
+├── empty-state.tsx     # Reusable empty/coming-soon state
 ├── nav.tsx             # Navigation
 └── ...
 
 lib/
+├── prisma.ts           # Prisma client singleton
 ├── goals-actions.ts    # Goals server actions
 ├── admin-actions.ts    # Admin server actions
 └── ...
