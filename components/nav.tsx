@@ -97,15 +97,31 @@ function buildSections(roles: string[], awardTier?: string): NavSection[] {
   // Challenges & Achievements
   const challengeItems: NavItem[] = [
     { href: "/challenges", label: "Challenges", icon: "\u25CB" },
+    { href: "/challenges/daily", label: "Daily Challenges", icon: "\u25CB" },
     { href: "/challenges/weekly", label: "Weekly Prompts", icon: "\u25CB" },
+    { href: "/challenges/streaks", label: "Streaks", icon: "\u25CB" },
+    { href: "/challenges/nominate", label: "Nominate Challenge", icon: "\u25CB" },
     { href: "/challenges/passport", label: "Passion Passport", icon: "\u25CB" },
     { href: "/competitions", label: "Competitions", icon: "\u25CB" },
     { href: "/competitions/checklist", label: "Competition Checklist", icon: "\u25CB" },
+    { href: "/showcases", label: "Seasonal Events", icon: "\u25CB" },
+    { href: "/leaderboards", label: "Leaderboards", icon: "\u25CB" },
+    { href: "/rewards", label: "Rewards", icon: "\u25CB" },
     { href: "/achievements/badges", label: "Badge Gallery", icon: "\u25CB" },
     { href: "/student-of-month", label: "Student of the Month", icon: "\u25CB" },
     { href: "/wall-of-fame", label: "Wall of Fame", icon: "\u25CB" }
   ];
   sections.push({ label: "Challenges", items: challengeItems });
+
+  // Incubator & Projects
+  const incubatorItems: NavItem[] = [
+    { href: "/incubator", label: "Project Incubator", icon: "\u25CB" },
+    { href: "/incubator/apply", label: "Apply", icon: "\u25CB" },
+    { href: "/projects/tracker", label: "My Projects", icon: "\u25CB" },
+    { href: "/showcase", label: "Student Showcase", icon: "\u25CB" },
+    { href: "/showcase/submit", label: "Share Your Work", icon: "\u25CB" }
+  ];
+  sections.push({ label: "Incubator", items: incubatorItems });
 
   // Real World (Phase 13)
   const realWorldItems: NavItem[] = [
@@ -173,6 +189,7 @@ function buildSections(roles: string[], awardTier?: string): NavSection[] {
     );
   }
   achievementItems.push({ href: "/profile", label: "My Profile", icon: "\u25CB" });
+  achievementItems.push({ href: "/profile/timeline", label: "My Journey", icon: "\u25CB" });
   achievementItems.push({ href: "/profile/xp", label: "XP & Levels", icon: "\u25CB" });
   achievementItems.push({ href: "/profile/certifications", label: "Certifications", icon: "\u25CB" });
   achievementItems.push({ href: "/settings/personalization", label: "Personalization", icon: "\u25CB" });
@@ -184,6 +201,7 @@ function buildSections(roles: string[], awardTier?: string): NavSection[] {
       label: "Admin",
       items: [
         { href: "/admin", label: "Dashboard", icon: "\u25CB" },
+        { href: "/admin/incubator", label: "Incubator Mgmt", icon: "\u25CB" },
         { href: "/admin/announcements", label: "Announcements", icon: "\u25CB" },
         { href: "/admin/instructors", label: "All Instructors", icon: "\u25CB" },
         { href: "/admin/students", label: "All Students", icon: "\u25CB" },
