@@ -80,6 +80,7 @@ Dedicated portal for YPP Pathways (curriculum structure, instructor training, me
 |----------|---------|
 | `DATABASE_URL` | Pooled connection (e.g. port 6543 via PgBouncer). Used at runtime by the app. |
 | `DIRECT_URL` | Direct connection (e.g. port 5432). Used by Prisma for migrations. |
+| `PRISMA_RUNTIME_DATABASE_URL` | Optional override for app runtime queries. If set, this is used instead of `DATABASE_URL`. |
 
 Both are required for production. If you are not using connection pooling, they can be the same URL.
 
@@ -97,7 +98,9 @@ The build script (`scripts/maybe-db-sync.mjs`) runs `prisma migrate deploy` auto
 | Env var | Effect |
 |---------|--------|
 | `SKIP_DB_SYNC=1` or `DISABLE_DB_SYNC=1` | Skip migration during build |
-| `REQUIRE_DB_SYNC=1` | Fail the build if migration fails (recommended for production) |
+| `REQUIRE_DB_SYNC=1` | Fail preview builds if migration fails |
+
+Production deploys (`VERCEL_ENV=production`) now fail automatically when migration fails, to prevent schema drift.
 
 **Manual deployment (if not using the build hook):**
 ```bash
@@ -127,16 +130,21 @@ DATABASE_URL="..." DIRECT_URL="..." npx prisma migrate deploy
 2. **Set Environment Variables**
    In Vercel project settings, add:
    ```
-   DATABASE_URL=your_pooled_database_connection_string
-   DIRECT_URL=your_direct_database_url (for migrations)
+   DATABASE_URL=postgresql://postgres.<ref>:<password>@aws-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1&sslmode=require
+   DIRECT_URL=postgresql://postgres:<password>@db.<ref>.supabase.co:5432/postgres?sslmode=require
    NEXTAUTH_SECRET=generate_with_openssl_rand_base64_32
    SEED_PASSWORD=a_strong_password_for_seeded_accounts
+   ```
+   Optional emergency fallback:
+   ```
+   PRISMA_RUNTIME_DATABASE_URL=postgresql://postgres:<password>@db.<ref>.supabase.co:5432/postgres?sslmode=require
    ```
    Generate `NEXTAUTH_SECRET` with: `openssl rand -base64 32`
 
 3. **Deploy**
    The build command runs `prisma migrate deploy` + `prisma generate` + `next build` automatically.
-   Set `REQUIRE_DB_SYNC=1` to ensure the build fails if migrations can't be applied.
+   Production deploys fail automatically if migrations can't be applied.
+   Set `REQUIRE_DB_SYNC=1` if you also want preview builds to fail on migration errors.
 
 4. **Seed Initial Data (Optional)**
    After your first deployment, seed the database from a machine with network access to your DB:
@@ -149,11 +157,18 @@ DATABASE_URL="..." DIRECT_URL="..." npx prisma migrate deploy
 For serverless environments, use connection pooling:
 - **DATABASE_URL**: Points to pooler (e.g., port 6543)
 - **DIRECT_URL**: Points to direct connection (e.g., port 5432)
+- Include `sslmode=require` in both URLs.
 
 Example with Neon:
 ```
 DATABASE_URL="postgres://user:pass@ep-xxx.us-east-2.aws.neon.tech/neondb?sslmode=require&pgbouncer=true"
 DIRECT_URL="postgres://user:pass@ep-xxx.us-east-2.aws.neon.tech/neondb?sslmode=require"
+```
+
+Example with Supabase (pooling + direct):
+```
+DATABASE_URL="postgresql://postgres.<ref>:<password>@aws-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1&sslmode=require"
+DIRECT_URL="postgresql://postgres:<password>@db.<ref>.supabase.co:5432/postgres?sslmode=require"
 ```
 
 ## Project Structure
