@@ -64,12 +64,13 @@ export default function AppShell({
         {/* Footer — fixed */}
         <div className="sidebar-footer">
           <div className="sidebar-card">
-            <h4>Signed In</h4>
-            <p className="user-name">{userName ?? "Portal User"}</p>
-            <p className="user-role">
-              {primaryRole ? primaryRole.replace("_", " ") : "Portal Access"}
-            </p>
-            <div className="sidebar-actions">
+            <div className="sidebar-card-row">
+              <div>
+                <p className="user-name">{userName ?? "Portal User"}</p>
+                <p className="user-role">
+                  {primaryRole ? primaryRole.replace("_", " ") : "Portal Access"}
+                </p>
+              </div>
               <LogoutButton />
             </div>
           </div>
