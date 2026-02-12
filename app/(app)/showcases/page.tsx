@@ -26,8 +26,8 @@ export default async function ShowcasesPage() {
         title="Passion Showcases"
         description="This page will show quarterly showcase events where students present their passion projects, get feedback, and celebrate achievements with the community."
         addedBy="admins and chapter leaders"
-        actionLabel="Go to Admin Panel"
-        actionHref="/admin"
+        actionLabel="Manage Showcases"
+        actionHref="/admin/showcases"
       />
     );
   }

@@ -23,8 +23,8 @@ export default async function SuccessStoriesPage() {
         title="Success Stories"
         description="This page will feature real stories from YPP students and alumni who turned their passions into careers, college opportunities, and community impact."
         addedBy="admins (stories are published by the YPP team)"
-        actionLabel="Go to Admin Panel"
-        actionHref="/admin"
+        actionLabel="Manage Stories"
+        actionHref="/admin/stories"
       />
     );
   }
