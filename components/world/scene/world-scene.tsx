@@ -15,6 +15,12 @@ import { AchievementShrine3D } from "../landmarks/achievement-shrine";
 import { ChapterTown3D } from "../landmarks/chapter-town";
 import { SeasonalEvents3D } from "../landmarks/seasonal-events";
 import { useIslandInteraction } from "../hooks/use-island-interaction";
+import { Bridges } from "../effects/bridges";
+import { Compass } from "../effects/compass";
+import { useWorldControls } from "../hooks/use-world-controls";
+import { getTheme } from "../constants";
+import { getTierConfig } from "../islands/island-tiers";
+import { SelectionRing } from "../effects/selection-ring";
 
 interface WorldSceneProps {
   tier: DeviceTier;
@@ -53,6 +59,7 @@ function SceneContent({
   onSelectIsland?: (island: PassionIsland | null) => void;
 }) {
   const { selectedId, hoveredId, select, hover } = useIslandInteraction();
+  const { focusOnIsland, returnToOverview } = useWorldControls();
 
   const positions = useMemo(
     () => getIslandPositions3D(data.islands.length),
@@ -68,10 +75,27 @@ function SceneContent({
     events: [0, 0, 60] as [number, number, number],
   }), []);
 
-  const handleSelectIsland = (island: PassionIsland) => {
+  // Selected island info for selection ring
+  const selectedIslandInfo = useMemo(() => {
+    if (!selectedId) return null;
+    const idx = data.islands.findIndex((isl) => isl.id === selectedId);
+    if (idx === -1) return null;
+    const island = data.islands[idx];
+    const pos = positions[idx];
+    const theme = getTheme(island.category);
+    const tierCfg = getTierConfig(island.level);
+    return { pos, color: theme.gradient[0], radius: tierCfg.radius + (island.isPrimary ? 1 : 0) };
+  }, [selectedId, data.islands, positions]);
+
+  const handleSelectIsland = (island: PassionIsland, pos: [number, number, number]) => {
     const newId = selectedId === island.id ? null : island.id;
     select(newId);
     onSelectIsland?.(newId ? island : null);
+    if (newId) {
+      focusOnIsland(pos);
+    } else {
+      returnToOverview();
+    }
   };
 
   return (
@@ -79,6 +103,22 @@ function SceneContent({
       <SkyEnvironment />
       <Ocean tier={tier} />
       <CameraController />
+
+      {/* Compass rose */}
+      <Compass />
+
+      {/* Bridges between consecutive islands */}
+      <Bridges islands={data.islands} positions={positions} />
+
+      {/* Selection ring on selected island */}
+      {selectedIslandInfo && (
+        <SelectionRing
+          position={[selectedIslandInfo.pos.x, 0.2, selectedIslandInfo.pos.z]}
+          radius={selectedIslandInfo.radius}
+          color={selectedIslandInfo.color}
+          visible
+        />
+      )}
 
       {/* Islands */}
       {data.islands.map((island, i) => {
@@ -91,7 +131,7 @@ function SceneContent({
             index={i}
             isSelected={selectedId === island.id}
             isHovered={hoveredId === island.id}
-            onSelect={() => handleSelectIsland(island)}
+            onSelect={() => handleSelectIsland(island, [pos.x, pos.y, pos.z])}
             onHover={(h) => hover(h ? island.id : null)}
           />
         );
