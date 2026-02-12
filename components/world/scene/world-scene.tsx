@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Ocean } from "./ocean";
 import { SkyEnvironment } from "./sky-environment";
@@ -21,6 +21,9 @@ import { useWorldControls } from "../hooks/use-world-controls";
 import { getTheme } from "../constants";
 import { getTierConfig } from "../islands/island-tiers";
 import { SelectionRing } from "../effects/selection-ring";
+import { CinematicIntro } from "./cinematic-intro";
+import { KeyboardControls } from "./keyboard-controls";
+import { AmbientLife } from "./ambient-life";
 
 interface WorldSceneProps {
   tier: DeviceTier;
@@ -58,8 +61,9 @@ function SceneContent({
   data: WorldData;
   onSelectIsland?: (island: PassionIsland | null) => void;
 }) {
-  const { selectedId, hoveredId, select, hover } = useIslandInteraction();
+  const { selectedId, hoveredId, select, hover, deselect } = useIslandInteraction();
   const { focusOnIsland, returnToOverview } = useWorldControls();
+  const [introComplete, setIntroComplete] = useState(false);
 
   const positions = useMemo(
     () => getIslandPositions3D(data.islands.length),
@@ -87,7 +91,16 @@ function SceneContent({
     return { pos, color: theme.gradient[0], radius: tierCfg.radius + (island.isPrimary ? 1 : 0) };
   }, [selectedId, data.islands, positions]);
 
-  const handleSelectIsland = (island: PassionIsland, pos: [number, number, number]) => {
+  // Primary island position for cinematic intro drift
+  const primaryIslandPos = useMemo<[number, number, number] | null>(() => {
+    const primary = data.islands.find((isl) => isl.isPrimary);
+    if (!primary) return null;
+    const idx = data.islands.indexOf(primary);
+    const pos = positions[idx];
+    return pos ? [pos.x, pos.y, pos.z] : null;
+  }, [data.islands, positions]);
+
+  const handleSelectIsland = useCallback((island: PassionIsland, pos: [number, number, number]) => {
     const newId = selectedId === island.id ? null : island.id;
     select(newId);
     onSelectIsland?.(newId ? island : null);
@@ -96,13 +109,43 @@ function SceneContent({
     } else {
       returnToOverview();
     }
-  };
+  }, [selectedId, select, onSelectIsland, focusOnIsland, returnToOverview]);
+
+  const handleDeselect = useCallback(() => {
+    deselect();
+    onSelectIsland?.(null);
+    returnToOverview();
+  }, [deselect, onSelectIsland, returnToOverview]);
+
+  const handleIntroComplete = useCallback(() => {
+    setIntroComplete(true);
+  }, []);
 
   return (
     <>
       <SkyEnvironment />
       <Ocean tier={tier} />
       <CameraController />
+
+      {/* Cinematic intro on first visit */}
+      <CinematicIntro
+        primaryIslandPos={primaryIslandPos}
+        onIntroComplete={handleIntroComplete}
+      />
+
+      {/* Keyboard navigation */}
+      {introComplete && (
+        <KeyboardControls
+          islands={data.islands}
+          positions={positions}
+          selectedId={selectedId}
+          onSelectIsland={handleSelectIsland}
+          onDeselect={handleDeselect}
+        />
+      )}
+
+      {/* Ambient life: boats, birds, fish */}
+      <AmbientLife tier={tier} />
 
       {/* Compass rose */}
       <Compass />
