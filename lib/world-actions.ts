@@ -103,7 +103,7 @@ export async function getWorldData(): Promise<WorldData> {
         chapter: {
           select: {
             name: true,
-            _count: { select: { members: true } },
+            _count: { select: { users: true } },
           },
         },
       },
@@ -283,7 +283,7 @@ export async function getWorldData(): Promise<WorldData> {
     hasMentor: !!mentorship,
     mentorName: mentorship?.mentor?.name ?? null,
     chapterName: user?.chapter?.name ?? null,
-    chapterMemberCount: user?.chapter?._count?.members ?? 0,
+    chapterMemberCount: user?.chapter?._count?.users ?? 0,
     activeChallenges,
     upcomingEventCount: upcomingEvents,
   };

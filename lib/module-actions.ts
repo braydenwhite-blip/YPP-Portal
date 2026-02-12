@@ -161,8 +161,7 @@ export async function completeModule(moduleId: string, rating?: number) {
         userId,
         amount: 15,
         reason: "Completed learning module",
-        sourceType: "MODULE",
-        sourceId: moduleId,
+        metadata: { sourceType: "MODULE", sourceId: moduleId },
       },
     });
     await prisma.user.update({

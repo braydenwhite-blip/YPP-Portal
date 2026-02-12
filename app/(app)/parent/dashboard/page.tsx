@@ -86,10 +86,10 @@ export default async function ParentDashboardPage() {
 
   // Fetch upcoming events (if any)
   const upcomingEvents = await prisma.event.findMany({
-    where: { date: { gte: new Date() } },
-    orderBy: { date: "asc" },
+    where: { startDate: { gte: new Date() } },
+    orderBy: { startDate: "asc" },
     take: 5,
-    select: { id: true, title: true, date: true, location: true },
+    select: { id: true, title: true, startDate: true, location: true },
   }).catch(() => []);
 
   return (
@@ -244,7 +244,7 @@ export default async function ParentDashboardPage() {
                       >
                         <div style={{ fontWeight: 500, fontSize: 13 }}>{event.title}</div>
                         <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
-                          {new Date(event.date).toLocaleDateString("en-US", {
+                          {new Date(event.startDate).toLocaleDateString("en-US", {
                             weekday: "short",
                             month: "short",
                             day: "numeric",
