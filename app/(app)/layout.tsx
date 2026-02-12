@@ -48,18 +48,54 @@ export default async function AppLayout({
     }
   }
 
-  // Get user's highest award tier for navigation
+  // Get user's highest award tier + badge counts for navigation
   let awardTier: string | undefined;
+  let badges: { notifications?: number; messages?: number; approvals?: number } = {};
   if (session?.user?.id) {
-    const userWithAwards = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { awards: { select: { type: true } } }
-    });
+    const userId = session.user.id;
+    const [userWithAwards, unreadNotifications, unreadMessages, pendingApprovals] =
+      await Promise.all([
+        prisma.user.findUnique({
+          where: { id: userId },
+          select: { awards: { select: { type: true } } },
+        }),
+        // Unread notification count
+        prisma.notification.count({
+          where: { userId, isRead: false },
+        }).catch(() => 0),
+        // Unread messages: conversations where latest message is after user's lastReadAt
+        prisma.conversationParticipant
+          .findMany({
+            where: { userId },
+            include: {
+              conversation: {
+                include: { messages: { orderBy: { createdAt: "desc" }, take: 1 } },
+              },
+            },
+          })
+          .then((parts: Array<{ lastReadAt: Date; conversation: { messages: Array<{ createdAt: Date; senderId: string }> } }>) =>
+            parts.filter(
+              (p) =>
+                p.conversation.messages.length > 0 &&
+                p.conversation.messages[0].createdAt > p.lastReadAt &&
+                p.conversation.messages[0].senderId !== userId,
+            ).length,
+          )
+          .catch(() => 0),
+        // Pending approvals placeholder (future: parent approvals, instructor readiness, etc.)
+        Promise.resolve(0),
+      ]);
+
     awardTier = getHighestAwardTier(userWithAwards?.awards ?? []);
+    badges = {
+      notifications: unreadNotifications || undefined,
+      messages: unreadMessages || undefined,
+      approvals: pendingApprovals || undefined,
+    };
   }
 
   return (
-    <AppShell userName={session?.user?.name} roles={roles} primaryRole={primaryRole} awardTier={awardTier}>
+    <AppShell userName={session?.user?.name} roles={roles} primaryRole={primaryRole} awardTier={awardTier} badges={badges}>
       {children}
     </AppShell>
   );

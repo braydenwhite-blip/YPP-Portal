@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import Nav from "@/components/nav";
+import Nav, { type NavBadges } from "@/components/nav";
 import LogoutButton from "@/components/logout-button";
 import AdminQuickActions from "@/components/admin-quick-actions";
 
@@ -11,13 +11,15 @@ export default function AppShell({
   userName,
   roles,
   primaryRole,
-  awardTier
+  awardTier,
+  badges,
 }: {
   children: React.ReactNode;
   userName?: string | null;
   roles?: string[];
   primaryRole?: string | null;
   awardTier?: string;
+  badges?: NavBadges;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -58,7 +60,7 @@ export default function AppShell({
 
         {/* Scrollable navigation */}
         <div className="sidebar-nav">
-          <Nav roles={roles} awardTier={awardTier} onNavigate={() => setSidebarOpen(false)} />
+          <Nav roles={roles} awardTier={awardTier} badges={badges} onNavigate={() => setSidebarOpen(false)} />
         </div>
 
         {/* Footer — fixed */}
