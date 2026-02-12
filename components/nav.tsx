@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useCallback, useMemo } from "react";
 
 interface NavItem {
   href: string;
@@ -11,7 +12,9 @@ interface NavItem {
 
 interface NavSection {
   label: string;
+  icon: string;
   items: NavItem[];
+  defaultOpen?: boolean;
 }
 
 function buildSections(roles: string[], awardTier?: string): NavSection[] {
@@ -30,190 +33,223 @@ function buildSections(roles: string[], awardTier?: string): NavSection[] {
   if (isParent) {
     sections.push({
       label: "Family",
+      icon: "\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67",
+      defaultOpen: true,
       items: [
-        { href: "/parent", label: "Parent Portal", icon: "\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67" },
-        { href: "/parent/resources", label: "Resources", icon: "\u25CB" }
+        { href: "/parent", label: "Parent Portal", icon: "\uD83C\uDFE0" },
+        { href: "/parent/resources", label: "Resources", icon: "\uD83D\uDCDA" }
       ]
     });
   }
 
-  // Main section
+  // Main section - always open
   sections.push({
     label: "Main",
+    icon: "\u2302",
+    defaultOpen: true,
     items: [
-      { href: "/", label: "Overview", icon: "\u25CB" },
-      { href: "/announcements", label: "Announcements", icon: "\u25CB" },
-      { href: "/notifications", label: "Notifications", icon: "\u25CB" },
-      { href: "/messages", label: "Messages", icon: "\u25CB" },
-      { href: "/feedback/anonymous", label: "Anonymous Feedback", icon: "\u25CB" }
+      { href: "/", label: "Overview", icon: "\u25A3" },
+      { href: "/announcements", label: "Announcements", icon: "\uD83D\uDCE2" },
+      { href: "/notifications", label: "Notifications", icon: "\uD83D\uDD14" },
+      { href: "/messages", label: "Messages", icon: "\u2709" },
+      { href: "/feedback/anonymous", label: "Anonymous Feedback", icon: "\uD83D\uDCAC" }
     ]
   });
 
   // Learning
   const learningItems: NavItem[] = [
-    { href: "/pathways", label: "Pathways", icon: "\u25CB" },
-    { href: "/curriculum", label: "Courses", icon: "\u25CB" },
-    { href: "/classes/catalog", label: "Class Catalog", icon: "\u25CB" }
+    { href: "/pathways", label: "Pathways", icon: "\uD83D\uDDFA" },
+    { href: "/curriculum", label: "Courses", icon: "\uD83D\uDCD6" },
+    { href: "/classes/catalog", label: "Class Catalog", icon: "\uD83D\uDCCB" }
   ];
   if (isStudent) {
-    learningItems.push({ href: "/my-courses", label: "My Courses", icon: "\u25CB" });
-    learningItems.push({ href: "/classes/schedule", label: "My Schedule", icon: "\u25CB" });
-    learningItems.push({ href: "/courses/recommended", label: "Recommended Courses", icon: "\u25CB" });
-    learningItems.push({ href: "/learn/modules", label: "Learning Modules", icon: "\u25CB" });
-    learningItems.push({ href: "/learn/workshops", label: "Workshops", icon: "\u25CB" });
-    learningItems.push({ href: "/learn/style-quiz", label: "Learning Style Quiz", icon: "\u25CB" });
-    learningItems.push({ href: "/learn/challenges", label: "Challenge Learning", icon: "\u25CB" });
+    learningItems.push({ href: "/my-courses", label: "My Courses", icon: "\uD83C\uDF93" });
+    learningItems.push({ href: "/classes/schedule", label: "My Schedule", icon: "\uD83D\uDCC5" });
+    learningItems.push({ href: "/courses/recommended", label: "Recommended", icon: "\u2B50" });
+    learningItems.push({ href: "/learn/modules", label: "Modules", icon: "\uD83D\uDCE6" });
+    learningItems.push({ href: "/learn/workshops", label: "Workshops", icon: "\uD83D\uDD27" });
+    learningItems.push({ href: "/learn/style-quiz", label: "Style Quiz", icon: "\uD83E\uDDE9" });
+    learningItems.push({ href: "/learn/challenges", label: "Challenge Learning", icon: "\u26A1" });
   }
-  learningItems.push({ href: "/programs", label: "Programs", icon: "\u25CB" });
-  sections.push({ label: "Learning", items: learningItems });
+  learningItems.push({ href: "/programs", label: "Programs", icon: "\uD83C\uDFAF" });
+  sections.push({ label: "Learning", icon: "\uD83D\uDCD6", defaultOpen: true, items: learningItems });
 
   // Growth & Progress
   const growthItems: NavItem[] = [
-    { href: "/goals", label: "My Goals", icon: "\u25CB" }
+    { href: "/goals", label: "My Goals", icon: "\uD83C\uDFAF" }
   ];
   if (isStudent) {
-    growthItems.push({ href: "/analytics", label: "Analytics", icon: "\u25CB" });
-    growthItems.push({ href: "/learn/path-generator", label: "Learning Paths", icon: "\u25CB" });
-    growthItems.push({ href: "/pathways/progress", label: "Pathway Progress", icon: "\u25CB" });
-    growthItems.push({ href: "/projects/tracker", label: "Project Tracker", icon: "\u25CB" });
-    growthItems.push({ href: "/motivation", label: "Motivation", icon: "\u25CB" });
-    growthItems.push({ href: "/reflections/streaks", label: "Reflection Streaks", icon: "\u25CB" });
+    growthItems.push({ href: "/analytics", label: "Analytics", icon: "\uD83D\uDCCA" });
+    growthItems.push({ href: "/learn/path-generator", label: "Learning Paths", icon: "\uD83E\uDDED" });
+    growthItems.push({ href: "/pathways/progress", label: "Pathway Progress", icon: "\uD83D\uDCC8" });
+    growthItems.push({ href: "/projects/tracker", label: "Project Tracker", icon: "\uD83D\uDCDD" });
+    growthItems.push({ href: "/motivation", label: "Motivation", icon: "\uD83D\uDD25" });
+    growthItems.push({ href: "/reflections/streaks", label: "Reflection Streaks", icon: "\uD83D\uDD17" });
   }
   if (isInstructor || isChapterLead) {
-    growthItems.push({ href: "/reflection", label: "Monthly Reflection", icon: "\u25CB" });
+    growthItems.push({ href: "/reflection", label: "Monthly Reflection", icon: "\uD83D\uDCDD" });
   }
   if (isInstructor || isAdmin || isChapterLead) {
-    growthItems.push({ href: "/instructor-training", label: "Instructor Training", icon: "\u25CB" });
-    growthItems.push({ href: "/lesson-plans", label: "Lesson Plans", icon: "\u25CB" });
-    growthItems.push({ href: "/instructor/lesson-plans/templates", label: "Lesson Plan Templates", icon: "\u25CB" });
-    growthItems.push({ href: "/instructor/curriculum-builder", label: "Curriculum Builder", icon: "\u25CB" });
-    growthItems.push({ href: "/instructor/class-settings", label: "Class Settings", icon: "\u25CB" });
-    growthItems.push({ href: "/instructor/training-progress", label: "Training Progress", icon: "\u25CB" });
-    growthItems.push({ href: "/instructor/peer-observation", label: "Peer Observation", icon: "\u25CB" });
-    growthItems.push({ href: "/instructor/mentee-health", label: "Mentee Health", icon: "\u25CB" });
+    growthItems.push({ href: "/instructor-training", label: "Instructor Training", icon: "\uD83C\uDF93" });
+    growthItems.push({ href: "/lesson-plans", label: "Lesson Plans", icon: "\uD83D\uDCCB" });
+    growthItems.push({ href: "/instructor/lesson-plans/templates", label: "Plan Templates", icon: "\uD83D\uDCC4" });
+    growthItems.push({ href: "/instructor/curriculum-builder", label: "Curriculum Builder", icon: "\uD83D\uDEE0" });
+    growthItems.push({ href: "/instructor/class-settings", label: "Class Settings", icon: "\u2699" });
+    growthItems.push({ href: "/instructor/training-progress", label: "Training Progress", icon: "\uD83D\uDCC8" });
+    growthItems.push({ href: "/instructor/peer-observation", label: "Peer Observation", icon: "\uD83D\uDC41" });
+    growthItems.push({ href: "/instructor/mentee-health", label: "Mentee Health", icon: "\uD83D\uDC9A" });
   }
-  sections.push({ label: "Growth", items: growthItems });
+  sections.push({ label: "Growth", icon: "\uD83C\uDF31", defaultOpen: false, items: growthItems });
 
-  // Challenges & Achievements
+  // Challenges & Achievements - consolidated from 14 items into grouped structure
   const challengeItems: NavItem[] = [
-    { href: "/challenges", label: "Challenges", icon: "\u25CB" },
-    { href: "/challenges/weekly", label: "Weekly Prompts", icon: "\u25CB" },
-    { href: "/challenges/passport", label: "Passion Passport", icon: "\u25CB" },
-    { href: "/competitions", label: "Competitions", icon: "\u25CB" },
-    { href: "/competitions/checklist", label: "Competition Checklist", icon: "\u25CB" },
-    { href: "/achievements/badges", label: "Badge Gallery", icon: "\u25CB" },
-    { href: "/student-of-month", label: "Student of the Month", icon: "\u25CB" },
-    { href: "/wall-of-fame", label: "Wall of Fame", icon: "\u25CB" }
+    { href: "/challenges", label: "Challenges", icon: "\u26A1" },
+    { href: "/challenges/daily", label: "Daily Challenges", icon: "\uD83C\uDF1F" },
+    { href: "/challenges/weekly", label: "Weekly Prompts", icon: "\uD83D\uDCDD" },
+    { href: "/challenges/streaks", label: "Streaks", icon: "\uD83D\uDD25" },
+    { href: "/challenges/nominate", label: "Nominate Challenge", icon: "\uD83D\uDC4D" },
+    { href: "/challenges/passport", label: "Passion Passport", icon: "\uD83D\uDCD8" },
+    { href: "/competitions", label: "Competitions", icon: "\uD83C\uDFC6" },
+    { href: "/competitions/checklist", label: "Competition Checklist", icon: "\u2611" },
+    { href: "/showcases", label: "Seasonal Events", icon: "\uD83C\uDF89" },
+    { href: "/leaderboards", label: "Leaderboards", icon: "\uD83D\uDCCA" },
+    { href: "/rewards", label: "Rewards", icon: "\uD83C\uDF81" },
+    { href: "/achievements/badges", label: "Badge Gallery", icon: "\uD83C\uDFC5" },
+    { href: "/student-of-month", label: "Student of the Month", icon: "\u2B50" },
+    { href: "/wall-of-fame", label: "Wall of Fame", icon: "\uD83C\uDFDB" }
   ];
-  sections.push({ label: "Challenges", items: challengeItems });
+  sections.push({ label: "Challenges", icon: "\uD83C\uDFC6", defaultOpen: false, items: challengeItems });
+
+  // Incubator & Projects
+  const incubatorItems: NavItem[] = [
+    { href: "/incubator", label: "Project Incubator", icon: "\uD83D\uDE80" },
+    { href: "/incubator/apply", label: "Apply", icon: "\uD83D\uDCE9" },
+    { href: "/projects/tracker", label: "My Projects", icon: "\uD83D\uDCCB" },
+    { href: "/showcase", label: "Student Showcase", icon: "\uD83C\uDFA8" },
+    { href: "/showcase/submit", label: "Share Your Work", icon: "\uD83D\uDCE4" }
+  ];
+  sections.push({ label: "Incubator", icon: "\uD83D\uDE80", defaultOpen: false, items: incubatorItems });
 
   // Real World (Phase 13)
   const realWorldItems: NavItem[] = [
-    { href: "/internships", label: "Opportunities", icon: "\u25CB" },
-    { href: "/service-projects", label: "Service Projects", icon: "\u25CB" },
-    { href: "/resource-exchange", label: "Resource Exchange", icon: "\u25CB" },
-    { href: "/portfolio/templates", label: "Portfolio Templates", icon: "\u25CB" },
-    { href: "/events/map", label: "Chapter Events Map", icon: "\u25CB" }
+    { href: "/internships", label: "Opportunities", icon: "\uD83D\uDCBC" },
+    { href: "/service-projects", label: "Service Projects", icon: "\uD83E\uDD1D" },
+    { href: "/resource-exchange", label: "Resource Exchange", icon: "\uD83D\uDD04" },
+    { href: "/portfolio/templates", label: "Portfolio Templates", icon: "\uD83D\uDCC2" },
+    { href: "/events/map", label: "Chapter Events Map", icon: "\uD83D\uDDFA" }
   ];
   if (isInstructor || isAdmin) {
-    realWorldItems.push({ href: "/instructor/certification-pathway", label: "Cert Pathway", icon: "\u25CB" });
+    realWorldItems.push({ href: "/instructor/certification-pathway", label: "Cert Pathway", icon: "\uD83D\uDCDC" });
   }
-  sections.push({ label: "Real World", items: realWorldItems });
+  sections.push({ label: "Opportunities", icon: "\uD83C\uDF10", defaultOpen: false, items: realWorldItems });
 
   // Community
   const communityItems: NavItem[] = [
-    { href: "/mentorship", label: "Mentorship", icon: "\u25CB" }
+    { href: "/mentorship", label: "Mentorship", icon: "\uD83E\uDD1D" }
   ];
   if (isMentor || isAdmin) {
-    communityItems.push({ href: "/mentorship/mentees", label: "My Mentees", icon: "\u25CB" });
+    communityItems.push({ href: "/mentorship/mentees", label: "My Mentees", icon: "\uD83D\uDC65" });
   }
   if (isStudent) {
-    communityItems.push({ href: "/my-mentor", label: "My Mentor", icon: "\u25CB" });
+    communityItems.push({ href: "/my-mentor", label: "My Mentor", icon: "\uD83E\uDDD1\u200D\uD83C\uDFEB" });
   }
   communityItems.push(
-    { href: "/events", label: "Events & Prep", icon: "\u25CB" },
-    { href: "/calendar", label: "Calendar", icon: "\u25CB" }
+    { href: "/events", label: "Events & Prep", icon: "\uD83D\uDCC5" },
+    { href: "/calendar", label: "Calendar", icon: "\uD83D\uDDD3" }
   );
-  communityItems.push({ href: "/office-hours", label: "Office Hours", icon: "\u25CB" });
+  communityItems.push({ href: "/office-hours", label: "Office Hours", icon: "\uD83D\uDD52" });
   if (isStudent) {
-    communityItems.push({ href: "/check-in", label: "Check-In", icon: "\u25CB" });
+    communityItems.push({ href: "/check-in", label: "Check-In", icon: "\u2714" });
   }
   if (isMentor || isAdmin) {
-    communityItems.push({ href: "/mentor/resources", label: "Mentor Resources", icon: "\u25CB" });
+    communityItems.push({ href: "/mentor/resources", label: "Mentor Resources", icon: "\uD83D\uDCDA" });
   }
   if (isInstructor || isAdmin || isChapterLead) {
-    communityItems.push({ href: "/attendance", label: "Attendance", icon: "\u25CB" });
+    communityItems.push({ href: "/attendance", label: "Attendance", icon: "\uD83D\uDCCB" });
   }
-  sections.push({ label: "Community", items: communityItems });
+  sections.push({ label: "Community", icon: "\uD83D\uDC65", defaultOpen: false, items: communityItems });
 
   // Chapters
   const chapterItems: NavItem[] = [
-    { href: "/chapters", label: "Chapters", icon: "\u25CB" }
+    { href: "/chapters", label: "Chapters", icon: "\uD83C\uDFE2" }
   ];
   if (isChapterLead) {
-    chapterItems.push({ href: "/chapter", label: "My Chapter", icon: "\u25CB" });
-    chapterItems.push({ href: "/chapter-lead/dashboard", label: "Chapter Lead Dashboard", icon: "\u25CB" });
+    chapterItems.push({ href: "/chapter", label: "My Chapter", icon: "\uD83C\uDFE0" });
+    chapterItems.push({ href: "/chapter-lead/dashboard", label: "Chapter Dashboard", icon: "\uD83D\uDCCA" });
   }
   if (isApplicant || isAdmin) {
     chapterItems.push(
-      { href: "/positions", label: "Open Positions", icon: "\u25CB" },
-      { href: "/applications", label: "My Applications", icon: "\u25CB" }
+      { href: "/positions", label: "Open Positions", icon: "\uD83D\uDCCC" },
+      { href: "/applications", label: "My Applications", icon: "\uD83D\uDCE8" }
     );
   }
-  sections.push({ label: "Chapters", items: chapterItems });
+  sections.push({ label: "Chapters", icon: "\uD83C\uDFE2", defaultOpen: false, items: chapterItems });
 
-  // Achievements
+  // Account
   const achievementItems: NavItem[] = [
-    { href: "/certificates", label: "My Certificates", icon: "\u25CB" }
+    { href: "/certificates", label: "My Certificates", icon: "\uD83D\uDCDC" }
   ];
   if (hasAward || isAdmin) {
     achievementItems.push(
-      { href: "/alumni", label: "Alumni", icon: "\u25CB" },
-      { href: "/college-advisor", label: "College Advisor", icon: "\u25CB" }
+      { href: "/alumni", label: "Alumni", icon: "\uD83C\uDF93" },
+      { href: "/college-advisor", label: "College Advisor", icon: "\uD83E\uDDD1\u200D\uD83D\uDCBB" }
     );
   }
-  achievementItems.push({ href: "/profile", label: "My Profile", icon: "\u25CB" });
-  achievementItems.push({ href: "/profile/xp", label: "XP & Levels", icon: "\u25CB" });
-  achievementItems.push({ href: "/profile/certifications", label: "Certifications", icon: "\u25CB" });
-  achievementItems.push({ href: "/settings/personalization", label: "Personalization", icon: "\u25CB" });
-  sections.push({ label: "Account", items: achievementItems });
+  achievementItems.push({ href: "/profile", label: "My Profile", icon: "\uD83D\uDC64" });
+  achievementItems.push({ href: "/profile/timeline", label: "My Journey", icon: "\uD83D\uDEE4" });
+  achievementItems.push({ href: "/profile/xp", label: "XP & Levels", icon: "\u2B06" });
+  achievementItems.push({ href: "/profile/certifications", label: "Certifications", icon: "\uD83C\uDFC5" });
+  achievementItems.push({ href: "/settings/personalization", label: "Personalization", icon: "\uD83C\uDFA8" });
+  sections.push({ label: "Account", icon: "\uD83D\uDC64", defaultOpen: false, items: achievementItems });
 
   // Admin
   if (isAdmin) {
     sections.push({
       label: "Admin",
+      icon: "\uD83D\uDD12",
+      defaultOpen: false,
       items: [
-        { href: "/admin", label: "Dashboard", icon: "\u25CB" },
-        { href: "/admin/announcements", label: "Announcements", icon: "\u25CB" },
-        { href: "/admin/instructors", label: "All Instructors", icon: "\u25CB" },
-        { href: "/admin/students", label: "All Students", icon: "\u25CB" },
-        { href: "/admin/bulk-users", label: "Bulk Users", icon: "\u25CB" },
-        { href: "/admin/chapters", label: "All Chapters", icon: "\u25CB" },
-        { href: "/admin/chapter-reports", label: "Chapter Reports", icon: "\u25CB" },
-        { href: "/admin/staff", label: "Staff Reflections", icon: "\u25CB" },
-        { href: "/admin/goals", label: "Goals", icon: "\u25CB" },
-        { href: "/admin/reflections", label: "Reflections", icon: "\u25CB" },
-        { href: "/admin/reflection-forms", label: "Forms", icon: "\u25CB" },
-        { href: "/admin/programs", label: "Programs", icon: "\u25CB" },
-        { href: "/admin/alumni", label: "Alumni", icon: "\u25CB" },
-        { href: "/admin/training", label: "Training Modules", icon: "\u25CB" },
-        { href: "/admin/mentor-match", label: "Mentor Match", icon: "\u25CB" },
-        { href: "/admin/analytics", label: "Analytics", icon: "\u25CB" },
-        { href: "/admin/pathway-tracking", label: "Pathway Tracking", icon: "\u25CB" },
-        { href: "/admin/audit-log", label: "Audit Log", icon: "\u25CB" },
-        { href: "/admin/waitlist", label: "Waitlist", icon: "\u25CB" },
-        { href: "/admin/instructor-readiness", label: "Instructor Readiness", icon: "\u25CB" },
-        { href: "/admin/reminders", label: "Reminders", icon: "\u25CB" },
-        { href: "/admin/emergency-broadcast", label: "Emergency Broadcast", icon: "\u25CB" },
-        { href: "/admin/volunteer-hours", label: "Volunteer Hours", icon: "\u25CB" },
-        { href: "/admin/export", label: "Data Export", icon: "\u25CB" },
-        { href: "/admin/data-export", label: "Export Tools", icon: "\u25CB" },
-        { href: "/admin/parent-approvals", label: "Parent Approvals", icon: "\u25CB" }
+        { href: "/admin", label: "Dashboard", icon: "\uD83D\uDCCA" },
+        { href: "/admin/incubator", label: "Incubator Mgmt", icon: "\uD83D\uDE80" },
+        { href: "/admin/announcements", label: "Announcements", icon: "\uD83D\uDCE2" },
+        { href: "/admin/instructors", label: "All Instructors", icon: "\uD83D\uDC69\u200D\uD83C\uDFEB" },
+        { href: "/admin/students", label: "All Students", icon: "\uD83D\uDC68\u200D\uD83C\uDF93" },
+        { href: "/admin/bulk-users", label: "Bulk Users", icon: "\uD83D\uDC65" },
+        { href: "/admin/chapters", label: "All Chapters", icon: "\uD83C\uDFE2" },
+        { href: "/admin/chapter-reports", label: "Chapter Reports", icon: "\uD83D\uDCCA" },
+        { href: "/admin/staff", label: "Staff Reflections", icon: "\uD83D\uDCDD" },
+        { href: "/admin/goals", label: "Goals", icon: "\uD83C\uDFAF" },
+        { href: "/admin/reflections", label: "Reflections", icon: "\uD83D\uDCAD" },
+        { href: "/admin/reflection-forms", label: "Forms", icon: "\uD83D\uDCCB" },
+        { href: "/admin/programs", label: "Programs", icon: "\uD83D\uDCE6" },
+        { href: "/admin/alumni", label: "Alumni", icon: "\uD83C\uDF93" },
+        { href: "/admin/training", label: "Training Modules", icon: "\uD83C\uDFEB" },
+        { href: "/admin/mentor-match", label: "Mentor Match", icon: "\uD83E\uDD1D" },
+        { href: "/admin/analytics", label: "Analytics", icon: "\uD83D\uDCC8" },
+        { href: "/admin/pathway-tracking", label: "Pathway Tracking", icon: "\uD83D\uDEE4" },
+        { href: "/admin/audit-log", label: "Audit Log", icon: "\uD83D\uDDD2" },
+        { href: "/admin/waitlist", label: "Waitlist", icon: "\u23F3" },
+        { href: "/admin/instructor-readiness", label: "Instructor Readiness", icon: "\u2705" },
+        { href: "/admin/reminders", label: "Reminders", icon: "\uD83D\uDD14" },
+        { href: "/admin/emergency-broadcast", label: "Emergency Broadcast", icon: "\uD83D\uDEA8" },
+        { href: "/admin/volunteer-hours", label: "Volunteer Hours", icon: "\u23F0" },
+        { href: "/admin/export", label: "Data Export", icon: "\uD83D\uDCE5" },
+        { href: "/admin/data-export", label: "Export Tools", icon: "\uD83D\uDCBE" },
+        { href: "/admin/parent-approvals", label: "Parent Approvals", icon: "\u2714" }
       ]
     });
   }
 
   return sections;
+}
+
+/** Check if any item in a section matches the current pathname */
+function sectionHasActiveItem(section: NavSection, pathname: string): boolean {
+  return section.items.some(
+    (item) =>
+      pathname === item.href ||
+      (item.href !== "/" && pathname.startsWith(item.href))
+  );
 }
 
 export default function Nav({
@@ -226,31 +262,66 @@ export default function Nav({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
-  const sections = buildSections(roles, awardTier);
+  const sections = useMemo(() => buildSections(roles, awardTier), [roles, awardTier]);
+
+  // Initialize open state: default-open sections + any section with active item
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    for (const section of buildSections(roles, awardTier)) {
+      initial[section.label] =
+        section.defaultOpen === true || sectionHasActiveItem(section, pathname);
+    }
+    return initial;
+  });
+
+  const toggleSection = useCallback((label: string) => {
+    setOpenSections((prev) => ({ ...prev, [label]: !prev[label] }));
+  }, []);
 
   return (
     <nav className="nav">
-      {sections.map((section) => (
-        <div key={section.label} className="nav-section">
-          <div className="nav-section-label">{section.label}</div>
-          {section.items.map((item) => {
-            const isActive =
-              pathname === item.href ||
-              (item.href !== "/" && pathname.startsWith(item.href));
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={isActive ? "active" : undefined}
-                onClick={onNavigate}
-              >
-                <span className="nav-icon">{item.icon}</span>
-                {item.label}
-              </Link>
-            );
-          })}
-        </div>
-      ))}
+      {sections.map((section) => {
+        const isOpen = openSections[section.label] ?? false;
+        const hasActive = sectionHasActiveItem(section, pathname);
+
+        return (
+          <div key={section.label} className="nav-section">
+            <button
+              type="button"
+              className={`nav-section-toggle ${hasActive ? "nav-section-active" : ""}`}
+              onClick={() => toggleSection(section.label)}
+              aria-expanded={isOpen}
+              aria-label={`${isOpen ? "Collapse" : "Expand"} ${section.label}`}
+            >
+              <span className="nav-section-icon">{section.icon}</span>
+              <span className="nav-section-label">{section.label}</span>
+              <span className={`nav-section-chevron ${isOpen ? "open" : ""}`}>
+                {"\u203A"}
+              </span>
+            </button>
+            {isOpen && (
+              <div className="nav-section-items">
+                {section.items.map((item) => {
+                  const isActive =
+                    pathname === item.href ||
+                    (item.href !== "/" && pathname.startsWith(item.href));
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={isActive ? "active" : undefined}
+                      onClick={onNavigate}
+                    >
+                      <span className="nav-icon">{item.icon}</span>
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </nav>
   );
 }
