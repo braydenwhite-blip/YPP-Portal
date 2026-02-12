@@ -24,8 +24,8 @@ export default async function StudentOfMonthPage() {
         title="Student of the Month"
         description="Each month, one outstanding student per chapter is recognized for dedication, growth, and community spirit in their passion pursuits."
         addedBy="chapter leaders and admins"
-        actionLabel="Go to Admin Panel"
-        actionHref="/admin"
+        actionLabel="Manage Student of Month"
+        actionHref="/admin/student-of-month"
       />
     );
   }
