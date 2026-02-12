@@ -205,19 +205,10 @@ img {
 }
 
 .sidebar-card {
-  padding: 16px;
+  padding: 12px 16px;
   border-radius: var(--radius-md);
   background: var(--ypp-gradient);
   color: #fff;
-}
-
-.sidebar-card h4 {
-  margin: 0 0 4px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  opacity: 0.85;
 }
 
 .sidebar-card p {
@@ -228,13 +219,21 @@ img {
 
 .sidebar-card .user-name {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .sidebar-card .user-role {
   opacity: 0.85;
-  font-size: 12px;
-  margin-top: 2px;
+  font-size: 11px;
+  margin-top: 1px;
+  text-transform: capitalize;
+}
+
+.sidebar-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .sidebar-actions {
@@ -319,21 +318,79 @@ main {
 }
 
 .nav-section {
-  margin-top: 16px;
-  margin-bottom: 4px;
+  margin-top: 2px;
+  margin-bottom: 0;
 }
 
 .nav-section:first-child {
   margin-top: 0;
 }
 
-.nav-section-label {
-  font-size: 11px;
+/* Collapsible section toggle button */
+.nav-section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   color: var(--gray-400);
-  padding: 0 10px 6px;
+  transition: all var(--transition-fast);
+  text-align: left;
+}
+
+.nav-section-toggle:hover {
+  color: var(--gray-600);
+  background: var(--gray-50);
+}
+
+.nav-section-toggle.nav-section-active {
+  color: var(--ypp-purple-600);
+}
+
+.nav-section-icon {
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+  width: 18px;
+  text-align: center;
+}
+
+.nav-section-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.nav-section-chevron {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1;
+  transition: transform var(--transition-fast);
+  transform: rotate(0deg);
+  opacity: 0.5;
+  margin-left: auto;
+}
+
+.nav-section-chevron.open {
+  transform: rotate(90deg);
+}
+
+/* Items container (shown when section is open) */
+.nav-section-items {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-left: 6px;
+  margin-top: 2px;
+  margin-bottom: 6px;
 }
 
 .nav a,
@@ -341,10 +398,10 @@ main {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
+  padding: 6px 10px;
   border-radius: var(--radius-sm);
   color: var(--gray-600);
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 500;
   transition: all var(--transition-fast);
   position: relative;
@@ -378,11 +435,10 @@ main {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
-  font-size: 15px;
-  opacity: 0.75;
+  font-size: 13px;
 }
 
 .nav a.active .nav-icon {
@@ -536,6 +592,48 @@ main {
   color: var(--muted);
   line-height: 1.6;
   font-size: 14px;
+}
+
+/* ============================================
+   DASHBOARD ACTION CARDS
+   ============================================ */
+
+.dashboard-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.dashboard-action-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--ypp-purple);
+  box-shadow: var(--shadow-xs);
+  text-decoration: none;
+  transition: all var(--transition-fast);
+}
+
+.dashboard-action-card:hover {
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+  border-color: var(--ypp-purple-200);
+}
+
+.dashboard-action-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-900);
+}
+
+.dashboard-action-desc {
+  font-size: 12px;
+  color: var(--muted);
 }
 
 /* ============================================
@@ -1561,6 +1659,10 @@ select.input {
   .topbar {
     flex-direction: column;
     gap: 12px;
+  }
+
+  .dashboard-actions {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
