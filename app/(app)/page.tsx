@@ -218,9 +218,9 @@ export default async function OverviewPage() {
     );
   } else if (isStudent) {
     quickActions.push(
+      { href: "/world", label: "Passion World", description: "Explore your islands", accent: "#0ea5e9" },
       { href: "/my-courses", label: "My Courses", description: "Continue learning", accent: "var(--ypp-purple-600)" },
       { href: "/pathways", label: "Pathways", description: "Explore pathways", accent: "#3b82f6" },
-      { href: "/goals", label: "Goals", description: "Track your goals", accent: "#22c55e" },
       { href: "/challenges", label: "Challenges", description: "Earn rewards", accent: "#f59e0b" },
     );
   } else {

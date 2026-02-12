@@ -87,6 +87,7 @@ function buildSections(roles: string[], awardTier?: string): NavSection[] {
     defaultOpen: true,
     items: [
       { href: "/", label: "Overview", icon: "\u25A3" },
+      { href: "/world", label: "Passion World", icon: "\uD83C\uDF0D" },
       { href: "/announcements", label: "Announcements", icon: "\uD83D\uDCE2" },
       { href: "/notifications", label: "Notifications", icon: "\uD83D\uDD14", badgeKey: "notifications" },
       { href: "/messages", label: "Messages", icon: "\u2709", badgeKey: "messages" },
