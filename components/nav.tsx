@@ -70,6 +70,8 @@ function buildSections(roles: string[], awardTier?: string): NavSection[] {
     learningItems.push({ href: "/learn/workshops", label: "Workshops", icon: "\uD83D\uDD27" });
     learningItems.push({ href: "/learn/style-quiz", label: "Style Quiz", icon: "\uD83E\uDDE9" });
     learningItems.push({ href: "/learn/challenges", label: "Challenge Learning", icon: "\u26A1" });
+    learningItems.push({ href: "/learn/practice", label: "Practice Log", icon: "\uD83C\uDFCB" });
+    learningItems.push({ href: "/learn/progress", label: "My Progress", icon: "\uD83D\uDCC8" });
   }
   learningItems.push({ href: "/programs", label: "Programs", icon: "\uD83C\uDFAF" });
   sections.push({ label: "Learning", icon: "\uD83D\uDCD6", defaultOpen: true, items: learningItems });
