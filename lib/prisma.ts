@@ -2,37 +2,60 @@ import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient | undefined };
 
-function createPrismaClient(): PrismaClient {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    return new PrismaClient();
-  }
-
+function normalizeDatabaseUrl(rawUrl: string): string {
   try {
-    const url = new URL(databaseUrl);
+    const url = new URL(rawUrl);
+    const host = url.hostname.toLowerCase();
+    const isSupabaseHost =
+      host.endsWith(".supabase.co") || host.endsWith(".pooler.supabase.com");
     const isSupabasePooler =
-      url.hostname.includes("pooler.supabase.com") || url.port === "6543";
-    const hasPgbouncerFlag = url.searchParams.get("pgbouncer") === "true";
+      host.includes("pooler.supabase.com") || url.port === "6543";
 
-    if (isSupabasePooler && !hasPgbouncerFlag) {
-      url.searchParams.set("pgbouncer", "true");
+    // Supabase connections require SSL from serverless runtimes.
+    if (isSupabaseHost && !url.searchParams.has("sslmode")) {
+      url.searchParams.set("sslmode", "require");
+    }
+
+    // Transaction poolers (e.g. Supabase PgBouncer) need Prisma flags.
+    if (isSupabasePooler) {
+      if (url.searchParams.get("pgbouncer") !== "true") {
+        url.searchParams.set("pgbouncer", "true");
+      }
       if (!url.searchParams.has("connection_limit")) {
         url.searchParams.set("connection_limit", "1");
       }
-
-      return new PrismaClient({
-        datasources: {
-          db: {
-            url: url.toString()
-          }
-        }
-      });
     }
+
+    return url.toString();
   } catch {
-    // Fall back to the unmodified DATABASE_URL if URL parsing fails.
+    // Keep original value when URL parsing fails.
+    return rawUrl;
+  }
+}
+
+function getRuntimeDatabaseUrl(): string | undefined {
+  const explicitRuntimeUrl = process.env.PRISMA_RUNTIME_DATABASE_URL?.trim();
+  const databaseUrl = process.env.DATABASE_URL?.trim();
+  const directUrl = process.env.DIRECT_URL?.trim();
+  const selectedUrl = explicitRuntimeUrl || databaseUrl || directUrl;
+
+  if (!selectedUrl) return undefined;
+  return normalizeDatabaseUrl(selectedUrl);
+}
+
+function createPrismaClient(): PrismaClient {
+  const runtimeUrl = getRuntimeDatabaseUrl();
+  if (!runtimeUrl) {
+    return new PrismaClient();
   }
 
-  return new PrismaClient();
+  return new PrismaClient({
+    datasources: {
+      db: {
+        url: runtimeUrl
+      }
+    }
+  });
 }
 
 export const prisma = globalForPrisma.prisma ?? createPrismaClient();
