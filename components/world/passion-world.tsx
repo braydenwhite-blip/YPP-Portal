@@ -705,7 +705,11 @@ export default function PassionWorld({ data }: { data: WorldData }) {
 
       {use3D ? (
         /* ─── 3D Canvas path ─── */
-        <WorldScene tier={tier} />
+        <WorldScene
+          tier={tier}
+          data={data}
+          onSelectIsland={setSelectedIsland}
+        />
       ) : (
         /* ─── SVG fallback path ─── */
         <svg
