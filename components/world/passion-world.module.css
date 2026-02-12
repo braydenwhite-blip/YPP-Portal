@@ -1,0 +1,512 @@
+/* ═══════════════════════════════════════════════════════════
+   Passion World — CSS Module
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Container ── */
+.world {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background: #0c4a6e;
+  user-select: none;
+}
+
+.svg {
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+.svg:active {
+  cursor: grabbing;
+}
+
+/* ── HUD ── */
+.hud {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.hudPlayer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hudAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  flex-shrink: 0;
+}
+
+.hudAvatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hudName {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.hudLevel {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.hudXp {
+  min-width: 160px;
+}
+
+.hudXpBar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.hudXpFill {
+  height: 100%;
+  background: linear-gradient(90deg, #fbbf24, #f59e0b);
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+
+.hudXpText {
+  font-size: 10px;
+  color: #94a3b8;
+  margin-top: 3px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.hudXpNext {
+  color: #64748b;
+}
+
+.hudStats {
+  display: flex;
+  gap: 12px;
+  padding-left: 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.hudStat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #cbd5e1;
+}
+
+.hudStatIcon {
+  font-size: 14px;
+}
+
+/* ── Back Button ── */
+.backBtn {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  z-index: 10;
+  padding: 8px 16px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  font-size: 12px;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.backBtn:hover {
+  color: white;
+}
+
+/* ── Activity Log ── */
+.activity {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  z-index: 10;
+  width: 220px;
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.activityTitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.activityItem {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 11px;
+}
+
+.activityItem:last-child {
+  border-bottom: none;
+}
+
+.activityXp {
+  color: #fbbf24;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.activityReason {
+  color: #94a3b8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Island Detail Panel ── */
+.panel {
+  position: absolute;
+  top: 80px;
+  right: 16px;
+  z-index: 20;
+  width: 280px;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(16px);
+  border-radius: 14px;
+  border: 2px solid;
+  overflow: hidden;
+  color: white;
+  animation: panelSlideIn 0.25s ease;
+}
+
+@keyframes panelSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.panelClose {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 20px;
+  cursor: pointer;
+  z-index: 1;
+  line-height: 1;
+}
+
+.panelClose:hover {
+  color: white;
+}
+
+.panelHeader {
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.panelEmoji {
+  font-size: 28px;
+}
+
+.panelTitle {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+  color: white;
+}
+
+.panelSubtitle {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.panelBody {
+  padding: 16px;
+}
+
+.statRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.statLabel {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.statValue {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.xpBar {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.xpFill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.miniStat {
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.miniValue {
+  display: block;
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+}
+
+.miniLabel {
+  display: block;
+  font-size: 10px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.panelMeta {
+  font-size: 10px;
+  color: #64748b;
+  text-align: center;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ── Loading Skeleton ── */
+.loadingWorld {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background: linear-gradient(180deg, #0c4a6e 0%, #0369a1 40%, #0284c7 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.loadingTitle {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+.loadingIslands {
+  display: flex;
+  gap: 32px;
+  align-items: flex-end;
+}
+
+.loadingIsland {
+  border-radius: 50% 50% 45% 55%;
+  animation: islandPulse 2s ease-in-out infinite;
+}
+
+.loadingIsland:nth-child(1) {
+  width: 60px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.08);
+  animation-delay: 0s;
+}
+
+.loadingIsland:nth-child(2) {
+  width: 80px;
+  height: 55px;
+  background: rgba(255, 255, 255, 0.12);
+  animation-delay: 0.3s;
+}
+
+.loadingIsland:nth-child(3) {
+  width: 50px;
+  height: 35px;
+  background: rgba(255, 255, 255, 0.06);
+  animation-delay: 0.6s;
+}
+
+.loadingIsland:nth-child(4) {
+  width: 70px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.1);
+  animation-delay: 0.9s;
+}
+
+@keyframes islandPulse {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-6px);
+  }
+}
+
+.loadingBar {
+  width: 200px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.loadingBarFill {
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, #fbbf24, #f59e0b);
+  border-radius: 2px;
+  animation: loadingSlide 1.5s ease-in-out infinite;
+}
+
+@keyframes loadingSlide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}
+
+/* ── Error State ── */
+.errorWorld {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+  color: white;
+}
+
+.errorIcon {
+  font-size: 48px;
+  opacity: 0.6;
+}
+
+.errorTitle {
+  font-size: 20px;
+  font-weight: 700;
+  opacity: 0.9;
+}
+
+.errorMessage {
+  font-size: 13px;
+  color: #94a3b8;
+  text-align: center;
+  max-width: 320px;
+}
+
+.errorRetry {
+  margin-top: 8px;
+  padding: 10px 24px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.errorRetry:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .hud {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px;
+    max-width: calc(100% - 32px);
+  }
+  .hudStats {
+    border-left: none;
+    padding-left: 0;
+    gap: 8px;
+  }
+  .hudXp {
+    min-width: 120px;
+  }
+  .panel {
+    width: calc(100% - 32px);
+    top: auto;
+    bottom: 60px;
+    right: 16px;
+  }
+  .activity {
+    display: none;
+  }
+}
