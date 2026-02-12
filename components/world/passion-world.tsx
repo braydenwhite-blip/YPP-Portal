@@ -11,101 +11,17 @@ import React, {
 import Link from "next/link";
 import type { WorldData, PassionIsland } from "@/lib/world-actions";
 import styles from "./passion-world.module.css";
-
-// ═══════════════════════════════════════════════════════════════
-// CONSTANTS & CONFIG
-// ═══════════════════════════════════════════════════════════════
-
-const CATEGORY_THEMES: Record<
-  string,
-  {
-    gradient: [string, string];
-    accent: string;
-    terrain: string;
-    emoji: string;
-  }
-> = {
-  ARTS: { gradient: ["#f472b6", "#ec4899"], accent: "#be185d", terrain: "#fce7f3", emoji: "\u{1F3A8}" },
-  MUSIC: { gradient: ["#a78bfa", "#8b5cf6"], accent: "#6d28d9", terrain: "#ede9fe", emoji: "\u{1F3B5}" },
-  SPORTS: { gradient: ["#34d399", "#10b981"], accent: "#047857", terrain: "#d1fae5", emoji: "\u26BD" },
-  STEM: { gradient: ["#60a5fa", "#3b82f6"], accent: "#1d4ed8", terrain: "#dbeafe", emoji: "\u{1F52C}" },
-  BUSINESS: { gradient: ["#fbbf24", "#f59e0b"], accent: "#b45309", terrain: "#fef3c7", emoji: "\u{1F4BC}" },
-  SERVICE: { gradient: ["#f87171", "#ef4444"], accent: "#b91c1c", terrain: "#fee2e2", emoji: "\u{1F91D}" },
-  HEALTH_WELLNESS: { gradient: ["#2dd4bf", "#14b8a6"], accent: "#0f766e", terrain: "#ccfbf1", emoji: "\u{1F49A}" },
-  TRADES: { gradient: ["#fb923c", "#f97316"], accent: "#c2410c", terrain: "#ffedd5", emoji: "\u{1F527}" },
-  ENTERTAINMENT: { gradient: ["#e879f9", "#d946ef"], accent: "#a21caf", terrain: "#fae8ff", emoji: "\u{1F3AC}" },
-  WRITING: { gradient: ["#a3e635", "#84cc16"], accent: "#4d7c0f", terrain: "#ecfccb", emoji: "\u270D\uFE0F" },
-  DANCE: { gradient: ["#fb7185", "#f43f5e"], accent: "#be123c", terrain: "#ffe4e6", emoji: "\u{1F483}" },
-  CODING: { gradient: ["#38bdf8", "#0ea5e9"], accent: "#0369a1", terrain: "#e0f2fe", emoji: "\u{1F4BB}" },
-  OTHER: { gradient: ["#94a3b8", "#64748b"], accent: "#334155", terrain: "#f1f5f9", emoji: "\u2728" },
-};
-
-const LEVEL_LABELS: Record<
-  string,
-  { label: string; scale: number; trees: number }
-> = {
-  EXPLORING: { label: "Exploring", scale: 0.7, trees: 1 },
-  DEVELOPING: { label: "Developing", scale: 0.85, trees: 3 },
-  ADVANCING: { label: "Advancing", scale: 1.0, trees: 5 },
-  MASTERING: { label: "Mastering", scale: 1.15, trees: 8 },
-};
+import { LEVEL_LABELS, getTheme, getTreeData } from "./constants";
+import { getIslandPositions } from "./islands/island-layout";
+import { WorldHUD } from "./overlay/world-hud";
+import { ActivityLog } from "./overlay/activity-log";
+import { IslandDetail } from "./overlay/island-detail";
+import { WorldScene } from "./scene/world-scene";
+import { useDeviceTier, hasWebGLSupport } from "./hooks/use-device-tier";
 
 const BASE_W = 1200;
 const BASE_H = 800;
 const CULL_BUFFER = 250;
-
-function getTheme(category: string) {
-  return CATEGORY_THEMES[category] ?? CATEGORY_THEMES.OTHER;
-}
-
-// ═══════════════════════════════════════════════════════════════
-// ISLAND POSITIONS — golden angle spiral
-// ═══════════════════════════════════════════════════════════════
-
-function getIslandPositions(count: number): { x: number; y: number }[] {
-  const positions: { x: number; y: number }[] = [];
-  const goldenAngle = Math.PI * (3 - Math.sqrt(5));
-  const centerX = 600;
-  const centerY = 400;
-
-  for (let i = 0; i < count; i++) {
-    const radius = 120 + Math.sqrt(i) * 110;
-    const angle = i * goldenAngle;
-    positions.push({
-      x: centerX + Math.cos(angle) * radius,
-      y: centerY + Math.sin(angle) * radius * 0.65,
-    });
-  }
-  return positions;
-}
-
-// Deterministic tree data (seeded by index to avoid Math.random on every render)
-function seedRandom(seed: number) {
-  let s = seed;
-  return () => {
-    s = (s * 16807) % 2147483647;
-    return (s - 1) / 2147483646;
-  };
-}
-
-function getTreeData(
-  count: number,
-  baseX: number,
-  baseY: number,
-  islandSeed: number,
-) {
-  const rng = seedRandom(islandSeed);
-  const trees = [];
-  for (let i = 0; i < count; i++) {
-    const angle = (i / count) * Math.PI * 2;
-    const radius = 18 + rng() * 12;
-    const tx = baseX + Math.cos(angle) * radius;
-    const ty = baseY + Math.sin(angle) * radius * 0.5 - 8;
-    const h = 8 + rng() * 6;
-    trees.push({ tx, ty, h });
-  }
-  return trees;
-}
 
 // ═══════════════════════════════════════════════════════════════
 // SVG SUB-COMPONENTS
@@ -573,172 +489,7 @@ const SeasonalEventLandmark = memo(function SeasonalEventLandmark({
   );
 });
 
-// ═══════════════════════════════════════════════════════════════
-// ISLAND DETAIL PANEL
-// ═══════════════════════════════════════════════════════════════
-
-function IslandDetail({
-  island,
-  onClose,
-}: {
-  island: PassionIsland;
-  onClose: () => void;
-}) {
-  const theme = getTheme(island.category);
-  const levelConfig = LEVEL_LABELS[island.level] ?? LEVEL_LABELS.EXPLORING;
-
-  return (
-    <div className={styles.panel} style={{ borderColor: theme.gradient[0] }}>
-      <button className={styles.panelClose} onClick={onClose}>
-        &times;
-      </button>
-      <div
-        className={styles.panelHeader}
-        style={{
-          background: `linear-gradient(135deg, ${theme.gradient[0]}, ${theme.gradient[1]})`,
-        }}
-      >
-        <span className={styles.panelEmoji}>{theme.emoji}</span>
-        <div>
-          <h3 className={styles.panelTitle}>{island.name}</h3>
-          <span className={styles.panelSubtitle}>
-            {levelConfig.label} · Level {island.currentLevel}
-            {island.isPrimary && " · Primary Passion"}
-          </span>
-        </div>
-      </div>
-
-      <div className={styles.panelBody}>
-        <div className={styles.statRow}>
-          <span className={styles.statLabel}>Passion XP</span>
-          <span className={styles.statValue} style={{ color: theme.accent }}>
-            {island.xpPoints}
-          </span>
-        </div>
-        <div className={styles.xpBar}>
-          <div
-            className={styles.xpFill}
-            style={{
-              width: `${Math.min(100, (island.xpPoints / Math.max(island.xpPoints + 50, 100)) * 100)}%`,
-              background: `linear-gradient(90deg, ${theme.gradient[0]}, ${theme.gradient[1]})`,
-            }}
-          />
-        </div>
-
-        <div className={styles.statsGrid}>
-          <div className={styles.miniStat}>
-            <span className={styles.miniValue}>{island.courseCount}</span>
-            <span className={styles.miniLabel}>Courses</span>
-          </div>
-          <div className={styles.miniStat}>
-            <span className={styles.miniValue}>{island.badgeCount}</span>
-            <span className={styles.miniLabel}>Badges</span>
-          </div>
-          <div className={styles.miniStat}>
-            <span className={styles.miniValue}>{island.challengeCount}</span>
-            <span className={styles.miniLabel}>Challenges</span>
-          </div>
-          <div className={styles.miniStat}>
-            <span className={styles.miniValue}>{island.projectCount}</span>
-            <span className={styles.miniLabel}>Projects</span>
-          </div>
-        </div>
-
-        <div className={styles.panelMeta}>
-          Started {new Date(island.startedAt).toLocaleDateString()} · Last active{" "}
-          {new Date(island.lastActiveAt).toLocaleDateString()}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════
-// HUD
-// ═══════════════════════════════════════════════════════════════
-
-const WorldHUD = memo(function WorldHUD({ data }: { data: WorldData }) {
-  return (
-    <div className={styles.hud}>
-      <div className={styles.hudPlayer}>
-        <div className={styles.hudAvatar}>
-          {data.avatarUrl ? (
-            <img src={data.avatarUrl} alt={data.playerName} />
-          ) : (
-            data.playerName.charAt(0).toUpperCase()
-          )}
-        </div>
-        <div>
-          <div className={styles.hudName}>{data.playerName}</div>
-          <div className={styles.hudLevel}>
-            Lv.{data.level} {data.levelTitle}
-          </div>
-        </div>
-      </div>
-
-      <div className={styles.hudXp}>
-        <div className={styles.hudXpBar}>
-          <div
-            className={styles.hudXpFill}
-            style={{ width: `${data.xpProgress * 100}%` }}
-          />
-        </div>
-        <div className={styles.hudXpText}>
-          {data.totalXP} XP
-          {data.nextLevelTitle && (
-            <span className={styles.hudXpNext}>
-              {data.xpForNextLevel - data.xpIntoLevel} to{" "}
-              {data.nextLevelTitle}
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div className={styles.hudStats}>
-        <div className={styles.hudStat} title="Islands explored">
-          <span className={styles.hudStatIcon}>{"\u{1F3DD}\uFE0F"}</span>
-          <span>{data.islands.length}</span>
-        </div>
-        <div className={styles.hudStat} title="Badges earned">
-          <span className={styles.hudStatIcon}>{"\u{1F3C5}"}</span>
-          <span>{data.totalBadges}</span>
-        </div>
-        <div className={styles.hudStat} title="Certificates">
-          <span className={styles.hudStatIcon}>{"\u{1F4DC}"}</span>
-          <span>{data.totalCertificates}</span>
-        </div>
-        <div className={styles.hudStat} title="Challenges completed">
-          <span className={styles.hudStatIcon}>{"\u2694\uFE0F"}</span>
-          <span>{data.totalChallenges}</span>
-        </div>
-      </div>
-    </div>
-  );
-});
-
-// ═══════════════════════════════════════════════════════════════
-// ACTIVITY LOG
-// ═══════════════════════════════════════════════════════════════
-
-const ActivityLog = memo(function ActivityLog({
-  activities,
-}: {
-  activities: WorldData["recentActivity"];
-}) {
-  if (activities.length === 0) return null;
-
-  return (
-    <div className={styles.activity}>
-      <div className={styles.activityTitle}>Recent Activity</div>
-      {activities.slice(0, 5).map((a) => (
-        <div key={a.id} className={styles.activityItem}>
-          <span className={styles.activityXp}>+{a.amount} XP</span>
-          <span className={styles.activityReason}>{a.reason}</span>
-        </div>
-      ))}
-    </div>
-  );
-});
+// HUD, ActivityLog, IslandDetail imported from ./overlay/
 
 // ═══════════════════════════════════════════════════════════════
 // VIEWPORT CULLING — only render islands in view
@@ -838,6 +589,13 @@ export default function PassionWorld({ data }: { data: WorldData }) {
     useState<PassionIsland | null>(null);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const svgRef = useRef<SVGSVGElement>(null);
+  const tier = useDeviceTier();
+  const [use3D, setUse3D] = useState(false);
+
+  // Enable 3D if WebGL is available (checked client-side)
+  useEffect(() => {
+    setUse3D(hasWebGLSupport());
+  }, []);
 
   // rAF-based pan state (refs to avoid re-renders during drag)
   const isDraggingRef = useRef(false);
@@ -938,139 +696,150 @@ export default function PassionWorld({ data }: { data: WorldData }) {
 
   return (
     <div className={styles.world}>
+      {/* HTML overlays — always rendered on top of whichever renderer is active */}
       <WorldHUD data={data} />
       <ActivityLog activities={data.recentActivity} />
       <Link href="/" className={styles.backBtn}>
         &larr; Dashboard
       </Link>
 
-      <svg
-        ref={svgRef}
-        viewBox={viewBox}
-        className={styles.svg}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-      >
-        <defs>
-          <linearGradient id="ocean" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#0c4a6e" />
-            <stop offset="40%" stopColor="#0369a1" />
-            <stop offset="100%" stopColor="#0284c7" />
-          </linearGradient>
-          <filter id="glow">
-            <feGaussianBlur stdDeviation="2" result="coloredBlur" />
-            <feMerge>
-              <feMergeNode in="coloredBlur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-          <pattern
-            id="waterPattern"
-            width="60"
-            height="60"
-            patternUnits="userSpaceOnUse"
-          >
-            <circle cx="30" cy="30" r="1" fill="rgba(255,255,255,0.06)" />
-            <circle cx="10" cy="10" r="0.5" fill="rgba(255,255,255,0.04)" />
-            <circle cx="50" cy="15" r="0.8" fill="rgba(255,255,255,0.05)" />
-          </pattern>
-        </defs>
+      {use3D ? (
+        /* ─── 3D Canvas path ─── */
+        <WorldScene
+          tier={tier}
+          data={data}
+          onSelectIsland={setSelectedIsland}
+        />
+      ) : (
+        /* ─── SVG fallback path ─── */
+        <svg
+          ref={svgRef}
+          viewBox={viewBox}
+          className={styles.svg}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+        >
+          <defs>
+            <linearGradient id="ocean" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#0c4a6e" />
+              <stop offset="40%" stopColor="#0369a1" />
+              <stop offset="100%" stopColor="#0284c7" />
+            </linearGradient>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+              <feMerge>
+                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            <pattern
+              id="waterPattern"
+              width="60"
+              height="60"
+              patternUnits="userSpaceOnUse"
+            >
+              <circle cx="30" cy="30" r="1" fill="rgba(255,255,255,0.06)" />
+              <circle cx="10" cy="10" r="0.5" fill="rgba(255,255,255,0.04)" />
+              <circle cx="50" cy="15" r="0.8" fill="rgba(255,255,255,0.05)" />
+            </pattern>
+          </defs>
 
-        {/* Ocean */}
-        <rect x="-400" y="-400" width="2000" height="1600" fill="url(#ocean)" />
-        <rect x="-400" y="-400" width="2000" height="1600" fill="url(#waterPattern)" />
+          {/* Ocean */}
+          <rect x="-400" y="-400" width="2000" height="1600" fill="url(#ocean)" />
+          <rect x="-400" y="-400" width="2000" height="1600" fill="url(#waterPattern)" />
 
-        {/* Waves */}
-        <WaveLayer y={760} color="#0ea5e9" speed={12} />
-        <WaveLayer y={775} color="#38bdf8" speed={15} />
-        <WaveLayer y={790} color="#7dd3fc" speed={18} />
+          {/* Waves */}
+          <WaveLayer y={760} color="#0ea5e9" speed={12} />
+          <WaveLayer y={775} color="#38bdf8" speed={15} />
+          <WaveLayer y={790} color="#7dd3fc" speed={18} />
 
-        {/* Clouds */}
-        <Cloud x={50} y={60} scale={0.8} />
-        <Cloud x={400} y={40} scale={1.1} />
-        <Cloud x={750} y={70} scale={0.9} />
-        <Cloud x={1050} y={50} scale={0.7} />
+          {/* Clouds */}
+          <Cloud x={50} y={60} scale={0.8} />
+          <Cloud x={400} y={40} scale={1.1} />
+          <Cloud x={750} y={70} scale={0.9} />
+          <Cloud x={1050} y={50} scale={0.7} />
 
-        {/* Compass */}
-        <g transform="translate(60, 80)" opacity={0.3}>
-          <circle cx="0" cy="0" r="20" fill="none" stroke="#fbbf24" strokeWidth="1" />
-          <line x1="0" y1="-22" x2="0" y2="22" stroke="#fbbf24" strokeWidth="0.5" />
-          <line x1="-22" y1="0" x2="22" y2="0" stroke="#fbbf24" strokeWidth="0.5" />
-          <text x="0" y="-25" textAnchor="middle" fontSize="8" fill="#fbbf24" fontWeight="700">N</text>
-        </g>
+          {/* Compass */}
+          <g transform="translate(60, 80)" opacity={0.3}>
+            <circle cx="0" cy="0" r="20" fill="none" stroke="#fbbf24" strokeWidth="1" />
+            <line x1="0" y1="-22" x2="0" y2="22" stroke="#fbbf24" strokeWidth="0.5" />
+            <line x1="-22" y1="0" x2="22" y2="0" stroke="#fbbf24" strokeWidth="0.5" />
+            <text x="0" y="-25" textAnchor="middle" fontSize="8" fill="#fbbf24" fontWeight="700">N</text>
+          </g>
 
-        {/* Bridges */}
-        {data.islands.length > 1 &&
-          positions.slice(0, -1).map((pos, i) => {
-            const next = positions[i + 1];
+          {/* Bridges */}
+          {data.islands.length > 1 &&
+            positions.slice(0, -1).map((pos, i) => {
+              const next = positions[i + 1];
+              return (
+                <line
+                  key={`bridge-${i}`}
+                  x1={pos.x}
+                  y1={pos.y + 15}
+                  x2={next.x}
+                  y2={next.y + 15}
+                  stroke="rgba(255,255,255,0.12)"
+                  strokeWidth="1.5"
+                  strokeDasharray="6 8"
+                />
+              );
+            })}
+
+          {/* Landmarks */}
+          <g data-interactive>
+            <QuestBoardLandmark x={landmarks.questBoard.x} y={landmarks.questBoard.y} />
+            <MentorTowerLandmark x={landmarks.mentorTower.x} y={landmarks.mentorTower.y} mentorName={data.mentorName} />
+            <AchievementShrineLandmark x={landmarks.shrine.x} y={landmarks.shrine.y} badgeCount={data.totalBadges} certCount={data.totalCertificates} />
+            <ChapterTownLandmark x={landmarks.chapterTown.x} y={landmarks.chapterTown.y} chapterName={data.chapterName} memberCount={data.chapterMemberCount} />
+            <SeasonalEventLandmark x={landmarks.events.x} y={landmarks.events.y} count={data.activeChallenges + data.upcomingEventCount} />
+          </g>
+
+          {/* Empty state */}
+          {data.islands.length === 0 && (
+            <g>
+              <text x="600" y="380" textAnchor="middle" fontSize="18" fill="white" fontWeight="700" opacity={0.8}>
+                Your world awaits...
+              </text>
+              <text x="600" y="410" textAnchor="middle" fontSize="12" fill="white" opacity={0.5}>
+                Take the Passion Discovery Quiz to grow your first island
+              </text>
+            </g>
+          )}
+
+          {/* Islands (viewport-culled, memoized) */}
+          {visibleIslands.map((i) => {
+            const island = data.islands[i];
+            const pos = positions[i];
             return (
-              <line
-                key={`bridge-${i}`}
-                x1={pos.x}
-                y1={pos.y + 15}
-                x2={next.x}
-                y2={next.y + 15}
-                stroke="rgba(255,255,255,0.12)"
-                strokeWidth="1.5"
-                strokeDasharray="6 8"
-              />
+              <g key={island.id} data-interactive>
+                <Island
+                  island={island}
+                  x={pos?.x ?? 600}
+                  y={pos?.y ?? 400}
+                  index={i}
+                  isSelected={selectedIsland?.id === island.id}
+                  onSelect={selectHandlers[i]}
+                />
+              </g>
             );
           })}
 
-        {/* Landmarks */}
-        <g data-interactive>
-          <QuestBoardLandmark x={landmarks.questBoard.x} y={landmarks.questBoard.y} />
-          <MentorTowerLandmark x={landmarks.mentorTower.x} y={landmarks.mentorTower.y} mentorName={data.mentorName} />
-          <AchievementShrineLandmark x={landmarks.shrine.x} y={landmarks.shrine.y} badgeCount={data.totalBadges} certCount={data.totalCertificates} />
-          <ChapterTownLandmark x={landmarks.chapterTown.x} y={landmarks.chapterTown.y} chapterName={data.chapterName} memberCount={data.chapterMemberCount} />
-          <SeasonalEventLandmark x={landmarks.events.x} y={landmarks.events.y} count={data.activeChallenges + data.upcomingEventCount} />
-        </g>
-
-        {/* Empty state */}
-        {data.islands.length === 0 && (
-          <g>
-            <text x="600" y="380" textAnchor="middle" fontSize="18" fill="white" fontWeight="700" opacity={0.8}>
-              Your world awaits...
-            </text>
-            <text x="600" y="410" textAnchor="middle" fontSize="12" fill="white" opacity={0.5}>
-              Take the Passion Discovery Quiz to grow your first island
-            </text>
-          </g>
-        )}
-
-        {/* Islands (viewport-culled, memoized) */}
-        {visibleIslands.map((i) => {
-          const island = data.islands[i];
-          const pos = positions[i];
-          return (
-            <g key={island.id} data-interactive>
-              <Island
-                island={island}
-                x={pos?.x ?? 600}
-                y={pos?.y ?? 400}
-                index={i}
-                isSelected={selectedIsland?.id === island.id}
-                onSelect={selectHandlers[i]}
-              />
-            </g>
-          );
-        })}
-
-        {/* Title */}
-        <text
-          x="600"
-          y="30"
-          textAnchor="middle"
-          fontSize="14"
-          fill="rgba(255,255,255,0.35)"
-          fontWeight="700"
-          letterSpacing="3"
-        >
-          THE PASSION WORLD
-        </text>
-      </svg>
+          {/* Title */}
+          <text
+            x="600"
+            y="30"
+            textAnchor="middle"
+            fontSize="14"
+            fill="rgba(255,255,255,0.35)"
+            fontWeight="700"
+            letterSpacing="3"
+          >
+            THE PASSION WORLD
+          </text>
+        </svg>
+      )}
 
       {selectedIsland && (
         <IslandDetail

@@ -2,11 +2,17 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import dynamic from "next/dynamic";
 import { getWorldData } from "@/lib/world-actions";
-import PassionWorld, {
+import {
   WorldErrorBoundary,
   WorldLoadingSkeleton,
 } from "@/components/world/passion-world";
+
+const PassionWorld = dynamic(
+  () => import("@/components/world/passion-world"),
+  { ssr: false },
+);
 
 export const metadata = {
   title: "The Passion World | YPP",
