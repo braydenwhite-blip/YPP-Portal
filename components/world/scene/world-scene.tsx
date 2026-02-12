@@ -24,6 +24,9 @@ import { SelectionRing } from "../effects/selection-ring";
 import { CinematicIntro } from "./cinematic-intro";
 import { KeyboardControls } from "./keyboard-controls";
 import { AmbientLife } from "./ambient-life";
+import { useTimeOfDay, getCurrentSeason } from "../hooks/use-time-of-day";
+import { Weather } from "./weather";
+import { SeasonalTheme } from "./seasonal-theme";
 
 interface WorldSceneProps {
   tier: DeviceTier;
@@ -64,6 +67,10 @@ function SceneContent({
   const { selectedId, hoveredId, select, hover, deselect } = useIslandInteraction();
   const { focusOnIsland, returnToOverview } = useWorldControls();
   const [introComplete, setIntroComplete] = useState(false);
+
+  // Time-of-day and season systems
+  const timeData = useTimeOfDay(true); // accelerated: 1 real hour = 1 day cycle
+  const season = useMemo(() => getCurrentSeason(), []);
 
   const positions = useMemo(
     () => getIslandPositions3D(data.islands.length),
@@ -123,9 +130,15 @@ function SceneContent({
 
   return (
     <>
-      <SkyEnvironment />
+      <SkyEnvironment timeData={timeData} tier={tier} />
       <Ocean tier={tier} />
       <CameraController />
+
+      {/* Dynamic weather effects */}
+      <Weather timeData={timeData} tier={tier} />
+
+      {/* Seasonal particle effects */}
+      <SeasonalTheme season={season} tier={tier} />
 
       {/* Cinematic intro on first visit */}
       <CinematicIntro
