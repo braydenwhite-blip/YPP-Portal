@@ -28,7 +28,6 @@ import { AmbientLife } from "./ambient-life";
 import { useTimeOfDay, getCurrentSeason } from "../hooks/use-time-of-day";
 import { Weather } from "./weather";
 import { SeasonalTheme } from "./seasonal-theme";
-import { PostProcessing } from "../effects/post-processing";
 
 /** Reports camera target position every ~200ms to the parent for the minimap viewport indicator */
 function CameraTracker({ onCameraMove }: { onCameraMove?: (target: { x: number; z: number }) => void }) {
@@ -112,7 +111,9 @@ export function WorldScene({ tier, data, filteredIds, onSelectIsland, onSelectLa
       camera={{ position: [0, 80, 120], fov: 50 }}
       style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
       aria-label="Interactive 3D map of your passion islands"
-      onCreated={({ gl }) => {
+      onCreated={({ gl, scene }) => {
+        // Sky-blue background so even if the Sky dome fails, the scene is visible
+        scene.background = new THREE.Color("#87ceeb");
         if (tier !== "LOW") {
           gl.shadowMap.type = THREE.PCFSoftShadowMap;
         }
@@ -159,7 +160,7 @@ function SceneContent({
   const [selectedLandmark, setSelectedLandmark] = useState<LandmarkType>(null);
 
   // Time-of-day and season systems
-  const timeData = useTimeOfDay(true); // accelerated: 1 real hour = 1 day cycle
+  const timeData = useTimeOfDay(false); // real wall-clock time for predictable lighting
   const season = useMemo(() => getCurrentSeason(), []);
 
   const positions = useMemo(
@@ -343,8 +344,6 @@ function SceneContent({
         onClick={() => handleLandmarkClick("events", lm.events)}
       />
 
-      {/* Post-processing: bloom, AO, vignette */}
-      <PostProcessing tier={tier} />
     </>
   );
 }

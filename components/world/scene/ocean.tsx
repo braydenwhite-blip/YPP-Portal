@@ -108,23 +108,29 @@ export function Ocean({ tier = "MEDIUM" }: OceanProps) {
     return geo;
   }, [segments]);
 
+  // Try to create shader material; fall back to null if GPU rejects it
   const shaderMaterial = useMemo(() => {
     if (tier === "LOW") return null;
-    return new THREE.ShaderMaterial({
-      vertexShader: VERTEX_SHADER,
-      fragmentShader: FRAGMENT_SHADER,
-      uniforms: {
-        uTime: { value: 0 },
-        uDeepColor: { value: new THREE.Color("#0c4a6e") },
-        uSurfaceColor: { value: new THREE.Color("#0ea5e9") },
-        uFogColor: { value: new THREE.Color("#c8dff5") },
-        uFogNear: { value: 150 },
-        uFogFar: { value: 500 },
-        uSunDir: { value: new THREE.Vector3(100, 60, 100).normalize() },
-      },
-      transparent: true,
-      side: THREE.DoubleSide,
-    });
+    try {
+      return new THREE.ShaderMaterial({
+        vertexShader: VERTEX_SHADER,
+        fragmentShader: FRAGMENT_SHADER,
+        uniforms: {
+          uTime: { value: 0 },
+          uDeepColor: { value: new THREE.Color("#0c4a6e") },
+          uSurfaceColor: { value: new THREE.Color("#0ea5e9") },
+          uFogColor: { value: new THREE.Color("#c8dff5") },
+          uFogNear: { value: 150 },
+          uFogFar: { value: 500 },
+          uSunDir: { value: new THREE.Vector3(100, 60, 100).normalize() },
+        },
+        transparent: true,
+        side: THREE.DoubleSide,
+      });
+    } catch (e) {
+      console.warn("[Ocean] Shader compilation failed, using fallback:", e);
+      return null;
+    }
   }, [tier]);
 
   useFrame(({ clock }) => {
@@ -132,7 +138,8 @@ export function Ocean({ tier = "MEDIUM" }: OceanProps) {
     shaderMaterial.uniforms.uTime.value = clock.getElapsedTime();
   });
 
-  if (tier === "LOW") {
+  // Fallback: simple standard material (LOW tier or shader failure)
+  if (!shaderMaterial) {
     return (
       <mesh geometry={geometry} receiveShadow>
         <meshStandardMaterial
@@ -151,7 +158,7 @@ export function Ocean({ tier = "MEDIUM" }: OceanProps) {
     <mesh
       ref={meshRef}
       geometry={geometry}
-      material={shaderMaterial!}
+      material={shaderMaterial}
       receiveShadow
     />
   );
