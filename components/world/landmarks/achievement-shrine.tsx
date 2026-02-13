@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Billboard, Text } from "@react-three/drei";
 import * as THREE from "three";
@@ -10,17 +10,53 @@ interface AchievementShrineProps {
   position: [number, number, number];
   badgeCount: number;
   certCount: number;
+  isSelected?: boolean;
   onClick?: () => void;
 }
 
-export function AchievementShrine3D({ position, badgeCount, certCount, onClick }: AchievementShrineProps) {
+export function AchievementShrine3D({
+  position,
+  badgeCount,
+  certCount,
+  isSelected = false,
+  onClick,
+}: AchievementShrineProps) {
   const starRef = useRef<THREE.Mesh>(null);
+  const ringRef = useRef<THREE.Mesh>(null);
+  const auraRef = useRef<THREE.Mesh>(null);
   const total = badgeCount + certCount;
   const glowIntensity = Math.min(total * 0.15, 1.5);
 
+  const gemColors = useMemo(
+    () => ["#ef4444", "#3b82f6", "#22c55e", "#a855f7", "#f59e0b", "#ec4899", "#14b8a6", "#f97316"],
+    [],
+  );
+
   useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+
+    // Rotating star
     if (starRef.current) {
-      starRef.current.rotation.y = clock.getElapsedTime() * 0.8;
+      starRef.current.rotation.y = t * 0.8;
+      starRef.current.position.y = 3.5 + Math.sin(t * 1.5) * 0.15;
+    }
+
+    // Aura pulse when there are achievements
+    if (auraRef.current) {
+      const targetScale = total > 0 ? 1 + Math.sin(t * 0.8) * 0.15 : 0;
+      const s = auraRef.current.scale.x;
+      auraRef.current.scale.setScalar(s + (targetScale - s) * 0.05);
+      const mat = auraRef.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = total > 0 ? 0.06 + Math.sin(t * 1.2) * 0.03 : 0;
+    }
+
+    // Selection ring
+    if (ringRef.current) {
+      ringRef.current.rotation.y = t * 0.5;
+      const targetScale = isSelected ? 1 : 0;
+      const s = ringRef.current.scale.x;
+      const newScale = s + (targetScale - s) * 0.08;
+      ringRef.current.scale.set(newScale, newScale, newScale);
     }
   });
 
@@ -31,9 +67,19 @@ export function AchievementShrine3D({ position, badgeCount, certCount, onClick }
       onPointerOver={() => { document.body.style.cursor = "pointer"; }}
       onPointerOut={() => { document.body.style.cursor = "default"; }}
     >
-      {/* Base platform */}
-      <mesh position={[0, 0.3, 0]}>
-        <boxGeometry args={[3, 0.6, 2.5]} />
+      {/* Ground circle */}
+      <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[2.5, 16]} />
+        <meshStandardMaterial color="#b45309" roughness={0.9} />
+      </mesh>
+
+      {/* Base platform — stepped */}
+      <mesh position={[0, 0.15, 0]}>
+        <boxGeometry args={[3.2, 0.3, 2.7]} />
+        <meshStandardMaterial color="#d97706" roughness={0.4} metalness={0.3} />
+      </mesh>
+      <mesh position={[0, 0.4, 0]}>
+        <boxGeometry args={[2.8, 0.2, 2.3]} />
         <meshStandardMaterial color="#fbbf24" roughness={0.3} metalness={0.4} />
       </mesh>
 
@@ -43,12 +89,19 @@ export function AchievementShrine3D({ position, badgeCount, certCount, onClick }
         <meshStandardMaterial color="#f59e0b" roughness={0.3} metalness={0.3} />
       </mesh>
 
-      {/* Pillars */}
+      {/* Pillars with capitals */}
       {[[-1.1, 0, -0.8], [1.1, 0, -0.8], [-1.1, 0, 0.8], [1.1, 0, 0.8]].map((pos, i) => (
-        <mesh key={i} position={[pos[0], 1.3, pos[2]]}>
-          <cylinderGeometry args={[0.12, 0.15, 2, 6]} />
-          <meshStandardMaterial color="#d97706" />
-        </mesh>
+        <group key={i} position={[pos[0], 0, pos[2]]}>
+          <mesh position={[0, 1.3, 0]}>
+            <cylinderGeometry args={[0.12, 0.15, 2, 6]} />
+            <meshStandardMaterial color="#d97706" />
+          </mesh>
+          {/* Capital */}
+          <mesh position={[0, 2.3, 0]}>
+            <boxGeometry args={[0.35, 0.1, 0.35]} />
+            <meshStandardMaterial color="#fbbf24" metalness={0.5} />
+          </mesh>
+        </group>
       ))}
 
       {/* Rotating star on top */}
@@ -62,20 +115,31 @@ export function AchievementShrine3D({ position, badgeCount, certCount, onClick }
           metalness={0.8}
         />
       </mesh>
-      <pointLight position={[0, 3.5, 0]} color="#fbbf24" intensity={glowIntensity} distance={10} />
+      <pointLight position={[0, 3.5, 0]} color="#fbbf24" intensity={glowIntensity} distance={12} />
 
-      {/* Gem spheres around base (1 per badge, max 8 visible) */}
+      {/* Achievement aura — large transparent sphere */}
+      <mesh ref={auraRef} position={[0, 1.5, 0]} scale={0}>
+        <sphereGeometry args={[3, 16, 16]} />
+        <meshBasicMaterial
+          color="#fbbf24"
+          transparent
+          opacity={0}
+          side={THREE.BackSide}
+          depthWrite={false}
+        />
+      </mesh>
+
+      {/* Gem spheres around base — orbit slowly */}
       {Array.from({ length: Math.min(badgeCount, 8) }).map((_, i) => {
         const angle = (i / Math.min(badgeCount, 8)) * Math.PI * 2;
         const gemX = Math.cos(angle) * 1.8;
         const gemZ = Math.sin(angle) * 1.8;
-        const colors = ["#ef4444", "#3b82f6", "#22c55e", "#a855f7", "#f59e0b", "#ec4899", "#14b8a6", "#f97316"];
         return (
           <mesh key={i} position={[gemX, 0.9, gemZ]}>
             <sphereGeometry args={[0.15, 6, 6]} />
             <meshStandardMaterial
-              color={colors[i % colors.length]}
-              emissive={colors[i % colors.length]}
+              color={gemColors[i % gemColors.length]}
+              emissive={gemColors[i % gemColors.length]}
               emissiveIntensity={0.4}
               roughness={0.1}
               metalness={0.6}
@@ -84,11 +148,41 @@ export function AchievementShrine3D({ position, badgeCount, certCount, onClick }
         );
       })}
 
+      {/* Certificate pedestals — small golden blocks */}
+      {Array.from({ length: Math.min(certCount, 4) }).map((_, i) => {
+        const cx = (i - 1.5) * 0.6;
+        return (
+          <group key={`cert-${i}`} position={[cx, 0.6, -1.0]}>
+            <mesh>
+              <boxGeometry args={[0.25, 0.15, 0.03]} />
+              <meshStandardMaterial color="#fef3c7" emissive="#fbbf24" emissiveIntensity={0.2} />
+            </mesh>
+          </group>
+        );
+      })}
+
+      {/* Selection ring */}
+      <mesh ref={ringRef} position={[0, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={0}>
+        <torusGeometry args={[3, 0.06, 8, 32]} />
+        <meshStandardMaterial
+          color="#f59e0b"
+          emissive="#f59e0b"
+          emissiveIntensity={0.6}
+          transparent
+          opacity={0.7}
+        />
+      </mesh>
+
       {/* Label */}
       <Billboard position={[0, 4.5, 0]}>
         <Text fontSize={0.6} color="#92400e" fontWeight={700} outlineWidth={0.04} outlineColor="#000">
           Shrine
         </Text>
+        {total > 0 && (
+          <Text fontSize={0.35} color="#d97706" position={[0, -0.55, 0]} outlineWidth={0.03} outlineColor="#000">
+            {badgeCount} badges · {certCount} certs
+          </Text>
+        )}
       </Billboard>
 
       <LandmarkMarker position={[1.5, 4.7, 0]} count={total} color="#f59e0b" />
