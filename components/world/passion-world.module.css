@@ -4,12 +4,15 @@
 
 /* ── Container ── */
 .world {
-  position: relative;
-  width: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
   height: 100vh;
   overflow: hidden;
   background: #0c4a6e;
   user-select: none;
+  z-index: 50;
 }
 
 .svg {
@@ -337,9 +340,12 @@
 
 /* ── Loading Skeleton ── */
 .loadingWorld {
-  position: relative;
-  width: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
   height: 100vh;
+  z-index: 50;
   overflow: hidden;
   background: linear-gradient(180deg, #0c4a6e 0%, #0369a1 40%, #0284c7 100%);
   display: flex;
@@ -436,9 +442,12 @@
 
 /* ── Error State ── */
 .errorWorld {
-  position: relative;
-  width: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
   height: 100vh;
+  z-index: 50;
   overflow: hidden;
   background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
   display: flex;
