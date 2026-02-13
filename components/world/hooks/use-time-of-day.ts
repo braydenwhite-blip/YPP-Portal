@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useState, useEffect } from "react";
 
 // ═══════════════════════════════════════════════════════════════
 // Time-of-Day System — Maps real wall-clock to sky/lighting params
@@ -75,29 +75,38 @@ function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
+/** Compute the current in-game hour from wall clock */
+function getCurrentHour(accelerated: boolean): number {
+  const now = new Date();
+  if (accelerated) {
+    // 1 real hour = 1 in-game day (24h cycle). Minutes map to hours.
+    return (now.getMinutes() + now.getSeconds() / 60) / 60 * 24;
+  }
+  return now.getHours() + now.getMinutes() / 60;
+}
+
 /**
  * Compute time-of-day parameters from the real wall-clock.
- * The world runs on a compressed 1-hour real ≈ 1 full day/night cycle,
- * so users actually see transitions during a session.
- * Set `accelerated=false` to use the real 24h clock.
+ * Updates every 10 seconds so the sky transitions smoothly.
+ * Initial state is always noon (hour=12) to guarantee a well-lit scene.
  */
 export function useTimeOfDay(accelerated = true): TimeOfDayData {
-  return useMemo(() => {
-    const now = new Date();
-    let hour: number;
+  // Start at noon to guarantee the scene is visible on first render
+  const [timeData, setTimeData] = useState<TimeOfDayData>(() => computeTimeParams(12));
 
-    if (accelerated) {
-      // 1 real hour = 1 in-game day (24h cycle). Minutes map to hours.
-      // Also add seconds for smooth sub-minute transitions.
-      hour = (now.getMinutes() + now.getSeconds() / 60) / 60 * 24;
-    } else {
-      hour = now.getHours() + now.getMinutes() / 60;
-    }
+  useEffect(() => {
+    // Immediately compute current time after mount
+    setTimeData(computeTimeParams(getCurrentHour(accelerated)));
 
-    return computeTimeParams(hour);
-    // Re-compute once per render — the Sky/useFrame combo handles smoothness
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Update every 10 seconds for smooth transitions
+    const interval = setInterval(() => {
+      setTimeData(computeTimeParams(getCurrentHour(accelerated)));
+    }, 10_000);
+
+    return () => clearInterval(interval);
   }, [accelerated]);
+
+  return timeData;
 }
 
 /** Pure function: given an hour [0-24), produce all visual parameters */

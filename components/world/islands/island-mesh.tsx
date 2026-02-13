@@ -13,14 +13,14 @@ import { IslandTrees } from "./island-trees";
 import { IslandStructures } from "./island-structures";
 
 // ═══════════════════════════════════════════════════════════════
-// Performance-tuned IslandMesh — React.memo, LOD, cached materials
+// Organic Island Mesh — SphereGeometry mound with noise displacement
 // ═══════════════════════════════════════════════════════════════
 
 /** LOD polygon budgets per device tier */
 const LOD = {
-  LOW:    { radSegs: 8,  heightSegs: 2, coneSegs: 6,  torusRadial: 4, torusTubular: 16 },
-  MEDIUM: { radSegs: 12, heightSegs: 3, coneSegs: 8,  torusRadial: 6, torusTubular: 24 },
-  HIGH:   { radSegs: 16, heightSegs: 4, coneSegs: 12, torusRadial: 8, torusTubular: 32 },
+  LOW:    { widthSegs: 6,  heightSegs: 3,  torusRadial: 4, torusTubular: 16 },
+  MEDIUM: { widthSegs: 10, heightSegs: 5,  torusRadial: 6, torusTubular: 24 },
+  HIGH:   { widthSegs: 14, heightSegs: 7,  torusRadial: 8, torusTubular: 32 },
 } as const;
 
 /** Cached material for beach rings (shared across all islands) */
@@ -67,29 +67,39 @@ export const IslandMesh = memo(function IslandMesh({
   const radius = tier.radius + (island.isPrimary ? 1 : 0);
   const height = tier.height + (island.isPrimary ? 0.5 : 0);
 
-  // Displace top vertices for organic terrain (LOD-aware)
+  // Organic mound geometry: squashed sphere with noise displacement
   const geometry = useMemo(() => {
-    const geo = new THREE.CylinderGeometry(radius, radius * 1.1, height, lod.radSegs, lod.heightSegs);
+    const geo = new THREE.SphereGeometry(radius, lod.widthSegs, lod.heightSegs);
     const pos = geo.attributes.position.array as Float32Array;
     const rng = seedRandom(index * 777 + island.id.charCodeAt(0));
     const count = pos.length / 3;
+
     for (let i = 0; i < count; i++) {
-      const y = pos[i * 3 + 1];
-      if (y > height * 0.4) {
-        pos[i * 3] += (rng() - 0.5) * 0.4;
-        pos[i * 3 + 1] += rng() * 0.3;
-        pos[i * 3 + 2] += (rng() - 0.5) * 0.4;
+      const x = pos[i * 3];
+      let y = pos[i * 3 + 1];
+      const z = pos[i * 3 + 2];
+
+      if (y >= 0) {
+        // Top hemisphere: flatten to 0.35× for mound shape
+        y *= 0.35;
+        // Noise displacement with radial falloff (more at center, less at edges)
+        const distFromCenter = Math.sqrt(x * x + z * z) / radius;
+        const radialFalloff = Math.max(0, 1 - distFromCenter * 0.8);
+        y += (rng() - 0.3) * 0.5 * radialFalloff;
+      } else {
+        // Bottom hemisphere: extend downward 1.5× for natural underwater taper
+        y *= 1.5;
       }
+
+      pos[i * 3 + 1] = y;
     }
+
     geo.computeVertexNormals();
     return geo;
-  }, [radius, height, index, island.id, lod.radSegs, lod.heightSegs]);
+  }, [radius, index, island.id, lod.widthSegs, lod.heightSegs]);
 
-  // Cached cone geometry for underwater taper
-  const coneGeo = useMemo(
-    () => new THREE.ConeGeometry(radius * 0.9, height * 0.8, lod.coneSegs),
-    [radius, height, lod.coneSegs],
-  );
+  // Surface height at the equator (where trees/structures sit)
+  const surfaceY = radius * 0.35;
 
   // Cached torus geometry for beach ring
   const torusGeo = useMemo(
@@ -109,18 +119,8 @@ export const IslandMesh = memo(function IslandMesh({
         transparent: dimmed,
         opacity: dimmed ? 0.25 : 1,
       }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [tier.topColor, isHovered, dimmed, theme.gradient[0]],
-  );
-
-  const sideMaterial = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: tier.sideColor,
-        roughness: 0.9,
-        transparent: dimmed,
-        opacity: dimmed ? 0.25 : 1,
-      }),
-    [tier.sideColor, dimmed],
   );
 
   // Selection ring animation
@@ -146,6 +146,7 @@ export const IslandMesh = memo(function IslandMesh({
         transparent: true,
         opacity: 0.7,
       }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [theme.gradient[0]],
   );
 
@@ -159,41 +160,40 @@ export const IslandMesh = memo(function IslandMesh({
   return (
     <Float speed={floatSpeed} floatIntensity={floatIntensity} rotationIntensity={0}>
       <group ref={groupRef} position={position}>
-        {/* Island body */}
+        {/* Island body — organic mound */}
         <mesh
           geometry={geometry}
           material={bodyMaterial}
+          castShadow={deviceTier !== "LOW"}
+          receiveShadow={deviceTier !== "LOW"}
           onClick={(e) => { e.stopPropagation(); onSelect(); }}
           onPointerOver={(e) => { e.stopPropagation(); onHover(true); document.body.style.cursor = "pointer"; }}
           onPointerOut={() => { onHover(false); document.body.style.cursor = "default"; }}
         />
 
-        {/* Side/underwater taper */}
-        <mesh position={[0, -height * 0.6, 0]} geometry={coneGeo} material={sideMaterial} />
-
-        {/* Beach ring */}
+        {/* Beach ring at equator */}
         <mesh
-          position={[0, height * 0.05, 0]}
+          position={[0, 0, 0]}
           rotation={[Math.PI / 2, 0, 0]}
           geometry={torusGeo}
           material={dimmed ? beachMaterialDimmed : beachMaterial}
         />
 
-        {/* Trees (count limited on LOW tier) */}
+        {/* Trees on top surface */}
         <IslandTrees
           count={treeCount}
           islandRadius={radius}
-          islandHeight={height}
+          islandHeight={surfaceY * 2}
           canopyColor={theme.gradient[0]}
           seed={index * 1000 + island.id.charCodeAt(0)}
           deviceTier={deviceTier}
         />
 
-        {/* Structures (skipped on LOW tier for non-selected islands) */}
+        {/* Structures */}
         {(deviceTier !== "LOW" || isSelected) && (
           <IslandStructures
             structures={tier.structures}
-            islandHeight={height}
+            islandHeight={surfaceY * 2}
             accentColor={theme.accent}
           />
         )}
@@ -212,7 +212,7 @@ export const IslandMesh = memo(function IslandMesh({
         {/* Primary passion crown glow (skip on LOW) */}
         {island.isPrimary && deviceTier !== "LOW" && (
           <pointLight
-            position={[0, height + 2, 0]}
+            position={[0, surfaceY + 2, 0]}
             color="#fbbf24"
             intensity={0.5}
             distance={8}
@@ -225,7 +225,7 @@ export const IslandMesh = memo(function IslandMesh({
           level={island.level}
           currentLevel={island.currentLevel}
           color={theme.gradient[0]}
-          position={[0, height / 2 + (tier.trees > 3 ? 3.5 : 2.5), 0]}
+          position={[0, surfaceY + (tier.trees > 3 ? 3.5 : 2.5), 0]}
         />
       </group>
     </Float>

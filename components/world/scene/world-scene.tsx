@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState, useCallback, useRef } from "react";
+import React, { useMemo, useState, useCallback, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import * as THREE from "three";
 import { Ocean } from "./ocean";
 import { SkyEnvironment } from "./sky-environment";
 import { CameraController } from "./camera-controller";
@@ -27,6 +28,7 @@ import { AmbientLife } from "./ambient-life";
 import { useTimeOfDay, getCurrentSeason } from "../hooks/use-time-of-day";
 import { Weather } from "./weather";
 import { SeasonalTheme } from "./seasonal-theme";
+import { PostProcessing } from "../effects/post-processing";
 
 /** Reports camera target position every ~200ms to the parent for the minimap viewport indicator */
 function CameraTracker({ onCameraMove }: { onCameraMove?: (target: { x: number; z: number }) => void }) {
@@ -46,6 +48,42 @@ function CameraTracker({ onCameraMove }: { onCameraMove?: (target: { x: number; 
   });
 
   return null;
+}
+
+/** Error boundary that works inside the R3F Canvas */
+class CanvasErrorBoundary extends React.Component<
+  { children: React.ReactNode; onError?: (error: Error) => void },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode; onError?: (error: Error) => void }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error) {
+    console.error("[PassionWorld] 3D scene error:", error);
+    this.props.onError?.(error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      // Return a minimal visible scene so the user sees something
+      return (
+        <>
+          <ambientLight intensity={0.6} />
+          <mesh position={[0, -0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[500, 500]} />
+            <meshStandardMaterial color="#0369a1" />
+          </mesh>
+        </>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 export type LandmarkType = "quest-board" | "mentor-tower" | "shrine" | "chapter-town" | "events" | null;
@@ -70,12 +108,29 @@ export function WorldScene({ tier, data, filteredIds, onSelectIsland, onSelectLa
         powerPreference: tier === "LOW" ? "low-power" : "default",
         antialias: tier !== "LOW",
       }}
-      shadows={false}
+      shadows={tier !== "LOW"}
       camera={{ position: [0, 80, 120], fov: 50 }}
       style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
       aria-label="Interactive 3D map of your passion islands"
+      onCreated={({ gl }) => {
+        if (tier !== "LOW") {
+          gl.shadowMap.type = THREE.PCFSoftShadowMap;
+        }
+      }}
+      fallback={
+        <div style={{
+          position: "absolute",
+          top: 0, left: 0, width: "100%", height: "100%",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "white", fontSize: "1.2rem", background: "#0c4a6e",
+        }}>
+          Loading 3D world...
+        </div>
+      }
     >
-      <SceneContent tier={tier} data={data} filteredIds={filteredIds} onSelectIsland={onSelectIsland} onSelectLandmark={onSelectLandmark} onCameraMove={onCameraMove} onIntroComplete={onIntroComplete} />
+      <CanvasErrorBoundary>
+        <SceneContent tier={tier} data={data} filteredIds={filteredIds} onSelectIsland={onSelectIsland} onSelectLandmark={onSelectLandmark} onCameraMove={onCameraMove} onIntroComplete={onIntroComplete} />
+      </CanvasErrorBoundary>
     </Canvas>
   );
 }
@@ -287,6 +342,9 @@ function SceneContent({
         isSelected={selectedLandmark === "events"}
         onClick={() => handleLandmarkClick("events", lm.events)}
       />
+
+      {/* Post-processing: bloom, AO, vignette */}
+      <PostProcessing tier={tier} />
     </>
   );
 }

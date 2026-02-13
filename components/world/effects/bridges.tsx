@@ -3,7 +3,6 @@
 import { useMemo } from "react";
 import * as THREE from "three";
 import type { PassionIsland } from "@/lib/world-actions";
-import { getTheme } from "../constants";
 
 interface BridgesProps {
   islands: PassionIsland[];
@@ -12,7 +11,7 @@ interface BridgesProps {
 
 /**
  * Curved tube bridges between consecutive islands.
- * The arc rises above the water and blends the two island colors.
+ * Uses brand purple (#7c3aed) with pink emissive (#ec4899) for portal integration.
  */
 export function Bridges({ islands, positions }: BridgesProps) {
   const bridges = useMemo(() => {
@@ -21,7 +20,6 @@ export function Bridges({ islands, positions }: BridgesProps) {
     const result: {
       key: string;
       curve: THREE.CatmullRomCurve3;
-      color: string;
     }[] = [];
 
     for (let i = 0; i < islands.length - 1; i++) {
@@ -41,12 +39,7 @@ export function Bridges({ islands, positions }: BridgesProps) {
         new THREE.Vector3(b.x, 0.5, b.z),
       ]);
 
-      const themeA = getTheme(islands[i].category);
-      result.push({
-        key: `bridge-${i}`,
-        curve,
-        color: themeA.gradient[0],
-      });
+      result.push({ key: `bridge-${i}`, curve });
     }
 
     return result;
@@ -55,13 +48,13 @@ export function Bridges({ islands, positions }: BridgesProps) {
   return (
     <group>
       {bridges.map((bridge) => (
-        <BridgeTube key={bridge.key} curve={bridge.curve} color={bridge.color} />
+        <BridgeTube key={bridge.key} curve={bridge.curve} />
       ))}
     </group>
   );
 }
 
-function BridgeTube({ curve, color }: { curve: THREE.CatmullRomCurve3; color: string }) {
+function BridgeTube({ curve }: { curve: THREE.CatmullRomCurve3 }) {
   const geometry = useMemo(() => {
     return new THREE.TubeGeometry(curve, 24, 0.08, 6, false);
   }, [curve]);
@@ -69,11 +62,11 @@ function BridgeTube({ curve, color }: { curve: THREE.CatmullRomCurve3; color: st
   return (
     <mesh geometry={geometry}>
       <meshStandardMaterial
-        color={color}
+        color="#7c3aed"
         transparent
-        opacity={0.25}
-        emissive={color}
-        emissiveIntensity={0.1}
+        opacity={0.35}
+        emissive="#ec4899"
+        emissiveIntensity={0.15}
       />
     </mesh>
   );
