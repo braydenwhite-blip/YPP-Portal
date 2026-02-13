@@ -25,6 +25,36 @@ function isMissingTableError(err: unknown, table: string) {
 const CHALLENGE_NOMINATIONS_UNAVAILABLE_MESSAGE =
   "Challenge nominations are temporarily unavailable while database updates finish. Please try again in a few minutes.";
 const LEADERBOARD_UNAVAILABLE_TABLE = "public.LeaderboardEntry";
+const SHOWCASE_TABLES = new Set(
+  ["StudentContent", "ContentComment", "ContentLike"].flatMap((tableName) => [
+    tableName,
+    `public.${tableName}`,
+  ])
+);
+const SHOWCASE_SETUP_ERROR_MESSAGE =
+  "Showcase is not enabled in this database yet. Run `prisma migrate deploy` to create showcase tables, then try again.";
+
+function isMissingShowcaseTableError(err: unknown) {
+  if (!err || typeof err !== "object") return false;
+  const candidate = err as { code?: string; meta?: { table?: string } };
+  return (
+    candidate.code === "P2021" &&
+    typeof candidate.meta?.table === "string" &&
+    SHOWCASE_TABLES.has(candidate.meta.table)
+  );
+}
+
+function readShowcaseFallback<T>(err: unknown, fallbackValue: T): T {
+  if (!isMissingShowcaseTableError(err)) throw err;
+  return fallbackValue;
+}
+
+function rethrowShowcaseSetupError(err: unknown): never {
+  if (isMissingShowcaseTableError(err)) {
+    throw new Error(SHOWCASE_SETUP_ERROR_MESSAGE);
+  }
+  throw err;
+}
 
 // ============================================
 // STUDENT CONTENT SHOWCASE (Feature #24)
@@ -36,28 +66,32 @@ const LEADERBOARD_UNAVAILABLE_TABLE = "public.LeaderboardEntry";
 export async function getStudentShowcase() {
   await requireAuth();
 
-  const content = await prisma.studentContent.findMany({
-    where: {
-      status: { in: ["APPROVED", "FEATURED"] },
-    },
-    include: {
-      student: { select: { id: true, name: true, level: true } },
-      comments: {
-        include: { author: { select: { id: true, name: true } } },
-        orderBy: { createdAt: "desc" },
-        take: 5,
+  try {
+    const content = await prisma.studentContent.findMany({
+      where: {
+        status: { in: ["APPROVED", "FEATURED"] },
       },
-      _count: { select: { likes: true, comments: true } },
-    },
-    orderBy: [
-      { isFeatured: "desc" },
-      { featuredAt: "desc" },
-      { likeCount: "desc" },
-      { createdAt: "desc" },
-    ],
-  });
+      include: {
+        student: { select: { id: true, name: true, level: true } },
+        comments: {
+          include: { author: { select: { id: true, name: true } } },
+          orderBy: { createdAt: "desc" },
+          take: 5,
+        },
+        _count: { select: { likes: true, comments: true } },
+      },
+      orderBy: [
+        { isFeatured: "desc" },
+        { featuredAt: "desc" },
+        { likeCount: "desc" },
+        { createdAt: "desc" },
+      ],
+    });
 
-  return content;
+    return content;
+  } catch (error) {
+    return readShowcaseFallback(error, []);
+  }
 }
 
 /**
@@ -66,20 +100,24 @@ export async function getStudentShowcase() {
 export async function getMyContent() {
   const session = await requireAuth();
 
-  const content = await prisma.studentContent.findMany({
-    where: { studentId: session.user.id },
-    include: {
-      comments: {
-        include: { author: { select: { id: true, name: true } } },
-        orderBy: { createdAt: "desc" },
-        take: 5,
+  try {
+    const content = await prisma.studentContent.findMany({
+      where: { studentId: session.user.id },
+      include: {
+        comments: {
+          include: { author: { select: { id: true, name: true } } },
+          orderBy: { createdAt: "desc" },
+          take: 5,
+        },
+        _count: { select: { likes: true, comments: true } },
       },
-      _count: { select: { likes: true, comments: true } },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+      orderBy: { createdAt: "desc" },
+    });
 
-  return content;
+    return content;
+  } catch (error) {
+    return readShowcaseFallback(error, []);
+  }
 }
 
 /**
@@ -104,18 +142,23 @@ export async function submitContent(formData: FormData) {
     throw new Error("Invalid content type");
   }
 
-  const content = await prisma.studentContent.create({
-    data: {
-      studentId: session.user.id,
-      title,
-      description,
-      contentType: contentType as any,
-      mediaUrl,
-      passionArea,
-      status: "SUBMITTED",
-      xpAwarded: 15,
-    },
-  });
+  let content: Awaited<ReturnType<typeof prisma.studentContent.create>>;
+  try {
+    content = await prisma.studentContent.create({
+      data: {
+        studentId: session.user.id,
+        title,
+        description,
+        contentType: contentType as any,
+        mediaUrl,
+        passionArea,
+        status: "SUBMITTED",
+        xpAwarded: 15,
+      },
+    });
+  } catch (error) {
+    rethrowShowcaseSetupError(error);
+  }
 
   // Award 15 XP for submitting content
   await awardXp(session.user.id, 15, `Submitted content: ${title}`);
@@ -131,32 +174,36 @@ export async function submitContent(formData: FormData) {
 export async function toggleLikeContent(contentId: string) {
   const session = await requireAuth();
 
-  const existing = await prisma.contentLike.findUnique({
-    where: { contentId_userId: { contentId, userId: session.user.id } },
-  });
+  try {
+    const existing = await prisma.contentLike.findUnique({
+      where: { contentId_userId: { contentId, userId: session.user.id } },
+    });
 
-  if (existing) {
-    // Remove the like
-    await prisma.contentLike.delete({
-      where: { id: existing.id },
-    });
-    await prisma.studentContent.update({
-      where: { id: contentId },
-      data: { likeCount: { decrement: 1 } },
-    });
-  } else {
-    // Add the like
-    await prisma.contentLike.create({
-      data: { contentId, userId: session.user.id },
-    });
-    await prisma.studentContent.update({
-      where: { id: contentId },
-      data: { likeCount: { increment: 1 } },
-    });
+    if (existing) {
+      // Remove the like
+      await prisma.contentLike.delete({
+        where: { id: existing.id },
+      });
+      await prisma.studentContent.update({
+        where: { id: contentId },
+        data: { likeCount: { decrement: 1 } },
+      });
+    } else {
+      // Add the like
+      await prisma.contentLike.create({
+        data: { contentId, userId: session.user.id },
+      });
+      await prisma.studentContent.update({
+        where: { id: contentId },
+        data: { likeCount: { increment: 1 } },
+      });
+    }
+
+    revalidatePath("/showcase");
+    return { liked: !existing };
+  } catch (error) {
+    rethrowShowcaseSetupError(error);
   }
-
-  revalidatePath("/showcase");
-  return { liked: !existing };
 }
 
 /**
@@ -169,22 +216,26 @@ export async function commentOnContent(contentId: string, text: string) {
     throw new Error("Comment text is required");
   }
 
-  const content = await prisma.studentContent.findUnique({
-    where: { id: contentId },
-  });
-  if (!content) throw new Error("Content not found");
+  try {
+    const content = await prisma.studentContent.findUnique({
+      where: { id: contentId },
+    });
+    if (!content) throw new Error("Content not found");
 
-  const comment = await prisma.contentComment.create({
-    data: {
-      contentId,
-      authorId: session.user.id,
-      text: text.trim(),
-    },
-    include: { author: { select: { id: true, name: true } } },
-  });
+    const comment = await prisma.contentComment.create({
+      data: {
+        contentId,
+        authorId: session.user.id,
+        text: text.trim(),
+      },
+      include: { author: { select: { id: true, name: true } } },
+    });
 
-  revalidatePath("/showcase");
-  return comment;
+    revalidatePath("/showcase");
+    return comment;
+  } catch (error) {
+    rethrowShowcaseSetupError(error);
+  }
 }
 
 /**
@@ -194,24 +245,33 @@ export async function commentOnContent(contentId: string, text: string) {
 export async function approveContent(contentId: string) {
   const session = await requireAuth();
 
-  const content = await prisma.studentContent.findUnique({
-    where: { id: contentId },
-  });
-  if (!content) throw new Error("Content not found");
-  if (content.status !== "SUBMITTED") {
-    throw new Error("Content is not in SUBMITTED status");
+  let contentStudentId = "";
+  let contentTitle = "";
+  try {
+    const content = await prisma.studentContent.findUnique({
+      where: { id: contentId },
+    });
+    if (!content) throw new Error("Content not found");
+    if (content.status !== "SUBMITTED") {
+      throw new Error("Content is not in SUBMITTED status");
+    }
+
+    await prisma.studentContent.update({
+      where: { id: contentId },
+      data: {
+        status: "APPROVED",
+        reviewedById: session.user.id,
+      },
+    });
+
+    contentStudentId = content.studentId;
+    contentTitle = content.title;
+  } catch (error) {
+    rethrowShowcaseSetupError(error);
   }
 
-  await prisma.studentContent.update({
-    where: { id: contentId },
-    data: {
-      status: "APPROVED",
-      reviewedById: session.user.id,
-    },
-  });
-
   // Award 25 XP to the content author for approval
-  await awardXp(content.studentId, 25, `Content approved: ${content.title}`);
+  await awardXp(contentStudentId, 25, `Content approved: ${contentTitle}`);
 
   revalidatePath("/showcase");
   revalidatePath("/admin/content");
@@ -224,26 +284,35 @@ export async function approveContent(contentId: string) {
 export async function featureContent(contentId: string) {
   const session = await requireAuth();
 
-  const content = await prisma.studentContent.findUnique({
-    where: { id: contentId },
-  });
-  if (!content) throw new Error("Content not found");
-  if (content.status !== "APPROVED" && content.status !== "FEATURED") {
-    throw new Error("Content must be approved before featuring");
+  let contentStudentId = "";
+  let contentTitle = "";
+  try {
+    const content = await prisma.studentContent.findUnique({
+      where: { id: contentId },
+    });
+    if (!content) throw new Error("Content not found");
+    if (content.status !== "APPROVED" && content.status !== "FEATURED") {
+      throw new Error("Content must be approved before featuring");
+    }
+
+    await prisma.studentContent.update({
+      where: { id: contentId },
+      data: {
+        status: "FEATURED",
+        isFeatured: true,
+        featuredAt: new Date(),
+        reviewedById: session.user.id,
+      },
+    });
+
+    contentStudentId = content.studentId;
+    contentTitle = content.title;
+  } catch (error) {
+    rethrowShowcaseSetupError(error);
   }
 
-  await prisma.studentContent.update({
-    where: { id: contentId },
-    data: {
-      status: "FEATURED",
-      isFeatured: true,
-      featuredAt: new Date(),
-      reviewedById: session.user.id,
-    },
-  });
-
   // Award 50 XP bonus for being featured
-  await awardXp(content.studentId, 50, `Content featured: ${content.title}`);
+  await awardXp(contentStudentId, 50, `Content featured: ${contentTitle}`);
 
   revalidatePath("/showcase");
   revalidatePath("/admin/content");

@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import Link from "next/link";
 import { LikeButton, CommentForm, AdminActions } from "./client";
 
@@ -10,21 +11,53 @@ const CONTENT_TYPE_COLORS: Record<string, string> = {
   ART: "#ec4899", MUSIC: "#d97706", CODE: "#06b6d4", OTHER: "#6b7280",
 };
 
+const SHOWCASE_TABLES = new Set(
+  ["StudentContent", "ContentComment", "ContentLike"].flatMap((tableName) => [
+    tableName,
+    `public.${tableName}`,
+  ])
+);
+
+function isMissingShowcaseTableError(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const prismaError = error as { code?: string; meta?: { table?: string } };
+  return (
+    prismaError.code === "P2021" &&
+    typeof prismaError.meta?.table === "string" &&
+    SHOWCASE_TABLES.has(prismaError.meta.table)
+  );
+}
+
+const SHOWCASE_CONTENT_INCLUDE = {
+  student: { select: { id: true, name: true, level: true } },
+  comments: {
+    include: { author: { select: { name: true } } },
+    orderBy: { createdAt: "desc" },
+  },
+  likes: { select: { userId: true } },
+} satisfies Prisma.StudentContentInclude;
+
 export default async function ShowcaseDetailPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
 
-  const content = await prisma.studentContent.findUnique({
-    where: { id: params.id },
-    include: {
-      student: { select: { id: true, name: true, level: true } },
-      comments: {
-        include: { author: { select: { name: true } } },
-        orderBy: { createdAt: "desc" },
-      },
-      likes: { select: { userId: true } },
-    },
-  });
+  type ShowcaseContent = Prisma.StudentContentGetPayload<{
+    include: typeof SHOWCASE_CONTENT_INCLUDE;
+  }> | null;
+  let content: ShowcaseContent = null;
+  let showcaseUnavailable = false;
+  try {
+    content = await prisma.studentContent.findUnique({
+      where: { id: params.id },
+      include: SHOWCASE_CONTENT_INCLUDE,
+    });
+  } catch (error) {
+    if (isMissingShowcaseTableError(error)) {
+      showcaseUnavailable = true;
+    } else {
+      throw error;
+    }
+  }
 
   if (!content) {
     return (
@@ -33,7 +66,11 @@ export default async function ShowcaseDetailPage({ params }: { params: { id: str
           <h1 className="page-title">Not Found</h1>
         </div>
         <div className="card">
-          <p style={{ color: "var(--text-secondary)" }}>This content does not exist.</p>
+          <p style={{ color: "var(--text-secondary)" }}>
+            {showcaseUnavailable
+              ? "Showcase is temporarily unavailable while database updates finish. Please try again in a few minutes."
+              : "This content does not exist."}
+          </p>
           <Link href="/showcase" className="button secondary" style={{ marginTop: 12 }}>
             Back to Showcase
           </Link>

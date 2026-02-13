@@ -19,6 +19,8 @@ function run(cmd, args) {
 const disableDbSync =
   envIsTrue(process.env.DISABLE_DB_SYNC) || envIsTrue(process.env.SKIP_DB_SYNC);
 const requireDbSync = envIsTrue(process.env.REQUIRE_DB_SYNC);
+const isProductionDeployment = process.env.VERCEL_ENV === "production";
+const shouldFailOnMigrationError = requireDbSync || isProductionDeployment;
 
 if (!isVercelBuild()) {
   console.log("[db-sync] Skipping database migration (not running on Vercel).");
@@ -38,6 +40,9 @@ console.log(
 );
 console.log(
   "[db-sync] This requires DIRECT_URL to point to a non-pooled database connection."
+);
+console.log(
+  `[db-sync] VERCEL_ENV=${process.env.VERCEL_ENV ?? "unknown"}`
 );
 
 let status = 0;
@@ -59,10 +64,16 @@ if (status !== 0) {
     "[db-sync] or DIRECT_URL is missing/incorrect."
   );
 
-  if (requireDbSync) {
-    console.error(
-      "[db-sync] REQUIRE_DB_SYNC=1 is set — failing the build."
-    );
+  if (shouldFailOnMigrationError) {
+    if (requireDbSync) {
+      console.error(
+        "[db-sync] REQUIRE_DB_SYNC=1 is set — failing the build."
+      );
+    } else {
+      console.error(
+        "[db-sync] Production deployment detected — failing the build to prevent schema drift."
+      );
+    }
     process.exit(status);
   }
 
@@ -70,7 +81,7 @@ if (status !== 0) {
     "[db-sync] ⚠️  Continuing the build WITHOUT applying migrations."
   );
   console.warn(
-    "[db-sync] Set REQUIRE_DB_SYNC=1 to fail the build on migration errors."
+    "[db-sync] Set REQUIRE_DB_SYNC=1 to fail the build on migration errors in preview environments."
   );
   process.exit(0);
 }
