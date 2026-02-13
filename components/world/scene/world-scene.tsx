@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
-import { Canvas } from "@react-three/fiber";
+import { useMemo, useState, useCallback, useRef } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Ocean } from "./ocean";
 import { SkyEnvironment } from "./sky-environment";
 import { CameraController } from "./camera-controller";
@@ -28,16 +28,39 @@ import { useTimeOfDay, getCurrentSeason } from "../hooks/use-time-of-day";
 import { Weather } from "./weather";
 import { SeasonalTheme } from "./seasonal-theme";
 
+/** Reports camera target position every ~200ms to the parent for the minimap viewport indicator */
+function CameraTracker({ onCameraMove }: { onCameraMove?: (target: { x: number; z: number }) => void }) {
+  const { controls } = useThree();
+  const lastReport = useRef(0);
+
+  useFrame(({ clock }) => {
+    if (!onCameraMove) return;
+    const now = clock.getElapsedTime();
+    if (now - lastReport.current < 0.2) return;
+    lastReport.current = now;
+
+    if (controls && "target" in controls) {
+      const t = (controls as unknown as { target: { x: number; z: number } }).target;
+      onCameraMove({ x: t.x, z: t.z });
+    }
+  });
+
+  return null;
+}
+
 export type LandmarkType = "quest-board" | "mentor-tower" | "shrine" | "chapter-town" | "events" | null;
 
 interface WorldSceneProps {
   tier: DeviceTier;
   data: WorldData;
+  filteredIds?: Set<string> | null;
   onSelectIsland?: (island: PassionIsland | null) => void;
   onSelectLandmark?: (landmark: LandmarkType) => void;
+  onCameraMove?: (target: { x: number; z: number }) => void;
+  onIntroComplete?: () => void;
 }
 
-export function WorldScene({ tier, data, onSelectIsland, onSelectLandmark }: WorldSceneProps) {
+export function WorldScene({ tier, data, filteredIds, onSelectIsland, onSelectLandmark, onCameraMove, onIntroComplete }: WorldSceneProps) {
   const dpr: [number, number] = tier === "LOW" ? [1, 1] : [1, 1.5];
 
   return (
@@ -52,7 +75,7 @@ export function WorldScene({ tier, data, onSelectIsland, onSelectLandmark }: Wor
       style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
       aria-label="Interactive 3D map of your passion islands"
     >
-      <SceneContent tier={tier} data={data} onSelectIsland={onSelectIsland} onSelectLandmark={onSelectLandmark} />
+      <SceneContent tier={tier} data={data} filteredIds={filteredIds} onSelectIsland={onSelectIsland} onSelectLandmark={onSelectLandmark} onCameraMove={onCameraMove} onIntroComplete={onIntroComplete} />
     </Canvas>
   );
 }
@@ -61,13 +84,19 @@ export function WorldScene({ tier, data, onSelectIsland, onSelectLandmark }: Wor
 function SceneContent({
   tier,
   data,
+  filteredIds,
   onSelectIsland,
   onSelectLandmark,
+  onCameraMove,
+  onIntroComplete: onIntroCompleteProp,
 }: {
   tier: DeviceTier;
   data: WorldData;
+  filteredIds?: Set<string> | null;
   onSelectIsland?: (island: PassionIsland | null) => void;
   onSelectLandmark?: (landmark: LandmarkType) => void;
+  onCameraMove?: (target: { x: number; z: number }) => void;
+  onIntroComplete?: () => void;
 }) {
   const { selectedId, hoveredId, select, hover, deselect } = useIslandInteraction();
   const { focusOnIsland, returnToOverview } = useWorldControls();
@@ -137,7 +166,8 @@ function SceneContent({
 
   const handleIntroComplete = useCallback(() => {
     setIntroComplete(true);
-  }, []);
+    onIntroCompleteProp?.();
+  }, [onIntroCompleteProp]);
 
   /** Toggle a landmark panel; deselect any island when a landmark is clicked */
   const handleLandmarkClick = useCallback((type: LandmarkType, pos: [number, number, number]) => {
@@ -159,6 +189,7 @@ function SceneContent({
       <SkyEnvironment timeData={timeData} tier={tier} />
       <Ocean tier={tier} />
       <CameraController />
+      <CameraTracker onCameraMove={onCameraMove} />
 
       {/* Dynamic weather effects */}
       <Weather timeData={timeData} tier={tier} />
@@ -205,6 +236,7 @@ function SceneContent({
       {/* Islands */}
       {data.islands.map((island, i) => {
         const pos = positions[i];
+        const isDimmed = filteredIds != null && !filteredIds.has(island.id);
         return (
           <IslandMesh
             key={island.id}
@@ -213,6 +245,8 @@ function SceneContent({
             index={i}
             isSelected={selectedId === island.id}
             isHovered={hoveredId === island.id}
+            dimmed={isDimmed}
+            deviceTier={tier}
             onSelect={() => handleSelectIsland(island, [pos.x, pos.y, pos.z])}
             onHover={(h) => hover(h ? island.id : null)}
           />
