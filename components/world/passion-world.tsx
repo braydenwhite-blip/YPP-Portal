@@ -602,6 +602,7 @@ export default function PassionWorld({ data }: { data: WorldData }) {
   const [filteredIds, setFilteredIds] = useState<Set<string> | null>(null);
   const [introComplete, setIntroComplete] = useState(false);
   const [cameraTarget, setCameraTarget] = useState<{ x: number; z: number }>({ x: 0, z: 0 });
+  const [hudCollapsed, setHudCollapsed] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const { enabled: soundEnabled, toggle: toggleSound, playSound } = useSound();
   const svgRef = useRef<SVGSVGElement>(null);
@@ -724,11 +725,17 @@ export default function PassionWorld({ data }: { data: WorldData }) {
   }, [data.islands, positions, vx, vy]);
 
   return (
-    <div className={styles.world}>
+    <div className={styles.world} role="application" aria-label="Passion World — interactive 3D map of your passions">
       {/* HTML overlays — always rendered on top of whichever renderer is active */}
-      <WorldHUD data={data} soundEnabled={soundEnabled} onToggleSound={toggleSound} />
+      <WorldHUD
+        data={data}
+        soundEnabled={soundEnabled}
+        onToggleSound={toggleSound}
+        isCollapsed={hudCollapsed}
+        onToggleCollapse={() => setHudCollapsed((p) => !p)}
+      />
       <ActivityLog activities={data.recentActivity} />
-      <Link href="/" className={styles.backBtn}>
+      <Link href="/" className={styles.backBtn} aria-label="Return to dashboard">
         &larr; Dashboard
       </Link>
 
@@ -752,6 +759,7 @@ export default function PassionWorld({ data }: { data: WorldData }) {
       <button
         className={styles.soundToggle}
         onClick={toggleSound}
+        aria-label={soundEnabled ? "Mute sounds" : "Enable sounds"}
         title={soundEnabled ? "Mute sounds" : "Enable sounds"}
       >
         {soundEnabled ? "\u{1F50A}" : "\u{1F507}"}

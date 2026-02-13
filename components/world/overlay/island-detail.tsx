@@ -120,8 +120,18 @@ export function IslandDetail({
   const totalItems = island.courseCount + island.badgeCount + island.challengeCount + island.projectCount;
 
   return (
-    <div className={styles.panel} style={{ borderColor: theme.gradient[0] }}>
-      <button className={styles.panelClose} onClick={onClose}>
+    <div
+      className={styles.panel}
+      style={{ borderColor: theme.gradient[0] }}
+      role="dialog"
+      aria-label={`${island.name} island details`}
+      aria-modal="false"
+    >
+      {/* Drag handle for mobile bottom sheet */}
+      <div className={styles.panelDragHandle} aria-hidden="true">
+        <div className={styles.panelDragBar} />
+      </div>
+      <button className={styles.panelClose} onClick={onClose} aria-label="Close island details">
         &times;
       </button>
 

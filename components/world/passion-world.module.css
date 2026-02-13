@@ -1542,36 +1542,305 @@
   background: rgba(251, 191, 36, 0.4);
 }
 
-/* ── Responsive ── */
+/* ═══════════════════════════════════════════════════════
+   Accessibility — Focus rings, high-contrast
+   ═══════════════════════════════════════════════════════ */
+
+/* Visible focus rings for keyboard navigation (focus-visible only) */
+.searchToggle:focus-visible,
+.searchClear:focus-visible,
+.searchCollapse:focus-visible,
+.searchResultItem:focus-visible,
+.categoryPill:focus-visible,
+.panelClose:focus-visible,
+.onboardingSkip:focus-visible,
+.onboardingNext:focus-visible,
+.backBtn:focus-visible,
+.soundToggle:focus-visible,
+.hudSoundBtn:focus-visible,
+.hudCollapseBtn:focus-visible,
+.minimapDot:focus-visible,
+.errorRetry:focus-visible {
+  outline: 2px solid #fbbf24;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.3);
+}
+
+.searchInput:focus-visible {
+  outline: 2px solid #fbbf24;
+  outline-offset: 0;
+  border-color: #fbbf24;
+}
+
+/* High-contrast mode */
+@media (forced-colors: active) {
+  .hud,
+  .panel,
+  .activity,
+  .searchFilterExpanded,
+  .minimap,
+  .onboardingCard {
+    border: 2px solid CanvasText;
+    forced-color-adjust: none;
+  }
+  .hudXpFill,
+  .xpFill,
+  .onboardingProgressFill,
+  .hudXpFlash {
+    background: Highlight;
+  }
+  .searchResultItem:hover,
+  .categoryPill:hover {
+    background: Highlight;
+    color: HighlightText;
+  }
+}
+
+/* Prefers-reduced-motion: disable animations */
+@media (prefers-reduced-motion: reduce) {
+  .onboardingCard,
+  .levelUpContent,
+  .levelUpIcon,
+  .panel {
+    animation: none !important;
+  }
+  .hudXpFill,
+  .xpFill,
+  .islandProgressSegment {
+    transition: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   HUD Collapse Button (shown on mobile via media query)
+   ═══════════════════════════════════════════════════════ */
+
+.hudCollapseBtn {
+  display: none; /* hidden on desktop */
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 2px 6px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+
+.hudCollapseBtn:hover {
+  color: white;
+}
+
+.hudCollapsed .hudPlayer > div:last-child .hudName {
+  font-size: 11px;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Panel — Mobile Bottom Sheet
+   ═══════════════════════════════════════════════════════ */
+
+.panelDragHandle {
+  display: none; /* hidden on desktop */
+}
+
+.panelDragBar {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 0 auto;
+}
+
+/* ── Responsive (Mobile) ── */
 @media (max-width: 768px) {
+  /* HUD: collapsible, single-row on mobile */
   .hud {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 8px;
     padding: 8px 12px;
     max-width: calc(100% - 32px);
+    transition: all 0.25s ease;
   }
+
+  .hudCollapseBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .hudCollapsed {
+    padding: 6px 10px;
+    gap: 6px;
+  }
+
   .hudStats {
     border-left: none;
     padding-left: 0;
     gap: 8px;
   }
+
   .hudXp {
-    min-width: 120px;
+    min-width: 100px;
   }
+
+  /* Panel: convert to bottom sheet */
   .panel {
-    width: calc(100% - 32px);
+    position: fixed;
+    width: 100%;
+    max-width: 100%;
     top: auto;
-    bottom: 60px;
-    right: 16px;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 60vh;
+    overflow-y: auto;
+    border-radius: 16px 16px 0 0;
+    border-bottom: none;
+    animation: bottomSheetSlideUp 0.3s ease;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: env(safe-area-inset-bottom, 16px);
   }
+
+  .panelDragHandle {
+    display: block;
+    padding: 10px 0 4px;
+    cursor: grab;
+  }
+
+  @keyframes bottomSheetSlideUp {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  /* Activity log: hidden on mobile (replaced by island timeline) */
   .activity {
     display: none;
   }
+
+  /* Minimap: hidden on mobile */
   .minimap {
     display: none;
   }
+
+  /* Sound toggle: repositioned */
   .soundToggle {
     right: 16px;
     bottom: 60px;
+    min-width: 48px;
+    min-height: 48px;
+    width: 48px;
+    height: 48px;
+  }
+
+  /* Back button: larger tap target */
+  .backBtn {
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  /* Search toggle: larger tap target */
+  .searchToggle {
+    min-width: 48px;
+    min-height: 48px;
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
+  }
+
+  /* Category pills: larger tap targets */
+  .categoryPill {
+    padding: 6px 10px;
+    font-size: 11px;
+    min-height: 36px;
+  }
+
+  /* Search result items: larger tap targets */
+  .searchResultItem {
+    padding: 10px 8px;
+    min-height: 48px;
+  }
+
+  /* Search filter: full width when expanded */
+  .searchFilterExpanded {
+    width: calc(100% - 32px);
+    max-width: 360px;
+  }
+
+  /* Onboarding: full width on mobile */
+  .onboardingCard {
+    width: calc(100% - 32px);
+    max-width: 100%;
+  }
+
+  .onboardingSkip,
+  .onboardingNext {
+    min-height: 48px;
+    font-size: 14px;
+  }
+
+  /* Panel close: larger tap target */
+  .panelClose {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+  }
+
+  /* Error retry: larger tap target */
+  .errorRetry {
+    min-height: 48px;
+    padding: 12px 28px;
+    font-size: 14px;
+  }
+}
+
+/* ── Small phone breakpoint ── */
+@media (max-width: 480px) {
+  .hud {
+    max-width: calc(100% - 16px);
+    left: 8px;
+    padding: 6px 10px;
+  }
+
+  .hudAvatar {
+    width: 28px;
+    height: 28px;
+    font-size: 13px;
+  }
+
+  .hudName {
+    font-size: 11px;
+  }
+
+  .hudLevel {
+    font-size: 9px;
+  }
+
+  .panel {
+    max-height: 70vh;
+  }
+
+  .searchFilter {
+    left: 8px;
+  }
+
+  .backBtn {
+    left: 8px;
+    bottom: 8px;
+  }
+
+  .soundToggle {
+    right: 8px;
+    bottom: 8px;
   }
 }

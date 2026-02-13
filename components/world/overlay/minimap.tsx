@@ -104,7 +104,7 @@ export function Minimap({
   );
 
   return (
-    <div className={styles.minimap} title="Minimap — Click to jump">
+    <div className={styles.minimap} role="navigation" aria-label="Minimap — bird's-eye view of your world">
       <div className={styles.minimapLabel}>Minimap</div>
       <div
         className={styles.minimapCanvas}
@@ -151,6 +151,7 @@ export function Minimap({
               boxShadow: selectedId === d.island.id ? `0 0 6px 2px ${d.color}` : undefined,
             }}
             title={d.island.name}
+            aria-label={`${d.island.name}${d.isPrimary ? " (primary)" : ""}${selectedId === d.island.id ? " (selected)" : ""}`}
             onClick={(e) => {
               e.stopPropagation();
               onClickIsland?.(d.island);

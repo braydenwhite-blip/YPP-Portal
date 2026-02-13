@@ -12,7 +12,7 @@ export const ActivityLog = memo(function ActivityLog({
   if (activities.length === 0) return null;
 
   return (
-    <div className={styles.activity}>
+    <div className={styles.activity} role="log" aria-live="polite" aria-label="Recent activity log">
       <div className={styles.activityTitle}>Recent Activity</div>
       {activities.slice(0, 5).map((a) => (
         <div key={a.id} className={styles.activityItem}>

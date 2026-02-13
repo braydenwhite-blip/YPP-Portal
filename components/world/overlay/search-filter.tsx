@@ -85,7 +85,11 @@ export function SearchFilter({ islands, onFilter, onFocusIsland }: SearchFilterP
   const hasFilter = query.trim().length > 0 || activeCategories.size > 0;
 
   return (
-    <div className={`${styles.searchFilter} ${isExpanded ? styles.searchFilterExpanded : ""}`}>
+    <div
+      className={`${styles.searchFilter} ${isExpanded ? styles.searchFilterExpanded : ""}`}
+      role="search"
+      aria-label="Search and filter islands"
+    >
       {/* Toggle button when collapsed */}
       {!isExpanded ? (
         <button
@@ -94,6 +98,7 @@ export function SearchFilter({ islands, onFilter, onFocusIsland }: SearchFilterP
             setIsExpanded(true);
             setTimeout(() => inputRef.current?.focus(), 100);
           }}
+          aria-label="Open island search"
           title="Search islands"
         >
           {"\u{1F50D}"}
@@ -102,7 +107,7 @@ export function SearchFilter({ islands, onFilter, onFocusIsland }: SearchFilterP
         <>
           {/* Search input */}
           <div className={styles.searchInputRow}>
-            <span className={styles.searchIcon}>{"\u{1F50D}"}</span>
+            <span className={styles.searchIcon} aria-hidden="true">{"\u{1F50D}"}</span>
             <input
               ref={inputRef}
               type="text"
@@ -110,9 +115,10 @@ export function SearchFilter({ islands, onFilter, onFocusIsland }: SearchFilterP
               placeholder="Search islands..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              aria-label="Search islands by name or category"
             />
             {hasFilter && (
-              <button className={styles.searchClear} onClick={clearAll} title="Clear filters">
+              <button className={styles.searchClear} onClick={clearAll} aria-label="Clear all filters" title="Clear filters">
                 &times;
               </button>
             )}
@@ -122,6 +128,7 @@ export function SearchFilter({ islands, onFilter, onFocusIsland }: SearchFilterP
                 setIsExpanded(false);
                 clearAll();
               }}
+              aria-label="Close search panel"
               title="Close search"
             >
               {"\u2715"}
@@ -129,7 +136,7 @@ export function SearchFilter({ islands, onFilter, onFocusIsland }: SearchFilterP
           </div>
 
           {/* Category pills */}
-          <div className={styles.categoryPills}>
+          <div className={styles.categoryPills} role="group" aria-label="Filter by category">
             {ALL_CATEGORIES.map((cat) => {
               const theme = CATEGORY_THEMES[cat];
               const isActive = activeCategories.has(cat);
@@ -145,8 +152,10 @@ export function SearchFilter({ islands, onFilter, onFocusIsland }: SearchFilterP
                       : { borderColor: `${theme.gradient[0]}40` }
                   }
                   onClick={() => toggleCategory(cat)}
+                  aria-pressed={isActive}
+                  aria-label={`${cat.replace(/_/g, " ")} category${isActive ? " (active)" : ""}`}
                 >
-                  <span>{theme.emoji}</span>
+                  <span aria-hidden="true">{theme.emoji}</span>
                   <span>{cat.replace(/_/g, " ")}</span>
                 </button>
               );
@@ -155,14 +164,14 @@ export function SearchFilter({ islands, onFilter, onFocusIsland }: SearchFilterP
 
           {/* Results list */}
           {hasFilter && (
-            <div className={styles.searchResults}>
+            <div className={styles.searchResults} aria-live="polite">
               <div className={styles.searchResultsHeader}>
                 {matchedIslands.length} island{matchedIslands.length !== 1 ? "s" : ""} found
               </div>
               {matchedIslands.length === 0 ? (
                 <div className={styles.searchEmpty}>No islands match your search</div>
               ) : (
-                <div className={styles.searchResultsList}>
+                <div className={styles.searchResultsList} role="listbox" aria-label="Search results">
                   {matchedIslands.map((island) => {
                     const theme = getTheme(island.category);
                     return (
@@ -170,8 +179,10 @@ export function SearchFilter({ islands, onFilter, onFocusIsland }: SearchFilterP
                         key={island.id}
                         className={styles.searchResultItem}
                         onClick={() => onFocusIsland?.(island)}
+                        role="option"
+                        aria-label={`${island.name}, Level ${island.currentLevel}, ${island.xpPoints} XP`}
                       >
-                        <span className={styles.searchResultEmoji}>{theme.emoji}</span>
+                        <span className={styles.searchResultEmoji} aria-hidden="true">{theme.emoji}</span>
                         <div className={styles.searchResultInfo}>
                           <span className={styles.searchResultName}>{island.name}</span>
                           <span className={styles.searchResultMeta}>
@@ -181,6 +192,7 @@ export function SearchFilter({ islands, onFilter, onFocusIsland }: SearchFilterP
                         <div
                           className={styles.searchResultDot}
                           style={{ background: theme.gradient[0] }}
+                          aria-hidden="true"
                         />
                       </button>
                     );

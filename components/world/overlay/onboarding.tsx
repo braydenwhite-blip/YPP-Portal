@@ -99,35 +99,35 @@ export function Onboarding({ introComplete }: OnboardingProps) {
   const progress = ((currentStep + 1) / STEPS.length) * 100;
 
   return (
-    <div className={styles.onboardingOverlay}>
+    <div className={styles.onboardingOverlay} role="dialog" aria-modal="true" aria-label="Welcome tour">
       {/* Dim backdrop */}
       <div className={styles.onboardingBackdrop} onClick={advance} />
 
       {/* Tooltip card */}
-      <div className={styles.onboardingCard}>
+      <div className={styles.onboardingCard} aria-live="polite">
         {/* Progress bar */}
-        <div className={styles.onboardingProgress}>
+        <div className={styles.onboardingProgress} role="progressbar" aria-valuenow={currentStep + 1} aria-valuemin={1} aria-valuemax={STEPS.length} aria-label={`Step ${currentStep + 1} of ${STEPS.length}`}>
           <div
             className={styles.onboardingProgressFill}
             style={{ width: `${progress}%` }}
           />
         </div>
 
-        <div className={styles.onboardingIcon}>{step.icon}</div>
+        <div className={styles.onboardingIcon} aria-hidden="true">{step.icon}</div>
         <h3 className={styles.onboardingTitle}>{step.title}</h3>
         <p className={styles.onboardingBody}>{step.body}</p>
 
         <div className={styles.onboardingActions}>
-          <button className={styles.onboardingSkip} onClick={skip}>
+          <button className={styles.onboardingSkip} onClick={skip} aria-label="Skip the tour">
             Skip tour
           </button>
-          <button className={styles.onboardingNext} onClick={advance}>
+          <button className={styles.onboardingNext} onClick={advance} aria-label={isLast ? "Start exploring your world" : `Next: step ${currentStep + 2}`}>
             {isLast ? "Start Exploring" : "Next"}
           </button>
         </div>
 
         {/* Step dots */}
-        <div className={styles.onboardingDots}>
+        <div className={styles.onboardingDots} aria-hidden="true">
           {STEPS.map((_, i) => (
             <div
               key={i}
