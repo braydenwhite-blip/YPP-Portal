@@ -237,15 +237,21 @@ function SceneContent({
         position={lm.shrine}
         badgeCount={data.totalBadges}
         certCount={data.totalCertificates}
+        isSelected={selectedLandmark === "shrine"}
+        onClick={() => handleLandmarkClick("shrine", lm.shrine)}
       />
       <ChapterTown3D
         position={lm.chapterTown}
         chapterName={data.chapterName}
         memberCount={data.chapterMemberCount}
+        isSelected={selectedLandmark === "chapter-town"}
+        onClick={() => handleLandmarkClick("chapter-town", lm.chapterTown)}
       />
       <SeasonalEvents3D
         position={lm.events}
         count={data.activeChallenges + data.upcomingEventCount}
+        isSelected={selectedLandmark === "events"}
+        onClick={() => handleLandmarkClick("events", lm.events)}
       />
     </>
   );

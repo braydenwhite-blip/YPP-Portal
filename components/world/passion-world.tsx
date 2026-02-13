@@ -18,6 +18,9 @@ import { ActivityLog } from "./overlay/activity-log";
 import { IslandDetail } from "./overlay/island-detail";
 import { QuestPanel } from "./overlay/quest-panel";
 import { MentorPanel } from "./overlay/mentor-panel";
+import { ShrinePanel } from "./overlay/shrine-panel";
+import { ChapterPanel } from "./overlay/chapter-panel";
+import { EventsPanel } from "./overlay/events-panel";
 import { WorldScene } from "./scene/world-scene";
 import type { LandmarkType } from "./scene/world-scene";
 import { useDeviceTier, hasWebGLSupport } from "./hooks/use-device-tier";
@@ -865,6 +868,15 @@ export default function PassionWorld({ data }: { data: WorldData }) {
       )}
       {selectedLandmark === "mentor-tower" && (
         <MentorPanel data={data} onClose={() => setSelectedLandmark(null)} />
+      )}
+      {selectedLandmark === "shrine" && (
+        <ShrinePanel data={data} onClose={() => setSelectedLandmark(null)} />
+      )}
+      {selectedLandmark === "chapter-town" && (
+        <ChapterPanel data={data} onClose={() => setSelectedLandmark(null)} />
+      )}
+      {selectedLandmark === "events" && (
+        <EventsPanel data={data} onClose={() => setSelectedLandmark(null)} />
       )}
     </div>
   );

@@ -653,6 +653,239 @@
   font-style: italic;
 }
 
+/* ── Shrine Power Bar ── */
+.shrinePowerBar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.shrinePowerFill {
+  height: 100%;
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+
+.shrinePowerLabel {
+  font-size: 10px;
+  color: #d97706;
+  margin-top: 4px;
+}
+
+/* ── Chapter Card ── */
+.chapterCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(59, 130, 246, 0.12);
+  border-radius: 10px;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  margin-bottom: 12px;
+}
+
+.chapterIcon {
+  font-size: 24px;
+}
+
+.chapterInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.chapterName {
+  font-weight: 700;
+  font-size: 14px;
+  color: white;
+}
+
+.chapterMembers {
+  font-size: 11px;
+  color: #60a5fa;
+  margin-top: 2px;
+}
+
+.townGrowthBar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.townGrowthFill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+
+.townGrowthLabel {
+  font-size: 10px;
+  color: #60a5fa;
+  margin-top: 4px;
+}
+
+.chapterEmpty {
+  text-align: center;
+  padding: 12px 8px;
+}
+
+.chapterEmptyIcon {
+  font-size: 32px;
+  margin-bottom: 8px;
+  opacity: 0.6;
+}
+
+.chapterEmptyTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: #94a3b8;
+  margin-bottom: 6px;
+}
+
+.chapterEmptyText {
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+/* ── Season Progress ── */
+.seasonProgressBar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.seasonProgressFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+
+.seasonProgressLabel {
+  font-size: 10px;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
+.eventsEmpty {
+  text-align: center;
+  padding: 8px;
+}
+
+.eventsEmptyIcon {
+  font-size: 28px;
+  margin-bottom: 6px;
+  opacity: 0.5;
+}
+
+.eventsEmptyText {
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+/* ── Level-Up Ceremony ── */
+.levelUpOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+  animation: levelUpFadeIn 0.5s ease;
+}
+
+@keyframes levelUpFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.levelUpContent {
+  text-align: center;
+  animation: levelUpBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes levelUpBounce {
+  0% { transform: scale(0.3); opacity: 0; }
+  60% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.levelUpIcon {
+  font-size: 64px;
+  animation: levelUpSpin 1s ease;
+}
+
+@keyframes levelUpSpin {
+  0% { transform: rotate(0deg) scale(0); }
+  50% { transform: rotate(180deg) scale(1.2); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+.levelUpTitle {
+  font-size: 36px;
+  font-weight: 900;
+  color: #fbbf24;
+  text-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
+  margin-top: 8px;
+}
+
+.levelUpLevel {
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+  margin-top: 4px;
+}
+
+.levelUpMessage {
+  font-size: 14px;
+  color: #94a3b8;
+  margin-top: 8px;
+}
+
+/* ── XP Flash Animation ── */
+.hudAvatarGlow {
+  box-shadow: 0 0 12px 4px rgba(251, 191, 36, 0.6);
+  border-color: #fbbf24;
+}
+
+.hudXpFlash {
+  animation: xpFlash 0.8s ease;
+}
+
+@keyframes xpFlash {
+  0% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.6); }
+  50% { box-shadow: 0 0 8px 2px rgba(251, 191, 36, 0.4); }
+  100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
+}
+
+.hudXpPulse {
+  animation: xpPulse 0.8s ease;
+  color: #fbbf24;
+}
+
+@keyframes xpPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .hud {
