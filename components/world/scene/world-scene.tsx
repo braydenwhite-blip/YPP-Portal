@@ -57,9 +57,10 @@ interface WorldSceneProps {
   onSelectIsland?: (island: PassionIsland | null) => void;
   onSelectLandmark?: (landmark: LandmarkType) => void;
   onCameraMove?: (target: { x: number; z: number }) => void;
+  onIntroComplete?: () => void;
 }
 
-export function WorldScene({ tier, data, filteredIds, onSelectIsland, onSelectLandmark, onCameraMove }: WorldSceneProps) {
+export function WorldScene({ tier, data, filteredIds, onSelectIsland, onSelectLandmark, onCameraMove, onIntroComplete }: WorldSceneProps) {
   const dpr: [number, number] = tier === "LOW" ? [1, 1] : [1, 1.5];
 
   return (
@@ -74,7 +75,7 @@ export function WorldScene({ tier, data, filteredIds, onSelectIsland, onSelectLa
       style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
       aria-label="Interactive 3D map of your passion islands"
     >
-      <SceneContent tier={tier} data={data} filteredIds={filteredIds} onSelectIsland={onSelectIsland} onSelectLandmark={onSelectLandmark} onCameraMove={onCameraMove} />
+      <SceneContent tier={tier} data={data} filteredIds={filteredIds} onSelectIsland={onSelectIsland} onSelectLandmark={onSelectLandmark} onCameraMove={onCameraMove} onIntroComplete={onIntroComplete} />
     </Canvas>
   );
 }
@@ -87,6 +88,7 @@ function SceneContent({
   onSelectIsland,
   onSelectLandmark,
   onCameraMove,
+  onIntroComplete: onIntroCompleteProp,
 }: {
   tier: DeviceTier;
   data: WorldData;
@@ -94,6 +96,7 @@ function SceneContent({
   onSelectIsland?: (island: PassionIsland | null) => void;
   onSelectLandmark?: (landmark: LandmarkType) => void;
   onCameraMove?: (target: { x: number; z: number }) => void;
+  onIntroComplete?: () => void;
 }) {
   const { selectedId, hoveredId, select, hover, deselect } = useIslandInteraction();
   const { focusOnIsland, returnToOverview } = useWorldControls();
@@ -163,7 +166,8 @@ function SceneContent({
 
   const handleIntroComplete = useCallback(() => {
     setIntroComplete(true);
-  }, []);
+    onIntroCompleteProp?.();
+  }, [onIntroCompleteProp]);
 
   /** Toggle a landmark panel; deselect any island when a landmark is clicked */
   const handleLandmarkClick = useCallback((type: LandmarkType, pos: [number, number, number]) => {
@@ -242,6 +246,7 @@ function SceneContent({
             isSelected={selectedId === island.id}
             isHovered={hoveredId === island.id}
             dimmed={isDimmed}
+            deviceTier={tier}
             onSelect={() => handleSelectIsland(island, [pos.x, pos.y, pos.z])}
             onHover={(h) => hover(h ? island.id : null)}
           />

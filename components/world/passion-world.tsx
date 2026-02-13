@@ -23,6 +23,7 @@ import { ChapterPanel } from "./overlay/chapter-panel";
 import { EventsPanel } from "./overlay/events-panel";
 import { SearchFilter } from "./overlay/search-filter";
 import { Minimap } from "./overlay/minimap";
+import { Onboarding } from "./overlay/onboarding";
 import { WorldScene } from "./scene/world-scene";
 import type { LandmarkType } from "./scene/world-scene";
 import { useDeviceTier, hasWebGLSupport } from "./hooks/use-device-tier";
@@ -599,6 +600,7 @@ export default function PassionWorld({ data }: { data: WorldData }) {
     useState<PassionIsland | null>(null);
   const [selectedLandmark, setSelectedLandmark] = useState<LandmarkType>(null);
   const [filteredIds, setFilteredIds] = useState<Set<string> | null>(null);
+  const [introComplete, setIntroComplete] = useState(false);
   const [cameraTarget, setCameraTarget] = useState<{ x: number; z: number }>({ x: 0, z: 0 });
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const { enabled: soundEnabled, toggle: toggleSound, playSound } = useSound();
@@ -762,6 +764,7 @@ export default function PassionWorld({ data }: { data: WorldData }) {
           data={data}
           filteredIds={filteredIds}
           onCameraMove={setCameraTarget}
+          onIntroComplete={() => setIntroComplete(true)}
           onSelectIsland={(island) => {
             setSelectedIsland(island);
             if (island) {
@@ -944,6 +947,9 @@ export default function PassionWorld({ data }: { data: WorldData }) {
       {selectedLandmark === "events" && (
         <EventsPanel data={data} onClose={() => setSelectedLandmark(null)} />
       )}
+
+      {/* Onboarding tutorial (first visit only) */}
+      <Onboarding introComplete={introComplete} />
     </div>
   );
 }
