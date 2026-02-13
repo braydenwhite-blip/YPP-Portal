@@ -1262,6 +1262,144 @@
   flex-shrink: 0;
 }
 
+/* ── Minimap ── */
+.minimap {
+  position: absolute;
+  bottom: 60px;
+  left: 16px;
+  z-index: 10;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(12px);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 6px;
+  animation: panelSlideIn 0.25s ease;
+}
+
+.minimapLabel {
+  font-size: 9px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  text-align: center;
+}
+
+.minimapCanvas {
+  position: relative;
+  background: linear-gradient(180deg, rgba(12, 74, 110, 0.6), rgba(3, 105, 161, 0.6));
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: crosshair;
+}
+
+.minimapGrid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.minimapDot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  transform: translate(-3px, -3px);
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 0;
+  transition: transform 0.15s;
+}
+
+.minimapDot:hover {
+  transform: translate(-3px, -3px) scale(1.6);
+  z-index: 2;
+}
+
+.minimapDotSelected {
+  width: 8px;
+  height: 8px;
+  transform: translate(-4px, -4px);
+  border: 1.5px solid white;
+  z-index: 3;
+}
+
+.minimapDotSelected:hover {
+  transform: translate(-4px, -4px) scale(1.4);
+}
+
+.minimapDotPrimary {
+  width: 8px;
+  height: 8px;
+  transform: translate(-4px, -4px);
+}
+
+.minimapDotPrimary:hover {
+  transform: translate(-4px, -4px) scale(1.5);
+}
+
+.minimapLandmark {
+  position: absolute;
+  transform: translate(-6px, -6px);
+  font-size: 9px;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.minimapViewport {
+  position: absolute;
+  width: 24px;
+  height: 16px;
+  border: 1.5px solid rgba(251, 191, 36, 0.6);
+  border-radius: 2px;
+  background: rgba(251, 191, 36, 0.08);
+  pointer-events: none;
+  transition: left 0.15s ease, top 0.15s ease;
+}
+
+/* ── Sound Toggle ── */
+.soundToggle {
+  position: absolute;
+  bottom: 16px;
+  right: 250px;
+  z-index: 10;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.soundToggle:hover {
+  background: rgba(15, 23, 42, 0.95);
+}
+
+/* HUD sound button */
+.hudSoundBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px 4px;
+  line-height: 1;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.hudSoundBtn:hover {
+  opacity: 1;
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .hud {
@@ -1286,5 +1424,12 @@
   }
   .activity {
     display: none;
+  }
+  .minimap {
+    display: none;
+  }
+  .soundToggle {
+    right: 16px;
+    bottom: 60px;
   }
 }

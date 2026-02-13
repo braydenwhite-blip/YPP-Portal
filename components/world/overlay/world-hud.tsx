@@ -10,9 +10,11 @@ import styles from "../passion-world.module.css";
 
 interface WorldHUDProps {
   data: WorldData;
+  soundEnabled?: boolean;
+  onToggleSound?: () => void;
 }
 
-export const WorldHUD = memo(function WorldHUD({ data }: WorldHUDProps) {
+export const WorldHUD = memo(function WorldHUD({ data, soundEnabled, onToggleSound }: WorldHUDProps) {
   const [showLevelUp, setShowLevelUp] = useState(false);
   const [xpFlash, setXpFlash] = useState(false);
   const prevXpRef = useRef(data.totalXP);
@@ -102,6 +104,15 @@ export const WorldHUD = memo(function WorldHUD({ data }: WorldHUDProps) {
             <span className={styles.hudStatIcon}>{"\u{1F680}"}</span>
             <span>{data.totalProjects}</span>
           </div>
+          {onToggleSound && (
+            <button
+              className={styles.hudSoundBtn}
+              onClick={onToggleSound}
+              title={soundEnabled ? "Mute" : "Unmute"}
+            >
+              {soundEnabled ? "\u{1F50A}" : "\u{1F507}"}
+            </button>
+          )}
         </div>
       </div>
 

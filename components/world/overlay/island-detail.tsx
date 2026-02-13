@@ -106,11 +106,6 @@ export function IslandDetail({
       .slice(0, 5);
   }, [data?.recentActivity, island.passionId]);
 
-  // Compute total XP earned on this island from activity
-  const islandXPFromActivity = useMemo(() => {
-    return islandActivity.reduce((sum, a) => sum + a.amount, 0);
-  }, [islandActivity]);
-
   // XP needed estimate: use a curve based on current level
   const levelIdx = LEVEL_ORDER.indexOf(island.level);
   const xpThresholds = [0, 100, 300, 600, 1000];

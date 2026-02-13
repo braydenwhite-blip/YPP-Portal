@@ -22,9 +22,12 @@ import { ShrinePanel } from "./overlay/shrine-panel";
 import { ChapterPanel } from "./overlay/chapter-panel";
 import { EventsPanel } from "./overlay/events-panel";
 import { SearchFilter } from "./overlay/search-filter";
+import { Minimap } from "./overlay/minimap";
 import { WorldScene } from "./scene/world-scene";
 import type { LandmarkType } from "./scene/world-scene";
 import { useDeviceTier, hasWebGLSupport } from "./hooks/use-device-tier";
+import { useSound } from "./hooks/use-sound";
+import { getIslandPositions3D } from "./islands/island-layout";
 
 const BASE_W = 1200;
 const BASE_H = 800;
@@ -596,7 +599,9 @@ export default function PassionWorld({ data }: { data: WorldData }) {
     useState<PassionIsland | null>(null);
   const [selectedLandmark, setSelectedLandmark] = useState<LandmarkType>(null);
   const [filteredIds, setFilteredIds] = useState<Set<string> | null>(null);
+  const [cameraTarget, setCameraTarget] = useState<{ x: number; z: number }>({ x: 0, z: 0 });
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const { enabled: soundEnabled, toggle: toggleSound, playSound } = useSound();
   const svgRef = useRef<SVGSVGElement>(null);
   const tier = useDeviceTier();
   const [use3D, setUse3D] = useState(false);
@@ -612,11 +617,24 @@ export default function PassionWorld({ data }: { data: WorldData }) {
   const rafRef = useRef<number>(0);
   const pendingDelta = useRef({ x: 0, y: 0 });
 
-  // Stable island positions
+  // Stable island positions (2D SVG + 3D)
   const positions = useMemo(
     () => getIslandPositions(data.islands.length),
     [data.islands.length],
   );
+  const positions3D = useMemo(
+    () => getIslandPositions3D(data.islands.length),
+    [data.islands.length],
+  );
+
+  // Landmark positions for minimap (must match world-scene.tsx)
+  const landmarkPositions3D = useMemo(() => ({
+    questBoard: [-55, 0, -30] as [number, number, number],
+    mentorTower: [55, 0, -30] as [number, number, number],
+    shrine: [55, 0, 40] as [number, number, number],
+    chapterTown: [-55, 0, 40] as [number, number, number],
+    events: [0, 0, 60] as [number, number, number],
+  }), []);
 
   // Landmark positions
   const landmarks = useMemo(
@@ -706,11 +724,36 @@ export default function PassionWorld({ data }: { data: WorldData }) {
   return (
     <div className={styles.world}>
       {/* HTML overlays — always rendered on top of whichever renderer is active */}
-      <WorldHUD data={data} />
+      <WorldHUD data={data} soundEnabled={soundEnabled} onToggleSound={toggleSound} />
       <ActivityLog activities={data.recentActivity} />
       <Link href="/" className={styles.backBtn}>
         &larr; Dashboard
       </Link>
+
+      {/* Minimap (3D mode only) */}
+      {use3D && (
+        <Minimap
+          islands={data.islands}
+          positions={positions3D}
+          landmarkPositions={landmarkPositions3D}
+          cameraTarget={cameraTarget}
+          selectedId={selectedIsland?.id ?? null}
+          onClickIsland={(island) => {
+            setSelectedIsland(island);
+            setSelectedLandmark(null);
+            playSound("select");
+          }}
+        />
+      )}
+
+      {/* Sound toggle (always visible in bottom-right area) */}
+      <button
+        className={styles.soundToggle}
+        onClick={toggleSound}
+        title={soundEnabled ? "Mute sounds" : "Enable sounds"}
+      >
+        {soundEnabled ? "\u{1F50A}" : "\u{1F507}"}
+      </button>
 
       {use3D ? (
         /* ─── 3D Canvas path ─── */
@@ -718,13 +761,22 @@ export default function PassionWorld({ data }: { data: WorldData }) {
           tier={tier}
           data={data}
           filteredIds={filteredIds}
+          onCameraMove={setCameraTarget}
           onSelectIsland={(island) => {
             setSelectedIsland(island);
-            if (island) setSelectedLandmark(null);
+            if (island) {
+              setSelectedLandmark(null);
+              playSound("select");
+            } else {
+              playSound("deselect");
+            }
           }}
           onSelectLandmark={(lm) => {
             setSelectedLandmark(lm);
-            if (lm) setSelectedIsland(null);
+            if (lm) {
+              setSelectedIsland(null);
+              playSound("landmark");
+            }
           }}
         />
       ) : (
