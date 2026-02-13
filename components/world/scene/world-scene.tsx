@@ -28,13 +28,16 @@ import { useTimeOfDay, getCurrentSeason } from "../hooks/use-time-of-day";
 import { Weather } from "./weather";
 import { SeasonalTheme } from "./seasonal-theme";
 
+export type LandmarkType = "quest-board" | "mentor-tower" | "shrine" | "chapter-town" | "events" | null;
+
 interface WorldSceneProps {
   tier: DeviceTier;
   data: WorldData;
   onSelectIsland?: (island: PassionIsland | null) => void;
+  onSelectLandmark?: (landmark: LandmarkType) => void;
 }
 
-export function WorldScene({ tier, data, onSelectIsland }: WorldSceneProps) {
+export function WorldScene({ tier, data, onSelectIsland, onSelectLandmark }: WorldSceneProps) {
   const dpr: [number, number] = tier === "LOW" ? [1, 1] : [1, 1.5];
 
   return (
@@ -49,7 +52,7 @@ export function WorldScene({ tier, data, onSelectIsland }: WorldSceneProps) {
       style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
       aria-label="Interactive 3D map of your passion islands"
     >
-      <SceneContent tier={tier} data={data} onSelectIsland={onSelectIsland} />
+      <SceneContent tier={tier} data={data} onSelectIsland={onSelectIsland} onSelectLandmark={onSelectLandmark} />
     </Canvas>
   );
 }
@@ -59,14 +62,17 @@ function SceneContent({
   tier,
   data,
   onSelectIsland,
+  onSelectLandmark,
 }: {
   tier: DeviceTier;
   data: WorldData;
   onSelectIsland?: (island: PassionIsland | null) => void;
+  onSelectLandmark?: (landmark: LandmarkType) => void;
 }) {
   const { selectedId, hoveredId, select, hover, deselect } = useIslandInteraction();
   const { focusOnIsland, returnToOverview } = useWorldControls();
   const [introComplete, setIntroComplete] = useState(false);
+  const [selectedLandmark, setSelectedLandmark] = useState<LandmarkType>(null);
 
   // Time-of-day and season systems
   const timeData = useTimeOfDay(true); // accelerated: 1 real hour = 1 day cycle
@@ -111,12 +117,17 @@ function SceneContent({
     const newId = selectedId === island.id ? null : island.id;
     select(newId);
     onSelectIsland?.(newId ? island : null);
+    // Deselect landmark when selecting an island
+    if (selectedLandmark) {
+      setSelectedLandmark(null);
+      onSelectLandmark?.(null);
+    }
     if (newId) {
       focusOnIsland(pos);
     } else {
       returnToOverview();
     }
-  }, [selectedId, select, onSelectIsland, focusOnIsland, returnToOverview]);
+  }, [selectedId, selectedLandmark, select, onSelectIsland, onSelectLandmark, focusOnIsland, returnToOverview]);
 
   const handleDeselect = useCallback(() => {
     deselect();
@@ -127,6 +138,21 @@ function SceneContent({
   const handleIntroComplete = useCallback(() => {
     setIntroComplete(true);
   }, []);
+
+  /** Toggle a landmark panel; deselect any island when a landmark is clicked */
+  const handleLandmarkClick = useCallback((type: LandmarkType, pos: [number, number, number]) => {
+    const newLandmark = selectedLandmark === type ? null : type;
+    setSelectedLandmark(newLandmark);
+    onSelectLandmark?.(newLandmark);
+    // Deselect island when opening a landmark
+    if (newLandmark) {
+      select(null);
+      onSelectIsland?.(null);
+      focusOnIsland(pos);
+    } else {
+      returnToOverview();
+    }
+  }, [selectedLandmark, onSelectLandmark, select, onSelectIsland, focusOnIsland, returnToOverview]);
 
   return (
     <>
@@ -197,10 +223,15 @@ function SceneContent({
       <QuestBoard3D
         position={lm.questBoard}
         questCount={data.activeChallenges}
+        completedCount={data.totalChallenges}
+        isSelected={selectedLandmark === "quest-board"}
+        onClick={() => handleLandmarkClick("quest-board", lm.questBoard)}
       />
       <MentorTower3D
         position={lm.mentorTower}
         mentorName={data.mentorName}
+        isSelected={selectedLandmark === "mentor-tower"}
+        onClick={() => handleLandmarkClick("mentor-tower", lm.mentorTower)}
       />
       <AchievementShrine3D
         position={lm.shrine}

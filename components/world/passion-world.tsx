@@ -16,7 +16,10 @@ import { getIslandPositions } from "./islands/island-layout";
 import { WorldHUD } from "./overlay/world-hud";
 import { ActivityLog } from "./overlay/activity-log";
 import { IslandDetail } from "./overlay/island-detail";
+import { QuestPanel } from "./overlay/quest-panel";
+import { MentorPanel } from "./overlay/mentor-panel";
 import { WorldScene } from "./scene/world-scene";
+import type { LandmarkType } from "./scene/world-scene";
 import { useDeviceTier, hasWebGLSupport } from "./hooks/use-device-tier";
 
 const BASE_W = 1200;
@@ -587,6 +590,7 @@ export function WorldLoadingSkeleton() {
 export default function PassionWorld({ data }: { data: WorldData }) {
   const [selectedIsland, setSelectedIsland] =
     useState<PassionIsland | null>(null);
+  const [selectedLandmark, setSelectedLandmark] = useState<LandmarkType>(null);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const svgRef = useRef<SVGSVGElement>(null);
   const tier = useDeviceTier();
@@ -708,7 +712,14 @@ export default function PassionWorld({ data }: { data: WorldData }) {
         <WorldScene
           tier={tier}
           data={data}
-          onSelectIsland={setSelectedIsland}
+          onSelectIsland={(island) => {
+            setSelectedIsland(island);
+            if (island) setSelectedLandmark(null);
+          }}
+          onSelectLandmark={(lm) => {
+            setSelectedLandmark(lm);
+            if (lm) setSelectedIsland(null);
+          }}
         />
       ) : (
         /* ─── SVG fallback path ─── */
@@ -846,6 +857,14 @@ export default function PassionWorld({ data }: { data: WorldData }) {
           island={selectedIsland}
           onClose={() => setSelectedIsland(null)}
         />
+      )}
+
+      {/* Landmark panels */}
+      {selectedLandmark === "quest-board" && (
+        <QuestPanel data={data} onClose={() => setSelectedLandmark(null)} />
+      )}
+      {selectedLandmark === "mentor-tower" && (
+        <MentorPanel data={data} onClose={() => setSelectedLandmark(null)} />
       )}
     </div>
   );
