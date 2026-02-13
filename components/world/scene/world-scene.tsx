@@ -33,11 +33,12 @@ export type LandmarkType = "quest-board" | "mentor-tower" | "shrine" | "chapter-
 interface WorldSceneProps {
   tier: DeviceTier;
   data: WorldData;
+  filteredIds?: Set<string> | null;
   onSelectIsland?: (island: PassionIsland | null) => void;
   onSelectLandmark?: (landmark: LandmarkType) => void;
 }
 
-export function WorldScene({ tier, data, onSelectIsland, onSelectLandmark }: WorldSceneProps) {
+export function WorldScene({ tier, data, filteredIds, onSelectIsland, onSelectLandmark }: WorldSceneProps) {
   const dpr: [number, number] = tier === "LOW" ? [1, 1] : [1, 1.5];
 
   return (
@@ -52,7 +53,7 @@ export function WorldScene({ tier, data, onSelectIsland, onSelectLandmark }: Wor
       style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
       aria-label="Interactive 3D map of your passion islands"
     >
-      <SceneContent tier={tier} data={data} onSelectIsland={onSelectIsland} onSelectLandmark={onSelectLandmark} />
+      <SceneContent tier={tier} data={data} filteredIds={filteredIds} onSelectIsland={onSelectIsland} onSelectLandmark={onSelectLandmark} />
     </Canvas>
   );
 }
@@ -61,11 +62,13 @@ export function WorldScene({ tier, data, onSelectIsland, onSelectLandmark }: Wor
 function SceneContent({
   tier,
   data,
+  filteredIds,
   onSelectIsland,
   onSelectLandmark,
 }: {
   tier: DeviceTier;
   data: WorldData;
+  filteredIds?: Set<string> | null;
   onSelectIsland?: (island: PassionIsland | null) => void;
   onSelectLandmark?: (landmark: LandmarkType) => void;
 }) {
@@ -205,6 +208,7 @@ function SceneContent({
       {/* Islands */}
       {data.islands.map((island, i) => {
         const pos = positions[i];
+        const isDimmed = filteredIds != null && !filteredIds.has(island.id);
         return (
           <IslandMesh
             key={island.id}
@@ -213,6 +217,7 @@ function SceneContent({
             index={i}
             isSelected={selectedId === island.id}
             isHovered={hoveredId === island.id}
+            dimmed={isDimmed}
             onSelect={() => handleSelectIsland(island, [pos.x, pos.y, pos.z])}
             onHover={(h) => hover(h ? island.id : null)}
           />

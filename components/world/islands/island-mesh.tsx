@@ -17,6 +17,7 @@ interface IslandMeshProps {
   index: number;
   isSelected: boolean;
   isHovered: boolean;
+  dimmed?: boolean;
   onSelect: () => void;
   onHover: (hovering: boolean) => void;
 }
@@ -27,6 +28,7 @@ export function IslandMesh({
   index,
   isSelected,
   isHovered,
+  dimmed = false,
   onSelect,
   onHover,
 }: IslandMeshProps) {
@@ -64,6 +66,8 @@ export function IslandMesh({
     }
   });
 
+  const dimOpacity = dimmed ? 0.25 : 1;
+
   return (
     <Float speed={1.5} floatIntensity={0.3} rotationIntensity={0}>
       <group ref={groupRef} position={position}>
@@ -78,21 +82,23 @@ export function IslandMesh({
             color={tier.topColor}
             roughness={0.8}
             metalness={0}
-            emissive={isHovered ? theme.gradient[0] : "#000000"}
-            emissiveIntensity={isHovered ? 0.15 : 0}
+            emissive={isHovered && !dimmed ? theme.gradient[0] : "#000000"}
+            emissiveIntensity={isHovered && !dimmed ? 0.15 : 0}
+            transparent={dimmed}
+            opacity={dimOpacity}
           />
         </mesh>
 
         {/* Side/underwater taper */}
         <mesh position={[0, -height * 0.6, 0]}>
           <coneGeometry args={[radius * 0.9, height * 0.8, 12]} />
-          <meshStandardMaterial color={tier.sideColor} roughness={0.9} />
+          <meshStandardMaterial color={tier.sideColor} roughness={0.9} transparent={dimmed} opacity={dimOpacity} />
         </mesh>
 
         {/* Beach ring */}
         <mesh position={[0, height * 0.05, 0]} rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[radius * 0.85, 0.15, 6, 24]} />
-          <meshStandardMaterial color="#fde68a" transparent opacity={0.5} />
+          <meshStandardMaterial color="#fde68a" transparent opacity={dimmed ? 0.12 : 0.5} />
         </mesh>
 
         {/* Trees */}

@@ -21,6 +21,7 @@ import { MentorPanel } from "./overlay/mentor-panel";
 import { ShrinePanel } from "./overlay/shrine-panel";
 import { ChapterPanel } from "./overlay/chapter-panel";
 import { EventsPanel } from "./overlay/events-panel";
+import { SearchFilter } from "./overlay/search-filter";
 import { WorldScene } from "./scene/world-scene";
 import type { LandmarkType } from "./scene/world-scene";
 import { useDeviceTier, hasWebGLSupport } from "./hooks/use-device-tier";
@@ -594,6 +595,7 @@ export default function PassionWorld({ data }: { data: WorldData }) {
   const [selectedIsland, setSelectedIsland] =
     useState<PassionIsland | null>(null);
   const [selectedLandmark, setSelectedLandmark] = useState<LandmarkType>(null);
+  const [filteredIds, setFilteredIds] = useState<Set<string> | null>(null);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const svgRef = useRef<SVGSVGElement>(null);
   const tier = useDeviceTier();
@@ -715,6 +717,7 @@ export default function PassionWorld({ data }: { data: WorldData }) {
         <WorldScene
           tier={tier}
           data={data}
+          filteredIds={filteredIds}
           onSelectIsland={(island) => {
             setSelectedIsland(island);
             if (island) setSelectedLandmark(null);
@@ -855,9 +858,20 @@ export default function PassionWorld({ data }: { data: WorldData }) {
         </svg>
       )}
 
+      {/* Search & category filter */}
+      <SearchFilter
+        islands={data.islands}
+        onFilter={setFilteredIds}
+        onFocusIsland={(island) => {
+          setSelectedIsland(island);
+          setSelectedLandmark(null);
+        }}
+      />
+
       {selectedIsland && (
         <IslandDetail
           island={selectedIsland}
+          data={data}
           onClose={() => setSelectedIsland(null)}
         />
       )}
