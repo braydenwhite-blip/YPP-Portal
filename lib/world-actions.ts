@@ -107,7 +107,7 @@ export async function getWorldData(): Promise<WorldData> {
           },
         },
       },
-    }),
+    }).catch(() => null),
 
     // Passion interests with enrichment counts
     prisma.studentInterest.findMany({
@@ -124,7 +124,7 @@ export async function getWorldData(): Promise<WorldData> {
         },
       },
       orderBy: { xpPoints: "desc" },
-    }),
+    }).catch(() => []),
 
     // XP profile
     prisma.studentXP
@@ -135,13 +135,13 @@ export async function getWorldData(): Promise<WorldData> {
     prisma.studentBadge.findMany({
       where: { studentId: userId },
       select: { badgeId: true, badge: { select: { passionId: true } } },
-    }),
+    }).catch(() => []),
 
     // Certificates
     prisma.certificate.findMany({
       where: { recipientId: userId },
       select: { id: true },
-    }),
+    }).catch(() => []),
 
     // Challenge completions
     prisma.challengeCompletion.findMany({
@@ -150,7 +150,7 @@ export async function getWorldData(): Promise<WorldData> {
         id: true,
         challenge: { select: { passionIds: true } },
       },
-    }),
+    }).catch(() => []),
 
     // Projects
     prisma.incubatorProject
@@ -230,17 +230,21 @@ export async function getWorldData(): Promise<WorldData> {
   // Count courses per passion (by matching interest area name)
   const courseCountsByPassion = new Map<string, number>();
   if (interests.length > 0) {
-    const passionNames = interests.map((i) => i.passion.name);
-    const enrollments = await prisma.enrollment.findMany({
-      where: {
-        userId,
-        course: { interestArea: { in: passionNames } },
-      },
-      select: { course: { select: { interestArea: true } } },
-    });
-    for (const e of enrollments) {
-      const area = e.course.interestArea;
-      courseCountsByPassion.set(area, (courseCountsByPassion.get(area) ?? 0) + 1);
+    try {
+      const passionNames = interests.map((i) => i.passion.name);
+      const enrollments = await prisma.enrollment.findMany({
+        where: {
+          userId,
+          course: { interestArea: { in: passionNames } },
+        },
+        select: { course: { select: { interestArea: true } } },
+      });
+      for (const e of enrollments) {
+        const area = e.course.interestArea;
+        courseCountsByPassion.set(area, (courseCountsByPassion.get(area) ?? 0) + 1);
+      }
+    } catch {
+      // Enrollment table may not exist — continue without course counts
     }
   }
 
