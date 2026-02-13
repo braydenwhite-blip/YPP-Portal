@@ -1,10 +1,14 @@
 "use client";
 
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useThree, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
 const INTRO_KEY = "world-intro-seen";
+
+/** Default camera position the scene was designed for */
+const DEFAULT_CAM_POS = new THREE.Vector3(0, 80, 120);
+const DEFAULT_CAM_TARGET = new THREE.Vector3(0, 0, 0);
 
 interface IntroState {
   phase: "idle" | "descending" | "arriving" | "done";
@@ -28,30 +32,63 @@ interface CinematicIntroProps {
  * Cinematic camera sweep on first visit.
  * Camera starts at [0, 300, 0] (satellite), sweeps down through waypoints over ~4s.
  * Sets localStorage so it only plays once.
+ * Safety timeout ensures onIntroComplete always fires within 8 seconds.
  */
 export function CinematicIntro({ primaryIslandPos, onIntroComplete }: CinematicIntroProps) {
   const { camera, controls } = useThree();
   const state = useRef<IntroState>({ phase: "idle", progress: 0 });
   const [shouldPlay, setShouldPlay] = useState(false);
+  const completedRef = useRef(false);
+
+  // Wrapped onIntroComplete that only fires once
+  const completeIntro = useRef(() => {
+    if (completedRef.current) return;
+    completedRef.current = true;
+    onIntroComplete();
+  });
+  completeIntro.current = () => {
+    if (completedRef.current) return;
+    completedRef.current = true;
+    onIntroComplete();
+  };
 
   useEffect(() => {
     try {
       if (!localStorage.getItem(INTRO_KEY)) {
         setShouldPlay(true);
-        // Immediately position camera at satellite view
-        camera.position.set(0, 300, 0);
+        // Only set camera position if controls are ready
+        camera.position.copy(WAYPOINTS[0].pos);
         camera.lookAt(0, 0, 0);
         if (controls && "target" in controls) {
           (controls as unknown as { target: THREE.Vector3 }).target.set(0, 0, 0);
         }
         state.current.phase = "descending";
       } else {
-        onIntroComplete();
+        completeIntro.current();
       }
     } catch {
-      onIntroComplete();
+      completeIntro.current();
     }
-  }, [camera, controls, onIntroComplete]);
+
+    // Safety timeout: if intro hasn't completed in 8 seconds, force-complete
+    // and reset camera to default position
+    const timeout = setTimeout(() => {
+      if (!completedRef.current) {
+        state.current.phase = "done";
+        camera.position.copy(DEFAULT_CAM_POS);
+        if (controls && "target" in controls) {
+          const ctrl = controls as unknown as { target: THREE.Vector3; update: () => void };
+          ctrl.target.copy(DEFAULT_CAM_TARGET);
+          ctrl.update();
+        }
+        try { localStorage.setItem(INTRO_KEY, "1"); } catch {}
+        completeIntro.current();
+      }
+    }, 8000);
+
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [camera, controls]);
 
   useFrame((_, delta) => {
     const s = state.current;
@@ -94,7 +131,7 @@ export function CinematicIntro({ primaryIslandPos, onIntroComplete }: CinematicI
       if (s.progress >= 1) {
         s.phase = "done";
         try { localStorage.setItem(INTRO_KEY, "1"); } catch {}
-        onIntroComplete();
+        completeIntro.current();
       }
     }
   });

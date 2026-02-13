@@ -64,7 +64,16 @@ export function SkyEnvironment({ timeData, tier = "MEDIUM" }: SkyEnvironmentProp
         position={sun}
         intensity={dirInt}
         color={dirCol}
-        castShadow={false}
+        castShadow={tier !== "LOW"}
+        shadow-mapSize-width={tier === "HIGH" ? 2048 : 1024}
+        shadow-mapSize-height={tier === "HIGH" ? 2048 : 1024}
+        shadow-camera-left={-80}
+        shadow-camera-right={80}
+        shadow-camera-top={80}
+        shadow-camera-bottom={-80}
+        shadow-camera-near={1}
+        shadow-camera-far={500}
+        shadow-bias={-0.0005}
       />
       <hemisphereLight
         args={[hemiSky, hemiGround, hemiInt]}

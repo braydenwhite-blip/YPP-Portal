@@ -10,7 +10,7 @@
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background: #0c4a6e;
+  background: linear-gradient(180deg, #0c4a6e, #1e1b4b);
   user-select: none;
   z-index: 50;
 }
@@ -37,7 +37,7 @@
   background: rgba(15, 23, 42, 0.85);
   backdrop-filter: blur(12px);
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(124, 58, 237, 0.2);
   color: white;
 }
 
@@ -92,7 +92,7 @@
 
 .hudXpFill {
   height: 100%;
-  background: linear-gradient(90deg, #fbbf24, #f59e0b);
+  background: linear-gradient(90deg, #7c3aed, #ec4899);
   border-radius: 3px;
   transition: width 0.6s ease;
 }
@@ -347,7 +347,7 @@
   height: 100vh;
   z-index: 50;
   overflow: hidden;
-  background: linear-gradient(180deg, #0c4a6e 0%, #0369a1 40%, #0284c7 100%);
+  background: linear-gradient(180deg, #0c4a6e 0%, #1e1b4b 60%, #1e1b4b 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -426,7 +426,7 @@
 .loadingBarFill {
   width: 40%;
   height: 100%;
-  background: linear-gradient(90deg, #fbbf24, #f59e0b);
+  background: linear-gradient(90deg, #7c3aed, #ec4899);
   border-radius: 2px;
   animation: loadingSlide 1.5s ease-in-out infinite;
 }
@@ -1835,12 +1835,50 @@
   }
 }
 
+/* ── World Entry/Exit Transitions ── */
+.worldEntering {
+  animation: worldFadeIn 0.8s ease both;
+}
+
+@keyframes worldFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(1.05);
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+
+.worldExiting {
+  animation: worldFadeOut 0.6s ease both;
+  pointer-events: none;
+}
+
+@keyframes worldFadeOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+    filter: blur(6px);
+  }
+}
+
 /* Prefers-reduced-motion: disable animations */
 @media (prefers-reduced-motion: reduce) {
   .onboardingCard,
   .levelUpContent,
   .levelUpIcon,
-  .panel {
+  .panel,
+  .worldEntering,
+  .worldExiting {
     animation: none !important;
   }
   .hudXpFill,

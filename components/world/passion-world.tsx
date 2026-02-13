@@ -8,7 +8,7 @@ import React, {
   useMemo,
   memo,
 } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { WorldData, PassionIsland } from "@/lib/world-actions";
 import styles from "./passion-world.module.css";
 import { LEVEL_LABELS, getTheme, getTreeData } from "./constants";
@@ -596,6 +596,7 @@ export function WorldLoadingSkeleton() {
 // ═══════════════════════════════════════════════════════════════
 
 export default function PassionWorld({ data }: { data: WorldData }) {
+  const router = useRouter();
   const [selectedIsland, setSelectedIsland] =
     useState<PassionIsland | null>(null);
   const [selectedLandmark, setSelectedLandmark] = useState<LandmarkType>(null);
@@ -604,10 +605,23 @@ export default function PassionWorld({ data }: { data: WorldData }) {
   const [cameraTarget, setCameraTarget] = useState<{ x: number; z: number }>({ x: 0, z: 0 });
   const [hudCollapsed, setHudCollapsed] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [isExiting, setIsExiting] = useState(false);
+  const [isEntering, setIsEntering] = useState(true);
   const { enabled: soundEnabled, toggle: toggleSound, playSound } = useSound();
   const svgRef = useRef<SVGSVGElement>(null);
   const tier = useDeviceTier();
   const [use3D, setUse3D] = useState(false);
+
+  // Clear entering state after animation completes
+  useEffect(() => {
+    const timer = setTimeout(() => setIsEntering(false), 900);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleExit = useCallback(() => {
+    setIsExiting(true);
+    setTimeout(() => router.push("/"), 600);
+  }, [router]);
 
   // Enable 3D if WebGL is available (checked client-side)
   useEffect(() => {
@@ -725,7 +739,7 @@ export default function PassionWorld({ data }: { data: WorldData }) {
   }, [data.islands, positions, vx, vy]);
 
   return (
-    <div className={styles.world} role="application" aria-label="Passion World — interactive 3D map of your passions">
+    <div className={`${styles.world}${isEntering ? ` ${styles.worldEntering}` : ""}${isExiting ? ` ${styles.worldExiting}` : ""}`} role="application" aria-label="Passion World — interactive 3D map of your passions">
       {/* HTML overlays — always rendered on top of whichever renderer is active */}
       <WorldHUD
         data={data}
@@ -735,9 +749,9 @@ export default function PassionWorld({ data }: { data: WorldData }) {
         onToggleCollapse={() => setHudCollapsed((p) => !p)}
       />
       <ActivityLog activities={data.recentActivity} />
-      <Link href="/" className={styles.backBtn} aria-label="Return to dashboard">
+      <button className={styles.backBtn} aria-label="Return to dashboard" onClick={handleExit}>
         &larr; Dashboard
-      </Link>
+      </button>
 
       {/* Minimap (3D mode only) */}
       {use3D && (
