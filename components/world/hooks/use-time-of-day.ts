@@ -152,10 +152,10 @@ export function computeTimeParams(hour: number): TimeOfDayData {
     Math.sin(sunAzimuth) * Math.cos(elRad) * sunDist,
   ];
 
-  // Lighting
-  const ambientIntensity = lerp(0.15, 0.6, dayFactor);
-  const ambientColor = lerpColor("#1a1a3a", "#ffffff", dayFactor);
-  const directionalIntensity = lerp(0.1, 1.2, dayFactor);
+  // Lighting — night minimums raised so the scene is always visible
+  const ambientIntensity = lerp(0.35, 0.6, dayFactor);
+  const ambientColor = lerpColor("#2a3a5a", "#ffffff", dayFactor);
+  const directionalIntensity = lerp(0.3, 1.2, dayFactor);
 
   // Warm sunrise/sunset tint
   const isGoldenHour = (hour >= 5 && hour <= 8) || (hour >= 16 && hour <= 19);
@@ -170,14 +170,14 @@ export function computeTimeParams(hour: number): TimeOfDayData {
   );
 
   // Hemisphere lighting
-  const hemiSkyColor = lerpColor("#0a0a20", "#87ceeb", dayFactor);
-  const hemiGroundColor = lerpColor("#111122", "#3a6b35", dayFactor);
-  const hemiIntensity = lerp(0.1, 0.3, dayFactor);
+  const hemiSkyColor = lerpColor("#1a2a40", "#87ceeb", dayFactor);
+  const hemiGroundColor = lerpColor("#1a2a20", "#3a6b35", dayFactor);
+  const hemiIntensity = lerp(0.15, 0.3, dayFactor);
 
-  // Fog
-  const fogNear = lerp(60, 150, dayFactor);
-  const fogFar = lerp(200, 500, dayFactor);
-  const fogColor = lerpColor("#0a0a1a", "#c8dff5", dayFactor);
+  // Fog — pushed far back so the scene is never swallowed
+  const fogNear = lerp(120, 150, dayFactor);
+  const fogFar = lerp(400, 500, dayFactor);
+  const fogColor = lerpColor("#0f1a2e", "#c8dff5", dayFactor);
 
   // Sky shader params
   const turbidity = lerp(2, 8, dayFactor);
