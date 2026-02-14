@@ -523,72 +523,31 @@ function isInViewport(
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ERROR BOUNDARY
+// SCENE ERROR BOUNDARY — catches 3D errors, triggers SVG fallback
 // ═══════════════════════════════════════════════════════════════
 
-interface ErrorBoundaryState {
-  hasError: boolean;
-}
-
-export class WorldErrorBoundary extends React.Component<
-  { children: React.ReactNode },
-  ErrorBoundaryState
+class SceneErrorBoundary extends React.Component<
+  { children: React.ReactNode; onError: () => void },
+  { hasError: boolean }
 > {
-  constructor(props: { children: React.ReactNode }) {
+  constructor(props: { children: React.ReactNode; onError: () => void }) {
     super(props);
     this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError(): ErrorBoundaryState {
+  static getDerivedStateFromError() {
     return { hasError: true };
   }
 
+  componentDidCatch(error: Error) {
+    console.error("[PassionWorld] 3D scene crashed, falling back to SVG:", error);
+    this.props.onError();
+  }
+
   render() {
-    if (this.state.hasError) {
-      return (
-        <div className={styles.errorWorld}>
-          <div className={styles.errorIcon}>{"\u{1F30A}"}</div>
-          <div className={styles.errorTitle}>
-            Your world encountered a storm
-          </div>
-          <div className={styles.errorMessage}>
-            Something went wrong loading the Passion World. Try refreshing.
-          </div>
-          <button
-            className={styles.errorRetry}
-            onClick={() => {
-              this.setState({ hasError: false });
-              window.location.reload();
-            }}
-          >
-            Try Again
-          </button>
-        </div>
-      );
-    }
+    if (this.state.hasError) return null;
     return this.props.children;
   }
-}
-
-// ═══════════════════════════════════════════════════════════════
-// LOADING SKELETON (exported for loading.tsx)
-// ═══════════════════════════════════════════════════════════════
-
-export function WorldLoadingSkeleton() {
-  return (
-    <div className={styles.loadingWorld}>
-      <div className={styles.loadingTitle}>THE PASSION WORLD</div>
-      <div className={styles.loadingIslands}>
-        <div className={styles.loadingIsland} />
-        <div className={styles.loadingIsland} />
-        <div className={styles.loadingIsland} />
-        <div className={styles.loadingIsland} />
-      </div>
-      <div className={styles.loadingBar}>
-        <div className={styles.loadingBarFill} />
-      </div>
-    </div>
-  );
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -611,10 +570,11 @@ export default function PassionWorld({ data }: { data: WorldData }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const tier = useDeviceTier();
   const [use3D, setUse3D] = useState(false);
+  const [sceneError, setSceneError] = useState(false);
 
   // Clear entering state after animation completes
   useEffect(() => {
-    const timer = setTimeout(() => setIsEntering(false), 900);
+    const timer = setTimeout(() => setIsEntering(false), 700);
     return () => clearTimeout(timer);
   }, []);
 
@@ -625,7 +585,9 @@ export default function PassionWorld({ data }: { data: WorldData }) {
 
   // Enable 3D if WebGL is available (checked client-side)
   useEffect(() => {
-    setUse3D(hasWebGLSupport());
+    const webgl = hasWebGLSupport();
+    console.log("[PassionWorld] mounted, WebGL:", webgl, "tier:", tier);
+    setUse3D(webgl);
   }, []);
 
   // rAF-based pan state (refs to avoid re-renders during drag)
@@ -779,31 +741,33 @@ export default function PassionWorld({ data }: { data: WorldData }) {
         {soundEnabled ? "\u{1F50A}" : "\u{1F507}"}
       </button>
 
-      {use3D ? (
+      {use3D && !sceneError ? (
         /* ─── 3D Canvas path ─── */
-        <WorldScene
-          tier={tier}
-          data={data}
-          filteredIds={filteredIds}
-          onCameraMove={setCameraTarget}
-          onIntroComplete={() => setIntroComplete(true)}
-          onSelectIsland={(island) => {
-            setSelectedIsland(island);
-            if (island) {
-              setSelectedLandmark(null);
-              playSound("select");
-            } else {
-              playSound("deselect");
-            }
-          }}
-          onSelectLandmark={(lm) => {
-            setSelectedLandmark(lm);
-            if (lm) {
-              setSelectedIsland(null);
-              playSound("landmark");
-            }
-          }}
-        />
+        <SceneErrorBoundary onError={() => setSceneError(true)}>
+          <WorldScene
+            tier={tier}
+            data={data}
+            filteredIds={filteredIds}
+            onCameraMove={setCameraTarget}
+            onIntroComplete={() => setIntroComplete(true)}
+            onSelectIsland={(island) => {
+              setSelectedIsland(island);
+              if (island) {
+                setSelectedLandmark(null);
+                playSound("select");
+              } else {
+                playSound("deselect");
+              }
+            }}
+            onSelectLandmark={(lm) => {
+              setSelectedLandmark(lm);
+              if (lm) {
+                setSelectedIsland(null);
+                playSound("landmark");
+              }
+            }}
+          />
+        </SceneErrorBoundary>
       ) : (
         /* ─── SVG fallback path ─── */
         <svg
