@@ -7,11 +7,11 @@ import { getWorldData } from "@/lib/world-actions";
 import {
   WorldErrorBoundary,
   WorldLoadingSkeleton,
-} from "@/components/world/passion-world";
+} from "@/components/world/world-loading";
 
 const PassionWorld = dynamic(
   () => import("@/components/world/passion-world"),
-  { ssr: false },
+  { ssr: false, loading: () => <WorldLoadingSkeleton /> },
 );
 
 export const metadata = {
