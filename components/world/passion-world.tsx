@@ -1,6 +1,7 @@
 "use client";
 
 import React, {
+  Suspense,
   useState,
   useEffect,
   useCallback,
@@ -24,11 +25,22 @@ import { EventsPanel } from "./overlay/events-panel";
 import { SearchFilter } from "./overlay/search-filter";
 import { Minimap } from "./overlay/minimap";
 import { Onboarding } from "./overlay/onboarding";
-import { WorldScene } from "./scene/world-scene";
 import type { LandmarkType } from "./scene/world-scene";
 import { useDeviceTier, hasWebGLSupport } from "./hooks/use-device-tier";
 import { useSound } from "./hooks/use-sound";
 import { getIslandPositions3D } from "./islands/island-layout";
+
+// Lazy-load the 3D scene to isolate the heavy Three.js/R3F bundle.
+// If the 3D module fails to evaluate, only the 3D path breaks — SVG still works.
+const LazyWorldScene = React.lazy(() =>
+  import("./scene/world-scene")
+    .then((mod) => ({ default: mod.WorldScene }))
+    .catch((err) => {
+      console.error("[PassionWorld] Failed to load 3D scene module:", err);
+      // Return a minimal component that signals the error
+      return { default: () => { throw new Error("3D module failed to load"); } };
+    })
+);
 
 const BASE_W = 1200;
 const BASE_H = 800;
@@ -742,31 +754,37 @@ export default function PassionWorld({ data }: { data: WorldData }) {
       </button>
 
       {use3D && !sceneError ? (
-        /* ─── 3D Canvas path ─── */
+        /* ─── 3D Canvas path (lazy-loaded to isolate Three.js bundle) ─── */
         <SceneErrorBoundary onError={() => setSceneError(true)}>
-          <WorldScene
-            tier={tier}
-            data={data}
-            filteredIds={filteredIds}
-            onCameraMove={setCameraTarget}
-            onIntroComplete={() => setIntroComplete(true)}
-            onSelectIsland={(island) => {
-              setSelectedIsland(island);
-              if (island) {
-                setSelectedLandmark(null);
-                playSound("select");
-              } else {
-                playSound("deselect");
-              }
-            }}
-            onSelectLandmark={(lm) => {
-              setSelectedLandmark(lm);
-              if (lm) {
-                setSelectedIsland(null);
-                playSound("landmark");
-              }
-            }}
-          />
+          <Suspense fallback={
+            <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: "1rem", background: "linear-gradient(180deg, #0c4a6e, #1e1b4b)" }}>
+              Loading 3D world...
+            </div>
+          }>
+            <LazyWorldScene
+              tier={tier}
+              data={data}
+              filteredIds={filteredIds}
+              onCameraMove={setCameraTarget}
+              onIntroComplete={() => setIntroComplete(true)}
+              onSelectIsland={(island) => {
+                setSelectedIsland(island);
+                if (island) {
+                  setSelectedLandmark(null);
+                  playSound("select");
+                } else {
+                  playSound("deselect");
+                }
+              }}
+              onSelectLandmark={(lm) => {
+                setSelectedLandmark(lm);
+                if (lm) {
+                  setSelectedIsland(null);
+                  playSound("landmark");
+                }
+              }}
+            />
+          </Suspense>
         </SceneErrorBoundary>
       ) : (
         /* ─── SVG fallback path ─── */
