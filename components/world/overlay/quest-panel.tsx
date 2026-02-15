@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useState, useCallback, useEffect, useMemo } from "react";
+import Link from "next/link";
 import type { WorldData } from "@/lib/world-actions";
 import type { Quest, QuestBoardState, QuestCadence } from "@/lib/quest";
 import {
@@ -251,6 +252,20 @@ export const QuestPanel = memo(function QuestPanel({ data, onClose }: QuestPanel
             Loading your personalized quests...
           </div>
         )}
+
+        {/* Quick links */}
+        <div className={styles.panelActions}>
+          <Link href="/challenges" className={styles.panelLink}>
+            <span className={styles.panelLinkIcon}>{"\u{1F3AF}"}</span>
+            <span className={styles.panelLinkText}>All Challenges</span>
+            <span className={styles.panelLinkArrow}>&rarr;</span>
+          </Link>
+          <Link href="/challenges/daily" className={styles.panelLink}>
+            <span className={styles.panelLinkIcon}>{"\u{1F4C5}"}</span>
+            <span className={styles.panelLinkText}>Daily Challenges</span>
+            <span className={styles.panelLinkArrow}>&rarr;</span>
+          </Link>
+        </div>
       </div>
     </div>
   );
