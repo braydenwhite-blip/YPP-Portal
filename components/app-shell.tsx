@@ -60,7 +60,13 @@ export default function AppShell({
 
         {/* Scrollable navigation */}
         <div className="sidebar-nav">
-          <Nav roles={roles} awardTier={awardTier} badges={badges} onNavigate={() => setSidebarOpen(false)} />
+          <Nav
+            roles={roles}
+            primaryRole={primaryRole}
+            awardTier={awardTier}
+            badges={badges}
+            onNavigate={() => setSidebarOpen(false)}
+          />
         </div>
 
         {/* Footer — fixed */}

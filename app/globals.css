@@ -314,54 +314,82 @@ main {
 .nav {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 10px;
 }
 
-.nav-section {
-  margin-top: 2px;
-  margin-bottom: 0;
+.nav-main-tools,
+.nav-more {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.75);
 }
 
-.nav-section:first-child {
-  margin-top: 0;
+.nav-block-title {
+  padding: 9px 10px 7px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--gray-500);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
-/* Collapsible section toggle button */
-.nav-section-toggle {
+.nav-main-items,
+.nav-more-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px;
+}
+
+.nav-more-toggle,
+.nav-more-group-toggle {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 7px 10px;
+  padding: 8px 10px;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: transparent;
   cursor: pointer;
   font-family: inherit;
   font-size: 12px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--gray-400);
+  color: var(--gray-500);
   transition: all var(--transition-fast);
   text-align: left;
 }
 
-.nav-section-toggle:hover {
+.nav-more-toggle:hover,
+.nav-more-group-toggle:hover {
   color: var(--gray-600);
   background: var(--gray-50);
 }
 
-.nav-section-toggle.nav-section-active {
-  color: var(--ypp-purple-600);
+.nav-more-toggle:disabled,
+.nav-more-group-toggle:disabled {
+  cursor: default;
 }
 
-.nav-section-icon {
-  font-size: 14px;
-  line-height: 1;
-  flex-shrink: 0;
-  width: 18px;
-  text-align: center;
+.nav-more-label {
+  flex: 1;
+}
+
+.nav-more-content {
+  padding: 2px 6px 8px;
+}
+
+.nav-more-group {
+  margin-top: 4px;
+}
+
+.nav-more-group:first-child {
+  margin-top: 0;
+}
+
+.nav-more-group-toggle.nav-section-active {
+  color: var(--ypp-purple-600);
 }
 
 .nav-section-label {
@@ -369,6 +397,7 @@ main {
   min-width: 0;
 }
 
+.nav-more-chevron,
 .nav-section-chevron {
   font-size: 14px;
   font-weight: 400;
@@ -379,18 +408,10 @@ main {
   margin-left: auto;
 }
 
+.nav-more-chevron.open,
 .nav-section-chevron.open {
   transform: rotate(90deg);
-}
-
-/* Items container (shown when section is open) */
-.nav-section-items {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding-left: 6px;
-  margin-top: 2px;
-  margin-bottom: 6px;
+  margin-left: auto;
 }
 
 .nav a,

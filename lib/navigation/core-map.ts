@@ -1,0 +1,86 @@
+import type { NavRole } from "@/lib/navigation/types";
+
+export const CORE_NAV_LIMIT = 8;
+
+export const PRIMARY_ROLE_FALLBACK_ORDER: NavRole[] = [
+  "ADMIN",
+  "CHAPTER_LEAD",
+  "INSTRUCTOR",
+  "MENTOR",
+  "PARENT",
+  "STUDENT",
+  "STAFF",
+];
+
+export const CORE_NAV_MAP: Record<NavRole, string[]> = {
+  STUDENT: [
+    "/",
+    "/world",
+    "/my-courses",
+    "/pathways",
+    "/goals",
+    "/challenges",
+    "/messages",
+    "/notifications",
+  ],
+  INSTRUCTOR: [
+    "/",
+    "/instructor/class-settings",
+    "/lesson-plans",
+    "/instructor-training",
+    "/attendance",
+    "/goals",
+    "/messages",
+    "/notifications",
+  ],
+  ADMIN: [
+    "/admin",
+    "/admin/students",
+    "/admin/instructors",
+    "/admin/analytics",
+    "/admin/announcements",
+    "/admin/waitlist",
+    "/messages",
+    "/notifications",
+  ],
+  PARENT: [
+    "/parent",
+    "/parent/resources",
+    "/announcements",
+    "/calendar",
+    "/goals",
+    "/messages",
+    "/notifications",
+    "/certificates",
+  ],
+  CHAPTER_LEAD: [
+    "/chapter-lead/dashboard",
+    "/chapter",
+    "/chapters",
+    "/attendance",
+    "/events",
+    "/goals",
+    "/messages",
+    "/notifications",
+  ],
+  MENTOR: [
+    "/mentorship",
+    "/mentorship/mentees",
+    "/mentor/resources",
+    "/office-hours",
+    "/events",
+    "/goals",
+    "/messages",
+    "/notifications",
+  ],
+  STAFF: [
+    "/",
+    "/announcements",
+    "/calendar",
+    "/goals",
+    "/positions",
+    "/applications",
+    "/messages",
+    "/notifications",
+  ],
+};
