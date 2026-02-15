@@ -35,6 +35,14 @@ export default async function InternshipsPage({
           <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
             Real-world opportunities to apply your passion
           </p>
+          <div style={{ display: "flex", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
+            <Link href="/positions" className="link" style={{ fontSize: 13 }}>
+              Leadership & Instructor Openings
+            </Link>
+            <Link href="/applications" className="link" style={{ fontSize: 13 }}>
+              My Applications
+            </Link>
+          </div>
         </div>
         {(isAdmin || isInstructor) && <CreateListingButton />}
       </div>

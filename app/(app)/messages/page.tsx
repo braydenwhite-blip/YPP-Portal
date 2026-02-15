@@ -49,6 +49,13 @@ export default async function MessagesPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Messages</h1>
+          <p style={{ marginTop: 4, fontSize: 13, color: "var(--text-secondary)" }}>
+            Need group-style conversations? Use{" "}
+            <Link href="/community/chat" className="link">
+              Community Chat channels
+            </Link>
+            .
+          </p>
         </div>
       </div>
 

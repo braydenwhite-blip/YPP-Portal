@@ -236,6 +236,9 @@ export default async function ClassCatalogPage({
                   </span>
                   <span className="pill">{offering.template.interestArea}</span>
                   <span className="pill">{offering.deliveryMode.replace("_", " ")}</span>
+                  {offering.introVideoUrl && (
+                    <span className="pill pill-info">Instructor Intro Video</span>
+                  )}
                 </div>
 
                 <div style={{ marginTop: 12, fontSize: 14, color: "var(--text-secondary)" }}>

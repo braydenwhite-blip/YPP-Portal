@@ -3831,6 +3831,13 @@ model ClassOffering {
   zoomLink        String?
   meetingId       String?             // Zoom/Teams meeting ID
 
+  // Instructor class intro media
+  introVideoTitle       String?
+  introVideoDescription String?       @db.Text
+  introVideoProvider    VideoProvider?
+  introVideoUrl         String?
+  introVideoThumbnail   String?
+
   // Enrollment
   capacity        Int                 @default(25)
   enrollmentOpen  Boolean             @default(true)

@@ -37,6 +37,11 @@ interface OfferingData {
   locationName: string;
   locationAddress: string;
   zoomLink: string;
+  introVideoTitle: string;
+  introVideoDescription: string;
+  introVideoProvider: string;
+  introVideoUrl: string;
+  introVideoThumbnail: string;
   capacity: number;
   send24HrReminder: boolean;
   send1HrReminder: boolean;
@@ -73,6 +78,7 @@ export function ClassSettingsClient({
   const [templateId, setTemplateId] = useState(offering?.templateId || selectedTemplateId || "");
   const [meetingDays, setMeetingDays] = useState<string[]>(offering?.meetingDays || []);
   const [deliveryMode, setDeliveryMode] = useState(offering?.deliveryMode || "VIRTUAL");
+  const [introVideoProvider, setIntroVideoProvider] = useState(offering?.introVideoProvider || "YOUTUBE");
 
   const selectedTemplate = templates.find((t) => t.id === templateId);
 
@@ -93,6 +99,7 @@ export function ClassSettingsClient({
       const formData = new FormData(form);
       formData.set("meetingDays", meetingDays.join(","));
       formData.set("deliveryMode", deliveryMode);
+      formData.set("introVideoProvider", introVideoProvider);
 
       if (offering) {
         formData.set("id", offering.id);
@@ -333,6 +340,77 @@ export function ClassSettingsClient({
             />
           </div>
         )}
+
+        {/* Instructor Intro Video */}
+        <div className="form-group" style={{ gridColumn: "1 / -1" }}>
+          <label className="form-label">Instructor Intro Video (recommended)</label>
+          <p style={{ margin: "6px 0 10px", fontSize: 13, color: "var(--text-secondary)" }}>
+            Add a short video introducing yourself and what students will create in this class.
+          </p>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <input
+              name="introVideoTitle"
+              className="form-input"
+              defaultValue={offering?.introVideoTitle || ""}
+              placeholder="Video title (e.g., Welcome to Creative Coding 101)"
+            />
+            <input
+              name="introVideoThumbnail"
+              className="form-input"
+              defaultValue={offering?.introVideoThumbnail || ""}
+              placeholder="Thumbnail URL (optional)"
+            />
+          </div>
+
+          <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {["YOUTUBE", "VIMEO", "LOOM", "CUSTOM"].map((provider) => (
+              <button
+                key={provider}
+                type="button"
+                onClick={() => setIntroVideoProvider(provider)}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: "var(--radius-full)",
+                  border: "1px solid var(--border)",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  ...(introVideoProvider === provider
+                    ? { background: "var(--ypp-purple)", color: "white", borderColor: "var(--ypp-purple)" }
+                    : { background: "var(--surface)" }),
+                }}
+              >
+                {provider}
+              </button>
+            ))}
+          </div>
+
+          <input
+            name="introVideoUrl"
+            className="form-input"
+            defaultValue={offering?.introVideoUrl || ""}
+            placeholder={
+              introVideoProvider === "YOUTUBE"
+                ? "https://youtube.com/watch?v=..."
+                : introVideoProvider === "VIMEO"
+                  ? "https://vimeo.com/..."
+                  : introVideoProvider === "LOOM"
+                    ? "https://loom.com/share/..."
+                    : "https://your-video-url..."
+            }
+            style={{ marginTop: 10 }}
+          />
+
+          <textarea
+            name="introVideoDescription"
+            className="form-input"
+            defaultValue={offering?.introVideoDescription || ""}
+            placeholder="One short paragraph: what students will learn, why this class is exciting, and what first session looks like."
+            rows={3}
+            style={{ marginTop: 10 }}
+          />
+        </div>
 
         {/* Chapter */}
         <div className="form-group">

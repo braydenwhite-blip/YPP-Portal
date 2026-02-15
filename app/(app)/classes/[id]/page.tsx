@@ -19,6 +19,27 @@ const difficultyColors: Record<string, string> = {
   LEVEL_401: "#ef4444",
 };
 
+function getEmbeddedIntroVideoUrl(videoUrl: string, provider: string | null) {
+  if (!provider) return null;
+
+  if (provider === "YOUTUBE") {
+    const match = videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?/]+)/);
+    return match ? `https://www.youtube.com/embed/${match[1]}` : null;
+  }
+
+  if (provider === "VIMEO") {
+    const match = videoUrl.match(/vimeo\.com\/(\d+)/);
+    return match ? `https://player.vimeo.com/video/${match[1]}` : null;
+  }
+
+  if (provider === "LOOM") {
+    const match = videoUrl.match(/loom\.com\/share\/([^?]+)/);
+    return match ? `https://www.loom.com/embed/${match[1]}` : null;
+  }
+
+  return null;
+}
+
 export default async function ClassDetailPage({
   params,
 }: {
@@ -186,6 +207,42 @@ export default async function ClassDetailPage({
           </div>
         </div>
       </div>
+
+      {/* Instructor Intro Video */}
+      {offering.introVideoUrl && (
+        <div className="card" style={{ marginBottom: 24 }}>
+          <h3>{offering.introVideoTitle || `Meet ${offering.instructor.name}`}</h3>
+          <p style={{ color: "var(--text-secondary)", marginTop: 6, marginBottom: 14 }}>
+            {offering.introVideoDescription || "Watch a quick introduction to this class from your instructor."}
+          </p>
+
+          {offering.introVideoProvider === "CUSTOM" ? (
+            <video
+              controls
+              preload="metadata"
+              poster={offering.introVideoThumbnail || undefined}
+              style={{ width: "100%", borderRadius: 12, border: "1px solid var(--border)" }}
+            >
+              <source src={offering.introVideoUrl} />
+              Your browser does not support video playback.
+            </video>
+          ) : getEmbeddedIntroVideoUrl(offering.introVideoUrl, offering.introVideoProvider) ? (
+            <div style={{ position: "relative", width: "100%", paddingBottom: "56.25%", borderRadius: 12, overflow: "hidden", border: "1px solid var(--border)" }}>
+              <iframe
+                src={getEmbeddedIntroVideoUrl(offering.introVideoUrl, offering.introVideoProvider)!}
+                title={offering.introVideoTitle || `${offering.title} intro video`}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
+              />
+            </div>
+          ) : (
+            <a href={offering.introVideoUrl} target="_blank" rel="noopener noreferrer" className="link">
+              Watch instructor intro video
+            </a>
+          )}
+        </div>
+      )}
 
       {/* Prerequisites */}
       {offering.template.prerequisites.length > 0 && (

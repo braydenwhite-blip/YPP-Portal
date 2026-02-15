@@ -192,6 +192,7 @@ function buildSections(roles: string[], awardTier?: string): NavSection[] {
 
   // Community
   const communityItems: NavItem[] = [
+    { href: "/community/chat", label: "Community Chat", icon: "\uD83D\uDCAC", badgeKey: "messages" },
     { href: "/mentorship", label: "Mentorship", icon: "\uD83E\uDD1D" },
   ];
   if (isMentor || isAdmin) {

@@ -12,6 +12,14 @@ type WeeklyTopic = {
   materials?: string;
 };
 
+type IntroVideoProvider = "YOUTUBE" | "VIMEO" | "LOOM" | "CUSTOM";
+const INTRO_VIDEO_PROVIDERS = new Set<IntroVideoProvider>([
+  "YOUTUBE",
+  "VIMEO",
+  "LOOM",
+  "CUSTOM",
+]);
+
 // ============================================
 // HELPERS
 // ============================================
@@ -51,6 +59,90 @@ function getInt(formData: FormData, key: string, fallback: number): number {
   if (!raw || String(raw).trim() === "") return fallback;
   const n = parseInt(String(raw), 10);
   return isNaN(n) ? fallback : n;
+}
+
+function inferIntroVideoProvider(videoUrl: string): IntroVideoProvider | null {
+  try {
+    const parsed = new URL(videoUrl);
+    const host = parsed.hostname.toLowerCase();
+
+    if (host === "youtu.be" || host.endsWith("youtube.com")) return "YOUTUBE";
+    if (host === "vimeo.com" || host.endsWith(".vimeo.com")) return "VIMEO";
+    if (host === "loom.com" || host.endsWith(".loom.com")) return "LOOM";
+
+    return "CUSTOM";
+  } catch {
+    return null;
+  }
+}
+
+function isSupportedIntroVideoUrl(videoUrl: string, provider: IntroVideoProvider): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(videoUrl);
+  } catch {
+    return false;
+  }
+
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+    return false;
+  }
+
+  const host = parsed.hostname.toLowerCase();
+
+  if (provider === "YOUTUBE") {
+    return host === "youtu.be" || host.endsWith("youtube.com");
+  }
+  if (provider === "VIMEO") {
+    return host === "vimeo.com" || host.endsWith(".vimeo.com");
+  }
+  if (provider === "LOOM") {
+    return host === "loom.com" || host.endsWith(".loom.com");
+  }
+
+  // CUSTOM lets instructors use self-hosted or other supported embeds.
+  return true;
+}
+
+function normalizeIntroVideoFields(formData: FormData) {
+  const introVideoTitle = getString(formData, "introVideoTitle", false);
+  const introVideoDescription = getString(formData, "introVideoDescription", false);
+  const introVideoUrl = getString(formData, "introVideoUrl", false);
+  const introVideoThumbnail = getString(formData, "introVideoThumbnail", false);
+  const introVideoProviderRaw = getString(formData, "introVideoProvider", false);
+
+  if (!introVideoUrl) {
+    return {
+      introVideoTitle: null,
+      introVideoDescription: null,
+      introVideoProvider: null,
+      introVideoUrl: null,
+      introVideoThumbnail: null,
+    };
+  }
+
+  let provider: IntroVideoProvider | null = null;
+  if (introVideoProviderRaw && INTRO_VIDEO_PROVIDERS.has(introVideoProviderRaw as IntroVideoProvider)) {
+    provider = introVideoProviderRaw as IntroVideoProvider;
+  } else {
+    provider = inferIntroVideoProvider(introVideoUrl);
+  }
+
+  if (!provider) {
+    throw new Error("Please choose a valid intro video provider.");
+  }
+
+  if (!isSupportedIntroVideoUrl(introVideoUrl, provider)) {
+    throw new Error("Intro video URL does not match the selected provider.");
+  }
+
+  return {
+    introVideoTitle: introVideoTitle || null,
+    introVideoDescription: introVideoDescription || null,
+    introVideoProvider: provider,
+    introVideoUrl,
+    introVideoThumbnail: introVideoThumbnail || null,
+  };
 }
 
 // ============================================
@@ -277,6 +369,7 @@ export async function createClassOffering(formData: FormData) {
   const locationAddress = getString(formData, "locationAddress", false);
   const zoomLink = getString(formData, "zoomLink", false);
   const chapterId = getString(formData, "chapterId", false);
+  const introVideo = normalizeIntroVideoFields(formData);
 
   const send24Hr = formData.get("send24HrReminder") !== "false";
   const send1Hr = formData.get("send1HrReminder") !== "false";
@@ -307,6 +400,7 @@ export async function createClassOffering(formData: FormData) {
       status: "DRAFT",
       chapterId: chapterId || null,
       semester: semester || null,
+      ...introVideo,
     },
   });
 
@@ -412,6 +506,7 @@ export async function updateClassOffering(formData: FormData) {
   const locationName = getString(formData, "locationName", false);
   const locationAddress = getString(formData, "locationAddress", false);
   const zoomLink = getString(formData, "zoomLink", false);
+  const introVideo = normalizeIntroVideoFields(formData);
   const status = getString(formData, "status", false) as
     | "DRAFT"
     | "PUBLISHED"
@@ -438,6 +533,7 @@ export async function updateClassOffering(formData: FormData) {
       send1HrReminder: send1Hr,
       ...(status ? { status } : {}),
       semester: semester || null,
+      ...introVideo,
     },
   });
 
