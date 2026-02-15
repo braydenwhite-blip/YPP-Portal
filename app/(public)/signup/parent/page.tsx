@@ -116,7 +116,7 @@ export default function ParentSignupPage() {
             Already have an account? <Link href="/login">Sign in</Link>
           </div>
           <div className="login-help" style={{ marginTop: 8 }}>
-            Are you a student? <Link href="/signup">Student signup</Link>
+            Are you a student or instructor? <Link href="/signup">Main signup</Link>
           </div>
         </div>
       </div>

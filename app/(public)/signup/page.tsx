@@ -37,7 +37,7 @@ export default function SignupPage() {
               Join Youth Passion Project
             </h1>
             <p className="page-subtitle mt-0" style={{ fontSize: 13 }}>
-              Create your account to get started
+              Create your student or instructor account to get started
             </p>
           </div>
         </div>
@@ -57,6 +57,16 @@ export default function SignupPage() {
           <label className="form-label">
             Password
             <input className="input" name="password" type="password" placeholder="Min 8 characters" required />
+          </label>
+          <label className="form-label">
+            Account Type
+            <select className="input" name="accountType" defaultValue="STUDENT">
+              <option value="STUDENT">Student</option>
+              <option value="INSTRUCTOR">Instructor</option>
+            </select>
+            <span style={{ display: "block", fontSize: 12, color: "var(--muted)", marginTop: 6 }}>
+              Instructors can sign up here, then finish onboarding after signing in.
+            </span>
           </label>
           <label className="form-label">
             Chapter (optional)

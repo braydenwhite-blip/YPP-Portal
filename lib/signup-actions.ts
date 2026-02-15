@@ -25,6 +25,10 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
     const password = getString(formData, "password");
     const phone = getString(formData, "phone", false);
     const chapterId = getString(formData, "chapterId", false);
+    const accountTypeRaw = getString(formData, "accountType", false).toUpperCase();
+    const primaryRole = accountTypeRaw === RoleType.INSTRUCTOR
+      ? RoleType.INSTRUCTOR
+      : RoleType.STUDENT;
 
     // Rate limit: 5 signup attempts per email per 15 minutes
     const rl = checkRateLimit(`signup:${email}`, 5, 15 * 60 * 1000);
@@ -57,10 +61,10 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
         email,
         phone: phone || null,
         passwordHash,
-        primaryRole: RoleType.STUDENT,
+        primaryRole,
         chapterId: chapterId || null,
         roles: {
-          create: [{ role: RoleType.STUDENT }]
+          create: [{ role: primaryRole }]
         }
       }
     });
