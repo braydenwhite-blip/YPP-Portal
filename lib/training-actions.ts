@@ -573,7 +573,7 @@ export async function submitTrainingQuizAttempt(formData: FormData) {
       userId,
       scorePct,
       passed,
-      answers: Object.keys(answersJson).length > 0 ? answersJson : null,
+      answers: Object.keys(answersJson).length > 0 ? answersJson : undefined,
     },
   });
 
