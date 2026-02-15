@@ -125,7 +125,7 @@ export function WorldScene({ tier, data, filteredIds, onSelectIsland, onSelectLa
           display: "flex", alignItems: "center", justifyContent: "center",
           color: "white", fontSize: "1.2rem", background: "#0c4a6e",
         }}>
-          Loading 3D world...
+          Initializing WebGL...
         </div>
       }
     >
