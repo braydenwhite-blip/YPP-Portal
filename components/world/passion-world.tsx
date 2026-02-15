@@ -25,6 +25,7 @@ import { EventsPanel } from "./overlay/events-panel";
 import { SearchFilter } from "./overlay/search-filter";
 import { Minimap } from "./overlay/minimap";
 import { Onboarding } from "./overlay/onboarding";
+import { DiscoveryQuizPanel } from "./overlay/discovery-quiz-panel";
 import type { LandmarkType } from "./scene/world-scene";
 import { useDeviceTier, hasWebGLSupport } from "./hooks/use-device-tier";
 import { useSound } from "./hooks/use-sound";
@@ -581,6 +582,7 @@ export default function PassionWorld({ data }: { data: WorldData }) {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isExiting, setIsExiting] = useState(false);
   const [isEntering, setIsEntering] = useState(true);
+  const [showQuiz, setShowQuiz] = useState(false);
   const { enabled: soundEnabled, toggle: toggleSound, playSound } = useSound();
   const svgRef = useRef<SVGSVGElement>(null);
   const tier = useDeviceTier();
@@ -741,6 +743,13 @@ export default function PassionWorld({ data }: { data: WorldData }) {
       <ActivityLog activities={data.recentActivity} />
       <button className={styles.backBtn} aria-label="Return to dashboard" onClick={handleExit}>
         &larr; Dashboard
+      </button>
+      <button
+        className={styles.discoverBtn}
+        onClick={() => { setShowQuiz(true); setSelectedIsland(null); setSelectedLandmark(null); }}
+        aria-label="Take Passion Discovery Quiz"
+      >
+        {"\u{1FA84}"} Discover
       </button>
 
       {/* Minimap (3D mode only) */}
@@ -960,6 +969,11 @@ export default function PassionWorld({ data }: { data: WorldData }) {
       )}
       {selectedLandmark === "events" && (
         <EventsPanel data={data} onClose={() => setSelectedLandmark(null)} />
+      )}
+
+      {/* Passion Discovery Quiz */}
+      {showQuiz && (
+        <DiscoveryQuizPanel onClose={() => setShowQuiz(false)} />
       )}
 
       {/* Onboarding tutorial (first visit only) */}
