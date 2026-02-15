@@ -259,6 +259,7 @@ function buildSections(roles: string[], awardTier?: string): NavSection[] {
         { href: "/admin/parent-approvals", label: "Parent Approvals", icon: "\u2714", badgeKey: "approvals" },
         { href: "/admin/instructor-readiness", label: "Instructor Readiness", icon: "\u2705" },
         { href: "/admin/staff", label: "Staff Reflections", icon: "\uD83D\uDCDD" },
+        { href: "/admin/applications", label: "Applications", icon: "\uD83D\uDCCB" },
       ],
     });
 

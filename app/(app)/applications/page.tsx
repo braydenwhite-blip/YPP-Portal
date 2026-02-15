@@ -170,6 +170,12 @@ export default async function MyApplicationsPage() {
                     </button>
                   </form>
                 )}
+
+                <div style={{ marginTop: 12 }}>
+                  <Link href={`/applications/${application.id}`} className="link">
+                    Open Application Workspace &rarr;
+                  </Link>
+                </div>
               </div>
             );
           })}

@@ -139,11 +139,12 @@ export default async function ChapterApplicantsPage() {
               <div className="applications-table-wrapper">
                 <table className="applications-table">
                   <thead>
-                    <tr>
+                  <tr>
                       <th>Applicant</th>
                       <th>Position</th>
                       <th>Status</th>
                       <th>Decision Date</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -168,6 +169,11 @@ export default async function ChapterApplicantsPage() {
                               ).toLocaleDateString()
                             : "-"}
                         </td>
+                        <td>
+                          <Link href={`/applications/${app.id}`} className="link">
+                            Open
+                          </Link>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -187,6 +193,7 @@ export default async function ChapterApplicantsPage() {
                       <th>Applicant</th>
                       <th>Position</th>
                       <th>Applied Date</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -196,6 +203,11 @@ export default async function ChapterApplicantsPage() {
                         <td>{app.position.title}</td>
                         <td>
                           {new Date(app.submittedAt).toLocaleDateString()}
+                        </td>
+                        <td>
+                          <Link href={`/applications/${app.id}`} className="link">
+                            Open
+                          </Link>
                         </td>
                       </tr>
                     ))}
