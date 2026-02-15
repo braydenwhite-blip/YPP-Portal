@@ -2,9 +2,9 @@
 
 import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Billboard, Text } from "@react-three/drei";
 import * as THREE from "three";
 import { LandmarkMarker } from "./landmark-marker";
+import { Label3D } from "../scene/label-3d";
 
 interface SeasonalEventsProps {
   position: [number, number, number];
@@ -150,11 +150,9 @@ export function SeasonalEvents3D({
       </mesh>
 
       {/* Label */}
-      <Billboard position={[0, 3.8, 0]}>
-        <Text fontSize={0.6} color="#b91c1c" fontWeight={700} outlineWidth={0.04} outlineColor="#000">
-          Events
-        </Text>
-      </Billboard>
+      <Label3D position={[0, 3.8, 0]} color="#b91c1c" fontSize={14} bold outline>
+        Events
+      </Label3D>
 
       <LandmarkMarker position={[1.5, 4, 0]} count={count} color="#16a34a" />
     </group>

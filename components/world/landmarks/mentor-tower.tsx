@@ -2,9 +2,9 @@
 
 import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Billboard, Text } from "@react-three/drei";
 import * as THREE from "three";
 import { LandmarkMarker } from "./landmark-marker";
+import { Label3D } from "../scene/label-3d";
 
 interface MentorTowerProps {
   position: [number, number, number];
@@ -188,16 +188,12 @@ export function MentorTower3D({
       </mesh>
 
       {/* Label */}
-      <Billboard position={[0, 6.2, 0]}>
-        <Text fontSize={0.6} color="#7c3aed" fontWeight={700} outlineWidth={0.04} outlineColor="#000">
-          Mentor Tower
-        </Text>
+      <Label3D position={[0, 6.2, 0]} color="#7c3aed" fontSize={14} bold outline>
+        Mentor Tower
         {mentorName && (
-          <Text fontSize={0.4} color="#a78bfa" position={[0, -0.6, 0]} outlineWidth={0.03} outlineColor="#000">
-            {mentorName}
-          </Text>
+          <><br /><span style={{ fontSize: "11px", color: "#a78bfa" }}>{mentorName}</span></>
         )}
-      </Billboard>
+      </Label3D>
 
       <LandmarkMarker position={[1, 6.4, 0]} count={hasMentor ? 0 : 1} color="#7c3aed" />
     </group>

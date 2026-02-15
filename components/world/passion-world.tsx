@@ -973,7 +973,10 @@ export default function PassionWorld({ data }: { data: WorldData }) {
 
       {/* Passion Discovery Quiz */}
       {showQuiz && (
-        <DiscoveryQuizPanel onClose={() => setShowQuiz(false)} />
+        <DiscoveryQuizPanel
+          onClose={() => setShowQuiz(false)}
+          onIslandsCreated={() => router.refresh()}
+        />
       )}
 
       {/* Onboarding tutorial (first visit only) */}

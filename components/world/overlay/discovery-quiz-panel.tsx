@@ -84,14 +84,16 @@ const PASSION_INFO: Record<string, { name: string; icon: string; color: string }
 
 interface DiscoveryQuizPanelProps {
   onClose: () => void;
+  onIslandsCreated?: () => void;
 }
 
-export const DiscoveryQuizPanel = memo(function DiscoveryQuizPanel({ onClose }: DiscoveryQuizPanelProps) {
+export const DiscoveryQuizPanel = memo(function DiscoveryQuizPanel({ onClose, onIslandsCreated }: DiscoveryQuizPanelProps) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
   const [isComplete, setIsComplete] = useState(false);
   const [results, setResults] = useState<Record<string, number>>({});
   const [xpEarned, setXpEarned] = useState<number | null>(null);
+  const [islandsCreated, setIslandsCreated] = useState(0);
   const [saving, setSaving] = useState(false);
 
   const calculateResults = useCallback((allAnswers: number[]) => {
@@ -116,6 +118,10 @@ export const DiscoveryQuizPanel = memo(function DiscoveryQuizPanel({ onClose }: 
       .then((res) => res.json())
       .then((data) => {
         if (data.xpEarned) setXpEarned(data.xpEarned);
+        if (data.islandsCreated > 0) {
+          setIslandsCreated(data.islandsCreated);
+          onIslandsCreated?.();
+        }
       })
       .catch((err) => console.error("[DiscoveryQuiz] save error:", err))
       .finally(() => setSaving(false));
@@ -195,6 +201,11 @@ export const DiscoveryQuizPanel = memo(function DiscoveryQuizPanel({ onClose }: 
             {xpEarned && (
               <div className={styles.quizXpBanner}>
                 +{xpEarned} XP earned!
+              </div>
+            )}
+            {islandsCreated > 0 && (
+              <div className={styles.quizXpBanner} style={{ color: "#4ade80" }}>
+                {islandsCreated} new island{islandsCreated > 1 ? "s" : ""} created!
               </div>
             )}
             <div className={styles.quizResultsTitle}>Your Top Passions</div>

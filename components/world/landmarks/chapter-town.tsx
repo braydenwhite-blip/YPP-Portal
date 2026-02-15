@@ -2,9 +2,9 @@
 
 import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Billboard, Text } from "@react-three/drei";
 import * as THREE from "three";
 import { LandmarkMarker } from "./landmark-marker";
+import { Label3D } from "../scene/label-3d";
 
 interface ChapterTownProps {
   position: [number, number, number];
@@ -158,16 +158,12 @@ export function ChapterTown3D({
       </mesh>
 
       {/* Label */}
-      <Billboard position={[0.5, 4.5, 0]}>
-        <Text fontSize={0.6} color="#1e40af" fontWeight={700} outlineWidth={0.04} outlineColor="#000">
-          {chapterName ?? "Chapter Town"}
-        </Text>
+      <Label3D position={[0.5, 4.5, 0]} color="#1e40af" fontSize={14} bold outline>
+        {chapterName ?? "Chapter Town"}
         {memberCount > 0 && (
-          <Text fontSize={0.4} color="#3b82f6" position={[0, -0.6, 0]} outlineWidth={0.03} outlineColor="#000">
-            {memberCount} explorers
-          </Text>
+          <><br /><span style={{ fontSize: "11px", color: "#3b82f6" }}>{memberCount} explorers</span></>
         )}
-      </Billboard>
+      </Label3D>
 
       <LandmarkMarker position={[2.5, 4.7, 0]} count={hasChapter ? 0 : 1} color="#3b82f6" />
     </group>

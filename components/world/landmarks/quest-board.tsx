@@ -2,9 +2,9 @@
 
 import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Billboard, Text } from "@react-three/drei";
 import * as THREE from "three";
 import { LandmarkMarker } from "./landmark-marker";
+import { Label3D } from "../scene/label-3d";
 
 interface QuestBoardProps {
   position: [number, number, number];
@@ -78,22 +78,18 @@ export function QuestBoard3D({
         <meshStandardMaterial color="#DEB887" />
       </mesh>
       {/* Plank text */}
-      <Billboard position={[0, 2.2, 0.22]}>
-        <Text fontSize={0.22} color="#5C3317" fontWeight={700}>
-          QUESTS
-        </Text>
-      </Billboard>
+      <Label3D position={[0, 2.2, 0.22]} color="#5C3317" fontSize={10} bold>
+        QUESTS
+      </Label3D>
 
       {/* Bottom sign plank */}
       <mesh position={[0, 1.4, 0.15]}>
         <boxGeometry args={[1.6, 0.5, 0.08]} />
         <meshStandardMaterial color="#DEB887" />
       </mesh>
-      <Billboard position={[0, 1.4, 0.22]}>
-        <Text fontSize={0.18} color="#5C3317">
-          {questCount > 0 ? `${questCount} Active` : "No Quests"}
-        </Text>
-      </Billboard>
+      <Label3D position={[0, 1.4, 0.22]} color="#5C3317" fontSize={9}>
+        {questCount > 0 ? `${questCount} Active` : "No Quests"}
+      </Label3D>
 
       {/* Scroll meshes based on quest count */}
       <group ref={scrollGroupRef}>
@@ -157,11 +153,9 @@ export function QuestBoard3D({
       </mesh>
 
       {/* Label */}
-      <Billboard position={[0, 3.3, 0]}>
-        <Text fontSize={0.6} color="#8B6914" fontWeight={700} outlineWidth={0.04} outlineColor="#000">
-          Quest Board
-        </Text>
-      </Billboard>
+      <Label3D position={[0, 3.3, 0]} color="#8B6914" fontSize={14} bold outline>
+        Quest Board
+      </Label3D>
 
       <LandmarkMarker position={[1.2, 3.5, 0]} count={questCount} color="#f59e0b" />
     </group>
