@@ -179,6 +179,12 @@ function buildSections(roles: string[], awardTier?: string): NavSection[] {
     { href: "/portfolio/templates", label: "Portfolio Templates", icon: "\uD83D\uDCC2" },
     { href: "/events/map", label: "Chapter Events Map", icon: "\uD83D\uDDFA" },
   ];
+  if (isApplicant || isAdmin) {
+    realWorldItems.push(
+      { href: "/positions", label: "Leadership/Instructor Openings", icon: "\uD83D\uDCCC" },
+      { href: "/applications", label: "My Applications", icon: "\uD83D\uDCE8" },
+    );
+  }
   if (isInstructor || isAdmin) {
     realWorldItems.push({ href: "/instructor/certification-pathway", label: "Cert Pathway", icon: "\uD83D\uDCDC" });
   }
