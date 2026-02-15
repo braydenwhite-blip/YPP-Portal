@@ -9,6 +9,7 @@ import React, {
   memo,
 } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import type { WorldData, PassionIsland } from "@/lib/world-actions";
 import styles from "./passion-world.module.css";
 import { LEVEL_LABELS, getTheme, getTreeData } from "./constants";
@@ -549,6 +550,21 @@ class SceneErrorBoundary extends React.Component<
   }
 }
 
+// Dynamically load the 3D scene — creates a separate webpack chunk.
+// next/dynamic handles SSR safety, loading states, and chunk error recovery.
+const WorldScene3D = dynamic(
+  () => import("./scene/world-scene").then((mod) => ({ default: mod.WorldScene })),
+  {
+    ssr: false,
+    loading: () => (
+      <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "white", gap: "0.5rem", background: "linear-gradient(180deg, #0c4a6e, #0369a1)" }}>
+        <div style={{ fontSize: "1.2rem" }}>Loading 3D world...</div>
+        <div style={{ fontSize: "0.8rem", opacity: 0.6 }}>This may take a moment</div>
+      </div>
+    ),
+  },
+);
+
 // ═══════════════════════════════════════════════════════════════
 // MAIN PASSION WORLD COMPONENT
 // ═══════════════════════════════════════════════════════════════
@@ -570,9 +586,7 @@ export default function PassionWorld({ data }: { data: WorldData }) {
   const tier = useDeviceTier();
   const [use3D, setUse3D] = useState(false);
   const [sceneError, setSceneError] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [SceneComp, setSceneComp] = useState<React.ComponentType<any> | null>(null);
-  const sceneLoadAttempted = useRef(false);
+  const [sceneTimedOut, setSceneTimedOut] = useState(false);
 
   // Clear entering state after animation completes
   useEffect(() => {
@@ -592,22 +606,17 @@ export default function PassionWorld({ data }: { data: WorldData }) {
     setUse3D(webgl);
   }, []);
 
-  // Dynamically import the 3D scene module only when use3D is true.
-  // This isolates the entire Three.js/R3F bundle so failures don't block the UI.
+  // Timeout: if 3D scene hasn't loaded in 20s, fall back to SVG.
+  // The Three.js bundle is large; on slow connections it may never arrive.
+  // introComplete cancels the timer (scene loaded & intro animation finished).
   useEffect(() => {
-    if (!use3D || sceneError || SceneComp || sceneLoadAttempted.current) return;
-    sceneLoadAttempted.current = true;
-    console.log("[PassionWorld] Loading 3D scene module...");
-    import("./scene/world-scene")
-      .then((mod) => {
-        console.log("[PassionWorld] 3D scene module loaded successfully");
-        setSceneComp(() => mod.WorldScene);
-      })
-      .catch((err) => {
-        console.error("[PassionWorld] Failed to load 3D scene module:", err);
-        setSceneError(true);
-      });
-  }, [use3D, sceneError, SceneComp]);
+    if (!use3D || sceneError || sceneTimedOut || introComplete) return;
+    const timer = setTimeout(() => {
+      console.warn("[PassionWorld] 3D scene load timed out, falling back to SVG");
+      setSceneTimedOut(true);
+    }, 20000);
+    return () => clearTimeout(timer);
+  }, [use3D, sceneError, sceneTimedOut, introComplete]);
 
   // rAF-based pan state (refs to avoid re-renders during drag)
   const isDraggingRef = useRef(false);
@@ -760,16 +769,16 @@ export default function PassionWorld({ data }: { data: WorldData }) {
         {soundEnabled ? "\u{1F50A}" : "\u{1F507}"}
       </button>
 
-      {use3D && !sceneError && SceneComp ? (
+      {use3D && !sceneError && !sceneTimedOut ? (
         /* ─── 3D Canvas path (dynamically loaded to isolate Three.js bundle) ─── */
         <SceneErrorBoundary onError={() => setSceneError(true)}>
-          <SceneComp
+          <WorldScene3D
             tier={tier}
             data={data}
             filteredIds={filteredIds}
             onCameraMove={setCameraTarget}
             onIntroComplete={() => setIntroComplete(true)}
-            onSelectIsland={(island: PassionIsland | null) => {
+            onSelectIsland={(island) => {
               setSelectedIsland(island);
               if (island) {
                 setSelectedLandmark(null);
@@ -778,7 +787,7 @@ export default function PassionWorld({ data }: { data: WorldData }) {
                 playSound("deselect");
               }
             }}
-            onSelectLandmark={(lm: LandmarkType) => {
+            onSelectLandmark={(lm) => {
               setSelectedLandmark(lm);
               if (lm) {
                 setSelectedIsland(null);
