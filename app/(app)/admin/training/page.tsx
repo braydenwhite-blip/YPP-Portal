@@ -45,6 +45,9 @@ export default async function AdminTrainingPage() {
     videoProvider: m.videoProvider,
     videoDuration: m.videoDuration,
     videoThumbnail: m.videoThumbnail,
+    requiresQuiz: m.requiresQuiz,
+    requiresEvidence: m.requiresEvidence,
+    passScorePct: m.passScorePct,
     assignmentCount: m._count.assignments,
     assignments: m.assignments.map((a) => ({
       id: a.id,

@@ -1,8 +1,23 @@
 import { prisma } from "@/lib/prisma";
-import { submitTrainingEvidence } from "@/lib/upload-actions";
+import { submitTrainingEvidence } from "@/lib/training-actions";
 import FileUpload from "@/components/file-upload";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 export default async function InstructorTrainingPage() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
+
+  const roles = session.user.roles ?? [];
+  const canAccess =
+    roles.includes("ADMIN") || roles.includes("INSTRUCTOR") || roles.includes("CHAPTER_LEAD");
+  if (!canAccess) {
+    redirect("/");
+  }
+
   const modules = await prisma.trainingModule.findMany({
     orderBy: { sortOrder: "asc" }
   });
@@ -31,7 +46,7 @@ export default async function InstructorTrainingPage() {
           <h3>Training Program Structure</h3>
           <p>
             All instructors complete a shared sequence before teaching. Approval is granted by level
-            (101, 201, 301) after interviews and training completion.
+            (101, 201, 301, 401) after interviews and training completion.
           </p>
           <div className="timeline" style={{ marginTop: 16 }}>
             {modules.map((module) => (

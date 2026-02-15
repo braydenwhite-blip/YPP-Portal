@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { assertCanPublishOffering } from "@/lib/instructor-readiness";
 
 type WeeklyTopic = {
   week?: number;
@@ -515,6 +516,15 @@ export async function updateClassOffering(formData: FormData) {
     | "CANCELLED"
     | "";
 
+  const movesIntoLiveState =
+    (status === "PUBLISHED" || status === "IN_PROGRESS") &&
+    existing.status !== "PUBLISHED" &&
+    existing.status !== "IN_PROGRESS";
+
+  if (movesIntoLiveState) {
+    await assertCanPublishOffering(existing.instructorId, existing.templateId, existing.id);
+  }
+
   const send24Hr = formData.get("send24HrReminder") !== "false";
   const send1Hr = formData.get("send1HrReminder") !== "false";
 
@@ -552,6 +562,8 @@ export async function publishClassOffering(id: string) {
   if (existing.instructorId !== session.user.id && !roles.includes("ADMIN")) {
     throw new Error("Not authorized");
   }
+
+  await assertCanPublishOffering(existing.instructorId, existing.templateId, existing.id);
 
   await prisma.classOffering.update({
     where: { id },

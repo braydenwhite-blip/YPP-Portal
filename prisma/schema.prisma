@@ -40,6 +40,7 @@ enum CourseLevel {
   LEVEL_101
   LEVEL_201
   LEVEL_301
+  LEVEL_401
 }
 
 enum TrainingModuleType {
@@ -60,6 +61,57 @@ enum ApprovalStatus {
   TRAINING_IN_PROGRESS
   APPROVED
   PAUSED
+}
+
+enum TrainingEvidenceStatus {
+  PENDING_REVIEW
+  APPROVED
+  REVISION_REQUESTED
+  REJECTED
+}
+
+enum ReadinessReviewStatus {
+  REQUESTED
+  UNDER_REVIEW
+  APPROVED
+  REVISION_REQUESTED
+  REJECTED
+}
+
+enum InterviewGateStatus {
+  REQUIRED
+  SCHEDULED
+  COMPLETED
+  PASSED
+  HOLD
+  FAILED
+  WAIVED
+}
+
+enum InterviewSlotSource {
+  REVIEWER_POSTED
+  INSTRUCTOR_REQUESTED
+}
+
+enum InterviewSlotStatus {
+  POSTED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum InterviewRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+enum InterviewOutcome {
+  PASS
+  HOLD
+  FAIL
+  WAIVE
 }
 
 enum MentorshipType {
@@ -181,6 +233,19 @@ model User {
   courses       Course[]   @relation("InstructorCourses")
   enrollments   Enrollment[]
   trainings     TrainingAssignment[]
+  trainingCheckpointCompletions TrainingCheckpointCompletion[] @relation("TrainingCheckpointCompletions")
+  trainingQuizAttempts          TrainingQuizAttempt[]          @relation("TrainingQuizAttempts")
+  trainingEvidenceSubmissions   TrainingEvidenceSubmission[]   @relation("TrainingEvidenceSubmissions")
+  trainingEvidenceReviews       TrainingEvidenceSubmission[]   @relation("TrainingEvidenceReviews")
+  readinessReviewRequests       ReadinessReviewRequest[]       @relation("ReadinessReviewRequests")
+  readinessReviewDecisions      ReadinessReviewRequest[]       @relation("ReadinessReviewDecisions")
+  teachingPermissions           InstructorTeachingPermission[] @relation("TeachingPermissions")
+  teachingPermissionGrants      InstructorTeachingPermission[] @relation("TeachingPermissionGrants")
+  interviewGate                 InstructorInterviewGate?       @relation("InstructorInterviewGateOwner")
+  interviewGateReviews          InstructorInterviewGate[]      @relation("InstructorInterviewGateReviews")
+  interviewSlotsCreated         InstructorInterviewSlot[]      @relation("InstructorInterviewSlotsCreated")
+  interviewAvailabilityRequests InstructorInterviewAvailabilityRequest[] @relation("InstructorInterviewAvailabilityRequests")
+  interviewAvailabilityReviews  InstructorInterviewAvailabilityRequest[] @relation("InstructorInterviewAvailabilityReviews")
   approvals     InstructorApproval[]
   mentorPairs   Mentorship[] @relation("MentorLinks")
   menteePairs   Mentorship[] @relation("MenteeLinks")
@@ -529,11 +594,18 @@ model TrainingModule {
   videoProvider  VideoProvider?
   videoDuration  Int?              // Duration in seconds
   videoThumbnail String?
+  requiresQuiz   Boolean           @default(false)
+  requiresEvidence Boolean         @default(false)
+  passScorePct   Int               @default(80)
 
-  assignments    TrainingAssignment[]
-  videoProgress  VideoProgress[]
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
+  assignments      TrainingAssignment[]
+  videoProgress    VideoProgress[]
+  checkpoints      TrainingCheckpoint[]
+  quizQuestions    TrainingQuizQuestion[]
+  quizAttempts     TrainingQuizAttempt[]
+  evidenceSubmissions TrainingEvidenceSubmission[]
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
 }
 
 enum VideoProvider {
@@ -553,6 +625,8 @@ model TrainingAssignment {
   module      TrainingModule @relation(fields: [moduleId], references: [id])
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
+
+  @@unique([userId, moduleId])
 }
 
 model VideoProgress {
@@ -588,6 +662,177 @@ model InstructorApprovalLevel {
   level      CourseLevel
   approvedAt DateTime           @default(now())
   approval   InstructorApproval @relation(fields: [approvalId], references: [id])
+}
+
+model TrainingCheckpoint {
+  id          String              @id @default(cuid())
+  moduleId    String
+  module      TrainingModule      @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  sortOrder   Int                 @default(1)
+  required    Boolean             @default(true)
+  completions TrainingCheckpointCompletion[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([moduleId, sortOrder])
+}
+
+model TrainingCheckpointCompletion {
+  id          String             @id @default(cuid())
+  checkpointId String
+  checkpoint  TrainingCheckpoint @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User               @relation("TrainingCheckpointCompletions", fields: [userId], references: [id])
+  notes       String?
+  completedAt DateTime           @default(now())
+  createdAt   DateTime           @default(now())
+
+  @@unique([checkpointId, userId])
+  @@index([userId])
+}
+
+model TrainingQuizQuestion {
+  id           String         @id @default(cuid())
+  moduleId     String
+  module       TrainingModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  question     String
+  options      Json
+  correctAnswer String
+  sortOrder    Int            @default(1)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([moduleId, sortOrder])
+}
+
+model TrainingQuizAttempt {
+  id          String         @id @default(cuid())
+  moduleId    String
+  module      TrainingModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User           @relation("TrainingQuizAttempts", fields: [userId], references: [id])
+  scorePct    Int
+  passed      Boolean
+  answers     Json?
+  attemptedAt DateTime       @default(now())
+  createdAt   DateTime       @default(now())
+
+  @@index([moduleId, userId])
+}
+
+model TrainingEvidenceSubmission {
+  id            String               @id @default(cuid())
+  moduleId      String
+  module        TrainingModule       @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User                 @relation("TrainingEvidenceSubmissions", fields: [userId], references: [id])
+  fileUrl       String
+  notes         String?
+  status        TrainingEvidenceStatus @default(PENDING_REVIEW)
+  reviewedById  String?
+  reviewedBy    User?                @relation("TrainingEvidenceReviews", fields: [reviewedById], references: [id])
+  reviewedAt    DateTime?
+  reviewNotes   String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@index([moduleId, userId])
+  @@index([status])
+}
+
+model ReadinessReviewRequest {
+  id           String             @id @default(cuid())
+  instructorId String
+  instructor   User               @relation("ReadinessReviewRequests", fields: [instructorId], references: [id])
+  status       ReadinessReviewStatus @default(REQUESTED)
+  notes        String?
+  requestedAt  DateTime           @default(now())
+  reviewedById String?
+  reviewedBy   User?              @relation("ReadinessReviewDecisions", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  reviewNotes  String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([instructorId, status])
+  @@index([status])
+}
+
+model InstructorTeachingPermission {
+  id           String     @id @default(cuid())
+  instructorId String
+  instructor   User       @relation("TeachingPermissions", fields: [instructorId], references: [id])
+  level        CourseLevel
+  grantedById  String
+  grantedBy    User       @relation("TeachingPermissionGrants", fields: [grantedById], references: [id])
+  reason       String?
+  grantedAt    DateTime   @default(now())
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([instructorId, level])
+}
+
+model InstructorInterviewGate {
+  id                 String              @id @default(cuid())
+  instructorId       String              @unique
+  instructor         User                @relation("InstructorInterviewGateOwner", fields: [instructorId], references: [id])
+  status             InterviewGateStatus @default(REQUIRED)
+  outcome            InterviewOutcome?
+  scheduledAt        DateTime?
+  completedAt        DateTime?
+  reviewedById       String?
+  reviewedBy         User?               @relation("InstructorInterviewGateReviews", fields: [reviewedById], references: [id])
+  reviewedAt         DateTime?
+  reviewNotes        String?
+  slots              InstructorInterviewSlot[]
+  availabilityRequests InstructorInterviewAvailabilityRequest[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+}
+
+model InstructorInterviewSlot {
+  id          String              @id @default(cuid())
+  gateId      String
+  gate        InstructorInterviewGate @relation(fields: [gateId], references: [id], onDelete: Cascade)
+  createdById String
+  createdBy   User                @relation("InstructorInterviewSlotsCreated", fields: [createdById], references: [id])
+  source      InterviewSlotSource @default(REVIEWER_POSTED)
+  status      InterviewSlotStatus @default(POSTED)
+  scheduledAt DateTime
+  duration    Int                 @default(30)
+  meetingLink String?
+  confirmedAt DateTime?
+  completedAt DateTime?
+  notes       String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([gateId, status])
+  @@index([scheduledAt])
+  @@unique([gateId, scheduledAt])
+}
+
+model InstructorInterviewAvailabilityRequest {
+  id            String                @id @default(cuid())
+  gateId        String
+  gate          InstructorInterviewGate @relation(fields: [gateId], references: [id], onDelete: Cascade)
+  instructorId  String
+  instructor    User                  @relation("InstructorInterviewAvailabilityRequests", fields: [instructorId], references: [id])
+  preferredSlots Json
+  note          String?
+  status        InterviewRequestStatus @default(PENDING)
+  reviewedById  String?
+  reviewedBy    User?                 @relation("InstructorInterviewAvailabilityReviews", fields: [reviewedById], references: [id])
+  reviewedAt    DateTime?
+  reviewNotes   String?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  @@index([gateId, status])
+  @@index([instructorId, status])
 }
 
 // ============================================
@@ -3850,6 +4095,7 @@ model ClassOffering {
   status          ClassOfferingStatus @default(DRAFT)
   chapterId       String?
   semester        String?             // "Spring 2025", "Fall 2025"
+  grandfatheredTrainingExemption Boolean @default(false)
 
   // Relations
   sessions        ClassSession[]

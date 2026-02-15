@@ -14,7 +14,8 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "backfill:instructor-readiness": "node scripts/backfill-native-instructor-readiness.mjs"
   },
   "dependencies": {
     "@prisma/client": "^5.18.0",

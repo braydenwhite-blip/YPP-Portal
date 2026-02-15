@@ -270,7 +270,11 @@ export async function makeDecision(formData: FormData) {
     if (accepted) {
       const application = await tx.application.findUnique({
         where: { id: applicationId },
-        include: { position: true }
+        include: {
+          position: true,
+          interviewSlots: true,
+          interviewNotes: true,
+        }
       });
 
       if (application) {
@@ -320,6 +324,38 @@ export async function makeDecision(formData: FormData) {
           await tx.user.update({
             where: { id: application.applicantId },
             data: { chapterId: application.position.chapterId }
+          });
+        }
+
+        // Bridge accepted instructor applications into the native interview gate.
+        if (application.position.type === "INSTRUCTOR") {
+          const hasCompletedInterviewEvidence =
+            application.interviewNotes.length > 0 ||
+            application.interviewSlots.some((slot) => slot.isConfirmed);
+
+          await tx.instructorInterviewGate.upsert({
+            where: { instructorId: application.applicantId },
+            create: {
+              instructorId: application.applicantId,
+              status: hasCompletedInterviewEvidence ? "PASSED" : "REQUIRED",
+              outcome: hasCompletedInterviewEvidence ? "PASS" : null,
+              completedAt: hasCompletedInterviewEvidence ? new Date() : null,
+              reviewedById: hasCompletedInterviewEvidence ? session.user.id : null,
+              reviewedAt: hasCompletedInterviewEvidence ? new Date() : null,
+              reviewNotes: hasCompletedInterviewEvidence
+                ? "Auto-passed from accepted instructor application interview evidence."
+                : "Accepted instructor application requires native interview gate completion.",
+            },
+            update: {
+              status: hasCompletedInterviewEvidence ? "PASSED" : "REQUIRED",
+              outcome: hasCompletedInterviewEvidence ? "PASS" : null,
+              completedAt: hasCompletedInterviewEvidence ? new Date() : null,
+              reviewedById: hasCompletedInterviewEvidence ? session.user.id : null,
+              reviewedAt: hasCompletedInterviewEvidence ? new Date() : null,
+              reviewNotes: hasCompletedInterviewEvidence
+                ? "Auto-passed from accepted instructor application interview evidence."
+                : "Accepted instructor application requires native interview gate completion.",
+            },
           });
         }
       }

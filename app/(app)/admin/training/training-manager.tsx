@@ -33,6 +33,9 @@ interface Module {
   videoProvider: string | null;
   videoDuration: number | null;
   videoThumbnail: string | null;
+  requiresQuiz: boolean;
+  requiresEvidence: boolean;
+  passScorePct: number;
   assignmentCount: number;
   assignments: Assignment[];
 }
@@ -206,6 +209,35 @@ export default function TrainingManager({
                   defaultChecked={editingModule ? modules.find((m) => m.id === editingModule)?.required : true}
                 />
                 Required for all instructors
+              </label>
+            </div>
+            <div className="grid three">
+              <label className="form-row" style={{ display: "flex", gap: 8, alignItems: "center", paddingTop: 24 }}>
+                <input
+                  type="checkbox"
+                  name="requiresQuiz"
+                  defaultChecked={editingModule ? modules.find((m) => m.id === editingModule)?.requiresQuiz : false}
+                />
+                Require quiz
+              </label>
+              <label className="form-row" style={{ display: "flex", gap: 8, alignItems: "center", paddingTop: 24 }}>
+                <input
+                  type="checkbox"
+                  name="requiresEvidence"
+                  defaultChecked={editingModule ? modules.find((m) => m.id === editingModule)?.requiresEvidence : false}
+                />
+                Require evidence review
+              </label>
+              <label className="form-row">
+                Pass score %
+                <input
+                  className="input"
+                  name="passScorePct"
+                  type="number"
+                  min={1}
+                  max={100}
+                  defaultValue={editingModule ? modules.find((m) => m.id === editingModule)?.passScorePct ?? 80 : 80}
+                />
               </label>
             </div>
             <input type="hidden" name="videoThumbnail" value="" />

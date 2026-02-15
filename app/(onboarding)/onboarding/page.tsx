@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import OnboardingWizard from "@/components/onboarding/onboarding-wizard";
+import { getNextRequiredAction } from "@/lib/instructor-readiness";
 
 export default async function OnboardingPage() {
   const session = await getServerSession(authOptions);
@@ -56,6 +57,10 @@ export default async function OnboardingPage() {
   }
 
   const roles = user.roles.map((r) => r.role);
+  const isInstructor = roles.includes("INSTRUCTOR") || roles.includes("ADMIN");
+  const instructorNextAction = isInstructor
+    ? await getNextRequiredAction(user.id)
+    : null;
 
   // Fetch active pathways with their steps for the pathway selection
   const pathways = await prisma.pathway.findMany({
@@ -107,6 +112,7 @@ export default async function OnboardingPage() {
         })),
       }))}
       enrolledCourseIds={enrolledCourseIds}
+      instructorNextAction={instructorNextAction}
     />
   );
 }

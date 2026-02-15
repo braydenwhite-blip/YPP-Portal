@@ -38,6 +38,11 @@ interface OnboardingWizardProps {
   } | null;
   pathways: PathwayOption[];
   enrolledCourseIds: string[];
+  instructorNextAction?: {
+    title: string;
+    detail: string;
+    href: string;
+  } | null;
 }
 
 export default function OnboardingWizard({
@@ -49,6 +54,7 @@ export default function OnboardingWizard({
   profileData,
   pathways,
   enrolledCourseIds,
+  instructorNextAction,
 }: OnboardingWizardProps) {
   const isInstructor = primaryRole === "INSTRUCTOR" || roles.includes("INSTRUCTOR");
   const totalSteps = 5;
@@ -173,6 +179,7 @@ export default function OnboardingWizard({
               userName={userName}
               chapterName={chapterName}
               profileData={profileData}
+              nextReadinessAction={instructorNextAction}
               onNext={goNext}
               onBack={goBack}
               onProfileSave={handleProfileSave}

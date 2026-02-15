@@ -28,6 +28,17 @@ Dedicated portal for YPP Pathways (curriculum structure, instructor training, me
 - Goal template management and assignment
 - View all staff reflections and progress updates
 
+### Native Instructor Readiness (Training + Interview Gate)
+- Training academy completion is enforced by module requirements (video/checkpoints/quiz/evidence)
+- Instructors can schedule interviews from training progress via:
+  - posted reviewer slots, or
+  - preferred-time availability requests
+- Admin + Chapter Lead readiness command centers:
+  - `/admin/instructor-readiness`
+  - `/chapter-lead/instructor-readiness`
+- Class offering publish flow now enforces readiness before first publish
+- Existing live offerings are protected with `grandfatheredTrainingExemption`
+
 ## Tech Stack
 - **Framework:** Next.js 14 (App Router)
 - **Database:** PostgreSQL with Prisma ORM
@@ -81,6 +92,8 @@ Dedicated portal for YPP Pathways (curriculum structure, instructor training, me
 | `DATABASE_URL` | Pooled connection (e.g. port 6543 via PgBouncer). Used at runtime by the app. |
 | `DIRECT_URL` | Direct connection (e.g. port 5432). Used by Prisma for migrations. |
 | `PRISMA_RUNTIME_DATABASE_URL` | Optional override for app runtime queries. If set, this is used instead of `DATABASE_URL`. |
+| `ENABLE_NATIVE_INSTRUCTOR_GATE` | Enable native readiness gate (`true`/`false`, defaults to enabled). |
+| `ENFORCE_PRE_OFFERING_INTERVIEW` | Enforce interview requirement before first publish (`true`/`false`, defaults to enabled). |
 
 Both are required for production. If you are not using connection pooling, they can be the same URL.
 
@@ -111,6 +124,15 @@ DATABASE_URL="..." DIRECT_URL="..." npx prisma migrate deploy
 - Never use `prisma db push` in production — it can drop columns/data.
 - Always use `prisma migrate deploy` which only applies committed migration files.
 - `DIRECT_URL` must point to a non-pooled connection for migrations to work.
+
+### Backfill Native Instructor Readiness
+After deploying migrations, run:
+
+```bash
+node scripts/backfill-native-instructor-readiness.mjs
+```
+
+This script is idempotent and safe to rerun.
 
 ## Vercel Deployment
 
@@ -209,6 +231,9 @@ See [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) for the full feature road
 - Special Programming (Passion Labs, etc.)
 - Alumni & Awards System
 - And more...
+
+## Operator Runbook
+- Native training + interview workflow: [`docs/brayden/instructor-training-interview-native-runbook.md`](./docs/brayden/instructor-training-interview-native-runbook.md)
 
 ## Notes
 - To align with the Wix site, keep branding consistent (colors, fonts, logo).

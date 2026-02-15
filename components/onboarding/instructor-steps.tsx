@@ -13,6 +13,11 @@ interface InstructorStepsProps {
     interests?: string[];
     curriculumUrl?: string | null;
   } | null;
+  nextReadinessAction?: {
+    title: string;
+    detail: string;
+    href: string;
+  } | null;
   onNext: () => void;
   onBack: () => void;
   onProfileSave: (formData: FormData) => void;
@@ -25,6 +30,7 @@ export default function InstructorSteps({
   userName,
   chapterName,
   profileData,
+  nextReadinessAction,
   onNext,
   onBack,
   onProfileSave,
@@ -63,7 +69,7 @@ export default function InstructorSteps({
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
             </div>
             <h3>Level Up</h3>
-            <p>Complete training modules to unlock teaching at higher levels (101 &rarr; 201 &rarr; 301).</p>
+            <p>Complete training modules to unlock teaching at higher levels (101 &rarr; 201 &rarr; 301 &rarr; 401).</p>
           </div>
           <div className="onboarding-feature-card">
             <div className="onboarding-feature-icon">
@@ -238,6 +244,13 @@ export default function InstructorSteps({
           <strong>Your training modules</strong> will appear on the Instructor Training
           page once assigned. You can track your progress there at any time.
         </div>
+        {nextReadinessAction && (
+          <div className="onboarding-callout" style={{ marginTop: 12 }}>
+            <strong>Current next action:</strong> {nextReadinessAction.title}
+            <br />
+            {nextReadinessAction.detail}
+          </div>
+        )}
 
         <div className="onboarding-actions">
           <button className="button" onClick={onNext} disabled={isPending}>
@@ -270,13 +283,14 @@ export default function InstructorSteps({
             <h3>Course Levels &amp; Approval</h3>
             <p>
               Instructors are approved to teach at specific levels. Start at 101 and
-              work your way up to 201 and 301 as you gain experience and complete
+              work your way up to 201, 301, and 401 as you gain experience and complete
               additional training.
             </p>
             <div className="onboarding-level-badges">
               <span className="pill level-101">101 - Foundations</span>
               <span className="pill level-201">201 - Intermediate</span>
               <span className="pill level-301">301 - Advanced</span>
+              <span className="pill level-301">401 - Mastery</span>
             </div>
           </div>
           <div className="onboarding-info-card">
@@ -333,11 +347,11 @@ export default function InstructorSteps({
       </p>
 
       <div className="onboarding-quicklinks">
-        <a href="/instructor-training" className="onboarding-quicklink">
+        <a href="/instructor/training-progress" className="onboarding-quicklink">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
           <div>
-            <strong>Instructor Training</strong>
-            <span>Complete your training modules and get approved</span>
+            <strong>Training Progress</strong>
+            <span>Complete modules, schedule interview, and unlock publishing</span>
           </div>
         </a>
         <a href="/curriculum" className="onboarding-quicklink">

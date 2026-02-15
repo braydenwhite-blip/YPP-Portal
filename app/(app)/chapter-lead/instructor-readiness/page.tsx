@@ -29,12 +29,43 @@ function toDateTimeLocal(value: Date) {
   return local.toISOString().slice(0, 16);
 }
 
-export default async function InstructorReadinessPage() {
+export default async function ChapterLeadInstructorReadinessPage() {
   const session = await getServerSession(authOptions);
-  const roles = session?.user?.roles ?? [];
-  if (!roles.includes("ADMIN")) {
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
+
+  const roles = session.user.roles ?? [];
+  const canAccess = roles.includes("CHAPTER_LEAD") || roles.includes("ADMIN");
+  if (!canAccess) {
     redirect("/");
   }
+
+  const currentUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: {
+      chapterId: true,
+      chapter: { select: { name: true } },
+    },
+  });
+
+  if (!currentUser?.chapterId) {
+    return (
+      <div>
+        <div className="topbar">
+          <div>
+            <p className="badge">Chapter Lead</p>
+            <h1 className="page-title">Instructor Readiness</h1>
+          </div>
+        </div>
+        <div className="card">
+          <p className="empty">No chapter is assigned to your account.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const chapterId = currentUser.chapterId;
 
   const [requiredModules, instructors, evidenceQueue, readinessQueue, interviewQueue] =
     await Promise.all([
@@ -43,7 +74,10 @@ export default async function InstructorReadinessPage() {
         select: { id: true },
       }),
       prisma.user.findMany({
-        where: { roles: { some: { role: "INSTRUCTOR" } } },
+        where: {
+          chapterId,
+          roles: { some: { role: "INSTRUCTOR" } },
+        },
         select: {
           id: true,
           name: true,
@@ -90,6 +124,7 @@ export default async function InstructorReadinessPage() {
       prisma.trainingEvidenceSubmission.findMany({
         where: {
           status: { in: ["PENDING_REVIEW", "REVISION_REQUESTED"] },
+          user: { chapterId },
         },
         orderBy: { createdAt: "asc" },
         select: {
@@ -105,6 +140,7 @@ export default async function InstructorReadinessPage() {
       prisma.readinessReviewRequest.findMany({
         where: {
           status: { in: ["REQUESTED", "UNDER_REVIEW", "REVISION_REQUESTED"] },
+          instructor: { chapterId },
         },
         orderBy: { requestedAt: "asc" },
         select: {
@@ -125,6 +161,7 @@ export default async function InstructorReadinessPage() {
       prisma.instructorInterviewGate.findMany({
         where: {
           status: { in: ["REQUIRED", "SCHEDULED", "COMPLETED", "HOLD", "FAILED"] },
+          instructor: { chapterId },
         },
         orderBy: { updatedAt: "desc" },
         include: {
@@ -155,7 +192,6 @@ export default async function InstructorReadinessPage() {
   );
   const readinessByInstructor = new Map(readinessEntries);
 
-  const totalInstructors = instructors.length;
   const trainingComplete = instructors.filter((instructor) => {
     const completedIds = new Set(
       instructor.trainings
@@ -166,44 +202,28 @@ export default async function InstructorReadinessPage() {
     return requiredModules.every((module) => completedIds.has(module.id));
   }).length;
 
-  const interviewPassed = instructors.filter((instructor) => {
-    const status = instructor.interviewGate?.status;
-    return status === "PASSED" || status === "WAIVED";
-  }).length;
-
-  const readyToPublish = instructors.filter((instructor) => {
-    const readiness = readinessByInstructor.get(instructor.id);
-    return readiness?.canPublishFirstOffering;
-  }).length;
-
   return (
     <div>
       <div className="topbar">
         <div>
-          <p className="badge">Admin</p>
-          <h1 className="page-title">Instructor Readiness Command Center</h1>
-          <p className="page-subtitle">
-            Resolve training blockers, interview scheduling, and teaching permissions before first publish.
-          </p>
+          <p className="badge">Chapter Lead</p>
+          <h1 className="page-title">Instructor Readiness ({currentUser.chapter?.name})</h1>
+          <p className="page-subtitle">Chapter-scoped readiness queue for training and interview blockers.</p>
         </div>
       </div>
 
-      <div className="grid four" style={{ marginBottom: 20 }}>
+      <div className="grid three" style={{ marginBottom: 20 }}>
         <div className="card">
-          <div className="kpi">{totalInstructors}</div>
-          <div className="kpi-label">Instructors</div>
+          <div className="kpi">{instructors.length}</div>
+          <div className="kpi-label">Chapter Instructors</div>
         </div>
         <div className="card">
           <div className="kpi">{trainingComplete}</div>
           <div className="kpi-label">Training Complete</div>
         </div>
         <div className="card">
-          <div className="kpi">{interviewPassed}</div>
-          <div className="kpi-label">Interview Passed/Waived</div>
-        </div>
-        <div className="card">
-          <div className="kpi">{readyToPublish}</div>
-          <div className="kpi-label">Ready for First Publish</div>
+          <div className="kpi">{interviewQueue.length}</div>
+          <div className="kpi-label">Interview Blockers</div>
         </div>
       </div>
 
@@ -260,7 +280,7 @@ export default async function InstructorReadinessPage() {
                 <div key={request.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
                   <p style={{ margin: 0, fontWeight: 600 }}>{request.instructor.name}</p>
                   <p style={{ margin: "6px 0", fontSize: 13, color: "var(--muted)" }}>
-                    {request.status.replace(/_/g, " ")} • {request.instructor.chapter?.name || "No chapter"} • {formatDate(request.requestedAt)}
+                    {request.status.replace(/_/g, " ")} • {formatDate(request.requestedAt)}
                   </p>
                   {request.notes ? <p style={{ marginTop: 0 }}>{request.notes}</p> : null}
 
@@ -316,26 +336,13 @@ export default async function InstructorReadinessPage() {
           <div style={{ display: "grid", gap: 12 }}>
             {interviewQueue.map((gate) => {
               const confirmedSlot = gate.slots.find((slot) => slot.status === "CONFIRMED");
-              const completedSlot = gate.slots.find((slot) => slot.status === "COMPLETED");
 
               return (
                 <div key={gate.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
                   <p style={{ margin: 0, fontWeight: 600 }}>{gate.instructor.name}</p>
                   <p style={{ margin: "6px 0", fontSize: 13, color: "var(--muted)" }}>
-                    {gate.status.replace(/_/g, " ")} • {gate.instructor.chapter?.name || "No chapter"}
+                    {gate.status.replace(/_/g, " ")}
                   </p>
-
-                  {confirmedSlot ? (
-                    <p style={{ margin: "0 0 8px", fontSize: 13 }}>
-                      Confirmed slot: {formatDate(confirmedSlot.scheduledAt)} ({confirmedSlot.duration} min)
-                    </p>
-                  ) : null}
-
-                  {completedSlot ? (
-                    <p style={{ margin: "0 0 8px", fontSize: 13 }}>
-                      Completed slot: {formatDate(completedSlot.completedAt)}
-                    </p>
-                  ) : null}
 
                   <form action={postInterviewSlot} className="form-grid" style={{ marginBottom: 10 }}>
                     <input type="hidden" name="instructorId" value={gate.instructorId} />
@@ -368,12 +375,7 @@ export default async function InstructorReadinessPage() {
                       <div style={{ display: "grid", gap: 8 }}>
                         {gate.availabilityRequests.map((request) => (
                           <div key={request.id} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 8 }}>
-                            <p style={{ margin: 0, fontSize: 13 }}>
-                              Requested {formatDate(request.createdAt)}
-                            </p>
-                            {request.note ? (
-                              <p style={{ margin: "6px 0", fontSize: 13, color: "var(--muted)" }}>{request.note}</p>
-                            ) : null}
+                            <p style={{ margin: 0, fontSize: 13 }}>Requested {formatDate(request.createdAt)}</p>
                             <div className="grid two" style={{ gap: 8 }}>
                               <form action={acceptInterviewAvailabilityRequest} className="form-grid">
                                 <input type="hidden" name="requestId" value={request.id} />
@@ -422,12 +424,11 @@ export default async function InstructorReadinessPage() {
                           <option value="PASS">PASS</option>
                           <option value="HOLD">HOLD</option>
                           <option value="FAIL">FAIL</option>
-                          <option value="WAIVE">WAIVE (Admin only)</option>
                         </select>
                       </label>
                       <label className="form-row">
                         Outcome notes
-                        <input name="reviewNotes" className="input" placeholder="Required context for hold/fail/waive" />
+                        <input name="reviewNotes" className="input" placeholder="Required context for hold/fail" />
                       </label>
                     </div>
                     <button type="submit" className="button small">Set interview outcome</button>
@@ -445,29 +446,21 @@ export default async function InstructorReadinessPage() {
           {instructors.map((instructor) => {
             const readiness = readinessByInstructor.get(instructor.id);
             const pendingReview = instructor.readinessReviewRequests[0];
-            const gateStatus = instructor.interviewGate?.status ?? "REQUIRED";
 
             return (
               <div key={instructor.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start" }}>
                   <div>
                     <p style={{ margin: 0, fontWeight: 600 }}>{instructor.name}</p>
-                    <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--muted)" }}>
-                      {instructor.email} • {instructor.chapter?.name || "No chapter"}
-                    </p>
+                    <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--muted)" }}>{instructor.email}</p>
                   </div>
-                  <Link href="/admin/applications" className="link">
-                    Applications
-                  </Link>
+                  <Link href="/chapter-lead/dashboard" className="link">Chapter dashboard</Link>
                 </div>
 
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
-                  <span className="pill pill-small">Interview: {gateStatus.replace(/_/g, " ")}</span>
+                  <span className="pill pill-small">Interview: {readiness?.interviewStatus.replace(/_/g, " ")}</span>
                   <span className="pill pill-small">
                     Training: {readiness?.completedRequiredModules ?? 0}/{readiness?.requiredModulesCount ?? 0}
-                  </span>
-                  <span className="pill pill-small">
-                    Can publish first offering: {readiness?.canPublishFirstOffering ? "Yes" : "No"}
                   </span>
                   <span className="pill pill-small">
                     Teaching levels: {instructor.teachingPermissions.map((permission) => permission.level.replace("LEVEL_", "")).join(", ") || "None"}
@@ -484,15 +477,9 @@ export default async function InstructorReadinessPage() {
                   </p>
                 )}
 
-                {pendingReview ? (
-                  <p style={{ marginTop: 6, marginBottom: 0, fontSize: 13, color: "var(--muted)" }}>
-                    Pending reviewer action: {pendingReview.status.replace(/_/g, " ")} ({formatDate(pendingReview.requestedAt)})
-                  </p>
-                ) : (
-                  <p style={{ marginTop: 6, marginBottom: 0, fontSize: 13, color: "var(--muted)" }}>
-                    Next reviewer action: {readiness?.missingRequirements[0]?.title || "None"}
-                  </p>
-                )}
+                <p style={{ marginTop: 6, marginBottom: 0, fontSize: 13, color: "var(--muted)" }}>
+                  Next reviewer action: {pendingReview?.status.replace(/_/g, " ") || readiness?.missingRequirements[0]?.title || "None"}
+                </p>
 
                 <form action={grantTeachingPermission} className="form-grid" style={{ marginTop: 10 }}>
                   <input type="hidden" name="instructorId" value={instructor.id} />

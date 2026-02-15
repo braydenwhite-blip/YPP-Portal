@@ -9,7 +9,8 @@ export default async function ChapterLeadDashboardPage() {
     redirect("/login");
   }
 
-  if (session.user.primaryRole !== "CHAPTER_LEAD" && session.user.primaryRole !== "ADMIN") {
+  const roles = session.user.roles ?? [];
+  if (!roles.includes("CHAPTER_LEAD") && !roles.includes("ADMIN")) {
     redirect("/");
   }
 
@@ -19,7 +20,11 @@ export default async function ChapterLeadDashboardPage() {
       users: { some: { id: session.user.id } }
     },
     include: {
-      users: true,
+      users: {
+        include: {
+          roles: { select: { role: true } },
+        },
+      },
       courses: {
         include: {
           _count: { select: { enrollments: true } },
@@ -52,8 +57,12 @@ export default async function ChapterLeadDashboardPage() {
     );
   }
 
-  const students = chapter.users.filter(u => u.primaryRole === "STUDENT");
-  const instructors = chapter.users.filter(u => u.primaryRole === "INSTRUCTOR");
+  const students = chapter.users.filter((user) =>
+    user.roles.some((role) => role.role === "STUDENT")
+  );
+  const instructors = chapter.users.filter((user) =>
+    user.roles.some((role) => role.role === "INSTRUCTOR")
+  );
 
   return (
     <div>
@@ -90,6 +99,11 @@ export default async function ChapterLeadDashboardPage() {
 
       <div style={{ marginBottom: 28 }}>
         <div className="section-title">Active Courses</div>
+        <div style={{ marginBottom: 10 }}>
+          <a href="/chapter-lead/instructor-readiness" className="button small outline">
+            Open Instructor Readiness
+          </a>
+        </div>
         {chapter.courses.map(course => (
             <div key={course.id} className="card" style={{ marginBottom: 12 }}>
             <h4>{course.title}</h4>

@@ -5,6 +5,7 @@ import AnnouncementBanner from "@/components/announcement-banner";
 import XpDisplay from "@/components/xp-display";
 import PathwayProgressMap from "@/components/pathway-progress-map";
 import Link from "next/link";
+import { getNextRequiredAction } from "@/lib/instructor-readiness";
 
 export default async function OverviewPage() {
   const session = await getServerSession(authOptions);
@@ -234,12 +235,12 @@ export default async function OverviewPage() {
       )
     )
   );
-  const nextTrainingModule = trainingAssignments.find(
-    (assignment) => assignment.status !== "COMPLETE"
-  );
   const mostRecentlyUpdatedClass = [...instructorCourses].sort(
     (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()
   )[0];
+  const instructorNextAction = isInstructor && userId
+    ? await getNextRequiredAction(userId)
+    : null;
 
   const instructorPriorityItems: {
     title: string;
@@ -249,7 +250,15 @@ export default async function OverviewPage() {
     tone?: "warning" | "success";
   }[] = [];
 
-  if (instructorCourses.length === 0) {
+  if (instructorNextAction) {
+    instructorPriorityItems.push({
+      title: instructorNextAction.title,
+      detail: instructorNextAction.detail,
+      href: instructorNextAction.href,
+      action: "Open next action",
+      tone: instructorNextAction.href === "/instructor/training-progress" ? "warning" : undefined,
+    });
+  } else if (instructorCourses.length === 0) {
     instructorPriorityItems.push({
       title: "Create your first class offering",
       detail: "Set schedule, capacity, and reminders so students can enroll.",
@@ -257,28 +266,7 @@ export default async function OverviewPage() {
       action: "Set up class",
       tone: "warning",
     });
-  }
-
-  if (nextTrainingModule) {
-    instructorPriorityItems.push({
-      title: `Continue training: ${nextTrainingModule.module.title}`,
-      detail: "Keeping training current unlocks higher-level teaching approvals.",
-      href: "/instructor/training-progress",
-      action: "Open training",
-    });
-  }
-
-  if (approvedLevels.length === 0) {
-    instructorPriorityItems.push({
-      title: "No approved teaching levels yet",
-      detail: "Finish required modules and request a readiness review.",
-      href: "/instructor-training",
-      action: "View approval path",
-      tone: "warning",
-    });
-  }
-
-  if (instructorPriorityItems.length === 0) {
+  } else {
     instructorPriorityItems.push({
       title: "Instructor dashboard is in good shape",
       detail: "Classes, training, and approvals are all up to date.",

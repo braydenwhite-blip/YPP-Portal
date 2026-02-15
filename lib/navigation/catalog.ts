@@ -184,6 +184,12 @@ export const NAV_CATALOG: NavLink[] = [
       icon: "📊",
       roles: CHAPTER_LEAD_ONLY,
     },
+    {
+      href: "/chapter-lead/instructor-readiness",
+      label: "Instructor Readiness",
+      icon: "✅",
+      roles: CHAPTER_LEAD_ONLY,
+    },
   ]),
 
   ...groupLinks("Account", 1000, [
