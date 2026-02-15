@@ -324,28 +324,50 @@ export function IslandDetail({
           </div>
         </div>
 
-        {/* ── Quick Actions ── */}
-        <div className={styles.panelActions}>
-          <Link href="/courses/recommended" className={styles.panelLink}>
-            <span className={styles.panelLinkIcon}>{"\u{1F4DA}"}</span>
-            <span className={styles.panelLinkText}>Browse Courses</span>
-            <span className={styles.panelLinkArrow}>&rarr;</span>
-          </Link>
-          <Link href="/challenges" className={styles.panelLink}>
-            <span className={styles.panelLinkIcon}>{"\u{1F3AF}"}</span>
-            <span className={styles.panelLinkText}>View Challenges</span>
-            <span className={styles.panelLinkArrow}>&rarr;</span>
-          </Link>
-          <Link href="/badges" className={styles.panelLink}>
-            <span className={styles.panelLinkIcon}>{"\u{1F3C5}"}</span>
-            <span className={styles.panelLinkText}>My Badges</span>
-            <span className={styles.panelLinkArrow}>&rarr;</span>
-          </Link>
-          <Link href="/pathways" className={styles.panelLink}>
-            <span className={styles.panelLinkIcon}>{"\u{1F5FA}\uFE0F"}</span>
-            <span className={styles.panelLinkText}>Learning Pathways</span>
-            <span className={styles.panelLinkArrow}>&rarr;</span>
-          </Link>
+        {/* ── Grow This Island ── */}
+        <div className={styles.landmarkSection}>
+          <div className={styles.landmarkSectionTitle}>Grow This Island</div>
+          <div className={styles.panelActions}>
+            <Link href="/courses/recommended" className={styles.panelLink}>
+              <span className={styles.panelLinkIcon}>{"\u{1F4DA}"}</span>
+              <span className={styles.panelLinkText}>
+                {island.category.replace(/_/g, " ")} Courses
+              </span>
+              <span className={styles.panelLinkArrow}>&rarr;</span>
+            </Link>
+            <Link href="/challenges" className={styles.panelLink}>
+              <span className={styles.panelLinkIcon}>{"\u{1F3AF}"}</span>
+              <span className={styles.panelLinkText}>Take a Challenge (+XP)</span>
+              <span className={styles.panelLinkArrow}>&rarr;</span>
+            </Link>
+            <Link href="/discover/try-it" className={styles.panelLink}>
+              <span className={styles.panelLinkIcon}>{"\u{1F9EA}"}</span>
+              <span className={styles.panelLinkText}>Try-It Activities</span>
+              <span className={styles.panelLinkArrow}>&rarr;</span>
+            </Link>
+            <Link href="/pathways" className={styles.panelLink}>
+              <span className={styles.panelLinkIcon}>{"\u{1F5FA}\uFE0F"}</span>
+              <span className={styles.panelLinkText}>Learning Pathways</span>
+              <span className={styles.panelLinkArrow}>&rarr;</span>
+            </Link>
+          </div>
+        </div>
+
+        {/* ── Your Progress ── */}
+        <div className={styles.landmarkSection}>
+          <div className={styles.landmarkSectionTitle}>Your Progress</div>
+          <div className={styles.panelActions}>
+            <Link href="/badges" className={styles.panelLink}>
+              <span className={styles.panelLinkIcon}>{"\u{1F3C5}"}</span>
+              <span className={styles.panelLinkText}>{island.badgeCount} Badge{island.badgeCount !== 1 ? "s" : ""} Earned</span>
+              <span className={styles.panelLinkArrow}>&rarr;</span>
+            </Link>
+            <Link href="/certificates" className={styles.panelLink}>
+              <span className={styles.panelLinkIcon}>{"\u{1F4DC}"}</span>
+              <span className={styles.panelLinkText}>{island.certificateCount} Certificate{island.certificateCount !== 1 ? "s" : ""}</span>
+              <span className={styles.panelLinkArrow}>&rarr;</span>
+            </Link>
+          </div>
         </div>
       </div>
     </div>

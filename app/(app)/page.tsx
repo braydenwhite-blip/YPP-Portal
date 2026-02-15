@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import AnnouncementBanner from "@/components/announcement-banner";
 import XpDisplay from "@/components/xp-display";
 import PathwayProgressMap from "@/components/pathway-progress-map";
+import { WorldPreviewCard } from "@/components/world-preview-card";
 import Link from "next/link";
 
 export default async function OverviewPage() {
@@ -189,6 +190,32 @@ export default async function OverviewPage() {
     take: 5
   });
 
+  // Fetch student passion islands for world preview
+  let studentIslands: { id: string; name: string; category: string; level: string; xpPoints: number; isPrimary: boolean }[] = [];
+  let studentTotalBadges = 0;
+  try {
+    if (isStudent && userId) {
+      const interests = await prisma.studentInterest.findMany({
+        where: { studentId: userId },
+        include: { passion: { select: { name: true, category: true } } },
+        orderBy: { xpPoints: "desc" },
+      });
+      studentIslands = interests.map((i) => ({
+        id: i.id,
+        name: i.passion.name,
+        category: i.passion.category,
+        level: i.level,
+        xpPoints: i.xpPoints,
+        isPrimary: i.isPrimary,
+      }));
+      studentTotalBadges = await prisma.studentBadge.count({
+        where: { studentId: userId },
+      });
+    }
+  } catch {
+    // StudentInterest table may not exist yet
+  }
+
   const enrolledCourseIds = new Set(
     enrollments.map((enrollment) => enrollment.courseId)
   );
@@ -301,6 +328,17 @@ export default async function OverviewPage() {
           </div>
         </div>
       ) : null}
+
+      {/* World Preview for students */}
+      {isStudent && (
+        <div style={{ marginTop: 20 }}>
+          <WorldPreviewCard
+            islands={studentIslands}
+            totalXp={userXp}
+            totalBadges={studentTotalBadges}
+          />
+        </div>
+      )}
 
       {/* Pathway Progress Map for students */}
       {isStudent && (

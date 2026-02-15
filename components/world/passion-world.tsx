@@ -9,6 +9,7 @@ import React, {
   memo,
 } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type { WorldData, PassionIsland } from "@/lib/world-actions";
 import styles from "./passion-world.module.css";
 import { LEVEL_LABELS, getTheme, getTreeData } from "./constants";
@@ -704,6 +705,57 @@ export default function PassionWorld({ data }: { data: WorldData }) {
       >
         {soundEnabled ? "\u{1F50A}" : "\u{1F507}"}
       </button>
+
+      {/* Portal Quick-Nav Bar */}
+      <nav className={styles.portalNav} aria-label="Portal navigation">
+        <Link href="/my-courses" className={styles.portalNavBtn}>
+          <span className={styles.portalNavIcon}>{"\u{1F4DA}"}</span>
+          Courses
+        </Link>
+        <Link href="/pathways" className={styles.portalNavBtn}>
+          <span className={styles.portalNavIcon}>{"\u{1F5FA}\uFE0F"}</span>
+          Pathways
+        </Link>
+        <Link href="/challenges" className={styles.portalNavBtn}>
+          <span className={styles.portalNavIcon}>{"\u{1F3AF}"}</span>
+          Challenges
+        </Link>
+        <Link href="/badges" className={styles.portalNavBtn}>
+          <span className={styles.portalNavIcon}>{"\u{1F3C5}"}</span>
+          Badges
+        </Link>
+        <Link href="/events" className={styles.portalNavBtn}>
+          <span className={styles.portalNavIcon}>{"\u{1F4C5}"}</span>
+          Events
+        </Link>
+        <Link href="/community/feed" className={styles.portalNavBtn}>
+          <span className={styles.portalNavIcon}>{"\u{1F4AC}"}</span>
+          Community
+        </Link>
+      </nav>
+
+      {/* Empty State — prominent quiz prompt for new users */}
+      {data.islands.length === 0 && !showQuiz && (
+        <div className={styles.emptyPrompt}>
+          <div className={styles.emptyPromptEmoji}>{"\u{1F30A}"}</div>
+          <div className={styles.emptyPromptTitle}>Your World Awaits</div>
+          <div className={styles.emptyPromptDesc}>
+            Take a quick quiz to discover your passions and grow your first islands.
+            Each island represents a passion area you can level up through courses, challenges, and projects.
+          </div>
+          <button
+            className={styles.emptyPromptBtn}
+            onClick={() => { setShowQuiz(true); }}
+          >
+            {"\u{1FA84}"} Start Discovery Quiz
+          </button>
+          <div className={styles.emptyPromptLinks}>
+            <Link href="/pathways" className={styles.emptyPromptLink}>Browse Pathways</Link>
+            <Link href="/courses/recommended" className={styles.emptyPromptLink}>See Courses</Link>
+            <Link href="/challenges" className={styles.emptyPromptLink}>Try Challenges</Link>
+          </div>
+        </div>
+      )}
 
       {/* ─── SVG World Map ─── */}
       <svg
