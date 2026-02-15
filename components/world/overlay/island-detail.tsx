@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 import type { PassionIsland } from "@/lib/world-actions";
 import type { WorldData } from "@/lib/world-actions";
 import { LEVEL_LABELS, getTheme } from "../constants";
@@ -321,6 +322,30 @@ export function IslandDetail({
             <span className={styles.islandMetaLabel}>Certificates</span>
             <span className={styles.islandMetaValue}>{island.certificateCount}</span>
           </div>
+        </div>
+
+        {/* ── Quick Actions ── */}
+        <div className={styles.panelActions}>
+          <Link href="/courses/recommended" className={styles.panelLink}>
+            <span className={styles.panelLinkIcon}>{"\u{1F4DA}"}</span>
+            <span className={styles.panelLinkText}>Browse Courses</span>
+            <span className={styles.panelLinkArrow}>&rarr;</span>
+          </Link>
+          <Link href="/challenges" className={styles.panelLink}>
+            <span className={styles.panelLinkIcon}>{"\u{1F3AF}"}</span>
+            <span className={styles.panelLinkText}>View Challenges</span>
+            <span className={styles.panelLinkArrow}>&rarr;</span>
+          </Link>
+          <Link href="/badges" className={styles.panelLink}>
+            <span className={styles.panelLinkIcon}>{"\u{1F3C5}"}</span>
+            <span className={styles.panelLinkText}>My Badges</span>
+            <span className={styles.panelLinkArrow}>&rarr;</span>
+          </Link>
+          <Link href="/pathways" className={styles.panelLink}>
+            <span className={styles.panelLinkIcon}>{"\u{1F5FA}\uFE0F"}</span>
+            <span className={styles.panelLinkText}>Learning Pathways</span>
+            <span className={styles.panelLinkArrow}>&rarr;</span>
+          </Link>
         </div>
       </div>
     </div>

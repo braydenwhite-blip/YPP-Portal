@@ -2,9 +2,9 @@
 
 import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Billboard, Text } from "@react-three/drei";
 import * as THREE from "three";
 import { LandmarkMarker } from "./landmark-marker";
+import { Label3D } from "../scene/label-3d";
 
 interface AchievementShrineProps {
   position: [number, number, number];
@@ -174,16 +174,12 @@ export function AchievementShrine3D({
       </mesh>
 
       {/* Label */}
-      <Billboard position={[0, 4.5, 0]}>
-        <Text fontSize={0.6} color="#92400e" fontWeight={700} outlineWidth={0.04} outlineColor="#000">
-          Shrine
-        </Text>
+      <Label3D position={[0, 4.5, 0]} color="#92400e" fontSize={14} bold outline>
+        Shrine
         {total > 0 && (
-          <Text fontSize={0.35} color="#d97706" position={[0, -0.55, 0]} outlineWidth={0.03} outlineColor="#000">
-            {badgeCount} badges · {certCount} certs
-          </Text>
+          <><br /><span style={{ fontSize: "10px", color: "#d97706" }}>{badgeCount} badges · {certCount} certs</span></>
         )}
-      </Billboard>
+      </Label3D>
 
       <LandmarkMarker position={[1.5, 4.7, 0]} count={total} color="#f59e0b" />
     </group>

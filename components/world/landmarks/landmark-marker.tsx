@@ -2,8 +2,8 @@
 
 import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Billboard, Text } from "@react-three/drei";
 import * as THREE from "three";
+import { Label3D } from "../scene/label-3d";
 
 interface LandmarkMarkerProps {
   position: [number, number, number];
@@ -28,19 +28,9 @@ export function LandmarkMarker({ position, count, color = "#ef4444" }: LandmarkM
 
   return (
     <group ref={groupRef} position={position}>
-      <Billboard>
-        <Text
-          fontSize={1.2}
-          color={color}
-          anchorX="center"
-          anchorY="middle"
-          fontWeight={700}
-          outlineWidth={0.08}
-          outlineColor="#000000"
-        >
-          !
-        </Text>
-      </Billboard>
+      <Label3D color={color} fontSize={22} bold outline>
+        !
+      </Label3D>
       {/* Glow sphere behind */}
       <mesh>
         <sphereGeometry args={[0.5, 8, 8]} />
