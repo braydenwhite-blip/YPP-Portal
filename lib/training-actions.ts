@@ -103,11 +103,18 @@ function getCourseLevel(raw: string): CourseLevel {
 type ModuleValidationInput = {
   required: boolean;
   videoUrl: string | null;
+  videoProvider: VideoProvider | null;
   requiresQuiz: boolean;
   requiresEvidence: boolean;
   requiredCheckpointCount: number;
   quizQuestionCount: number;
 };
+
+const TRACKABLE_REQUIRED_VIDEO_PROVIDERS = new Set<VideoProvider>([
+  "YOUTUBE",
+  "VIMEO",
+  "CUSTOM",
+]);
 
 function getModuleConfigurationIssues(input: ModuleValidationInput): string[] {
   const issues: string[] = [];
@@ -129,6 +136,25 @@ function getModuleConfigurationIssues(input: ModuleValidationInput): string[] {
     );
   }
 
+  if (input.videoUrl && !input.videoProvider) {
+    issues.push(
+      "Video provider is required when a video URL is configured."
+    );
+  }
+
+  if (
+    input.required &&
+    input.videoUrl &&
+    input.videoProvider &&
+    !TRACKABLE_REQUIRED_VIDEO_PROVIDERS.has(input.videoProvider)
+  ) {
+    issues.push(
+      `Required modules can only use trackable video providers: ${Array.from(
+        TRACKABLE_REQUIRED_VIDEO_PROVIDERS
+      ).join(", ")}.`
+    );
+  }
+
   return issues;
 }
 
@@ -146,6 +172,7 @@ async function getModuleValidationInput(moduleId: string): Promise<ModuleValidat
       select: {
         required: true,
         videoUrl: true,
+        videoProvider: true,
         requiresQuiz: true,
         requiresEvidence: true,
       },
@@ -168,6 +195,7 @@ async function getModuleValidationInput(moduleId: string): Promise<ModuleValidat
   return {
     required: module.required,
     videoUrl: module.videoUrl,
+    videoProvider: module.videoProvider,
     requiresQuiz: module.requiresQuiz,
     requiresEvidence: module.requiresEvidence,
     requiredCheckpointCount,
@@ -291,6 +319,7 @@ async function syncAssignmentFromArtifacts(userId: string, moduleId: string) {
       id: true,
       required: true,
       videoUrl: true,
+      videoProvider: true,
       videoDuration: true,
       requiresQuiz: true,
       requiresEvidence: true,
@@ -314,6 +343,7 @@ async function syncAssignmentFromArtifacts(userId: string, moduleId: string) {
   const moduleConfigurationIssues = getModuleConfigurationIssues({
     required: module.required,
     videoUrl: module.videoUrl,
+    videoProvider: module.videoProvider,
     requiresQuiz: module.requiresQuiz,
     requiresEvidence: module.requiresEvidence,
     requiredCheckpointCount: requiredCheckpointIds.length,
@@ -433,6 +463,7 @@ async function syncAssignmentsForModule(moduleId: string) {
 export async function createTrainingModuleWithVideo(formData: FormData) {
   await requireAdmin();
 
+  const contentKey = getString(formData, "contentKey", false);
   const title = getString(formData, "title");
   const description = getString(formData, "description");
   const materialUrl = getString(formData, "materialUrl", false);
@@ -460,6 +491,7 @@ export async function createTrainingModuleWithVideo(formData: FormData) {
   assertValidModuleConfiguration({
     required,
     videoUrl: normalizedVideoUrl,
+    videoProvider: videoProvider || null,
     requiresQuiz,
     requiresEvidence,
     requiredCheckpointCount: 0,
@@ -468,6 +500,7 @@ export async function createTrainingModuleWithVideo(formData: FormData) {
 
   await prisma.trainingModule.create({
     data: {
+      contentKey: contentKey || null,
       title,
       description,
       materialUrl: materialUrl || null,
@@ -494,6 +527,7 @@ export async function updateTrainingModule(formData: FormData) {
   await requireAdmin();
 
   const moduleId = getString(formData, "moduleId");
+  const contentKey = getString(formData, "contentKey", false);
   const title = getString(formData, "title");
   const description = getString(formData, "description");
   const materialUrl = getString(formData, "materialUrl", false);
@@ -533,6 +567,7 @@ export async function updateTrainingModule(formData: FormData) {
   assertValidModuleConfiguration({
     required,
     videoUrl: normalizedVideoUrl,
+    videoProvider: videoProvider || null,
     requiresQuiz,
     requiresEvidence,
     requiredCheckpointCount,
@@ -542,6 +577,7 @@ export async function updateTrainingModule(formData: FormData) {
   await prisma.trainingModule.update({
     where: { id: moduleId },
     data: {
+      contentKey: contentKey || undefined,
       title,
       description,
       materialUrl: materialUrl || null,
@@ -608,6 +644,7 @@ export async function createTrainingCheckpoint(formData: FormData) {
   await requireAdmin();
 
   const moduleId = getString(formData, "moduleId");
+  const contentKey = getString(formData, "contentKey", false);
   const title = getString(formData, "title");
   const description = getString(formData, "description", false);
   const sortOrder = Math.max(1, getNumber(formData, "sortOrder", 1));
@@ -625,6 +662,7 @@ export async function createTrainingCheckpoint(formData: FormData) {
   await prisma.trainingCheckpoint.create({
     data: {
       moduleId,
+      contentKey: contentKey || null,
       title,
       description: description || null,
       sortOrder,
@@ -643,6 +681,7 @@ export async function updateTrainingCheckpoint(formData: FormData) {
   await requireAdmin();
 
   const checkpointId = getString(formData, "checkpointId");
+  const contentKey = getString(formData, "contentKey", false);
   const title = getString(formData, "title");
   const description = getString(formData, "description", false);
   const sortOrder = Math.max(1, getNumber(formData, "sortOrder", 1));
@@ -672,6 +711,7 @@ export async function updateTrainingCheckpoint(formData: FormData) {
   await prisma.trainingCheckpoint.update({
     where: { id: checkpointId },
     data: {
+      contentKey: contentKey || undefined,
       title,
       description: description || null,
       sortOrder,
@@ -728,7 +768,9 @@ export async function createTrainingQuizQuestion(formData: FormData) {
   await requireAdmin();
 
   const moduleId = getString(formData, "moduleId");
+  const contentKey = getString(formData, "contentKey", false);
   const question = getString(formData, "question");
+  const explanation = getString(formData, "explanation", false);
   const optionsRaw = getString(formData, "options");
   const sortOrder = Math.max(1, getNumber(formData, "sortOrder", 1));
   const options = parseQuizOptions(optionsRaw);
@@ -750,9 +792,11 @@ export async function createTrainingQuizQuestion(formData: FormData) {
   await prisma.trainingQuizQuestion.create({
     data: {
       moduleId,
+      contentKey: contentKey || null,
       question,
       options,
       correctAnswer,
+      explanation: explanation || null,
       sortOrder,
     },
   });
@@ -769,7 +813,9 @@ export async function updateTrainingQuizQuestion(formData: FormData) {
   await requireAdmin();
 
   const questionId = getString(formData, "questionId");
+  const contentKey = getString(formData, "contentKey", false);
   const question = getString(formData, "question");
+  const explanation = getString(formData, "explanation", false);
   const optionsRaw = getString(formData, "options");
   const sortOrder = Math.max(1, getNumber(formData, "sortOrder", 1));
   const options = parseQuizOptions(optionsRaw);
@@ -791,9 +837,11 @@ export async function updateTrainingQuizQuestion(formData: FormData) {
   await prisma.trainingQuizQuestion.update({
     where: { id: questionId },
     data: {
+      contentKey: contentKey || undefined,
       question,
       options,
       correctAnswer,
+      explanation: explanation || null,
       sortOrder,
     },
   });
@@ -846,9 +894,69 @@ export async function updateVideoProgress(formData: FormData) {
   const userId = session.user.id;
 
   const moduleId = getString(formData, "moduleId");
-  const watchedSeconds = Number(getString(formData, "watchedSeconds"));
-  const lastPosition = Number(getString(formData, "lastPosition"));
-  const completed = formData.get("completed") === "true";
+  const watchedSecondsRaw = Number(getString(formData, "watchedSeconds"));
+  const lastPositionRaw = Number(getString(formData, "lastPosition"));
+  const requestedCompleted = formData.get("completed") === "true";
+
+  if (!Number.isFinite(watchedSecondsRaw) || watchedSecondsRaw < 0) {
+    throw new Error("Invalid watchedSeconds value");
+  }
+  if (!Number.isFinite(lastPositionRaw) || lastPositionRaw < 0) {
+    throw new Error("Invalid lastPosition value");
+  }
+
+  const [module, existingProgress] = await Promise.all([
+    prisma.trainingModule.findUnique({
+      where: { id: moduleId },
+      select: {
+        id: true,
+        videoDuration: true,
+      },
+    }),
+    prisma.videoProgress.findUnique({
+      where: {
+        userId_moduleId: { userId, moduleId },
+      },
+      select: {
+        watchedSeconds: true,
+        lastPosition: true,
+        completed: true,
+      },
+    }),
+  ]);
+
+  if (!module) {
+    throw new Error("Training module not found");
+  }
+
+  const rawWatchedSeconds = Math.floor(watchedSecondsRaw);
+  const rawLastPosition = Math.floor(lastPositionRaw);
+  const maxDuration = module.videoDuration ?? null;
+
+  const clampedWatchedSeconds =
+    maxDuration && maxDuration > 0
+      ? Math.min(rawWatchedSeconds, maxDuration)
+      : rawWatchedSeconds;
+  const clampedLastPosition =
+    maxDuration && maxDuration > 0
+      ? Math.min(rawLastPosition, maxDuration)
+      : rawLastPosition;
+
+  const watchedSeconds = Math.max(
+    existingProgress?.watchedSeconds ?? 0,
+    clampedWatchedSeconds
+  );
+  const lastPosition = Math.max(
+    existingProgress?.lastPosition ?? 0,
+    clampedLastPosition
+  );
+
+  const autoCompleted =
+    maxDuration && maxDuration > 0
+      ? watchedSeconds >= Math.floor(maxDuration * 0.9)
+      : false;
+  const completed =
+    Boolean(existingProgress?.completed) || requestedCompleted || autoCompleted;
 
   await prisma.videoProgress.upsert({
     where: {

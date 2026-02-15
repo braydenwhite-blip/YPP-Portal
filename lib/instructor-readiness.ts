@@ -34,6 +34,7 @@ export type InstructorReadiness = {
 
 const INSTRUCTOR_TOOLS_HREF = "/instructor-training";
 const INSTRUCTOR_PUBLISH_HREF = "/instructor/class-settings";
+const TRACKABLE_REQUIRED_VIDEO_PROVIDERS = new Set(["YOUTUBE", "VIMEO", "CUSTOM"]);
 
 function envTrue(value: string | undefined): boolean {
   if (!value) return false;
@@ -85,6 +86,7 @@ export async function getInstructorReadiness(instructorId: string): Promise<Inst
         id: true,
         title: true,
         videoUrl: true,
+        videoProvider: true,
         requiresQuiz: true,
         requiresEvidence: true,
         checkpoints: {
@@ -150,6 +152,26 @@ export async function getInstructorReadiness(instructorId: string): Promise<Inst
       moduleConfigIssueById.set(
         module.id,
         "This required module has quiz enabled but no quiz questions."
+      );
+      continue;
+    }
+
+    if (module.videoUrl && !module.videoProvider) {
+      moduleConfigIssueById.set(
+        module.id,
+        "This required module has video URL but no video provider selected."
+      );
+      continue;
+    }
+
+    if (
+      module.videoUrl &&
+      module.videoProvider &&
+      !TRACKABLE_REQUIRED_VIDEO_PROVIDERS.has(module.videoProvider)
+    ) {
+      moduleConfigIssueById.set(
+        module.id,
+        "This required module uses a non-trackable video provider."
       );
     }
   }

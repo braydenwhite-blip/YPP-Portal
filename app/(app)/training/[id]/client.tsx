@@ -38,6 +38,7 @@ type ModuleData = {
     id: string;
     question: string;
     correctAnswer: string;
+    explanation: string | null;
     sortOrder: number;
     options: string[];
   }>;
@@ -258,6 +259,11 @@ export default function TrainingModuleClient({
               {module.quizQuestions.map((question, index) => (
                 <div key={question.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
                   <p style={{ margin: 0, fontWeight: 600 }}>{index + 1}. {question.question}</p>
+                  {question.explanation ? (
+                    <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--muted)" }}>
+                      Why this matters: {question.explanation}
+                    </p>
+                  ) : null}
                   <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
                     {question.options.map((option, optionIndex) => {
                       const optionId = `${question.id}-${optionIndex}`;

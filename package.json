@@ -16,7 +16,11 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "backfill:instructor-readiness": "node scripts/backfill-native-instructor-readiness.mjs",
-    "training:seed-content": "node scripts/seed-training-academy-content.mjs"
+    "training:seed-content": "node scripts/seed-training-academy-content.mjs",
+    "training:validate": "node scripts/validate-training-academy-content.mjs",
+    "training:import": "node scripts/import-training-academy-content.mjs",
+    "training:export": "node scripts/export-training-academy-content.mjs",
+    "training:sync": "npm run training:validate && npm run training:import"
   },
   "dependencies": {
     "@prisma/client": "^5.18.0",

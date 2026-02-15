@@ -40,6 +40,7 @@ export default async function AdminTrainingPage() {
 
   const serializedModules = modules.map((m) => ({
     id: m.id,
+    contentKey: m.contentKey,
     title: m.title,
     description: m.description,
     materialUrl: m.materialUrl,
@@ -56,6 +57,7 @@ export default async function AdminTrainingPage() {
     passScorePct: m.passScorePct,
     checkpoints: m.checkpoints.map((checkpoint) => ({
       id: checkpoint.id,
+      contentKey: checkpoint.contentKey,
       title: checkpoint.title,
       description: checkpoint.description,
       sortOrder: checkpoint.sortOrder,
@@ -63,6 +65,7 @@ export default async function AdminTrainingPage() {
     })),
     quizQuestions: m.quizQuestions.map((question) => ({
       id: question.id,
+      contentKey: question.contentKey,
       question: question.question,
       options: Array.isArray(question.options)
         ? question.options.map((option) => String(option))
@@ -70,6 +73,7 @@ export default async function AdminTrainingPage() {
           ? Object.values(question.options as Record<string, unknown>).map((option) => String(option))
           : [],
       correctAnswer: question.correctAnswer,
+      explanation: question.explanation,
       sortOrder: question.sortOrder,
     })),
     assignmentCount: m._count.assignments,

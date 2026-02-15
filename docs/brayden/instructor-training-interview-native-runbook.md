@@ -120,3 +120,28 @@ Allowed when:
 3. Admin and chapter lead can clear blockers from readiness pages.
 4. Existing live offerings still run after rollout.
 5. Dashboard shows one next action from readiness engine.
+
+## 10. Bring Your Own Academy Data (JSON + Scripts)
+Source-of-truth file:
+1. `data/training-academy/content.v1.json`
+
+Command sequence:
+1. Validate file:
+   - `npm run training:validate`
+2. Preview changes:
+   - `npm run training:import -- --file=data/training-academy/content.v1.json --dry-run`
+3. Apply changes:
+   - `npm run training:import -- --file=data/training-academy/content.v1.json`
+4. Optional prune stale rows:
+   - `npm run training:import -- --file=data/training-academy/content.v1.json --prune=true`
+5. Export DB -> JSON:
+   - `npm run training:export -- --file=data/training-academy/content.v1.json`
+
+## 11. Video Watch Tracking Notes
+1. Required-module video tracking is supported only for `YOUTUBE`, `VIMEO`, and `CUSTOM`.
+2. Completion threshold is 90% watched.
+3. Progress saves automatically on interval and on page-hide/unload.
+4. If an instructor reports stuck progress, verify:
+   - module has `videoProvider` set,
+   - module `videoDuration` is set correctly,
+   - provider is one of supported values above.

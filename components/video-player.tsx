@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { VideoProvider } from "@prisma/client";
 
 interface VideoPlayerProps {
@@ -17,6 +17,131 @@ interface VideoPlayerProps {
   onProgress?: (watchedSeconds: number, lastPosition: number, completed: boolean) => void;
 }
 
+type YoutubeState = {
+  PLAYING: number;
+  PAUSED: number;
+  ENDED: number;
+};
+
+type YoutubePlayer = {
+  getCurrentTime: () => number;
+  getDuration: () => number;
+  destroy: () => void;
+};
+
+declare global {
+  interface Window {
+    YT?: {
+      Player: new (
+        element: HTMLElement,
+        options: {
+          events?: {
+            onReady?: () => void;
+            onStateChange?: (event: { data: number }) => void;
+          };
+        }
+      ) => YoutubePlayer;
+      PlayerState: YoutubeState;
+    };
+    onYouTubeIframeAPIReady?: () => void;
+  }
+}
+
+let youtubeApiPromise: Promise<void> | null = null;
+
+function loadYoutubeApi(): Promise<void> {
+  if (typeof window === "undefined") {
+    return Promise.resolve();
+  }
+
+  if (window.YT?.Player) {
+    return Promise.resolve();
+  }
+
+  if (youtubeApiPromise) {
+    return youtubeApiPromise;
+  }
+
+  youtubeApiPromise = new Promise((resolve, reject) => {
+    const existingScript = document.querySelector<HTMLScriptElement>(
+      'script[src="https://www.youtube.com/iframe_api"]'
+    );
+
+    if (!existingScript) {
+      const script = document.createElement("script");
+      script.src = "https://www.youtube.com/iframe_api";
+      script.async = true;
+      script.onerror = () => reject(new Error("Failed to load YouTube iframe API"));
+      document.head.appendChild(script);
+    }
+
+    const previousReady = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      previousReady?.();
+      resolve();
+    };
+
+    // If API loaded between checks, resolve immediately.
+    if (window.YT?.Player) {
+      resolve();
+    }
+  });
+
+  return youtubeApiPromise;
+}
+
+function parseYouTubeId(value: string): string | null {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.replace(/^www\./, "");
+
+    if (host === "youtu.be") {
+      const id = url.pathname.split("/").filter(Boolean)[0];
+      return id || null;
+    }
+
+    if (host === "youtube.com" || host === "m.youtube.com") {
+      if (url.pathname === "/watch") {
+        return url.searchParams.get("v");
+      }
+
+      const segments = url.pathname.split("/").filter(Boolean);
+      const embedIndex = segments.indexOf("embed");
+      if (embedIndex >= 0 && segments[embedIndex + 1]) {
+        return segments[embedIndex + 1];
+      }
+
+      if (segments[0] === "shorts" && segments[1]) {
+        return segments[1];
+      }
+    }
+  } catch {
+    // Fallback regex for malformed URL input.
+  }
+
+  const match = value.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&?/]+)/);
+  return match?.[1] ?? null;
+}
+
+function parseVimeoId(value: string): string | null {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.replace(/^www\./, "");
+    if (host === "vimeo.com" || host === "player.vimeo.com") {
+      const segment = url.pathname
+        .split("/")
+        .filter(Boolean)
+        .find((item) => /^\d+$/.test(item));
+      return segment ?? null;
+    }
+  } catch {
+    // Fallback regex below.
+  }
+
+  const match = value.match(/vimeo\.com\/(\d+)/);
+  return match?.[1] ?? null;
+}
+
 export function VideoPlayer({
   videoUrl,
   provider,
@@ -24,97 +149,392 @@ export function VideoPlayer({
   thumbnail,
   moduleId,
   initialProgress,
-  onProgress
+  onProgress,
 }: VideoPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(initialProgress?.lastPosition || 0);
   const [watchedSeconds, setWatchedSeconds] = useState(initialProgress?.watchedSeconds || 0);
   const [completed, setCompleted] = useState(initialProgress?.completed || false);
+  const [resolvedDuration, setResolvedDuration] = useState<number | null>(
+    duration && duration > 0 ? duration : null
+  );
+
   const videoRef = useRef<HTMLVideoElement>(null);
-  const lastSaveRef = useRef(0);
+  const youtubeIframeRef = useRef<HTMLIFrameElement>(null);
+  const vimeoIframeRef = useRef<HTMLIFrameElement>(null);
+  const youtubePlayerRef = useRef<YoutubePlayer | null>(null);
 
-  // Extract video ID for embedded players — validates against allowed domains only
-  const getEmbedUrl = (): string | null => {
-    switch (provider) {
-      case "YOUTUBE": {
-        const match = videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/);
-        if (!match) return null;
-        return `https://www.youtube.com/embed/${match[1]}?enablejsapi=1&start=${Math.floor(currentTime)}`;
-      }
-      case "VIMEO": {
-        const match = videoUrl.match(/vimeo\.com\/(\d+)/);
-        if (!match) return null;
-        return `https://player.vimeo.com/video/${match[1]}?autoplay=0`;
-      }
-      case "LOOM": {
-        const match = videoUrl.match(/loom\.com\/share\/([^?]+)/);
-        if (!match) return null;
-        return `https://www.loom.com/embed/${match[1]}`;
-      }
-      default:
-        // Reject unknown providers — prevents arbitrary URL injection into iframe
-        return null;
+  const durationRef = useRef<number | null>(duration && duration > 0 ? duration : null);
+  const progressRef = useRef({
+    watchedSeconds: initialProgress?.watchedSeconds || 0,
+    currentTime: initialProgress?.lastPosition || 0,
+    completed: initialProgress?.completed || false,
+  });
+  const lastSentRef = useRef({
+    watchedSeconds: initialProgress?.watchedSeconds || 0,
+    currentTime: initialProgress?.lastPosition || 0,
+    completed: initialProgress?.completed || false,
+  });
+
+  useEffect(() => {
+    if (duration && duration > 0) {
+      durationRef.current = duration;
+      setResolvedDuration(duration);
     }
-  };
+  }, [duration]);
 
-  // Save progress periodically
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (watchedSeconds > lastSaveRef.current + 10) {
-        lastSaveRef.current = watchedSeconds;
-        onProgress?.(watchedSeconds, currentTime, completed);
+  const sanitizedModuleId = useMemo(
+    () => moduleId.replace(/[^a-zA-Z0-9_-]/g, ""),
+    [moduleId]
+  );
+  const youtubeElementId = useMemo(
+    () => `yt-player-${sanitizedModuleId || "module"}`,
+    [sanitizedModuleId]
+  );
+  const vimeoPlayerId = useMemo(
+    () => `vimeo-player-${sanitizedModuleId || "module"}`,
+    [sanitizedModuleId]
+  );
+
+  const initialStartSeconds = useMemo(
+    () => Math.max(0, Math.floor(initialProgress?.lastPosition ?? 0)),
+    [initialProgress?.lastPosition]
+  );
+
+  const commitProgress = useCallback(
+    (positionSeconds: number, durationSeconds?: number, forceComplete = false) => {
+      const safePosition = Number.isFinite(positionSeconds)
+        ? Math.max(0, Math.floor(positionSeconds))
+        : 0;
+
+      if (Number.isFinite(durationSeconds) && Number(durationSeconds) > 0) {
+        const normalizedDuration = Math.floor(Number(durationSeconds));
+        if (!durationRef.current || Math.abs(durationRef.current - normalizedDuration) > 1) {
+          durationRef.current = normalizedDuration;
+          setResolvedDuration(normalizedDuration);
+        }
       }
-    }, 15000); // Save every 15 seconds
 
-    return () => clearInterval(interval);
-  }, [watchedSeconds, currentTime, completed, onProgress]);
+      const previous = progressRef.current;
+      const nextWatched = Math.max(previous.watchedSeconds, safePosition);
+      const activeDuration = durationRef.current;
+      const autoComplete =
+        activeDuration && activeDuration > 0
+          ? nextWatched >= Math.floor(activeDuration * 0.9)
+          : false;
+      const nextCompleted = previous.completed || forceComplete || autoComplete;
 
-  // Save on unmount
+      progressRef.current = {
+        watchedSeconds: nextWatched,
+        currentTime: safePosition,
+        completed: nextCompleted,
+      };
+
+      setCurrentTime(safePosition);
+      if (nextWatched !== previous.watchedSeconds) {
+        setWatchedSeconds(nextWatched);
+      }
+      if (nextCompleted !== previous.completed) {
+        setCompleted(nextCompleted);
+      }
+    },
+    []
+  );
+
+  const flushProgress = useCallback(
+    (force = false) => {
+      if (!onProgress) return;
+
+      const snapshot = progressRef.current;
+      const lastSent = lastSentRef.current;
+      const shouldSend =
+        force ||
+        snapshot.completed !== lastSent.completed ||
+        snapshot.watchedSeconds >= lastSent.watchedSeconds + 10 ||
+        Math.abs(snapshot.currentTime - lastSent.currentTime) >= 15;
+
+      if (!shouldSend) return;
+
+      lastSentRef.current = { ...snapshot };
+      onProgress(snapshot.watchedSeconds, snapshot.currentTime, snapshot.completed);
+    },
+    [onProgress]
+  );
+
   useEffect(() => {
-    return () => {
-      if (watchedSeconds > 0) {
-        onProgress?.(watchedSeconds, currentTime, completed);
+    const interval = window.setInterval(() => {
+      flushProgress(false);
+    }, 12000);
+
+    return () => window.clearInterval(interval);
+  }, [flushProgress]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        flushProgress(true);
       }
     };
-  }, []);
+    const handlePageHide = () => flushProgress(true);
 
-  const handleTimeUpdate = () => {
-    if (videoRef.current) {
-      const time = videoRef.current.currentTime;
-      setCurrentTime(time);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", handlePageHide);
+    window.addEventListener("beforeunload", handlePageHide);
 
-      // Increment watched seconds (only count new time)
-      if (time > watchedSeconds) {
-        setWatchedSeconds(Math.floor(time));
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", handlePageHide);
+      window.removeEventListener("beforeunload", handlePageHide);
+      flushProgress(true);
+    };
+  }, [flushProgress]);
+
+  useEffect(() => {
+    if (!completed) return;
+    flushProgress(true);
+  }, [completed, flushProgress]);
+
+  const embedUrl = useMemo(() => {
+    if (provider === "YOUTUBE") {
+      const id = parseYouTubeId(videoUrl);
+      if (!id) return null;
+      const params = new URLSearchParams({
+        enablejsapi: "1",
+        rel: "0",
+        modestbranding: "1",
+        playsinline: "1",
+      });
+      if (typeof window !== "undefined") {
+        params.set("origin", window.location.origin);
       }
-
-      // Mark as completed if watched 90% or more
-      if (duration && time >= duration * 0.9 && !completed) {
-        setCompleted(true);
-        onProgress?.(watchedSeconds, time, true);
+      if (initialStartSeconds > 0) {
+        params.set("start", String(initialStartSeconds));
       }
+      return `https://www.youtube.com/embed/${id}?${params.toString()}`;
     }
+
+    if (provider === "VIMEO") {
+      const id = parseVimeoId(videoUrl);
+      if (!id) return null;
+      const params = new URLSearchParams({
+        api: "1",
+        autoplay: "0",
+        dnt: "1",
+        player_id: vimeoPlayerId,
+      });
+      return `https://player.vimeo.com/video/${id}?${params.toString()}`;
+    }
+
+    if (provider === "LOOM") {
+      const match = videoUrl.match(/loom\.com\/share\/([^?]+)/);
+      if (!match) return null;
+      return `https://www.loom.com/embed/${match[1]}`;
+    }
+
+    return null;
+  }, [provider, videoUrl, initialStartSeconds, vimeoPlayerId]);
+
+  useEffect(() => {
+    if (provider !== "YOUTUBE" || !embedUrl) return;
+
+    let cancelled = false;
+    let pollTimer: number | null = null;
+
+    const setup = async () => {
+      try {
+        await loadYoutubeApi();
+      } catch {
+        return;
+      }
+
+      if (cancelled || !window.YT || !youtubeIframeRef.current) return;
+
+      const player = new window.YT.Player(youtubeIframeRef.current, {
+        events: {
+          onReady: () => {
+            if (cancelled) return;
+            try {
+              const playerDuration = player.getDuration();
+              const playerTime = player.getCurrentTime();
+              commitProgress(playerTime, playerDuration);
+            } catch {
+              // ignore provider runtime exceptions
+            }
+          },
+          onStateChange: (event) => {
+            const state = event.data;
+            const playerState = window.YT?.PlayerState;
+            if (!playerState) return;
+
+            if (state === playerState.PLAYING) {
+              setIsPlaying(true);
+            }
+
+            if (state === playerState.PAUSED || state === playerState.ENDED) {
+              setIsPlaying(false);
+            }
+
+            if (state === playerState.ENDED) {
+              let playerDuration = durationRef.current || progressRef.current.currentTime;
+              try {
+                playerDuration = player.getDuration() || playerDuration;
+              } catch {
+                // ignore provider runtime exceptions
+              }
+              commitProgress(playerDuration, playerDuration, true);
+              flushProgress(true);
+            }
+          },
+        },
+      });
+
+      youtubePlayerRef.current = player;
+
+      pollTimer = window.setInterval(() => {
+        if (cancelled) return;
+        try {
+          const seconds = player.getCurrentTime();
+          const playerDuration = player.getDuration();
+          commitProgress(seconds, playerDuration);
+        } catch {
+          // ignore provider runtime exceptions
+        }
+      }, 1000);
+    };
+
+    setup();
+
+    return () => {
+      cancelled = true;
+      if (pollTimer) {
+        window.clearInterval(pollTimer);
+      }
+      if (youtubePlayerRef.current) {
+        try {
+          youtubePlayerRef.current.destroy();
+        } catch {
+          // ignore provider runtime exceptions
+        }
+      }
+      youtubePlayerRef.current = null;
+    };
+  }, [provider, embedUrl, commitProgress, flushProgress]);
+
+  useEffect(() => {
+    if (provider !== "VIMEO" || !embedUrl || !vimeoIframeRef.current) return;
+
+    const iframe = vimeoIframeRef.current;
+    const vimeoOrigin = "https://player.vimeo.com";
+
+    const postToVimeo = (payload: Record<string, unknown>) => {
+      iframe.contentWindow?.postMessage(JSON.stringify(payload), vimeoOrigin);
+    };
+
+    const subscribe = () => {
+      postToVimeo({ method: "addEventListener", value: "play" });
+      postToVimeo({ method: "addEventListener", value: "pause" });
+      postToVimeo({ method: "addEventListener", value: "ended" });
+      postToVimeo({ method: "addEventListener", value: "timeupdate" });
+      postToVimeo({ method: "getDuration" });
+    };
+
+    const onLoad = () => {
+      subscribe();
+    };
+
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== vimeoOrigin) return;
+      if (event.source !== iframe.contentWindow) return;
+
+      let payload: unknown = event.data;
+      if (typeof payload === "string") {
+        try {
+          payload = JSON.parse(payload);
+        } catch {
+          return;
+        }
+      }
+
+      if (!payload || typeof payload !== "object") return;
+
+      const message = payload as {
+        event?: string;
+        method?: string;
+        data?: { seconds?: number; duration?: number };
+        value?: number;
+      };
+
+      if (message.event === "play") {
+        setIsPlaying(true);
+        return;
+      }
+
+      if (message.event === "pause") {
+        setIsPlaying(false);
+        return;
+      }
+
+      if (message.event === "timeupdate") {
+        const seconds = Number(message.data?.seconds ?? 0);
+        const playerDuration = Number(message.data?.duration ?? 0);
+        commitProgress(seconds, playerDuration > 0 ? playerDuration : undefined);
+        return;
+      }
+
+      if (message.event === "ended") {
+        setIsPlaying(false);
+        const playerDuration = Number(message.data?.duration ?? durationRef.current ?? progressRef.current.currentTime);
+        commitProgress(playerDuration, playerDuration, true);
+        flushProgress(true);
+        return;
+      }
+
+      if (message.method === "getDuration") {
+        const playerDuration = Number(message.value);
+        if (Number.isFinite(playerDuration) && playerDuration > 0) {
+          durationRef.current = Math.floor(playerDuration);
+          setResolvedDuration(Math.floor(playerDuration));
+        }
+      }
+    };
+
+    iframe.addEventListener("load", onLoad);
+    window.addEventListener("message", onMessage);
+
+    const initTimer = window.setTimeout(subscribe, 500);
+
+    return () => {
+      window.clearTimeout(initTimer);
+      iframe.removeEventListener("load", onLoad);
+      window.removeEventListener("message", onMessage);
+    };
+  }, [provider, embedUrl, commitProgress, flushProgress]);
+
+  const handleCustomTimeUpdate = () => {
+    if (!videoRef.current) return;
+    commitProgress(videoRef.current.currentTime, videoRef.current.duration);
   };
 
   const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
+    const safeSeconds = Math.max(0, Math.floor(seconds));
+    const mins = Math.floor(safeSeconds / 60);
+    const secs = Math.floor(safeSeconds % 60);
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const progressPercent = duration ? (watchedSeconds / duration) * 100 : 0;
+  const progressPercent = resolvedDuration
+    ? Math.min((watchedSeconds / resolvedDuration) * 100, 100)
+    : 0;
 
   return (
     <div className="video-player-container">
-      {/* Progress indicator */}
       <div className="video-progress-bar">
         <div
           className="video-progress-fill"
-          style={{ width: `${Math.min(progressPercent, 100)}%` }}
+          style={{ width: `${progressPercent}%` }}
         />
       </div>
 
-      {/* Video container */}
       <div className="video-wrapper">
         {provider === "CUSTOM" ? (
           <video
@@ -122,17 +542,22 @@ export function VideoPlayer({
             src={videoUrl}
             poster={thumbnail}
             controls
-            onTimeUpdate={handleTimeUpdate}
+            onTimeUpdate={handleCustomTimeUpdate}
             onPlay={() => setIsPlaying(true)}
             onPause={() => setIsPlaying(false)}
             onEnded={() => {
-              setCompleted(true);
-              onProgress?.(watchedSeconds, currentTime, true);
+              setIsPlaying(false);
+              const endingTime =
+                videoRef.current?.duration ?? durationRef.current ?? progressRef.current.currentTime;
+              commitProgress(endingTime, endingTime, true);
+              flushProgress(true);
             }}
           />
-        ) : getEmbedUrl() ? (
+        ) : embedUrl ? (
           <iframe
-            src={getEmbedUrl()!}
+            id={provider === "YOUTUBE" ? youtubeElementId : vimeoPlayerId}
+            ref={provider === "YOUTUBE" ? youtubeIframeRef : provider === "VIMEO" ? vimeoIframeRef : undefined}
+            src={embedUrl}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
           />
@@ -143,21 +568,21 @@ export function VideoPlayer({
         )}
       </div>
 
-      {/* Video info */}
       <div className="video-info">
         <div className="video-stats">
-          {duration && (
+          {resolvedDuration ? (
             <span>
-              {formatTime(watchedSeconds)} / {formatTime(duration)} watched
+              {formatTime(watchedSeconds)} / {formatTime(resolvedDuration)} watched
             </span>
+          ) : (
+            <span>{formatTime(currentTime)} watched</span>
           )}
-          {completed && (
-            <span className="completed-badge">Completed</span>
-          )}
+          {completed && <span className="completed-badge">Completed</span>}
+          {!completed && isPlaying && <span className="playing-badge">Watching</span>}
         </div>
-        {!completed && duration && (
+        {!completed && resolvedDuration && (
           <span className="video-remaining">
-            {formatTime(duration - watchedSeconds)} remaining
+            {formatTime(Math.max(0, resolvedDuration - watchedSeconds))} remaining
           </span>
         )}
       </div>
@@ -180,7 +605,7 @@ export function VideoPlayer({
         }
         .video-wrapper {
           position: relative;
-          padding-bottom: 56.25%; /* 16:9 aspect ratio */
+          padding-bottom: 56.25%;
           height: 0;
         }
         .video-wrapper video,
@@ -209,6 +634,14 @@ export function VideoPlayer({
         .completed-badge {
           background: #22c55e;
           color: white;
+          padding: 2px 8px;
+          border-radius: 999px;
+          font-size: 11px;
+          font-weight: 600;
+        }
+        .playing-badge {
+          background: rgba(20, 184, 166, 0.25);
+          color: #99f6e4;
           padding: 2px 8px;
           border-radius: 999px;
           font-size: 11px;
@@ -245,7 +678,7 @@ export function VideoCard({
   duration,
   thumbnail,
   moduleId,
-  progress
+  progress,
 }: VideoCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -253,14 +686,8 @@ export function VideoCard({
     ? (progress.watchedSeconds / duration) * 100
     : 0;
 
-  const handleSaveProgress = async (
-    watchedSeconds: number,
-    lastPosition: number,
-    completed: boolean
-  ) => {
-    // Progress saving is handled via the onProgress callback from the parent.
-    // The server action (trackVideoWatch) should be called from the server component.
-    // This client-side handler is a no-op — video progress is saved via useEffect in VideoPlayer.
+  const handleSaveProgress = async () => {
+    // Progress saving is handled by the parent route via VideoPlayer onProgress callback.
   };
 
   return (
@@ -275,11 +702,11 @@ export function VideoCard({
             <img src={thumbnail} alt={title} />
           ) : (
             <div className="video-card-placeholder">
-              <span>▶</span>
+              <span>Play</span>
             </div>
           )}
           {progress?.completed && (
-            <div className="video-completed-overlay">✓</div>
+            <div className="video-completed-overlay">Done</div>
           )}
         </div>
         <div className="video-card-info">
@@ -300,11 +727,10 @@ export function VideoCard({
           </div>
         </div>
         <div className="video-card-expand">
-          {isExpanded ? "▲" : "▼"}
+          {isExpanded ? "^" : "v"}
         </div>
       </div>
 
-      {/* Progress bar */}
       {progress && !progress.completed && (
         <div className="video-card-progress">
           <div

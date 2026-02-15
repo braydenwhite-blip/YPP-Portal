@@ -28,6 +28,7 @@ interface Assignment {
 
 interface ModuleCheckpoint {
   id: string;
+  contentKey: string | null;
   title: string;
   description: string | null;
   sortOrder: number;
@@ -36,14 +37,17 @@ interface ModuleCheckpoint {
 
 interface ModuleQuizQuestion {
   id: string;
+  contentKey: string | null;
   question: string;
   options: string[];
   correctAnswer: string;
+  explanation: string | null;
   sortOrder: number;
 }
 
 interface Module {
   id: string;
+  contentKey: string | null;
   title: string;
   description: string;
   materialUrl: string | null;
@@ -98,6 +102,13 @@ export default function TrainingManager({
         </div>
       </div>
 
+      <div className="card" style={{ marginBottom: 16 }}>
+        <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
+          Content operations: run <code>npm run training:export</code> to export JSON and{" "}
+          <code>npm run training:import -- --file=data/training-academy/content.v1.json</code> to import updates.
+        </p>
+      </div>
+
       <div className="admin-training-tabs">
         <button
           className={`admin-training-tab ${activeTab === "modules" ? "active" : ""}`}
@@ -128,6 +139,13 @@ export default function TrainingManager({
           >
             {editingModule && (
               <input type="hidden" name="moduleId" value={editingModule} />
+            )}
+            {editingModule && (
+              <input
+                type="hidden"
+                name="contentKey"
+                value={modules.find((m) => m.id === editingModule)?.contentKey ?? ""}
+              />
             )}
             <div className="grid two">
               <label className="form-row">
@@ -313,7 +331,7 @@ export default function TrainingManager({
                     style={{ cursor: "pointer" }}
                   >
                     <div className="admin-training-module-info">
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <span className="admin-training-module-order">#{mod.sortOrder}</span>
                         <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{mod.title}</h3>
                         <span className={`pill pill-small ${mod.required ? "pill-purple" : "pill-declined"}`}>
@@ -321,6 +339,11 @@ export default function TrainingManager({
                         </span>
                         <span className="pill pill-small pill-info">{mod.type.replace(/_/g, " ")}</span>
                       </div>
+                      {mod.contentKey ? (
+                        <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--muted)" }}>
+                          Key: <code>{mod.contentKey}</code>
+                        </p>
+                      ) : null}
                       <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--muted)", lineHeight: 1.5 }}>
                         {mod.description}
                       </p>
@@ -406,6 +429,11 @@ export default function TrainingManager({
                               <div key={checkpoint.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
                                 <form action={updateTrainingCheckpoint} className="form-grid">
                                   <input type="hidden" name="checkpointId" value={checkpoint.id} />
+                                  <input
+                                    type="hidden"
+                                    name="contentKey"
+                                    value={checkpoint.contentKey ?? ""}
+                                  />
                                   <div className="grid two">
                                     <label className="form-row">
                                       Title
@@ -424,6 +452,11 @@ export default function TrainingManager({
                                     <input type="checkbox" name="required" defaultChecked={checkpoint.required} />
                                     Required checkpoint
                                   </label>
+                                  {checkpoint.contentKey ? (
+                                    <p style={{ margin: 0, fontSize: 11, color: "var(--muted)" }}>
+                                      Key: <code>{checkpoint.contentKey}</code>
+                                    </p>
+                                  ) : null}
                                   <div style={{ display: "flex", gap: 8 }}>
                                     <button className="button small" type="submit">Save checkpoint</button>
                                   </div>
@@ -447,6 +480,7 @@ export default function TrainingManager({
 
                         <form action={createTrainingCheckpoint} className="form-grid" style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
                           <input type="hidden" name="moduleId" value={mod.id} />
+                          <input type="hidden" name="contentKey" value="" />
                           <div className="grid two">
                             <label className="form-row">
                               New checkpoint title
@@ -479,6 +513,11 @@ export default function TrainingManager({
                               <div key={question.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
                                 <form action={updateTrainingQuizQuestion} className="form-grid">
                                   <input type="hidden" name="questionId" value={question.id} />
+                                  <input
+                                    type="hidden"
+                                    name="contentKey"
+                                    value={question.contentKey ?? ""}
+                                  />
                                   <div className="grid two">
                                     <label className="form-row">
                                       Question
@@ -497,6 +536,15 @@ export default function TrainingManager({
                                     Correct answer (must match one option exactly)
                                     <input className="input" name="correctAnswer" defaultValue={question.correctAnswer} required />
                                   </label>
+                                  <label className="form-row">
+                                    Explanation (optional)
+                                    <textarea className="input" name="explanation" rows={2} defaultValue={question.explanation ?? ""} />
+                                  </label>
+                                  {question.contentKey ? (
+                                    <p style={{ margin: 0, fontSize: 11, color: "var(--muted)" }}>
+                                      Key: <code>{question.contentKey}</code>
+                                    </p>
+                                  ) : null}
                                   <button className="button small" type="submit">Save question</button>
                                 </form>
                                 <form
@@ -518,6 +566,7 @@ export default function TrainingManager({
 
                         <form action={createTrainingQuizQuestion} className="form-grid" style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
                           <input type="hidden" name="moduleId" value={mod.id} />
+                          <input type="hidden" name="contentKey" value="" />
                           <div className="grid two">
                             <label className="form-row">
                               New question
@@ -535,6 +584,10 @@ export default function TrainingManager({
                           <label className="form-row">
                             Correct answer (must match one option exactly)
                             <input className="input" name="correctAnswer" required />
+                          </label>
+                          <label className="form-row">
+                            Explanation (optional)
+                            <textarea className="input" name="explanation" rows={2} />
                           </label>
                           <button className="button small" type="submit">Add question</button>
                         </form>

@@ -119,6 +119,7 @@ export default async function TrainingModulePage({
       id: question.id,
       question: question.question,
       correctAnswer: question.correctAnswer,
+      explanation: question.explanation,
       sortOrder: question.sortOrder,
       options,
     };

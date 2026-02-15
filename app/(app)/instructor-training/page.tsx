@@ -22,6 +22,8 @@ function dateTimeLocalValue(value: Date) {
   return copy.toISOString().slice(0, 16);
 }
 
+const TRACKABLE_REQUIRED_VIDEO_PROVIDERS = new Set(["YOUTUBE", "VIMEO", "CUSTOM"]);
+
 export default async function InstructorTrainingPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -177,6 +179,13 @@ export default async function InstructorTrainingPage() {
       configurationIssue = "Module is required but not configured yet. Ask an admin to add video, checkpoints, quiz, or evidence requirements.";
     } else if (module.requiresQuiz && module.quizQuestions.length === 0) {
       configurationIssue = "Quiz is required but no quiz questions are configured for this module.";
+    } else if (
+      module.required &&
+      module.videoUrl &&
+      module.videoProvider &&
+      !TRACKABLE_REQUIRED_VIDEO_PROVIDERS.has(module.videoProvider)
+    ) {
+      configurationIssue = "Required module video provider must be YOUTUBE, VIMEO, or CUSTOM so watch tracking can count.";
     }
 
     const videoReady =

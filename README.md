@@ -239,6 +239,23 @@ See [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) for the full feature road
 - Canonical instructor training route: `/instructor-training`
 - Legacy compatibility route: `/instructor/training-progress` (redirects to canonical page)
 - Seed default academy content (idempotent): `npm run training:seed-content`
+- Source-of-truth content file: `data/training-academy/content.v1.json`
+- Required module video providers that support watch tracking: `YOUTUBE`, `VIMEO`, `CUSTOM`
+
+### Update Academy Content (Exact Workflow)
+1. Edit `data/training-academy/content.v1.json`
+2. Validate content before touching DB:
+   - `npm run training:validate`
+3. Preview DB changes safely:
+   - `npm run training:import -- --file=data/training-academy/content.v1.json --dry-run`
+4. Apply changes:
+   - `npm run training:import -- --file=data/training-academy/content.v1.json`
+5. Optional prune mode (remove DB rows not present in file):
+   - `npm run training:import -- --file=data/training-academy/content.v1.json --prune=true`
+6. Export current DB content back to JSON:
+   - `npm run training:export -- --file=data/training-academy/content.v1.json`
+7. One-command validate + import:
+   - `npm run training:sync`
 
 ## Notes
 - To align with the Wix site, keep branding consistent (colors, fonts, logo).

@@ -581,6 +581,7 @@ model Enrollment {
 
 model TrainingModule {
   id            String              @id @default(cuid())
+  contentKey    String?             @unique
   title         String
   description   String
   materialUrl   String?
@@ -667,6 +668,7 @@ model InstructorApprovalLevel {
 model TrainingCheckpoint {
   id          String              @id @default(cuid())
   moduleId    String
+  contentKey  String?
   module      TrainingModule      @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   title       String
   description String?
@@ -677,6 +679,7 @@ model TrainingCheckpoint {
   updatedAt   DateTime            @updatedAt
 
   @@index([moduleId, sortOrder])
+  @@unique([moduleId, contentKey])
 }
 
 model TrainingCheckpointCompletion {
@@ -696,15 +699,18 @@ model TrainingCheckpointCompletion {
 model TrainingQuizQuestion {
   id           String         @id @default(cuid())
   moduleId     String
+  contentKey   String?
   module       TrainingModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   question     String
   options      Json
   correctAnswer String
+  explanation  String?
   sortOrder    Int            @default(1)
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
   @@index([moduleId, sortOrder])
+  @@unique([moduleId, contentKey])
 }
 
 model TrainingQuizAttempt {
