@@ -1,5 +1,3 @@
-"use server";
-
 import { CourseLevel } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
