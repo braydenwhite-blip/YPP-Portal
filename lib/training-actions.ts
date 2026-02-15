@@ -100,6 +100,81 @@ function getCourseLevel(raw: string): CourseLevel {
   return raw as CourseLevel;
 }
 
+type ModuleValidationInput = {
+  required: boolean;
+  videoUrl: string | null;
+  requiresQuiz: boolean;
+  requiresEvidence: boolean;
+  requiredCheckpointCount: number;
+  quizQuestionCount: number;
+};
+
+function getModuleConfigurationIssues(input: ModuleValidationInput): string[] {
+  const issues: string[] = [];
+  const hasActionablePath =
+    Boolean(input.videoUrl) ||
+    input.requiredCheckpointCount > 0 ||
+    input.requiresQuiz ||
+    input.requiresEvidence;
+
+  if (input.required && !hasActionablePath) {
+    issues.push(
+      "Required modules must include at least one actionable requirement: video, required checkpoint, quiz, or evidence."
+    );
+  }
+
+  if (input.requiresQuiz && input.quizQuestionCount === 0) {
+    issues.push(
+      "Cannot enable quiz requirement with zero quiz questions. Add at least one quiz question first."
+    );
+  }
+
+  return issues;
+}
+
+function assertValidModuleConfiguration(input: ModuleValidationInput) {
+  const issues = getModuleConfigurationIssues(input);
+  if (issues.length > 0) {
+    throw new Error(issues[0]);
+  }
+}
+
+async function getModuleValidationInput(moduleId: string): Promise<ModuleValidationInput> {
+  const [module, requiredCheckpointCount, quizQuestionCount] = await Promise.all([
+    prisma.trainingModule.findUnique({
+      where: { id: moduleId },
+      select: {
+        required: true,
+        videoUrl: true,
+        requiresQuiz: true,
+        requiresEvidence: true,
+      },
+    }),
+    prisma.trainingCheckpoint.count({
+      where: {
+        moduleId,
+        required: true,
+      },
+    }),
+    prisma.trainingQuizQuestion.count({
+      where: { moduleId },
+    }),
+  ]);
+
+  if (!module) {
+    throw new Error("Training module not found");
+  }
+
+  return {
+    required: module.required,
+    videoUrl: module.videoUrl,
+    requiresQuiz: module.requiresQuiz,
+    requiresEvidence: module.requiresEvidence,
+    requiredCheckpointCount,
+    quizQuestionCount,
+  };
+}
+
 async function ensureSequentialPermission(instructorId: string, level: CourseLevel) {
   const requiredPrereq: Record<CourseLevel, CourseLevel | null> = {
     LEVEL_101: null,
@@ -214,6 +289,7 @@ async function syncAssignmentFromArtifacts(userId: string, moduleId: string) {
     where: { id: moduleId },
     select: {
       id: true,
+      required: true,
       videoUrl: true,
       videoDuration: true,
       requiresQuiz: true,
@@ -221,6 +297,9 @@ async function syncAssignmentFromArtifacts(userId: string, moduleId: string) {
       passScorePct: true,
       checkpoints: {
         where: { required: true },
+        select: { id: true },
+      },
+      quizQuestions: {
         select: { id: true },
       },
     },
@@ -231,6 +310,16 @@ async function syncAssignmentFromArtifacts(userId: string, moduleId: string) {
   }
 
   const requiredCheckpointIds = module.checkpoints.map((checkpoint) => checkpoint.id);
+  const quizQuestionCount = module.quizQuestions.length;
+  const moduleConfigurationIssues = getModuleConfigurationIssues({
+    required: module.required,
+    videoUrl: module.videoUrl,
+    requiresQuiz: module.requiresQuiz,
+    requiresEvidence: module.requiresEvidence,
+    requiredCheckpointCount: requiredCheckpointIds.length,
+    quizQuestionCount,
+  });
+  const configurationIssue = moduleConfigurationIssues[0] ?? null;
 
   const [videoProgress, completedCheckpointCount, passedQuizAttempt, approvedEvidenceCount, quizAttemptCount, evidenceSubmissionCount] =
     await Promise.all([
@@ -281,16 +370,17 @@ async function syncAssignmentFromArtifacts(userId: string, moduleId: string) {
 
   const checkpointsReady =
     requiredCheckpointIds.length === 0 || completedCheckpointCount >= requiredCheckpointIds.length;
-  const quizReady = !module.requiresQuiz || Boolean(passedQuizAttempt);
+  const quizReady = !module.requiresQuiz || (quizQuestionCount > 0 && Boolean(passedQuizAttempt));
   const evidenceReady = !module.requiresEvidence || approvedEvidenceCount > 0;
 
-  const isComplete = videoReady && checkpointsReady && quizReady && evidenceReady;
+  const isComplete =
+    !configurationIssue && videoReady && checkpointsReady && quizReady && evidenceReady;
   const hasAnyProgress =
     hasVideoProgress || completedCheckpointCount > 0 || quizAttemptCount > 0 || evidenceSubmissionCount > 0;
 
   const nextStatus: TrainingStatus = isComplete
     ? "COMPLETE"
-    : hasAnyProgress
+    : hasAnyProgress || Boolean(configurationIssue)
       ? "IN_PROGRESS"
       : "NOT_STARTED";
 
@@ -321,7 +411,19 @@ async function syncAssignmentFromArtifacts(userId: string, moduleId: string) {
     checkpointsReady,
     quizReady,
     evidenceReady,
+    configurationIssue,
   };
+}
+
+async function syncAssignmentsForModule(moduleId: string) {
+  const assignments = await prisma.trainingAssignment.findMany({
+    where: { moduleId },
+    select: { userId: true },
+  });
+
+  await Promise.all(
+    assignments.map((assignment) => syncAssignmentFromArtifacts(assignment.userId, moduleId))
+  );
 }
 
 // ============================================
@@ -349,6 +451,20 @@ export async function createTrainingModuleWithVideo(formData: FormData) {
   const requiresQuiz = formData.get("requiresQuiz") === "on";
   const requiresEvidence = formData.get("requiresEvidence") === "on";
   const passScorePct = getNumber(formData, "passScorePct", 80);
+  const normalizedVideoUrl = videoUrl || null;
+
+  if (passScorePct < 1 || passScorePct > 100) {
+    throw new Error("Pass score must be between 1 and 100.");
+  }
+
+  assertValidModuleConfiguration({
+    required,
+    videoUrl: normalizedVideoUrl,
+    requiresQuiz,
+    requiresEvidence,
+    requiredCheckpointCount: 0,
+    quizQuestionCount: 0,
+  });
 
   await prisma.trainingModule.create({
     data: {
@@ -359,7 +475,7 @@ export async function createTrainingModuleWithVideo(formData: FormData) {
       type,
       required,
       sortOrder,
-      videoUrl: videoUrl || null,
+      videoUrl: normalizedVideoUrl,
       videoProvider: videoProvider || null,
       videoDuration: videoDuration ? Number(videoDuration) : null,
       videoThumbnail: videoThumbnail || null,
@@ -396,6 +512,32 @@ export async function updateTrainingModule(formData: FormData) {
   const requiresQuiz = formData.get("requiresQuiz") === "on";
   const requiresEvidence = formData.get("requiresEvidence") === "on";
   const passScorePct = getNumber(formData, "passScorePct", 80);
+  const normalizedVideoUrl = videoUrl || null;
+
+  if (passScorePct < 1 || passScorePct > 100) {
+    throw new Error("Pass score must be between 1 and 100.");
+  }
+
+  const [requiredCheckpointCount, quizQuestionCount] = await Promise.all([
+    prisma.trainingCheckpoint.count({
+      where: {
+        moduleId,
+        required: true,
+      },
+    }),
+    prisma.trainingQuizQuestion.count({
+      where: { moduleId },
+    }),
+  ]);
+
+  assertValidModuleConfiguration({
+    required,
+    videoUrl: normalizedVideoUrl,
+    requiresQuiz,
+    requiresEvidence,
+    requiredCheckpointCount,
+    quizQuestionCount,
+  });
 
   await prisma.trainingModule.update({
     where: { id: moduleId },
@@ -407,7 +549,7 @@ export async function updateTrainingModule(formData: FormData) {
       type,
       required,
       sortOrder,
-      videoUrl: videoUrl || null,
+      videoUrl: normalizedVideoUrl,
       videoProvider: videoProvider || null,
       videoDuration: videoDuration ? Number(videoDuration) : null,
       videoThumbnail: videoThumbnail || null,
@@ -417,9 +559,282 @@ export async function updateTrainingModule(formData: FormData) {
     },
   });
 
+  await syncAssignmentsForModule(moduleId);
+
   revalidatePath("/admin");
   revalidatePath("/instructor-training");
+  revalidatePath("/instructor/training-progress");
   revalidatePath("/admin/training");
+}
+
+function parseQuizOptions(raw: string): string[] {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    throw new Error("Quiz options are required.");
+  }
+
+  let parsedOptions: string[] = [];
+
+  if (trimmed.startsWith("[")) {
+    try {
+      const json = JSON.parse(trimmed) as unknown;
+      if (Array.isArray(json)) {
+        parsedOptions = json.map((item) => String(item).trim()).filter(Boolean);
+      }
+    } catch {
+      parsedOptions = [];
+    }
+  }
+
+  if (parsedOptions.length === 0) {
+    parsedOptions = trimmed
+      .split(/\r?\n|,/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  const deduped = Array.from(new Set(parsedOptions));
+  if (deduped.length < 2) {
+    throw new Error("Quiz questions must have at least 2 options.");
+  }
+  return deduped;
+}
+
+// ============================================
+// TRAINING CONTENT CMS (Admin)
+// ============================================
+
+export async function createTrainingCheckpoint(formData: FormData) {
+  await requireAdmin();
+
+  const moduleId = getString(formData, "moduleId");
+  const title = getString(formData, "title");
+  const description = getString(formData, "description", false);
+  const sortOrder = Math.max(1, getNumber(formData, "sortOrder", 1));
+  const required = formData.get("required") === "on";
+
+  const module = await prisma.trainingModule.findUnique({
+    where: { id: moduleId },
+    select: { id: true },
+  });
+
+  if (!module) {
+    throw new Error("Training module not found");
+  }
+
+  await prisma.trainingCheckpoint.create({
+    data: {
+      moduleId,
+      title,
+      description: description || null,
+      sortOrder,
+      required,
+    },
+  });
+
+  await syncAssignmentsForModule(moduleId);
+
+  revalidatePath("/admin/training");
+  revalidatePath("/instructor-training");
+  revalidatePath("/instructor/training-progress");
+}
+
+export async function updateTrainingCheckpoint(formData: FormData) {
+  await requireAdmin();
+
+  const checkpointId = getString(formData, "checkpointId");
+  const title = getString(formData, "title");
+  const description = getString(formData, "description", false);
+  const sortOrder = Math.max(1, getNumber(formData, "sortOrder", 1));
+  const required = formData.get("required") === "on";
+
+  const checkpoint = await prisma.trainingCheckpoint.findUnique({
+    where: { id: checkpointId },
+    select: {
+      moduleId: true,
+      required: true,
+    },
+  });
+
+  if (!checkpoint) {
+    throw new Error("Checkpoint not found");
+  }
+
+  const validation = await getModuleValidationInput(checkpoint.moduleId);
+  const nextRequiredCheckpointCount =
+    validation.requiredCheckpointCount + (required ? 1 : 0) - (checkpoint.required ? 1 : 0);
+
+  assertValidModuleConfiguration({
+    ...validation,
+    requiredCheckpointCount: Math.max(0, nextRequiredCheckpointCount),
+  });
+
+  await prisma.trainingCheckpoint.update({
+    where: { id: checkpointId },
+    data: {
+      title,
+      description: description || null,
+      sortOrder,
+      required,
+    },
+  });
+
+  await syncAssignmentsForModule(checkpoint.moduleId);
+
+  revalidatePath("/admin/training");
+  revalidatePath("/instructor-training");
+  revalidatePath("/instructor/training-progress");
+  revalidatePath(`/training/${checkpoint.moduleId}`);
+}
+
+export async function deleteTrainingCheckpoint(formData: FormData) {
+  await requireAdmin();
+
+  const checkpointId = getString(formData, "checkpointId");
+  const checkpoint = await prisma.trainingCheckpoint.findUnique({
+    where: { id: checkpointId },
+    select: {
+      moduleId: true,
+      required: true,
+    },
+  });
+
+  if (!checkpoint) {
+    throw new Error("Checkpoint not found");
+  }
+
+  const validation = await getModuleValidationInput(checkpoint.moduleId);
+  const nextRequiredCheckpointCount =
+    validation.requiredCheckpointCount - (checkpoint.required ? 1 : 0);
+
+  assertValidModuleConfiguration({
+    ...validation,
+    requiredCheckpointCount: Math.max(0, nextRequiredCheckpointCount),
+  });
+
+  await prisma.trainingCheckpoint.delete({
+    where: { id: checkpointId },
+  });
+
+  await syncAssignmentsForModule(checkpoint.moduleId);
+
+  revalidatePath("/admin/training");
+  revalidatePath("/instructor-training");
+  revalidatePath("/instructor/training-progress");
+  revalidatePath(`/training/${checkpoint.moduleId}`);
+}
+
+export async function createTrainingQuizQuestion(formData: FormData) {
+  await requireAdmin();
+
+  const moduleId = getString(formData, "moduleId");
+  const question = getString(formData, "question");
+  const optionsRaw = getString(formData, "options");
+  const sortOrder = Math.max(1, getNumber(formData, "sortOrder", 1));
+  const options = parseQuizOptions(optionsRaw);
+  const requestedCorrectAnswer = getString(formData, "correctAnswer", false);
+  const correctAnswer = requestedCorrectAnswer || options[0];
+
+  if (!options.includes(correctAnswer)) {
+    throw new Error("Correct answer must match one of the options.");
+  }
+
+  const module = await prisma.trainingModule.findUnique({
+    where: { id: moduleId },
+    select: { id: true },
+  });
+  if (!module) {
+    throw new Error("Training module not found");
+  }
+
+  await prisma.trainingQuizQuestion.create({
+    data: {
+      moduleId,
+      question,
+      options,
+      correctAnswer,
+      sortOrder,
+    },
+  });
+
+  await syncAssignmentsForModule(moduleId);
+
+  revalidatePath("/admin/training");
+  revalidatePath("/instructor-training");
+  revalidatePath("/instructor/training-progress");
+  revalidatePath(`/training/${moduleId}`);
+}
+
+export async function updateTrainingQuizQuestion(formData: FormData) {
+  await requireAdmin();
+
+  const questionId = getString(formData, "questionId");
+  const question = getString(formData, "question");
+  const optionsRaw = getString(formData, "options");
+  const sortOrder = Math.max(1, getNumber(formData, "sortOrder", 1));
+  const options = parseQuizOptions(optionsRaw);
+  const correctAnswer = getString(formData, "correctAnswer");
+
+  if (!options.includes(correctAnswer)) {
+    throw new Error("Correct answer must match one of the options.");
+  }
+
+  const existingQuestion = await prisma.trainingQuizQuestion.findUnique({
+    where: { id: questionId },
+    select: { moduleId: true },
+  });
+
+  if (!existingQuestion) {
+    throw new Error("Quiz question not found");
+  }
+
+  await prisma.trainingQuizQuestion.update({
+    where: { id: questionId },
+    data: {
+      question,
+      options,
+      correctAnswer,
+      sortOrder,
+    },
+  });
+
+  await syncAssignmentsForModule(existingQuestion.moduleId);
+
+  revalidatePath("/admin/training");
+  revalidatePath("/instructor-training");
+  revalidatePath("/instructor/training-progress");
+  revalidatePath(`/training/${existingQuestion.moduleId}`);
+}
+
+export async function deleteTrainingQuizQuestion(formData: FormData) {
+  await requireAdmin();
+
+  const questionId = getString(formData, "questionId");
+  const question = await prisma.trainingQuizQuestion.findUnique({
+    where: { id: questionId },
+    select: { moduleId: true },
+  });
+
+  if (!question) {
+    throw new Error("Quiz question not found");
+  }
+
+  const validation = await getModuleValidationInput(question.moduleId);
+  assertValidModuleConfiguration({
+    ...validation,
+    quizQuestionCount: Math.max(0, validation.quizQuestionCount - 1),
+  });
+
+  await prisma.trainingQuizQuestion.delete({
+    where: { id: questionId },
+  });
+
+  await syncAssignmentsForModule(question.moduleId);
+
+  revalidatePath("/admin/training");
+  revalidatePath("/instructor-training");
+  revalidatePath("/instructor/training-progress");
+  revalidatePath(`/training/${question.moduleId}`);
 }
 
 // ============================================
@@ -513,6 +928,7 @@ export async function submitTrainingCheckpoint(formData: FormData) {
 
   await syncAssignmentFromArtifacts(userId, checkpoint.moduleId);
 
+  revalidatePath("/instructor-training");
   revalidatePath("/instructor/training-progress");
   revalidatePath(`/training/${checkpoint.moduleId}`);
 }
@@ -528,6 +944,7 @@ export async function submitTrainingQuizAttempt(formData: FormData) {
   const module = await prisma.trainingModule.findUnique({
     where: { id: moduleId },
     select: {
+      requiresQuiz: true,
       passScorePct: true,
       quizQuestions: {
         select: {
@@ -540,6 +957,14 @@ export async function submitTrainingQuizAttempt(formData: FormData) {
 
   if (!module) {
     throw new Error("Training module not found");
+  }
+  if (module.requiresQuiz && module.quizQuestions.length === 0) {
+    throw new Error(
+      "Quiz is required for this module, but no quiz questions are configured yet. Ask an admin to configure this module."
+    );
+  }
+  if (module.quizQuestions.length === 0) {
+    throw new Error("No quiz questions are configured for this module yet.");
   }
 
   let answersJson: Record<string, string> = {};
@@ -555,14 +980,10 @@ export async function submitTrainingQuizAttempt(formData: FormData) {
   let scorePct = scorePctRaw ? Number(scorePctRaw) : NaN;
 
   if (!Number.isFinite(scorePct)) {
-    if (module.quizQuestions.length === 0) {
-      scorePct = 100;
-    } else {
-      const correct = module.quizQuestions.filter(
-        (question) => answersJson[question.id] === question.correctAnswer
-      ).length;
-      scorePct = Math.round((correct / module.quizQuestions.length) * 100);
-    }
+    const correct = module.quizQuestions.filter(
+      (question) => answersJson[question.id] === question.correctAnswer
+    ).length;
+    scorePct = Math.round((correct / module.quizQuestions.length) * 100);
   }
 
   const passed = scorePct >= module.passScorePct;
@@ -579,6 +1000,7 @@ export async function submitTrainingQuizAttempt(formData: FormData) {
 
   await syncAssignmentFromArtifacts(userId, moduleId);
 
+  revalidatePath("/instructor-training");
   revalidatePath("/instructor/training-progress");
   revalidatePath(`/training/${moduleId}`);
 
@@ -633,6 +1055,7 @@ export async function requestReadinessReview(formData?: FormData) {
   });
 
   revalidatePath("/instructor/training-progress");
+  revalidatePath("/instructor-training");
   revalidatePath("/admin/instructor-readiness");
   revalidatePath("/chapter-lead/instructor-readiness");
 }
@@ -679,6 +1102,7 @@ export async function reviewTrainingEvidence(formData: FormData) {
 
   revalidatePath("/admin/instructor-readiness");
   revalidatePath("/chapter-lead/instructor-readiness");
+  revalidatePath("/instructor-training");
   revalidatePath("/instructor/training-progress");
   revalidatePath(`/training/${submission.moduleId}`);
 }

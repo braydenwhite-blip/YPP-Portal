@@ -235,8 +235,13 @@ See [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) for the full feature road
 ## Operator Runbook
 - Native training + interview workflow: [`docs/brayden/instructor-training-interview-native-runbook.md`](./docs/brayden/instructor-training-interview-native-runbook.md)
 
+## Instructor Training Academy
+- Canonical instructor training route: `/instructor-training`
+- Legacy compatibility route: `/instructor/training-progress` (redirects to canonical page)
+- Seed default academy content (idempotent): `npm run training:seed-content`
+
 ## Notes
 - To align with the Wix site, keep branding consistent (colors, fonts, logo).
 - Add a "Portal" button on Wix that links to the portal URL.
-- The schema supports 101/201/301 levels, Labs, Commons, mentorship, and training approvals by level.
+- The schema supports 101/201/301/401 levels, Labs, Commons, mentorship, and training approvals by level.
 - See the YPP purple color scheme in globals.css for branding guidelines.

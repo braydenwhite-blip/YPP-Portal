@@ -32,7 +32,7 @@ export type InstructorReadiness = {
   nextAction: NextAction;
 };
 
-const INSTRUCTOR_TOOLS_HREF = "/instructor/training-progress";
+const INSTRUCTOR_TOOLS_HREF = "/instructor-training";
 const INSTRUCTOR_PUBLISH_HREF = "/instructor/class-settings";
 
 function envTrue(value: string | undefined): boolean {
@@ -81,7 +81,20 @@ export async function getInstructorReadiness(instructorId: string): Promise<Inst
   ] = await Promise.all([
     prisma.trainingModule.findMany({
       where: { required: true },
-      select: { id: true, title: true },
+      select: {
+        id: true,
+        title: true,
+        videoUrl: true,
+        requiresQuiz: true,
+        requiresEvidence: true,
+        checkpoints: {
+          where: { required: true },
+          select: { id: true },
+        },
+        quizQuestions: {
+          select: { id: true },
+        },
+      },
     }),
     prisma.trainingAssignment.findMany({
       where: { userId: instructorId },
@@ -116,13 +129,43 @@ export async function getInstructorReadiness(instructorId: string): Promise<Inst
     }),
   ]);
 
+  const moduleConfigIssueById = new Map<string, string>();
+  for (const module of requiredModules) {
+    const requiredCheckpointCount = module.checkpoints.length;
+    const hasActionablePath =
+      Boolean(module.videoUrl) ||
+      requiredCheckpointCount > 0 ||
+      module.requiresQuiz ||
+      module.requiresEvidence;
+
+    if (!hasActionablePath) {
+      moduleConfigIssueById.set(
+        module.id,
+        "This required module is missing all requirement paths."
+      );
+      continue;
+    }
+
+    if (module.requiresQuiz && module.quizQuestions.length === 0) {
+      moduleConfigIssueById.set(
+        module.id,
+        "This required module has quiz enabled but no quiz questions."
+      );
+    }
+  }
+
   const requiredModuleIds = new Set(requiredModules.map((module) => module.id));
   const completedRequiredModules = assignments.filter(
     (assignment) =>
-      requiredModuleIds.has(assignment.moduleId) && assignment.status === "COMPLETE"
+      requiredModuleIds.has(assignment.moduleId) &&
+      assignment.status === "COMPLETE" &&
+      !moduleConfigIssueById.has(assignment.moduleId)
   ).length;
   const trainingComplete =
-    requiredModules.length === 0 || completedRequiredModules >= requiredModules.length;
+    requiredModules.length === 0
+      ? true
+      : moduleConfigIssueById.size === 0 &&
+        completedRequiredModules >= requiredModules.length;
 
   const interviewStatus = interviewGate?.status ?? "REQUIRED";
   const interviewOutcome = interviewGate?.outcome ?? null;
@@ -141,16 +184,29 @@ export async function getInstructorReadiness(instructorId: string): Promise<Inst
     (offering) => offering.grandfatheredTrainingExemption
   ).length;
   const isFirstPublish = !hasPublishedOffering;
+  const remainingRequiredModules = Math.max(
+    0,
+    requiredModules.length - completedRequiredModules
+  );
 
   const canPublishFirstOffering =
     !featureEnabled || !isFirstPublish || (trainingComplete && interviewPassed);
 
   const missingRequirements: MissingRequirement[] = [];
+  if (moduleConfigIssueById.size > 0) {
+    missingRequirements.push({
+      code: "TRAINING_CONFIGURATION_REQUIRED",
+      title: "Training module configuration is incomplete",
+      detail:
+        "One or more required modules are not fully configured. Contact an admin to finish setup before continuing.",
+      href: INSTRUCTOR_TOOLS_HREF,
+    });
+  }
   if (!trainingComplete) {
     missingRequirements.push({
       code: "TRAINING_INCOMPLETE",
       title: "Complete required training modules",
-      detail: `Finish ${requiredModules.length - completedRequiredModules} remaining required module(s).`,
+      detail: `Finish ${remainingRequiredModules} remaining required module(s).`,
       href: INSTRUCTOR_TOOLS_HREF,
     });
   }

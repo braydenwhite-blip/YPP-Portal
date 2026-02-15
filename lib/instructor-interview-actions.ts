@@ -120,7 +120,7 @@ function assertGateCanSchedule(status: string) {
 }
 
 function revalidateInterviewPaths() {
-  revalidatePath("/instructor/training-progress");
+  revalidatePath("/instructor-training");
   revalidatePath("/admin/instructor-readiness");
   revalidatePath("/chapter-lead/instructor-readiness");
 }
@@ -394,7 +394,7 @@ export async function postInterviewSlot(formData: FormData) {
     "SYSTEM",
     "Interview Slot Available",
     "A reviewer posted a new interview slot for you.",
-    "/instructor/training-progress"
+    "/instructor-training"
   );
 
   revalidateInterviewPaths();
@@ -501,7 +501,7 @@ export async function acceptInterviewAvailabilityRequest(formData: FormData) {
     "SYSTEM",
     "Interview Request Accepted",
     "Your preferred interview request was accepted and scheduled.",
-    "/instructor/training-progress"
+    "/instructor-training"
   );
 
   revalidateInterviewPaths();
@@ -545,7 +545,7 @@ export async function declineInterviewAvailabilityRequest(formData: FormData) {
     "SYSTEM",
     "Interview Request Declined",
     "A reviewer declined your interview availability request. Submit new preferred times.",
-    "/instructor/training-progress"
+    "/instructor-training"
   );
 
   revalidateInterviewPaths();
@@ -606,7 +606,7 @@ export async function markInterviewCompleted(formData: FormData) {
     "SYSTEM",
     "Interview Completed",
     "Your interview was marked completed. A reviewer will post your outcome next.",
-    "/instructor/training-progress"
+    "/instructor-training"
   );
 
   revalidateInterviewPaths();
@@ -717,8 +717,8 @@ export async function setInterviewOutcome(formData: FormData) {
     gate.instructorId,
     "SYSTEM",
     "Interview Outcome Posted",
-    `Your interview outcome is ${outcome}. Check your training progress for next steps.`,
-    "/instructor/training-progress"
+    `Your interview outcome is ${outcome}. Check your instructor training academy for next steps.`,
+    "/instructor-training"
   );
 
   revalidateInterviewPaths();

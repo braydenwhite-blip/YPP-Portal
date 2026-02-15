@@ -1,4 +1,4 @@
-import { PrismaClient, CourseFormat, CourseLevel, TrainingModuleType, RoleType, MentorshipType, EventType, FeedbackSource, TrainingStatus, ApprovalStatus } from "@prisma/client";
+import { PrismaClient, CourseFormat, CourseLevel, TrainingModuleType, RoleType, MentorshipType, EventType, FeedbackSource, TrainingStatus, ApprovalStatus, VideoProvider } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -182,33 +182,147 @@ async function main() {
     }
   });
 
-  const modules = await prisma.trainingModule.createMany({
-    data: [
-      {
-        title: "Zoom Workshop: Teaching on YPP",
-        description: "Live workshop on facilitation and engagement.",
-        type: TrainingModuleType.WORKSHOP,
-        required: true,
-        sortOrder: 1
-      },
-      {
-        title: "Situation Practice",
-        description: "Scenario drills for student support and pacing.",
-        type: TrainingModuleType.SCENARIO_PRACTICE,
-        required: true,
-        sortOrder: 2
-      },
-      {
-        title: "Curriculum Review",
-        description: "Align lesson plans with YPP standards.",
-        type: TrainingModuleType.CURRICULUM_REVIEW,
-        required: true,
-        sortOrder: 3
-      }
-    ]
+  const module1 = await prisma.trainingModule.create({
+    data: {
+      title: "Zoom Workshop: Teaching on YPP",
+      description: "Live workshop on facilitation and engagement.",
+      type: TrainingModuleType.WORKSHOP,
+      required: true,
+      sortOrder: 1,
+      videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      videoProvider: VideoProvider.YOUTUBE,
+      videoDuration: 900,
+      requiresQuiz: true,
+      requiresEvidence: false,
+      passScorePct: 80,
+    },
   });
 
-  const allModules = await prisma.trainingModule.findMany();
+  await prisma.trainingCheckpoint.createMany({
+    data: [
+      {
+        moduleId: module1.id,
+        title: "Complete live workshop attendance",
+        description: "Attend the full session and review facilitator notes.",
+        sortOrder: 1,
+        required: true,
+      },
+      {
+        moduleId: module1.id,
+        title: "Submit engagement reflection",
+        description: "Write a short reflection on 2 strategies you will use in class.",
+        sortOrder: 2,
+        required: true,
+      },
+    ],
+  });
+
+  await prisma.trainingQuizQuestion.createMany({
+    data: [
+      {
+        moduleId: module1.id,
+        question: "What is the best first step when student energy drops mid-session?",
+        options: ["Check in with a quick interactive reset", "Keep lecturing without pausing", "End class early"],
+        correctAnswer: "Check in with a quick interactive reset",
+        sortOrder: 1,
+      },
+      {
+        moduleId: module1.id,
+        question: "Which approach best supports engagement in YPP classes?",
+        options: ["Student voice and active practice", "One-way slides only", "Skipping check-ins"],
+        correctAnswer: "Student voice and active practice",
+        sortOrder: 2,
+      },
+    ],
+  });
+
+  const module2 = await prisma.trainingModule.create({
+    data: {
+      title: "Situation Practice",
+      description: "Scenario drills for student support and pacing.",
+      type: TrainingModuleType.SCENARIO_PRACTICE,
+      required: true,
+      sortOrder: 2,
+      videoUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+      videoProvider: VideoProvider.YOUTUBE,
+      videoDuration: 720,
+      requiresQuiz: true,
+      requiresEvidence: false,
+      passScorePct: 80,
+    },
+  });
+
+  await prisma.trainingCheckpoint.createMany({
+    data: [
+      {
+        moduleId: module2.id,
+        title: "Practice student support scenarios",
+        description: "Complete all listed classroom response drills.",
+        sortOrder: 1,
+        required: true,
+      },
+      {
+        moduleId: module2.id,
+        title: "Review pacing rubric",
+        description: "Read and acknowledge the pacing standards guide.",
+        sortOrder: 2,
+        required: true,
+      },
+    ],
+  });
+
+  await prisma.trainingQuizQuestion.createMany({
+    data: [
+      {
+        moduleId: module2.id,
+        question: "If one student dominates discussion, what should you do first?",
+        options: ["Invite quieter students with structured turns", "Ignore it completely", "Remove discussion entirely"],
+        correctAnswer: "Invite quieter students with structured turns",
+        sortOrder: 1,
+      },
+      {
+        moduleId: module2.id,
+        question: "What pacing habit helps prevent student confusion?",
+        options: ["Set a clear objective and recap transitions", "Rush through all activities", "Skip instructions"],
+        correctAnswer: "Set a clear objective and recap transitions",
+        sortOrder: 2,
+      },
+    ],
+  });
+
+  const module3 = await prisma.trainingModule.create({
+    data: {
+      title: "Curriculum Review Capstone",
+      description: "Align lesson plans with YPP standards and submit a capstone artifact.",
+      type: TrainingModuleType.CURRICULUM_REVIEW,
+      required: true,
+      sortOrder: 3,
+      requiresQuiz: false,
+      requiresEvidence: true,
+      passScorePct: 80,
+    },
+  });
+
+  await prisma.trainingCheckpoint.createMany({
+    data: [
+      {
+        moduleId: module3.id,
+        title: "Draft a standards-aligned class outline",
+        description: "Prepare one full lesson outline aligned to YPP outcomes.",
+        sortOrder: 1,
+        required: true,
+      },
+      {
+        moduleId: module3.id,
+        title: "Complete capstone self-review",
+        description: "Run your outline through the quality rubric before submission.",
+        sortOrder: 2,
+        required: true,
+      },
+    ],
+  });
+
+  const allModules = [module1, module2, module3];
 
   await prisma.trainingAssignment.createMany({
     data: allModules.map((module, index) => ({

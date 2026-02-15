@@ -160,8 +160,8 @@ export default function TrainingModuleClient({
           <h1 className="page-title">{module.title}</h1>
           <p className="page-subtitle">{module.description}</p>
         </div>
-        <Link href="/instructor/training-progress" className="button small outline" style={{ textDecoration: "none" }}>
-          Back to progress
+        <Link href="/instructor-training" className="button small outline" style={{ textDecoration: "none" }}>
+          Back to academy
         </Link>
       </div>
 

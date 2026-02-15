@@ -62,6 +62,16 @@ Route: `/admin/instructor-readiness`
 2. Select level and reason.
 3. Submit grant.
 
+### 4.5 Manage academy curriculum content
+Route: `/admin/training`
+
+1. Open a module card.
+2. Add or update required checkpoints.
+3. Add or update quiz questions and correct answers.
+4. Keep `requiresQuiz` enabled only when questions exist.
+5. Keep required modules actionable with at least one path:
+   video OR required checkpoints OR quiz OR evidence.
+
 ## 5. Daily Reviewer Operations (Chapter Lead)
 Route: `/chapter-lead/instructor-readiness`
 
@@ -71,13 +81,16 @@ Scope rules:
 3. Waive outcome remains admin-only.
 
 ## 6. Instructor Operations
-Route: `/instructor/training-progress`
+Route: `/instructor-training`
 
 1. Complete each module at `/training/[id]`.
 2. Submit required quiz/evidence.
 3. Confirm a posted interview slot OR submit preferred times.
 4. Request readiness review after required modules are complete.
 5. Wait for reviewer decision.
+
+Compatibility note:
+1. Legacy links to `/instructor/training-progress` redirect to `/instructor-training`.
 
 ## 7. Publish Gate Behavior
 Publish transitions in class offerings now check readiness.

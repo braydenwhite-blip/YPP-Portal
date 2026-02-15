@@ -2,12 +2,18 @@
 
 import { useState } from "react";
 import {
-  createTrainingModuleWithVideo,
-  updateTrainingModule,
-  deleteTrainingModule,
   assignTrainingToUser,
   bulkAssignModuleToInstructors,
+  createTrainingCheckpoint,
+  createTrainingModuleWithVideo,
+  createTrainingQuizQuestion,
+  deleteTrainingCheckpoint,
+  deleteTrainingModule,
+  deleteTrainingQuizQuestion,
   markTrainingComplete,
+  updateTrainingCheckpoint,
+  updateTrainingModule,
+  updateTrainingQuizQuestion,
 } from "@/lib/training-actions";
 import { TrainingModuleType, VideoProvider } from "@prisma/client";
 
@@ -18,6 +24,22 @@ interface Assignment {
   userEmail: string;
   status: string;
   completedAt: string | null;
+}
+
+interface ModuleCheckpoint {
+  id: string;
+  title: string;
+  description: string | null;
+  sortOrder: number;
+  required: boolean;
+}
+
+interface ModuleQuizQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correctAnswer: string;
+  sortOrder: number;
 }
 
 interface Module {
@@ -36,6 +58,8 @@ interface Module {
   requiresQuiz: boolean;
   requiresEvidence: boolean;
   passScorePct: number;
+  checkpoints: ModuleCheckpoint[];
+  quizQuestions: ModuleQuizQuestion[];
   assignmentCount: number;
   assignments: Assignment[];
 }
@@ -59,7 +83,6 @@ export default function TrainingManager({
 
   return (
     <div>
-      {/* Stats row */}
       <div className="grid three" style={{ marginBottom: 24 }}>
         <div className="card">
           <div className="kpi">{modules.length}</div>
@@ -75,7 +98,6 @@ export default function TrainingManager({
         </div>
       </div>
 
-      {/* Tab buttons */}
       <div className="admin-training-tabs">
         <button
           className={`admin-training-tab ${activeTab === "modules" ? "active" : ""}`}
@@ -85,7 +107,10 @@ export default function TrainingManager({
         </button>
         <button
           className={`admin-training-tab ${activeTab === "create" ? "active" : ""}`}
-          onClick={() => { setActiveTab("create"); setEditingModule(null); }}
+          onClick={() => {
+            setActiveTab("create");
+            setEditingModule(null);
+          }}
         >
           + Create Module
         </button>
@@ -94,10 +119,12 @@ export default function TrainingManager({
       {activeTab === "create" && (
         <div className="card" style={{ marginTop: 16 }}>
           <h3>{editingModule ? "Edit Module" : "Create New Training Module"}</h3>
+          <p style={{ marginTop: 0, color: "var(--muted)", fontSize: 13 }}>
+            Required modules must include at least one requirement path (video, required checkpoints, quiz, or evidence).
+          </p>
           <form
             action={editingModule ? updateTrainingModule : createTrainingModuleWithVideo}
             className="form-grid"
-            onSubmit={() => setActiveTab("modules")}
           >
             {editingModule && (
               <input type="hidden" name="moduleId" value={editingModule} />
@@ -249,7 +276,10 @@ export default function TrainingManager({
                 <button
                   className="button small outline"
                   type="button"
-                  onClick={() => { setEditingModule(null); setActiveTab("modules"); }}
+                  onClick={() => {
+                    setEditingModule(null);
+                    setActiveTab("modules");
+                  }}
                 >
                   Cancel
                 </button>
@@ -273,6 +303,7 @@ export default function TrainingManager({
               const notStartedCount = mod.assignments.filter((a) => a.status === "NOT_STARTED").length;
               const assignedInstructorIds = new Set(mod.assignments.map((a) => a.userId));
               const unassignedInstructors = instructors.filter((i) => !assignedInstructorIds.has(i.id));
+              const requiredCheckpointCount = mod.checkpoints.filter((checkpoint) => checkpoint.required).length;
 
               return (
                 <div key={mod.id} className="admin-training-module-card">
@@ -288,9 +319,7 @@ export default function TrainingManager({
                         <span className={`pill pill-small ${mod.required ? "pill-purple" : "pill-declined"}`}>
                           {mod.required ? "Required" : "Optional"}
                         </span>
-                        <span className="pill pill-small pill-info">
-                          {mod.type.replace(/_/g, " ")}
-                        </span>
+                        <span className="pill pill-small pill-info">{mod.type.replace(/_/g, " ")}</span>
                       </div>
                       <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--muted)", lineHeight: 1.5 }}>
                         {mod.description}
@@ -319,28 +348,29 @@ export default function TrainingManager({
 
                   {isExpanded && (
                     <div className="admin-training-module-body">
-                      {/* Meta row */}
-                      <div className="admin-training-meta-row">
-                        {mod.materialUrl && (
-                          <a className="link" href={mod.materialUrl} target="_blank" rel="noreferrer">
-                            Training Material
-                          </a>
-                        )}
-                        {mod.videoUrl && (
-                          <a className="link" href={mod.videoUrl} target="_blank" rel="noreferrer">
-                            Watch Video
-                          </a>
-                        )}
-                        {mod.materialNotes && (
-                          <span style={{ fontSize: 13, color: "var(--muted)" }}>{mod.materialNotes}</span>
-                        )}
+                      <div className="admin-training-meta-row" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <span className={`pill pill-small ${mod.videoUrl ? "pill-success" : "pill-pending"}`}>
+                          Video {mod.videoUrl ? "Configured" : "Not set"}
+                        </span>
+                        <span className={`pill pill-small ${requiredCheckpointCount > 0 ? "pill-success" : "pill-pending"}`}>
+                          Required checkpoints: {requiredCheckpointCount}
+                        </span>
+                        <span className={`pill pill-small ${mod.requiresQuiz ? "pill-pathway" : "pill-pending"}`}>
+                          Quiz {mod.requiresQuiz ? `On (${mod.quizQuestions.length} Qs)` : "Off"}
+                        </span>
+                        <span className={`pill pill-small ${mod.requiresEvidence ? "pill-pathway" : "pill-pending"}`}>
+                          Evidence {mod.requiresEvidence ? "Required" : "Optional"}
+                        </span>
+                        <span className="pill pill-small">Pass score: {mod.passScorePct}%</span>
                       </div>
 
-                      {/* Action buttons */}
-                      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                      <div style={{ display: "flex", gap: 8, marginBottom: 16, marginTop: 12, flexWrap: "wrap" }}>
                         <button
                           className="button small outline"
-                          onClick={() => { setEditingModule(mod.id); setActiveTab("create"); }}
+                          onClick={() => {
+                            setEditingModule(mod.id);
+                            setActiveTab("create");
+                          }}
                         >
                           Edit Module
                         </button>
@@ -366,7 +396,150 @@ export default function TrainingManager({
                         </form>
                       </div>
 
-                      {/* Assign to individual instructor */}
+                      <div style={{ marginBottom: 16 }}>
+                        <h4 style={{ marginBottom: 8 }}>Checkpoints</h4>
+                        {mod.checkpoints.length === 0 ? (
+                          <p className="empty" style={{ marginTop: 0 }}>No checkpoints yet.</p>
+                        ) : (
+                          <div style={{ display: "grid", gap: 10, marginBottom: 12 }}>
+                            {mod.checkpoints.map((checkpoint) => (
+                              <div key={checkpoint.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
+                                <form action={updateTrainingCheckpoint} className="form-grid">
+                                  <input type="hidden" name="checkpointId" value={checkpoint.id} />
+                                  <div className="grid two">
+                                    <label className="form-row">
+                                      Title
+                                      <input className="input" name="title" defaultValue={checkpoint.title} required />
+                                    </label>
+                                    <label className="form-row">
+                                      Sort order
+                                      <input className="input" name="sortOrder" type="number" min={1} defaultValue={checkpoint.sortOrder} required />
+                                    </label>
+                                  </div>
+                                  <label className="form-row">
+                                    Description
+                                    <textarea className="input" name="description" rows={2} defaultValue={checkpoint.description ?? ""} />
+                                  </label>
+                                  <label className="form-row" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                    <input type="checkbox" name="required" defaultChecked={checkpoint.required} />
+                                    Required checkpoint
+                                  </label>
+                                  <div style={{ display: "flex", gap: 8 }}>
+                                    <button className="button small" type="submit">Save checkpoint</button>
+                                  </div>
+                                </form>
+                                <form
+                                  action={deleteTrainingCheckpoint}
+                                  onSubmit={(e) => {
+                                    if (!confirm(`Delete checkpoint \"${checkpoint.title}\"?`)) {
+                                      e.preventDefault();
+                                    }
+                                  }}
+                                  style={{ marginTop: 8 }}
+                                >
+                                  <input type="hidden" name="checkpointId" value={checkpoint.id} />
+                                  <button className="button small outline" type="submit">Delete checkpoint</button>
+                                </form>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <form action={createTrainingCheckpoint} className="form-grid" style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
+                          <input type="hidden" name="moduleId" value={mod.id} />
+                          <div className="grid two">
+                            <label className="form-row">
+                              New checkpoint title
+                              <input className="input" name="title" required />
+                            </label>
+                            <label className="form-row">
+                              Sort order
+                              <input className="input" name="sortOrder" type="number" min={1} defaultValue={mod.checkpoints.length + 1} required />
+                            </label>
+                          </div>
+                          <label className="form-row">
+                            Description
+                            <textarea className="input" name="description" rows={2} />
+                          </label>
+                          <label className="form-row" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                            <input type="checkbox" name="required" defaultChecked />
+                            Required checkpoint
+                          </label>
+                          <button className="button small" type="submit">Add checkpoint</button>
+                        </form>
+                      </div>
+
+                      <div style={{ marginBottom: 16 }}>
+                        <h4 style={{ marginBottom: 8 }}>Quiz Questions</h4>
+                        {mod.quizQuestions.length === 0 ? (
+                          <p className="empty" style={{ marginTop: 0 }}>No quiz questions yet.</p>
+                        ) : (
+                          <div style={{ display: "grid", gap: 10, marginBottom: 12 }}>
+                            {mod.quizQuestions.map((question) => (
+                              <div key={question.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
+                                <form action={updateTrainingQuizQuestion} className="form-grid">
+                                  <input type="hidden" name="questionId" value={question.id} />
+                                  <div className="grid two">
+                                    <label className="form-row">
+                                      Question
+                                      <input className="input" name="question" defaultValue={question.question} required />
+                                    </label>
+                                    <label className="form-row">
+                                      Sort order
+                                      <input className="input" name="sortOrder" type="number" min={1} defaultValue={question.sortOrder} required />
+                                    </label>
+                                  </div>
+                                  <label className="form-row">
+                                    Options (newline or comma separated)
+                                    <textarea className="input" name="options" rows={3} defaultValue={question.options.join("\n")} required />
+                                  </label>
+                                  <label className="form-row">
+                                    Correct answer (must match one option exactly)
+                                    <input className="input" name="correctAnswer" defaultValue={question.correctAnswer} required />
+                                  </label>
+                                  <button className="button small" type="submit">Save question</button>
+                                </form>
+                                <form
+                                  action={deleteTrainingQuizQuestion}
+                                  onSubmit={(e) => {
+                                    if (!confirm("Delete this quiz question?")) {
+                                      e.preventDefault();
+                                    }
+                                  }}
+                                  style={{ marginTop: 8 }}
+                                >
+                                  <input type="hidden" name="questionId" value={question.id} />
+                                  <button className="button small outline" type="submit">Delete question</button>
+                                </form>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <form action={createTrainingQuizQuestion} className="form-grid" style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
+                          <input type="hidden" name="moduleId" value={mod.id} />
+                          <div className="grid two">
+                            <label className="form-row">
+                              New question
+                              <input className="input" name="question" required />
+                            </label>
+                            <label className="form-row">
+                              Sort order
+                              <input className="input" name="sortOrder" type="number" min={1} defaultValue={mod.quizQuestions.length + 1} required />
+                            </label>
+                          </div>
+                          <label className="form-row">
+                            Options (newline or comma separated)
+                            <textarea className="input" name="options" rows={3} placeholder="Option A\nOption B\nOption C" required />
+                          </label>
+                          <label className="form-row">
+                            Correct answer (must match one option exactly)
+                            <input className="input" name="correctAnswer" required />
+                          </label>
+                          <button className="button small" type="submit">Add question</button>
+                        </form>
+                      </div>
+
                       {unassignedInstructors.length > 0 && (
                         <div style={{ marginBottom: 16 }}>
                           <form action={assignTrainingToUser} className="admin-training-assign-row">
@@ -386,7 +559,6 @@ export default function TrainingManager({
                         </div>
                       )}
 
-                      {/* Assignments table */}
                       {mod.assignments.length > 0 ? (
                         <table className="table">
                           <thead>
@@ -405,18 +577,16 @@ export default function TrainingManager({
                                 <td>{a.userEmail}</td>
                                 <td>
                                   <span className={`pill pill-small ${
-                                    a.status === "COMPLETE" ? "pill-success" :
-                                    a.status === "IN_PROGRESS" ? "" :
-                                    "pill-pending"
+                                    a.status === "COMPLETE"
+                                      ? "pill-success"
+                                      : a.status === "IN_PROGRESS"
+                                        ? ""
+                                        : "pill-pending"
                                   }`}>
                                     {a.status.replace(/_/g, " ")}
                                   </span>
                                 </td>
-                                <td>
-                                  {a.completedAt
-                                    ? new Date(a.completedAt).toLocaleDateString()
-                                    : "\u2014"}
-                                </td>
+                                <td>{a.completedAt ? new Date(a.completedAt).toLocaleDateString() : "—"}</td>
                                 <td>
                                   {a.status !== "COMPLETE" && (
                                     <form action={markTrainingComplete} style={{ display: "inline" }}>

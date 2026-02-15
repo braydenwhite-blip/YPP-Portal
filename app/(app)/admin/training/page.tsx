@@ -15,6 +15,12 @@ export default async function AdminTrainingPage() {
     prisma.trainingModule.findMany({
       orderBy: { sortOrder: "asc" },
       include: {
+        checkpoints: {
+          orderBy: { sortOrder: "asc" },
+        },
+        quizQuestions: {
+          orderBy: { sortOrder: "asc" },
+        },
         assignments: {
           include: {
             user: { select: { id: true, name: true, email: true } },
@@ -48,6 +54,24 @@ export default async function AdminTrainingPage() {
     requiresQuiz: m.requiresQuiz,
     requiresEvidence: m.requiresEvidence,
     passScorePct: m.passScorePct,
+    checkpoints: m.checkpoints.map((checkpoint) => ({
+      id: checkpoint.id,
+      title: checkpoint.title,
+      description: checkpoint.description,
+      sortOrder: checkpoint.sortOrder,
+      required: checkpoint.required,
+    })),
+    quizQuestions: m.quizQuestions.map((question) => ({
+      id: question.id,
+      question: question.question,
+      options: Array.isArray(question.options)
+        ? question.options.map((option) => String(option))
+        : question.options && typeof question.options === "object"
+          ? Object.values(question.options as Record<string, unknown>).map((option) => String(option))
+          : [],
+      correctAnswer: question.correctAnswer,
+      sortOrder: question.sortOrder,
+    })),
     assignmentCount: m._count.assignments,
     assignments: m.assignments.map((a) => ({
       id: a.id,

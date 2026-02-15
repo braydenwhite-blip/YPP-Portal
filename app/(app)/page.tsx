@@ -256,7 +256,7 @@ export default async function OverviewPage() {
       detail: instructorNextAction.detail,
       href: instructorNextAction.href,
       action: "Open next action",
-      tone: instructorNextAction.href === "/instructor/training-progress" ? "warning" : undefined,
+      tone: instructorNextAction.href === "/instructor-training" ? "warning" : undefined,
     });
   } else if (instructorCourses.length === 0) {
     instructorPriorityItems.push({
@@ -584,7 +584,7 @@ export default async function OverviewPage() {
               <Link href="/instructor/class-settings" className="button small outline">
                 Class Settings
               </Link>
-              <Link href="/instructor/training-progress" className="button small outline">
+              <Link href="/instructor-training" className="button small outline">
                 Training
               </Link>
             </div>
@@ -664,7 +664,7 @@ export default async function OverviewPage() {
             <div className="card">
               <div className="instructor-card-head">
                 <h3>Training Snapshot</h3>
-                <Link href="/instructor/training-progress" className="link">
+                <Link href="/instructor-training" className="link">
                   Open
                 </Link>
               </div>

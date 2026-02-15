@@ -98,12 +98,6 @@ export const NAV_CATALOG: NavLink[] = [
       roles: INSTRUCTOR_ROLES,
     },
     {
-      href: "/instructor/training-progress",
-      label: "Training Progress",
-      icon: "📈",
-      roles: INSTRUCTOR_ROLES,
-    },
-    {
       href: "/instructor/peer-observation",
       label: "Peer Observation",
       icon: "👁",
