@@ -71,13 +71,20 @@ export default async function OverviewPage() {
   const instructorCourses = isInstructor && userId
     ? await prisma.course.findMany({
         where: { leadInstructorId: userId },
-        // Avoid selecting new columns (like maxEnrollment) if the DB
-        // hasn't been migrated yet.
+        // Keep this select focused so the dashboard stays fast and
+        // resilient to schema drift.
         select: {
           id: true,
           title: true,
           format: true,
           level: true,
+          updatedAt: true,
+          _count: {
+            select: {
+              enrollments: true,
+              attendanceSessions: true,
+            },
+          },
         }
       })
     : [];
@@ -200,6 +207,87 @@ export default async function OverviewPage() {
     })
     .filter(Boolean) as { pathwayName: string; course: { title: string; format: string; level: string | null } }[];
 
+  const instructorLearnerCount = instructorCourses.reduce(
+    (sum, course) => sum + course._count.enrollments,
+    0
+  );
+  const instructorAttendanceCount = instructorCourses.reduce(
+    (sum, course) => sum + course._count.attendanceSessions,
+    0
+  );
+  const completeTrainingCount = trainingAssignments.filter(
+    (assignment) => assignment.status === "COMPLETE"
+  ).length;
+  const inProgressTrainingCount = trainingAssignments.filter(
+    (assignment) => assignment.status === "IN_PROGRESS"
+  ).length;
+  const notStartedTrainingCount = trainingAssignments.filter(
+    (assignment) => assignment.status === "NOT_STARTED"
+  ).length;
+  const trainingCompletionRate = trainingAssignments.length
+    ? Math.round((completeTrainingCount / trainingAssignments.length) * 100)
+    : 0;
+  const approvedLevels = Array.from(
+    new Set(
+      approvals.flatMap((approval) =>
+        approval.levels.map((level) => level.level.replace("LEVEL_", ""))
+      )
+    )
+  );
+  const nextTrainingModule = trainingAssignments.find(
+    (assignment) => assignment.status !== "COMPLETE"
+  );
+  const mostRecentlyUpdatedClass = [...instructorCourses].sort(
+    (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()
+  )[0];
+
+  const instructorPriorityItems: {
+    title: string;
+    detail: string;
+    href: string;
+    action: string;
+    tone?: "warning" | "success";
+  }[] = [];
+
+  if (instructorCourses.length === 0) {
+    instructorPriorityItems.push({
+      title: "Create your first class offering",
+      detail: "Set schedule, capacity, and reminders so students can enroll.",
+      href: "/instructor/class-settings",
+      action: "Set up class",
+      tone: "warning",
+    });
+  }
+
+  if (nextTrainingModule) {
+    instructorPriorityItems.push({
+      title: `Continue training: ${nextTrainingModule.module.title}`,
+      detail: "Keeping training current unlocks higher-level teaching approvals.",
+      href: "/instructor/training-progress",
+      action: "Open training",
+    });
+  }
+
+  if (approvedLevels.length === 0) {
+    instructorPriorityItems.push({
+      title: "No approved teaching levels yet",
+      detail: "Finish required modules and request a readiness review.",
+      href: "/instructor-training",
+      action: "View approval path",
+      tone: "warning",
+    });
+  }
+
+  if (instructorPriorityItems.length === 0) {
+    instructorPriorityItems.push({
+      title: "Instructor dashboard is in good shape",
+      detail: "Classes, training, and approvals are all up to date.",
+      href: "/instructor/class-settings",
+      action: "Review classes",
+      tone: "success",
+    });
+  }
+
   // Build role-specific quick actions
   const quickActions: { href: string; label: string; description: string; accent: string }[] = [];
   if (isAdmin) {
@@ -231,6 +319,53 @@ export default async function OverviewPage() {
     );
   }
 
+  // Noise control: keep the dashboard focused on the first few high-value items.
+  const quickActionsToShow = quickActions.slice(0, 3);
+  const eventsToShow = latestEvents.slice(0, 2);
+  const studentEnrollmentsToShow = enrollments.slice(0, 4);
+  const studentNextStepsToShow = nextSteps.slice(0, 3);
+  const instructorCoursesToShow = instructorCourses.slice(0, 4);
+  const trainingAssignmentsToShow = trainingAssignments.slice(0, 3);
+  const instructorPriorityItemsToShow = instructorPriorityItems.slice(0, 2);
+  const mentorshipsToShow = mentorships.slice(0, 4);
+
+  const portalGoals = [
+    "One clear next step for every user every week.",
+    "One trusted source of truth for training, progress, and readiness.",
+    "One connected flow from onboarding to outcomes with less admin overhead.",
+  ];
+
+  const passionWorldGoals = [
+    "Turn curiosity into action with clear island-based paths.",
+    "Make progress visible through challenges, badges, and milestones.",
+    "Connect exploration to real classes, projects, and mentorship opportunities.",
+  ];
+
+  const roleFocus = isAdmin
+    ? [
+        "Keep chapter hiring and instructor readiness visible in one operating view.",
+        "Ship onboarding workflows with owners, due dates, and blocker tracking.",
+      ]
+    : isInstructor
+      ? [
+          "Keep class progress, attendance, and learner momentum visible each week.",
+          "Complete training and approvals so you can teach at higher levels.",
+        ]
+      : isStudent
+        ? [
+            "Stay on your pathway by completing one concrete step each week.",
+            "Use Passion World exploration to pick classes and challenges with purpose.",
+          ]
+        : isMentor
+          ? [
+              "Support mentees with regular check-ins and clear next actions.",
+              "Use one place to track mentorship momentum and blockers.",
+            ]
+          : [
+              "Use the portal as your home base for goals, classes, and communication.",
+              "Keep weekly actions small, consistent, and easy to complete.",
+            ];
+
   return (
     <div>
       {/* Page header */}
@@ -252,7 +387,7 @@ export default async function OverviewPage() {
 
       {/* Quick Actions */}
       <div className="dashboard-actions">
-        {quickActions.map((action) => (
+        {quickActionsToShow.map((action) => (
           <Link
             key={action.href}
             href={action.href}
@@ -264,6 +399,13 @@ export default async function OverviewPage() {
           </Link>
         ))}
       </div>
+      {quickActions.length > quickActionsToShow.length ? (
+        <div className="dashboard-actions-footer">
+          <Link href={quickActions[0].href} className="link">
+            Open full toolset
+          </Link>
+        </div>
+      ) : null}
 
       {/* XP Display */}
       {userId && !isAdmin && (
@@ -331,71 +473,56 @@ export default async function OverviewPage() {
 
       {/* Main content grid */}
       <div className="grid two" style={{ marginTop: 24 }}>
-        {isAdmin && globalStats ? (
-          <div className="card">
-            <h3>Pathways Pulse</h3>
-            <div>
-              <p>
-                <strong>{globalStats[0]}</strong> total users across <strong>{globalStats[3]}</strong> pathways
-                with <strong>{globalStats[5]}</strong> active enrollments.
-              </p>
+        <div className="card">
+          <h3>Portal Compass</h3>
+          <p>Clear goals to keep YPP focused and avoid feature clutter.</p>
+          <div className="portal-goal-grid">
+            <div className="portal-goal-block">
+              <h4>YPP Portal Goals</h4>
+              <ul className="portal-goal-list">
+                {portalGoals.map((goal) => (
+                  <li key={goal}>{goal}</li>
+                ))}
+              </ul>
             </div>
-            <div className="timeline" style={{ marginTop: 16 }}>
-              <div className="timeline-item">
-                Launch Instructor Training v1 with workshop, scenario practice, and curriculum review.
-              </div>
-              <div className="timeline-item">
-                Finalize mentorship check-ins and awards for instructors and students.
-              </div>
-              <div className="timeline-item">
-                Build sequenced Pathway Maps (101 &rarr; 201 &rarr; 301 &rarr; Labs &rarr; Commons).
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="card">
-            <h3>Getting Started</h3>
-            <p>
-              Your dashboard shows exactly where you are in Pathways and what comes next. Use the
-              navigation to explore curriculum, mentorship, and training.
-            </p>
-            <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
-              <Link href="/pathways" className="button small outline">
-                Browse Pathways
-              </Link>
-              <Link href="/my-courses" className="button small outline">
-                My Courses
-              </Link>
-              <Link href="/goals" className="button small outline">
-                Set Goals
-              </Link>
+            <div className="portal-goal-block">
+              <h4>Passion World Goals</h4>
+              <ul className="portal-goal-list">
+                {passionWorldGoals.map((goal) => (
+                  <li key={goal}>{goal}</li>
+                ))}
+              </ul>
             </div>
           </div>
-        )}
+          <div className="portal-role-focus">
+            <span className="portal-role-focus-label">This role should focus on:</span>
+            <ul className="portal-goal-list compact">
+              {roleFocus.map((goal) => (
+                <li key={goal}>{goal}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
         <div className="card">
           <h3>Upcoming Events</h3>
-          {latestEvents.length === 0 ? (
+          {eventsToShow.length === 0 ? (
             <p className="empty">No events scheduled yet.</p>
           ) : (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Event</th>
-                  <th>Type</th>
-                  <th>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {latestEvents.map((event) => (
-                  <tr key={event.id}>
-                    <td style={{ fontWeight: 500, color: "var(--text)" }}>{event.title}</td>
-                    <td><span className="pill pill-small">{event.eventType}</span></td>
-                    <td>{new Date(event.startDate).toLocaleDateString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="compact-list">
+              {eventsToShow.map((event) => (
+                <div key={event.id} className="compact-list-item">
+                  <div>
+                    <p className="compact-list-title">{event.title}</p>
+                    <p className="compact-list-meta">{new Date(event.startDate).toLocaleDateString()}</p>
+                  </div>
+                  <span className="pill pill-small">{event.eventType}</span>
+                </div>
+              ))}
+            </div>
           )}
+          <div style={{ marginTop: 12 }}>
+            <Link href="/calendar" className="link">Open calendar</Link>
+          </div>
         </div>
       </div>
 
@@ -407,119 +534,244 @@ export default async function OverviewPage() {
             {enrollments.length === 0 ? (
               <p className="empty">No enrollments yet. <Link href="/classes/catalog" className="link">Browse the catalog</Link> to get started.</p>
             ) : (
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Course</th>
-                    <th>Format</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {enrollments.map((enrollment) => (
-                    <tr key={enrollment.id}>
-                      <td style={{ fontWeight: 500, color: "var(--text)" }}>{enrollment.course.title}</td>
-                      <td>
-                        <span className="pill pill-small pill-purple">
-                          {enrollment.course.format === "LEVELED" && enrollment.course.level
-                            ? enrollment.course.level.replace("LEVEL_", "")
-                            : enrollment.course.format.replace("_", " ")}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`pill pill-small ${enrollment.status === "ENROLLED" ? "pill-success" : ""}`}>
-                          {enrollment.status.replace("_", " ")}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="compact-list">
+                {studentEnrollmentsToShow.map((enrollment) => (
+                  <div key={enrollment.id} className="compact-list-item">
+                    <div>
+                      <p className="compact-list-title">{enrollment.course.title}</p>
+                      <p className="compact-list-meta">{enrollment.status.replace("_", " ")}</p>
+                    </div>
+                    <span className="pill pill-small pill-purple">
+                      {enrollment.course.format === "LEVELED" && enrollment.course.level
+                        ? enrollment.course.level.replace("LEVEL_", "")
+                        : enrollment.course.format.replace(/_/g, " ")}
+                    </span>
+                  </div>
+                ))}
+              </div>
             )}
+            <div style={{ marginTop: 12 }}>
+              <Link href="/my-courses" className="link">View all courses</Link>
+            </div>
           </div>
           <div className="card">
             <h3>Recommended Next Steps</h3>
             {nextSteps.length === 0 ? (
               <p className="empty">Enroll in a 101 or one-off class to start your pathway.</p>
             ) : (
-              <div className="timeline">
-                {nextSteps.map((step, index) => (
-                  <div key={`${step.pathwayName}-${index}`} className="timeline-item">
-                    <strong>{step.pathwayName}</strong>
-                    <div style={{ color: "var(--muted)", fontSize: 13, marginTop: 2 }}>
-                      {step.course.title} &middot;{" "}
-                      <span className="pill pill-small pill-purple">
-                        {step.course.format === "LEVELED" && step.course.level
-                          ? step.course.level.replace("LEVEL_", "")
-                          : step.course.format.replace("_", " ")}
-                      </span>
+              <div className="compact-list">
+                {studentNextStepsToShow.map((step, index) => (
+                  <div key={`${step.pathwayName}-${index}`} className="compact-list-item align-start">
+                    <div>
+                      <p className="compact-list-title">{step.pathwayName}</p>
+                      <p className="compact-list-meta">{step.course.title}</p>
                     </div>
+                    <span className="pill pill-small pill-purple">
+                      {step.course.format === "LEVELED" && step.course.level
+                        ? step.course.level.replace("LEVEL_", "")
+                        : step.course.format.replace(/_/g, " ")}
+                    </span>
                   </div>
                 ))}
               </div>
             )}
+            <div style={{ marginTop: 12 }}>
+              <Link href="/pathways" className="link">Open pathways</Link>
+            </div>
           </div>
         </div>
       ) : null}
 
       {/* Instructor section */}
       {isInstructor ? (
-        <div className="grid two" style={{ marginTop: 20 }}>
-          <div className="card">
-            <h3>My Classes</h3>
-            {instructorCourses.length === 0 ? (
-              <p className="empty">No assigned classes yet.</p>
-            ) : (
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Class</th>
-                    <th>Format</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {instructorCourses.map((course) => (
-                    <tr key={course.id}>
-                      <td style={{ fontWeight: 500, color: "var(--text)" }}>{course.title}</td>
-                      <td>
+        <div className="instructor-dashboard">
+          <div className="instructor-dashboard-header">
+            <div>
+              <h2 className="instructor-dashboard-title">Instructor Workspace</h2>
+              <p className="instructor-dashboard-subtitle">
+                A cleaner view of your classes, training, and what to do next.
+              </p>
+            </div>
+            <div className="instructor-dashboard-links">
+              <Link href="/instructor/class-settings" className="button small outline">
+                Class Settings
+              </Link>
+              <Link href="/instructor/training-progress" className="button small outline">
+                Training
+              </Link>
+            </div>
+          </div>
+
+          <div className="instructor-metric-grid">
+            <div className="instructor-metric-card">
+              <span className="instructor-metric-label">Classes</span>
+              <span className="instructor-metric-value">{instructorCourses.length}</span>
+              <span className="instructor-metric-note">active this term</span>
+            </div>
+            <div className="instructor-metric-card">
+              <span className="instructor-metric-label">Learners</span>
+              <span className="instructor-metric-value">{instructorLearnerCount}</span>
+              <span className="instructor-metric-note">across all classes</span>
+            </div>
+            <div className="instructor-metric-card">
+              <span className="instructor-metric-label">Sessions Logged</span>
+              <span className="instructor-metric-value">{instructorAttendanceCount}</span>
+              <span className="instructor-metric-note">attendance records</span>
+            </div>
+            <div className="instructor-metric-card">
+              <span className="instructor-metric-label">Training Complete</span>
+              <span className="instructor-metric-value">{trainingCompletionRate}%</span>
+              <span className="instructor-metric-note">
+                {completeTrainingCount}/{trainingAssignments.length || 0} modules
+              </span>
+            </div>
+          </div>
+
+          <div className="grid two" style={{ marginTop: 16 }}>
+            <div className="card">
+              <div className="instructor-card-head">
+                <h3>Class Snapshot</h3>
+                <Link href="/instructor/class-settings" className="link">
+                  Manage
+                </Link>
+              </div>
+              {instructorCourses.length === 0 ? (
+                <p className="empty">No assigned classes yet.</p>
+              ) : (
+                <div className="instructor-list">
+                  {instructorCoursesToShow.map((course) => (
+                    <div key={course.id} className="instructor-list-item">
+                      <div>
+                        <p className="instructor-item-title">{course.title}</p>
+                        <p className="instructor-item-meta">
+                          {course._count.enrollments} learners • {course._count.attendanceSessions} sessions logged
+                        </p>
+                      </div>
+                      <div className="instructor-item-actions">
                         <span className="pill pill-small pill-purple">
                           {course.format === "LEVELED" && course.level
                             ? course.level.replace("LEVEL_", "")
-                            : course.format.replace("_", " ")}
+                            : course.format.replace(/_/g, " ")}
                         </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-          <div className="card">
-            <h3>Training Progress</h3>
-            {trainingAssignments.length === 0 ? (
-              <p className="empty">No training modules assigned yet.</p>
-            ) : (
-              <div className="timeline">
-                {trainingAssignments.map((assignment) => (
-                  <div key={assignment.id} className="timeline-item">
-                    <strong>{assignment.module.title}</strong>
-                    <div style={{ marginTop: 4 }}>
-                      <span className={`pill pill-small ${assignment.status === "COMPLETE" ? "pill-success" : assignment.status === "IN_PROGRESS" ? "pill-pathway" : ""}`}>
-                        {assignment.status.replace("_", " ")}
-                      </span>
+                        <Link href={`/instructor/engagement/${course.id}`} className="link">
+                          View
+                        </Link>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              )}
+              {instructorCourses.length > instructorCoursesToShow.length ? (
+                <p className="instructor-footnote">
+                  Showing {instructorCoursesToShow.length} of {instructorCourses.length} classes.
+                </p>
+              ) : null}
+              {mostRecentlyUpdatedClass ? (
+                <p className="instructor-footnote">
+                  Last updated class: <strong>{mostRecentlyUpdatedClass.title}</strong>
+                </p>
+              ) : null}
+            </div>
+
+            <div className="card">
+              <div className="instructor-card-head">
+                <h3>Training Snapshot</h3>
+                <Link href="/instructor/training-progress" className="link">
+                  Open
+                </Link>
               </div>
-            )}
-            {approvals.length ? (
-              <p style={{ marginTop: 16, fontSize: 14 }}>
-                Approved levels:{" "}
-                {approvals[0].levels.map((level) => (
-                  <span key={level.level} className="pill pill-small pill-success" style={{ marginRight: 4 }}>
-                    {level.level.replace("LEVEL_", "")}
-                  </span>
-                ))}
+              {trainingAssignments.length === 0 ? (
+                <p className="empty">No training modules assigned yet.</p>
+              ) : (
+                <>
+                  <div className="instructor-progress-head">
+                    <span>
+                      {completeTrainingCount} complete • {inProgressTrainingCount} in progress • {notStartedTrainingCount} not started
+                    </span>
+                    <strong>{trainingCompletionRate}%</strong>
+                  </div>
+                  <div className="instructor-progress-track" aria-hidden="true">
+                    <div
+                      className="instructor-progress-fill"
+                      style={{ width: `${trainingCompletionRate}%` }}
+                    />
+                  </div>
+                  <div className="instructor-list" style={{ marginTop: 12 }}>
+                    {trainingAssignmentsToShow.map((assignment) => (
+                      <div key={assignment.id} className="instructor-list-item">
+                        <div>
+                          <p className="instructor-item-title">{assignment.module.title}</p>
+                          <p className="instructor-item-meta">
+                            {assignment.module.type.replace(/_/g, " ")}
+                          </p>
+                        </div>
+                        <span
+                          className={`pill pill-small ${
+                            assignment.status === "COMPLETE"
+                              ? "pill-success"
+                              : assignment.status === "IN_PROGRESS"
+                                ? "pill-pathway"
+                                : "pill-info"
+                          }`}
+                        >
+                          {assignment.status.replace(/_/g, " ")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              {trainingAssignments.length > trainingAssignmentsToShow.length ? (
+                <p className="instructor-footnote">
+                  Showing {trainingAssignmentsToShow.length} of {trainingAssignments.length} modules.
+                </p>
+              ) : null}
+              <div className="instructor-approved">
+                <span className="instructor-approved-label">Approved levels</span>
+                {approvedLevels.length ? (
+                  <div className="instructor-approved-levels">
+                    {approvedLevels.map((level) => (
+                      <span key={level} className="pill pill-small pill-success">
+                        {level}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="instructor-footnote">No levels approved yet.</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="card" style={{ marginTop: 16 }}>
+            <div className="instructor-card-head">
+              <h3>Next Best Steps</h3>
+            </div>
+            <div className="instructor-priority-list">
+              {instructorPriorityItemsToShow.map((item, index) => (
+                <div
+                  key={`${item.title}-${index}`}
+                  className={`instructor-priority-item ${
+                    item.tone === "warning"
+                      ? "is-warning"
+                      : item.tone === "success"
+                        ? "is-success"
+                        : ""
+                  }`}
+                >
+                  <div>
+                    <p className="instructor-item-title">{item.title}</p>
+                    <p className="instructor-item-meta">{item.detail}</p>
+                  </div>
+                  <Link href={item.href} className="link">
+                    {item.action}
+                  </Link>
+                </div>
+              ))}
+            </div>
+            {instructorPriorityItems.length > instructorPriorityItemsToShow.length ? (
+              <p className="instructor-footnote">
+                Additional actions are available in Instructor tools.
               </p>
             ) : null}
           </div>
@@ -534,23 +786,20 @@ export default async function OverviewPage() {
             {mentorships.length === 0 ? (
               <p className="empty">No mentees assigned yet.</p>
             ) : (
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Mentee</th>
-                    <th>Type</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {mentorships.map((pairing) => (
-                    <tr key={pairing.id}>
-                      <td style={{ fontWeight: 500, color: "var(--text)" }}>{pairing.mentee.name}</td>
-                      <td><span className="pill pill-small pill-pathway">{pairing.type}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="compact-list">
+                {mentorshipsToShow.map((pairing) => (
+                  <div key={pairing.id} className="compact-list-item">
+                    <p className="compact-list-title">{pairing.mentee.name}</p>
+                    <span className="pill pill-small pill-pathway">{pairing.type}</span>
+                  </div>
+                ))}
+              </div>
             )}
+            {mentorships.length > mentorshipsToShow.length ? (
+              <p className="instructor-footnote">
+                Showing {mentorshipsToShow.length} of {mentorships.length} mentees.
+              </p>
+            ) : null}
           </div>
         </div>
       ) : null}
