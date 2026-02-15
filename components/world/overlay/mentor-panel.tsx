@@ -1,6 +1,7 @@
 "use client";
 
 import { memo } from "react";
+import Link from "next/link";
 import type { WorldData } from "@/lib/world-actions";
 import styles from "../passion-world.module.css";
 
@@ -100,6 +101,20 @@ export const MentorPanel = memo(function MentorPanel({ data, onClose }: MentorPa
             </div>
           </div>
         )}
+
+        {/* Quick links */}
+        <div className={styles.panelActions}>
+          <Link href="/pathways" className={styles.panelLink}>
+            <span className={styles.panelLinkIcon}>{"\u{1F5FA}\uFE0F"}</span>
+            <span className={styles.panelLinkText}>Learning Pathways</span>
+            <span className={styles.panelLinkArrow}>&rarr;</span>
+          </Link>
+          <Link href="/courses/recommended" className={styles.panelLink}>
+            <span className={styles.panelLinkIcon}>{"\u{1F4DA}"}</span>
+            <span className={styles.panelLinkText}>Recommended Courses</span>
+            <span className={styles.panelLinkArrow}>&rarr;</span>
+          </Link>
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { memo } from "react";
+import Link from "next/link";
 import type { WorldData } from "@/lib/world-actions";
 import styles from "../passion-world.module.css";
 
@@ -128,6 +129,20 @@ export const EventsPanel = memo(function EventsPanel({ data, onClose }: EventsPa
             </div>
           </div>
         )}
+
+        {/* Quick links */}
+        <div className={styles.panelActions}>
+          <Link href="/events" className={styles.panelLink}>
+            <span className={styles.panelLinkIcon}>{"\u{1F4C5}"}</span>
+            <span className={styles.panelLinkText}>All Events</span>
+            <span className={styles.panelLinkArrow}>&rarr;</span>
+          </Link>
+          <Link href="/challenges" className={styles.panelLink}>
+            <span className={styles.panelLinkIcon}>{"\u{1F3AF}"}</span>
+            <span className={styles.panelLinkText}>Challenges</span>
+            <span className={styles.panelLinkArrow}>&rarr;</span>
+          </Link>
+        </div>
       </div>
     </div>
   );

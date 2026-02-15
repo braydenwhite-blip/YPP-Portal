@@ -1,6 +1,7 @@
 "use client";
 
 import { memo } from "react";
+import Link from "next/link";
 import type { WorldData } from "@/lib/world-actions";
 import styles from "../passion-world.module.css";
 
@@ -108,6 +109,20 @@ export const ChapterPanel = memo(function ChapterPanel({ data, onClose }: Chapte
             </div>
           </div>
         )}
+
+        {/* Quick links */}
+        <div className={styles.panelActions}>
+          <Link href="/chapter" className={styles.panelLink}>
+            <span className={styles.panelLinkIcon}>{"\u{1F3E0}"}</span>
+            <span className={styles.panelLinkText}>My Chapter</span>
+            <span className={styles.panelLinkArrow}>&rarr;</span>
+          </Link>
+          <Link href="/community/feed" className={styles.panelLink}>
+            <span className={styles.panelLinkIcon}>{"\u{1F4AC}"}</span>
+            <span className={styles.panelLinkText}>Community Feed</span>
+            <span className={styles.panelLinkArrow}>&rarr;</span>
+          </Link>
+        </div>
       </div>
     </div>
   );

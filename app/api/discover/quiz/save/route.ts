@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import type { PassionCategory } from "@prisma/client";
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
   // Find PassionArea records matching the top 3 categories
   let islandsCreated = 0;
   try {
-    const top3 = topPassionCategories.slice(0, 3);
+    const top3 = topPassionCategories.slice(0, 3) as PassionCategory[];
     const passionAreas = await prisma.passionArea.findMany({
       where: { category: { in: top3 }, isActive: true },
       select: { id: true, category: true },

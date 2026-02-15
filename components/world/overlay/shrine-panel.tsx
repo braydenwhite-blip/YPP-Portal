@@ -1,6 +1,7 @@
 "use client";
 
 import { memo } from "react";
+import Link from "next/link";
 import type { WorldData } from "@/lib/world-actions";
 import styles from "../passion-world.module.css";
 
@@ -101,6 +102,20 @@ export const ShrinePanel = memo(function ShrinePanel({ data, onClose }: ShrinePa
                   ? "Glowing — the shrine hums with energy"
                   : "Awakening — a faint glow grows within"}
           </div>
+        </div>
+
+        {/* Quick links */}
+        <div className={styles.panelActions}>
+          <Link href="/badges" className={styles.panelLink}>
+            <span className={styles.panelLinkIcon}>{"\u{1F3C5}"}</span>
+            <span className={styles.panelLinkText}>My Badges</span>
+            <span className={styles.panelLinkArrow}>&rarr;</span>
+          </Link>
+          <Link href="/certificates" className={styles.panelLink}>
+            <span className={styles.panelLinkIcon}>{"\u{1F4DC}"}</span>
+            <span className={styles.panelLinkText}>My Certificates</span>
+            <span className={styles.panelLinkArrow}>&rarr;</span>
+          </Link>
         </div>
       </div>
     </div>

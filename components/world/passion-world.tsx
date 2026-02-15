@@ -9,7 +9,6 @@ import React, {
   memo,
 } from "react";
 import { useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
 import type { WorldData, PassionIsland } from "@/lib/world-actions";
 import styles from "./passion-world.module.css";
 import { LEVEL_LABELS, getTheme, getTreeData } from "./constants";
@@ -23,13 +22,11 @@ import { ShrinePanel } from "./overlay/shrine-panel";
 import { ChapterPanel } from "./overlay/chapter-panel";
 import { EventsPanel } from "./overlay/events-panel";
 import { SearchFilter } from "./overlay/search-filter";
-import { Minimap } from "./overlay/minimap";
 import { Onboarding } from "./overlay/onboarding";
 import { DiscoveryQuizPanel } from "./overlay/discovery-quiz-panel";
-import type { LandmarkType } from "./scene/world-scene";
-import { useDeviceTier, hasWebGLSupport } from "./hooks/use-device-tier";
 import { useSound } from "./hooks/use-sound";
-import { getIslandPositions3D } from "./islands/island-layout";
+
+type LandmarkType = "quest-board" | "mentor-tower" | "shrine" | "chapter-town" | "events" | null;
 
 const BASE_W = 1200;
 const BASE_H = 800;
@@ -361,19 +358,23 @@ const Island = memo(
 );
 
 // ═══════════════════════════════════════════════════════════════
-// WORLD LANDMARKS (unchanged, but wrapped in memo)
+// WORLD LANDMARKS — clickable SVG icons that open panels
 // ═══════════════════════════════════════════════════════════════
 
 const QuestBoardLandmark = memo(function QuestBoardLandmark({
   x,
   y,
+  onSelect,
 }: {
   x: number;
   y: number;
+  onSelect: () => void;
 }) {
   return (
-    <g style={{ cursor: "pointer" }} opacity={0.65}>
-      <title>Quest Board — Coming Soon</title>
+    <g onClick={onSelect} style={{ cursor: "pointer" }} opacity={0.85}>
+      <title>Quest Board</title>
+      {/* Hit area */}
+      <rect x={x - 25} y={y - 25} width={50} height={55} fill="transparent" />
       <line x1={x} y1={y + 10} x2={x} y2={y - 15} stroke="#8B4513" strokeWidth="3" />
       <rect x={x - 15} y={y - 15} width={30} height={14} rx={2} fill="#DEB887" stroke="#8B4513" strokeWidth="1" />
       <rect x={x - 12} y={y - 5} width={24} height={10} rx={2} fill="#DEB887" stroke="#8B4513" strokeWidth="1" />
@@ -388,14 +389,18 @@ const MentorTowerLandmark = memo(function MentorTowerLandmark({
   x,
   y,
   mentorName,
+  onSelect,
 }: {
   x: number;
   y: number;
   mentorName: string | null;
+  onSelect: () => void;
 }) {
   return (
-    <g style={{ cursor: "pointer" }} opacity={mentorName ? 0.85 : 0.5}>
+    <g onClick={onSelect} style={{ cursor: "pointer" }} opacity={mentorName ? 0.85 : 0.6}>
       <title>{mentorName ? `Mentor Tower — ${mentorName}` : "Mentor Tower — No mentor assigned"}</title>
+      {/* Hit area */}
+      <rect x={x - 15} y={y - 35} width={30} height={65} fill="transparent" />
       <rect x={x - 8} y={y - 20} width={16} height={30} rx={2} fill="#7c3aed" opacity={0.8} />
       <polygon points={`${x - 10},${y - 20} ${x},${y - 32} ${x + 10},${y - 20}`} fill="#5b21b6" />
       <rect x={x - 2} y={y - 8} width={4} height={6} rx={1} fill="#c4b5fd" />
@@ -415,15 +420,19 @@ const AchievementShrineLandmark = memo(function AchievementShrineLandmark({
   y,
   badgeCount,
   certCount,
+  onSelect,
 }: {
   x: number;
   y: number;
   badgeCount: number;
   certCount: number;
+  onSelect: () => void;
 }) {
   return (
-    <g style={{ cursor: "pointer" }} opacity={0.7}>
+    <g onClick={onSelect} style={{ cursor: "pointer" }} opacity={0.85}>
       <title>Achievement Shrine — {badgeCount} badges, {certCount} certificates</title>
+      {/* Hit area */}
+      <rect x={x - 20} y={y - 25} width={40} height={50} fill="transparent" />
       <rect x={x - 12} y={y - 10} width={24} height={16} rx={1} fill="#fbbf24" opacity={0.8} />
       <polygon points={`${x - 15},${y - 10} ${x},${y - 22} ${x + 15},${y - 10}`} fill="#f59e0b" />
       <rect x={x - 10} y={y - 10} width={3} height={16} fill="#d97706" opacity={0.6} />
@@ -447,15 +456,19 @@ const ChapterTownLandmark = memo(function ChapterTownLandmark({
   y,
   chapterName,
   memberCount,
+  onSelect,
 }: {
   x: number;
   y: number;
   chapterName: string | null;
   memberCount: number;
+  onSelect: () => void;
 }) {
   return (
-    <g style={{ cursor: "pointer" }} opacity={chapterName ? 0.75 : 0.45}>
+    <g onClick={onSelect} style={{ cursor: "pointer" }} opacity={chapterName ? 0.85 : 0.55}>
       <title>{chapterName ? `${chapterName} — ${memberCount} members` : "Chapter Town — Join a chapter"}</title>
+      {/* Hit area */}
+      <rect x={x - 18} y={y - 25} width={42} height={55} fill="transparent" />
       <rect x={x - 14} y={y - 8} width={10} height={12} rx={1} fill="#3b82f6" opacity={0.7} />
       <rect x={x - 2} y={y - 14} width={12} height={18} rx={1} fill="#2563eb" opacity={0.8} />
       <rect x={x + 12} y={y - 6} width={8} height={10} rx={1} fill="#60a5fa" opacity={0.6} />
@@ -478,14 +491,18 @@ const SeasonalEventLandmark = memo(function SeasonalEventLandmark({
   x,
   y,
   count,
+  onSelect,
 }: {
   x: number;
   y: number;
   count: number;
+  onSelect: () => void;
 }) {
   return (
-    <g style={{ cursor: "pointer" }} opacity={count > 0 ? 0.8 : 0.45}>
+    <g onClick={onSelect} style={{ cursor: "pointer" }} opacity={count > 0 ? 0.85 : 0.55}>
       <title>{count > 0 ? `${count} active challenges & events` : "No active events"}</title>
+      {/* Hit area */}
+      <rect x={x - 18} y={y - 25} width={36} height={50} fill="transparent" />
       <polygon points={`${x - 14},${y + 6} ${x},${y - 16} ${x + 14},${y + 6}`} fill="#ef4444" opacity={0.7} />
       <polygon points={`${x - 10},${y + 6} ${x},${y - 10} ${x + 10},${y + 6}`} fill="#fbbf24" opacity={0.5} />
       <line x1={x} y1={y - 16} x2={x} y2={y - 20} stroke="#8B4513" strokeWidth="1.5" />
@@ -500,8 +517,6 @@ const SeasonalEventLandmark = memo(function SeasonalEventLandmark({
     </g>
   );
 });
-
-// HUD, ActivityLog, IslandDetail imported from ./overlay/
 
 // ═══════════════════════════════════════════════════════════════
 // VIEWPORT CULLING — only render islands in view
@@ -524,49 +539,6 @@ function isInViewport(
 }
 
 // ═══════════════════════════════════════════════════════════════
-// SCENE ERROR BOUNDARY — catches 3D errors, triggers SVG fallback
-// ═══════════════════════════════════════════════════════════════
-
-class SceneErrorBoundary extends React.Component<
-  { children: React.ReactNode; onError: () => void },
-  { hasError: boolean }
-> {
-  constructor(props: { children: React.ReactNode; onError: () => void }) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error: Error) {
-    console.error("[PassionWorld] 3D scene crashed, falling back to SVG:", error);
-    this.props.onError();
-  }
-
-  render() {
-    if (this.state.hasError) return null;
-    return this.props.children;
-  }
-}
-
-// Dynamically load the 3D scene — creates a separate webpack chunk.
-// next/dynamic handles SSR safety, loading states, and chunk error recovery.
-const WorldScene3D = dynamic(
-  () => import("./scene/world-scene").then((mod) => ({ default: mod.WorldScene })),
-  {
-    ssr: false,
-    loading: () => (
-      <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "white", gap: "0.5rem", background: "linear-gradient(180deg, #0c4a6e, #0369a1)" }}>
-        <div style={{ fontSize: "1.2rem" }}>Loading 3D world...</div>
-        <div style={{ fontSize: "0.8rem", opacity: 0.6 }}>This may take a moment</div>
-      </div>
-    ),
-  },
-);
-
-// ═══════════════════════════════════════════════════════════════
 // MAIN PASSION WORLD COMPONENT
 // ═══════════════════════════════════════════════════════════════
 
@@ -576,8 +548,6 @@ export default function PassionWorld({ data }: { data: WorldData }) {
     useState<PassionIsland | null>(null);
   const [selectedLandmark, setSelectedLandmark] = useState<LandmarkType>(null);
   const [filteredIds, setFilteredIds] = useState<Set<string> | null>(null);
-  const [introComplete, setIntroComplete] = useState(false);
-  const [cameraTarget, setCameraTarget] = useState<{ x: number; z: number }>({ x: 0, z: 0 });
   const [hudCollapsed, setHudCollapsed] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isExiting, setIsExiting] = useState(false);
@@ -585,10 +555,6 @@ export default function PassionWorld({ data }: { data: WorldData }) {
   const [showQuiz, setShowQuiz] = useState(false);
   const { enabled: soundEnabled, toggle: toggleSound, playSound } = useSound();
   const svgRef = useRef<SVGSVGElement>(null);
-  const tier = useDeviceTier();
-  const [use3D, setUse3D] = useState(false);
-  const [sceneError, setSceneError] = useState(false);
-  const [sceneTimedOut, setSceneTimedOut] = useState(false);
 
   // Clear entering state after animation completes
   useEffect(() => {
@@ -601,49 +567,17 @@ export default function PassionWorld({ data }: { data: WorldData }) {
     setTimeout(() => router.push("/"), 600);
   }, [router]);
 
-  // Enable 3D if WebGL is available (checked client-side)
-  useEffect(() => {
-    const webgl = hasWebGLSupport();
-    console.log("[PassionWorld] mounted, WebGL:", webgl, "tier:", tier);
-    setUse3D(webgl);
-  }, []);
-
-  // Timeout: if 3D scene hasn't loaded in 20s, fall back to SVG.
-  // The Three.js bundle is large; on slow connections it may never arrive.
-  // introComplete cancels the timer (scene loaded & intro animation finished).
-  useEffect(() => {
-    if (!use3D || sceneError || sceneTimedOut || introComplete) return;
-    const timer = setTimeout(() => {
-      console.warn("[PassionWorld] 3D scene load timed out, falling back to SVG");
-      setSceneTimedOut(true);
-    }, 20000);
-    return () => clearTimeout(timer);
-  }, [use3D, sceneError, sceneTimedOut, introComplete]);
-
   // rAF-based pan state (refs to avoid re-renders during drag)
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
   const rafRef = useRef<number>(0);
   const pendingDelta = useRef({ x: 0, y: 0 });
 
-  // Stable island positions (2D SVG + 3D)
+  // Stable island positions
   const positions = useMemo(
     () => getIslandPositions(data.islands.length),
     [data.islands.length],
   );
-  const positions3D = useMemo(
-    () => getIslandPositions3D(data.islands.length),
-    [data.islands.length],
-  );
-
-  // Landmark positions for minimap (must match world-scene.tsx)
-  const landmarkPositions3D = useMemo(() => ({
-    questBoard: [-55, 0, -30] as [number, number, number],
-    mentorTower: [55, 0, -30] as [number, number, number],
-    shrine: [55, 0, 40] as [number, number, number],
-    chapterTown: [-55, 0, 40] as [number, number, number],
-    events: [0, 0, 60] as [number, number, number],
-  }), []);
 
   // Landmark positions
   const landmarks = useMemo(
@@ -712,8 +646,17 @@ export default function PassionWorld({ data }: { data: WorldData }) {
       setSelectedIsland((prev) =>
         prev?.id === island.id ? null : island,
       );
+      setSelectedLandmark(null);
+      playSound("select");
     });
-  }, [data.islands]);
+  }, [data.islands, playSound]);
+
+  // Landmark select handlers
+  const handleSelectLandmark = useCallback((lm: LandmarkType) => {
+    setSelectedLandmark((prev) => prev === lm ? null : lm);
+    setSelectedIsland(null);
+    playSound("landmark");
+  }, [playSound]);
 
   // Viewport-culled islands
   const visibleIslands = useMemo(() => {
@@ -731,8 +674,8 @@ export default function PassionWorld({ data }: { data: WorldData }) {
   }, [data.islands, positions, vx, vy]);
 
   return (
-    <div className={`${styles.world}${isEntering ? ` ${styles.worldEntering}` : ""}${isExiting ? ` ${styles.worldExiting}` : ""}`} role="application" aria-label="Passion World — interactive 3D map of your passions">
-      {/* HTML overlays — always rendered on top of whichever renderer is active */}
+    <div className={`${styles.world}${isEntering ? ` ${styles.worldEntering}` : ""}${isExiting ? ` ${styles.worldExiting}` : ""}`} role="application" aria-label="Passion World — interactive map of your passions">
+      {/* HTML overlays */}
       <WorldHUD
         data={data}
         soundEnabled={soundEnabled}
@@ -752,23 +695,7 @@ export default function PassionWorld({ data }: { data: WorldData }) {
         {"\u{1FA84}"} Discover
       </button>
 
-      {/* Minimap (3D mode only) */}
-      {use3D && (
-        <Minimap
-          islands={data.islands}
-          positions={positions3D}
-          landmarkPositions={landmarkPositions3D}
-          cameraTarget={cameraTarget}
-          selectedId={selectedIsland?.id ?? null}
-          onClickIsland={(island) => {
-            setSelectedIsland(island);
-            setSelectedLandmark(null);
-            playSound("select");
-          }}
-        />
-      )}
-
-      {/* Sound toggle (always visible in bottom-right area) */}
+      {/* Sound toggle */}
       <button
         className={styles.soundToggle}
         onClick={toggleSound}
@@ -778,163 +705,148 @@ export default function PassionWorld({ data }: { data: WorldData }) {
         {soundEnabled ? "\u{1F50A}" : "\u{1F507}"}
       </button>
 
-      {use3D && !sceneError && !sceneTimedOut ? (
-        /* ─── 3D Canvas path (dynamically loaded to isolate Three.js bundle) ─── */
-        <SceneErrorBoundary onError={() => setSceneError(true)}>
-          <WorldScene3D
-            tier={tier}
-            data={data}
-            filteredIds={filteredIds}
-            onCameraMove={setCameraTarget}
-            onIntroComplete={() => setIntroComplete(true)}
-            onSelectIsland={(island) => {
-              setSelectedIsland(island);
-              if (island) {
-                setSelectedLandmark(null);
-                playSound("select");
-              } else {
-                playSound("deselect");
-              }
-            }}
-            onSelectLandmark={(lm) => {
-              setSelectedLandmark(lm);
-              if (lm) {
-                setSelectedIsland(null);
-                playSound("landmark");
-              }
-            }}
-          />
-        </SceneErrorBoundary>
-      ) : (
-        /* ─── SVG fallback path ─── */
-        <svg
-          ref={svgRef}
-          viewBox={viewBox}
-          className={styles.svg}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-        >
-          <defs>
-            <linearGradient id="ocean" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#0c4a6e" />
-              <stop offset="40%" stopColor="#0369a1" />
-              <stop offset="100%" stopColor="#0284c7" />
-            </linearGradient>
-            <filter id="glow">
-              <feGaussianBlur stdDeviation="2" result="coloredBlur" />
-              <feMerge>
-                <feMergeNode in="coloredBlur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-            <pattern
-              id="waterPattern"
-              width="60"
-              height="60"
-              patternUnits="userSpaceOnUse"
-            >
-              <circle cx="30" cy="30" r="1" fill="rgba(255,255,255,0.06)" />
-              <circle cx="10" cy="10" r="0.5" fill="rgba(255,255,255,0.04)" />
-              <circle cx="50" cy="15" r="0.8" fill="rgba(255,255,255,0.05)" />
-            </pattern>
-          </defs>
+      {/* ─── SVG World Map ─── */}
+      <svg
+        ref={svgRef}
+        viewBox={viewBox}
+        className={styles.svg}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      >
+        <defs>
+          <linearGradient id="ocean" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#0c4a6e" />
+            <stop offset="40%" stopColor="#0369a1" />
+            <stop offset="100%" stopColor="#0284c7" />
+          </linearGradient>
+          <linearGradient id="sunGlow" x1="0.5" y1="0" x2="0.5" y2="1">
+            <stop offset="0%" stopColor="#fbbf24" stopOpacity="0.15" />
+            <stop offset="100%" stopColor="#fbbf24" stopOpacity="0" />
+          </linearGradient>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+            <feMerge>
+              <feMergeNode in="coloredBlur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <radialGradient id="lightBeam" cx="0.5" cy="0" r="0.7">
+            <stop offset="0%" stopColor="rgba(255,255,255,0.06)" />
+            <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+          </radialGradient>
+          <pattern
+            id="waterPattern"
+            width="60"
+            height="60"
+            patternUnits="userSpaceOnUse"
+          >
+            <circle cx="30" cy="30" r="1" fill="rgba(255,255,255,0.06)" />
+            <circle cx="10" cy="10" r="0.5" fill="rgba(255,255,255,0.04)" />
+            <circle cx="50" cy="15" r="0.8" fill="rgba(255,255,255,0.05)" />
+          </pattern>
+        </defs>
 
-          {/* Ocean */}
-          <rect x="-400" y="-400" width="2000" height="1600" fill="url(#ocean)" />
-          <rect x="-400" y="-400" width="2000" height="1600" fill="url(#waterPattern)" />
+        {/* Ocean */}
+        <rect x="-400" y="-400" width="2000" height="1600" fill="url(#ocean)" />
+        <rect x="-400" y="-400" width="2000" height="1600" fill="url(#waterPattern)" />
 
-          {/* Waves */}
-          <WaveLayer y={760} color="#0ea5e9" speed={12} />
-          <WaveLayer y={775} color="#38bdf8" speed={15} />
-          <WaveLayer y={790} color="#7dd3fc" speed={18} />
+        {/* Sun glow at top */}
+        <ellipse cx="600" cy="-50" rx="500" ry="200" fill="url(#sunGlow)" />
 
-          {/* Clouds */}
-          <Cloud x={50} y={60} scale={0.8} />
-          <Cloud x={400} y={40} scale={1.1} />
-          <Cloud x={750} y={70} scale={0.9} />
-          <Cloud x={1050} y={50} scale={0.7} />
+        {/* Light rays */}
+        <rect x="200" y="-100" width="800" height="500" fill="url(#lightBeam)" opacity="0.5" />
 
-          {/* Compass */}
-          <g transform="translate(60, 80)" opacity={0.3}>
-            <circle cx="0" cy="0" r="20" fill="none" stroke="#fbbf24" strokeWidth="1" />
-            <line x1="0" y1="-22" x2="0" y2="22" stroke="#fbbf24" strokeWidth="0.5" />
-            <line x1="-22" y1="0" x2="22" y2="0" stroke="#fbbf24" strokeWidth="0.5" />
-            <text x="0" y="-25" textAnchor="middle" fontSize="8" fill="#fbbf24" fontWeight="700">N</text>
-          </g>
+        {/* Waves */}
+        <WaveLayer y={760} color="#0ea5e9" speed={12} />
+        <WaveLayer y={775} color="#38bdf8" speed={15} />
+        <WaveLayer y={790} color="#7dd3fc" speed={18} />
 
-          {/* Bridges */}
-          {data.islands.length > 1 &&
-            positions.slice(0, -1).map((pos, i) => {
-              const next = positions[i + 1];
-              return (
-                <line
-                  key={`bridge-${i}`}
-                  x1={pos.x}
-                  y1={pos.y + 15}
-                  x2={next.x}
-                  y2={next.y + 15}
-                  stroke="rgba(255,255,255,0.12)"
-                  strokeWidth="1.5"
-                  strokeDasharray="6 8"
-                />
-              );
-            })}
+        {/* Clouds */}
+        <Cloud x={50} y={60} scale={0.8} />
+        <Cloud x={400} y={40} scale={1.1} />
+        <Cloud x={750} y={70} scale={0.9} />
+        <Cloud x={1050} y={50} scale={0.7} />
 
-          {/* Landmarks */}
-          <g data-interactive>
-            <QuestBoardLandmark x={landmarks.questBoard.x} y={landmarks.questBoard.y} />
-            <MentorTowerLandmark x={landmarks.mentorTower.x} y={landmarks.mentorTower.y} mentorName={data.mentorName} />
-            <AchievementShrineLandmark x={landmarks.shrine.x} y={landmarks.shrine.y} badgeCount={data.totalBadges} certCount={data.totalCertificates} />
-            <ChapterTownLandmark x={landmarks.chapterTown.x} y={landmarks.chapterTown.y} chapterName={data.chapterName} memberCount={data.chapterMemberCount} />
-            <SeasonalEventLandmark x={landmarks.events.x} y={landmarks.events.y} count={data.activeChallenges + data.upcomingEventCount} />
-          </g>
+        {/* Compass */}
+        <g transform="translate(60, 80)" opacity={0.3}>
+          <circle cx="0" cy="0" r="20" fill="none" stroke="#fbbf24" strokeWidth="1" />
+          <line x1="0" y1="-22" x2="0" y2="22" stroke="#fbbf24" strokeWidth="0.5" />
+          <line x1="-22" y1="0" x2="22" y2="0" stroke="#fbbf24" strokeWidth="0.5" />
+          <text x="0" y="-25" textAnchor="middle" fontSize="8" fill="#fbbf24" fontWeight="700">N</text>
+        </g>
 
-          {/* Empty state */}
-          {data.islands.length === 0 && (
-            <g>
-              <text x="600" y="380" textAnchor="middle" fontSize="18" fill="white" fontWeight="700" opacity={0.8}>
-                Your world awaits...
-              </text>
-              <text x="600" y="410" textAnchor="middle" fontSize="12" fill="white" opacity={0.5}>
-                Take the Passion Discovery Quiz to grow your first island
-              </text>
-            </g>
-          )}
-
-          {/* Islands (viewport-culled, memoized) */}
-          {visibleIslands.map((i) => {
-            const island = data.islands[i];
-            const pos = positions[i];
+        {/* Bridges connecting islands */}
+        {data.islands.length > 1 &&
+          positions.slice(0, -1).map((pos, i) => {
+            const next = positions[i + 1];
             return (
-              <g key={island.id} data-interactive>
-                <Island
-                  island={island}
-                  x={pos?.x ?? 600}
-                  y={pos?.y ?? 400}
-                  index={i}
-                  isSelected={selectedIsland?.id === island.id}
-                  onSelect={selectHandlers[i]}
-                />
-              </g>
+              <line
+                key={`bridge-${i}`}
+                x1={pos.x}
+                y1={pos.y + 15}
+                x2={next.x}
+                y2={next.y + 15}
+                stroke="rgba(255,255,255,0.12)"
+                strokeWidth="1.5"
+                strokeDasharray="6 8"
+              />
             );
           })}
 
-          {/* Title */}
-          <text
-            x="600"
-            y="30"
-            textAnchor="middle"
-            fontSize="14"
-            fill="rgba(255,255,255,0.35)"
-            fontWeight="700"
-            letterSpacing="3"
-          >
-            THE PASSION WORLD
-          </text>
-        </svg>
-      )}
+        {/* Landmarks — clickable to open panels */}
+        <g data-interactive>
+          <QuestBoardLandmark x={landmarks.questBoard.x} y={landmarks.questBoard.y} onSelect={() => handleSelectLandmark("quest-board")} />
+          <MentorTowerLandmark x={landmarks.mentorTower.x} y={landmarks.mentorTower.y} mentorName={data.mentorName} onSelect={() => handleSelectLandmark("mentor-tower")} />
+          <AchievementShrineLandmark x={landmarks.shrine.x} y={landmarks.shrine.y} badgeCount={data.totalBadges} certCount={data.totalCertificates} onSelect={() => handleSelectLandmark("shrine")} />
+          <ChapterTownLandmark x={landmarks.chapterTown.x} y={landmarks.chapterTown.y} chapterName={data.chapterName} memberCount={data.chapterMemberCount} onSelect={() => handleSelectLandmark("chapter-town")} />
+          <SeasonalEventLandmark x={landmarks.events.x} y={landmarks.events.y} count={data.activeChallenges + data.upcomingEventCount} onSelect={() => handleSelectLandmark("events")} />
+        </g>
+
+        {/* Empty state */}
+        {data.islands.length === 0 && (
+          <g>
+            <text x="600" y="380" textAnchor="middle" fontSize="18" fill="white" fontWeight="700" opacity={0.8}>
+              Your world awaits...
+            </text>
+            <text x="600" y="410" textAnchor="middle" fontSize="12" fill="white" opacity={0.5}>
+              Take the Passion Discovery Quiz to grow your first island
+            </text>
+          </g>
+        )}
+
+        {/* Islands (viewport-culled, memoized) */}
+        {visibleIslands.map((i) => {
+          const island = data.islands[i];
+          const pos = positions[i];
+          return (
+            <g key={island.id} data-interactive>
+              <Island
+                island={island}
+                x={pos?.x ?? 600}
+                y={pos?.y ?? 400}
+                index={i}
+                isSelected={selectedIsland?.id === island.id}
+                onSelect={selectHandlers[i]}
+              />
+            </g>
+          );
+        })}
+
+        {/* Title */}
+        <text
+          x="600"
+          y="30"
+          textAnchor="middle"
+          fontSize="14"
+          fill="rgba(255,255,255,0.35)"
+          fontWeight="700"
+          letterSpacing="3"
+        >
+          THE PASSION WORLD
+        </text>
+      </svg>
 
       {/* Search & category filter */}
       <SearchFilter
@@ -979,8 +891,8 @@ export default function PassionWorld({ data }: { data: WorldData }) {
         />
       )}
 
-      {/* Onboarding tutorial (first visit only) */}
-      <Onboarding introComplete={introComplete} />
+      {/* Onboarding tutorial */}
+      <Onboarding introComplete={true} />
     </div>
   );
 }
