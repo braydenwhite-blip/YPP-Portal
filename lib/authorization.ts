@@ -26,10 +26,13 @@ export async function requireSessionUser(): Promise<SessionUser> {
     throw new Error("Unauthorized");
   }
 
+  const roles = session.user.roles ?? [];
+  const primaryRole = session.user.primaryRole ?? roles[0] ?? "STUDENT";
+
   return {
     id: session.user.id,
-    roles: session.user.roles ?? [],
-    primaryRole: session.user.primaryRole,
+    roles,
+    primaryRole,
   };
 }
 
