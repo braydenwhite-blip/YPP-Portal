@@ -61,7 +61,8 @@ export default async function InstructorTrainingPage() {
       include: {
         checkpoints: {
           where: { required: true },
-          select: { id: true },
+          orderBy: { sortOrder: "asc" },
+          select: { id: true, title: true, sortOrder: true },
         },
         quizQuestions: {
           select: { id: true },
@@ -219,6 +220,12 @@ export default async function InstructorTrainingPage() {
       completedRequiredCheckpoints,
       requiredCheckpointCount,
       configurationIssue,
+      checkpointLinks: module.checkpoints.map((checkpoint) => ({
+        id: checkpoint.id,
+        title: checkpoint.title,
+        sortOrder: checkpoint.sortOrder,
+        completed: completedCheckpointIds.has(checkpoint.id),
+      })),
     };
   });
 
@@ -463,10 +470,45 @@ export default async function InstructorTrainingPage() {
                 </p>
               ) : null}
 
-              <div style={{ marginTop: 10 }}>
+              {card.checkpointLinks.length > 0 ? (
+                <div style={{ marginTop: 8 }}>
+                  <p style={{ margin: 0, fontSize: 12, color: "var(--muted)" }}>Checkpoint links</p>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
+                    {card.checkpointLinks.map((checkpoint) => (
+                      <Link
+                        key={checkpoint.id}
+                        href={`/training/${card.module.id}#checkpoint-${checkpoint.id}`}
+                        className="link"
+                        style={{ fontSize: 12 }}
+                      >
+                        {checkpoint.completed ? "Done: " : "Open: "}
+                        {checkpoint.title}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <Link href={`/training/${card.module.id}`} className="button small" style={{ textDecoration: "none" }}>
                   Open module
                 </Link>
+                <Link
+                  href={`/training/${card.module.id}#section-checkpoints`}
+                  className="button small outline"
+                  style={{ textDecoration: "none" }}
+                >
+                  Open checkpoints
+                </Link>
+                {card.module.requiresQuiz ? (
+                  <Link
+                    href={`/training/${card.module.id}#section-quiz`}
+                    className="button small outline"
+                    style={{ textDecoration: "none" }}
+                  >
+                    Open quiz
+                  </Link>
+                ) : null}
               </div>
             </div>
           ))}

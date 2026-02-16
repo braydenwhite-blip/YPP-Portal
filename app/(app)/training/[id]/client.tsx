@@ -13,6 +13,27 @@ import {
 } from "@/lib/training-actions";
 import { VideoProvider } from "@prisma/client";
 
+function renderTextWithLinks(text: string) {
+  const urlPattern = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlPattern);
+  return parts.map((part, index) => {
+    if (/^https?:\/\/\S+$/.test(part)) {
+      return (
+        <a
+          key={`url-${part}-${index}`}
+          href={part}
+          target="_blank"
+          rel="noreferrer"
+          className="link"
+        >
+          {part}
+        </a>
+      );
+    }
+    return <span key={`text-${index}`}>{part}</span>;
+  });
+}
+
 type ModuleData = {
   id: string;
   title: string;
@@ -185,8 +206,32 @@ export default function TrainingModuleClient({
         </div>
       </div>
 
+      <div className="card" style={{ marginBottom: 18 }}>
+        <h3 style={{ marginBottom: 8 }}>Quick Links</h3>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {module.videoUrl ? (
+            <a href="#section-video" className="button small outline" style={{ textDecoration: "none" }}>
+              Go to video
+            </a>
+          ) : null}
+          <a href="#section-checkpoints" className="button small outline" style={{ textDecoration: "none" }}>
+            Go to checkpoints
+          </a>
+          {module.requiresQuiz ? (
+            <a href="#section-quiz" className="button small outline" style={{ textDecoration: "none" }}>
+              Go to quiz
+            </a>
+          ) : null}
+          {module.requiresEvidence ? (
+            <a href="#section-evidence" className="button small outline" style={{ textDecoration: "none" }}>
+              Go to evidence
+            </a>
+          ) : null}
+        </div>
+      </div>
+
       {module.videoUrl && module.videoProvider ? (
-        <div className="card" style={{ marginBottom: 18 }}>
+        <div id="section-video" className="card" style={{ marginBottom: 18 }}>
           <h3>Training Video</h3>
           <VideoPlayer
             videoUrl={module.videoUrl}
@@ -203,49 +248,59 @@ export default function TrainingModuleClient({
         </div>
       ) : null}
 
-      <div className="card" style={{ marginBottom: 18 }}>
+      <div id="section-checkpoints" className="card" style={{ marginBottom: 18 }}>
         <h3>Checkpoints</h3>
         {module.checkpoints.length === 0 ? (
           <p style={{ color: "var(--muted)" }}>No checkpoints required for this module.</p>
         ) : (
           <div style={{ display: "grid", gap: 10 }}>
             {module.checkpoints.map((checkpoint) => (
-              <div key={checkpoint.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                  <div>
-                    <p style={{ margin: 0, fontWeight: 600 }}>{checkpoint.title}</p>
-                    {checkpoint.description ? (
-                      <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--muted)" }}>
-                        {checkpoint.description}
-                      </p>
-                    ) : null}
-                  </div>
+              <details
+                key={checkpoint.id}
+                id={`checkpoint-${checkpoint.id}`}
+                open={!checkpoint.completed && checkpoint.required}
+                style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}
+              >
+                <summary style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", gap: 8 }}>
+                  <span style={{ fontWeight: 600 }}>{checkpoint.title}</span>
                   <span className={`pill pill-small ${checkpoint.completed ? "pill-success" : ""}`}>
                     {checkpoint.completed ? "Completed" : checkpoint.required ? "Required" : "Optional"}
                   </span>
-                </div>
+                </summary>
 
-                {!checkpoint.completed ? (
-                  <form
-                    action={async (_formData: FormData) => {
-                      const formData = new FormData();
-                      formData.set("checkpointId", checkpoint.id);
-                      await submitTrainingCheckpoint(formData);
-                      router.refresh();
-                    }}
-                    style={{ marginTop: 10 }}
-                  >
-                    <button type="submit" className="button small">Mark checkpoint complete</button>
-                  </form>
-                ) : null}
-              </div>
+                <div style={{ marginTop: 10 }}>
+                  {checkpoint.description ? (
+                    <p style={{ margin: 0, fontSize: 13, color: "var(--muted)", lineHeight: 1.5 }}>
+                      {renderTextWithLinks(checkpoint.description)}
+                    </p>
+                  ) : (
+                    <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
+                      No extra instructions for this checkpoint.
+                    </p>
+                  )}
+
+                  {!checkpoint.completed ? (
+                    <form
+                      action={async (_formData: FormData) => {
+                        const formData = new FormData();
+                        formData.set("checkpointId", checkpoint.id);
+                        await submitTrainingCheckpoint(formData);
+                        router.refresh();
+                      }}
+                      style={{ marginTop: 10 }}
+                    >
+                      <button type="submit" className="button small">Mark checkpoint complete</button>
+                    </form>
+                  ) : null}
+                </div>
+              </details>
             ))}
           </div>
         )}
       </div>
 
       {module.requiresQuiz ? (
-        <div className="card" style={{ marginBottom: 18 }}>
+        <div id="section-quiz" className="card" style={{ marginBottom: 18 }}>
           <h3>Module Quiz</h3>
           <p style={{ marginTop: 0, color: "var(--muted)", fontSize: 13 }}>
             Pass score required: {module.passScorePct}%
@@ -314,7 +369,7 @@ export default function TrainingModuleClient({
       ) : null}
 
       {module.requiresEvidence ? (
-        <div className="card" style={{ marginBottom: 18 }}>
+        <div id="section-evidence" className="card" style={{ marginBottom: 18 }}>
           <h3>Evidence Submission</h3>
           <p style={{ marginTop: 0, color: "var(--muted)", fontSize: 13 }}>
             Upload required evidence for reviewer approval.
