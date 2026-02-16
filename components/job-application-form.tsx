@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { jobApplicationSchema } from "@/lib/application-schemas";
-import type { z } from "zod";
+import { z } from "zod";
 
 interface JobApplicationFormProps {
   positionId: string;
@@ -79,6 +79,7 @@ export function JobApplicationForm({
 
     const formData = new FormData(e.currentTarget);
     const data = {
+      positionId,
       coverLetter: formData.get("coverLetter") as string,
       resumeUrl: formData.get("resumeUrl") as string,
       additionalMaterials: formData.get("additionalMaterials") as string,

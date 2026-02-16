@@ -109,7 +109,7 @@ export function ClassSettingsClient({
         formData.set("templateId", templateId);
         const result = await createClassOffering(formData);
         setSuccess("Class offering created! Sessions have been auto-generated.");
-        router.push(`/classes/${result.id}`);
+        router.push(`/curriculum/${result.id}`);
         return;
       }
 

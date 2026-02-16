@@ -39,7 +39,7 @@ export default async function ClassAssignmentsPage({
     },
   });
 
-  if (!offering) redirect("/classes/catalog");
+  if (!offering) redirect("/curriculum");
 
   const roles = session.user.roles ?? [];
   const isInstructor = offering.instructorId === session.user.id || roles.includes("ADMIN");
@@ -50,13 +50,13 @@ export default async function ClassAssignmentsPage({
     <div>
       <div className="topbar">
         <div>
-          <Link href={`/classes/${offeringId}`} style={{ fontSize: 13, color: "var(--ypp-purple)" }}>
+          <Link href={`/curriculum/${offeringId}`} style={{ fontSize: 13, color: "var(--ypp-purple)" }}>
             &larr; {offering.title}
           </Link>
           <h1 className="page-title" style={{ marginTop: 4 }}>Assignments</h1>
         </div>
         {isInstructor && (
-          <Link href={`/classes/${offeringId}/assignments/create`} className="button primary">
+          <Link href={`/curriculum/${offeringId}/assignments/create`} className="button primary">
             + Create Assignment
           </Link>
         )}
@@ -93,7 +93,7 @@ export default async function ClassAssignmentsPage({
             return (
               <Link
                 key={assignment.id}
-                href={`/classes/${offeringId}/assignments/${assignment.id}`}
+                href={`/curriculum/${offeringId}/assignments/${assignment.id}`}
                 className="card"
                 style={{ textDecoration: "none", color: "inherit" }}
               >

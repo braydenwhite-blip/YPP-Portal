@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
             title: reminder.subject,
             body: reminder.body,
             type: "CLASS_REMINDER",
-            link: `/classes/${reminder.offeringId}`,
+            link: `/curriculum/${reminder.offeringId}`,
           },
         });
 

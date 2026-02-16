@@ -27,12 +27,45 @@ async function requireInstructor() {
   return session;
 }
 
+function revalidateLessonPlanSurfaces() {
+  revalidatePath("/lesson-plans");
+  revalidatePath("/instructor/workspace");
+  revalidatePath("/instructor/curriculum-builder");
+  revalidatePath("/instructor/lesson-plans/templates");
+}
+
+async function resolveClassTemplateId(
+  rawTemplateId: string | null,
+  userId: string,
+  roles: string[]
+) {
+  const classTemplateId = rawTemplateId?.trim() || null;
+  if (!classTemplateId) return null;
+
+  const template = await prisma.classTemplate.findFirst({
+    where: roles.includes("ADMIN")
+      ? { id: classTemplateId }
+      : {
+          id: classTemplateId,
+          OR: [{ createdById: userId }, { isPublished: true }],
+        },
+    select: { id: true },
+  });
+
+  if (!template) {
+    throw new Error("Selected curriculum template is not available");
+  }
+
+  return template.id;
+}
+
 export async function createLessonPlan(formData: FormData) {
   const session = await requireInstructor();
 
   const title = (formData.get("title") as string)?.trim();
   const description = (formData.get("description") as string)?.trim() || null;
   const courseId = (formData.get("courseId") as string)?.trim() || null;
+  const classTemplateIdRaw = (formData.get("classTemplateId") as string)?.trim() || null;
   const isTemplate = formData.get("isTemplate") === "true";
   const activitiesJson = formData.get("activities") as string;
 
@@ -53,12 +86,19 @@ export async function createLessonPlan(formData: FormData) {
   }
 
   const totalMinutes = activities.reduce((sum, a) => sum + a.durationMin, 0);
+  const roles = session.user.roles ?? [];
+  const classTemplateId = await resolveClassTemplateId(
+    classTemplateIdRaw,
+    session.user.id,
+    roles
+  );
 
   await prisma.lessonPlan.create({
     data: {
       title,
       description,
       courseId,
+      classTemplateId,
       totalMinutes,
       authorId: session.user.id,
       isTemplate,
@@ -76,7 +116,7 @@ export async function createLessonPlan(formData: FormData) {
     },
   });
 
-  revalidatePath("/lesson-plans");
+  revalidateLessonPlanSurfaces();
 }
 
 export async function updateLessonPlan(formData: FormData) {
@@ -86,6 +126,7 @@ export async function updateLessonPlan(formData: FormData) {
   const title = (formData.get("title") as string)?.trim();
   const description = (formData.get("description") as string)?.trim() || null;
   const courseId = (formData.get("courseId") as string)?.trim() || null;
+  const classTemplateIdRaw = (formData.get("classTemplateId") as string)?.trim() || null;
   const isTemplate = formData.get("isTemplate") === "true";
   const activitiesJson = formData.get("activities") as string;
 
@@ -118,6 +159,11 @@ export async function updateLessonPlan(formData: FormData) {
   }
 
   const totalMinutes = activities.reduce((sum, a) => sum + a.durationMin, 0);
+  const classTemplateId = await resolveClassTemplateId(
+    classTemplateIdRaw,
+    session.user.id,
+    roles
+  );
 
   // Delete old activities and recreate
   await prisma.lessonActivity.deleteMany({ where: { lessonPlanId: planId } });
@@ -128,6 +174,7 @@ export async function updateLessonPlan(formData: FormData) {
       title,
       description,
       courseId,
+      classTemplateId,
       totalMinutes,
       isTemplate,
       activities: {
@@ -144,7 +191,7 @@ export async function updateLessonPlan(formData: FormData) {
     },
   });
 
-  revalidatePath("/lesson-plans");
+  revalidateLessonPlanSurfaces();
 }
 
 export async function deleteLessonPlan(formData: FormData) {
@@ -167,7 +214,7 @@ export async function deleteLessonPlan(formData: FormData) {
   // Activities cascade-delete due to onDelete: Cascade
   await prisma.lessonPlan.delete({ where: { id: planId } });
 
-  revalidatePath("/lesson-plans");
+  revalidateLessonPlanSurfaces();
 }
 
 export async function duplicateLessonPlan(formData: FormData) {
@@ -188,6 +235,7 @@ export async function duplicateLessonPlan(formData: FormData) {
       title: `${existing.title} (Copy)`,
       description: existing.description,
       courseId: existing.courseId,
+      classTemplateId: existing.classTemplateId,
       totalMinutes: existing.totalMinutes,
       authorId: session.user.id,
       isTemplate: false,
@@ -205,5 +253,5 @@ export async function duplicateLessonPlan(formData: FormData) {
     },
   });
 
-  revalidatePath("/lesson-plans");
+  revalidateLessonPlanSurfaces();
 }

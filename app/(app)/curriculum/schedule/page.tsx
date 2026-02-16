@@ -122,7 +122,7 @@ export default async function SemesterPlanningCalendarPage() {
           <p className="badge">My Schedule</p>
           <h1 className="page-title">Semester Planner</h1>
         </div>
-        <Link href="/classes/catalog" className="button primary">
+        <Link href="/curriculum" className="button primary">
           Browse Classes
         </Link>
       </div>
@@ -167,7 +167,7 @@ export default async function SemesterPlanningCalendarPage() {
             <span>{nextSession.instructorName}</span>
           </div>
           <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
-            <Link href={`/classes/${nextSession.offeringId}`} className="button secondary" style={{ fontSize: 13 }}>
+            <Link href={`/curriculum/${nextSession.offeringId}`} className="button secondary" style={{ fontSize: 13 }}>
               View Class
             </Link>
             {nextSession.zoomLink && (
@@ -187,7 +187,7 @@ export default async function SemesterPlanningCalendarPage() {
             {thisWeekSessions.map((s) => (
               <Link
                 key={s.id}
-                href={`/classes/${s.offeringId}`}
+                href={`/curriculum/${s.offeringId}`}
                 className="card"
                 style={{
                   textDecoration: "none",
@@ -243,7 +243,7 @@ export default async function SemesterPlanningCalendarPage() {
             <p style={{ color: "var(--text-secondary)", marginTop: 8 }}>
               Browse the class catalog to find classes that match your interests.
             </p>
-            <Link href="/classes/catalog" className="button primary" style={{ marginTop: 16 }}>
+            <Link href="/curriculum" className="button primary" style={{ marginTop: 16 }}>
               Browse Classes
             </Link>
           </div>
@@ -258,7 +258,7 @@ export default async function SemesterPlanningCalendarPage() {
               return (
                 <Link
                   key={enrollment.id}
-                  href={`/classes/${offering.id}`}
+                  href={`/curriculum/${offering.id}`}
                   className="card"
                   style={{ textDecoration: "none", color: "inherit" }}
                 >

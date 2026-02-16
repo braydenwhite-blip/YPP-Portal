@@ -27,7 +27,7 @@ export function CreateAssignmentClient({
       formData.set("type", type);
 
       const result = await createClassAssignment(formData);
-      router.push(`/classes/${offeringId}/assignments/${result.id}`);
+      router.push(`/curriculum/${offeringId}/assignments/${result.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create assignment");
       setLoading(false);
@@ -225,7 +225,7 @@ export function CreateAssignmentClient({
         <button
           type="button"
           className="button secondary"
-          onClick={() => router.push(`/classes/${offeringId}/assignments`)}
+          onClick={() => router.push(`/curriculum/${offeringId}/assignments`)}
         >
           Cancel
         </button>

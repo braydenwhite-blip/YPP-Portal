@@ -29,7 +29,7 @@ export default async function AssignmentDetailPage({
       <div>
         <div className="card">
           <h3>Assignment Not Found</h3>
-          <Link href={`/classes/${offeringId}/assignments`} className="button primary" style={{ marginTop: 12 }}>
+          <Link href={`/curriculum/${offeringId}/assignments`} className="button primary" style={{ marginTop: 12 }}>
             Back to Assignments
           </Link>
         </div>
@@ -46,13 +46,13 @@ export default async function AssignmentDetailPage({
     <div>
       <div className="topbar">
         <div>
-          <Link href={`/classes/${offeringId}/assignments`} style={{ fontSize: 13, color: "var(--ypp-purple)" }}>
+          <Link href={`/curriculum/${offeringId}/assignments`} style={{ fontSize: 13, color: "var(--ypp-purple)" }}>
             &larr; Assignments
           </Link>
           <h1 className="page-title" style={{ marginTop: 4 }}>{assignment.title}</h1>
         </div>
         {isInstructor && (
-          <Link href={`/classes/${offeringId}/assignments/${assignmentId}/feedback`} className="button primary">
+          <Link href={`/curriculum/${offeringId}/assignments/${assignmentId}/feedback`} className="button primary">
             Give Feedback
           </Link>
         )}
@@ -162,7 +162,7 @@ export default async function AssignmentDetailPage({
             <h3>Groups</h3>
             {!myGroup && (
               <Link
-                href={`/classes/${offeringId}/assignments/${assignmentId}/groups`}
+                href={`/curriculum/${offeringId}/assignments/${assignmentId}/groups`}
                 className="button primary"
                 style={{ fontSize: 13 }}
               >
@@ -182,7 +182,7 @@ export default async function AssignmentDetailPage({
                 return (
                   <Link
                     key={group.id}
-                    href={`/classes/${offeringId}/assignments/${assignmentId}/groups?group=${group.id}`}
+                    href={`/curriculum/${offeringId}/assignments/${assignmentId}/groups?group=${group.id}`}
                     className="card"
                     style={{
                       textDecoration: "none",
@@ -245,7 +245,7 @@ export default async function AssignmentDetailPage({
                       <span style={{ color: "#16a34a", fontSize: 13 }}>Given</span>
                     ) : sub.status === "SUBMITTED" ? (
                       <Link
-                        href={`/classes/${offeringId}/assignments/${assignmentId}/feedback`}
+                        href={`/curriculum/${offeringId}/assignments/${assignmentId}/feedback`}
                         style={{ color: "var(--ypp-purple)", fontSize: 13 }}
                       >
                         Give Feedback

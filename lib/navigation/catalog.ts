@@ -94,10 +94,9 @@ export const NAV_CATALOG: NavLink[] = [
 
   ...groupLinks("Learning", 300, [
     { href: "/pathways", label: "Pathways", icon: "🗺" },
-    { href: "/curriculum", label: "Courses", icon: "📖" },
-    { href: "/classes/catalog", label: "Class Catalog", icon: "📋" },
+    { href: "/curriculum", label: "Curriculum Catalog", icon: "📖" },
     { href: "/my-courses", label: "My Courses", icon: "🎓", roles: STUDENT_ONLY },
-    { href: "/classes/schedule", label: "My Schedule", icon: "📅", roles: STUDENT_ONLY },
+    { href: "/curriculum/schedule", label: "My Schedule", icon: "📅", roles: STUDENT_ONLY },
     { href: "/courses/recommended", label: "Recommended", icon: "⭐", roles: STUDENT_ONLY },
     { href: "/learn/modules", label: "Modules", icon: "📦", roles: STUDENT_ONLY },
     { href: "/learn/workshops", label: "Workshops", icon: "🔧", roles: STUDENT_ONLY },
@@ -165,6 +164,14 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Plan Templates",
       icon: "📄",
       roles: INSTRUCTOR_ROLES,
+    },
+    {
+      href: "/instructor/workspace",
+      label: "Instructor Workspace",
+      icon: "🧩",
+      roles: INSTRUCTOR_ROLES,
+      dashboardDescription: "Plan curricula, lesson plans, offerings, and readiness in one workspace.",
+      dashboardPriority: 2,
     },
     {
       href: "/instructor/curriculum-builder",
@@ -339,6 +346,14 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 7,
       dashboardBadgeKey: "instructor_readiness_blockers",
     },
+    {
+      href: "/chapter-lead/portal-rollout",
+      label: "Rollout Command",
+      icon: "🗓",
+      roles: CHAPTER_LEAD_ONLY,
+      dashboardDescription: "Track chapter rollout timeline, owners, and blockers.",
+      dashboardPriority: 5,
+    },
   ]),
 
   ...groupLinks("Profile & Settings", 1000, [
@@ -398,6 +413,14 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 5,
       dashboardBadgeKey: "readiness_review_queue",
     },
+    {
+      href: "/admin/portal-rollout",
+      label: "Rollout Command",
+      icon: "🗓",
+      roles: ADMIN_ONLY,
+      dashboardDescription: "Track launch timeline, ownership, and blockers.",
+      dashboardPriority: 6,
+    },
     { href: "/admin/staff", label: "Staff Reflections", icon: "📝", roles: ADMIN_ONLY },
     {
       href: "/admin/applications",
@@ -421,6 +444,7 @@ export const NAV_CATALOG: NavLink[] = [
 
   ...groupLinks("Admin Content", 1200, [
     { href: "/admin/announcements", label: "Manage Updates", icon: "📢", roles: ADMIN_ONLY },
+    { href: "/admin/rollout-comms", label: "Rollout Comms", icon: "✉️", roles: ADMIN_ONLY },
     { href: "/admin/programs", label: "Manage Programs", icon: "📦", roles: ADMIN_ONLY },
     { href: "/admin/training", label: "Training Modules", icon: "🏫", roles: ADMIN_ONLY },
     { href: "/admin/goals", label: "Goals", icon: "🎯", roles: ADMIN_ONLY },

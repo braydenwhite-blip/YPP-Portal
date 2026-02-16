@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { getStudentProgressSnapshot } from "@/lib/student-progress-actions";
 
 export default async function LearningProgressPage() {
   const session = await getServerSession(authOptions);
@@ -20,6 +21,7 @@ export default async function LearningProgressPage() {
     practiceLogs,
     recentPractice,
     user,
+    progressSnapshot,
   ] = await Promise.all([
     prisma.learningModule.count({ where: { isActive: true } }),
     prisma.moduleWatchProgress.findMany({
@@ -50,6 +52,7 @@ export default async function LearningProgressPage() {
       where: { id: userId },
       select: { xp: true, level: true },
     }),
+    getStudentProgressSnapshot(userId),
   ]);
 
   const completedCount = completedProgress.length;
@@ -173,6 +176,28 @@ export default async function LearningProgressPage() {
         <div className="card">
           <div className="kpi">{uniqueSkills.length}</div>
           <div className="kpi-label">Skills Unlocked</div>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 24 }}>
+        <h3 style={{ marginTop: 0 }}>Unified Progress Snapshot</h3>
+        <div className="grid four" style={{ marginTop: 10 }}>
+          <div>
+            <div className="kpi">{progressSnapshot.activeEnrollments}</div>
+            <div className="kpi-label">Active Enrollments</div>
+          </div>
+          <div>
+            <div className="kpi">{progressSnapshot.dueAssignmentsNext7Days}</div>
+            <div className="kpi-label">Assignments Due (7d)</div>
+          </div>
+          <div>
+            <div className="kpi">{progressSnapshot.upcomingSessionsNext7Days}</div>
+            <div className="kpi-label">Upcoming Sessions (7d)</div>
+          </div>
+          <div>
+            <div className="kpi">{progressSnapshot.nextPathwaySteps}</div>
+            <div className="kpi-label">Pathway Next Steps</div>
+          </div>
         </div>
       </div>
 

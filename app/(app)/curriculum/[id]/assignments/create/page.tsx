@@ -28,13 +28,13 @@ export default async function CreateClassAssignmentPage({
     },
   });
 
-  if (!offering) redirect("/classes/catalog");
+  if (!offering) redirect("/curriculum");
 
   return (
     <div>
       <div className="topbar">
         <div>
-          <Link href={`/classes/${offeringId}/assignments`} style={{ fontSize: 13, color: "var(--ypp-purple)" }}>
+          <Link href={`/curriculum/${offeringId}/assignments`} style={{ fontSize: 13, color: "var(--ypp-purple)" }}>
             &larr; Assignments
           </Link>
           <h1 className="page-title" style={{ marginTop: 4 }}>Create Assignment</h1>

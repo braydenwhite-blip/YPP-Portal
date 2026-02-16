@@ -641,12 +641,21 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
       });
     }
 
+    if (activeApplications === 0) {
+      nextActions.push({
+        id: "student-positions",
+        title: "Browse open positions",
+        detail: "Explore leadership, instructor, and mentor roles you can apply for.",
+        href: "/positions",
+      });
+    }
+
     if (nextActions.length === 0) {
       nextActions.push({
         id: "student-explore",
         title: "Explore a new class",
         detail: "Browse classes and pick your next challenge.",
-        href: "/classes/catalog",
+        href: "/curriculum",
       });
     }
 

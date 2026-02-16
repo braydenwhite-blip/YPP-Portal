@@ -4,7 +4,11 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import LessonPlanBuilder from "./lesson-plan-builder";
 
-export default async function LessonPlansPage() {
+export default async function LessonPlansPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ templateId?: string }>;
+}) {
   const session = await getServerSession(authOptions);
   const roles = session?.user?.roles ?? [];
   const isInstructor =
@@ -16,7 +20,9 @@ export default async function LessonPlansPage() {
     redirect("/");
   }
 
-  const [plans, courses] = await Promise.all([
+  const selectedTemplateId = ((await searchParams)?.templateId ?? "").trim();
+
+  const [plans, courses, templates] = await Promise.all([
     prisma.lessonPlan.findMany({
       where: roles.includes("ADMIN")
         ? {}
@@ -24,12 +30,27 @@ export default async function LessonPlansPage() {
       include: {
         activities: { orderBy: { sortOrder: "asc" } },
         author: { select: { name: true } },
+        classTemplate: { select: { title: true } },
       },
       orderBy: { updatedAt: "desc" },
     }),
     prisma.course.findMany({
       select: { id: true, title: true },
       orderBy: { title: "asc" },
+    }),
+    prisma.classTemplate.findMany({
+      where: roles.includes("ADMIN")
+        ? {}
+        : {
+            OR: [{ createdById: session!.user.id }, { isPublished: true }],
+          },
+      select: {
+        id: true,
+        title: true,
+        interestArea: true,
+        createdBy: { select: { name: true } },
+      },
+      orderBy: { updatedAt: "desc" },
     }),
   ]);
 
@@ -38,6 +59,8 @@ export default async function LessonPlansPage() {
     title: p.title,
     description: p.description,
     courseId: p.courseId,
+    classTemplateId: p.classTemplateId,
+    classTemplateTitle: p.classTemplate?.title ?? null,
     totalMinutes: p.totalMinutes,
     authorName: p.author.name,
     isTemplate: p.isTemplate,
@@ -51,7 +74,14 @@ export default async function LessonPlansPage() {
       sortOrder: a.sortOrder,
       resources: a.resources,
       notes: a.notes,
-    })),
+      })),
+  }));
+
+  const serializedTemplates = templates.map((template) => ({
+    id: template.id,
+    title: template.title,
+    interestArea: template.interestArea,
+    createdByName: template.createdBy.name,
   }));
 
   return (
@@ -66,7 +96,12 @@ export default async function LessonPlansPage() {
         </div>
       </div>
 
-      <LessonPlanBuilder plans={serializedPlans} courses={courses} />
+      <LessonPlanBuilder
+        plans={serializedPlans}
+        courses={courses}
+        templates={serializedTemplates}
+        initialTemplateId={selectedTemplateId}
+      />
     </div>
   );
 }

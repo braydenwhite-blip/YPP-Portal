@@ -1,14 +1,41 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { applyToIncubator, getActiveCohort } from "@/lib/incubator-actions";
+import { incubatorApplicationSchema, getFieldError } from "@/lib/application-schemas";
+import type { z } from "zod";
 import Link from "next/link";
+
+function CharCount({ value, max }: { value: string; max: number }) {
+  const len = value.length;
+  return (
+    <span style={{ fontSize: 11, color: len > max ? "#dc2626" : "var(--muted)" }}>
+      {len} / {max.toLocaleString()}
+    </span>
+  );
+}
 
 export default function ApplyToIncubatorPage() {
   const [cohort, setCohort] = useState<any>(null);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [validationErrors, setValidationErrors] = useState<z.ZodError | null>(null);
+
+  const [fields, setFields] = useState({
+    projectTitle: "",
+    passionArea: "",
+    projectIdea: "",
+    whyThisProject: "",
+    priorExperience: "",
+    goals: "",
+    needsMentor: "true" as "true" | "false",
+    mentorPreference: "",
+  });
+
+  function updateField(key: string, value: string) {
+    setFields((prev) => ({ ...prev, [key]: value }));
+  }
 
   useEffect(() => {
     getActiveCohort()
@@ -17,7 +44,23 @@ export default function ApplyToIncubatorPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const validate = useCallback(() => {
+    const result = incubatorApplicationSchema.safeParse({
+      ...fields,
+      cohortId: cohort?.id || "",
+    });
+    if (!result.success) {
+      setValidationErrors(result.error);
+      return false;
+    }
+    setValidationErrors(null);
+    return true;
+  }, [fields, cohort]);
+
   async function handleSubmit(formData: FormData) {
+    setError("");
+    if (!validate()) return;
+
     try {
       await applyToIncubator(formData);
       setSubmitted(true);
@@ -25,6 +68,8 @@ export default function ApplyToIncubatorPage() {
       setError(e.message || "Something went wrong");
     }
   }
+
+  const err = (field: string) => getFieldError(validationErrors, field);
 
   if (loading) {
     return (
@@ -90,72 +135,133 @@ export default function ApplyToIncubatorPage() {
           )}
 
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-              Project Title *
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
+              Project Title <span style={{ color: "#dc2626" }}>*</span>
             </label>
-            <input name="projectTitle" required placeholder="What will you call your project?" className="input" style={{ width: "100%" }} />
+            <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
+              Give your project a memorable name.
+            </p>
+            <input
+              name="projectTitle"
+              placeholder="What will you call your project?"
+              className="input"
+              style={{ width: "100%", ...(err("projectTitle") ? { borderColor: "#dc2626" } : {}) }}
+              value={fields.projectTitle}
+              onChange={(e) => updateField("projectTitle", e.target.value)}
+            />
+            {err("projectTitle") && (
+              <span style={{ fontSize: 12, color: "#dc2626", display: "block", marginTop: 4 }}>{err("projectTitle")}</span>
+            )}
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-              Passion Area *
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
+              Passion Area <span style={{ color: "#dc2626" }}>*</span>
             </label>
-            <input name="passionArea" required placeholder="e.g., Music Production, Robotics, Dance, Painting" className="input" style={{ width: "100%" }} />
+            <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
+              What area does your project focus on?
+            </p>
+            <input
+              name="passionArea"
+              placeholder="e.g., Music Production, Robotics, Dance, Painting"
+              className="input"
+              style={{ width: "100%", ...(err("passionArea") ? { borderColor: "#dc2626" } : {}) }}
+              value={fields.passionArea}
+              onChange={(e) => updateField("passionArea", e.target.value)}
+            />
+            {err("passionArea") && (
+              <span style={{ fontSize: 12, color: "#dc2626", display: "block", marginTop: 4 }}>{err("passionArea")}</span>
+            )}
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-              What&apos;s your project idea? *
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
+              What&apos;s your project idea? <span style={{ color: "#dc2626" }}>*</span>
             </label>
+            <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
+              Describe what you want to create or build. What does the finished project look like?
+            </p>
             <textarea
               name="projectIdea"
-              required
               rows={4}
-              placeholder="Describe what you want to create or build. What does the finished project look like?"
+              placeholder="Describe your vision for the project..."
               className="input"
-              style={{ width: "100%", resize: "vertical" }}
+              style={{ width: "100%", resize: "vertical", ...(err("projectIdea") ? { borderColor: "#dc2626" } : {}) }}
+              value={fields.projectIdea}
+              onChange={(e) => updateField("projectIdea", e.target.value)}
             />
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+              {err("projectIdea") ? (
+                <span style={{ fontSize: 12, color: "#dc2626" }}>{err("projectIdea")}</span>
+              ) : <span />}
+              <CharCount value={fields.projectIdea} max={3000} />
+            </div>
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-              Why does this project matter to you? *
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
+              Why does this project matter to you? <span style={{ color: "#dc2626" }}>*</span>
             </label>
+            <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
+              Why are you passionate about this? What got you interested?
+            </p>
             <textarea
               name="whyThisProject"
-              required
               rows={3}
-              placeholder="Why are you passionate about this? What got you interested?"
+              placeholder="Share your story and motivation..."
               className="input"
-              style={{ width: "100%", resize: "vertical" }}
+              style={{ width: "100%", resize: "vertical", ...(err("whyThisProject") ? { borderColor: "#dc2626" } : {}) }}
+              value={fields.whyThisProject}
+              onChange={(e) => updateField("whyThisProject", e.target.value)}
             />
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+              {err("whyThisProject") ? (
+                <span style={{ fontSize: 12, color: "#dc2626" }}>{err("whyThisProject")}</span>
+              ) : <span />}
+              <CharCount value={fields.whyThisProject} max={2000} />
+            </div>
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
               What have you done so far? (optional)
             </label>
+            <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
+              Any skills, classes, or practice you&#39;ve done related to this project.
+            </p>
             <textarea
               name="priorExperience"
               rows={3}
-              placeholder="Any skills, classes, or practice you've done related to this project"
+              placeholder="Skills, classes, or prior work related to your project..."
               className="input"
               style={{ width: "100%", resize: "vertical" }}
+              value={fields.priorExperience}
+              onChange={(e) => updateField("priorExperience", e.target.value)}
             />
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-              What are your goals for this project? *
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
+              What are your goals for this project? <span style={{ color: "#dc2626" }}>*</span>
             </label>
+            <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
+              What do you hope to learn, accomplish, or create by the end?
+            </p>
             <textarea
               name="goals"
-              required
               rows={3}
-              placeholder="What do you hope to learn, accomplish, or create by the end?"
+              placeholder="Your learning goals and what you'd like to achieve..."
               className="input"
-              style={{ width: "100%", resize: "vertical" }}
+              style={{ width: "100%", resize: "vertical", ...(err("goals") ? { borderColor: "#dc2626" } : {}) }}
+              value={fields.goals}
+              onChange={(e) => updateField("goals", e.target.value)}
             />
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+              {err("goals") ? (
+                <span style={{ fontSize: 12, color: "#dc2626" }}>{err("goals")}</span>
+              ) : <span />}
+              <CharCount value={fields.goals} max={2000} />
+            </div>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
@@ -163,7 +269,13 @@ export default function ApplyToIncubatorPage() {
               <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
                 Would you like a mentor?
               </label>
-              <select name="needsMentor" className="input" style={{ width: "100%" }}>
+              <select
+                name="needsMentor"
+                className="input"
+                style={{ width: "100%" }}
+                value={fields.needsMentor}
+                onChange={(e) => updateField("needsMentor", e.target.value)}
+              >
                 <option value="true">Yes, I&apos;d love a mentor</option>
                 <option value="false">No, I&apos;m good for now</option>
               </select>
@@ -177,6 +289,8 @@ export default function ApplyToIncubatorPage() {
                 placeholder="e.g., Someone who knows guitar"
                 className="input"
                 style={{ width: "100%" }}
+                value={fields.mentorPreference}
+                onChange={(e) => updateField("mentorPreference", e.target.value)}
               />
             </div>
           </div>
