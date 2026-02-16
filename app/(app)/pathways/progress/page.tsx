@@ -3,12 +3,15 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import { getStudentProgressSnapshot } from "@/lib/student-progress-actions";
 
 export default async function PathwayProgressPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     redirect("/login");
   }
+
+  const snapshot = await getStudentProgressSnapshot(session.user.id);
 
   // Get user's enrollments with course and pathway information
   const enrollments = await prisma.enrollment.findMany({
@@ -109,11 +112,33 @@ export default async function PathwayProgressPage() {
         </Link>
       </div>
 
+      <div className="card" style={{ marginBottom: 18 }}>
+        <h3 style={{ marginTop: 0 }}>Unified Progress Snapshot</h3>
+        <div className="grid four" style={{ marginTop: 10 }}>
+          <div>
+            <div className="kpi">{snapshot.activeEnrollments}</div>
+            <div className="kpi-label">Active Enrollments</div>
+          </div>
+          <div>
+            <div className="kpi">{snapshot.nextPathwaySteps}</div>
+            <div className="kpi-label">Pathway Next Steps</div>
+          </div>
+          <div>
+            <div className="kpi">{snapshot.dueAssignmentsNext7Days}</div>
+            <div className="kpi-label">Assignments Due (7d)</div>
+          </div>
+          <div>
+            <div className="kpi">{snapshot.trainingDue}</div>
+            <div className="kpi-label">Training Due</div>
+          </div>
+        </div>
+      </div>
+
       {progressArray.length === 0 ? (
         <div className="card">
           <h3>No Pathway Progress Yet</h3>
           <p>Enroll in courses to start tracking your pathway progress.</p>
-          <Link href="/courses" className="button primary" style={{ marginTop: 12 }}>
+          <Link href="/curriculum" className="button primary" style={{ marginTop: 12 }}>
             Browse Courses
           </Link>
         </div>

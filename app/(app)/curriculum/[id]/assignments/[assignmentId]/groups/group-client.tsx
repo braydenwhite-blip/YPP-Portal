@@ -115,7 +115,7 @@ function CreateGroupForm({
       const formData = new FormData(e.currentTarget);
       formData.set("assignmentId", assignmentId);
       const result = await createGroupProject(formData);
-      router.push(`/classes/${offeringId}/assignments/${assignmentId}/groups?group=${result.id}`);
+      router.push(`/curriculum/${offeringId}/assignments/${assignmentId}/groups?group=${result.id}`);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create group");

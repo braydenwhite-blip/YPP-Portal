@@ -570,7 +570,7 @@ export default async function OverviewPage() {
           <div className="card">
             <h3>My Enrollments</h3>
             {enrollments.length === 0 ? (
-              <p className="empty">No enrollments yet. <Link href="/classes/catalog" className="link">Browse the catalog</Link> to get started.</p>
+              <p className="empty">No enrollments yet. <Link href="/curriculum" className="link">Browse the catalog</Link> to get started.</p>
             ) : (
               <div className="compact-list">
                 {studentEnrollmentsToShow.map((enrollment) => (

@@ -655,7 +655,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
         id: "student-explore",
         title: "Explore a new class",
         detail: "Browse classes and pick your next challenge.",
-        href: "/classes/catalog",
+        href: "/curriculum",
       });
     }
 

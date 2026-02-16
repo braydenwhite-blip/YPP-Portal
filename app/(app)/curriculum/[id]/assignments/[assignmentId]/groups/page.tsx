@@ -20,7 +20,7 @@ export default async function GroupProjectsPage({
 
   const assignment = await getAssignmentDetail(assignmentId);
   if (!assignment || !assignment.isGroupAssignment) {
-    redirect(`/classes/${offeringId}/assignments/${assignmentId}`);
+    redirect(`/curriculum/${offeringId}/assignments/${assignmentId}`);
   }
 
   const roles = session.user.roles ?? [];
@@ -37,7 +37,7 @@ export default async function GroupProjectsPage({
     <div>
       <div className="topbar">
         <div>
-          <Link href={`/classes/${offeringId}/assignments/${assignmentId}`} style={{ fontSize: 13, color: "var(--ypp-purple)" }}>
+          <Link href={`/curriculum/${offeringId}/assignments/${assignmentId}`} style={{ fontSize: 13, color: "var(--ypp-purple)" }}>
             &larr; {assignment.title}
           </Link>
           <h1 className="page-title" style={{ marginTop: 4 }}>Group Projects</h1>
@@ -76,7 +76,7 @@ export default async function GroupProjectsPage({
                 return (
                   <Link
                     key={group.id}
-                    href={`/classes/${offeringId}/assignments/${assignmentId}/groups?group=${group.id}`}
+                    href={`/curriculum/${offeringId}/assignments/${assignmentId}/groups?group=${group.id}`}
                     className="card"
                     style={{
                       textDecoration: "none",

@@ -1,168 +1,294 @@
-import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { requestEnrollment } from "@/lib/enrollment-actions";
+import { redirect } from "next/navigation";
+import { getClassCatalog } from "@/lib/class-management-actions";
+import Link from "next/link";
 
-const formatLabels: Record<string, string> = {
-  ONE_OFF: "One-off Classes",
-  LEVELED: "Leveled Classes (101/201/301)",
-  LAB: "Passion Labs",
-  COMMONS: "The Commons",
-  EVENT: "Events",
-  COMPETITION_PREP: "Competition Prep"
+const difficultyLabels: Record<string, string> = {
+  LEVEL_101: "101 - Beginner",
+  LEVEL_201: "201 - Intermediate",
+  LEVEL_301: "301 - Advanced",
+  LEVEL_401: "401 - Expert",
 };
 
-function levelClassName(level?: string | null) {
-  if (!level) return "";
-  if (level === "LEVEL_101") return "pill level-101";
-  if (level === "LEVEL_201") return "pill level-201";
-  if (level === "LEVEL_301") return "pill level-301";
-  return "pill";
-}
+const difficultyColors: Record<string, string> = {
+  LEVEL_101: "#22c55e",
+  LEVEL_201: "#3b82f6",
+  LEVEL_301: "#f59e0b",
+  LEVEL_401: "#ef4444",
+};
 
-export default async function CurriculumPage() {
+export default async function CurriculumPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    interest?: string;
+    level?: string;
+    mode?: string;
+    semester?: string;
+    search?: string;
+  }>;
+}) {
   const session = await getServerSession(authOptions);
+  if (!session?.user?.id) redirect("/login");
+
+  const params = await searchParams;
   const roles = session?.user?.roles ?? [];
-  const isStudent = roles.includes("STUDENT");
-  const userId = session?.user?.id;
+  const isInstructor = roles.includes("INSTRUCTOR") || roles.includes("ADMIN");
 
-  const [courses, pathwaySteps, enrollments] = await Promise.all([
-    prisma.course.findMany({
-      orderBy: [{ format: "asc" }, { level: "asc" }]
-    }),
-    prisma.pathwayStep.findMany({
-      include: { pathway: true }
-    }),
-    isStudent && userId
-      ? prisma.enrollment.findMany({ where: { userId } })
-      : Promise.resolve([])
-  ]);
+  const offerings = await getClassCatalog({
+    interestArea: params.interest,
+    difficultyLevel: params.level,
+    deliveryMode: params.mode,
+    semester: params.semester,
+    search: params.search,
+  });
 
-  const pathwayByCourse = new Map<string, string[]>();
-  for (const step of pathwaySteps) {
-    const list = pathwayByCourse.get(step.courseId) ?? [];
-    list.push(step.pathway.name);
-    pathwayByCourse.set(step.courseId, list);
-  }
-
-  const enrollmentByCourse = new Map<string, string>();
-  for (const enrollment of enrollments) {
-    enrollmentByCourse.set(enrollment.courseId, enrollment.status);
-  }
-
-  const grouped = courses.reduce<Record<string, typeof courses>>((acc, course) => {
-    const key = course.format;
-    acc[key] = acc[key] ? [...acc[key], course] : [course];
-    return acc;
-  }, {});
+  const interestAreas = Array.from(new Set(offerings.map((o) => o.template.interestArea))).sort();
+  const semesters = Array.from(new Set(offerings.filter((o) => o.semester).map((o) => o.semester!))).sort();
 
   return (
     <div>
       <div className="topbar">
         <div>
-          <p className="badge">Curriculum Structure</p>
-          <h1 className="page-title">Curriculum Dashboard</h1>
+          <p className="badge">Curriculum</p>
+          <h1 className="page-title">Curriculum Catalog</h1>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Link href="/curriculum/schedule" className="button secondary">
+            My Schedule
+          </Link>
+          {isInstructor && (
+            <Link href="/instructor/curriculum-builder" className="button primary">
+              + Build Curriculum
+            </Link>
+          )}
         </div>
       </div>
 
-      {isStudent ? (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <strong>Student Enrollment:</strong> Request the courses you want to join. Admin approval is required
-          before you are officially enrolled.
+      <div className="card" style={{ marginBottom: 24 }}>
+        <div style={{ marginBottom: 12, fontWeight: 600, fontSize: 14 }}>Browse by Level</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Link
+            href="/curriculum"
+            className="button secondary"
+            style={{
+              fontSize: 13,
+              ...(!params.level ? { background: "var(--ypp-purple)", color: "white" } : {}),
+            }}
+          >
+            All Levels
+          </Link>
+          {Object.entries(difficultyLabels).map(([value, label]) => (
+            <Link
+              key={value}
+              href={`/curriculum?level=${value}${params.interest ? `&interest=${params.interest}` : ""}${params.mode ? `&mode=${params.mode}` : ""}`}
+              className="button secondary"
+              style={{
+                fontSize: 13,
+                ...(params.level === value
+                  ? { background: difficultyColors[value], color: "white", borderColor: difficultyColors[value] }
+                  : {}),
+              }}
+            >
+              {label}
+            </Link>
+          ))}
         </div>
-      ) : null}
 
-      <div className="grid two">
-        <div className="card">
-          <h3>Structured Learning Ladder</h3>
-          <p>
-            Classes now move from exploration to advanced practice. The leveled sequence (101 → 201 → 301)
-            gives students a clear pathway and helps instructors deepen content over time.
-          </p>
-        </div>
-        <div className="card">
-          <h3>Non-School, Youth-Led</h3>
-          <p>
-            Pathways stay flexible and creative while still defining standards. Labs and the Commons
-            provide the project-based, community-driven core experience.
-          </p>
-        </div>
-      </div>
+        <div style={{ marginTop: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {interestAreas.length > 0 && (
+            <div>
+              <span style={{ fontSize: 13, color: "var(--text-secondary)", marginRight: 8 }}>Area:</span>
+              {interestAreas.map((area) => (
+                <Link
+                  key={area}
+                  href={`/curriculum?interest=${area}${params.level ? `&level=${params.level}` : ""}${params.mode ? `&mode=${params.mode}` : ""}`}
+                  className="pill"
+                  style={{
+                    marginRight: 4,
+                    textDecoration: "none",
+                    ...(params.interest === area
+                      ? { background: "var(--ypp-purple-100)", color: "var(--ypp-purple)", fontWeight: 600 }
+                      : {}),
+                  }}
+                >
+                  {area}
+                </Link>
+              ))}
+            </div>
+          )}
 
-      <div style={{ marginTop: 24 }}>
-        {Object.entries(formatLabels).map(([format, label]) => (
-          <div key={format} className="card" style={{ marginBottom: 16 }}>
-            <div className="section-title">{label}</div>
-            {grouped[format]?.length ? (
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Title</th>
-                    <th>Interest Area</th>
-                    <th>Level</th>
-                    <th>Mode</th>
-                    <th>Pathway</th>
-                    {isStudent ? <th>Request</th> : null}
-                  </tr>
-                </thead>
-                <tbody>
-                  {grouped[format].map((course) => (
-                    <tr key={course.id}>
-                      <td>{course.title}</td>
-                      <td>{course.interestArea}</td>
-                      <td>
-                        {course.level ? (
-                          <span className={levelClassName(course.level)}>
-                            {course.level.replace("LEVEL_", "")}
-                          </span>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td>{course.isVirtual ? "Virtual" : "In-person first"}</td>
-                      <td>
-                        {pathwayByCourse.get(course.id)?.length ? (
-                          <span className="pill pill-pathway">
-                            {pathwayByCourse.get(course.id)?.join(", ")}
-                          </span>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      {isStudent ? (
-                        <td>
-                          {(() => {
-                            const status = enrollmentByCourse.get(course.id);
-                            if (status === "PENDING") {
-                              return <span className="pill pill-pending">Pending</span>;
-                            }
-                            if (status === "ENROLLED") {
-                              return <span className="pill pill-success">Enrolled</span>;
-                            }
-                            if (status === "DECLINED") {
-                              return <span className="pill pill-declined">Declined</span>;
-                            }
-                            return (
-                              <form action={requestEnrollment}>
-                                <input type="hidden" name="courseId" value={course.id} />
-                                <button className="button small secondary" type="submit">
-                                  Request
-                                </button>
-                              </form>
-                            );
-                          })()}
-                        </td>
-                      ) : null}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <p>No classes in this format yet.</p>
-            )}
+          <div>
+            <span style={{ fontSize: 13, color: "var(--text-secondary)", marginRight: 8 }}>Mode:</span>
+            {["IN_PERSON", "VIRTUAL", "HYBRID"].map((mode) => (
+              <Link
+                key={mode}
+                href={`/curriculum?mode=${mode}${params.level ? `&level=${params.level}` : ""}${params.interest ? `&interest=${params.interest}` : ""}`}
+                className="pill"
+                style={{
+                  marginRight: 4,
+                  textDecoration: "none",
+                  ...(params.mode === mode
+                    ? { background: "var(--ypp-purple-100)", color: "var(--ypp-purple)", fontWeight: 600 }
+                    : {}),
+                }}
+              >
+                {mode.replace("_", " ")}
+              </Link>
+            ))}
           </div>
-        ))}
+        </div>
+
+        {semesters.length > 0 && (
+          <div style={{ marginTop: 12 }}>
+            <span style={{ fontSize: 13, color: "var(--text-secondary)", marginRight: 8 }}>Semester:</span>
+            {semesters.map((sem) => (
+              <Link
+                key={sem}
+                href={`/curriculum?semester=${sem}${params.level ? `&level=${params.level}` : ""}`}
+                className="pill"
+                style={{
+                  marginRight: 4,
+                  textDecoration: "none",
+                  ...(params.semester === sem
+                    ? { background: "var(--ypp-purple-100)", color: "var(--ypp-purple)", fontWeight: 600 }
+                    : {}),
+                }}
+              >
+                {sem}
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
+
+      <div style={{ marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ color: "var(--text-secondary)", fontSize: 14 }}>
+          {offerings.length} class{offerings.length !== 1 ? "es" : ""} available
+        </span>
+        {(params.level || params.interest || params.mode || params.semester) && (
+          <Link href="/curriculum" style={{ fontSize: 13, color: "var(--ypp-purple)" }}>
+            Clear Filters
+          </Link>
+        )}
+      </div>
+
+      {offerings.length === 0 ? (
+        <div className="card">
+          <h3>No Classes Found</h3>
+          <p style={{ color: "var(--text-secondary)", marginTop: 8 }}>
+            No classes match your filters. Try adjusting your search or check back later for new offerings.
+          </p>
+        </div>
+      ) : (
+        <div className="grid two">
+          {offerings.map((offering) => {
+            const enrolledCount = offering._count.enrollments;
+            const spotsLeft = offering.capacity - enrolledCount;
+            const isFull = spotsLeft <= 0;
+            const isAlmostFull = spotsLeft > 0 && spotsLeft <= 3;
+
+            return (
+              <Link
+                key={offering.id}
+                href={`/curriculum/${offering.id}`}
+                className="card"
+                style={{ textDecoration: "none", color: "inherit" }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+                  <div style={{ flex: 1 }}>
+                    <h3>{offering.title}</h3>
+                    <p style={{ color: "var(--text-secondary)", fontSize: 14, marginTop: 4 }}>
+                      {offering.template.description.slice(0, 100)}
+                      {offering.template.description.length > 100 && "..."}
+                    </p>
+                  </div>
+                  <div
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      background: difficultyColors[offering.template.difficultyLevel] || "#888",
+                      flexShrink: 0,
+                      marginTop: 6,
+                      marginLeft: 8,
+                    }}
+                    title={difficultyLabels[offering.template.difficultyLevel]}
+                  />
+                </div>
+
+                <div style={{ marginTop: 12, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <span
+                    className="pill"
+                    style={{
+                      background: difficultyColors[offering.template.difficultyLevel] + "18",
+                      color: difficultyColors[offering.template.difficultyLevel],
+                      fontWeight: 600,
+                    }}
+                  >
+                    {difficultyLabels[offering.template.difficultyLevel]}
+                  </span>
+                  <span className="pill">{offering.template.interestArea}</span>
+                  <span className="pill">{offering.deliveryMode.replace("_", " ")}</span>
+                  {offering.introVideoUrl && <span className="pill pill-info">Instructor Intro Video</span>}
+                </div>
+
+                <div style={{ marginTop: 12, fontSize: 14, color: "var(--text-secondary)" }}>
+                  <div>{offering.instructor.name}</div>
+                  <div style={{ marginTop: 4 }}>
+                    {new Date(offering.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    {" - "}
+                    {new Date(offering.endDate).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </div>
+                  <div style={{ marginTop: 4 }}>
+                    {offering.meetingDays.join(", ")} | {offering.meetingTime}
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 13 }}>
+                    {enrolledCount} / {offering.capacity} enrolled
+                  </span>
+                  {isFull ? (
+                    <span className="pill" style={{ background: "#fef2f2", color: "#ef4444", fontWeight: 600 }}>
+                      Full - Waitlist
+                    </span>
+                  ) : isAlmostFull ? (
+                    <span className="pill" style={{ background: "#fffbeb", color: "#f59e0b", fontWeight: 600 }}>
+                      {spotsLeft} spot{spotsLeft !== 1 ? "s" : ""} left
+                    </span>
+                  ) : (
+                    <span className="pill" style={{ background: "#f0fdf4", color: "#16a34a" }}>
+                      Open
+                    </span>
+                  )}
+                </div>
+
+                {offering.template.learningOutcomes.length > 0 && (
+                  <div style={{ marginTop: 12, fontSize: 13, color: "var(--text-secondary)" }}>
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>You will learn to:</div>
+                    <ul style={{ margin: 0, paddingLeft: 16 }}>
+                      {offering.template.learningOutcomes.slice(0, 3).map((outcome, i) => (
+                        <li key={i}>{outcome}</li>
+                      ))}
+                      {offering.template.learningOutcomes.length > 3 && (
+                        <li style={{ color: "var(--ypp-purple)" }}>
+                          +{offering.template.learningOutcomes.length - 3} more
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

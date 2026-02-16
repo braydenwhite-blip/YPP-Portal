@@ -62,7 +62,7 @@ export default async function ClassDetailPage({
         </div>
         <div className="card">
           <p>This class could not be found.</p>
-          <Link href="/classes/catalog" className="button primary" style={{ marginTop: 16 }}>
+          <Link href="/curriculum" className="button primary" style={{ marginTop: 16 }}>
             Browse Classes
           </Link>
         </div>
@@ -94,13 +94,13 @@ export default async function ClassDetailPage({
     <div>
       <div className="topbar">
         <div>
-          <Link href="/classes/catalog" style={{ fontSize: 13, color: "var(--ypp-purple)" }}>
+          <Link href="/curriculum" style={{ fontSize: 13, color: "var(--ypp-purple)" }}>
             &larr; Back to Catalog
           </Link>
           <h1 className="page-title" style={{ marginTop: 4 }}>{offering.title}</h1>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <Link href={`/classes/${id}/assignments`} className="button secondary">
+          <Link href={`/curriculum/${id}/assignments`} className="button secondary">
             Assignments
           </Link>
           {isInstructor && (

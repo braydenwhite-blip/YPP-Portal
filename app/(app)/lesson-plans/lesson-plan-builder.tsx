@@ -25,6 +25,8 @@ interface Plan {
   title: string;
   description: string | null;
   courseId: string | null;
+  classTemplateId: string | null;
+  classTemplateTitle: string | null;
   totalMinutes: number;
   authorName: string;
   isTemplate: boolean;
@@ -35,6 +37,13 @@ interface Plan {
 interface Course {
   id: string;
   title: string;
+}
+
+interface ClassTemplateOption {
+  id: string;
+  title: string;
+  interestArea: string;
+  createdByName: string;
 }
 
 const ACTIVITY_TYPES: { value: ActivityType; label: string; color: string; icon: string }[] = [
@@ -59,10 +68,17 @@ function generateId() {
 export default function LessonPlanBuilder({
   plans,
   courses,
+  templates,
+  initialTemplateId,
 }: {
   plans: Plan[];
   courses: Course[];
+  templates: ClassTemplateOption[];
+  initialTemplateId: string;
 }) {
+  const validInitialTemplateId = templates.some((template) => template.id === initialTemplateId)
+    ? initialTemplateId
+    : "";
   const [view, setView] = useState<"list" | "builder">("list");
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
 
@@ -70,6 +86,7 @@ export default function LessonPlanBuilder({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [courseId, setCourseId] = useState("");
+  const [classTemplateId, setClassTemplateId] = useState(validInitialTemplateId);
   const [isTemplate, setIsTemplate] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [editingActivityIdx, setEditingActivityIdx] = useState<number | null>(null);
@@ -81,6 +98,7 @@ export default function LessonPlanBuilder({
     setTitle("");
     setDescription("");
     setCourseId("");
+    setClassTemplateId(validInitialTemplateId);
     setIsTemplate(false);
     setActivities([]);
     setEditingPlan(null);
@@ -93,6 +111,7 @@ export default function LessonPlanBuilder({
       setTitle(plan.title);
       setDescription(plan.description ?? "");
       setCourseId(plan.courseId ?? "");
+      setClassTemplateId(plan.classTemplateId ?? "");
       setIsTemplate(plan.isTemplate);
       setActivities(plan.activities.map((a) => ({ ...a })));
     } else {
@@ -161,6 +180,7 @@ export default function LessonPlanBuilder({
     formData.set("title", title);
     formData.set("description", description);
     formData.set("courseId", courseId);
+    formData.set("classTemplateId", classTemplateId);
     formData.set("isTemplate", isTemplate ? "true" : "false");
     formData.set(
       "activities",
@@ -226,6 +246,19 @@ export default function LessonPlanBuilder({
               <option value="">No course</option>
               {courses.map((c) => (
                 <option key={c.id} value={c.id}>{c.title}</option>
+              ))}
+            </select>
+            <select
+              className="input"
+              value={classTemplateId}
+              onChange={(e) => setClassTemplateId(e.target.value)}
+              style={{ marginTop: 0, maxWidth: 240 }}
+            >
+              <option value="">No linked curriculum</option>
+              {templates.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.title} ({template.interestArea})
+                </option>
               ))}
             </select>
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 500 }}>
@@ -476,6 +509,11 @@ export default function LessonPlanBuilder({
                 {courseTitle && (
                   <p style={{ fontSize: 12, color: "var(--ypp-purple)", fontWeight: 600, margin: "6px 0 0" }}>
                     {courseTitle}
+                  </p>
+                )}
+                {plan.classTemplateTitle && (
+                  <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "4px 0 0" }}>
+                    Linked curriculum: {plan.classTemplateTitle}
                   </p>
                 )}
 

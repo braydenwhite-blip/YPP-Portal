@@ -218,7 +218,7 @@ export async function createClassTemplate(formData: FormData) {
   });
 
   revalidatePath("/instructor/curriculum-builder");
-  revalidatePath("/classes/catalog");
+  revalidatePath("/curriculum");
   return { success: true, id: template.id };
 }
 
@@ -300,7 +300,7 @@ export async function updateClassTemplate(formData: FormData) {
   });
 
   revalidatePath("/instructor/curriculum-builder");
-  revalidatePath("/classes/catalog");
+  revalidatePath("/curriculum");
   return { success: true };
 }
 
@@ -317,7 +317,7 @@ export async function deleteClassTemplate(id: string) {
 
   await prisma.classTemplate.delete({ where: { id } });
   revalidatePath("/instructor/curriculum-builder");
-  revalidatePath("/classes/catalog");
+  revalidatePath("/curriculum");
   return { success: true };
 }
 
@@ -338,7 +338,7 @@ export async function publishClassTemplate(id: string) {
   });
 
   revalidatePath("/instructor/curriculum-builder");
-  revalidatePath("/classes/catalog");
+  revalidatePath("/curriculum");
   return { success: true };
 }
 
@@ -473,7 +473,7 @@ export async function createClassOffering(formData: FormData) {
     }
   }
 
-  revalidatePath("/classes/catalog");
+  revalidatePath("/curriculum");
   revalidatePath("/instructor/curriculum-builder");
   return { success: true, id: offering.id };
 }
@@ -547,8 +547,8 @@ export async function updateClassOffering(formData: FormData) {
     },
   });
 
-  revalidatePath("/classes/catalog");
-  revalidatePath(`/classes/${id}`);
+  revalidatePath("/curriculum");
+  revalidatePath(`/curriculum/${id}`);
   return { success: true };
 }
 
@@ -570,8 +570,8 @@ export async function publishClassOffering(id: string) {
     data: { status: "PUBLISHED", enrollmentOpen: true },
   });
 
-  revalidatePath("/classes/catalog");
-  revalidatePath(`/classes/${id}`);
+  revalidatePath("/curriculum");
+  revalidatePath(`/curriculum/${id}`);
   return { success: true };
 }
 
@@ -632,8 +632,8 @@ export async function enrollInClass(offeringId: string) {
     });
   }
 
-  revalidatePath(`/classes/${offeringId}`);
-  revalidatePath("/classes/schedule");
+  revalidatePath(`/curriculum/${offeringId}`);
+  revalidatePath("/curriculum/schedule");
   return { success: true, waitlisted: isWaitlisted };
 }
 
@@ -668,8 +668,8 @@ export async function dropClass(offeringId: string) {
     });
   }
 
-  revalidatePath(`/classes/${offeringId}`);
-  revalidatePath("/classes/schedule");
+  revalidatePath(`/curriculum/${offeringId}`);
+  revalidatePath("/curriculum/schedule");
   return { success: true };
 }
 
@@ -770,7 +770,7 @@ export async function updateClassSession(formData: FormData) {
     },
   });
 
-  revalidatePath(`/classes/${classSession.offeringId}`);
+  revalidatePath(`/curriculum/${classSession.offeringId}`);
   return { success: true };
 }
 
@@ -803,7 +803,7 @@ export async function markOutcomeAchieved(
     },
   });
 
-  revalidatePath(`/classes/${offeringId}`);
+  revalidatePath(`/curriculum/${offeringId}`);
   return { success: true };
 }
 

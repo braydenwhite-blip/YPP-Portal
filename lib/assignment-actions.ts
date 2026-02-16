@@ -125,7 +125,7 @@ export async function createClassAssignment(formData: FormData) {
     },
   });
 
-  revalidatePath(`/classes/${offeringId}/assignments`);
+  revalidatePath(`/curriculum/${offeringId}/assignments`);
   return { success: true, id: assignment.id };
 }
 
@@ -189,7 +189,7 @@ export async function updateClassAssignment(formData: FormData) {
     },
   });
 
-  revalidatePath(`/classes/${existing.offeringId}/assignments`);
+  revalidatePath(`/curriculum/${existing.offeringId}/assignments`);
   return { success: true };
 }
 
@@ -204,7 +204,7 @@ export async function deleteClassAssignment(id: string) {
   }
 
   await prisma.classAssignment.delete({ where: { id } });
-  revalidatePath(`/classes/${existing.offeringId}/assignments`);
+  revalidatePath(`/curriculum/${existing.offeringId}/assignments`);
   return { success: true };
 }
 
@@ -271,7 +271,7 @@ export async function submitAssignmentWork(formData: FormData) {
   });
 
   if (assignment) {
-    revalidatePath(`/classes/${assignment.offeringId}/assignments`);
+    revalidatePath(`/curriculum/${assignment.offeringId}/assignments`);
   }
   revalidatePath(`/assignments/${assignmentId}`);
   return { success: true, id: submission.id };
@@ -341,7 +341,7 @@ export async function giveAssignmentFeedback(formData: FormData) {
   });
 
   if (submission) {
-    revalidatePath(`/classes/${submission.assignment.offeringId}/assignments`);
+    revalidatePath(`/curriculum/${submission.assignment.offeringId}/assignments`);
   }
   return { success: true };
 }
@@ -385,7 +385,7 @@ export async function createGroupProject(formData: FormData) {
   });
 
   if (assignment) {
-    revalidatePath(`/classes/${assignment.offeringId}/assignments`);
+    revalidatePath(`/curriculum/${assignment.offeringId}/assignments`);
   }
   return { success: true, id: group.id };
 }

@@ -115,6 +115,9 @@ export default async function CurriculumBuilderPage() {
                   <Link href={`/instructor/curriculum-builder#edit-${template.id}`} className="button secondary" style={{ fontSize: 13 }}>
                     Edit
                   </Link>
+                  <Link href={`/lesson-plans?templateId=${template.id}`} className="button secondary" style={{ fontSize: 13 }}>
+                    Build Lesson Plan
+                  </Link>
                   <Link href={`/instructor/class-settings?template=${template.id}`} className="button secondary" style={{ fontSize: 13 }}>
                     Create Offering
                   </Link>
@@ -133,7 +136,7 @@ export default async function CurriculumBuilderPage() {
             {offerings.map((offering) => (
               <Link
                 key={offering.id}
-                href={`/classes/${offering.id}`}
+                href={`/curriculum/${offering.id}`}
                 className="card"
                 style={{ textDecoration: "none", color: "inherit" }}
               >

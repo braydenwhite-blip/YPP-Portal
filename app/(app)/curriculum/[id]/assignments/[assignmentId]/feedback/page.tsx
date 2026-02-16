@@ -21,7 +21,7 @@ export default async function InstructorFeedbackPage({
   const { id: offeringId, assignmentId } = await params;
   const assignment = await getAssignmentDetail(assignmentId);
 
-  if (!assignment || assignment.offeringId !== offeringId) redirect(`/classes/${offeringId}/assignments`);
+  if (!assignment || assignment.offeringId !== offeringId) redirect(`/curriculum/${offeringId}/assignments`);
 
   const submissions = assignment.submissions.filter((s) => s.status !== "NOT_STARTED");
   const needsFeedback = submissions.filter((s) => s.status === "SUBMITTED");
@@ -31,7 +31,7 @@ export default async function InstructorFeedbackPage({
     <div>
       <div className="topbar">
         <div>
-          <Link href={`/classes/${offeringId}/assignments/${assignmentId}`} style={{ fontSize: 13, color: "var(--ypp-purple)" }}>
+          <Link href={`/curriculum/${offeringId}/assignments/${assignmentId}`} style={{ fontSize: 13, color: "var(--ypp-purple)" }}>
             &larr; {assignment.title}
           </Link>
           <h1 className="page-title" style={{ marginTop: 4 }}>Give Feedback</h1>

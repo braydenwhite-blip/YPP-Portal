@@ -1,14 +1,24 @@
 import { getServerSession } from "next-auth";
 import Link from "next/link";
+import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { getDashboardData } from "@/lib/dashboard/data";
 import { isUnifiedAllToolsDashboardEnabled } from "@/lib/dashboard/flags";
+import { getStudentProgressSnapshot } from "@/lib/student-progress-actions";
+import { prisma } from "@/lib/prisma";
 import RoleHero from "@/components/dashboard/role-hero";
 import KpiStrip from "@/components/dashboard/kpi-strip";
 import QueueBoard from "@/components/dashboard/queue-board";
 import NextActions from "@/components/dashboard/next-actions";
 import ToolExplorer from "@/components/dashboard/tool-explorer";
 import LegacyOverviewPage from "./legacy-overview-page";
+
+function isMissingTableError(error: unknown) {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2021"
+  );
+}
 
 export default async function OverviewPage() {
   const session = await getServerSession(authOptions);
@@ -25,6 +35,76 @@ export default async function OverviewPage() {
     session.user.id,
     session.user.primaryRole ?? null
   );
+  const activeRoles = (session.user.roles ?? []).length
+    ? (session.user.roles ?? [])
+    : (session.user.primaryRole ? [session.user.primaryRole] : []);
+
+  let launchBanner: {
+    title: string;
+    content: string;
+    createdAt: Date;
+    linkUrl: string | null;
+  } | null = null;
+
+  try {
+    const campaign = await prisma.rolloutCampaign.findFirst({
+      where: {
+        status: "SENT",
+        ...(activeRoles.length > 0
+          ? { targetRoles: { hasSome: activeRoles as any } }
+          : {}),
+      },
+      orderBy: [{ sentAt: "desc" }, { createdAt: "desc" }],
+      select: {
+        title: true,
+        content: true,
+        sentAt: true,
+        createdAt: true,
+        linkUrl: true,
+      },
+    });
+    if (campaign) {
+      launchBanner = {
+        title: campaign.title,
+        content: campaign.content,
+        createdAt: campaign.sentAt ?? campaign.createdAt,
+        linkUrl: campaign.linkUrl ?? null,
+      };
+    }
+  } catch (error) {
+    if (!isMissingTableError(error)) {
+      throw error;
+    }
+  }
+
+  if (!launchBanner) {
+    const announcement = await prisma.announcement.findFirst({
+      where: {
+        isActive: true,
+        title: { startsWith: "[Rollout]" },
+        ...(activeRoles.length > 0
+          ? { targetRoles: { hasSome: activeRoles as any } }
+          : {}),
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        title: true,
+        content: true,
+        createdAt: true,
+      },
+    });
+    if (announcement) {
+      launchBanner = {
+        title: announcement.title,
+        content: announcement.content,
+        createdAt: announcement.createdAt,
+        linkUrl: null,
+      };
+    }
+  }
+  const studentSnapshot = dashboard.role === "STUDENT"
+    ? await getStudentProgressSnapshot(session.user.id)
+    : null;
 
   const roleFocus: Record<string, string[]> = {
     ADMIN: [
@@ -92,6 +172,25 @@ export default async function OverviewPage() {
         subtitle={dashboard.heroSubtitle}
       />
 
+      {launchBanner ? (
+        <div className="card" style={{ marginBottom: 16, borderLeft: "4px solid var(--ypp-purple)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <h3 style={{ margin: 0 }}>{launchBanner.title}</h3>
+            <span className="pill">{new Date(launchBanner.createdAt).toLocaleDateString()}</span>
+          </div>
+          <p style={{ marginTop: 8, color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>
+            {launchBanner.content}
+          </p>
+          {launchBanner.linkUrl ? (
+            <div style={{ marginTop: 10 }}>
+              <Link href={launchBanner.linkUrl} className="link">
+                Open rollout resource
+              </Link>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       {priorityTool ? (
         <div className="card" style={{ marginBottom: 16 }}>
           <h3 style={{ marginTop: 0, marginBottom: 6 }}>Start Here</h3>
@@ -109,6 +208,77 @@ export default async function OverviewPage() {
       <NextActions actions={dashboard.nextActions} />
       <QueueBoard queues={dashboard.queues} />
       <KpiStrip kpis={dashboard.kpis} />
+
+      {dashboard.role === "STUDENT" && studentSnapshot ? (
+        <div className="grid two" style={{ marginTop: 16 }}>
+          <div className="card">
+            <h3 style={{ marginTop: 0 }}>First Week Checklist</h3>
+            <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
+              {[
+                {
+                  done: studentSnapshot.checklist.profileCompleted,
+                  text: "Complete your profile",
+                  href: "/onboarding",
+                },
+                {
+                  done: studentSnapshot.checklist.joinedFirstClass,
+                  text: "Join your first class",
+                  href: "/curriculum",
+                },
+                {
+                  done: studentSnapshot.checklist.submittedFirstAssignment,
+                  text: "Submit your first assignment",
+                  href: "/my-courses",
+                },
+                {
+                  done: studentSnapshot.checklist.checkedInAtLeastOnce,
+                  text: "Complete one check-in",
+                  href: "/check-in",
+                },
+              ].map((item) => (
+                <Link key={item.text} href={item.href} style={{ textDecoration: "none", color: "inherit" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 10, border: "1px solid var(--border)", borderRadius: 10 }}>
+                    <span>{item.text}</span>
+                    <span className="pill" style={item.done ? { background: "#f0fdf4", color: "#166534" } : {}}>
+                      {item.done ? "Done" : "Pending"}
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div className="card">
+            <h3 style={{ marginTop: 0 }}>Due Soon (Next 7 Days)</h3>
+            <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>Assignments due</span>
+                <strong>{studentSnapshot.dueAssignmentsNext7Days}</strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>Upcoming sessions</span>
+                <strong>{studentSnapshot.upcomingSessionsNext7Days}</strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>Training modules due</span>
+                <strong>{studentSnapshot.trainingDue}</strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>Pathway next steps</span>
+                <strong>{studentSnapshot.nextPathwaySteps}</strong>
+              </div>
+            </div>
+            <div style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <Link href="/curriculum" className="button secondary" style={{ fontSize: 13 }}>
+                Open Curriculum
+              </Link>
+              <Link href="/pathways/progress" className="button secondary" style={{ fontSize: 13 }}>
+                Open Pathway Progress
+              </Link>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <ToolExplorer
         sections={dashboard.sections}

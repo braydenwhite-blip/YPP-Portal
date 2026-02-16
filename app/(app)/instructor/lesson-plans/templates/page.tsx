@@ -10,7 +10,9 @@ export default async function LessonPlanTemplatesPage() {
     redirect("/login");
   }
 
-  const isInstructor = session.user.primaryRole === "INSTRUCTOR" || session.user.primaryRole === "ADMIN";
+  const roles = session.user.roles ?? [];
+  const isInstructor =
+    roles.includes("INSTRUCTOR") || roles.includes("ADMIN") || roles.includes("CHAPTER_LEAD");
 
   if (!isInstructor) {
     redirect("/");
@@ -35,7 +37,7 @@ export default async function LessonPlanTemplatesPage() {
           <p className="badge">Instructor Tools</p>
           <h1 className="page-title">Lesson Plan Templates</h1>
         </div>
-        <Link href="/instructor/lesson-plans" className="button secondary">
+        <Link href="/lesson-plans" className="button secondary">
           My Lesson Plans
         </Link>
       </div>
@@ -82,11 +84,11 @@ export default async function LessonPlanTemplatesPage() {
 
               <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
                 <Link
-                  href={`/instructor/lesson-plans/${template.id}`}
+                  href={`/lesson-plans?templateId=${template.id}`}
                   className="button secondary"
                   style={{ flex: 1 }}
                 >
-                  View
+                  Open Builder
                 </Link>
                 <form action="/api/lesson-plans/clone" method="POST" style={{ flex: 1 }}>
                   <input type="hidden" name="templateId" value={template.id} />
