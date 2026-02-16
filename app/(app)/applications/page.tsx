@@ -16,15 +16,20 @@ export default async function MyApplicationsPage() {
     where: { applicantId: session.user.id },
     include: {
       position: {
-        include: { chapter: { select: { name: true } } }
+        include: { chapter: { select: { name: true } } },
       },
       interviewSlots: {
-        orderBy: { scheduledAt: "asc" }
+        orderBy: { scheduledAt: "asc" },
       },
-      decision: true
+      decision: true,
     },
-    orderBy: { submittedAt: "desc" }
+    orderBy: { submittedAt: "desc" },
   });
+
+  const activeCount = applications.filter(
+    (a) => !["ACCEPTED", "REJECTED", "WITHDRAWN"].includes(a.status)
+  ).length;
+  const acceptedCount = applications.filter((a) => a.status === "ACCEPTED").length;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -47,6 +52,11 @@ export default async function MyApplicationsPage() {
         <div>
           <p className="badge">My Applications</p>
           <h1 className="page-title">Application Status</h1>
+          <p className="page-subtitle">
+            {applications.length === 0
+              ? "You haven't applied yet. Browse open positions to get started."
+              : `${activeCount} active \u00B7 ${acceptedCount} accepted \u00B7 ${applications.length} total`}
+          </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Link href="/chapters/propose" className="button small ghost" style={{ textDecoration: "none" }}>
@@ -89,12 +99,17 @@ export default async function MyApplicationsPage() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div>
                     <h3 style={{ margin: 0 }}>{application.position.title}</h3>
-                    <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+                    <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
                       <span className="pill">{application.position.type.replace("_", " ")}</span>
                       {application.position.chapter && (
                         <span className="pill" style={{ background: "#f3e8ff", color: "#7c3aed" }}>
                           {application.position.chapter.name}
                         </span>
+                      )}
+                      {application.position.interviewRequired ? (
+                        <span className="pill pill-pathway" style={{ fontSize: 11 }}>Interview Required</span>
+                      ) : (
+                        <span className="pill pill-success" style={{ fontSize: 11 }}>No Interview</span>
                       )}
                     </div>
                   </div>
@@ -103,8 +118,20 @@ export default async function MyApplicationsPage() {
                   </span>
                 </div>
 
-                <div style={{ marginTop: 16, fontSize: 13, color: "var(--muted)" }}>
-                  Applied: {new Date(application.submittedAt).toLocaleDateString()}
+                <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--muted)" }}>
+                  <span>Applied: {new Date(application.submittedAt).toLocaleDateString()}</span>
+                  {!application.decision && !["WITHDRAWN"].includes(application.status) && (
+                    <span style={{
+                      fontSize: 12,
+                      color: "#7c3aed",
+                      fontWeight: 500,
+                    }}>
+                      {application.status === "SUBMITTED" && "Awaiting review"}
+                      {application.status === "UNDER_REVIEW" && (application.position.interviewRequired ? "Interview pending" : "Decision pending")}
+                      {application.status === "INTERVIEW_SCHEDULED" && "Confirm your interview"}
+                      {application.status === "INTERVIEW_COMPLETED" && "Decision pending"}
+                    </span>
+                  )}
                 </div>
 
                 {postedInterview && (

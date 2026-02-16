@@ -16,6 +16,9 @@ import {
 } from "@/lib/application-actions";
 import { ApplicationStatus } from "@prisma/client";
 import ApplicationProgressStepper from "@/components/application-progress-stepper";
+import AddToCalendarButton from "@/components/add-to-calendar-button";
+import ReviewerInterviewNoteForm from "@/components/reviewer-interview-note-form";
+import ReviewerDecisionForm from "@/components/reviewer-decision-form";
 
 function formatStatus(status: string) {
   return status.replace(/_/g, " ");
@@ -529,6 +532,16 @@ export default async function ApplicationWorkspacePage({
                             </button>
                           </form>
                         ) : null}
+
+                        {(slot.status === "POSTED" || slot.status === "CONFIRMED") && (
+                          <AddToCalendarButton
+                            scheduledAt={slot.scheduledAt}
+                            duration={slot.duration}
+                            positionTitle={application.position.title}
+                            applicantName={application.applicant.name || "Candidate"}
+                            meetingLink={slot.meetingLink}
+                          />
+                        )}
                       </div>
                     </div>
                   ))}
@@ -676,151 +689,33 @@ export default async function ApplicationWorkspacePage({
                   </form>
                 </div>
 
-                <form action={saveStructuredInterviewNote} className="form-grid">
-                  <input type="hidden" name="applicationId" value={application.id} />
-
-                  <div className="form-row">
-                    <label>Interview Note Summary</label>
-                    <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
-                      Summarize the candidate&#39;s responses, communication signals, and overall takeaways.
-                    </p>
-                    <textarea
-                      name="content"
-                      className="input"
-                      rows={4}
-                      placeholder="Candidate summary, communication signals, and overall interview takeaways..."
-                      required
-                      disabled={isClosedApplication}
-                    />
-                  </div>
-
-                  <div className="grid two">
-                    <label className="form-row">
-                      Recommendation
-                      <select name="recommendation" className="input" defaultValue="" disabled={isClosedApplication}>
-                        <option value="">No recommendation yet</option>
-                        <option value="STRONG_YES">Strong Yes</option>
-                        <option value="YES">Yes</option>
-                        <option value="MAYBE">Maybe</option>
-                        <option value="NO">No</option>
-                      </select>
-                    </label>
-                    <label className="form-row">
-                      Rating (optional)
-                      <select name="rating" className="input" defaultValue="" disabled={isClosedApplication}>
-                        <option value="">No rating</option>
-                        {[1, 2, 3, 4, 5].map((r) => (
-                          <option key={r} value={r}>
-                            {r}/5
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-
-                  <label className="form-row">
-                    Strengths
-                    <textarea
-                      name="strengths"
-                      className="input"
-                      rows={3}
-                      placeholder="Observable strengths from interview responses..."
-                      disabled={isClosedApplication}
-                    />
-                  </label>
-
-                  <label className="form-row">
-                    Concerns
-                    <textarea
-                      name="concerns"
-                      className="input"
-                      rows={3}
-                      placeholder="Risks, skill gaps, or follow-up concerns..."
-                      disabled={isClosedApplication}
-                    />
-                  </label>
-
-                  <label className="form-row">
-                    Next Step Suggestion
-                    <textarea
-                      name="nextStepSuggestion"
-                      className="input"
-                      rows={2}
-                      placeholder="Recommend next action for candidate and hiring team..."
-                      disabled={isClosedApplication}
-                    />
-                  </label>
-
-                  <button type="submit" className="button small" disabled={isClosedApplication}>
-                    Save Structured Interview Note
-                  </button>
-                </form>
+                <ReviewerInterviewNoteForm
+                  applicationId={application.id}
+                  disabled={isClosedApplication}
+                  action={saveStructuredInterviewNote}
+                />
               </div>
 
               {canShowAdminDecision && !application.decision && application.status !== "WITHDRAWN" ? (
-                <div className="card" style={{ marginTop: 16 }}>
-                  <div className="section-title">Final Decision (Admin)</div>
-                  {!interviewRequired && (
-                    <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 12px" }}>
-                      No interview required. Make your decision based on the application materials and any notes.
-                    </p>
-                  )}
-                  <form action={makeDecision} className="form-grid">
-                    <input type="hidden" name="applicationId" value={application.id} />
-                    <div className="form-row">
-                      <label>Decision</label>
-                      <select name="accepted" className="input" defaultValue="true">
-                        <option value="true">Accept Candidate</option>
-                        <option value="false">Reject Candidate</option>
-                      </select>
-                    </div>
-                    <div className="form-row">
-                      <label>Decision Notes</label>
-                      <textarea
-                        name="notes"
-                        className="input"
-                        rows={4}
-                        placeholder="Add rationale and follow-up instructions..."
-                      />
-                    </div>
-                    <button type="submit" className="button">
-                      Submit Final Decision
-                    </button>
-                  </form>
-                </div>
+                <ReviewerDecisionForm
+                  applicationId={application.id}
+                  positionTitle={application.position.title}
+                  action={makeDecision}
+                  label="Admin"
+                  interviewRequired={interviewRequired}
+                  canSubmit={true}
+                />
               ) : null}
 
               {canShowChapterDecision && !application.decision && application.status !== "WITHDRAWN" ? (
-                <div className="card" style={{ marginTop: 16 }}>
-                  <div className="section-title">Final Decision (Chapter)</div>
-                  {!interviewRequired && (
-                    <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 12px" }}>
-                      No interview required. Make your decision based on the application materials and any notes.
-                    </p>
-                  )}
-                  <form action={chapterMakeDecision} className="form-grid">
-                    <input type="hidden" name="applicationId" value={application.id} />
-                    <div className="form-row">
-                      <label>Decision</label>
-                      <select name="accepted" className="input" defaultValue="true">
-                        <option value="true">Accept Candidate</option>
-                        <option value="false">Reject Candidate</option>
-                      </select>
-                    </div>
-                    <div className="form-row">
-                      <label>Decision Notes</label>
-                      <textarea
-                        name="notes"
-                        className="input"
-                        rows={3}
-                        placeholder="Context for acceptance/rejection..."
-                      />
-                    </div>
-                    <button type="submit" className="button" disabled={!canSubmitDecision}>
-                      Submit Chapter Decision
-                    </button>
-                  </form>
-                </div>
+                <ReviewerDecisionForm
+                  applicationId={application.id}
+                  positionTitle={application.position.title}
+                  action={chapterMakeDecision}
+                  label="Chapter"
+                  interviewRequired={interviewRequired}
+                  canSubmit={canSubmitDecision}
+                />
               ) : null}
 
               <div className="card" style={{ marginTop: 16 }}>
