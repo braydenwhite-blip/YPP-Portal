@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { submitChapterProposal } from "@/lib/application-actions";
+import ChapterProposalForm from "@/components/chapter-proposal-form";
 
 const FINAL_STATUSES = new Set(["ACCEPTED", "REJECTED", "WITHDRAWN"]);
 
@@ -58,11 +58,40 @@ export default async function ProposeChapterPage() {
 
       <div className="card" style={{ marginBottom: 16 }}>
         <h3 style={{ marginTop: 0 }}>How it works</h3>
-        <ol style={{ margin: 0, paddingLeft: 18 }}>
-          <li>Submit this chapter proposal with your launch plan.</li>
-          <li>Admin reviews and schedules an interview.</li>
-          <li>If accepted, your chapter is created and you are assigned as chapter president.</li>
-        </ol>
+        <div style={{ display: "grid", gap: 10 }}>
+          {[
+            { step: "1", text: "Submit this chapter proposal with your launch plan and leadership background." },
+            { step: "2", text: "An admin reviews your proposal and schedules an interview to discuss your vision." },
+            { step: "3", text: "If accepted, your chapter is created and you are assigned as chapter president." },
+          ].map((item) => (
+            <div
+              key={item.step}
+              style={{ display: "flex", gap: 12, alignItems: "center" }}
+            >
+              <div
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: "50%",
+                  background: "#ede9fe",
+                  color: "#7c3aed",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  flexShrink: 0,
+                }}
+              >
+                {item.step}
+              </div>
+              <span style={{ fontSize: 14 }}>{item.text}</span>
+            </div>
+          ))}
+        </div>
+        <p style={{ fontSize: 13, color: "var(--muted)", margin: "14px 0 0" }}>
+          The review process typically takes 7-14 days. You&#39;ll receive email updates at each stage.
+        </p>
       </div>
 
       {hasOpenProposal ? (
@@ -74,93 +103,7 @@ export default async function ProposeChapterPage() {
       ) : null}
 
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Chapter Proposal Form</h3>
-        <form action={submitChapterProposal} className="form-grid">
-          <div className="grid two">
-            <label className="form-row">
-              Proposed Chapter Name
-              <input className="input" name="chapterName" placeholder="YPP Austin" required />
-            </label>
-            <label className="form-row">
-              Partner School / Organization (optional)
-              <input className="input" name="partnerSchool" placeholder="Austin High School" />
-            </label>
-          </div>
-
-          <div className="grid two">
-            <label className="form-row">
-              City
-              <input className="input" name="city" placeholder="Austin" />
-            </label>
-            <label className="form-row">
-              Region / State
-              <input className="input" name="region" placeholder="TX" />
-            </label>
-          </div>
-
-          <label className="form-row">
-            Why this chapter should exist
-            <textarea
-              className="input"
-              name="chapterVision"
-              rows={4}
-              placeholder="What local student need does this chapter solve?"
-              required
-            />
-          </label>
-
-          <label className="form-row">
-            90-day launch plan
-            <textarea
-              className="input"
-              name="launchPlan"
-              rows={4}
-              placeholder="First cohort plan, class pilots, milestones, and timeline."
-              required
-            />
-          </label>
-
-          <label className="form-row">
-            Recruitment and operations plan
-            <textarea
-              className="input"
-              name="recruitmentPlan"
-              rows={4}
-              placeholder="How you will recruit instructors/students and run chapter operations."
-              required
-            />
-          </label>
-
-          <label className="form-row">
-            Why you should be chapter president
-            <textarea
-              className="input"
-              name="leadershipBio"
-              rows={4}
-              placeholder="Leadership background, local relationships, and readiness to lead."
-              required
-            />
-          </label>
-
-          <label className="form-row">
-            Resume URL (optional)
-            <input type="url" className="input" name="resumeUrl" placeholder="https://..." />
-          </label>
-
-          <label className="form-row">
-            Additional context (optional)
-            <textarea
-              className="input"
-              name="additionalContext"
-              rows={3}
-              placeholder="Anything else reviewers should know."
-            />
-          </label>
-
-          <button type="submit" className="button" disabled={hasOpenProposal}>
-            Submit Chapter Proposal
-          </button>
-        </form>
+        <ChapterProposalForm disabled={hasOpenProposal} />
       </div>
 
       <div className="card" style={{ marginTop: 16 }}>

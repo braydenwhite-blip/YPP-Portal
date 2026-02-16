@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 
 interface FileUploadProps {
-  category: "PROFILE_PHOTO" | "ASSIGNMENT_SUBMISSION" | "TRAINING_EVIDENCE" | "OTHER";
+  category: "PROFILE_PHOTO" | "ASSIGNMENT_SUBMISSION" | "TRAINING_EVIDENCE" | "APPLICATION_RESUME" | "OTHER";
   entityId?: string;
   entityType?: string;
   accept?: string;

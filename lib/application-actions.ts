@@ -20,6 +20,7 @@ import {
   isAdmin,
 } from "@/lib/chapter-hiring-permissions";
 import { createSystemNotification } from "@/lib/notification-actions";
+import { sendApplicationStatusEmail, sendNotificationEmail } from "@/lib/email";
 
 const REVIEWABLE_APPLICATION_STATUSES: ApplicationStatus[] = [
   "UNDER_REVIEW",
@@ -103,10 +104,28 @@ async function requireAdminOrChapterLead() {
   return { session, actor };
 }
 
+const FIELD_LABELS: Record<string, string> = {
+  positionId: "Position selection",
+  coverLetter: "Cover letter is required. Please describe your experience and why you're interested in this position.",
+  resumeUrl: "Resume URL",
+  chapterName: "Chapter name is required. Please provide a name for the proposed chapter.",
+  chapterVision: "Chapter vision is required. Explain what student need this chapter addresses.",
+  launchPlan: "Launch plan is required. Include milestones and a timeline for the first 90 days.",
+  recruitmentPlan: "Recruitment plan is required. Describe how you'll find instructors and students.",
+  leadershipBio: "Leadership bio is required. Share your background and readiness to lead a chapter.",
+  title: "Position title is required.",
+  type: "Position type is required.",
+  content: "Interview note summary is required. Please provide a written summary of the interview.",
+  applicationId: "Application reference",
+  status: "Status selection",
+  scheduledAt: "Interview date and time is required.",
+};
+
 function getString(formData: FormData, key: string, required = true) {
   const value = formData.get(key);
   if (required && (!value || String(value).trim() === "")) {
-    throw new Error(`Missing ${key}`);
+    const label = FIELD_LABELS[key];
+    throw new Error(label || `${key.replace(/([A-Z])/g, " $1").toLowerCase()} is required.`);
   }
   return value ? String(value).trim() : "";
 }
@@ -313,7 +332,7 @@ async function setApplicationInterviewReadinessInternal(applicationId: string) {
     ready,
     reason: ready
       ? "Interview and recommendation are complete."
-      : "Interview completion and recommendation are required before decision.",
+      : "Before making a decision, please: 1) Mark at least one interview as completed, 2) Add an interview note with a recommendation (Strong Yes, Yes, Maybe, or No).",
   };
 }
 
@@ -522,6 +541,19 @@ async function finalizeDecision({
     `/applications/${applicationId}`,
     true
   );
+
+  // Email applicant: final decision
+  if (application.applicant?.email) {
+    const baseUrl = process.env.NEXTAUTH_URL || "";
+    sendApplicationStatusEmail({
+      to: application.applicant.email,
+      applicantName: application.applicant.name || "Applicant",
+      positionTitle: application.position.title,
+      status: accepted ? "APPROVED" : "DECLINED",
+      message: notes || undefined,
+      portalUrl: `${baseUrl}/applications/${applicationId}`,
+    }).catch(() => {});
+  }
 
   await createHiringAudit(decidedById, "chapter_hiring_decision", {
     applicationId,
@@ -865,6 +897,23 @@ export async function submitApplication(formData: FormData) {
     );
   }
 
+  // Email the applicant: application received
+  const applicant = await prisma.user.findUnique({
+    where: { id: applicantId },
+    select: { name: true, email: true },
+  });
+  if (applicant?.email) {
+    const baseUrl = process.env.NEXTAUTH_URL || "";
+    sendNotificationEmail({
+      to: applicant.email,
+      name: applicant.name || "Applicant",
+      title: "Application Received",
+      body: `Your application for "${position.title}" has been submitted successfully. We'll review your materials and keep you updated on next steps.`,
+      link: `${baseUrl}/applications/${created.id}`,
+      linkText: "View Your Application",
+    }).catch(() => {});
+  }
+
   revalidateHiringPaths(position.chapterId, created.id);
 }
 
@@ -1119,6 +1168,20 @@ export async function postApplicationInterviewSlot(formData: FormData) {
     true
   );
 
+  // Email applicant: interview scheduled
+  if (application.applicant?.email) {
+    const baseUrl = process.env.NEXTAUTH_URL || "";
+    const dateStr = scheduledAt.toLocaleString();
+    sendApplicationStatusEmail({
+      to: application.applicant.email,
+      applicantName: application.applicant.name || "Applicant",
+      positionTitle: application.position.title,
+      status: "INTERVIEW_SCHEDULED",
+      message: `Your interview is scheduled for ${dateStr} (${duration} minutes).${meetingLink ? ` Meeting link: ${meetingLink}` : " A meeting link will be shared soon."}`,
+      portalUrl: `${baseUrl}/applications/${applicationId}`,
+    }).catch(() => {});
+  }
+
   await createHiringAudit(actor.id, "chapter_hiring_interview_slot_posted", {
     applicationId,
     chapterId: application.position.chapterId,
@@ -1206,6 +1269,25 @@ export async function confirmApplicationInterviewSlot(formData: FormData) {
       `/applications/${slot.applicationId}`,
       true
     );
+  }
+
+  // Email reviewers: interview confirmed
+  const baseUrl = process.env.NEXTAUTH_URL || "";
+  for (const reviewerId of reviewerIds) {
+    const reviewer = await prisma.user.findUnique({
+      where: { id: reviewerId },
+      select: { name: true, email: true },
+    });
+    if (reviewer?.email) {
+      sendNotificationEmail({
+        to: reviewer.email,
+        name: reviewer.name || "Reviewer",
+        title: "Interview Confirmed",
+        body: `${slot.application.applicant.name} has confirmed an interview slot for ${slot.application.position.title} on ${new Date(slot.scheduledAt).toLocaleString()}.`,
+        link: `${baseUrl}/applications/${slot.applicationId}`,
+        linkText: "View Application",
+      }).catch(() => {});
+    }
   }
 
   revalidateHiringPaths(slot.application.position.chapterId, slot.applicationId);
@@ -1324,6 +1406,23 @@ export async function markApplicationInterviewCompleted(formData: FormData) {
     `/applications/${slot.applicationId}`,
     true
   );
+
+  // Email applicant: interview completed
+  const applicantForEmail = await prisma.user.findUnique({
+    where: { id: slot.application.applicantId },
+    select: { name: true, email: true },
+  });
+  if (applicantForEmail?.email) {
+    const baseUrl = process.env.NEXTAUTH_URL || "";
+    sendNotificationEmail({
+      to: applicantForEmail.email,
+      name: applicantForEmail.name || "Applicant",
+      title: "Interview Completed",
+      body: `Your interview for "${slot.application.position.title}" has been marked as completed. The hiring team will review the results and make a decision soon.`,
+      link: `${baseUrl}/applications/${slot.applicationId}`,
+      linkText: "View Application Status",
+    }).catch(() => {});
+  }
 
   await createHiringAudit(actor.id, "chapter_hiring_interview_completed", {
     slotId,
@@ -1448,7 +1547,7 @@ export async function chapterMakeDecision(formData: FormData) {
     (note) => note.recommendation !== null
   );
   if (!hasRecommendation) {
-    throw new Error("At least one interview note with recommendation is required.");
+    throw new Error("Before making a chapter decision, you must add at least one interview note with a recommendation (Strong Yes, Yes, Maybe, or No). Use the 'Save Structured Interview Note' form to add one.");
   }
 
   await finalizeDecision({

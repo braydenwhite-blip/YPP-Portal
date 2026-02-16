@@ -234,6 +234,11 @@ export default async function PositionsPage({
                         <span className="pill">Network Role</span>
                       )}
                       <span className="pill">{position.visibility.replace(/_/g, " ")}</span>
+                      {position.interviewRequired ? (
+                        <span className="pill pill-pathway">Interview Required</span>
+                      ) : (
+                        <span className="pill pill-success">No Interview</span>
+                      )}
                     </div>
                   </div>
 
