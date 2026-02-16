@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { submitApplication } from "@/lib/application-actions";
+import ApplicationForm from "@/components/application-form";
 
 function formatDate(value: Date | null) {
   if (!value) return "-";
@@ -75,6 +75,19 @@ export default async function PositionDetailPage({
       })
     : null;
 
+  const processSteps = position.interviewRequired
+    ? [
+        { step: "1", text: "Submit your application with a cover letter" },
+        { step: "2", text: "Reviewer evaluates your materials" },
+        { step: "3", text: "Interview is scheduled and completed" },
+        { step: "4", text: "Final decision is made" },
+      ]
+    : [
+        { step: "1", text: "Submit your application with a cover letter" },
+        { step: "2", text: "Reviewer evaluates your materials" },
+        { step: "3", text: "Final decision is made" },
+      ];
+
   return (
     <div>
       <div className="topbar">
@@ -84,12 +97,17 @@ export default async function PositionDetailPage({
           </Link>
           <h1 className="page-title">{position.title}</h1>
           <p className="page-subtitle">
-            {position.chapter ? `Chapter Hiring · ${position.chapter.name}` : "Network Role"}
+            {position.chapter ? `Chapter Hiring \u00B7 ${position.chapter.name}` : "Network Role"}
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
           <span className="pill">{position.type.replace(/_/g, " ")}</span>
           <span className="pill">{position.visibility.replace(/_/g, " ")}</span>
+          {position.interviewRequired ? (
+            <span className="pill pill-pathway">Interview Required</span>
+          ) : (
+            <span className="pill pill-success">No Interview</span>
+          )}
           <span className={`pill ${isOpenForApplications ? "pill-success" : "pill-declined"}`}>
             {isOpenForApplications ? "OPEN" : "CLOSED"}
           </span>
@@ -117,7 +135,10 @@ export default async function PositionDetailPage({
 
             <div style={{ marginTop: 20, display: "grid", gap: 6, fontSize: 14 }}>
               <div>
-                <strong>Interview Policy:</strong> {position.interviewRequired ? "Required" : "Optional"}
+                <strong>Interview Policy:</strong>{" "}
+                <span className={`pill pill-small ${position.interviewRequired ? "pill-pathway" : "pill-success"}`}>
+                  {position.interviewRequired ? "Required" : "Not Required"}
+                </span>
               </div>
               <div>
                 <strong>Application Deadline:</strong> {formatDate(position.applicationDeadline)}
@@ -136,11 +157,50 @@ export default async function PositionDetailPage({
                 <div className="section-title">Chapter</div>
                 <p>
                   {position.chapter.name}
-                  {position.chapter.city ? ` · ${position.chapter.city}` : ""}
+                  {position.chapter.city ? ` \u00B7 ${position.chapter.city}` : ""}
                   {position.chapter.region ? `, ${position.chapter.region}` : ""}
                 </p>
               </div>
             ) : null}
+          </div>
+
+          {/* Application Process Documentation */}
+          <div className="card" style={{ marginTop: 16 }}>
+            <div className="section-title">How the Application Process Works</div>
+            <div style={{ display: "grid", gap: 10 }}>
+              {processSteps.map((item) => (
+                <div
+                  key={item.step}
+                  style={{
+                    display: "flex",
+                    gap: 12,
+                    alignItems: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: "50%",
+                      background: "#ede9fe",
+                      color: "#7c3aed",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontWeight: 700,
+                      fontSize: 13,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {item.step}
+                  </div>
+                  <span style={{ fontSize: 14 }}>{item.text}</span>
+                </div>
+              ))}
+            </div>
+            <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 0, marginTop: 14 }}>
+              Most positions respond within 7-10 days. You&#39;ll receive email updates at each stage.
+            </p>
           </div>
         </div>
 
@@ -205,49 +265,10 @@ export default async function PositionDetailPage({
                 </p>
               </div>
             ) : (
-              <div>
-                <div className="section-title">Apply Now</div>
-                <form action={submitApplication} className="form-grid">
-                  <input type="hidden" name="positionId" value={position.id} />
-
-                  <div className="form-row">
-                    <label>Cover Letter</label>
-                    <textarea
-                      name="coverLetter"
-                      className="input"
-                      rows={6}
-                      placeholder="Tell us why you're interested in this position and what makes you a strong fit..."
-                    />
-                  </div>
-
-                  <div className="form-row">
-                    <label>Resume URL (optional)</label>
-                    <input
-                      type="url"
-                      name="resumeUrl"
-                      className="input"
-                      placeholder="https://drive.google.com/..."
-                    />
-                    <span style={{ fontSize: 12, color: "var(--muted)" }}>
-                      Link to your resume on Google Drive, Dropbox, or similar.
-                    </span>
-                  </div>
-
-                  <div className="form-row">
-                    <label>Additional Materials (optional)</label>
-                    <textarea
-                      name="additionalMaterials"
-                      className="input"
-                      rows={3}
-                      placeholder="Portfolio links, relevant projects, or references."
-                    />
-                  </div>
-
-                  <button type="submit" className="button">
-                    Submit Application
-                  </button>
-                </form>
-              </div>
+              <ApplicationForm
+                positionId={position.id}
+                interviewRequired={position.interviewRequired}
+              />
             )}
           </div>
         </div>
