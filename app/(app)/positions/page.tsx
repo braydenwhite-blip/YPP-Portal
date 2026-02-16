@@ -116,6 +116,11 @@ export default async function PositionsPage({
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {session?.user ? (
+            <Link href="/chapters/propose" className="button small ghost" style={{ textDecoration: "none" }}>
+              Propose Chapter
+            </Link>
+          ) : null}
           {isPrivileged ? (
             <Link href="/positions/new" className="button small outline" style={{ textDecoration: "none" }}>
               + New Opening

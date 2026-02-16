@@ -3,6 +3,20 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { PositionType } from "@prisma/client";
+
+type ApplicationFilters = {
+  type?: string;
+  chapterProposal?: string;
+};
+
+const POSITION_TYPES: PositionType[] = [
+  "INSTRUCTOR",
+  "CHAPTER_PRESIDENT",
+  "MENTOR",
+  "STAFF",
+  "GLOBAL_ADMIN",
+];
 
 function formatStatus(status: string) {
   return status.replace(/_/g, " ");
@@ -23,7 +37,17 @@ function statusPillClass(status: string) {
   }
 }
 
-export default async function AdminApplicationsPage() {
+function normalizeType(value: string | undefined): PositionType | null {
+  if (!value) return null;
+  return POSITION_TYPES.includes(value as PositionType) ? (value as PositionType) : null;
+}
+
+export default async function AdminApplicationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<ApplicationFilters>;
+}) {
+  const params = await searchParams;
   const session = await getServerSession(authOptions);
   const roles = session?.user?.roles ?? [];
 
@@ -31,7 +55,22 @@ export default async function AdminApplicationsPage() {
     redirect("/");
   }
 
+  const selectedType = normalizeType(params.type);
+  const chapterProposalOnly = params.chapterProposal === "true";
+
   const applications = await prisma.application.findMany({
+    where: {
+      ...(selectedType ? { position: { type: selectedType } } : {}),
+      ...(chapterProposalOnly
+        ? {
+            position: {
+              ...(selectedType ? { type: selectedType } : {}),
+              chapterId: null,
+              type: "CHAPTER_PRESIDENT",
+            },
+          }
+        : {}),
+    },
     include: {
       applicant: {
         select: { id: true, name: true, email: true },
@@ -73,6 +112,43 @@ export default async function AdminApplicationsPage() {
             Review applications, manage interview scheduling, and finalize decisions.
           </p>
         </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <form method="get" className="form-grid">
+          <div className="grid two">
+            <label className="form-row">
+              Position Type
+              <select className="input" name="type" defaultValue={selectedType ?? ""}>
+                <option value="">All Types</option>
+                {POSITION_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {type.replace(/_/g, " ")}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="form-row">
+              Chapter Proposal Filter
+              <select
+                className="input"
+                name="chapterProposal"
+                defaultValue={chapterProposalOnly ? "true" : "false"}
+              >
+                <option value="false">All Applications</option>
+                <option value="true">Only New Chapter Proposals</option>
+              </select>
+            </label>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button type="submit" className="button small">
+              Apply Filters
+            </button>
+            <Link href="/admin/applications" className="button small ghost" style={{ textDecoration: "none" }}>
+              Reset
+            </Link>
+          </div>
+        </form>
       </div>
 
       <div className="grid four">

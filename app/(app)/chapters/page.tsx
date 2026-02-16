@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/prisma";
+import Link from "next/link";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export default async function ChaptersPage() {
+  const session = await getServerSession(authOptions);
   const chapters = await prisma.chapter.findMany({
     include: {
       users: true,
@@ -16,6 +20,11 @@ export default async function ChaptersPage() {
           <p className="badge">Chapter Network</p>
           <h1 className="page-title">Chapters & Community</h1>
         </div>
+        {session?.user ? (
+          <Link href="/chapters/propose" className="button small" style={{ textDecoration: "none" }}>
+            Propose New Chapter
+          </Link>
+        ) : null}
       </div>
 
       <div className="grid two">

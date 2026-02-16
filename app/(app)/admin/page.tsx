@@ -84,6 +84,13 @@ export default async function AdminPage() {
           <Link href="/admin/recruiting/positions/new" className="button small outline" style={{ textDecoration: "none" }}>
             + New Opening
           </Link>
+          <Link
+            href="/admin/applications?type=CHAPTER_PRESIDENT&chapterProposal=true"
+            className="button small outline"
+            style={{ textDecoration: "none" }}
+          >
+            Review Chapter Proposals
+          </Link>
           <Link href="/positions?type=CHAPTER_PRESIDENT&status=open" className="button small ghost" style={{ textDecoration: "none" }}>
             Chapter President Openings
           </Link>

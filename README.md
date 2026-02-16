@@ -251,6 +251,7 @@ See [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) for the full feature road
 ## Chapter Recruiting (Native)
 - Canonical chapter hiring route: `/chapter/recruiting`
 - Admin recruiting route: `/admin/recruiting`
+- Chapter proposal route (self-propose + self-nominate as chapter president): `/chapters/propose`
 - Position composer routes:
   - `/chapter/recruiting/positions/new`
   - `/chapter/recruiting/positions/[id]/edit`

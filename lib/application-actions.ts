@@ -33,6 +33,52 @@ const FINAL_APPLICATION_STATUSES: ApplicationStatus[] = [
   "WITHDRAWN",
 ];
 
+const CHAPTER_PROPOSAL_KIND = "CHAPTER_PROPOSAL_V1";
+const CHAPTER_PROPOSAL_POSITION_TITLE = "Chapter President - New Chapter Proposal";
+const CHAPTER_PROPOSAL_POSITION_DESCRIPTION =
+  "Submit a proposal to launch a new YPP chapter and serve as its chapter president.";
+
+type ChapterProposalMetadata = {
+  kind: typeof CHAPTER_PROPOSAL_KIND;
+  chapterName: string;
+  city?: string;
+  region?: string;
+  partnerSchool?: string;
+  chapterVision?: string;
+  launchPlan?: string;
+  recruitmentPlan?: string;
+};
+
+function parseChapterProposalMetadata(raw: string | null | undefined): ChapterProposalMetadata | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<ChapterProposalMetadata>;
+    if (
+      parsed?.kind !== CHAPTER_PROPOSAL_KIND ||
+      typeof parsed.chapterName !== "string" ||
+      parsed.chapterName.trim() === ""
+    ) {
+      return null;
+    }
+
+    return {
+      kind: CHAPTER_PROPOSAL_KIND,
+      chapterName: parsed.chapterName.trim(),
+      city: typeof parsed.city === "string" ? parsed.city.trim() : undefined,
+      region: typeof parsed.region === "string" ? parsed.region.trim() : undefined,
+      partnerSchool:
+        typeof parsed.partnerSchool === "string" ? parsed.partnerSchool.trim() : undefined,
+      chapterVision:
+        typeof parsed.chapterVision === "string" ? parsed.chapterVision.trim() : undefined,
+      launchPlan: typeof parsed.launchPlan === "string" ? parsed.launchPlan.trim() : undefined,
+      recruitmentPlan:
+        typeof parsed.recruitmentPlan === "string" ? parsed.recruitmentPlan.trim() : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function requireAuth() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -141,7 +187,10 @@ async function createHiringAudit(
 function revalidateHiringPaths(chapterId?: string | null, applicationId?: string) {
   revalidatePath("/positions");
   revalidatePath("/applications");
+  revalidatePath("/chapters");
+  revalidatePath("/chapters/propose");
   revalidatePath("/chapter/recruiting");
+  revalidatePath("/admin/recruiting");
   revalidatePath("/chapter/applicants");
   revalidatePath("/admin/applications");
 
@@ -276,10 +325,12 @@ async function applyAcceptedCandidateEffects(
     position: { type: PositionType; chapterId: string | null };
     interviewSlots: Array<{ status: string; isConfirmed: boolean }>;
     interviewNotes: Array<{ recommendation: HiringRecommendation | null }>;
+    additionalMaterials: string | null;
   },
   decidedById: string
 ) {
   const newRole = roleForPosition(application.position.type);
+  let chapterIdForAssignment = application.position.chapterId;
 
   await tx.analyticsEvent.create({
     data: {
@@ -310,10 +361,58 @@ async function applyAcceptedCandidateEffects(
     update: {},
   });
 
-  if (application.position.chapterId) {
+  if (!chapterIdForAssignment && application.position.type === "CHAPTER_PRESIDENT") {
+    const proposal = parseChapterProposalMetadata(application.additionalMaterials);
+    if (!proposal) {
+      throw new Error(
+        "Cannot accept this chapter president application without a chapter assignment or chapter proposal details."
+      );
+    }
+
+    const existingChapter = await tx.chapter.findFirst({
+      where: { name: proposal.chapterName },
+      select: { id: true },
+    });
+
+    const chapter =
+      existingChapter ??
+      (await tx.chapter.create({
+        data: {
+          name: proposal.chapterName,
+          city: proposal.city || null,
+          region: proposal.region || null,
+          partnerSchool: proposal.partnerSchool || null,
+          programNotes: [
+            "Created from chapter proposal application.",
+            proposal.chapterVision ? `Vision: ${proposal.chapterVision}` : null,
+            proposal.launchPlan ? `Launch Plan: ${proposal.launchPlan}` : null,
+            proposal.recruitmentPlan ? `Recruitment Plan: ${proposal.recruitmentPlan}` : null,
+          ]
+            .filter(Boolean)
+            .join("\n\n"),
+        },
+      }));
+
+    chapterIdForAssignment = chapter.id;
+
+    await tx.analyticsEvent.create({
+      data: {
+        userId: decidedById,
+        eventType: "chapter_proposal_accepted",
+        eventData: {
+          applicationId: application.id,
+          applicantId: application.applicantId,
+          chapterId: chapter.id,
+          chapterName: proposal.chapterName,
+        },
+      },
+    });
+  }
+
+  if (chapterIdForAssignment) {
     await tx.user.update({
       where: { id: application.applicantId },
-      data: { chapterId: application.position.chapterId },
+      data: { chapterId: chapterIdForAssignment },
     });
   }
 
@@ -406,6 +505,7 @@ async function finalizeDecision({
           interviewNotes: application.interviewNotes.map((note) => ({
             recommendation: note.recommendation,
           })),
+          additionalMaterials: application.additionalMaterials || null,
         },
         decidedById
       );
@@ -766,6 +866,133 @@ export async function submitApplication(formData: FormData) {
   }
 
   revalidateHiringPaths(position.chapterId, created.id);
+}
+
+async function ensureChapterProposalPosition() {
+  const existing = await prisma.position.findFirst({
+    where: {
+      type: "CHAPTER_PRESIDENT",
+      chapterId: null,
+      title: CHAPTER_PROPOSAL_POSITION_TITLE,
+    },
+    select: {
+      id: true,
+      isOpen: true,
+      applicationDeadline: true,
+    },
+  });
+
+  if (existing) {
+    return existing;
+  }
+
+  return prisma.position.create({
+    data: {
+      title: CHAPTER_PROPOSAL_POSITION_TITLE,
+      type: "CHAPTER_PRESIDENT",
+      description: CHAPTER_PROPOSAL_POSITION_DESCRIPTION,
+      requirements:
+        "Share your chapter vision, launch plan, and recruitment plan. Admin interview + approval required.",
+      chapterId: null,
+      visibility: "NETWORK_WIDE",
+      interviewRequired: true,
+      isOpen: true,
+    },
+    select: {
+      id: true,
+      isOpen: true,
+      applicationDeadline: true,
+    },
+  });
+}
+
+export async function submitChapterProposal(formData: FormData) {
+  const session = await requireAuth();
+  const applicantId = session.user.id;
+
+  const chapterName = getString(formData, "chapterName");
+  const city = getString(formData, "city", false);
+  const region = getString(formData, "region", false);
+  const partnerSchool = getString(formData, "partnerSchool", false);
+  const chapterVision = getString(formData, "chapterVision");
+  const launchPlan = getString(formData, "launchPlan");
+  const recruitmentPlan = getString(formData, "recruitmentPlan");
+  const leadershipBio = getString(formData, "leadershipBio");
+  const additionalContext = getString(formData, "additionalContext", false);
+  const resumeUrl = getString(formData, "resumeUrl", false);
+
+  const proposalPosition = await ensureChapterProposalPosition();
+
+  if (!proposalPosition.isOpen) {
+    throw new Error("Chapter proposals are not open right now. Please try again later.");
+  }
+
+  if (proposalPosition.applicationDeadline && proposalPosition.applicationDeadline < new Date()) {
+    throw new Error("Chapter proposal submissions are currently closed.");
+  }
+
+  const existingOpenProposal = await prisma.application.findFirst({
+    where: {
+      applicantId,
+      positionId: proposalPosition.id,
+      status: { notIn: FINAL_APPLICATION_STATUSES },
+    },
+    select: { id: true },
+  });
+
+  if (existingOpenProposal) {
+    throw new Error("You already have a chapter proposal in progress.");
+  }
+
+  const metadata: ChapterProposalMetadata = {
+    kind: CHAPTER_PROPOSAL_KIND,
+    chapterName,
+    city: city || undefined,
+    region: region || undefined,
+    partnerSchool: partnerSchool || undefined,
+    chapterVision,
+    launchPlan,
+    recruitmentPlan,
+  };
+
+  const created = await prisma.application.create({
+    data: {
+      positionId: proposalPosition.id,
+      applicantId,
+      resumeUrl: resumeUrl || null,
+      coverLetter: leadershipBio,
+      additionalMaterials: JSON.stringify({
+        ...metadata,
+        additionalContext: additionalContext || undefined,
+      }),
+      status: "SUBMITTED",
+    },
+  });
+
+  const admins = await prisma.user.findMany({
+    where: { roles: { some: { role: "ADMIN" } } },
+    select: { id: true },
+  });
+
+  for (const admin of admins) {
+    await createSystemNotification(
+      admin.id,
+      "SYSTEM",
+      "New Chapter Proposal Submitted",
+      `${chapterName} was proposed as a new chapter with a Chapter President application.`,
+      `/applications/${created.id}`,
+      true
+    );
+  }
+
+  await createHiringAudit(applicantId, "chapter_proposal_submitted", {
+    applicationId: created.id,
+    chapterName,
+    city: city || "",
+    region: region || "",
+  });
+
+  revalidateHiringPaths(null, created.id);
 }
 
 export async function withdrawApplication(formData: FormData) {

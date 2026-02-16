@@ -48,9 +48,14 @@ export default async function MyApplicationsPage() {
           <p className="badge">My Applications</p>
           <h1 className="page-title">Application Status</h1>
         </div>
-        <Link href="/positions" className="button small" style={{ textDecoration: "none" }}>
-          Browse Positions
-        </Link>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Link href="/chapters/propose" className="button small ghost" style={{ textDecoration: "none" }}>
+            Propose Chapter
+          </Link>
+          <Link href="/positions" className="button small" style={{ textDecoration: "none" }}>
+            Browse Positions
+          </Link>
+        </div>
       </div>
 
       {applications.length === 0 ? (

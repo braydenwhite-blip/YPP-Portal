@@ -60,6 +60,41 @@ type TimelineStep = {
   detail: string;
 };
 
+type ChapterProposalMetadata = {
+  kind: "CHAPTER_PROPOSAL_V1";
+  chapterName: string;
+  city?: string;
+  region?: string;
+  partnerSchool?: string;
+  chapterVision?: string;
+  launchPlan?: string;
+  recruitmentPlan?: string;
+  additionalContext?: string;
+};
+
+function parseChapterProposalMetadata(raw: string | null | undefined): ChapterProposalMetadata | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<ChapterProposalMetadata>;
+    if (parsed.kind !== "CHAPTER_PROPOSAL_V1" || !parsed.chapterName) {
+      return null;
+    }
+    return {
+      kind: "CHAPTER_PROPOSAL_V1",
+      chapterName: parsed.chapterName,
+      city: parsed.city,
+      region: parsed.region,
+      partnerSchool: parsed.partnerSchool,
+      chapterVision: parsed.chapterVision,
+      launchPlan: parsed.launchPlan,
+      recruitmentPlan: parsed.recruitmentPlan,
+      additionalContext: parsed.additionalContext,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export default async function ApplicationWorkspacePage({
   params,
 }: {
@@ -181,6 +216,8 @@ export default async function ApplicationWorkspacePage({
     !application.decision &&
     application.status !== "WITHDRAWN" &&
     decisionBlockers.length === 0;
+
+  const chapterProposal = parseChapterProposalMetadata(application.additionalMaterials);
 
   const defaultInterviewDate = toDateTimeLocal(new Date(Date.now() + 24 * 60 * 60 * 1000));
 
@@ -306,6 +343,51 @@ export default async function ApplicationWorkspacePage({
 
           <div className="card" style={{ marginTop: 16 }}>
             <div className="section-title">Application Materials</div>
+            {chapterProposal ? (
+              <div
+                style={{
+                  border: "1px solid var(--border)",
+                  borderRadius: 10,
+                  padding: 12,
+                  background: "var(--surface-alt)",
+                  marginBottom: 14,
+                }}
+              >
+                <p style={{ margin: 0, fontWeight: 600 }}>Chapter Proposal Details</p>
+                <div style={{ marginTop: 8, display: "grid", gap: 6, fontSize: 13 }}>
+                  <div>
+                    <strong>Proposed Chapter:</strong> {chapterProposal.chapterName}
+                  </div>
+                  <div>
+                    <strong>City / Region:</strong>{" "}
+                    {[chapterProposal.city, chapterProposal.region].filter(Boolean).join(", ") || "-"}
+                  </div>
+                  <div>
+                    <strong>Partner School:</strong> {chapterProposal.partnerSchool || "-"}
+                  </div>
+                  {chapterProposal.chapterVision ? (
+                    <div>
+                      <strong>Vision:</strong> {chapterProposal.chapterVision}
+                    </div>
+                  ) : null}
+                  {chapterProposal.launchPlan ? (
+                    <div>
+                      <strong>Launch Plan:</strong> {chapterProposal.launchPlan}
+                    </div>
+                  ) : null}
+                  {chapterProposal.recruitmentPlan ? (
+                    <div>
+                      <strong>Recruitment Plan:</strong> {chapterProposal.recruitmentPlan}
+                    </div>
+                  ) : null}
+                  {chapterProposal.additionalContext ? (
+                    <div>
+                      <strong>Additional Context:</strong> {chapterProposal.additionalContext}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
             {application.resumeUrl ? (
               <p style={{ marginTop: 0 }}>
                 <a href={application.resumeUrl} target="_blank" rel="noreferrer" className="link">
@@ -326,7 +408,9 @@ export default async function ApplicationWorkspacePage({
             <div style={{ marginTop: 16 }}>
               <strong style={{ fontSize: 14 }}>Additional Materials</strong>
               <p style={{ whiteSpace: "pre-wrap", marginTop: 8 }}>
-                {application.additionalMaterials || "No additional materials provided."}
+                {chapterProposal
+                  ? chapterProposal.additionalContext || "Structured chapter proposal details captured above."
+                  : application.additionalMaterials || "No additional materials provided."}
               </p>
             </div>
           </div>

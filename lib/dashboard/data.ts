@@ -84,15 +84,27 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
   });
   const hasAward = user.awards.length > 0;
 
-  const [{ modules, sections }, unreadNotifications, unreadMessages] = await Promise.all([
+  const [{ modules, sections }, unreadNotifications, unreadMessages, myOpenChapterProposals] = await Promise.all([
     Promise.resolve(getDashboardModulesForRole(role, { hasAward })),
     prisma.notification.count({ where: { userId, isRead: false } }),
     getUnreadMessageCount(userId),
+    prisma.application.count({
+      where: {
+        applicantId: userId,
+        position: {
+          type: "CHAPTER_PRESIDENT",
+          chapterId: null,
+        },
+        status: { notIn: [...FINAL_APPLICATION_STATUSES] },
+      },
+    }),
   ]);
 
   const moduleBadgeByHref: Record<string, number> = {
     "/notifications": unreadNotifications,
     "/messages": unreadMessages,
+    "/chapters/propose": myOpenChapterProposals,
+    chapter_proposals: myOpenChapterProposals,
   };
 
   let heroTitle = `${roleLabel(role)} Command Center`;
@@ -108,6 +120,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
       trainingEvidenceQueue,
       readinessReviewQueue,
       waitlistWaiting,
+      chapterProposalQueue,
     ] = await Promise.all([
       prisma.parentStudent.count({ where: { approvalStatus: "PENDING" } }),
       prisma.application.count({
@@ -127,6 +140,16 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
         },
       }),
       prisma.waitlistEntry.count({ where: { status: "WAITING" } }),
+      prisma.application.count({
+        where: {
+          decision: null,
+          status: { notIn: [...FINAL_APPLICATION_STATUSES] },
+          position: {
+            type: "CHAPTER_PRESIDENT",
+            chapterId: null,
+          },
+        },
+      }),
     ]);
 
     heroTitle = "Admin Operations Command Center";
@@ -135,6 +158,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     kpis = [
       { id: "pending_parent_approvals", label: "Pending Parent Approvals", value: pendingParentApprovals },
       { id: "pending_app_decisions", label: "Pending Application Decisions", value: pendingAppDecisions },
+      { id: "chapter_proposal_queue", label: "Chapter Proposals", value: chapterProposalQueue },
       { id: "training_evidence_queue", label: "Training Evidence Queue", value: trainingEvidenceQueue },
       { id: "waitlist_waiting", label: "Waitlist Waiting", value: waitlistWaiting },
     ];
@@ -157,6 +181,15 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
         href: "/admin/applications",
         status: queueStatus(pendingAppDecisions, 20),
         badgeKey: "pending_app_decisions",
+      },
+      {
+        id: "chapter_proposal_queue",
+        title: "Chapter Proposal Queue",
+        description: "Review proposals for new chapters and chapter president founders.",
+        count: chapterProposalQueue,
+        href: "/admin/applications?type=CHAPTER_PRESIDENT&chapterProposal=true",
+        status: queueStatus(chapterProposalQueue, 8),
+        badgeKey: "chapter_proposal_queue",
       },
       {
         id: "training_evidence_queue",
@@ -210,6 +243,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     moduleBadgeByHref["/admin/parent-approvals"] = pendingParentApprovals;
     moduleBadgeByHref["/admin/applications"] = pendingAppDecisions;
     moduleBadgeByHref["/admin/recruiting"] = pendingAppDecisions;
+    moduleBadgeByHref["/admin/applications?type=CHAPTER_PRESIDENT&chapterProposal=true"] = chapterProposalQueue;
     moduleBadgeByHref["/admin/instructor-readiness"] = trainingEvidenceQueue + readinessReviewQueue;
     moduleBadgeByHref["/admin/waitlist"] = waitlistWaiting;
   } else if (role === "CHAPTER_LEAD") {

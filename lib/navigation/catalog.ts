@@ -281,6 +281,14 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 26,
     },
     {
+      href: "/chapters/propose",
+      label: "Propose Chapter",
+      icon: "🗺",
+      dashboardDescription: "Propose a new chapter and apply to become its chapter president.",
+      dashboardPriority: 13,
+      dashboardBadgeKey: "chapter_proposals",
+    },
+    {
       href: "/chapter",
       label: "My Chapter",
       icon: "🏠",
