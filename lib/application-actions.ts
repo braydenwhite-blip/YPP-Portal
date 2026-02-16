@@ -1523,6 +1523,8 @@ export async function chapterMakeDecision(formData: FormData) {
   const applicationId = getString(formData, "applicationId");
   const accepted = parseBoolean(formData, "accepted");
   const notes = getString(formData, "notes", false);
+  const skipInterview = formData.get("skipInterviewOverride") === "true";
+  const overrideJustification = getString(formData, "overrideJustification", false);
 
   const application = await getApplicationForReview(applicationId);
 
@@ -1534,6 +1536,30 @@ export async function chapterMakeDecision(formData: FormData) {
 
   if (application.position.type === "GLOBAL_ADMIN") {
     throw new Error("Only admins can decide GLOBAL_ADMIN applications.");
+  }
+
+  // Admin override: skip interview + recommendation checks
+  if (skipInterview && isAdmin(actor)) {
+    if (!overrideJustification?.trim()) {
+      throw new Error("A justification note is required when overriding interview requirements.");
+    }
+
+    await createHiringAudit(actor.id, "chapter_hiring_interview_override", {
+      applicationId,
+      chapterId: application.position.chapterId,
+      justification: overrideJustification.trim(),
+    });
+
+    await finalizeDecision({
+      applicationId,
+      accepted,
+      notes: notes
+        ? `[Admin Override: ${overrideJustification.trim()}]\n\n${notes}`
+        : `[Admin Override: ${overrideJustification.trim()}]`,
+      decidedById: actor.id,
+      enforceInterviewReadiness: false,
+    });
+    return;
   }
 
   if (application.position.interviewRequired) {

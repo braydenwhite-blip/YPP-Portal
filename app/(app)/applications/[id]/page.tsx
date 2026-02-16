@@ -715,6 +715,7 @@ export default async function ApplicationWorkspacePage({
                   label="Chapter"
                   interviewRequired={interviewRequired}
                   canSubmit={canSubmitDecision}
+                  isAdmin={isAdmin}
                 />
               ) : null}
 

@@ -24,6 +24,20 @@ function formatDate(value: Date | null) {
   return new Date(value).toLocaleDateString();
 }
 
+function getDeadlineUrgency(deadline: Date | null): { label: string; color: string; bg: string } | null {
+  if (!deadline) return null;
+  const now = new Date();
+  const diff = new Date(deadline).getTime() - now.getTime();
+  const daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
+
+  if (daysLeft < 0) return { label: "Deadline passed", color: "#991b1b", bg: "#fee2e2" };
+  if (daysLeft === 0) return { label: "Closes today!", color: "#991b1b", bg: "#fee2e2" };
+  if (daysLeft === 1) return { label: "Closes tomorrow", color: "#92400e", bg: "#fef3c7" };
+  if (daysLeft <= 3) return { label: `${daysLeft} days left`, color: "#92400e", bg: "#fef3c7" };
+  if (daysLeft <= 7) return { label: `${daysLeft} days left`, color: "#1e40af", bg: "#eff6ff" };
+  return null;
+}
+
 function normalizeEnum<T extends string>(value: string | undefined, allowed: readonly T[]): T | null {
   if (!value) return null;
   return allowed.includes(value as T) ? (value as T) : null;
@@ -271,7 +285,25 @@ export default async function PositionsPage({
 
                 <div style={{ marginTop: 10, fontSize: 13, color: "var(--muted)", display: "grid", gap: 4 }}>
                   <span>Interview: {position.interviewRequired ? "Required" : "Optional"}</span>
-                  <span>Application Deadline: {formatDate(position.applicationDeadline)}</span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    Application Deadline: {formatDate(position.applicationDeadline)}
+                    {(() => {
+                      const urgency = getDeadlineUrgency(position.applicationDeadline);
+                      if (!urgency) return null;
+                      return (
+                        <span style={{
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: urgency.color,
+                          background: urgency.bg,
+                          padding: "1px 8px",
+                          borderRadius: 10,
+                        }}>
+                          {urgency.label}
+                        </span>
+                      );
+                    })()}
+                  </span>
                   <span>Target Start Date: {formatDate(position.targetStartDate)}</span>
                   <span>
                     {position._count.applications} application{position._count.applications !== 1 ? "s" : ""}
