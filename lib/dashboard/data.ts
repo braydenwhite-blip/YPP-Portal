@@ -209,6 +209,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
 
     moduleBadgeByHref["/admin/parent-approvals"] = pendingParentApprovals;
     moduleBadgeByHref["/admin/applications"] = pendingAppDecisions;
+    moduleBadgeByHref["/admin/recruiting"] = pendingAppDecisions;
     moduleBadgeByHref["/admin/instructor-readiness"] = trainingEvidenceQueue + readinessReviewQueue;
     moduleBadgeByHref["/admin/waitlist"] = waitlistWaiting;
   } else if (role === "CHAPTER_LEAD") {

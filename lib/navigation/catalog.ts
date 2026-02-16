@@ -383,6 +383,15 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 3,
       dashboardBadgeKey: "pending_app_decisions",
     },
+    {
+      href: "/admin/recruiting",
+      label: "Recruiting Center",
+      icon: "🧑‍💼",
+      roles: ADMIN_ONLY,
+      dashboardDescription: "Create chapter openings and monitor interview/decision flow.",
+      dashboardPriority: 4,
+      dashboardBadgeKey: "pending_app_decisions",
+    },
   ]),
 
   ...groupLinks("Admin: Content", 1200, [

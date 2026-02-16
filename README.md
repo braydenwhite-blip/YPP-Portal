@@ -250,9 +250,11 @@ See [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) for the full feature road
 
 ## Chapter Recruiting (Native)
 - Canonical chapter hiring route: `/chapter/recruiting`
+- Admin recruiting route: `/admin/recruiting`
 - Position composer routes:
   - `/chapter/recruiting/positions/new`
   - `/chapter/recruiting/positions/[id]/edit`
+  - `/admin/recruiting/positions/new` (admin-first composer)
 - Compatibility route: `/chapter/applicants` (still operational, with link to canonical recruiting page)
 - Application workspace route: `/applications/[id]` now includes:
   - interview status timeline,

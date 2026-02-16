@@ -115,11 +115,18 @@ export default async function PositionsPage({
             Chapter hiring and network roles in one searchable list.
           </p>
         </div>
-        {session?.user ? (
-          <Link href="/applications" className="button small" style={{ textDecoration: "none" }}>
-            My Applications
-          </Link>
-        ) : null}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {isPrivileged ? (
+            <Link href="/positions/new" className="button small outline" style={{ textDecoration: "none" }}>
+              + New Opening
+            </Link>
+          ) : null}
+          {session?.user ? (
+            <Link href="/applications" className="button small" style={{ textDecoration: "none" }}>
+              My Applications
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>

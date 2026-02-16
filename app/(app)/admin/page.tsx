@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
@@ -68,6 +69,24 @@ export default async function AdminPage() {
         <div className="card">
           <div className="kpi">{pathways.length}</div>
           <div className="kpi-label">Pathways</div>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 20 }}>
+        <h3 style={{ marginTop: 0 }}>Recruiting Operations</h3>
+        <p style={{ marginTop: 0, color: "var(--muted)" }}>
+          Create chapter openings (including Chapter President roles) and manage interview pipelines.
+        </p>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Link href="/admin/recruiting" className="button small" style={{ textDecoration: "none" }}>
+            Open Recruiting Center
+          </Link>
+          <Link href="/admin/recruiting/positions/new" className="button small outline" style={{ textDecoration: "none" }}>
+            + New Opening
+          </Link>
+          <Link href="/positions?type=CHAPTER_PRESIDENT&status=open" className="button small ghost" style={{ textDecoration: "none" }}>
+            Chapter President Openings
+          </Link>
         </div>
       </div>
 
