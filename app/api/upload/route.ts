@@ -6,6 +6,7 @@ import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { UploadCategory as PrismaUploadCategory } from "@prisma/client";
 
 const ALLOWED_MIME_TYPES = [
   "image/jpeg",
@@ -28,6 +29,14 @@ const VALID_CATEGORIES = [
 ] as const;
 
 type UploadCategory = (typeof VALID_CATEGORIES)[number];
+
+const PRISMA_UPLOAD_CATEGORY_MAP: Record<UploadCategory, PrismaUploadCategory> = {
+  PROFILE_PHOTO: "PROFILE_PHOTO",
+  ASSIGNMENT_SUBMISSION: "ASSIGNMENT_SUBMISSION",
+  TRAINING_EVIDENCE: "TRAINING_EVIDENCE",
+  APPLICATION_RESUME: "OTHER",
+  OTHER: "OTHER",
+};
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -55,6 +64,12 @@ export async function POST(request: NextRequest) {
     if (!VALID_CATEGORIES.includes(category as UploadCategory)) {
       return NextResponse.json({ error: "Invalid category" }, { status: 400 });
     }
+    const requestedCategory = category as UploadCategory;
+    const prismaCategory = PRISMA_UPLOAD_CATEGORY_MAP[requestedCategory];
+    const resolvedEntityType =
+      requestedCategory === "APPLICATION_RESUME"
+        ? entityType || "APPLICATION_RESUME"
+        : entityType || null;
 
     if (!ALLOWED_MIME_TYPES.includes(file.type)) {
       return NextResponse.json(
@@ -95,10 +110,10 @@ export async function POST(request: NextRequest) {
         mimeType: file.type,
         size: file.size,
         url,
-        category: category as UploadCategory,
+        category: prismaCategory,
         userId: session.user.id,
         entityId: entityId || null,
-        entityType: entityType || null,
+        entityType: resolvedEntityType,
       },
     });
 
@@ -131,10 +146,18 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const category = searchParams.get("category");
   const entityId = searchParams.get("entityId");
+  const entityType = searchParams.get("entityType");
 
   const where: Record<string, unknown> = { userId: session.user.id };
-  if (category) where.category = category;
+  if (category && VALID_CATEGORIES.includes(category as UploadCategory)) {
+    const requestedCategory = category as UploadCategory;
+    where.category = PRISMA_UPLOAD_CATEGORY_MAP[requestedCategory];
+    if (requestedCategory === "APPLICATION_RESUME") {
+      where.entityType = "APPLICATION_RESUME";
+    }
+  }
   if (entityId) where.entityId = entityId;
+  if (entityType) where.entityType = entityType;
 
   const uploads = await prisma.fileUpload.findMany({
     where,
