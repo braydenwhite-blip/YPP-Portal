@@ -29,8 +29,10 @@ export default function ToolExplorer({
   sections: DashboardSection[];
   moduleBadgeByHref: Record<string, number>;
 }) {
+  const DEFAULT_TOOLS_PER_SECTION = 4;
   const [search, setSearch] = useState("");
   const [groupFilter, setGroupFilter] = useState("ALL");
+  const [showAllTools, setShowAllTools] = useState(false);
 
   const groups = useMemo(() => ["ALL", ...sections.map((section) => section.title)], [sections]);
   const searchLower = search.trim().toLowerCase();
@@ -51,6 +53,24 @@ export default function ToolExplorer({
       }))
       .filter((section) => section.modules.length > 0);
   }, [groupFilter, searchLower, sections]);
+
+  const hasSearch = searchLower.length > 0;
+  const visibleSections = useMemo(() => {
+    if (hasSearch || showAllTools) return filteredSections;
+
+    return filteredSections.map((section) => ({
+      ...section,
+      modules: section.modules.slice(0, DEFAULT_TOOLS_PER_SECTION),
+    }));
+  }, [DEFAULT_TOOLS_PER_SECTION, filteredSections, hasSearch, showAllTools]);
+
+  const hiddenToolsCount = useMemo(() => {
+    if (hasSearch || showAllTools) return 0;
+    return filteredSections.reduce((sum, section) => {
+      const hiddenForSection = Math.max(0, section.modules.length - DEFAULT_TOOLS_PER_SECTION);
+      return sum + hiddenForSection;
+    }, 0);
+  }, [DEFAULT_TOOLS_PER_SECTION, filteredSections, hasSearch, showAllTools]);
 
   const totalMatches = filteredSections.reduce((sum, section) => sum + section.modules.length, 0);
 
@@ -73,7 +93,7 @@ export default function ToolExplorer({
         <div>
           <h3 style={{ marginTop: 0, marginBottom: 4 }}>All Tools Explorer</h3>
           <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
-            Every tool for your primary role in one searchable panel.
+            Start with the top tools, then expand to browse everything.
           </p>
         </div>
         <span className="pill">{totalMatches} tools</span>
@@ -99,7 +119,24 @@ export default function ToolExplorer({
         <p style={{ marginTop: 12, color: "var(--muted)" }}>No tools match this filter.</p>
       ) : (
         <div style={{ display: "grid", gap: 14, marginTop: 14 }}>
-          {filteredSections.map((section) => (
+          {!hasSearch && hiddenToolsCount > 0 ? (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+              <p style={{ margin: 0, fontSize: 12, color: "var(--muted)" }}>
+                Showing top tools first for faster scanning.
+              </p>
+              <button
+                type="button"
+                className="link"
+                style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+                onClick={() => setShowAllTools((previous) => !previous)}
+                aria-expanded={showAllTools}
+              >
+                {showAllTools ? "Show top tools only" : `Show all tools (${hiddenToolsCount} hidden)`}
+              </button>
+            </div>
+          ) : null}
+
+          {visibleSections.map((section) => (
             <div key={section.id}>
               <h4 style={{ margin: "0 0 8px" }}>{section.title}</h4>
               <div className="grid two">

@@ -217,7 +217,7 @@ export default function Nav({
           ref={searchRef}
           type="text"
           className="nav-search"
-          placeholder="Search nav... (Ctrl+K)"
+          placeholder="Search tools... (Ctrl/Cmd+K)"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           aria-label="Search navigation"
@@ -239,7 +239,7 @@ export default function Nav({
       ) : (
         <>
           <section className="nav-main-tools">
-            <p className="nav-block-title">Your Main Tools</p>
+            <p className="nav-block-title">Top Tools</p>
             <div className="nav-main-items">{filteredCore.map(renderNavLink)}</div>
           </section>
 
@@ -253,7 +253,7 @@ export default function Nav({
                 aria-label={`${effectiveMoreOpen ? "Collapse" : "Expand"} more navigation links`}
                 disabled={hasSearch}
               >
-                <span className="nav-more-label">More ({moreCountLabel})</span>
+                <span className="nav-more-label">More Tools ({moreCountLabel})</span>
                 <span className={`nav-more-chevron ${effectiveMoreOpen ? "open" : ""}`}>{"›"}</span>
               </button>
 

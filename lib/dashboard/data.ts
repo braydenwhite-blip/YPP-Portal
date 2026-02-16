@@ -532,7 +532,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     moduleBadgeByHref["/instructor/class-settings"] = classCount;
     moduleBadgeByHref["/attendance"] = classCount;
   } else if (role === "STUDENT") {
-    const [enrollments, pathways, activeApplications] = await Promise.all([
+    const [enrollments, pathways, activeApplications, studentTrainingDue] = await Promise.all([
       prisma.enrollment.findMany({
         where: { userId },
         select: {
@@ -558,6 +558,12 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
           status: { notIn: [...FINAL_APPLICATION_STATUSES] },
         },
       }),
+      prisma.trainingAssignment.count({
+        where: {
+          userId,
+          status: { not: "COMPLETE" },
+        },
+      }),
     ]);
 
     const activeEnrollments = enrollments.filter((enrollment) => enrollment.status === "ENROLLED").length;
@@ -573,10 +579,19 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
       { id: "student_active_enrollments", label: "Active Enrollments", value: activeEnrollments },
       { id: "student_next_steps", label: "Pathway Next Steps", value: nextPathwaySteps },
       { id: "student_active_applications", label: "Active Applications", value: activeApplications },
-      { id: "student_unread_notifications", label: "Unread Notifications", value: unreadNotifications },
+      { id: "student_training_due", label: "Training Modules Due", value: studentTrainingDue },
     ];
 
     queues = [
+      {
+        id: "student_training_due",
+        title: "Training Academy",
+        description: "Finish assigned training modules, quizzes, checkpoints, and evidence submissions.",
+        count: studentTrainingDue,
+        href: "/student-training",
+        status: queueStatus(studentTrainingDue, 4),
+        badgeKey: "student_training_due",
+      },
       {
         id: "student_next_steps",
         title: "Pathway Next Steps",
@@ -598,6 +613,15 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     ];
 
     nextActions = [];
+
+    if (studentTrainingDue > 0) {
+      nextActions.push({
+        id: "student-training",
+        title: "Complete training academy modules",
+        detail: `${studentTrainingDue} training module(s) are waiting completion.`,
+        href: "/student-training",
+      });
+    }
 
     if (nextPathwaySteps > 0) {
       nextActions.push({
@@ -629,6 +653,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     moduleBadgeByHref["/my-courses"] = activeEnrollments;
     moduleBadgeByHref["/pathways"] = nextPathwaySteps;
     moduleBadgeByHref["/applications"] = activeApplications;
+    moduleBadgeByHref["/student-training"] = studentTrainingDue;
   } else if (role === "MENTOR") {
     const staleThreshold = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
 

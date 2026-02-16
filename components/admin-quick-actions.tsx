@@ -17,23 +17,29 @@ const QUICK_ACTIONS = [
 
 export default function AdminQuickActions() {
   const [isOpen, setIsOpen] = useState(false);
+  const menuId = "admin-quick-actions-menu";
 
   return (
     <div className="admin-quick-actions">
       <button
+        type="button"
         className="admin-quick-actions-toggle"
         onClick={() => setIsOpen(!isOpen)}
         title="Admin Quick Actions"
+        aria-label="Toggle admin quick actions"
+        aria-expanded={isOpen}
+        aria-controls={menuId}
       >
         {isOpen ? "X" : "+"}
       </button>
       {isOpen && (
-        <div className="admin-quick-actions-menu">
+        <div id={menuId} className="admin-quick-actions-menu" role="menu" aria-label="Admin quick actions">
           {QUICK_ACTIONS.map((action) => (
             <Link
               key={action.href}
               href={action.href}
               className="admin-quick-action-item"
+              role="menuitem"
               onClick={() => setIsOpen(false)}
             >
               <span className="admin-quick-action-icon">{action.icon}</span>

@@ -10,6 +10,7 @@
     "start": "next start",
     "lint": "next lint",
     "nav:check": "node scripts/validate-nav.mjs",
+    "nav:ux-check": "node scripts/validate-nav.mjs",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",

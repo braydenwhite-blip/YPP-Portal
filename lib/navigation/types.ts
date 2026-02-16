@@ -11,19 +11,19 @@ export type NavBadgeKey = "notifications" | "messages" | "approvals";
 
 export type NavGroup =
   | "Family"
-  | "Main"
+  | "Start Here"
   | "Learning"
-  | "Growth"
+  | "Progress"
   | "Challenges"
-  | "Incubator"
+  | "Projects"
   | "Opportunities"
-  | "Community"
+  | "People & Support"
   | "Chapters"
-  | "Account"
-  | "Admin: People"
-  | "Admin: Content"
-  | "Admin: Reports"
-  | "Admin: Ops";
+  | "Profile & Settings"
+  | "Admin People"
+  | "Admin Content"
+  | "Admin Reports"
+  | "Admin Operations";
 
 export interface NavLink {
   href: string;

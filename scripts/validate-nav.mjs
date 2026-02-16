@@ -98,9 +98,11 @@ function hasAwardAccess(item, role) {
 
 const catalogModule = loadTsModule(path.join(ROOT, "lib", "navigation", "catalog.ts"));
 const coreMapModule = loadTsModule(path.join(ROOT, "lib", "navigation", "core-map.ts"));
+const resolveNavModule = loadTsModule(path.join(ROOT, "lib", "navigation", "resolve-nav.ts"));
 
 const catalog = catalogModule.NAV_CATALOG;
 const coreMap = coreMapModule.CORE_NAV_MAP;
+const resolveNavModel = resolveNavModule.resolveNavModel;
 
 const errors = [];
 
@@ -110,6 +112,10 @@ if (!Array.isArray(catalog)) {
 
 if (!coreMap || typeof coreMap !== "object") {
   errors.push("CORE_NAV_MAP is missing or not an object.");
+}
+
+if (typeof resolveNavModel !== "function") {
+  errors.push("resolveNavModel is missing or not a function.");
 }
 
 if (errors.length === 0) {
@@ -158,6 +164,51 @@ if (errors.length === 0) {
       errors.push(
         `Core map for role ${role} has ${hrefs.length} links but requires at least ${minRequired} based on available routes.`,
       );
+    }
+  }
+
+  for (const role of Object.keys(coreMap)) {
+    const navAtRoot = resolveNavModel({
+      roles: [role],
+      primaryRole: role,
+      pathname: "/",
+    });
+
+    const labelToHrefs = new Map();
+    for (const item of navAtRoot.visible) {
+      const existing = labelToHrefs.get(item.label) ?? [];
+      existing.push(item.href);
+      labelToHrefs.set(item.label, existing);
+    }
+
+    for (const [label, hrefs] of labelToHrefs.entries()) {
+      if (hrefs.length > 1) {
+        errors.push(
+          `Role ${role} has duplicate visible label "${label}" for routes: ${hrefs.join(", ")}`,
+        );
+      }
+    }
+
+    const baselineCore = navAtRoot.core.map((item) => item.href);
+    const samplePathnames = [
+      "/",
+      ...navAtRoot.visible.slice(0, 12).map((item) => item.href),
+    ];
+
+    for (const pathname of samplePathnames) {
+      const navAtPath = resolveNavModel({
+        roles: [role],
+        primaryRole: role,
+        pathname,
+      });
+      const candidateCore = navAtPath.core.map((item) => item.href);
+
+      if (candidateCore.join(" | ") !== baselineCore.join(" | ")) {
+        errors.push(
+          `Core links are not stable for role ${role}. Baseline: [${baselineCore.join(", ")}], at pathname ${pathname}: [${candidateCore.join(", ")}]`,
+        );
+        break;
+      }
     }
   }
 }

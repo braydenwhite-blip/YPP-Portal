@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   assignTrainingToUser,
   bulkAssignModuleToInstructors,
+  bulkAssignModuleToStudents,
   createTrainingCheckpoint,
   createTrainingModuleWithVideo,
   createTrainingQuizQuestion,
@@ -77,9 +78,11 @@ interface Instructor {
 export default function TrainingManager({
   modules,
   instructors,
+  students,
 }: {
   modules: Module[];
   instructors: Instructor[];
+  students: Instructor[];
 }) {
   const [activeTab, setActiveTab] = useState<"modules" | "create">("modules");
   const [expandedModule, setExpandedModule] = useState<string | null>(null);
@@ -87,7 +90,7 @@ export default function TrainingManager({
 
   return (
     <div>
-      <div className="grid three" style={{ marginBottom: 24 }}>
+      <div className="grid four" style={{ marginBottom: 24 }}>
         <div className="card">
           <div className="kpi">{modules.length}</div>
           <div className="kpi-label">Total Modules</div>
@@ -99,6 +102,10 @@ export default function TrainingManager({
         <div className="card">
           <div className="kpi">{instructors.length}</div>
           <div className="kpi-label">Instructors</div>
+        </div>
+        <div className="card">
+          <div className="kpi">{students.length}</div>
+          <div className="kpi-label">Students</div>
         </div>
       </div>
 
@@ -253,7 +260,7 @@ export default function TrainingManager({
                   name="required"
                   defaultChecked={editingModule ? modules.find((m) => m.id === editingModule)?.required : true}
                 />
-                Required for all instructors
+                Required module
               </label>
             </div>
             <div className="grid three">
@@ -319,8 +326,9 @@ export default function TrainingManager({
               const completedCount = mod.assignments.filter((a) => a.status === "COMPLETE").length;
               const inProgressCount = mod.assignments.filter((a) => a.status === "IN_PROGRESS").length;
               const notStartedCount = mod.assignments.filter((a) => a.status === "NOT_STARTED").length;
-              const assignedInstructorIds = new Set(mod.assignments.map((a) => a.userId));
-              const unassignedInstructors = instructors.filter((i) => !assignedInstructorIds.has(i.id));
+              const assignedLearnerIds = new Set(mod.assignments.map((a) => a.userId));
+              const unassignedInstructors = instructors.filter((i) => !assignedLearnerIds.has(i.id));
+              const unassignedStudents = students.filter((student) => !assignedLearnerIds.has(student.id));
               const requiredCheckpointCount = mod.checkpoints.filter((checkpoint) => checkpoint.required).length;
 
               return (
@@ -401,6 +409,12 @@ export default function TrainingManager({
                           <input type="hidden" name="moduleId" value={mod.id} />
                           <button className="button small" type="submit">
                             Assign to All Instructors
+                          </button>
+                        </form>
+                        <form action={bulkAssignModuleToStudents} style={{ display: "inline" }}>
+                          <input type="hidden" name="moduleId" value={mod.id} />
+                          <button className="button small" type="submit">
+                            Assign to All Students
                           </button>
                         </form>
                         <form
@@ -612,11 +626,30 @@ export default function TrainingManager({
                         </div>
                       )}
 
+                      {unassignedStudents.length > 0 && (
+                        <div style={{ marginBottom: 16 }}>
+                          <form action={assignTrainingToUser} className="admin-training-assign-row">
+                            <input type="hidden" name="moduleId" value={mod.id} />
+                            <select className="input" name="userId" style={{ marginTop: 0, maxWidth: 300 }} required>
+                              <option value="">Assign to student...</option>
+                              {unassignedStudents.map((student) => (
+                                <option key={student.id} value={student.id}>
+                                  {student.name} ({student.email})
+                                </option>
+                              ))}
+                            </select>
+                            <button className="button small" type="submit" style={{ marginTop: 0 }}>
+                              Assign
+                            </button>
+                          </form>
+                        </div>
+                      )}
+
                       {mod.assignments.length > 0 ? (
                         <table className="table">
                           <thead>
                             <tr>
-                              <th>Instructor</th>
+                              <th>Learner</th>
                               <th>Email</th>
                               <th>Status</th>
                               <th>Completed</th>

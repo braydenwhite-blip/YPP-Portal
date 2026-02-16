@@ -68,6 +68,7 @@ export default async function OverviewPage() {
     "Make progress visible through challenges, badges, and milestones.",
     "Connect exploration to real classes, projects, and mentorship opportunities.",
   ];
+  const priorityTool = dashboard.sections[0]?.modules[0];
 
   return (
     <div>
@@ -91,68 +92,72 @@ export default async function OverviewPage() {
         subtitle={dashboard.heroSubtitle}
       />
 
-      <KpiStrip kpis={dashboard.kpis} />
-      <QueueBoard queues={dashboard.queues} />
+      {priorityTool ? (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <h3 style={{ marginTop: 0, marginBottom: 6 }}>Start Here</h3>
+          <p style={{ margin: 0 }}>
+            One fast jump into your highest-priority tool for this role.
+          </p>
+          <div style={{ marginTop: 10 }}>
+            <Link href={priorityTool.href} className="link">
+              Open {priorityTool.label}
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
       <NextActions actions={dashboard.nextActions} />
+      <QueueBoard queues={dashboard.queues} />
+      <KpiStrip kpis={dashboard.kpis} />
 
       <ToolExplorer
         sections={dashboard.sections}
         moduleBadgeByHref={dashboard.moduleBadgeByHref}
       />
 
-      <div className="grid two" style={{ marginTop: 16 }}>
-        <div className="card">
-          <h3>Portal Compass</h3>
-          <p style={{ marginTop: 0 }}>
-            Clear goals to keep YPP focused while the dashboard scales.
-          </p>
-          <div className="portal-goal-grid">
-            <div className="portal-goal-block">
-              <h4>YPP Portal Goals</h4>
-              <ul className="portal-goal-list">
-                {portalGoals.map((goal) => (
-                  <li key={goal}>{goal}</li>
-                ))}
-              </ul>
-            </div>
-            <div className="portal-goal-block">
-              <h4>Passion World Goals</h4>
-              <ul className="portal-goal-list">
-                {passionWorldGoals.map((goal) => (
-                  <li key={goal}>{goal}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          <div className="portal-role-focus">
-            <span className="portal-role-focus-label">This role should focus on:</span>
-            <ul className="portal-goal-list compact">
-              {(roleFocus[dashboard.role] ?? roleFocus.STAFF).map((goal) => (
-                <li key={goal}>{goal}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
+      <div className="card" style={{ marginTop: 16 }}>
+        <details className="dashboard-about">
+          <summary>About this dashboard</summary>
+          <div className="dashboard-about-content">
+            <p style={{ marginTop: 0, color: "var(--muted)" }}>
+              Dashboard generated at {new Date(dashboard.generatedAt).toLocaleTimeString()}.
+            </p>
+            <p style={{ marginBottom: 8 }}>
+              Use queue cards for urgent work first, then use the All Tools Explorer for everything else.
+            </p>
+            <p style={{ marginBottom: 0 }}>
+              Need full navigation? Open the sidebar and browse grouped tools in More.
+            </p>
 
-        <div className="card">
-          <h3>Operational Notes</h3>
-          <p style={{ marginTop: 0, color: "var(--muted)" }}>
-            Dashboard generated at {new Date(dashboard.generatedAt).toLocaleTimeString()}.
-          </p>
-          <p style={{ marginBottom: 8 }}>
-            Use queue cards for urgent work, then use the All Tools Explorer for everything else.
-          </p>
-          <p style={{ marginBottom: 0 }}>
-            Need full navigation? Open the sidebar or jump to your top section from here.
-          </p>
-          {dashboard.sections[0]?.modules[0] ? (
-            <div style={{ marginTop: 12 }}>
-              <Link href={dashboard.sections[0].modules[0].href} className="link">
-                Open first priority tool
-              </Link>
+            <div className="portal-goal-grid">
+              <div className="portal-goal-block">
+                <h4>Portal Goals</h4>
+                <ul className="portal-goal-list">
+                  {portalGoals.map((goal) => (
+                    <li key={goal}>{goal}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="portal-goal-block">
+                <h4>Passion World Goals</h4>
+                <ul className="portal-goal-list">
+                  {passionWorldGoals.map((goal) => (
+                    <li key={goal}>{goal}</li>
+                  ))}
+                </ul>
+              </div>
             </div>
-          ) : null}
-        </div>
+
+            <div className="portal-role-focus">
+              <span className="portal-role-focus-label">This role should focus on:</span>
+              <ul className="portal-goal-list compact">
+                {(roleFocus[dashboard.role] ?? roleFocus.STAFF).map((goal) => (
+                  <li key={goal}>{goal}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </details>
       </div>
     </div>
   );

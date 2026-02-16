@@ -520,6 +520,7 @@ export async function createTrainingModuleWithVideo(formData: FormData) {
 
   revalidatePath("/admin");
   revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
   revalidatePath("/admin/training");
 }
 
@@ -599,6 +600,7 @@ export async function updateTrainingModule(formData: FormData) {
 
   revalidatePath("/admin");
   revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
   revalidatePath("/instructor/training-progress");
   revalidatePath("/admin/training");
 }
@@ -674,6 +676,7 @@ export async function createTrainingCheckpoint(formData: FormData) {
 
   revalidatePath("/admin/training");
   revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
   revalidatePath("/instructor/training-progress");
 }
 
@@ -723,6 +726,7 @@ export async function updateTrainingCheckpoint(formData: FormData) {
 
   revalidatePath("/admin/training");
   revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
   revalidatePath("/instructor/training-progress");
   revalidatePath(`/training/${checkpoint.moduleId}`);
 }
@@ -760,6 +764,7 @@ export async function deleteTrainingCheckpoint(formData: FormData) {
 
   revalidatePath("/admin/training");
   revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
   revalidatePath("/instructor/training-progress");
   revalidatePath(`/training/${checkpoint.moduleId}`);
 }
@@ -805,6 +810,7 @@ export async function createTrainingQuizQuestion(formData: FormData) {
 
   revalidatePath("/admin/training");
   revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
   revalidatePath("/instructor/training-progress");
   revalidatePath(`/training/${moduleId}`);
 }
@@ -850,6 +856,7 @@ export async function updateTrainingQuizQuestion(formData: FormData) {
 
   revalidatePath("/admin/training");
   revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
   revalidatePath("/instructor/training-progress");
   revalidatePath(`/training/${existingQuestion.moduleId}`);
 }
@@ -881,6 +888,7 @@ export async function deleteTrainingQuizQuestion(formData: FormData) {
 
   revalidatePath("/admin/training");
   revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
   revalidatePath("/instructor/training-progress");
   revalidatePath(`/training/${question.moduleId}`);
 }
@@ -981,6 +989,7 @@ export async function updateVideoProgress(formData: FormData) {
   await syncAssignmentFromArtifacts(userId, moduleId);
 
   revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
   revalidatePath("/instructor/training-progress");
   revalidatePath(`/training/${moduleId}`);
 }
@@ -1037,6 +1046,7 @@ export async function submitTrainingCheckpoint(formData: FormData) {
   await syncAssignmentFromArtifacts(userId, checkpoint.moduleId);
 
   revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
   revalidatePath("/instructor/training-progress");
   revalidatePath(`/training/${checkpoint.moduleId}`);
 }
@@ -1109,6 +1119,7 @@ export async function submitTrainingQuizAttempt(formData: FormData) {
   await syncAssignmentFromArtifacts(userId, moduleId);
 
   revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
   revalidatePath("/instructor/training-progress");
   revalidatePath(`/training/${moduleId}`);
 
@@ -1140,6 +1151,7 @@ export async function submitTrainingEvidence(formData: FormData) {
   await syncAssignmentFromArtifacts(userId, moduleId);
 
   revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
   revalidatePath("/instructor/training-progress");
   revalidatePath(`/training/${moduleId}`);
 }
@@ -1164,6 +1176,7 @@ export async function requestReadinessReview(formData?: FormData) {
 
   revalidatePath("/instructor/training-progress");
   revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
   revalidatePath("/admin/instructor-readiness");
   revalidatePath("/chapter-lead/instructor-readiness");
 }
@@ -1211,6 +1224,7 @@ export async function reviewTrainingEvidence(formData: FormData) {
   revalidatePath("/admin/instructor-readiness");
   revalidatePath("/chapter-lead/instructor-readiness");
   revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
   revalidatePath("/instructor/training-progress");
   revalidatePath(`/training/${submission.moduleId}`);
 }
@@ -1351,6 +1365,7 @@ export async function assignTrainingToUser(formData: FormData) {
 
   revalidatePath("/admin");
   revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
 }
 
 export async function assignAllTrainingToUser(formData: FormData) {
@@ -1378,6 +1393,7 @@ export async function assignAllTrainingToUser(formData: FormData) {
 
   revalidatePath("/admin");
   revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
 }
 
 export async function updateTrainingStatus(formData: FormData) {
@@ -1417,6 +1433,7 @@ export async function updateTrainingStatus(formData: FormData) {
   }
 
   revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
   revalidatePath("/instructor/training-progress");
 }
 
@@ -1444,6 +1461,7 @@ export async function deleteTrainingModule(formData: FormData) {
   revalidatePath("/admin");
   revalidatePath("/admin/training");
   revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
 }
 
 // ============================================
@@ -1475,6 +1493,35 @@ export async function bulkAssignModuleToInstructors(formData: FormData) {
 
   revalidatePath("/admin/training");
   revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
+}
+
+export async function bulkAssignModuleToStudents(formData: FormData) {
+  await requireAdmin();
+
+  const moduleId = getString(formData, "moduleId");
+
+  const students = await prisma.user.findMany({
+    where: { roles: { some: { role: "STUDENT" } } },
+    select: { id: true },
+  });
+
+  const newAssignments = students.map((student) => ({
+    userId: student.id,
+    moduleId,
+    status: "NOT_STARTED" as TrainingStatus,
+  }));
+
+  if (newAssignments.length > 0) {
+    await prisma.trainingAssignment.createMany({
+      data: newAssignments,
+      skipDuplicates: true,
+    });
+  }
+
+  revalidatePath("/admin/training");
+  revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
 }
 
 export async function markTrainingComplete(formData: FormData) {
@@ -1492,6 +1539,7 @@ export async function markTrainingComplete(formData: FormData) {
 
   revalidatePath("/admin/training");
   revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
 }
 
 // ============================================
@@ -1525,5 +1573,6 @@ export async function submitCurriculumFeedback(formData: FormData) {
   });
 
   revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
   revalidatePath(`/profile/${instructorId}`);
 }

@@ -18,13 +18,21 @@ export default async function TrainingModulePage({
 
   const roles = session.user.roles ?? [];
   const canView =
-    roles.includes("INSTRUCTOR") || roles.includes("ADMIN") || roles.includes("CHAPTER_LEAD");
+    roles.includes("INSTRUCTOR") ||
+    roles.includes("ADMIN") ||
+    roles.includes("CHAPTER_LEAD") ||
+    roles.includes("STUDENT");
 
   if (!canView) {
     redirect("/");
   }
 
-  const instructorId = session.user.id;
+  const learnerId = session.user.id;
+  const isStudentOnly =
+    roles.includes("STUDENT") &&
+    !roles.includes("INSTRUCTOR") &&
+    !roles.includes("ADMIN") &&
+    !roles.includes("CHAPTER_LEAD");
 
   const module = await prisma.trainingModule.findUnique({
     where: { id },
@@ -47,7 +55,7 @@ export default async function TrainingModulePage({
       prisma.trainingAssignment.findUnique({
         where: {
           userId_moduleId: {
-            userId: instructorId,
+            userId: learnerId,
             moduleId: module.id,
           },
         },
@@ -55,14 +63,14 @@ export default async function TrainingModulePage({
       prisma.videoProgress.findUnique({
         where: {
           userId_moduleId: {
-            userId: instructorId,
+            userId: learnerId,
             moduleId: module.id,
           },
         },
       }),
       prisma.trainingCheckpointCompletion.findMany({
         where: {
-          userId: instructorId,
+          userId: learnerId,
           checkpoint: {
             moduleId: module.id,
           },
@@ -74,7 +82,7 @@ export default async function TrainingModulePage({
       }),
       prisma.trainingQuizAttempt.findMany({
         where: {
-          userId: instructorId,
+          userId: learnerId,
           moduleId: module.id,
         },
         orderBy: { attemptedAt: "desc" },
@@ -82,7 +90,7 @@ export default async function TrainingModulePage({
       }),
       prisma.trainingEvidenceSubmission.findMany({
         where: {
-          userId: instructorId,
+          userId: learnerId,
           moduleId: module.id,
         },
         orderBy: { createdAt: "desc" },
@@ -103,6 +111,40 @@ export default async function TrainingModulePage({
   const checkpointCompletionSet = new Set(
     checkpointCompletions.map((completion) => completion.checkpointId)
   );
+
+  if (isStudentOnly && !assignment) {
+    redirect("/student-training");
+  }
+
+  let effectiveNextModule = nextModule;
+  if (isStudentOnly) {
+    const nextAssigned = await prisma.trainingAssignment.findFirst({
+      where: {
+        userId: learnerId,
+        module: {
+          sortOrder: { gt: module.sortOrder },
+        },
+      },
+      orderBy: {
+        module: {
+          sortOrder: "asc",
+        },
+      },
+      select: {
+        module: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+      },
+    });
+
+    effectiveNextModule = nextAssigned?.module ?? null;
+  }
+
+  const academyHref = isStudentOnly ? "/student-training" : "/instructor-training";
+  const academyLabel = isStudentOnly ? "Back to student academy" : "Back to academy";
 
   const normalizedQuizQuestions = module.quizQuestions.map((question) => {
     let options: string[] = [];
@@ -181,7 +223,9 @@ export default async function TrainingModulePage({
         reviewNotes: submission.reviewNotes,
         createdAt: submission.createdAt.toISOString(),
       }))}
-      nextModule={nextModule}
+      nextModule={effectiveNextModule}
+      academyHref={academyHref}
+      academyLabel={academyLabel}
     />
   );
 }

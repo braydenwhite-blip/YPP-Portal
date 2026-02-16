@@ -11,7 +11,7 @@ export default async function AdminTrainingPage() {
     redirect("/");
   }
 
-  const [modules, instructors] = await Promise.all([
+  const [modules, instructors, students] = await Promise.all([
     prisma.trainingModule.findMany({
       orderBy: { sortOrder: "asc" },
       include: {
@@ -33,6 +33,11 @@ export default async function AdminTrainingPage() {
     }),
     prisma.user.findMany({
       where: { roles: { some: { role: "INSTRUCTOR" } } },
+      select: { id: true, name: true, email: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.user.findMany({
+      where: { roles: { some: { role: "STUDENT" } } },
       select: { id: true, name: true, email: true },
       orderBy: { name: "asc" },
     }),
@@ -94,7 +99,7 @@ export default async function AdminTrainingPage() {
           <p className="badge">Admin</p>
           <h1 className="page-title">Training Module Management</h1>
           <p className="page-subtitle">
-            Create, edit, assign, and track instructor training modules
+            Create, edit, assign, and track training modules
           </p>
         </div>
       </div>
@@ -102,6 +107,7 @@ export default async function AdminTrainingPage() {
       <TrainingManager
         modules={serializedModules}
         instructors={instructors}
+        students={students}
       />
     </div>
   );

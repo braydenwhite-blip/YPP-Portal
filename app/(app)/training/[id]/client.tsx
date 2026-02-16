@@ -99,6 +99,8 @@ export default function TrainingModuleClient({
   quizAttempts,
   evidenceSubmissions,
   nextModule,
+  academyHref,
+  academyLabel,
 }: {
   module: ModuleData;
   assignment: AssignmentData;
@@ -106,6 +108,8 @@ export default function TrainingModuleClient({
   quizAttempts: QuizAttemptData[];
   evidenceSubmissions: EvidenceSubmissionData[];
   nextModule: { id: string; title: string } | null;
+  academyHref: string;
+  academyLabel: string;
 }) {
   const router = useRouter();
   const [quizAnswers, setQuizAnswers] = useState<Record<string, string>>({});
@@ -182,8 +186,8 @@ export default function TrainingModuleClient({
           <h1 className="page-title">{module.title}</h1>
           <p className="page-subtitle">{module.description}</p>
         </div>
-        <Link href="/instructor-training" className="button small outline" style={{ textDecoration: "none" }}>
-          Back to academy
+        <Link href={academyHref} className="button small outline" style={{ textDecoration: "none" }}>
+          {academyLabel}
         </Link>
       </div>
 

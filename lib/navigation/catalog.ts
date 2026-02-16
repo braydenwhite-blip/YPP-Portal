@@ -39,12 +39,20 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardDescription: "Access parent guidance and support resources.",
       dashboardPriority: 12,
     },
+    {
+      href: "/parent/connect",
+      label: "Connect Student",
+      icon: "🔗",
+      roles: PARENT_ONLY,
+      dashboardDescription: "Connect and manage student link requests.",
+      dashboardPriority: 11,
+    },
   ]),
 
-  ...groupLinks("Main", 200, [
+  ...groupLinks("Start Here", 200, [
     {
       href: "/",
-      label: "Overview",
+      label: "Home",
       icon: "▣",
       dashboardDescription: "Your primary-role command center with queues and next actions.",
       dashboardPriority: 1,
@@ -58,7 +66,7 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/announcements",
-      label: "Announcements",
+      label: "Updates",
       icon: "📢",
       dashboardDescription: "Read chapter and platform updates.",
       dashboardPriority: 25,
@@ -97,10 +105,19 @@ export const NAV_CATALOG: NavLink[] = [
     { href: "/learn/challenges", label: "Challenge Learning", icon: "⚡", roles: STUDENT_ONLY },
     { href: "/learn/practice", label: "Practice Log", icon: "🏋", roles: STUDENT_ONLY },
     { href: "/learn/progress", label: "My Progress", icon: "📈", roles: STUDENT_ONLY },
-    { href: "/programs", label: "Programs", icon: "🎯" },
+    {
+      href: "/student-training",
+      label: "Training Academy",
+      icon: "🏫",
+      roles: STUDENT_ONLY,
+      searchAliases: ["Training", "Student Training"],
+      dashboardDescription: "Complete assigned modules, checkpoints, quizzes, and evidence submissions.",
+      dashboardPriority: 6,
+    },
+    { href: "/programs", label: "Programs Catalog", icon: "🎯" },
   ]),
 
-  ...groupLinks("Growth", 400, [
+  ...groupLinks("Progress", 400, [
     {
       href: "/goals",
       label: "My Goals",
@@ -194,7 +211,7 @@ export const NAV_CATALOG: NavLink[] = [
     { href: "/wall-of-fame", label: "Wall of Fame", icon: "🏛" },
   ]),
 
-  ...groupLinks("Incubator", 600, [
+  ...groupLinks("Projects", 600, [
     { href: "/incubator", label: "Project Incubator", icon: "🚀" },
     { href: "/incubator/apply", label: "Apply", icon: "📩" },
     { href: "/showcase", label: "Student Showcase", icon: "🎨" },
@@ -233,7 +250,7 @@ export const NAV_CATALOG: NavLink[] = [
     },
   ]),
 
-  ...groupLinks("Community", 800, [
+  ...groupLinks("People & Support", 800, [
     {
       href: "/mentorship",
       label: "Mentorship",
@@ -324,11 +341,11 @@ export const NAV_CATALOG: NavLink[] = [
     },
   ]),
 
-  ...groupLinks("Account", 1000, [
+  ...groupLinks("Profile & Settings", 1000, [
     { href: "/certificates", label: "My Certificates", icon: "📜" },
     {
       href: "/alumni",
-      label: "Alumni",
+      label: "Alumni Network",
       icon: "🎓",
       requiresAward: true,
     },
@@ -345,10 +362,10 @@ export const NAV_CATALOG: NavLink[] = [
     { href: "/settings/personalization", label: "Personalization", icon: "🎨" },
   ]),
 
-  ...groupLinks("Admin: People", 1100, [
+  ...groupLinks("Admin People", 1100, [
     {
       href: "/admin",
-      label: "Dashboard",
+      label: "Admin Home",
       icon: "📊",
       roles: ADMIN_ONLY,
       dashboardDescription: "Operate platform-wide admin queues and controls.",
@@ -402,9 +419,9 @@ export const NAV_CATALOG: NavLink[] = [
     },
   ]),
 
-  ...groupLinks("Admin: Content", 1200, [
-    { href: "/admin/announcements", label: "Announcements", icon: "📢", roles: ADMIN_ONLY },
-    { href: "/admin/programs", label: "Programs", icon: "📦", roles: ADMIN_ONLY },
+  ...groupLinks("Admin Content", 1200, [
+    { href: "/admin/announcements", label: "Manage Updates", icon: "📢", roles: ADMIN_ONLY },
+    { href: "/admin/programs", label: "Manage Programs", icon: "📦", roles: ADMIN_ONLY },
     { href: "/admin/training", label: "Training Modules", icon: "🏫", roles: ADMIN_ONLY },
     { href: "/admin/goals", label: "Goals", icon: "🎯", roles: ADMIN_ONLY },
     { href: "/admin/reflections", label: "Reflections", icon: "💭", roles: ADMIN_ONLY },
@@ -412,7 +429,7 @@ export const NAV_CATALOG: NavLink[] = [
     { href: "/admin/incubator", label: "Incubator Mgmt", icon: "🚀", roles: ADMIN_ONLY },
   ]),
 
-  ...groupLinks("Admin: Reports", 1300, [
+  ...groupLinks("Admin Reports", 1300, [
     {
       href: "/admin/analytics",
       label: "Analytics",
@@ -430,7 +447,7 @@ export const NAV_CATALOG: NavLink[] = [
     { href: "/admin/data-export", label: "Export Tools", icon: "💾", roles: ADMIN_ONLY },
   ]),
 
-  ...groupLinks("Admin: Ops", 1400, [
+  ...groupLinks("Admin Operations", 1400, [
     {
       href: "/admin/waitlist",
       label: "Waitlist",
@@ -448,6 +465,6 @@ export const NAV_CATALOG: NavLink[] = [
       roles: ADMIN_ONLY,
     },
     { href: "/admin/mentor-match", label: "Mentor Match", icon: "🤝", roles: ADMIN_ONLY },
-    { href: "/admin/alumni", label: "Alumni", icon: "🎓", roles: ADMIN_ONLY },
+    { href: "/admin/alumni", label: "Manage Alumni", icon: "🎓", roles: ADMIN_ONLY },
   ]),
 ];

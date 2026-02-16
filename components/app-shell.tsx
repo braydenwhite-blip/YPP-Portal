@@ -22,6 +22,7 @@ export default function AppShell({
   badges?: NavBadges;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const sidebarId = "portal-sidebar";
 
   return (
     <div className="app-shell">
@@ -30,6 +31,8 @@ export default function AppShell({
         className="sidebar-toggle"
         onClick={() => setSidebarOpen(!sidebarOpen)}
         aria-label="Toggle navigation"
+        aria-expanded={sidebarOpen}
+        aria-controls={sidebarId}
         type="button"
       >
         {sidebarOpen ? "\u2715" : "\u2630"}
@@ -39,9 +42,19 @@ export default function AppShell({
       <div
         className={`sidebar-backdrop ${sidebarOpen ? "open" : ""}`}
         onClick={() => setSidebarOpen(false)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setSidebarOpen(false);
+          }
+        }}
+        role="button"
+        tabIndex={sidebarOpen ? 0 : -1}
+        aria-label="Close navigation"
+        aria-hidden={!sidebarOpen}
       />
 
-      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
+      <aside id={sidebarId} className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         {/* Header — fixed */}
         <div className="sidebar-header">
           <div className="brand">
