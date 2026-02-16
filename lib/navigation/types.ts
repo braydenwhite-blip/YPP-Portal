@@ -36,6 +36,9 @@ export interface NavLink {
   badgeKey?: NavBadgeKey;
   searchAliases?: string[];
   requiresAward?: boolean;
+  dashboardDescription?: string;
+  dashboardBadgeKey?: string;
+  dashboardPriority?: number;
 }
 
 export interface NavGroupView {

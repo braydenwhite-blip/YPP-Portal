@@ -39,6 +39,15 @@ Dedicated portal for YPP Pathways (curriculum structure, instructor training, me
 - Class offering publish flow now enforces readiness before first publish
 - Existing live offerings are protected with `grandfatheredTrainingExemption`
 
+### Unified Primary-Role Dashboard (All Tools)
+- `/` is a unified command center for the user's primary role only.
+- Includes live role queues, KPIs, next actions, and a searchable "All Tools Explorer".
+- Chapter recruiting dashboard links support deep tabs:
+  - `/chapter/recruiting?tab=positions`
+  - `/chapter/recruiting?tab=candidates`
+  - `/chapter/recruiting?tab=interviews`
+  - `/chapter/recruiting?tab=decisions`
+
 ## Tech Stack
 - **Framework:** Next.js 14 (App Router)
 - **Database:** PostgreSQL with Prisma ORM
@@ -94,6 +103,7 @@ Dedicated portal for YPP Pathways (curriculum structure, instructor training, me
 | `PRISMA_RUNTIME_DATABASE_URL` | Optional override for app runtime queries. If set, this is used instead of `DATABASE_URL`. |
 | `ENABLE_NATIVE_INSTRUCTOR_GATE` | Enable native readiness gate (`true`/`false`, defaults to enabled). |
 | `ENFORCE_PRE_OFFERING_INTERVIEW` | Enforce interview requirement before first publish (`true`/`false`, defaults to enabled). |
+| `ENABLE_UNIFIED_ALL_TOOLS_DASHBOARD` | Enable unified primary-role dashboard at `/` (`true`/`false`, defaults to enabled). |
 
 Both are required for production. If you are not using connection pooling, they can be the same URL.
 
@@ -156,6 +166,7 @@ This script is idempotent and safe to rerun.
    DIRECT_URL=postgresql://postgres:<password>@db.<ref>.supabase.co:5432/postgres?sslmode=require
    NEXTAUTH_SECRET=generate_with_openssl_rand_base64_32
    SEED_PASSWORD=a_strong_password_for_seeded_accounts
+   ENABLE_UNIFIED_ALL_TOOLS_DASHBOARD=true
    ```
    Optional emergency fallback:
    ```
@@ -235,6 +246,7 @@ See [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) for the full feature road
 ## Operator Runbook
 - Native training + interview workflow: [`docs/brayden/instructor-training-interview-native-runbook.md`](./docs/brayden/instructor-training-interview-native-runbook.md)
 - Chapter operating system + hiring workflow: [`docs/brayden/chapter-os-runbook.md`](./docs/brayden/chapter-os-runbook.md)
+- Primary-role command center + 45-day expansion roadmap: [`docs/brayden/dashboard-45-day-expansion-plan.md`](./docs/brayden/dashboard-45-day-expansion-plan.md)
 
 ## Chapter Recruiting (Native)
 - Canonical chapter hiring route: `/chapter/recruiting`
