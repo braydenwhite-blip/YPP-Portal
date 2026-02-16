@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { submitApplication } from "@/lib/application-actions";
+import { JobApplicationForm } from "@/components/job-application-form";
 
 function formatDate(value: Date | null) {
   if (!value) return "-";
@@ -207,46 +208,21 @@ export default async function PositionDetailPage({
             ) : (
               <div>
                 <div className="section-title">Apply Now</div>
-                <form action={submitApplication} className="form-grid">
-                  <input type="hidden" name="positionId" value={position.id} />
-
-                  <div className="form-row">
-                    <label>Cover Letter</label>
-                    <textarea
-                      name="coverLetter"
-                      className="input"
-                      rows={6}
-                      placeholder="Tell us why you're interested in this position and what makes you a strong fit..."
-                    />
+                {position.interviewRequired && (
+                  <div
+                    style={{
+                      padding: 12,
+                      background: "var(--surface-alt)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 4,
+                      marginBottom: 16,
+                      fontSize: 14,
+                    }}
+                  >
+                    🎤 <strong>Interview Required:</strong> After submission, the hiring team will contact you to schedule an interview.
                   </div>
-
-                  <div className="form-row">
-                    <label>Resume URL (optional)</label>
-                    <input
-                      type="url"
-                      name="resumeUrl"
-                      className="input"
-                      placeholder="https://drive.google.com/..."
-                    />
-                    <span style={{ fontSize: 12, color: "var(--muted)" }}>
-                      Link to your resume on Google Drive, Dropbox, or similar.
-                    </span>
-                  </div>
-
-                  <div className="form-row">
-                    <label>Additional Materials (optional)</label>
-                    <textarea
-                      name="additionalMaterials"
-                      className="input"
-                      rows={3}
-                      placeholder="Portfolio links, relevant projects, or references."
-                    />
-                  </div>
-
-                  <button type="submit" className="button">
-                    Submit Application
-                  </button>
-                </form>
+                )}
+                <JobApplicationForm positionId={position.id} submitApplication={submitApplication} />
               </div>
             )}
           </div>

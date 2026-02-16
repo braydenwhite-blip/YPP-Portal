@@ -20,6 +20,7 @@ import {
   isAdmin,
 } from "@/lib/chapter-hiring-permissions";
 import { createSystemNotification } from "@/lib/notification-actions";
+import { sendNotificationEmail } from "@/lib/email";
 
 const REVIEWABLE_APPLICATION_STATUSES: ApplicationStatus[] = [
   "UNDER_REVIEW",
@@ -106,7 +107,18 @@ async function requireAdminOrChapterLead() {
 function getString(formData: FormData, key: string, required = true) {
   const value = formData.get(key);
   if (required && (!value || String(value).trim() === "")) {
-    throw new Error(`Missing ${key}`);
+    const fieldLabels: Record<string, string> = {
+      coverLetter: "Cover letter is required. Please describe your teaching experience and why you're interested in this position.",
+      applicationId: "Application ID is missing. Please try again.",
+      positionId: "Position ID is missing. Please try again.",
+      slotId: "Interview slot ID is missing. Please try again.",
+      chapterName: "Chapter name is required. Please provide a name for your proposed chapter.",
+      chapterVision: "Chapter vision is required. Please explain why this chapter should exist.",
+      launchPlan: "90-day launch plan is required. Please outline your plan for the first 90 days.",
+      recruitmentPlan: "Recruitment and operations plan is required. Please describe how you'll recruit instructors and students.",
+      leadershipBio: "Leadership bio is required. Please explain why you should be chapter president.",
+    };
+    throw new Error(fieldLabels[key] || `${key} is required. Please provide this information.`);
   }
   return value ? String(value).trim() : "";
 }
@@ -309,12 +321,18 @@ async function setApplicationInterviewReadinessInternal(applicationId: string) {
     });
   }
 
-  return {
-    ready,
-    reason: ready
-      ? "Interview and recommendation are complete."
-      : "Interview completion and recommendation are required before decision.",
-  };
+  let reason: string;
+  if (ready) {
+    reason = "Interview and recommendation are complete.";
+  } else if (!hasCompletedInterview && !hasRecommendation) {
+    reason = "Before making a decision, please: 1) Mark the interview as completed, and 2) Add an interview note with a recommendation (Strong Yes, Yes, Maybe, or No).";
+  } else if (!hasCompletedInterview) {
+    reason = "Before making a decision, please mark the interview as completed.";
+  } else {
+    reason = "Before making a decision, please add an interview note with a recommendation (Strong Yes, Yes, Maybe, or No).";
+  }
+
+  return { ready, reason };
 }
 
 async function applyAcceptedCandidateEffects(
@@ -466,7 +484,9 @@ async function finalizeDecision({
   const application = await getApplicationForReview(applicationId);
 
   if (application.decision) {
-    throw new Error("A final decision already exists for this application.");
+    const decisionType = application.decision.accepted ? "accepted" : "rejected";
+    const decisionDate = new Date(application.decision.decidedAt).toLocaleDateString();
+    throw new Error(`A final decision has already been made for this application. The candidate was ${decisionType} on ${decisionDate}. Contact an administrator if you need to modify this decision.`);
   }
 
   if (application.position.interviewRequired && enforceInterviewReadiness) {
@@ -821,11 +841,12 @@ export async function submitApplication(formData: FormData) {
   });
 
   if (!position || !position.isOpen) {
-    throw new Error("This position is no longer accepting applications");
+    throw new Error("This position is currently closed by the hiring team and is not accepting applications. Please check back later or browse other open positions.");
   }
 
   if (position.applicationDeadline && position.applicationDeadline < new Date()) {
-    throw new Error("This position is no longer accepting applications.");
+    const deadlineStr = position.applicationDeadline.toLocaleDateString();
+    throw new Error(`This position is no longer accepting applications. The application deadline was ${deadlineStr}. Please browse other open positions.`);
   }
 
   const existingApplication = await prisma.application.findFirst({
@@ -836,7 +857,7 @@ export async function submitApplication(formData: FormData) {
   });
 
   if (existingApplication) {
-    throw new Error("You have already applied to this position");
+    throw new Error(`You have already applied to this position on ${new Date(existingApplication.submittedAt).toLocaleDateString()}. You can view your application status on the Applications page.`);
   }
 
   const created = await prisma.application.create({
@@ -863,6 +884,25 @@ export async function submitApplication(formData: FormData) {
       `/applications/${created.id}`,
       true
     );
+  }
+
+  // Send email confirmation to applicant
+  const applicant = await prisma.user.findUnique({
+    where: { id: applicantId },
+    select: { name: true, email: true },
+  });
+
+  if (applicant?.email) {
+    await sendNotificationEmail({
+      to: applicant.email,
+      name: applicant.name || "Applicant",
+      title: "Application Received",
+      body: `Thank you for applying to ${position.title}. We've received your application and will review it shortly. You'll receive an email when there's an update on your application status.`,
+      link: `${process.env.NEXT_PUBLIC_APP_URL || "https://portal.youthpassionproject.org"}/applications/${created.id}`,
+      linkText: "View Application Status",
+    }).catch((error) => {
+      console.error("Failed to send application confirmation email:", error);
+    });
   }
 
   revalidateHiringPaths(position.chapterId, created.id);
@@ -1119,6 +1159,35 @@ export async function postApplicationInterviewSlot(formData: FormData) {
     true
   );
 
+  // Send email notification to applicant
+  const applicant = await prisma.user.findUnique({
+    where: { id: application.applicantId },
+    select: { name: true, email: true },
+  });
+
+  if (applicant?.email) {
+    const formattedDate = scheduledAt.toLocaleString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
+    });
+
+    await sendNotificationEmail({
+      to: applicant.email,
+      name: applicant.name || "Applicant",
+      title: "Interview Scheduled",
+      body: `Your interview for ${application.position.title} has been scheduled!\n\nDate & Time: ${formattedDate}\nDuration: ${duration} minutes${meetingLink ? `\n\nMeeting Link: ${meetingLink}` : ""}`,
+      link: `${process.env.NEXT_PUBLIC_APP_URL || "https://portal.youthpassionproject.org"}/applications/${applicationId}`,
+      linkText: "View Interview Details",
+    }).catch((error) => {
+      console.error("Failed to send interview scheduled email:", error);
+    });
+  }
+
   await createHiringAudit(actor.id, "chapter_hiring_interview_slot_posted", {
     applicationId,
     chapterId: application.position.chapterId,
@@ -1206,6 +1275,37 @@ export async function confirmApplicationInterviewSlot(formData: FormData) {
       `/applications/${slot.applicationId}`,
       true
     );
+  }
+
+  // Send email notification to reviewers
+  for (const reviewerId of reviewerIds) {
+    const reviewer = await prisma.user.findUnique({
+      where: { id: reviewerId },
+      select: { name: true, email: true },
+    });
+
+    if (reviewer?.email) {
+      const formattedDate = slot.scheduledAt.toLocaleString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        timeZoneName: "short",
+      });
+
+      await sendNotificationEmail({
+        to: reviewer.email,
+        name: reviewer.name || "Reviewer",
+        title: "Interview Confirmed",
+        body: `${slot.application.applicant.name} has confirmed their interview for ${slot.application.position.title}.\n\nDate & Time: ${formattedDate}\nDuration: ${slot.duration} minutes${slot.meetingLink ? `\n\nMeeting Link: ${slot.meetingLink}` : ""}`,
+        link: `${process.env.NEXT_PUBLIC_APP_URL || "https://portal.youthpassionproject.org"}/applications/${slot.applicationId}`,
+        linkText: "View Application",
+      }).catch((error) => {
+        console.error("Failed to send interview confirmed email:", error);
+      });
+    }
   }
 
   revalidateHiringPaths(slot.application.position.chapterId, slot.applicationId);
@@ -1325,6 +1425,25 @@ export async function markApplicationInterviewCompleted(formData: FormData) {
     true
   );
 
+  // Send email notification to applicant
+  const applicant = await prisma.user.findUnique({
+    where: { id: slot.application.applicantId },
+    select: { name: true, email: true },
+  });
+
+  if (applicant?.email) {
+    await sendNotificationEmail({
+      to: applicant.email,
+      name: applicant.name || "Applicant",
+      title: "Interview Completed",
+      body: `Your interview for ${slot.application.position.title} has been completed. The hiring team will review your interview and make a decision soon. You'll receive an email notification when a decision has been made.`,
+      link: `${process.env.NEXT_PUBLIC_APP_URL || "https://portal.youthpassionproject.org"}/applications/${slot.applicationId}`,
+      linkText: "View Application Status",
+    }).catch((error) => {
+      console.error("Failed to send interview completed email:", error);
+    });
+  }
+
   await createHiringAudit(actor.id, "chapter_hiring_interview_completed", {
     slotId,
     applicationId: slot.applicationId,
@@ -1434,7 +1553,7 @@ export async function chapterMakeDecision(formData: FormData) {
   );
 
   if (application.position.type === "GLOBAL_ADMIN") {
-    throw new Error("Only admins can decide GLOBAL_ADMIN applications.");
+    throw new Error("Only global administrators can make decisions on GLOBAL_ADMIN position applications. As a chapter lead, you can create and manage positions for your chapter (instructors, mentors, staff, and chapter presidents). Please contact a global admin for assistance with this application.");
   }
 
   if (application.position.interviewRequired) {
@@ -1448,7 +1567,7 @@ export async function chapterMakeDecision(formData: FormData) {
     (note) => note.recommendation !== null
   );
   if (!hasRecommendation) {
-    throw new Error("At least one interview note with recommendation is required.");
+    throw new Error("Before making a decision, please add an interview note with a recommendation. Go to the Interview Notes section and select a recommendation: Strong Yes, Yes, Maybe, or No.");
   }
 
   await finalizeDecision({

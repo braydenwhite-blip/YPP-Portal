@@ -221,35 +221,53 @@ export default async function ApplicationWorkspacePage({
 
   const defaultInterviewDate = toDateTimeLocal(new Date(Date.now() + 24 * 60 * 60 * 1000));
 
+  // Build timeline based on interview requirements
   const timeline: TimelineStep[] = [
     {
       label: "Application Submitted",
       complete: true,
       detail: new Date(application.submittedAt).toLocaleString(),
     },
-    {
-      label: "Interview Scheduled",
-      complete: Boolean(firstPostedSlot),
-      detail: firstPostedSlot ? new Date(firstPostedSlot.scheduledAt).toLocaleString() : "Not scheduled",
-    },
-    {
-      label: "Interview Confirmed",
-      complete: Boolean(confirmedSlot) || Boolean(completedSlot),
-      detail: confirmedSlot?.confirmedAt
-        ? new Date(confirmedSlot.confirmedAt).toLocaleString()
-        : completedSlot
-          ? "Completed"
-          : "Awaiting confirmation",
-    },
-    {
-      label: "Interview Completed",
-      complete: hasCompletedInterview,
-      detail: completedSlot?.completedAt
-        ? new Date(completedSlot.completedAt).toLocaleString()
-        : hasCompletedInterview
-          ? "Completed"
-          : "Pending",
-    },
+  ];
+
+  // Only add interview steps if interview is required
+  if (application.position.interviewRequired) {
+    timeline.push(
+      {
+        label: "Interview Scheduled",
+        complete: Boolean(firstPostedSlot),
+        detail: firstPostedSlot ? new Date(firstPostedSlot.scheduledAt).toLocaleString() : "Not scheduled",
+      },
+      {
+        label: "Interview Confirmed",
+        complete: Boolean(confirmedSlot) || Boolean(completedSlot),
+        detail: confirmedSlot?.confirmedAt
+          ? new Date(confirmedSlot.confirmedAt).toLocaleString()
+          : completedSlot
+            ? "Completed"
+            : "Awaiting confirmation",
+      },
+      {
+        label: "Interview Completed",
+        complete: hasCompletedInterview,
+        detail: completedSlot?.completedAt
+          ? new Date(completedSlot.completedAt).toLocaleString()
+          : hasCompletedInterview
+            ? "Completed"
+            : "Pending",
+      }
+    );
+  } else {
+    // For optional interviews, just show under review
+    timeline.push({
+      label: "Under Review",
+      complete: application.status !== "SUBMITTED",
+      detail: application.status !== "SUBMITTED" ? "Reviewers are evaluating your application" : "Awaiting review",
+    });
+  }
+
+  // Add final decision steps
+  timeline.push(
     {
       label: "Decision Ready",
       complete: decisionBlockers.length === 0,
@@ -263,8 +281,8 @@ export default async function ApplicationWorkspacePage({
             application.decision.decidedAt
           ).toLocaleString()}`
         : "Pending",
-    },
-  ];
+    }
+  );
 
   const backHref = canReview
     ? isAdmin
@@ -333,6 +351,15 @@ export default async function ApplicationWorkspacePage({
               </div>
               <div>
                 <strong>Chapter:</strong> {application.position.chapter?.name || "Global"}
+              </div>
+              <div>
+                <strong>Interview Policy:</strong>{" "}
+                <span
+                  className={`pill ${application.position.interviewRequired ? "pill-pathway" : "pill-success"}`}
+                  style={{ fontSize: 12, padding: "2px 8px" }}
+                >
+                  {application.position.interviewRequired ? "🎤 Interview Required" : "⚡ No Interview Needed"}
+                </span>
               </div>
               <div>
                 <strong>Interview Policy:</strong>{" "}
@@ -683,9 +710,48 @@ export default async function ApplicationWorkspacePage({
                 </form>
               </div>
 
+              {decisionBlockers.length > 0 && !application.decision && application.status !== "WITHDRAWN" && (canShowAdminDecision || canShowChapterDecision) ? (
+                <div className="card" style={{ marginTop: 16 }}>
+                  <div className="section-title">Decision Blockers</div>
+                  <div
+                    style={{
+                      padding: 12,
+                      background: "var(--surface-alt)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 4,
+                    }}
+                  >
+                    <p style={{ margin: 0, marginBottom: 8, fontSize: 14, fontWeight: 600 }}>
+                      Before making a decision, please complete:
+                    </p>
+                    <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14 }}>
+                      {decisionBlockers.map((blocker, index) => (
+                        <li key={index} style={{ marginBottom: 4 }}>
+                          {blocker}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              ) : null}
+
               {canShowAdminDecision && !application.decision && application.status !== "WITHDRAWN" ? (
                 <div className="card" style={{ marginTop: 16 }}>
                   <div className="section-title">Final Decision (Admin)</div>
+                  {!application.position.interviewRequired && (
+                    <div
+                      style={{
+                        padding: 12,
+                        background: "#f0fdf4",
+                        border: "1px solid #86efac",
+                        borderRadius: 4,
+                        marginBottom: 16,
+                        fontSize: 14,
+                      }}
+                    >
+                      ⚡ <strong>No interview required</strong> - You can make a decision based on the application materials alone.
+                    </div>
+                  )}
                   <form action={makeDecision} className="form-grid">
                     <input type="hidden" name="applicationId" value={application.id} />
                     <div className="form-row">
@@ -714,6 +780,20 @@ export default async function ApplicationWorkspacePage({
               {canShowChapterDecision && !application.decision && application.status !== "WITHDRAWN" ? (
                 <div className="card" style={{ marginTop: 16 }}>
                   <div className="section-title">Final Decision (Chapter)</div>
+                  {!application.position.interviewRequired && (
+                    <div
+                      style={{
+                        padding: 12,
+                        background: "#f0fdf4",
+                        border: "1px solid #86efac",
+                        borderRadius: 4,
+                        marginBottom: 16,
+                        fontSize: 14,
+                      }}
+                    >
+                      ⚡ <strong>No interview required</strong> - You can make a decision based on the application materials alone.
+                    </div>
+                  )}
                   <form action={chapterMakeDecision} className="form-grid">
                     <input type="hidden" name="applicationId" value={application.id} />
                     <div className="form-row">
