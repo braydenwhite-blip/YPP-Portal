@@ -45,6 +45,16 @@ export default async function ChapterApplicantsPage() {
         </div>
       </div>
 
+      <div className="card" style={{ marginBottom: 16 }}>
+        <p style={{ margin: 0, fontSize: 14 }}>
+          Chapter hiring now has a full command center.{" "}
+          <Link href="/chapter/recruiting" className="link">
+            Open Chapter Recruiting
+          </Link>
+          .
+        </p>
+      </div>
+
       {/* Stats */}
       <div className="stats-row">
         <div className="stat-card">

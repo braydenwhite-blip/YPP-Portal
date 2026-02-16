@@ -312,6 +312,13 @@ export default async function OverviewPage() {
       { href: "/admin/instructors", label: "Instructors", description: "View all instructors", accent: "var(--ypp-pink-500)" },
       { href: "/admin/analytics", label: "Analytics", description: "Platform insights", accent: "#3b82f6" },
     );
+  } else if (isChapterLead) {
+    quickActions.push(
+      { href: "/chapter/recruiting", label: "Chapter Recruiting", description: "Openings, interviews, decisions", accent: "var(--ypp-purple-600)" },
+      { href: "/chapter/recruiting?tab=interviews", label: "Interview Queue", description: "Run interview operations", accent: "#3b82f6" },
+      { href: "/chapter/recruiting/positions/new", label: "Openings", description: "Create a new chapter role", accent: "#22c55e" },
+      { href: "/chapter-lead/instructor-readiness", label: "Instructor Readiness", description: "Clear training blockers", accent: "#f59e0b" },
+    );
   } else if (isInstructor) {
     quickActions.push(
       { href: "/instructor/class-settings", label: "My Classes", description: "Manage your classes", accent: "var(--ypp-purple-600)" },
@@ -361,6 +368,11 @@ export default async function OverviewPage() {
         "Keep chapter hiring and instructor readiness visible in one operating view.",
         "Ship onboarding workflows with owners, due dates, and blocker tracking.",
       ]
+    : isChapterLead
+      ? [
+          "Run chapter recruiting from one command center across openings, interviews, and decisions.",
+          "Keep instructor readiness and local hiring pipelines unblocked each week.",
+        ]
     : isInstructor
       ? [
           "Keep class progress, attendance, and learner momentum visible each week.",
@@ -853,6 +865,17 @@ export default async function OverviewPage() {
                 <span className="stat-value">{chapter._count.events}</span>
                 <span className="stat-label">Events</span>
               </div>
+            </div>
+            <div style={{ marginTop: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <Link href="/chapter/recruiting" className="button small" style={{ textDecoration: "none" }}>
+                Chapter Recruiting
+              </Link>
+              <Link href="/chapter/recruiting?tab=interviews" className="button small outline" style={{ textDecoration: "none" }}>
+                Interview Queue
+              </Link>
+              <Link href="/chapter/recruiting/positions/new" className="button small outline" style={{ textDecoration: "none" }}>
+                Openings
+              </Link>
             </div>
           </div>
         </div>

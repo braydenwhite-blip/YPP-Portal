@@ -159,6 +159,19 @@ enum ApplicationStatus {
   WITHDRAWN
 }
 
+enum HiringRecommendation {
+  STRONG_YES
+  YES
+  MAYBE
+  NO
+}
+
+enum PositionVisibility {
+  CHAPTER_ONLY
+  NETWORK_WIDE
+  PUBLIC
+}
+
 enum ProgressStatus {
   BEHIND_SCHEDULE
   GETTING_STARTED
@@ -244,6 +257,9 @@ model User {
   interviewGate                 InstructorInterviewGate?       @relation("InstructorInterviewGateOwner")
   interviewGateReviews          InstructorInterviewGate[]      @relation("InstructorInterviewGateReviews")
   interviewSlotsCreated         InstructorInterviewSlot[]      @relation("InstructorInterviewSlotsCreated")
+  openedPositions               Position[]                      @relation("PositionsOpenedBy")
+  hiringLeadPositions           Position[]                      @relation("PositionsHiringLead")
+  applicationInterviewSlots     InterviewSlot[]                 @relation("ApplicationInterviewer")
   interviewAvailabilityRequests InstructorInterviewAvailabilityRequest[] @relation("InstructorInterviewAvailabilityRequests")
   interviewAvailabilityReviews  InstructorInterviewAvailabilityRequest[] @relation("InstructorInterviewAvailabilityReviews")
   approvals     InstructorApproval[]
@@ -953,11 +969,24 @@ model Position {
   requirements String?
   chapterId    String?
   chapter      Chapter?     @relation(fields: [chapterId], references: [id])
+  openedById   String?
+  openedBy     User?        @relation("PositionsOpenedBy", fields: [openedById], references: [id])
+  hiringLeadId String?
+  hiringLead   User?        @relation("PositionsHiringLead", fields: [hiringLeadId], references: [id])
+  visibility   PositionVisibility @default(CHAPTER_ONLY)
+  interviewRequired Boolean @default(true)
+  targetStartDate DateTime?
+  applicationDeadline DateTime?
   isOpen       Boolean      @default(true)
   applications Application[]
   createdAt    DateTime     @default(now())
   closedAt     DateTime?
   updatedAt    DateTime     @updatedAt
+
+  @@index([chapterId, isOpen, createdAt])
+  @@index([chapterId, type, isOpen])
+  @@index([openedById])
+  @@index([hiringLeadId])
 }
 
 model Application {
@@ -975,17 +1004,27 @@ model Application {
   decision            Decision?
   submittedAt         DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
+
+  @@index([positionId, status, submittedAt])
 }
 
 model InterviewSlot {
   id            String      @id @default(cuid())
   applicationId String
   application   Application @relation(fields: [applicationId], references: [id])
+  status        InterviewSlotStatus @default(POSTED)
   scheduledAt   DateTime
   duration      Int         @default(30)
   meetingLink   String?
   isConfirmed   Boolean     @default(false)
+  interviewerId String?
+  interviewer   User?       @relation("ApplicationInterviewer", fields: [interviewerId], references: [id])
+  confirmedAt   DateTime?
+  completedAt   DateTime?
   createdAt     DateTime    @default(now())
+
+  @@index([applicationId, status, scheduledAt])
+  @@index([interviewerId])
 }
 
 model InterviewNote {
@@ -996,7 +1035,13 @@ model InterviewNote {
   author        User        @relation("InterviewNotesAuthored", fields: [authorId], references: [id])
   content       String
   rating        Int?
+  recommendation HiringRecommendation?
+  strengths     String?
+  concerns      String?
+  nextStepSuggestion String?
   createdAt     DateTime    @default(now())
+
+  @@index([applicationId, createdAt])
 }
 
 model Decision {

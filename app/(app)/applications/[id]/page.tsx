@@ -4,10 +4,14 @@ import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
-  addInterviewNote,
+  cancelApplicationInterviewSlot,
+  chapterMakeDecision,
   confirmInterviewSlot,
   makeDecision,
-  scheduleInterview,
+  markApplicationInterviewCompleted,
+  postApplicationInterviewSlot,
+  saveStructuredInterviewNote,
+  setApplicationInterviewReadiness,
   updateApplicationStatus,
 } from "@/lib/application-actions";
 import { ApplicationStatus } from "@prisma/client";
@@ -30,6 +34,31 @@ function statusPillClass(status: string) {
       return "";
   }
 }
+
+function interviewSlotPill(status: string) {
+  switch (status) {
+    case "CONFIRMED":
+      return "pill-success";
+    case "COMPLETED":
+      return "pill-success";
+    case "CANCELLED":
+      return "pill-declined";
+    default:
+      return "";
+  }
+}
+
+function toDateTimeLocal(value: Date) {
+  const local = new Date(value);
+  local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
+  return local.toISOString().slice(0, 16);
+}
+
+type TimelineStep = {
+  label: string;
+  complete: boolean;
+  detail: string;
+};
 
 export default async function ApplicationWorkspacePage({
   params,
@@ -76,6 +105,14 @@ export default async function ApplicationWorkspacePage({
         },
       },
       interviewSlots: {
+        include: {
+          interviewer: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
         orderBy: { scheduledAt: "asc" },
       },
       interviewNotes: {
@@ -96,8 +133,9 @@ export default async function ApplicationWorkspacePage({
     notFound();
   }
 
-  const isAdmin = currentUser.roles.some((r) => r.role === "ADMIN");
-  const isChapterLead = currentUser.roles.some((r) => r.role === "CHAPTER_LEAD");
+  const roles = currentUser.roles.map((role) => role.role);
+  const isAdmin = roles.includes("ADMIN");
+  const isChapterLead = roles.includes("CHAPTER_LEAD");
   const isApplicant = application.applicantId === currentUser.id;
   const isChapterReviewer =
     isChapterLead &&
@@ -116,14 +154,85 @@ export default async function ApplicationWorkspacePage({
     "INTERVIEW_COMPLETED",
   ];
 
-  const defaultInterviewDate = new Date(Date.now() + 24 * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 16);
+  const firstPostedSlot = application.interviewSlots.find(
+    (slot) => slot.status === "POSTED" || slot.status === "CONFIRMED" || slot.status === "COMPLETED"
+  );
+  const confirmedSlot = application.interviewSlots.find((slot) => slot.status === "CONFIRMED");
+  const completedSlot = application.interviewSlots.find((slot) => slot.status === "COMPLETED");
+  const hasCompletedInterview =
+    application.interviewSlots.some((slot) => slot.status === "COMPLETED") || Boolean(completedSlot);
+  const hasRecommendation = application.interviewNotes.some((note) => note.recommendation !== null);
+
+  const decisionBlockers: string[] = [];
+  if (application.position.interviewRequired && !hasCompletedInterview) {
+    decisionBlockers.push("Interview must be marked completed.");
+  }
+  if (application.position.interviewRequired && !hasRecommendation) {
+    decisionBlockers.push("At least one interview note must include a recommendation.");
+  }
+
+  const canChapterDecideRole = ["INSTRUCTOR", "MENTOR", "STAFF", "CHAPTER_PRESIDENT"].includes(
+    application.position.type
+  );
+  const canShowChapterDecision = isChapterReviewer && canChapterDecideRole;
+  const canShowAdminDecision = isAdmin;
+
+  const canSubmitDecision =
+    !application.decision &&
+    application.status !== "WITHDRAWN" &&
+    decisionBlockers.length === 0;
+
+  const defaultInterviewDate = toDateTimeLocal(new Date(Date.now() + 24 * 60 * 60 * 1000));
+
+  const timeline: TimelineStep[] = [
+    {
+      label: "Application Submitted",
+      complete: true,
+      detail: new Date(application.submittedAt).toLocaleString(),
+    },
+    {
+      label: "Interview Scheduled",
+      complete: Boolean(firstPostedSlot),
+      detail: firstPostedSlot ? new Date(firstPostedSlot.scheduledAt).toLocaleString() : "Not scheduled",
+    },
+    {
+      label: "Interview Confirmed",
+      complete: Boolean(confirmedSlot) || Boolean(completedSlot),
+      detail: confirmedSlot?.confirmedAt
+        ? new Date(confirmedSlot.confirmedAt).toLocaleString()
+        : completedSlot
+          ? "Completed"
+          : "Awaiting confirmation",
+    },
+    {
+      label: "Interview Completed",
+      complete: hasCompletedInterview,
+      detail: completedSlot?.completedAt
+        ? new Date(completedSlot.completedAt).toLocaleString()
+        : hasCompletedInterview
+          ? "Completed"
+          : "Pending",
+    },
+    {
+      label: "Decision Ready",
+      complete: decisionBlockers.length === 0,
+      detail: decisionBlockers.length === 0 ? "Ready for final decision" : decisionBlockers[0],
+    },
+    {
+      label: "Final Decision",
+      complete: Boolean(application.decision),
+      detail: application.decision
+        ? `${application.decision.accepted ? "Accepted" : "Rejected"} on ${new Date(
+            application.decision.decidedAt
+          ).toLocaleString()}`
+        : "Pending",
+    },
+  ];
 
   const backHref = canReview
     ? isAdmin
       ? "/admin/applications"
-      : "/chapter/applicants"
+      : "/chapter/recruiting"
     : "/applications";
 
   return (
@@ -145,6 +254,28 @@ export default async function ApplicationWorkspacePage({
 
       <div className="grid two">
         <div>
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="section-title">Interview Status Timeline</div>
+            <div style={{ display: "grid", gap: 10 }}>
+              {timeline.map((step) => (
+                <div
+                  key={step.label}
+                  style={{
+                    border: "1px solid var(--border)",
+                    borderRadius: 10,
+                    padding: 10,
+                    background: step.complete ? "#f0fdf4" : "var(--surface-alt)",
+                  }}
+                >
+                  <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>
+                    {step.complete ? "✓" : "○"} {step.label}
+                  </p>
+                  <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--muted)" }}>{step.detail}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="card">
             <div className="section-title">Candidate Profile</div>
             <div style={{ display: "grid", gap: 6, fontSize: 14 }}>
@@ -158,15 +289,17 @@ export default async function ApplicationWorkspacePage({
                 <strong>Phone:</strong> {application.applicant.phone || "Not provided"}
               </div>
               <div>
-                <strong>Applied:</strong>{" "}
-                {new Date(application.submittedAt).toLocaleString()}
+                <strong>Applied:</strong> {new Date(application.submittedAt).toLocaleString()}
               </div>
               <div>
-                <strong>Position:</strong> {application.position.title} (
-                {formatStatus(application.position.type)})
+                <strong>Position:</strong> {application.position.title} ({formatStatus(application.position.type)})
               </div>
               <div>
                 <strong>Chapter:</strong> {application.position.chapter?.name || "Global"}
+              </div>
+              <div>
+                <strong>Interview Policy:</strong>{" "}
+                {application.position.interviewRequired ? "Interview required" : "Interview optional"}
               </div>
             </div>
           </div>
@@ -175,12 +308,7 @@ export default async function ApplicationWorkspacePage({
             <div className="section-title">Application Materials</div>
             {application.resumeUrl ? (
               <p style={{ marginTop: 0 }}>
-                <a
-                  href={application.resumeUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="link"
-                >
+                <a href={application.resumeUrl} target="_blank" rel="noreferrer" className="link">
                   Open Resume
                 </a>
               </p>
@@ -204,7 +332,7 @@ export default async function ApplicationWorkspacePage({
           </div>
 
           <div className="card" style={{ marginTop: 16 }}>
-            <div className="section-title">Interview Schedule</div>
+            <div className="section-title">Interview Slots</div>
             {application.interviewSlots.length === 0 ? (
               <p style={{ color: "var(--muted)" }}>No interview slots scheduled yet.</p>
             ) : (
@@ -219,43 +347,64 @@ export default async function ApplicationWorkspacePage({
                       background: "var(--surface-alt)",
                     }}
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                      <strong>{new Date(slot.scheduledAt).toLocaleString()}</strong>
-                      <span className={`pill ${slot.isConfirmed ? "pill-success" : ""}`}>
-                        {slot.isConfirmed ? "Confirmed" : "Awaiting Confirmation"}
-                      </span>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
+                      <div>
+                        <strong>{new Date(slot.scheduledAt).toLocaleString()}</strong>
+                        <div style={{ color: "var(--muted)", fontSize: 12, marginTop: 4 }}>
+                          Duration: {slot.duration} minutes
+                          {slot.interviewer?.name ? ` · Interviewer: ${slot.interviewer.name}` : ""}
+                        </div>
+                        <div style={{ color: "var(--muted)", fontSize: 12, marginTop: 4 }}>
+                          Confirmed: {slot.confirmedAt ? new Date(slot.confirmedAt).toLocaleString() : "-"} · Completed:{" "}
+                          {slot.completedAt ? new Date(slot.completedAt).toLocaleString() : "-"}
+                        </div>
+                      </div>
+                      <span className={`pill ${interviewSlotPill(slot.status)}`}>{formatStatus(slot.status)}</span>
                     </div>
-                    <div style={{ color: "var(--muted)", fontSize: 13, marginTop: 6 }}>
-                      Duration: {slot.duration} minutes
-                    </div>
-                    {slot.meetingLink && (
+
+                    {slot.meetingLink ? (
                       <div style={{ marginTop: 8 }}>
-                        <a
-                          href={slot.meetingLink}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="link"
-                        >
+                        <a href={slot.meetingLink} target="_blank" rel="noreferrer" className="link">
                           Join Meeting
                         </a>
                       </div>
-                    )}
+                    ) : null}
 
-                    {isApplicant && !slot.isConfirmed && !isClosedApplication && (
-                      <form action={confirmInterviewSlot} style={{ marginTop: 10 }}>
-                        <input type="hidden" name="slotId" value={slot.id} />
-                        <button type="submit" className="button small">
-                          Confirm This Slot
-                        </button>
-                      </form>
-                    )}
+                    <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {isApplicant && slot.status === "POSTED" && !isClosedApplication ? (
+                        <form action={confirmInterviewSlot}>
+                          <input type="hidden" name="slotId" value={slot.id} />
+                          <button type="submit" className="button small">
+                            Confirm This Slot
+                          </button>
+                        </form>
+                      ) : null}
+
+                      {canReview && slot.status === "CONFIRMED" && !isClosedApplication ? (
+                        <form action={markApplicationInterviewCompleted}>
+                          <input type="hidden" name="slotId" value={slot.id} />
+                          <button type="submit" className="button small">
+                            Mark Completed
+                          </button>
+                        </form>
+                      ) : null}
+
+                      {canReview && slot.status !== "COMPLETED" && slot.status !== "CANCELLED" && !isClosedApplication ? (
+                        <form action={cancelApplicationInterviewSlot}>
+                          <input type="hidden" name="slotId" value={slot.id} />
+                          <button type="submit" className="button small ghost">
+                            Cancel Slot
+                          </button>
+                        </form>
+                      ) : null}
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          {application.decision && (
+          {application.decision ? (
             <div className="card" style={{ marginTop: 16 }}>
               <div className="section-title">Final Decision</div>
               <p style={{ marginTop: 0 }}>
@@ -263,21 +412,51 @@ export default async function ApplicationWorkspacePage({
                   {application.decision.accepted ? "Accepted" : "Rejected"}
                 </span>
               </p>
-              {application.decision.notes && (
+              {application.decision.notes ? (
                 <p style={{ whiteSpace: "pre-wrap" }}>{application.decision.notes}</p>
-              )}
+              ) : null}
               <p style={{ color: "var(--muted)", fontSize: 13, marginBottom: 0 }}>
-                Decided by {application.decision.decidedBy.name} on{" "}
-                {new Date(application.decision.decidedAt).toLocaleString()}
+                Decided by {application.decision.decidedBy.name} on {new Date(application.decision.decidedAt).toLocaleString()}
               </p>
             </div>
-          )}
+          ) : null}
         </div>
 
         <div>
           {canReview ? (
             <>
               <div className="card">
+                <div className="section-title">Decision Eligibility</div>
+                {application.position.type === "GLOBAL_ADMIN" && !isAdmin ? (
+                  <p style={{ marginTop: 0, color: "#b45309" }}>
+                    This role type is admin-only for final decisions.
+                  </p>
+                ) : null}
+                {decisionBlockers.length === 0 ? (
+                  <p style={{ marginTop: 0, color: "#166534" }}>
+                    This candidate is ready for a final decision.
+                  </p>
+                ) : (
+                  <div style={{ marginTop: 0 }}>
+                    <p style={{ marginTop: 0, marginBottom: 8, color: "#b45309" }}>Decision is blocked:</p>
+                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                      {decisionBlockers.map((blocker) => (
+                        <li key={blocker} style={{ fontSize: 14, marginBottom: 4 }}>
+                          {blocker}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <form action={setApplicationInterviewReadiness} style={{ marginTop: 12 }}>
+                  <input type="hidden" name="applicationId" value={application.id} />
+                  <button type="submit" className="button small outline" disabled={isClosedApplication}>
+                    Sync Interview Readiness
+                  </button>
+                </form>
+              </div>
+
+              <div className="card" style={{ marginTop: 16 }}>
                 <div className="section-title">Reviewer Actions</div>
 
                 <form action={updateApplicationStatus} className="form-grid" style={{ marginBottom: 18 }}>
@@ -287,11 +466,7 @@ export default async function ApplicationWorkspacePage({
                     <select
                       name="status"
                       className="input"
-                      defaultValue={
-                        reviewStatuses.includes(application.status)
-                          ? application.status
-                          : "UNDER_REVIEW"
-                      }
+                      defaultValue={reviewStatuses.includes(application.status) ? application.status : "UNDER_REVIEW"}
                       disabled={isClosedApplication}
                     >
                       {reviewStatuses.map((status) => (
@@ -306,10 +481,10 @@ export default async function ApplicationWorkspacePage({
                   </button>
                 </form>
 
-                <form action={scheduleInterview} className="form-grid" style={{ marginBottom: 18 }}>
+                <form action={postApplicationInterviewSlot} className="form-grid" style={{ marginBottom: 18 }}>
                   <input type="hidden" name="applicationId" value={application.id} />
                   <div className="form-row">
-                    <label>Schedule Interview</label>
+                    <label>Post Interview Slot</label>
                     <input
                       type="datetime-local"
                       name="scheduledAt"
@@ -342,41 +517,89 @@ export default async function ApplicationWorkspacePage({
                     />
                   </div>
                   <button type="submit" className="button small" disabled={isClosedApplication}>
-                    Add Interview Slot
+                    Post Interview Slot
                   </button>
                 </form>
 
-                <form action={addInterviewNote} className="form-grid">
+                <form action={saveStructuredInterviewNote} className="form-grid">
                   <input type="hidden" name="applicationId" value={application.id} />
+
                   <div className="form-row">
-                    <label>Interview Note</label>
+                    <label>Interview Note Summary</label>
                     <textarea
                       name="content"
                       className="input"
-                      rows={5}
-                      placeholder="Capture strengths, concerns, and next steps..."
+                      rows={4}
+                      placeholder="Candidate summary, communication signals, and overall interview takeaways..."
                       required
                       disabled={isClosedApplication}
                     />
                   </div>
-                  <div className="form-row">
-                    <label>Rating (optional)</label>
-                    <select name="rating" className="input" defaultValue="" disabled={isClosedApplication}>
-                      <option value="">No rating</option>
-                      {[1, 2, 3, 4, 5].map((r) => (
-                        <option key={r} value={r}>
-                          {r}/5
-                        </option>
-                      ))}
-                    </select>
+
+                  <div className="grid two">
+                    <label className="form-row">
+                      Recommendation
+                      <select name="recommendation" className="input" defaultValue="" disabled={isClosedApplication}>
+                        <option value="">No recommendation yet</option>
+                        <option value="STRONG_YES">Strong Yes</option>
+                        <option value="YES">Yes</option>
+                        <option value="MAYBE">Maybe</option>
+                        <option value="NO">No</option>
+                      </select>
+                    </label>
+                    <label className="form-row">
+                      Rating (optional)
+                      <select name="rating" className="input" defaultValue="" disabled={isClosedApplication}>
+                        <option value="">No rating</option>
+                        {[1, 2, 3, 4, 5].map((r) => (
+                          <option key={r} value={r}>
+                            {r}/5
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                   </div>
+
+                  <label className="form-row">
+                    Strengths
+                    <textarea
+                      name="strengths"
+                      className="input"
+                      rows={3}
+                      placeholder="Observable strengths from interview responses..."
+                      disabled={isClosedApplication}
+                    />
+                  </label>
+
+                  <label className="form-row">
+                    Concerns
+                    <textarea
+                      name="concerns"
+                      className="input"
+                      rows={3}
+                      placeholder="Risks, skill gaps, or follow-up concerns..."
+                      disabled={isClosedApplication}
+                    />
+                  </label>
+
+                  <label className="form-row">
+                    Next Step Suggestion
+                    <textarea
+                      name="nextStepSuggestion"
+                      className="input"
+                      rows={2}
+                      placeholder="Recommend next action for candidate and hiring team..."
+                      disabled={isClosedApplication}
+                    />
+                  </label>
+
                   <button type="submit" className="button small" disabled={isClosedApplication}>
-                    Save Interview Note
+                    Save Structured Interview Note
                   </button>
                 </form>
               </div>
 
-              {isAdmin && !application.decision && application.status !== "WITHDRAWN" && (
+              {canShowAdminDecision && !application.decision && application.status !== "WITHDRAWN" ? (
                 <div className="card" style={{ marginTop: 16 }}>
                   <div className="section-title">Final Decision (Admin)</div>
                   <form action={makeDecision} className="form-grid">
@@ -402,7 +625,35 @@ export default async function ApplicationWorkspacePage({
                     </button>
                   </form>
                 </div>
-              )}
+              ) : null}
+
+              {canShowChapterDecision && !application.decision && application.status !== "WITHDRAWN" ? (
+                <div className="card" style={{ marginTop: 16 }}>
+                  <div className="section-title">Final Decision (Chapter)</div>
+                  <form action={chapterMakeDecision} className="form-grid">
+                    <input type="hidden" name="applicationId" value={application.id} />
+                    <div className="form-row">
+                      <label>Decision</label>
+                      <select name="accepted" className="input" defaultValue="true">
+                        <option value="true">Accept Candidate</option>
+                        <option value="false">Reject Candidate</option>
+                      </select>
+                    </div>
+                    <div className="form-row">
+                      <label>Decision Notes</label>
+                      <textarea
+                        name="notes"
+                        className="input"
+                        rows={3}
+                        placeholder="Context for acceptance/rejection..."
+                      />
+                    </div>
+                    <button type="submit" className="button" disabled={!canSubmitDecision}>
+                      Submit Chapter Decision
+                    </button>
+                  </form>
+                </div>
+              ) : null}
 
               <div className="card" style={{ marginTop: 16 }}>
                 <div className="section-title">Interview Notes</div>
@@ -425,14 +676,28 @@ export default async function ApplicationWorkspacePage({
                             {new Date(note.createdAt).toLocaleString()}
                           </span>
                         </div>
-                        {note.rating !== null && (
-                          <div style={{ marginTop: 6 }}>
-                            <span className="pill">{note.rating}/5</span>
-                          </div>
-                        )}
-                        <p style={{ margin: "8px 0 0", whiteSpace: "pre-wrap" }}>
-                          {note.content}
-                        </p>
+                        <div style={{ marginTop: 6, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          {note.rating !== null ? <span className="pill">{note.rating}/5</span> : null}
+                          {note.recommendation ? (
+                            <span className="pill pill-pathway">Recommendation: {formatStatus(note.recommendation)}</span>
+                          ) : null}
+                        </div>
+                        <p style={{ margin: "8px 0 0", whiteSpace: "pre-wrap" }}>{note.content}</p>
+                        {note.strengths ? (
+                          <p style={{ margin: "8px 0 0", fontSize: 13 }}>
+                            <strong>Strengths:</strong> {note.strengths}
+                          </p>
+                        ) : null}
+                        {note.concerns ? (
+                          <p style={{ margin: "6px 0 0", fontSize: 13 }}>
+                            <strong>Concerns:</strong> {note.concerns}
+                          </p>
+                        ) : null}
+                        {note.nextStepSuggestion ? (
+                          <p style={{ margin: "6px 0 0", fontSize: 13 }}>
+                            <strong>Next Step:</strong> {note.nextStepSuggestion}
+                          </p>
+                        ) : null}
                       </div>
                     ))}
                   </div>
@@ -443,8 +708,7 @@ export default async function ApplicationWorkspacePage({
             <div className="card">
               <div className="section-title">Application Updates</div>
               <p style={{ color: "var(--muted)", marginBottom: 0 }}>
-                Interview reviewer notes are internal. You will continue receiving interview
-                scheduling updates and final decisions here.
+                Reviewer notes are internal. You will receive interview scheduling updates and final decisions here.
               </p>
             </div>
           )}

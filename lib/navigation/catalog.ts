@@ -173,6 +173,12 @@ export const NAV_CATALOG: NavLink[] = [
     { href: "/chapters", label: "Chapters", icon: "🏢" },
     { href: "/chapter", label: "My Chapter", icon: "🏠", roles: CHAPTER_LEAD_ONLY },
     {
+      href: "/chapter/recruiting",
+      label: "Chapter Recruiting",
+      icon: "🧑‍💼",
+      roles: CHAPTER_LEAD_ONLY,
+    },
+    {
       href: "/chapter-lead/dashboard",
       label: "Chapter Dashboard",
       icon: "📊",

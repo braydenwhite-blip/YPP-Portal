@@ -50,8 +50,8 @@ export default async function ChapterDashboardPage() {
         <div className="stat-card">
           <span className="stat-value">{data.stats.openPositions}</span>
           <span className="stat-label">Open Positions</span>
-          <Link href="/chapter/applicants" className="stat-link">
-            View Applicants →
+          <Link href="/chapter/recruiting" className="stat-link">
+            Open Recruiting →
           </Link>
         </div>
       </div>
@@ -61,6 +61,15 @@ export default async function ChapterDashboardPage() {
         <section className="card quick-actions">
           <h2>Quick Actions</h2>
           <div className="actions-list">
+            <Link href="/chapter/recruiting" className="action-btn">
+              🧑‍💼 Chapter Recruiting
+            </Link>
+            <Link href="/chapter/recruiting?tab=interviews" className="action-btn">
+              📅 Interview Queue
+            </Link>
+            <Link href="/chapter/recruiting/positions/new" className="action-btn">
+              ➕ New Opening
+            </Link>
             <Link href="/chapter/updates" className="action-btn">
               📢 Send Update
             </Link>

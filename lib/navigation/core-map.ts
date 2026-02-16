@@ -56,6 +56,7 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
   CHAPTER_LEAD: [
     "/chapter-lead/dashboard",
     "/chapter",
+    "/chapter/recruiting",
     "/chapters",
     "/attendance",
     "/events",

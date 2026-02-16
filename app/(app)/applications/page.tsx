@@ -67,10 +67,17 @@ export default async function MyApplicationsPage() {
       ) : (
         <div className="grid two">
           {applications.map((application) => {
-            const upcomingInterview = application.interviewSlots.find(
-              s => new Date(s.scheduledAt) > new Date() && !s.isConfirmed
+            const postedInterview = application.interviewSlots.find(
+              (slot) =>
+                slot.status === "POSTED" &&
+                new Date(slot.scheduledAt) > new Date()
             );
-            const confirmedInterview = application.interviewSlots.find(s => s.isConfirmed);
+            const confirmedInterview = application.interviewSlots.find(
+              (slot) => slot.status === "CONFIRMED"
+            );
+            const completedInterview = application.interviewSlots.find(
+              (slot) => slot.status === "COMPLETED"
+            );
 
             return (
               <div key={application.id} className="card">
@@ -95,7 +102,7 @@ export default async function MyApplicationsPage() {
                   Applied: {new Date(application.submittedAt).toLocaleDateString()}
                 </div>
 
-                {upcomingInterview && (
+                {postedInterview && (
                   <div
                     style={{
                       marginTop: 16,
@@ -106,11 +113,11 @@ export default async function MyApplicationsPage() {
                   >
                     <strong style={{ fontSize: 13 }}>Interview Scheduled</strong>
                     <p style={{ margin: "4px 0 0", fontSize: 13 }}>
-                      {new Date(upcomingInterview.scheduledAt).toLocaleString()}
+                      {new Date(postedInterview.scheduledAt).toLocaleString()}
                     </p>
-                    {upcomingInterview.meetingLink && (
+                    {postedInterview.meetingLink && (
                       <a
-                        href={upcomingInterview.meetingLink}
+                        href={postedInterview.meetingLink}
                         target="_blank"
                         className="link"
                         style={{ fontSize: 13 }}
@@ -133,6 +140,22 @@ export default async function MyApplicationsPage() {
                     <strong style={{ fontSize: 13 }}>Interview Confirmed</strong>
                     <p style={{ margin: "4px 0 0", fontSize: 13 }}>
                       {new Date(confirmedInterview.scheduledAt).toLocaleString()}
+                    </p>
+                  </div>
+                )}
+
+                {completedInterview && (
+                  <div
+                    style={{
+                      marginTop: 16,
+                      padding: 12,
+                      background: "#dcfce7",
+                      borderRadius: "var(--radius-sm)"
+                    }}
+                  >
+                    <strong style={{ fontSize: 13 }}>Interview Completed</strong>
+                    <p style={{ margin: "4px 0 0", fontSize: 13 }}>
+                      Completed on {new Date(completedInterview.completedAt ?? completedInterview.scheduledAt).toLocaleString()}
                     </p>
                   </div>
                 )}

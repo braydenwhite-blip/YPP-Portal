@@ -145,3 +145,24 @@ Command sequence:
    - module has `videoProvider` set,
    - module `videoDuration` is set correctly,
    - provider is one of supported values above.
+
+## 12. Chapter Hiring Integration (Instructor Applicants)
+Chapter hiring now runs natively from `/chapter/recruiting`.
+
+When an instructor application is accepted:
+1. Role assignment is granted from the decision flow.
+2. Native instructor interview gate is synced to avoid duplicate interview work when evidence already exists.
+3. Instructor still completes academy requirements before first class publish.
+
+Decision authority for instructor applications:
+1. Chapter Lead can decide `INSTRUCTOR` applications only in their own chapter.
+2. Admin can decide any chapter.
+3. `GLOBAL_ADMIN` remains admin-only.
+
+Escalate to Admin when:
+1. application is cross-chapter,
+2. role type is `GLOBAL_ADMIN`,
+3. chapter mapping is missing/incorrect.
+
+Related runbook:
+1. `docs/brayden/chapter-os-runbook.md`

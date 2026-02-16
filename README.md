@@ -234,6 +234,19 @@ See [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) for the full feature road
 
 ## Operator Runbook
 - Native training + interview workflow: [`docs/brayden/instructor-training-interview-native-runbook.md`](./docs/brayden/instructor-training-interview-native-runbook.md)
+- Chapter operating system + hiring workflow: [`docs/brayden/chapter-os-runbook.md`](./docs/brayden/chapter-os-runbook.md)
+
+## Chapter Recruiting (Native)
+- Canonical chapter hiring route: `/chapter/recruiting`
+- Position composer routes:
+  - `/chapter/recruiting/positions/new`
+  - `/chapter/recruiting/positions/[id]/edit`
+- Compatibility route: `/chapter/applicants` (still operational, with link to canonical recruiting page)
+- Application workspace route: `/applications/[id]` now includes:
+  - interview status timeline,
+  - structured interview notes with recommendation,
+  - decision blocker banner,
+  - chapter-scoped final decision action.
 
 ## Instructor Training Academy
 - Canonical instructor training route: `/instructor-training`
