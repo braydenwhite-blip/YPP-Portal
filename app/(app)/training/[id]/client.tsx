@@ -34,6 +34,36 @@ function renderTextWithLinks(text: string) {
   });
 }
 
+type VideoSegmentData = {
+  id: string;
+  title: string;
+  startTime: number;
+  endTime: number;
+  sortOrder: number;
+};
+
+type TrainingVideoData = {
+  id: string;
+  title: string;
+  description: string | null;
+  videoUrl: string;
+  videoProvider: VideoProvider;
+  videoDuration: number;
+  sortOrder: number;
+  isSupplementary: boolean;
+  segments: VideoSegmentData[];
+};
+
+type TrainingResourceData = {
+  id: string;
+  title: string;
+  description: string | null;
+  resourceUrl: string;
+  resourceType: string;
+  sortOrder: number;
+  downloads: number;
+};
+
 type ModuleData = {
   id: string;
   title: string;
@@ -47,6 +77,10 @@ type ModuleData = {
   requiresQuiz: boolean;
   requiresEvidence: boolean;
   passScorePct: number;
+  estimatedMinutes: number | null;
+  // v2.0.0 multi-video and resources support
+  videos: TrainingVideoData[];
+  resources: TrainingResourceData[];
   checkpoints: Array<{
     id: string;
     title: string;
@@ -113,6 +147,9 @@ export default function TrainingModuleClient({
   academyHref: string;
   academyLabel: string;
 }) {
+  const [activeVideoId, setActiveVideoId] = useState<string | null>(
+    module.videos.length > 0 ? module.videos.find((v) => !v.isSupplementary)?.id ?? module.videos[0]?.id ?? null : null
+  );
   const router = useRouter();
   const [quizAnswers, setQuizAnswers] = useState<Record<string, string>>({});
   const [quizFeedback, setQuizFeedback] = useState<string | null>(null);
@@ -232,9 +269,18 @@ export default function TrainingModuleClient({
       <div className="card" style={{ marginBottom: 18 }}>
         <h3 style={{ marginBottom: 8 }}>Quick Links</h3>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {module.videoUrl ? (
+          {module.videos.length > 0 ? (
+            <a href="#section-videos" className="button small outline" style={{ textDecoration: "none" }}>
+              Go to videos ({module.videos.length})
+            </a>
+          ) : module.videoUrl ? (
             <a href="#section-video" className="button small outline" style={{ textDecoration: "none" }}>
               Go to video
+            </a>
+          ) : null}
+          {module.resources.length > 0 ? (
+            <a href="#section-resources" className="button small outline" style={{ textDecoration: "none" }}>
+              Go to resources ({module.resources.length})
             </a>
           ) : null}
           <a href="#section-checkpoints" className="button small outline" style={{ textDecoration: "none" }}>
@@ -253,7 +299,88 @@ export default function TrainingModuleClient({
         </div>
       </div>
 
-      {module.videoUrl && module.videoProvider ? (
+      {/* Multi-video section (v2.0.0) */}
+      {module.videos.length > 0 ? (
+        <div id="section-videos" className="card" style={{ marginBottom: 18 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <h3 style={{ margin: 0 }}>Training Videos</h3>
+            {module.estimatedMinutes ? (
+              <span style={{ fontSize: 13, color: "var(--muted)" }}>
+                ~{module.estimatedMinutes} min total
+              </span>
+            ) : null}
+          </div>
+
+          {/* Video selector tabs */}
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
+            {module.videos.map((video) => (
+              <button
+                key={video.id}
+                type="button"
+                className={`button small ${activeVideoId === video.id ? "" : "outline"}`}
+                onClick={() => setActiveVideoId(video.id)}
+                style={{ fontSize: 12 }}
+              >
+                {video.isSupplementary ? "★ " : ""}{video.title}
+                {video.videoDuration ? ` (${Math.round(video.videoDuration / 60)}m)` : ""}
+              </button>
+            ))}
+          </div>
+
+          {/* Active video player */}
+          {module.videos.map((video) => (
+            <div key={video.id} style={{ display: activeVideoId === video.id ? "block" : "none" }}>
+              <VideoPlayer
+                videoUrl={video.videoUrl}
+                provider={video.videoProvider}
+                duration={video.videoDuration}
+                moduleId={module.id}
+                initialProgress={!video.isSupplementary ? (videoProgress ?? undefined) : undefined}
+                onProgress={!video.isSupplementary ? saveVideoProgress : undefined}
+              />
+              {video.description ? (
+                <p style={{ marginTop: 8, fontSize: 13, color: "var(--muted)" }}>{video.description}</p>
+              ) : null}
+              {/* Video segments for navigation */}
+              {video.segments.length > 0 ? (
+                <div style={{ marginTop: 12 }}>
+                  <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--muted)", fontWeight: 600 }}>
+                    Segments ({video.segments.length})
+                  </p>
+                  <div style={{ display: "grid", gap: 4 }}>
+                    {video.segments.map((segment) => (
+                      <div
+                        key={segment.id}
+                        style={{
+                          display: "flex",
+                          gap: 10,
+                          padding: "6px 8px",
+                          border: "1px solid var(--border)",
+                          borderRadius: 6,
+                          fontSize: 13,
+                          alignItems: "center",
+                        }}
+                      >
+                        <span style={{ color: "var(--muted)", minWidth: 60, fontVariantNumeric: "tabular-nums" }}>
+                          {Math.floor(segment.startTime / 60)}:{String(segment.startTime % 60).padStart(2, "0")}
+                        </span>
+                        <span>{segment.title}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ))}
+
+          {!videoProgress?.completed && module.videos.some((v) => !v.isSupplementary) ? (
+            <p style={{ marginTop: 10, fontSize: 13, color: "var(--muted)" }}>
+              Watch the primary training video to fulfill the video requirement (90% completion or marked complete).
+            </p>
+          ) : null}
+        </div>
+      ) : module.videoUrl && module.videoProvider ? (
+        /* Legacy single-video (v1.0.0 content) */
         <div id="section-video" className="card" style={{ marginBottom: 18 }}>
           <h3>Training Video</h3>
           <VideoPlayer
@@ -268,6 +395,63 @@ export default function TrainingModuleClient({
           <p style={{ marginTop: 10, fontSize: 13, color: "var(--muted)" }}>
             Video requirement: watch at least 90% or mark complete.
           </p>
+        </div>
+      ) : null}
+
+      {/* Resources section */}
+      {module.resources.length > 0 ? (
+        <div id="section-resources" className="card" style={{ marginBottom: 18 }}>
+          <h3>Resources & Templates</h3>
+          <p style={{ marginTop: 0, fontSize: 13, color: "var(--muted)" }}>
+            Download templates and reference materials to support this module.
+          </p>
+          <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+            {module.resources.map((resource) => (
+              <div
+                key={resource.id}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "10px 12px",
+                  border: "1px solid var(--border)",
+                  borderRadius: 8,
+                  gap: 12,
+                }}
+              >
+                <div>
+                  <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>{resource.title}</p>
+                  {resource.description ? (
+                    <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--muted)" }}>
+                      {resource.description}
+                    </p>
+                  ) : null}
+                  <span
+                    style={{
+                      display: "inline-block",
+                      marginTop: 6,
+                      fontSize: 11,
+                      padding: "2px 6px",
+                      background: "var(--muted-bg, #f1f5f9)",
+                      borderRadius: 4,
+                      color: "var(--muted)",
+                    }}
+                  >
+                    {resource.resourceType}
+                  </span>
+                </div>
+                <a
+                  href={resource.resourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="button small outline"
+                  style={{ textDecoration: "none", whiteSpace: "nowrap" }}
+                >
+                  Open
+                </a>
+              </div>
+            ))}
+          </div>
         </div>
       ) : null}
 

@@ -668,22 +668,19 @@ model TrainingAssignment {
 }
 
 model VideoProgress {
-  id             String         @id @default(cuid())
+  id             String          @id @default(cuid())
   userId         String
-  moduleId       String?
-  videoId        String?
-  user           User           @relation(fields: [userId], references: [id])
-  module         TrainingModule? @relation(fields: [moduleId], references: [id])
-  video          TrainingVideo?  @relation(fields: [videoId], references: [id])
-  watchedSeconds Int            @default(0)
-  completed      Boolean        @default(false)
-  lastPosition   Int            @default(0) // Last watched position in seconds
+  moduleId       String
+  user           User            @relation(fields: [userId], references: [id])
+  module         TrainingModule  @relation(fields: [moduleId], references: [id])
+  watchedSeconds Int             @default(0)
+  completed      Boolean         @default(false)
+  lastPosition   Int             @default(0) // Last watched position in seconds
   completedAt    DateTime?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
-  @@unique([userId, moduleId, videoId])
-  @@index([userId, videoId])
+  @@unique([userId, moduleId])
 }
 
 model InstructorApproval {
@@ -805,7 +802,6 @@ model TrainingVideo {
   sortOrder       Int             @default(1)
   isSupplementary Boolean         @default(false)
   segments        VideoSegment[]
-  progress        VideoProgress[]
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
@@ -1513,8 +1509,8 @@ model CertificateTemplate {
 
 model Certificate {
   id                String              @id @default(cuid())
-  templateId        String?
-  template          CertificateTemplate? @relation(fields: [templateId], references: [id])
+  templateId        String
+  template          CertificateTemplate @relation(fields: [templateId], references: [id])
   recipientId       String
   recipient         User                @relation(fields: [recipientId], references: [id])
   courseId          String?
@@ -1522,9 +1518,8 @@ model Certificate {
   pathwayId         String?
   pathway           Pathway?            @relation(fields: [pathwayId], references: [id])
 
-  // Training Academy Certificate Support
-  isTrainingCertificate Boolean           @default(false)
-  completionData        Json?             // Training module scores, completion dates, etc.
+  // Training Academy Certificate Support: store module scores, completion dates, etc.
+  completionData Json?
 
   title             String
   description       String?
@@ -1533,7 +1528,6 @@ model Certificate {
   pdfUrl            String?
 
   @@index([recipientId])
-  @@index([isTrainingCertificate])
 }
 
 enum CertificateType {

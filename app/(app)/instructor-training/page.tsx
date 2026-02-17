@@ -58,6 +58,7 @@ export default async function InstructorTrainingPage() {
     reviewRequests,
     interviewGate,
     readiness,
+    trainingCertificate,
   ] = await Promise.all([
     prisma.trainingModule.findMany({
       orderBy: { sortOrder: "asc" },
@@ -133,6 +134,17 @@ export default async function InstructorTrainingPage() {
       },
     }),
     getInstructorReadiness(instructorId),
+    prisma.certificate.findFirst({
+      where: {
+        recipientId: instructorId,
+        template: { type: "TRAINING_COMPLETION" },
+      },
+      select: {
+        id: true,
+        certificateNumber: true,
+        issuedAt: true,
+      },
+    }),
   ]);
 
   const assignmentByModule = new Map(assignments.map((assignment) => [assignment.moduleId, assignment]));
@@ -430,6 +442,27 @@ export default async function InstructorTrainingPage() {
           </div>
         ) : null}
       </div>
+
+      {trainingCertificate ? (
+        <div className="card" style={{ marginBottom: 20, borderColor: "var(--success, #16a34a)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 12 }}>
+            <div>
+              <h3 style={{ marginBottom: 4 }}>Training Certificate Earned</h3>
+              <p style={{ margin: 0, fontSize: 14, color: "var(--muted)" }}>
+                Issued {new Date(trainingCertificate.issuedAt).toLocaleDateString()} ·
+                Certificate #{trainingCertificate.certificateNumber}
+              </p>
+            </div>
+            <Link
+              href="/certificates"
+              className="button small"
+              style={{ textDecoration: "none", whiteSpace: "nowrap" }}
+            >
+              View Certificate
+            </Link>
+          </div>
+        </div>
+      ) : null}
 
       <div className="card">
         <h3 style={{ marginBottom: 8 }}>Academy Modules</h3>
