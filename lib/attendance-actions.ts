@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { AttendanceStatus } from "@prisma/client";
+import { requireAttendanceAccess, requireOwnershipOrRole } from "@/lib/authorization-helpers";
 
 // ============================================
 // HELPERS
@@ -167,13 +168,12 @@ export async function getAttendanceSessions() {
 // ============================================
 
 export async function getSessionWithRecords(sessionId: string) {
-  await requireStaffRole();
-
+  // First get the session to determine what to authorize against
   const session = await prisma.attendanceSession.findUnique({
     where: { id: sessionId },
     include: {
       course: {
-        select: { id: true, title: true },
+        select: { id: true, title: true, instructorId: true },
       },
       event: {
         select: { id: true, title: true },
@@ -195,6 +195,10 @@ export async function getSessionWithRecords(sessionId: string) {
   if (!session) {
     throw new Error("Attendance session not found");
   }
+
+  // Verify user has access to this session's attendance records
+  // Only instructors of the course, chapter leads, or admins can access
+  await requireAttendanceAccess(undefined, session.courseId || undefined);
 
   return session;
 }
@@ -315,12 +319,33 @@ export async function bulkRecordAttendance(formData: FormData) {
 export async function getStudentAttendanceSummary(userId: string) {
   const session = await requireAuth();
   const callerRoles = session.user.roles ?? [];
+  const callerId = session.user.id;
 
-  // Students can view their own summary; staff roles can view anyone's
-  if (session.user.id !== userId &&
-      !callerRoles.includes("ADMIN") &&
-      !callerRoles.includes("INSTRUCTOR") &&
-      !callerRoles.includes("CHAPTER_LEAD")) {
+  // Users can view their own attendance
+  if (callerId === userId) {
+    // Allow - viewing own attendance
+  }
+  // Admins and chapter leads can view anyone's attendance
+  else if (callerRoles.includes("ADMIN") || callerRoles.includes("CHAPTER_LEAD")) {
+    // Allow - admin/chapter lead access
+  }
+  // Instructors can only view attendance of students enrolled in their courses
+  else if (callerRoles.includes("INSTRUCTOR")) {
+    const enrollment = await prisma.enrollment.findFirst({
+      where: {
+        studentId: userId,
+        course: {
+          instructorId: callerId
+        }
+      }
+    });
+
+    if (!enrollment) {
+      throw new Error("Unauthorized: You can only view attendance of students in your courses");
+    }
+  }
+  // Everyone else is unauthorized
+  else {
     throw new Error("Unauthorized");
   }
 
@@ -364,7 +389,8 @@ export async function getStudentAttendanceSummary(userId: string) {
 // ============================================
 
 export async function getCourseAttendanceReport(courseId: string) {
-  await requireStaffRole();
+  // Verify user is the instructor of this course, chapter lead, or admin
+  await requireAttendanceAccess(undefined, courseId);
 
   // Get all sessions for this course with their records
   const sessions = await prisma.attendanceSession.findMany({
