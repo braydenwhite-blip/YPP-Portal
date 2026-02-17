@@ -17,6 +17,7 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "backfill:instructor-readiness": "node scripts/backfill-native-instructor-readiness.mjs",
+    "backfill:passion-taxonomy": "node scripts/backfill-passion-taxonomy.mjs",
     "training:seed-content": "node scripts/seed-training-academy-content.mjs",
     "training:validate": "node scripts/validate-training-academy-content.mjs",
     "training:import": "node scripts/import-training-academy-content.mjs",
