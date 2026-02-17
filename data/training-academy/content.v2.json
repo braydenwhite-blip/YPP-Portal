@@ -1,0 +1,1255 @@
+{
+  "version": "2.0.0",
+  "updatedAt": "2026-02-17T00:00:00.000Z",
+  "modules": [
+    {
+      "contentKey": "academy_foundations_001",
+      "title": "Academy Foundations: Teaching on YPP",
+      "description": "Core facilitation standards, student safety norms, and the YPP instructor playbook.",
+      "type": "WORKSHOP",
+      "required": true,
+      "sortOrder": 1,
+      "estimatedMinutes": 90,
+      "requiresQuiz": true,
+      "requiresEvidence": false,
+      "passScorePct": 80,
+
+      "videos": [
+        {
+          "title": "Welcome to YPP Instructor Academy",
+          "description": "Primary training video covering YPP teaching philosophy, instructor playbook, and class opening strategies",
+          "videoUrl": "[PLACEHOLDER - Primary Training Video]",
+          "videoProvider": "YOUTUBE",
+          "videoDuration": 1200,
+          "isSupplementary": false,
+          "sortOrder": 1,
+          "segments": [
+            {
+              "title": "YPP Teaching Philosophy and Core Values",
+              "startTime": 0,
+              "endTime": 180,
+              "sortOrder": 1
+            },
+            {
+              "title": "Instructor Playbook Walkthrough",
+              "startTime": 180,
+              "endTime": 480,
+              "sortOrder": 2
+            },
+            {
+              "title": "The 3 Non-Negotiable Class Norms",
+              "startTime": 480,
+              "endTime": 720,
+              "sortOrder": 3
+            },
+            {
+              "title": "Class Opening Structure & Scripts",
+              "startTime": 720,
+              "endTime": 1020,
+              "sortOrder": 4
+            },
+            {
+              "title": "Your First 10 Minutes Blueprint",
+              "startTime": 1020,
+              "endTime": 1200,
+              "sortOrder": 5
+            }
+          ]
+        },
+        {
+          "title": "Sample Class Opening Demonstration",
+          "description": "Real demonstration of an effective class opening",
+          "videoUrl": "[PLACEHOLDER - Supplementary Video]",
+          "videoProvider": "YOUTUBE",
+          "videoDuration": 180,
+          "isSupplementary": true,
+          "sortOrder": 2,
+          "segments": []
+        },
+        {
+          "title": "Check-in Prompts That Work",
+          "description": "Examples and analysis of effective student check-in prompts",
+          "videoUrl": "[PLACEHOLDER - Supplementary Video]",
+          "videoProvider": "YOUTUBE",
+          "videoDuration": 300,
+          "isSupplementary": true,
+          "sortOrder": 3,
+          "segments": []
+        },
+        {
+          "title": "Balancing Structure and Student Voice",
+          "description": "How to maintain structure while empowering student autonomy",
+          "videoUrl": "[PLACEHOLDER - Supplementary Video]",
+          "videoProvider": "YOUTUBE",
+          "videoDuration": 240,
+          "isSupplementary": true,
+          "sortOrder": 4,
+          "segments": []
+        }
+      ],
+
+      "resources": [
+        {
+          "title": "Instructor Playbook PDF",
+          "description": "Complete YPP instructor standards and expectations",
+          "resourceUrl": "[PLACEHOLDER - PDF Link]",
+          "resourceType": "PDF",
+          "sortOrder": 1
+        },
+        {
+          "title": "Opening Script Template",
+          "description": "Customizable template for your 60-second class opening",
+          "resourceUrl": "[PLACEHOLDER - Google Doc Template]",
+          "resourceType": "DOC",
+          "sortOrder": 2
+        },
+        {
+          "title": "First 10 Minutes Planning Sheet",
+          "description": "Minute-by-minute planning template for class openings",
+          "resourceUrl": "[PLACEHOLDER - Google Sheet Template]",
+          "resourceType": "SHEET",
+          "sortOrder": 3
+        },
+        {
+          "title": "Check-in Prompt Bank",
+          "description": "Collection of 25+ effective check-in prompts for assessing student readiness",
+          "resourceUrl": "[PLACEHOLDER - PDF Link]",
+          "resourceType": "PDF",
+          "sortOrder": 4
+        }
+      ],
+
+      "checkpoints": [
+        {
+          "contentKey": "foundations_cp_01",
+          "title": "Review instructor playbook",
+          "description": "Read the full instructor playbook and identify the 3 non-negotiable class norms.",
+          "required": true,
+          "sortOrder": 1
+        },
+        {
+          "contentKey": "foundations_cp_02",
+          "title": "Write opening script",
+          "description": "Draft a 60-second class opening script that sets goals, norms, and tone.",
+          "required": true,
+          "sortOrder": 2
+        },
+        {
+          "contentKey": "foundations_cp_03",
+          "title": "Plan first 10 minutes",
+          "description": "Document a minute-by-minute structure for the first 10 minutes of class.",
+          "required": true,
+          "sortOrder": 3
+        },
+        {
+          "contentKey": "foundations_cp_04",
+          "title": "Prepare student check-in prompts",
+          "description": "Create 5 high-quality check-in prompts to assess readiness and confidence.",
+          "required": true,
+          "sortOrder": 4
+        },
+        {
+          "contentKey": "foundations_cp_05",
+          "title": "Reflect on facilitation stance",
+          "description": "Write a short reflection on how you will balance structure and student voice.",
+          "required": true,
+          "sortOrder": 5
+        }
+      ],
+
+      "quizQuestions": [
+        {
+          "contentKey": "foundations_q_01",
+          "question": "A student joins late and seems disengaged. What is the best first move?",
+          "options": [
+            "Quickly re-anchor them with expectations and a low-pressure entry task",
+            "Call them out publicly so they focus",
+            "Ignore them until the end of class",
+            "Restart the whole lesson"
+          ],
+          "correctAnswer": "Quickly re-anchor them with expectations and a low-pressure entry task",
+          "sortOrder": 1,
+          "explanation": "Use a supportive reset that preserves momentum and dignity."
+        },
+        {
+          "contentKey": "foundations_q_02",
+          "question": "What should always be clear in the first 2 minutes of class?",
+          "options": [
+            "Objective, success criteria, and expected participation norms",
+            "Only administrative announcements",
+            "The final grade rubric only",
+            "Nothing formal; let students figure it out"
+          ],
+          "correctAnswer": "Objective, success criteria, and expected participation norms",
+          "sortOrder": 2,
+          "explanation": "Clarity at the start reduces confusion and improves engagement."
+        },
+        {
+          "contentKey": "foundations_q_03",
+          "question": "Which behavior best reflects YPP facilitation?",
+          "options": [
+            "Guide students with prompts and checkpoints while keeping accountability",
+            "Lecture for the full class and avoid interaction",
+            "Allow random discussion without goals",
+            "Skip transitions to save time"
+          ],
+          "correctAnswer": "Guide students with prompts and checkpoints while keeping accountability",
+          "sortOrder": 3,
+          "explanation": "YPP emphasizes active learning with structured support."
+        },
+        {
+          "contentKey": "foundations_q_04",
+          "question": "When should you adjust pacing during class?",
+          "options": [
+            "When check-ins show confusion or low completion signals",
+            "Never, because the plan must be fixed",
+            "Only if an admin is present",
+            "At random intervals"
+          ],
+          "correctAnswer": "When check-ins show confusion or low completion signals",
+          "sortOrder": 4,
+          "explanation": "Real-time student signals should drive facilitation decisions."
+        },
+        {
+          "contentKey": "foundations_q_05",
+          "question": "A student asks for help but others are waiting. Best response?",
+          "options": [
+            "Give a short scaffold, then assign a timed pair task and rotate back",
+            "Focus only on that one student for 15 minutes",
+            "Tell the student to wait until next class",
+            "Skip help to preserve schedule"
+          ],
+          "correctAnswer": "Give a short scaffold, then assign a timed pair task and rotate back",
+          "sortOrder": 5,
+          "explanation": "Balance individual support with whole-class flow."
+        },
+        {
+          "contentKey": "foundations_q_06",
+          "question": "What makes a strong class close?",
+          "options": [
+            "A recap, one reflection prompt, and a clear next action",
+            "End immediately when time runs out",
+            "A long unrelated story",
+            "Only homework reminders"
+          ],
+          "correctAnswer": "A recap, one reflection prompt, and a clear next action",
+          "sortOrder": 6,
+          "explanation": "A structured close reinforces learning and forward momentum."
+        }
+      ]
+    },
+
+    {
+      "contentKey": "academy_classroom_culture_002",
+      "title": "Classroom Culture and Student Support",
+      "description": "Build safe, high-expectation learning spaces and respond to common learner scenarios.",
+      "type": "SCENARIO_PRACTICE",
+      "required": true,
+      "sortOrder": 2,
+      "estimatedMinutes": 105,
+      "requiresQuiz": true,
+      "requiresEvidence": false,
+      "passScorePct": 80,
+
+      "videos": [
+        {
+          "title": "Building Safe, High-Expectation Learning Spaces",
+          "description": "Primary training on classroom culture fundamentals",
+          "videoUrl": "[PLACEHOLDER - Primary Training Video]",
+          "videoProvider": "VIMEO",
+          "videoDuration": 1320,
+          "isSupplementary": false,
+          "sortOrder": 1,
+          "segments": [
+            {
+              "title": "What Makes a Strong Classroom Culture",
+              "startTime": 0,
+              "endTime": 240,
+              "sortOrder": 1
+            },
+            {
+              "title": "Establishing Agreements Collaboratively",
+              "startTime": 240,
+              "endTime": 480,
+              "sortOrder": 2
+            },
+            {
+              "title": "Redirection Language Framework",
+              "startTime": 480,
+              "endTime": 780,
+              "sortOrder": 3
+            },
+            {
+              "title": "The Intervention Ladder (3-Step Approach)",
+              "startTime": 780,
+              "endTime": 1020,
+              "sortOrder": 4
+            },
+            {
+              "title": "When and How to Escalate",
+              "startTime": 1020,
+              "endTime": 1320,
+              "sortOrder": 5
+            }
+          ]
+        },
+        {
+          "title": "Scenario Practice: Disruptive Student",
+          "description": "Walkthrough of handling disruptive behavior effectively",
+          "videoUrl": "[PLACEHOLDER - Supplementary Video]",
+          "videoProvider": "VIMEO",
+          "videoDuration": 360,
+          "isSupplementary": true,
+          "sortOrder": 2,
+          "segments": []
+        },
+        {
+          "title": "Scenario Practice: Frustrated Learner Shutdown",
+          "description": "Supporting students who are frustrated and shutting down",
+          "videoUrl": "[PLACEHOLDER - Supplementary Video]",
+          "videoProvider": "VIMEO",
+          "videoDuration": 300,
+          "isSupplementary": true,
+          "sortOrder": 3,
+          "segments": []
+        },
+        {
+          "title": "Scenario Practice: Group Dynamics Issues",
+          "description": "Managing challenging group dynamics and ensuring equity",
+          "videoUrl": "[PLACEHOLDER - Supplementary Video]",
+          "videoProvider": "VIMEO",
+          "videoDuration": 300,
+          "isSupplementary": true,
+          "sortOrder": 4,
+          "segments": []
+        },
+        {
+          "title": "Equity Monitoring Strategies",
+          "description": "Practical strategies for ensuring all students participate equitably",
+          "videoUrl": "[PLACEHOLDER - Supplementary Video]",
+          "videoProvider": "VIMEO",
+          "videoDuration": 240,
+          "isSupplementary": true,
+          "sortOrder": 5,
+          "segments": []
+        }
+      ],
+
+      "resources": [
+        {
+          "title": "Classroom Agreements Builder Template",
+          "description": "Collaborative template for creating classroom agreements with students",
+          "resourceUrl": "[PLACEHOLDER - Google Doc Template]",
+          "resourceType": "DOC",
+          "sortOrder": 1
+        },
+        {
+          "title": "Redirection Language Bank",
+          "description": "50+ specific, calm, and actionable redirection statements",
+          "resourceUrl": "[PLACEHOLDER - PDF Link]",
+          "resourceType": "PDF",
+          "sortOrder": 2
+        },
+        {
+          "title": "Intervention Ladder Visual Guide",
+          "description": "Visual reference for 3-step intervention process",
+          "resourceUrl": "[PLACEHOLDER - PDF Link]",
+          "resourceType": "PDF",
+          "sortOrder": 3
+        },
+        {
+          "title": "Escalation Protocol Flowchart",
+          "description": "Chapter-specific escalation and safeguarding protocol",
+          "resourceUrl": "[PLACEHOLDER - PDF Link]",
+          "resourceType": "PDF",
+          "sortOrder": 4
+        },
+        {
+          "title": "Equity Check Observation Sheet",
+          "description": "Tool for monitoring participation equity across the class",
+          "resourceUrl": "[PLACEHOLDER - Google Sheet Template]",
+          "resourceType": "SHEET",
+          "sortOrder": 5
+        }
+      ],
+
+      "checkpoints": [
+        {
+          "contentKey": "culture_cp_01",
+          "title": "Define classroom agreements",
+          "description": "Draft 5 classroom agreements students can understand and follow.",
+          "required": true,
+          "sortOrder": 1
+        },
+        {
+          "contentKey": "culture_cp_02",
+          "title": "Prepare redirection language",
+          "description": "Write 8 redirection statements that are specific, calm, and actionable.",
+          "required": true,
+          "sortOrder": 2
+        },
+        {
+          "contentKey": "culture_cp_03",
+          "title": "Plan intervention ladder",
+          "description": "Create a 3-step intervention ladder for off-task behavior.",
+          "required": true,
+          "sortOrder": 3
+        },
+        {
+          "contentKey": "culture_cp_04",
+          "title": "Map inclusion checks",
+          "description": "List how you will monitor participation equity across the class.",
+          "required": true,
+          "sortOrder": 4
+        },
+        {
+          "contentKey": "culture_cp_05",
+          "title": "Escalation protocol review",
+          "description": "Review and acknowledge chapter escalation/safeguarding protocol.",
+          "required": true,
+          "sortOrder": 5
+        }
+      ],
+
+      "quizQuestions": [
+        {
+          "contentKey": "culture_q_01",
+          "question": "Two students keep interrupting each other. What should you do first?",
+          "options": [
+            "Pause and restate discussion norms with a structured turn-taking protocol",
+            "Ignore it and continue content",
+            "Remove both students from class immediately",
+            "Stop discussion for the rest of term"
+          ],
+          "correctAnswer": "Pause and restate discussion norms with a structured turn-taking protocol",
+          "sortOrder": 1,
+          "explanation": "Reset expectations and structure before escalation."
+        },
+        {
+          "contentKey": "culture_q_02",
+          "question": "What is the best indicator that culture routines are working?",
+          "options": [
+            "Students can self-correct quickly with minimal prompting",
+            "The class is silent at all times",
+            "No one asks questions",
+            "Only high performers participate"
+          ],
+          "correctAnswer": "Students can self-correct quickly with minimal prompting",
+          "sortOrder": 2,
+          "explanation": "Strong culture increases student ownership and consistency."
+        },
+        {
+          "contentKey": "culture_q_03",
+          "question": "A learner is frustrated and shuts down. Best immediate strategy?",
+          "options": [
+            "Offer a brief private check-in and a smaller re-entry task",
+            "Publicly criticize effort",
+            "Move on without support",
+            "Give them all answers"
+          ],
+          "correctAnswer": "Offer a brief private check-in and a smaller re-entry task",
+          "sortOrder": 3,
+          "explanation": "Private support plus achievable entry points rebuild confidence."
+        },
+        {
+          "contentKey": "culture_q_04",
+          "question": "When should behavior concerns be escalated?",
+          "options": [
+            "When safety risk or repeated serious disruption crosses protocol thresholds",
+            "After any single minor mistake",
+            "Only at end of semester",
+            "Never"
+          ],
+          "correctAnswer": "When safety risk or repeated serious disruption crosses protocol thresholds",
+          "sortOrder": 4,
+          "explanation": "Escalate based on protocol, pattern, and safety factors."
+        },
+        {
+          "contentKey": "culture_q_05",
+          "question": "How do you keep high expectations without harming trust?",
+          "options": [
+            "Be consistent, specific, and respectful in every correction",
+            "Lower standards when students struggle",
+            "Use sarcasm to enforce compliance",
+            "Avoid giving feedback"
+          ],
+          "correctAnswer": "Be consistent, specific, and respectful in every correction",
+          "sortOrder": 5,
+          "explanation": "Predictability and respect create accountability with belonging."
+        },
+        {
+          "contentKey": "culture_q_06",
+          "question": "A student dominates group work. What should you implement?",
+          "options": [
+            "Role-based collaboration with rotating responsibilities",
+            "Ban group work permanently",
+            "Allow it since they are productive",
+            "Grade only the loudest student"
+          ],
+          "correctAnswer": "Role-based collaboration with rotating responsibilities",
+          "sortOrder": 6,
+          "explanation": "Role structures increase equity and shared participation."
+        }
+      ]
+    },
+
+    {
+      "contentKey": "academy_lesson_design_003",
+      "title": "Lesson Design and Pacing Mastery",
+      "description": "Design outcome-driven sessions with clear transitions, checks for understanding, and strong closure.",
+      "type": "CURRICULUM_REVIEW",
+      "required": true,
+      "sortOrder": 3,
+      "estimatedMinutes": 120,
+      "requiresQuiz": true,
+      "requiresEvidence": false,
+      "passScorePct": 80,
+
+      "videos": [
+        {
+          "title": "Designing Outcome-Driven Sessions",
+          "description": "Primary training on lesson design and pacing",
+          "videoUrl": "[PLACEHOLDER - Primary Training Video]",
+          "videoProvider": "YOUTUBE",
+          "videoDuration": 1500,
+          "isSupplementary": false,
+          "sortOrder": 1,
+          "segments": [
+            {
+              "title": "Backward Design from Objectives",
+              "startTime": 0,
+              "endTime": 300,
+              "sortOrder": 1
+            },
+            {
+              "title": "The Session Structure Model (I Do, We Do, You Do)",
+              "startTime": 300,
+              "endTime": 660,
+              "sortOrder": 2
+            },
+            {
+              "title": "Transition Language and Timing",
+              "startTime": 660,
+              "endTime": 900,
+              "sortOrder": 3
+            },
+            {
+              "title": "Formative Checks Throughout",
+              "startTime": 900,
+              "endTime": 1200,
+              "sortOrder": 4
+            },
+            {
+              "title": "Differentiation Strategies (Scaffolds + Extensions)",
+              "startTime": 1200,
+              "endTime": 1500,
+              "sortOrder": 5
+            }
+          ]
+        },
+        {
+          "title": "Sample Lesson Walkthrough: Beginning to End",
+          "description": "Annotated walkthrough of a complete lesson",
+          "videoUrl": "[PLACEHOLDER - Supplementary Video]",
+          "videoProvider": "YOUTUBE",
+          "videoDuration": 720,
+          "isSupplementary": true,
+          "sortOrder": 2,
+          "segments": []
+        },
+        {
+          "title": "Real-Time Pacing Adjustments",
+          "description": "Decision-making in action when pacing needs adjustment",
+          "videoUrl": "[PLACEHOLDER - Supplementary Video]",
+          "videoProvider": "YOUTUBE",
+          "videoDuration": 360,
+          "isSupplementary": true,
+          "sortOrder": 3,
+          "segments": []
+        },
+        {
+          "title": "Building Extension Tasks",
+          "description": "Creating meaningful extension activities for advanced learners",
+          "videoUrl": "[PLACEHOLDER - Supplementary Video]",
+          "videoProvider": "YOUTUBE",
+          "videoDuration": 300,
+          "isSupplementary": true,
+          "sortOrder": 4,
+          "segments": []
+        },
+        {
+          "title": "Creating Effective Closures",
+          "description": "Closure strategies that consolidate learning",
+          "videoUrl": "[PLACEHOLDER - Supplementary Video]",
+          "videoProvider": "YOUTUBE",
+          "videoDuration": 240,
+          "isSupplementary": true,
+          "sortOrder": 5,
+          "segments": []
+        }
+      ],
+
+      "resources": [
+        {
+          "title": "Lesson Plan Template (Objective-Aligned)",
+          "description": "Complete lesson planning template with backward design structure",
+          "resourceUrl": "[PLACEHOLDER - Google Doc Template]",
+          "resourceType": "DOC",
+          "sortOrder": 1
+        },
+        {
+          "title": "Transition Language Bank",
+          "description": "Effective transition phrases for every lesson phase",
+          "resourceUrl": "[PLACEHOLDER - PDF Link]",
+          "resourceType": "PDF",
+          "sortOrder": 2
+        },
+        {
+          "title": "Formative Check Strategy Guide",
+          "description": "10+ techniques for checking understanding mid-lesson",
+          "resourceUrl": "[PLACEHOLDER - PDF Link]",
+          "resourceType": "PDF",
+          "sortOrder": 3
+        },
+        {
+          "title": "Scaffold & Extension Planning Tool",
+          "description": "Template for planning differentiated supports",
+          "resourceUrl": "[PLACEHOLDER - Google Sheet Template]",
+          "resourceType": "SHEET",
+          "sortOrder": 4
+        },
+        {
+          "title": "3-Minute Closure Prompts Library",
+          "description": "Collection of effective closure prompts and reflection questions",
+          "resourceUrl": "[PLACEHOLDER - PDF Link]",
+          "resourceType": "PDF",
+          "sortOrder": 5
+        }
+      ],
+
+      "checkpoints": [
+        {
+          "contentKey": "design_cp_01",
+          "title": "Draft objective-aligned agenda",
+          "description": "Build a full class agenda aligned to one measurable objective.",
+          "required": true,
+          "sortOrder": 1
+        },
+        {
+          "contentKey": "design_cp_02",
+          "title": "Plan transition language",
+          "description": "Write transition prompts for every phase of your lesson.",
+          "required": true,
+          "sortOrder": 2
+        },
+        {
+          "contentKey": "design_cp_03",
+          "title": "Add formative checks",
+          "description": "Include at least 3 checkpoints to measure understanding mid-lesson.",
+          "required": true,
+          "sortOrder": 3
+        },
+        {
+          "contentKey": "design_cp_04",
+          "title": "Build extension supports",
+          "description": "Prepare one extension and one scaffold for mixed readiness levels.",
+          "required": true,
+          "sortOrder": 4
+        },
+        {
+          "contentKey": "design_cp_05",
+          "title": "Create closure prompt",
+          "description": "Design a 3-minute closure that captures reflection and next step.",
+          "required": true,
+          "sortOrder": 5
+        }
+      ],
+
+      "quizQuestions": [
+        {
+          "contentKey": "design_q_01",
+          "question": "What is the best sequence for an outcome-driven session?",
+          "options": [
+            "Objective, model, guided practice, independent work, closure",
+            "Independent work first, objective later",
+            "Lecture only, no checks",
+            "Unstructured discussion throughout"
+          ],
+          "correctAnswer": "Objective, model, guided practice, independent work, closure",
+          "sortOrder": 1,
+          "explanation": "This sequence supports clarity and skill transfer."
+        },
+        {
+          "contentKey": "design_q_02",
+          "question": "A check-for-understanding shows 60% confusion. What now?",
+          "options": [
+            "Reteach key step with a new example before continuing",
+            "Ignore and continue",
+            "Assign homework and move on",
+            "End class early"
+          ],
+          "correctAnswer": "Reteach key step with a new example before continuing",
+          "sortOrder": 2,
+          "explanation": "Use formative data to adjust instruction in real time."
+        },
+        {
+          "contentKey": "design_q_03",
+          "question": "Which pacing adjustment is strongest when time runs short?",
+          "options": [
+            "Preserve objective-aligned practice, trim non-essential discussion",
+            "Skip guided practice entirely",
+            "Skip closure every time",
+            "Move remaining content to random future date"
+          ],
+          "correctAnswer": "Preserve objective-aligned practice, trim non-essential discussion",
+          "sortOrder": 3,
+          "explanation": "Protect core learning outcomes first."
+        },
+        {
+          "contentKey": "design_q_04",
+          "question": "What makes a transition effective?",
+          "options": [
+            "Clear cue, purpose statement, and explicit next action",
+            "No announcement, just switch",
+            "Lengthy unrelated stories",
+            "Silent waiting"
+          ],
+          "correctAnswer": "Clear cue, purpose statement, and explicit next action",
+          "sortOrder": 4,
+          "explanation": "Explicit transitions reduce downtime and confusion."
+        },
+        {
+          "contentKey": "design_q_05",
+          "question": "How should extension tasks be designed?",
+          "options": [
+            "Directly connected to objective with added complexity",
+            "Totally unrelated enrichment",
+            "Busy-work only",
+            "Optional for all students instead of core task"
+          ],
+          "correctAnswer": "Directly connected to objective with added complexity",
+          "sortOrder": 5,
+          "explanation": "Extensions should deepen mastery, not distract from goals."
+        },
+        {
+          "contentKey": "design_q_06",
+          "question": "Best closure prompt type?",
+          "options": [
+            "Evidence-based reflection tied to objective and next step",
+            "Any unrelated icebreaker",
+            "No closure needed",
+            "Only attendance reminders"
+          ],
+          "correctAnswer": "Evidence-based reflection tied to objective and next step",
+          "sortOrder": 6,
+          "explanation": "Closures should consolidate learning and direction."
+        }
+      ]
+    },
+
+    {
+      "contentKey": "academy_feedback_assessment_004",
+      "title": "Assessment, Feedback, and Learner Growth",
+      "description": "Deliver actionable feedback, evaluate student artifacts, and support growth over time.",
+      "type": "RESOURCE",
+      "required": true,
+      "sortOrder": 4,
+      "estimatedMinutes": 110,
+      "requiresQuiz": true,
+      "requiresEvidence": false,
+      "passScorePct": 80,
+
+      "videos": [
+        {
+          "title": "Feedback That Drives Growth",
+          "description": "Primary training on assessment and feedback strategies",
+          "videoUrl": "[PLACEHOLDER - Primary Training Video]",
+          "videoProvider": "VIMEO",
+          "videoDuration": 1320,
+          "isSupplementary": false,
+          "sortOrder": 1,
+          "segments": [
+            {
+              "title": "Criteria-Based Assessment Design",
+              "startTime": 0,
+              "endTime": 300,
+              "sortOrder": 1
+            },
+            {
+              "title": "Feedback That Is Specific and Actionable",
+              "startTime": 300,
+              "endTime": 600,
+              "sortOrder": 2
+            },
+            {
+              "title": "The Revision Loop Structure",
+              "startTime": 600,
+              "endTime": 840,
+              "sortOrder": 3
+            },
+            {
+              "title": "Learner Conference Protocol",
+              "startTime": 840,
+              "endTime": 1140,
+              "sortOrder": 4
+            },
+            {
+              "title": "Tracking Growth Over Time",
+              "startTime": 1140,
+              "endTime": 1320,
+              "sortOrder": 5
+            }
+          ]
+        },
+        {
+          "title": "Feedback Examples: Strong vs. Weak",
+          "description": "Side-by-side comparison of effective and ineffective feedback",
+          "videoUrl": "[PLACEHOLDER - Supplementary Video]",
+          "videoProvider": "VIMEO",
+          "videoDuration": 360,
+          "isSupplementary": true,
+          "sortOrder": 2,
+          "segments": []
+        },
+        {
+          "title": "Running a 5-Minute Conference",
+          "description": "Demonstration of an efficient and effective learner conference",
+          "videoUrl": "[PLACEHOLDER - Supplementary Video]",
+          "videoProvider": "VIMEO",
+          "videoDuration": 300,
+          "isSupplementary": true,
+          "sortOrder": 3,
+          "segments": []
+        },
+        {
+          "title": "Using Data to Inform Instruction",
+          "description": "How to analyze student data and adjust teaching accordingly",
+          "videoUrl": "[PLACEHOLDER - Supplementary Video]",
+          "videoProvider": "VIMEO",
+          "videoDuration": 300,
+          "isSupplementary": true,
+          "sortOrder": 4,
+          "segments": []
+        },
+        {
+          "title": "Growth Mindset in Feedback Language",
+          "description": "Using language that promotes growth mindset and resilience",
+          "videoUrl": "[PLACEHOLDER - Supplementary Video]",
+          "videoProvider": "VIMEO",
+          "videoDuration": 240,
+          "isSupplementary": true,
+          "sortOrder": 5,
+          "segments": []
+        }
+      ],
+
+      "resources": [
+        {
+          "title": "Feedback Stems Bank",
+          "description": "50+ specific, evidence-based feedback phrases",
+          "resourceUrl": "[PLACEHOLDER - PDF Link]",
+          "resourceType": "PDF",
+          "sortOrder": 1
+        },
+        {
+          "title": "Assessment Criteria Builder",
+          "description": "Template for creating clear assessment criteria aligned to objectives",
+          "resourceUrl": "[PLACEHOLDER - Google Doc Template]",
+          "resourceType": "DOC",
+          "sortOrder": 2
+        },
+        {
+          "title": "Revision Loop Tracker Template",
+          "description": "Tool for tracking student revisions across cycles",
+          "resourceUrl": "[PLACEHOLDER - Google Sheet Template]",
+          "resourceType": "SHEET",
+          "sortOrder": 3
+        },
+        {
+          "title": "Conference Protocol Guide",
+          "description": "Step-by-step guide for 5-minute learner conferences",
+          "resourceUrl": "[PLACEHOLDER - PDF Link]",
+          "resourceType": "PDF",
+          "sortOrder": 4
+        },
+        {
+          "title": "Growth Tracking Spreadsheet Template",
+          "description": "Template for monitoring student progress over time",
+          "resourceUrl": "[PLACEHOLDER - Google Sheet Template]",
+          "resourceType": "SHEET",
+          "sortOrder": 5
+        }
+      ],
+
+      "checkpoints": [
+        {
+          "contentKey": "feedback_cp_01",
+          "title": "Define feedback criteria",
+          "description": "Set 4 clear criteria aligned to your class objective.",
+          "required": true,
+          "sortOrder": 1
+        },
+        {
+          "contentKey": "feedback_cp_02",
+          "title": "Draft feedback stems",
+          "description": "Prepare 10 feedback stems using specific evidence language.",
+          "required": true,
+          "sortOrder": 2
+        },
+        {
+          "contentKey": "feedback_cp_03",
+          "title": "Build revision loop",
+          "description": "Outline a two-cycle revision process students can complete in one week.",
+          "required": true,
+          "sortOrder": 3
+        },
+        {
+          "contentKey": "feedback_cp_04",
+          "title": "Plan conference structure",
+          "description": "Create a 5-minute learner conference protocol.",
+          "required": true,
+          "sortOrder": 4
+        },
+        {
+          "contentKey": "feedback_cp_05",
+          "title": "Map progress signals",
+          "description": "Choose the data points you will track to evidence learner growth.",
+          "required": true,
+          "sortOrder": 5
+        }
+      ],
+
+      "quizQuestions": [
+        {
+          "contentKey": "feedback_q_01",
+          "question": "Which feedback is most actionable?",
+          "options": [
+            "Your claim is strong; add one data point to support paragraph two",
+            "Good job",
+            "Needs work",
+            "Try harder"
+          ],
+          "correctAnswer": "Your claim is strong; add one data point to support paragraph two",
+          "sortOrder": 1,
+          "explanation": "Specific, evidence-linked feedback drives revision."
+        },
+        {
+          "contentKey": "feedback_q_02",
+          "question": "What is the purpose of a revision loop?",
+          "options": [
+            "Turn feedback into visible improvement over cycles",
+            "Add grading complexity only",
+            "Delay student completion",
+            "Replace instruction"
+          ],
+          "correctAnswer": "Turn feedback into visible improvement over cycles",
+          "sortOrder": 2,
+          "explanation": "Revision loops connect feedback to measurable growth."
+        },
+        {
+          "contentKey": "feedback_q_03",
+          "question": "A learner repeats the same error after feedback. What next?",
+          "options": [
+            "Model one worked example and have them annotate differences",
+            "Lower expectations permanently",
+            "Give no further feedback",
+            "Mark complete anyway"
+          ],
+          "correctAnswer": "Model one worked example and have them annotate differences",
+          "sortOrder": 3,
+          "explanation": "Targeted modeling helps learners transfer feedback."
+        },
+        {
+          "contentKey": "feedback_q_04",
+          "question": "Best conference opener?",
+          "options": [
+            "What goal are you currently working on, and what evidence shows progress?",
+            "Why are you behind?",
+            "You need to improve everything",
+            "Do you want to skip this"
+          ],
+          "correctAnswer": "What goal are you currently working on, and what evidence shows progress?",
+          "sortOrder": 4,
+          "explanation": "Goal-evidence framing keeps conferences focused and constructive."
+        },
+        {
+          "contentKey": "feedback_q_05",
+          "question": "Which metric best supports growth tracking?",
+          "options": [
+            "Criterion-level change across multiple submissions",
+            "Single end score only",
+            "Attendance alone",
+            "Teacher intuition only"
+          ],
+          "correctAnswer": "Criterion-level change across multiple submissions",
+          "sortOrder": 5,
+          "explanation": "Growth is strongest when monitored across time and criteria."
+        },
+        {
+          "contentKey": "feedback_q_06",
+          "question": "When should praise be used in feedback?",
+          "options": [
+            "Alongside specific next-step guidance tied to evidence",
+            "As the only feedback",
+            "Only at end of semester",
+            "Never"
+          ],
+          "correctAnswer": "Alongside specific next-step guidance tied to evidence",
+          "sortOrder": 6,
+          "explanation": "Balanced feedback sustains motivation and direction."
+        }
+      ]
+    },
+
+    {
+      "contentKey": "academy_capstone_005",
+      "title": "Capstone: Launch-Ready Instructor Plan",
+      "description": "Finalize a full class launch package and submit capstone evidence for review.",
+      "type": "CURRICULUM_REVIEW",
+      "required": true,
+      "sortOrder": 5,
+      "estimatedMinutes": 85,
+      "requiresQuiz": true,
+      "requiresEvidence": true,
+      "passScorePct": 80,
+
+      "videos": [
+        {
+          "title": "Preparing Your Class Launch Package",
+          "description": "Primary training on capstone requirements and expectations",
+          "videoUrl": "[PLACEHOLDER - Primary Training Video]",
+          "videoProvider": "YOUTUBE",
+          "videoDuration": 1080,
+          "isSupplementary": false,
+          "sortOrder": 1,
+          "segments": [
+            {
+              "title": "What Makes a Complete Launch Plan",
+              "startTime": 0,
+              "endTime": 180,
+              "sortOrder": 1
+            },
+            {
+              "title": "Assembling Your Class Plan Components",
+              "startTime": 180,
+              "endTime": 480,
+              "sortOrder": 2
+            },
+            {
+              "title": "Support Strategies Documentation",
+              "startTime": 480,
+              "endTime": 660,
+              "sortOrder": 3
+            },
+            {
+              "title": "Communication Templates Walkthrough",
+              "startTime": 660,
+              "endTime": 840,
+              "sortOrder": 4
+            },
+            {
+              "title": "Self-Audit Checklist and Risk Mitigation",
+              "startTime": 840,
+              "endTime": 1080,
+              "sortOrder": 5
+            }
+          ]
+        },
+        {
+          "title": "Capstone Submission Example Walkthrough",
+          "description": "Annotated example of a strong capstone submission",
+          "videoUrl": "[PLACEHOLDER - Supplementary Video]",
+          "videoProvider": "YOUTUBE",
+          "videoDuration": 480,
+          "isSupplementary": true,
+          "sortOrder": 2,
+          "segments": []
+        },
+        {
+          "title": "Common Capstone Mistakes to Avoid",
+          "description": "Review of common pitfalls and how to avoid them",
+          "videoUrl": "[PLACEHOLDER - Supplementary Video]",
+          "videoProvider": "YOUTUBE",
+          "videoDuration": 300,
+          "isSupplementary": true,
+          "sortOrder": 3,
+          "segments": []
+        },
+        {
+          "title": "Revision Strategies After Feedback",
+          "description": "How to effectively address reviewer feedback and resubmit",
+          "videoUrl": "[PLACEHOLDER - Supplementary Video]",
+          "videoProvider": "YOUTUBE",
+          "videoDuration": 240,
+          "isSupplementary": true,
+          "sortOrder": 4,
+          "segments": []
+        }
+      ],
+
+      "resources": [
+        {
+          "title": "Complete Class Plan Template",
+          "description": "Comprehensive template for full class launch package",
+          "resourceUrl": "[PLACEHOLDER - Google Doc Template]",
+          "resourceType": "DOC",
+          "sortOrder": 1
+        },
+        {
+          "title": "Learner Support Strategy Guide",
+          "description": "Framework for documenting support for struggling and advanced learners",
+          "resourceUrl": "[PLACEHOLDER - PDF Link]",
+          "resourceType": "PDF",
+          "sortOrder": 2
+        },
+        {
+          "title": "Assessment & Rubric Template",
+          "description": "Template for creating formative and summative assessments with rubrics",
+          "resourceUrl": "[PLACEHOLDER - Google Doc Template]",
+          "resourceType": "DOC",
+          "sortOrder": 3
+        },
+        {
+          "title": "Student/Family Communication Templates",
+          "description": "3 variations of pre-class communication templates",
+          "resourceUrl": "[PLACEHOLDER - Google Doc Template]",
+          "resourceType": "DOC",
+          "sortOrder": 4
+        },
+        {
+          "title": "Launch Readiness Checklist (Self-Audit)",
+          "description": "Comprehensive checklist for self-auditing readiness",
+          "resourceUrl": "[PLACEHOLDER - PDF Link]",
+          "resourceType": "PDF",
+          "sortOrder": 5
+        },
+        {
+          "title": "Capstone Evidence Submission Guide",
+          "description": "Step-by-step guide for submitting capstone evidence",
+          "resourceUrl": "[PLACEHOLDER - PDF Link]",
+          "resourceType": "PDF",
+          "sortOrder": 6
+        }
+      ],
+
+      "checkpoints": [
+        {
+          "contentKey": "capstone_cp_01",
+          "title": "Submit complete class plan",
+          "description": "Prepare a full class plan with objective, sequence, and timing.",
+          "required": true,
+          "sortOrder": 1
+        },
+        {
+          "contentKey": "capstone_cp_02",
+          "title": "Attach learner support strategy",
+          "description": "Document support strategies for struggling and advanced learners.",
+          "required": true,
+          "sortOrder": 2
+        },
+        {
+          "contentKey": "capstone_cp_03",
+          "title": "Include assessment + rubric",
+          "description": "Provide formative and summative assessment criteria with rubric.",
+          "required": true,
+          "sortOrder": 3
+        },
+        {
+          "contentKey": "capstone_cp_04",
+          "title": "Prepare communication template",
+          "description": "Draft student/family communication for pre-class expectations.",
+          "required": true,
+          "sortOrder": 4
+        },
+        {
+          "contentKey": "capstone_cp_05",
+          "title": "Complete self-audit checklist",
+          "description": "Run your plan through the launch-readiness checklist and annotate risks.",
+          "required": true,
+          "sortOrder": 5
+        }
+      ],
+
+      "quizQuestions": [
+        {
+          "contentKey": "capstone_q_01",
+          "question": "What is the minimum capstone submission quality bar?",
+          "options": [
+            "Objective-aligned, evidence-based, and implementation-ready",
+            "A rough idea only",
+            "A slide title",
+            "Any uploaded file"
+          ],
+          "correctAnswer": "Objective-aligned, evidence-based, and implementation-ready",
+          "sortOrder": 1,
+          "explanation": "Capstone evidence must be usable in a real class launch."
+        },
+        {
+          "contentKey": "capstone_q_02",
+          "question": "If your launch checklist shows two high risks, what should you do?",
+          "options": [
+            "Mitigate both with concrete actions before publishing",
+            "Ignore them to stay on timeline",
+            "Delete the checklist",
+            "Ask students to solve them"
+          ],
+          "correctAnswer": "Mitigate both with concrete actions before publishing",
+          "sortOrder": 2,
+          "explanation": "Risk handling is part of readiness, not optional paperwork."
+        },
+        {
+          "contentKey": "capstone_q_03",
+          "question": "Which evidence file is strongest for review?",
+          "options": [
+            "Complete class plan packet with rubric, supports, and communication template",
+            "One screenshot without context",
+            "A blank template",
+            "An unrelated document"
+          ],
+          "correctAnswer": "Complete class plan packet with rubric, supports, and communication template",
+          "sortOrder": 3,
+          "explanation": "Reviewers need full artifacts to validate launch readiness."
+        },
+        {
+          "contentKey": "capstone_q_04",
+          "question": "When is capstone evidence considered complete?",
+          "options": [
+            "After reviewer approval in the portal",
+            "Immediately after upload",
+            "After quiz pass only",
+            "When interview is scheduled"
+          ],
+          "correctAnswer": "After reviewer approval in the portal",
+          "sortOrder": 4,
+          "explanation": "Evidence completion requires explicit reviewer approval."
+        },
+        {
+          "contentKey": "capstone_q_05",
+          "question": "What is the main purpose of the capstone module?",
+          "options": [
+            "Demonstrate end-to-end readiness to run a real class responsibly",
+            "Collect random files",
+            "Replace interview gate",
+            "Skip training requirements"
+          ],
+          "correctAnswer": "Demonstrate end-to-end readiness to run a real class responsibly",
+          "sortOrder": 5,
+          "explanation": "Capstone confirms applied readiness, not theory alone."
+        },
+        {
+          "contentKey": "capstone_q_06",
+          "question": "Best next step after revision is requested on capstone evidence?",
+          "options": [
+            "Address each reviewer note and resubmit with clear change notes",
+            "Resubmit without changes",
+            "Withdraw permanently",
+            "Wait for auto-approval"
+          ],
+          "correctAnswer": "Address each reviewer note and resubmit with clear change notes",
+          "sortOrder": 6,
+          "explanation": "Traceable revisions speed review and improve quality."
+        }
+      ]
+    }
+  ]
+}
