@@ -41,6 +41,22 @@ async function requireAdminOrChapterLead() {
   return session;
 }
 
+async function requireTrainingLearner() {
+  const session = await requireAuth();
+  const roles = session.user.roles ?? [];
+  const canAccessTraining =
+    roles.includes("STUDENT") ||
+    roles.includes("INSTRUCTOR") ||
+    roles.includes("ADMIN") ||
+    roles.includes("CHAPTER_LEAD");
+
+  if (!canAccessTraining) {
+    throw new Error("Unauthorized - Training learner access required");
+  }
+
+  return session;
+}
+
 async function assertReviewerCanManageInstructor(
   reviewerId: string,
   instructorId: string
@@ -678,6 +694,7 @@ export async function createTrainingCheckpoint(formData: FormData) {
   revalidatePath("/instructor-training");
   revalidatePath("/student-training");
   revalidatePath("/instructor/training-progress");
+  revalidatePath("/admin/training");
 }
 
 export async function updateTrainingCheckpoint(formData: FormData) {
@@ -812,6 +829,7 @@ export async function createTrainingQuizQuestion(formData: FormData) {
   revalidatePath("/instructor-training");
   revalidatePath("/student-training");
   revalidatePath("/instructor/training-progress");
+  revalidatePath("/admin/training");
   revalidatePath(`/training/${moduleId}`);
 }
 
@@ -898,7 +916,7 @@ export async function deleteTrainingQuizQuestion(formData: FormData) {
 // ============================================
 
 export async function updateVideoProgress(formData: FormData) {
-  const session = await requireAuth();
+  const session = await requireTrainingLearner();
   const userId = session.user.id;
 
   const moduleId = getString(formData, "moduleId");
@@ -1013,11 +1031,22 @@ export async function getVideoProgress(moduleId: string) {
 // ============================================
 
 export async function submitTrainingCheckpoint(formData: FormData) {
-  const session = await requireAuth();
+  formData.set("completed", "true");
+  await setTrainingCheckpointCompletion(formData);
+}
+
+export async function setTrainingCheckpointCompletion(formData: FormData) {
+  const session = await requireTrainingLearner();
   const userId = session.user.id;
 
   const checkpointId = getString(formData, "checkpointId");
   const notes = getString(formData, "notes", false);
+  const completedRaw = getString(formData, "completed", false).toLowerCase();
+  const completed =
+    completedRaw === "" ||
+    completedRaw === "true" ||
+    completedRaw === "1" ||
+    completedRaw === "yes";
 
   const checkpoint = await prisma.trainingCheckpoint.findUnique({
     where: { id: checkpointId },
@@ -1028,31 +1057,41 @@ export async function submitTrainingCheckpoint(formData: FormData) {
     throw new Error("Checkpoint not found");
   }
 
-  await prisma.trainingCheckpointCompletion.upsert({
-    where: {
-      checkpointId_userId: { checkpointId, userId },
-    },
-    create: {
-      checkpointId,
-      userId,
-      notes: notes || null,
-    },
-    update: {
-      notes: notes || undefined,
-      completedAt: new Date(),
-    },
-  });
+  if (completed) {
+    await prisma.trainingCheckpointCompletion.upsert({
+      where: {
+        checkpointId_userId: { checkpointId, userId },
+      },
+      create: {
+        checkpointId,
+        userId,
+        notes: notes || null,
+      },
+      update: {
+        notes: notes || undefined,
+        completedAt: new Date(),
+      },
+    });
+  } else {
+    await prisma.trainingCheckpointCompletion.deleteMany({
+      where: {
+        checkpointId,
+        userId,
+      },
+    });
+  }
 
   await syncAssignmentFromArtifacts(userId, checkpoint.moduleId);
 
   revalidatePath("/instructor-training");
   revalidatePath("/student-training");
   revalidatePath("/instructor/training-progress");
+  revalidatePath("/admin/training");
   revalidatePath(`/training/${checkpoint.moduleId}`);
 }
 
 export async function submitTrainingQuizAttempt(formData: FormData) {
-  const session = await requireAuth();
+  const session = await requireTrainingLearner();
   const userId = session.user.id;
 
   const moduleId = getString(formData, "moduleId");
@@ -1121,13 +1160,14 @@ export async function submitTrainingQuizAttempt(formData: FormData) {
   revalidatePath("/instructor-training");
   revalidatePath("/student-training");
   revalidatePath("/instructor/training-progress");
+  revalidatePath("/admin/training");
   revalidatePath(`/training/${moduleId}`);
 
   return { passed, scorePct, passScorePct: module.passScorePct };
 }
 
 export async function submitTrainingEvidence(formData: FormData) {
-  const session = await requireAuth();
+  const session = await requireTrainingLearner();
   const userId = session.user.id;
 
   const moduleId = getString(formData, "moduleId");
@@ -1153,6 +1193,7 @@ export async function submitTrainingEvidence(formData: FormData) {
   revalidatePath("/instructor-training");
   revalidatePath("/student-training");
   revalidatePath("/instructor/training-progress");
+  revalidatePath("/admin/training");
   revalidatePath(`/training/${moduleId}`);
 }
 
@@ -1226,6 +1267,7 @@ export async function reviewTrainingEvidence(formData: FormData) {
   revalidatePath("/instructor-training");
   revalidatePath("/student-training");
   revalidatePath("/instructor/training-progress");
+  revalidatePath("/admin/training");
   revalidatePath(`/training/${submission.moduleId}`);
 }
 
