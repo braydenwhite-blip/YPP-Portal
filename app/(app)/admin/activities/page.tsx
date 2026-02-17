@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { createChallenge } from "@/lib/challenge-gamification-actions";
+import { normalizeRoleSet } from "@/lib/authorization";
 import {
   createTalentActivity,
   createTryItActivity,
@@ -44,19 +45,20 @@ export default async function AdminActivitiesPage({
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
 
-  const roles = (session.user as any).roles ?? [];
-  const primaryRole = (session.user as any).primaryRole;
-  const canManage =
-    roles.includes("ADMIN") ||
-    roles.includes("INSTRUCTOR") ||
-    roles.includes("CHAPTER_LEAD") ||
-    primaryRole === "ADMIN" ||
-    primaryRole === "INSTRUCTOR" ||
-    primaryRole === "CHAPTER_LEAD";
+  const roleSet = normalizeRoleSet(
+    (session.user as any).roles ?? [],
+    (session.user as any).primaryRole ?? null
+  );
+  const canManage = ["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"].some((role) =>
+    roleSet.has(role)
+  );
   if (!canManage) redirect("/activities");
 
   const tab = normalizeTab(searchParams?.tab);
   const catalog = await getActivityAdminCatalog();
+  const passionNameById = new Map(
+    catalog.passionAreas.map((passion) => [passion.id, passion.name])
+  );
 
   return (
     <div>
@@ -177,7 +179,7 @@ export default async function AdminActivitiesPage({
                     <div>
                       <div style={{ fontWeight: 600 }}>{session.title}</div>
                       <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                        {session.duration} min · {session.passionId}
+                        {session.duration} min · {passionNameById.get(session.passionId) ?? session.passionId}
                       </div>
                     </div>
                     <form action={toggleTryItAction}>
@@ -272,7 +274,10 @@ export default async function AdminActivitiesPage({
                     <div>
                       <div style={{ fontWeight: 600 }}>{challenge.title}</div>
                       <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                        {challenge.difficulty} · {challenge.estimatedMinutes} min
+                        {challenge.difficulty} · {challenge.estimatedMinutes} min ·{" "}
+                        {challenge.passionIds
+                          .map((id) => passionNameById.get(id) ?? id)
+                          .join(", ")}
                       </div>
                     </div>
                     <form action={toggleTalentAction}>
@@ -315,7 +320,14 @@ export default async function AdminActivitiesPage({
                 </label>
                 <label className="form-row">
                   Passion Area
-                  <input className="input" name="passionArea" />
+                  <select className="input" name="passionArea" defaultValue="">
+                    <option value="">General</option>
+                    {catalog.passionAreas.map((passion) => (
+                      <option key={`portal-${passion.id}`} value={passion.id}>
+                        {passion.name}
+                      </option>
+                    ))}
+                  </select>
                 </label>
               </div>
               <div className="grid three">

@@ -228,6 +228,7 @@ model Chapter {
   classTemplates   ClassTemplate[]
   launchTasks      LaunchTask[]
   rolloutCampaigns RolloutCampaign[]
+  featureGateRules FeatureGateRule[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -379,6 +380,7 @@ model User {
   earnedBadges         StudentBadge[]        @relation("StudentBadges")
   challengeCompletions ChallengeCompletion[] @relation("ChallengeCompletions")
   sessionWatchHistory  SessionWatchHistory[] @relation("SessionWatchHistory")
+  activityCompletions  ActivityCompletion[]  @relation("ActivityCompletions")
 
   // Phase 2: Learning Infrastructure Relations
   skillProgress             StudentSkillProgress[]     @relation("StudentSkillProgress")
@@ -438,6 +440,9 @@ model User {
   launchTasksCreated       LaunchTask[]            @relation("LaunchTasksCreatedBy")
   launchTasksUpdated       LaunchTask[]            @relation("LaunchTasksUpdatedBy")
   rolloutCampaignsCreated  RolloutCampaign[]       @relation("RolloutCampaignsCreatedBy")
+  featureGateRulesTargeted FeatureGateRule[]       @relation("FeatureGateRuleTargetUser")
+  featureGateRulesCreated  FeatureGateRule[]       @relation("FeatureGateRuleCreatedBy")
+  featureGateRulesUpdated  FeatureGateRule[]       @relation("FeatureGateRuleUpdatedBy")
 
   // Phase 10: Enjoyment-Focused Assignments Relations
   classAssignmentsCreated ClassAssignment[]           @relation("ClassAssignmentsCreated")
@@ -2594,6 +2599,27 @@ model XPTransaction {
   @@index([createdAt])
 }
 
+model ActivityCompletion {
+  id           String   @id @default(cuid())
+  studentId    String
+  student      User     @relation("ActivityCompletions", fields: [studentId], references: [id], onDelete: Cascade)
+  sourceType   String
+  activityId   String
+  title        String?
+  passionId    String?
+  notes        String?
+  minutesSpent Int?
+  awardedXp    Int      @default(0)
+  metadata     Json?
+  completedAt  DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([studentId, sourceType, activityId])
+  @@index([studentId, completedAt])
+  @@index([sourceType, activityId])
+}
+
 // Badges/Achievements
 model Badge {
   id          String   @id @default(cuid())
@@ -4092,6 +4118,13 @@ enum RolloutCampaignStatus {
   FAILED
 }
 
+enum FeatureGateScope {
+  GLOBAL
+  CHAPTER
+  USER
+  ROLE
+}
+
 // Class template: reusable curriculum design (Feature #61, #62, #63, #64)
 model ClassTemplate {
   id              String          @id @default(cuid())
@@ -4352,6 +4385,33 @@ model RolloutCampaign {
   @@index([chapterId])
   @@index([audience, status])
   @@index([createdAt])
+}
+
+model FeatureGateRule {
+  id          String           @id @default(cuid())
+  featureKey  String
+  scope       FeatureGateScope @default(GLOBAL)
+  enabled     Boolean          @default(true)
+  chapterId   String?
+  chapter     Chapter?         @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  userId      String?
+  user        User?            @relation("FeatureGateRuleTargetUser", fields: [userId], references: [id], onDelete: SetNull)
+  role        RoleType?
+  startsAt    DateTime?
+  endsAt      DateTime?
+  note        String?
+  createdById String?
+  createdBy   User?            @relation("FeatureGateRuleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById String?
+  updatedBy   User?            @relation("FeatureGateRuleUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([featureKey, scope, enabled])
+  @@index([featureKey, chapterId, enabled])
+  @@index([featureKey, userId, enabled])
+  @@index([featureKey, role, enabled])
+  @@index([startsAt, endsAt])
 }
 
 // ============================================

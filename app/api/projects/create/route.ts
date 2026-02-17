@@ -2,7 +2,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { redirect } from "next/navigation";
 import { ProjectVisibility } from "@prisma/client";
 
 export async function POST(request: Request) {
@@ -98,5 +97,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, projectId: project.id });
   }
 
-  redirect("/projects/tracker");
+  return NextResponse.redirect(new URL("/projects/tracker", request.url));
 }

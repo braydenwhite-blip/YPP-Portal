@@ -59,6 +59,14 @@ function normalizeToken(value: string | null | undefined): string {
   return (value || "").trim().toLowerCase();
 }
 
+const COMPLETION_SOURCE_LABELS: Record<string, string> = {
+  TRY_IT_SESSION: "Try-It",
+  TALENT_CHALLENGE: "Talent Challenge",
+  PORTAL_CHALLENGE: "Challenge",
+  INCUBATOR_PROJECT: "Incubator Project",
+  PROJECT_TRACKER: "Project Tracker",
+};
+
 export async function getWorldData(): Promise<WorldData> {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) throw new Error("Unauthorized");
@@ -78,6 +86,7 @@ export async function getWorldData(): Promise<WorldData> {
     incubatorProjects,
     projectTrackers,
     recentXP,
+    recentActivityCompletions,
     recentChallengeSubmissions,
     recentIncubatorUpdates,
     recentTryItHistory,
@@ -179,7 +188,21 @@ export async function getWorldData(): Promise<WorldData> {
         amount: true,
         reason: true,
         passionId: true,
+        sourceType: true,
         createdAt: true,
+      },
+    }).catch(() => []),
+    prisma.activityCompletion.findMany({
+      where: { studentId: userId },
+      orderBy: { completedAt: "desc" },
+      take: 10,
+      select: {
+        id: true,
+        sourceType: true,
+        title: true,
+        passionId: true,
+        awardedXp: true,
+        completedAt: true,
       },
     }).catch(() => []),
     prisma.challengeSubmission.findMany({
@@ -333,13 +356,29 @@ export async function getWorldData(): Promise<WorldData> {
     certificateCount: 0,
   }));
 
-  const activityFromXp = recentXP.map((entry) => ({
-    id: `xp-${entry.id}`,
-    amount: entry.amount,
-    reason: entry.reason,
-    passionId: resolvePassionId(entry.passionId),
-    createdAt: entry.createdAt,
-  }));
+  const completionSourceTypeSet = new Set(Object.keys(COMPLETION_SOURCE_LABELS));
+  const activityFromXp = recentXP
+    .filter((entry) => !completionSourceTypeSet.has(entry.sourceType))
+    .map((entry) => ({
+      id: `xp-${entry.id}`,
+      amount: entry.amount,
+      reason: entry.reason,
+      passionId: resolvePassionId(entry.passionId),
+      createdAt: entry.createdAt,
+    }));
+  const activityFromCompletions = recentActivityCompletions.map((entry) => {
+    const sourceLabel = COMPLETION_SOURCE_LABELS[entry.sourceType] ?? "Activity";
+    const hasTitle = Boolean(entry.title && entry.title.trim().length > 0);
+    return {
+      id: `completion-${entry.id}`,
+      amount: entry.awardedXp,
+      reason: hasTitle
+        ? `Completed ${sourceLabel}: ${entry.title}`
+        : `Completed ${sourceLabel}`,
+      passionId: resolvePassionId(entry.passionId),
+      createdAt: entry.completedAt,
+    };
+  });
   const activityFromChallengeSubmissions = recentChallengeSubmissions.map((entry) => ({
     id: `challenge-${entry.id}`,
     amount: 12,
@@ -364,6 +403,7 @@ export async function getWorldData(): Promise<WorldData> {
 
   const recentActivity = [
     ...activityFromXp,
+    ...activityFromCompletions,
     ...activityFromChallengeSubmissions,
     ...activityFromIncubatorUpdates,
     ...activityFromTryIt,

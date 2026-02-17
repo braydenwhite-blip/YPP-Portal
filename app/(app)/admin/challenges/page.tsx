@@ -2,6 +2,8 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { normalizeRoleSet } from "@/lib/authorization";
+import { prisma } from "@/lib/prisma";
 import {
   archiveChallenge,
   createChallenge,
@@ -49,18 +51,26 @@ export default async function AdminChallengesPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
 
-  const roles = (session.user as any).roles ?? [];
-  const primaryRole = (session.user as any).primaryRole;
-  const canManage =
-    roles.includes("ADMIN") ||
-    roles.includes("INSTRUCTOR") ||
-    roles.includes("CHAPTER_LEAD") ||
-    primaryRole === "ADMIN" ||
-    primaryRole === "INSTRUCTOR" ||
-    primaryRole === "CHAPTER_LEAD";
+  const roleSet = normalizeRoleSet(
+    (session.user as any).roles ?? [],
+    (session.user as any).primaryRole ?? null
+  );
+  const canManage = ["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"].some((role) =>
+    roleSet.has(role)
+  );
   if (!canManage) redirect("/challenges");
 
-  const challenges = await getChallengeAdminList();
+  const [challenges, passionAreas] = await Promise.all([
+    getChallengeAdminList(),
+    prisma.passionArea
+      .findMany({
+        where: { isActive: true },
+        orderBy: [{ order: "asc" }, { name: "asc" }],
+        select: { id: true, name: true },
+      })
+      .catch(() => []),
+  ]);
+  const passionNameById = new Map(passionAreas.map((passion) => [passion.id, passion.name]));
 
   const draftCount = challenges.filter((challenge) => challenge.status === "DRAFT").length;
   const activeCount = challenges.filter((challenge) => challenge.status === "ACTIVE").length;
@@ -124,7 +134,14 @@ export default async function AdminChallengesPage() {
           <div className="grid three">
             <label className="form-row">
               Passion Area
-              <input className="input" name="passionArea" placeholder="Music, Art, Coding" />
+              <select className="input" name="passionArea" defaultValue="">
+                <option value="">General</option>
+                {passionAreas.map((passion) => (
+                  <option key={passion.id} value={passion.id}>
+                    {passion.name}
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="form-row">
               Start Date
@@ -197,7 +214,9 @@ export default async function AdminChallengesPage() {
                     <span>{challenge.xpReward} XP</span>
                     <span>{challenge._count.participants} participants</span>
                     <span>{challenge._count.submissions} submissions</span>
-                    {challenge.passionArea && <span>{challenge.passionArea}</span>}
+                    {challenge.passionArea && (
+                      <span>{passionNameById.get(challenge.passionArea) ?? challenge.passionArea}</span>
+                    )}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -235,7 +254,19 @@ export default async function AdminChallengesPage() {
                     </label>
                     <label className="form-row">
                       Passion Area
-                      <input className="input" name="passionArea" defaultValue={challenge.passionArea ?? ""} />
+                      <select className="input" name="passionArea" defaultValue={challenge.passionArea ?? ""}>
+                        <option value="">General</option>
+                        {challenge.passionArea && !passionNameById.has(challenge.passionArea) ? (
+                          <option value={challenge.passionArea}>
+                            Legacy: {challenge.passionArea}
+                          </option>
+                        ) : null}
+                        {passionAreas.map((passion) => (
+                          <option key={`edit-${challenge.id}-${passion.id}`} value={passion.id}>
+                            {passion.name}
+                          </option>
+                        ))}
+                      </select>
                     </label>
                   </div>
                   <label className="form-row">
