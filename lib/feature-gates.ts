@@ -4,22 +4,11 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { normalizeRoleSet, requireAnyRole } from "@/lib/authorization";
-
-export const FEATURE_KEYS = [
-  "ACTIVITY_HUB",
-  "CHALLENGES",
-  "INCUBATOR",
-  "PASSION_WORLD",
-] as const;
-
-export type FeatureKey = (typeof FEATURE_KEYS)[number];
-
-export type FeatureUserContext = {
-  userId?: string;
-  chapterId?: string | null;
-  roles?: string[];
-  primaryRole?: string | null;
-};
+import {
+  FEATURE_KEYS,
+  type FeatureKey,
+  type FeatureUserContext,
+} from "@/lib/feature-gate-constants";
 
 function isKnownFeatureKey(value: string): value is FeatureKey {
   return FEATURE_KEYS.includes(value as FeatureKey);

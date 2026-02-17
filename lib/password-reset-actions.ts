@@ -60,12 +60,20 @@ export async function requestPasswordReset(
     // Find user by email
     const user = await prisma.user.findUnique({
       where: { email: normalizedEmail },
-      select: { id: true, name: true, email: true }
+      select: { id: true, name: true, email: true, oauthProvider: true, passwordHash: true }
     });
 
     // If user doesn't exist, return success anyway (prevents enumeration)
     if (!user) {
       return { status: "success", message: successMessage };
+    }
+
+    // OAuth-only users (no passwordHash) cannot reset a password
+    if (user.oauthProvider && !user.passwordHash) {
+      return {
+        status: "error",
+        message: `This account uses ${user.oauthProvider === "google" ? "Google" : "social"} sign-in. Please use the "Sign in with Google" button on the login page.`
+      };
     }
 
     // Invalidate any existing unused tokens for this user

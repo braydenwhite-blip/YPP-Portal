@@ -4,8 +4,8 @@ import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { normalizeRoleSet } from "@/lib/authorization";
+import { FEATURE_KEYS } from "@/lib/feature-gate-constants";
 import {
-  FEATURE_KEYS,
   deleteFeatureGateRule,
   listFeatureGateRules,
   setChapterFeatureGateRule,

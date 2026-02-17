@@ -2,10 +2,14 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { PassionCategory } from "@prisma/client";
+import { PassionCategory, QuizType } from "@prisma/client";
 
 function normalizeCategoryToken(value: string): string {
   return value.trim().toUpperCase();
+}
+
+function normalizeQuizTypeToken(value: string): string {
+  return value.trim().toUpperCase().replace(/[\s-]+/g, "_");
 }
 
 function parseScores(payload: unknown): Record<string, number> {
@@ -34,9 +38,12 @@ export async function POST(request: Request) {
   if (Object.keys(scores).length === 0) {
     return NextResponse.json({ error: "Scores are required" }, { status: 400 });
   }
-  const quizType = typeof body.quizType === "string" && body.quizType.trim()
-    ? body.quizType.trim()
-    : "DISCOVERY";
+  const requestedQuizType = typeof body.quizType === "string"
+    ? normalizeQuizTypeToken(body.quizType)
+    : "";
+  const quizType = Object.values(QuizType).includes(requestedQuizType as QuizType)
+    ? (requestedQuizType as QuizType)
+    : QuizType.DISCOVERY;
 
   // Get top passions based on scores (sorted highest first)
   const topPassionCategories = Object.entries(scores)

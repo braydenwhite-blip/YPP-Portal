@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
-import { randomUUID } from "crypto";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { uploadFile } from "@/lib/storage";
+import { checkUploadRateLimit } from "@/lib/rate-limit-redis";
 import { UploadCategory as PrismaUploadCategory } from "@prisma/client";
 
 const ALLOWED_MIME_TYPES = [
@@ -45,7 +43,8 @@ export async function POST(request: NextRequest) {
   }
 
   // Rate limit: 20 uploads per user per 10 minutes
-  const rl = checkRateLimit(`upload:${session.user.id}`, 20, 10 * 60 * 1000);
+  // Uses Redis in production, falls back to in-memory in development
+  const rl = await checkUploadRateLimit(session.user.id);
   if (!rl.success) {
     return NextResponse.json({ error: "Too many upload requests. Please try again later." }, { status: 429 });
   }
@@ -88,19 +87,23 @@ export async function POST(request: NextRequest) {
     // Sanitize original filename
     const originalName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
 
-    // Generate a unique filename
-    const ext = originalName.split(".").pop() || "bin";
-    const filename = `${randomUUID()}.${ext}`;
-
-    // Save to uploads directory
-    const uploadsDir = join(process.cwd(), "public", "uploads");
-    await mkdir(uploadsDir, { recursive: true });
-
+    // Upload to cloud storage (Vercel Blob in production, local disk in development)
     const buffer = Buffer.from(await file.arrayBuffer());
-    const filePath = join(uploadsDir, filename);
-    await writeFile(filePath, buffer);
+    const uploadResult = await uploadFile({
+      file: buffer,
+      filename: originalName,
+      contentType: file.type
+    });
 
-    const url = `/uploads/${filename}`;
+    if (!uploadResult.success || !uploadResult.url) {
+      return NextResponse.json(
+        { error: uploadResult.error || "Upload failed" },
+        { status: 500 }
+      );
+    }
+
+    const url = uploadResult.url;
+    const filename = url.split("/").pop() || originalName;
 
     // Save metadata to database
     const upload = await prisma.fileUpload.create({

@@ -43,7 +43,12 @@ export async function getLinkedStudents() {
   const parentId = session.user.id;
 
   const links = await prisma.parentStudent.findMany({
-    where: { parentId },
+    where: {
+      parentId,
+      // Only show APPROVED links to parents
+      // Parents can request links, but can't access data until approved
+      approvalStatus: "APPROVED",
+    },
     include: {
       student: {
         select: {
@@ -83,7 +88,8 @@ export async function getStudentProgress(studentId: string) {
   const session = await requireParent();
   const parentId = session.user.id;
 
-  // Verify the parent has an active link to this student
+  // Verify the parent has an APPROVED link to this student
+  // Parents cannot access student data for PENDING or REJECTED links
   const link = await prisma.parentStudent.findUnique({
     where: {
       parentId_studentId: { parentId, studentId },

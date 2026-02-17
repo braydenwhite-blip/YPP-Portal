@@ -3,6 +3,42 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { VideoProvider } from "@prisma/client";
 
+// Allowed domains for CUSTOM video provider (to prevent malicious URLs)
+const ALLOWED_VIDEO_DOMAINS = [
+  "youtube.com",
+  "youtu.be",
+  "vimeo.com",
+  "player.vimeo.com",
+  "loom.com",
+  "wistia.com",
+  "wistia.net",
+  "fast.wistia.com",
+  "fast.wistia.net",
+  "cloudfront.net", // AWS CloudFront (commonly used for video hosting)
+  "s3.amazonaws.com", // AWS S3
+  "blob.core.windows.net", // Azure Blob Storage
+  "vercel-storage.com", // Vercel Blob Storage
+];
+
+/**
+ * Validate video URL against allowlist of trusted domains
+ * Prevents loading videos from malicious or untrusted sources
+ */
+function isVideoUrlAllowed(url: string): boolean {
+  try {
+    const parsedUrl = new URL(url);
+    const hostname = parsedUrl.hostname.toLowerCase();
+
+    // Check if hostname matches any allowed domain (including subdomains)
+    return ALLOWED_VIDEO_DOMAINS.some((allowedDomain) => {
+      return hostname === allowedDomain || hostname.endsWith(`.${allowedDomain}`);
+    });
+  } catch {
+    // Invalid URL
+    return false;
+  }
+}
+
 interface VideoPlayerProps {
   videoUrl: string;
   provider: VideoProvider;
@@ -537,22 +573,35 @@ export function VideoPlayer({
 
       <div className="video-wrapper">
         {provider === "CUSTOM" ? (
-          <video
-            ref={videoRef}
-            src={videoUrl}
-            poster={thumbnail}
-            controls
-            onTimeUpdate={handleCustomTimeUpdate}
-            onPlay={() => setIsPlaying(true)}
-            onPause={() => setIsPlaying(false)}
-            onEnded={() => {
-              setIsPlaying(false);
-              const endingTime =
-                videoRef.current?.duration ?? durationRef.current ?? progressRef.current.currentTime;
-              commitProgress(endingTime, endingTime, true);
-              flushProgress(true);
-            }}
-          />
+          // Validate URL for CUSTOM provider to prevent loading malicious content
+          isVideoUrlAllowed(videoUrl) ? (
+            <video
+              ref={videoRef}
+              src={videoUrl}
+              poster={thumbnail}
+              controls
+              onTimeUpdate={handleCustomTimeUpdate}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+              onEnded={() => {
+                setIsPlaying(false);
+                const endingTime =
+                  videoRef.current?.duration ?? durationRef.current ?? progressRef.current.currentTime;
+                commitProgress(endingTime, endingTime, true);
+                flushProgress(true);
+              }}
+            />
+          ) : (
+            <div style={{ padding: 40, textAlign: "center", color: "#ef4444" }}>
+              <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>
+                Video URL Not Allowed
+              </div>
+              <div style={{ fontSize: 14, color: "#94a3b8" }}>
+                This video URL is from an untrusted domain. Only videos from approved
+                sources can be played.
+              </div>
+            </div>
+          )
         ) : embedUrl ? (
           <iframe
             id={provider === "YOUTUBE" ? youtubeElementId : vimeoPlayerId}
