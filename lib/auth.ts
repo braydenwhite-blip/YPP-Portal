@@ -3,7 +3,7 @@ import type { NextAuthOptions } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkLoginRateLimit } from "@/lib/rate-limit-redis";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -31,7 +31,8 @@ export const authOptions: NextAuthOptions = {
         const email = parsed.data.email.toLowerCase();
 
         // Rate limit: 10 login attempts per email per 15 minutes
-        const rl = checkRateLimit(`login:${email}`, 10, 15 * 60 * 1000);
+        // Uses Redis in production, falls back to in-memory in development
+        const rl = await checkLoginRateLimit(email);
         if (!rl.success) {
           throw new Error("Too many login attempts. Please try again later.");
         }
