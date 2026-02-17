@@ -17,11 +17,22 @@ export async function POST(request: Request) {
   const description = formData.get("description") as string;
   const startDate = formData.get("startDate") as string;
   const targetEndDate = formData.get("targetEndDate") as string;
+  const tagsRaw = formData.get("tags") as string;
+  const tags = tagsRaw
+    ? tagsRaw
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean)
+    : [];
   const visibilityRaw = formData.get("visibility");
   const visibility =
     typeof visibilityRaw === "string" && Object.values(ProjectVisibility).includes(visibilityRaw as ProjectVisibility)
       ? (visibilityRaw as ProjectVisibility)
       : ProjectVisibility.PRIVATE;
+
+  if (!title || !passionId) {
+    return NextResponse.json({ error: "Title and passion area are required." }, { status: 400 });
+  }
 
   // Create project
   const project = await prisma.projectTracker.create({
@@ -34,7 +45,7 @@ export async function POST(request: Request) {
       targetEndDate: targetEndDate ? new Date(targetEndDate) : null,
       status: "PLANNING",
       visibility,
-      tags: [],
+      tags,
       collaborators: []
     }
   });
@@ -82,5 +93,10 @@ export async function POST(request: Request) {
     }
   });
 
-  redirect(`/projects/${project.id}`);
+  const acceptsJson = (request.headers.get("accept") || "").includes("application/json");
+  if (acceptsJson) {
+    return NextResponse.json({ success: true, projectId: project.id });
+  }
+
+  redirect("/projects/tracker");
 }

@@ -69,6 +69,12 @@ export default async function ParentStudentDetailPage({
           (data.attendance.presentCount / data.attendance.totalSessions) * 100
         )
       : 0;
+  const activeChallengeCount = data.challenge?.activeCount ?? 0;
+  const bestChallengeStreak = data.challenge?.bestStreak ?? 0;
+  const incubatorProjectCount = data.incubator?.activeProjectCount ?? 0;
+  const incubatorPhase = data.incubator?.latestProject?.currentPhase
+    ? String(data.incubator.latestProject.currentPhase).replace(/_/g, " ")
+    : "Not started";
 
   return (
     <div className="main-content">
@@ -118,7 +124,7 @@ export default async function ParentStudentDetailPage({
         className="stats-row"
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
           gap: "1rem",
           marginBottom: "2rem",
         }}
@@ -140,6 +146,14 @@ export default async function ParentStudentDetailPage({
           <span className="stat-value">
             {data.attendance.totalSessions > 0 ? `${attendanceRate}%` : "N/A"}
           </span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-label">Active Challenges</span>
+          <span className="stat-value">{activeChallengeCount}</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-label">Incubator Projects</span>
+          <span className="stat-value">{incubatorProjectCount}</span>
         </div>
       </div>
 
@@ -368,6 +382,71 @@ export default async function ParentStudentDetailPage({
                 </span>
               </div>
             </>
+          )}
+        </div>
+
+        <div className="card">
+          <h3>Challenge Momentum</h3>
+          <div style={{ display: "grid", gap: 10 }}>
+            <div style={{ fontSize: 14 }}>
+              <strong>Best Streak:</strong> {bestChallengeStreak} day(s)
+            </div>
+            {data.challenge?.lastCheckInAt ? (
+              <div style={{ fontSize: 13, color: "var(--muted)" }}>
+                Last check-in: {new Date(data.challenge.lastCheckInAt).toLocaleDateString()}
+              </div>
+            ) : (
+              <div style={{ fontSize: 13, color: "var(--muted)" }}>No challenge check-ins yet.</div>
+            )}
+            {data.challenge?.activeChallenges?.length > 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {data.challenge.activeChallenges.map((challenge) => (
+                  <div
+                    key={challenge.id}
+                    style={{
+                      padding: 10,
+                      borderRadius: "var(--radius-sm)",
+                      background: "var(--surface-alt)",
+                      fontSize: 13,
+                    }}
+                  >
+                    <div style={{ fontWeight: 600 }}>{challenge.title}</div>
+                    <div style={{ color: "var(--muted)", fontSize: 12 }}>
+                      {challenge.type.replace(/_/g, " ")} · {challenge.currentStreak} day streak
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: 13, color: "var(--muted)" }}>No active challenges right now.</div>
+            )}
+          </div>
+        </div>
+
+        <div className="card">
+          <h3>Incubator Snapshot</h3>
+          {data.incubator?.latestProject ? (
+            <div style={{ display: "grid", gap: 8 }}>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>{data.incubator.latestProject.title}</div>
+              <div style={{ fontSize: 13, color: "var(--muted)" }}>
+                Current phase: {incubatorPhase}
+              </div>
+              <div style={{ fontSize: 13, color: "var(--muted)" }}>
+                Last project update: {new Date(data.incubator.latestProject.updatedAt).toLocaleDateString()}
+              </div>
+              {data.incubator.latestUpdate ? (
+                <div style={{ fontSize: 13 }}>
+                  Latest note: <strong>{data.incubator.latestUpdate.title}</strong> (
+                  {new Date(data.incubator.latestUpdate.createdAt).toLocaleDateString()})
+                </div>
+              ) : (
+                <div style={{ fontSize: 13, color: "var(--muted)" }}>
+                  No incubator updates posted yet.
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="empty">No incubator project activity yet.</p>
           )}
         </div>
       </div>

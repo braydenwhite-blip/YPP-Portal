@@ -48,6 +48,15 @@ export default async function AdminPage() {
     orderBy: { createdAt: "asc" }
   });
 
+  const [pendingIncubatorApps, draftChallenges] = await Promise.all([
+    prisma.incubatorApplication.count({
+      where: { status: { in: ["SUBMITTED", "UNDER_REVIEW"] } },
+    }).catch(() => 0),
+    prisma.challenge.count({
+      where: { status: "DRAFT" },
+    }).catch(() => 0),
+  ]);
+
   return (
     <div>
       <div className="topbar">
@@ -69,6 +78,29 @@ export default async function AdminPage() {
         <div className="card">
           <div className="kpi">{pathways.length}</div>
           <div className="kpi-label">Pathways</div>
+        </div>
+      </div>
+
+      <div className="grid two" style={{ marginTop: 20 }}>
+        <div className="card">
+          <h3 style={{ marginTop: 0, marginBottom: 8 }}>Challenge Publishing</h3>
+          <div style={{ fontSize: 28, fontWeight: 700, color: "#d97706" }}>{draftChallenges}</div>
+          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 10 }}>
+            Draft challenge(s) waiting scheduling/publish decisions.
+          </div>
+          <Link href="/admin/challenges" className="button secondary small" style={{ textDecoration: "none" }}>
+            Open Challenge Manager
+          </Link>
+        </div>
+        <div className="card">
+          <h3 style={{ marginTop: 0, marginBottom: 8 }}>Incubator Review Queue</h3>
+          <div style={{ fontSize: 28, fontWeight: 700, color: "#3b82f6" }}>{pendingIncubatorApps}</div>
+          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 10 }}>
+            Application(s) waiting review decisions.
+          </div>
+          <Link href="/admin/incubator" className="button secondary small" style={{ textDecoration: "none" }}>
+            Open Incubator Manager
+          </Link>
         </div>
       </div>
 

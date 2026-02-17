@@ -15,12 +15,42 @@ async function requireAuth() {
   return session;
 }
 
+function extractRoleSet(session: any): Set<string> {
+  const roles = new Set<string>();
+  const primaryRole = session?.user?.primaryRole;
+  if (typeof primaryRole === "string" && primaryRole) {
+    roles.add(primaryRole);
+  }
+
+  const rawRoles = session?.user?.roles;
+  if (Array.isArray(rawRoles)) {
+    for (const role of rawRoles) {
+      if (typeof role === "string" && role) roles.add(role);
+      if (role && typeof role === "object" && typeof role.role === "string") {
+        roles.add(role.role);
+      }
+    }
+  }
+
+  return roles;
+}
+
+async function requireAnyRole(requiredRoles: string[]) {
+  const session = await requireAuth();
+  const roleSet = extractRoleSet(session);
+  const allowed = requiredRoles.some((role) => roleSet.has(role));
+  if (!allowed) {
+    throw new Error("Unauthorized");
+  }
+  return session;
+}
+
 // ============================================
 // CHALLENGES (Features #12, #21)
 // ============================================
 
 export async function createChallenge(formData: FormData) {
-  const session = await requireAuth();
+  const session = await requireAnyRole(["ADMIN", "INSTRUCTOR"]);
 
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
@@ -63,11 +93,12 @@ export async function createChallenge(formData: FormData) {
   });
 
   revalidatePath("/challenges");
+  revalidatePath("/admin/challenges");
   return challenge;
 }
 
 export async function publishChallenge(challengeId: string) {
-  await requireAuth();
+  await requireAnyRole(["ADMIN", "INSTRUCTOR"]);
 
   await prisma.challenge.update({
     where: { id: challengeId },
@@ -75,10 +106,75 @@ export async function publishChallenge(challengeId: string) {
   });
 
   revalidatePath("/challenges");
+  revalidatePath("/admin/challenges");
+}
+
+export async function unpublishChallenge(challengeId: string) {
+  await requireAnyRole(["ADMIN", "INSTRUCTOR"]);
+
+  await prisma.challenge.update({
+    where: { id: challengeId },
+    data: { status: "DRAFT" },
+  });
+
+  revalidatePath("/challenges");
+  revalidatePath("/admin/challenges");
+}
+
+export async function archiveChallenge(challengeId: string) {
+  await requireAnyRole(["ADMIN", "INSTRUCTOR"]);
+
+  await prisma.challenge.update({
+    where: { id: challengeId },
+    data: { status: "ARCHIVED" },
+  });
+
+  revalidatePath("/challenges");
+  revalidatePath("/admin/challenges");
+}
+
+export async function updateChallenge(formData: FormData) {
+  await requireAnyRole(["ADMIN", "INSTRUCTOR"]);
+
+  const challengeId = formData.get("challengeId") as string;
+  const title = formData.get("title") as string;
+  const description = formData.get("description") as string;
+  const passionArea = (formData.get("passionArea") as string) || null;
+  const startDateRaw = formData.get("startDate") as string;
+  const endDateRaw = formData.get("endDate") as string;
+  const xpReward = parseInt(formData.get("xpReward") as string, 10);
+  const dailyGoal = (formData.get("dailyGoal") as string) || null;
+  const weeklyGoal = (formData.get("weeklyGoal") as string) || null;
+  const promptText = (formData.get("promptText") as string) || null;
+  const specialRecognition = (formData.get("specialRecognition") as string) || null;
+
+  if (!challengeId || !title || !description) {
+    throw new Error("Challenge id, title, and description are required");
+  }
+
+  await prisma.challenge.update({
+    where: { id: challengeId },
+    data: {
+      title,
+      description,
+      passionArea,
+      startDate: startDateRaw ? new Date(startDateRaw) : undefined,
+      endDate: endDateRaw ? new Date(endDateRaw) : undefined,
+      xpReward: Number.isFinite(xpReward) && xpReward > 0 ? xpReward : 50,
+      dailyGoal,
+      weeklyGoal,
+      promptText,
+      specialRecognition,
+    },
+  });
+
+  revalidatePath("/challenges");
+  revalidatePath(`/challenges/${challengeId}`);
+  revalidatePath("/admin/challenges");
 }
 
 export async function joinChallenge(challengeId: string) {
-  const session = await requireAuth();
+  const session = await requireAnyRole(["STUDENT", "ADMIN"]);
 
   // Check not already joined
   const existing = await prisma.challengeParticipant.findUnique({
@@ -105,7 +201,7 @@ export async function joinChallenge(challengeId: string) {
 }
 
 export async function dropChallenge(challengeId: string) {
-  const session = await requireAuth();
+  const session = await requireAnyRole(["STUDENT", "ADMIN"]);
 
   await prisma.challengeParticipant.update({
     where: { challengeId_studentId: { challengeId, studentId: session.user.id } },
@@ -116,7 +212,7 @@ export async function dropChallenge(challengeId: string) {
 }
 
 export async function checkInChallenge(formData: FormData) {
-  const session = await requireAuth();
+  const session = await requireAnyRole(["STUDENT", "ADMIN"]);
   const challengeId = formData.get("challengeId") as string;
   const minutesPracticed = parseInt(formData.get("minutesPracticed") as string) || 0;
   const reflection = formData.get("reflection") as string || null;
@@ -236,7 +332,7 @@ async function updateLeaderboard(challengeId: string) {
 // ============================================
 
 export async function submitWeeklyWork(formData: FormData) {
-  const session = await requireAuth();
+  const session = await requireAnyRole(["STUDENT", "ADMIN"]);
   const challengeId = formData.get("challengeId") as string;
   const title = formData.get("title") as string;
   const description = formData.get("description") as string || null;
@@ -541,6 +637,17 @@ export async function toggleBadgePin(badgeId: string) {
 // ============================================
 // QUERY HELPERS
 // ============================================
+
+export async function getChallengeAdminList() {
+  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+
+  return prisma.challenge.findMany({
+    include: {
+      _count: { select: { participants: true, submissions: true } },
+    },
+    orderBy: [{ startDate: "desc" }, { createdAt: "desc" }],
+  });
+}
 
 export async function getActiveChallenges() {
   const session = await requireAuth();

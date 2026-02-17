@@ -46,8 +46,11 @@ export default async function IncubatorProjectPage({ params }: { params: { id: s
   }
 
   const isOwner = project.studentId === session.user.id;
-  const isAdmin = (session.user as any).primaryRole === "ADMIN";
-  const isInstructor = (session.user as any).primaryRole === "INSTRUCTOR";
+  const roles = (session.user as any).roles ?? [];
+  const primaryRole = (session.user as any).primaryRole;
+  const isAdmin = primaryRole === "ADMIN" || roles.includes("ADMIN");
+  const isInstructor = primaryRole === "INSTRUCTOR" || roles.includes("INSTRUCTOR");
+  const isChapterLead = primaryRole === "CHAPTER_LEAD" || roles.includes("CHAPTER_LEAD");
   const isMentor = project.mentors.some((m) => m.mentorId === session.user.id);
   const phaseIdx = PHASES.indexOf(project.currentPhase);
   const color = PHASE_COLORS[project.currentPhase];
@@ -209,7 +212,7 @@ export default async function IncubatorProjectPage({ params }: { params: { id: s
               <h3 style={{ fontSize: 16, marginBottom: 12 }}>
                 Pitch Feedback ({project.pitchFeedback.length})
               </h3>
-              {!isOwner && (isAdmin || isInstructor || isMentor) && (
+              {!isOwner && (isAdmin || isInstructor || isChapterLead || isMentor) && (
                 <div className="card" style={{ marginBottom: 12 }}>
                   <h4 style={{ marginBottom: 8 }}>Give Feedback</h4>
                   <PitchFeedbackForm projectId={project.id} />

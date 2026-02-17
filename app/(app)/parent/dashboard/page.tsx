@@ -26,11 +26,11 @@ export default async function ParentDashboardPage() {
   );
 
   // Aggregate stats
-  const totalEnrollments = progressData.reduce(
-    (sum, p) => sum + (p.progress?.enrollments?.length ?? 0), 0,
+  const totalActiveChallenges = progressData.reduce(
+    (sum, p) => sum + (p.progress?.challenge?.activeCount ?? 0), 0,
   );
-  const totalCerts = progressData.reduce(
-    (sum, p) => sum + (p.progress?.certificates?.length ?? 0), 0,
+  const totalIncubatorProjects = progressData.reduce(
+    (sum, p) => sum + (p.progress?.incubator?.activeProjectCount ?? 0), 0,
   );
   const totalGoals = progressData.reduce(
     (sum, p) => sum + (p.progress?.goals?.length ?? 0), 0,
@@ -78,6 +78,32 @@ export default async function ParentDashboardPage() {
           studentId: p.studentId,
         });
       }
+    }
+    if (p.progress.challenge?.lastCheckInAt) {
+      activities.push({
+        type: "challenge",
+        label: `Challenge check-in (${p.progress.challenge.activeCount} active)`,
+        student: p.name,
+        date: new Date(p.progress.challenge.lastCheckInAt),
+        studentId: p.studentId,
+      });
+    }
+    if (p.progress.incubator?.latestUpdate) {
+      activities.push({
+        type: "incubator",
+        label: `Incubator update: ${p.progress.incubator.latestUpdate.title}`,
+        student: p.name,
+        date: new Date(p.progress.incubator.latestUpdate.createdAt),
+        studentId: p.studentId,
+      });
+    } else if (p.progress.incubator?.latestProject?.updatedAt) {
+      activities.push({
+        type: "incubator",
+        label: `Incubator phase: ${String(p.progress.incubator.latestProject.currentPhase).replace(/_/g, " ")}`,
+        student: p.name,
+        date: new Date(p.progress.incubator.latestProject.updatedAt),
+        studentId: p.studentId,
+      });
     }
   }
 
@@ -130,18 +156,18 @@ export default async function ParentDashboardPage() {
               <div className="kpi-label">Linked Students</div>
             </div>
             <div className="card" style={{ textAlign: "center" }}>
-              <div className="kpi">{totalEnrollments}</div>
-              <div className="kpi-label">Total Enrollments</div>
+              <div className="kpi">{totalActiveChallenges}</div>
+              <div className="kpi-label">Active Challenges</div>
+            </div>
+            <div className="card" style={{ textAlign: "center" }}>
+              <div className="kpi" style={{ color: "#d97706" }}>{totalIncubatorProjects}</div>
+              <div className="kpi-label">Incubator Projects</div>
             </div>
             <div className="card" style={{ textAlign: "center" }}>
               <div className="kpi" style={{ color: "#16a34a" }}>
                 {totalGoals > 0 ? `${Math.round((goalsOnTrack / totalGoals) * 100)}%` : "N/A"}
               </div>
               <div className="kpi-label">Goals On Track</div>
-            </div>
-            <div className="card" style={{ textAlign: "center" }}>
-              <div className="kpi" style={{ color: "#7c3aed" }}>{totalCerts}</div>
-              <div className="kpi-label">Certificates Earned</div>
             </div>
           </div>
 
@@ -215,6 +241,8 @@ export default async function ParentDashboardPage() {
                           </div>
                           <div style={{ display: "flex", gap: 12, marginTop: 6, fontSize: 12, color: "var(--muted)" }}>
                             <span>{prog?.enrollments?.length ?? 0} courses</span>
+                            <span>{prog?.challenge?.activeCount ?? 0} challenges</span>
+                            <span>{prog?.incubator?.activeProjectCount ?? 0} incubator</span>
                             <span>{prog?.certificates?.length ?? 0} certs</span>
                             {rate !== null && <span>{rate}% attendance</span>}
                           </div>

@@ -20,7 +20,7 @@ async function requireAuth() {
 async function requireParent() {
   const session = await requireAuth();
   const roles = session.user.roles ?? [];
-  if (!roles.includes("PARENT")) {
+  if (!roles.includes("PARENT") && !roles.includes("ADMIN")) {
     throw new Error("Unauthorized - Parent access required");
   }
   return session;
@@ -160,6 +160,50 @@ export async function getStudentProgress(studentId: string) {
     throw new Error("Student not found");
   }
 
+  const [challengeParticipations, incubatorProjects, latestIncubatorUpdate] = await Promise.all([
+    prisma.challengeParticipant.findMany({
+      where: { studentId },
+      select: {
+        status: true,
+        currentStreak: true,
+        longestStreak: true,
+        lastCheckIn: true,
+        challenge: {
+          select: {
+            id: true,
+            title: true,
+            type: true,
+            status: true,
+            endDate: true,
+          },
+        },
+      },
+      orderBy: { joinedAt: "desc" },
+    }).catch(() => []),
+    prisma.incubatorProject.findMany({
+      where: { studentId },
+      select: {
+        id: true,
+        title: true,
+        currentPhase: true,
+        updatedAt: true,
+      },
+      orderBy: { updatedAt: "desc" },
+    }).catch(() => []),
+    prisma.incubatorUpdate.findFirst({
+      where: {
+        project: { studentId },
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        createdAt: true,
+        projectId: true,
+      },
+    }).catch(() => null),
+  ]);
+
   // Compute training summary
   const totalTrainings = student.trainings.length;
   const completedTrainings = student.trainings.filter(
@@ -191,6 +235,25 @@ export async function getStudentProgress(studentId: string) {
     lastUpdatedAt: goal.progress[0]?.createdAt ?? null,
   }));
 
+  const activeChallenges = challengeParticipations.filter(
+    (entry) =>
+      entry.status === "ACTIVE" &&
+      entry.challenge.status === "ACTIVE" &&
+      entry.challenge.endDate >= new Date()
+  );
+  const completedChallenges = challengeParticipations.filter(
+    (entry) => entry.status === "COMPLETED"
+  );
+  const bestChallengeStreak = challengeParticipations.reduce(
+    (max, entry) => Math.max(max, entry.longestStreak),
+    0
+  );
+  const lastChallengeCheckInAt = challengeParticipations
+    .map((entry) => entry.lastCheckIn)
+    .filter((value): value is Date => Boolean(value))
+    .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+  const latestIncubatorProject = incubatorProjects[0] ?? null;
+
   return {
     student: {
       id: student.id,
@@ -217,6 +280,30 @@ export async function getStudentProgress(studentId: string) {
       absentCount,
       lateCount,
       excusedCount,
+    },
+    challenge: {
+      activeCount: activeChallenges.length,
+      completedCount: completedChallenges.length,
+      bestStreak: bestChallengeStreak,
+      lastCheckInAt: lastChallengeCheckInAt,
+      activeChallenges: activeChallenges.map((entry) => ({
+        id: entry.challenge.id,
+        title: entry.challenge.title,
+        type: entry.challenge.type,
+        currentStreak: entry.currentStreak,
+      })),
+    },
+    incubator: {
+      activeProjectCount: incubatorProjects.length,
+      latestProject: latestIncubatorProject
+        ? {
+            id: latestIncubatorProject.id,
+            title: latestIncubatorProject.title,
+            currentPhase: latestIncubatorProject.currentPhase,
+            updatedAt: latestIncubatorProject.updatedAt,
+          }
+        : null,
+      latestUpdate: latestIncubatorUpdate,
     },
   };
 }

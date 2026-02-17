@@ -1,4 +1,4 @@
-import { PrismaClient, CourseFormat, CourseLevel, TrainingModuleType, RoleType, MentorshipType, EventType, FeedbackSource, TrainingStatus, ApprovalStatus, VideoProvider } from "@prisma/client";
+import { PrismaClient, CourseFormat, CourseLevel, TrainingModuleType, RoleType, MentorshipType, EventType, FeedbackSource, TrainingStatus, ApprovalStatus, VideoProvider, PassionCategory } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -386,6 +386,180 @@ async function main() {
       status: "ENROLLED"
     }
   });
+
+  const passionSeeds = [
+    {
+      name: "Coding",
+      category: PassionCategory.STEM,
+      description: "Software, apps, game design, and computational thinking.",
+      icon: "💻",
+      color: "#2563eb",
+      order: 1,
+    },
+    {
+      name: "Music",
+      category: PassionCategory.MUSIC,
+      description: "Performance, songwriting, production, and composition.",
+      icon: "🎵",
+      color: "#16a34a",
+      order: 2,
+    },
+    {
+      name: "Writing",
+      category: PassionCategory.WRITING,
+      description: "Storytelling, journalism, poetry, and authoring.",
+      icon: "✍️",
+      color: "#d97706",
+      order: 3,
+    },
+    {
+      name: "Design",
+      category: PassionCategory.ARTS,
+      description: "Visual design, product design, and creative communication.",
+      icon: "🎨",
+      color: "#db2777",
+      order: 4,
+    },
+  ];
+
+  for (const passion of passionSeeds) {
+    await prisma.passionArea.upsert({
+      where: { name: passion.name },
+      update: {
+        category: passion.category,
+        description: passion.description,
+        icon: passion.icon,
+        color: passion.color,
+        order: passion.order,
+        isActive: true,
+      },
+      create: {
+        ...passion,
+        relatedAreaIds: [],
+        isActive: true,
+      },
+    });
+  }
+
+  const passionRecords = await prisma.passionArea.findMany({
+    where: { name: { in: passionSeeds.map((passion) => passion.name) } },
+    select: { id: true, name: true },
+  });
+  const passionByName = new Map(passionRecords.map((passion) => [passion.name, passion.id]));
+
+  for (const passion of passionRecords.slice(0, 2)) {
+    await prisma.studentInterest.upsert({
+      where: {
+        studentId_passionId: {
+          studentId: student.id,
+          passionId: passion.id,
+        },
+      },
+      update: {
+        isPrimary: passion.name === "Coding",
+      },
+      create: {
+        studentId: student.id,
+        passionId: passion.id,
+        isPrimary: passion.name === "Coding",
+      },
+    });
+  }
+
+  const tryItSeeds = [
+    {
+      title: "Build Your First Mini App",
+      description: "A 15-minute intro to app thinking and quick prototyping.",
+      passionName: "Coding",
+      videoUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+      duration: 15,
+      presenter: "Avery Lin",
+      order: 1,
+    },
+    {
+      title: "Write a Hook in 20 Minutes",
+      description: "A quick songwriting sprint with an easy verse-chorus structure.",
+      passionName: "Music",
+      videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      duration: 20,
+      presenter: "Carly Gelles",
+      order: 2,
+    },
+  ];
+
+  for (const seed of tryItSeeds) {
+    const passionId = passionByName.get(seed.passionName);
+    if (!passionId) continue;
+
+    const existing = await prisma.tryItSession.findFirst({
+      where: {
+        title: seed.title,
+        passionId,
+      },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      await prisma.tryItSession.create({
+        data: {
+          passionId,
+          title: seed.title,
+          description: seed.description,
+          videoUrl: seed.videoUrl,
+          duration: seed.duration,
+          presenter: seed.presenter,
+          isActive: true,
+          order: seed.order,
+        },
+      });
+    }
+  }
+
+  const talentSeeds = [
+    {
+      title: "One-Scene Story Sprint",
+      description: "Write and revise one high-impact scene in under 30 minutes.",
+      instructions: "Draft a scene with conflict, then revise for clarity and pacing.",
+      passionNames: ["Writing"],
+      difficulty: "MEDIUM",
+      estimatedMinutes: 30,
+      order: 1,
+    },
+    {
+      title: "Rapid Poster Design Challenge",
+      description: "Create a poster for a chapter event using a clear visual hierarchy.",
+      instructions: "Use one headline, one image, and one call-to-action. Keep it readable.",
+      passionNames: ["Design"],
+      difficulty: "EASY",
+      estimatedMinutes: 25,
+      order: 2,
+    },
+  ];
+
+  for (const seed of talentSeeds) {
+    const existing = await prisma.talentChallenge.findFirst({
+      where: { title: seed.title },
+      select: { id: true },
+    });
+    if (existing) continue;
+
+    const passionIds = seed.passionNames
+      .map((name) => passionByName.get(name))
+      .filter((value): value is string => Boolean(value));
+
+    await prisma.talentChallenge.create({
+      data: {
+        title: seed.title,
+        description: seed.description,
+        instructions: seed.instructions,
+        passionIds,
+        difficulty: seed.difficulty,
+        estimatedMinutes: seed.estimatedMinutes,
+        isActive: true,
+        order: seed.order,
+      },
+    });
+  }
 
   console.log(`Seeded Pathways portal data for ${pathway.name}.`);
 }

@@ -11,6 +11,7 @@ import type {
   DashboardRole,
 } from "@/lib/dashboard/types";
 import { getNextRequiredAction, isInterviewGateEnforced } from "@/lib/instructor-readiness";
+import { getRecommendedActivitiesForUser } from "@/lib/activity-hub/actions";
 
 const FINAL_APPLICATION_STATUSES = ["ACCEPTED", "REJECTED", "WITHDRAWN"] as const;
 
@@ -121,6 +122,9 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
       readinessReviewQueue,
       waitlistWaiting,
       chapterProposalQueue,
+      pendingIncubatorApplications,
+      draftChallenges,
+      scheduledChallenges,
     ] = await Promise.all([
       prisma.parentStudent.count({ where: { approvalStatus: "PENDING" } }),
       prisma.application.count({
@@ -150,6 +154,16 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
           },
         },
       }),
+      prisma.incubatorApplication.count({
+        where: { status: { in: ["SUBMITTED", "UNDER_REVIEW"] } },
+      }).catch(() => 0),
+      prisma.challenge.count({ where: { status: "DRAFT" } }).catch(() => 0),
+      prisma.challenge.count({
+        where: {
+          status: "DRAFT",
+          startDate: { gt: new Date() },
+        },
+      }).catch(() => 0),
     ]);
 
     heroTitle = "Admin Operations Command Center";
@@ -158,9 +172,12 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     kpis = [
       { id: "pending_parent_approvals", label: "Pending Parent Approvals", value: pendingParentApprovals },
       { id: "pending_app_decisions", label: "Pending Application Decisions", value: pendingAppDecisions },
+      { id: "pending_incubator_applications", label: "Incubator Reviews", value: pendingIncubatorApplications },
       { id: "chapter_proposal_queue", label: "Chapter Proposals", value: chapterProposalQueue },
       { id: "training_evidence_queue", label: "Training Evidence Queue", value: trainingEvidenceQueue },
       { id: "waitlist_waiting", label: "Waitlist Waiting", value: waitlistWaiting },
+      { id: "draft_challenges", label: "Draft Challenges", value: draftChallenges },
+      { id: "scheduled_challenges", label: "Scheduled Challenges", value: scheduledChallenges },
     ];
 
     queues = [
@@ -218,6 +235,24 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
         status: queueStatus(waitlistWaiting, 30),
         badgeKey: "waitlist_waiting",
       },
+      {
+        id: "pending_incubator_applications",
+        title: "Incubator Application Reviews",
+        description: "Applications waiting review decisions.",
+        count: pendingIncubatorApplications,
+        href: "/admin/incubator",
+        status: queueStatus(pendingIncubatorApplications, 10),
+        badgeKey: "pending_incubator_applications",
+      },
+      {
+        id: "draft_challenges",
+        title: "Challenge Publish Queue",
+        description: "Draft or scheduled challenges still unpublished.",
+        count: draftChallenges,
+        href: "/admin/challenges",
+        status: queueStatus(draftChallenges, 12),
+        badgeKey: "draft_challenges",
+      },
     ];
 
     nextActions = queues
@@ -247,6 +282,8 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     moduleBadgeByHref["/interviews"] = pendingAppDecisions;
     moduleBadgeByHref["/admin/instructor-readiness"] = trainingEvidenceQueue + readinessReviewQueue;
     moduleBadgeByHref["/admin/waitlist"] = waitlistWaiting;
+    moduleBadgeByHref["/admin/incubator"] = pendingIncubatorApplications;
+    moduleBadgeByHref["/admin/challenges"] = draftChallenges;
   } else if (role === "CHAPTER_LEAD") {
     const hasChapterLeadAccess = roleTypes.includes("CHAPTER_LEAD") || roleTypes.includes("ADMIN");
 
@@ -535,7 +572,15 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     moduleBadgeByHref["/instructor/class-settings"] = classCount;
     moduleBadgeByHref["/attendance"] = classCount;
   } else if (role === "STUDENT") {
-    const [enrollments, pathways, activeApplications, studentTrainingDue] = await Promise.all([
+    const [
+      enrollments,
+      pathways,
+      activeApplications,
+      studentTrainingDue,
+      challengeParticipations,
+      activeIncubatorProject,
+      recommendedActivities,
+    ] = await Promise.all([
       prisma.enrollment.findMany({
         where: { userId },
         select: {
@@ -567,6 +612,33 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
           status: { not: "COMPLETE" },
         },
       }),
+      prisma.challengeParticipant.findMany({
+        where: { studentId: userId },
+        select: {
+          status: true,
+          currentStreak: true,
+          longestStreak: true,
+          challenge: {
+            select: {
+              id: true,
+              title: true,
+              status: true,
+              endDate: true,
+            },
+          },
+        },
+      }),
+      prisma.incubatorProject.findFirst({
+        where: { studentId: userId },
+        orderBy: { updatedAt: "desc" },
+        select: {
+          id: true,
+          title: true,
+          currentPhase: true,
+          updatedAt: true,
+        },
+      }).catch(() => null),
+      getRecommendedActivitiesForUser(userId, 3),
     ]);
 
     const activeEnrollments = enrollments.filter((enrollment) => enrollment.status === "ENROLLED").length;
@@ -574,6 +646,19 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     const nextPathwaySteps = pathways.filter((pathway) =>
       pathway.steps.some((step) => !enrolledCourseIds.has(step.courseId))
     ).length;
+    const activeChallengeCount = challengeParticipations.filter(
+      (entry) =>
+        entry.status === "ACTIVE" &&
+        entry.challenge.status === "ACTIVE" &&
+        entry.challenge.endDate >= new Date()
+    ).length;
+    const bestChallengeStreak = challengeParticipations.reduce(
+      (max, entry) => Math.max(max, entry.longestStreak),
+      0
+    );
+    const incubatorPhaseLabel = activeIncubatorProject
+      ? activeIncubatorProject.currentPhase.replace(/_/g, " ")
+      : "Not Started";
 
     heroTitle = "Student Command Center";
     heroSubtitle = "See your progress, pending actions, and opportunities in one place.";
@@ -581,11 +666,43 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     kpis = [
       { id: "student_active_enrollments", label: "Active Enrollments", value: activeEnrollments },
       { id: "student_next_steps", label: "Pathway Next Steps", value: nextPathwaySteps },
+      { id: "student_active_challenges", label: "Active Challenges", value: activeChallengeCount },
+      { id: "student_best_streak", label: "Best Challenge Streak", value: bestChallengeStreak },
       { id: "student_active_applications", label: "Active Applications", value: activeApplications },
       { id: "student_training_due", label: "Training Modules Due", value: studentTrainingDue },
+      { id: "student_recommended_activities", label: "Recommended Activities", value: recommendedActivities.length },
     ];
 
     queues = [
+      {
+        id: "student_activity_hub",
+        title: "Recommended Activities",
+        description: "Activity recommendations across challenge, incubator, and projects.",
+        count: recommendedActivities.length,
+        href: "/activities",
+        status: queueStatus(recommendedActivities.length, 5),
+        badgeKey: "student_recommended_activities",
+      },
+      {
+        id: "student_active_challenges",
+        title: "Challenge Momentum",
+        description: "Stay consistent with your active challenge check-ins.",
+        count: activeChallengeCount,
+        href: "/challenges",
+        status: queueStatus(activeChallengeCount, 7),
+        badgeKey: "student_active_challenges",
+      },
+      {
+        id: "student_incubator",
+        title: "Incubator Progress",
+        description: activeIncubatorProject
+          ? `Current phase: ${incubatorPhaseLabel}.`
+          : "No incubator project yet.",
+        count: activeIncubatorProject ? 1 : 0,
+        href: "/incubator",
+        status: activeIncubatorProject ? "needs_action" : "healthy",
+        badgeKey: "student_incubator",
+      },
       {
         id: "student_training_due",
         title: "Training Academy",
@@ -644,6 +761,33 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
       });
     }
 
+    if (activeChallengeCount > 0) {
+      nextActions.push({
+        id: "student-challenge",
+        title: "Complete today's challenge check-in",
+        detail: `${activeChallengeCount} challenge(s) currently active.`,
+        href: "/challenges",
+      });
+    }
+
+    if (activeIncubatorProject) {
+      nextActions.push({
+        id: "student-incubator",
+        title: "Post an incubator project update",
+        detail: `${activeIncubatorProject.title} is in ${incubatorPhaseLabel}.`,
+        href: `/incubator/project/${activeIncubatorProject.id}`,
+      });
+    }
+
+    if (recommendedActivities.length > 0) {
+      nextActions.push({
+        id: "student-activities",
+        title: "Open your recommended activities",
+        detail: `${recommendedActivities.length} activity recommendation(s) available.`,
+        href: "/activities",
+      });
+    }
+
     if (activeApplications === 0) {
       nextActions.push({
         id: "student-positions",
@@ -667,6 +811,9 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     moduleBadgeByHref["/applications"] = activeApplications;
     moduleBadgeByHref["/interviews"] = activeApplications;
     moduleBadgeByHref["/student-training"] = studentTrainingDue;
+    moduleBadgeByHref["/activities"] = recommendedActivities.length;
+    moduleBadgeByHref["/challenges"] = activeChallengeCount;
+    moduleBadgeByHref["/incubator"] = activeIncubatorProject ? 1 : 0;
   } else if (role === "MENTOR") {
     const staleThreshold = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
 
@@ -677,6 +824,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
       },
       select: {
         id: true,
+        menteeId: true,
         checkIns: {
           orderBy: { createdAt: "desc" },
           take: 1,
@@ -688,6 +836,40 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     });
 
     const activeMentees = mentorships.length;
+    const menteeIdList = mentorships.map((entry) => entry.menteeId);
+
+    const [menteeActiveChallenges, incubatorAssignments] = await Promise.all([
+      menteeIdList.length > 0
+        ? prisma.challengeParticipant.count({
+            where: {
+              studentId: { in: menteeIdList },
+              status: "ACTIVE",
+            },
+          })
+        : Promise.resolve(0),
+      prisma.incubatorMentor
+        .findMany({
+          where: {
+            mentorId: userId,
+            isActive: true,
+          },
+          include: {
+            project: {
+              select: {
+                id: true,
+                title: true,
+                updatedAt: true,
+                currentPhase: true,
+              },
+            },
+          },
+        })
+        .catch(() => []),
+    ]);
+
+    const staleIncubatorProjects = incubatorAssignments.filter(
+      (assignment) => assignment.project.updatedAt < staleThreshold
+    ).length;
     const overdueCheckIns = mentorships.filter((mentorship) => {
       const latest = mentorship.checkIns[0];
       if (!latest) return true;
@@ -700,6 +882,8 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     kpis = [
       { id: "mentor_active_mentees", label: "Active Mentees", value: activeMentees },
       { id: "mentor_overdue_checkins", label: "Overdue Check-Ins", value: overdueCheckIns },
+      { id: "mentor_incubator_projects", label: "Incubator Projects", value: incubatorAssignments.length },
+      { id: "mentor_mentee_challenges", label: "Mentee Active Challenges", value: menteeActiveChallenges },
       { id: "mentor_unread_messages", label: "Unread Messages", value: unreadMessages },
       { id: "mentor_unread_notifications", label: "Unread Notifications", value: unreadNotifications },
     ];
@@ -713,6 +897,15 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
         href: "/mentorship/mentees",
         status: queueStatus(overdueCheckIns, 6),
         badgeKey: "mentor_overdue_checkins",
+      },
+      {
+        id: "mentor_incubator_stale_updates",
+        title: "Incubator Follow-Ups",
+        description: "Assigned incubator projects with stale updates.",
+        count: staleIncubatorProjects,
+        href: "/incubator",
+        status: queueStatus(staleIncubatorProjects, 4),
+        badgeKey: "mentor_incubator_projects",
       },
       {
         id: "mentor_active_mentees",
@@ -743,13 +936,54 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
       });
     }
 
+    if (staleIncubatorProjects > 0) {
+      nextActions.unshift({
+        id: "mentor-incubator",
+        title: "Review stale incubator projects",
+        detail: `${staleIncubatorProjects} incubator project(s) need mentor follow-up.`,
+        href: "/incubator",
+      });
+    }
+
     moduleBadgeByHref["/mentorship/mentees"] = activeMentees;
+    moduleBadgeByHref["/incubator"] = staleIncubatorProjects;
+    moduleBadgeByHref["/challenges"] = menteeActiveChallenges;
     moduleBadgeByHref["/messages"] = unreadMessages;
   } else if (role === "PARENT") {
-    const [approvedLinks, pendingLinks] = await Promise.all([
-      prisma.parentStudent.count({ where: { parentId: userId, approvalStatus: "APPROVED" } }),
+    const [approvedLinkRecords, pendingLinks] = await Promise.all([
+      prisma.parentStudent.findMany({
+        where: { parentId: userId, approvalStatus: "APPROVED" },
+        select: { studentId: true },
+      }),
       prisma.parentStudent.count({ where: { parentId: userId, approvalStatus: "PENDING" } }),
     ]);
+    const linkedStudentIds = approvedLinkRecords.map((entry) => entry.studentId);
+    const [linkedChallenges, linkedIncubatorProjects, recentIncubatorUpdates] = await Promise.all([
+      linkedStudentIds.length > 0
+        ? prisma.challengeParticipant.count({
+            where: {
+              studentId: { in: linkedStudentIds },
+              status: "ACTIVE",
+            },
+          })
+        : Promise.resolve(0),
+      linkedStudentIds.length > 0
+        ? prisma.incubatorProject.count({
+            where: { studentId: { in: linkedStudentIds } },
+          }).catch(() => 0)
+        : Promise.resolve(0),
+      linkedStudentIds.length > 0
+        ? prisma.incubatorUpdate.count({
+            where: {
+              project: {
+                studentId: { in: linkedStudentIds },
+              },
+              createdAt: { gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) },
+            },
+          }).catch(() => 0)
+        : Promise.resolve(0),
+    ]);
+    const approvedLinks = approvedLinkRecords.length;
 
     heroTitle = "Parent Command Center";
     heroSubtitle = "Monitor student connections, updates, and communication in one place.";
@@ -757,6 +991,9 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     kpis = [
       { id: "parent_linked_students", label: "Linked Students", value: approvedLinks },
       { id: "parent_pending_links", label: "Pending Links", value: pendingLinks },
+      { id: "parent_active_challenges", label: "Active Challenges", value: linkedChallenges },
+      { id: "parent_incubator_projects", label: "Incubator Projects", value: linkedIncubatorProjects },
+      { id: "parent_incubator_updates", label: "Recent Incubator Updates", value: recentIncubatorUpdates },
       { id: "parent_unread_messages", label: "Unread Messages", value: unreadMessages },
       { id: "parent_unread_notifications", label: "Unread Notifications", value: unreadNotifications },
     ];
@@ -771,6 +1008,24 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
         status: queueStatus(pendingLinks, 3),
         badgeKey: "parent_pending_links",
       },
+      {
+        id: "parent_active_challenges",
+        title: "Student Challenge Momentum",
+        description: "Active challenge participation across linked students.",
+        count: linkedChallenges,
+        href: "/parent/dashboard",
+        status: queueStatus(linkedChallenges, 8),
+        badgeKey: "parent_active_challenges",
+      },
+      {
+        id: "parent_incubator_updates",
+        title: "Recent Incubator Updates",
+        description: "Incubator project updates posted in the last two weeks.",
+        count: recentIncubatorUpdates,
+        href: "/parent/dashboard",
+        status: queueStatus(recentIncubatorUpdates, 6),
+        badgeKey: "parent_incubator_updates",
+      },
     ];
 
     nextActions = [
@@ -782,8 +1037,18 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
       },
     ];
 
+    if (linkedChallenges > 0 || linkedIncubatorProjects > 0) {
+      nextActions.unshift({
+        id: "parent-progress",
+        title: "Review challenge and incubator progress",
+        detail: `${linkedChallenges} active challenge(s) and ${linkedIncubatorProjects} incubator project(s) linked.`,
+        href: "/parent/dashboard",
+      });
+    }
+
     moduleBadgeByHref["/parent"] = approvedLinks;
     moduleBadgeByHref["/parent/connect"] = pendingLinks;
+    moduleBadgeByHref["/parent/dashboard"] = linkedChallenges + linkedIncubatorProjects;
   } else {
     const [openPositions, activeApplications] = await Promise.all([
       prisma.position.count({ where: { isOpen: true } }),

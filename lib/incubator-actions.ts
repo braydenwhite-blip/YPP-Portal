@@ -16,6 +16,39 @@ async function requireAuth() {
   return session;
 }
 
+function extractRoleSet(session: any): Set<string> {
+  const roles = new Set<string>();
+  const primaryRole = session?.user?.primaryRole;
+  if (typeof primaryRole === "string" && primaryRole) {
+    roles.add(primaryRole);
+  }
+
+  const rawRoles = session?.user?.roles;
+  if (Array.isArray(rawRoles)) {
+    for (const role of rawRoles) {
+      if (typeof role === "string" && role) roles.add(role);
+      if (role && typeof role === "object" && typeof role.role === "string") {
+        roles.add(role.role);
+      }
+    }
+  }
+
+  return roles;
+}
+
+function hasAnyRole(session: any, requiredRoles: string[]): boolean {
+  const roleSet = extractRoleSet(session);
+  return requiredRoles.some((role) => roleSet.has(role));
+}
+
+async function requireAnyRole(requiredRoles: string[]) {
+  const session = await requireAuth();
+  if (!hasAnyRole(session, requiredRoles)) {
+    throw new Error("Unauthorized");
+  }
+  return session;
+}
+
 const INCUBATOR_TABLES = new Set(
   [
     "IncubatorCohort",
@@ -56,7 +89,7 @@ function rethrowIncubatorSetupError(error: unknown): never {
 // ============================================
 
 export async function getCohorts() {
-  await requireAuth();
+  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
   try {
     return await prisma.incubatorCohort.findMany({
       orderBy: { startDate: "desc" },
@@ -85,7 +118,7 @@ export async function getActiveCohort() {
 }
 
 export async function getCohortById(cohortId: string) {
-  await requireAuth();
+  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
   try {
     return await prisma.incubatorCohort.findUnique({
       where: { id: cohortId },
@@ -111,7 +144,7 @@ export async function getCohortById(cohortId: string) {
 }
 
 export async function createCohort(formData: FormData) {
-  await requireAuth();
+  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
 
   const name = formData.get("name") as string;
   const description = formData.get("description") as string;
@@ -156,7 +189,7 @@ export async function createCohort(formData: FormData) {
 }
 
 export async function updateCohortStatus(cohortId: string, status: string) {
-  await requireAuth();
+  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
   try {
     await prisma.incubatorCohort.update({
       where: { id: cohortId },
@@ -174,7 +207,7 @@ export async function updateCohortStatus(cohortId: string, status: string) {
 // ============================================
 
 export async function getMyApplications() {
-  const session = await requireAuth();
+  const session = await requireAnyRole(["STUDENT", "ADMIN"]);
   try {
     return await prisma.incubatorApplication.findMany({
       where: { studentId: session.user.id },
@@ -189,7 +222,7 @@ export async function getMyApplications() {
 }
 
 export async function applyToIncubator(formData: FormData) {
-  const session = await requireAuth();
+  const session = await requireAnyRole(["STUDENT", "ADMIN"]);
 
   const cohortId = formData.get("cohortId") as string;
   const projectTitle = formData.get("projectTitle") as string;
@@ -243,7 +276,7 @@ export async function applyToIncubator(formData: FormData) {
 }
 
 export async function reviewApplication(applicationId: string, status: string, reviewNote?: string) {
-  const session = await requireAuth();
+  const session = await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
 
   try {
     const app = await prisma.incubatorApplication.update({
@@ -304,7 +337,7 @@ export async function reviewApplication(applicationId: string, status: string, r
 // ============================================
 
 export async function getMyIncubatorProjects() {
-  const session = await requireAuth();
+  const session = await requireAnyRole(["STUDENT", "ADMIN"]);
   try {
     return await prisma.incubatorProject.findMany({
       where: { studentId: session.user.id },
@@ -321,9 +354,9 @@ export async function getMyIncubatorProjects() {
 }
 
 export async function getIncubatorProject(projectId: string) {
-  await requireAuth();
+  const session = await requireAuth();
   try {
-    return await prisma.incubatorProject.findUnique({
+    const project = await prisma.incubatorProject.findUnique({
       where: { id: projectId },
       include: {
         student: { select: { id: true, name: true, level: true, email: true } },
@@ -339,16 +372,46 @@ export async function getIncubatorProject(projectId: string) {
         },
       },
     });
+
+    if (!project) {
+      return null;
+    }
+
+    const privileged = hasAnyRole(session, ["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+    const isAssignedMentor = project.mentors.some(
+      (assignment) => assignment.mentorId === session.user.id && assignment.isActive
+    );
+    const isOwner = project.studentId === session.user.id;
+
+    if (!isOwner && !privileged && !isAssignedMentor) {
+      throw new Error("Unauthorized");
+    }
+
+    return project;
   } catch (error) {
     return readFallback(error, null);
   }
 }
 
 export async function getAllIncubatorProjects(cohortId?: string) {
-  await requireAuth();
+  const session = await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD", "MENTOR", "STUDENT"]);
   try {
+    const privileged = hasAnyRole(session, ["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+    const mentorOnly = !privileged && hasAnyRole(session, ["MENTOR"]);
+    const whereClause: any = mentorOnly
+      ? {
+          ...(cohortId ? { cohortId } : {}),
+          mentors: {
+            some: {
+              mentorId: session.user.id,
+              isActive: true,
+            },
+          },
+        }
+      : (cohortId ? { cohortId } : {});
+
     return await prisma.incubatorProject.findMany({
-      where: cohortId ? { cohortId } : {},
+      where: whereClause,
       include: {
         student: { select: { id: true, name: true, level: true } },
         cohort: { select: { id: true, name: true } },
@@ -363,7 +426,7 @@ export async function getAllIncubatorProjects(cohortId?: string) {
 }
 
 export async function advancePhase(projectId: string) {
-  const session = await requireAuth();
+  const session = await requireAnyRole(["STUDENT", "ADMIN"]);
 
   try {
     const project = await prisma.incubatorProject.findUnique({ where: { id: projectId } });
@@ -402,7 +465,7 @@ export async function advancePhase(projectId: string) {
 }
 
 export async function updateProjectShowcase(projectId: string, formData: FormData) {
-  const session = await requireAuth();
+  const session = await requireAnyRole(["STUDENT", "ADMIN"]);
 
   try {
     const project = await prisma.incubatorProject.findUnique({ where: { id: projectId } });
@@ -428,7 +491,7 @@ export async function updateProjectShowcase(projectId: string, formData: FormDat
 // ============================================
 
 export async function postUpdate(projectId: string, formData: FormData) {
-  const session = await requireAuth();
+  const session = await requireAnyRole(["STUDENT", "ADMIN"]);
 
   try {
     const project = await prisma.incubatorProject.findUnique({ where: { id: projectId } });
@@ -469,7 +532,7 @@ export async function postUpdate(projectId: string, formData: FormData) {
 // ============================================
 
 export async function assignMentor(projectId: string, mentorId: string, role?: string) {
-  await requireAuth();
+  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
 
   try {
     const project = await prisma.incubatorProject.findUnique({ where: { id: projectId } });
@@ -492,7 +555,7 @@ export async function assignMentor(projectId: string, mentorId: string, role?: s
 }
 
 export async function removeMentor(assignmentId: string) {
-  await requireAuth();
+  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
   try {
     await prisma.incubatorMentor.delete({ where: { id: assignmentId } });
     revalidatePath("/admin/incubator");
@@ -502,7 +565,7 @@ export async function removeMentor(assignmentId: string) {
 }
 
 export async function getAvailableMentors() {
-  await requireAuth();
+  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
   return prisma.user.findMany({
     where: {
       OR: [
@@ -521,7 +584,7 @@ export async function getAvailableMentors() {
 // ============================================
 
 export async function submitPitchFeedback(projectId: string, formData: FormData) {
-  const session = await requireAuth();
+  const session = await requireAnyRole(["ADMIN", "INSTRUCTOR", "MENTOR", "CHAPTER_LEAD"]);
 
   const clarityScore = parseInt(formData.get("clarityScore") as string) || null;
   const passionScore = parseInt(formData.get("passionScore") as string) || null;
@@ -535,6 +598,31 @@ export async function submitPitchFeedback(projectId: string, formData: FormData)
   const encouragement = formData.get("encouragement") as string || null;
 
   try {
+    const project = await prisma.incubatorProject.findUnique({
+      where: { id: projectId },
+      include: {
+        mentors: {
+          select: { mentorId: true, isActive: true },
+        },
+      },
+    });
+
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    if (project.studentId === session.user.id) {
+      throw new Error("Students cannot submit feedback on their own project");
+    }
+
+    const privileged = hasAnyRole(session, ["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+    const isAssignedMentor = project.mentors.some(
+      (assignment) => assignment.mentorId === session.user.id && assignment.isActive
+    );
+    if (!privileged && !isAssignedMentor) {
+      throw new Error("Unauthorized");
+    }
+
     const feedback = await prisma.pitchFeedback.create({
       data: {
         projectId,
@@ -562,10 +650,26 @@ export async function submitPitchFeedback(projectId: string, formData: FormData)
 // ============================================
 
 export async function getProjectResourceRequests(projectId: string) {
-  await requireAuth();
+  const session = await requireAuth();
   try {
-    const project = await prisma.incubatorProject.findUnique({ where: { id: projectId } });
+    const project = await prisma.incubatorProject.findUnique({
+      where: { id: projectId },
+      include: {
+        mentors: {
+          select: { mentorId: true, isActive: true },
+        },
+      },
+    });
     if (!project) throw new Error("Project not found");
+
+    const privileged = hasAnyRole(session, ["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+    const isAssignedMentor = project.mentors.some(
+      (assignment) => assignment.mentorId === session.user.id && assignment.isActive
+    );
+    const isOwner = project.studentId === session.user.id;
+    if (!isOwner && !privileged && !isAssignedMentor) {
+      throw new Error("Unauthorized");
+    }
 
     return await prisma.resourceRequest.findMany({
       where: { projectId: project.projectTrackerId || undefined, studentId: project.studentId },
@@ -577,7 +681,7 @@ export async function getProjectResourceRequests(projectId: string) {
 }
 
 export async function requestResource(formData: FormData) {
-  const session = await requireAuth();
+  const session = await requireAnyRole(["STUDENT", "ADMIN"]);
 
   try {
     const projectId = formData.get("incubatorProjectId") as string;

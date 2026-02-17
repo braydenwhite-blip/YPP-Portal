@@ -15,13 +15,13 @@ export const PRIMARY_ROLE_FALLBACK_ORDER: NavRole[] = [
 export const CORE_NAV_MAP: Record<NavRole, string[]> = {
   STUDENT: [
     "/",
+    "/activities",
+    "/challenges",
+    "/incubator",
     "/pathways",
     "/my-courses",
     "/goals",
-    "/positions",
-    "/curriculum",
-    "/messages",
-    "/notifications",
+    "/messages"
   ],
   INSTRUCTOR: [
     "/",
