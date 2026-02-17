@@ -39,7 +39,9 @@ export default async function ProposeChapterPage() {
     orderBy: { submittedAt: "desc" },
   });
 
-  const hasOpenProposal = proposals.some((proposal) => !FINAL_STATUSES.has(proposal.status));
+  const openProposal = proposals.find((proposal) => !FINAL_STATUSES.has(proposal.status));
+  const canResubmit = openProposal?.status === "SUBMITTED";
+  const disableNewSubmission = Boolean(openProposal && !canResubmit);
 
   return (
     <div>
@@ -94,16 +96,26 @@ export default async function ProposeChapterPage() {
         </p>
       </div>
 
-      {hasOpenProposal ? (
+      {openProposal ? (
         <div className="card" style={{ marginBottom: 16 }}>
-          <p style={{ margin: 0, color: "#b45309" }}>
-            You already have a chapter proposal in progress. Submit a new one after it is finalized.
-          </p>
+          {canResubmit ? (
+            <p style={{ margin: 0, color: "#1d4ed8" }}>
+              You already submitted a chapter proposal. Submit again to update your existing proposal.
+            </p>
+          ) : (
+            <p style={{ margin: 0, color: "#b45309" }}>
+              You already have a chapter proposal in progress. Submit a new one after it is finalized.
+            </p>
+          )}
         </div>
       ) : null}
 
       <div className="card">
-        <ChapterProposalForm disabled={hasOpenProposal} />
+        <ChapterProposalForm
+          disabled={disableNewSubmission}
+          canResubmit={canResubmit}
+          openProposalId={openProposal?.id ?? null}
+        />
       </div>
 
       <div className="card" style={{ marginTop: 16 }}>

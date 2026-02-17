@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import Link from "next/link";
 import { submitChapterProposal } from "@/lib/application-actions";
 import { chapterProposalSchema, getFieldError } from "@/lib/application-schemas";
 import type { z } from "zod";
 
 interface ChapterProposalFormProps {
   disabled: boolean;
+  canResubmit?: boolean;
+  openProposalId?: string | null;
 }
 
 const STORAGE_KEY = "ypp-chapter-proposal-draft";
@@ -147,11 +150,16 @@ function StepIndicator({
   );
 }
 
-export default function ChapterProposalForm({ disabled }: ChapterProposalFormProps) {
+export default function ChapterProposalForm({
+  disabled,
+  canResubmit = false,
+  openProposalId = null,
+}: ChapterProposalFormProps) {
   const [errors, setErrors] = useState<z.ZodError | null>(null);
   const [serverError, setServerError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitAction, setSubmitAction] = useState<"created" | "updated">("created");
   const [currentStep, setCurrentStep] = useState(0);
   const [hasDraft, setHasDraft] = useState(false);
 
@@ -259,7 +267,12 @@ export default function ChapterProposalForm({ disabled }: ChapterProposalFormPro
 
     setSubmitting(true);
     try {
-      await submitChapterProposal(formData);
+      const result = await submitChapterProposal(formData);
+      if (result?.action === "updated") {
+        setSubmitAction("updated");
+      } else {
+        setSubmitAction("created");
+      }
       setSubmitted(true);
       clearDraft();
     } catch (e: any) {
@@ -273,9 +286,13 @@ export default function ChapterProposalForm({ disabled }: ChapterProposalFormPro
     return (
       <div style={{ padding: 24, background: "#f0fdf4", borderRadius: 12, textAlign: "center" }}>
         <div style={{ fontSize: 32, marginBottom: 8 }}>&#10003;</div>
-        <h3 style={{ margin: "0 0 8px" }}>Chapter Proposal Submitted</h3>
+        <h3 style={{ margin: "0 0 8px" }}>
+          {submitAction === "updated" ? "Chapter Proposal Updated" : "Chapter Proposal Submitted"}
+        </h3>
         <p style={{ color: "var(--muted)", margin: 0 }}>
-          An admin will review your proposal and reach out to schedule an interview.
+          {submitAction === "updated"
+            ? "Your updated proposal is saved. Admin reviewers can now see the latest version."
+            : "An admin will review your proposal and reach out to schedule an interview."}
         </p>
       </div>
     );
@@ -553,11 +570,27 @@ export default function ChapterProposalForm({ disabled }: ChapterProposalFormPro
             )}
             {isLastStep && (
               <button type="submit" className="button" disabled={disabled || submitting}>
-                {submitting ? "Submitting..." : "Submit Chapter Proposal"}
+                {submitting
+                  ? canResubmit
+                    ? "Updating..."
+                    : "Submitting..."
+                  : canResubmit
+                    ? "Update Chapter Proposal"
+                    : "Submit Chapter Proposal"}
               </button>
             )}
           </div>
         </div>
+
+        {disabled && openProposalId ? (
+          <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--muted)" }}>
+            Your active proposal is already in review. Open it in{" "}
+            <Link href={`/applications/${openProposalId}`} className="link">
+              Application Workspace
+            </Link>
+            .
+          </p>
+        ) : null}
       </form>
     </div>
   );

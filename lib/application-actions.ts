@@ -986,12 +986,8 @@ export async function submitChapterProposal(formData: FormData) {
       positionId: proposalPosition.id,
       status: { notIn: FINAL_APPLICATION_STATUSES },
     },
-    select: { id: true },
+    select: { id: true, status: true },
   });
-
-  if (existingOpenProposal) {
-    throw new Error("You already have a chapter proposal in progress.");
-  }
 
   const metadata: ChapterProposalMetadata = {
     kind: CHAPTER_PROPOSAL_KIND,
@@ -1004,19 +1000,35 @@ export async function submitChapterProposal(formData: FormData) {
     recruitmentPlan,
   };
 
-  const created = await prisma.application.create({
-    data: {
-      positionId: proposalPosition.id,
-      applicantId,
-      resumeUrl: resumeUrl || null,
-      coverLetter: leadershipBio,
-      additionalMaterials: JSON.stringify({
-        ...metadata,
-        additionalContext: additionalContext || undefined,
-      }),
-      status: "SUBMITTED",
-    },
-  });
+  if (existingOpenProposal && existingOpenProposal.status !== "SUBMITTED") {
+    throw new Error("You already have a chapter proposal in progress.");
+  }
+
+  const proposalPayload = {
+    resumeUrl: resumeUrl || null,
+    coverLetter: leadershipBio,
+    additionalMaterials: JSON.stringify({
+      ...metadata,
+      additionalContext: additionalContext || undefined,
+    }),
+    status: "SUBMITTED" as const,
+  };
+
+  const application = existingOpenProposal
+    ? await prisma.application.update({
+        where: { id: existingOpenProposal.id },
+        data: {
+          ...proposalPayload,
+          submittedAt: new Date(),
+        },
+      })
+    : await prisma.application.create({
+        data: {
+          positionId: proposalPosition.id,
+          applicantId,
+          ...proposalPayload,
+        },
+      });
 
   const admins = await prisma.user.findMany({
     where: { roles: { some: { role: "ADMIN" } } },
@@ -1027,21 +1039,33 @@ export async function submitChapterProposal(formData: FormData) {
     await createSystemNotification(
       admin.id,
       "SYSTEM",
-      "New Chapter Proposal Submitted",
-      `${chapterName} was proposed as a new chapter with a Chapter President application.`,
-      `/applications/${created.id}`,
+      existingOpenProposal ? "Chapter Proposal Updated" : "New Chapter Proposal Submitted",
+      existingOpenProposal
+        ? `${chapterName} chapter proposal was updated by the applicant.`
+        : `${chapterName} was proposed as a new chapter with a Chapter President application.`,
+      `/applications/${application.id}`,
       true
     );
   }
 
-  await createHiringAudit(applicantId, "chapter_proposal_submitted", {
-    applicationId: created.id,
-    chapterName,
-    city: city || "",
-    region: region || "",
-  });
+  await createHiringAudit(
+    applicantId,
+    existingOpenProposal ? "chapter_proposal_resubmitted" : "chapter_proposal_submitted",
+    {
+      applicationId: application.id,
+      chapterName,
+      city: city || "",
+      region: region || "",
+    }
+  );
 
-  revalidateHiringPaths(null, created.id);
+  revalidateHiringPaths(null, application.id);
+
+  return {
+    applicationId: application.id,
+    action: existingOpenProposal ? "updated" : "created",
+    chapterName,
+  };
 }
 
 export async function withdrawApplication(formData: FormData) {
