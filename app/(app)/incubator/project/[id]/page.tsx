@@ -2,6 +2,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getIncubatorProject } from "@/lib/incubator-actions";
+import { normalizeRoleSet } from "@/lib/authorization";
+import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import {
   AdvancePhaseButton,
@@ -45,12 +47,24 @@ export default async function IncubatorProjectPage({ params }: { params: { id: s
     );
   }
 
+  const passionLabel = project.passionArea
+    ? (await prisma.passionArea
+      .findUnique({
+        where: { id: project.passionArea },
+        select: { name: true },
+      })
+      .then((passion) => passion?.name ?? null)
+      .catch(() => null)) ?? project.passionArea
+    : null;
+
   const isOwner = project.studentId === session.user.id;
-  const roles = (session.user as any).roles ?? [];
-  const primaryRole = (session.user as any).primaryRole;
-  const isAdmin = primaryRole === "ADMIN" || roles.includes("ADMIN");
-  const isInstructor = primaryRole === "INSTRUCTOR" || roles.includes("INSTRUCTOR");
-  const isChapterLead = primaryRole === "CHAPTER_LEAD" || roles.includes("CHAPTER_LEAD");
+  const roleSet = normalizeRoleSet(
+    (session.user as any).roles ?? [],
+    (session.user as any).primaryRole ?? null
+  );
+  const isAdmin = roleSet.has("ADMIN");
+  const isInstructor = roleSet.has("INSTRUCTOR");
+  const isChapterLead = roleSet.has("CHAPTER_LEAD");
   const isMentor = project.mentors.some((m) => m.mentorId === session.user.id);
   const phaseIdx = PHASES.indexOf(project.currentPhase);
   const color = PHASE_COLORS[project.currentPhase];
@@ -74,7 +88,9 @@ export default async function IncubatorProjectPage({ params }: { params: { id: s
             <span className="pill" style={{ background: `${color}15`, color, fontWeight: 600, fontSize: 13 }}>
               {PHASE_LABELS[project.currentPhase]} Phase
             </span>
-            <span className="pill" style={{ fontSize: 11, marginLeft: 8 }}>{project.passionArea}</span>
+            {passionLabel && (
+              <span className="pill" style={{ fontSize: 11, marginLeft: 8 }}>{passionLabel}</span>
+            )}
           </div>
           {isOwner && phaseIdx < PHASES.length - 1 && (
             <AdvancePhaseButton projectId={project.id} nextPhase={PHASES[phaseIdx + 1]} />
@@ -286,7 +302,9 @@ export default async function IncubatorProjectPage({ params }: { params: { id: s
             <h4 style={{ marginBottom: 8 }}>Project Info</h4>
             <div style={{ fontSize: 13, marginBottom: 4 }}><strong>Student:</strong> {project.student.name}</div>
             <div style={{ fontSize: 13, marginBottom: 4 }}><strong>Level:</strong> {project.student.level}</div>
-            <div style={{ fontSize: 13, marginBottom: 4 }}><strong>Passion:</strong> {project.passionArea}</div>
+            <div style={{ fontSize: 13, marginBottom: 4 }}>
+              <strong>Passion:</strong> {passionLabel || "General"}
+            </div>
             <div style={{ fontSize: 13, marginBottom: 4 }}><strong>Cohort:</strong> {project.cohort.name}</div>
             <div style={{ fontSize: 13, marginBottom: 4 }}><strong>XP Earned:</strong> {project.xpEarned}</div>
             <div style={{ fontSize: 13 }}><strong>Started:</strong> {new Date(project.createdAt).toLocaleDateString()}</div>

@@ -9,6 +9,9 @@ import {
   getAllIncubatorProjects,
 } from "@/lib/incubator-actions";
 import Link from "next/link";
+import { isFeatureEnabledForUser } from "@/lib/feature-gates";
+import { normalizeRoleSet } from "@/lib/authorization";
+import { prisma } from "@/lib/prisma";
 
 const PHASE_LABELS: Record<string, string> = {
   IDEATION: "Ideation",
@@ -33,26 +36,60 @@ const PHASES = ["IDEATION", "PLANNING", "BUILDING", "FEEDBACK", "POLISHING", "SH
 export default async function IncubatorPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
+  const featureEnabled = await isFeatureEnabledForUser("INCUBATOR", {
+    userId: session.user.id,
+  });
 
-  const roles = (session.user as any).roles ?? [];
-  const primaryRole = (session.user as any).primaryRole;
-  const isAdmin =
-    primaryRole === "ADMIN" ||
-    roles.includes("ADMIN");
-  const isInstructor =
-    primaryRole === "INSTRUCTOR" ||
-    roles.includes("INSTRUCTOR");
-  const isChapterLead =
-    primaryRole === "CHAPTER_LEAD" ||
-    roles.includes("CHAPTER_LEAD");
+  if (!featureEnabled) {
+    return (
+      <div>
+        <div className="topbar">
+          <div>
+            <h1 className="page-title">Passion Project Incubator</h1>
+            <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
+              This section is not enabled for your chapter yet.
+            </p>
+          </div>
+        </div>
+        <div className="card">
+          <h3 style={{ marginTop: 0 }}>Pilot rollout in progress</h3>
+          <p style={{ color: "var(--text-secondary)", marginBottom: 12 }}>
+            You can still track progress from Activity Hub and core student tools while incubator access rolls out.
+          </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Link href="/activities" className="button secondary">Activity Hub</Link>
+            <Link href="/projects/tracker" className="button secondary">Project Tracker</Link>
+            <Link href="/world" className="button secondary">Passion World</Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const [activeCohort, myProjects, myApps, stats, allProjects] = await Promise.all([
+  const roleSet = normalizeRoleSet(
+    (session.user as any).roles ?? [],
+    (session.user as any).primaryRole ?? null
+  );
+  const isAdmin = roleSet.has("ADMIN");
+  const isInstructor = roleSet.has("INSTRUCTOR");
+  const isChapterLead = roleSet.has("CHAPTER_LEAD");
+
+  const [activeCohort, myProjects, myApps, stats, allProjects, passionAreas] = await Promise.all([
     getActiveCohort(),
     getMyIncubatorProjects(),
     getMyApplications(),
     getIncubatorStats(),
     getAllIncubatorProjects(),
+    prisma.passionArea
+      .findMany({
+        where: { isActive: true },
+        select: { id: true, name: true },
+      })
+      .catch(() => []),
   ]);
+  const passionNameById = new Map(passionAreas.map((passion) => [passion.id, passion.name]));
+  const resolvePassionLabel = (value: string | null | undefined) =>
+    value ? (passionNameById.get(value) ?? value) : null;
 
   const pendingApp = (myApps as any[]).find(
     (a) => a.status === "SUBMITTED" || a.status === "UNDER_REVIEW"
@@ -164,7 +201,9 @@ export default async function IncubatorPage() {
                           <span className="pill" style={{ background: `${color}15`, color, fontSize: 11, fontWeight: 600 }}>
                             {PHASE_LABELS[project.currentPhase]}
                           </span>
-                          <span className="pill" style={{ fontSize: 11 }}>{project.passionArea}</span>
+                          <span className="pill" style={{ fontSize: 11 }}>
+                            {resolvePassionLabel(project.passionArea)}
+                          </span>
                           <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
                             {project.cohort.name}
                           </span>
@@ -220,7 +259,9 @@ export default async function IncubatorPage() {
                       <span className="pill" style={{ background: `${color}15`, color, fontSize: 11, fontWeight: 600 }}>
                         {PHASE_LABELS[project.currentPhase]}
                       </span>
-                      <span className="pill" style={{ fontSize: 11 }}>{project.passionArea}</span>
+                      <span className="pill" style={{ fontSize: 11 }}>
+                        {resolvePassionLabel(project.passionArea)}
+                      </span>
                     </div>
                     <h4 style={{ margin: "0 0 4px" }}>{project.title}</h4>
                     <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>

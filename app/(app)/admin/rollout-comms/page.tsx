@@ -3,6 +3,14 @@ import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { normalizeRoleSet } from "@/lib/authorization";
+import { FEATURE_KEYS } from "@/lib/feature-gate-constants";
+import {
+  deleteFeatureGateRule,
+  listFeatureGateRules,
+  setChapterFeatureGateRule,
+  setGlobalFeatureGateRule,
+} from "@/lib/feature-gates";
 
 type SendLogItem = {
   id: string;
@@ -28,8 +36,11 @@ export default async function RolloutCommsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const session = await getServerSession(authOptions);
-  const roles = session?.user?.roles ?? [];
-  if (!session?.user?.id || !roles.includes("ADMIN")) {
+  const roleSet = normalizeRoleSet(
+    (session?.user as any)?.roles ?? [],
+    (session?.user as any)?.primaryRole ?? null
+  );
+  if (!session?.user?.id || !roleSet.has("ADMIN")) {
     redirect("/");
   }
 
@@ -42,6 +53,15 @@ export default async function RolloutCommsPage({
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });
+  const featureGateRules = await listFeatureGateRules();
+
+  const featureRulesByKey = FEATURE_KEYS.reduce(
+    (acc, key) => {
+      acc[key] = featureGateRules.filter((rule) => rule.featureKey === key);
+      return acc;
+    },
+    {} as Record<(typeof FEATURE_KEYS)[number], typeof featureGateRules>
+  );
 
   let sends: SendLogItem[] = [];
   let legacyMode = false;
@@ -201,6 +221,92 @@ export default async function RolloutCommsPage({
               <strong>Parent Entry:</strong> /parent
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3 style={{ marginTop: 0 }}>Chapter Pilot Feature Gates</h3>
+        <p style={{ marginTop: 0, fontSize: 13, color: "var(--text-secondary)" }}>
+          Use these controls to enable or disable integrated surfaces by chapter without a deploy.
+        </p>
+        <div style={{ display: "grid", gap: 16, marginTop: 12 }}>
+          {FEATURE_KEYS.map((featureKey) => {
+            const rules = featureRulesByKey[featureKey];
+            const globalRule = rules.find((rule) => rule.scope === "GLOBAL");
+            const chapterRules = rules.filter((rule) => rule.scope === "CHAPTER");
+
+            return (
+              <div key={featureKey} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                  <strong>{featureKey}</strong>
+                  <span className="pill">
+                    Global: {globalRule ? (globalRule.enabled ? "ON" : "OFF") : "Default ON"}
+                  </span>
+                </div>
+
+                <form action={setGlobalFeatureGateRule} style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <input type="hidden" name="featureKey" value={featureKey} />
+                  <select name="enabled" className="input" style={{ maxWidth: 180 }}>
+                    <option value="true">Global ON</option>
+                    <option value="false">Global OFF</option>
+                  </select>
+                  <input className="input" name="note" placeholder="Global rule note (optional)" style={{ minWidth: 260, flex: 1 }} />
+                  <button type="submit" className="button secondary small">Save Global Rule</button>
+                </form>
+
+                <form action={setChapterFeatureGateRule} style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <input type="hidden" name="featureKey" value={featureKey} />
+                  <select name="chapterId" className="input" style={{ minWidth: 220 }} required>
+                    <option value="">Select chapter</option>
+                    {chapters.map((chapter) => (
+                      <option key={`${featureKey}-${chapter.id}`} value={chapter.id}>
+                        {chapter.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select name="enabled" className="input" style={{ maxWidth: 180 }}>
+                    <option value="true">Chapter ON</option>
+                    <option value="false">Chapter OFF</option>
+                  </select>
+                  <input className="input" name="note" placeholder="Chapter rule note (optional)" style={{ minWidth: 260, flex: 1 }} />
+                  <button type="submit" className="button secondary small">Save Chapter Rule</button>
+                </form>
+
+                {chapterRules.length > 0 ? (
+                  <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+                    {chapterRules.map((rule) => (
+                      <div
+                        key={rule.id}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 8,
+                          border: "1px solid var(--border)",
+                          borderRadius: 8,
+                          padding: 8,
+                          alignItems: "center",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                          <strong>{rule.chapter?.name ?? "Unknown chapter"}</strong> · {rule.enabled ? "ON" : "OFF"}
+                          {rule.note ? ` · ${rule.note}` : ""}
+                        </div>
+                        <form action={deleteFeatureGateRule}>
+                          <input type="hidden" name="ruleId" value={rule.id} />
+                          <button type="submit" className="button secondary small">Delete</button>
+                        </form>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p style={{ marginTop: 10, fontSize: 12, color: "var(--text-secondary)" }}>
+                    No chapter-specific rules yet.
+                  </p>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 

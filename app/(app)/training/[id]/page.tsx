@@ -43,6 +43,17 @@ export default async function TrainingModulePage({
       quizQuestions: {
         orderBy: { sortOrder: "asc" },
       },
+      videos: {
+        orderBy: { sortOrder: "asc" },
+        include: {
+          segments: {
+            orderBy: { sortOrder: "asc" },
+          },
+        },
+      },
+      resources: {
+        orderBy: { sortOrder: "asc" },
+      },
     },
   });
 
@@ -200,6 +211,33 @@ export default async function TrainingModulePage({
           notes: checkpointCompletionMap.get(checkpoint.id)?.notes ?? null,
         })),
         quizQuestions: normalizedQuizQuestions,
+      videos: module.videos.map((v) => ({
+        id: v.id,
+        title: v.title,
+        description: v.description,
+        videoUrl: v.videoUrl,
+        videoProvider: v.videoProvider,
+        videoDuration: v.videoDuration,
+        sortOrder: v.sortOrder,
+        isSupplementary: v.isSupplementary,
+        segments: v.segments.map((s) => ({
+          id: s.id,
+          title: s.title,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          sortOrder: s.sortOrder,
+        })),
+      })),
+      resources: module.resources.map((r) => ({
+        id: r.id,
+        title: r.title,
+        description: r.description,
+        resourceUrl: r.resourceUrl,
+        resourceType: r.resourceType,
+        sortOrder: r.sortOrder,
+        downloads: r.downloads,
+      })),
+      estimatedMinutes: module.estimatedMinutes,
       }}
       assignment={
         assignment

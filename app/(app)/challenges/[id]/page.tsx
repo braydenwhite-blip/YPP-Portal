@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getChallengeDetail } from "@/lib/challenge-gamification-actions";
+import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { CheckInForm, DropButton } from "../client";
 
@@ -10,6 +11,15 @@ export default async function ChallengeDetailPage({ params }: { params: { id: st
   if (!session?.user?.id) redirect("/login");
 
   const { challenge, myParticipation } = await getChallengeDetail(params.id);
+  const passionLabel = challenge.passionArea
+    ? (await prisma.passionArea
+      .findUnique({
+        where: { id: challenge.passionArea },
+        select: { name: true },
+      })
+      .then((passion) => passion?.name ?? null)
+      .catch(() => null)) ?? challenge.passionArea
+    : null;
 
   const daysLeft = Math.ceil(
     (new Date(challenge.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
@@ -38,8 +48,8 @@ export default async function ChallengeDetailPage({ params }: { params: { id: st
             <span className="pill" style={{ background: `${color}15`, color, fontSize: 11, fontWeight: 600 }}>
               {challenge.type.replace("_", "-")}
             </span>
-            {challenge.passionArea && (
-              <span className="pill" style={{ fontSize: 11 }}>{challenge.passionArea}</span>
+            {passionLabel && (
+              <span className="pill" style={{ fontSize: 11 }}>{passionLabel}</span>
             )}
             <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
               {daysLeft > 0 ? `${daysLeft} days left` : "Ended"}

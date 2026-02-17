@@ -1,48 +1,48 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import {
+  requireAnyRole as requireAuthorizedRole,
+  requireSessionUser,
+} from "@/lib/authorization";
 
 // ============================================
 // HELPERS
 // ============================================
 
 async function requireAuth() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) throw new Error("Unauthorized");
-  return session;
-}
-
-function extractRoleSet(session: any): Set<string> {
-  const roles = new Set<string>();
-  const primaryRole = session?.user?.primaryRole;
-  if (typeof primaryRole === "string" && primaryRole) {
-    roles.add(primaryRole);
-  }
-
-  const rawRoles = session?.user?.roles;
-  if (Array.isArray(rawRoles)) {
-    for (const role of rawRoles) {
-      if (typeof role === "string" && role) roles.add(role);
-      if (role && typeof role === "object" && typeof role.role === "string") {
-        roles.add(role.role);
-      }
-    }
-  }
-
-  return roles;
+  const user = await requireSessionUser();
+  return { user };
 }
 
 async function requireAnyRole(requiredRoles: string[]) {
-  const session = await requireAuth();
-  const roleSet = extractRoleSet(session);
-  const allowed = requiredRoles.some((role) => roleSet.has(role));
-  if (!allowed) {
-    throw new Error("Unauthorized");
+  const user = await requireAuthorizedRole(requiredRoles);
+  return { user };
+}
+
+async function resolveCanonicalPassionAreaId(
+  value: string | null | undefined
+): Promise<string | null> {
+  const trimmed = (value || "").trim();
+  if (!trimmed) return null;
+
+  const passion = await prisma.passionArea.findFirst({
+    where: {
+      isActive: true,
+      OR: [
+        { id: trimmed },
+        { name: { equals: trimmed, mode: "insensitive" } },
+      ],
+    },
+    select: { id: true },
+  });
+
+  if (!passion) {
+    throw new Error("Select a valid active passion area.");
   }
-  return session;
+
+  return passion.id;
 }
 
 // ============================================
@@ -50,12 +50,12 @@ async function requireAnyRole(requiredRoles: string[]) {
 // ============================================
 
 export async function createChallenge(formData: FormData) {
-  const session = await requireAnyRole(["ADMIN", "INSTRUCTOR"]);
+  const session = await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
 
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
   const type = formData.get("type") as "DAILY" | "WEEKLY" | "THIRTY_DAY" | "SEASONAL";
-  const passionArea = formData.get("passionArea") as string || null;
+  const rawPassionArea = (formData.get("passionArea") as string) || null;
   const startDate = new Date(formData.get("startDate") as string);
   const endDate = new Date(formData.get("endDate") as string);
   const dailyGoal = formData.get("dailyGoal") as string || null;
@@ -70,6 +70,7 @@ export async function createChallenge(formData: FormData) {
   if (!title || !description || !type) {
     throw new Error("Title, description, and type are required");
   }
+  const passionArea = await resolveCanonicalPassionAreaId(rawPassionArea);
 
   const challenge = await prisma.challenge.create({
     data: {
@@ -98,7 +99,7 @@ export async function createChallenge(formData: FormData) {
 }
 
 export async function publishChallenge(challengeId: string) {
-  await requireAnyRole(["ADMIN", "INSTRUCTOR"]);
+  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
 
   await prisma.challenge.update({
     where: { id: challengeId },
@@ -110,7 +111,7 @@ export async function publishChallenge(challengeId: string) {
 }
 
 export async function unpublishChallenge(challengeId: string) {
-  await requireAnyRole(["ADMIN", "INSTRUCTOR"]);
+  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
 
   await prisma.challenge.update({
     where: { id: challengeId },
@@ -122,7 +123,7 @@ export async function unpublishChallenge(challengeId: string) {
 }
 
 export async function archiveChallenge(challengeId: string) {
-  await requireAnyRole(["ADMIN", "INSTRUCTOR"]);
+  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
 
   await prisma.challenge.update({
     where: { id: challengeId },
@@ -134,12 +135,12 @@ export async function archiveChallenge(challengeId: string) {
 }
 
 export async function updateChallenge(formData: FormData) {
-  await requireAnyRole(["ADMIN", "INSTRUCTOR"]);
+  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
 
   const challengeId = formData.get("challengeId") as string;
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
-  const passionArea = (formData.get("passionArea") as string) || null;
+  const rawPassionArea = (formData.get("passionArea") as string) || null;
   const startDateRaw = formData.get("startDate") as string;
   const endDateRaw = formData.get("endDate") as string;
   const xpReward = parseInt(formData.get("xpReward") as string, 10);
@@ -151,6 +152,7 @@ export async function updateChallenge(formData: FormData) {
   if (!challengeId || !title || !description) {
     throw new Error("Challenge id, title, and description are required");
   }
+  const passionArea = await resolveCanonicalPassionAreaId(rawPassionArea);
 
   await prisma.challenge.update({
     where: { id: challengeId },

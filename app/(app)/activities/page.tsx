@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getActivityFeedForUser } from "@/lib/activity-hub/actions";
 import type { ActivitySourceType } from "@/lib/activity-hub/types";
+import { isFeatureEnabledForUser } from "@/lib/feature-gates";
 
 const SOURCE_LABELS: Record<ActivitySourceType, string> = {
   PORTAL_CHALLENGE: "Portal Challenges",
@@ -40,6 +41,35 @@ export default async function ActivitiesPage({
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
+  const featureEnabled = await isFeatureEnabledForUser("ACTIVITY_HUB", {
+    userId: session.user.id,
+  });
+
+  if (!featureEnabled) {
+    return (
+      <div>
+        <div className="topbar">
+          <div>
+            <h1 className="page-title">Activity Hub</h1>
+            <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
+              This section is not enabled for your chapter yet.
+            </p>
+          </div>
+        </div>
+        <div className="card">
+          <h3 style={{ marginTop: 0 }}>Pilot rollout in progress</h3>
+          <p style={{ color: "var(--text-secondary)", marginBottom: 12 }}>
+            You still have access to core tools while the chapter pilot expands.
+          </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Link href="/discover/try-it" className="button secondary">Try-It Sessions</Link>
+            <Link href="/challenges" className="button secondary">Challenges</Link>
+            <Link href="/incubator" className="button secondary">Incubator</Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const sourceFilter = normalizeSource(searchParams?.source);
   const passionFilter = searchParams?.passion || undefined;
@@ -127,7 +157,11 @@ export default async function ActivitiesPage({
                         {SOURCE_LABELS[item.sourceType]}
                       </span>
                       <span className="pill" style={{ fontSize: 11 }}>{item.status.replace(/_/g, " ")}</span>
-                      {item.passionId && <span className="pill" style={{ fontSize: 11 }}>{item.passionId}</span>}
+                      {(item.passionName || item.passionId) && (
+                        <span className="pill" style={{ fontSize: 11 }}>
+                          {item.passionName || item.passionId}
+                        </span>
+                      )}
                     </div>
                     <h3 style={{ margin: "0 0 6px" }}>{item.title}</h3>
                     <p style={{ margin: "0 0 8px", color: "var(--text-secondary)", fontSize: 13 }}>

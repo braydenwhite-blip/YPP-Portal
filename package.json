@@ -13,6 +13,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui",
+    "smoke:release": "node scripts/smoke-release-checks.mjs",
+    "check:release": "npm run build && npm run nav:check && npm run smoke:release",
     "nav:check": "node scripts/validate-nav.mjs",
     "nav:ux-check": "node scripts/validate-nav.mjs",
     "db:generate": "prisma generate",

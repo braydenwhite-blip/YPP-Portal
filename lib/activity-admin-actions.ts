@@ -1,38 +1,11 @@
 "use server";
 
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-
-function extractRoleSet(session: any): Set<string> {
-  const roles = new Set<string>();
-  const primaryRole = session?.user?.primaryRole;
-  if (typeof primaryRole === "string" && primaryRole) roles.add(primaryRole);
-  const rawRoles = session?.user?.roles;
-  if (Array.isArray(rawRoles)) {
-    for (const role of rawRoles) {
-      if (typeof role === "string" && role) roles.add(role);
-      if (role && typeof role === "object" && typeof role.role === "string") {
-        roles.add(role.role);
-      }
-    }
-  }
-  return roles;
-}
+import { requireAnyRole } from "@/lib/authorization";
 
 async function requireActivityAdmin() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    throw new Error("Unauthorized");
-  }
-  const roleSet = extractRoleSet(session);
-  const allowed =
-    roleSet.has("ADMIN") || roleSet.has("INSTRUCTOR") || roleSet.has("CHAPTER_LEAD");
-  if (!allowed) {
-    throw new Error("Unauthorized");
-  }
-  return session;
+  return requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
 }
 
 function revalidateActivitySurfaces() {
@@ -41,6 +14,19 @@ function revalidateActivitySurfaces() {
   revalidatePath("/discover/try-it");
   revalidatePath("/challenges");
   revalidatePath("/world");
+}
+
+async function ensureCanonicalPassionArea(
+  passionId: string
+): Promise<{ id: string; name: string }> {
+  const passion = await prisma.passionArea.findFirst({
+    where: { id: passionId, isActive: true },
+    select: { id: true, name: true },
+  });
+  if (!passion) {
+    throw new Error("Select a valid active passion area.");
+  }
+  return passion;
 }
 
 export async function getActivityAdminCatalog() {
@@ -103,6 +89,7 @@ export async function createTryItActivity(formData: FormData) {
   if (!title || !description || !passionId || !videoUrl || !duration) {
     throw new Error("Title, description, passion area, video URL, and duration are required");
   }
+  await ensureCanonicalPassionArea(passionId);
 
   await prisma.tryItSession.create({
     data: {
@@ -155,12 +142,21 @@ export async function createTalentActivity(formData: FormData) {
     throw new Error("Title, description, instructions, and at least one passion area are required");
   }
 
+  const canonicalPassions = await prisma.passionArea.findMany({
+    where: { id: { in: passionIds }, isActive: true },
+    select: { id: true },
+  });
+  const canonicalIdSet = new Set(canonicalPassions.map((entry) => entry.id));
+  if (canonicalIdSet.size !== passionIds.length) {
+    throw new Error("One or more selected passion areas are invalid or inactive.");
+  }
+
   await prisma.talentChallenge.create({
     data: {
       title,
       description,
       instructions,
-      passionIds,
+      passionIds: Array.from(canonicalIdSet),
       difficulty,
       estimatedMinutes,
       videoUrl,

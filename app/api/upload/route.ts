@@ -103,6 +103,7 @@ export async function POST(request: NextRequest) {
     }
 
     const url = uploadResult.url;
+    const filename = url.split("/").pop() || originalName;
 
     // Save metadata to database
     const upload = await prisma.fileUpload.create({

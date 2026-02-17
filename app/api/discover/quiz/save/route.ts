@@ -2,7 +2,23 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import type { PassionCategory } from "@prisma/client";
+import { PassionCategory, QuizType } from "@prisma/client";
+
+function normalizeCategoryToken(value: string): string {
+  return value.trim().toUpperCase();
+}
+
+function normalizeQuizTypeToken(value: string): string {
+  return value.trim().toUpperCase().replace(/[\s-]+/g, "_");
+}
+
+function parseScores(payload: unknown): Record<string, number> {
+  if (!payload || typeof payload !== "object") return {};
+  const entries = Object.entries(payload as Record<string, unknown>)
+    .map(([key, value]) => [normalizeCategoryToken(key), Number(value)] as const)
+    .filter(([, value]) => Number.isFinite(value) && value > 0);
+  return Object.fromEntries(entries);
+}
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -11,21 +27,64 @@ export async function POST(request: Request) {
   }
 
   const userId = session.user.id;
-  const { scores, quizType } = await request.json();
+  let body: { scores?: unknown; quizType?: string };
+  try {
+    body = (await request.json()) as { scores?: unknown; quizType?: string };
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const scores = parseScores(body.scores);
+  if (Object.keys(scores).length === 0) {
+    return NextResponse.json({ error: "Scores are required" }, { status: 400 });
+  }
+  const requestedQuizType = typeof body.quizType === "string"
+    ? normalizeQuizTypeToken(body.quizType)
+    : "";
+  const quizType = Object.values(QuizType).includes(requestedQuizType as QuizType)
+    ? (requestedQuizType as QuizType)
+    : QuizType.DISCOVERY;
 
   // Get top passions based on scores (sorted highest first)
   const topPassionCategories = Object.entries(scores)
     .sort(([, a]: [string, unknown], [, b]: [string, unknown]) => (b as number) - (a as number))
     .slice(0, 5)
-    .map(([passion]) => passion);
+    .map(([passion]) => normalizeCategoryToken(passion));
+
+  const validCategories = new Set(Object.values(PassionCategory));
+  const rankedCategories = topPassionCategories.filter((category) =>
+    validCategories.has(category as PassionCategory)
+  ) as PassionCategory[];
+
+  const areasByCategory = rankedCategories.length === 0
+    ? []
+    : await prisma.passionArea.findMany({
+      where: {
+        isActive: true,
+        category: { in: rankedCategories },
+      },
+      select: { id: true, category: true, order: true, name: true },
+      orderBy: [{ order: "asc" }, { name: "asc" }],
+    }).catch(() => []);
+
+  const firstAreaIdByCategory = new Map<PassionCategory, string>();
+  for (const area of areasByCategory) {
+    if (!firstAreaIdByCategory.has(area.category)) {
+      firstAreaIdByCategory.set(area.category, area.id);
+    }
+  }
+
+  const topPassionIds = rankedCategories
+    .map((category) => firstAreaIdByCategory.get(category))
+    .filter((value): value is string => Boolean(value));
 
   // Save quiz result
   await prisma.passionQuizResult.create({
     data: {
       studentId: userId,
-      quizType: quizType || "DISCOVERY",
+      quizType,
       results: scores,
-      topPassionIds: topPassionCategories,
+      topPassionIds: topPassionIds.length > 0 ? topPassionIds : topPassionCategories,
       scores,
     },
   });
@@ -58,44 +117,39 @@ export async function POST(request: Request) {
   });
 
   // ── Create islands from quiz results ──
-  // Find PassionArea records matching the top 3 categories
+  // Create StudentInterest records for top 3 canonical passions.
   let islandsCreated = 0;
-  try {
-    const top3 = topPassionCategories.slice(0, 3) as PassionCategory[];
-    const passionAreas = await prisma.passionArea.findMany({
-      where: { category: { in: top3 }, isActive: true },
-      select: { id: true, category: true },
+  const topThreePassionIds = topPassionIds.slice(0, 3);
+
+  for (let i = 0; i < topThreePassionIds.length; i++) {
+    const passionId = topThreePassionIds[i];
+    const existing = await prisma.studentInterest.findUnique({
+      where: {
+        studentId_passionId: {
+          studentId: userId,
+          passionId,
+        },
+      },
     });
 
-    // Create StudentInterest for each matched passion (skip if already exists)
-    for (let i = 0; i < passionAreas.length; i++) {
-      const area = passionAreas[i];
-      const existing = await prisma.studentInterest.findUnique({
-        where: {
-          studentId_passionId: {
-            studentId: userId,
-            passionId: area.id,
-          },
+    if (!existing) {
+      await prisma.studentInterest.create({
+        data: {
+          studentId: userId,
+          passionId,
+          level: "EXPLORING",
+          xpPoints: 0,
+          currentLevel: 1,
+          isPrimary: i === 0,
         },
       });
-
-      if (!existing) {
-        await prisma.studentInterest.create({
-          data: {
-            studentId: userId,
-            passionId: area.id,
-            level: "EXPLORING",
-            xpPoints: 0,
-            currentLevel: 1,
-            isPrimary: i === 0, // First match is primary
-          },
-        });
-        islandsCreated++;
-      }
+      islandsCreated++;
     }
-  } catch (err) {
-    // PassionArea table may not exist or be empty — continue gracefully
-    console.error("[QuizSave] Error creating islands:", err);
+  }
+
+  if (topThreePassionIds.length === 0) {
+    // PassionArea table may be empty or quiz categories may not map yet.
+    console.error("[QuizSave] No active passion areas matched quiz categories:", rankedCategories);
   }
 
   return NextResponse.json({

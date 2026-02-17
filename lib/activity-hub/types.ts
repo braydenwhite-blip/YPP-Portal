@@ -25,6 +25,7 @@ export type ActivityItem = {
   id: string;
   sourceType: ActivitySourceType;
   passionId: string | null;
+  passionName?: string | null;
   title: string;
   description: string;
   difficulty: "EASY" | "MEDIUM" | "HARD" | "ADVANCED";

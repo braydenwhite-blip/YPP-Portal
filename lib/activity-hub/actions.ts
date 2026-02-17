@@ -23,6 +23,11 @@ const INCUBATOR_PHASE_XP: Record<string, number> = {
   SHOWCASE: 75,
 };
 
+type PassionLookupMaps = {
+  idByToken: Map<string, string>;
+  nameById: Map<string, string>;
+};
+
 function clampLimit(limit: number | undefined): number {
   if (!limit || Number.isNaN(limit)) return 200;
   return Math.max(1, Math.min(limit, 500));
@@ -52,6 +57,80 @@ function hasSource(
   return selected.includes(source);
 }
 
+function normalizeToken(value: string | null | undefined): string {
+  return (value || "").trim().toLowerCase();
+}
+
+function normalizeRawPassionValue(value: string | null | undefined): string | null {
+  const trimmed = (value || "").trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function uniqueNonEmpty(values: Array<string | null | undefined>): string[] {
+  return Array.from(
+    new Set(
+      values
+        .map((value) => (value || "").trim())
+        .filter((value) => value.length > 0)
+    )
+  );
+}
+
+function buildPassionLookupMaps(
+  passions: Array<{ id: string; name: string }>
+): PassionLookupMaps {
+  const idByToken = new Map<string, string>();
+  const nameById = new Map<string, string>();
+
+  for (const passion of passions) {
+    nameById.set(passion.id, passion.name);
+    idByToken.set(normalizeToken(passion.id), passion.id);
+    idByToken.set(normalizeToken(passion.name), passion.id);
+  }
+
+  return { idByToken, nameById };
+}
+
+function resolvePassionId(
+  value: string | null | undefined,
+  maps: PassionLookupMaps
+): string | null {
+  const token = normalizeToken(value);
+  if (!token) return null;
+  return maps.idByToken.get(token) ?? null;
+}
+
+function resolvePassionName(
+  value: string | null | undefined,
+  maps: PassionLookupMaps
+): string | null {
+  const id = resolvePassionId(value, maps);
+  if (!id) return null;
+  return maps.nameById.get(id) ?? null;
+}
+
+function resolvePrimaryPassion(
+  values: string[] | null | undefined,
+  maps: PassionLookupMaps
+): { passionId: string | null; passionName: string | null } {
+  if (!values || values.length === 0) {
+    return { passionId: null, passionName: null };
+  }
+
+  for (const value of values) {
+    const canonicalId = resolvePassionId(value, maps);
+    if (canonicalId) {
+      return {
+        passionId: canonicalId,
+        passionName: maps.nameById.get(canonicalId) ?? normalizeRawPassionValue(value),
+      };
+    }
+  }
+
+  const fallback = normalizeRawPassionValue(values[0]);
+  return { passionId: fallback, passionName: fallback };
+}
+
 export async function getActivityFeedForUser(
   userId: string,
   filters: ActivityFeedFilters = {}
@@ -64,6 +143,14 @@ export async function getActivityFeedForUser(
       roles: { select: { role: true } },
     },
   });
+
+  const passions = await prisma.passionArea
+    .findMany({
+      where: { isActive: true },
+      select: { id: true, name: true },
+    })
+    .catch(() => []);
+  const passionLookup = buildPassionLookupMaps(passions);
 
   if (!user) {
     return {
@@ -86,6 +173,17 @@ export async function getActivityFeedForUser(
   const limit = clampLimit(filters.limit);
   const sourceTypes = filters.sourceTypes;
   const now = new Date();
+  const canonicalPassionId =
+    resolvePassionId(filters.passionId, passionLookup) ??
+    normalizeRawPassionValue(filters.passionId);
+  const canonicalPassionName = canonicalPassionId
+    ? passionLookup.nameById.get(canonicalPassionId) ?? canonicalPassionId
+    : null;
+  const passionFilterValues = uniqueNonEmpty([
+    canonicalPassionId,
+    canonicalPassionName,
+    filters.passionId,
+  ]);
 
   const [
     portalChallenges,
@@ -101,7 +199,9 @@ export async function getActivityFeedForUser(
             ...(includeDraft
               ? {}
               : { status: "ACTIVE", startDate: { lte: now }, endDate: { gte: now } }),
-            ...(filters.passionId ? { passionArea: filters.passionId } : {}),
+            ...(passionFilterValues.length > 0
+              ? { passionArea: { in: passionFilterValues } }
+              : {}),
           },
           orderBy: [{ status: "asc" }, { endDate: "asc" }],
           include: {
@@ -120,7 +220,9 @@ export async function getActivityFeedForUser(
         .findMany({
           where: {
             ...(includeDraft ? {} : { isActive: true }),
-            ...(filters.passionId ? { passionIds: { has: filters.passionId } } : {}),
+            ...(passionFilterValues.length > 0
+              ? { passionIds: { hasSome: passionFilterValues } }
+              : {}),
           },
           orderBy: [{ order: "asc" }, { id: "desc" }],
           take: limit,
@@ -132,7 +234,9 @@ export async function getActivityFeedForUser(
         .findMany({
           where: {
             ...(includeDraft ? {} : { isActive: true }),
-            ...(filters.passionId ? { passionId: filters.passionId } : {}),
+            ...(passionFilterValues.length > 0
+              ? { passionId: { in: passionFilterValues } }
+              : {}),
           },
           orderBy: [{ order: "asc" }, { createdAt: "desc" }],
           take: limit,
@@ -144,11 +248,15 @@ export async function getActivityFeedForUser(
         .findMany({
           where: roleSet.has("ADMIN") || roleSet.has("INSTRUCTOR") || roleSet.has("MENTOR")
             ? {
-              ...(filters.passionId ? { passionArea: filters.passionId } : {}),
+              ...(passionFilterValues.length > 0
+                ? { passionArea: { in: passionFilterValues } }
+                : {}),
             }
             : {
               studentId: userId,
-              ...(filters.passionId ? { passionArea: filters.passionId } : {}),
+              ...(passionFilterValues.length > 0
+                ? { passionArea: { in: passionFilterValues } }
+                : {}),
             },
           orderBy: { updatedAt: "desc" },
           take: limit,
@@ -160,7 +268,9 @@ export async function getActivityFeedForUser(
         .findMany({
           where: {
             studentId: userId,
-            ...(filters.passionId ? { passionId: filters.passionId } : {}),
+            ...(passionFilterValues.length > 0
+              ? { passionId: { in: passionFilterValues } }
+              : {}),
           },
           orderBy: { updatedAt: "desc" },
           take: limit,
@@ -173,6 +283,12 @@ export async function getActivityFeedForUser(
 
   for (const challenge of portalChallenges) {
     const myParticipation = challenge.participants[0];
+    const challengePassionId =
+      resolvePassionId(challenge.passionArea, passionLookup) ??
+      normalizeRawPassionValue(challenge.passionArea);
+    const challengePassionName =
+      resolvePassionName(challenge.passionArea, passionLookup) ??
+      normalizeRawPassionValue(challenge.passionArea);
     const lifecycle: ActivityItem["status"] =
       challenge.status === "DRAFT"
         ? "DRAFT"
@@ -185,7 +301,8 @@ export async function getActivityFeedForUser(
     items.push({
       id: challenge.id,
       sourceType: "PORTAL_CHALLENGE",
-      passionId: challenge.passionArea ?? null,
+      passionId: challengePassionId,
+      passionName: challengePassionName,
       title: challenge.title,
       description: challenge.description,
       difficulty: normalizeDifficulty(
@@ -199,7 +316,7 @@ export async function getActivityFeedForUser(
         secondary: "/challenges",
       },
       audience: ["STUDENT", "INSTRUCTOR", "ADMIN"],
-      tags: [challenge.type, challenge.passionArea || "GENERAL"],
+      tags: [challenge.type, challengePassionName || "GENERAL"],
       updatedAt: challenge.updatedAt,
       metadata: {
         challengeType: challenge.type,
@@ -210,10 +327,19 @@ export async function getActivityFeedForUser(
   }
 
   for (const talent of talentChallenges) {
+    const primaryPassion = resolvePrimaryPassion(talent.passionIds, passionLookup);
+    const passionTags = uniqueNonEmpty(
+      talent.passionIds.map(
+        (passion) =>
+          resolvePassionName(passion, passionLookup) ?? normalizeRawPassionValue(passion)
+      )
+    );
+
     items.push({
       id: talent.id,
       sourceType: "TALENT_CHALLENGE",
-      passionId: talent.passionIds[0] ?? null,
+      passionId: primaryPassion.passionId,
+      passionName: primaryPassion.passionName,
       title: talent.title,
       description: talent.description,
       difficulty: normalizeDifficulty(talent.difficulty),
@@ -225,7 +351,7 @@ export async function getActivityFeedForUser(
         secondary: "/activities",
       },
       audience: ["STUDENT", "INSTRUCTOR", "ADMIN"],
-      tags: ["DISCOVERY", ...talent.passionIds],
+      tags: ["DISCOVERY", ...(passionTags.length > 0 ? passionTags : ["GENERAL"])],
       updatedAt: now,
       metadata: {
         materialsNeeded: talent.materialsNeeded,
@@ -235,10 +361,17 @@ export async function getActivityFeedForUser(
   }
 
   for (const session of tryItSessions) {
+    const sessionPassionId =
+      resolvePassionId(session.passionId, passionLookup) ??
+      normalizeRawPassionValue(session.passionId);
+    const sessionPassionName =
+      resolvePassionName(session.passionId, passionLookup) ??
+      normalizeRawPassionValue(session.passionId);
     items.push({
       id: session.id,
       sourceType: "TRY_IT_SESSION",
-      passionId: session.passionId,
+      passionId: sessionPassionId,
+      passionName: sessionPassionName,
       title: session.title,
       description: session.description,
       difficulty: "EASY",
@@ -250,7 +383,7 @@ export async function getActivityFeedForUser(
         secondary: "/discover/try-it",
       },
       audience: ["STUDENT", "PARENT", "INSTRUCTOR", "ADMIN"],
-      tags: ["DISCOVERY", session.passionId],
+      tags: ["DISCOVERY", sessionPassionName || "GENERAL"],
       updatedAt: session.createdAt,
       metadata: {
         presenter: session.presenter,
@@ -261,10 +394,17 @@ export async function getActivityFeedForUser(
 
   for (const project of incubatorProjects) {
     const isComplete = project.currentPhase === "SHOWCASE" && project.showcaseComplete;
+    const incubatorPassionId =
+      resolvePassionId(project.passionArea, passionLookup) ??
+      normalizeRawPassionValue(project.passionArea);
+    const incubatorPassionName =
+      resolvePassionName(project.passionArea, passionLookup) ??
+      normalizeRawPassionValue(project.passionArea);
     items.push({
       id: project.id,
       sourceType: "INCUBATOR_PROJECT",
-      passionId: project.passionArea || null,
+      passionId: incubatorPassionId,
+      passionName: incubatorPassionName,
       title: project.title,
       description: project.description,
       difficulty: project.currentPhase === "BUILDING" ? "HARD" : "ADVANCED",
@@ -276,7 +416,7 @@ export async function getActivityFeedForUser(
         secondary: "/incubator",
       },
       audience: ["STUDENT", "MENTOR", "INSTRUCTOR", "ADMIN"],
-      tags: ["INCUBATOR", project.currentPhase, project.passionArea],
+      tags: ["INCUBATOR", project.currentPhase, incubatorPassionName || "GENERAL"],
       updatedAt: project.updatedAt,
       metadata: {
         phase: project.currentPhase,
@@ -287,10 +427,17 @@ export async function getActivityFeedForUser(
   }
 
   for (const project of projectTrackers) {
+    const projectPassionId =
+      resolvePassionId(project.passionId, passionLookup) ??
+      normalizeRawPassionValue(project.passionId);
+    const projectPassionName =
+      resolvePassionName(project.passionId, passionLookup) ??
+      normalizeRawPassionValue(project.passionId);
     items.push({
       id: project.id,
       sourceType: "PROJECT_TRACKER",
-      passionId: project.passionId || null,
+      passionId: projectPassionId,
+      passionName: projectPassionName,
       title: project.title,
       description: project.description || "Track your passion project progress.",
       difficulty: project.status === "PLANNING" ? "MEDIUM" : "HARD",
@@ -307,7 +454,7 @@ export async function getActivityFeedForUser(
         secondary: "/incubator",
       },
       audience: ["STUDENT", "MENTOR", "INSTRUCTOR", "ADMIN"],
-      tags: ["PROJECT", project.status, project.passionId],
+      tags: ["PROJECT", project.status, projectPassionName || "GENERAL"],
       updatedAt: project.updatedAt,
       metadata: {
         visibility: project.visibility,
@@ -316,8 +463,12 @@ export async function getActivityFeedForUser(
     });
   }
 
-  const filtered = filters.passionId
-    ? items.filter((item) => item.passionId === filters.passionId)
+  const filtered = canonicalPassionId
+    ? items.filter(
+      (item) =>
+        item.passionId === canonicalPassionId ||
+        normalizeToken(item.passionName) === normalizeToken(canonicalPassionName)
+    )
     : items;
 
   filtered.sort((a, b) => {

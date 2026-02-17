@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { AttendanceStatus } from "@prisma/client";
+import { AttendanceStatus, Prisma } from "@prisma/client";
 import { requireAttendanceAccess, requireOwnershipOrRole } from "@/lib/authorization-helpers";
 
 // ============================================
@@ -167,13 +167,51 @@ export async function getAttendanceSessions() {
 // 3. getSessionWithRecords
 // ============================================
 
-export async function getSessionWithRecords(sessionId: string) {
+type AttendanceSessionWithRecords = Prisma.AttendanceSessionGetPayload<{
+  include: {
+    course: {
+      select: {
+        id: true;
+        title: true;
+        leadInstructorId: true;
+      };
+    };
+    event: {
+      select: {
+        id: true;
+        title: true;
+      };
+    };
+    createdBy: {
+      select: {
+        id: true;
+        name: true;
+      };
+    };
+    records: {
+      include: {
+        user: {
+          select: {
+            id: true;
+            name: true;
+            email: true;
+          };
+        };
+      };
+      orderBy: {
+        checkedInAt: "asc";
+      };
+    };
+  };
+}>;
+
+export async function getSessionWithRecords(sessionId: string): Promise<AttendanceSessionWithRecords> {
   // First get the session to determine what to authorize against
   const session = await prisma.attendanceSession.findUnique({
     where: { id: sessionId },
     include: {
       course: {
-        select: { id: true, title: true, instructorId: true },
+        select: { id: true, title: true, leadInstructorId: true },
       },
       event: {
         select: { id: true, title: true },
@@ -333,9 +371,9 @@ export async function getStudentAttendanceSummary(userId: string) {
   else if (callerRoles.includes("INSTRUCTOR")) {
     const enrollment = await prisma.enrollment.findFirst({
       where: {
-        studentId: userId,
+        userId,
         course: {
-          instructorId: callerId
+          leadInstructorId: callerId
         }
       }
     });

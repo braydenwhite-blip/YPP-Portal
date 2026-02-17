@@ -228,6 +228,7 @@ model Chapter {
   classTemplates   ClassTemplate[]
   launchTasks      LaunchTask[]
   rolloutCampaigns RolloutCampaign[]
+  featureGateRules FeatureGateRule[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -379,6 +380,7 @@ model User {
   earnedBadges         StudentBadge[]        @relation("StudentBadges")
   challengeCompletions ChallengeCompletion[] @relation("ChallengeCompletions")
   sessionWatchHistory  SessionWatchHistory[] @relation("SessionWatchHistory")
+  activityCompletions  ActivityCompletion[]  @relation("ActivityCompletions")
 
   // Phase 2: Learning Infrastructure Relations
   skillProgress             StudentSkillProgress[]     @relation("StudentSkillProgress")
@@ -438,6 +440,9 @@ model User {
   launchTasksCreated       LaunchTask[]            @relation("LaunchTasksCreatedBy")
   launchTasksUpdated       LaunchTask[]            @relation("LaunchTasksUpdatedBy")
   rolloutCampaignsCreated  RolloutCampaign[]       @relation("RolloutCampaignsCreatedBy")
+  featureGateRulesTargeted FeatureGateRule[]       @relation("FeatureGateRuleTargetUser")
+  featureGateRulesCreated  FeatureGateRule[]       @relation("FeatureGateRuleCreatedBy")
+  featureGateRulesUpdated  FeatureGateRule[]       @relation("FeatureGateRuleUpdatedBy")
 
   // Phase 10: Enjoyment-Focused Assignments Relations
   classAssignmentsCreated ClassAssignment[]           @relation("ClassAssignmentsCreated")
@@ -490,6 +495,11 @@ model User {
   image         String?
   accounts      OAuthAccount[]
   sessions      OAuthSession[]
+  // Training Academy Enhancements
+  cohortsFacilitated TrainingCohort[]   @relation("CohortFacilitator")
+  peerReviewsGiven   PeerReview[]       @relation("PeerReviewsGiven")
+  discussionThreads  DiscussionThread[] @relation("DiscussionThreads")
+  discussionReplies  DiscussionReply[]  @relation("DiscussionReplies")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -660,7 +670,7 @@ model TrainingModule {
   required      Boolean            @default(true)
   sortOrder     Int
 
-  // Video Integration
+  // Video Integration (Legacy - kept for backwards compatibility)
   videoUrl         String?
   videoProvider    VideoProvider?
   videoDuration    Int? // Duration in seconds
@@ -668,6 +678,13 @@ model TrainingModule {
   requiresQuiz     Boolean        @default(false)
   requiresEvidence Boolean        @default(false)
   passScorePct     Int            @default(80)
+
+  // New: Multiple videos and resources
+  videos              TrainingVideo[]
+  resources           TrainingResource[]
+  discussions         ModuleDiscussion[]
+  transcript          String?
+  estimatedMinutes    Int?
 
   assignments         TrainingAssignment[]
   videoProgress       VideoProgress[]
@@ -687,31 +704,34 @@ enum VideoProvider {
 }
 
 model TrainingAssignment {
-  id          String         @id @default(cuid())
+  id          String          @id @default(cuid())
   userId      String
   moduleId    String
-  status      TrainingStatus @default(NOT_STARTED)
+  cohortId    String?
+  status      TrainingStatus  @default(NOT_STARTED)
   completedAt DateTime?
-  user        User           @relation(fields: [userId], references: [id])
-  module      TrainingModule @relation(fields: [moduleId], references: [id])
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  user        User            @relation(fields: [userId], references: [id])
+  module      TrainingModule  @relation(fields: [moduleId], references: [id])
+  cohort      TrainingCohort? @relation(fields: [cohortId], references: [id], onDelete: SetNull)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   @@unique([userId, moduleId])
+  @@index([cohortId])
 }
 
 model VideoProgress {
-  id             String         @id @default(cuid())
+  id             String          @id @default(cuid())
   userId         String
   moduleId       String
-  user           User           @relation(fields: [userId], references: [id])
-  module         TrainingModule @relation(fields: [moduleId], references: [id])
-  watchedSeconds Int            @default(0)
-  completed      Boolean        @default(false)
-  lastPosition   Int            @default(0) // Last watched position in seconds
+  user           User            @relation(fields: [userId], references: [id])
+  module         TrainingModule  @relation(fields: [moduleId], references: [id])
+  watchedSeconds Int             @default(0)
+  completed      Boolean         @default(false)
+  lastPosition   Int             @default(0) // Last watched position in seconds
   completedAt    DateTime?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   @@unique([userId, moduleId])
 }
@@ -811,12 +831,146 @@ model TrainingEvidenceSubmission {
   reviewedBy   User?                  @relation("TrainingEvidenceReviews", fields: [reviewedById], references: [id])
   reviewedAt   DateTime?
   reviewNotes  String?
+  peerReviews  PeerReview[]
   createdAt    DateTime               @default(now())
   updatedAt    DateTime               @updatedAt
 
   @@index([moduleId, userId])
   @@index([status])
 }
+
+// ============================================
+// TRAINING ACADEMY ENHANCEMENTS
+// ============================================
+
+model TrainingVideo {
+  id              String          @id @default(cuid())
+  moduleId        String
+  module          TrainingModule  @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?
+  videoUrl        String
+  videoProvider   VideoProvider
+  videoDuration   Int // Duration in seconds
+  sortOrder       Int             @default(1)
+  isSupplementary Boolean         @default(false)
+  segments        VideoSegment[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([moduleId, sortOrder])
+}
+
+model VideoSegment {
+  id        String        @id @default(cuid())
+  videoId   String
+  video     TrainingVideo @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  title     String
+  startTime Int // seconds
+  endTime   Int // seconds
+  sortOrder Int           @default(1)
+  createdAt DateTime      @default(now())
+
+  @@index([videoId, sortOrder])
+}
+
+model TrainingResource {
+  id           String         @id @default(cuid())
+  moduleId     String
+  module       TrainingModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  resourceUrl  String
+  resourceType String // PDF, DOC, SHEET, LINK, VIDEO
+  sortOrder    Int            @default(1)
+  downloads    Int            @default(0)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([moduleId, sortOrder])
+}
+
+model TrainingCohort {
+  id             String               @id @default(cuid())
+  name           String
+  description    String?
+  startDate      DateTime
+  endDate        DateTime?
+  facilitatorId  String?
+  facilitator    User?                @relation("CohortFacilitator", fields: [facilitatorId], references: [id])
+  assignments    TrainingAssignment[]
+  discussions    ModuleDiscussion[]
+  isActive       Boolean              @default(true)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([isActive, startDate])
+}
+
+model PeerReview {
+  id                 String                     @id @default(cuid())
+  evidenceId         String
+  evidence           TrainingEvidenceSubmission @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+  reviewerId         String
+  reviewer           User                       @relation("PeerReviewsGiven", fields: [reviewerId], references: [id])
+  feedback           String?
+  rating             Int? // 1-5 scale
+  strengths          String?
+  areasForImprovement String?
+  submittedAt        DateTime?
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+
+  @@unique([evidenceId, reviewerId])
+  @@index([reviewerId])
+}
+
+model ModuleDiscussion {
+  id        String             @id @default(cuid())
+  moduleId  String
+  module    TrainingModule     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  cohortId  String?
+  cohort    TrainingCohort?    @relation(fields: [cohortId], references: [id], onDelete: SetNull)
+  threads   DiscussionThread[]
+  createdAt DateTime           @default(now())
+
+  @@unique([moduleId, cohortId])
+  @@index([moduleId])
+}
+
+model DiscussionThread {
+  id           String            @id @default(cuid())
+  discussionId String
+  discussion   ModuleDiscussion  @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  authorId     String
+  author       User              @relation("DiscussionThreads", fields: [authorId], references: [id])
+  title        String
+  content      String
+  isPinned     Boolean           @default(false)
+  isLocked     Boolean           @default(false)
+  replies      DiscussionReply[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([discussionId, createdAt])
+  @@index([authorId])
+}
+
+model DiscussionReply {
+  id        String           @id @default(cuid())
+  threadId  String
+  thread    DiscussionThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User             @relation("DiscussionReplies", fields: [authorId], references: [id])
+  content   String
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([threadId, createdAt])
+  @@index([authorId])
+}
+
+// ============================================
 
 model ReadinessReviewRequest {
   id           String                @id @default(cuid())
@@ -1416,6 +1570,10 @@ model Certificate {
   course            Course?             @relation(fields: [courseId], references: [id])
   pathwayId         String?
   pathway           Pathway?            @relation(fields: [pathwayId], references: [id])
+
+  // Training Academy Certificate Support: store module scores, completion dates, etc.
+  completionData Json?
+
   title             String
   description       String?
   issuedAt          DateTime            @default(now())
@@ -2641,6 +2799,27 @@ model XPTransaction {
 
   @@index([studentId])
   @@index([createdAt])
+}
+
+model ActivityCompletion {
+  id           String   @id @default(cuid())
+  studentId    String
+  student      User     @relation("ActivityCompletions", fields: [studentId], references: [id], onDelete: Cascade)
+  sourceType   String
+  activityId   String
+  title        String?
+  passionId    String?
+  notes        String?
+  minutesSpent Int?
+  awardedXp    Int      @default(0)
+  metadata     Json?
+  completedAt  DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([studentId, sourceType, activityId])
+  @@index([studentId, completedAt])
+  @@index([sourceType, activityId])
 }
 
 // Badges/Achievements
@@ -4141,6 +4320,13 @@ enum RolloutCampaignStatus {
   FAILED
 }
 
+enum FeatureGateScope {
+  GLOBAL
+  CHAPTER
+  USER
+  ROLE
+}
+
 // Class template: reusable curriculum design (Feature #61, #62, #63, #64)
 model ClassTemplate {
   id              String          @id @default(cuid())
@@ -4401,6 +4587,33 @@ model RolloutCampaign {
   @@index([chapterId])
   @@index([audience, status])
   @@index([createdAt])
+}
+
+model FeatureGateRule {
+  id          String           @id @default(cuid())
+  featureKey  String
+  scope       FeatureGateScope @default(GLOBAL)
+  enabled     Boolean          @default(true)
+  chapterId   String?
+  chapter     Chapter?         @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  userId      String?
+  user        User?            @relation("FeatureGateRuleTargetUser", fields: [userId], references: [id], onDelete: SetNull)
+  role        RoleType?
+  startsAt    DateTime?
+  endsAt      DateTime?
+  note        String?
+  createdById String?
+  createdBy   User?            @relation("FeatureGateRuleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById String?
+  updatedBy   User?            @relation("FeatureGateRuleUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([featureKey, scope, enabled])
+  @@index([featureKey, chapterId, enabled])
+  @@index([featureKey, userId, enabled])
+  @@index([featureKey, role, enabled])
+  @@index([startsAt, endsAt])
 }
 
 // ============================================

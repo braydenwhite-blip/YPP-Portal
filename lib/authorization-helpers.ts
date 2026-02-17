@@ -74,12 +74,12 @@ export async function requireChapterAccess(chapterId: string): Promise<SessionUs
 
   // Check if user is a chapter lead for this chapter
   if (user.roles.includes("CHAPTER_LEAD")) {
-    const userProfile = await prisma.userProfile.findUnique({
-      where: { userId: user.id },
+    const chapterOwner = await prisma.user.findUnique({
+      where: { id: user.id },
       select: { chapterId: true }
     });
 
-    if (userProfile?.chapterId === chapterId) {
+    if (chapterOwner?.chapterId === chapterId) {
       return user;
     }
   }
@@ -104,14 +104,14 @@ export async function requireCourseInstructor(
   // Check if user is the course instructor
   const course = await prisma.course.findUnique({
     where: { id: courseId },
-    select: { instructorId: true }
+    select: { leadInstructorId: true }
   });
 
   if (!course) {
     throw new Error("Course not found");
   }
 
-  if (course.instructorId !== user.id) {
+  if (course.leadInstructorId !== user.id) {
     throw new Error("Unauthorized: You are not the instructor of this course");
   }
 
@@ -132,14 +132,14 @@ export async function requireCourseAccess(courseId: string): Promise<SessionUser
   // Check if user is the course instructor
   const course = await prisma.course.findUnique({
     where: { id: courseId },
-    select: { instructorId: true }
+    select: { leadInstructorId: true }
   });
 
   if (!course) {
     throw new Error("Course not found");
   }
 
-  if (course.instructorId === user.id) {
+  if (course.leadInstructorId === user.id) {
     return user;
   }
 
@@ -147,7 +147,7 @@ export async function requireCourseAccess(courseId: string): Promise<SessionUser
   const enrollment = await prisma.enrollment.findFirst({
     where: {
       courseId,
-      studentId: user.id
+      userId: user.id
     }
   });
 
@@ -345,10 +345,10 @@ export async function requireAttendanceAccess(
   if (courseId) {
     const course = await prisma.course.findUnique({
       where: { id: courseId },
-      select: { instructorId: true }
+      select: { leadInstructorId: true }
     });
 
-    if (course?.instructorId === user.id) {
+    if (course?.leadInstructorId === user.id) {
       return user;
     }
   }
@@ -399,12 +399,12 @@ export async function requireApplicationAccess(
 
   // Chapter leads can access applications for their chapter
   if (user.roles.includes("CHAPTER_LEAD") && application.position.chapterId) {
-    const userProfile = await prisma.userProfile.findUnique({
-      where: { userId: user.id },
+    const chapterOwner = await prisma.user.findUnique({
+      where: { id: user.id },
       select: { chapterId: true }
     });
 
-    if (userProfile?.chapterId === application.position.chapterId) {
+    if (chapterOwner?.chapterId === application.position.chapterId) {
       return user;
     }
   }

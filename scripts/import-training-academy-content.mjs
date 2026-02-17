@@ -41,6 +41,9 @@ async function upsertModule(definition, dryRun, counters) {
     requiresQuiz: Boolean(definition.requiresQuiz),
     requiresEvidence: Boolean(definition.requiresEvidence),
     passScorePct: Number(definition.passScorePct),
+    // New v2.0.0 fields
+    estimatedMinutes: definition.estimatedMinutes ? Number(definition.estimatedMinutes) : null,
+    transcript: definition.transcript || null,
   };
 
   if (!existing) {
@@ -142,26 +145,164 @@ async function upsertQuizQuestion(moduleId, question, dryRun, counters) {
   }
 }
 
-async function pruneModuleChildren(moduleId, checkpointKeys, questionKeys, dryRun, counters) {
+async function upsertVideo(moduleId, video, dryRun, counters) {
+  const existing = await prisma.trainingVideo.findFirst({
+    where: {
+      moduleId,
+      title: video.title,
+    },
+    select: { id: true },
+  });
+
+  const data = {
+    title: video.title,
+    description: video.description || null,
+    videoUrl: video.videoUrl,
+    videoProvider: video.videoProvider,
+    videoDuration: Number(video.videoDuration),
+    sortOrder: Number(video.sortOrder),
+    isSupplementary: Boolean(video.isSupplementary),
+  };
+
+  if (!existing) {
+    counters.videosCreated += 1;
+    if (dryRun) {
+      return { id: `dry_video_${video.title}` };
+    }
+    const created = await prisma.trainingVideo.create({
+      data: {
+        moduleId,
+        ...data,
+      },
+      select: { id: true },
+    });
+    return { id: created.id };
+  }
+
+  counters.videosUpdated += 1;
   if (!dryRun) {
-    const checkpointDeleteResult = await prisma.trainingCheckpoint.deleteMany({
-      where: {
-        moduleId,
-        contentKey: { not: null, notIn: checkpointKeys },
-      },
+    await prisma.trainingVideo.update({
+      where: { id: existing.id },
+      data,
     });
-    const questionDeleteResult = await prisma.trainingQuizQuestion.deleteMany({
-      where: {
-        moduleId,
-        contentKey: { not: null, notIn: questionKeys },
-      },
-    });
-    counters.checkpointsDeleted += checkpointDeleteResult.count;
-    counters.quizDeleted += questionDeleteResult.count;
+  }
+
+  return { id: existing.id };
+}
+
+async function upsertVideoSegment(videoId, segment, dryRun, counters) {
+  const existing = await prisma.videoSegment.findFirst({
+    where: {
+      videoId,
+      title: segment.title,
+    },
+    select: { id: true },
+  });
+
+  const data = {
+    title: segment.title,
+    startTime: Number(segment.startTime),
+    endTime: Number(segment.endTime),
+    sortOrder: Number(segment.sortOrder),
+  };
+
+  if (!existing) {
+    counters.segmentsCreated += 1;
+    if (!dryRun) {
+      await prisma.videoSegment.create({
+        data: {
+          videoId,
+          ...data,
+        },
+      });
+    }
     return;
   }
 
-  const [checkpointDeleteCount, questionDeleteCount] = await Promise.all([
+  counters.segmentsUpdated += 1;
+  if (!dryRun) {
+    await prisma.videoSegment.update({
+      where: { id: existing.id },
+      data,
+    });
+  }
+}
+
+async function upsertResource(moduleId, resource, dryRun, counters) {
+  const existing = await prisma.trainingResource.findFirst({
+    where: {
+      moduleId,
+      title: resource.title,
+    },
+    select: { id: true },
+  });
+
+  const data = {
+    title: resource.title,
+    description: resource.description || null,
+    resourceUrl: resource.resourceUrl,
+    resourceType: resource.resourceType,
+    sortOrder: Number(resource.sortOrder),
+  };
+
+  if (!existing) {
+    counters.resourcesCreated += 1;
+    if (!dryRun) {
+      await prisma.trainingResource.create({
+        data: {
+          moduleId,
+          ...data,
+        },
+      });
+    }
+    return;
+  }
+
+  counters.resourcesUpdated += 1;
+  if (!dryRun) {
+    await prisma.trainingResource.update({
+      where: { id: existing.id },
+      data,
+    });
+  }
+}
+
+async function pruneModuleChildren(moduleId, checkpointKeys, questionKeys, videoTitles, resourceTitles, dryRun, counters) {
+  if (!dryRun) {
+    const [checkpointDeleteResult, questionDeleteResult, videoDeleteResult, resourceDeleteResult] = await Promise.all([
+      prisma.trainingCheckpoint.deleteMany({
+        where: {
+          moduleId,
+          contentKey: { not: null, notIn: checkpointKeys },
+        },
+      }),
+      prisma.trainingQuizQuestion.deleteMany({
+        where: {
+          moduleId,
+          contentKey: { not: null, notIn: questionKeys },
+        },
+      }),
+      prisma.trainingVideo.deleteMany({
+        where: {
+          moduleId,
+          title: { notIn: videoTitles },
+        },
+      }),
+      prisma.trainingResource.deleteMany({
+        where: {
+          moduleId,
+          title: { notIn: resourceTitles },
+        },
+      }),
+    ]);
+    counters.checkpointsDeleted += checkpointDeleteResult.count;
+    counters.quizDeleted += questionDeleteResult.count;
+    counters.videosDeleted += videoDeleteResult.count;
+    counters.resourcesDeleted += resourceDeleteResult.count;
+    return;
+  }
+
+  const [checkpointDeleteCount, questionDeleteCount, videoDeleteCount, resourceDeleteCount] = await Promise.all([
     prisma.trainingCheckpoint.count({
       where: {
         moduleId,
@@ -174,10 +315,24 @@ async function pruneModuleChildren(moduleId, checkpointKeys, questionKeys, dryRu
         contentKey: { not: null, notIn: questionKeys },
       },
     }),
+    prisma.trainingVideo.count({
+      where: {
+        moduleId,
+        title: { notIn: videoTitles },
+      },
+    }),
+    prisma.trainingResource.count({
+      where: {
+        moduleId,
+        title: { notIn: resourceTitles },
+      },
+    }),
   ]);
 
   counters.checkpointsDeleted += checkpointDeleteCount;
   counters.quizDeleted += questionDeleteCount;
+  counters.videosDeleted += videoDeleteCount;
+  counters.resourcesDeleted += resourceDeleteCount;
 }
 
 async function syncAssignmentsForRequiredModules(moduleIds, dryRun, counters) {
@@ -287,6 +442,14 @@ async function main() {
     quizCreated: 0,
     quizUpdated: 0,
     quizDeleted: 0,
+    videosCreated: 0,
+    videosUpdated: 0,
+    videosDeleted: 0,
+    segmentsCreated: 0,
+    segmentsUpdated: 0,
+    resourcesCreated: 0,
+    resourcesUpdated: 0,
+    resourcesDeleted: 0,
     assignmentsCreated: 0,
   };
 
@@ -322,8 +485,40 @@ async function main() {
       }
     }
 
+    // Process videos (v2.0.0 schema)
+    const videoTitles = [];
+    for (const video of moduleDefinition.videos || []) {
+      videoTitles.push(video.title);
+      if (!args.dryRun || !moduleId.startsWith("dry_")) {
+        const videoResult = await upsertVideo(moduleId, video, args.dryRun, counters);
+        const videoId = videoResult.id;
+
+        // Process video segments
+        for (const segment of video.segments || []) {
+          if (!args.dryRun || !videoId.startsWith("dry_")) {
+            await upsertVideoSegment(videoId, segment, args.dryRun, counters);
+          } else {
+            counters.segmentsCreated += 1;
+          }
+        }
+      } else {
+        counters.videosCreated += 1;
+      }
+    }
+
+    // Process resources (v2.0.0 schema)
+    const resourceTitles = [];
+    for (const resource of moduleDefinition.resources || []) {
+      resourceTitles.push(resource.title);
+      if (!args.dryRun || !moduleId.startsWith("dry_")) {
+        await upsertResource(moduleId, resource, args.dryRun, counters);
+      } else {
+        counters.resourcesCreated += 1;
+      }
+    }
+
     if (args.prune && (!args.dryRun || !moduleId.startsWith("dry_"))) {
-      await pruneModuleChildren(moduleId, checkpointKeys, questionKeys, args.dryRun, counters);
+      await pruneModuleChildren(moduleId, checkpointKeys, questionKeys, videoTitles, resourceTitles, args.dryRun, counters);
     }
   }
 
@@ -350,6 +545,14 @@ async function main() {
   console.log(`- quiz questions created: ${counters.quizCreated}`);
   console.log(`- quiz questions updated: ${counters.quizUpdated}`);
   console.log(`- quiz questions deleted: ${counters.quizDeleted}`);
+  console.log(`- videos created: ${counters.videosCreated}`);
+  console.log(`- videos updated: ${counters.videosUpdated}`);
+  console.log(`- videos deleted: ${counters.videosDeleted}`);
+  console.log(`- video segments created: ${counters.segmentsCreated}`);
+  console.log(`- video segments updated: ${counters.segmentsUpdated}`);
+  console.log(`- resources created: ${counters.resourcesCreated}`);
+  console.log(`- resources updated: ${counters.resourcesUpdated}`);
+  console.log(`- resources deleted: ${counters.resourcesDeleted}`);
   console.log(`- assignments created: ${counters.assignmentsCreated}`);
 }
 

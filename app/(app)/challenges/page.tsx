@@ -2,17 +2,57 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getActiveChallenges, getMyChallengeProgress } from "@/lib/challenge-gamification-actions";
+import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { ChallengeCard } from "./client";
+import { isFeatureEnabledForUser } from "@/lib/feature-gates";
 
 export default async function ChallengesPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
+  const featureEnabled = await isFeatureEnabledForUser("CHALLENGES", {
+    userId: session.user.id,
+  });
 
-  const [challenges, myProgress] = await Promise.all([
+  if (!featureEnabled) {
+    return (
+      <div>
+        <div className="topbar">
+          <div>
+            <h1 className="page-title">Challenges</h1>
+            <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
+              This section is not enabled for your chapter yet.
+            </p>
+          </div>
+        </div>
+        <div className="card">
+          <h3 style={{ marginTop: 0 }}>Pilot rollout in progress</h3>
+          <p style={{ color: "var(--text-secondary)", marginBottom: 12 }}>
+            Keep exploring through curriculum and activity tools while this chapter pilot completes.
+          </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Link href="/activities" className="button secondary">Activity Hub</Link>
+            <Link href="/curriculum" className="button secondary">Curriculum</Link>
+            <Link href="/world" className="button secondary">Passion World</Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const [challenges, myProgress, passionAreas] = await Promise.all([
     getActiveChallenges(),
     getMyChallengeProgress(),
+    prisma.passionArea
+      .findMany({
+        where: { isActive: true },
+        select: { id: true, name: true },
+      })
+      .catch(() => []),
   ]);
+  const passionNameById = new Map(passionAreas.map((passion) => [passion.id, passion.name]));
+  const resolvePassionLabel = (value: string | null | undefined) =>
+    value ? (passionNameById.get(value) ?? value) : null;
 
   const activeChallenges = challenges.filter((c) => c.type !== "WEEKLY");
   const myActive = myProgress.filter((p) => p.status === "ACTIVE");
@@ -174,7 +214,7 @@ export default async function ChallengesPage() {
                   )}
                   {challenge.passionArea && (
                     <span className="pill" style={{ fontSize: 11, marginBottom: 8 }}>
-                      {challenge.passionArea}
+                      {resolvePassionLabel(challenge.passionArea)}
                     </span>
                   )}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
