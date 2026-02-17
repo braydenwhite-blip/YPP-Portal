@@ -149,6 +149,79 @@ export default async function OverviewPage() {
     "Connect exploration to real classes, projects, and mentorship opportunities.",
   ];
   const priorityTool = dashboard.sections[0]?.modules[0];
+  const queueTotal = dashboard.queues.reduce((sum, queue) => sum + queue.count, 0);
+  const roleFocusItems = roleFocus[dashboard.role] ?? roleFocus.STAFF;
+  const todayDateLabel = new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  }).format(new Date());
+
+  const portalPillars = [
+    {
+      title: "Learn",
+      detail: "Find classes, pathways, and training in one place.",
+      href: "/curriculum",
+    },
+    {
+      title: "Build",
+      detail: "Turn ideas into real output through challenges and projects.",
+      href: "/activities",
+    },
+    {
+      title: "Show Progress",
+      detail: "See your momentum through KPIs, streaks, and role queues.",
+      href: "/world",
+    },
+  ];
+
+  const howToUsePortal = [
+    "Open your top Next Action first.",
+    "Complete one task and log your update.",
+    "Check your progress cards and repeat tomorrow.",
+  ];
+
+  const quickExperienceLinks = [
+    {
+      title: "Activity Hub",
+      description: "Pick your next activity across challenge, incubator, and project paths.",
+      href: "/activities",
+      tag: "HUB",
+    },
+    {
+      title: "Challenges",
+      description: "Build streaks and consistency with daily, weekly, and seasonal prompts.",
+      href: "/challenges",
+      tag: "CHL",
+    },
+    {
+      title: "Incubator",
+      description: "Move from idea to showcase with phase-based project support.",
+      href: "/incubator",
+      tag: "INC",
+    },
+    {
+      title: "Passion World",
+      description: "See your growth islands update from real activity and progress.",
+      href: "/world",
+      tag: "PWR",
+    },
+  ];
+
+  const portalLoop = [
+    {
+      title: "1. Pick One Action",
+      detail: "Start with your top Next Action so you do the highest-impact task first.",
+    },
+    {
+      title: "2. Do The Work",
+      detail: "Finish one challenge, activity, message, or update in the linked tool.",
+    },
+    {
+      title: "3. Watch Everything Sync",
+      detail: "Your queues, KPIs, and Passion World signals update automatically.",
+    },
+  ];
 
   return (
     <div>
@@ -158,11 +231,101 @@ export default async function OverviewPage() {
             Welcome back{session.user.name ? `, ${session.user.name}` : ""}
           </h1>
           <p className="page-subtitle">
-            Unified command center for your primary role.
+            Your classes, activities, challenges, and progress in one place.
           </p>
         </div>
         <div className="badge" style={{ background: "var(--ypp-purple-100)", color: "var(--ypp-purple-700)" }}>
           {dashboard.roleLabel}
+        </div>
+      </div>
+
+      <div className="overview-hero card">
+        <div className="overview-hero-orb overview-hero-orb-left" aria-hidden />
+        <div className="overview-hero-orb overview-hero-orb-right" aria-hidden />
+        <div className="overview-hero-content">
+          <span className="overview-hero-kicker">Your Portal Guide</span>
+          <h2 className="overview-hero-title">
+            Everything important is connected here, so you always know what to do next.
+          </h2>
+          <p className="overview-hero-copy">
+            This page brings classes, challenges, incubator, communication, and progress into one simple command center.
+            Start with one action, finish it, and your progress updates across the portal.
+          </p>
+          <p className="overview-hero-note">
+            Today is {todayDateLabel}. If you only do one thing, finish your top Next Action.
+          </p>
+
+          <div className="overview-hero-stats">
+            <div className="overview-hero-stat">
+              <span className="overview-hero-stat-label">Next Actions</span>
+              <strong>{dashboard.nextActions.length}</strong>
+            </div>
+            <div className="overview-hero-stat">
+              <span className="overview-hero-stat-label">Live Queues</span>
+              <strong>{queueTotal}</strong>
+            </div>
+            <div className="overview-hero-stat">
+              <span className="overview-hero-stat-label">Focus</span>
+              <strong>{roleFocusItems[0]}</strong>
+            </div>
+          </div>
+
+          <div className="overview-pillar-grid">
+            {portalPillars.map((pillar) => (
+              <Link key={pillar.title} href={pillar.href} className="overview-pillar-card">
+                <span className="overview-pillar-title">{pillar.title}</span>
+                <span className="overview-pillar-detail">{pillar.detail}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="card overview-flow-card">
+        <div className="overview-flow-header">
+          <h3 style={{ margin: 0 }}>How Everything Connects</h3>
+          <p style={{ margin: 0 }}>
+            One completed action updates your dashboard cards, role queues, and Passion World signals.
+          </p>
+        </div>
+        <div className="overview-flow-grid">
+          {portalLoop.map((item) => (
+            <div key={item.title} className="overview-flow-item">
+              <h4>{item.title}</h4>
+              <p>{item.detail}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid two" style={{ marginBottom: 16 }}>
+        <div className="card">
+          <h3 style={{ marginTop: 0 }}>How To Use This Portal (3 Easy Steps)</h3>
+          <div className="overview-steps">
+            {howToUsePortal.map((step, index) => (
+              <div key={step} className="overview-step-item">
+                <span className="overview-step-number">{index + 1}</span>
+                <p>{step}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="card">
+          <h3 style={{ marginTop: 0 }}>Explore Key Areas</h3>
+          <div className="overview-link-list">
+            {quickExperienceLinks.map((item) => (
+              <Link key={item.title} href={item.href} className="overview-link-card">
+                <div>
+                  <p className="overview-link-title">
+                    <span className="overview-link-tag">{item.tag}</span> {item.title}
+                  </p>
+                  <p className="overview-link-description">{item.description}</p>
+                </div>
+                <span className="overview-link-arrow">→</span>
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -321,7 +484,7 @@ export default async function OverviewPage() {
             <div className="portal-role-focus">
               <span className="portal-role-focus-label">This role should focus on:</span>
               <ul className="portal-goal-list compact">
-                {(roleFocus[dashboard.role] ?? roleFocus.STAFF).map((goal) => (
+                {roleFocusItems.map((goal) => (
                   <li key={goal}>{goal}</li>
                 ))}
               </ul>
