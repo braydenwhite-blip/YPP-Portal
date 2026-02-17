@@ -296,6 +296,20 @@ function parseBulkScheduledAtValues(formData: FormData, keys: string[]) {
   return deduped;
 }
 
+function isInstructorSlotUniqueError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const prismaError = error as {
+    code?: string;
+    meta?: { target?: unknown };
+  };
+  if (prismaError.code !== "P2002") return false;
+
+  const target = prismaError.meta?.target;
+  if (!Array.isArray(target)) return false;
+
+  return target.includes("gateId") && target.includes("scheduledAt");
+}
+
 export async function submitInterviewAvailabilityRequest(formData: FormData) {
   const session = await requireAuth();
   const instructorId = session.user.id;
@@ -396,18 +410,25 @@ export async function postInterviewSlot(formData: FormData) {
   const gate = await ensureInterviewGate(instructorId);
   assertGateCanSchedule(gate.status);
 
-  await prisma.instructorInterviewSlot.create({
-    data: {
-      gateId: gate.id,
-      createdById: session.user.id,
-      source: "REVIEWER_POSTED",
-      status: "POSTED",
-      scheduledAt,
-      duration,
-      meetingLink: meetingLink || null,
-      notes: notes || null,
-    },
-  });
+  try {
+    await prisma.instructorInterviewSlot.create({
+      data: {
+        gateId: gate.id,
+        createdById: session.user.id,
+        source: "REVIEWER_POSTED",
+        status: "POSTED",
+        scheduledAt,
+        duration,
+        meetingLink: meetingLink || null,
+        notes: notes || null,
+      },
+    });
+  } catch (error) {
+    if (isInstructorSlotUniqueError(error)) {
+      throw new Error("A slot for this exact date/time already exists.");
+    }
+    throw error;
+  }
 
   await createSystemNotification(
     instructorId,
@@ -433,24 +454,59 @@ export async function postInstructorInterviewSlotsBulk(formData: FormData) {
   const gate = await ensureInterviewGate(instructorId);
   assertGateCanSchedule(gate.status);
 
-  await prisma.instructorInterviewSlot.createMany({
-    data: slotDates.map((scheduledAt) => ({
+  const existingSlots = await prisma.instructorInterviewSlot.findMany({
+    where: {
       gateId: gate.id,
-      createdById: session.user.id,
-      source: "REVIEWER_POSTED",
-      status: "POSTED",
-      scheduledAt,
-      duration,
-      meetingLink: meetingLink || null,
-      notes: notes || null,
-    })),
+      scheduledAt: { in: slotDates },
+    },
+    select: {
+      scheduledAt: true,
+    },
   });
+
+  const existingTimes = new Set(
+    existingSlots.map((slot) => slot.scheduledAt.toISOString())
+  );
+  const slotsToCreate = slotDates.filter(
+    (slotDate) => !existingTimes.has(slotDate.toISOString())
+  );
+
+  if (slotsToCreate.length === 0) {
+    throw new Error("All selected slots already exist. Pick different date/time values.");
+  }
+
+  let createdCount = 0;
+  try {
+    const createResult = await prisma.instructorInterviewSlot.createMany({
+      data: slotsToCreate.map((scheduledAt) => ({
+        gateId: gate.id,
+        createdById: session.user.id,
+        source: "REVIEWER_POSTED",
+        status: "POSTED",
+        scheduledAt,
+        duration,
+        meetingLink: meetingLink || null,
+        notes: notes || null,
+      })),
+      skipDuplicates: true,
+    });
+    createdCount = createResult.count;
+  } catch (error) {
+    if (isInstructorSlotUniqueError(error)) {
+      throw new Error("Some selected slots already exist. Refresh and try again.");
+    }
+    throw error;
+  }
+
+  if (createdCount === 0) {
+    throw new Error("No new slots were created. All submitted times already exist.");
+  }
 
   await createSystemNotification(
     instructorId,
     "SYSTEM",
     "Interview Slots Available",
-    `${slotDates.length} interview slot${slotDates.length > 1 ? "s were" : " was"} posted for you.`,
+    `${createdCount} interview slot${createdCount > 1 ? "s were" : " was"} posted for you.`,
     "/interviews?scope=readiness&view=mine&state=needs_action"
   );
 
@@ -509,49 +565,69 @@ export async function acceptInterviewAvailabilityRequest(formData: FormData) {
     throw new Error("Instructor already has a confirmed interview slot");
   }
 
-  await prisma.$transaction([
-    prisma.instructorInterviewAvailabilityRequest.update({
-      where: { id: requestId },
-      data: {
-        status: "ACCEPTED",
-        reviewedById: session.user.id,
-        reviewedAt: new Date(),
-      },
-    }),
-    prisma.instructorInterviewSlot.create({
-      data: {
-        gateId: request.gateId,
-        createdById: session.user.id,
-        source: "INSTRUCTOR_REQUESTED",
-        status: "CONFIRMED",
-        scheduledAt,
-        duration,
-        meetingLink: meetingLink || null,
-        notes: notes || null,
-        confirmedAt: new Date(),
-      },
-    }),
-    prisma.instructorInterviewAvailabilityRequest.updateMany({
-      where: {
-        gateId: request.gateId,
-        status: "PENDING",
-        id: { not: request.id },
-      },
-      data: {
-        status: "DECLINED",
-        reviewedById: session.user.id,
-        reviewedAt: new Date(),
-        reviewNotes: "A different availability request was accepted.",
-      },
-    }),
-    prisma.instructorInterviewGate.update({
-      where: { id: request.gateId },
-      data: {
-        status: "SCHEDULED",
-        scheduledAt,
-      },
-    }),
-  ]);
+  try {
+    await prisma.$transaction([
+      prisma.instructorInterviewAvailabilityRequest.update({
+        where: { id: requestId },
+        data: {
+          status: "ACCEPTED",
+          reviewedById: session.user.id,
+          reviewedAt: new Date(),
+        },
+      }),
+      prisma.instructorInterviewSlot.upsert({
+        where: {
+          gateId_scheduledAt: {
+            gateId: request.gateId,
+            scheduledAt,
+          },
+        },
+        create: {
+          gateId: request.gateId,
+          createdById: session.user.id,
+          source: "INSTRUCTOR_REQUESTED",
+          status: "CONFIRMED",
+          scheduledAt,
+          duration,
+          meetingLink: meetingLink || null,
+          notes: notes || null,
+          confirmedAt: new Date(),
+        },
+        update: {
+          status: "CONFIRMED",
+          duration,
+          meetingLink: meetingLink || null,
+          notes: notes || null,
+          confirmedAt: new Date(),
+        },
+      }),
+      prisma.instructorInterviewAvailabilityRequest.updateMany({
+        where: {
+          gateId: request.gateId,
+          status: "PENDING",
+          id: { not: request.id },
+        },
+        data: {
+          status: "DECLINED",
+          reviewedById: session.user.id,
+          reviewedAt: new Date(),
+          reviewNotes: "A different availability request was accepted.",
+        },
+      }),
+      prisma.instructorInterviewGate.update({
+        where: { id: request.gateId },
+        data: {
+          status: "SCHEDULED",
+          scheduledAt,
+        },
+      }),
+    ]);
+  } catch (error) {
+    if (isInstructorSlotUniqueError(error)) {
+      throw new Error("A slot at that date/time already exists. Choose a different time.");
+    }
+    throw error;
+  }
 
   await createSystemNotification(
     request.instructorId,
