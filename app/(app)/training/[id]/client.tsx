@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { VideoPlayer } from "@/components/video-player";
 import FileUpload from "@/components/file-upload";
 import {
-  submitTrainingCheckpoint,
+  setTrainingCheckpointCompletion,
   submitTrainingEvidence,
   submitTrainingQuizAttempt,
   updateVideoProgress,
@@ -54,6 +54,8 @@ type ModuleData = {
     required: boolean;
     sortOrder: number;
     completed: boolean;
+    completedAt: string | null;
+    notes: string | null;
   }>;
   quizQuestions: Array<{
     id: string;
@@ -178,6 +180,23 @@ export default function TrainingModuleClient({
     });
   }
 
+  function submitCheckpointCompletion(
+    checkpointId: string,
+    completed: boolean,
+    notes?: string | null
+  ) {
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("checkpointId", checkpointId);
+      formData.set("completed", completed ? "true" : "false");
+      if (notes && notes.trim().length > 0) {
+        formData.set("notes", notes.trim());
+      }
+      await setTrainingCheckpointCompletion(formData);
+      router.refresh();
+    });
+  }
+
   return (
     <div>
       <div className="topbar">
@@ -283,18 +302,44 @@ export default function TrainingModuleClient({
                     </p>
                   )}
 
-                  {!checkpoint.completed ? (
-                    <form
-                      action={async (_formData: FormData) => {
-                        const formData = new FormData();
-                        formData.set("checkpointId", checkpoint.id);
-                        await submitTrainingCheckpoint(formData);
-                        router.refresh();
-                      }}
-                      style={{ marginTop: 10 }}
-                    >
-                      <button type="submit" className="button small">Mark checkpoint complete</button>
-                    </form>
+                  <form
+                    action={async (formData: FormData) => {
+                      const notes = String(formData.get("notes") ?? "");
+                      submitCheckpointCompletion(checkpoint.id, true, notes);
+                    }}
+                    className="form-grid"
+                    style={{ marginTop: 10 }}
+                  >
+                    <label className="form-row">
+                      Notes (optional)
+                      <textarea
+                        className="input"
+                        name="notes"
+                        rows={2}
+                        defaultValue={checkpoint.notes ?? ""}
+                        placeholder="Add checkpoint evidence or notes"
+                      />
+                    </label>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button type="submit" className="button small">
+                        {checkpoint.completed ? "Save notes" : "Mark checkpoint complete"}
+                      </button>
+                      {checkpoint.completed ? (
+                        <button
+                          type="button"
+                          className="button small outline"
+                          onClick={() => submitCheckpointCompletion(checkpoint.id, false)}
+                        >
+                          Mark checkpoint incomplete
+                        </button>
+                      ) : null}
+                    </div>
+                  </form>
+
+                  {checkpoint.completedAt ? (
+                    <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--muted)" }}>
+                      Completed on {new Date(checkpoint.completedAt).toLocaleString()}
+                    </p>
                   ) : null}
                 </div>
               </details>

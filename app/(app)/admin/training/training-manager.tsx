@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import {
   assignTrainingToUser,
   bulkAssignModuleToInstructors,
@@ -16,6 +16,13 @@ import {
   updateTrainingModule,
   updateTrainingQuizQuestion,
 } from "@/lib/training-actions";
+import {
+  exportTrainingContentDraft,
+  importTrainingContentDraft,
+  loadTrainingContentFromDb,
+  validateTrainingContentDraft,
+} from "@/lib/training-content-actions";
+import { useRouter } from "next/navigation";
 import { TrainingModuleType, VideoProvider } from "@prisma/client";
 
 interface Assignment {
@@ -75,6 +82,27 @@ interface Instructor {
   email: string;
 }
 
+type JsonSyncCounters = {
+  modulesCreated: number;
+  modulesUpdated: number;
+  modulesDeleted: number;
+  checkpointsCreated: number;
+  checkpointsUpdated: number;
+  checkpointsDeleted: number;
+  quizCreated: number;
+  quizUpdated: number;
+  quizDeleted: number;
+  assignmentsCreated: number;
+};
+
+type JsonSyncResult = {
+  ok: boolean;
+  errors: string[];
+  warnings: string[];
+  counters?: JsonSyncCounters | null;
+  message?: string;
+};
+
 export default function TrainingManager({
   modules,
   instructors,
@@ -84,9 +112,138 @@ export default function TrainingManager({
   instructors: Instructor[];
   students: Instructor[];
 }) {
-  const [activeTab, setActiveTab] = useState<"modules" | "create">("modules");
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<"modules" | "create" | "json">("modules");
   const [expandedModule, setExpandedModule] = useState<string | null>(null);
   const [editingModule, setEditingModule] = useState<string | null>(null);
+  const [jsonDraft, setJsonDraft] = useState("");
+  const [jsonPrune, setJsonPrune] = useState(false);
+  const [jsonResult, setJsonResult] = useState<JsonSyncResult | null>(null);
+  const [isJsonPending, startJsonTransition] = useTransition();
+
+  function setJsonError(message: string) {
+    setJsonResult({
+      ok: false,
+      errors: [message],
+      warnings: [],
+      counters: null,
+    });
+  }
+
+  function loadJsonFromDb() {
+    startJsonTransition(async () => {
+      try {
+        const result = await loadTrainingContentFromDb();
+        if (!result.ok || !result.content) {
+          setJsonResult({
+            ok: false,
+            errors: result.errors,
+            warnings: result.warnings,
+            counters: null,
+          });
+          return;
+        }
+        setJsonDraft(result.rawJson);
+        setJsonResult({
+          ok: true,
+          errors: [],
+          warnings: result.warnings,
+          counters: null,
+          message: `Loaded ${result.content.modules.length} module(s) from database.`,
+        });
+      } catch (error) {
+        setJsonError(
+          error instanceof Error ? error.message : "Failed to load JSON draft from database."
+        );
+      }
+    });
+  }
+
+  function validateJsonDraft() {
+    startJsonTransition(async () => {
+      try {
+        const result = await validateTrainingContentDraft(jsonDraft);
+        setJsonResult({
+          ok: result.ok,
+          errors: result.errors,
+          warnings: result.warnings,
+          counters: null,
+          message: result.ok
+            ? "Validation passed."
+            : "Validation failed. Fix the errors and try again.",
+        });
+      } catch (error) {
+        setJsonError(
+          error instanceof Error ? error.message : "Validation request failed."
+        );
+      }
+    });
+  }
+
+  function importJsonDraft() {
+    startJsonTransition(async () => {
+      try {
+        const result = await importTrainingContentDraft(jsonDraft, jsonPrune);
+        setJsonResult({
+          ok: result.ok,
+          errors: result.errors,
+          warnings: result.warnings,
+          counters: result.counters,
+          message: result.ok
+            ? "Import complete."
+            : "Import failed. Review errors before retrying.",
+        });
+        if (result.ok) {
+          router.refresh();
+        }
+      } catch (error) {
+        setJsonError(
+          error instanceof Error ? error.message : "Import request failed."
+        );
+      }
+    });
+  }
+
+  function exportJsonDraft() {
+    startJsonTransition(async () => {
+      try {
+        const result = await exportTrainingContentDraft();
+        if (!result.ok || !result.content) {
+          setJsonResult({
+            ok: false,
+            errors: result.errors,
+            warnings: result.warnings,
+            counters: null,
+          });
+          return;
+        }
+
+        setJsonDraft(result.rawJson);
+        let message = `Exported ${result.content.modules.length} module(s) to draft.`;
+
+        if (typeof navigator !== "undefined" && navigator.clipboard) {
+          try {
+            await navigator.clipboard.writeText(result.rawJson);
+            message = `${message} Copied to clipboard.`;
+          } catch {
+            message = `${message} Clipboard copy was blocked by browser permissions.`;
+          }
+        }
+
+        setJsonResult({
+          ok: true,
+          errors: [],
+          warnings: result.warnings,
+          counters: null,
+          message,
+        });
+      } catch (error) {
+        setJsonError(
+          error instanceof Error ? error.message : "Export request failed."
+        );
+      }
+    });
+  }
 
   return (
     <div>
@@ -132,6 +289,12 @@ export default function TrainingManager({
         >
           + Create Module
         </button>
+        <button
+          className={`admin-training-tab ${activeTab === "json" ? "active" : ""}`}
+          onClick={() => setActiveTab("json")}
+        >
+          JSON Sync
+        </button>
       </div>
 
       {activeTab === "create" && (
@@ -147,13 +310,15 @@ export default function TrainingManager({
             {editingModule && (
               <input type="hidden" name="moduleId" value={editingModule} />
             )}
-            {editingModule && (
+            <label className="form-row">
+              Content Key
               <input
-                type="hidden"
+                className="input"
                 name="contentKey"
-                value={modules.find((m) => m.id === editingModule)?.contentKey ?? ""}
+                placeholder="academy_foundations_001"
+                defaultValue={editingModule ? modules.find((m) => m.id === editingModule)?.contentKey ?? "" : ""}
               />
-            )}
+            </label>
             <div className="grid two">
               <label className="form-row">
                 Title
@@ -244,6 +409,16 @@ export default function TrainingManager({
                 />
               </label>
               <label className="form-row">
+                Video Thumbnail URL (optional)
+                <input
+                  className="input"
+                  name="videoThumbnail"
+                  type="url"
+                  placeholder="https://..."
+                  defaultValue={editingModule ? modules.find((m) => m.id === editingModule)?.videoThumbnail ?? "" : ""}
+                />
+              </label>
+              <label className="form-row">
                 Sort Order
                 <input
                   className="input"
@@ -254,6 +429,8 @@ export default function TrainingManager({
                   defaultValue={editingModule ? modules.find((m) => m.id === editingModule)?.sortOrder : modules.length + 1}
                 />
               </label>
+            </div>
+            <div className="grid three">
               <label className="form-row" style={{ display: "flex", gap: 8, alignItems: "center", paddingTop: 24 }}>
                 <input
                   type="checkbox"
@@ -292,7 +469,6 @@ export default function TrainingManager({
                 />
               </label>
             </div>
-            <input type="hidden" name="videoThumbnail" value="" />
             <div style={{ display: "flex", gap: 12 }}>
               <button className="button small" type="submit">
                 {editingModule ? "Save Changes" : "Create Module"}
@@ -311,6 +487,134 @@ export default function TrainingManager({
               )}
             </div>
           </form>
+        </div>
+      )}
+
+      {activeTab === "json" && (
+        <div className="card" style={{ marginTop: 16 }}>
+          <h3 style={{ marginBottom: 6 }}>Training Content JSON Sync</h3>
+          <p style={{ marginTop: 0, color: "var(--muted)", fontSize: 13 }}>
+            Load content from database, validate draft JSON, and import updates.
+          </p>
+
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+            <button
+              type="button"
+              className="button small outline"
+              onClick={loadJsonFromDb}
+              disabled={isJsonPending}
+            >
+              {isJsonPending ? "Working..." : "Load from DB"}
+            </button>
+            <button
+              type="button"
+              className="button small outline"
+              onClick={validateJsonDraft}
+              disabled={isJsonPending}
+            >
+              {isJsonPending ? "Working..." : "Validate"}
+            </button>
+            <button
+              type="button"
+              className="button small"
+              onClick={importJsonDraft}
+              disabled={isJsonPending}
+            >
+              {isJsonPending ? "Importing..." : "Import"}
+            </button>
+            <button
+              type="button"
+              className="button small outline"
+              onClick={exportJsonDraft}
+              disabled={isJsonPending}
+            >
+              {isJsonPending ? "Working..." : "Export"}
+            </button>
+            <label
+              className="form-row"
+              style={{ display: "flex", alignItems: "center", gap: 8, margin: 0 }}
+            >
+              <input
+                type="checkbox"
+                checked={jsonPrune}
+                onChange={(event) => setJsonPrune(event.target.checked)}
+              />
+              Prune stale keyed rows
+            </label>
+          </div>
+
+          <label className="form-row">
+            JSON Draft
+            <textarea
+              className="input"
+              rows={24}
+              value={jsonDraft}
+              onChange={(event) => setJsonDraft(event.target.value)}
+              placeholder='{"version":"1.0.0","updatedAt":"...","modules":[...]}'
+              spellCheck={false}
+              style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}
+            />
+          </label>
+
+          {jsonResult ? (
+            <div style={{ marginTop: 12, border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
+              <p style={{ margin: 0, fontWeight: 600 }}>
+                {jsonResult.ok ? "Result: Success" : "Result: Failed"}
+              </p>
+              {jsonResult.message ? (
+                <p style={{ margin: "6px 0 0", fontSize: 13 }}>{jsonResult.message}</p>
+              ) : null}
+
+              {jsonResult.counters ? (
+                <div style={{ marginTop: 10, display: "grid", gap: 6 }}>
+                  <p style={{ margin: 0, fontSize: 13 }}>
+                    Modules: +{jsonResult.counters.modulesCreated} created /{" "}
+                    {jsonResult.counters.modulesUpdated} updated /{" "}
+                    {jsonResult.counters.modulesDeleted} deleted
+                  </p>
+                  <p style={{ margin: 0, fontSize: 13 }}>
+                    Checkpoints: +{jsonResult.counters.checkpointsCreated} created /{" "}
+                    {jsonResult.counters.checkpointsUpdated} updated /{" "}
+                    {jsonResult.counters.checkpointsDeleted} deleted
+                  </p>
+                  <p style={{ margin: 0, fontSize: 13 }}>
+                    Quiz: +{jsonResult.counters.quizCreated} created /{" "}
+                    {jsonResult.counters.quizUpdated} updated /{" "}
+                    {jsonResult.counters.quizDeleted} deleted
+                  </p>
+                  <p style={{ margin: 0, fontSize: 13 }}>
+                    Assignments created: {jsonResult.counters.assignmentsCreated}
+                  </p>
+                </div>
+              ) : null}
+
+              {jsonResult.warnings.length > 0 ? (
+                <div style={{ marginTop: 10 }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>Warnings</p>
+                  <ul style={{ margin: "6px 0 0", paddingLeft: 20 }}>
+                    {jsonResult.warnings.map((warning) => (
+                      <li key={warning} style={{ fontSize: 13 }}>
+                        {warning}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              {jsonResult.errors.length > 0 ? (
+                <div style={{ marginTop: 10 }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#b91c1c" }}>Errors</p>
+                  <ul style={{ margin: "6px 0 0", paddingLeft: 20 }}>
+                    {jsonResult.errors.map((error) => (
+                      <li key={error} style={{ fontSize: 13, color: "#b91c1c" }}>
+                        {error}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       )}
 
@@ -443,12 +747,16 @@ export default function TrainingManager({
                               <div key={checkpoint.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
                                 <form action={updateTrainingCheckpoint} className="form-grid">
                                   <input type="hidden" name="checkpointId" value={checkpoint.id} />
-                                  <input
-                                    type="hidden"
-                                    name="contentKey"
-                                    value={checkpoint.contentKey ?? ""}
-                                  />
-                                  <div className="grid two">
+                                  <div className="grid three">
+                                    <label className="form-row">
+                                      Content key
+                                      <input
+                                        className="input"
+                                        name="contentKey"
+                                        defaultValue={checkpoint.contentKey ?? ""}
+                                        placeholder="foundations_cp_01"
+                                      />
+                                    </label>
                                     <label className="form-row">
                                       Title
                                       <input className="input" name="title" defaultValue={checkpoint.title} required />
@@ -494,8 +802,15 @@ export default function TrainingManager({
 
                         <form action={createTrainingCheckpoint} className="form-grid" style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
                           <input type="hidden" name="moduleId" value={mod.id} />
-                          <input type="hidden" name="contentKey" value="" />
-                          <div className="grid two">
+                          <div className="grid three">
+                            <label className="form-row">
+                              Content key
+                              <input
+                                className="input"
+                                name="contentKey"
+                                placeholder="foundations_cp_06"
+                              />
+                            </label>
                             <label className="form-row">
                               New checkpoint title
                               <input className="input" name="title" required />
@@ -527,12 +842,16 @@ export default function TrainingManager({
                               <div key={question.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
                                 <form action={updateTrainingQuizQuestion} className="form-grid">
                                   <input type="hidden" name="questionId" value={question.id} />
-                                  <input
-                                    type="hidden"
-                                    name="contentKey"
-                                    value={question.contentKey ?? ""}
-                                  />
-                                  <div className="grid two">
+                                  <div className="grid three">
+                                    <label className="form-row">
+                                      Content key
+                                      <input
+                                        className="input"
+                                        name="contentKey"
+                                        defaultValue={question.contentKey ?? ""}
+                                        placeholder="foundations_q_01"
+                                      />
+                                    </label>
                                     <label className="form-row">
                                       Question
                                       <input className="input" name="question" defaultValue={question.question} required />
@@ -580,8 +899,15 @@ export default function TrainingManager({
 
                         <form action={createTrainingQuizQuestion} className="form-grid" style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
                           <input type="hidden" name="moduleId" value={mod.id} />
-                          <input type="hidden" name="contentKey" value="" />
-                          <div className="grid two">
+                          <div className="grid three">
+                            <label className="form-row">
+                              Content key
+                              <input
+                                className="input"
+                                name="contentKey"
+                                placeholder="foundations_q_07"
+                              />
+                            </label>
                             <label className="form-row">
                               New question
                               <input className="input" name="question" required />

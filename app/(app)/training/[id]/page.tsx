@@ -78,6 +78,7 @@ export default async function TrainingModulePage({
         select: {
           checkpointId: true,
           completedAt: true,
+          notes: true,
         },
       }),
       prisma.trainingQuizAttempt.findMany({
@@ -108,8 +109,14 @@ export default async function TrainingModulePage({
       }),
     ]);
 
-  const checkpointCompletionSet = new Set(
-    checkpointCompletions.map((completion) => completion.checkpointId)
+  const checkpointCompletionMap = new Map(
+    checkpointCompletions.map((completion) => [
+      completion.checkpointId,
+      {
+        completedAt: completion.completedAt,
+        notes: completion.notes,
+      },
+    ])
   );
 
   if (isStudentOnly && !assignment) {
@@ -188,7 +195,9 @@ export default async function TrainingModulePage({
           description: checkpoint.description,
           required: checkpoint.required,
           sortOrder: checkpoint.sortOrder,
-          completed: checkpointCompletionSet.has(checkpoint.id),
+          completed: checkpointCompletionMap.has(checkpoint.id),
+          completedAt: checkpointCompletionMap.get(checkpoint.id)?.completedAt?.toISOString() ?? null,
+          notes: checkpointCompletionMap.get(checkpoint.id)?.notes ?? null,
         })),
         quizQuestions: normalizedQuizQuestions,
       }}

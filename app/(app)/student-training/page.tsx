@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { setTrainingCheckpointCompletion } from "@/lib/training-actions";
 
 function formatDateTime(value: Date | string | null | undefined) {
   if (!value) return "-";
@@ -54,7 +55,7 @@ export default async function StudentTrainingPage() {
       }),
       prisma.trainingCheckpointCompletion.findMany({
         where: { userId: learnerId },
-        select: { checkpointId: true },
+        select: { checkpointId: true, completedAt: true, notes: true },
       }),
       prisma.trainingQuizAttempt.findMany({
         where: { userId: learnerId },
@@ -80,7 +81,18 @@ export default async function StudentTrainingPage() {
 
   const sortedAssignments = [...assignments].sort((a, b) => a.module.sortOrder - b.module.sortOrder);
   const videoByModule = new Map(videoProgress.map((progress) => [progress.moduleId, progress]));
-  const completedCheckpointIds = new Set(checkpointCompletions.map((item) => item.checkpointId));
+  const completedCheckpointIds = new Set(
+    checkpointCompletions.map((item) => item.checkpointId)
+  );
+  const checkpointCompletionById = new Map(
+    checkpointCompletions.map((item) => [
+      item.checkpointId,
+      {
+        completedAt: item.completedAt,
+        notes: item.notes,
+      },
+    ])
+  );
 
   const latestQuizByModule = new Map<string, (typeof quizAttempts)[number]>();
   const passedQuizModuleIds = new Set<string>();
@@ -166,10 +178,13 @@ export default async function StudentTrainingPage() {
       completedRequiredCheckpoints,
       requiredCheckpointCount,
       configurationIssue,
-      checkpointLinks: module.checkpoints.map((checkpoint) => ({
+      checkpoints: module.checkpoints.map((checkpoint) => ({
         id: checkpoint.id,
         title: checkpoint.title,
         completed: completedCheckpointIds.has(checkpoint.id),
+        completedAt:
+          checkpointCompletionById.get(checkpoint.id)?.completedAt ?? null,
+        notes: checkpointCompletionById.get(checkpoint.id)?.notes ?? null,
       })),
     };
   });
@@ -274,20 +289,75 @@ export default async function StudentTrainingPage() {
                   </p>
                 ) : null}
 
-                {card.checkpointLinks.length > 0 ? (
+                {card.checkpoints.length > 0 ? (
                   <div style={{ marginTop: 8 }}>
-                    <p style={{ margin: 0, fontSize: 12, color: "var(--muted)" }}>Checkpoint links</p>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
-                      {card.checkpointLinks.map((checkpoint) => (
-                        <Link
+                    <p style={{ margin: 0, fontSize: 12, color: "var(--muted)" }}>
+                      Checkpoints
+                    </p>
+                    <div style={{ display: "grid", gap: 8, marginTop: 6 }}>
+                      {card.checkpoints.map((checkpoint) => (
+                        <div
                           key={checkpoint.id}
-                          href={`/training/${card.module.id}#checkpoint-${checkpoint.id}`}
-                          className="link"
-                          style={{ fontSize: 12 }}
+                          style={{
+                            border: "1px solid var(--border)",
+                            borderRadius: 8,
+                            padding: 8,
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: 10,
+                            alignItems: "center",
+                          }}
                         >
-                          {checkpoint.completed ? "Done: " : "Open: "}
-                          {checkpoint.title}
-                        </Link>
+                          <div>
+                            <p style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>
+                              {checkpoint.completed ? "Done" : "Pending"}:{" "}
+                              {checkpoint.title}
+                            </p>
+                            {checkpoint.completedAt ? (
+                              <p
+                                style={{
+                                  margin: "4px 0 0",
+                                  fontSize: 11,
+                                  color: "var(--muted)",
+                                }}
+                              >
+                                Completed on{" "}
+                                {formatDateTime(checkpoint.completedAt)}
+                              </p>
+                            ) : null}
+                          </div>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            <form action={setTrainingCheckpointCompletion}>
+                              <input
+                                type="hidden"
+                                name="checkpointId"
+                                value={checkpoint.id}
+                              />
+                              <input
+                                type="hidden"
+                                name="completed"
+                                value={checkpoint.completed ? "false" : "true"}
+                              />
+                              <input
+                                type="hidden"
+                                name="notes"
+                                value={checkpoint.notes ?? ""}
+                              />
+                              <button type="submit" className="button small outline">
+                                {checkpoint.completed
+                                  ? "Mark incomplete"
+                                  : "Mark complete"}
+                              </button>
+                            </form>
+                            <Link
+                              href={`/training/${card.module.id}#checkpoint-${checkpoint.id}`}
+                              className="button small outline"
+                              style={{ textDecoration: "none" }}
+                            >
+                              Open details
+                            </Link>
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>
