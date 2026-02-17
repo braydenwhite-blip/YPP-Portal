@@ -8,17 +8,18 @@ export function CreateProjectForm() {
 
   async function handleSubmit(formData: FormData) {
     try {
-      const res = await fetch("/api/projects", {
+      const payload = new FormData();
+      payload.set("title", (formData.get("title") as string) || "");
+      payload.set("passionId", (formData.get("passionId") as string) || "");
+      payload.set("description", (formData.get("description") as string) || "");
+      payload.set("targetEndDate", (formData.get("targetEndDate") as string) || "");
+      payload.set("visibility", (formData.get("visibility") as string) || "PRIVATE");
+      payload.set("tags", (formData.get("tags") as string) || "");
+
+      const res = await fetch("/api/projects/create", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: formData.get("title"),
-          passionId: formData.get("passionId"),
-          description: formData.get("description"),
-          targetEndDate: formData.get("targetEndDate") || null,
-          visibility: formData.get("visibility") || "PRIVATE",
-          tags: (formData.get("tags") as string || "").split(",").map((t) => t.trim()).filter(Boolean),
-        }),
+        headers: { Accept: "application/json" },
+        body: payload,
       });
       if (!res.ok) throw new Error("Failed to create");
       setCreated(true);

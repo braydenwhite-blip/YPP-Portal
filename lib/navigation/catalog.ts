@@ -145,6 +145,15 @@ export const NAV_CATALOG: NavLink[] = [
       roles: STUDENT_ONLY,
       searchAliases: ["My Projects"],
     },
+    {
+      href: "/activities",
+      label: "Activities",
+      icon: "🧭",
+      roles: STUDENT_ONLY,
+      searchAliases: ["Activity Hub"],
+      dashboardDescription: "Choose your next challenge, try-it, incubator, or project action.",
+      dashboardPriority: 7,
+    },
     { href: "/motivation", label: "Motivation", icon: "🔥", roles: STUDENT_ONLY },
     { href: "/reflections/streaks", label: "Reflection Streaks", icon: "🔗", roles: STUDENT_ONLY },
     {
@@ -461,7 +470,10 @@ export const NAV_CATALOG: NavLink[] = [
     { href: "/admin/goals", label: "Goals", icon: "🎯", roles: ADMIN_ONLY },
     { href: "/admin/reflections", label: "Reflections", icon: "💭", roles: ADMIN_ONLY },
     { href: "/admin/reflection-forms", label: "Forms", icon: "📋", roles: ADMIN_ONLY },
-    { href: "/admin/incubator", label: "Incubator Mgmt", icon: "🚀", roles: ADMIN_ONLY },
+    { href: "/admin/challenges", label: "Challenges Mgmt", icon: "⚡", roles: ["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"] },
+    { href: "/admin/activities", label: "Activities Mgmt", icon: "🧭", roles: ["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"] },
+    { href: "/admin/passions", label: "Passion Areas", icon: "🌍", roles: ["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"] },
+    { href: "/admin/incubator", label: "Incubator Mgmt", icon: "🚀", roles: ["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"] },
   ]),
 
   ...groupLinks("Admin Reports", 1300, [

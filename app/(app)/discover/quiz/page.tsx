@@ -197,11 +197,11 @@ export default function PassionQuizPage() {
             <a href="/discover/try-it" className="button primary" style={{ textAlign: "center" }}>
               Watch Try-It Videos
             </a>
-            <a href="/discover/challenges" className="button secondary" style={{ textAlign: "center" }}>
-              Try Hidden Talents Challenges
+            <a href="/challenges" className="button secondary" style={{ textAlign: "center" }}>
+              Explore Portal Challenges
             </a>
-            <a href="/discover/map" className="button secondary" style={{ textAlign: "center" }}>
-              Explore Interest Map
+            <a href="/world" className="button secondary" style={{ textAlign: "center" }}>
+              Open Passion World
             </a>
           </div>
         </div>

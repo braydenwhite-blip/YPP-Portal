@@ -34,12 +34,17 @@ export default async function IncubatorPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
 
+  const roles = (session.user as any).roles ?? [];
+  const primaryRole = (session.user as any).primaryRole;
   const isAdmin =
-    (session.user as any).primaryRole === "ADMIN" ||
-    (session.user as any).roles?.includes("ADMIN");
+    primaryRole === "ADMIN" ||
+    roles.includes("ADMIN");
   const isInstructor =
-    (session.user as any).primaryRole === "INSTRUCTOR" ||
-    (session.user as any).roles?.includes("INSTRUCTOR");
+    primaryRole === "INSTRUCTOR" ||
+    roles.includes("INSTRUCTOR");
+  const isChapterLead =
+    primaryRole === "CHAPTER_LEAD" ||
+    roles.includes("CHAPTER_LEAD");
 
   const [activeCohort, myProjects, myApps, stats, allProjects] = await Promise.all([
     getActiveCohort(),
@@ -68,7 +73,7 @@ export default async function IncubatorPage() {
               Apply Now
             </Link>
           )}
-          {(isAdmin || isInstructor) && (
+          {(isAdmin || isInstructor || isChapterLead) && (
             <Link href="/admin/incubator" className="button secondary">
               Manage
             </Link>

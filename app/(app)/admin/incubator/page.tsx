@@ -18,9 +18,16 @@ export default async function AdminIncubatorPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
 
-  const isAdmin = (session.user as any).primaryRole === "ADMIN";
-  const isInstructor = (session.user as any).primaryRole === "INSTRUCTOR";
-  if (!isAdmin && !isInstructor) redirect("/incubator");
+  const roles = (session.user as any).roles ?? [];
+  const primaryRole = (session.user as any).primaryRole;
+  const canManage =
+    roles.includes("ADMIN") ||
+    roles.includes("INSTRUCTOR") ||
+    roles.includes("CHAPTER_LEAD") ||
+    primaryRole === "ADMIN" ||
+    primaryRole === "INSTRUCTOR" ||
+    primaryRole === "CHAPTER_LEAD";
+  if (!canManage) redirect("/incubator");
 
   const cohorts = await getCohorts();
 

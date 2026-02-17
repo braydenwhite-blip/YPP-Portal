@@ -137,9 +137,19 @@ export const EventsPanel = memo(function EventsPanel({ data, onClose }: EventsPa
             <span className={styles.panelLinkText}>All Events</span>
             <span className={styles.panelLinkArrow}>&rarr;</span>
           </Link>
+          <Link href="/activities" className={styles.panelLink}>
+            <span className={styles.panelLinkIcon}>{"\u{1F9ED}"}</span>
+            <span className={styles.panelLinkText}>Activity Hub</span>
+            <span className={styles.panelLinkArrow}>&rarr;</span>
+          </Link>
           <Link href="/challenges" className={styles.panelLink}>
             <span className={styles.panelLinkIcon}>{"\u{1F3AF}"}</span>
             <span className={styles.panelLinkText}>Challenges</span>
+            <span className={styles.panelLinkArrow}>&rarr;</span>
+          </Link>
+          <Link href="/incubator" className={styles.panelLink}>
+            <span className={styles.panelLinkIcon}>{"\u{1F680}"}</span>
+            <span className={styles.panelLinkText}>Incubator</span>
             <span className={styles.panelLinkArrow}>&rarr;</span>
           </Link>
         </div>

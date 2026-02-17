@@ -340,9 +340,19 @@ export function IslandDetail({
               <span className={styles.panelLinkText}>Take a Challenge (+XP)</span>
               <span className={styles.panelLinkArrow}>&rarr;</span>
             </Link>
+            <Link href="/activities" className={styles.panelLink}>
+              <span className={styles.panelLinkIcon}>{"\u{1F9ED}"}</span>
+              <span className={styles.panelLinkText}>Activity Hub</span>
+              <span className={styles.panelLinkArrow}>&rarr;</span>
+            </Link>
             <Link href="/discover/try-it" className={styles.panelLink}>
               <span className={styles.panelLinkIcon}>{"\u{1F9EA}"}</span>
               <span className={styles.panelLinkText}>Try-It Activities</span>
+              <span className={styles.panelLinkArrow}>&rarr;</span>
+            </Link>
+            <Link href="/incubator" className={styles.panelLink}>
+              <span className={styles.panelLinkIcon}>{"\u{1F680}"}</span>
+              <span className={styles.panelLinkText}>Incubator Projects</span>
               <span className={styles.panelLinkArrow}>&rarr;</span>
             </Link>
             <Link href="/pathways" className={styles.panelLink}>
