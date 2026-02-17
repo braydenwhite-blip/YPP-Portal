@@ -9,9 +9,8 @@ import {
   confirmInterviewSlot,
   makeDecision,
   markApplicationInterviewCompleted,
-  postApplicationInterviewSlot,
+  postApplicationInterviewSlotsBulk,
   saveStructuredInterviewNote,
-  setApplicationInterviewReadiness,
   updateApplicationStatus,
 } from "@/lib/application-actions";
 import { ApplicationStatus } from "@prisma/client";
@@ -220,6 +219,8 @@ export default async function ApplicationWorkspacePage({
   const chapterProposal = parseChapterProposalMetadata(application.additionalMaterials);
 
   const defaultInterviewDate = toDateTimeLocal(new Date(Date.now() + 24 * 60 * 60 * 1000));
+  const defaultInterviewDate2 = toDateTimeLocal(new Date(Date.now() + 26 * 60 * 60 * 1000));
+  const defaultInterviewDate3 = toDateTimeLocal(new Date(Date.now() + 28 * 60 * 60 * 1000));
 
   // Build timeline steps - adapt based on whether interview is required
   const timelineSteps = interviewRequired
@@ -606,18 +607,30 @@ export default async function ApplicationWorkspacePage({
                     </ul>
                   </div>
                 )}
-                {interviewRequired && (
-                  <form action={setApplicationInterviewReadiness} style={{ marginTop: 12 }}>
-                    <input type="hidden" name="applicationId" value={application.id} />
-                    <button type="submit" className="button small outline" disabled={isClosedApplication}>
-                      Sync Interview Readiness
-                    </button>
-                  </form>
-                )}
               </div>
 
               <div className="card" style={{ marginTop: 16 }}>
                 <div className="section-title">Reviewer Actions</div>
+                <div
+                  style={{
+                    border: "1px solid #c4b5fd",
+                    background: "#faf5ff",
+                    borderRadius: 8,
+                    padding: "10px 12px",
+                    marginBottom: 14,
+                  }}
+                >
+                  <p style={{ margin: "0 0 8px", fontSize: 13 }}>
+                    Use the Interview Command Center for the fastest guided workflow.
+                  </p>
+                  <Link
+                    href={`/interviews?scope=hiring&view=team&state=needs_action`}
+                    className="button small outline"
+                    style={{ textDecoration: "none" }}
+                  >
+                    Open Interview Command Center
+                  </Link>
+                </div>
 
                 <form action={updateApplicationStatus} className="form-grid" style={{ marginBottom: 18 }}>
                   <input type="hidden" name="applicationId" value={application.id} />
@@ -648,18 +661,40 @@ export default async function ApplicationWorkspacePage({
                       Interview is optional for this position, but you can still schedule one if needed.
                     </p>
                   )}
-                  <form action={postApplicationInterviewSlot} className="form-grid">
+                  <form action={postApplicationInterviewSlotsBulk} className="form-grid">
                     <input type="hidden" name="applicationId" value={application.id} />
-                    <div className="form-row">
-                      <label>Post Interview Slot</label>
-                      <input
-                        type="datetime-local"
-                        name="scheduledAt"
-                        className="input"
-                        defaultValue={defaultInterviewDate}
-                        required
-                        disabled={isClosedApplication}
-                      />
+                    <div className="grid three">
+                      <div className="form-row">
+                        <label>Interview Slot 1</label>
+                        <input
+                          type="datetime-local"
+                          name="scheduledAt1"
+                          className="input"
+                          defaultValue={defaultInterviewDate}
+                          required
+                          disabled={isClosedApplication}
+                        />
+                      </div>
+                      <div className="form-row">
+                        <label>Interview Slot 2</label>
+                        <input
+                          type="datetime-local"
+                          name="scheduledAt2"
+                          className="input"
+                          defaultValue={defaultInterviewDate2}
+                          disabled={isClosedApplication}
+                        />
+                      </div>
+                      <div className="form-row">
+                        <label>Interview Slot 3</label>
+                        <input
+                          type="datetime-local"
+                          name="scheduledAt3"
+                          className="input"
+                          defaultValue={defaultInterviewDate3}
+                          disabled={isClosedApplication}
+                        />
+                      </div>
                     </div>
                     <div className="form-row">
                       <label>Duration (minutes)</label>
@@ -684,7 +719,7 @@ export default async function ApplicationWorkspacePage({
                       />
                     </div>
                     <button type="submit" className="button small" disabled={isClosedApplication}>
-                      Post Interview Slot
+                      Post Interview Slots
                     </button>
                   </form>
                 </div>

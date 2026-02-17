@@ -1183,6 +1183,8 @@ export async function postApplicationInterviewSlot(formData: FormData) {
     }),
   ]);
 
+  await setApplicationInterviewReadinessInternal(applicationId);
+
   await createSystemNotification(
     application.applicantId,
     "SYSTEM",
@@ -1210,6 +1212,96 @@ export async function postApplicationInterviewSlot(formData: FormData) {
     applicationId,
     chapterId: application.position.chapterId,
     scheduledAt: scheduledAt.toISOString(),
+    duration,
+    interviewerId,
+  });
+
+  revalidateHiringPaths(application.position.chapterId, applicationId);
+}
+
+function parseBulkScheduledAtValues(formData: FormData, keys: string[]) {
+  const values: Date[] = [];
+  for (const key of keys) {
+    const raw = getString(formData, key, false);
+    if (!raw) continue;
+    const parsed = new Date(raw);
+    if (!Number.isFinite(parsed.getTime())) {
+      throw new Error(`Invalid interview ${key} value`);
+    }
+    values.push(parsed);
+  }
+
+  const deduped = Array.from(new Map(values.map((value) => [value.toISOString(), value])).values());
+  if (deduped.length === 0) {
+    throw new Error("Add at least one interview slot.");
+  }
+
+  return deduped;
+}
+
+export async function postApplicationInterviewSlotsBulk(formData: FormData) {
+  const { actor } = await requireAdminOrChapterLead();
+
+  const applicationId = getString(formData, "applicationId");
+  const duration = Number(getString(formData, "duration", false) || "30");
+  const meetingLink = getString(formData, "meetingLink", false);
+  const interviewerIdRaw = getString(formData, "interviewerId", false);
+
+  const slotDates = parseBulkScheduledAtValues(formData, ["scheduledAt1", "scheduledAt2", "scheduledAt3"]);
+  const application = await getApplicationForReview(applicationId);
+  assertCanManagePosition(actor, application.position.chapterId);
+
+  if (application.decision) {
+    throw new Error("Cannot schedule interview after a final decision.");
+  }
+
+  const interviewerId = interviewerIdRaw || actor.id;
+
+  await prisma.$transaction([
+    prisma.interviewSlot.createMany({
+      data: slotDates.map((scheduledAt) => ({
+        applicationId,
+        status: "POSTED",
+        scheduledAt,
+        duration,
+        meetingLink: meetingLink || null,
+        interviewerId,
+      })),
+    }),
+    prisma.application.update({
+      where: { id: applicationId },
+      data: { status: "INTERVIEW_SCHEDULED" },
+    }),
+  ]);
+
+  await setApplicationInterviewReadinessInternal(applicationId);
+
+  await createSystemNotification(
+    application.applicantId,
+    "SYSTEM",
+    "Interview Slots Posted",
+    `${slotDates.length} interview slot${slotDates.length > 1 ? "s were" : " was"} posted for ${application.position.title}.`,
+    `/interviews?scope=hiring&view=mine&state=needs_action`,
+    true
+  );
+
+  if (application.applicant?.email) {
+    const baseUrl = process.env.NEXTAUTH_URL || "";
+    const firstSlot = slotDates[0];
+    sendApplicationStatusEmail({
+      to: application.applicant.email,
+      applicantName: application.applicant.name || "Applicant",
+      positionTitle: application.position.title,
+      status: "INTERVIEW_SCHEDULED",
+      message: `${slotDates.length} interview slot${slotDates.length > 1 ? "s were" : " was"} posted. First option: ${firstSlot.toLocaleString()}.`,
+      portalUrl: `${baseUrl}/interviews?scope=hiring&view=mine&state=needs_action`,
+    }).catch(() => {});
+  }
+
+  await createHiringAudit(actor.id, "chapter_hiring_interview_slot_bulk_posted", {
+    applicationId,
+    chapterId: application.position.chapterId,
+    slotCount: slotDates.length,
     duration,
     interviewerId,
   });
@@ -1279,6 +1371,8 @@ export async function confirmApplicationInterviewSlot(formData: FormData) {
       data: { status: "INTERVIEW_SCHEDULED" },
     }),
   ]);
+
+  await setApplicationInterviewReadinessInternal(slot.applicationId);
 
   const reviewerIds = Array.from(
     new Set([slot.application.position.openedById, slot.application.position.hiringLeadId].filter(Boolean) as string[])
@@ -1358,6 +1452,8 @@ export async function cancelApplicationInterviewSlot(formData: FormData) {
       isConfirmed: false,
     },
   });
+
+  await setApplicationInterviewReadinessInternal(slot.applicationId);
 
   await createSystemNotification(
     slot.application.applicantId,
@@ -1455,6 +1551,93 @@ export async function markApplicationInterviewCompleted(formData: FormData) {
   });
 
   revalidateHiringPaths(slot.application.position.chapterId, slot.applicationId);
+}
+
+export async function completeApplicationInterviewAndNote(formData: FormData) {
+  const { actor } = await requireAdminOrChapterLead();
+
+  const applicationId = getString(formData, "applicationId");
+  const slotId = getString(formData, "slotId");
+  const content = getString(formData, "content");
+  const recommendationRaw = getString(formData, "recommendation");
+  const ratingRaw = getString(formData, "rating", false);
+  const strengths = getString(formData, "strengths", false);
+  const concerns = getString(formData, "concerns", false);
+  const nextStepSuggestion = getString(formData, "nextStepSuggestion", false);
+
+  const application = await getApplicationForReview(applicationId);
+  assertCanManagePosition(actor, application.position.chapterId);
+
+  if (application.decision) {
+    throw new Error("Cannot update interviews after final decision.");
+  }
+
+  const slot = await prisma.interviewSlot.findUnique({
+    where: { id: slotId },
+    select: {
+      id: true,
+      applicationId: true,
+      status: true,
+      completedAt: true,
+    },
+  });
+
+  if (!slot || slot.applicationId !== applicationId) {
+    throw new Error("Interview slot not found");
+  }
+
+  if (!["CONFIRMED", "COMPLETED"].includes(slot.status)) {
+    throw new Error("Slot must be confirmed before completing interview and note.");
+  }
+
+  await prisma.$transaction([
+    prisma.interviewSlot.update({
+      where: { id: slotId },
+      data:
+        slot.status === "CONFIRMED"
+          ? {
+              status: "COMPLETED",
+              completedAt: new Date(),
+              isConfirmed: true,
+            }
+          : {
+              status: "COMPLETED",
+              isConfirmed: true,
+            },
+    }),
+    prisma.interviewNote.create({
+      data: {
+        applicationId,
+        authorId: actor.id,
+        content,
+        rating: ratingRaw ? Number(ratingRaw) : null,
+        recommendation: parseHiringRecommendation(recommendationRaw),
+        strengths: strengths || null,
+        concerns: concerns || null,
+        nextStepSuggestion: nextStepSuggestion || null,
+      },
+    }),
+  ]);
+
+  await setApplicationInterviewReadinessInternal(applicationId);
+
+  await createSystemNotification(
+    application.applicantId,
+    "SYSTEM",
+    "Interview Completed",
+    `Your interview for ${application.position.title} was completed and reviewer notes were saved.`,
+    `/interviews?scope=hiring&view=mine`,
+    true
+  );
+
+  await createHiringAudit(actor.id, "chapter_hiring_interview_completed_with_note", {
+    applicationId,
+    chapterId: application.position.chapterId,
+    slotId,
+    recommendation: recommendationRaw,
+  });
+
+  revalidateHiringPaths(application.position.chapterId, applicationId);
 }
 
 export async function saveStructuredInterviewNote(formData: FormData) {

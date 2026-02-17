@@ -7,6 +7,7 @@ type CatalogInput = Omit<NavLink, "group" | "priority" | "coreEligible"> & {
 const INSTRUCTOR_ROLES: NavRole[] = ["INSTRUCTOR", "ADMIN", "CHAPTER_LEAD"];
 const MENTOR_ROLES: NavRole[] = ["MENTOR", "CHAPTER_LEAD", "ADMIN"];
 const APPLICANT_ROLES: NavRole[] = ["STUDENT", "INSTRUCTOR", "STAFF", "ADMIN"];
+const INTERVIEW_ROLES: NavRole[] = ["STUDENT", "INSTRUCTOR", "STAFF", "ADMIN", "CHAPTER_LEAD"];
 const ADMIN_ONLY: NavRole[] = ["ADMIN"];
 const PARENT_ONLY: NavRole[] = ["PARENT"];
 const STUDENT_ONLY: NavRole[] = ["STUDENT"];
@@ -56,6 +57,16 @@ export const NAV_CATALOG: NavLink[] = [
       icon: "▣",
       dashboardDescription: "Your primary-role command center with queues and next actions.",
       dashboardPriority: 1,
+    },
+    {
+      href: "/interviews",
+      label: "Interviews",
+      icon: "🎤",
+      roles: INTERVIEW_ROLES,
+      coreEligible: false,
+      dashboardDescription: "Run interview scheduling, confirmations, and outcomes in one command center.",
+      dashboardPriority: 7,
+      dashboardBadgeKey: "interview_queue",
     },
     {
       href: "/world",

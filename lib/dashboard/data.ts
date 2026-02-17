@@ -178,7 +178,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
         title: "Application Decision Queue",
         description: "Finalize unresolved hiring applications.",
         count: pendingAppDecisions,
-        href: "/admin/applications",
+        href: "/interviews?scope=hiring&view=team&state=needs_action",
         status: queueStatus(pendingAppDecisions, 20),
         badgeKey: "pending_app_decisions",
       },
@@ -187,7 +187,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
         title: "Chapter Proposal Queue",
         description: "Review proposals for new chapters and chapter president founders.",
         count: chapterProposalQueue,
-        href: "/admin/applications?type=CHAPTER_PRESIDENT&chapterProposal=true",
+        href: "/interviews?scope=hiring&view=team&state=needs_action",
         status: queueStatus(chapterProposalQueue, 8),
         badgeKey: "chapter_proposal_queue",
       },
@@ -244,6 +244,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     moduleBadgeByHref["/admin/applications"] = pendingAppDecisions;
     moduleBadgeByHref["/admin/recruiting"] = pendingAppDecisions;
     moduleBadgeByHref["/admin/applications?type=CHAPTER_PRESIDENT&chapterProposal=true"] = chapterProposalQueue;
+    moduleBadgeByHref["/interviews"] = pendingAppDecisions;
     moduleBadgeByHref["/admin/instructor-readiness"] = trainingEvidenceQueue + readinessReviewQueue;
     moduleBadgeByHref["/admin/waitlist"] = waitlistWaiting;
   } else if (role === "CHAPTER_LEAD") {
@@ -375,7 +376,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
           title: "Interview Queue",
           description: "Posted and confirmed interviews waiting reviewer action.",
           count: interviewQueueCount,
-          href: "/chapter/recruiting?tab=interviews",
+          href: "/interviews?scope=hiring&view=team&state=needs_action",
           status: queueStatus(interviewQueueCount, 10),
           badgeKey: "chapter_interview_queue",
         },
@@ -429,6 +430,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
       }
 
       moduleBadgeByHref["/chapter/recruiting"] = interviewQueueCount + decisionReadyCount;
+      moduleBadgeByHref["/interviews"] = interviewQueueCount + readinessBlockerCount;
       moduleBadgeByHref["/chapter-lead/instructor-readiness"] = readinessBlockerCount;
     }
   } else if (role === "INSTRUCTOR") {
@@ -507,7 +509,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
         title: "Interview Readiness",
         description: "Interview gate status before first class publish.",
         count: interviewBlocked ? 1 : 0,
-        href: "/instructor-training",
+        href: "/interviews?scope=readiness&view=mine&state=needs_action",
         status: interviewBlocked ? "needs_action" : "healthy",
         badgeKey: "interview_gate_blocked",
       },
@@ -529,6 +531,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     ];
 
     moduleBadgeByHref["/instructor-training"] = trainingIncomplete + (interviewBlocked ? 1 : 0);
+    moduleBadgeByHref["/interviews"] = interviewBlocked ? 1 : 0;
     moduleBadgeByHref["/instructor/class-settings"] = classCount;
     moduleBadgeByHref["/attendance"] = classCount;
   } else if (role === "STUDENT") {
@@ -606,7 +609,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
         title: "Active Applications",
         description: "Track interviews and status updates for your applications.",
         count: activeApplications,
-        href: "/applications",
+        href: "/interviews?scope=hiring&view=mine&state=needs_action",
         status: queueStatus(activeApplications, 5),
         badgeKey: "active_applications",
       },
@@ -637,7 +640,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
         id: "student-applications",
         title: "Check application updates",
         detail: `${activeApplications} active application(s) in progress.`,
-        href: "/applications",
+        href: "/interviews?scope=hiring&view=mine&state=needs_action",
       });
     }
 
@@ -662,6 +665,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     moduleBadgeByHref["/my-courses"] = activeEnrollments;
     moduleBadgeByHref["/pathways"] = nextPathwaySteps;
     moduleBadgeByHref["/applications"] = activeApplications;
+    moduleBadgeByHref["/interviews"] = activeApplications;
     moduleBadgeByHref["/student-training"] = studentTrainingDue;
   } else if (role === "MENTOR") {
     const staleThreshold = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
@@ -807,7 +811,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
         title: "Active Applications",
         description: "Follow up on your in-progress applications.",
         count: activeApplications,
-        href: "/applications",
+        href: "/interviews?scope=hiring&view=mine&state=needs_action",
         status: queueStatus(activeApplications, 5),
       },
     ];
@@ -823,12 +827,17 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
 
     moduleBadgeByHref["/positions"] = openPositions;
     moduleBadgeByHref["/applications"] = activeApplications;
+    moduleBadgeByHref["/interviews"] = activeApplications;
   }
 
   for (const queue of queues) {
     if (queue.badgeKey) {
       moduleBadgeByHref[queue.href] = Math.max(moduleBadgeByHref[queue.href] ?? 0, queue.count);
     }
+  }
+
+  if (typeof moduleBadgeByHref["/interviews"] === "number") {
+    moduleBadgeByHref["interview_queue"] = moduleBadgeByHref["/interviews"];
   }
 
   return {

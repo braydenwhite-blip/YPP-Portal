@@ -9,24 +9,11 @@ import {
   requestReadinessRevision,
   reviewTrainingEvidence,
 } from "@/lib/training-actions";
-import {
-  acceptInterviewAvailabilityRequest,
-  declineInterviewAvailabilityRequest,
-  markInterviewCompleted,
-  postInterviewSlot,
-  setInterviewOutcome,
-} from "@/lib/instructor-interview-actions";
 import { getInstructorReadiness } from "@/lib/instructor-readiness";
 
 function formatDate(value: Date | string | null | undefined) {
   if (!value) return "-";
   return new Date(value).toLocaleString();
-}
-
-function toDateTimeLocal(value: Date) {
-  const local = new Date(value);
-  local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
-  return local.toISOString().slice(0, 16);
 }
 
 export default async function InstructorReadinessPage() {
@@ -310,6 +297,26 @@ export default async function InstructorReadinessPage() {
 
       <div className="card" style={{ marginBottom: 20 }}>
         <h3>Interview Queue</h3>
+        <div
+          style={{
+            border: "1px solid #c4b5fd",
+            background: "#faf5ff",
+            borderRadius: 8,
+            padding: "10px 12px",
+            marginBottom: 12,
+          }}
+        >
+          <p style={{ margin: "0 0 8px", fontSize: 13 }}>
+            Interview execution now lives in Interview Command Center for guided next actions.
+          </p>
+          <Link
+            href="/interviews?scope=readiness&view=team&state=needs_action"
+            className="button small outline"
+            style={{ textDecoration: "none" }}
+          >
+            Open Interview Command Center
+          </Link>
+        </div>
         {interviewQueue.length === 0 ? (
           <p className="empty">No interview gate items are currently blocked.</p>
         ) : (
@@ -337,101 +344,29 @@ export default async function InstructorReadinessPage() {
                     </p>
                   ) : null}
 
-                  <form action={postInterviewSlot} className="form-grid" style={{ marginBottom: 10 }}>
-                    <input type="hidden" name="instructorId" value={gate.instructorId} />
-                    <div className="grid three">
-                      <label className="form-row">
-                        Post slot
-                        <input
-                          type="datetime-local"
-                          name="scheduledAt"
-                          className="input"
-                          defaultValue={toDateTimeLocal(new Date(Date.now() + 24 * 60 * 60 * 1000))}
-                          required
-                        />
-                      </label>
-                      <label className="form-row">
-                        Duration (min)
-                        <input name="duration" type="number" className="input" defaultValue={30} min={15} />
-                      </label>
-                      <label className="form-row">
-                        Meeting link
-                        <input name="meetingLink" className="input" placeholder="https://..." />
-                      </label>
-                    </div>
-                    <button type="submit" className="button small">Post interview slot</button>
-                  </form>
-
                   {gate.availabilityRequests.length > 0 ? (
                     <div style={{ marginBottom: 10 }}>
-                      <p style={{ marginBottom: 6, fontSize: 13, color: "var(--muted)" }}>Pending availability requests</p>
-                      <div style={{ display: "grid", gap: 8 }}>
-                        {gate.availabilityRequests.map((request) => (
-                          <div key={request.id} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 8 }}>
-                            <p style={{ margin: 0, fontSize: 13 }}>
-                              Requested {formatDate(request.createdAt)}
-                            </p>
-                            {request.note ? (
-                              <p style={{ margin: "6px 0", fontSize: 13, color: "var(--muted)" }}>{request.note}</p>
-                            ) : null}
-                            <div className="grid two" style={{ gap: 8 }}>
-                              <form action={acceptInterviewAvailabilityRequest} className="form-grid">
-                                <input type="hidden" name="requestId" value={request.id} />
-                                <label className="form-row">
-                                  Scheduled at
-                                  <input
-                                    type="datetime-local"
-                                    name="scheduledAt"
-                                    className="input"
-                                    defaultValue={toDateTimeLocal(new Date(Date.now() + 24 * 60 * 60 * 1000))}
-                                    required
-                                  />
-                                </label>
-                                <input type="hidden" name="duration" value="30" />
-                                <button type="submit" className="button small">Accept + schedule</button>
-                              </form>
-
-                              <form action={declineInterviewAvailabilityRequest} className="form-grid">
-                                <input type="hidden" name="requestId" value={request.id} />
-                                <label className="form-row">
-                                  Decline note
-                                  <input name="reviewNotes" className="input" placeholder="Optional note" />
-                                </label>
-                                <button type="submit" className="button small outline">Decline request</button>
-                              </form>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      <p style={{ marginBottom: 6, fontSize: 13, color: "var(--muted)" }}>
+                        Pending availability requests: {gate.availabilityRequests.length}
+                      </p>
                     </div>
                   ) : null}
-
-                  {confirmedSlot ? (
-                    <form action={markInterviewCompleted} style={{ marginBottom: 10 }}>
-                      <input type="hidden" name="slotId" value={confirmedSlot.id} />
-                      <button type="submit" className="button small">Mark confirmed slot completed</button>
-                    </form>
-                  ) : null}
-
-                  <form action={setInterviewOutcome} className="form-grid">
-                    <input type="hidden" name="gateId" value={gate.id} />
-                    <div className="grid two">
-                      <label className="form-row">
-                        Interview outcome
-                        <select name="outcome" className="input" defaultValue="PASS">
-                          <option value="PASS">PASS</option>
-                          <option value="HOLD">HOLD</option>
-                          <option value="FAIL">FAIL</option>
-                          <option value="WAIVE">WAIVE (Admin only)</option>
-                        </select>
-                      </label>
-                      <label className="form-row">
-                        Outcome notes
-                        <input name="reviewNotes" className="input" placeholder="Required context for hold/fail/waive" />
-                      </label>
-                    </div>
-                    <button type="submit" className="button small">Set interview outcome</button>
-                  </form>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <Link
+                      href="/interviews?scope=readiness&view=team&state=needs_action"
+                      className="button small"
+                      style={{ textDecoration: "none" }}
+                    >
+                      Work in Command Center
+                    </Link>
+                    <Link
+                      href={`/interviews?scope=readiness&view=team&state=scheduled`}
+                      className="button small outline"
+                      style={{ textDecoration: "none" }}
+                    >
+                      View Scheduled
+                    </Link>
+                  </div>
                 </div>
               );
             })}

@@ -114,6 +114,15 @@ export default async function AdminApplicationsPage({
         </div>
       </div>
 
+      <div className="card" style={{ marginBottom: 16 }}>
+        <p style={{ margin: "0 0 8px", fontSize: 13 }}>
+          Interview execution is now centralized in Interview Command Center.
+        </p>
+        <Link href="/interviews?scope=hiring&view=team&state=needs_action" className="button small outline" style={{ textDecoration: "none" }}>
+          Open Interview Command Center
+        </Link>
+      </div>
+
       <div className="card" style={{ marginBottom: 20 }}>
         <form method="get" className="form-grid">
           <div className="grid two">
