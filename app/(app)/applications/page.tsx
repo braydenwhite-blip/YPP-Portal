@@ -91,6 +91,9 @@ export default async function MyApplicationsPage({
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Link href="/interviews?scope=hiring&view=mine&state=needs_action" className="button small outline" style={{ textDecoration: "none" }}>
+            Interview Command Center
+          </Link>
           <Link href="/chapters/propose" className="button small ghost" style={{ textDecoration: "none" }}>
             Propose Chapter
           </Link>

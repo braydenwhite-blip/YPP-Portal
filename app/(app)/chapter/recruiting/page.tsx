@@ -4,13 +4,9 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
-  cancelApplicationInterviewSlot,
   chapterMakeDecision,
   closeChapterPosition,
-  markApplicationInterviewCompleted,
-  postApplicationInterviewSlot,
   reopenChapterPosition,
-  setApplicationInterviewReadiness,
   updatePositionVisibility,
 } from "@/lib/application-actions";
 
@@ -28,12 +24,6 @@ function resolveRecruitingTab(rawTab: string | undefined): RecruitingTab {
 function formatDate(value: Date | string | null | undefined) {
   if (!value) return "-";
   return new Date(value).toLocaleString();
-}
-
-function toDateTimeLocal(value: Date) {
-  const local = new Date(value);
-  local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
-  return local.toISOString().slice(0, 16);
 }
 
 export default async function ChapterRecruitingPage({
@@ -162,8 +152,6 @@ export default async function ChapterRecruitingPage({
       app.status !== "WITHDRAWN" &&
       (app.status === "INTERVIEW_COMPLETED" || !app.position.interviewRequired)
   );
-
-  const defaultInterviewDate = toDateTimeLocal(new Date(Date.now() + 24 * 60 * 60 * 1000));
 
   return (
     <div>
@@ -339,6 +327,26 @@ export default async function ChapterRecruitingPage({
       {activeTab === "interviews" ? (
         <div className="card" style={{ marginBottom: 20 }}>
           <h3>Interview Queue</h3>
+          <div
+            style={{
+              border: "1px solid #c4b5fd",
+              background: "#faf5ff",
+              borderRadius: 8,
+              padding: "10px 12px",
+              marginBottom: 12,
+            }}
+          >
+            <p style={{ margin: "0 0 8px", fontSize: 13 }}>
+              Interview execution is now centralized in Interview Command Center.
+            </p>
+            <Link
+              href="/interviews?scope=hiring&view=team&state=needs_action"
+              className="button small outline"
+              style={{ textDecoration: "none" }}
+            >
+              Open Interview Command Center
+            </Link>
+          </div>
           {interviewQueue.length === 0 ? (
             <p className="empty">No interview slots waiting on action.</p>
           ) : (
@@ -350,58 +358,21 @@ export default async function ChapterRecruitingPage({
                     {slot.status.replace(/_/g, " ")} · {formatDate(slot.scheduledAt)} · {slot.duration} min
                   </p>
                   <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <Link
+                      href={`/interviews?scope=hiring&view=team&state=needs_action`}
+                      className="button small"
+                      style={{ textDecoration: "none" }}
+                    >
+                      Work in Command Center
+                    </Link>
                     <Link href={`/applications/${slot.applicationId}`} className="button small outline" style={{ textDecoration: "none" }}>
                       Open Application
                     </Link>
-                    {slot.status === "CONFIRMED" ? (
-                      <form action={markApplicationInterviewCompleted}>
-                        <input type="hidden" name="slotId" value={slot.id} />
-                        <button type="submit" className="button small">Mark Completed</button>
-                      </form>
-                    ) : null}
-                    <form action={cancelApplicationInterviewSlot}>
-                      <input type="hidden" name="slotId" value={slot.id} />
-                      <button type="submit" className="button small ghost">Cancel Slot</button>
-                    </form>
                   </div>
                 </div>
               ))}
             </div>
           )}
-
-          <div style={{ marginTop: 16 }}>
-            <h4 style={{ marginBottom: 8 }}>Post Interview Slot</h4>
-            <form action={postApplicationInterviewSlot} className="form-grid">
-              <div className="grid three">
-                <label className="form-row">
-                  Application
-                  <select className="input" name="applicationId" required>
-                    <option value="">Select application</option>
-                    {applications
-                      .filter((app) => !FINAL_STATUSES.has(app.status))
-                      .map((app) => (
-                        <option key={app.id} value={app.id}>
-                          {app.applicant.name} - {app.position.title}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                <label className="form-row">
-                  Scheduled At
-                  <input type="datetime-local" className="input" name="scheduledAt" defaultValue={defaultInterviewDate} required />
-                </label>
-                <label className="form-row">
-                  Duration (min)
-                  <input type="number" className="input" name="duration" min={15} max={180} defaultValue={30} />
-                </label>
-              </div>
-              <label className="form-row">
-                Meeting Link (optional)
-                <input type="url" className="input" name="meetingLink" placeholder="https://..." />
-              </label>
-              <button type="submit" className="button small">Post Slot</button>
-            </form>
-          </div>
         </div>
       ) : null}
 
@@ -430,10 +401,13 @@ export default async function ChapterRecruitingPage({
                     ) : null}
 
                     <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <form action={setApplicationInterviewReadiness}>
-                        <input type="hidden" name="applicationId" value={app.id} />
-                        <button type="submit" className="button small outline">Sync Readiness</button>
-                      </form>
+                      <Link
+                        href="/interviews?scope=hiring&view=team&state=needs_action"
+                        className="button small"
+                        style={{ textDecoration: "none" }}
+                      >
+                        Work in Command Center
+                      </Link>
                       <Link href={`/applications/${app.id}`} className="button small outline" style={{ textDecoration: "none" }}>
                         Open Workspace
                       </Link>
@@ -468,5 +442,3 @@ export default async function ChapterRecruitingPage({
     </div>
   );
 }
-
-const FINAL_STATUSES = new Set(["ACCEPTED", "REJECTED", "WITHDRAWN"]);

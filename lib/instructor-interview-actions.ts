@@ -202,7 +202,7 @@ export async function confirmPostedInterviewSlot(formData: FormData) {
       "SYSTEM",
       "Interview Slot Confirmed",
       "An instructor confirmed a posted interview slot.",
-      "/admin/instructor-readiness"
+      "/interviews?scope=readiness&view=team&state=needs_action"
     );
   }
 
@@ -276,6 +276,26 @@ function parsePreferredSlotsFromInputs(formData: FormData): PreferredSlot[] {
   return slots;
 }
 
+function parseBulkScheduledAtValues(formData: FormData, keys: string[]) {
+  const values: Date[] = [];
+  for (const key of keys) {
+    const raw = getString(formData, key, false);
+    if (!raw) continue;
+    const parsed = new Date(raw);
+    if (isNaN(parsed.getTime())) {
+      throw new Error(`Invalid ${key} date value`);
+    }
+    values.push(parsed);
+  }
+
+  const deduped = Array.from(new Map(values.map((value) => [value.toISOString(), value])).values());
+  if (deduped.length === 0) {
+    throw new Error("Add at least one interview slot.");
+  }
+
+  return deduped;
+}
+
 export async function submitInterviewAvailabilityRequest(formData: FormData) {
   const session = await requireAuth();
   const instructorId = session.user.id;
@@ -321,7 +341,7 @@ export async function submitInterviewAvailabilityRequest(formData: FormData) {
       "SYSTEM",
       "New Interview Availability Request",
       "An instructor submitted preferred interview times.",
-      "/admin/instructor-readiness"
+      "/interviews?scope=readiness&view=team&state=needs_action"
     );
   }
 
@@ -394,7 +414,44 @@ export async function postInterviewSlot(formData: FormData) {
     "SYSTEM",
     "Interview Slot Available",
     "A reviewer posted a new interview slot for you.",
-    "/instructor-training"
+    "/interviews?scope=readiness&view=mine&state=needs_action"
+  );
+
+  revalidateInterviewPaths();
+}
+
+export async function postInstructorInterviewSlotsBulk(formData: FormData) {
+  const session = await requireReviewer();
+  const instructorId = getString(formData, "instructorId");
+  const duration = getNumber(formData, "duration", 30);
+  const meetingLink = getString(formData, "meetingLink", false);
+  const notes = getString(formData, "notes", false);
+  const slotDates = parseBulkScheduledAtValues(formData, ["scheduledAt1", "scheduledAt2", "scheduledAt3"]);
+
+  await assertReviewerCanManageInstructor(session.user.id, instructorId);
+
+  const gate = await ensureInterviewGate(instructorId);
+  assertGateCanSchedule(gate.status);
+
+  await prisma.instructorInterviewSlot.createMany({
+    data: slotDates.map((scheduledAt) => ({
+      gateId: gate.id,
+      createdById: session.user.id,
+      source: "REVIEWER_POSTED",
+      status: "POSTED",
+      scheduledAt,
+      duration,
+      meetingLink: meetingLink || null,
+      notes: notes || null,
+    })),
+  });
+
+  await createSystemNotification(
+    instructorId,
+    "SYSTEM",
+    "Interview Slots Available",
+    `${slotDates.length} interview slot${slotDates.length > 1 ? "s were" : " was"} posted for you.`,
+    "/interviews?scope=readiness&view=mine&state=needs_action"
   );
 
   revalidateInterviewPaths();
@@ -501,7 +558,7 @@ export async function acceptInterviewAvailabilityRequest(formData: FormData) {
     "SYSTEM",
     "Interview Request Accepted",
     "Your preferred interview request was accepted and scheduled.",
-    "/instructor-training"
+    "/interviews?scope=readiness&view=mine&state=scheduled"
   );
 
   revalidateInterviewPaths();
@@ -545,7 +602,7 @@ export async function declineInterviewAvailabilityRequest(formData: FormData) {
     "SYSTEM",
     "Interview Request Declined",
     "A reviewer declined your interview availability request. Submit new preferred times.",
-    "/instructor-training"
+    "/interviews?scope=readiness&view=mine&state=needs_action"
   );
 
   revalidateInterviewPaths();
@@ -606,29 +663,23 @@ export async function markInterviewCompleted(formData: FormData) {
     "SYSTEM",
     "Interview Completed",
     "Your interview was marked completed. A reviewer will post your outcome next.",
-    "/instructor-training"
+    "/interviews?scope=readiness&view=mine&state=blocked"
   );
 
   revalidateInterviewPaths();
 }
 
-export async function setInterviewOutcome(formData: FormData) {
-  const session = await requireReviewer();
-  const gateId = getString(formData, "gateId");
-  const outcomeRaw = getString(formData, "outcome");
-  const reviewNotes = getString(formData, "reviewNotes", false);
-
-  if (!["PASS", "HOLD", "FAIL", "WAIVE"].includes(outcomeRaw)) {
-    throw new Error("Invalid interview outcome");
-  }
-
-  const roles = session.user.roles ?? [];
-  if (outcomeRaw === "WAIVE" && !roles.includes("ADMIN")) {
-    throw new Error("Only admins can waive interview outcomes");
-  }
-
-  const outcome = outcomeRaw as InterviewOutcome;
-
+async function applyInterviewOutcomeInternal({
+  gateId,
+  outcome,
+  reviewNotes,
+  reviewerId,
+}: {
+  gateId: string;
+  outcome: InterviewOutcome;
+  reviewNotes: string;
+  reviewerId: string;
+}) {
   const gate = await prisma.instructorInterviewGate.findUnique({
     where: { id: gateId },
     select: {
@@ -642,7 +693,7 @@ export async function setInterviewOutcome(formData: FormData) {
     throw new Error("Interview gate not found");
   }
 
-  await assertReviewerCanManageInstructor(session.user.id, gate.instructorId);
+  await assertReviewerCanManageInstructor(reviewerId, gate.instructorId);
 
   if (outcome !== "WAIVE") {
     const completedInterview = await prisma.instructorInterviewSlot.findFirst({
@@ -663,12 +714,12 @@ export async function setInterviewOutcome(formData: FormData) {
   if (outcome === "WAIVE") {
     await prisma.analyticsEvent.create({
       data: {
-        userId: session.user.id,
+        userId: reviewerId,
         eventType: "interview_outcome_waived",
         eventData: {
           gateId,
           instructorId: gate.instructorId,
-          reviewerId: session.user.id,
+          reviewerId,
           notes: reviewNotes || null,
         },
       },
@@ -690,7 +741,7 @@ export async function setInterviewOutcome(formData: FormData) {
     data: {
       status: statusByOutcome[outcome],
       outcome,
-      reviewedById: session.user.id,
+      reviewedById: reviewerId,
       reviewedAt: new Date(),
       reviewNotes: reviewNotes || null,
       completedAt: new Date(),
@@ -706,7 +757,7 @@ export async function setInterviewOutcome(formData: FormData) {
       },
       data: {
         status: "DECLINED" as InterviewRequestStatus,
-        reviewedById: session.user.id,
+        reviewedById: reviewerId,
         reviewedAt: new Date(),
         reviewNotes: "Interview gate finalized.",
       },
@@ -718,8 +769,119 @@ export async function setInterviewOutcome(formData: FormData) {
     "SYSTEM",
     "Interview Outcome Posted",
     `Your interview outcome is ${outcome}. Check your instructor training academy for next steps.`,
-    "/instructor-training"
+    "/interviews?scope=readiness&view=mine&state=completed"
   );
+}
+
+export async function completeInstructorInterviewAndSetOutcome(formData: FormData) {
+  const session = await requireReviewer();
+  const outcomeRaw = getString(formData, "outcome");
+  const reviewNotes = getString(formData, "reviewNotes", false);
+  const slotId = getString(formData, "slotId", false);
+  let gateId = getString(formData, "gateId", false);
+
+  if (!["PASS", "HOLD", "FAIL", "WAIVE"].includes(outcomeRaw)) {
+    throw new Error("Invalid interview outcome");
+  }
+
+  const roles = session.user.roles ?? [];
+  if (outcomeRaw === "WAIVE" && !roles.includes("ADMIN")) {
+    throw new Error("Only admins can waive interview outcomes");
+  }
+
+  if (slotId) {
+    const slot = await prisma.instructorInterviewSlot.findUnique({
+      where: { id: slotId },
+      select: {
+        id: true,
+        gateId: true,
+        status: true,
+        gate: {
+          select: {
+            instructorId: true,
+            status: true,
+          },
+        },
+      },
+    });
+
+    if (!slot) {
+      throw new Error("Interview slot not found");
+    }
+
+    await assertReviewerCanManageInstructor(session.user.id, slot.gate.instructorId);
+
+    if (slot.gate.status === "PASSED" || slot.gate.status === "WAIVED") {
+      throw new Error("Interview gate is already finalized.");
+    }
+
+    if (!gateId) {
+      gateId = slot.gateId;
+    }
+
+    if (slot.gateId !== gateId) {
+      throw new Error("Slot does not match selected interview gate.");
+    }
+
+    if (!["CONFIRMED", "COMPLETED"].includes(slot.status)) {
+      throw new Error("Slot must be confirmed or completed before posting outcome.");
+    }
+
+    if (slot.status === "CONFIRMED") {
+      await prisma.$transaction([
+        prisma.instructorInterviewSlot.update({
+          where: { id: slot.id },
+          data: {
+            status: "COMPLETED",
+            completedAt: new Date(),
+          },
+        }),
+        prisma.instructorInterviewGate.update({
+          where: { id: slot.gateId },
+          data: {
+            status: "COMPLETED",
+            completedAt: new Date(),
+          },
+        }),
+      ]);
+    }
+  }
+
+  if (!gateId) {
+    throw new Error("Missing interview gate reference.");
+  }
+
+  await applyInterviewOutcomeInternal({
+    gateId,
+    outcome: outcomeRaw as InterviewOutcome,
+    reviewNotes,
+    reviewerId: session.user.id,
+  });
+
+  revalidateInterviewPaths();
+}
+
+export async function setInterviewOutcome(formData: FormData) {
+  const session = await requireReviewer();
+  const gateId = getString(formData, "gateId");
+  const outcomeRaw = getString(formData, "outcome");
+  const reviewNotes = getString(formData, "reviewNotes", false);
+
+  if (!["PASS", "HOLD", "FAIL", "WAIVE"].includes(outcomeRaw)) {
+    throw new Error("Invalid interview outcome");
+  }
+
+  const roles = session.user.roles ?? [];
+  if (outcomeRaw === "WAIVE" && !roles.includes("ADMIN")) {
+    throw new Error("Only admins can waive interview outcomes");
+  }
+
+  await applyInterviewOutcomeInternal({
+    gateId,
+    outcome: outcomeRaw as InterviewOutcome,
+    reviewNotes,
+    reviewerId: session.user.id,
+  });
 
   revalidateInterviewPaths();
 }
