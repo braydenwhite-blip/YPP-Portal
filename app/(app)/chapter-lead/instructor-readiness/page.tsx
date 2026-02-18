@@ -9,7 +9,11 @@ import {
   requestReadinessRevision,
   reviewTrainingEvidence,
 } from "@/lib/training-actions";
-import { getInstructorReadiness } from "@/lib/instructor-readiness";
+import {
+  buildFallbackInstructorReadiness,
+  getInstructorReadiness,
+} from "@/lib/instructor-readiness";
+import { withPrismaFallback } from "@/lib/prisma-guard";
 
 function formatDate(value: Date | string | null | undefined) {
   if (!value) return "-";
@@ -56,33 +60,133 @@ export default async function ChapterLeadInstructorReadinessPage() {
 
   const [requiredModules, instructors, evidenceQueue, readinessQueue, interviewQueue] =
     await Promise.all([
-      prisma.trainingModule.findMany({
-        where: { required: true },
-        select: { id: true },
-      }),
-      prisma.user.findMany({
-        where: {
-          chapterId,
-          roles: { some: { role: "INSTRUCTOR" } },
-        },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          chapter: { select: { name: true } },
-          trainings: {
+      withPrismaFallback(
+        "chapter-readiness:required-modules",
+        () =>
+          prisma.trainingModule.findMany({
+            where: { required: true },
+            select: { id: true },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "chapter-readiness:instructors",
+        () =>
+          prisma.user.findMany({
+            where: {
+              chapterId,
+              roles: { some: { role: "INSTRUCTOR" } },
+            },
             select: {
-              moduleId: true,
+              id: true,
+              name: true,
+              email: true,
+              chapter: { select: { name: true } },
+              trainings: {
+                select: {
+                  moduleId: true,
+                  status: true,
+                },
+              },
+              teachingPermissions: {
+                select: {
+                  level: true,
+                },
+              },
+              interviewGate: {
+                include: {
+                  slots: {
+                    orderBy: { scheduledAt: "asc" },
+                  },
+                  availabilityRequests: {
+                    where: { status: "PENDING" },
+                    orderBy: { createdAt: "desc" },
+                  },
+                },
+              },
+              readinessReviewRequests: {
+                where: {
+                  status: { in: ["REQUESTED", "UNDER_REVIEW", "REVISION_REQUESTED"] },
+                },
+                orderBy: { requestedAt: "desc" },
+                take: 1,
+                select: {
+                  id: true,
+                  status: true,
+                  requestedAt: true,
+                  notes: true,
+                },
+              },
+            },
+            orderBy: { name: "asc" },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "chapter-readiness:evidence-queue",
+        () =>
+          prisma.trainingEvidenceSubmission.findMany({
+            where: {
+              status: { in: ["PENDING_REVIEW", "REVISION_REQUESTED"] },
+              user: { chapterId },
+            },
+            orderBy: { createdAt: "asc" },
+            select: {
+              id: true,
               status: true,
+              notes: true,
+              createdAt: true,
+              user: { select: { id: true, name: true, email: true } },
+              module: { select: { id: true, title: true } },
+              fileUrl: true,
             },
-          },
-          teachingPermissions: {
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "chapter-readiness:readiness-queue",
+        () =>
+          prisma.readinessReviewRequest.findMany({
+            where: {
+              status: { in: ["REQUESTED", "UNDER_REVIEW", "REVISION_REQUESTED"] },
+              instructor: { chapterId },
+            },
+            orderBy: { requestedAt: "asc" },
             select: {
-              level: true,
+              id: true,
+              status: true,
+              notes: true,
+              requestedAt: true,
+              instructor: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  chapter: { select: { name: true } },
+                },
+              },
             },
-          },
-          interviewGate: {
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "chapter-readiness:interview-queue",
+        () =>
+          prisma.instructorInterviewGate.findMany({
+            where: {
+              status: { in: ["REQUIRED", "SCHEDULED", "COMPLETED", "HOLD", "FAILED"] },
+              instructor: { chapterId },
+            },
+            orderBy: { updatedAt: "desc" },
             include: {
+              instructor: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  chapter: { select: { name: true } },
+                },
+              },
               slots: {
                 orderBy: { scheduledAt: "asc" },
               },
@@ -91,89 +195,18 @@ export default async function ChapterLeadInstructorReadinessPage() {
                 orderBy: { createdAt: "desc" },
               },
             },
-          },
-          readinessReviewRequests: {
-            where: {
-              status: { in: ["REQUESTED", "UNDER_REVIEW", "REVISION_REQUESTED"] },
-            },
-            orderBy: { requestedAt: "desc" },
-            take: 1,
-            select: {
-              id: true,
-              status: true,
-              requestedAt: true,
-              notes: true,
-            },
-          },
-        },
-        orderBy: { name: "asc" },
-      }),
-      prisma.trainingEvidenceSubmission.findMany({
-        where: {
-          status: { in: ["PENDING_REVIEW", "REVISION_REQUESTED"] },
-          user: { chapterId },
-        },
-        orderBy: { createdAt: "asc" },
-        select: {
-          id: true,
-          status: true,
-          notes: true,
-          createdAt: true,
-          user: { select: { id: true, name: true, email: true } },
-          module: { select: { id: true, title: true } },
-          fileUrl: true,
-        },
-      }),
-      prisma.readinessReviewRequest.findMany({
-        where: {
-          status: { in: ["REQUESTED", "UNDER_REVIEW", "REVISION_REQUESTED"] },
-          instructor: { chapterId },
-        },
-        orderBy: { requestedAt: "asc" },
-        select: {
-          id: true,
-          status: true,
-          notes: true,
-          requestedAt: true,
-          instructor: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              chapter: { select: { name: true } },
-            },
-          },
-        },
-      }),
-      prisma.instructorInterviewGate.findMany({
-        where: {
-          status: { in: ["REQUIRED", "SCHEDULED", "COMPLETED", "HOLD", "FAILED"] },
-          instructor: { chapterId },
-        },
-        orderBy: { updatedAt: "desc" },
-        include: {
-          instructor: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              chapter: { select: { name: true } },
-            },
-          },
-          slots: {
-            orderBy: { scheduledAt: "asc" },
-          },
-          availabilityRequests: {
-            where: { status: "PENDING" },
-            orderBy: { createdAt: "desc" },
-          },
-        },
-      }),
+          }),
+        []
+      ),
     ]);
 
   const readinessEntries = await Promise.all(
     instructors.map(async (instructor) => {
-      const readiness = await getInstructorReadiness(instructor.id);
+      const readiness = await withPrismaFallback(
+        "chapter-readiness:readiness-by-instructor",
+        () => getInstructorReadiness(instructor.id),
+        buildFallbackInstructorReadiness(instructor.id)
+      );
       return [instructor.id, readiness] as const;
     })
   );

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withPrismaFallback } from "@/lib/prisma-guard";
 import { setTrainingCheckpointCompletion } from "@/lib/training-actions";
 
 function formatDateTime(value: Date | string | null | undefined) {
@@ -28,55 +29,80 @@ export default async function StudentTrainingPage() {
 
   const [assignments, videoProgress, checkpointCompletions, quizAttempts, evidenceSubmissions] =
     await Promise.all([
-      prisma.trainingAssignment.findMany({
-        where: { userId: learnerId },
-        include: {
-          module: {
+      withPrismaFallback(
+        "student-training:assignments",
+        () =>
+          prisma.trainingAssignment.findMany({
+            where: { userId: learnerId },
             include: {
-              checkpoints: {
-                where: { required: true },
-                orderBy: { sortOrder: "asc" },
-                select: { id: true, title: true, sortOrder: true },
-              },
-              quizQuestions: {
-                select: { id: true },
+              module: {
+                include: {
+                  checkpoints: {
+                    where: { required: true },
+                    orderBy: { sortOrder: "asc" },
+                    select: { id: true, title: true, sortOrder: true },
+                  },
+                  quizQuestions: {
+                    select: { id: true },
+                  },
+                },
               },
             },
-          },
-        },
-      }),
-      prisma.videoProgress.findMany({
-        where: { userId: learnerId },
-        select: {
-          moduleId: true,
-          watchedSeconds: true,
-          completed: true,
-        },
-      }),
-      prisma.trainingCheckpointCompletion.findMany({
-        where: { userId: learnerId },
-        select: { checkpointId: true, completedAt: true, notes: true },
-      }),
-      prisma.trainingQuizAttempt.findMany({
-        where: { userId: learnerId },
-        orderBy: { attemptedAt: "desc" },
-        select: {
-          moduleId: true,
-          passed: true,
-          scorePct: true,
-          attemptedAt: true,
-        },
-      }),
-      prisma.trainingEvidenceSubmission.findMany({
-        where: { userId: learnerId },
-        orderBy: { createdAt: "desc" },
-        select: {
-          moduleId: true,
-          status: true,
-          createdAt: true,
-          reviewNotes: true,
-        },
-      }),
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "student-training:video-progress",
+        () =>
+          prisma.videoProgress.findMany({
+            where: { userId: learnerId },
+            select: {
+              moduleId: true,
+              watchedSeconds: true,
+              completed: true,
+            },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "student-training:checkpoint-completions",
+        () =>
+          prisma.trainingCheckpointCompletion.findMany({
+            where: { userId: learnerId },
+            select: { checkpointId: true, completedAt: true, notes: true },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "student-training:quiz-attempts",
+        () =>
+          prisma.trainingQuizAttempt.findMany({
+            where: { userId: learnerId },
+            orderBy: { attemptedAt: "desc" },
+            select: {
+              moduleId: true,
+              passed: true,
+              scorePct: true,
+              attemptedAt: true,
+            },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "student-training:evidence-submissions",
+        () =>
+          prisma.trainingEvidenceSubmission.findMany({
+            where: { userId: learnerId },
+            orderBy: { createdAt: "desc" },
+            select: {
+              moduleId: true,
+              status: true,
+              createdAt: true,
+              reviewNotes: true,
+            },
+          }),
+        []
+      ),
     ]);
 
   const sortedAssignments = [...assignments].sort((a, b) => a.module.sortOrder - b.module.sortOrder);
@@ -117,56 +143,63 @@ export default async function StudentTrainingPage() {
   }
 
   const moduleCards = sortedAssignments.map((assignment) => {
-    const module = assignment.module;
-    const progress = videoByModule.get(module.id);
-    const latestQuiz = latestQuizByModule.get(module.id);
-    const latestEvidence = latestEvidenceByModule.get(module.id);
+    const trainingModule = assignment.module;
+    const progress = videoByModule.get(trainingModule.id);
+    const latestQuiz = latestQuizByModule.get(trainingModule.id);
+    const latestEvidence = latestEvidenceByModule.get(trainingModule.id);
 
-    const requiredCheckpointCount = module.checkpoints.length;
-    const completedRequiredCheckpoints = module.checkpoints.filter((checkpoint) =>
+    const requiredCheckpointCount = trainingModule.checkpoints.length;
+    const completedRequiredCheckpoints = trainingModule.checkpoints.filter((checkpoint) =>
       completedCheckpointIds.has(checkpoint.id)
     ).length;
 
     const hasAnyActionablePath =
-      Boolean(module.videoUrl) ||
+      Boolean(trainingModule.videoUrl) ||
       requiredCheckpointCount > 0 ||
-      module.requiresQuiz ||
-      module.requiresEvidence;
+      trainingModule.requiresQuiz ||
+      trainingModule.requiresEvidence;
 
     let configurationIssue: string | null = null;
-    if (module.required && !hasAnyActionablePath) {
+    if (trainingModule.required && !hasAnyActionablePath) {
       configurationIssue =
         "Module is required but not configured yet. Ask an admin to add video, checkpoints, quiz, or evidence requirements.";
-    } else if (module.requiresQuiz && module.quizQuestions.length === 0) {
+    } else if (
+      trainingModule.requiresQuiz &&
+      trainingModule.quizQuestions.length === 0
+    ) {
       configurationIssue = "Quiz is required but no quiz questions are configured for this module.";
     } else if (
-      module.required &&
-      module.videoUrl &&
-      module.videoProvider &&
-      !TRACKABLE_REQUIRED_VIDEO_PROVIDERS.has(module.videoProvider)
+      trainingModule.required &&
+      trainingModule.videoUrl &&
+      trainingModule.videoProvider &&
+      !TRACKABLE_REQUIRED_VIDEO_PROVIDERS.has(trainingModule.videoProvider)
     ) {
       configurationIssue =
         "Required module video provider must be YOUTUBE, VIMEO, or CUSTOM so watch tracking can count.";
     }
 
     const videoReady =
-      !module.videoUrl ||
+      !trainingModule.videoUrl ||
       progress?.completed === true ||
-      (module.videoDuration
-        ? (progress?.watchedSeconds ?? 0) >= Math.floor(module.videoDuration * 0.9)
+      (trainingModule.videoDuration
+        ? (progress?.watchedSeconds ?? 0) >= Math.floor(trainingModule.videoDuration * 0.9)
         : false);
 
     const checkpointsReady =
       requiredCheckpointCount === 0 || completedRequiredCheckpoints >= requiredCheckpointCount;
     const quizReady =
-      !module.requiresQuiz || (module.quizQuestions.length > 0 && passedQuizModuleIds.has(module.id));
-    const evidenceReady = !module.requiresEvidence || approvedEvidenceModuleIds.has(module.id);
+      !trainingModule.requiresQuiz ||
+      (trainingModule.quizQuestions.length > 0 &&
+        passedQuizModuleIds.has(trainingModule.id));
+    const evidenceReady =
+      !trainingModule.requiresEvidence ||
+      approvedEvidenceModuleIds.has(trainingModule.id);
 
     const fullyComplete =
       !configurationIssue && videoReady && checkpointsReady && quizReady && evidenceReady;
 
     return {
-      module,
+      module: trainingModule,
       assignment,
       latestQuiz,
       latestEvidence,
@@ -178,7 +211,7 @@ export default async function StudentTrainingPage() {
       completedRequiredCheckpoints,
       requiredCheckpointCount,
       configurationIssue,
-      checkpoints: module.checkpoints.map((checkpoint) => ({
+      checkpoints: trainingModule.checkpoints.map((checkpoint) => ({
         id: checkpoint.id,
         title: checkpoint.title,
         completed: completedCheckpointIds.has(checkpoint.id),

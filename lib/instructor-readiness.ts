@@ -1,5 +1,9 @@
 import { CourseLevel } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import {
+  isRecoverablePrismaError,
+  withPrismaFallback,
+} from "@/lib/prisma-guard";
 
 type NextAction = {
   title: string;
@@ -35,6 +39,33 @@ export type InstructorReadiness = {
 const INSTRUCTOR_TOOLS_HREF = "/instructor-training";
 const INSTRUCTOR_PUBLISH_HREF = "/instructor/class-settings";
 const TRACKABLE_REQUIRED_VIDEO_PROVIDERS = new Set(["YOUTUBE", "VIMEO", "CUSTOM"]);
+
+export function buildFallbackInstructorReadiness(
+  instructorId: string
+): InstructorReadiness {
+  return {
+    instructorId,
+    featureEnabled: false,
+    requiredModulesCount: 0,
+    completedRequiredModules: 0,
+    trainingComplete: true,
+    interviewStatus: "UNAVAILABLE",
+    interviewOutcome: null,
+    interviewPassed: true,
+    approvedLevels: [],
+    teachingPermissionLevels: [],
+    hasPublishedOffering: false,
+    grandfatheredOfferingCount: 0,
+    canPublishFirstOffering: true,
+    missingRequirements: [],
+    nextAction: {
+      title: "Readiness checks unavailable",
+      detail:
+        "Training and interview readiness checks are temporarily unavailable.",
+      href: INSTRUCTOR_TOOLS_HREF,
+    },
+  };
+}
 
 function envTrue(value: string | undefined): boolean {
   if (!value) return false;
@@ -72,6 +103,67 @@ export async function getInstructorReadiness(instructorId: string): Promise<Inst
   const featureEnabled = isNativeInstructorGateEnabled();
   const interviewRequired = isInterviewGateEnforced();
 
+  const readinessData = await withPrismaFallback(
+    "getInstructorReadiness:queries",
+    () =>
+      Promise.all([
+        prisma.trainingModule.findMany({
+          where: { required: true },
+          select: {
+            id: true,
+            title: true,
+            videoUrl: true,
+            videoProvider: true,
+            requiresQuiz: true,
+            requiresEvidence: true,
+            checkpoints: {
+              where: { required: true },
+              select: { id: true },
+            },
+            quizQuestions: {
+              select: { id: true },
+            },
+          },
+        }),
+        prisma.trainingAssignment.findMany({
+          where: { userId: instructorId },
+          select: { moduleId: true, status: true },
+        }),
+        prisma.instructorInterviewGate.findUnique({
+          where: { instructorId },
+          select: {
+            status: true,
+            outcome: true,
+          },
+        }),
+        prisma.instructorTeachingPermission.findMany({
+          where: { instructorId },
+          select: { level: true },
+        }),
+        prisma.instructorApproval.findMany({
+          where: { instructorId },
+          select: {
+            levels: { select: { level: true } },
+          },
+        }),
+        prisma.classOffering.findMany({
+          where: {
+            instructorId,
+            status: { in: ["PUBLISHED", "IN_PROGRESS", "COMPLETED"] },
+          },
+          select: {
+            id: true,
+            grandfatheredTrainingExemption: true,
+          },
+        }),
+      ]),
+    null
+  );
+
+  if (!readinessData) {
+    return buildFallbackInstructorReadiness(instructorId);
+  }
+
   const [
     requiredModules,
     assignments,
@@ -79,104 +171,59 @@ export async function getInstructorReadiness(instructorId: string): Promise<Inst
     teachingPermissions,
     approvals,
     offerings,
-  ] = await Promise.all([
-    prisma.trainingModule.findMany({
-      where: { required: true },
-      select: {
-        id: true,
-        title: true,
-        videoUrl: true,
-        videoProvider: true,
-        requiresQuiz: true,
-        requiresEvidence: true,
-        checkpoints: {
-          where: { required: true },
-          select: { id: true },
-        },
-        quizQuestions: {
-          select: { id: true },
-        },
-      },
-    }),
-    prisma.trainingAssignment.findMany({
-      where: { userId: instructorId },
-      select: { moduleId: true, status: true },
-    }),
-    prisma.instructorInterviewGate.findUnique({
-      where: { instructorId },
-      select: {
-        status: true,
-        outcome: true,
-      },
-    }),
-    prisma.instructorTeachingPermission.findMany({
-      where: { instructorId },
-      select: { level: true },
-    }),
-    prisma.instructorApproval.findMany({
-      where: { instructorId },
-      select: {
-        levels: { select: { level: true } },
-      },
-    }),
-    prisma.classOffering.findMany({
-      where: {
-        instructorId,
-        status: { in: ["PUBLISHED", "IN_PROGRESS", "COMPLETED"] },
-      },
-      select: {
-        id: true,
-        grandfatheredTrainingExemption: true,
-      },
-    }),
-  ]);
+  ] = readinessData;
 
   const moduleConfigIssueById = new Map<string, string>();
-  for (const module of requiredModules) {
-    const requiredCheckpointCount = module.checkpoints.length;
+  for (const trainingModule of requiredModules) {
+    const requiredCheckpointCount = trainingModule.checkpoints.length;
     const hasActionablePath =
-      Boolean(module.videoUrl) ||
+      Boolean(trainingModule.videoUrl) ||
       requiredCheckpointCount > 0 ||
-      module.requiresQuiz ||
-      module.requiresEvidence;
+      trainingModule.requiresQuiz ||
+      trainingModule.requiresEvidence;
 
     if (!hasActionablePath) {
       moduleConfigIssueById.set(
-        module.id,
+        trainingModule.id,
         "This required module is missing all requirement paths."
       );
       continue;
     }
 
-    if (module.requiresQuiz && module.quizQuestions.length === 0) {
+    if (
+      trainingModule.requiresQuiz &&
+      trainingModule.quizQuestions.length === 0
+    ) {
       moduleConfigIssueById.set(
-        module.id,
+        trainingModule.id,
         "This required module has quiz enabled but no quiz questions."
       );
       continue;
     }
 
-    if (module.videoUrl && !module.videoProvider) {
+    if (trainingModule.videoUrl && !trainingModule.videoProvider) {
       moduleConfigIssueById.set(
-        module.id,
+        trainingModule.id,
         "This required module has video URL but no video provider selected."
       );
       continue;
     }
 
     if (
-      module.videoUrl &&
-      module.videoProvider &&
-      !TRACKABLE_REQUIRED_VIDEO_PROVIDERS.has(module.videoProvider)
+      trainingModule.videoUrl &&
+      trainingModule.videoProvider &&
+      !TRACKABLE_REQUIRED_VIDEO_PROVIDERS.has(trainingModule.videoProvider)
     ) {
       moduleConfigIssueById.set(
-        module.id,
+        trainingModule.id,
         "This required module uses a non-trackable video provider."
       );
     }
   }
 
-  const requiredModuleIds = new Set(requiredModules.map((module) => module.id));
+  const requiredModuleIds = new Set(
+    requiredModules.map((trainingModule) => trainingModule.id)
+  );
   const completedRequiredModules = assignments.filter(
     (assignment) =>
       requiredModuleIds.has(assignment.moduleId) &&
@@ -291,12 +338,24 @@ export async function canTeachLevel(
     return Boolean(legacyApproval);
   }
 
-  const permission = await prisma.instructorTeachingPermission.findUnique({
-    where: {
-      instructorId_level: { instructorId, level },
-    },
-    select: { id: true },
-  });
+  let permission: { id: string } | null = null;
+  try {
+    permission = await prisma.instructorTeachingPermission.findUnique({
+      where: {
+        instructorId_level: { instructorId, level },
+      },
+      select: { id: true },
+    });
+  } catch (error) {
+    if (!isRecoverablePrismaError(error)) {
+      throw error;
+    }
+
+    console.error(
+      "[canTeachLevel] Teaching permission query unavailable; falling back to legacy approval check.",
+      error
+    );
+  }
   if (permission) return true;
 
   // Backward compatibility: honor legacy approval levels if explicit permissions have not been granted yet.

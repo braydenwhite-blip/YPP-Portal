@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { notFound, redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withPrismaFallback } from "@/lib/prisma-guard";
 import TrainingModuleClient from "./client";
 
 export default async function TrainingModulePage({
@@ -34,90 +35,125 @@ export default async function TrainingModulePage({
     !roles.includes("ADMIN") &&
     !roles.includes("CHAPTER_LEAD");
 
-  const module = await prisma.trainingModule.findUnique({
-    where: { id },
-    include: {
-      checkpoints: {
-        orderBy: { sortOrder: "asc" },
-      },
-      quizQuestions: {
-        orderBy: { sortOrder: "asc" },
-      },
-      videos: {
-        orderBy: { sortOrder: "asc" },
+  const trainingModule = await withPrismaFallback(
+    "training-module:module",
+    () =>
+      prisma.trainingModule.findUnique({
+        where: { id },
         include: {
-          segments: {
+          checkpoints: {
+            orderBy: { sortOrder: "asc" },
+          },
+          quizQuestions: {
+            orderBy: { sortOrder: "asc" },
+          },
+          videos: {
+            orderBy: { sortOrder: "asc" },
+            include: {
+              segments: {
+                orderBy: { sortOrder: "asc" },
+              },
+            },
+          },
+          resources: {
             orderBy: { sortOrder: "asc" },
           },
         },
-      },
-      resources: {
-        orderBy: { sortOrder: "asc" },
-      },
-    },
-  });
+      }),
+    null
+  );
 
-  if (!module) {
+  if (!trainingModule) {
     notFound();
   }
 
   const [assignment, videoProgress, checkpointCompletions, quizAttempts, evidenceSubmissions, nextModule] =
     await Promise.all([
-      prisma.trainingAssignment.findUnique({
-        where: {
-          userId_moduleId: {
-            userId: learnerId,
-            moduleId: module.id,
-          },
-        },
-      }),
-      prisma.videoProgress.findUnique({
-        where: {
-          userId_moduleId: {
-            userId: learnerId,
-            moduleId: module.id,
-          },
-        },
-      }),
-      prisma.trainingCheckpointCompletion.findMany({
-        where: {
-          userId: learnerId,
-          checkpoint: {
-            moduleId: module.id,
-          },
-        },
-        select: {
-          checkpointId: true,
-          completedAt: true,
-          notes: true,
-        },
-      }),
-      prisma.trainingQuizAttempt.findMany({
-        where: {
-          userId: learnerId,
-          moduleId: module.id,
-        },
-        orderBy: { attemptedAt: "desc" },
-        take: 5,
-      }),
-      prisma.trainingEvidenceSubmission.findMany({
-        where: {
-          userId: learnerId,
-          moduleId: module.id,
-        },
-        orderBy: { createdAt: "desc" },
-        take: 5,
-      }),
-      prisma.trainingModule.findFirst({
-        where: {
-          sortOrder: { gt: module.sortOrder },
-        },
-        orderBy: { sortOrder: "asc" },
-        select: {
-          id: true,
-          title: true,
-        },
-      }),
+      withPrismaFallback(
+        "training-module:assignment",
+        () =>
+          prisma.trainingAssignment.findUnique({
+            where: {
+              userId_moduleId: {
+                userId: learnerId,
+                moduleId: trainingModule.id,
+              },
+            },
+          }),
+        null
+      ),
+      withPrismaFallback(
+        "training-module:video-progress",
+        () =>
+          prisma.videoProgress.findUnique({
+            where: {
+              userId_moduleId: {
+                userId: learnerId,
+                moduleId: trainingModule.id,
+              },
+            },
+          }),
+        null
+      ),
+      withPrismaFallback(
+        "training-module:checkpoint-completions",
+        () =>
+          prisma.trainingCheckpointCompletion.findMany({
+            where: {
+              userId: learnerId,
+              checkpoint: {
+                moduleId: trainingModule.id,
+              },
+            },
+            select: {
+              checkpointId: true,
+              completedAt: true,
+              notes: true,
+            },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "training-module:quiz-attempts",
+        () =>
+          prisma.trainingQuizAttempt.findMany({
+            where: {
+              userId: learnerId,
+              moduleId: trainingModule.id,
+            },
+            orderBy: { attemptedAt: "desc" },
+            take: 5,
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "training-module:evidence-submissions",
+        () =>
+          prisma.trainingEvidenceSubmission.findMany({
+            where: {
+              userId: learnerId,
+              moduleId: trainingModule.id,
+            },
+            orderBy: { createdAt: "desc" },
+            take: 5,
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "training-module:next-module",
+        () =>
+          prisma.trainingModule.findFirst({
+            where: {
+              sortOrder: { gt: trainingModule.sortOrder },
+            },
+            orderBy: { sortOrder: "asc" },
+            select: {
+              id: true,
+              title: true,
+            },
+          }),
+        null
+      ),
     ]);
 
   const checkpointCompletionMap = new Map(
@@ -136,27 +172,32 @@ export default async function TrainingModulePage({
 
   let effectiveNextModule = nextModule;
   if (isStudentOnly) {
-    const nextAssigned = await prisma.trainingAssignment.findFirst({
-      where: {
-        userId: learnerId,
-        module: {
-          sortOrder: { gt: module.sortOrder },
-        },
-      },
-      orderBy: {
-        module: {
-          sortOrder: "asc",
-        },
-      },
-      select: {
-        module: {
-          select: {
-            id: true,
-            title: true,
+    const nextAssigned = await withPrismaFallback(
+      "training-module:next-assigned-module",
+      () =>
+        prisma.trainingAssignment.findFirst({
+          where: {
+            userId: learnerId,
+            module: {
+              sortOrder: { gt: trainingModule.sortOrder },
+            },
           },
-        },
-      },
-    });
+          orderBy: {
+            module: {
+              sortOrder: "asc",
+            },
+          },
+          select: {
+            module: {
+              select: {
+                id: true,
+                title: true,
+              },
+            },
+          },
+        }),
+      null
+    );
 
     effectiveNextModule = nextAssigned?.module ?? null;
   }
@@ -164,7 +205,7 @@ export default async function TrainingModulePage({
   const academyHref = isStudentOnly ? "/student-training" : "/instructor-training";
   const academyLabel = isStudentOnly ? "Back to student academy" : "Back to academy";
 
-  const normalizedQuizQuestions = module.quizQuestions.map((question) => {
+  const normalizedQuizQuestions = trainingModule.quizQuestions.map((question) => {
     let options: string[] = [];
 
     if (Array.isArray(question.options)) {
@@ -188,19 +229,19 @@ export default async function TrainingModulePage({
   return (
     <TrainingModuleClient
       module={{
-        id: module.id,
-        title: module.title,
-        description: module.description,
-        type: module.type,
-        required: module.required,
-        videoUrl: module.videoUrl,
-        videoProvider: module.videoProvider,
-        videoDuration: module.videoDuration,
-        videoThumbnail: module.videoThumbnail,
-        requiresQuiz: module.requiresQuiz,
-        requiresEvidence: module.requiresEvidence,
-        passScorePct: module.passScorePct,
-        checkpoints: module.checkpoints.map((checkpoint) => ({
+        id: trainingModule.id,
+        title: trainingModule.title,
+        description: trainingModule.description,
+        type: trainingModule.type,
+        required: trainingModule.required,
+        videoUrl: trainingModule.videoUrl,
+        videoProvider: trainingModule.videoProvider,
+        videoDuration: trainingModule.videoDuration,
+        videoThumbnail: trainingModule.videoThumbnail,
+        requiresQuiz: trainingModule.requiresQuiz,
+        requiresEvidence: trainingModule.requiresEvidence,
+        passScorePct: trainingModule.passScorePct,
+        checkpoints: trainingModule.checkpoints.map((checkpoint) => ({
           id: checkpoint.id,
           title: checkpoint.title,
           description: checkpoint.description,
@@ -211,33 +252,33 @@ export default async function TrainingModulePage({
           notes: checkpointCompletionMap.get(checkpoint.id)?.notes ?? null,
         })),
         quizQuestions: normalizedQuizQuestions,
-      videos: module.videos.map((v) => ({
-        id: v.id,
-        title: v.title,
-        description: v.description,
-        videoUrl: v.videoUrl,
-        videoProvider: v.videoProvider,
-        videoDuration: v.videoDuration,
-        sortOrder: v.sortOrder,
-        isSupplementary: v.isSupplementary,
-        segments: v.segments.map((s) => ({
-          id: s.id,
-          title: s.title,
-          startTime: s.startTime,
-          endTime: s.endTime,
-          sortOrder: s.sortOrder,
+        videos: trainingModule.videos.map((video) => ({
+          id: video.id,
+          title: video.title,
+          description: video.description,
+          videoUrl: video.videoUrl,
+          videoProvider: video.videoProvider,
+          videoDuration: video.videoDuration,
+          sortOrder: video.sortOrder,
+          isSupplementary: video.isSupplementary,
+          segments: video.segments.map((segment) => ({
+            id: segment.id,
+            title: segment.title,
+            startTime: segment.startTime,
+            endTime: segment.endTime,
+            sortOrder: segment.sortOrder,
+          })),
         })),
-      })),
-      resources: module.resources.map((r) => ({
-        id: r.id,
-        title: r.title,
-        description: r.description,
-        resourceUrl: r.resourceUrl,
-        resourceType: r.resourceType,
-        sortOrder: r.sortOrder,
-        downloads: r.downloads,
-      })),
-      estimatedMinutes: module.estimatedMinutes,
+        resources: trainingModule.resources.map((resource) => ({
+          id: resource.id,
+          title: resource.title,
+          description: resource.description,
+          resourceUrl: resource.resourceUrl,
+          resourceType: resource.resourceType,
+          sortOrder: resource.sortOrder,
+          downloads: resource.downloads,
+        })),
+        estimatedMinutes: trainingModule.estimatedMinutes,
       }}
       assignment={
         assignment

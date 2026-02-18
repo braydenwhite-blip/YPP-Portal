@@ -8,7 +8,11 @@ import {
   confirmPostedInterviewSlot,
   submitInterviewAvailabilityRequest,
 } from "@/lib/instructor-interview-actions";
-import { getInstructorReadiness } from "@/lib/instructor-readiness";
+import {
+  buildFallbackInstructorReadiness,
+  getInstructorReadiness,
+} from "@/lib/instructor-readiness";
+import { withPrismaFallback } from "@/lib/prisma-guard";
 import {
   requestReadinessReview,
   setTrainingCheckpointCompletion,
@@ -47,6 +51,38 @@ export default async function InstructorTrainingPage() {
     : "/chapter-lead/instructor-readiness";
 
   const instructorId = session.user.id;
+  const loadInterviewGate = () =>
+    prisma.instructorInterviewGate.upsert({
+      where: { instructorId },
+      create: { instructorId, status: "REQUIRED" },
+      update: {},
+      include: {
+        slots: {
+          orderBy: { scheduledAt: "asc" },
+        },
+        availabilityRequests: {
+          orderBy: { createdAt: "desc" },
+        },
+      },
+    });
+
+  type InterviewGateWithDetails = Awaited<ReturnType<typeof loadInterviewGate>>;
+
+  const fallbackInterviewGate: InterviewGateWithDetails = {
+    id: "fallback-interview-gate",
+    instructorId,
+    status: "REQUIRED",
+    outcome: null,
+    scheduledAt: null,
+    completedAt: null,
+    reviewedById: null,
+    reviewedAt: null,
+    reviewNotes: null,
+    createdAt: new Date(0),
+    updatedAt: new Date(0),
+    slots: [],
+    availabilityRequests: [],
+  };
 
   const [
     modules,
@@ -60,91 +96,127 @@ export default async function InstructorTrainingPage() {
     readiness,
     trainingCertificate,
   ] = await Promise.all([
-    prisma.trainingModule.findMany({
-      orderBy: { sortOrder: "asc" },
-      include: {
-        checkpoints: {
-          where: { required: true },
+    withPrismaFallback(
+      "instructor-training:modules",
+      () =>
+        prisma.trainingModule.findMany({
           orderBy: { sortOrder: "asc" },
-          select: { id: true, title: true, sortOrder: true },
-        },
-        quizQuestions: {
-          select: { id: true },
-        },
-      },
-    }),
-    prisma.trainingAssignment.findMany({
-      where: { userId: instructorId },
-    }),
-    prisma.videoProgress.findMany({
-      where: { userId: instructorId },
-      select: {
-        moduleId: true,
-        watchedSeconds: true,
-        completed: true,
-      },
-    }),
-    prisma.trainingCheckpointCompletion.findMany({
-      where: { userId: instructorId },
-      select: { checkpointId: true, completedAt: true, notes: true },
-    }),
-    prisma.trainingQuizAttempt.findMany({
-      where: { userId: instructorId },
-      orderBy: { attemptedAt: "desc" },
-      select: {
-        moduleId: true,
-        passed: true,
-        scorePct: true,
-        attemptedAt: true,
-      },
-    }),
-    prisma.trainingEvidenceSubmission.findMany({
-      where: { userId: instructorId },
-      orderBy: { createdAt: "desc" },
-      select: {
-        moduleId: true,
-        status: true,
-        createdAt: true,
-        reviewNotes: true,
-      },
-    }),
-    prisma.readinessReviewRequest.findMany({
-      where: { instructorId },
-      orderBy: { requestedAt: "desc" },
-      take: 3,
-      select: {
-        id: true,
-        status: true,
-        notes: true,
-        requestedAt: true,
-        reviewNotes: true,
-      },
-    }),
-    prisma.instructorInterviewGate.upsert({
-      where: { instructorId },
-      create: { instructorId, status: "REQUIRED" },
-      update: {},
-      include: {
-        slots: {
-          orderBy: { scheduledAt: "asc" },
-        },
-        availabilityRequests: {
+          include: {
+            checkpoints: {
+              where: { required: true },
+              orderBy: { sortOrder: "asc" },
+              select: { id: true, title: true, sortOrder: true },
+            },
+            quizQuestions: {
+              select: { id: true },
+            },
+          },
+        }),
+      []
+    ),
+    withPrismaFallback(
+      "instructor-training:assignments",
+      () =>
+        prisma.trainingAssignment.findMany({
+          where: { userId: instructorId },
+        }),
+      []
+    ),
+    withPrismaFallback(
+      "instructor-training:video-progress",
+      () =>
+        prisma.videoProgress.findMany({
+          where: { userId: instructorId },
+          select: {
+            moduleId: true,
+            watchedSeconds: true,
+            completed: true,
+          },
+        }),
+      []
+    ),
+    withPrismaFallback(
+      "instructor-training:checkpoint-completions",
+      () =>
+        prisma.trainingCheckpointCompletion.findMany({
+          where: { userId: instructorId },
+          select: { checkpointId: true, completedAt: true, notes: true },
+        }),
+      []
+    ),
+    withPrismaFallback(
+      "instructor-training:quiz-attempts",
+      () =>
+        prisma.trainingQuizAttempt.findMany({
+          where: { userId: instructorId },
+          orderBy: { attemptedAt: "desc" },
+          select: {
+            moduleId: true,
+            passed: true,
+            scorePct: true,
+            attemptedAt: true,
+          },
+        }),
+      []
+    ),
+    withPrismaFallback(
+      "instructor-training:evidence-submissions",
+      () =>
+        prisma.trainingEvidenceSubmission.findMany({
+          where: { userId: instructorId },
           orderBy: { createdAt: "desc" },
-        },
-      },
-    }),
-    getInstructorReadiness(instructorId),
-    prisma.certificate.findFirst({
-      where: {
-        recipientId: instructorId,
-        template: { type: "TRAINING_COMPLETION" },
-      },
-      select: {
-        id: true,
-        certificateNumber: true,
-        issuedAt: true,
-      },
-    }),
+          select: {
+            moduleId: true,
+            status: true,
+            createdAt: true,
+            reviewNotes: true,
+          },
+        }),
+      []
+    ),
+    withPrismaFallback(
+      "instructor-training:review-requests",
+      () =>
+        prisma.readinessReviewRequest.findMany({
+          where: { instructorId },
+          orderBy: { requestedAt: "desc" },
+          take: 3,
+          select: {
+            id: true,
+            status: true,
+            notes: true,
+            requestedAt: true,
+            reviewNotes: true,
+          },
+        }),
+      []
+    ),
+    withPrismaFallback(
+      "instructor-training:interview-gate",
+      () => loadInterviewGate(),
+      fallbackInterviewGate
+    ),
+    withPrismaFallback(
+      "instructor-training:readiness",
+      () => getInstructorReadiness(instructorId),
+      buildFallbackInstructorReadiness(instructorId)
+    ),
+    withPrismaFallback(
+      "instructor-training:certificate",
+      () =>
+        prisma.certificate.findFirst({
+          where: {
+            recipientId: instructorId,
+            template: { type: "TRAINING_COMPLETION" },
+          },
+          select: {
+            id: true,
+            certificateNumber: true,
+            issuedAt: true,
+          },
+        }),
+      null
+    ),
   ]);
 
   const assignmentByModule = new Map(assignments.map((assignment) => [assignment.moduleId, assignment]));

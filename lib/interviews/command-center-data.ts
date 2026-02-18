@@ -13,6 +13,7 @@ import type {
   InterviewView,
 } from "@/lib/interviews/types";
 import type { Prisma } from "@prisma/client";
+import { withPrismaFallback } from "@/lib/prisma-guard";
 
 const FINAL_APPLICATION_STATUSES = ["ACCEPTED", "REJECTED", "WITHDRAWN"] as const;
 
@@ -247,29 +248,34 @@ export async function getInterviewCommandCenterData(
 
   if (includeReadiness && canReadiness) {
     if (filters.view === "mine" && isInstructor) {
-      const gate = await prisma.instructorInterviewGate.findUnique({
-        where: { instructorId: input.userId },
-        include: {
-          slots: {
-            orderBy: { scheduledAt: "asc" },
-          },
-          availabilityRequests: {
-            where: { status: "PENDING" },
-            orderBy: { createdAt: "desc" },
-          },
-          instructor: {
-            select: {
-              id: true,
-              name: true,
-              chapter: {
+      const gate = await withPrismaFallback(
+        "interviews:mine-readiness-gate",
+        () =>
+          prisma.instructorInterviewGate.findUnique({
+            where: { instructorId: input.userId },
+            include: {
+              slots: {
+                orderBy: { scheduledAt: "asc" },
+              },
+              availabilityRequests: {
+                where: { status: "PENDING" },
+                orderBy: { createdAt: "desc" },
+              },
+              instructor: {
                 select: {
+                  id: true,
                   name: true,
+                  chapter: {
+                    select: {
+                      name: true,
+                    },
+                  },
                 },
               },
             },
-          },
-        },
-      });
+          }),
+        null
+      );
 
       if (gate) {
         tasks.push(
@@ -314,36 +320,41 @@ export async function getInterviewCommandCenterData(
         }
       }
     } else if (filters.view === "team" && isReviewer) {
-      const gates = await prisma.instructorInterviewGate.findMany({
-        where: isAdmin
-          ? undefined
-          : {
+      const gates = await withPrismaFallback(
+        "interviews:team-readiness-gates",
+        () =>
+          prisma.instructorInterviewGate.findMany({
+            where: isAdmin
+              ? undefined
+              : {
+                  instructor: {
+                    chapterId: user.chapterId ?? "__no_chapter__",
+                  },
+                },
+            include: {
               instructor: {
-                chapterId: user.chapterId ?? "__no_chapter__",
-              },
-            },
-        include: {
-          instructor: {
-            select: {
-              id: true,
-              name: true,
-              chapter: {
                 select: {
+                  id: true,
                   name: true,
+                  chapter: {
+                    select: {
+                      name: true,
+                    },
+                  },
                 },
               },
+              slots: {
+                orderBy: { scheduledAt: "asc" },
+              },
+              availabilityRequests: {
+                where: { status: "PENDING" },
+                orderBy: { createdAt: "desc" },
+              },
             },
-          },
-          slots: {
-            orderBy: { scheduledAt: "asc" },
-          },
-          availabilityRequests: {
-            where: { status: "PENDING" },
-            orderBy: { createdAt: "desc" },
-          },
-        },
-        orderBy: { updatedAt: "desc" },
-      });
+            orderBy: { updatedAt: "desc" },
+          }),
+        []
+      );
 
       for (const gate of gates) {
         tasks.push(

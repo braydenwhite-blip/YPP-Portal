@@ -12,6 +12,7 @@ import type {
 } from "@/lib/dashboard/types";
 import { getNextRequiredAction, isInterviewGateEnforced } from "@/lib/instructor-readiness";
 import { getRecommendedActivitiesForUser } from "@/lib/activity-hub/actions";
+import { withPrismaFallback } from "@/lib/prisma-guard";
 
 const FINAL_APPLICATION_STATUSES = ["ACCEPTED", "REJECTED", "WITHDRAWN"] as const;
 
@@ -133,16 +134,26 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
           status: { notIn: [...FINAL_APPLICATION_STATUSES] },
         },
       }),
-      prisma.trainingEvidenceSubmission.count({
-        where: {
-          status: { in: ["PENDING_REVIEW", "REVISION_REQUESTED"] },
-        },
-      }),
-      prisma.readinessReviewRequest.count({
-        where: {
-          status: { in: ["REQUESTED", "UNDER_REVIEW", "REVISION_REQUESTED"] },
-        },
-      }),
+      withPrismaFallback(
+        "dashboard:admin:training-evidence-queue",
+        () =>
+          prisma.trainingEvidenceSubmission.count({
+            where: {
+              status: { in: ["PENDING_REVIEW", "REVISION_REQUESTED"] },
+            },
+          }),
+        0
+      ),
+      withPrismaFallback(
+        "dashboard:admin:readiness-review-queue",
+        () =>
+          prisma.readinessReviewRequest.count({
+            where: {
+              status: { in: ["REQUESTED", "UNDER_REVIEW", "REVISION_REQUESTED"] },
+            },
+          }),
+        0
+      ),
       prisma.waitlistEntry.count({ where: { status: "WAITING" } }),
       prisma.application.count({
         where: {
@@ -351,26 +362,39 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
             interviewNotes: { select: { recommendation: true } },
           },
         }),
-        prisma.trainingModule.findMany({ where: { required: true }, select: { id: true } }),
-        prisma.user.findMany({
-          where: {
-            chapterId,
-            roles: { some: { role: "INSTRUCTOR" } },
-          },
-          select: {
-            id: true,
-            trainings: {
-              where: { module: { required: true } },
-              select: {
-                moduleId: true,
-                status: true,
+        withPrismaFallback(
+          "dashboard:chapter:required-modules",
+          () =>
+            prisma.trainingModule.findMany({
+              where: { required: true },
+              select: { id: true },
+            }),
+          []
+        ),
+        withPrismaFallback(
+          "dashboard:chapter:instructors",
+          () =>
+            prisma.user.findMany({
+              where: {
+                chapterId,
+                roles: { some: { role: "INSTRUCTOR" } },
               },
-            },
-            interviewGate: {
-              select: { status: true },
-            },
-          },
-        }),
+              select: {
+                id: true,
+                trainings: {
+                  where: { module: { required: true } },
+                  select: {
+                    moduleId: true,
+                    status: true,
+                  },
+                },
+                interviewGate: {
+                  select: { status: true },
+                },
+              },
+            }),
+          []
+        ),
       ]);
 
       const decisionReadyCount = unresolvedApplications.filter((application) => {
@@ -472,21 +496,39 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     }
   } else if (role === "INSTRUCTOR") {
     const [requiredModules, assignments, interviewGate, courses] = await Promise.all([
-      prisma.trainingModule.findMany({ where: { required: true }, select: { id: true } }),
-      prisma.trainingAssignment.findMany({
-        where: {
-          userId,
-          module: { required: true },
-        },
-        select: {
-          moduleId: true,
-          status: true,
-        },
-      }),
-      prisma.instructorInterviewGate.findUnique({
-        where: { instructorId: userId },
-        select: { status: true },
-      }),
+      withPrismaFallback(
+        "dashboard:instructor:required-modules",
+        () =>
+          prisma.trainingModule.findMany({
+            where: { required: true },
+            select: { id: true },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "dashboard:instructor:assignments",
+        () =>
+          prisma.trainingAssignment.findMany({
+            where: {
+              userId,
+              module: { required: true },
+            },
+            select: {
+              moduleId: true,
+              status: true,
+            },
+          }),
+        []
+      ),
+      withPrismaFallback(
+        "dashboard:instructor:interview-gate",
+        () =>
+          prisma.instructorInterviewGate.findUnique({
+            where: { instructorId: userId },
+            select: { status: true },
+          }),
+        null
+      ),
       prisma.course.findMany({
         where: { leadInstructorId: userId },
         select: {
@@ -519,7 +561,15 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
 
     const classCount = courses.length;
     const learnerCount = courses.reduce((sum, course) => sum + course._count.enrollments, 0);
-    const urgentAction = await getNextRequiredAction(userId);
+    const urgentAction = await withPrismaFallback(
+      "dashboard:instructor:next-required-action",
+      () => getNextRequiredAction(userId),
+      {
+        title: "Open Instructor Training",
+        detail: "Review your training readiness status.",
+        href: "/instructor-training",
+      }
+    );
 
     heroTitle = "Instructor Command Center";
     heroSubtitle = "Keep classes moving while clearing readiness blockers quickly.";
