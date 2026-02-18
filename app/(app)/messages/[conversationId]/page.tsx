@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getConversation, sendMessage } from "@/lib/messaging-actions";
+import { MessageSubscriber } from "@/components/message-subscriber";
 
 function formatMessageTime(date: Date): string {
   return new Date(date).toLocaleString("en-US", {
@@ -45,6 +46,9 @@ export default async function ConversationPage({
 
   return (
     <div className="main-content">
+      {/* Real-time message subscription */}
+      <MessageSubscriber conversationId={conversationId} userId={currentUserId} />
+
       {/* Header */}
       <div className="page-header">
         <Link

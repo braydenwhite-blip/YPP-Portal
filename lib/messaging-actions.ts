@@ -5,6 +5,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { requireCanMessage } from "@/lib/authorization-helpers";
+import { getPusherServer, isPusherConfigured } from "@/lib/pusher";
+import { createSystemNotification } from "@/lib/notification-actions";
+import { NotificationType } from "@prisma/client";
 
 // ============================================
 // HELPERS
@@ -495,6 +498,73 @@ export async function sendMessage(formData: FormData) {
 
     return msg;
   });
+
+  // Trigger real-time event if Pusher is configured
+  if (isPusherConfigured()) {
+    const pusher = getPusherServer();
+    if (pusher) {
+      try {
+        await pusher.trigger(
+          `conversation-${conversationId}`,
+          'new-message',
+          {
+            messageId: message.id,
+            senderId: message.senderId,
+            senderName: session.user.name,
+            content: message.content,
+            createdAt: message.createdAt
+          }
+        );
+
+        // Notify all participants (except sender)
+        const participants = await prisma.conversationParticipant.findMany({
+          where: { conversationId },
+          include: { user: { select: { id: true, name: true } } }
+        });
+
+        for (const participant of participants) {
+          if (participant.userId !== userId) {
+            await pusher.trigger(
+              `user-${participant.userId}`,
+              'notification',
+              {
+                type: 'MESSAGE',
+                conversationId,
+                senderName: session.user.name
+              }
+            );
+          }
+        }
+      } catch (error) {
+        console.error('[Pusher] Failed to trigger event:', error);
+        // Don't fail the message send if Pusher fails
+      }
+    }
+  }
+
+  // Create system notifications for all participants (except sender)
+  try {
+    const participants = await prisma.conversationParticipant.findMany({
+      where: { conversationId },
+      select: { userId: true }
+    });
+
+    for (const participant of participants) {
+      if (participant.userId !== userId) {
+        await createSystemNotification(
+          participant.userId,
+          NotificationType.MESSAGE,
+          `New Message from ${session.user.name}`,
+          message.content.substring(0, 100),
+          `/messages/${conversationId}`,
+          false // Don't send email for every message
+        );
+      }
+    }
+  } catch (error) {
+    console.error('[Notifications] Failed to create notification:', error);
+    // Don't fail the message send if notifications fail
+  }
 
   revalidatePath("/messages");
   return message;
