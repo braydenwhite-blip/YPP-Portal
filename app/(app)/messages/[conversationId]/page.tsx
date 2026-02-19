@@ -3,7 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getConversation, sendMessage } from "@/lib/messaging-actions";
-import { MessageSubscriber } from "@/components/message-subscriber";
+import { MessageSubscriber, TypingIndicator } from "@/components/message-subscriber";
 
 function formatMessageTime(date: Date): string {
   return new Date(date).toLocaleString("en-US", {
@@ -154,6 +154,9 @@ export default async function ConversationPage({
           })
         )}
       </div>
+
+      {/* Typing Indicator */}
+      <TypingIndicator conversationId={conversationId} userId={currentUserId} />
 
       {/* Reply Form */}
       <div className="card">
