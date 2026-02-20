@@ -683,7 +683,6 @@ model TrainingModule {
   videos              TrainingVideo[]
   resources           TrainingResource[]
   discussions         ModuleDiscussion[]
-  transcript          String?
   estimatedMinutes    Int?
 
   assignments         TrainingAssignment[]
