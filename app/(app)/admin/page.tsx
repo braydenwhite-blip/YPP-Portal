@@ -10,7 +10,6 @@ import {
   createMentorship,
   createPathway,
   createTrainingModule,
-  createUser,
   updateEnrollmentStatus
 } from "@/lib/admin-actions";
 import {
@@ -21,6 +20,7 @@ import {
   RoleType,
   TrainingModuleType
 } from "@prisma/client";
+import { CreateUserForm } from "@/components/create-user-form";
 
 export default async function AdminPage() {
   const session = await getServerSession(authOptions);
@@ -132,59 +132,7 @@ export default async function AdminPage() {
       <div className="grid two" style={{ marginTop: 24 }}>
         <div className="card">
           <h3>Create User</h3>
-          <form action={createUser} className="form-grid">
-            <label className="form-row">
-              Name
-              <input className="input" name="name" required />
-            </label>
-            <label className="form-row">
-              Email
-              <input className="input" name="email" type="email" required />
-            </label>
-            <label className="form-row">
-              Phone
-              <input className="input" name="phone" />
-            </label>
-            <label className="form-row">
-              Password
-              <input className="input" name="password" type="password" required />
-            </label>
-            <label className="form-row">
-              Primary Role
-              <select className="input" name="primaryRole" defaultValue={RoleType.STUDENT}>
-                {Object.values(RoleType).map((role) => (
-                  <option key={role} value={role}>
-                    {role}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="form-row">
-              Chapter
-              <select className="input" name="chapterId" defaultValue="">
-                <option value="">No chapter</option>
-                {chapters.map((chapter) => (
-                  <option key={chapter.id} value={chapter.id}>
-                    {chapter.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="form-row">
-              Additional Roles
-              <div className="checkbox-grid">
-                {Object.values(RoleType).map((role) => (
-                  <label key={role} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
-                    <input type="checkbox" name="roles" value={role} />
-                    {role}
-                  </label>
-                ))}
-              </div>
-            </div>
-            <button className="button" type="submit">
-              Create User
-            </button>
-          </form>
+          <CreateUserForm chapters={chapters} />
         </div>
 
         <div className="card">
