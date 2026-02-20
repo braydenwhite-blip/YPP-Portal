@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { requireCanMessage } from "@/lib/authorization-helpers";
-import { getPusherServer, isPusherConfigured } from "@/lib/pusher";
+import { getPusherServer, isPusherConfigured } from "@/lib/pusher-server";
 import { createSystemNotification } from "@/lib/notification-actions";
 import { NotificationType } from "@prisma/client";
 
