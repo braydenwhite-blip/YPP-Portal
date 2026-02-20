@@ -29,7 +29,7 @@ const nextConfig = {
               "img-src 'self' data: blob: https:",
               "font-src 'self' data: blob:",
               "frame-src 'self' https://www.youtube.com https://player.vimeo.com https://www.loom.com",
-              "connect-src 'self' blob: data:",
+              "connect-src 'self' blob: data: https://*.pusher.com wss://*.pusher.com https://*.pusherapp.com wss://*.pusherapp.com",
               "worker-src 'self' blob:",
             ].join("; "),
           },
