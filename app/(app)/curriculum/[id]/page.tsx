@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getClassOfferingDetail } from "@/lib/class-management-actions";
+import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { ClassDetailClient } from "./client";
 
@@ -49,7 +50,13 @@ export default async function ClassDetailPage({
   if (!session?.user?.id) redirect("/login");
 
   const { id } = await params;
-  const offering = await getClassOfferingDetail(id);
+  const [offering, relatedPathways] = await Promise.all([
+    getClassOfferingDetail(id),
+    prisma.pathway.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, interestArea: true },
+    }),
+  ]);
 
   if (!offering) {
     return (
@@ -134,6 +141,24 @@ export default async function ClassDetailPage({
               <span className="pill">{offering.deliveryMode.replace("_", " ")}</span>
               <span className="pill">{offering.status.replace("_", " ")}</span>
               {offering.semester && <span className="pill">{offering.semester}</span>}
+              {relatedPathways
+                .filter((pw) => pw.interestArea.toLowerCase() === offering.template.interestArea.toLowerCase())
+                .map((pw) => (
+                  <Link
+                    key={pw.id}
+                    href={`/pathways/${pw.id}`}
+                    className="pill"
+                    style={{
+                      background: "var(--ypp-purple-100, #ede9fe)",
+                      color: "var(--ypp-purple, #7c3aed)",
+                      fontWeight: 600,
+                      textDecoration: "none",
+                      fontSize: 11,
+                    }}
+                  >
+                    {pw.name} Pathway →
+                  </Link>
+                ))}
             </div>
 
             <div style={{ fontSize: 14, color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: 4 }}>
