@@ -226,6 +226,10 @@ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
+-- Add cohortId column to TrainingAssignment before the FK that references it
+ALTER TABLE "TrainingAssignment"
+  ADD COLUMN IF NOT EXISTS "cohortId" TEXT;
+
 DO $$
 BEGIN
   ALTER TABLE "TrainingAssignment"
@@ -298,6 +302,3 @@ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
--- Add cohortId column to TrainingAssignment if not present
-ALTER TABLE "TrainingAssignment"
-  ADD COLUMN IF NOT EXISTS "cohortId" TEXT;
