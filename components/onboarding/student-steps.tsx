@@ -17,6 +17,8 @@ interface StudentStepsProps {
   } | null;
   pathways: PathwayOption[];
   selectedPathwayIds: Set<string>;
+  quizAnswers: Set<string>;
+  onQuizAnswerToggle: (answer: string) => void;
   onPathwaySelect: (id: string) => void;
   onPathwayContinue: () => void;
   onNext: () => void;
@@ -26,6 +28,62 @@ interface StudentStepsProps {
   isPending: boolean;
 }
 
+const INTEREST_QUIZ_QUESTIONS = [
+  {
+    id: "topic",
+    question: "Which topics excite you most?",
+    options: [
+      { label: "Science & Health", value: "science" },
+      { label: "Technology & Engineering", value: "tech" },
+      { label: "Arts & Creativity", value: "arts" },
+      { label: "Social Sciences & People", value: "social" },
+    ],
+  },
+  {
+    id: "style",
+    question: "How do you like to learn?",
+    options: [
+      { label: "Hands-on projects", value: "hands_on" },
+      { label: "Research & reading", value: "research" },
+      { label: "Group collaboration", value: "group" },
+      { label: "Independent exploration", value: "independent" },
+    ],
+  },
+  {
+    id: "goal",
+    question: "What's your main goal?",
+    options: [
+      { label: "College preparation", value: "college" },
+      { label: "Career exploration", value: "career" },
+      { label: "Building skills for fun", value: "fun" },
+      { label: "Helping my community", value: "community" },
+    ],
+  },
+];
+
+// Simple keyword match to suggest a pathway based on quiz answers
+function getRecommendedPathwayIds(pathways: PathwayOption[], quizAnswers: Set<string>): Set<string> {
+  if (quizAnswers.size === 0) return new Set();
+  const recommended = new Set<string>();
+  for (const pathway of pathways) {
+    const area = pathway.interestArea.toLowerCase();
+    const desc = pathway.description.toLowerCase();
+    if (
+      (quizAnswers.has("science") && (area.includes("psych") || area.includes("bio") || area.includes("health") || area.includes("physio") || desc.includes("science"))) ||
+      (quizAnswers.has("tech") && (area.includes("tech") || area.includes("eng") || area.includes("code") || area.includes("computer"))) ||
+      (quizAnswers.has("arts") && (area.includes("art") || area.includes("music") || area.includes("design") || area.includes("creative"))) ||
+      (quizAnswers.has("social") && (area.includes("social") || area.includes("psych") || area.includes("comm") || area.includes("history")))
+    ) {
+      recommended.add(pathway.id);
+    }
+  }
+  // If nothing matched, show top 1 pathway as suggestion
+  if (recommended.size === 0 && pathways.length > 0 && quizAnswers.size >= 2) {
+    recommended.add(pathways[0].id);
+  }
+  return recommended;
+}
+
 export default function StudentSteps({
   currentStep,
   userName,
@@ -33,6 +91,8 @@ export default function StudentSteps({
   profileData,
   pathways,
   selectedPathwayIds,
+  quizAnswers,
+  onQuizAnswerToggle,
   onPathwaySelect,
   onPathwayContinue,
   onNext,
@@ -41,6 +101,7 @@ export default function StudentSteps({
   onSkip,
   isPending,
 }: StudentStepsProps) {
+  const recommendedPathwayIds = getRecommendedPathwayIds(pathways, quizAnswers);
   const formRef = useRef<HTMLFormElement>(null);
   const firstName = userName.split(" ")[0];
 
@@ -102,8 +163,13 @@ export default function StudentSteps({
     );
   }
 
-  // Step 1: Choose Your Pathway
+  // Step 1: Interest Quiz → Choose Your Pathway
   if (currentStep === 1) {
+    const showQuiz = quizAnswers.size < 3; // Show quiz until user answers at least one question per category
+    const quizDone = INTEREST_QUIZ_QUESTIONS.every((q) =>
+      q.options.some((o) => quizAnswers.has(o.value))
+    );
+
     return (
       <div className="onboarding-step">
         <div className="onboarding-icon-large">
@@ -112,72 +178,138 @@ export default function StudentSteps({
             <polygon points="10 8 16 12 10 16 10 8" />
           </svg>
         </div>
-        <h1 className="onboarding-title">Choose Your Pathway</h1>
-        <p className="onboarding-subtitle">
-          Pick one or more pathways that match your interests. Each pathway takes you from
-          foundations (101) through mastery (301) and beyond.
-        </p>
 
-        {pathways.length === 0 ? (
-          <div className="onboarding-callout">
-            No pathways available yet. Your chapter admin will add pathways soon.
-            You can skip this step and choose later from the Pathways page.
-          </div>
+        {!quizDone ? (
+          <>
+            <h1 className="onboarding-title">Let&apos;s Find Your Path</h1>
+            <p className="onboarding-subtitle">
+              Answer a few quick questions so we can recommend the best pathway for you.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 24, marginBottom: 24 }}>
+              {INTEREST_QUIZ_QUESTIONS.map((q) => (
+                <div key={q.id}>
+                  <p style={{ fontWeight: 600, marginBottom: 10 }}>{q.question}</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    {q.options.map((opt) => {
+                      const isSelected = quizAnswers.has(opt.value);
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => onQuizAnswerToggle(opt.value)}
+                          style={{
+                            padding: "10px 14px",
+                            borderRadius: 10,
+                            border: `2px solid ${isSelected ? "var(--ypp-purple)" : "var(--gray-200, #e2e8f0)"}`,
+                            background: isSelected ? "var(--purple-50, #faf5ff)" : "white",
+                            color: isSelected ? "var(--ypp-purple)" : "var(--gray-700, #374151)",
+                            fontWeight: isSelected ? 600 : 400,
+                            cursor: "pointer",
+                            textAlign: "left",
+                            fontSize: 14,
+                          }}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="onboarding-actions">
+              <button
+                className="button"
+                onClick={() => {
+                  // Force advance to pathway selection even if quiz incomplete
+                  // by triggering a dummy answer if nothing selected
+                  if (quizAnswers.size === 0) onQuizAnswerToggle("fun");
+                }}
+                disabled={isPending}
+              >
+                {quizAnswers.size > 0 ? "See My Recommendations" : "Skip Quiz"}
+              </button>
+              <button type="button" className="button outline small" onClick={onBack} disabled={isPending}>
+                Back
+              </button>
+            </div>
+          </>
         ) : (
-          <div className="pathway-selection-grid">
-            {pathways.map((pathway) => {
-              const isSelected = selectedPathwayIds.has(pathway.id);
-              return (
-                <button
-                  key={pathway.id}
-                  type="button"
-                  className={`pathway-selection-card ${isSelected ? "selected" : ""}`}
-                  onClick={() => onPathwaySelect(pathway.id)}
-                >
-                  <div className="pathway-selection-header">
-                    <div className="pathway-selection-check">
-                      {isSelected ? (
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--ypp-purple)" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="4" /><polyline points="17 8 10 16 7 13" /></svg>
-                      ) : (
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="4" /></svg>
-                      )}
-                    </div>
-                    <div>
-                      <h3 className="pathway-selection-name">{pathway.name}</h3>
-                      <span className="pathway-selection-area">{pathway.interestArea}</span>
-                    </div>
-                  </div>
-                  <p className="pathway-selection-desc">{pathway.description}</p>
-                  <div className="pathway-selection-steps">
-                    {pathway.steps.map((step, idx) => (
-                      <span key={step.id} className="pathway-step-pill">
-                        {idx > 0 && <span className="pathway-step-arrow">&rarr;</span>}
-                        {step.courseLevel
-                          ? step.courseLevel.replace("LEVEL_", "")
-                          : step.courseFormat.replace("_", " ")}
-                      </span>
-                    ))}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
+          <>
+            <h1 className="onboarding-title">Choose Your Pathway</h1>
+            <p className="onboarding-subtitle">
+              {recommendedPathwayIds.size > 0
+                ? "Based on your interests, we highlighted pathways that fit you best. Pick one or more to get started."
+                : "Pick one or more pathways that match your interests. Each pathway takes you from foundations (101) through mastery (301) and beyond."}
+            </p>
 
-        <div className="onboarding-actions">
-          <button
-            className="button"
-            onClick={onPathwayContinue}
-            disabled={isPending}
-          >
-            {selectedPathwayIds.size > 0
-              ? `Continue with ${selectedPathwayIds.size} pathway${selectedPathwayIds.size > 1 ? "s" : ""}`
-              : "Continue without selecting"}
-          </button>
-          <button type="button" className="button outline small" onClick={onBack} disabled={isPending}>
-            Back
-          </button>
-        </div>
+            {pathways.length === 0 ? (
+              <div className="onboarding-callout">
+                No pathways available yet. Your chapter admin will add pathways soon.
+                You can skip this step and choose later from the Pathways page.
+              </div>
+            ) : (
+              <div className="pathway-selection-grid">
+                {pathways.map((pathway) => {
+                  const isSelected = selectedPathwayIds.has(pathway.id);
+                  const isRecommended = recommendedPathwayIds.has(pathway.id);
+                  return (
+                    <button
+                      key={pathway.id}
+                      type="button"
+                      className={`pathway-selection-card ${isSelected ? "selected" : ""}`}
+                      onClick={() => onPathwaySelect(pathway.id)}
+                      style={isRecommended && !isSelected ? { borderColor: "var(--ypp-purple)", boxShadow: "0 0 0 1px var(--ypp-purple)" } : undefined}
+                    >
+                      <div className="pathway-selection-header">
+                        <div className="pathway-selection-check">
+                          {isSelected ? (
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--ypp-purple)" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="4" /><polyline points="17 8 10 16 7 13" /></svg>
+                          ) : (
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="4" /></svg>
+                          )}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <h3 className="pathway-selection-name">{pathway.name}</h3>
+                            {isRecommended && (
+                              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--ypp-purple)", background: "var(--purple-50, #faf5ff)", padding: "2px 6px", borderRadius: 4 }}>
+                                ★ Recommended
+                              </span>
+                            )}
+                          </div>
+                          <span className="pathway-selection-area">{pathway.interestArea}</span>
+                        </div>
+                      </div>
+                      <p className="pathway-selection-desc">{pathway.description}</p>
+                      <div className="pathway-selection-steps">
+                        {pathway.steps.map((step, idx) => (
+                          <span key={step.id} className="pathway-step-pill">
+                            {idx > 0 && <span className="pathway-step-arrow">&rarr;</span>}
+                            {step.courseLevel
+                              ? step.courseLevel.replace("LEVEL_", "")
+                              : step.courseFormat.replace("_", " ")}
+                          </span>
+                        ))}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="onboarding-actions">
+              <button className="button" onClick={onPathwayContinue} disabled={isPending}>
+                {selectedPathwayIds.size > 0
+                  ? `Continue with ${selectedPathwayIds.size} pathway${selectedPathwayIds.size > 1 ? "s" : ""}`
+                  : "Continue without selecting"}
+              </button>
+              <button type="button" className="button outline small" onClick={onBack} disabled={isPending}>
+                Back
+              </button>
+            </div>
+          </>
+        )}
       </div>
     );
   }

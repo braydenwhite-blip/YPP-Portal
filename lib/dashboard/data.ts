@@ -114,6 +114,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
   let kpis: DashboardKpi[] = [];
   let queues: DashboardQueueCard[] = [];
   let nextActions: DashboardNextAction[] = [];
+  let dashboardActivePathways: import("@/lib/dashboard/types").ActivePathwaySummary[] | undefined = undefined;
 
   if (role === "ADMIN") {
     const [
@@ -639,12 +640,16 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
         },
       }),
       prisma.pathway.findMany({
+        where: { isActive: true },
         select: {
           id: true,
+          name: true,
+          interestArea: true,
           steps: {
             select: {
               courseId: true,
               stepOrder: true,
+              course: { select: { title: true } },
             },
             orderBy: { stepOrder: "asc" },
           },
@@ -693,9 +698,34 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
 
     const activeEnrollments = enrollments.filter((enrollment) => enrollment.status === "ENROLLED").length;
     const enrolledCourseIds = new Set(enrollments.map((enrollment) => enrollment.courseId));
+    const enrollmentStatusById = new Map(enrollments.map((e) => [e.courseId, e.status]));
+
     const nextPathwaySteps = pathways.filter((pathway) =>
       pathway.steps.some((step) => !enrolledCourseIds.has(step.courseId))
     ).length;
+
+    // Build active pathway summaries for the dashboard widget
+    dashboardActivePathways = pathways
+      .filter((pathway) => pathway.steps.some((step) => enrolledCourseIds.has(step.courseId)))
+      .map((pathway) => {
+        const steps = pathway.steps;
+        const totalCount = steps.length;
+        const completedCount = steps.filter((s) => enrollmentStatusById.get(s.courseId) === "COMPLETED").length;
+        const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+        const nextStep = steps.find((s) => {
+          const status = enrollmentStatusById.get(s.courseId);
+          return status === "ENROLLED";
+        }) ?? steps.find((s) => !enrolledCourseIds.has(s.courseId)) ?? null;
+        return {
+          id: pathway.id,
+          name: pathway.name,
+          interestArea: pathway.interestArea,
+          progressPercent,
+          completedCount,
+          totalCount,
+          nextStepTitle: nextStep ? nextStep.course.title : null,
+        };
+      });
     const activeChallengeCount = challengeParticipations.filter(
       (entry) =>
         entry.status === "ACTIVE" &&
@@ -1166,6 +1196,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     nextActions,
     moduleBadgeByHref,
     generatedAt: new Date().toISOString(),
+    activePathways: dashboardActivePathways,
   };
 }
 
