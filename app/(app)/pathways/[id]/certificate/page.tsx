@@ -150,7 +150,7 @@ export default async function PathwayCertificatePage({ params }: { params: { id:
             )}
             {certificate && (
               <div>
-                <div style={{ fontWeight: 700, fontSize: 14, fontFamily: "monospace", fontSize: 12 }}>
+                <div style={{ fontWeight: 700, fontFamily: "monospace", fontSize: 12 }}>
                   {certificate.certificateNumber.slice(0, 12).toUpperCase()}
                 </div>
                 <div style={{ fontSize: 12, color: "var(--gray-500)" }}>Certificate ID</div>

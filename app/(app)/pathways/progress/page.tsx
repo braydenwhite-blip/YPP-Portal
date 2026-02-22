@@ -171,7 +171,7 @@ export default async function PathwayProgressPage() {
                 <div style={{
                   width: "100%",
                   height: 8,
-                  backgroundColor: "var(--border-color)",
+                  backgroundColor: "var(--border)",
                   borderRadius: 4,
                   overflow: "hidden",
                   marginBottom: 20
@@ -179,7 +179,7 @@ export default async function PathwayProgressPage() {
                   <div style={{
                     width: `${progressPercent}%`,
                     height: "100%",
-                    backgroundColor: "var(--primary-color)",
+                    backgroundColor: "var(--ypp-purple)",
                     transition: "width 0.3s ease"
                   }} />
                 </div>
@@ -203,7 +203,7 @@ export default async function PathwayProgressPage() {
                 {estimatedWeeksRemaining > 0 && (
                   <div style={{
                     padding: 12,
-                    backgroundColor: "var(--accent-bg)",
+                    backgroundColor: "var(--ypp-purple-50)",
                     borderRadius: 6,
                     marginBottom: 20
                   }}>
@@ -225,20 +225,20 @@ export default async function PathwayProgressPage() {
                 {/* Completed Courses */}
                 {completed.length > 0 && (
                   <div style={{ marginBottom: 20 }}>
-                    <h4 style={{ color: "var(--success-color)", marginBottom: 12 }}>✓ Completed</h4>
+                    <h4 style={{ color: "var(--progress-on-track)", marginBottom: 12 }}>✓ Completed</h4>
                     <div className="timeline">
                       {completed.map((step) => (
                         <div key={step.id} className="timeline-item" style={{ opacity: 0.7 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                             <div>
-                              <span className="pill success">
+                              <span className="pill pill-success">
                                 {step.course.format === "LEVELED" && step.course.level
                                   ? step.course.level.replace("LEVEL_", "")
                                   : step.course.format.replace("_", " ")}
                               </span>{" "}
                               <strong>{step.course.title}</strong>
                             </div>
-                            <span style={{ fontSize: 12, color: "var(--success-color)" }}>
+                            <span style={{ fontSize: 12, color: "var(--progress-on-track)" }}>
                               ✓ Completed
                             </span>
                           </div>
@@ -251,16 +251,16 @@ export default async function PathwayProgressPage() {
                 {/* In Progress Courses */}
                 {inProgress.length > 0 && (
                   <div style={{ marginBottom: 20 }}>
-                    <h4 style={{ color: "var(--primary-color)", marginBottom: 12 }}>→ In Progress</h4>
+                    <h4 style={{ color: "var(--ypp-purple)", marginBottom: 12 }}>→ In Progress</h4>
                     <div className="timeline">
                       {inProgress.map((step) => (
                         <div key={step.id} className="timeline-item" style={{
-                          borderLeft: "3px solid var(--primary-color)",
-                          backgroundColor: "var(--accent-bg)"
+                          borderLeft: "3px solid var(--ypp-purple)",
+                          backgroundColor: "var(--ypp-purple-50)"
                         }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                             <div>
-                              <span className="pill primary">
+                              <span className="pill pill-purple">
                                 {step.course.format === "LEVELED" && step.course.level
                                   ? step.course.level.replace("LEVEL_", "")
                                   : step.course.format.replace("_", " ")}
@@ -299,7 +299,7 @@ export default async function PathwayProgressPage() {
                                 <span style={{
                                   marginLeft: 8,
                                   fontSize: 12,
-                                  color: "var(--primary-color)",
+                                  color: "var(--ypp-purple)",
                                   fontWeight: 600
                                 }}>
                                   RECOMMENDED NEXT
