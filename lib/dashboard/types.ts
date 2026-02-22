@@ -44,6 +44,16 @@ export interface DashboardNextAction {
   href: string;
 }
 
+export interface ActivePathwaySummary {
+  id: string;
+  name: string;
+  interestArea: string;
+  progressPercent: number;
+  completedCount: number;
+  totalCount: number;
+  nextStepTitle: string | null;
+}
+
 export interface DashboardData {
   role: DashboardRole;
   roleLabel: string;
@@ -55,4 +65,5 @@ export interface DashboardData {
   nextActions: DashboardNextAction[];
   moduleBadgeByHref: Record<string, number>;
   generatedAt: string;
+  activePathways?: ActivePathwaySummary[];
 }

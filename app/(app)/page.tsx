@@ -11,6 +11,7 @@ import KpiStrip from "@/components/dashboard/kpi-strip";
 import QueueBoard from "@/components/dashboard/queue-board";
 import NextActions from "@/components/dashboard/next-actions";
 import ToolExplorer from "@/components/dashboard/tool-explorer";
+import PathwayWidget from "@/components/dashboard/pathway-widget";
 import LegacyOverviewPage from "./legacy-overview-page";
 
 function isMissingTableError(error: unknown) {
@@ -442,6 +443,12 @@ export default async function OverviewPage() {
           </div>
         </div>
       ) : null}
+
+      {dashboard.role === "STUDENT" && dashboard.activePathways !== undefined && (
+        <div style={{ marginTop: 16 }}>
+          <PathwayWidget pathways={dashboard.activePathways} />
+        </div>
+      )}
 
       <ToolExplorer
         sections={dashboard.sections}

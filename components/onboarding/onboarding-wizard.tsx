@@ -60,17 +60,9 @@ export default function OnboardingWizard({
   const totalSteps = 5;
   const [currentStep, setCurrentStep] = useState(initialStep);
   const [isPending, startTransition] = useTransition();
-  const [selectedPathwayIds, setSelectedPathwayIds] = useState<Set<string>>(() => {
-    // Pre-select pathways where user is already enrolled in the first course
-    const selected = new Set<string>();
-    for (const pathway of pathways) {
-      const firstStep = pathway.steps[0];
-      if (firstStep && enrolledCourseIds.includes(firstStep.courseId)) {
-        selected.add(pathway.id);
-      }
-    }
-    return selected;
-  });
+  const [selectedPathwayIds, setSelectedPathwayIds] = useState<Set<string>>(new Set());
+  // Interest quiz state: answers map topic → true, used to suggest pathways
+  const [quizAnswers, setQuizAnswers] = useState<Set<string>>(new Set());
   const router = useRouter();
 
   function goNext() {
@@ -194,6 +186,15 @@ export default function OnboardingWizard({
               profileData={profileData}
               pathways={pathways}
               selectedPathwayIds={selectedPathwayIds}
+              quizAnswers={quizAnswers}
+              onQuizAnswerToggle={(answer) => {
+                setQuizAnswers((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(answer)) next.delete(answer);
+                  else next.add(answer);
+                  return next;
+                });
+              }}
               onPathwaySelect={handlePathwaySelect}
               onPathwayContinue={handlePathwayContinue}
               onNext={goNext}

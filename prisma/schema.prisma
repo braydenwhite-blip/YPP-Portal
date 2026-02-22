@@ -229,6 +229,7 @@ model Chapter {
   launchTasks      LaunchTask[]
   rolloutCampaigns RolloutCampaign[]
   featureGateRules FeatureGateRule[]
+  pathwayConfigs   ChapterPathway[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -501,6 +502,11 @@ model User {
   discussionThreads  DiscussionThread[] @relation("DiscussionThreads")
   discussionReplies  DiscussionReply[]  @relation("DiscussionReplies")
 
+  // Pathway Integration Relations
+  pathwayCohortMemberships CohortMember[]           @relation("PathwayCohortMemberships")
+  pathwayReflections       PathwayReflection[]      @relation("PathwayReflections")
+  instructorPathwaySpecs   InstructorPathwaySpec[]  @relation("InstructorPathwaySpecs")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -631,8 +637,16 @@ model Pathway {
   isActive     Boolean       @default(true)
   steps        PathwayStep[]
   certificates Certificate[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+
+  // Pathway Integration Relations
+  cohorts        PathwayCohort[]         @relation("PathwayCohorts")
+  reflections    PathwayReflection[]     @relation("PathwayReflections")
+  events         PathwayEvent[]          @relation("PathwayEvents")
+  instructorSpecs InstructorPathwaySpec[] @relation("PathwayInstructorSpecs")
+  chapterConfigs ChapterPathway[]        @relation("PathwayChapterConfigs")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model PathwayStep {
@@ -5946,4 +5960,111 @@ model ResourceExchangeRequest {
 
   @@unique([listingId, requesterId])
   @@index([requesterId])
+}
+
+// ============================================
+// PATHWAY INTEGRATION MODELS
+// ============================================
+
+/// Cohort of students progressing through a pathway together
+model PathwayCohort {
+  id        String   @id @default(cuid())
+  pathwayId String
+  pathway   Pathway  @relation("PathwayCohorts", fields: [pathwayId], references: [id])
+  name      String   // e.g. "Spring 2026 Cohort"
+  startDate DateTime?
+  endDate   DateTime?
+  members   CohortMember[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([pathwayId])
+}
+
+/// Membership of a user in a pathway cohort
+model CohortMember {
+  id       String        @id @default(cuid())
+  cohortId String
+  cohort   PathwayCohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User          @relation("PathwayCohortMemberships", fields: [userId], references: [id])
+  joinedAt DateTime      @default(now())
+
+  @@unique([cohortId, userId])
+  @@index([userId])
+}
+
+/// Student reflection written after completing a pathway step
+model PathwayReflection {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation("PathwayReflections", fields: [userId], references: [id])
+  pathwayId        String
+  pathway          Pathway  @relation("PathwayReflections", fields: [pathwayId], references: [id])
+  stepOrder        Int      // which step this reflection is for
+  content          String   // the reflection text
+  visibleToMentor  Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  @@index([userId, pathwayId])
+}
+
+/// Milestone event tied to a pathway step (e.g. workshops, showcases)
+model PathwayEvent {
+  id                 String   @id @default(cuid())
+  pathwayId          String
+  pathway            Pathway  @relation("PathwayEvents", fields: [pathwayId], references: [id])
+  title              String
+  description        String?
+  eventDate          DateTime?
+  locationOrLink     String?
+  maxAttendees       Int?
+  requiredStepOrder  Int?     // student must have reached this step to register
+  registrations      PathwayEventRegistration[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([pathwayId])
+}
+
+/// Student registration for a pathway event
+model PathwayEventRegistration {
+  id           String       @id @default(cuid())
+  eventId      String
+  event        PathwayEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId       String
+  registeredAt DateTime     @default(now())
+
+  @@unique([eventId, userId])
+  @@index([userId])
+}
+
+/// Instructor specialization in a pathway (for mentor matching)
+model InstructorPathwaySpec {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation("InstructorPathwaySpecs", fields: [userId], references: [id])
+  pathwayId String
+  pathway   Pathway  @relation("PathwayInstructorSpecs", fields: [pathwayId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, pathwayId])
+  @@index([pathwayId])
+}
+
+/// Chapter-level control over which pathways are visible and featured
+model ChapterPathway {
+  id          String   @id @default(cuid())
+  chapterId   String
+  chapter     Chapter  @relation(fields: [chapterId], references: [id])
+  pathwayId   String
+  pathway     Pathway  @relation("PathwayChapterConfigs", fields: [pathwayId], references: [id])
+  isAvailable Boolean  @default(true)  // chapter can hide a global pathway
+  isFeatured  Boolean  @default(false) // featured pathways appear first
+  displayOrder Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([chapterId, pathwayId])
+  @@index([chapterId])
 }
