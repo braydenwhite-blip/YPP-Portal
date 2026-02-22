@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getClassCatalog } from "@/lib/class-management-actions";
+import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
 const difficultyLabels: Record<string, string> = {
@@ -36,13 +37,27 @@ export default async function CurriculumPage({
   const roles = session?.user?.roles ?? [];
   const isInstructor = roles.includes("INSTRUCTOR") || roles.includes("ADMIN");
 
-  const offerings = await getClassCatalog({
-    interestArea: params.interest,
-    difficultyLevel: params.level,
-    deliveryMode: params.mode,
-    semester: params.semester,
-    search: params.search,
-  });
+  const [offerings, activePathways] = await Promise.all([
+    getClassCatalog({
+      interestArea: params.interest,
+      difficultyLevel: params.level,
+      deliveryMode: params.mode,
+      semester: params.semester,
+      search: params.search,
+    }),
+    prisma.pathway.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, interestArea: true },
+    }),
+  ]);
+
+  // Build a lookup: interestArea → matching pathways
+  const pathwayByArea = new Map<string, { id: string; name: string }[]>();
+  for (const pw of activePathways) {
+    const area = pw.interestArea.toLowerCase();
+    if (!pathwayByArea.has(area)) pathwayByArea.set(area, []);
+    pathwayByArea.get(area)!.push(pw);
+  }
 
   const interestAreas = Array.from(new Set(offerings.map((o) => o.template.interestArea))).sort();
   const semesters = Array.from(new Set(offerings.filter((o) => o.semester).map((o) => o.semester!))).sort();
@@ -232,6 +247,24 @@ export default async function CurriculumPage({
                   <span className="pill">{offering.template.interestArea}</span>
                   <span className="pill">{offering.deliveryMode.replace("_", " ")}</span>
                   {offering.introVideoUrl && <span className="pill pill-info">Instructor Intro Video</span>}
+                  {/* Pathway context labels */}
+                  {(pathwayByArea.get(offering.template.interestArea.toLowerCase()) ?? []).map((pw) => (
+                    <Link
+                      key={pw.id}
+                      href={`/pathways/${pw.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="pill"
+                      style={{
+                        background: "var(--ypp-purple-100, #ede9fe)",
+                        color: "var(--ypp-purple, #7c3aed)",
+                        fontWeight: 600,
+                        textDecoration: "none",
+                        fontSize: 11,
+                      }}
+                    >
+                      {pw.name} Pathway →
+                    </Link>
+                  ))}
                 </div>
 
                 <div style={{ marginTop: 12, fontSize: 14, color: "var(--text-secondary)" }}>
