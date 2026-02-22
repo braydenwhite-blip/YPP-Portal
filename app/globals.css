@@ -2872,6 +2872,59 @@ select.input {
   color: var(--muted);
 }
 
+/* Interest Quiz (onboarding step 1 sub-step A) */
+
+.onboarding-quiz-section {
+  width: 100%;
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.onboarding-quiz-question {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 12px;
+}
+
+.onboarding-quiz-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.onboarding-quiz-chip {
+  padding: 7px 16px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border-color, #e5e7eb);
+  background: var(--card-bg, #fff);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s;
+  line-height: 1.4;
+}
+
+.onboarding-quiz-chip:hover {
+  border-color: var(--ypp-purple, #7c3aed);
+  color: var(--ypp-purple, #7c3aed);
+  box-shadow: 0 0 0 3px var(--ypp-purple-100, #ede9fe);
+}
+
+.onboarding-quiz-chip.selected {
+  background: var(--ypp-purple, #7c3aed);
+  border-color: var(--ypp-purple, #7c3aed);
+  color: #fff;
+  box-shadow: none;
+}
+
+.onboarding-quiz-chip.selected:hover {
+  background: var(--ypp-purple-700, #6d28d9);
+  border-color: var(--ypp-purple-700, #6d28d9);
+  color: #fff;
+}
+
 /* Responsive onboarding */
 
 @media (max-width: 640px) {

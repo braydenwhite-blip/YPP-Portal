@@ -55,9 +55,25 @@ export default function PathwayProgressMap({
                   <h3 className="pathway-map-name">{pathway.name}</h3>
                   <span className="pathway-map-area">{pathway.interestArea}</span>
                 </div>
-                <span className="pathway-map-progress-text">
-                  {completedCount}/{pathway.steps.length} completed
-                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span className="pathway-map-progress-text">
+                    {completedCount}/{pathway.steps.length} completed
+                  </span>
+                  {completedCount > 0 && completedCount === pathway.steps.length && (
+                    <a
+                      href={`/pathways/${pathway.id}/certificate`}
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "var(--ypp-purple, #7c3aed)",
+                        textDecoration: "none",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      View Certificate →
+                    </a>
+                  )}
+                </div>
               </div>
 
               {/* Progress bar */}
