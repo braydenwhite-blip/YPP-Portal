@@ -194,6 +194,88 @@ export async function sendPasswordResetEmail({
   return sendEmail({ to, subject, html });
 }
 
+export async function sendEmailVerificationEmail({
+  to,
+  name,
+  verifyUrl
+}: {
+  to: string;
+  name: string;
+  verifyUrl: string;
+}): Promise<EmailResult> {
+  const subject = "Verify Your Email - Youth Passion Project";
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1c1917; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #4a1c7a 0%, #7c3aed 50%, #ec4899 100%); padding: 32px; border-radius: 16px 16px 0 0; text-align: center;">
+    <h1 style="color: white; margin: 0; font-size: 24px;">Youth Passion Project</h1>
+  </div>
+  <div style="background: #ffffff; padding: 32px; border: 1px solid #e7e5e4; border-top: none; border-radius: 0 0 16px 16px;">
+    <h2 style="margin: 0 0 16px; color: #1c1917;">Verify Your Email Address</h2>
+    <p>Hi ${escapeHtml(name)},</p>
+    <p>Thanks for signing up! Click the button below to verify your email and activate your account:</p>
+    <div style="text-align: center; margin: 32px 0;">
+      <a href="${escapeHtml(verifyUrl)}" style="display: inline-block; background: #7c3aed; color: white; padding: 14px 32px; border-radius: 9999px; text-decoration: none; font-weight: 600;">Verify Email Address</a>
+    </div>
+    <p style="color: #78716c; font-size: 14px;">This link will expire in 24 hours. If you didn't create an account, you can safely ignore this email.</p>
+    <hr style="border: none; border-top: 1px solid #e7e5e4; margin: 24px 0;">
+    <p style="color: #78716c; font-size: 12px; margin: 0;">If the button doesn't work, copy and paste this link into your browser:</p>
+    <p style="color: #7c3aed; font-size: 12px; word-break: break-all;">${escapeHtml(verifyUrl)}</p>
+  </div>
+</body>
+</html>
+  `.trim();
+
+  return sendEmail({ to, subject, html });
+}
+
+export async function sendMagicLinkEmail({
+  to,
+  name,
+  magicUrl
+}: {
+  to: string;
+  name: string;
+  magicUrl: string;
+}): Promise<EmailResult> {
+  const subject = "Your Magic Sign-In Link - Youth Passion Project";
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1c1917; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #4a1c7a 0%, #7c3aed 50%, #ec4899 100%); padding: 32px; border-radius: 16px 16px 0 0; text-align: center;">
+    <h1 style="color: white; margin: 0; font-size: 24px;">Youth Passion Project</h1>
+  </div>
+  <div style="background: #ffffff; padding: 32px; border: 1px solid #e7e5e4; border-top: none; border-radius: 0 0 16px 16px;">
+    <h2 style="margin: 0 0 16px; color: #1c1917;">Sign In to Your Account</h2>
+    <p>Hi ${escapeHtml(name)},</p>
+    <p>Click the button below to sign in instantly — no password needed. This link is single-use and expires in 15 minutes.</p>
+    <div style="text-align: center; margin: 32px 0;">
+      <a href="${escapeHtml(magicUrl)}" style="display: inline-block; background: #7c3aed; color: white; padding: 14px 32px; border-radius: 9999px; text-decoration: none; font-weight: 600;">Sign In Now</a>
+    </div>
+    <p style="color: #78716c; font-size: 14px;">If you didn't request this link, you can safely ignore this email.</p>
+    <hr style="border: none; border-top: 1px solid #e7e5e4; margin: 24px 0;">
+    <p style="color: #78716c; font-size: 12px; margin: 0;">If the button doesn't work, copy and paste this link into your browser:</p>
+    <p style="color: #7c3aed; font-size: 12px; word-break: break-all;">${escapeHtml(magicUrl)}</p>
+  </div>
+</body>
+</html>
+  `.trim();
+
+  return sendEmail({ to, subject, html });
+}
+
 /**
  * Send notification email
  */

@@ -21,9 +21,47 @@ function buildProviders() {
       name: "Credentials",
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
+        password: { label: "Password", type: "password" },
+        mt: { label: "Magic Token", type: "text" },
       },
       async authorize(credentials) {
+        // --- Magic relay token path (from /magic-link page) ---
+        const mt = (credentials as Record<string, string> | undefined)?.mt;
+        if (mt) {
+          const record = await prisma.emailVerificationToken.findUnique({
+            where: { token: mt },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  primaryRole: true,
+                  roles: { select: { role: true } },
+                },
+              },
+            },
+          });
+
+          if (!record || record.usedAt || record.expiresAt < new Date()) {
+            throw new Error("MAGIC_LINK_EXPIRED");
+          }
+
+          await prisma.emailVerificationToken.update({
+            where: { id: record.id },
+            data: { usedAt: new Date() },
+          });
+
+          return {
+            id: record.user.id,
+            name: record.user.name,
+            email: record.user.email,
+            roles: record.user.roles.map((r) => r.role),
+            primaryRole: record.user.primaryRole,
+          } as any;
+        }
+
+        // --- Normal email/password path ---
         const parsed = credentialsSchema.safeParse(credentials);
         if (!parsed.success) {
           return null;
@@ -46,6 +84,7 @@ function buildProviders() {
             email: true,
             passwordHash: true,
             primaryRole: true,
+            emailVerified: true,
             roles: { select: { role: true } }
           }
         });
@@ -86,6 +125,12 @@ function buildProviders() {
 
         // Clear failed attempts on success
         failedAttempts.delete(email);
+
+        // Block unverified accounts — frontend detects this error code and shows resend prompt
+        // IMPORTANT: run `npm run backfill:email-verified` against production BEFORE enabling this
+        if (!user.emailVerified) {
+          throw new Error("EMAIL_NOT_VERIFIED");
+        }
 
         return {
           id: user.id,

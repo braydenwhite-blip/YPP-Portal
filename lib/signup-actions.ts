@@ -55,7 +55,7 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    await prisma.user.create({
+    const newUser = await prisma.user.create({
       data: {
         name,
         email,
@@ -69,9 +69,17 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
       }
     });
 
+    // Send verification email (non-blocking — signup succeeds even if email fails)
+    try {
+      const { sendVerificationEmail } = await import("@/lib/email-verification-actions");
+      await sendVerificationEmail(newUser.id);
+    } catch (verifyError) {
+      console.error("[Signup] Failed to send verification email:", verifyError);
+    }
+
     return {
       status: "success",
-      message: "If this email is not already registered, your account has been created. Please check your email or try signing in."
+      message: "CHECK_EMAIL"
     };
   } catch (error) {
     return {
@@ -145,9 +153,17 @@ export async function signUpParent(prevState: FormState, formData: FormData): Pr
       }
     }
 
+    // Send verification email (non-blocking)
+    try {
+      const { sendVerificationEmail } = await import("@/lib/email-verification-actions");
+      await sendVerificationEmail(parent.id);
+    } catch (verifyError) {
+      console.error("[Signup] Failed to send parent verification email:", verifyError);
+    }
+
     return {
       status: "success",
-      message: "Your parent account has been created! You can now sign in. If you linked a child, an admin will approve the connection."
+      message: "CHECK_EMAIL"
     };
   } catch (error) {
     return {

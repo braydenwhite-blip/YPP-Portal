@@ -498,6 +498,8 @@ export async function createTrainingModuleWithVideo(formData: FormData) {
   const requiresQuiz = formData.get("requiresQuiz") === "on";
   const requiresEvidence = formData.get("requiresEvidence") === "on";
   const passScorePct = getNumber(formData, "passScorePct", 80);
+  const estimatedMinutesRaw = getNumber(formData, "estimatedMinutes", 0);
+  const estimatedMinutes = estimatedMinutesRaw > 0 ? estimatedMinutesRaw : null;
   const normalizedVideoUrl = videoUrl || null;
 
   if (passScorePct < 1 || passScorePct > 100) {
@@ -531,6 +533,7 @@ export async function createTrainingModuleWithVideo(formData: FormData) {
       requiresQuiz,
       requiresEvidence,
       passScorePct,
+      estimatedMinutes,
     },
   });
 
@@ -563,6 +566,8 @@ export async function updateTrainingModule(formData: FormData) {
   const requiresQuiz = formData.get("requiresQuiz") === "on";
   const requiresEvidence = formData.get("requiresEvidence") === "on";
   const passScorePct = getNumber(formData, "passScorePct", 80);
+  const estimatedMinutesRaw = getNumber(formData, "estimatedMinutes", 0);
+  const estimatedMinutes = estimatedMinutesRaw > 0 ? estimatedMinutesRaw : null;
   const normalizedVideoUrl = videoUrl || null;
 
   if (passScorePct < 1 || passScorePct > 100) {
@@ -609,6 +614,7 @@ export async function updateTrainingModule(formData: FormData) {
       requiresQuiz,
       requiresEvidence,
       passScorePct,
+      estimatedMinutes,
     },
   });
 
@@ -1499,6 +1505,104 @@ export async function deleteTrainingModule(formData: FormData) {
   await prisma.trainingAssignment.deleteMany({ where: { moduleId } });
 
   await prisma.trainingModule.delete({ where: { id: moduleId } });
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/training");
+  revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
+}
+
+export async function cloneTrainingModule(formData: FormData) {
+  await requireAdmin();
+
+  const moduleId = getString(formData, "moduleId");
+
+  const source = await prisma.trainingModule.findUnique({
+    where: { id: moduleId },
+    include: {
+      checkpoints: { orderBy: { sortOrder: "asc" } },
+      quizQuestions: { orderBy: { sortOrder: "asc" } },
+    },
+  });
+
+  if (!source) throw new Error("Module not found");
+
+  const aggregate = await prisma.trainingModule.aggregate({ _max: { sortOrder: true } });
+  const nextSortOrder = (aggregate._max.sortOrder ?? 0) + 1;
+
+  await prisma.$transaction(async (tx) => {
+    const clone = await tx.trainingModule.create({
+      data: {
+        contentKey: null, // contentKey is @unique — clones must not inherit it
+        title: `${source.title} (Copy)`,
+        description: source.description,
+        materialUrl: source.materialUrl,
+        materialNotes: source.materialNotes,
+        type: source.type,
+        required: source.required,
+        sortOrder: nextSortOrder,
+        videoUrl: source.videoUrl,
+        videoProvider: source.videoProvider,
+        videoDuration: source.videoDuration,
+        videoThumbnail: source.videoThumbnail,
+        requiresQuiz: source.requiresQuiz,
+        requiresEvidence: source.requiresEvidence,
+        passScorePct: source.passScorePct,
+        estimatedMinutes: source.estimatedMinutes,
+      },
+    });
+
+    for (const cp of source.checkpoints) {
+      await tx.trainingCheckpoint.create({
+        data: {
+          moduleId: clone.id,
+          contentKey: null,
+          title: cp.title,
+          description: cp.description,
+          sortOrder: cp.sortOrder,
+          required: cp.required,
+        },
+      });
+    }
+
+    for (const q of source.quizQuestions) {
+      await tx.trainingQuizQuestion.create({
+        data: {
+          moduleId: clone.id,
+          contentKey: null,
+          question: q.question,
+          options: q.options,
+          correctAnswer: q.correctAnswer,
+          explanation: q.explanation,
+          sortOrder: q.sortOrder,
+        },
+      });
+    }
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/training");
+  revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
+}
+
+export async function reorderTrainingModules(formData: FormData) {
+  await requireAdmin();
+
+  const raw = formData.get("order");
+  if (typeof raw !== "string" || !raw) throw new Error("Order data is required");
+
+  const items = JSON.parse(raw) as Array<{ id: string; sortOrder: number }>;
+  if (!Array.isArray(items) || items.length === 0) throw new Error("Invalid order data");
+
+  await prisma.$transaction(
+    items.map((item) =>
+      prisma.trainingModule.update({
+        where: { id: item.id },
+        data: { sortOrder: item.sortOrder },
+      })
+    )
+  );
 
   revalidatePath("/admin");
   revalidatePath("/admin/training");
