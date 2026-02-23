@@ -6,12 +6,14 @@ import Image from "next/image";
 import { signIn } from "next-auth/react";
 import { signUp } from "@/lib/signup-actions";
 import { useEffect, useState } from "react";
+import ResendVerificationForm from "@/app/(public)/verify-email/resend-form";
 
 const initialState = { status: "idle" as const, message: "" };
 
 export default function SignupPage() {
   const [state, formAction] = useFormState(signUp, initialState);
   const [chapters, setChapters] = useState<Array<{ id: string; name: string }>>([]);
+  const [submittedEmail, setSubmittedEmail] = useState("");
 
   useEffect(() => {
     async function loadChapters() {
@@ -22,6 +24,36 @@ export default function SignupPage() {
     }
     loadChapters();
   }, []);
+
+  // Show "Check Your Email" confirmation after successful signup
+  if (state.status === "success" && state.message === "CHECK_EMAIL") {
+    return (
+      <div className="login-shell">
+        <div className="login-card" style={{ justifySelf: "center" }}>
+          <div className="login-card-header">
+            <Image src="/logo-icon.svg" alt="YPP" width={44} height={44} />
+            <div>
+              <h1 className="page-title" style={{ fontSize: 20 }}>Check Your Email</h1>
+              <p className="page-subtitle mt-0" style={{ fontSize: 13 }}>
+                One more step to get started
+              </p>
+            </div>
+          </div>
+          <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.6, margin: "0 0 20px" }}>
+            We sent a verification link to <strong>{submittedEmail || "your email"}</strong>.
+            Click it to activate your account and sign in.
+          </p>
+          <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6, margin: "0 0 20px" }}>
+            Didn&apos;t get it? Check your spam folder, or request a new link below.
+          </p>
+          <ResendVerificationForm initialEmail={submittedEmail} />
+          <div className="login-help" style={{ marginTop: 16 }}>
+            <Link href="/login">Back to Sign In</Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="login-shell">
@@ -61,7 +93,13 @@ export default function SignupPage() {
           <span style={{ fontSize: 12, color: "var(--muted)" }}>or create account with email</span>
           <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
         </div>
-        <form action={formAction}>
+        <form
+          action={formAction}
+          onSubmit={(e) => {
+            const data = new FormData(e.currentTarget);
+            setSubmittedEmail(String(data.get("email") ?? ""));
+          }}
+        >
           <label className="form-label" style={{ marginTop: 0 }}>
             Full Name
             <input className="input" name="name" placeholder="Your full name" required />
@@ -99,7 +137,7 @@ export default function SignupPage() {
               ))}
             </select>
           </label>
-          {state.message && (
+          {state.message && state.message !== "CHECK_EMAIL" && (
             <div className={state.status === "error" ? "form-error" : "form-success"}>
               {state.message}
             </div>

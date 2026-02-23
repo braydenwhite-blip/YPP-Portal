@@ -61,6 +61,7 @@ export default async function AdminTrainingPage() {
     requiresQuiz: m.requiresQuiz,
     requiresEvidence: m.requiresEvidence,
     passScorePct: m.passScorePct,
+    estimatedMinutes: m.estimatedMinutes,
     checkpoints: m.checkpoints.map((checkpoint) => ({
       id: checkpoint.id,
       contentKey: checkpoint.contentKey,

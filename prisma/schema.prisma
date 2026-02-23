@@ -496,6 +496,7 @@ model User {
   image         String?
   accounts      OAuthAccount[]
   sessions      OAuthSession[]
+  emailVerificationTokens EmailVerificationToken[]
   // Training Academy Enhancements
   cohortsFacilitated TrainingCohort[]   @relation("CohortFacilitator")
   peerReviewsGiven   PeerReview[]       @relation("PeerReviewsGiven")
@@ -522,6 +523,19 @@ model UserRole {
 }
 
 model PasswordResetToken {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([token])
+  @@index([userId])
+}
+
+model EmailVerificationToken {
   id        String    @id @default(cuid())
   token     String    @unique
   userId    String

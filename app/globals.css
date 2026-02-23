@@ -4661,3 +4661,216 @@ select.input {
     right: 16px;
   }
 }
+
+/* ============================================
+   TRAINING MODULE DRAWER
+   ============================================ */
+
+.training-drawer-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 44;
+  opacity: 0;
+  transition: opacity var(--transition-base, 0.2s ease);
+}
+
+.training-drawer-overlay.open {
+  display: block;
+  opacity: 1;
+}
+
+.training-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 580px;
+  max-width: 100vw;
+  height: 100vh;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow-lg, -4px 0 24px rgba(0,0,0,0.12));
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.training-drawer.open {
+  transform: translateX(0);
+}
+
+.training-drawer-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-light, var(--border));
+  background: var(--surface);
+}
+
+.training-drawer-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.training-drawer-subtitle {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 2px 0 0;
+}
+
+.training-drawer-close {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  background: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: var(--muted);
+  transition: all 0.15s ease;
+  font-family: inherit;
+  flex-shrink: 0;
+}
+
+.training-drawer-close:hover {
+  background: var(--surface-hover, var(--surface-2));
+  color: var(--text);
+  border-color: var(--border-strong, var(--border));
+}
+
+.training-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--gray-300, #d1d5db) transparent;
+}
+
+.training-drawer-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.training-drawer-body::-webkit-scrollbar-thumb {
+  background: var(--gray-300, #d1d5db);
+  border-radius: 3px;
+}
+
+/* Quiz option builder */
+.quiz-option-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.quiz-option-radio {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--ypp-purple, #7c3aed);
+  cursor: pointer;
+}
+
+.quiz-option-input {
+  flex: 1;
+}
+
+.quiz-option-remove {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  background: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  padding: 0;
+}
+
+.quiz-option-remove:hover {
+  background: #fee2e2;
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+
+.quiz-option-correct-label {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+/* Drag handle */
+.drag-handle {
+  cursor: grab;
+  padding: 4px 6px;
+  color: var(--muted);
+  border-radius: var(--radius-sm, 6px);
+  border: none;
+  background: none;
+  font-size: 16px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s ease, background 0.15s ease;
+  flex-shrink: 0;
+}
+
+.drag-handle:hover {
+  color: var(--text);
+  background: var(--surface-2, #f8f8f8);
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Module form section dividers */
+.module-form-section {
+  padding-top: 20px;
+  margin-top: 20px;
+  border-top: 1px solid var(--border-light, var(--border));
+}
+
+.module-form-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 0 0 14px;
+}
+
+@media (max-width: 640px) {
+  .training-drawer {
+    width: 100vw;
+    height: 92dvh;
+    top: auto;
+    bottom: 0;
+    right: 0;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    border-radius: 16px 16px 0 0;
+    transform: translateY(100%);
+  }
+
+  .training-drawer.open {
+    transform: translateY(0);
+  }
+}
