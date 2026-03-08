@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { toMenteeRoleType } from "@/lib/self-reflection-actions";
+import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import ReflectionForm from "./reflection-form";
 import Link from "next/link";
 
