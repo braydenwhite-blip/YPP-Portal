@@ -295,6 +295,13 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardBadgeKey: "active_mentees",
     },
     { href: "/my-mentor", label: "My Mentor", icon: "🧑‍🏫", roles: STUDENT_ONLY },
+    {
+      href: "/my-program",
+      label: "My Program",
+      icon: "🎯",
+      roles: ["INSTRUCTOR", "CHAPTER_LEAD", "ADMIN", "STAFF"] as NavRole[],
+      dashboardDescription: "Submit monthly reflections and view goal reviews for the YPP Mentorship Program.",
+    },
     { href: "/events", label: "Events & Prep", icon: "📅" },
     { href: "/calendar", label: "Calendar", icon: "🗓" },
     {
