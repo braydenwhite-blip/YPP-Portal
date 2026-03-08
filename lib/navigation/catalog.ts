@@ -302,6 +302,20 @@ export const NAV_CATALOG: NavLink[] = [
       roles: ["INSTRUCTOR", "CHAPTER_LEAD", "ADMIN", "STAFF"] as NavRole[],
       dashboardDescription: "Submit monthly reflections and view goal reviews for the YPP Mentorship Program.",
     },
+    {
+      href: "/mentorship-program/reviews",
+      label: "Review Queue",
+      icon: "📝",
+      roles: ["MENTOR", "CHAPTER_LEAD", "ADMIN"] as NavRole[],
+      dashboardDescription: "Write and submit monthly goal reviews for your assigned mentees.",
+    },
+    {
+      href: "/mentorship-program/chair",
+      label: "Chair Queue",
+      icon: "✅",
+      roles: ["ADMIN"] as NavRole[],
+      dashboardDescription: "Approve or request changes on mentor goal reviews before they are released.",
+    },
     { href: "/events", label: "Events & Prep", icon: "📅" },
     { href: "/calendar", label: "Calendar", icon: "🗓" },
     {
