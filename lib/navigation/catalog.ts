@@ -513,6 +513,7 @@ export const NAV_CATALOG: NavLink[] = [
       roles: ADMIN_ONLY,
     },
     { href: "/admin/mentor-match", label: "Mentor Match", icon: "🤝", roles: ADMIN_ONLY },
+    { href: "/admin/mentorship-program", label: "Mentorship Program", icon: "🎯", roles: ADMIN_ONLY },
     { href: "/admin/alumni", label: "Manage Alumni", icon: "🎓", roles: ADMIN_ONLY },
   ]),
 ];
