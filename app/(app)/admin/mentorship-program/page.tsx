@@ -2,10 +2,12 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getProgramAnalytics } from "@/lib/mentorship-overview-actions";
 import TabLayout from "./tab-layout";
 import PairingsPanel from "./pairings-panel";
 import ChairsPanel from "./chairs-panel";
 import GoalsPanel from "./goals-panel";
+import AnalyticsPanel from "./analytics-panel";
 
 export const metadata = { title: "Mentorship Program — Admin" };
 
@@ -15,7 +17,7 @@ export default async function MentorshipProgramAdminPage() {
   if (!roles.includes("ADMIN")) redirect("/");
 
   // Parallel data fetch
-  const [pairings, goals, chairs, potentialMentors, potentialMentees] = await Promise.all([
+  const [pairings, goals, chairs, potentialMentors, potentialMentees, analytics] = await Promise.all([
     // All mentorships (active + past) involving roles that participate in the program
     prisma.mentorship.findMany({
       include: {
@@ -55,6 +57,9 @@ export default async function MentorshipProgramAdminPage() {
       select: { id: true, name: true, email: true, primaryRole: true },
       orderBy: { name: "asc" },
     }),
+
+    // Program analytics for the Reports tab
+    getProgramAnalytics(),
   ]);
 
   // Serialize for client components (dates → strings)
@@ -154,6 +159,7 @@ export default async function MentorshipProgramAdminPage() {
           />
         }
         goalsPanel={<GoalsPanel goals={serializedGoals} />}
+        reportsPanel={analytics ? <AnalyticsPanel analytics={analytics} /> : <p style={{ color: "var(--muted)" }}>No analytics data available.</p>}
       />
     </div>
   );
