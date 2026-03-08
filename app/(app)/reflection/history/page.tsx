@@ -12,15 +12,21 @@ export default async function ReflectionHistoryPage() {
   return (
     <main className="main-content">
       <div className="page-header">
-        <h1>Reflection History</h1>
+        <div>
+          <h1>Monthly Self-Reflection History</h1>
+          <p className="subtitle">
+            Review what you submitted each month before your mentor wrote the
+            Monthly Goal Review.
+          </p>
+        </div>
         <a href="/reflection" className="btn btn-primary">
-          New Reflection
+          New Monthly Reflection
         </a>
       </div>
 
       {reflections.length === 0 ? (
         <div className="card">
-          <p>You haven't submitted any reflections yet.</p>
+          <p>You haven't submitted any Monthly Self-Reflections yet.</p>
           <a href="/reflection" className="btn btn-secondary">
             Submit Your First Reflection
           </a>

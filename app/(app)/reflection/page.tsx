@@ -25,7 +25,7 @@ export default async function ReflectionPage() {
   if (!form) {
     return (
       <main className="main-content">
-        <h1>Monthly Reflection</h1>
+        <h1>Monthly Self-Reflection</h1>
         <div className="card">
           <p>No reflection form is available for your role at this time.</p>
           <p>Please check back later or contact your administrator.</p>
@@ -34,9 +34,21 @@ export default async function ReflectionPage() {
     );
   }
 
+  const groupedQuestions = form.questions.reduce(
+    (acc, question) => {
+      const key = question.sectionTitle || "Reflection";
+      if (!acc[key]) {
+        acc[key] = [];
+      }
+      acc[key].push(question);
+      return acc;
+    },
+    {} as Record<string, typeof form.questions>
+  );
+
   return (
     <main className="main-content">
-      <h1>Monthly Reflection</h1>
+      <h1>Monthly Self-Reflection</h1>
       <p className="subtitle">{form.description}</p>
 
       {hasSubmittedThisMonth ? (
@@ -57,67 +69,89 @@ export default async function ReflectionPage() {
           />
 
           <h2>{form.title}</h2>
+          <p style={{ color: "var(--muted)", fontSize: 14 }}>
+            Complete this reflection first. Your mentor will use it when writing
+            this month&apos;s goal review.
+          </p>
 
-          {form.questions.map((question) => (
-            <div key={question.id} className="form-group">
-              <label>
-                {question.question}
-                {question.required && <span className="required">*</span>}
-              </label>
+          {Object.entries(groupedQuestions).map(([sectionTitle, questions]) => (
+            <section
+              key={sectionTitle}
+              style={{
+                marginTop: 24,
+                paddingTop: 20,
+                borderTop: "1px solid var(--border)",
+              }}
+            >
+              <h3 style={{ margin: "0 0 16px" }}>{sectionTitle}</h3>
 
-              {question.type === "TEXT" && (
-                <input
-                  type="text"
-                  name={`question_${question.id}`}
-                  required={question.required}
-                />
-              )}
+              {questions.map((question) => (
+                <div key={question.id} className="form-group">
+                  <label>
+                    {question.question}
+                    {question.required && <span className="required">*</span>}
+                  </label>
+                  {question.helperText && (
+                    <p style={{ margin: "6px 0 10px", fontSize: 13, color: "var(--muted)" }}>
+                      {question.helperText}
+                    </p>
+                  )}
 
-              {question.type === "TEXTAREA" && (
-                <textarea
-                  name={`question_${question.id}`}
-                  rows={4}
-                  required={question.required}
-                />
-              )}
+                  {question.type === "TEXT" && (
+                    <input
+                      type="text"
+                      name={`question_${question.id}`}
+                      required={question.required}
+                    />
+                  )}
 
-              {question.type === "RATING_1_5" && (
-                <div className="rating-group">
-                  {[1, 2, 3, 4, 5].map((num) => (
-                    <label key={num} className="rating-option">
-                      <input
-                        type="radio"
-                        name={`question_${question.id}`}
-                        value={num}
-                        required={question.required}
-                      />
-                      <span className="rating-label">{num}</span>
-                    </label>
-                  ))}
+                  {question.type === "TEXTAREA" && (
+                    <textarea
+                      name={`question_${question.id}`}
+                      rows={4}
+                      required={question.required}
+                    />
+                  )}
+
+                  {question.type === "RATING_1_5" && (
+                    <div className="rating-group">
+                      {[1, 2, 3, 4, 5].map((num) => (
+                        <label key={num} className="rating-option">
+                          <input
+                            type="radio"
+                            name={`question_${question.id}`}
+                            value={num}
+                            required={question.required}
+                          />
+                          <span className="rating-label">{num}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+
+                  {question.type === "MULTIPLE_CHOICE" && (
+                    <div className="choice-group">
+                      {question.options.map((option, idx) => (
+                        <label key={idx} className="choice-option">
+                          <input
+                            type="radio"
+                            name={`question_${question.id}`}
+                            value={option}
+                            required={question.required}
+                          />
+                          {option}
+                        </label>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-
-              {question.type === "MULTIPLE_CHOICE" && (
-                <div className="choice-group">
-                  {question.options.map((option, idx) => (
-                    <label key={idx} className="choice-option">
-                      <input
-                        type="radio"
-                        name={`question_${question.id}`}
-                        value={option}
-                        required={question.required}
-                      />
-                      {option}
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
+              ))}
+            </section>
           ))}
 
           <div className="form-actions">
             <button type="submit" className="btn btn-primary">
-              Submit Reflection
+              Submit Self-Reflection
             </button>
           </div>
         </form>

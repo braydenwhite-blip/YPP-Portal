@@ -42,10 +42,15 @@ export default async function AdminReflectionsPage() {
   return (
     <main className="main-content">
       <div className="page-header">
-        <h1>View Reflections</h1>
+        <div>
+          <h1>Monthly Self-Reflections</h1>
+          <p className="subtitle">
+            Review submitted Monthly Self-Reflections by mentee and month.
+          </p>
+        </div>
         {isAdmin && (
           <a href="/admin/reflection-forms" className="btn btn-secondary">
-            Manage Forms
+            Manage Self-Reflection Forms
           </a>
         )}
       </div>
@@ -63,7 +68,7 @@ export default async function AdminReflectionsPage() {
 
       {Object.keys(groupedByUser).length === 0 ? (
         <div className="card">
-          <p>No reflections have been submitted yet.</p>
+          <p>No Monthly Self-Reflections have been submitted yet.</p>
         </div>
       ) : (
         <div className="users-list">

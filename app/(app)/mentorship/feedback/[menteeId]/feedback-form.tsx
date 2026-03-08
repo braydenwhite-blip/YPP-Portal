@@ -1,8 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { ProgressStatus } from "@prisma/client";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+import { ProgressBarSelector } from "@/components/progress-bar";
+import {
+  calculateOverallProgress,
+  PROGRESS_STATUS_META,
+} from "@/lib/mentorship-review-helpers";
 
 interface Goal {
   id: string;
@@ -10,115 +16,150 @@ interface Goal {
   description: string | null;
   timetable: string | null;
   currentStatus: ProgressStatus | null;
+  currentComments: string | null;
+}
+
+interface ExistingReview {
+  overallStatus: ProgressStatus | null;
+  overallComments: string | null;
+  strengths: string | null;
+  focusAreas: string | null;
+  collaborationNotes: string | null;
+  promotionReadiness: string | null;
+  nextMonthPlan: string | null;
+  mentorInternalNotes: string | null;
+  characterCulturePoints: number;
+  goalRatings: Array<{
+    goalId: string;
+    status: ProgressStatus;
+    comments: string | null;
+  }>;
 }
 
 interface FeedbackFormProps {
   menteeId: string;
+  month: string;
   goals: Goal[];
+  existingReview: ExistingReview | null;
   submitAction: (formData: FormData) => Promise<void>;
 }
 
-const STATUS_CONFIG = {
-  BEHIND_SCHEDULE: {
-    color: "#ef4444",
-    label: "Behind schedule",
-    description: "Incomplete/behind timetable schedule and no catch-up possible"
-  },
-  GETTING_STARTED: {
-    color: "#eab308",
-    label: "Getting started",
-    description: "Incomplete/behind timetable schedule but catch-up possible"
-  },
-  ON_TRACK: {
-    color: "#22c55e",
-    label: "On track",
-    description: "Complete/in line with timetable schedule in both quantity & quality"
-  },
-  ABOVE_AND_BEYOND: {
-    color: "#3b82f6",
-    label: "Above and beyond",
-    description: "Exceeds goals in quantity & quality"
-  }
-};
-
-export function FeedbackForm({ menteeId, goals, submitAction }: FeedbackFormProps) {
+export function FeedbackForm({
+  menteeId,
+  month,
+  goals,
+  existingReview,
+  submitAction,
+}: FeedbackFormProps) {
   const router = useRouter();
-  const [statuses, setStatuses] = useState<Record<string, ProgressStatus>>(
+  const existingGoalRatings = new Map(
+    (existingReview?.goalRatings ?? []).map((rating) => [rating.goalId, rating])
+  );
+
+  const [goalStatuses, setGoalStatuses] = useState<Record<string, ProgressStatus>>(
     goals.reduce((acc, goal) => {
-      acc[goal.id] = goal.currentStatus ?? "ON_TRACK";
+      acc[goal.id] =
+        existingGoalRatings.get(goal.id)?.status ??
+        goal.currentStatus ??
+        "GETTING_STARTED";
       return acc;
     }, {} as Record<string, ProgressStatus>)
   );
-  const [comments, setComments] = useState<Record<string, string>>({});
-  const [overallComments, setOverallComments] = useState("");
+  const [goalComments, setGoalComments] = useState<Record<string, string>>(
+    goals.reduce((acc, goal) => {
+      acc[goal.id] =
+        existingGoalRatings.get(goal.id)?.comments ??
+        goal.currentComments ??
+        "";
+      return acc;
+    }, {} as Record<string, string>)
+  );
+  const [overallStatus, setOverallStatus] = useState<ProgressStatus>(
+    existingReview?.overallStatus ??
+      calculateOverallProgress(Object.values(goalStatuses)) ??
+      "GETTING_STARTED"
+  );
+  const [overallComments, setOverallComments] = useState(
+    existingReview?.overallComments ?? ""
+  );
+  const [strengths, setStrengths] = useState(existingReview?.strengths ?? "");
+  const [focusAreas, setFocusAreas] = useState(existingReview?.focusAreas ?? "");
+  const [collaborationNotes, setCollaborationNotes] = useState(
+    existingReview?.collaborationNotes ?? ""
+  );
+  const [promotionReadiness, setPromotionReadiness] = useState(
+    existingReview?.promotionReadiness ?? ""
+  );
+  const [nextMonthPlan, setNextMonthPlan] = useState(
+    existingReview?.nextMonthPlan ?? ""
+  );
+  const [mentorInternalNotes, setMentorInternalNotes] = useState(
+    existingReview?.mentorInternalNotes ?? ""
+  );
+  const [characterCulturePoints, setCharacterCulturePoints] = useState(
+    existingReview?.characterCulturePoints ?? 0
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
     setIsSubmitting(true);
 
     try {
       const formData = new FormData();
       formData.append("forUserId", menteeId);
+      formData.append("month", month);
+      formData.append("overallStatus", overallStatus);
       formData.append("overallComments", overallComments);
+      formData.append("strengths", strengths);
+      formData.append("focusAreas", focusAreas);
+      formData.append("collaborationNotes", collaborationNotes);
+      formData.append("promotionReadiness", promotionReadiness);
+      formData.append("nextMonthPlan", nextMonthPlan);
+      formData.append("mentorInternalNotes", mentorInternalNotes);
+      formData.append("characterCulturePoints", String(characterCulturePoints));
 
       goals.forEach((goal) => {
-        formData.append(`goal_${goal.id}_status`, statuses[goal.id]);
-        if (comments[goal.id]) {
-          formData.append(`goal_${goal.id}_comments`, comments[goal.id]);
-        }
+        formData.append(`goal_${goal.id}_status`, goalStatuses[goal.id]);
+        formData.append(`goal_${goal.id}_comments`, goalComments[goal.id] || "");
       });
 
       await submitAction(formData);
       router.push(`/mentorship/mentees/${menteeId}`);
       router.refresh();
     } catch (error) {
-      console.error("Failed to submit feedback:", error);
-      alert("Failed to submit feedback. Please try again.");
+      console.error("Failed to submit monthly goal review:", error);
+      alert("Failed to submit the monthly goal review. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }
 
   return (
     <form onSubmit={handleSubmit}>
-      <div className="section-title">Progress Update</div>
-      <p style={{ color: "var(--muted)", fontSize: 13, marginBottom: 24 }}>
-        Select the progress status for each goal. Click on a status segment to select it.
-      </p>
-
-      {/* Progress Bar Legend */}
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 8,
-          marginBottom: 24,
           padding: 16,
+          marginBottom: 24,
+          borderRadius: "var(--radius-md)",
           background: "var(--surface-alt)",
-          borderRadius: "var(--radius-md)"
+          border: "1px solid var(--border)",
         }}
       >
-        {Object.entries(STATUS_CONFIG).map(([key, config]) => (
-          <div key={key} style={{ textAlign: "center" }}>
-            <div
-              style={{
-                width: "100%",
-                height: 8,
-                backgroundColor: config.color,
-                borderRadius: 4,
-                marginBottom: 8
-              }}
-            />
-            <div style={{ fontWeight: 700, fontSize: 11 }}>{config.label}</div>
-            <div style={{ fontSize: 10, color: "var(--muted)", lineHeight: 1.3, marginTop: 4 }}>
-              {config.description}
-            </div>
-          </div>
-        ))}
+        <div className="section-title" style={{ marginBottom: 8 }}>
+          Monthly Goal Review Workflow
+        </div>
+        <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
+          Step 1: review each goal. Step 2: write the mentor summary. Step 3:
+          submit this review to the Mentor Committee Chair for approval.
+        </p>
       </div>
 
-      {/* Goals */}
+      <div className="section-title">Per-Goal Ratings</div>
+      <p style={{ color: "var(--muted)", fontSize: 13, marginBottom: 20 }}>
+        Rate each goal using the YPP Red / Yellow / Green / Purple scale.
+      </p>
+
       {goals.map((goal, index) => (
         <div
           key={goal.id}
@@ -127,96 +168,197 @@ export function FeedbackForm({ menteeId, goals, submitAction }: FeedbackFormProp
             marginBottom: 16,
             background: "var(--surface-alt)",
             borderRadius: "var(--radius-md)",
-            border: "1px solid var(--border)"
+            border: "1px solid var(--border)",
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-            <div>
-              <strong style={{ fontSize: 15 }}>
-                Goal {index + 1}: {goal.title}
-              </strong>
-              {goal.timetable && (
-                <span style={{ marginLeft: 8, color: "var(--muted)", fontSize: 13 }}>
-                  By {goal.timetable}
-                </span>
-              )}
-              {goal.description && (
-                <p style={{ margin: "6px 0 0", color: "var(--muted)", fontSize: 13 }}>{goal.description}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Progress Bar Selector */}
           <div style={{ marginBottom: 16 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 4 }}>
-              {(Object.entries(STATUS_CONFIG) as [ProgressStatus, typeof STATUS_CONFIG[keyof typeof STATUS_CONFIG]][]).map(
-                ([key, config]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setStatuses((prev) => ({ ...prev, [goal.id]: key }))}
-                    style={{
-                      padding: "12px 8px",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      textAlign: "center",
-                      transition: "all 0.2s ease",
-                      border: statuses[goal.id] === key ? "2px solid #0f172a" : "2px solid transparent",
-                      backgroundColor: statuses[goal.id] === key ? config.color : `${config.color}33`,
-                      color: "#0f172a"
-                    }}
-                  >
-                    <span style={{ fontSize: 11, fontWeight: 700 }}>{config.label}</span>
-                  </button>
-                )
-              )}
-            </div>
+            <strong style={{ fontSize: 15 }}>
+              Goal {index + 1}: {goal.title}
+            </strong>
+            {goal.timetable && (
+              <span style={{ marginLeft: 8, color: "var(--muted)", fontSize: 13 }}>
+                By {goal.timetable}
+              </span>
+            )}
+            {goal.description && (
+              <p style={{ margin: "6px 0 0", color: "var(--muted)", fontSize: 13 }}>
+                {goal.description}
+              </p>
+            )}
           </div>
 
-          {/* Comments for this goal */}
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 600 }}>Comments (optional)</label>
+          <ProgressBarSelector
+            name={`goal_${goal.id}_status`}
+            value={goalStatuses[goal.id]}
+            onChange={(status) =>
+              setGoalStatuses((prev) => ({
+                ...prev,
+                [goal.id]: status,
+              }))
+            }
+            label="Goal Rating"
+          />
+
+          <div style={{ marginTop: 16 }}>
+            <label style={{ fontSize: 13, fontWeight: 600 }}>
+              Goal Comments
+            </label>
             <textarea
-              value={comments[goal.id] || ""}
-              onChange={(e) => setComments((prev) => ({ ...prev, [goal.id]: e.target.value }))}
+              value={goalComments[goal.id] || ""}
+              onChange={(event) =>
+                setGoalComments((prev) => ({
+                  ...prev,
+                  [goal.id]: event.target.value,
+                }))
+              }
               className="input"
-              rows={2}
-              placeholder="Add specific feedback for this goal..."
+              rows={3}
+              placeholder="Describe progress, blockers, wins, and next steps for this goal."
               style={{ marginTop: 6 }}
             />
           </div>
         </div>
       ))}
 
-      {/* Overall Section */}
       <div
         style={{
           padding: 20,
           marginTop: 24,
-          background: "#f0fdf4",
+          background: "#faf5ff",
           borderRadius: "var(--radius-md)",
-          border: "1px solid #bbf7d0"
+          border: "1px solid #d8b4fe",
         }}
       >
-        <div className="section-title" style={{ color: "#166534" }}>
-          Comments
+        <div className="section-title" style={{ color: "#6b21a8" }}>
+          Overall Progress
         </div>
-        <p style={{ fontSize: 13, color: "#166534", marginBottom: 12 }}>
-          Overall impression of progress, what&apos;s worked well and recommended adjustments, relevant notes
-          from/about colleagues, additional involvements in YPP (events, recruiting, etc.)
+        <p style={{ fontSize: 13, color: "#6b21a8", marginBottom: 14 }}>
+          Choose the overall monthly progress bar that best fits the full month.
         </p>
-        <textarea
-          value={overallComments}
-          onChange={(e) => setOverallComments(e.target.value)}
-          className="input"
-          rows={4}
-          placeholder="Add overall feedback comments..."
+        <ProgressBarSelector
+          name="overallStatus"
+          value={overallStatus}
+          onChange={setOverallStatus}
         />
       </div>
 
-      <div style={{ marginTop: 24, display: "flex", gap: 12 }}>
+      <div className="grid two" style={{ marginTop: 24 }}>
+        <div className="card">
+          <div className="section-title">Mentor Summary</div>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 600 }}>
+            Overall Impression of Progress
+          </label>
+          <textarea
+            value={overallComments}
+            onChange={(event) => setOverallComments(event.target.value)}
+            className="input"
+            rows={4}
+            placeholder="Summarize the month overall."
+            style={{ marginTop: 6, marginBottom: 16 }}
+          />
+
+          <label style={{ display: "block", fontSize: 13, fontWeight: 600 }}>
+            Strengths / What Worked Well
+          </label>
+          <textarea
+            value={strengths}
+            onChange={(event) => setStrengths(event.target.value)}
+            className="input"
+            rows={4}
+            placeholder="Call out strengths and positive momentum."
+            style={{ marginTop: 6, marginBottom: 16 }}
+          />
+
+          <label style={{ display: "block", fontSize: 13, fontWeight: 600 }}>
+            Areas for Development / Recommended Adjustments
+          </label>
+          <textarea
+            value={focusAreas}
+            onChange={(event) => setFocusAreas(event.target.value)}
+            className="input"
+            rows={4}
+            placeholder="What should change or improve next month?"
+            style={{ marginTop: 6 }}
+          />
+        </div>
+
+        <div className="card">
+          <div className="section-title">Committee-Facing Notes</div>
+
+          <label style={{ display: "block", fontSize: 13, fontWeight: 600 }}>
+            Collaboration & Communication Notes
+          </label>
+          <textarea
+            value={collaborationNotes}
+            onChange={(event) => setCollaborationNotes(event.target.value)}
+            className="input"
+            rows={4}
+            placeholder="Summarize peer collaboration feedback and communication patterns."
+            style={{ marginTop: 6, marginBottom: 16 }}
+          />
+
+          <label style={{ display: "block", fontSize: 13, fontWeight: 600 }}>
+            Promotion Readiness
+          </label>
+          <textarea
+            value={promotionReadiness}
+            onChange={(event) => setPromotionReadiness(event.target.value)}
+            className="input"
+            rows={3}
+            placeholder="Describe promotion readiness and any conditions."
+            style={{ marginTop: 6, marginBottom: 16 }}
+          />
+
+          <label style={{ display: "block", fontSize: 13, fontWeight: 600 }}>
+            Character & Culture Points
+          </label>
+          <input
+            type="number"
+            min={0}
+            value={characterCulturePoints}
+            onChange={(event) =>
+              setCharacterCulturePoints(Number(event.target.value) || 0)
+            }
+            className="input"
+            style={{ marginTop: 6, marginBottom: 16 }}
+          />
+
+          <label style={{ display: "block", fontSize: 13, fontWeight: 600 }}>
+            Internal Mentor Notes
+          </label>
+          <textarea
+            value={mentorInternalNotes}
+            onChange={(event) => setMentorInternalNotes(event.target.value)}
+            className="input"
+            rows={4}
+            placeholder="Internal notes for chair and committee review only."
+            style={{ marginTop: 6 }}
+          />
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 24 }}>
+        <div className="section-title">Plan of Action For Next Month</div>
+        <textarea
+          value={nextMonthPlan}
+          onChange={(event) => setNextMonthPlan(event.target.value)}
+          className="input"
+          rows={5}
+          placeholder="List the high-level objectives, next month goals, and implementation plan."
+        />
+      </div>
+
+      <div
+        style={{
+          marginTop: 24,
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          flexWrap: "wrap",
+        }}
+      >
         <button type="submit" className="button" disabled={isSubmitting}>
-          {isSubmitting ? "Submitting..." : "Submit Progress Feedback"}
+          {isSubmitting ? "Submitting..." : "Submit To Chair For Approval"}
         </button>
         <button
           type="button"
@@ -226,6 +368,9 @@ export function FeedbackForm({ menteeId, goals, submitAction }: FeedbackFormProp
         >
           Cancel
         </button>
+        <span style={{ fontSize: 12, color: "var(--muted)" }}>
+          Purple scale key: {PROGRESS_STATUS_META.ABOVE_AND_BEYOND.label}
+        </span>
       </div>
     </form>
   );

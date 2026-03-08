@@ -47,7 +47,12 @@ export async function createReflectionForm(formData: FormData) {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    include: { roles: true },
+    include: {
+      roles: true,
+      mentorPairs: {
+        select: { menteeId: true },
+      },
+    },
   });
 
   if (!user?.roles.some((r) => r.role === "ADMIN")) {
@@ -76,7 +81,12 @@ export async function updateReflectionForm(formId: string, formData: FormData) {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    include: { roles: true },
+    include: {
+      roles: true,
+      mentorPairs: {
+        select: { menteeId: true },
+      },
+    },
   });
 
   if (!user?.roles.some((r) => r.role === "ADMIN")) {
@@ -110,7 +120,12 @@ export async function addReflectionQuestion(formId: string, formData: FormData) 
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    include: { roles: true },
+    include: {
+      roles: true,
+      mentorPairs: {
+        select: { menteeId: true },
+      },
+    },
   });
 
   if (!user?.roles.some((r) => r.role === "ADMIN")) {
@@ -118,6 +133,8 @@ export async function addReflectionQuestion(formId: string, formData: FormData) 
   }
 
   const question = formData.get("question") as string;
+  const sectionTitle = (formData.get("sectionTitle") as string) || "";
+  const helperText = (formData.get("helperText") as string) || "";
   const type = formData.get("type") as QuestionType;
   const required = formData.get("required") === "true";
   const optionsRaw = formData.get("options") as string;
@@ -133,6 +150,8 @@ export async function addReflectionQuestion(formId: string, formData: FormData) 
   const newQuestion = await prisma.reflectionQuestion.create({
     data: {
       formId,
+      sectionTitle: sectionTitle || null,
+      helperText: helperText || null,
       question,
       type,
       required,
@@ -154,7 +173,12 @@ export async function updateReflectionQuestion(
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    include: { roles: true },
+    include: {
+      roles: true,
+      mentorPairs: {
+        select: { menteeId: true },
+      },
+    },
   });
 
   if (!user?.roles.some((r) => r.role === "ADMIN")) {
@@ -162,6 +186,8 @@ export async function updateReflectionQuestion(
   }
 
   const question = formData.get("question") as string;
+  const sectionTitle = (formData.get("sectionTitle") as string) || "";
+  const helperText = (formData.get("helperText") as string) || "";
   const type = formData.get("type") as QuestionType;
   const required = formData.get("required") === "true";
   const optionsRaw = formData.get("options") as string;
@@ -172,6 +198,8 @@ export async function updateReflectionQuestion(
     where: { id: questionId },
     data: {
       question,
+      sectionTitle: sectionTitle || null,
+      helperText: helperText || null,
       type,
       required,
       options,
@@ -427,13 +455,19 @@ export async function getAllReflectionSubmissions(filters?: {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    include: { roles: true },
+    include: {
+      roles: true,
+      mentorPairs: {
+        select: { menteeId: true },
+      },
+    },
   });
 
   const isAdmin = user?.roles.some((r) => r.role === "ADMIN");
   const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_LEAD");
+  const isMentor = user?.roles.some((r) => r.role === "MENTOR");
 
-  if (!isAdmin && !isChapterLead) {
+  if (!isAdmin && !isChapterLead && !isMentor) {
     throw new Error("Unauthorized");
   }
 
@@ -462,6 +496,13 @@ export async function getAllReflectionSubmissions(filters?: {
       ...where.user,
       chapterId: filters?.chapterId || user?.chapterId,
     };
+  }
+
+  if (!isAdmin && isMentor && !isChapterLead) {
+    const menteeIds = (user?.mentorPairs ?? []).map(
+      (pairing: { menteeId: string }) => pairing.menteeId
+    );
+    where.userId = { in: menteeIds.length > 0 ? menteeIds : ["__none__"] };
   }
 
   return prisma.reflectionSubmission.findMany({
@@ -503,102 +544,144 @@ export async function createDefaultReflectionForms() {
     throw new Error("Only admins can create default forms");
   }
 
-  // Create default instructor reflection form
-  const instructorForm = await prisma.reflectionForm.upsert({
-    where: { id: "default-instructor-form" },
-    create: {
+  const formConfigs: Array<{
+    id: string;
+    title: string;
+    description: string;
+    roleType: RoleType;
+  }> = [
+    {
       id: "default-instructor-form",
-      title: "Monthly Instructor Reflection",
-      description: "Share your experiences and plan your growth",
+      title: "Monthly Instructor Self-Reflection",
+      description: "Reflect on your goals, collaboration, and support needs.",
       roleType: "INSTRUCTOR",
-      isActive: true,
-      questions: {
-        create: [
-          {
-            question: "How happy are you at YPP?",
-            type: "RATING_1_5",
-            required: true,
-            sortOrder: 1,
-          },
-          {
-            question: "What's working well for you?",
-            type: "TEXTAREA",
-            required: true,
-            sortOrder: 2,
-          },
-          {
-            question:
-              "What support or changes would help you succeed in this role and beyond YPP?",
-            type: "TEXTAREA",
-            required: true,
-            sortOrder: 3,
-          },
-          {
-            question: "Revisions to future goals",
-            type: "TEXTAREA",
-            required: false,
-            sortOrder: 4,
-          },
-          {
-            question: "Action Items and Implementation Plan",
-            type: "TEXTAREA",
-            required: true,
-            sortOrder: 5,
-          },
-        ],
-      },
     },
-    update: {},
-  });
-
-  // Create default chapter lead reflection form
-  const chapterLeadForm = await prisma.reflectionForm.upsert({
-    where: { id: "default-chapter-lead-form" },
-    create: {
+    {
       id: "default-chapter-lead-form",
-      title: "Monthly Chapter President Reflection",
-      description: "Reflect on your chapter leadership and growth",
+      title: "Monthly Chapter President Self-Reflection",
+      description: "Reflect on leadership progress, collaboration, and next steps.",
       roleType: "CHAPTER_LEAD",
-      isActive: true,
-      questions: {
-        create: [
-          {
-            question: "How happy are you at YPP?",
-            type: "RATING_1_5",
-            required: true,
-            sortOrder: 1,
-          },
-          {
-            question: "What's working well for your chapter?",
-            type: "TEXTAREA",
-            required: true,
-            sortOrder: 2,
-          },
-          {
-            question: "What challenges is your chapter facing?",
-            type: "TEXTAREA",
-            required: true,
-            sortOrder: 3,
-          },
-          {
-            question:
-              "What support or resources would help your chapter succeed?",
-            type: "TEXTAREA",
-            required: true,
-            sortOrder: 4,
-          },
-          {
-            question: "Goals and action items for next month",
-            type: "TEXTAREA",
-            required: true,
-            sortOrder: 5,
-          },
-        ],
-      },
     },
-    update: {},
-  });
+    {
+      id: "default-mentor-form",
+      title: "Monthly Mentor Self-Reflection",
+      description: "Reflect on mentorship support, collaboration, and next steps.",
+      roleType: "MENTOR",
+    },
+    {
+      id: "default-staff-form",
+      title: "Monthly Staff Self-Reflection",
+      description: "Reflect on progress, teamwork, and support needs.",
+      roleType: "STAFF",
+    },
+    {
+      id: "default-student-form",
+      title: "Monthly Student Self-Reflection",
+      description: "Reflect on progress, support needs, and next steps.",
+      roleType: "STUDENT",
+    },
+  ];
+
+  const defaultQuestions = [
+    {
+      sectionTitle: "Overall Reflection",
+      helperText: "Share the big picture from this month.",
+      question: "How would you describe this past month? How is YPP performing overall from your perspective?",
+      type: "TEXTAREA" as QuestionType,
+      required: true,
+    },
+    {
+      sectionTitle: "Engagement & Fulfillment",
+      helperText: "Focus on what is working and where support is needed.",
+      question: "How has your experience been working in your position over the past month?",
+      type: "TEXTAREA" as QuestionType,
+      required: true,
+    },
+    {
+      sectionTitle: "Engagement & Fulfillment",
+      helperText: "Call out what is going especially well.",
+      question: "What is working especially well for you?",
+      type: "TEXTAREA" as QuestionType,
+      required: true,
+    },
+    {
+      sectionTitle: "Engagement & Fulfillment",
+      helperText: "Name the support, changes, or mentorship that would help most.",
+      question: "What support or changes would help you perform at your highest level? How helpful has your mentor been this month? How can we better support you?",
+      type: "TEXTAREA" as QuestionType,
+      required: true,
+    },
+    {
+      sectionTitle: "Leadership Team Collaboration",
+      helperText: "Reflect on collaboration and communication.",
+      question: "How would you assess collaboration and communication within the leadership team?",
+      type: "TEXTAREA" as QuestionType,
+      required: true,
+    },
+    {
+      sectionTitle: "Leadership Team Collaboration",
+      helperText: "Recognize strong contributors and areas to improve.",
+      question: "Are there team members who have gone above and beyond? Are there areas or ways where stronger collaboration or communication is needed?",
+      type: "TEXTAREA" as QuestionType,
+      required: false,
+    },
+    {
+      sectionTitle: "Goal Progress",
+      helperText: "Use this for goal-by-goal monthly progress, blockers, wins, and next steps.",
+      question: "For each assigned goal, what progress was made, what was accomplished, what blockers exist, and what are you hoping to accomplish next month?",
+      type: "TEXTAREA" as QuestionType,
+      required: true,
+    },
+    {
+      sectionTitle: "Additional Reflections",
+      helperText: "Include extra wins, concerns, ideas, feedback, or deliverables.",
+      question: "Is there anything else you would like us to know, including wins, concerns, ideas, feedback, or deliverables you sent or are sending?",
+      type: "TEXTAREA" as QuestionType,
+      required: false,
+    },
+  ];
+
+  const forms = [];
+
+  for (const config of formConfigs) {
+    const form = await prisma.reflectionForm.upsert({
+      where: { id: config.id },
+      create: {
+        id: config.id,
+        title: config.title,
+        description: config.description,
+        roleType: config.roleType,
+        isActive: true,
+      },
+      update: {
+        title: config.title,
+        description: config.description,
+        roleType: config.roleType,
+        isActive: true,
+      },
+    });
+
+    await prisma.reflectionQuestion.deleteMany({
+      where: { formId: form.id },
+    });
+
+    await prisma.reflectionQuestion.createMany({
+      data: defaultQuestions.map((question, index) => ({
+        formId: form.id,
+        sectionTitle: question.sectionTitle,
+        helperText: question.helperText,
+        question: question.question,
+        type: question.type,
+        options: [],
+        required: question.required,
+        sortOrder: index + 1,
+      })),
+    });
+
+    forms.push(form);
+  }
 
   revalidatePath("/admin/reflection-forms");
-  return { instructorForm, chapterLeadForm };
+  revalidatePath("/reflection");
+  return forms;
 }

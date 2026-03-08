@@ -1,8 +1,21 @@
-import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { redirect } from "next/navigation";
 import Link from "next/link";
+import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
+
+import { authOptions } from "@/lib/auth";
+import { ProgressBar } from "@/components/progress-bar";
+import {
+  getMonthlyCycleLabel,
+  PROGRESS_STATUS_META,
+} from "@/lib/mentorship-review-helpers";
+import { prisma } from "@/lib/prisma";
+
+const TONE_STYLES = {
+  neutral: { background: "#e2e8f0", color: "#334155" },
+  warning: { background: "#fef3c7", color: "#92400e" },
+  success: { background: "#dcfce7", color: "#166534" },
+  danger: { background: "#fee2e2", color: "#991b1b" },
+} as const;
 
 export default async function MenteesPage() {
   const session = await getServerSession(authOptions);
@@ -21,13 +34,24 @@ export default async function MenteesPage() {
     redirect("/");
   }
 
-  // Get mentees based on role
+  const currentMonth = new Date();
+  const normalizedMonth = new Date(
+    currentMonth.getFullYear(),
+    currentMonth.getMonth(),
+    1
+  );
+  const nextMonth = new Date(
+    currentMonth.getFullYear(),
+    currentMonth.getMonth() + 1,
+    1
+  );
+
   let mentees;
+
   if (isAdmin) {
-    // Admins can see all users with goals
     mentees = await prisma.user.findMany({
       where: {
-        goals: { some: {} }
+        goals: { some: {} },
       },
       include: {
         roles: true,
@@ -37,31 +61,51 @@ export default async function MenteesPage() {
             template: true,
             progress: {
               orderBy: { createdAt: "desc" },
-              take: 1
-            }
-          }
+              take: 1,
+            },
+          },
         },
         menteePairs: {
           where: { status: "ACTIVE" },
+          take: 1,
           include: {
-            mentor: { select: { name: true } }
-          }
+            mentor: { select: { name: true } },
+            chair: { select: { name: true } },
+            track: { select: { name: true } },
+            monthlyReviews: {
+              where: { month: normalizedMonth },
+              orderBy: { createdAt: "desc" },
+              take: 1,
+            },
+          },
         },
         reflectionSubmissions: {
+          where: {
+            month: {
+              gte: normalizedMonth,
+              lt: nextMonth,
+            },
+          },
           orderBy: { submittedAt: "desc" },
-          take: 1
-        }
+          take: 1,
+        },
       },
-      orderBy: { name: "asc" }
+      orderBy: { name: "asc" },
     });
   } else {
-    // Mentors see their assigned mentees
     const mentorships = await prisma.mentorship.findMany({
       where: {
         mentorId: userId,
-        status: "ACTIVE"
+        status: "ACTIVE",
       },
       include: {
+        chair: { select: { name: true } },
+        track: { select: { name: true } },
+        monthlyReviews: {
+          where: { month: normalizedMonth },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
         mentee: {
           include: {
             roles: true,
@@ -71,21 +115,35 @@ export default async function MenteesPage() {
                 template: true,
                 progress: {
                   orderBy: { createdAt: "desc" },
-                  take: 1
-                }
-              }
+                  take: 1,
+                },
+              },
             },
             reflectionSubmissions: {
+              where: {
+                month: {
+                  gte: normalizedMonth,
+                  lt: nextMonth,
+                },
+              },
               orderBy: { submittedAt: "desc" },
-              take: 1
-            }
-          }
-        }
-      }
+              take: 1,
+            },
+          },
+        },
+      },
     });
-    mentees = mentorships.map((m) => ({
-      ...m.mentee,
-      menteePairs: [{ mentor: { name: "You" } }]
+
+    mentees = mentorships.map((mentorship) => ({
+      ...mentorship.mentee,
+      menteePairs: [
+        {
+          mentor: { name: "You" },
+          chair: mentorship.chair,
+          track: mentorship.track,
+          monthlyReviews: mentorship.monthlyReviews,
+        },
+      ],
     }));
   }
 
@@ -94,9 +152,16 @@ export default async function MenteesPage() {
       <div className="topbar">
         <div>
           <p className="badge">Mentorship</p>
-          <h1 className="page-title">My Mentees</h1>
+          <h1 className="page-title">Mentee Workflow</h1>
+          <p style={{ marginTop: 4, color: "var(--muted)", fontSize: 14 }}>
+            Watch who has submitted a Monthly Self-Reflection, who needs a
+            Monthly Goal Review, and who is waiting on chair approval.
+          </p>
         </div>
-        <div className="badge" style={{ background: "#e0e7ff", color: "#3730a3" }}>
+        <div
+          className="badge"
+          style={{ background: "#e0e7ff", color: "#3730a3" }}
+        >
           {mentees.length} mentee{mentees.length !== 1 ? "s" : ""}
         </div>
       </div>
@@ -112,85 +177,161 @@ export default async function MenteesPage() {
       ) : (
         <div className="grid two">
           {mentees.map((mentee) => {
-            const goalsWithProgress = mentee.goals.filter((g) => g.progress.length > 0);
+            const activeMentorship = mentee.menteePairs[0] ?? null;
+            const currentReview = activeMentorship?.monthlyReviews[0] ?? null;
             const latestProgress = mentee.goals
-              .flatMap((g) => g.progress)
-              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-
-            const latestReflection = mentee.reflectionSubmissions[0];
-
-            // Calculate overall status
-            const statuses = mentee.goals
-              .filter((g) => g.progress.length > 0)
-              .map((g) => {
-                const status = g.progress[0].status;
-                return status === "BEHIND_SCHEDULE"
-                  ? 0
-                  : status === "GETTING_STARTED"
-                  ? 1
-                  : status === "ON_TRACK"
-                  ? 2
-                  : 3;
-              });
-            const avgStatus = statuses.length > 0
-              ? (statuses as number[]).reduce((a, b) => a + b, 0) / statuses.length
-              : null;
-            const overallLabel =
-              avgStatus === null
-                ? "No updates"
-                : avgStatus < 0.75
-                ? "Behind"
-                : avgStatus < 1.5
-                ? "Getting Started"
-                : avgStatus < 2.5
-                ? "On Track"
-                : "Exceeding";
+              .flatMap((goal) => goal.progress)
+              .sort(
+                (a, b) =>
+                  new Date(b.createdAt).getTime() -
+                  new Date(a.createdAt).getTime()
+              )[0];
+            const currentStatus =
+              currentReview?.overallStatus ?? latestProgress?.status ?? null;
+            const cycleLabel = getMonthlyCycleLabel({
+              hasReflection: mentee.reflectionSubmissions.length > 0,
+              reviewStatus: currentReview?.status ?? null,
+            });
 
             return (
               <div key={mentee.id} className="card">
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    gap: 16,
+                  }}
+                >
                   <div>
                     <h3 style={{ margin: 0 }}>{mentee.name}</h3>
-                    <p style={{ margin: "4px 0 0", color: "var(--muted)", fontSize: 13 }}>
+                    <p
+                      style={{
+                        margin: "4px 0 0",
+                        color: "var(--muted)",
+                        fontSize: 13,
+                      }}
+                    >
                       {mentee.email}
                     </p>
-                    <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
-                      <span className="pill">{mentee.primaryRole.replace("_", " ")}</span>
+                    <div
+                      style={{
+                        marginTop: 8,
+                        display: "flex",
+                        gap: 8,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <span className="pill">
+                        {mentee.primaryRole.replace(/_/g, " ")}
+                      </span>
                       {mentee.chapter && (
-                        <span className="pill" style={{ background: "#f3e8ff", color: "#7c3aed" }}>
+                        <span
+                          className="pill"
+                          style={{ background: "#f3e8ff", color: "#7c3aed" }}
+                        >
                           {mentee.chapter.name}
+                        </span>
+                      )}
+                      {activeMentorship?.track && (
+                        <span
+                          className="pill"
+                          style={{ background: "#e0f2fe", color: "#0c4a6e" }}
+                        >
+                          {activeMentorship.track.name}
                         </span>
                       )}
                     </div>
                   </div>
-                  <span
-                    className={`pill ${
-                      overallLabel === "On Track" || overallLabel === "Exceeding"
-                        ? "pill-success"
-                        : overallLabel === "Behind"
-                        ? "pill-pending"
-                        : overallLabel === "Getting Started"
-                        ? ""
-                        : "pill-declined"
-                    }`}
-                  >
-                    {overallLabel}
+                  <span className="pill" style={TONE_STYLES[cycleLabel.tone]}>
+                    {cycleLabel.label}
                   </span>
                 </div>
 
-                <div style={{ marginTop: 16 }}>
+                <div
+                  style={{
+                    marginTop: 16,
+                    display: "grid",
+                    gap: 12,
+                  }}
+                >
                   <div style={{ fontSize: 13, color: "var(--muted)" }}>
-                    <strong>{mentee.goals.length}</strong> goals assigned ·{" "}
-                    <strong>{goalsWithProgress.length}</strong> with updates
+                    <strong>{mentee.goals.length}</strong> goals assigned
+                    {activeMentorship?.mentor && (
+                      <>
+                        {" "}· <strong>Mentor:</strong> {activeMentorship.mentor.name}
+                      </>
+                    )}
+                    {activeMentorship?.chair && (
+                      <>
+                        {" "}· <strong>Chair:</strong> {activeMentorship.chair.name}
+                      </>
+                    )}
                   </div>
-                  {latestProgress && (
-                    <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                      Last update: {new Date(latestProgress.createdAt).toLocaleDateString()}
+
+                  <div
+                    style={{
+                      padding: 12,
+                      background: "var(--surface-alt)",
+                      borderRadius: "var(--radius-md)",
+                      border: "1px solid var(--border)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 12,
+                        marginBottom: 8,
+                      }}
+                    >
+                      <strong style={{ fontSize: 13 }}>Current Month</strong>
+                      <span style={{ fontSize: 12, color: "var(--muted)" }}>
+                        {normalizedMonth.toLocaleDateString("en-US", {
+                          month: "long",
+                          year: "numeric",
+                        })}
+                      </span>
                     </div>
-                  )}
-                  {latestReflection && (
-                    <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                      Last reflection: {new Date(latestReflection.submittedAt).toLocaleDateString()}
+                    <div style={{ fontSize: 13, color: "var(--muted)" }}>
+                      Reflection:{" "}
+                      {mentee.reflectionSubmissions[0]
+                        ? `Submitted ${new Date(
+                            mentee.reflectionSubmissions[0].submittedAt
+                          ).toLocaleDateString()}`
+                        : "Not submitted"}
+                    </div>
+                    <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 4 }}>
+                      Review:{" "}
+                      {currentReview
+                        ? currentReview.status
+                            .replace(/_/g, " ")
+                            .toLowerCase()
+                            .replace(/^\w/, (value) => value.toUpperCase())
+                        : "Not started"}
+                    </div>
+                  </div>
+
+                  {currentStatus ? (
+                    <div>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          marginBottom: 8,
+                          fontSize: 13,
+                        }}
+                      >
+                        <strong>Overall Progress</strong>
+                        <span style={{ color: "var(--muted)" }}>
+                          {PROGRESS_STATUS_META[currentStatus].label}
+                        </span>
+                      </div>
+                      <ProgressBar status={currentStatus} />
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 13, color: "var(--muted)" }}>
+                      No progress rating has been recorded yet.
                     </div>
                   )}
                 </div>
@@ -204,11 +345,11 @@ export default async function MenteesPage() {
                     View Details
                   </Link>
                   <Link
-                    href={`/mentorship/feedback/${mentee.id}`}
+                    href={`/mentorship/reviews/${mentee.id}`}
                     className="button small secondary"
                     style={{ textDecoration: "none" }}
                   >
-                    Submit Feedback
+                    Open Monthly Review
                   </Link>
                 </div>
               </div>

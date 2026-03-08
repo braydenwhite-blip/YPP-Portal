@@ -27,23 +27,34 @@ export default async function ReflectionFormsPage() {
   return (
     <main className="main-content">
       <div className="page-header">
-        <h1>Manage Reflection Forms</h1>
+        <div>
+          <h1>Manage Monthly Self-Reflection Forms</h1>
+          <p className="subtitle">
+            Keep the Monthly Self-Reflection questions aligned with the current
+            mentorship process.
+          </p>
+        </div>
         <div className="header-actions">
           <form action={createDefaultReflectionForms}>
             <button type="submit" className="btn btn-secondary">
-              Create Default Forms
+              Load Default Monthly Forms
             </button>
           </form>
         </div>
       </div>
 
       <div className="section">
-        <h2>Create New Form</h2>
+        <h2>Create New Monthly Form</h2>
         <form action={createReflectionForm} className="card form-card">
           <div className="form-row">
             <div className="form-group">
               <label>Title</label>
-              <input type="text" name="title" required placeholder="Monthly Reflection" />
+              <input
+                type="text"
+                name="title"
+                required
+                placeholder="Monthly Self-Reflection"
+              />
             </div>
             <div className="form-group">
               <label>Role Type</label>
@@ -57,12 +68,12 @@ export default async function ReflectionFormsPage() {
             </div>
           </div>
           <div className="form-group">
-            <label>Description</label>
-            <textarea
-              name="description"
-              rows={2}
-              placeholder="A brief description of this reflection form"
-            />
+              <label>Description</label>
+              <textarea
+                name="description"
+                rows={2}
+                placeholder="A brief description of this reflection form"
+              />
           </div>
           <button type="submit" className="btn btn-primary">
             Create Form
@@ -71,10 +82,13 @@ export default async function ReflectionFormsPage() {
       </div>
 
       <div className="section">
-        <h2>Existing Forms</h2>
+        <h2>Existing Monthly Forms</h2>
         {forms.length === 0 ? (
           <div className="card">
-            <p>No reflection forms created yet. Create one above or use the default forms.</p>
+            <p>
+              No Monthly Self-Reflection forms created yet. Create one above or
+              load the default monthly forms.
+            </p>
           </div>
         ) : (
           <div className="forms-list">
@@ -106,11 +120,21 @@ export default async function ReflectionFormsPage() {
                       <div key={q.id} className="question-item">
                         <span className="q-number">{idx + 1}.</span>
                         <div className="q-content">
+                          {q.sectionTitle && (
+                            <p className="q-type" style={{ marginBottom: 4 }}>
+                              Section: {q.sectionTitle}
+                            </p>
+                          )}
                           <p className="q-text">{q.question}</p>
                           <span className="q-type">
                             {q.type.replace("_", " ")}
                             {q.required && " (Required)"}
                           </span>
+                          {q.helperText && (
+                            <p className="q-type" style={{ marginTop: 4 }}>
+                              {q.helperText}
+                            </p>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -119,6 +143,18 @@ export default async function ReflectionFormsPage() {
                   <details className="add-question">
                     <summary>Add Question</summary>
                     <form action={addReflectionQuestion.bind(null, form.id)} className="add-q-form">
+                      <div className="form-group">
+                        <label>Section Title</label>
+                        <input type="text" name="sectionTitle" placeholder="Overall Reflection" />
+                      </div>
+                      <div className="form-group">
+                        <label>Helper Text</label>
+                        <input
+                          type="text"
+                          name="helperText"
+                          placeholder="Optional guidance shown above the answer field"
+                        />
+                      </div>
                       <div className="form-group">
                         <label>Question Text</label>
                         <input type="text" name="question" required />

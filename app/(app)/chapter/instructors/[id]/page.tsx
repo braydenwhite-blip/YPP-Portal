@@ -46,10 +46,10 @@ export default async function InstructorDetailPage({
           </p>
         </div>
         <Link
-          href={`/mentorship/feedback/${instructor.id}`}
+          href={`/mentorship/reviews/${instructor.id}`}
           className="btn btn-primary"
         >
-          Submit Feedback
+          Open Monthly Review
         </Link>
       </div>
 

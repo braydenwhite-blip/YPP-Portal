@@ -125,6 +125,49 @@ enum MentorshipStatus {
   COMPLETE
 }
 
+enum MentorshipPointCategory {
+  STUDENT
+  INSTRUCTOR
+  CHAPTER_PRESIDENT
+  GLOBAL_LEADERSHIP
+  STAFF
+  CUSTOM
+}
+
+enum MentorCommitteeMemberRole {
+  CHAIR
+  MEMBER
+  MANAGER
+}
+
+enum MentorshipReviewStatus {
+  DRAFT
+  PENDING_CHAIR_APPROVAL
+  APPROVED
+  RETURNED
+}
+
+enum QuarterlyCommitteeReviewStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+}
+
+enum RecommendationStatus {
+  DRAFT
+  PENDING_CHAIR_APPROVAL
+  PENDING_BOARD_APPROVAL
+  APPROVED
+  REJECTED
+}
+
+enum MentorshipAwardLevel {
+  BRONZE
+  SILVER
+  GOLD
+  LIFETIME
+}
+
 enum FeedbackSource {
   PARENT
   STUDENT
@@ -312,6 +355,7 @@ model User {
   approvals                     InstructorApproval[]
   mentorPairs                   Mentorship[]                             @relation("MentorLinks")
   menteePairs                   Mentorship[]                             @relation("MenteeLinks")
+  chairedMentorships            Mentorship[]                             @relation("MentorshipChairs")
   feedbackGiven                 Feedback[]                               @relation("FeedbackSource")
   feedbackFor                   Feedback[]                               @relation("FeedbackTarget")
   awards                        Award[]
@@ -325,6 +369,21 @@ model User {
   progressUpdatesSubmitted  ProgressUpdate[]           @relation("ProgressUpdatesSubmitted")
   progressUpdatesReceived   ProgressUpdate[]           @relation("ProgressUpdatesReceived")
   reflectionSubmissions     ReflectionSubmission[]
+  mentorCommitteeMemberships MentorCommitteeMember[]   @relation("MentorCommitteeMemberships")
+  mentorshipCommitteesChaired MentorCommittee[]        @relation("MentorCommitteeChairs")
+  monthlyGoalReviewsMentored MonthlyGoalReview[]       @relation("MonthlyGoalReviewMentors")
+  monthlyGoalReviewsReceived MonthlyGoalReview[]       @relation("MonthlyGoalReviewMentees")
+  monthlyGoalReviewsChaired MonthlyGoalReview[]        @relation("MonthlyGoalReviewChairs")
+  achievementPointEntries AchievementPointLedger[]     @relation("AchievementPointEntries")
+  achievementPointApprovals AchievementPointLedger[]   @relation("AchievementPointApprovals")
+  quarterlyCommitteeReviews QuarterlyCommitteeReview[] @relation("QuarterlyReviewMentees")
+  quarterlyCommitteeReviewsAuthored QuarterlyCommitteeReview[] @relation("QuarterlyReviewAuthors")
+  mentorshipAwardRecommendationsReceived MentorshipAwardRecommendation[] @relation("MentorshipAwardRecommendationRecipients")
+  mentorshipAwardRecommendationsMade MentorshipAwardRecommendation[] @relation("MentorshipAwardRecommendationAuthors")
+  mentorshipAwardRecommendationsApproved MentorshipAwardRecommendation[] @relation("MentorshipAwardRecommendationApprovers")
+  promotionRecommendationsReceived PromotionRecommendation[] @relation("PromotionRecommendationRecipients")
+  promotionRecommendationsMade PromotionRecommendation[] @relation("PromotionRecommendationAuthors")
+  promotionRecommendationsApproved PromotionRecommendation[] @relation("PromotionRecommendationApprovers")
   specialProgramsLed        SpecialProgram[]           @relation("ProgramsLed")
   specialProgramEnrollments SpecialProgramEnrollment[]
   alumniProfile             AlumniProfile?
@@ -1153,21 +1212,31 @@ model InstructorInterviewAvailabilityRequest {
 // ============================================
 
 model Mentorship {
-  id        String              @id @default(cuid())
-  mentorId  String
-  menteeId  String
-  type      MentorshipType
-  status    MentorshipStatus    @default(ACTIVE)
-  startDate DateTime            @default(now())
-  endDate   DateTime?
-  notes     String?
-  mentor    User                @relation("MentorLinks", fields: [mentorId], references: [id])
-  mentee    User                @relation("MenteeLinks", fields: [menteeId], references: [id])
-  checkIns  MentorshipCheckIn[]
+  id                 String           @id @default(cuid())
+  mentorId           String
+  menteeId           String
+  type               MentorshipType
+  status             MentorshipStatus @default(ACTIVE)
+  startDate          DateTime         @default(now())
+  endDate            DateTime?
+  notes              String?
+  trackId            String?
+  chairId            String?
+  kickoffScheduledAt DateTime?
+  kickoffCompletedAt DateTime?
+  mentor             User             @relation("MentorLinks", fields: [mentorId], references: [id])
+  mentee             User             @relation("MenteeLinks", fields: [menteeId], references: [id])
+  chair              User?            @relation("MentorshipChairs", fields: [chairId], references: [id])
+  track              MentorshipTrack? @relation(fields: [trackId], references: [id])
+  checkIns           MentorshipCheckIn[]
 
   // Mentorship Program relations
   selfReflections MonthlySelfReflection[]
   goalReviews     MentorGoalReview[]
+  monthlyReviews  MonthlyGoalReview[]
+
+  @@index([trackId])
+  @@index([chairId])
 }
 
 model MentorshipCheckIn {
@@ -1398,21 +1467,26 @@ model Goal {
   targetDate DateTime?
   timetable  String?
   progress   ProgressUpdate[]
+  monthlyRatings MonthlyGoalRating[]
   createdAt  DateTime         @default(now())
   updatedAt  DateTime         @updatedAt
 }
 
 model ProgressUpdate {
-  id            String         @id @default(cuid())
-  goalId        String
-  goal          Goal           @relation(fields: [goalId], references: [id])
-  submittedById String
-  submittedBy   User           @relation("ProgressUpdatesSubmitted", fields: [submittedById], references: [id])
-  forUserId     String
-  forUser       User           @relation("ProgressUpdatesReceived", fields: [forUserId], references: [id])
-  status        ProgressStatus
-  comments      String?
-  createdAt     DateTime       @default(now())
+  id              String             @id @default(cuid())
+  goalId          String
+  goal            Goal               @relation(fields: [goalId], references: [id])
+  monthlyReviewId String?
+  monthlyReview   MonthlyGoalReview? @relation(fields: [monthlyReviewId], references: [id], onDelete: SetNull)
+  submittedById   String
+  submittedBy     User               @relation("ProgressUpdatesSubmitted", fields: [submittedById], references: [id])
+  forUserId       String
+  forUser         User               @relation("ProgressUpdatesReceived", fields: [forUserId], references: [id])
+  status          ProgressStatus
+  comments        String?
+  createdAt       DateTime           @default(now())
+
+  @@index([monthlyReviewId])
 }
 
 // ============================================
@@ -1432,28 +1506,31 @@ model ReflectionForm {
 }
 
 model ReflectionQuestion {
-  id        String               @id @default(cuid())
-  formId    String
-  form      ReflectionForm       @relation(fields: [formId], references: [id])
-  question  String
-  type      QuestionType
-  options   String[]
-  required  Boolean              @default(true)
-  sortOrder Int
-  responses ReflectionResponse[]
-  createdAt DateTime             @default(now())
-  updatedAt DateTime             @updatedAt
+  id           String               @id @default(cuid())
+  formId       String
+  form         ReflectionForm       @relation(fields: [formId], references: [id])
+  sectionTitle String?
+  helperText   String?
+  question     String
+  type         QuestionType
+  options      String[]
+  required     Boolean              @default(true)
+  sortOrder    Int
+  responses    ReflectionResponse[]
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
 }
 
 model ReflectionSubmission {
-  id          String               @id @default(cuid())
-  userId      String
-  user        User                 @relation(fields: [userId], references: [id])
-  formId      String
-  form        ReflectionForm       @relation(fields: [formId], references: [id])
-  month       DateTime
-  responses   ReflectionResponse[]
-  submittedAt DateTime             @default(now())
+  id                 String               @id @default(cuid())
+  userId             String
+  user               User                 @relation(fields: [userId], references: [id])
+  formId             String
+  form               ReflectionForm       @relation(fields: [formId], references: [id])
+  month              DateTime
+  responses          ReflectionResponse[]
+  monthlyGoalReviews MonthlyGoalReview[]
+  submittedAt        DateTime             @default(now())
 }
 
 model ReflectionResponse {
@@ -1464,6 +1541,209 @@ model ReflectionResponse {
   question     ReflectionQuestion   @relation(fields: [questionId], references: [id])
   value        String
   createdAt    DateTime             @default(now())
+}
+
+// ============================================
+// MENTORSHIP GOVERNANCE MODELS
+// ============================================
+
+model MentorshipTrack {
+  id                     String                           @id @default(cuid())
+  slug                   String                           @unique
+  name                   String
+  description            String?
+  scope                  String                           @default("GLOBAL")
+  pointCategory          MentorshipPointCategory          @default(CUSTOM)
+  isActive               Boolean                          @default(true)
+  committees             MentorCommittee[]
+  mentorships            Mentorship[]
+  monthlyReviews         MonthlyGoalReview[]
+  quarterlyReviews       QuarterlyCommitteeReview[]
+  awardRecommendations   MentorshipAwardRecommendation[]
+  promotionRecommendations PromotionRecommendation[]
+  createdAt              DateTime                         @default(now())
+  updatedAt              DateTime                         @updatedAt
+}
+
+model MentorCommittee {
+  id               String                  @id @default(cuid())
+  trackId          String
+  track            MentorshipTrack         @relation(fields: [trackId], references: [id])
+  name             String
+  description      String?
+  chairUserId      String?
+  chairUser        User?                   @relation("MentorCommitteeChairs", fields: [chairUserId], references: [id])
+  members          MentorCommitteeMember[]
+  quarterlyReviews QuarterlyCommitteeReview[]
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  @@index([trackId])
+  @@index([chairUserId])
+}
+
+model MentorCommitteeMember {
+  id          String                    @id @default(cuid())
+  committeeId String
+  committee   MentorCommittee           @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User                      @relation("MentorCommitteeMemberships", fields: [userId], references: [id])
+  role        MentorCommitteeMemberRole @default(MEMBER)
+  createdAt   DateTime                  @default(now())
+
+  @@unique([committeeId, userId])
+  @@index([userId])
+}
+
+model MonthlyGoalReview {
+  id                      String                 @id @default(cuid())
+  mentorshipId            String
+  mentorship              Mentorship             @relation(fields: [mentorshipId], references: [id], onDelete: Cascade)
+  trackId                 String?
+  track                   MentorshipTrack?       @relation(fields: [trackId], references: [id], onDelete: SetNull)
+  menteeId                String
+  mentee                  User                   @relation("MonthlyGoalReviewMentees", fields: [menteeId], references: [id])
+  mentorId                String
+  mentor                  User                   @relation("MonthlyGoalReviewMentors", fields: [mentorId], references: [id])
+  chairId                 String?
+  chair                   User?                  @relation("MonthlyGoalReviewChairs", fields: [chairId], references: [id])
+  reflectionSubmissionId  String?
+  reflectionSubmission    ReflectionSubmission?  @relation(fields: [reflectionSubmissionId], references: [id], onDelete: SetNull)
+  month                   DateTime
+  status                  MentorshipReviewStatus @default(DRAFT)
+  overallStatus           ProgressStatus?
+  overallComments         String?
+  strengths               String?
+  focusAreas              String?
+  collaborationNotes      String?
+  promotionReadiness      String?
+  nextMonthPlan           String?
+  mentorInternalNotes     String?
+  chairDecisionNotes      String?
+  characterCulturePoints  Int                    @default(0)
+  baseAchievementPoints   Int                    @default(0)
+  totalAchievementPoints  Int                    @default(0)
+  mentorSubmittedAt       DateTime?
+  chairDecisionAt         DateTime?
+  publishedAt             DateTime?
+  goalRatings             MonthlyGoalRating[]
+  legacyProgressUpdates   ProgressUpdate[]
+  achievementPoints       AchievementPointLedger[]
+  awardRecommendations    MentorshipAwardRecommendation[]
+  promotionRecommendations PromotionRecommendation[]
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
+
+  @@unique([mentorshipId, month])
+  @@index([menteeId, month])
+  @@index([mentorId, month])
+  @@index([status, month])
+}
+
+model MonthlyGoalRating {
+  id        String            @id @default(cuid())
+  reviewId  String
+  review    MonthlyGoalReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  goalId    String
+  goal      Goal              @relation(fields: [goalId], references: [id])
+  status    ProgressStatus
+  comments  String?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@unique([reviewId, goalId])
+  @@index([goalId])
+}
+
+model AchievementPointLedger {
+  id           String             @id @default(cuid())
+  userId        String
+  user          User               @relation("AchievementPointEntries", fields: [userId], references: [id])
+  reviewId      String?            @unique
+  review        MonthlyGoalReview? @relation(fields: [reviewId], references: [id], onDelete: SetNull)
+  points        Int
+  category      String
+  reason        String
+  approvedById  String?
+  approvedBy    User?              @relation("AchievementPointApprovals", fields: [approvedById], references: [id])
+  createdAt     DateTime           @default(now())
+
+  @@index([userId, createdAt])
+  @@index([approvedById])
+}
+
+model QuarterlyCommitteeReview {
+  id                      String                         @id @default(cuid())
+  committeeId             String?
+  committee               MentorCommittee?              @relation(fields: [committeeId], references: [id], onDelete: SetNull)
+  trackId                 String?
+  track                   MentorshipTrack?              @relation(fields: [trackId], references: [id], onDelete: SetNull)
+  menteeId                String
+  mentee                  User                           @relation("QuarterlyReviewMentees", fields: [menteeId], references: [id])
+  createdById             String?
+  createdBy               User?                          @relation("QuarterlyReviewAuthors", fields: [createdById], references: [id])
+  quarterStart            DateTime
+  includedReviewIds       String[]
+  status                  QuarterlyCommitteeReviewStatus @default(DRAFT)
+  overallTrajectory       String?
+  committeePerspective    String?
+  supportRecommendations  String?
+  promotionReadiness      String?
+  internalNotes           String?
+  createdAt               DateTime                       @default(now())
+  updatedAt               DateTime                       @updatedAt
+  promotionRecommendations PromotionRecommendation[]
+
+  @@unique([menteeId, quarterStart])
+  @@index([committeeId])
+  @@index([trackId])
+  @@index([status])
+}
+
+model MentorshipAwardRecommendation {
+  id              String               @id @default(cuid())
+  userId          String
+  user            User                 @relation("MentorshipAwardRecommendationRecipients", fields: [userId], references: [id])
+  reviewId        String?
+  review          MonthlyGoalReview?   @relation(fields: [reviewId], references: [id], onDelete: SetNull)
+  trackId         String?
+  track           MentorshipTrack?     @relation(fields: [trackId], references: [id], onDelete: SetNull)
+  level           MentorshipAwardLevel
+  status          RecommendationStatus @default(DRAFT)
+  notes           String?
+  recommendedById String
+  recommendedBy   User                 @relation("MentorshipAwardRecommendationAuthors", fields: [recommendedById], references: [id])
+  approvedById    String?
+  approvedBy      User?                @relation("MentorshipAwardRecommendationApprovers", fields: [approvedById], references: [id])
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([userId, status])
+  @@index([trackId])
+}
+
+model PromotionRecommendation {
+  id                String                    @id @default(cuid())
+  userId            String
+  user              User                      @relation("PromotionRecommendationRecipients", fields: [userId], references: [id])
+  reviewId          String?
+  review            MonthlyGoalReview?        @relation(fields: [reviewId], references: [id], onDelete: SetNull)
+  quarterlyReviewId String?
+  quarterlyReview   QuarterlyCommitteeReview? @relation(fields: [quarterlyReviewId], references: [id], onDelete: SetNull)
+  trackId           String?
+  track             MentorshipTrack?          @relation(fields: [trackId], references: [id], onDelete: SetNull)
+  targetRole        String?
+  status            RecommendationStatus      @default(DRAFT)
+  notes             String?
+  recommendedById   String
+  recommendedBy     User                      @relation("PromotionRecommendationAuthors", fields: [recommendedById], references: [id])
+  approvedById      String?
+  approvedBy        User?                     @relation("PromotionRecommendationApprovers", fields: [approvedById], references: [id])
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+
+  @@index([userId, status])
+  @@index([trackId])
 }
 
 // ============================================

@@ -1,6 +1,10 @@
 "use client";
 
 import { ProgressStatus } from "@prisma/client";
+import {
+  calculateOverallProgress,
+  PROGRESS_STATUS_META,
+} from "@/lib/mentorship-review-helpers";
 
 interface ProgressBarProps {
   status: ProgressStatus;
@@ -8,36 +12,9 @@ interface ProgressBarProps {
   showLabels?: boolean;
 }
 
-const STATUS_CONFIG = {
-  BEHIND_SCHEDULE: {
-    color: "#ef4444",
-    label: "Behind schedule",
-    description: "Incomplete/behind timetable schedule and no catch-up possible",
-    position: 0
-  },
-  GETTING_STARTED: {
-    color: "#eab308",
-    label: "Getting started",
-    description: "Incomplete/behind timetable schedule but catch-up possible",
-    position: 1
-  },
-  ON_TRACK: {
-    color: "#22c55e",
-    label: "On track",
-    description: "Complete/in line with timetable schedule in both quantity & quality",
-    position: 2
-  },
-  ABOVE_AND_BEYOND: {
-    color: "#3b82f6",
-    label: "Above and beyond",
-    description: "Exceeds goals in quantity & quality",
-    position: 3
-  }
-};
-
 export function ProgressBar({ status, label, showLabels = false }: ProgressBarProps) {
-  const config = STATUS_CONFIG[status];
-  const segments = Object.values(STATUS_CONFIG);
+  const config = PROGRESS_STATUS_META[status];
+  const segments = Object.values(PROGRESS_STATUS_META);
 
   return (
     <div className="progress-bar-container">
@@ -134,7 +111,7 @@ interface ProgressBarSelectorProps {
 }
 
 export function ProgressBarSelector({ name, value, onChange, label }: ProgressBarSelectorProps) {
-  const segments = Object.entries(STATUS_CONFIG);
+  const segments = Object.entries(PROGRESS_STATUS_META);
 
   return (
     <div className="progress-selector-container">
@@ -241,15 +218,7 @@ interface GoalProgressDisplayProps {
 
 export function GoalProgressDisplay({ goals, showOverall = true }: GoalProgressDisplayProps) {
   const calculateOverall = () => {
-    const statuses = goals
-      .filter((g) => g.latestStatus)
-      .map((g) => STATUS_CONFIG[g.latestStatus!].position);
-    if (statuses.length === 0) return null;
-    const avg = statuses.reduce((a, b) => a + b, 0) / statuses.length;
-    if (avg < 0.75) return "BEHIND_SCHEDULE" as ProgressStatus;
-    if (avg < 1.5) return "GETTING_STARTED" as ProgressStatus;
-    if (avg < 2.5) return "ON_TRACK" as ProgressStatus;
-    return "ABOVE_AND_BEYOND" as ProgressStatus;
+    return calculateOverallProgress(goals.map((goal) => goal.latestStatus));
   };
 
   const overall = showOverall ? calculateOverall() : null;
