@@ -203,6 +203,49 @@ enum AwardType {
 }
 
 // ============================================
+// MENTORSHIP PROGRAM ENUMS
+// ============================================
+
+/// The three role categories used in the YPP mentorship program
+enum MenteeRoleType {
+  INSTRUCTOR
+  CHAPTER_PRESIDENT
+  GLOBAL_LEADERSHIP
+}
+
+/// Color-coded rating for goal progress (Red/Yellow/Green/Purple)
+enum GoalRatingColor {
+  BEHIND_SCHEDULE   // Red   - 0 pts
+  GETTING_STARTED   // Yellow
+  ACHIEVED          // Green
+  ABOVE_AND_BEYOND  // Purple
+}
+
+/// Lifecycle of a mentor goal review through the approval chain
+enum GoalReviewStatus {
+  DRAFT
+  PENDING_CHAIR_APPROVAL
+  CHANGES_REQUESTED
+  APPROVED
+}
+
+/// YPP Achievement Award tiers
+enum AchievementAwardTier {
+  BRONZE    // 175 pts
+  SILVER    // 350 pts
+  GOLD      // 700 pts  (+Board Approval)
+  LIFETIME  // 1,800 pts (+Board Approval)
+}
+
+/// Status of a nomination through the approval chain
+enum AwardNominationStatus {
+  PENDING_CHAIR
+  PENDING_BOARD
+  APPROVED
+  REJECTED
+}
+
+// ============================================
 // CORE MODELS
 // ============================================
 
@@ -507,6 +550,19 @@ model User {
   pathwayCohortMemberships CohortMember[]           @relation("PathwayCohortMemberships")
   pathwayReflections       PathwayReflection[]      @relation("PathwayReflections")
   instructorPathwaySpecs   InstructorPathwaySpec[]  @relation("InstructorPathwaySpecs")
+
+  // Mentorship Program Relations
+  mentorshipProgramGoalsCreated  MentorshipProgramGoal[]    @relation("MentorshipProgramGoalsCreated")
+  selfReflectionsSubmitted       MonthlySelfReflection[]    @relation("SelfReflectionsSubmitted")
+  goalReviewsAuthored            MentorGoalReview[]         @relation("GoalReviewsAuthored")
+  goalReviewsReceived            MentorGoalReview[]         @relation("GoalReviewsReceived")
+  goalReviewsChairApproved       MentorGoalReview[]         @relation("GoalReviewsChairApproved")
+  achievementPointSummary              AchievementPointSummary?   @relation("AchievementPointSummary")
+  achievementAwardNominations          AwardNomination[]          @relation("AwardNominations")
+  achievementAwardNominationsGiven     AwardNomination[]          @relation("AwardNominationsGiven")
+  achievementAwardNominationsChairApp  AwardNomination[]          @relation("AwardNominationsChairApproved")
+  achievementAwardNominationsBoardApp  AwardNomination[]          @relation("AwardNominationsBoardApproved")
+  mentorCommitteeChairRoles            MentorCommitteeChair[]     @relation("MentorCommitteeChairRoles")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1108,6 +1164,10 @@ model Mentorship {
   mentor    User                @relation("MentorLinks", fields: [mentorId], references: [id])
   mentee    User                @relation("MenteeLinks", fields: [menteeId], references: [id])
   checkIns  MentorshipCheckIn[]
+
+  // Mentorship Program relations
+  selfReflections MonthlySelfReflection[]
+  goalReviews     MentorGoalReview[]
 }
 
 model MentorshipCheckIn {
@@ -6081,4 +6141,241 @@ model ChapterPathway {
 
   @@unique([chapterId, pathwayId])
   @@index([chapterId])
+}
+
+// ============================================
+// MENTORSHIP PROGRAM MODELS
+// ============================================
+
+/// A goal defined for a specific YPP mentee role, authored by the Mentor Committee.
+/// Used as the basis for both self-reflections and goal reviews.
+model MentorshipProgramGoal {
+  id          String         @id @default(cuid())
+  title       String
+  description String?
+  roleType    MenteeRoleType
+  isActive    Boolean        @default(true)
+  sortOrder   Int            @default(0)
+  createdById String
+  createdBy   User           @relation("MentorshipProgramGoalsCreated", fields: [createdById], references: [id])
+
+  selfReflectionGoalResponses SelfReflectionGoalResponse[]
+  goalReviewRatings           GoalReviewRating[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([roleType])
+}
+
+/// Monthly self-reflection submitted by a mentee (Instructor / CP / Global Leadership).
+/// Covers 5 sections from the document. Per-goal responses stored in SelfReflectionGoalResponse.
+model MonthlySelfReflection {
+  id           String     @id @default(cuid())
+  menteeId     String
+  mentee       User       @relation("SelfReflectionsSubmitted", fields: [menteeId], references: [id])
+  mentorshipId String
+  mentorship   Mentorship @relation(fields: [mentorshipId], references: [id])
+
+  /// First day of the month this reflection covers
+  cycleMonth  DateTime
+  /// Sequential cycle number (1, 2, 3…); multiples of 3 are quarterly cycles
+  cycleNumber Int
+
+  // Section 1 — Overall Reflection
+  overallReflection String
+
+  // Section 2 — Engagement & Fulfillment
+  engagementOverall String
+  workingWell       String
+  supportNeeded     String
+  mentorHelpfulness String
+
+  // Section 3 — Leadership Team Collaboration
+  collaborationAssessment       String
+  teamMembersAboveAndBeyond     String?
+  collaborationImprovements     String?
+
+  // Section 4 — Goal Progress (per-goal responses below)
+  goalResponses SelfReflectionGoalResponse[]
+
+  // Section 5 — Additional Reflections
+  additionalReflections String?
+
+  submittedAt DateTime @default(now())
+
+  goalReview MentorGoalReview?
+
+  @@index([menteeId])
+  @@index([mentorshipId])
+  @@unique([mentorshipId, cycleNumber])
+}
+
+/// Per-goal answers within a monthly self-reflection (Section 4).
+model SelfReflectionGoalResponse {
+  id           String                @id @default(cuid())
+  reflectionId String
+  reflection   MonthlySelfReflection @relation(fields: [reflectionId], references: [id])
+  goalId       String
+  goal         MentorshipProgramGoal @relation(fields: [goalId], references: [id])
+
+  progressMade      String
+  objectiveAchieved Boolean
+  accomplishments   String
+  blockers          String?
+  nextMonthPlans    String
+
+  createdAt DateTime @default(now())
+
+  @@unique([reflectionId, goalId])
+}
+
+/// Mentor's monthly goal review of a mentee, submitted for Mentor Committee Chair approval
+/// before being released to the mentee.
+model MentorGoalReview {
+  id           String     @id @default(cuid())
+  mentorId     String
+  mentor       User       @relation("GoalReviewsAuthored", fields: [mentorId], references: [id])
+  menteeId     String
+  mentee       User       @relation("GoalReviewsReceived", fields: [menteeId], references: [id])
+  mentorshipId String
+  mentorship   Mentorship @relation(fields: [mentorshipId], references: [id])
+
+  selfReflectionId String                @unique
+  selfReflection   MonthlySelfReflection @relation(fields: [selfReflectionId], references: [id])
+
+  /// First day of the month this review covers
+  cycleMonth  DateTime
+  /// Matches the self-reflection cycleNumber; divisible by 3 → quarterly review
+  cycleNumber Int
+  isQuarterly Boolean @default(false)
+
+  // Overall rating — drives automatic point calculation on approval
+  overallRating GoalRatingColor
+
+  // Per-goal ratings
+  goalRatings GoalReviewRating[]
+
+  // Required written sections
+  overallComments String // Overall impression, strengths, dev areas, peer collab notes
+  planOfAction    String // High-level objectives & action items for next month
+
+  // Quarterly-only fields (unlocked every 3rd cycle; filled by full Mentor Committee)
+  projectedFuturePath String?
+  promotionReadiness  String?
+
+  // Approval workflow
+  status            GoalReviewStatus @default(DRAFT)
+  chairReviewerId   String?
+  chairReviewer     User?            @relation("GoalReviewsChairApproved", fields: [chairReviewerId], references: [id])
+  chairComments     String?
+  chairApprovedAt   DateTime?
+  releasedToMenteeAt DateTime?
+
+  // Points awarded (auto-set on chair approval based on overallRating × roleType table)
+  pointsAwarded Int?
+
+  pointLog AchievementPointLog?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([menteeId])
+  @@index([mentorId])
+  @@index([mentorshipId])
+}
+
+/// Per-goal color rating within a mentor goal review.
+model GoalReviewRating {
+  id       String               @id @default(cuid())
+  reviewId String
+  review   MentorGoalReview     @relation(fields: [reviewId], references: [id])
+  goalId   String
+  goal     MentorshipProgramGoal @relation(fields: [goalId], references: [id])
+
+  rating   GoalRatingColor
+  comments String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([reviewId, goalId])
+}
+
+/// Running achievement point total and current award tier per user.
+/// One record per user; updated automatically when a goal review is approved.
+model AchievementPointSummary {
+  id          String                @id @default(cuid())
+  userId      String                @unique
+  user        User                  @relation("AchievementPointSummary", fields: [userId], references: [id])
+  totalPoints Int                   @default(0)
+  currentTier AchievementAwardTier?
+
+  pointLogs   AchievementPointLog[]
+  nominations AwardNomination[]
+
+  updatedAt DateTime @updatedAt
+}
+
+/// One entry per approved goal review cycle recording points earned.
+model AchievementPointLog {
+  id        String                  @id @default(cuid())
+  summaryId String
+  summary   AchievementPointSummary @relation(fields: [summaryId], references: [id])
+  reviewId  String                  @unique
+  review    MentorGoalReview        @relation(fields: [reviewId], references: [id])
+
+  points     Int
+  /// Human-readable reason e.g. "Achieved (Green) – Instructor" or "Character & Culture bonus"
+  reason     String?
+  cycleMonth DateTime
+
+  createdAt DateTime @default(now())
+
+  @@index([summaryId])
+}
+
+/// Nomination for a YPP Achievement Award (Bronze → Lifetime).
+/// Gold and Lifetime require Board approval in addition to Chair approval.
+model AwardNomination {
+  id        String                  @id @default(cuid())
+  summaryId String
+  summary   AchievementPointSummary @relation(fields: [summaryId], references: [id])
+  nomineeId String
+  nominee   User                    @relation("AwardNominations", fields: [nomineeId], references: [id])
+  nominatedBy String
+  nominator   User                  @relation("AwardNominationsGiven", fields: [nominatedBy], references: [id])
+
+  tier   AchievementAwardTier
+  status AwardNominationStatus @default(PENDING_CHAIR)
+
+  chairApproverId String?
+  chairApprover   User?    @relation("AwardNominationsChairApproved", fields: [chairApproverId], references: [id])
+  chairApprovedAt DateTime?
+
+  boardApproverId String?
+  boardApprover   User?    @relation("AwardNominationsBoardApproved", fields: [boardApproverId], references: [id])
+  boardApprovedAt DateTime?
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([nomineeId])
+}
+
+/// Designates which user is the Mentor Committee Chair for a given mentee role group.
+/// Chairs approve goal reviews and award nominations for their role group.
+model MentorCommitteeChair {
+  id       String         @id @default(cuid())
+  userId   String
+  user     User           @relation("MentorCommitteeChairRoles", fields: [userId], references: [id])
+  roleType MenteeRoleType
+  isActive Boolean        @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, roleType])
+  @@index([roleType])
 }
