@@ -6,7 +6,7 @@ import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 import { AchievementAwardTier, AwardNominationStatus } from "@prisma/client";
 import { logAuditEvent } from "@/lib/audit-log-actions";
-import { toMenteeRoleType } from "@/lib/self-reflection-actions";
+import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 
 // ============================================
 // TIER CONFIG

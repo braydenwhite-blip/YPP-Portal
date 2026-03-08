@@ -4,15 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
-import { MenteeRoleType } from "@prisma/client";
-
-// Maps a user's primaryRole to the MenteeRoleType used in the program
-export function toMenteeRoleType(primaryRole: string): MenteeRoleType | null {
-  if (primaryRole === "INSTRUCTOR") return MenteeRoleType.INSTRUCTOR;
-  if (primaryRole === "CHAPTER_LEAD") return MenteeRoleType.CHAPTER_PRESIDENT;
-  if (primaryRole === "ADMIN" || primaryRole === "STAFF") return MenteeRoleType.GLOBAL_LEADERSHIP;
-  return null;
-}
+import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 
 async function requireMentee() {
   const session = await getServerSession(authOptions);

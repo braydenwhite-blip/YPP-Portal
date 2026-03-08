@@ -12,6 +12,7 @@ import {
   TrainingStatus,
   VideoProvider,
 } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { checkAndIssueTrainingCompletion } from "@/lib/auto-certificate-actions";
 import { getInstructorReadiness } from "@/lib/instructor-readiness";
 
@@ -1571,7 +1572,7 @@ export async function cloneTrainingModule(formData: FormData) {
           moduleId: clone.id,
           contentKey: null,
           question: q.question,
-          options: q.options,
+          options: q.options as Prisma.InputJsonValue,
           correctAnswer: q.correctAnswer,
           explanation: q.explanation,
           sortOrder: q.sortOrder,

@@ -1,7 +1,8 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
-import { getMyProgramData, toMenteeRoleType } from "@/lib/self-reflection-actions";
+import { getMyProgramData } from "@/lib/self-reflection-actions";
+import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import Link from "next/link";
 
 export const metadata = { title: "My Program — YPP Mentorship" };
