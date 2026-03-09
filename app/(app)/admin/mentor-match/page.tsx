@@ -60,10 +60,9 @@ export default async function AdminMentorMatchPage() {
       <div className="topbar">
         <div>
           <p className="badge">Admin</p>
-          <h1 className="page-title">Mentor Match Algorithm</h1>
+          <h1 className="page-title">Mentor Match</h1>
           <p className="page-subtitle">
-            Smart matching based on shared interests, chapter, and mentor
-            workload
+            Automatically pair mentors with instructors or students based on shared interests, chapter, and mentor availability. Review suggested matches before confirming.
           </p>
         </div>
       </div>

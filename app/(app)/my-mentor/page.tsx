@@ -1,7 +1,10 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getMyStudentMentor } from "@/lib/student-actions";
+import { prisma } from "@/lib/prisma";
+import { formatEnum } from "@/lib/format-utils";
 
 export default async function MyMentorPage() {
   const session = await getServerSession(authOptions);
@@ -10,21 +13,60 @@ export default async function MyMentorPage() {
   const mentorship = await getMyStudentMentor();
 
   if (!mentorship) {
+    // Find the student's chapter lead so we can show their contact info
+    const userWithChapter = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        chapter: {
+          select: {
+            name: true,
+            users: {
+              where: { roles: { some: { role: "CHAPTER_LEAD" } } },
+              select: { name: true, email: true },
+              take: 1,
+            },
+          },
+        },
+      },
+    });
+    const chapterLead = userWithChapter?.chapter?.users[0] ?? null;
+
     return (
       <main className="main-content my-mentor-page">
-        <h1>My Mentor</h1>
+        <div className="topbar">
+          <div>
+            <Link href="/mentorship" style={{ fontSize: 13, color: "var(--muted)", display: "inline-block", marginBottom: 4 }}>
+              &larr; Mentorship Dashboard
+            </Link>
+            <h1 className="page-title">My Mentor</h1>
+            <p className="page-subtitle">Your assigned mentor guides you through your YPP journey.</p>
+          </div>
+        </div>
         <div className="card no-mentor">
           <div className="icon">👤</div>
-          <h2>No Mentor Assigned</h2>
+          <h2>No Mentor Assigned Yet</h2>
           <p>
-            You don't currently have a student mentor assigned. If you believe
-            you should have a mentor, please contact your chapter president or
-            administrator.
+            You don&apos;t currently have a student mentor assigned. Mentors are
+            matched by your chapter president or YPP administrator.
           </p>
+          {chapterLead ? (
+            <p style={{ marginTop: 16 }}>
+              Contact your chapter president{" "}
+              <strong>{chapterLead.name}</strong> at{" "}
+              <a href={`mailto:${chapterLead.email}`} className="link">
+                {chapterLead.email}
+              </a>{" "}
+              to request a mentor pairing.
+            </p>
+          ) : (
+            <p style={{ marginTop: 16, color: "var(--muted)" }}>
+              Contact your chapter president or YPP administrator to request a
+              mentor pairing.
+            </p>
+          )}
         </div>
 
         <style>{`
-
           .my-mentor-page .no-mentor {
             text-align: center;
             padding: 3rem;
@@ -42,8 +84,7 @@ export default async function MyMentorPage() {
             color: var(--muted);
             margin: 0;
           }
-        
-`}</style>
+        `}</style>
       </main>
     );
   }
@@ -52,7 +93,15 @@ export default async function MyMentorPage() {
 
   return (
     <main className="main-content my-mentor-page">
-      <h1>My Mentor</h1>
+      <div className="topbar">
+        <div>
+          <Link href="/mentorship" style={{ fontSize: 13, color: "var(--muted)", display: "inline-block", marginBottom: 4 }}>
+            &larr; Mentorship Dashboard
+          </Link>
+          <h1 className="page-title">My Mentor</h1>
+          <p className="page-subtitle">Your assigned mentor guides you through your YPP journey — check in regularly for support and feedback.</p>
+        </div>
+      </div>
 
       <div className="mentor-grid">
         {/* Mentor Profile */}
@@ -104,7 +153,7 @@ export default async function MyMentorPage() {
           <h3>Mentorship Details</h3>
           <div className="detail-item">
             <span className="label">Status</span>
-            <span className="status status-active">{mentorship.status}</span>
+            <span className="status status-active">{formatEnum(mentorship.status)}</span>
           </div>
           <div className="detail-item">
             <span className="label">Started</span>
@@ -124,7 +173,7 @@ export default async function MyMentorPage() {
         <section className="card check-ins">
           <h3>Recent Check-ins</h3>
           {mentorship.checkIns.length === 0 ? (
-            <p className="empty">No check-ins recorded yet.</p>
+            <p className="empty">No check-ins recorded yet. Your mentor will log notes after each meeting.</p>
           ) : (
             <div className="check-ins-list">
               {mentorship.checkIns.map((checkIn) => (

@@ -9,6 +9,7 @@ import {
   PROGRESS_STATUS_META,
 } from "@/lib/mentorship-review-helpers";
 import { prisma } from "@/lib/prisma";
+import { formatEnum } from "@/lib/format-utils";
 
 const TONE_STYLES = {
   neutral: { background: "#e2e8f0", color: "#334155" },
@@ -152,10 +153,9 @@ export default async function MenteesPage() {
       <div className="topbar">
         <div>
           <p className="badge">Mentorship</p>
-          <h1 className="page-title">Mentee Workflow</h1>
-          <p style={{ marginTop: 4, color: "var(--muted)", fontSize: 14 }}>
-            Watch who has submitted a Monthly Self-Reflection, who needs a
-            Monthly Goal Review, and who is waiting on chair approval.
+          <h1 className="page-title">My Mentees</h1>
+          <p className="page-subtitle">
+            Members assigned to you for guidance — view their goals, reflections, and monthly cycle status.
           </p>
         </div>
         <div
@@ -167,11 +167,11 @@ export default async function MenteesPage() {
       </div>
 
       {mentees.length === 0 ? (
-        <div className="card">
+        <div className="card" style={{ textAlign: "center", padding: 24 }}>
           <p style={{ color: "var(--muted)" }}>
             {isAdmin
               ? "No users have goals assigned yet. Assign goals from the Admin Goals page."
-              : "You don't have any mentees assigned yet."}
+              : "No mentees assigned yet. Your chapter lead will pair you with mentees."}
           </p>
         </div>
       ) : (
@@ -223,7 +223,7 @@ export default async function MenteesPage() {
                       }}
                     >
                       <span className="pill">
-                        {mentee.primaryRole.replace(/_/g, " ")}
+                        {formatEnum(mentee.primaryRole)}
                       </span>
                       {mentee.chapter && (
                         <span
@@ -303,12 +303,7 @@ export default async function MenteesPage() {
                     </div>
                     <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 4 }}>
                       Review:{" "}
-                      {currentReview
-                        ? currentReview.status
-                            .replace(/_/g, " ")
-                            .toLowerCase()
-                            .replace(/^\w/, (value) => value.toUpperCase())
-                        : "Not started"}
+                      {currentReview ? formatEnum(currentReview.status) : "Not started"}
                     </div>
                   </div>
 

@@ -43,10 +43,10 @@ export default async function MentorFeedbackPage() {
             &larr; Mentorship
           </Link>
           <h1 className="page-title">Feedback Portal</h1>
-          <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
+          <p className="page-subtitle">
             {isMentor
-              ? "Review student work and provide personalized feedback"
-              : "Submit your work for mentor review and get personalized feedback"}
+              ? "Review submitted work from students and provide personalized notes and resources."
+              : "Submit your work for review and receive personalized feedback from experienced mentors."}
           </p>
         </div>
         {isStudent && <RequestFeedbackForm />}
@@ -111,7 +111,7 @@ export default async function MentorFeedbackPage() {
                         marginBottom: 8,
                       }}
                     >
-                      {req.passionId}
+                      Topic: {req.passionId}
                     </span>
                     <p style={{ margin: "8px 0 0", fontSize: 14 }}>
                       {req.question}
@@ -188,7 +188,7 @@ export default async function MentorFeedbackPage() {
                         fontSize: 11,
                       }}
                     >
-                      {req.passionId}
+                      Topic: {req.passionId}
                     </span>
                     <p style={{ margin: "8px 0 0", fontSize: 14 }}>
                       {req.question}

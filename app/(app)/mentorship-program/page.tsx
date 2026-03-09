@@ -85,6 +85,25 @@ export default async function MentorshipProgramPage() {
         </div>
       </div>
 
+      {/* How it works callout */}
+      <div
+        className="card"
+        style={{
+          marginBottom: "1.5rem",
+          background: "var(--surface-alt)",
+          borderLeft: "4px solid var(--ypp-purple)",
+          padding: "1rem 1.25rem",
+        }}
+      >
+        <strong style={{ fontSize: "0.875rem" }}>How the program works:</strong>
+        <p style={{ margin: "0.4rem 0 0", fontSize: "0.8rem", color: "var(--muted)" }}>
+          Each mentee submits a <strong>monthly reflection</strong> on their goals.
+          Every 3 months is a <strong>quarterly cycle</strong> — you write a review of their reflection,
+          it goes to the chair for approval, and points are awarded once approved.
+          Points accumulate toward <strong>Bronze → Silver → Gold → Lifetime</strong> achievement tiers.
+        </p>
+      </div>
+
       {/* KPI row */}
       <div className="grid four" style={{ marginBottom: "1.75rem" }}>
         <div className="card">
@@ -253,14 +272,8 @@ function MenteeCard({
           {cycle ? (
             <>
               <span> · Cycle {cycle.cycleNumber}</span>
-              {cycle.reviewStatus === null ? (
+              {cycle.reviewStatus === null && (
                 <span style={{ color: "#d97706", fontWeight: 600 }}> · Reflection pending review</span>
-              ) : (
-                <>
-                  {reviewStatusCfg && (
-                    <span> · </span>
-                  )}
-                </>
               )}
             </>
           ) : (

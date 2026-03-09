@@ -8,6 +8,7 @@ import {
   REVIEW_STATUS_META,
 } from "@/lib/mentorship-review-helpers";
 import { prisma } from "@/lib/prisma";
+import { formatEnum } from "@/lib/format-utils";
 
 const TONE_STYLES = {
   neutral: { background: "#e2e8f0", color: "#334155" },
@@ -200,9 +201,8 @@ export default async function MentorshipPage() {
         <div>
           <p className="badge">Mentorship Program</p>
           <h1 className="page-title">Mentorship Dashboard</h1>
-          <p style={{ marginTop: 4, color: "var(--muted)", fontSize: 14 }}>
-            Follow the monthly self-reflection, mentor review, and chair approval
-            cycle from one place.
+          <p className="page-subtitle">
+            Your hub for all mentorship activity — track mentees, check-ins, and the monthly reflection cycle from one place.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -489,10 +489,9 @@ export default async function MentorshipPage() {
               </div>
             </Link>
           ) : (
-            <div className="card" style={{ textAlign: "center", padding: 32 }}>
+            <div className="card" style={{ textAlign: "center", padding: 24 }}>
               <p style={{ color: "var(--text-secondary)" }}>
-                No mentor assigned yet. Contact your chapter lead or
-                administrator.
+                No mentor assigned yet. Contact your chapter president or YPP administrator to request a pairing.
               </p>
             </div>
           )}
@@ -524,11 +523,11 @@ export default async function MentorshipPage() {
           </div>
 
           {myMentorships.length === 0 ? (
-            <div className="card">
+            <div className="card" style={{ textAlign: "center", padding: 24 }}>
               <p style={{ color: "var(--text-secondary)" }}>
                 {isAdmin
-                  ? "No active mentorship pairings. Use Mentor Match to create pairings."
-                  : "No mentees assigned yet."}
+                  ? "No active mentorship pairings yet."
+                  : "No mentees assigned yet. Your chapter lead will pair you with mentees."}
               </p>
               {isAdmin && (
                 <Link
@@ -536,7 +535,7 @@ export default async function MentorshipPage() {
                   className="button primary small"
                   style={{ marginTop: 12 }}
                 >
-                  Mentor Match
+                  Run Mentor Match
                 </Link>
               )}
             </div>
@@ -669,6 +668,52 @@ export default async function MentorshipPage() {
           )}
         </div>
       )}
+
+      {/* Quick Links */}
+      <div style={{ marginTop: 28 }}>
+        <div className="section-title">Quick Links</div>
+        <div className="grid three">
+          <Link href="/mentor/feedback" style={{ textDecoration: "none", color: "inherit" }}>
+            <div className="card" style={{ cursor: "pointer" }}>
+              <h4 style={{ margin: "0 0 4px" }}>Feedback Portal</h4>
+              <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: 0 }}>
+                {isMentor
+                  ? "Review student submissions and provide written feedback."
+                  : "Submit your work for review and receive personalized feedback."}
+              </p>
+            </div>
+          </Link>
+
+          {isAdmin && (
+            <Link href="/admin/mentor-match" style={{ textDecoration: "none", color: "inherit" }}>
+              <div className="card" style={{ cursor: "pointer" }}>
+                <h4 style={{ margin: "0 0 4px" }}>Mentor Matching</h4>
+                <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: 0 }}>
+                  Run the matching algorithm to pair mentors with students or instructors.
+                </p>
+              </div>
+            </Link>
+          )}
+
+          <Link href="/mentor/ask" style={{ textDecoration: "none", color: "inherit" }}>
+            <div className="card" style={{ cursor: "pointer" }}>
+              <h4 style={{ margin: "0 0 4px" }}>Ask a Mentor</h4>
+              <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: 0 }}>
+                Browse answered questions or submit your own to the mentor community.
+              </p>
+            </div>
+          </Link>
+
+          <Link href="/mentor/resources" style={{ textDecoration: "none", color: "inherit" }}>
+            <div className="card" style={{ cursor: "pointer" }}>
+              <h4 style={{ margin: "0 0 4px" }}>Mentor Resources</h4>
+              <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: 0 }}>
+                Curated guides, tools, and videos shared by mentors.
+              </p>
+            </div>
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

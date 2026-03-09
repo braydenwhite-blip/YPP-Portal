@@ -630,6 +630,11 @@ main {
 .pill.pill-info { background: #dbeafe; color: #1e40af; }
 .pill.pill-purple { background: var(--ypp-purple-100); color: var(--ypp-purple-700); }
 
+/* Text color utilities */
+.text-danger { color: #ef4444; }
+.text-warning { color: #d97706; }
+.text-success { color: #16a34a; }
+
 .pill.level-101 { background: #e0f2fe; color: #075985; }
 .pill.level-201 { background: #fef9c3; color: #854d0e; }
 .pill.level-301 { background: #ede9fe; color: #5b21b6; }

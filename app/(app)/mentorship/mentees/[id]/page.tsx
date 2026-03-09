@@ -9,6 +9,7 @@ import {
   PROGRESS_STATUS_META,
 } from "@/lib/mentorship-review-helpers";
 import { prisma } from "@/lib/prisma";
+import { formatEnum, formatEnumStripPrefix } from "@/lib/format-utils";
 
 const TONE_STYLES = {
   neutral: { background: "#e2e8f0", color: "#334155" },
@@ -249,7 +250,7 @@ export default async function MenteeDetailPage({
               </p>
             )}
             <p style={{ margin: "0 0 4px" }}>
-              <strong>Role:</strong> {mentee.primaryRole.replace(/_/g, " ")}
+              <strong>Role:</strong> {formatEnum(mentee.primaryRole)}
             </p>
             {mentee.chapter && (
               <p style={{ margin: "0 0 4px" }}>
@@ -409,9 +410,7 @@ export default async function MenteeDetailPage({
               Monthly Goal Review
             </strong>
             <div style={{ fontSize: 13, color: "var(--muted)" }}>
-              {currentMonthReview
-                ? currentMonthReview.status.replace(/_/g, " ")
-                : "Not started yet"}
+              {currentMonthReview ? formatEnum(currentMonthReview.status) : "Not started yet"}
             </div>
           </div>
           <div
@@ -566,7 +565,7 @@ export default async function MenteeDetailPage({
                             : "pill-declined"
                       }`}
                     >
-                      {training.status.replace(/_/g, " ")}
+                      {formatEnum(training.status)}
                     </span>
                   </div>
                 </div>
@@ -584,7 +583,7 @@ export default async function MenteeDetailPage({
                       .replace("LEVEL_", "")
                       .toLowerCase()}`}
                   >
-                    {level.level.replace("LEVEL_", "")}
+                    {formatEnumStripPrefix(level.level, "LEVEL_")}
                   </span>
                 ))}
               </div>
