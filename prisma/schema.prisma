@@ -536,6 +536,7 @@ model User {
 
   // Phase 9: Class Management & Scheduling Relations
   classTemplatesCreated    ClassTemplate[]         @relation("ClassTemplatesCreated")
+  classTemplatesReviewed   ClassTemplate[]         @relation("ClassTemplatesReviewed")
   classOfferingsInstructed ClassOffering[]         @relation("ClassOfferingsInstructed")
   classEnrollments         ClassEnrollment[]       @relation("ClassEnrollments")
   classAttendanceRecords   ClassAttendanceRecord[] @relation("ClassAttendanceRecords")
@@ -4631,6 +4632,13 @@ enum DifficultyLevel {
   LEVEL_401
 }
 
+enum CurriculumSubmissionStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  NEEDS_REVISION
+}
+
 enum DeliveryMode {
   IN_PERSON
   VIRTUAL
@@ -4719,6 +4727,18 @@ model ClassTemplate {
   // Delivery (Feature #83)
   deliveryModes String[] @default(["VIRTUAL"]) // IN_PERSON, VIRTUAL, HYBRID
 
+  // YPP Curriculum Template fields (Phase 3)
+  targetAgeGroup     String? // e.g., "12-14", "16-18"
+  classDurationMin   Int?    // Length of each class session in minutes
+  engagementStrategy Json?   // {energyStyle, differentiationPlan, technologyTools, studentVoiceMoments, assessmentApproach}
+
+  // Submission & review workflow
+  submissionStatus CurriculumSubmissionStatus @default(DRAFT)
+  submittedAt      DateTime?
+  reviewedById     String?
+  reviewedBy       User?    @relation("ClassTemplatesReviewed", fields: [reviewedById], references: [id])
+  reviewNotes      String?  @db.Text
+
   // Meta
   isPublished Boolean  @default(false)
   createdById String
@@ -4735,6 +4755,7 @@ model ClassTemplate {
   @@index([interestArea])
   @@index([difficultyLevel])
   @@index([createdById])
+  @@index([submissionStatus])
 }
 
 // Specific offering of a class template (Feature #80, #83)

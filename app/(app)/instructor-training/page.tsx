@@ -343,14 +343,48 @@ export default async function InstructorTrainingPage() {
 
   const defaultAvailabilityStart = dateTimeLocalValue(new Date(Date.now() + 24 * 60 * 60 * 1000));
 
+  const trainingPct =
+    readiness.requiredModulesCount > 0
+      ? Math.round((readiness.completedRequiredModules / readiness.requiredModulesCount) * 100)
+      : 0;
+
   return (
     <div>
+      <div style={{ marginBottom: 12 }}>
+        <Link href="/instructor/workspace?tab=my-pathway" className="link" style={{ fontSize: 13 }}>
+          ← Back to My Pathway
+        </Link>
+      </div>
+
       <div className="topbar">
         <div>
-          <p className="badge">Instructor Training</p>
+          <p className="badge">Step 1 of Your Instructor Pathway</p>
           <h1 className="page-title">Instructor Training Academy</h1>
-          <p className="page-subtitle">Complete modules and interview readiness before first class publish.</p>
+          <p className="page-subtitle">Complete all required modules to unlock your readiness review and interview gate.</p>
         </div>
+      </div>
+
+      {/* Roadmap progress bar */}
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 15 }}>Training Progress</div>
+            <div style={{ marginTop: 4, color: "var(--text-secondary)", fontSize: 13 }}>
+              {readiness.completedRequiredModules} of {readiness.requiredModulesCount} required modules complete
+            </div>
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: readiness.trainingComplete ? "#16a34a" : "var(--ypp-purple)" }}>
+            {trainingPct}%
+          </div>
+        </div>
+        <div style={{ marginTop: 10, height: 10, background: "var(--gray-200)", borderRadius: 6, overflow: "hidden" }}>
+          <div style={{ width: `${trainingPct}%`, height: "100%", background: readiness.trainingComplete ? "#16a34a" : "var(--ypp-purple)", borderRadius: 6 }} />
+        </div>
+        {readiness.trainingComplete && (
+          <div style={{ marginTop: 10, fontSize: 13, color: "#16a34a", fontWeight: 600 }}>
+            Training complete — proceed to Step 2: Pass the Interview Gate
+          </div>
+        )}
       </div>
 
       <div className="grid three" style={{ marginBottom: 20 }}>

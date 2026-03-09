@@ -196,6 +196,19 @@ export async function createClassTemplate(formData: FormData) {
     }
   }
 
+  // New YPP curriculum template fields
+  const targetAgeGroup = getString(formData, "targetAgeGroup", false);
+  const classDurationMin = getInt(formData, "classDurationMin", 0);
+  const engagementStrategyRaw = getString(formData, "engagementStrategy", false);
+  let engagementStrategy: Record<string, string> | null = null;
+  if (engagementStrategyRaw) {
+    try {
+      engagementStrategy = JSON.parse(engagementStrategyRaw) as Record<string, string>;
+    } catch {
+      engagementStrategy = null;
+    }
+  }
+
   const template = await prisma.classTemplate.create({
     data: {
       title,
@@ -213,6 +226,9 @@ export async function createClassTemplate(formData: FormData) {
       idealSize,
       sizeNotes: sizeNotes || null,
       deliveryModes,
+      targetAgeGroup: targetAgeGroup || null,
+      classDurationMin: classDurationMin || null,
+      engagementStrategy: engagementStrategy ?? undefined,
       createdById: session.user.id,
     },
   });
@@ -220,6 +236,26 @@ export async function createClassTemplate(formData: FormData) {
   revalidatePath("/instructor/curriculum-builder");
   revalidatePath("/curriculum");
   return { success: true, id: template.id };
+}
+
+export async function submitCurriculumForReview(formData: FormData) {
+  const session = await requireInstructor();
+  const id = getString(formData, "id");
+
+  const existing = await prisma.classTemplate.findUnique({ where: { id } });
+  if (!existing) throw new Error("Template not found");
+  if (existing.createdById !== session.user.id) throw new Error("Not authorized");
+  if (existing.submissionStatus === "SUBMITTED" || existing.submissionStatus === "APPROVED") {
+    throw new Error("Already submitted or approved");
+  }
+
+  await prisma.classTemplate.update({
+    where: { id },
+    data: { submissionStatus: "SUBMITTED", submittedAt: new Date() },
+  });
+
+  revalidatePath("/instructor/curriculum-builder");
+  revalidatePath("/instructor/workspace");
 }
 
 export async function updateClassTemplate(formData: FormData) {

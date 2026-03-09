@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import {
   getInstructorTemplates,
   getInstructorOfferings,
+  submitCurriculumForReview,
 } from "@/lib/class-management-actions";
 import Link from "next/link";
 import { CurriculumBuilderClient } from "./client";
@@ -29,12 +30,20 @@ export default async function CurriculumBuilderPage() {
     LEVEL_401: "401 - Expert",
   };
 
+  const submissionStatusColors: Record<string, { bg: string; color: string }> = {
+    DRAFT: { bg: "var(--gray-200)", color: "var(--text-secondary)" },
+    SUBMITTED: { bg: "#fef9c3", color: "#854d0e" },
+    APPROVED: { bg: "#dcfce7", color: "#166534" },
+    NEEDS_REVISION: { bg: "#fee2e2", color: "#991b1b" },
+  };
+
   return (
     <div>
       <div className="topbar">
         <div>
           <p className="badge">Instructor</p>
           <h1 className="page-title">Curriculum Builder</h1>
+          <p className="page-subtitle">Build structured, pedagogically-rich curricula and submit for approval.</p>
         </div>
         <Link href="/instructor/curriculum-builder#create" className="button primary">
           + New Curriculum
@@ -111,10 +120,45 @@ export default async function CurriculumBuilderPage() {
                   <span>Ideal: {template.idealSize} students</span>
                 </div>
 
-                <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
+                {/* Submission status badge */}
+                {(() => {
+                  const status = (template as { submissionStatus?: string }).submissionStatus ?? "DRAFT";
+                  const colors = submissionStatusColors[status] ?? submissionStatusColors.DRAFT;
+                  return (
+                    <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{
+                        padding: "3px 10px",
+                        borderRadius: 20,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        background: colors.bg,
+                        color: colors.color,
+                      }}>
+                        {status.replace("_", " ")}
+                      </span>
+                      {status === "NEEDS_REVISION" && (
+                        <span style={{ fontSize: 12, color: "#991b1b" }}>Revision requested — update and resubmit</span>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                <div style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <Link href={`/instructor/curriculum-builder#edit-${template.id}`} className="button secondary" style={{ fontSize: 13 }}>
                     Edit
                   </Link>
+                  {(() => {
+                    const status = (template as { submissionStatus?: string }).submissionStatus ?? "DRAFT";
+                    const canSubmit = status === "DRAFT" || status === "NEEDS_REVISION";
+                    return canSubmit ? (
+                      <form action={submitCurriculumForReview}>
+                        <input type="hidden" name="id" value={template.id} />
+                        <button type="submit" className="button primary" style={{ fontSize: 13 }}>
+                          Submit for Review
+                        </button>
+                      </form>
+                    ) : null;
+                  })()}
                   <Link href={`/lesson-plans?templateId=${template.id}`} className="button secondary" style={{ fontSize: 13 }}>
                     Build Lesson Plan
                   </Link>
@@ -167,7 +211,10 @@ export default async function CurriculumBuilderPage() {
 
       {/* Create New Template Form */}
       <div id="create" style={{ marginBottom: 32 }}>
-        <div className="section-title">Create New Curriculum</div>
+        <div className="section-title">Build New Curriculum</div>
+        <p style={{ color: "var(--text-secondary)", fontSize: 14, marginBottom: 20 }}>
+          Fill out each section below. Save as a draft anytime — submit for review when your curriculum is ready for approval by your chapter lead or admin.
+        </p>
         <CurriculumBuilderClient />
       </div>
     </div>
