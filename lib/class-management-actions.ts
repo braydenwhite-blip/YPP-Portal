@@ -256,6 +256,7 @@ export async function submitCurriculumForReview(formData: FormData) {
 
   revalidatePath("/instructor/curriculum-builder");
   revalidatePath("/instructor/workspace");
+  revalidatePath("/admin/curricula");
 }
 
 export async function updateClassTemplate(formData: FormData) {

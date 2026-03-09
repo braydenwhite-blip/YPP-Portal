@@ -51,6 +51,7 @@ export function CurriculumBuilderClient() {
   const [success, setSuccess] = useState(false);
 
   const [numLessons, setNumLessons] = useState(8);
+  const [classDurationMin, setClassDurationMin] = useState(60);
   const [lessons, setLessons] = useState<LessonDetail[]>(() =>
     Array.from({ length: 8 }, emptyLesson)
   );
@@ -233,7 +234,15 @@ export function CurriculumBuilderClient() {
 
           <div>
             <label style={labelStyle}>Length of Each Class (minutes)</label>
-            <input name="classDurationMin" type="number" style={inputStyle} min={0} defaultValue={60} placeholder="60" />
+            <input
+              name="classDurationMin"
+              type="number"
+              style={inputStyle}
+              min={0}
+              value={classDurationMin}
+              onChange={(e) => setClassDurationMin(parseInt(e.target.value) || 0)}
+              placeholder="60"
+            />
           </div>
 
           <div>
@@ -560,7 +569,8 @@ export function CurriculumBuilderClient() {
           ))}
 
         <p style={{ marginTop: 12, fontSize: 13, color: "var(--text-secondary)" }}>
-          Total lesson time: {numLessons} classes × {""} minutes each
+          Total lesson time: {numLessons} classes × {classDurationMin} minutes each
+          {classDurationMin > 0 ? ` = ${Math.round((numLessons * classDurationMin) / 60 * 10) / 10} hours total` : ""}
         </p>
       </div>
 

@@ -61,7 +61,7 @@ export default async function InstructorWorkspacePage({
 
   const tab = safeTab((await searchParams).tab);
 
-  const [templates, lessonPlans, offerings, readiness, teachingPermissions, allPathways, activeOfferings] = await Promise.all([
+  const [templates, lessonPlans, offerings, readiness, teachingPermissions, allPathways, activeOfferings, menteeCount] = await Promise.all([
     prisma.classTemplate.findMany({
       where: { createdById: session.user.id },
       include: {
@@ -120,6 +120,9 @@ export default async function InstructorWorkspacePage({
         _count: { select: { enrollments: { where: { status: "ENROLLED" } } } },
       },
     }),
+    prisma.mentorshipAssignment.count({
+      where: { mentorId: session.user.id, status: "ACTIVE" },
+    }).catch(() => 0),
   ]);
 
   const totalPlannedWeeks = templates.reduce((sum, t) => {
@@ -223,9 +226,25 @@ export default async function InstructorWorkspacePage({
                         {template.description.length > 120 ? "..." : ""}
                       </p>
                     </div>
-                    <span className={`pill ${template.isPublished ? "primary" : ""}`}>
-                      {template.isPublished ? "Published" : "Draft"}
-                    </span>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
+                      {(() => {
+                        const status = (template as { submissionStatus?: string }).submissionStatus ?? "DRAFT";
+                        const statusStyleMap: Record<string, React.CSSProperties> = {
+                          APPROVED: { background: "#dcfce7", color: "#166534" },
+                          SUBMITTED: { background: "#fef9c3", color: "#854d0e" },
+                          NEEDS_REVISION: { background: "#fee2e2", color: "#991b1b" },
+                          DRAFT: { background: "var(--gray-200)", color: "var(--text-secondary)" },
+                        };
+                        return (
+                          <span className="pill" style={statusStyleMap[status] ?? statusStyleMap.DRAFT}>
+                            {status.replace("_", " ")}
+                          </span>
+                        );
+                      })()}
+                      {template.isPublished && (
+                        <span className="pill primary" style={{ fontSize: 11 }}>Live</span>
+                      )}
+                    </div>
                   </div>
                   <div style={{ marginTop: 10, display: "flex", gap: 6, flexWrap: "wrap" }}>
                     <span className="pill">{difficultyLabel(template.difficultyLevel)}</span>
@@ -394,6 +413,8 @@ export default async function InstructorWorkspacePage({
         if (grantedLevels.has("LEVEL_201")) earnedMilestoneKeys.add("UNLOCK_LEVEL_201");
         if (grantedLevels.has("LEVEL_301")) earnedMilestoneKeys.add("UNLOCK_LEVEL_301");
         if (grantedLevels.has("LEVEL_401")) earnedMilestoneKeys.add("UNLOCK_LEVEL_401");
+        if (templates.some((t) => (t as { submissionStatus?: string }).submissionStatus === "APPROVED")) earnedMilestoneKeys.add("CURRICULUM_APPROVED");
+        if (menteeCount >= 5) earnedMilestoneKeys.add("MENTOR_5_STUDENTS");
 
         return (
           <div style={{ display: "grid", gap: 20 }}>

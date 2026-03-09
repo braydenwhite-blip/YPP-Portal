@@ -99,7 +99,6 @@ export default async function AdminCurriculaPage() {
                 curriculum={curriculum}
                 statusColors={statusColors}
                 diffLabels={diffLabels}
-                reviewerId={session!.user!.id}
               />
             ))}
           </div>
@@ -155,7 +154,6 @@ function CurriculumReviewCard({
   curriculum,
   statusColors,
   diffLabels,
-  reviewerId,
 }: {
   curriculum: {
     id: string;
@@ -177,7 +175,6 @@ function CurriculumReviewCard({
   };
   statusColors: Record<string, { bg: string; color: string }>;
   diffLabels: Record<string, string>;
-  reviewerId: string;
 }) {
   const lessons = Array.isArray(curriculum.weeklyTopics) ? curriculum.weeklyTopics as Array<Record<string, string>> : [];
   const strategy = curriculum.engagementStrategy && typeof curriculum.engagementStrategy === "object"
@@ -286,14 +283,12 @@ function CurriculumReviewCard({
       <div style={{ marginTop: 16, display: "flex", gap: 10, alignItems: "flex-start", flexWrap: "wrap" }}>
         <form action={approveCurriculum} style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <input type="hidden" name="id" value={curriculum.id} />
-          <input type="hidden" name="reviewerId" value={reviewerId} />
           <button type="submit" className="button primary" style={{ fontSize: 13 }}>
             Approve
           </button>
         </form>
         <form action={requestCurriculumRevision} style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <input type="hidden" name="id" value={curriculum.id} />
-          <input type="hidden" name="reviewerId" value={reviewerId} />
           <input
             name="reviewNotes"
             className="input"
