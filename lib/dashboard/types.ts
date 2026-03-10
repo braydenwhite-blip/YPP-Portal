@@ -54,6 +54,20 @@ export interface ActivePathwaySummary {
   nextStepTitle: string | null;
 }
 
+export interface InstructorReadinessSummary {
+  trainingComplete: boolean;
+  completedRequiredModules: number;
+  requiredModulesCount: number;
+  trainingPercent: number;
+  interviewStatus: string;
+  interviewPassed: boolean;
+  approvedLevels: string[];
+  highestApprovedLevel: string | null;
+  missingRequirementsCount: number;
+  canPublishFirstOffering: boolean;
+  featureEnabled: boolean;
+}
+
 export interface DashboardData {
   role: DashboardRole;
   roleLabel: string;
@@ -66,4 +80,5 @@ export interface DashboardData {
   moduleBadgeByHref: Record<string, number>;
   generatedAt: string;
   activePathways?: ActivePathwaySummary[];
+  instructorReadiness?: InstructorReadinessSummary;
 }

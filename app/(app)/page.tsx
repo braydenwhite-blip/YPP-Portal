@@ -12,6 +12,7 @@ import QueueBoard from "@/components/dashboard/queue-board";
 import NextActions from "@/components/dashboard/next-actions";
 import ToolExplorer from "@/components/dashboard/tool-explorer";
 import PathwayWidget from "@/components/dashboard/pathway-widget";
+import InstructorReadinessWidget from "@/components/dashboard/instructor-readiness-widget";
 import LegacyOverviewPage from "./legacy-overview-page";
 
 function isMissingTableError(error: unknown) {
@@ -182,32 +183,60 @@ export default async function OverviewPage() {
     "Check your progress cards and repeat tomorrow.",
   ];
 
-  const quickExperienceLinks = [
-    {
-      title: "Activity Hub",
-      description: "Pick your next activity across challenge, incubator, and project paths.",
-      href: "/activities",
-      tag: "HUB",
-    },
-    {
-      title: "Challenges",
-      description: "Build streaks and consistency with daily, weekly, and seasonal prompts.",
-      href: "/challenges",
-      tag: "CHL",
-    },
-    {
-      title: "Incubator",
-      description: "Move from idea to showcase with phase-based project support.",
-      href: "/incubator",
-      tag: "INC",
-    },
-    {
-      title: "Passion World",
-      description: "See your growth islands update from real activity and progress.",
-      href: "/world",
-      tag: "PWR",
-    },
-  ];
+  const quickExperienceLinks =
+    dashboard.role === "INSTRUCTOR"
+      ? [
+          {
+            title: "My Workspace",
+            description: "Manage curricula, offerings, and your teaching pathway.",
+            href: "/instructor/workspace",
+            tag: "WRK",
+          },
+          {
+            title: "Training Academy",
+            description: "Complete required modules and track your readiness progress.",
+            href: "/instructor-training",
+            tag: "TRN",
+          },
+          {
+            title: "Curricula",
+            description: "Create and submit class templates for review.",
+            href: "/instructor/workspace?tab=curricula",
+            tag: "CUR",
+          },
+          {
+            title: "My Classes",
+            description: "Review active class offerings, schedules, and enrollment.",
+            href: "/instructor/class-settings",
+            tag: "CLS",
+          },
+        ]
+      : [
+          {
+            title: "Activity Hub",
+            description: "Pick your next activity across challenge, incubator, and project paths.",
+            href: "/activities",
+            tag: "HUB",
+          },
+          {
+            title: "Challenges",
+            description: "Build streaks and consistency with daily, weekly, and seasonal prompts.",
+            href: "/challenges",
+            tag: "CHL",
+          },
+          {
+            title: "Incubator",
+            description: "Move from idea to showcase with phase-based project support.",
+            href: "/incubator",
+            tag: "INC",
+          },
+          {
+            title: "Passion World",
+            description: "See your growth islands update from real activity and progress.",
+            href: "/world",
+            tag: "PWR",
+          },
+        ];
 
   const portalLoop = [
     {
@@ -249,8 +278,9 @@ export default async function OverviewPage() {
             Everything important is connected here, so you always know what to do next.
           </h2>
           <p className="overview-hero-copy">
-            This page brings classes, challenges, incubator, communication, and progress into one simple command center.
-            Start with one action, finish it, and your progress updates across the portal.
+            {dashboard.role === "INSTRUCTOR"
+              ? "This page brings your training status, class management, readiness gates, and teaching tools into one command center. Start with your top next action and your progress updates across the portal."
+              : "This page brings classes, challenges, incubator, communication, and progress into one simple command center. Start with one action, finish it, and your progress updates across the portal."}
           </p>
           <p className="overview-hero-note">
             Today is {todayDateLabel}. If you only do one thing, finish your top Next Action.
@@ -447,6 +477,12 @@ export default async function OverviewPage() {
       {dashboard.role === "STUDENT" && dashboard.activePathways !== undefined && (
         <div style={{ marginTop: 16 }}>
           <PathwayWidget pathways={dashboard.activePathways} />
+        </div>
+      )}
+
+      {dashboard.role === "INSTRUCTOR" && dashboard.instructorReadiness && (
+        <div style={{ marginTop: 16 }}>
+          <InstructorReadinessWidget summary={dashboard.instructorReadiness} />
         </div>
       )}
 

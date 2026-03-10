@@ -9,8 +9,9 @@ import type {
   DashboardQueueCard,
   DashboardQueueStatus,
   DashboardRole,
+  InstructorReadinessSummary,
 } from "@/lib/dashboard/types";
-import { getNextRequiredAction, isInterviewGateEnforced } from "@/lib/instructor-readiness";
+import { getInstructorReadiness, buildFallbackInstructorReadiness, isInterviewGateEnforced } from "@/lib/instructor-readiness";
 import { getRecommendedActivitiesForUser } from "@/lib/activity-hub/actions";
 import { withPrismaFallback } from "@/lib/prisma-guard";
 
@@ -115,6 +116,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
   let queues: DashboardQueueCard[] = [];
   let nextActions: DashboardNextAction[] = [];
   let dashboardActivePathways: import("@/lib/dashboard/types").ActivePathwaySummary[] | undefined = undefined;
+  let instructorReadiness: InstructorReadinessSummary | undefined = undefined;
 
   if (role === "ADMIN") {
     const [
@@ -496,40 +498,8 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
       moduleBadgeByHref["/chapter-lead/instructor-readiness"] = readinessBlockerCount;
     }
   } else if (role === "INSTRUCTOR") {
-    const [requiredModules, assignments, interviewGate, courses] = await Promise.all([
-      withPrismaFallback(
-        "dashboard:instructor:required-modules",
-        () =>
-          prisma.trainingModule.findMany({
-            where: { required: true },
-            select: { id: true },
-          }),
-        []
-      ),
-      withPrismaFallback(
-        "dashboard:instructor:assignments",
-        () =>
-          prisma.trainingAssignment.findMany({
-            where: {
-              userId,
-              module: { required: true },
-            },
-            select: {
-              moduleId: true,
-              status: true,
-            },
-          }),
-        []
-      ),
-      withPrismaFallback(
-        "dashboard:instructor:interview-gate",
-        () =>
-          prisma.instructorInterviewGate.findUnique({
-            where: { instructorId: userId },
-            select: { status: true },
-          }),
-        null
-      ),
+    const [readiness, courses] = await Promise.all([
+      getInstructorReadiness(userId).catch(() => buildFallbackInstructorReadiness(userId)),
       prisma.course.findMany({
         where: { leadInstructorId: userId },
         select: {
@@ -543,43 +513,46 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
       }),
     ]);
 
-    const requiredSet = new Set(requiredModules.map((module) => module.id));
-    const completedRequired = new Set(
-      assignments
-        .filter((assignment) => assignment.status === "COMPLETE")
-        .map((assignment) => assignment.moduleId)
-    );
-
-    const trainingIncomplete = Math.max(
-      0,
-      Array.from(requiredSet).filter((moduleId) => !completedRequired.has(moduleId)).length
-    );
-
-    const interviewRequired = isInterviewGateEnforced();
-    const interviewStatus = interviewGate?.status ?? "REQUIRED";
-    const interviewBlocked =
-      interviewRequired && !(interviewStatus === "PASSED" || interviewStatus === "WAIVED");
-
     const classCount = courses.length;
     const learnerCount = courses.reduce((sum, course) => sum + course._count.enrollments, 0);
-    const urgentAction = await withPrismaFallback(
-      "dashboard:instructor:next-required-action",
-      () => getNextRequiredAction(userId),
-      {
-        title: "Open Instructor Training",
-        detail: "Review your training readiness status.",
-        href: "/instructor-training",
-      }
+    const trainingPercent =
+      readiness.requiredModulesCount === 0
+        ? 100
+        : Math.round((readiness.completedRequiredModules / readiness.requiredModulesCount) * 100);
+    const LEVEL_RANK: Record<string, number> = {
+      LEVEL_101: 101,
+      LEVEL_201: 201,
+      LEVEL_301: 301,
+      LEVEL_401: 401,
+    };
+    const highestApprovedLevel =
+      readiness.approvedLevels.length > 0
+        ? readiness.approvedLevels.reduce((a, b) =>
+            (LEVEL_RANK[a] ?? 0) >= (LEVEL_RANK[b] ?? 0) ? a : b
+          )
+        : null;
+    const teachingLevelValue = highestApprovedLevel
+      ? highestApprovedLevel.replace("LEVEL_", "")
+      : "Pending";
+    const trainingIncomplete = Math.max(
+      0,
+      readiness.requiredModulesCount - readiness.completedRequiredModules
     );
+    const interviewBlocked = isInterviewGateEnforced() && !readiness.interviewPassed;
 
     heroTitle = "Instructor Command Center";
     heroSubtitle = "Keep classes moving while clearing readiness blockers quickly.";
 
     kpis = [
+      { id: "instructor_teaching_level", label: "Teaching Level", value: teachingLevelValue },
+      {
+        id: "instructor_training",
+        label: "Training",
+        value: `${readiness.completedRequiredModules}/${readiness.requiredModulesCount}`,
+        note: `${trainingPercent}% complete`,
+      },
       { id: "instructor_classes", label: "Classes", value: classCount },
       { id: "instructor_learners", label: "Learners", value: learnerCount },
-      { id: "instructor_training_incomplete", label: "Training Remaining", value: trainingIncomplete },
-      { id: "instructor_interview_blocked", label: "Interview Blocker", value: interviewBlocked ? 1 : 0 },
     ];
 
     queues = [
@@ -603,25 +576,54 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
       },
     ];
 
-    nextActions = [
-      {
-        id: "instructor-urgent",
-        title: urgentAction.title,
-        detail: urgentAction.detail,
-        href: urgentAction.href,
-      },
-      {
+    nextActions = [];
+    nextActions.push({
+      id: "instructor-primary",
+      title: readiness.nextAction.title,
+      detail: readiness.nextAction.detail,
+      href: readiness.nextAction.href,
+    });
+    if (readiness.trainingComplete && !readiness.interviewPassed) {
+      nextActions.push({
+        id: "instructor-interview",
+        title: "Schedule your readiness interview",
+        detail: "Training complete. Book your interview to unlock class publishing.",
+        href: "/interviews?scope=readiness&view=mine&state=needs_action",
+      });
+    }
+    if (classCount > 0) {
+      nextActions.push({
         id: "instructor-classes",
         title: "Review class settings",
-        detail: "Confirm schedule, capacity, and publish status.",
+        detail: `${classCount} class${classCount === 1 ? "" : "es"} — confirm schedule, capacity, and publish status.`,
         href: "/instructor/class-settings",
-      },
-    ];
+      });
+    }
+    nextActions.push({
+      id: "instructor-pathway",
+      title: "View my full pathway",
+      detail: "See level progression, training roadmap, and teaching specialties.",
+      href: "/instructor/workspace?tab=my-pathway",
+    });
 
     moduleBadgeByHref["/instructor-training"] = trainingIncomplete + (interviewBlocked ? 1 : 0);
     moduleBadgeByHref["/interviews"] = interviewBlocked ? 1 : 0;
     moduleBadgeByHref["/instructor/class-settings"] = classCount;
     moduleBadgeByHref["/attendance"] = classCount;
+
+    instructorReadiness = {
+      trainingComplete: readiness.trainingComplete,
+      completedRequiredModules: readiness.completedRequiredModules,
+      requiredModulesCount: readiness.requiredModulesCount,
+      trainingPercent,
+      interviewStatus: readiness.interviewStatus,
+      interviewPassed: readiness.interviewPassed,
+      approvedLevels: readiness.approvedLevels as string[],
+      highestApprovedLevel,
+      missingRequirementsCount: readiness.missingRequirements.length,
+      canPublishFirstOffering: readiness.canPublishFirstOffering,
+      featureEnabled: readiness.featureEnabled,
+    };
   } else if (role === "STUDENT") {
     const [
       enrollments,
@@ -1197,6 +1199,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     moduleBadgeByHref,
     generatedAt: new Date().toISOString(),
     activePathways: dashboardActivePathways,
+    instructorReadiness,
   };
 }
 
