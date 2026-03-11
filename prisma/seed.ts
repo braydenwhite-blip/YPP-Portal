@@ -561,6 +561,186 @@ async function main() {
     });
   }
 
+  // ── Learning Modules ──────────────────────────────────────────
+  // Using well-known placeholder YouTube IDs from existing seed data.
+  // Replace videoUrl values with real educational content before production.
+  const learningModuleSeeds = [
+    // Coding — Beginner
+    {
+      passionName: "Coding",
+      title: "What Is Programming?",
+      description: "A friendly introduction to programming concepts, why code matters, and how computers understand instructions.",
+      duration: 12,
+      level: "BEGINNER" as const,
+      videoUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+      tags: ["intro", "concepts", "mindset"],
+      resources: [] as string[],
+      order: 1,
+    },
+    {
+      passionName: "Coding",
+      title: "HTML & CSS: Build Your First Page",
+      description: "Follow along to create a simple web page from scratch. You'll learn HTML structure and basic CSS styling.",
+      duration: 20,
+      level: "BEGINNER" as const,
+      videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      tags: ["html", "css", "web", "frontend"],
+      resources: ["https://developer.mozilla.org/en-US/docs/Web/HTML"] as string[],
+      order: 2,
+    },
+    {
+      passionName: "Coding",
+      title: "JavaScript Basics: Variables & Functions",
+      description: "Learn the building blocks of JavaScript — variables, data types, and writing your first functions.",
+      duration: 18,
+      level: "INTERMEDIATE" as const,
+      videoUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+      tags: ["javascript", "functions", "variables"],
+      resources: ["https://javascript.info/first-steps"] as string[],
+      order: 3,
+    },
+    {
+      passionName: "Coding",
+      title: "React in 15 Minutes",
+      description: "A fast-paced overview of React components, props, and state. Perfect if you've already done HTML/JS basics.",
+      duration: 15,
+      level: "ADVANCED" as const,
+      videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      tags: ["react", "components", "frontend", "javascript"],
+      resources: ["https://react.dev/learn"] as string[],
+      order: 4,
+    },
+    // Music — Beginner to Intermediate
+    {
+      passionName: "Music",
+      title: "Music Theory 101: Notes & Scales",
+      description: "Understand the musical alphabet, major scales, and how notes relate to each other on a keyboard.",
+      duration: 14,
+      level: "BEGINNER" as const,
+      videoUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+      tags: ["theory", "scales", "notes", "piano"],
+      resources: [] as string[],
+      order: 1,
+    },
+    {
+      passionName: "Music",
+      title: "Chords & Progressions",
+      description: "Learn how to build chords and why certain chord progressions sound so satisfying.",
+      duration: 16,
+      level: "INTERMEDIATE" as const,
+      videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      tags: ["chords", "theory", "songwriting"],
+      resources: [] as string[],
+      order: 2,
+    },
+    {
+      passionName: "Music",
+      title: "Write a Song in 30 Minutes",
+      description: "A creative challenge module — follow along to write a simple verse-chorus song from scratch.",
+      duration: 30,
+      level: "INTERMEDIATE" as const,
+      videoUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+      tags: ["songwriting", "creativity", "challenge"],
+      resources: [] as string[],
+      order: 3,
+    },
+    // Writing
+    {
+      passionName: "Writing",
+      title: "The Anatomy of a Great Story",
+      description: "Explore the three-act structure, character arcs, and what makes readers keep turning pages.",
+      duration: 13,
+      level: "BEGINNER" as const,
+      videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      tags: ["story", "structure", "fiction"],
+      resources: [] as string[],
+      order: 1,
+    },
+    {
+      passionName: "Writing",
+      title: "Writing Vivid Characters",
+      description: "Techniques for creating characters that feel real — backstory, motivation, voice, and contradiction.",
+      duration: 17,
+      level: "INTERMEDIATE" as const,
+      videoUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+      tags: ["characters", "craft", "fiction"],
+      resources: [] as string[],
+      order: 2,
+    },
+    {
+      passionName: "Writing",
+      title: "Editing Your Own Work",
+      description: "The hardest part of writing is cutting. Learn a practical editing checklist you can use on any draft.",
+      duration: 11,
+      level: "ADVANCED" as const,
+      videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      tags: ["editing", "revision", "craft"],
+      resources: [] as string[],
+      order: 3,
+    },
+    // Design
+    {
+      passionName: "Design",
+      title: "Design Principles: Contrast, Alignment, Repetition",
+      description: "A visual crash course in the four core design principles — illustrated with real before/after examples.",
+      duration: 15,
+      level: "BEGINNER" as const,
+      videoUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+      tags: ["principles", "layout", "typography"],
+      resources: [] as string[],
+      order: 1,
+    },
+    {
+      passionName: "Design",
+      title: "Color Theory for Designers",
+      description: "How to choose colors that work together — color wheels, harmony types, and emotional associations.",
+      duration: 14,
+      level: "BEGINNER" as const,
+      videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      tags: ["color", "theory", "visual"],
+      resources: [] as string[],
+      order: 2,
+    },
+    {
+      passionName: "Design",
+      title: "Figma Fundamentals",
+      description: "Get up and running in Figma — frames, auto-layout, components, and your first mockup.",
+      duration: 22,
+      level: "INTERMEDIATE" as const,
+      videoUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+      tags: ["figma", "ui", "tools", "prototyping"],
+      resources: ["https://help.figma.com/hc/en-us"] as string[],
+      order: 3,
+    },
+  ];
+
+  for (const seed of learningModuleSeeds) {
+    const passionId = passionByName.get(seed.passionName);
+    if (!passionId) continue;
+
+    const existing = await prisma.learningModule.findFirst({
+      where: { passionId, title: seed.title },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      await prisma.learningModule.create({
+        data: {
+          passionId,
+          title: seed.title,
+          description: seed.description,
+          duration: seed.duration,
+          level: seed.level,
+          videoUrl: seed.videoUrl,
+          tags: seed.tags,
+          resources: seed.resources,
+          order: seed.order,
+          isActive: true,
+        },
+      });
+    }
+  }
+
   console.log(`Seeded Pathways portal data for ${pathway.name}.`);
 }
 

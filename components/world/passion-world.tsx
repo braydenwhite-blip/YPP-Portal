@@ -25,6 +25,7 @@ import { EventsPanel } from "./overlay/events-panel";
 import { SearchFilter } from "./overlay/search-filter";
 import { Onboarding } from "./overlay/onboarding";
 import { DiscoveryQuizPanel } from "./overlay/discovery-quiz-panel";
+import { Minimap } from "./minimap";
 import { useSound } from "./hooks/use-sound";
 
 type LandmarkType = "quest-board" | "mentor-tower" | "shrine" | "chapter-town" | "events" | null;
@@ -543,6 +544,12 @@ function isInViewport(
 // MAIN PASSION WORLD COMPONENT
 // ═══════════════════════════════════════════════════════════════
 
+interface ContextMenuState {
+  island: PassionIsland;
+  x: number;
+  y: number;
+}
+
 export default function PassionWorld({ data }: { data: WorldData }) {
   const router = useRouter();
   const [selectedIsland, setSelectedIsland] =
@@ -551,16 +558,30 @@ export default function PassionWorld({ data }: { data: WorldData }) {
   const [filteredIds, setFilteredIds] = useState<Set<string> | null>(null);
   const [hudCollapsed, setHudCollapsed] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [scale, setScale] = useState(1.0);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [isExiting, setIsExiting] = useState(false);
   const [isEntering, setIsEntering] = useState(true);
   const [showQuiz, setShowQuiz] = useState(false);
   const { enabled: soundEnabled, toggle: toggleSound, playSound } = useSound();
   const svgRef = useRef<SVGSVGElement>(null);
+  const scaleRef = useRef(1.0);
+  const offsetRef = useRef({ x: 0, y: 0 });
+  const focusAnimRef = useRef<number>(0);
 
   // Clear entering state after animation completes
   useEffect(() => {
     const timer = setTimeout(() => setIsEntering(false), 700);
     return () => clearTimeout(timer);
+  }, []);
+
+  // Keep refs in sync with state for use inside rAF/event callbacks
+  useEffect(() => { scaleRef.current = scale; }, [scale]);
+  useEffect(() => { offsetRef.current = offset; }, [offset]);
+
+  // Cleanup focus animation on unmount
+  useEffect(() => {
+    return () => cancelAnimationFrame(focusAnimRef.current);
   }, []);
 
   const handleExit = useCallback(() => {
@@ -592,10 +613,105 @@ export default function PassionWorld({ data }: { data: WorldData }) {
     [],
   );
 
-  // Compute viewBox
-  const viewBox = `${-offset.x} ${-offset.y} ${BASE_W} ${BASE_H}`;
+  // Compute viewBox — narrowing dimensions zooms in
+  const viewBox = `${-offset.x} ${-offset.y} ${BASE_W / scale} ${BASE_H / scale}`;
   const vx = -offset.x;
   const vy = -offset.y;
+
+  // Wheel zoom toward cursor
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const newScale = Math.max(0.3, Math.min(3.0, scaleRef.current * (e.deltaY < 0 ? 1.1 : 0.9)));
+    const svgEl = svgRef.current;
+    if (!svgEl) {
+      setScale(newScale);
+      return;
+    }
+    const rect = svgEl.getBoundingClientRect();
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
+    const currentW = BASE_W / scaleRef.current;
+    const currentH = BASE_H / scaleRef.current;
+    // Cursor in world space
+    const wx = -offsetRef.current.x + (cx / rect.width) * currentW;
+    const wy = -offsetRef.current.y + (cy / rect.height) * currentH;
+    // New offset so cursor stays fixed
+    const newW = BASE_W / newScale;
+    const newH = BASE_H / newScale;
+    setScale(newScale);
+    setOffset({
+      x: -(wx - (cx / rect.width) * newW),
+      y: -(wy - (cy / rect.height) * newH),
+    });
+  }, []);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const PAN_STEP = 60;
+    const ZOOM_STEP = 0.15;
+    function handleKeyDown(e: KeyboardEvent) {
+      const tag = (e.target as Element).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      switch (e.key) {
+        case "ArrowLeft": case "a": case "A":
+          setOffset((p) => ({ ...p, x: p.x - PAN_STEP })); break;
+        case "ArrowRight": case "d": case "D":
+          setOffset((p) => ({ ...p, x: p.x + PAN_STEP })); break;
+        case "ArrowUp": case "w": case "W":
+          setOffset((p) => ({ ...p, y: p.y - PAN_STEP })); break;
+        case "ArrowDown": case "s": case "S":
+          setOffset((p) => ({ ...p, y: p.y + PAN_STEP })); break;
+        case "+": case "=":
+          setScale((s) => Math.min(3.0, s + ZOOM_STEP)); break;
+        case "-": case "_":
+          setScale((s) => Math.max(0.3, s - ZOOM_STEP)); break;
+        case "0":
+          setScale(1.0);
+          setOffset({ x: 0, y: 0 });
+          break;
+        case "Escape":
+          setSelectedIsland(null);
+          setSelectedLandmark(null);
+          setContextMenu(null);
+          break;
+        default: return;
+      }
+      e.preventDefault();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // Dismiss context menu on outside click
+  useEffect(() => {
+    if (!contextMenu) return;
+    function dismiss() { setContextMenu(null); }
+    document.addEventListener("click", dismiss, { once: true });
+    return () => document.removeEventListener("click", dismiss);
+  }, [contextMenu]);
+
+  // Smooth pan to island by index
+  const panToIsland = useCallback((index: number) => {
+    const pos = positions[index];
+    if (!pos) return;
+    const currentScale = scaleRef.current;
+    const targetX = BASE_W / (2 * currentScale) - pos.x;
+    const targetY = BASE_H / (2 * currentScale) - pos.y;
+    const duration = 420;
+    const startTime = performance.now();
+    const startOffset = { ...offsetRef.current };
+    cancelAnimationFrame(focusAnimRef.current);
+    function step(now: number) {
+      const t = Math.min((now - startTime) / duration, 1);
+      const ease = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      setOffset({
+        x: startOffset.x + (targetX - startOffset.x) * ease,
+        y: startOffset.y + (targetY - startOffset.y) * ease,
+      });
+      if (t < 1) focusAnimRef.current = requestAnimationFrame(step);
+    }
+    focusAnimRef.current = requestAnimationFrame(step);
+  }, [positions]);
 
   // rAF pan loop
   const flushPan = useCallback(() => {
@@ -641,16 +757,18 @@ export default function PassionWorld({ data }: { data: WorldData }) {
     return () => cancelAnimationFrame(rafRef.current);
   }, []);
 
-  // Stable select handlers
+  // Stable select handlers — also pan to the island
   const selectHandlers = useMemo(() => {
-    return data.islands.map((island) => () => {
+    return data.islands.map((island, i) => () => {
       setSelectedIsland((prev) =>
         prev?.id === island.id ? null : island,
       );
       setSelectedLandmark(null);
+      setContextMenu(null);
       playSound("select");
+      panToIsland(i);
     });
-  }, [data.islands, playSound]);
+  }, [data.islands, playSound, panToIsland]);
 
   // Landmark select handlers
   const handleSelectLandmark = useCallback((lm: LandmarkType) => {
@@ -659,20 +777,22 @@ export default function PassionWorld({ data }: { data: WorldData }) {
     playSound("landmark");
   }, [playSound]);
 
-  // Viewport-culled islands
+  // Viewport-culled islands (accounts for current zoom level)
   const visibleIslands = useMemo(() => {
     if (data.islands.length <= 20) {
       return data.islands.map((_, i) => i);
     }
+    const visW = BASE_W / scale;
+    const visH = BASE_H / scale;
     const visible: number[] = [];
     for (let i = 0; i < data.islands.length; i++) {
       const pos = positions[i];
-      if (pos && isInViewport(pos.x, pos.y, vx, vy, BASE_W, BASE_H)) {
+      if (pos && isInViewport(pos.x, pos.y, vx, vy, visW, visH)) {
         visible.push(i);
       }
     }
     return visible;
-  }, [data.islands, positions, vx, vy]);
+  }, [data.islands, positions, vx, vy, scale]);
 
   return (
     <div className={`${styles.world}${isEntering ? ` ${styles.worldEntering}` : ""}${isExiting ? ` ${styles.worldExiting}` : ""}`} role="application" aria-label="Passion World — interactive map of your passions">
@@ -766,6 +886,8 @@ export default function PassionWorld({ data }: { data: WorldData }) {
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
+        onWheel={handleWheel}
+        style={{ cursor: "inherit" }}
       >
         <defs>
           <linearGradient id="ocean" x1="0" y1="0" x2="0" y2="1">
@@ -829,10 +951,11 @@ export default function PassionWorld({ data }: { data: WorldData }) {
           <text x="0" y="-25" textAnchor="middle" fontSize="8" fill="#fbbf24" fontWeight="700">N</text>
         </g>
 
-        {/* Bridges connecting islands */}
+        {/* Bridges connecting islands — animated energy trails */}
         {data.islands.length > 1 &&
           positions.slice(0, -1).map((pos, i) => {
             const next = positions[i + 1];
+            const theme = data.islands[i] ? getTheme(data.islands[i].category) : null;
             return (
               <line
                 key={`bridge-${i}`}
@@ -840,10 +963,17 @@ export default function PassionWorld({ data }: { data: WorldData }) {
                 y1={pos.y + 15}
                 x2={next.x}
                 y2={next.y + 15}
-                stroke="rgba(255,255,255,0.12)"
+                stroke={theme ? `${theme.gradient[0]}40` : "rgba(255,255,255,0.14)"}
                 strokeWidth="1.5"
                 strokeDasharray="6 8"
-              />
+              >
+                <animate
+                  attributeName="stroke-dashoffset"
+                  values="56;0"
+                  dur={`${2.5 + (i % 4) * 0.4}s`}
+                  repeatCount="indefinite"
+                />
+              </line>
             );
           })}
 
@@ -873,7 +1003,14 @@ export default function PassionWorld({ data }: { data: WorldData }) {
           const island = data.islands[i];
           const pos = positions[i];
           return (
-            <g key={island.id} data-interactive>
+            <g
+              key={island.id}
+              data-interactive
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setContextMenu({ island, x: e.clientX, y: e.clientY });
+              }}
+            >
               <Island
                 island={island}
                 x={pos?.x ?? 600}
@@ -900,15 +1037,94 @@ export default function PassionWorld({ data }: { data: WorldData }) {
         </text>
       </svg>
 
-      {/* Search & category filter */}
+      {/* Search & category filter — jump to island on result click */}
       <SearchFilter
         islands={data.islands}
         onFilter={setFilteredIds}
         onFocusIsland={(island) => {
           setSelectedIsland(island);
           setSelectedLandmark(null);
+          setContextMenu(null);
+          const idx = data.islands.findIndex((isl) => isl.id === island.id);
+          if (idx >= 0) panToIsland(idx);
         }}
       />
+
+      {/* Zoom controls */}
+      <div className={styles.zoomControls} aria-label="Zoom controls">
+        <button
+          className={styles.zoomBtn}
+          onClick={() => setScale((s) => Math.min(3.0, s + 0.2))}
+          aria-label="Zoom in"
+          title="Zoom in (+)"
+        >
+          +
+        </button>
+        <button
+          className={styles.zoomBtn}
+          onClick={() => { setScale(1.0); setOffset({ x: 0, y: 0 }); }}
+          aria-label="Reset view"
+          title="Reset view (0)"
+          style={{ fontSize: 11 }}
+        >
+          {Math.round(scale * 100)}%
+        </button>
+        <button
+          className={styles.zoomBtn}
+          onClick={() => setScale((s) => Math.max(0.3, s - 0.2))}
+          aria-label="Zoom out"
+          title="Zoom out (-)"
+        >
+          −
+        </button>
+      </div>
+
+      {/* Minimap */}
+      <Minimap
+        islands={data.islands}
+        positions={positions}
+        offset={offset}
+        scale={scale}
+        onNavigate={setOffset}
+      />
+
+      {/* Context menu */}
+      {contextMenu && (
+        <div
+          className={styles.contextMenu}
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            className={styles.contextMenuItem}
+            onClick={() => {
+              setSelectedIsland(contextMenu.island);
+              setSelectedLandmark(null);
+              setContextMenu(null);
+            }}
+          >
+            View Details
+          </button>
+          <Link
+            href={`/learn/modules?passion=${contextMenu.island.passionId}`}
+            className={styles.contextMenuItem}
+            onClick={() => setContextMenu(null)}
+          >
+            Go to {contextMenu.island.name}
+          </Link>
+          {!contextMenu.island.isPrimary && (
+            <button
+              className={styles.contextMenuItem}
+              onClick={() => {
+                setSelectedIsland(contextMenu.island);
+                setContextMenu(null);
+              }}
+            >
+              View &amp; Set as Primary
+            </button>
+          )}
+        </div>
+      )}
 
       {selectedIsland && (
         <IslandDetail
