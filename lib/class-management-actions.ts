@@ -5,6 +5,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { assertCanPublishOffering } from "@/lib/instructor-readiness";
+import {
+  getClassTemplateCapabilities,
+  getClassTemplateSelect,
+} from "@/lib/class-template-compat";
 
 type WeeklyTopic = {
   week?: number;
@@ -60,6 +64,16 @@ function getInt(formData: FormData, key: string, fallback: number): number {
   if (!raw || String(raw).trim() === "") return fallback;
   const n = parseInt(String(raw), 10);
   return isNaN(n) ? fallback : n;
+}
+
+function getStringList(formData: FormData, key: string): string[] {
+  const values = formData
+    .getAll(key)
+    .flatMap((value) => String(value).split(","))
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  return Array.from(new Set(values));
 }
 
 function inferIntroVideoProvider(videoUrl: string): IntroVideoProvider | null {
@@ -152,9 +166,10 @@ function normalizeIntroVideoFields(formData: FormData) {
 
 export async function createClassTemplate(formData: FormData) {
   const session = await requireInstructor();
+  const capabilities = await getClassTemplateCapabilities();
 
   const title = getString(formData, "title");
-  const description = getString(formData, "description");
+  const description = getString(formData, "description", false);
   const interestArea = getString(formData, "interestArea");
   const difficultyLevel = getString(formData, "difficultyLevel") as
     | "LEVEL_101"
@@ -180,10 +195,7 @@ export async function createClassTemplate(formData: FormData) {
     ? outcomesRaw.split("\n").map((s) => s.trim()).filter(Boolean)
     : [];
 
-  const deliveryModesRaw = getString(formData, "deliveryModes", false);
-  const deliveryModes = deliveryModesRaw
-    ? deliveryModesRaw.split(",").map((s) => s.trim()).filter(Boolean)
-    : ["VIRTUAL"];
+  const deliveryModes = getStringList(formData, "deliveryModes");
 
   const weeklyTopicsRaw = getString(formData, "weeklyTopics", false);
   let weeklyTopics: WeeklyTopic[] = [];
@@ -212,7 +224,7 @@ export async function createClassTemplate(formData: FormData) {
   const template = await prisma.classTemplate.create({
     data: {
       title,
-      description,
+      description: description || "",
       interestArea,
       difficultyLevel,
       prerequisites,
@@ -225,12 +237,17 @@ export async function createClassTemplate(formData: FormData) {
       maxStudents,
       idealSize,
       sizeNotes: sizeNotes || null,
-      deliveryModes,
-      targetAgeGroup: targetAgeGroup || null,
-      classDurationMin: classDurationMin || null,
-      engagementStrategy: engagementStrategy ?? undefined,
+      deliveryModes: deliveryModes.length > 0 ? deliveryModes : ["VIRTUAL"],
+      ...(capabilities.hasAdvancedCurriculumFields
+        ? {
+            targetAgeGroup: targetAgeGroup || null,
+            classDurationMin: classDurationMin || null,
+            engagementStrategy: engagementStrategy ?? undefined,
+          }
+        : {}),
       createdById: session.user.id,
     },
+    select: { id: true },
   });
 
   revalidatePath("/instructor/curriculum-builder");
@@ -240,9 +257,17 @@ export async function createClassTemplate(formData: FormData) {
 
 export async function submitCurriculumForReview(formData: FormData) {
   const session = await requireInstructor();
+  const capabilities = await getClassTemplateCapabilities();
   const id = getString(formData, "id");
 
-  const existing = await prisma.classTemplate.findUnique({ where: { id } });
+  if (!capabilities.hasReviewWorkflow) {
+    throw new Error("Curriculum review will be available after the latest database migration is applied.");
+  }
+
+  const existing = await prisma.classTemplate.findUnique({
+    where: { id },
+    select: { createdById: true, submissionStatus: true },
+  });
   if (!existing) throw new Error("Template not found");
   if (existing.createdById !== session.user.id) throw new Error("Not authorized");
   if (existing.submissionStatus === "SUBMITTED" || existing.submissionStatus === "APPROVED") {
@@ -252,6 +277,7 @@ export async function submitCurriculumForReview(formData: FormData) {
   await prisma.classTemplate.update({
     where: { id },
     data: { submissionStatus: "SUBMITTED", submittedAt: new Date() },
+    select: { id: true },
   });
 
   revalidatePath("/instructor/curriculum-builder");
@@ -261,9 +287,13 @@ export async function submitCurriculumForReview(formData: FormData) {
 
 export async function updateClassTemplate(formData: FormData) {
   const session = await requireInstructor();
+  const capabilities = await getClassTemplateCapabilities();
   const id = getString(formData, "id");
 
-  const existing = await prisma.classTemplate.findUnique({ where: { id } });
+  const existing = await prisma.classTemplate.findUnique({
+    where: { id },
+    select: { createdById: true },
+  });
   if (!existing) throw new Error("Template not found");
 
   const roles = session.user?.roles ?? [];
@@ -272,7 +302,7 @@ export async function updateClassTemplate(formData: FormData) {
   }
 
   const title = getString(formData, "title");
-  const description = getString(formData, "description");
+  const description = getString(formData, "description", false);
   const interestArea = getString(formData, "interestArea");
   const difficultyLevel = getString(formData, "difficultyLevel") as
     | "LEVEL_101"
@@ -298,10 +328,7 @@ export async function updateClassTemplate(formData: FormData) {
     ? outcomesRaw.split("\n").map((s) => s.trim()).filter(Boolean)
     : [];
 
-  const deliveryModesRaw = getString(formData, "deliveryModes", false);
-  const deliveryModes = deliveryModesRaw
-    ? deliveryModesRaw.split(",").map((s) => s.trim()).filter(Boolean)
-    : ["VIRTUAL"];
+  const deliveryModes = getStringList(formData, "deliveryModes");
 
   const weeklyTopicsRaw = getString(formData, "weeklyTopics", false);
   let weeklyTopics: WeeklyTopic[] = [];
@@ -314,11 +341,23 @@ export async function updateClassTemplate(formData: FormData) {
     }
   }
 
+  const targetAgeGroup = getString(formData, "targetAgeGroup", false);
+  const classDurationMin = getInt(formData, "classDurationMin", 0);
+  const engagementStrategyRaw = getString(formData, "engagementStrategy", false);
+  let engagementStrategy: Record<string, string> | null = null;
+  if (engagementStrategyRaw) {
+    try {
+      engagementStrategy = JSON.parse(engagementStrategyRaw) as Record<string, string>;
+    } catch {
+      engagementStrategy = null;
+    }
+  }
+
   await prisma.classTemplate.update({
     where: { id },
     data: {
       title,
-      description,
+      description: description || "",
       interestArea,
       difficultyLevel,
       prerequisites,
@@ -331,9 +370,17 @@ export async function updateClassTemplate(formData: FormData) {
       maxStudents,
       idealSize,
       sizeNotes: sizeNotes || null,
-      deliveryModes,
+      deliveryModes: deliveryModes.length > 0 ? deliveryModes : ["VIRTUAL"],
       isPublished,
+      ...(capabilities.hasAdvancedCurriculumFields
+        ? {
+            targetAgeGroup: targetAgeGroup || null,
+            classDurationMin: classDurationMin || null,
+            engagementStrategy: engagementStrategy ?? undefined,
+          }
+        : {}),
     },
+    select: { id: true },
   });
 
   revalidatePath("/instructor/curriculum-builder");
@@ -344,7 +391,10 @@ export async function updateClassTemplate(formData: FormData) {
 export async function deleteClassTemplate(id: string) {
   const session = await requireInstructor();
 
-  const existing = await prisma.classTemplate.findUnique({ where: { id } });
+  const existing = await prisma.classTemplate.findUnique({
+    where: { id },
+    select: { createdById: true },
+  });
   if (!existing) throw new Error("Template not found");
 
   const roles = session.user?.roles ?? [];
@@ -352,7 +402,10 @@ export async function deleteClassTemplate(id: string) {
     throw new Error("Not authorized to delete this template");
   }
 
-  await prisma.classTemplate.delete({ where: { id } });
+  await prisma.classTemplate.delete({
+    where: { id },
+    select: { id: true },
+  });
   revalidatePath("/instructor/curriculum-builder");
   revalidatePath("/curriculum");
   return { success: true };
@@ -361,7 +414,10 @@ export async function deleteClassTemplate(id: string) {
 export async function publishClassTemplate(id: string) {
   const session = await requireInstructor();
 
-  const existing = await prisma.classTemplate.findUnique({ where: { id } });
+  const existing = await prisma.classTemplate.findUnique({
+    where: { id },
+    select: { createdById: true },
+  });
   if (!existing) throw new Error("Template not found");
 
   const roles = session.user?.roles ?? [];
@@ -372,6 +428,7 @@ export async function publishClassTemplate(id: string) {
   await prisma.classTemplate.update({
     where: { id },
     data: { isPublished: true },
+    select: { id: true },
   });
 
   revalidatePath("/instructor/curriculum-builder");
@@ -445,6 +502,10 @@ export async function createClassOffering(formData: FormData) {
   // Auto-generate sessions from the template
   const template = await prisma.classTemplate.findUnique({
     where: { id: templateId },
+    select: {
+      durationWeeks: true,
+      weeklyTopics: true,
+    },
   });
 
   if (template) {
@@ -910,6 +971,7 @@ export async function getClassCatalog(filters?: {
   semester?: string;
   search?: string;
 }) {
+  const capabilities = await getClassTemplateCapabilities();
   const where: Record<string, unknown> = {
     status: { in: ["PUBLISHED", "IN_PROGRESS"] },
   };
@@ -933,7 +995,11 @@ export async function getClassCatalog(filters?: {
   return prisma.classOffering.findMany({
     where,
     include: {
-      template: true,
+      template: {
+        select: getClassTemplateSelect({
+          includeWorkflow: capabilities.hasReviewWorkflow,
+        }),
+      },
       instructor: { select: { id: true, name: true, email: true } },
       _count: {
         select: {
@@ -947,6 +1013,7 @@ export async function getClassCatalog(filters?: {
 }
 
 export async function getMyClassSchedule(userId: string) {
+  const capabilities = await getClassTemplateCapabilities();
   return prisma.classEnrollment.findMany({
     where: {
       studentId: userId,
@@ -955,7 +1022,11 @@ export async function getMyClassSchedule(userId: string) {
     include: {
       offering: {
         include: {
-          template: true,
+          template: {
+            select: getClassTemplateSelect({
+              includeWorkflow: capabilities.hasReviewWorkflow,
+            }),
+          },
           instructor: { select: { id: true, name: true } },
           sessions: {
             orderBy: { date: "asc" },
@@ -969,20 +1040,27 @@ export async function getMyClassSchedule(userId: string) {
 }
 
 export async function getInstructorTemplates(instructorId: string) {
+  const capabilities = await getClassTemplateCapabilities();
   return prisma.classTemplate.findMany({
     where: { createdById: instructorId },
-    include: {
-      _count: { select: { offerings: true } },
-    },
+    select: getClassTemplateSelect({
+      includeCounts: true,
+      includeWorkflow: capabilities.hasReviewWorkflow,
+    }),
     orderBy: { updatedAt: "desc" },
   });
 }
 
 export async function getInstructorOfferings(instructorId: string) {
+  const capabilities = await getClassTemplateCapabilities();
   return prisma.classOffering.findMany({
     where: { instructorId },
     include: {
-      template: true,
+      template: {
+        select: getClassTemplateSelect({
+          includeWorkflow: capabilities.hasReviewWorkflow,
+        }),
+      },
       _count: {
         select: {
           enrollments: { where: { status: "ENROLLED" } },
@@ -995,13 +1073,15 @@ export async function getInstructorOfferings(instructorId: string) {
 }
 
 export async function getClassOfferingDetail(offeringId: string) {
+  const capabilities = await getClassTemplateCapabilities();
   return prisma.classOffering.findUnique({
     where: { id: offeringId },
     include: {
       template: {
-        include: {
-          createdBy: { select: { id: true, name: true } },
-        },
+        select: getClassTemplateSelect({
+          includeCreatedBy: true,
+          includeWorkflow: capabilities.hasReviewWorkflow,
+        }),
       },
       instructor: { select: { id: true, name: true, email: true } },
       sessions: {

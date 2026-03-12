@@ -8,6 +8,11 @@ import {
 } from "@/lib/class-management-actions";
 import Link from "next/link";
 import { CurriculumBuilderClient } from "./client";
+import {
+  getClassTemplateCapabilities,
+  getTemplateSubmissionStatus,
+} from "@/lib/class-template-compat";
+import { summarizeRichText } from "@/lib/rich-text-summary";
 
 export default async function CurriculumBuilderPage() {
   const session = await getServerSession(authOptions);
@@ -18,10 +23,12 @@ export default async function CurriculumBuilderPage() {
     redirect("/");
   }
 
-  const [templates, offerings] = await Promise.all([
+  const [capabilities, templates, offerings] = await Promise.all([
+    getClassTemplateCapabilities(),
     getInstructorTemplates(session.user.id),
     getInstructorOfferings(session.user.id),
   ]);
+  const hasReviewWorkflow = capabilities.hasReviewWorkflow;
 
   const difficultyLabels: Record<string, string> = {
     LEVEL_101: "101 - Beginner",
@@ -60,7 +67,7 @@ export default async function CurriculumBuilderPage() {
         </div>
         <div className="card">
           <div style={{ fontSize: 28, fontWeight: 700, color: "var(--ypp-purple)" }}>
-            {templates.filter((t) => (t as { submissionStatus?: string }).submissionStatus === "APPROVED").length}
+            {templates.filter((template) => getTemplateSubmissionStatus(template, hasReviewWorkflow) === "APPROVED").length}
           </div>
           <div style={{ color: "var(--text-secondary)", fontSize: 14 }}>Approved</div>
         </div>
@@ -77,6 +84,17 @@ export default async function CurriculumBuilderPage() {
           <div style={{ color: "var(--text-secondary)", fontSize: 14 }}>Students Enrolled</div>
         </div>
       </div>
+
+      {!hasReviewWorkflow && (
+        <div
+          className="card"
+          style={{ marginBottom: 24, background: "#fffbeb", border: "1px solid #fcd34d" }}
+        >
+          <p style={{ margin: 0, color: "#92400e", fontSize: 14 }}>
+            Curriculum review badges and submission buttons will appear automatically after the latest curriculum database migration is applied.
+          </p>
+        </div>
+      )}
 
       {/* Existing Templates */}
       <div style={{ marginBottom: 32 }}>
@@ -95,8 +113,7 @@ export default async function CurriculumBuilderPage() {
                   <div>
                     <h3>{template.title}</h3>
                     <p style={{ color: "var(--text-secondary)", fontSize: 14, marginTop: 4 }}>
-                      {template.description.slice(0, 120)}
-                      {template.description.length > 120 && "..."}
+                      {summarizeRichText(template.description, 120)}
                     </p>
                   </div>
                   <span
@@ -122,7 +139,7 @@ export default async function CurriculumBuilderPage() {
 
                 {/* Submission status badge */}
                 {(() => {
-                  const status = (template as { submissionStatus?: string }).submissionStatus ?? "DRAFT";
+                  const status = getTemplateSubmissionStatus(template, hasReviewWorkflow);
                   const colors = submissionStatusColors[status] ?? submissionStatusColors.DRAFT;
                   return (
                     <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8 }}>
@@ -134,10 +151,10 @@ export default async function CurriculumBuilderPage() {
                         background: colors.bg,
                         color: colors.color,
                       }}>
-                        {status.replace("_", " ")}
+                        {status.replace(/_/g, " ")}
                       </span>
                       {status === "NEEDS_REVISION" && (
-                        <span style={{ fontSize: 12, color: "#991b1b" }}>Revision requested — update and resubmit</span>
+                        <span style={{ fontSize: 12, color: "#991b1b" }}>Revision requested - update and resubmit</span>
                       )}
                     </div>
                   );
@@ -148,8 +165,8 @@ export default async function CurriculumBuilderPage() {
                     Edit
                   </Link>
                   {(() => {
-                    const status = (template as { submissionStatus?: string }).submissionStatus ?? "DRAFT";
-                    const canSubmit = status === "DRAFT" || status === "NEEDS_REVISION";
+                    const status = getTemplateSubmissionStatus(template, hasReviewWorkflow);
+                    const canSubmit = hasReviewWorkflow && (status === "DRAFT" || status === "NEEDS_REVISION");
                     return canSubmit ? (
                       <form action={submitCurriculumForReview}>
                         <input type="hidden" name="id" value={template.id} />
@@ -187,7 +204,7 @@ export default async function CurriculumBuilderPage() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
                   <h3>{offering.title}</h3>
                   <span className={`pill ${offering.status === "PUBLISHED" ? "primary" : ""}`}>
-                    {offering.status.replace("_", " ")}
+                    {offering.status.replace(/_/g, " ")}
                   </span>
                 </div>
                 <div style={{ marginTop: 8, fontSize: 14, color: "var(--text-secondary)" }}>
@@ -213,7 +230,7 @@ export default async function CurriculumBuilderPage() {
       <div id="create" style={{ marginBottom: 32 }}>
         <div className="section-title">Build New Curriculum</div>
         <p style={{ color: "var(--text-secondary)", fontSize: 14, marginBottom: 20 }}>
-          Fill out each section below. Save as a draft anytime — submit for review when your curriculum is ready for approval by your chapter lead or admin.
+          Fill out each section below. Save as a draft anytime - submit for review when your curriculum is ready for approval by your chapter lead or admin.
         </p>
         <CurriculumBuilderClient />
       </div>

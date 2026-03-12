@@ -5,6 +5,7 @@ import { getInstructorSequences } from "@/lib/sequence-actions";
 import { getInstructorPassionLabs } from "@/lib/passion-lab-actions";
 import { prisma } from "@/lib/prisma";
 import { SequenceBuilderClient } from "./client";
+import { getClassTemplateCapabilities } from "@/lib/class-template-compat";
 
 export default async function SequenceBuilderPage() {
   const session = await getServerSession(authOptions);
@@ -19,13 +20,17 @@ export default async function SequenceBuilderPage() {
     redirect("/dashboard");
   }
 
+  const capabilities = await getClassTemplateCapabilities();
+
   const [sequences, passionLabs, approvedTemplates] = await Promise.all([
     getInstructorSequences(),
     getInstructorPassionLabs(),
     prisma.classTemplate.findMany({
       where: {
         createdById: session.user.id,
-        submissionStatus: "APPROVED",
+        ...(capabilities.hasReviewWorkflow
+          ? { submissionStatus: "APPROVED" as const }
+          : { isPublished: true }),
       },
       select: { id: true, title: true, interestArea: true, difficultyLevel: true },
       orderBy: { title: "asc" },

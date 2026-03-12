@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { approveCurriculum, requestCurriculumRevision } from "@/lib/curriculum-review-actions";
+import { getClassTemplateCapabilities } from "@/lib/class-template-compat";
 
 export default async function AdminCurriculaPage() {
   const session = await getServerSession(authOptions);
@@ -19,6 +20,27 @@ export default async function AdminCurriculaPage() {
       select: { chapterId: true },
     });
     chapterId = dbUser?.chapterId ?? null;
+  }
+
+  const capabilities = await getClassTemplateCapabilities();
+  if (!capabilities.hasReviewWorkflow || !capabilities.hasAdvancedCurriculumFields) {
+    return (
+      <div>
+        <div className="topbar">
+          <div>
+            <p className="badge">{isAdmin ? "Admin" : "Chapter Lead"}</p>
+            <h1 className="page-title">Curriculum Review Queue</h1>
+            <p className="page-subtitle">Review and approve instructor-submitted curricula before they go live.</p>
+          </div>
+        </div>
+
+        <div className="card" style={{ background: "#fffbeb", border: "1px solid #fcd34d" }}>
+          <p style={{ margin: 0, color: "#92400e" }}>
+            The curriculum review workflow will appear here after the latest curriculum database migration is applied.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   const submitted = await prisma.classTemplate.findMany({

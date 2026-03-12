@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { ClassSettingsClient } from "./client";
+import { getClassTemplateSelect } from "@/lib/class-template-compat";
 
 export default async function InstructorClassSettingsPage({
   searchParams,
@@ -28,6 +29,7 @@ export default async function InstructorClassSettingsPage({
         { isPublished: true },
       ],
     },
+    select: getClassTemplateSelect(),
     orderBy: { title: "asc" },
   });
 
@@ -43,7 +45,9 @@ export default async function InstructorClassSettingsPage({
     offering = await prisma.classOffering.findUnique({
       where: { id: params.offering },
       include: {
-        template: true,
+        template: {
+          select: getClassTemplateSelect(),
+        },
         sessions: { orderBy: { sessionNumber: "asc" } },
         enrollments: {
           include: { student: { select: { id: true, name: true, email: true } } },

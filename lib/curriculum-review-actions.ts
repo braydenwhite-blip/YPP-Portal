@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getClassTemplateCapabilities } from "@/lib/class-template-compat";
 
 async function requireReviewer() {
   const session = await getServerSession(authOptions);
@@ -15,8 +16,12 @@ async function requireReviewer() {
 
 export async function approveCurriculum(formData: FormData) {
   const session = await requireReviewer();
+  const capabilities = await getClassTemplateCapabilities();
   const id = formData.get("id") as string;
   if (!id) throw new Error("Missing curriculum id");
+  if (!capabilities.hasReviewWorkflow) {
+    throw new Error("Curriculum review will be available after the latest database migration is applied.");
+  }
 
   await prisma.classTemplate.update({
     where: { id },
@@ -24,6 +29,7 @@ export async function approveCurriculum(formData: FormData) {
       submissionStatus: "APPROVED",
       reviewedById: session.user.id,
     },
+    select: { id: true },
   });
 
   revalidatePath("/admin/curricula");
@@ -32,10 +38,14 @@ export async function approveCurriculum(formData: FormData) {
 
 export async function requestCurriculumRevision(formData: FormData) {
   const session = await requireReviewer();
+  const capabilities = await getClassTemplateCapabilities();
   const id = formData.get("id") as string;
   const reviewNotes = (formData.get("reviewNotes") as string || "").trim();
   if (!id) throw new Error("Missing curriculum id");
   if (!reviewNotes) throw new Error("Review notes are required when requesting revision");
+  if (!capabilities.hasReviewWorkflow) {
+    throw new Error("Curriculum review will be available after the latest database migration is applied.");
+  }
 
   await prisma.classTemplate.update({
     where: { id },
@@ -44,6 +54,7 @@ export async function requestCurriculumRevision(formData: FormData) {
       reviewedById: session.user.id,
       reviewNotes,
     },
+    select: { id: true },
   });
 
   revalidatePath("/admin/curricula");

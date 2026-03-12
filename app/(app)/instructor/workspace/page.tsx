@@ -8,6 +8,15 @@ import { toggleInstructorPathwaySpec } from "@/lib/instructor-pathway-actions";
 import { INSTRUCTOR_MILESTONES } from "@/lib/xp-config";
 import { WorkspaceCreateButton } from "@/components/workspace-create-button";
 import { normalizeStatus, getStatusBadgeStyle } from "@/lib/status-utils";
+import {
+  getClassTemplateCapabilities,
+  getTemplateSubmissionStatus,
+} from "@/lib/class-template-compat";
+import { summarizeRichText } from "@/lib/rich-text-summary";
+import {
+  getInstructorOfferings,
+  getInstructorTemplates,
+} from "@/lib/class-management-actions";
 
 const tabs = ["curricula", "lesson-plans", "offerings", "readiness", "my-pathway"] as const;
 type WorkspaceTab = (typeof tabs)[number];
@@ -63,14 +72,9 @@ export default async function InstructorWorkspacePage({
 
   const tab = safeTab((await searchParams).tab);
 
-  const [templates, lessonPlans, offerings, readiness, teachingPermissions, allPathways, activeOfferings, menteeCount] = await Promise.all([
-    prisma.classTemplate.findMany({
-      where: { createdById: session.user.id },
-      include: {
-        _count: { select: { offerings: true } },
-      },
-      orderBy: { updatedAt: "desc" },
-    }),
+  const [capabilities, templates, lessonPlans, offerings, readiness, teachingPermissions, allPathways, activeOfferings, menteeCount] = await Promise.all([
+    getClassTemplateCapabilities(),
+    getInstructorTemplates(session.user.id),
     prisma.lessonPlan.findMany({
       where: { authorId: session.user.id },
       include: {
@@ -81,18 +85,7 @@ export default async function InstructorWorkspacePage({
       },
       orderBy: { updatedAt: "desc" },
     }),
-    prisma.classOffering.findMany({
-      where: { instructorId: session.user.id },
-      include: {
-        template: true,
-        _count: {
-          select: {
-            enrollments: { where: { status: "ENROLLED" } },
-          },
-        },
-      },
-      orderBy: { startDate: "desc" },
-    }),
+    getInstructorOfferings(session.user.id),
     getInstructorReadiness(session.user.id),
     prisma.instructorTeachingPermission.findMany({
       where: { instructorId: session.user.id },
@@ -126,6 +119,7 @@ export default async function InstructorWorkspacePage({
       where: { mentorId: session.user.id, status: "ACTIVE" },
     }).catch(() => 0),
   ]);
+  const hasReviewWorkflow = capabilities.hasReviewWorkflow;
 
   const totalPlannedWeeks = templates.reduce((sum, t) => {
     const weeklyPlanRows = Array.isArray(t.weeklyTopics) ? t.weeklyTopics.length : 0;
@@ -204,6 +198,17 @@ export default async function InstructorWorkspacePage({
         ))}
       </div>
 
+      {!hasReviewWorkflow && (
+        <div
+          className="card"
+          style={{ marginBottom: 18, background: "#fffbeb", border: "1px solid #fcd34d" }}
+        >
+          <p style={{ margin: 0, color: "#92400e", fontSize: 14 }}>
+            Curriculum review status will appear automatically after the latest curriculum database migration is applied.
+          </p>
+        </div>
+      )}
+
       {tab === "curricula" && (
         <div className="grid two">
           {templates.length === 0 ? (
@@ -225,13 +230,12 @@ export default async function InstructorWorkspacePage({
                     <div>
                       <h3>{template.title}</h3>
                       <p style={{ color: "var(--text-secondary)", marginTop: 4 }}>
-                        {template.description.slice(0, 120)}
-                        {template.description.length > 120 ? "..." : ""}
+                        {summarizeRichText(template.description, 120)}
                       </p>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
                       {(() => {
-                        const rawStatus = (template as { submissionStatus?: string }).submissionStatus ?? "DRAFT";
+                        const rawStatus = getTemplateSubmissionStatus(template, hasReviewWorkflow);
                         const normalized = normalizeStatus(rawStatus, "template", { isPublished: template.isPublished });
                         return (
                           <span className="pill" style={getStatusBadgeStyle(normalized)}>
@@ -253,7 +257,7 @@ export default async function InstructorWorkspacePage({
                     Weekly plan rows: {weeklyPlanRows} | Published offerings: {template._count.offerings}
                   </div>
                   {/* Inline "Create Offering" prompt for approved curricula with no offerings */}
-                  {(template as { submissionStatus?: string }).submissionStatus === "APPROVED" && template._count.offerings === 0 && (
+                  {getTemplateSubmissionStatus(template, hasReviewWorkflow) === "APPROVED" && template._count.offerings === 0 && (
                     <div
                       style={{
                         marginTop: 10,
@@ -465,7 +469,7 @@ export default async function InstructorWorkspacePage({
         if (grantedLevels.has("LEVEL_201")) earnedMilestoneKeys.add("UNLOCK_LEVEL_201");
         if (grantedLevels.has("LEVEL_301")) earnedMilestoneKeys.add("UNLOCK_LEVEL_301");
         if (grantedLevels.has("LEVEL_401")) earnedMilestoneKeys.add("UNLOCK_LEVEL_401");
-        if (templates.some((t) => (t as { submissionStatus?: string }).submissionStatus === "APPROVED")) earnedMilestoneKeys.add("CURRICULUM_APPROVED");
+        if (templates.some((template) => getTemplateSubmissionStatus(template, hasReviewWorkflow) === "APPROVED")) earnedMilestoneKeys.add("CURRICULUM_APPROVED");
         if (menteeCount >= 5) earnedMilestoneKeys.add("MENTOR_5_STUDENTS");
 
         return (
@@ -612,11 +616,13 @@ export default async function InstructorWorkspacePage({
                   </p>
                 </div>
                 {(() => {
-                  const approvedCount = templates.filter((t) => (t as { submissionStatus?: string }).submissionStatus === "APPROVED").length;
-                  const submittedCount = templates.filter((t) => (t as { submissionStatus?: string }).submissionStatus === "SUBMITTED").length;
-                  const draftCount = templates.filter((t) => {
-                    const s = (t as { submissionStatus?: string }).submissionStatus ?? "DRAFT";
-                    return s === "DRAFT" || s === "NEEDS_REVISION";
+                  const approvedCount = templates.filter((template) => getTemplateSubmissionStatus(template, hasReviewWorkflow) === "APPROVED").length;
+                  const submittedCount = hasReviewWorkflow
+                    ? templates.filter((template) => getTemplateSubmissionStatus(template, hasReviewWorkflow) === "SUBMITTED").length
+                    : 0;
+                  const draftCount = templates.filter((template) => {
+                    const status = getTemplateSubmissionStatus(template, hasReviewWorkflow);
+                    return status === "DRAFT" || status === "NEEDS_REVISION";
                   }).length;
                   if (approvedCount > 0) return <span className="pill" style={{ background: "#dcfce7", color: "#166534" }}>{approvedCount} Approved</span>;
                   if (submittedCount > 0) return <span className="pill" style={{ background: "#fef9c3", color: "#854d0e" }}>{submittedCount} Under Review</span>;
