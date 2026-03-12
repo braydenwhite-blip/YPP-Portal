@@ -1,12 +1,31 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
-import crypto from "crypto";
 
 const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/reset-password", "/verify-email", "/magic-link"];
 
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+}
+
+function generateNonce() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+
+  let binary = "";
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+
+  return btoa(binary);
+}
+
+async function readToken(request: NextRequest) {
+  try {
+    return await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+  } catch {
+    return null;
+  }
 }
 
 function buildCsp(nonce: string): string {
@@ -33,10 +52,10 @@ function buildCsp(nonce: string): string {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
   const isLogin = pathname.startsWith("/login");
   const isSignup = pathname.startsWith("/signup");
   const isPublic = isPublicPath(pathname);
+  const token = await readToken(request);
 
   // Unauthenticated users may access public routes only.
   if (!token && !isPublic) {
@@ -51,8 +70,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(appUrl);
   }
 
-  // Generate a cryptographically random nonce for CSP
-  const nonce = crypto.randomBytes(16).toString("base64");
+  // Generate a cryptographically random nonce for CSP in the Edge runtime.
+  const nonce = generateNonce();
 
   // Forward nonce to server components via request header
   const requestHeaders = new Headers(request.headers);
