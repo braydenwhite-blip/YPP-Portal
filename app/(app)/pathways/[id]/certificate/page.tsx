@@ -22,7 +22,7 @@ export default async function PathwayCertificatePage({ params }: { params: { id:
   if (!user) redirect("/login");
 
   // Check if all steps are completed
-  const courseIds = pathway.steps.map((s) => s.courseId);
+  const courseIds = pathway.steps.map((s) => s.courseId).filter((id): id is string => id !== null);
   const completedCount = await prisma.enrollment.count({
     where: { userId, courseId: { in: courseIds }, status: "COMPLETED" },
   });

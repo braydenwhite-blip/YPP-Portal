@@ -105,9 +105,9 @@ export default async function OnboardingPage() {
         steps: p.steps.map((s) => ({
           id: s.id,
           courseId: s.courseId,
-          courseTitle: s.course.title,
-          courseLevel: s.course.level,
-          courseFormat: s.course.format,
+          courseTitle: s.course?.title ?? s.title ?? "",
+          courseLevel: s.course?.level ?? null,
+          courseFormat: s.course?.format ?? "",
           stepOrder: s.stepOrder,
         })),
       }))}

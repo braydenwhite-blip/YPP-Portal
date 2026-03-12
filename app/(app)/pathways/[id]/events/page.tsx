@@ -24,14 +24,14 @@ export default async function PathwayEventsPage({ params }: { params: { id: stri
   }).catch(() => [] as any[]);
 
   // Get user's highest completed step
-  const courseIds = pathway.steps.map((s) => s.courseId);
+  const courseIds = pathway.steps.map((s) => s.courseId).filter((id): id is string => id !== null);
   const completedEnrollments = await prisma.enrollment.findMany({
     where: { userId, courseId: { in: courseIds }, status: "COMPLETED" },
     select: { courseId: true },
   });
   const completedCourseIds = new Set(completedEnrollments.map((e) => e.courseId));
   const maxCompletedStep = pathway.steps.reduce((max, step) => {
-    return completedCourseIds.has(step.courseId) ? Math.max(max, step.stepOrder) : max;
+    return step.courseId !== null && completedCourseIds.has(step.courseId) ? Math.max(max, step.stepOrder) : max;
   }, 0);
 
   const now = new Date();

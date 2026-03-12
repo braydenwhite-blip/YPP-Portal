@@ -129,7 +129,7 @@ export async function getStudentProgressSnapshot(userId: string): Promise<Studen
 
   const enrolledCourseIds = new Set(legacyEnrollments.map((enrollment) => enrollment.courseId));
   const nextPathwaySteps = pathways.filter((pathway) =>
-    pathway.steps.some((step) => !enrolledCourseIds.has(step.courseId))
+    pathway.steps.some((step) => step.courseId && !enrolledCourseIds.has(step.courseId))
   ).length;
 
   const activeEnrollments = activeClassEnrollments + activeLegacyEnrollments;

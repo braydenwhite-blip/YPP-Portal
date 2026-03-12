@@ -96,7 +96,7 @@ export default async function AdminPathwaysPage() {
                   </div>
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 8 }}>
                     {pathway.steps.map((step) => (
-                      <span key={step.id} className="pill" style={{ fontSize: 12 }}>{step.course.title}</span>
+                      <span key={step.id} className="pill" style={{ fontSize: 12 }}>{step.course?.title ?? ""}</span>
                     ))}
                   </div>
                 </div>

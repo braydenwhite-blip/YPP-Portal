@@ -2,7 +2,7 @@
 
 interface PathwayStep {
   id: string;
-  courseId: string;
+  courseId: string | null;
   courseTitle: string;
   courseLevel: string | null;
   courseFormat: string;
@@ -42,7 +42,7 @@ export default function PathwayProgressMap({
       <div className="pathway-maps">
         {pathways.map((pathway) => {
           const completedCount = pathway.steps.filter(
-            (s) => pathway.completedCourseIds.has(s.courseId)
+            (s) => s.courseId && pathway.completedCourseIds.has(s.courseId)
           ).length;
           const progress = pathway.steps.length > 0
             ? completedCount / pathway.steps.length
@@ -87,8 +87,8 @@ export default function PathwayProgressMap({
               {/* Step nodes */}
               <div className="pathway-map-nodes">
                 {pathway.steps.map((step, idx) => {
-                  const isCompleted = pathway.completedCourseIds.has(step.courseId);
-                  const isEnrolled = pathway.enrolledCourseIds.has(step.courseId);
+                  const isCompleted = !!step.courseId && pathway.completedCourseIds.has(step.courseId);
+                  const isEnrolled = !!step.courseId && pathway.enrolledCourseIds.has(step.courseId);
                   const isCurrent = isEnrolled && !isCompleted;
                   const isLocked = !isCompleted && !isEnrolled;
 

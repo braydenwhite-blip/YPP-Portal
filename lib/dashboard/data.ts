@@ -703,21 +703,22 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     const enrollmentStatusById = new Map(enrollments.map((e) => [e.courseId, e.status]));
 
     const nextPathwaySteps = pathways.filter((pathway) =>
-      pathway.steps.some((step) => !enrolledCourseIds.has(step.courseId))
+      pathway.steps.some((step) => step.courseId && !enrolledCourseIds.has(step.courseId))
     ).length;
 
     // Build active pathway summaries for the dashboard widget
     dashboardActivePathways = pathways
-      .filter((pathway) => pathway.steps.some((step) => enrolledCourseIds.has(step.courseId)))
+      .filter((pathway) => pathway.steps.some((step) => step.courseId && enrolledCourseIds.has(step.courseId)))
       .map((pathway) => {
         const steps = pathway.steps;
         const totalCount = steps.length;
-        const completedCount = steps.filter((s) => enrollmentStatusById.get(s.courseId) === "COMPLETED").length;
+        const completedCount = steps.filter((s) => s.courseId && enrollmentStatusById.get(s.courseId) === "COMPLETED").length;
         const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
         const nextStep = steps.find((s) => {
+          if (!s.courseId) return false;
           const status = enrollmentStatusById.get(s.courseId);
           return status === "ENROLLED";
-        }) ?? steps.find((s) => !enrolledCourseIds.has(s.courseId)) ?? null;
+        }) ?? steps.find((s) => s.courseId && !enrolledCourseIds.has(s.courseId)) ?? null;
         return {
           id: pathway.id,
           name: pathway.name,
@@ -725,7 +726,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
           progressPercent,
           completedCount,
           totalCount,
-          nextStepTitle: nextStep ? nextStep.course.title : null,
+          nextStepTitle: nextStep ? (nextStep.course?.title ?? null) : null,
         };
       });
     const activeChallengeCount = challengeParticipations.filter(

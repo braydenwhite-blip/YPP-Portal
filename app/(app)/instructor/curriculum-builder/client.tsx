@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { createClassTemplate } from "@/lib/class-management-actions";
 import { useRouter } from "next/navigation";
+import { RichTextEditor } from "@/components/rich-text-editor";
 
 interface LessonDetail {
   topic: string;
@@ -50,6 +51,7 @@ export function CurriculumBuilderClient() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
+  const [description, setDescription] = useState<string | null>(null);
   const [numLessons, setNumLessons] = useState(8);
   const [classDurationMin, setClassDurationMin] = useState(60);
   const [lessons, setLessons] = useState<LessonDetail[]>(() =>
@@ -135,6 +137,8 @@ export function CurriculumBuilderClient() {
 
       formData.set("weeklyTopics", JSON.stringify(weeklyTopics));
       formData.set("durationWeeks", String(numLessons));
+      // Override description with RichTextEditor JSON if state is set
+      if (description) formData.set("description", description);
       formData.set("engagementStrategy", JSON.stringify(engagement));
 
       await createClassTemplate(formData);
@@ -302,12 +306,13 @@ export function CurriculumBuilderClient() {
 
           <div>
             <label style={labelStyle}>Description</label>
-            <textarea
-              name="description"
-              style={textareaStyle}
-              rows={3}
-              required
+            {/* Hidden input carries value for native FormData fallback */}
+            <input type="hidden" name="description" value={description ?? ""} />
+            <RichTextEditor
+              value={description}
+              onChange={setDescription}
               placeholder="A brief overview of the course for students and parents..."
+              minHeight={80}
             />
           </div>
         </div>

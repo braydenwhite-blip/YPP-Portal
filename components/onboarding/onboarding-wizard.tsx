@@ -13,7 +13,7 @@ export interface PathwayOption {
   interestArea: string;
   steps: {
     id: string;
-    courseId: string;
+    courseId: string | null;
     courseTitle: string;
     courseLevel: string | null;
     courseFormat: string;

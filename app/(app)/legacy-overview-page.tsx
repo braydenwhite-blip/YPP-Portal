@@ -229,8 +229,8 @@ export default async function OverviewPage() {
   );
   const nextSteps = pathways
     .map((pathway) => {
-      const nextStep = pathway.steps.find((step) => !enrolledCourseIds.has(step.courseId));
-      if (!nextStep) return null;
+      const nextStep = pathway.steps.find((step) => step.courseId !== null && !enrolledCourseIds.has(step.courseId));
+      if (!nextStep || !nextStep.course) return null;
       return { pathwayName: pathway.name, course: nextStep.course };
     })
     .filter(Boolean) as { pathwayName: string; course: { title: string; format: string; level: string | null } }[];
@@ -487,7 +487,7 @@ export default async function OverviewPage() {
         <div style={{ marginTop: 24 }}>
           <PathwayProgressMap
             pathways={pathways.filter((p) =>
-              p.steps.some((s) => enrolledCourseIds.has(s.courseId))
+              p.steps.some((s) => s.courseId !== null && enrolledCourseIds.has(s.courseId))
             ).map((p) => ({
               id: p.id,
               name: p.name,
@@ -495,9 +495,9 @@ export default async function OverviewPage() {
               steps: p.steps.map((s) => ({
                 id: s.id,
                 courseId: s.courseId,
-                courseTitle: s.course.title,
-                courseLevel: s.course.level,
-                courseFormat: s.course.format,
+                courseTitle: s.course?.title ?? "",
+                courseLevel: s.course?.level ?? null,
+                courseFormat: s.course?.format ?? "",
                 stepOrder: s.stepOrder,
               })),
               completedCourseIds: new Set(

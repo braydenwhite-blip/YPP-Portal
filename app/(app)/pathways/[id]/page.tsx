@@ -28,14 +28,14 @@ export default async function PathwayDetailPage({ params }: { params: { id: stri
 
   if (!pathway) notFound();
 
-  const stepCourseIds = pathway.steps.map((s) => s.courseId);
+  const stepCourseIds = pathway.steps.map((s) => s.courseId).filter((id): id is string => id !== null);
   const enrollments = await prisma.enrollment.findMany({
     where: { userId, courseId: { in: stepCourseIds } },
     select: { courseId: true, status: true },
   });
   const enrollmentMap = new Map(enrollments.map((e) => [e.courseId, e.status]));
 
-  const completedCount = pathway.steps.filter((s) => enrollmentMap.get(s.courseId) === "COMPLETED").length;
+  const completedCount = pathway.steps.filter((s) => s.courseId ? enrollmentMap.get(s.courseId) === "COMPLETED" : false).length;
   const enrolledCount = enrollments.length;
   const totalCount = pathway.steps.length;
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
@@ -45,7 +45,7 @@ export default async function PathwayDetailPage({ params }: { params: { id: stri
   // Enrolled student count
   const enrolledStudentsCount = await prisma.enrollment.groupBy({
     by: ["userId"],
-    where: { courseId: { in: stepCourseIds } },
+    where: { courseId: { in: stepCourseIds } }, // stepCourseIds already filtered to string[]
     _count: true,
   }).then((r) => r.length);
 
@@ -150,11 +150,11 @@ export default async function PathwayDetailPage({ params }: { params: { id: stri
         <div className="section-title">Pathway Steps</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {pathway.steps.map((step, idx) => {
-            const status = enrollmentMap.get(step.courseId);
+            const status = step.courseId ? enrollmentMap.get(step.courseId) : undefined;
             const isStepCompleted = status === "COMPLETED";
             const isStepEnrolled = !!status && !isStepCompleted;
             const prevStep = idx > 0 ? pathway.steps[idx - 1] : null;
-            const prevCompleted = prevStep ? enrollmentMap.get(prevStep.courseId) === "COMPLETED" : true;
+            const prevCompleted = prevStep ? (prevStep.courseId ? enrollmentMap.get(prevStep.courseId) === "COMPLETED" : false) : true;
             const isLocked = !isStepCompleted && !isStepEnrolled && !prevCompleted;
 
             return (
@@ -189,10 +189,10 @@ export default async function PathwayDetailPage({ params }: { params: { id: stri
                 </div>
 
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: 15 }}>{step.course.title}</div>
+                  <div style={{ fontWeight: 600, fontSize: 15 }}>{step.course?.title ?? ""}</div>
                   <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
                     <span className="pill" style={{ fontSize: 12 }}>
-                      {formatCourseLabel(step.course.format, step.course.level)}
+                      {step.course ? formatCourseLabel(step.course.format, step.course.level) : ""}
                     </span>
                     {isStepCompleted && (
                       <span className="pill" style={{ fontSize: 12, background: "var(--green-100, #f0fff4)", color: "var(--green-700, #276749)" }}>

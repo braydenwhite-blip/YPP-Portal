@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createClassAssignment } from "@/lib/assignment-actions";
 import { useRouter } from "next/navigation";
+import { RichTextEditor } from "@/components/rich-text-editor";
 
 export function CreateAssignmentClient({
   offeringId,
@@ -15,6 +16,7 @@ export function CreateAssignmentClient({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [type, setType] = useState("PRACTICE");
+  const [instructions, setInstructions] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -25,6 +27,7 @@ export function CreateAssignmentClient({
       const formData = new FormData(e.currentTarget);
       formData.set("offeringId", offeringId);
       formData.set("type", type);
+      if (instructions) formData.set("instructions", instructions);
 
       const result = await createClassAssignment(formData);
       router.push(`/curriculum/${offeringId}/assignments/${result.id}`);
@@ -151,11 +154,12 @@ export function CreateAssignmentClient({
         {/* Instructions */}
         <div className="form-group" style={{ gridColumn: "1 / -1" }}>
           <label className="form-label">Detailed Instructions</label>
-          <textarea
-            name="instructions"
-            className="form-input"
-            rows={4}
-            placeholder="Step-by-step guidance for students..."
+          <input type="hidden" name="instructions" value={instructions ?? ""} />
+          <RichTextEditor
+            value={instructions}
+            onChange={setInstructions}
+            placeholder="Step-by-step guidance for students…"
+            minHeight={100}
           />
         </div>
 

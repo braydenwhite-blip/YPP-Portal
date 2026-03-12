@@ -5154,6 +5154,10 @@ model ClassAssignment {
   isPublished Boolean @default(true)
   sessionId   String? // Optionally tied to a class session
 
+  // Rubric for grading / self-assessment
+  rubricId    String?
+  rubric      Rubric? @relation("ClassAssignmentRubric", fields: [rubricId], references: [id])
+
   // Relations
   submissions ClassAssignmentSubmission[]
   groups      GroupProject[]
@@ -6776,10 +6780,11 @@ model Rubric {
   chapter     Chapter?          @relation(fields: [chapterId], references: [id])
   createdById String
   createdBy   User              @relation(fields: [createdById], references: [id])
-  criteria    RubricCriterion[]
-  assignments Assignment[]      @relation("AssignmentRubric")
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  criteria          RubricCriterion[]
+  assignments       Assignment[]       @relation("AssignmentRubric")
+  classAssignments  ClassAssignment[]  @relation("ClassAssignmentRubric")
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   @@index([createdById])
   @@index([chapterId])

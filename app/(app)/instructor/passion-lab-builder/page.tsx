@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getInstructorPassionLabs, getActivePassionAreas } from "@/lib/passion-lab-actions";
+import { prisma } from "@/lib/prisma";
 import { PassionLabBuilderClient } from "./client";
 
 export default async function PassionLabBuilderPage() {
@@ -17,16 +18,17 @@ export default async function PassionLabBuilderPage() {
     redirect("/dashboard");
   }
 
-  const [passionLabs, passionAreas] = await Promise.all([
+  const [passionLabs, passionAreas, instructor] = await Promise.all([
     getInstructorPassionLabs(),
     getActivePassionAreas(),
+    prisma.user.findUnique({ where: { id: session.user.id }, select: { chapterId: true } }),
   ]);
 
   return (
     <PassionLabBuilderClient
       existingLabs={passionLabs}
       passionAreas={passionAreas}
-      chapterId={session.user.chapterId ?? null}
+      chapterId={instructor?.chapterId ?? null}
     />
   );
 }

@@ -30,7 +30,7 @@ export default async function PathwaysPage() {
   });
 
   // Load user enrollments across all pathway courses
-  const allCourseIds = allPathways.flatMap((p) => p.steps.map((s) => s.courseId));
+  const allCourseIds = allPathways.flatMap((p) => p.steps.map((s) => s.courseId)).filter((id): id is string => id !== null);
   const enrollments = await prisma.enrollment.findMany({
     where: { userId, courseId: { in: allCourseIds } },
     select: { courseId: true, status: true },
@@ -49,12 +49,12 @@ export default async function PathwaysPage() {
 
   const summaries: PathwaySummary[] = allPathways.map((pathway) => {
     const steps = pathway.steps;
-    const completedCount = steps.filter((s) => enrollmentMap.get(s.courseId) === "COMPLETED").length;
-    const enrolledCount = steps.filter((s) => enrollmentMap.has(s.courseId)).length;
+    const completedCount = steps.filter((s) => s.courseId ? enrollmentMap.get(s.courseId) === "COMPLETED" : false).length;
+    const enrolledCount = steps.filter((s) => s.courseId !== null && enrollmentMap.has(s.courseId)).length;
     const isEnrolled = enrolledCount > 0;
     const totalCount = steps.length;
     const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-    const nextStep = steps.find((s) => enrollmentMap.get(s.courseId) !== "COMPLETED" && enrollmentMap.has(s.courseId)) ?? null;
+    const nextStep = steps.find((s) => s.courseId !== null && enrollmentMap.get(s.courseId) !== "COMPLETED" && enrollmentMap.has(s.courseId)) ?? null;
 
     return { pathway, isEnrolled, completedCount, totalCount, progressPercent, nextStep };
   });
@@ -151,7 +151,7 @@ export default async function PathwaysPage() {
                 {/* Step pills */}
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                   {pathway.steps.map((step) => {
-                    const status = enrollmentMap.get(step.courseId);
+                    const status = step.courseId ? enrollmentMap.get(step.courseId) : undefined;
                     return (
                       <span
                         key={step.id}
@@ -162,7 +162,7 @@ export default async function PathwaysPage() {
                           fontSize: 12,
                         }}
                       >
-                        {formatCourseLabel(step.course.format, step.course.level)}
+                        {step.course ? formatCourseLabel(step.course.format, step.course.level) : ""}
                       </span>
                     );
                   })}
@@ -207,7 +207,7 @@ export default async function PathwaysPage() {
                     <span key={step.id} style={{ display: "flex", alignItems: "center", gap: 4 }}>
                       {idx > 0 && <span style={{ color: "var(--gray-400)", fontSize: 12 }}>→</span>}
                       <span className="pill" style={{ fontSize: 12 }}>
-                        {formatCourseLabel(step.course.format, step.course.level)}
+                        {step.course ? formatCourseLabel(step.course.format, step.course.level) : ""}
                       </span>
                     </span>
                   ))}

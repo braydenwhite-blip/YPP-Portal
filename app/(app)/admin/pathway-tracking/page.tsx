@@ -24,7 +24,7 @@ export default async function PathwayTrackingPage() {
   // For each pathway, compute aggregate enrollment stats
   const pathwayStats = await Promise.all(
     pathways.map(async (pathway) => {
-      const courseIds = pathway.steps.map((s) => s.courseId);
+      const courseIds = pathway.steps.map((s) => s.courseId).filter((id): id is string => id !== null);
       if (courseIds.length === 0) {
         return { pathway, enrolledUsers: 0, completedUsers: 0, dropoffByStep: [], avgProgress: 0 };
       }
@@ -52,8 +52,8 @@ export default async function PathwayTrackingPage() {
 
       // Drop-off: how many users reached each step
       const dropoffByStep = pathway.steps.map((step) => {
-        const reached = enrollments.filter((e) => e.courseId === step.courseId).length;
-        return { stepOrder: step.stepOrder, courseTitle: step.course.title, reached };
+        const reached = step.courseId !== null ? enrollments.filter((e) => e.courseId === step.courseId).length : 0;
+        return { stepOrder: step.stepOrder, courseTitle: step.course?.title ?? "", reached };
       });
 
       return { pathway, enrolledUsers, completedUsers, dropoffByStep, avgProgress };
@@ -64,7 +64,7 @@ export default async function PathwayTrackingPage() {
   const recentEnrollments = await prisma.enrollment.findMany({
     where: {
       courseId: {
-        in: pathways.flatMap((p) => p.steps.map((s) => s.courseId)),
+        in: pathways.flatMap((p) => p.steps.map((s) => s.courseId)).filter((id): id is string => id !== null),
       },
     },
     include: {

@@ -14,7 +14,7 @@ export default async function PathwayLeaderboardPage({ params }: { params: { id:
   });
   if (!pathway) notFound();
 
-  const courseIds = pathway.steps.map((s) => s.courseId);
+  const courseIds = pathway.steps.map((s) => s.courseId).filter((id): id is string => id !== null);
   if (courseIds.length === 0) {
     return (
       <div>

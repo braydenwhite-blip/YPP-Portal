@@ -26,7 +26,7 @@ export default async function PathwaySharePage({ params }: { params: { id: strin
   });
   if (!user) redirect("/login");
 
-  const courseIds = pathway.steps.map((s) => s.courseId);
+  const courseIds = pathway.steps.map((s) => s.courseId).filter((id): id is string => id !== null);
   const completedCount = await prisma.enrollment.count({
     where: { userId, courseId: { in: courseIds }, status: "COMPLETED" },
   });

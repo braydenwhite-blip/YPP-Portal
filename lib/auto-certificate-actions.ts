@@ -109,7 +109,7 @@ export async function checkAndIssuePathwayCompletion(
   if (!pathway || pathway.steps.length === 0) return null;
 
   // Check if user has completed all courses in the pathway
-  const courseIds = pathway.steps.map((s) => s.courseId);
+  const courseIds = pathway.steps.map((s) => s.courseId).filter((id): id is string => id !== null);
   const completedEnrollments = await prisma.enrollment.findMany({
     where: {
       userId,

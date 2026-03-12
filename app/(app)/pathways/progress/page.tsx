@@ -58,7 +58,7 @@ export default async function PathwayProgressPage() {
         const pathwayEnrollments = await prisma.enrollment.findMany({
           where: {
             userId: session.user.id,
-            courseId: { in: allSteps.map(s => s.courseId) }
+            courseId: { in: allSteps.map(s => s.courseId).filter((id): id is string => id !== null) }
           },
           include: { course: true }
         });
@@ -75,9 +75,9 @@ export default async function PathwayProgressPage() {
         for (const pathwayStep of allSteps) {
           const courseId = pathwayStep.courseId;
 
-          if (completedCourseIds.has(courseId)) {
+          if (courseId && completedCourseIds.has(courseId)) {
             completed.push({ ...pathwayStep, enrollment: pathwayEnrollments.find(e => e.courseId === courseId) });
-          } else if (enrolledCourseIds.has(courseId)) {
+          } else if (courseId && enrolledCourseIds.has(courseId)) {
             inProgress.push({ ...pathwayStep, enrollment: pathwayEnrollments.find(e => e.courseId === courseId) });
           } else {
             upcoming.push(pathwayStep);

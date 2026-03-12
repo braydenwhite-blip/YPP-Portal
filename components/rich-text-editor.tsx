@@ -59,7 +59,7 @@ export function RichTextEditor({
     const current = JSON.stringify(editor.getJSON());
     const next = value ?? "";
     if (next !== current) {
-      editor.commands.setContent(parseContent(value), false);
+      editor.commands.setContent(parseContent(value));
     }
   }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
 

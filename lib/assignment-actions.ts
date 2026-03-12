@@ -511,6 +511,11 @@ export async function getOfferingAssignments(offeringId: string, userId: string)
           _count: { select: { milestones: true } },
         },
       },
+      rubric: {
+        include: {
+          criteria: { orderBy: { sortOrder: "asc" } },
+        },
+      },
       _count: {
         select: { submissions: true },
       },
@@ -544,6 +549,11 @@ export async function getAssignmentDetail(assignmentId: string) {
           },
           milestones: { orderBy: { sortOrder: "asc" } },
           _count: { select: { submissions: true } },
+        },
+      },
+      rubric: {
+        include: {
+          criteria: { orderBy: { sortOrder: "asc" } },
         },
       },
     },

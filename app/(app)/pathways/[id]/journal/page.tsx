@@ -25,14 +25,14 @@ export default async function PathwayJournalPage({ params }: { params: { id: str
   }).catch(() => [] as any[]);
 
   // Load user's completed steps to know which steps can have a reflection
-  const courseIds = pathway.steps.map((s) => s.courseId);
+  const courseIds = pathway.steps.map((s) => s.courseId).filter((id): id is string => id !== null);
   const completedEnrollments = await prisma.enrollment.findMany({
     where: { userId, courseId: { in: courseIds }, status: "COMPLETED" },
     select: { courseId: true },
   });
   const completedCourseIds = new Set(completedEnrollments.map((e) => e.courseId));
 
-  const completedSteps = pathway.steps.filter((s) => completedCourseIds.has(s.courseId));
+  const completedSteps = pathway.steps.filter((s) => s.courseId !== null && completedCourseIds.has(s.courseId));
   const reflectedStepOrders = new Set(reflections.map((r: any) => r.stepOrder));
 
   // Steps that are completed but don't have a reflection yet
@@ -61,7 +61,7 @@ export default async function PathwayJournalPage({ params }: { params: { id: str
                 key={step.id}
                 pathwayId={params.id}
                 stepOrder={step.stepOrder}
-                stepTitle={step.course.title}
+                stepTitle={step.course?.title ?? ""}
               />
             ))}
           </div>
@@ -85,7 +85,7 @@ export default async function PathwayJournalPage({ params }: { params: { id: str
                 <div key={reflection.id} className="timeline-item" style={{ paddingBottom: 16 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                     <strong style={{ fontSize: 14 }}>
-                      Step {reflection.stepOrder}{step ? `: ${step.course.title}` : ""}
+                      Step {reflection.stepOrder}{step ? `: ${step.course?.title ?? ""}` : ""}
                     </strong>
                     <span style={{ fontSize: 12, color: "var(--gray-400)" }}>
                       {new Date(reflection.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}

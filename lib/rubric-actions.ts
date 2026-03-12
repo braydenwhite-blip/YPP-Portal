@@ -201,6 +201,33 @@ export async function detachRubricFromAssignment(assignmentId: string) {
   return { success: true };
 }
 
+export async function attachRubricToClassAssignment(
+  classAssignmentId: string,
+  rubricId: string
+) {
+  await requireInstructor();
+
+  await prisma.classAssignment.update({
+    where: { id: classAssignmentId },
+    data: { rubricId },
+  });
+
+  revalidatePath("/instructor/workspace");
+  return { success: true };
+}
+
+export async function detachRubricFromClassAssignment(classAssignmentId: string) {
+  await requireInstructor();
+
+  await prisma.classAssignment.update({
+    where: { id: classAssignmentId },
+    data: { rubricId: null },
+  });
+
+  revalidatePath("/instructor/workspace");
+  return { success: true };
+}
+
 // ─── Queries ─────────────────────────────────────────────────────────────────
 
 export async function getRubricsForChapter(chapterId: string) {

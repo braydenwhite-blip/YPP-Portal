@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { getInstructorReadiness } from "@/lib/instructor-readiness";
 import { toggleInstructorPathwaySpec } from "@/lib/instructor-pathway-actions";
 import { INSTRUCTOR_MILESTONES } from "@/lib/xp-config";
+import { WorkspaceCreateButton } from "@/components/workspace-create-button";
+import { normalizeStatus, getStatusBadgeStyle } from "@/lib/status-utils";
 
 const tabs = ["curricula", "lesson-plans", "offerings", "readiness", "my-pathway"] as const;
 type WorkspaceTab = (typeof tabs)[number];
@@ -149,6 +151,7 @@ export default async function InstructorWorkspacePage({
             Plan curricula, build lesson plans, publish offerings, and clear readiness blockers in one place.
           </p>
         </div>
+        <WorkspaceCreateButton />
       </div>
 
       <div className="grid four" style={{ marginBottom: 20 }}>
@@ -228,16 +231,11 @@ export default async function InstructorWorkspacePage({
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
                       {(() => {
-                        const status = (template as { submissionStatus?: string }).submissionStatus ?? "DRAFT";
-                        const statusStyleMap: Record<string, { background: string; color: string }> = {
-                          APPROVED: { background: "#dcfce7", color: "#166534" },
-                          SUBMITTED: { background: "#fef9c3", color: "#854d0e" },
-                          NEEDS_REVISION: { background: "#fee2e2", color: "#991b1b" },
-                          DRAFT: { background: "var(--gray-200)", color: "var(--text-secondary)" },
-                        };
+                        const rawStatus = (template as { submissionStatus?: string }).submissionStatus ?? "DRAFT";
+                        const normalized = normalizeStatus(rawStatus, "template", { isPublished: template.isPublished });
                         return (
-                          <span className="pill" style={statusStyleMap[status] ?? statusStyleMap.DRAFT}>
-                            {status.replace("_", " ")}
+                          <span className="pill" style={getStatusBadgeStyle(normalized)}>
+                            {normalized}
                           </span>
                         );
                       })()}
@@ -254,6 +252,33 @@ export default async function InstructorWorkspacePage({
                   <div style={{ marginTop: 10, fontSize: 13, color: "var(--text-secondary)" }}>
                     Weekly plan rows: {weeklyPlanRows} | Published offerings: {template._count.offerings}
                   </div>
+                  {/* Inline "Create Offering" prompt for approved curricula with no offerings */}
+                  {(template as { submissionStatus?: string }).submissionStatus === "APPROVED" && template._count.offerings === 0 && (
+                    <div
+                      style={{
+                        marginTop: 10,
+                        padding: "10px 14px",
+                        background: "#e8f5e9",
+                        border: "1px solid #a5d6a7",
+                        borderRadius: "var(--radius-md)",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: 12,
+                      }}
+                    >
+                      <p style={{ margin: 0, fontSize: 13, color: "#2e7d32" }}>
+                        ✓ Curriculum approved! Ready to teach?
+                      </p>
+                      <Link
+                        href={`/instructor/class-settings?template=${template.id}`}
+                        className="button primary"
+                        style={{ fontSize: 12, whiteSpace: "nowrap", textDecoration: "none" }}
+                      >
+                        Create Offering →
+                      </Link>
+                    </div>
+                  )}
                   <div style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
                     <Link href={`/instructor/curriculum-builder#edit-${template.id}`} className="button secondary" style={{ fontSize: 13 }}>
                       Edit Curriculum
@@ -324,28 +349,55 @@ export default async function InstructorWorkspacePage({
               </Link>
             </div>
           ) : (
-            offerings.map((offering) => (
-              <Link
-                key={offering.id}
-                href={`/curriculum/${offering.id}`}
-                className="card"
-                style={{ textDecoration: "none", color: "inherit" }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
-                  <div>
-                    <h3>{offering.title}</h3>
-                    <p style={{ color: "var(--text-secondary)", marginTop: 4 }}>{offering.template.title}</p>
+            offerings.map((offering) => {
+              const normalizedOfferingStatus = normalizeStatus(offering.status, "offering");
+              const isPublished = offering.status === "PUBLISHED";
+              return (
+                <div key={offering.id} className="card">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+                    <div>
+                      <h3>{offering.title}</h3>
+                      <p style={{ color: "var(--text-secondary)", marginTop: 4 }}>{offering.template.title}</p>
+                    </div>
+                    <span className="pill" style={getStatusBadgeStyle(normalizedOfferingStatus)}>
+                      {normalizedOfferingStatus}
+                    </span>
                   </div>
-                  <span className="pill">{offering.status.replace("_", " ")}</span>
+                  <div style={{ marginTop: 10, fontSize: 13, color: "var(--text-secondary)" }}>
+                    {new Date(offering.startDate).toLocaleDateString()} - {new Date(offering.endDate).toLocaleDateString()}
+                  </div>
+                  <div style={{ marginTop: 10, fontSize: 13, color: "var(--text-secondary)" }}>
+                    {offering._count.enrollments} enrolled | {offering.meetingDays.join(", ")} | {offering.meetingTime}
+                  </div>
+                  <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+                    <Link href={`/curriculum/${offering.id}`} className="button secondary" style={{ fontSize: 12, textDecoration: "none" }}>
+                      Manage →
+                    </Link>
+                  </div>
+                  {isPublished && (
+                    <details style={{ marginTop: 14 }}>
+                      <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--ypp-purple, #7c3aed)" }}>
+                        Enroll Students via Cohort
+                      </summary>
+                      <div style={{ marginTop: 10 }}>
+                        {/* CohortManager is a client component — embed via dynamic import not needed; it renders client-side */}
+                        <p style={{ fontSize: 12, color: "var(--muted)" }}>
+                          Visit{" "}
+                          <a href={`/curriculum/${offering.id}`} style={{ color: "var(--ypp-purple, #7c3aed)" }}>
+                            the offering page
+                          </a>{" "}
+                          to manage cohort enrollment, or use the{" "}
+                          <a href={`/instructor/sequence-builder`} style={{ color: "var(--ypp-purple, #7c3aed)" }}>
+                            Sequence Builder
+                          </a>
+                          .
+                        </p>
+                      </div>
+                    </details>
+                  )}
                 </div>
-                <div style={{ marginTop: 10, fontSize: 13, color: "var(--text-secondary)" }}>
-                  {new Date(offering.startDate).toLocaleDateString()} - {new Date(offering.endDate).toLocaleDateString()}
-                </div>
-                <div style={{ marginTop: 10, fontSize: 13, color: "var(--text-secondary)" }}>
-                  {offering._count.enrollments} enrolled | {offering.meetingDays.join(", ")} | {offering.meetingTime}
-                </div>
-              </Link>
-            ))
+              );
+            })
           )}
         </div>
       )}
