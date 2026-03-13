@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import { hasInstructorPathwaySpecTable } from "@/lib/instructor-pathway-spec-compat";
 
 export default async function PathwayMentorsPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -19,24 +20,27 @@ export default async function PathwayMentorsPage({ params }: { params: { id: str
     where: { id: userId },
     select: { chapterId: true },
   });
+  const hasPathwaySpecTable = await hasInstructorPathwaySpecTable();
 
   // Find instructors who specialize in this pathway
-  const pathwaySpecs = await prisma.instructorPathwaySpec.findMany({
-    where: { pathwayId: pathway.id },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          primaryRole: true,
-          chapterId: true,
-          chapter: { select: { name: true } },
-          profile: { select: { bio: true } },
-          menteePairs: { select: { id: true } },
+  const pathwaySpecs = hasPathwaySpecTable
+    ? await prisma.instructorPathwaySpec.findMany({
+        where: { pathwayId: pathway.id },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              primaryRole: true,
+              chapterId: true,
+              chapter: { select: { name: true } },
+              profile: { select: { bio: true } },
+              menteePairs: { select: { id: true } },
+            },
+          },
         },
-      },
-    },
-  }).catch(() => [] as any[]);
+      }).catch(() => [] as any[])
+    : [];
 
   // If no specialists, fall back to instructors in same chapter or interestArea match
   let instructors = pathwaySpecs.map((s) => s.user);
