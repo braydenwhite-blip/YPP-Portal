@@ -6,6 +6,10 @@ import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { enrollStudentInOffering } from "@/lib/class-management-actions";
 import { enrollStudentInProgram } from "@/lib/program-actions";
+import { hasInstructorCohortTables } from "@/lib/schema-compat";
+
+const INSTRUCTOR_COHORT_SCHEMA_MESSAGE =
+  "Cohort enrollment tools will be available after the latest cohort database migration is applied to this deployment.";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -23,6 +27,12 @@ async function requireInstructor() {
   return session;
 }
 
+async function requireInstructorCohortTables() {
+  if (!(await hasInstructorCohortTables())) {
+    throw new Error(INSTRUCTOR_COHORT_SCHEMA_MESSAGE);
+  }
+}
+
 function getString(formData: FormData, key: string, required = true): string {
   const value = formData.get(key);
   if (required && (!value || String(value).trim() === "")) {
@@ -35,6 +45,7 @@ function getString(formData: FormData, key: string, required = true): string {
 
 export async function createInstructorCohort(formData: FormData) {
   const session = await requireInstructor();
+  await requireInstructorCohortTables();
 
   const name = getString(formData, "name");
   const chapterId = getString(formData, "chapterId");
@@ -53,6 +64,7 @@ export async function createInstructorCohort(formData: FormData) {
 
 export async function updateInstructorCohort(id: string, formData: FormData) {
   await requireInstructor();
+  await requireInstructorCohortTables();
   const name = getString(formData, "name");
   await prisma.instructorCohort.update({ where: { id }, data: { name } });
   revalidatePath("/instructor/workspace");
@@ -61,6 +73,7 @@ export async function updateInstructorCohort(id: string, formData: FormData) {
 
 export async function deleteInstructorCohort(id: string) {
   await requireInstructor();
+  await requireInstructorCohortTables();
   await prisma.instructorCohort.delete({ where: { id } });
   revalidatePath("/instructor/workspace");
   return { success: true };
@@ -70,6 +83,7 @@ export async function deleteInstructorCohort(id: string) {
 
 export async function addMembersToCohort(cohortId: string, userIds: string[]) {
   await requireInstructor();
+  await requireInstructorCohortTables();
 
   const results: { userId: string; added: boolean }[] = [];
 
@@ -91,6 +105,7 @@ export async function addMembersToCohort(cohortId: string, userIds: string[]) {
 
 export async function removeMemberFromCohort(cohortId: string, userId: string) {
   await requireInstructor();
+  await requireInstructorCohortTables();
 
   await prisma.instructorCohortMember.deleteMany({
     where: { cohortId, userId },
@@ -111,6 +126,7 @@ export async function enrollCohortInOffering(
   offeringId: string
 ) {
   await requireInstructor();
+  await requireInstructorCohortTables();
 
   const cohort = await prisma.instructorCohort.findUnique({
     where: { id: cohortId },
@@ -166,6 +182,7 @@ export async function enrollCohortInProgram(
   programId: string
 ) {
   await requireInstructor();
+  await requireInstructorCohortTables();
 
   const cohort = await prisma.instructorCohort.findUnique({
     where: { id: cohortId },
@@ -209,6 +226,9 @@ export async function enrollCohortInProgram(
 
 export async function getInstructorCohorts(chapterId?: string) {
   const session = await requireInstructor();
+  if (!(await hasInstructorCohortTables())) {
+    return [];
+  }
 
   return prisma.instructorCohort.findMany({
     where: {
@@ -228,6 +248,9 @@ export async function getInstructorCohorts(chapterId?: string) {
 
 export async function getCohortById(cohortId: string) {
   await requireInstructor();
+  if (!(await hasInstructorCohortTables())) {
+    return null;
+  }
 
   return prisma.instructorCohort.findUnique({
     where: { id: cohortId },

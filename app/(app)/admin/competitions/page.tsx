@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getPendingInstructorCompetitionDrafts, publishCompetitionDraft } from "@/lib/competition-draft-actions";
+import { hasCompetitionDraftOwnership } from "@/lib/schema-compat";
 
 async function publishDraftAction(formData: FormData) {
   "use server";
@@ -17,21 +18,50 @@ export default async function AdminCompetitionsPage() {
 
   const roles = session.user.roles ?? [];
   if (!roles.includes("ADMIN")) redirect("/dashboard");
+  const hasDraftSupport = await hasCompetitionDraftOwnership();
 
-  const [pendingDrafts, allCompetitions] = await Promise.all([
-    getPendingInstructorCompetitionDrafts(),
+  const [pendingDrafts, rawCompetitions] = await Promise.all([
+    hasDraftSupport ? getPendingInstructorCompetitionDrafts() : Promise.resolve([]),
     prisma.seasonalCompetition.findMany({
       orderBy: { startDate: "desc" },
-      include: {
-        createdBy: { select: { id: true, name: true } },
+      select: {
+        id: true,
+        season: true,
+        theme: true,
+        status: true,
+        startDate: true,
+        endDate: true,
+        passionArea: true,
+        createdAt: true,
+        ...(hasDraftSupport
+          ? {
+              createdById: true,
+              createdBy: { select: { id: true, name: true } },
+            }
+          : {}),
         _count: { select: { entries: true } },
       },
     }),
   ]);
+  const allCompetitions = rawCompetitions.map((competition) => ({
+    ...competition,
+    createdById: "createdById" in competition ? competition.createdById : null,
+    createdBy: "createdBy" in competition ? competition.createdBy : null,
+  }));
 
   return (
     <div style={{ padding: 24, maxWidth: 1000 }}>
       <h1 className="page-title" style={{ marginBottom: 24 }}>Competition Management</h1>
+
+      {!hasDraftSupport && (
+        <div
+          className="card"
+          style={{ background: "#fffbeb", border: "1px solid #fcd34d", color: "#92400e", marginBottom: 24 }}
+        >
+          Instructor-owned competition drafts are hidden on this deployment until the latest
+          competition database migration is applied.
+        </div>
+      )}
 
       {/* ── Instructor Drafts Pending Review ─────────────────────── */}
       {pendingDrafts.length > 0 && (

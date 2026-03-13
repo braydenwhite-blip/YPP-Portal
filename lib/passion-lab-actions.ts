@@ -4,6 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { hasPassionLabBuilderSchema } from "@/lib/schema-compat";
+
+const PASSION_LAB_SCHEMA_MESSAGE =
+  "Passion Lab Builder will be available after the latest passion lab database migration is applied to this deployment.";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -19,6 +23,12 @@ async function requireInstructor() {
     throw new Error("Unauthorized – instructor role required");
   }
   return session;
+}
+
+async function requirePassionLabBuilderSchema() {
+  if (!(await hasPassionLabBuilderSchema())) {
+    throw new Error(PASSION_LAB_SCHEMA_MESSAGE);
+  }
 }
 
 function getString(formData: FormData, key: string, required = true): string {
@@ -40,6 +50,7 @@ function getInt(formData: FormData, key: string, fallback: number): number {
 
 export async function createPassionLab(formData: FormData) {
   const session = await requireInstructor();
+  await requirePassionLabBuilderSchema();
 
   const name = getString(formData, "name");
   const description = getString(formData, "description", false);
@@ -97,6 +108,7 @@ export async function createPassionLab(formData: FormData) {
 
 export async function updatePassionLab(id: string, formData: FormData) {
   const session = await requireInstructor();
+  await requirePassionLabBuilderSchema();
 
   const program = await prisma.specialProgram.findUnique({ where: { id } });
   if (!program) throw new Error("Passion Lab not found");
@@ -164,6 +176,7 @@ export async function updatePassionLab(id: string, formData: FormData) {
 
 export async function updatePassionLabOffering(id: string, formData: FormData) {
   const session = await requireInstructor();
+  await requirePassionLabBuilderSchema();
 
   const program = await prisma.specialProgram.findUnique({ where: { id } });
   if (!program) throw new Error("Passion Lab not found");
@@ -220,6 +233,7 @@ export async function updatePassionLabOffering(id: string, formData: FormData) {
 
 export async function submitPassionLabForReview(id: string) {
   const session = await requireInstructor();
+  await requirePassionLabBuilderSchema();
 
   const program = await prisma.specialProgram.findUnique({ where: { id } });
   if (!program) throw new Error("Passion Lab not found");
@@ -241,6 +255,7 @@ export async function submitPassionLabForReview(id: string) {
 
 export async function publishPassionLab(id: string) {
   const session = await requireInstructor();
+  await requirePassionLabBuilderSchema();
   const roles = session.user.roles ?? [];
 
   const program = await prisma.specialProgram.findUnique({ where: { id } });
@@ -271,6 +286,7 @@ export async function publishPassionLab(id: string) {
 
 export async function addPassionLabSession(programId: string, formData: FormData) {
   await requireInstructor();
+  await requirePassionLabBuilderSchema();
 
   const title = getString(formData, "title");
   const description = getString(formData, "description", false);
@@ -297,6 +313,9 @@ export async function addPassionLabSession(programId: string, formData: FormData
 
 export async function getInstructorPassionLabs() {
   const session = await requireInstructor();
+  if (!(await hasPassionLabBuilderSchema())) {
+    return [];
+  }
 
   return prisma.specialProgram.findMany({
     where: {
@@ -313,6 +332,9 @@ export async function getInstructorPassionLabs() {
 
 export async function getPassionLabById(id: string) {
   await requireInstructor();
+  if (!(await hasPassionLabBuilderSchema())) {
+    return null;
+  }
 
   return prisma.specialProgram.findUnique({
     where: { id },

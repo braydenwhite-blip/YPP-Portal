@@ -5,6 +5,7 @@ import { getInstructorCompetitionDrafts } from "@/lib/competition-draft-actions"
 import { getActivePassionAreas } from "@/lib/passion-lab-actions";
 import { prisma } from "@/lib/prisma";
 import { CompetitionBuilderClient } from "./client";
+import { hasCompetitionDraftOwnership } from "@/lib/schema-compat";
 
 export default async function CompetitionBuilderPage() {
   const session = await getServerSession(authOptions);
@@ -24,9 +25,10 @@ export default async function CompetitionBuilderPage() {
     where: { id: session.user.id },
     select: { chapterId: true },
   });
+  const hasDraftBuilderSupport = await hasCompetitionDraftOwnership();
 
   const [drafts, passionAreas, chapterUsers] = await Promise.all([
-    getInstructorCompetitionDrafts(),
+    hasDraftBuilderSupport ? getInstructorCompetitionDrafts() : Promise.resolve([]),
     getActivePassionAreas(),
     instructor?.chapterId
       ? prisma.user.findMany({
@@ -41,10 +43,22 @@ export default async function CompetitionBuilderPage() {
   ]);
 
   return (
-    <CompetitionBuilderClient
-      existingDrafts={drafts}
-      passionAreas={passionAreas}
-      chapterUsers={chapterUsers}
-    />
+    <div style={{ display: "grid", gap: 20 }}>
+      {!hasDraftBuilderSupport && (
+        <div
+          className="card"
+          style={{ background: "#fffbeb", border: "1px solid #fcd34d", color: "#92400e" }}
+        >
+          Competition drafts are turned off on this deployment until the latest competition database migration is applied.
+        </div>
+      )}
+
+      <CompetitionBuilderClient
+        existingDrafts={drafts}
+        passionAreas={passionAreas}
+        chapterUsers={chapterUsers}
+        isDraftBuilderAvailable={hasDraftBuilderSupport}
+      />
+    </div>
   );
 }

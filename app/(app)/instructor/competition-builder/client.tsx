@@ -29,9 +29,15 @@ type Props = {
   existingDrafts: Draft[];
   passionAreas: PassionArea[];
   chapterUsers: ChapterUser[];
+  isDraftBuilderAvailable: boolean;
 };
 
-export function CompetitionBuilderClient({ existingDrafts, passionAreas, chapterUsers }: Props) {
+export function CompetitionBuilderClient({
+  existingDrafts,
+  passionAreas,
+  chapterUsers,
+  isDraftBuilderAvailable,
+}: Props) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
@@ -110,6 +116,13 @@ export function CompetitionBuilderClient({ existingDrafts, passionAreas, chapter
   }
 
   async function handleSaveDraft() {
+    if (!isDraftBuilderAvailable) {
+      setError(
+        "Competition drafts are not available on this deployment until the latest database migration is applied."
+      );
+      return;
+    }
+
     const validationError = validate();
     if (validationError) { setError(validationError); return; }
     setError(null);
@@ -422,12 +435,14 @@ export function CompetitionBuilderClient({ existingDrafts, passionAreas, chapter
             type="button"
             className="button primary"
             onClick={handleSaveDraft}
-            disabled={isPending}
+            disabled={isPending || !isDraftBuilderAvailable}
           >
             {isPending ? "Saving…" : savedId ? "Update Draft" : "Save Draft"}
           </button>
           <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
-            Drafts are visible only to you and admins. An admin will publish when ready.
+            {isDraftBuilderAvailable
+              ? "Drafts are visible only to you and admins. An admin will publish when ready."
+              : "Apply the latest competition database migration on this deployment to save drafts here."}
           </p>
         </div>
       </div>

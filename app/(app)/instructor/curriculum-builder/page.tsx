@@ -23,11 +23,26 @@ export default async function CurriculumBuilderPage() {
     redirect("/");
   }
 
-  const [capabilities, templates, offerings] = await Promise.all([
-    getClassTemplateCapabilities(),
-    getInstructorTemplates(session.user.id),
-    getInstructorOfferings(session.user.id),
-  ]);
+  let capabilities = {
+    hasAdvancedCurriculumFields: false,
+    hasReviewWorkflow: false,
+  };
+  let templates: Awaited<ReturnType<typeof getInstructorTemplates>> = [];
+  let offerings: Awaited<ReturnType<typeof getInstructorOfferings>> = [];
+  let loadWarning: string | null = null;
+
+  try {
+    [capabilities, templates, offerings] = await Promise.all([
+      getClassTemplateCapabilities(),
+      getInstructorTemplates(session.user.id),
+      getInstructorOfferings(session.user.id),
+    ]);
+  } catch (error) {
+    console.error("Failed to load curriculum builder data", error);
+    loadWarning =
+      "This deployment could not load your saved curriculum summaries. The form still works, and the saved lists will return after the connected database schema is updated.";
+  }
+
   const hasReviewWorkflow = capabilities.hasReviewWorkflow;
 
   const difficultyLabels: Record<string, string> = {
@@ -79,7 +94,7 @@ export default async function CurriculumBuilderPage() {
         </div>
         <div className="card">
           <div style={{ fontSize: 28, fontWeight: 700, color: "var(--ypp-purple)" }}>
-            {offerings.reduce((sum, o) => sum + o._count.enrollments, 0)}
+            {offerings.reduce((sum, offering) => sum + (offering._count?.enrollments ?? 0), 0)}
           </div>
           <div style={{ color: "var(--text-secondary)", fontSize: 14 }}>Students Enrolled</div>
         </div>
@@ -93,6 +108,15 @@ export default async function CurriculumBuilderPage() {
           <p style={{ margin: 0, color: "#92400e", fontSize: 14 }}>
             Curriculum review badges and submission buttons will appear automatically after the latest curriculum database migration is applied.
           </p>
+        </div>
+      )}
+
+      {loadWarning && (
+        <div
+          className="card"
+          style={{ marginBottom: 24, background: "#fffbeb", border: "1px solid #fcd34d" }}
+        >
+          <p style={{ margin: 0, color: "#92400e", fontSize: 14 }}>{loadWarning}</p>
         </div>
       )}
 
@@ -132,7 +156,7 @@ export default async function CurriculumBuilderPage() {
                 </div>
 
                 <div style={{ marginTop: 12, display: "flex", gap: 16, fontSize: 13, color: "var(--text-secondary)" }}>
-                  <span>{template.learningOutcomes.length} outcomes</span>
+                  <span>{Array.isArray(template.learningOutcomes) ? template.learningOutcomes.length : 0} outcomes</span>
                   <span>{template._count.offerings} offering{template._count.offerings !== 1 ? "s" : ""}</span>
                   <span>Ideal: {template.idealSize} students</span>
                 </div>
@@ -213,7 +237,9 @@ export default async function CurriculumBuilderPage() {
                 <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
                   <span className="pill">{offering.template.interestArea}</span>
                   <span className="pill">{offering.deliveryMode.replace("_", " ")}</span>
-                  <span className="pill">{offering.meetingDays.join(", ")}</span>
+                  <span className="pill">
+                    {Array.isArray(offering.meetingDays) ? offering.meetingDays.join(", ") : "Schedule unavailable"}
+                  </span>
                 </div>
                 <div style={{ marginTop: 8, fontSize: 13, color: "var(--text-secondary)" }}>
                   {offering._count.enrollments} / {offering.capacity} enrolled

@@ -8,6 +8,7 @@ import {
   getClassTemplateCapabilities,
   getClassTemplateSelect,
 } from "@/lib/class-template-compat";
+import { hasPathwayCohortTable } from "@/lib/schema-compat";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -330,6 +331,7 @@ export async function manuallyUnlockStep(stepId: string, userId: string) {
 export async function getInstructorSequences() {
   const session = await requireInstructor();
   const capabilities = await getClassTemplateCapabilities();
+  const canCountCohorts = await hasPathwayCohortTable();
 
   return prisma.pathway.findMany({
     where: { createdById: session.user.id },
@@ -345,7 +347,7 @@ export async function getInstructorSequences() {
           specialProgram: { select: { id: true, name: true, type: true } },
         },
       },
-      _count: { select: { cohorts: true } },
+      ...(canCountCohorts ? { _count: { select: { cohorts: true } } } : {}),
     },
     orderBy: { createdAt: "desc" },
   });

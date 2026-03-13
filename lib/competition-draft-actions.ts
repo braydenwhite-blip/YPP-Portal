@@ -4,6 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { hasCompetitionDraftOwnership } from "@/lib/schema-compat";
+
+const COMPETITION_DRAFT_SCHEMA_MESSAGE =
+  "Competition drafts will be available after the latest competition database migration is applied to this deployment.";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -30,6 +34,12 @@ async function requireAdmin() {
   return session;
 }
 
+async function requireCompetitionDraftSupport() {
+  if (!(await hasCompetitionDraftOwnership())) {
+    throw new Error(COMPETITION_DRAFT_SCHEMA_MESSAGE);
+  }
+}
+
 function getString(formData: FormData, key: string, required = true): string {
   const value = formData.get(key);
   if (required && (!value || String(value).trim() === "")) {
@@ -53,6 +63,7 @@ function getFloat(formData: FormData, key: string, fallback: number): number {
 
 export async function createCompetitionDraft(formData: FormData) {
   const session = await requireInstructor();
+  await requireCompetitionDraftSupport();
 
   const season = getString(formData, "season");
   const theme = getString(formData, "theme");
@@ -113,6 +124,7 @@ export async function createCompetitionDraft(formData: FormData) {
 
 export async function updateCompetitionDraft(id: string, formData: FormData) {
   const session = await requireInstructor();
+  await requireCompetitionDraftSupport();
 
   const competition = await prisma.seasonalCompetition.findUnique({ where: { id } });
   if (!competition) throw new Error("Competition not found");
@@ -180,6 +192,7 @@ export async function updateCompetitionDraft(id: string, formData: FormData) {
 
 export async function deleteCompetitionDraft(id: string) {
   const session = await requireInstructor();
+  await requireCompetitionDraftSupport();
 
   const competition = await prisma.seasonalCompetition.findUnique({ where: { id } });
   if (!competition) throw new Error("Competition not found");
@@ -200,6 +213,9 @@ export async function deleteCompetitionDraft(id: string) {
 
 export async function getInstructorCompetitionDrafts() {
   const session = await requireInstructor();
+  if (!(await hasCompetitionDraftOwnership())) {
+    return [];
+  }
 
   return prisma.seasonalCompetition.findMany({
     where: { createdById: session.user.id },
@@ -235,6 +251,9 @@ export async function getPendingInstructorCompetitionDrafts() {
   const roles = session?.user?.roles ?? [];
   if (!session?.user?.id || !roles.includes("ADMIN")) {
     throw new Error("Admin only");
+  }
+  if (!(await hasCompetitionDraftOwnership())) {
+    return [];
   }
 
   return prisma.seasonalCompetition.findMany({
