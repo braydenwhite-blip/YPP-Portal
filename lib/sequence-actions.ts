@@ -4,6 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import {
+  getClassTemplateCapabilities,
+  getClassTemplateSelect,
+} from "@/lib/class-template-compat";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -232,13 +236,17 @@ export async function publishSequence(pathwayId: string) {
  */
 export async function advanceStudentInSequence(userId: string, pathwayId: string) {
   await requireInstructor();
+  const capabilities = await getClassTemplateCapabilities();
 
   const steps = await prisma.pathwayStep.findMany({
     where: { pathwayId },
     orderBy: { stepOrder: "asc" },
     include: {
       classTemplate: {
-        include: {
+        select: {
+          ...getClassTemplateSelect({
+            includeWorkflow: capabilities.hasReviewWorkflow,
+          }),
           offerings: {
             where: { status: "PUBLISHED" },
             orderBy: { startDate: "asc" },
@@ -321,6 +329,7 @@ export async function manuallyUnlockStep(stepId: string, userId: string) {
 
 export async function getInstructorSequences() {
   const session = await requireInstructor();
+  const capabilities = await getClassTemplateCapabilities();
 
   return prisma.pathway.findMany({
     where: { createdById: session.user.id },
@@ -328,7 +337,11 @@ export async function getInstructorSequences() {
       steps: {
         orderBy: { stepOrder: "asc" },
         include: {
-          classTemplate: { select: { id: true, title: true, submissionStatus: true } },
+          classTemplate: {
+            select: getClassTemplateSelect({
+              includeWorkflow: capabilities.hasReviewWorkflow,
+            }),
+          },
           specialProgram: { select: { id: true, name: true, type: true } },
         },
       },
