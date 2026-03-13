@@ -74,10 +74,9 @@ export const incubatorApplicationSchema = z.object({
     .string()
     .min(3, "Project title must be at least 3 characters.")
     .max(150, "Project title should be under 150 characters."),
-  passionArea: z
+  passionId: z
     .string()
-    .min(2, "Passion area is required.")
-    .max(100, "Passion area should be under 100 characters."),
+    .min(1, "Choose a passion area."),
   projectIdea: z
     .string()
     .min(30, "Project idea should be at least 30 characters. Describe what you want to create.")

@@ -1,6 +1,6 @@
 import { put, del, head } from "@vercel/blob";
 import { writeFile, mkdir, unlink } from "fs/promises";
-import { join } from "path";
+import { basename, extname, join } from "path";
 import { randomUUID } from "crypto";
 
 // Storage provider types
@@ -50,8 +50,8 @@ function sanitizeFilename(filename: string): string {
  * Generate unique filename with UUID prefix
  */
 function generateUniqueFilename(originalName: string): string {
-  const sanitized = sanitizeFilename(originalName);
-  const ext = sanitized.split(".").pop() || "bin";
+  const normalizedName = sanitizeFilename(basename(originalName));
+  const ext = extname(normalizedName).replace(/^\./, "") || "bin";
   const uuid = randomUUID();
   return `${uuid}.${ext}`;
 }

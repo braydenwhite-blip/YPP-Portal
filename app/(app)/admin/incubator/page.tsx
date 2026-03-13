@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getCohorts } from "@/lib/incubator-actions";
 import Link from "next/link";
+import { prisma } from "@/lib/prisma";
 import { CreateCohortForm, CohortStatusButton } from "./client";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -29,7 +30,14 @@ export default async function AdminIncubatorPage() {
     primaryRole === "CHAPTER_LEAD";
   if (!canManage) redirect("/incubator");
 
-  const cohorts = await getCohorts();
+  const [cohorts, passions] = await Promise.all([
+    getCohorts(),
+    prisma.passionArea.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, category: true },
+      orderBy: [{ order: "asc" }, { name: "asc" }],
+    }).catch(() => []),
+  ]);
 
   return (
     <div>
@@ -46,7 +54,7 @@ export default async function AdminIncubatorPage() {
       {/* Create New Cohort */}
       <div className="card" style={{ marginBottom: 24 }}>
         <h3 style={{ fontSize: 16, marginBottom: 12 }}>Create New Cohort</h3>
-        <CreateCohortForm />
+        <CreateCohortForm passions={passions} />
       </div>
 
       {/* Existing Cohorts */}
@@ -70,6 +78,7 @@ export default async function AdminIncubatorPage() {
                       <span>{new Date(cohort.startDate).toLocaleDateString()} - {new Date(cohort.endDate).toLocaleDateString()}</span>
                       <span>{cohort._count.applications} applications</span>
                       <span>{cohort._count.projects} projects</span>
+                      <span>{cohort._count.milestoneTemplates} milestone templates</span>
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>

@@ -6,6 +6,7 @@ import {
   requireCanMessage,
   requireAttendanceAccess,
 } from "@/lib/authorization-helpers";
+import * as authorization from "@/lib/authorization";
 import { prisma } from "@/lib/prisma";
 
 // Mock authorization module
@@ -21,8 +22,7 @@ describe("Authorization Helpers", () => {
 
   describe("requireOwnershipOrRole", () => {
     it("should allow user to access their own resource", async () => {
-      const { requireSessionUser } = await import("@/lib/authorization");
-      vi.mocked(requireSessionUser).mockResolvedValue({
+      vi.mocked(authorization.requireSessionUser).mockResolvedValue({
         id: "user-123",
         roles: ["STUDENT"],
         primaryRole: "STUDENT",
@@ -34,8 +34,7 @@ describe("Authorization Helpers", () => {
     });
 
     it("should allow admin to access any resource", async () => {
-      const { requireSessionUser } = await import("@/lib/authorization");
-      vi.mocked(requireSessionUser).mockResolvedValue({
+      vi.mocked(authorization.requireSessionUser).mockResolvedValue({
         id: "admin-123",
         roles: ["ADMIN"],
         primaryRole: "ADMIN",
@@ -47,8 +46,7 @@ describe("Authorization Helpers", () => {
     });
 
     it("should throw error when non-owner, non-admin tries to access", async () => {
-      const { requireSessionUser } = await import("@/lib/authorization");
-      vi.mocked(requireSessionUser).mockResolvedValue({
+      vi.mocked(authorization.requireSessionUser).mockResolvedValue({
         id: "user-123",
         roles: ["STUDENT"],
         primaryRole: "STUDENT",
@@ -60,8 +58,7 @@ describe("Authorization Helpers", () => {
     });
 
     it("should allow staff to access any resource", async () => {
-      const { requireSessionUser } = await import("@/lib/authorization");
-      vi.mocked(requireSessionUser).mockResolvedValue({
+      vi.mocked(authorization.requireSessionUser).mockResolvedValue({
         id: "staff-123",
         roles: ["STAFF"],
         primaryRole: "STAFF",
@@ -75,8 +72,7 @@ describe("Authorization Helpers", () => {
 
   describe("requireAdmin", () => {
     it("should allow admin users", async () => {
-      const { requireAnyRole } = await import("@/lib/authorization");
-      vi.mocked(requireAnyRole).mockResolvedValue({
+      vi.mocked(authorization.requireAnyRole).mockResolvedValue({
         id: "admin-123",
         roles: ["ADMIN"],
         primaryRole: "ADMIN",
@@ -85,12 +81,11 @@ describe("Authorization Helpers", () => {
       const result = await requireAdmin();
 
       expect(result.roles).toContain("ADMIN");
-      expect(requireAnyRole).toHaveBeenCalledWith(["ADMIN"]);
+      expect(authorization.requireAnyRole).toHaveBeenCalledWith(["ADMIN"]);
     });
 
     it("should reject non-admin users", async () => {
-      const { requireAnyRole } = await import("@/lib/authorization");
-      vi.mocked(requireAnyRole).mockRejectedValue(new Error("Unauthorized"));
+      vi.mocked(authorization.requireAnyRole).mockRejectedValue(new Error("Unauthorized"));
 
       await expect(requireAdmin()).rejects.toThrow("Unauthorized");
     });
@@ -98,8 +93,7 @@ describe("Authorization Helpers", () => {
 
   describe("requireCourseInstructor", () => {
     it("should allow admin to access any course", async () => {
-      const { requireSessionUser } = await import("@/lib/authorization");
-      vi.mocked(requireSessionUser).mockResolvedValue({
+      vi.mocked(authorization.requireSessionUser).mockResolvedValue({
         id: "admin-123",
         roles: ["ADMIN"],
         primaryRole: "ADMIN",
@@ -111,8 +105,7 @@ describe("Authorization Helpers", () => {
     });
 
     it("should allow course instructor to access their course", async () => {
-      const { requireSessionUser } = await import("@/lib/authorization");
-      vi.mocked(requireSessionUser).mockResolvedValue({
+      vi.mocked(authorization.requireSessionUser).mockResolvedValue({
         id: "instructor-123",
         roles: ["INSTRUCTOR"],
         primaryRole: "INSTRUCTOR",
@@ -120,7 +113,7 @@ describe("Authorization Helpers", () => {
 
       vi.mocked(prisma.course.findUnique).mockResolvedValue({
         id: "course-123",
-        instructorId: "instructor-123",
+        leadInstructorId: "instructor-123",
       } as any);
 
       const result = await requireCourseInstructor("course-123");
@@ -129,8 +122,7 @@ describe("Authorization Helpers", () => {
     });
 
     it("should reject instructor trying to access another instructor's course", async () => {
-      const { requireSessionUser } = await import("@/lib/authorization");
-      vi.mocked(requireSessionUser).mockResolvedValue({
+      vi.mocked(authorization.requireSessionUser).mockResolvedValue({
         id: "instructor-123",
         roles: ["INSTRUCTOR"],
         primaryRole: "INSTRUCTOR",
@@ -138,7 +130,7 @@ describe("Authorization Helpers", () => {
 
       vi.mocked(prisma.course.findUnique).mockResolvedValue({
         id: "course-123",
-        instructorId: "other-instructor-456",
+        leadInstructorId: "other-instructor-456",
       } as any);
 
       await expect(requireCourseInstructor("course-123")).rejects.toThrow(
@@ -147,8 +139,7 @@ describe("Authorization Helpers", () => {
     });
 
     it("should throw error when course not found", async () => {
-      const { requireSessionUser } = await import("@/lib/authorization");
-      vi.mocked(requireSessionUser).mockResolvedValue({
+      vi.mocked(authorization.requireSessionUser).mockResolvedValue({
         id: "instructor-123",
         roles: ["INSTRUCTOR"],
         primaryRole: "INSTRUCTOR",
@@ -164,8 +155,7 @@ describe("Authorization Helpers", () => {
 
   describe("requireCanMessage", () => {
     const setupUser = (id: string, roles: string[], primaryRole: string) => {
-      const { requireSessionUser } = vi.mocked(require("@/lib/authorization"));
-      requireSessionUser.mockResolvedValue({ id, roles, primaryRole });
+      vi.mocked(authorization.requireSessionUser).mockResolvedValue({ id, roles, primaryRole } as any);
     };
 
     it("should prevent messaging yourself", async () => {
@@ -280,8 +270,7 @@ describe("Authorization Helpers", () => {
 
   describe("requireAttendanceAccess", () => {
     it("should allow admin to access any attendance", async () => {
-      const { requireSessionUser } = await import("@/lib/authorization");
-      vi.mocked(requireSessionUser).mockResolvedValue({
+      vi.mocked(authorization.requireSessionUser).mockResolvedValue({
         id: "admin-123",
         roles: ["ADMIN"],
         primaryRole: "ADMIN",
@@ -293,8 +282,7 @@ describe("Authorization Helpers", () => {
     });
 
     it("should allow instructor to access their course attendance", async () => {
-      const { requireSessionUser } = await import("@/lib/authorization");
-      vi.mocked(requireSessionUser).mockResolvedValue({
+      vi.mocked(authorization.requireSessionUser).mockResolvedValue({
         id: "instructor-123",
         roles: ["INSTRUCTOR"],
         primaryRole: "INSTRUCTOR",
@@ -302,7 +290,7 @@ describe("Authorization Helpers", () => {
 
       vi.mocked(prisma.course.findUnique).mockResolvedValue({
         id: "course-123",
-        instructorId: "instructor-123",
+        leadInstructorId: "instructor-123",
       } as any);
 
       const result = await requireAttendanceAccess(undefined, "course-123");
@@ -311,8 +299,7 @@ describe("Authorization Helpers", () => {
     });
 
     it("should reject instructor trying to access another course attendance", async () => {
-      const { requireSessionUser } = await import("@/lib/authorization");
-      vi.mocked(requireSessionUser).mockResolvedValue({
+      vi.mocked(authorization.requireSessionUser).mockResolvedValue({
         id: "instructor-123",
         roles: ["INSTRUCTOR"],
         primaryRole: "INSTRUCTOR",
@@ -320,7 +307,7 @@ describe("Authorization Helpers", () => {
 
       vi.mocked(prisma.course.findUnique).mockResolvedValue({
         id: "course-123",
-        instructorId: "other-instructor-456",
+        leadInstructorId: "other-instructor-456",
       } as any);
 
       await expect(requireAttendanceAccess(undefined, "course-123")).rejects.toThrow(
@@ -329,8 +316,7 @@ describe("Authorization Helpers", () => {
     });
 
     it("should allow chapter leads to access attendance", async () => {
-      const { requireSessionUser } = await import("@/lib/authorization");
-      vi.mocked(requireSessionUser).mockResolvedValue({
+      vi.mocked(authorization.requireSessionUser).mockResolvedValue({
         id: "lead-123",
         roles: ["CHAPTER_LEAD"],
         primaryRole: "CHAPTER_LEAD",
@@ -344,23 +330,20 @@ describe("Authorization Helpers", () => {
 
   describe("Edge Cases", () => {
     it("should handle null/undefined user IDs gracefully", async () => {
-      const { requireSessionUser } = await import("@/lib/authorization");
-      vi.mocked(requireSessionUser).mockRejectedValue(new Error("Unauthorized"));
+      vi.mocked(authorization.requireSessionUser).mockRejectedValue(new Error("Unauthorized"));
 
       await expect(requireOwnershipOrRole("some-user")).rejects.toThrow("Unauthorized");
     });
 
-    it("should handle users with multiple roles", async () => {
-      const { requireSessionUser } = await import("@/lib/authorization");
-      vi.mocked(requireSessionUser).mockResolvedValue({
+    it("should allow alternate roles when they are explicitly permitted", async () => {
+      vi.mocked(authorization.requireSessionUser).mockResolvedValue({
         id: "multi-role-user",
         roles: ["STUDENT", "INSTRUCTOR"],
         primaryRole: "INSTRUCTOR",
       });
 
-      const result = await requireOwnershipOrRole("other-user");
+      const result = await requireOwnershipOrRole("other-user", ["INSTRUCTOR"]);
 
-      // Should allow because user has INSTRUCTOR role (which is in default allowed roles)
       expect(result.id).toBe("multi-role-user");
     });
   });

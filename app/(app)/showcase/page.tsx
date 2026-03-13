@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getStudentShowcase, getMyContent } from "@/lib/engagement-actions";
+import { getPublicIncubatorLaunches } from "@/lib/incubator-actions";
 
 const CONTENT_TYPE_COLORS: Record<string, string> = {
   VIDEO: "#ef4444",
@@ -21,9 +22,10 @@ export default async function ShowcasePage() {
     redirect("/login");
   }
 
-  const [showcaseContent, myContent] = await Promise.all([
+  const [showcaseContent, myContent, incubatorLaunches] = await Promise.all([
     getStudentShowcase(),
     getMyContent(),
+    getPublicIncubatorLaunches(),
   ]);
 
   const featuredContent = showcaseContent.filter(
@@ -118,6 +120,47 @@ export default async function ShowcasePage() {
           </div>
         </div>
       </div>
+
+      {/* Featured Section */}
+      {incubatorLaunches.length > 0 && (
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>
+            Incubator Launches
+          </div>
+          <div className="grid two">
+            {incubatorLaunches.slice(0, 4).map((launch: any) => (
+              <Link
+                key={launch.id}
+                href={`/incubator/launches/${launch.publicSlug}`}
+                style={{ textDecoration: "none", color: "inherit" }}
+              >
+                <div className="card" style={{ border: "2px solid #2563eb" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
+                    <span className="pill" style={{ background: "#dbeafe", color: "#1d4ed8", fontWeight: 700 }}>
+                      Incubator Launch
+                    </span>
+                    <span className="pill">{launch.passionArea}</span>
+                  </div>
+                  <h3 style={{ marginBottom: 8 }}>{launch.launchTitle || launch.title}</h3>
+                  <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 10 }}>
+                    by {launch.student?.name || "Unknown"}
+                    {launch.student?.level != null && ` (Level ${launch.student.level})`}
+                  </div>
+                  <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 12 }}>
+                    {(launch.launchSummary || launch.description || "").slice(0, 150)}
+                    {(launch.launchSummary || launch.description || "").length > 150 ? "..." : ""}
+                  </p>
+                  <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                    {launch.mentors.length > 0
+                      ? `Mentored by ${launch.mentors.map((mentor: any) => mentor.mentor.name).join(", ")}`
+                      : "Independent incubator project"}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Featured Section */}
       {featuredContent.length > 0 && (

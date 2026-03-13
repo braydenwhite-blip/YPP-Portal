@@ -241,6 +241,7 @@ export const NAV_CATALOG: NavLink[] = [
   ...groupLinks("Projects", 600, [
     { href: "/incubator", label: "Project Incubator", icon: "🚀" },
     { href: "/incubator/apply", label: "Apply", icon: "📩" },
+    { href: "/mentor/incubator", label: "Mentor Workspace", icon: "🧭", roles: MENTOR_ROLES },
     { href: "/showcase", label: "Student Showcase", icon: "🎨" },
     { href: "/showcase/submit", label: "Share Your Work", icon: "📤" },
   ]),

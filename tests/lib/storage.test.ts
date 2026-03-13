@@ -1,6 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { uploadFile, deleteFile, isStorageConfigured, getCurrentStorageProvider } from "@/lib/storage";
-import * as vercelBlob from "@vercel/blob";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock Vercel Blob
 vi.mock("@vercel/blob", () => ({
@@ -10,15 +8,32 @@ vi.mock("@vercel/blob", () => ({
 }));
 
 // Mock fs/promises
-vi.mock("fs/promises", () => ({
-  writeFile: vi.fn(),
-  mkdir: vi.fn(),
-  unlink: vi.fn(),
-}));
+vi.mock("fs/promises", async () => {
+  const actual = await vi.importActual<typeof import("fs/promises")>("fs/promises");
+
+  return {
+    ...actual,
+    default: actual,
+    writeFile: vi.fn(),
+    mkdir: vi.fn(),
+    unlink: vi.fn(),
+  };
+});
+
+async function loadStorage() {
+  const storage = await import("@/lib/storage");
+  const vercelBlob = await import("@vercel/blob");
+
+  return {
+    ...storage,
+    vercelBlob,
+  };
+}
 
 describe("Storage Abstraction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.resetModules();
     // Reset environment variables
     delete process.env.BLOB_READ_WRITE_TOKEN;
     delete process.env.STORAGE_PROVIDER;
@@ -26,40 +41,42 @@ describe("Storage Abstraction", () => {
     delete process.env.NODE_ENV;
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   describe("getCurrentStorageProvider", () => {
-    it("should return 'blob' when BLOB_READ_WRITE_TOKEN is set", () => {
+    it("should return 'blob' when BLOB_READ_WRITE_TOKEN is set", async () => {
+      const { getCurrentStorageProvider } = await loadStorage();
       process.env.BLOB_READ_WRITE_TOKEN = "test-token";
       expect(getCurrentStorageProvider()).toBe("blob");
     });
 
-    it("should return 'local' when in development without blob token", () => {
+    it("should return 'local' when in development without blob token", async () => {
+      const { getCurrentStorageProvider } = await loadStorage();
       process.env.NODE_ENV = "development";
       process.env.VERCEL = undefined;
       expect(getCurrentStorageProvider()).toBe("local");
     });
 
-    it("should return 'none' when in production without blob token", () => {
+    it("should return 'none' when in production without blob token", async () => {
+      const { getCurrentStorageProvider } = await loadStorage();
       process.env.NODE_ENV = "production";
       expect(getCurrentStorageProvider()).toBe("none");
     });
   });
 
   describe("isStorageConfigured", () => {
-    it("should return true when Blob is configured", () => {
+    it("should return true when Blob is configured", async () => {
+      const { isStorageConfigured } = await loadStorage();
       process.env.BLOB_READ_WRITE_TOKEN = "test-token";
       expect(isStorageConfigured()).toBe(true);
     });
 
-    it("should return true when local storage is available", () => {
+    it("should return true when local storage is available", async () => {
+      const { isStorageConfigured } = await loadStorage();
       process.env.NODE_ENV = "development";
       expect(isStorageConfigured()).toBe(true);
     });
 
-    it("should return false when no storage is configured", () => {
+    it("should return false when no storage is configured", async () => {
+      const { isStorageConfigured } = await loadStorage();
       process.env.NODE_ENV = "production";
       process.env.VERCEL = "1";
       expect(isStorageConfigured()).toBe(false);
@@ -72,6 +89,7 @@ describe("Storage Abstraction", () => {
     });
 
     it("should upload file to Vercel Blob successfully", async () => {
+      const { uploadFile, vercelBlob } = await loadStorage();
       const mockBlobUrl = "https://test.vercel-storage.com/file.jpg";
       vi.mocked(vercelBlob.put).mockResolvedValue({
         url: mockBlobUrl,
@@ -93,6 +111,7 @@ describe("Storage Abstraction", () => {
     });
 
     it("should return error when Blob upload fails", async () => {
+      const { uploadFile, vercelBlob } = await loadStorage();
       vi.mocked(vercelBlob.put).mockRejectedValue(new Error("Upload failed"));
 
       const buffer = Buffer.from("test file content");
@@ -107,6 +126,7 @@ describe("Storage Abstraction", () => {
     });
 
     it("should sanitize filenames", async () => {
+      const { uploadFile, vercelBlob } = await loadStorage();
       const mockBlobUrl = "https://test.vercel-storage.com/file.jpg";
       vi.mocked(vercelBlob.put).mockResolvedValue({
         url: mockBlobUrl,
@@ -119,14 +139,15 @@ describe("Storage Abstraction", () => {
         contentType: "text/plain",
       });
 
-      // Verify the filename was sanitized (no path traversal)
+      // Verify the filename was reduced to a safe generated name.
       const callArgs = vi.mocked(vercelBlob.put).mock.calls[0];
-      expect(callArgs[0]).toMatch(/^[a-f0-9-]+\.passwd$/); // UUID-based filename
+      expect(callArgs[0]).toMatch(/^[a-f0-9-]+\.bin$/);
     });
   });
 
   describe("deleteFile", () => {
     it("should delete file from Vercel Blob", async () => {
+      const { deleteFile, vercelBlob } = await loadStorage();
       process.env.BLOB_READ_WRITE_TOKEN = "test-token";
       vi.mocked(vercelBlob.del).mockResolvedValue(undefined as any);
 
@@ -138,6 +159,7 @@ describe("Storage Abstraction", () => {
     });
 
     it("should return error when blob URL is invalid", async () => {
+      const { deleteFile } = await loadStorage();
       process.env.BLOB_READ_WRITE_TOKEN = "test-token";
 
       const invalidUrl = "not-a-blob-url";
@@ -148,6 +170,7 @@ describe("Storage Abstraction", () => {
     });
 
     it("should handle deletion errors gracefully", async () => {
+      const { deleteFile, vercelBlob } = await loadStorage();
       process.env.BLOB_READ_WRITE_TOKEN = "test-token";
       vi.mocked(vercelBlob.del).mockRejectedValue(new Error("Delete failed"));
 
@@ -161,6 +184,7 @@ describe("Storage Abstraction", () => {
 
   describe("Filename generation", () => {
     it("should generate unique filenames with UUID", async () => {
+      const { uploadFile, vercelBlob } = await loadStorage();
       process.env.BLOB_READ_WRITE_TOKEN = "test-token";
       vi.mocked(vercelBlob.put).mockResolvedValue({
         url: "https://test.vercel-storage.com/file.jpg",
@@ -182,6 +206,7 @@ describe("Storage Abstraction", () => {
     });
 
     it("should preserve file extensions", async () => {
+      const { uploadFile, vercelBlob } = await loadStorage();
       process.env.BLOB_READ_WRITE_TOKEN = "test-token";
       vi.mocked(vercelBlob.put).mockResolvedValue({
         url: "https://test.vercel-storage.com/file.pdf",
@@ -195,6 +220,7 @@ describe("Storage Abstraction", () => {
     });
 
     it("should handle files without extensions", async () => {
+      const { uploadFile, vercelBlob } = await loadStorage();
       process.env.BLOB_READ_WRITE_TOKEN = "test-token";
       vi.mocked(vercelBlob.put).mockResolvedValue({
         url: "https://test.vercel-storage.com/file",

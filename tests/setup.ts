@@ -53,7 +53,22 @@ vi.mock("@/lib/prisma", () => ({
       update: vi.fn(),
       delete: vi.fn(),
     },
-    // Add other models as needed
+    course: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+    },
+    classOffering: {
+      findUnique: vi.fn(),
+    },
+    enrollment: {
+      findFirst: vi.fn(),
+    },
+    mentorship: {
+      findFirst: vi.fn(),
+    },
+    application: {
+      findUnique: vi.fn(),
+    },
   },
 }));
 

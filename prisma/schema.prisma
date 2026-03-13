@@ -580,11 +580,14 @@ model User {
   nominationVotes     NominationVote[]            @relation("NominationVotes")
 
   // Passion Project Incubator Relations
-  incubatorApplications IncubatorApplication[] @relation("IncubatorApplications")
-  incubatorProjects     IncubatorProject[]     @relation("IncubatorProjects")
-  incubatorMentoring    IncubatorMentor[]      @relation("IncubatorMentoring")
-  incubatorUpdates      IncubatorUpdate[]      @relation("IncubatorUpdates")
-  pitchFeedbackGiven    PitchFeedback[]        @relation("PitchFeedbackGiven")
+  incubatorApplications         IncubatorApplication[]      @relation("IncubatorApplications")
+  incubatorApplicationsReviewed IncubatorApplication[]      @relation("IncubatorApplicationReviewedBy")
+  incubatorProjects             IncubatorProject[]          @relation("IncubatorProjects")
+  incubatorProjectsLaunchApproved IncubatorProject[]        @relation("IncubatorLaunchApprovedBy")
+  incubatorMentoring            IncubatorMentor[]           @relation("IncubatorMentoring")
+  incubatorUpdates              IncubatorUpdate[]           @relation("IncubatorUpdates")
+  incubatorMilestonesApproved   IncubatorMilestone[]        @relation("IncubatorMilestonesApprovedBy")
+  pitchFeedbackGiven            PitchFeedback[]             @relation("PitchFeedbackGiven")
 
   // Phase 13: Real-World Connections Relations
   internshipApplications   InternshipApplication[]   @relation("InternshipApplications")
@@ -5971,6 +5974,19 @@ enum IncubatorAppStatus {
   WITHDRAWN
 }
 
+enum IncubatorMilestoneStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED
+  APPROVED
+}
+
+enum IncubatorLaunchStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+}
+
 // A cohort / batch of the incubator program
 model IncubatorCohort {
   id          String  @id @default(cuid())
@@ -5987,14 +6003,16 @@ model IncubatorCohort {
   showcaseDate     DateTime?
 
   // Config
-  maxProjects  Int                   @default(20)
-  passionAreas String[] // Which passions this cohort covers (empty = all)
-  status       IncubatorCohortStatus @default(DRAFT)
+  maxProjects    Int                   @default(20)
+  passionAreas   String[] // Legacy values kept for compatibility
+  passionAreaIds String[]              @default([]) // Canonical PassionArea IDs
+  status         IncubatorCohortStatus @default(DRAFT)
 
   // Relations
   applications      IncubatorApplication[]
   projects          IncubatorProject[]
   mentorAssignments IncubatorMentor[]
+  milestoneTemplates IncubatorMilestoneTemplate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -6014,7 +6032,8 @@ model IncubatorApplication {
   // Application content
   projectTitle     String
   projectIdea      String  @db.Text // What do you want to build?
-  passionArea      String
+  passionArea      String // Legacy label kept for compatibility
+  passionId        String?
   whyThisProject   String  @db.Text // Why does this matter to you?
   priorExperience  String? @db.Text // What have you done so far?
   goals            String  @db.Text // What do you hope to achieve?
@@ -6022,10 +6041,13 @@ model IncubatorApplication {
   mentorPreference String? // What kind of mentor help?
 
   // Review
-  status       IncubatorAppStatus @default(SUBMITTED)
-  reviewedById String?
-  reviewNote   String?
-  reviewedAt   DateTime?
+  status        IncubatorAppStatus @default(SUBMITTED)
+  reviewedById  String?
+  reviewedBy    User?              @relation("IncubatorApplicationReviewedBy", fields: [reviewedById], references: [id])
+  reviewNote    String?
+  reviewRubric  Json?
+  reviewedAt    DateTime?
+  acceptedProject IncubatorProject? @relation("IncubatorAcceptedFrom")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -6033,6 +6055,8 @@ model IncubatorApplication {
   @@unique([cohortId, studentId])
   @@index([studentId])
   @@index([status])
+  @@index([passionId])
+  @@index([reviewedById])
 }
 
 // An active project within the incubator (wraps ProjectTracker with incubator context)
@@ -6043,12 +6067,17 @@ model IncubatorProject {
   studentId        String
   student          User            @relation("IncubatorProjects", fields: [studentId], references: [id])
   projectTrackerId String? // Links to existing ProjectTracker
+  applicationId    String?         @unique
+  application      IncubatorApplication? @relation("IncubatorAcceptedFrom", fields: [applicationId], references: [id], onDelete: SetNull)
 
   // Project info
   title        String
   description  String         @db.Text
-  passionArea  String
+  passionArea  String // Legacy label kept for compatibility
+  passionId    String?
   currentPhase IncubatorPhase @default(IDEATION)
+  mentorRequired Boolean      @default(true)
+  mentorAssignedAt DateTime?
 
   // Progress tracking
   ideationComplete  Boolean @default(false)
@@ -6063,6 +6092,23 @@ model IncubatorProject {
   pitchDeckUrl     String?
   finalShowcaseUrl String?
   pitchDate        DateTime?
+  launchStatus     IncubatorLaunchStatus @default(DRAFT)
+  publicSlug       String?               @unique
+  launchTitle      String?
+  launchTagline    String?
+  launchSummary    String?               @db.Text
+  problemStatement String?               @db.Text
+  solutionSummary  String?               @db.Text
+  targetAudience   String?
+  buildHighlights  String[]              @default([])
+  launchGalleryUrls String[]             @default([])
+  demoUrl          String?
+  repositoryUrl    String?
+  waitlistUrl      String?
+  launchSubmittedAt DateTime?
+  launchApprovedAt DateTime?
+  launchApprovedById String?
+  launchApprovedBy User?                 @relation("IncubatorLaunchApprovedBy", fields: [launchApprovedById], references: [id])
 
   // XP
   xpEarned Int @default(0)
@@ -6070,6 +6116,7 @@ model IncubatorProject {
   // Relations
   mentors       IncubatorMentor[]
   updates       IncubatorUpdate[]
+  milestones    IncubatorMilestone[]
   pitchFeedback PitchFeedback[]
 
   createdAt DateTime @default(now())
@@ -6079,6 +6126,58 @@ model IncubatorProject {
   @@index([cohortId])
   @@index([studentId])
   @@index([currentPhase])
+  @@index([passionId])
+  @@index([launchStatus])
+  @@index([launchApprovedById])
+}
+
+model IncubatorMilestoneTemplate {
+  id                     String          @id @default(cuid())
+  cohortId               String
+  cohort                 IncubatorCohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  phase                  IncubatorPhase
+  title                  String
+  description            String?         @db.Text
+  deliverableLabel       String?
+  dueDayOffset           Int?
+  order                  Int
+  requiresMentorApproval Boolean         @default(false)
+  requiredForPhase       Boolean         @default(true)
+  milestones             IncubatorMilestone[]
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  @@index([cohortId, phase, order])
+}
+
+model IncubatorMilestone {
+  id                     String                   @id @default(cuid())
+  projectId              String
+  project                IncubatorProject         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  templateId             String?
+  template               IncubatorMilestoneTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  phase                  IncubatorPhase
+  title                  String
+  description            String?                  @db.Text
+  deliverableLabel       String?
+  order                  Int
+  dueDate                DateTime?
+  requiresMentorApproval Boolean                  @default(false)
+  requiredForPhase       Boolean                  @default(true)
+  status                 IncubatorMilestoneStatus @default(NOT_STARTED)
+  submissionNote         String?                  @db.Text
+  artifactUrls           String[]                 @default([])
+  submittedAt            DateTime?
+  approvedAt             DateTime?
+  approvedById           String?
+  approvedBy             User?                    @relation("IncubatorMilestonesApprovedBy", fields: [approvedById], references: [id])
+  completedAt            DateTime?
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+
+  @@index([projectId, phase, order])
+  @@index([status])
+  @@index([approvedById])
 }
 
 // Mentor assignment for incubator projects

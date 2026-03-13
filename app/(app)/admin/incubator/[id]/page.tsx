@@ -3,7 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getCohortById, getAvailableMentors } from "@/lib/incubator-actions";
 import Link from "next/link";
-import { ReviewAppButton, AssignMentorForm } from "./client";
+import { ReviewApplicationActions, AssignMentorForm, ApproveLaunchButton } from "./client";
 
 const PHASE_LABELS: Record<string, string> = {
   IDEATION: "Ideation", PLANNING: "Planning", BUILDING: "Building",
@@ -49,6 +49,12 @@ export default async function CohortDetailPage({ params }: { params: { id: strin
 
   const pendingApps = cohort.applications.filter((a) => a.status === "SUBMITTED" || a.status === "UNDER_REVIEW");
   const reviewedApps = cohort.applications.filter((a) => a.status !== "SUBMITTED" && a.status !== "UNDER_REVIEW");
+  const mentorlessProjects = cohort.projects.filter((project) => project.mentors.length === 0);
+  const pendingLaunches = cohort.projects.filter((project) => project.launchStatus === "SUBMITTED");
+  const staleProjects = cohort.projects.filter((project) => {
+    const lastUpdate = project.updates[0]?.createdAt;
+    return !lastUpdate || Date.now() - new Date(lastUpdate).getTime() > 7 * 24 * 60 * 60 * 1000;
+  });
 
   return (
     <div>
@@ -75,6 +81,21 @@ export default async function CohortDetailPage({ params }: { params: { id: strin
         <div className="card" style={{ textAlign: "center" }}>
           <div style={{ fontSize: 28, fontWeight: 700, color: "#16a34a" }}>{cohort._count.mentorAssignments}</div>
           <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>Mentor Assignments</div>
+        </div>
+      </div>
+
+      <div className="grid three" style={{ marginBottom: 24 }}>
+        <div className="card" style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 24, fontWeight: 700, color: "#dc2626" }}>{mentorlessProjects.length}</div>
+          <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>Projects Missing Mentor</div>
+        </div>
+        <div className="card" style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 24, fontWeight: 700, color: "#d97706" }}>{staleProjects.length}</div>
+          <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>Stale Projects</div>
+        </div>
+        <div className="card" style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 24, fontWeight: 700, color: "#2563eb" }}>{pendingLaunches.length}</div>
+          <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>Launches Awaiting Approval</div>
         </div>
       </div>
 
@@ -109,7 +130,7 @@ export default async function CohortDetailPage({ params }: { params: { id: strin
                       </div>
                     )}
                   </div>
-                  <ReviewAppButton applicationId={app.id} />
+                  <ReviewApplicationActions applicationId={app.id} mentors={mentors as any[]} />
                 </div>
               </div>
             ))}
@@ -143,6 +164,10 @@ export default async function CohortDetailPage({ params }: { params: { id: strin
                           ? ` · Mentor: ${project.mentors.map((m: any) => m.mentor.name).join(", ")}`
                           : " · No mentor assigned"}
                       </div>
+                      <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 4 }}>
+                        {project.milestones.filter((milestone) => milestone.status === "APPROVED").length} / {project.milestones.length} milestones complete
+                        {project.updates[0]?.createdAt && ` · Last update ${new Date(project.updates[0].createdAt).toLocaleDateString()}`}
+                      </div>
                     </div>
                     {project.mentors.length === 0 && (
                       <AssignMentorForm
@@ -161,6 +186,34 @@ export default async function CohortDetailPage({ params }: { params: { id: strin
           </div>
         )}
       </div>
+
+      {pendingLaunches.length > 0 && (
+        <div style={{ marginBottom: 32 }}>
+          <h2 style={{ fontSize: 18, marginBottom: 12 }}>Launch Approval Queue ({pendingLaunches.length})</h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {pendingLaunches.map((project) => (
+              <div key={project.id} className="card" style={{ borderLeft: "4px solid #2563eb" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "start" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
+                      <span className="pill" style={{ background: "#dbeafe", color: "#1d4ed8" }}>Launch submitted</span>
+                      <span className="pill">{project.currentPhase.replace(/_/g, " ")}</span>
+                    </div>
+                    <h3 style={{ margin: "0 0 4px" }}>{project.launchTitle || project.title}</h3>
+                    <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 6 }}>
+                      {project.student.name} · {project.launchSummary || project.description}
+                    </div>
+                    <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                      Demo: {project.demoUrl || "Not provided"} · Showcase: {project.finalShowcaseUrl || "Not provided"}
+                    </div>
+                  </div>
+                  <ApproveLaunchButton projectId={project.id} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Reviewed Applications */}
       {reviewedApps.length > 0 && (
