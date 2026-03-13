@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { hasInstructorPathwaySpecTable } from "@/lib/instructor-pathway-spec-compat";
 
 /**
  * Returns ranked instructors for a given pathway and student user.
@@ -12,27 +13,30 @@ export async function getSuggestedMentorsForPathway(
   userId: string,
   pathwayId: string
 ): Promise<{ id: string; name: string; chapterName: string | null; bio: string | null; menteeCount: number; isSpecialist: boolean }[]> {
+  const hasPathwaySpecTable = await hasInstructorPathwaySpecTable();
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { chapterId: true },
   });
 
   // Pathway specialists
-  const specialists = await prisma.instructorPathwaySpec.findMany({
-    where: { pathwayId },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          chapterId: true,
-          chapter: { select: { name: true } },
-          profile: { select: { bio: true } },
-          menteePairs: { select: { id: true } },
+  const specialists = hasPathwaySpecTable
+    ? await prisma.instructorPathwaySpec.findMany({
+        where: { pathwayId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              chapterId: true,
+              chapter: { select: { name: true } },
+              profile: { select: { bio: true } },
+              menteePairs: { select: { id: true } },
+            },
+          },
         },
-      },
-    },
-  }).catch(() => [] as any[]);
+      }).catch(() => [] as any[])
+    : [];
 
   const specialistIds = new Set(specialists.map((s: any) => s.user.id));
 

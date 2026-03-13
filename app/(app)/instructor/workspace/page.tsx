@@ -17,6 +17,10 @@ import {
   getInstructorOfferings,
   getInstructorTemplates,
 } from "@/lib/class-management-actions";
+import {
+  getActivePathwaysForInstructorWorkspace,
+  hasInstructorPathwaySpecTable,
+} from "@/lib/instructor-pathway-spec-compat";
 
 const tabs = ["curricula", "lesson-plans", "offerings", "readiness", "my-pathway"] as const;
 type WorkspaceTab = (typeof tabs)[number];
@@ -72,8 +76,9 @@ export default async function InstructorWorkspacePage({
 
   const tab = safeTab((await searchParams).tab);
 
-  const [capabilities, templates, lessonPlans, offerings, readiness, teachingPermissions, allPathways, activeOfferings, menteeCount] = await Promise.all([
+  const [capabilities, hasPathwaySpecsTable, templates, lessonPlans, offerings, readiness, teachingPermissions, allPathways, activeOfferings, menteeCount] = await Promise.all([
     getClassTemplateCapabilities(),
+    hasInstructorPathwaySpecTable(),
     getInstructorTemplates(session.user.id),
     prisma.lessonPlan.findMany({
       where: { authorId: session.user.id },
@@ -91,21 +96,7 @@ export default async function InstructorWorkspacePage({
       where: { instructorId: session.user.id },
       select: { level: true, grantedAt: true },
     }),
-    prisma.pathway.findMany({
-      where: { isActive: true },
-      select: {
-        id: true,
-        name: true,
-        interestArea: true,
-        description: true,
-        steps: { select: { courseId: true } },
-        instructorSpecs: {
-          where: { userId: session.user.id },
-          select: { id: true },
-        },
-      },
-      orderBy: { name: "asc" },
-    }),
+    getActivePathwaysForInstructorWorkspace(session.user.id),
     prisma.classOffering.findMany({
       where: { instructorId: session.user.id, status: "PUBLISHED" },
       select: {
@@ -689,6 +680,21 @@ export default async function InstructorWorkspacePage({
               <p style={{ marginTop: 0, marginBottom: 16, color: "var(--text-secondary)", fontSize: 14 }}>
                 Select the YPP pathways you teach or plan to teach. This helps students and admins find the right instructor.
               </p>
+              {!hasPathwaySpecsTable && (
+                <div
+                  style={{
+                    marginBottom: 14,
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    background: "#fffbeb",
+                    border: "1px solid #fcd34d",
+                    color: "#92400e",
+                    fontSize: 13,
+                  }}
+                >
+                  Teaching-specialty selections will appear here after the latest pathway database migration is applied.
+                </div>
+              )}
               {allPathways.length === 0 ? (
                 <p style={{ color: "var(--text-secondary)", fontSize: 14 }}>No active pathways configured yet.</p>
               ) : (
@@ -710,10 +716,11 @@ export default async function InstructorWorkspacePage({
                       >
                         <div style={{ flex: 1 }}>
                           <div style={{ fontWeight: 600, fontSize: 14 }}>{pathway.name}</div>
-                          <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>
-                            {pathway.interestArea} · {pathway.steps.length} course steps
-                          </div>
+                        <div style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>
+                          {pathway.interestArea} · {pathway.steps.length} course steps
                         </div>
+                      </div>
+                      {hasPathwaySpecsTable ? (
                         <form action={toggleInstructorPathwaySpec.bind(null, pathway.id)}>
                           <button
                             type="submit"
@@ -722,6 +729,14 @@ export default async function InstructorWorkspacePage({
                             {isAssigned ? "Teaching" : "+ Add"}
                           </button>
                         </form>
+                      ) : (
+                        <span
+                          className="pill"
+                          style={{ background: "var(--gray-100)", color: "var(--text-secondary)" }}
+                        >
+                          Unavailable
+                        </span>
+                      )}
                       </div>
                     );
                   })}
