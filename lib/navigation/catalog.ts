@@ -61,6 +61,14 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardDescription: "Connect and manage student link requests.",
       dashboardPriority: 11,
     },
+    {
+      href: "/parent/feedback",
+      label: "Give Feedback",
+      icon: "💬",
+      roles: PARENT_ONLY,
+      dashboardDescription: "Share feedback about chapters, instructors, and programs.",
+      dashboardPriority: 10,
+    },
   ]),
 
   ...groupLinks("Start Here", 200, [
@@ -405,6 +413,17 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 6,
     },
     {
+      href: "/chapter/president",
+      label: "Chapter President",
+      icon: "👑",
+    },
+    {
+      href: "/chapter/onboarding",
+      label: "CP Onboarding",
+      icon: "🎓",
+      roles: CHAPTER_LEAD_ONLY,
+    },
+    {
       href: "/chapter/recruiting",
       label: "Chapter Recruiting",
       icon: "🧑‍💼",
@@ -504,6 +523,44 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardDescription: "Review and approve incoming instructor applications.",
       dashboardPriority: 4,
       dashboardBadgeKey: "instructor_applicants",
+    },
+    {
+      href: "/admin/chapter-president-applicants",
+      label: "CP Applicants",
+      icon: "👑",
+      roles: ADMIN_ONLY,
+      dashboardDescription: "Review and manage chapter president applications.",
+      dashboardPriority: 4,
+    },
+    {
+      href: "/admin/form-templates",
+      label: "Form Templates",
+      icon: "📝",
+      roles: ADMIN_ONLY,
+    },
+    {
+      href: "/admin/application-cohorts",
+      label: "Application Cohorts",
+      icon: "👥",
+      roles: ADMIN_ONLY,
+    },
+    {
+      href: "/admin/import-applications",
+      label: "Import Applications",
+      icon: "📤",
+      roles: ADMIN_ONLY,
+    },
+    {
+      href: "/admin/parent-feedback",
+      label: "Parent Feedback",
+      icon: "💬",
+      roles: ADMIN_ONLY,
+    },
+    {
+      href: "/admin/parent-surveys",
+      label: "Parent Surveys",
+      icon: "📊",
+      roles: ADMIN_ONLY,
     },
     {
       href: "/admin/instructor-readiness",

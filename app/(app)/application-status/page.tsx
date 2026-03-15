@@ -3,10 +3,11 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { submitInfoResponse } from "@/lib/instructor-application-actions";
-import { InstructorApplicationStatus } from "@prisma/client";
+import { InstructorApplicationStatus, ChapterPresidentApplicationStatus } from "@prisma/client";
 import InfoResponseForm from "./info-response-form";
+import Link from "next/link";
 
-function statusLabel(status: InstructorApplicationStatus): string {
+function instructorStatusLabel(status: InstructorApplicationStatus): string {
   switch (status) {
     case "SUBMITTED": return "Submitted";
     case "UNDER_REVIEW": return "Under Review";
@@ -18,7 +19,19 @@ function statusLabel(status: InstructorApplicationStatus): string {
   }
 }
 
-function statusColor(status: InstructorApplicationStatus): string {
+function cpStatusLabel(status: ChapterPresidentApplicationStatus): string {
+  switch (status) {
+    case "SUBMITTED": return "Submitted";
+    case "UNDER_REVIEW": return "Under Review";
+    case "INFO_REQUESTED": return "More Info Requested";
+    case "INTERVIEW_SCHEDULED": return "Interview Scheduled";
+    case "INTERVIEW_COMPLETED": return "Interview Completed";
+    case "APPROVED": return "Approved";
+    case "REJECTED": return "Not Accepted";
+  }
+}
+
+function statusColor(status: string): string {
   if (status === "APPROVED") return "#16a34a";
   if (status === "REJECTED") return "#dc2626";
   if (status === "INFO_REQUESTED") return "#d97706";
@@ -32,11 +45,41 @@ const STAGES = [
   { key: "decision", label: "Decision" },
 ] as const;
 
-function currentStageIndex(status: InstructorApplicationStatus): number {
+function currentStageIndex(status: string): number {
   if (status === "SUBMITTED") return 0;
   if (status === "UNDER_REVIEW" || status === "INFO_REQUESTED") return 1;
   if (status === "INTERVIEW_SCHEDULED" || status === "INTERVIEW_COMPLETED") return 2;
-  return 3; // APPROVED or REJECTED
+  return 3;
+}
+
+function ProgressStepper({ status }: { status: string }) {
+  const stageIdx = currentStageIndex(status);
+  return (
+    <div className="card" style={{ marginBottom: 24 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+        {STAGES.map((stage, i) => (
+          <div key={stage.key} style={{ display: "flex", alignItems: "center", flex: i < STAGES.length - 1 ? 1 : "initial" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 80 }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+                background: i <= stageIdx ? "#7c3aed" : "var(--border)",
+                color: i <= stageIdx ? "white" : "var(--muted)",
+                fontWeight: 700, fontSize: 14,
+              }}>
+                {i < stageIdx ? "\u2713" : i + 1}
+              </div>
+              <span style={{ fontSize: 11, color: i <= stageIdx ? "#7c3aed" : "var(--muted)", marginTop: 4, textAlign: "center" }}>
+                {stage.label}
+              </span>
+            </div>
+            {i < STAGES.length - 1 && (
+              <div style={{ flex: 1, height: 2, background: i < stageIdx ? "#7c3aed" : "var(--border)", margin: "0 4px", marginBottom: 20 }} />
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default async function ApplicationStatusPage() {
@@ -46,188 +89,289 @@ export default async function ApplicationStatusPage() {
   const roles = session.user.roles ?? [];
   const primaryRole = session.user.primaryRole;
 
-  // Only APPLICANT users or users with an application can see this page
-  if (!roles.includes("APPLICANT") && primaryRole !== "APPLICANT") {
+  // Fetch both application types
+  const [instructorApp, cpApp] = await Promise.all([
+    prisma.instructorApplication.findUnique({
+      where: { applicantId: session.user.id },
+      include: { reviewer: { select: { name: true } } },
+    }),
+    prisma.chapterPresidentApplication.findUnique({
+      where: { applicantId: session.user.id },
+      include: {
+        reviewer: { select: { name: true } },
+        chapter: { select: { name: true } },
+      },
+    }),
+  ]);
+
+  if (!instructorApp && !cpApp) {
+    // No applications — redirect unless applicant role
+    if (!roles.includes("APPLICANT") && primaryRole !== "APPLICANT") {
+      redirect("/");
+    }
     redirect("/");
   }
-
-  const application = await prisma.instructorApplication.findUnique({
-    where: { applicantId: session.user.id },
-    include: { reviewer: { select: { name: true } } },
-  });
-
-  if (!application) {
-    redirect("/");
-  }
-
-  const stageIdx = currentStageIndex(application.status);
 
   return (
     <div className="page-shell">
       <div className="page-header">
         <div>
-          <span className="badge" style={{ background: statusColor(application.status), color: "white", marginBottom: 6 }}>
-            {statusLabel(application.status)}
-          </span>
-          <h1 className="page-title">Your Instructor Application</h1>
-          <p className="page-subtitle">
-            Applied {new Date(application.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
-          </p>
+          <h1 className="page-title">Your Applications</h1>
+          <p className="page-subtitle">Track the status of your applications.</p>
         </div>
       </div>
 
-      {/* Progress indicator */}
-      <div className="card" style={{ marginBottom: 24 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
-          {STAGES.map((stage, i) => (
-            <div key={stage.key} style={{ display: "flex", alignItems: "center", flex: i < STAGES.length - 1 ? 1 : "initial" }}>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 80 }}>
-                <div style={{
-                  width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-                  background: i <= stageIdx ? "#7c3aed" : "var(--border)",
-                  color: i <= stageIdx ? "white" : "var(--muted)",
-                  fontWeight: 700, fontSize: 14,
-                }}>
-                  {i < stageIdx ? "✓" : i + 1}
-                </div>
-                <span style={{ fontSize: 11, color: i <= stageIdx ? "#7c3aed" : "var(--muted)", marginTop: 4, textAlign: "center" }}>
-                  {stage.label}
-                </span>
+      {/* Instructor Application */}
+      {instructorApp && (
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+            <span className="badge" style={{ background: statusColor(instructorApp.status), color: "white" }}>
+              {instructorStatusLabel(instructorApp.status)}
+            </span>
+            <h2 style={{ margin: 0, fontSize: 18 }}>Instructor Application</h2>
+            <span style={{ fontSize: 13, color: "var(--muted)" }}>
+              Applied {new Date(instructorApp.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+            </span>
+          </div>
+
+          <ProgressStepper status={instructorApp.status} />
+
+          <div className="card" style={{ marginBottom: 16 }}>
+            {instructorApp.status === "SUBMITTED" && (
+              <>
+                <h3 className="section-title">Application Received</h3>
+                <p style={{ color: "var(--muted)", fontSize: 14 }}>
+                  Your application is in the queue. A reviewer will reach out within a few business days.
+                </p>
+              </>
+            )}
+            {instructorApp.status === "UNDER_REVIEW" && (
+              <>
+                <h3 className="section-title">Under Review</h3>
+                <p style={{ color: "var(--muted)", fontSize: 14 }}>
+                  {instructorApp.reviewer ? `${instructorApp.reviewer.name} is` : "A reviewer is"} currently evaluating your application.
+                </p>
+              </>
+            )}
+            {instructorApp.status === "INFO_REQUESTED" && (
+              <>
+                <h3 className="section-title">Additional Information Needed</h3>
+                {instructorApp.infoRequest && (
+                  <div style={{ background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px", marginBottom: 16 }}>
+                    <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}>
+                      <strong>Message from {instructorApp.reviewer?.name ?? "reviewer"}:</strong>
+                    </p>
+                    <p style={{ fontSize: 14, margin: 0 }}>{instructorApp.infoRequest}</p>
+                  </div>
+                )}
+                {instructorApp.applicantResponse && (
+                  <div style={{ background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px", marginBottom: 16 }}>
+                    <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Your previous response:</strong></p>
+                    <p style={{ fontSize: 14, margin: 0 }}>{instructorApp.applicantResponse}</p>
+                  </div>
+                )}
+                <InfoResponseForm />
+              </>
+            )}
+            {instructorApp.status === "INTERVIEW_SCHEDULED" && (
+              <>
+                <h3 className="section-title">Interview Scheduled</h3>
+                {instructorApp.interviewScheduledAt && (
+                  <div style={{ background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px", marginBottom: 16, textAlign: "center" }}>
+                    <p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
+                      {new Date(instructorApp.interviewScheduledAt).toLocaleString("en-US", {
+                        weekday: "long", year: "numeric", month: "long", day: "numeric",
+                        hour: "numeric", minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+            {instructorApp.status === "INTERVIEW_COMPLETED" && (
+              <>
+                <h3 className="section-title">Interview Completed</h3>
+                <p style={{ color: "var(--muted)", fontSize: 14 }}>A final decision is pending.</p>
+              </>
+            )}
+            {instructorApp.status === "APPROVED" && (
+              <>
+                <h3 className="section-title" style={{ color: "#16a34a" }}>Approved!</h3>
+                <p style={{ color: "var(--muted)", fontSize: 14, marginBottom: 16 }}>
+                  Your instructor application has been approved. You can now access instructor training.
+                </p>
+                <Link href="/instructor-training" className="button" style={{ display: "inline-block", textDecoration: "none" }}>
+                  Start Instructor Training
+                </Link>
+              </>
+            )}
+            {instructorApp.status === "REJECTED" && (
+              <>
+                <h3 className="section-title">Application Not Accepted</h3>
+                <p style={{ color: "var(--muted)", fontSize: 14 }}>
+                  Thank you for your interest. We are not moving forward at this time.
+                </p>
+                {instructorApp.rejectionReason && (
+                  <div style={{ background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px" }}>
+                    <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Reviewer notes:</strong></p>
+                    <p style={{ fontSize: 14, margin: 0 }}>{instructorApp.rejectionReason}</p>
+                  </div>
+                )}
+              </>
+            )}
+            {instructorApp.reviewerNotes && instructorApp.status !== "REJECTED" && (
+              <div style={{ marginTop: 16, background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px" }}>
+                <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Feedback from reviewer:</strong></p>
+                <p style={{ fontSize: 14, margin: 0 }}>{instructorApp.reviewerNotes}</p>
               </div>
-              {i < STAGES.length - 1 && (
-                <div style={{ flex: 1, height: 2, background: i < stageIdx ? "#7c3aed" : "var(--border)", margin: "0 4px", marginBottom: 20 }} />
-              )}
+            )}
+          </div>
+
+          <details className="card">
+            <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: 14, padding: "4px 0" }}>
+              Your Application Details
+            </summary>
+            <div style={{ marginTop: 16 }}>
+              <div style={{ marginBottom: 16 }}>
+                <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Why you want to teach:</strong></p>
+                <p style={{ fontSize: 14, margin: 0, whiteSpace: "pre-wrap" }}>{instructorApp.motivation}</p>
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Teaching experience:</strong></p>
+                <p style={{ fontSize: 14, margin: 0, whiteSpace: "pre-wrap" }}>{instructorApp.teachingExperience}</p>
+              </div>
+              <div>
+                <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Interview availability:</strong></p>
+                <p style={{ fontSize: 14, margin: 0 }}>{instructorApp.availability}</p>
+              </div>
             </div>
-          ))}
+          </details>
         </div>
-      </div>
+      )}
 
-      {/* Status-specific content */}
-      <div className="card" style={{ marginBottom: 24 }}>
-        {application.status === "SUBMITTED" && (
-          <>
-            <h2 className="section-title">Application Received</h2>
-            <p style={{ color: "var(--muted)", fontSize: 14 }}>
-              Your application is in the queue. An admin or chapter lead will review it and reach out within a few business days.
-            </p>
-          </>
-        )}
+      {/* Chapter President Application */}
+      {cpApp && (
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+            <span className="badge" style={{ background: statusColor(cpApp.status), color: "white" }}>
+              {cpStatusLabel(cpApp.status)}
+            </span>
+            <h2 style={{ margin: 0, fontSize: 18 }}>Chapter President Application</h2>
+            {cpApp.chapter && (
+              <span className="pill">{cpApp.chapter.name}</span>
+            )}
+            <span style={{ fontSize: 13, color: "var(--muted)" }}>
+              Applied {new Date(cpApp.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+            </span>
+          </div>
 
-        {application.status === "UNDER_REVIEW" && (
-          <>
-            <h2 className="section-title">Under Review</h2>
-            <p style={{ color: "var(--muted)", fontSize: 14 }}>
-              {application.reviewer ? `${application.reviewer.name} is` : "A reviewer is"} currently evaluating your application.
-              You will be notified when there is an update.
-            </p>
-          </>
-        )}
+          <ProgressStepper status={cpApp.status} />
 
-        {application.status === "INFO_REQUESTED" && (
-          <>
-            <h2 className="section-title">Additional Information Needed</h2>
-            {application.infoRequest && (
-              <div style={{ background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px", marginBottom: 16 }}>
-                <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}>
-                  <strong>Message from {application.reviewer?.name ?? "reviewer"}:</strong>
+          <div className="card" style={{ marginBottom: 16 }}>
+            {cpApp.status === "SUBMITTED" && (
+              <>
+                <h3 className="section-title">Application Received</h3>
+                <p style={{ color: "var(--muted)", fontSize: 14 }}>
+                  Your chapter president application is in the queue. A reviewer will reach out soon.
                 </p>
-                <p style={{ fontSize: 14, margin: 0 }}>{application.infoRequest}</p>
-              </div>
+              </>
             )}
-            {application.applicantResponse && (
-              <div style={{ background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px", marginBottom: 16 }}>
-                <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Your previous response:</strong></p>
-                <p style={{ fontSize: 14, margin: 0 }}>{application.applicantResponse}</p>
-              </div>
-            )}
-            <InfoResponseForm />
-          </>
-        )}
-
-        {application.status === "INTERVIEW_SCHEDULED" && (
-          <>
-            <h2 className="section-title">Interview Scheduled</h2>
-            {application.interviewScheduledAt && (
-              <div style={{ background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px", marginBottom: 16, textAlign: "center" }}>
-                <p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
-                  {new Date(application.interviewScheduledAt).toLocaleString("en-US", {
-                    weekday: "long", year: "numeric", month: "long", day: "numeric",
-                    hour: "numeric", minute: "2-digit",
-                  })}
+            {cpApp.status === "UNDER_REVIEW" && (
+              <>
+                <h3 className="section-title">Under Review</h3>
+                <p style={{ color: "var(--muted)", fontSize: 14 }}>
+                  {cpApp.reviewer ? `${cpApp.reviewer.name} is` : "A reviewer is"} currently evaluating your application.
                 </p>
+              </>
+            )}
+            {cpApp.status === "INFO_REQUESTED" && (
+              <>
+                <h3 className="section-title">Additional Information Needed</h3>
+                {cpApp.infoRequest && (
+                  <div style={{ background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px", marginBottom: 16 }}>
+                    <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}>
+                      <strong>Message from {cpApp.reviewer?.name ?? "reviewer"}:</strong>
+                    </p>
+                    <p style={{ fontSize: 14, margin: 0 }}>{cpApp.infoRequest}</p>
+                  </div>
+                )}
+              </>
+            )}
+            {cpApp.status === "INTERVIEW_SCHEDULED" && (
+              <>
+                <h3 className="section-title">Interview Scheduled</h3>
+                {cpApp.interviewScheduledAt && (
+                  <div style={{ background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px", marginBottom: 16, textAlign: "center" }}>
+                    <p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
+                      {new Date(cpApp.interviewScheduledAt).toLocaleString("en-US", {
+                        weekday: "long", year: "numeric", month: "long", day: "numeric",
+                        hour: "numeric", minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+            {cpApp.status === "INTERVIEW_COMPLETED" && (
+              <>
+                <h3 className="section-title">Interview Completed</h3>
+                <p style={{ color: "var(--muted)", fontSize: 14 }}>A final decision is pending.</p>
+              </>
+            )}
+            {cpApp.status === "APPROVED" && (
+              <>
+                <h3 className="section-title" style={{ color: "#16a34a" }}>Approved!</h3>
+                <p style={{ color: "var(--muted)", fontSize: 14, marginBottom: 16 }}>
+                  Your chapter president application has been approved. Welcome to the leadership team!
+                </p>
+                <Link href="/chapter/onboarding" className="button" style={{ display: "inline-block", textDecoration: "none" }}>
+                  Start Chapter Onboarding
+                </Link>
+              </>
+            )}
+            {cpApp.status === "REJECTED" && (
+              <>
+                <h3 className="section-title">Application Not Accepted</h3>
+                <p style={{ color: "var(--muted)", fontSize: 14 }}>
+                  Thank you for your interest in leading a chapter. We are not moving forward at this time.
+                </p>
+                {cpApp.rejectionReason && (
+                  <div style={{ background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px" }}>
+                    <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Reviewer notes:</strong></p>
+                    <p style={{ fontSize: 14, margin: 0 }}>{cpApp.rejectionReason}</p>
+                  </div>
+                )}
+              </>
+            )}
+            {cpApp.reviewerNotes && cpApp.status !== "REJECTED" && (
+              <div style={{ marginTop: 16, background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px" }}>
+                <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Feedback from reviewer:</strong></p>
+                <p style={{ fontSize: 14, margin: 0 }}>{cpApp.reviewerNotes}</p>
               </div>
             )}
-            <p style={{ color: "var(--muted)", fontSize: 14 }}>
-              Your interview has been scheduled. Please be ready at the specified time. Check your email for any additional details.
-            </p>
-          </>
-        )}
+          </div>
 
-        {application.status === "INTERVIEW_COMPLETED" && (
-          <>
-            <h2 className="section-title">Interview Completed</h2>
-            <p style={{ color: "var(--muted)", fontSize: 14 }}>
-              Your interview has been completed. A final decision is pending. You will be notified by email when a decision has been made.
-            </p>
-          </>
-        )}
-
-        {application.status === "APPROVED" && (
-          <>
-            <h2 className="section-title" style={{ color: "#16a34a" }}>Congratulations — You&apos;re Approved!</h2>
-            <p style={{ color: "var(--muted)", fontSize: 14, marginBottom: 16 }}>
-              Your instructor application has been approved. You can now access instructor training. Once you complete training and your interview, you will be fully certified to teach.
-            </p>
-            <a href="/instructor-training" className="button" style={{ display: "inline-block" }}>
-              Start Instructor Training
-            </a>
-          </>
-        )}
-
-        {application.status === "REJECTED" && (
-          <>
-            <h2 className="section-title">Application Not Accepted</h2>
-            <p style={{ color: "var(--muted)", fontSize: 14, marginBottom: 12 }}>
-              Thank you for your interest in becoming an instructor at Youth Passion Project. After careful consideration, we are unfortunately not moving forward with your application at this time.
-            </p>
-            {application.rejectionReason && (
-              <div style={{ background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px" }}>
-                <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Reviewer notes:</strong></p>
-                <p style={{ fontSize: 14, margin: 0 }}>{application.rejectionReason}</p>
+          <details className="card">
+            <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: 14, padding: "4px 0" }}>
+              Your Application Details
+            </summary>
+            <div style={{ marginTop: 16 }}>
+              <div style={{ marginBottom: 16 }}>
+                <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Leadership experience:</strong></p>
+                <p style={{ fontSize: 14, margin: 0, whiteSpace: "pre-wrap" }}>{cpApp.leadershipExperience}</p>
               </div>
-            )}
-          </>
-        )}
-
-        {/* Reviewer feedback (when not rejection) */}
-        {application.reviewerNotes && application.status !== "REJECTED" && (
-          <div style={{ marginTop: 16, background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px" }}>
-            <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Feedback from reviewer:</strong></p>
-            <p style={{ fontSize: 14, margin: 0 }}>{application.reviewerNotes}</p>
-          </div>
-        )}
-      </div>
-
-      {/* Application details collapsible */}
-      <details className="card">
-        <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: 14, padding: "4px 0" }}>
-          Your Application Details
-        </summary>
-        <div style={{ marginTop: 16 }}>
-          <div style={{ marginBottom: 16 }}>
-            <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Why you want to teach:</strong></p>
-            <p style={{ fontSize: 14, margin: 0, whiteSpace: "pre-wrap" }}>{application.motivation}</p>
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Teaching experience:</strong></p>
-            <p style={{ fontSize: 14, margin: 0, whiteSpace: "pre-wrap" }}>{application.teachingExperience}</p>
-          </div>
-          <div>
-            <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Interview availability:</strong></p>
-            <p style={{ fontSize: 14, margin: 0 }}>{application.availability}</p>
-          </div>
+              <div style={{ marginBottom: 16 }}>
+                <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Chapter vision:</strong></p>
+                <p style={{ fontSize: 14, margin: 0, whiteSpace: "pre-wrap" }}>{cpApp.chapterVision}</p>
+              </div>
+              <div>
+                <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Interview availability:</strong></p>
+                <p style={{ fontSize: 14, margin: 0 }}>{cpApp.availability}</p>
+              </div>
+            </div>
+          </details>
         </div>
-      </details>
+      )}
     </div>
   );
 }
