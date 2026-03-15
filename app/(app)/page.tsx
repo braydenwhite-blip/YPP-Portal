@@ -13,6 +13,9 @@ import NextActions from "@/components/dashboard/next-actions";
 import ToolExplorer from "@/components/dashboard/tool-explorer";
 import PathwayWidget from "@/components/dashboard/pathway-widget";
 import InstructorReadinessWidget from "@/components/dashboard/instructor-readiness-widget";
+import DailyChecklist from "@/components/dashboard/daily-checklist";
+import JourneyRoadmap from "@/components/dashboard/journey-roadmap";
+import NudgeStrip from "@/components/dashboard/nudge-strip";
 import LegacyOverviewPage from "./legacy-overview-page";
 
 function isMissingTableError(error: unknown) {
@@ -365,6 +368,21 @@ export default async function OverviewPage() {
         title={dashboard.heroTitle}
         subtitle={dashboard.heroSubtitle}
       />
+
+      {/* Daily Checklist — what to do today */}
+      {dashboard.checklist && dashboard.checklist.length > 0 && (
+        <DailyChecklist items={dashboard.checklist} />
+      )}
+
+      {/* Smart Nudges — contextual encouragement */}
+      {dashboard.nudges && dashboard.nudges.length > 0 && (
+        <NudgeStrip nudges={dashboard.nudges} />
+      )}
+
+      {/* Journey Roadmap — visual progress timeline */}
+      {dashboard.journeyMilestones && (
+        <JourneyRoadmap milestones={dashboard.journeyMilestones} />
+      )}
 
       {launchBanner ? (
         <div className="card" style={{ marginBottom: 16, borderLeft: "4px solid var(--ypp-purple)" }}>

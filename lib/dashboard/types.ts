@@ -68,6 +68,33 @@ export interface InstructorReadinessSummary {
   featureEnabled: boolean;
 }
 
+export interface ChecklistItemData {
+  id: string;
+  title: string;
+  detail?: string;
+  href: string;
+  priority: "today" | "soon" | "anytime";
+  category: "task" | "suggestion";
+  icon?: string;
+}
+
+export interface NudgeItemData {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  link: string | null;
+  context: unknown;
+  createdAt: Date;
+}
+
+export interface JourneyMilestoneData {
+  key: string;
+  label: string;
+  reached: boolean;
+  reachedAt?: Date;
+}
+
 export interface DashboardData {
   role: DashboardRole;
   roleLabel: string;
@@ -81,4 +108,7 @@ export interface DashboardData {
   generatedAt: string;
   activePathways?: ActivePathwaySummary[];
   instructorReadiness?: InstructorReadinessSummary;
+  checklist?: ChecklistItemData[];
+  nudges?: NudgeItemData[];
+  journeyMilestones?: JourneyMilestoneData[];
 }

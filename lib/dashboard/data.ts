@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getDashboardModulesForRole } from "@/lib/dashboard/catalog";
 import { resolveDashboardRole } from "@/lib/dashboard/resolve-dashboard";
 import type {
+  ChecklistItemData,
   DashboardData,
   DashboardKpi,
   DashboardNextAction,
@@ -10,7 +11,11 @@ import type {
   DashboardQueueStatus,
   DashboardRole,
   InstructorReadinessSummary,
+  JourneyMilestoneData,
+  NudgeItemData,
 } from "@/lib/dashboard/types";
+import { getActiveNudges, generateContextualNudges } from "@/lib/nudge-engine";
+import { checkAndAutoUnlock } from "@/lib/unlock-manager";
 import { getInstructorReadiness, buildFallbackInstructorReadiness, isInterviewGateEnforced } from "@/lib/instructor-readiness";
 import { getRecommendedActivitiesForUser } from "@/lib/activity-hub/actions";
 import { withPrismaFallback } from "@/lib/prisma-guard";
@@ -1188,6 +1193,16 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     moduleBadgeByHref["interview_queue"] = moduleBadgeByHref["/interviews"];
   }
 
+  // Fetch interconnection data (best-effort — don't block dashboard)
+  const [checklist, nudges, journeyMilestones] = await Promise.all([
+    buildChecklist(userId, role, nextActions).catch(() => [] as ChecklistItemData[]),
+    fetchNudges(userId, role).catch(() => [] as NudgeItemData[]),
+    fetchJourneyMilestones(userId).catch(() => [] as JourneyMilestoneData[]),
+  ]);
+
+  // Best-effort: auto-unlock sections based on achievements
+  checkAndAutoUnlock(userId).catch(() => {});
+
   return {
     role,
     roleLabel: roleLabel(role),
@@ -1201,7 +1216,158 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     generatedAt: new Date().toISOString(),
     activePathways: dashboardActivePathways,
     instructorReadiness,
+    checklist,
+    nudges,
+    journeyMilestones,
   };
+}
+
+// ============================================
+// INTERCONNECTION HELPERS
+// ============================================
+
+async function buildChecklist(
+  userId: string,
+  role: DashboardRole,
+  nextActions: DashboardNextAction[]
+): Promise<ChecklistItemData[]> {
+  const items: ChecklistItemData[] = [];
+
+  // Convert existing next actions into checklist items (real tasks)
+  for (const action of nextActions.slice(0, 3)) {
+    items.push({
+      id: `action-${action.id}`,
+      title: action.title,
+      detail: action.detail,
+      href: action.href,
+      priority: "today",
+      category: "task",
+    });
+  }
+
+  // Add role-specific real tasks
+  if (role === "STUDENT" || role === "APPLICANT") {
+    const [unreadMessages, activeGoals] = await Promise.all([
+      prisma.conversationParticipant
+        .findMany({
+          where: { userId },
+          include: {
+            conversation: {
+              include: {
+                messages: { orderBy: { createdAt: "desc" }, take: 1, select: { createdAt: true, senderId: true } },
+              },
+            },
+          },
+        })
+        .then((parts) =>
+          parts.filter((p) => {
+            const latest = p.conversation.messages[0];
+            return latest && latest.senderId !== userId && latest.createdAt > p.lastReadAt;
+          }).length
+        )
+        .catch(() => 0),
+      prisma.goal.count({ where: { userId } }).catch(() => 0),
+    ]);
+
+    if (unreadMessages > 0) {
+      items.push({
+        id: "unread-messages",
+        title: `${unreadMessages} unread message${unreadMessages === 1 ? "" : "s"}`,
+        href: "/messages",
+        priority: "today",
+        category: "task",
+        icon: "💬",
+      });
+    }
+
+    if (activeGoals === 0) {
+      items.push({
+        id: "set-goals",
+        title: "Set your first goal",
+        detail: "Goals help you track what matters to you",
+        href: "/goals",
+        priority: "today",
+        category: "task",
+        icon: "🎯",
+      });
+    }
+  }
+
+  // If we have fewer than 3 real tasks, add encouraging suggestions
+  if (items.length < 3) {
+    const suggestions: ChecklistItemData[] = [
+      {
+        id: "sug-pathways",
+        title: "Explore a new pathway",
+        detail: "Discover something that interests you",
+        href: "/pathways",
+        priority: "anytime",
+        category: "suggestion",
+        icon: "📚",
+      },
+      {
+        id: "sug-challenges",
+        title: "Try a challenge",
+        detail: "Test your skills and earn badges",
+        href: "/challenges",
+        priority: "anytime",
+        category: "suggestion",
+        icon: "🏆",
+      },
+      {
+        id: "sug-badges",
+        title: "Check your badge progress",
+        detail: "See how close you are to earning a new badge",
+        href: "/badges",
+        priority: "anytime",
+        category: "suggestion",
+        icon: "🏅",
+      },
+      {
+        id: "sug-showcase",
+        title: "Browse the project showcase",
+        detail: "See what others have been working on",
+        href: "/showcase",
+        priority: "anytime",
+        category: "suggestion",
+        icon: "🌟",
+      },
+    ];
+
+    const needed = 5 - items.length;
+    items.push(...suggestions.slice(0, needed));
+  }
+
+  return items.slice(0, 5);
+}
+
+async function fetchNudges(
+  userId: string,
+  role: DashboardRole
+): Promise<NudgeItemData[]> {
+  // Generate smart nudges (best-effort, won't create duplicates)
+  await generateContextualNudges(userId, role).catch(() => {});
+
+  // Fetch active nudges
+  return getActiveNudges(userId, 3);
+}
+
+async function fetchJourneyMilestones(
+  userId: string
+): Promise<JourneyMilestoneData[]> {
+  const milestones = await prisma.journeyMilestone
+    .findMany({
+      where: { userId },
+      select: { milestoneKey: true, label: true, reachedAt: true },
+    })
+    .catch(() => []);
+
+  return milestones.map((m) => ({
+    key: m.milestoneKey,
+    label: m.label,
+    reached: true,
+    reachedAt: m.reachedAt,
+  }));
 }
 
 const getDashboardDataCached = unstable_cache(

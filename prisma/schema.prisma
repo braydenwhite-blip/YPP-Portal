@@ -723,6 +723,13 @@ model User {
   parentSurveysCreated      ParentSurvey[]          @relation("ParentSurveysCreated")
   parentSurveyResponses     ParentSurveyResponse[]  @relation("ParentSurveyResponses")
 
+  // Portal Interconnection Relations
+  portalUnlocks           PortalUnlock[]            @relation("PortalUnlocks")
+  unlockRecommendations   UnlockRecommendation[]    @relation("UnlockRecommendations")
+  unlockRecommendationsBy UnlockRecommendation[]    @relation("UnlockRecommender")
+  nudges                  Nudge[]                   @relation("UserNudges")
+  journeyMilestones       JourneyMilestone[]        @relation("JourneyMilestones")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -7337,4 +7344,66 @@ model ParentSurveyAnswer {
 
   @@index([responseId])
   @@index([questionId])
+}
+
+// ============================================
+// PORTAL INTERCONNECTION MODELS
+// ============================================
+
+model PortalUnlock {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation("PortalUnlocks", fields: [userId], references: [id])
+  sectionKey     String   // e.g. "challenges", "projects", "opportunities", "people_support"
+  unlockedAt     DateTime @default(now())
+  unlockedBy     String?  // "ACHIEVEMENT", "MENTOR", "ADMIN", "TIME"
+  unlockerUserId String?  // who triggered it (mentor/admin id)
+
+  @@unique([userId, sectionKey])
+  @@index([userId])
+}
+
+model UnlockRecommendation {
+  id           String    @id @default(cuid())
+  studentId    String
+  student      User      @relation("UnlockRecommendations", fields: [studentId], references: [id])
+  mentorId     String
+  mentor       User      @relation("UnlockRecommender", fields: [mentorId], references: [id])
+  sectionKey   String
+  reason       String?
+  status       String    @default("PENDING") // PENDING, APPROVED, DENIED
+  reviewedById String?
+  createdAt    DateTime  @default(now())
+  reviewedAt   DateTime?
+
+  @@index([studentId, status])
+  @@index([mentorId])
+}
+
+model Nudge {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation("UserNudges", fields: [userId], references: [id])
+  type        String    // "BADGE_CLOSE", "PATHWAY_PROGRESS", "MENTEE_UPDATE", "GOAL_REMINDER", "UNLOCK_NEW", "SECTION_UNLOCKED"
+  title       String
+  body        String
+  link        String?
+  context     Json?     // metadata about what triggered it
+  isDismissed Boolean   @default(false)
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, isDismissed, createdAt])
+}
+
+model JourneyMilestone {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation("JourneyMilestones", fields: [userId], references: [id])
+  milestoneKey String   // "FIRST_LOGIN", "PATHWAY_101_COMPLETE", "FIRST_BADGE", "FIRST_GOAL_SET", etc.
+  label        String
+  reachedAt    DateTime @default(now())
+
+  @@unique([userId, milestoneKey])
+  @@index([userId])
 }
