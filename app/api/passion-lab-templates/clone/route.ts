@@ -6,6 +6,7 @@ import { passionLabExamples } from "@/data/instructor-guide-examples";
 import { prisma } from "@/lib/prisma";
 import { hasPassionLabBuilderSchema } from "@/lib/schema-compat";
 import { revalidatePath } from "next/cache";
+import { DeliveryMode } from "@prisma/client";
 
 export async function POST(req: Request) {
   try {
@@ -64,7 +65,7 @@ export async function POST(req: Request) {
           drivingQuestion: example.fields.drivingQuestion.value,
           targetAgeGroup: example.fields.targetAgeGroup.value,
           difficulty: example.fields.difficulty.value,
-          deliveryMode: example.fields.deliveryMode.value,
+          deliveryMode: example.fields.deliveryMode.value as DeliveryMode,
           finalShowcase: example.fields.finalShowcase.value,
           submissionFormat: example.fields.submissionFormat.value,
           labBlueprint: {
