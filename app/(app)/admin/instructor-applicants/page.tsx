@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { reviewInstructorApplication } from "@/lib/instructor-application-actions";
+import { reviewInstructorApplicationAction } from "@/lib/instructor-application-actions";
 import { InstructorApplicationStatus } from "@prisma/client";
 
 function statusColor(status: InstructorApplicationStatus): string {
@@ -162,7 +162,7 @@ export default async function AdminInstructorApplicantsPage() {
                   <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
 
                     {app.status === "SUBMITTED" && (
-                      <form action={reviewInstructorApplication}>
+                      <form action={reviewInstructorApplicationAction}>
                         <input type="hidden" name="applicationId" value={app.id} />
                         <input type="hidden" name="action" value="mark_under_review" />
                         <button className="button secondary" type="submit" style={{ fontSize: 13 }}>
@@ -173,7 +173,7 @@ export default async function AdminInstructorApplicantsPage() {
 
                     <details style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px" }}>
                       <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Request More Info</summary>
-                      <form action={reviewInstructorApplication} style={{ marginTop: 10 }}>
+                      <form action={reviewInstructorApplicationAction} style={{ marginTop: 10 }}>
                         <input type="hidden" name="applicationId" value={app.id} />
                         <input type="hidden" name="action" value="request_info" />
                         <textarea className="input" name="message" required rows={3} placeholder="What additional information do you need?" style={{ marginBottom: 8 }} />
@@ -183,7 +183,7 @@ export default async function AdminInstructorApplicantsPage() {
 
                     <details style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px" }}>
                       <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Schedule Interview</summary>
-                      <form action={reviewInstructorApplication} style={{ marginTop: 10 }}>
+                      <form action={reviewInstructorApplicationAction} style={{ marginTop: 10 }}>
                         <input type="hidden" name="applicationId" value={app.id} />
                         <input type="hidden" name="action" value="schedule_interview" />
                         <label className="form-label" style={{ marginTop: 0 }}>
@@ -201,7 +201,7 @@ export default async function AdminInstructorApplicantsPage() {
                     {(app.status === "INTERVIEW_SCHEDULED") && (
                       <details style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px" }}>
                         <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Mark Interview Complete</summary>
-                        <form action={reviewInstructorApplication} style={{ marginTop: 10 }}>
+                        <form action={reviewInstructorApplicationAction} style={{ marginTop: 10 }}>
                           <input type="hidden" name="applicationId" value={app.id} />
                           <input type="hidden" name="action" value="mark_interview_complete" />
                           <label className="form-label" style={{ marginTop: 0 }}>
@@ -215,7 +215,7 @@ export default async function AdminInstructorApplicantsPage() {
 
                     <details style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px" }}>
                       <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#16a34a" }}>Approve Application</summary>
-                      <form action={reviewInstructorApplication} style={{ marginTop: 10 }}>
+                      <form action={reviewInstructorApplicationAction} style={{ marginTop: 10 }}>
                         <input type="hidden" name="applicationId" value={app.id} />
                         <input type="hidden" name="action" value="approve" />
                         <label className="form-label" style={{ marginTop: 0 }}>
@@ -230,7 +230,7 @@ export default async function AdminInstructorApplicantsPage() {
 
                     <details style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px" }}>
                       <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#dc2626" }}>Reject Application</summary>
-                      <form action={reviewInstructorApplication} style={{ marginTop: 10 }}>
+                      <form action={reviewInstructorApplicationAction} style={{ marginTop: 10 }}>
                         <input type="hidden" name="applicationId" value={app.id} />
                         <input type="hidden" name="action" value="reject" />
                         <label className="form-label" style={{ marginTop: 0 }}>

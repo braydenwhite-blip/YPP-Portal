@@ -386,3 +386,10 @@ export async function submitInfoResponse(
     return { status: "error", message: "Something went wrong. Please try again." };
   }
 }
+
+/**
+ * Direct form action wrapper for server components (no prevState).
+ */
+export async function reviewInstructorApplicationAction(formData: FormData): Promise<void> {
+  await reviewInstructorApplication({ status: "idle", message: "" }, formData);
+}
