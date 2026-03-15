@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { submitInfoResponse } from "@/lib/instructor-application-actions";
 import { InstructorApplicationStatus, ChapterPresidentApplicationStatus } from "@prisma/client";
 import InfoResponseForm from "./info-response-form";
+import CPInfoResponseForm from "./cp-info-response-form";
 import Link from "next/link";
 
 function instructorStatusLabel(status: InstructorApplicationStatus): string {
@@ -295,6 +296,13 @@ export default async function ApplicationStatusPage() {
                     <p style={{ fontSize: 14, margin: 0 }}>{cpApp.infoRequest}</p>
                   </div>
                 )}
+                {cpApp.applicantResponse && (
+                  <div style={{ background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px", marginBottom: 16 }}>
+                    <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Your previous response:</strong></p>
+                    <p style={{ fontSize: 14, margin: 0 }}>{cpApp.applicantResponse}</p>
+                  </div>
+                )}
+                <CPInfoResponseForm />
               </>
             )}
             {cpApp.status === "INTERVIEW_SCHEDULED" && (
