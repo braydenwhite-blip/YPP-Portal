@@ -5513,6 +5513,7 @@ enum RarityTier {
 
 enum CompetitionStatus {
   UPCOMING
+  NEEDS_REVISION
   OPEN_FOR_SUBMISSIONS
   JUDGING
   VOTING
