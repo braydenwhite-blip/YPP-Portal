@@ -17,6 +17,8 @@ import {
   emptySequenceBlueprint,
   emptySequenceStepDetails,
 } from "@/lib/instructor-builder-blueprints";
+import { FieldLabel } from "@/components/field-help";
+import { sequenceHelp } from "@/data/instructor-guide-content";
 
 type ClassTemplate = {
   id: string;
@@ -67,6 +69,7 @@ type Props = {
   approvedTemplates: ClassTemplate[];
   passionLabs: PassionLab[];
   readiness: ReadinessSummary;
+  initialActiveSequenceId?: string | null;
 };
 
 type AddStepTab = "class" | "passion-lab" | "standalone";
@@ -76,6 +79,7 @@ export function SequenceBuilderClient({
   approvedTemplates,
   passionLabs,
   readiness,
+  initialActiveSequenceId,
 }: Props) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -83,9 +87,9 @@ export function SequenceBuilderClient({
   // Sequence list state
   const [localSequences, setLocalSequences] = useState<Sequence[]>(sequences);
 
-  // Active sequence being edited
+  // Active sequence being edited — prefer initialActiveSequenceId if provided
   const [activeSequenceId, setActiveSequenceId] = useState<string | null>(
-    sequences[0]?.id ?? null
+    initialActiveSequenceId ?? sequences[0]?.id ?? null
   );
 
   // New sequence form
@@ -359,10 +363,21 @@ export function SequenceBuilderClient({
   return (
     <div style={{ padding: 24, maxWidth: 1100 }}>
       <div style={{ marginBottom: 24 }}>
-        <h1 className="page-title" style={{ marginBottom: 4 }}>Sequence Builder</h1>
-        <p style={{ fontSize: 14, color: "var(--muted)" }}>
-          Build ordered learning sequences from classes, passion labs, and standalone milestones.
-        </p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h1 className="page-title" style={{ marginBottom: 4 }}>Sequence Builder</h1>
+            <p style={{ fontSize: 14, color: "var(--muted)" }}>
+              Build ordered learning sequences from classes, passion labs, and standalone milestones.
+            </p>
+          </div>
+          <a
+            href="/instructor/guide?tab=sequences"
+            className="button outline small"
+            style={{ textDecoration: "none" }}
+          >
+            View Guide
+          </a>
+        </div>
       </div>
       {!readiness.canPublishFirstOffering && (
         <div
@@ -550,7 +565,7 @@ export function SequenceBuilderClient({
                   ["completionSignals", "Completion Signals", "What evidence shows a student is truly ready to move on?"],
                 ] as const).map(([field, label, placeholder]) => (
                   <div className="form-row" key={field}>
-                    <label>{label}</label>
+                    <FieldLabel label={label} help={sequenceHelp[field]} />
                     <textarea
                       className="input"
                       rows={2}

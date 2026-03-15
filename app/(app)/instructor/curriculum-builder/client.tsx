@@ -11,6 +11,8 @@ import {
   emptyCurriculumLessonBlueprint,
   serializeCurriculumLessonBlueprint,
 } from "@/lib/instructor-builder-blueprints";
+import { FieldLabel } from "@/components/field-help";
+import { curriculumHelp } from "@/data/instructor-guide-content";
 
 export function CurriculumBuilderClient() {
   const router = useRouter();
@@ -154,12 +156,12 @@ export function CurriculumBuilderClient() {
         <h2 style={sectionHeaderStyle}>Course Overview</h2>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 }}>
           <div style={{ gridColumn: "1 / -1" }}>
-            <label style={labelStyle}>Course Title *</label>
+            <FieldLabel label="Course Title" required help={curriculumHelp.title} />
             <input name="title" style={inputStyle} required placeholder="e.g., Introduction to Entrepreneurship" />
           </div>
 
           <div>
-            <label style={labelStyle}>Topic / Field (Passion Area) *</label>
+            <FieldLabel label="Topic / Field (Passion Area)" required help={curriculumHelp.interestArea} />
             <select name="interestArea" style={inputStyle} required>
               <option value="">Select area...</option>
               {["Art","Music","Dance","Theater","Film","Writing","Design","Photography","Coding","Science","Entrepreneurship","Public Speaking","Community Service","Other"].map((area) => (
@@ -174,7 +176,7 @@ export function CurriculumBuilderClient() {
           </div>
 
           <div>
-            <label style={labelStyle}>Number of Classes *</label>
+            <FieldLabel label="Number of Classes" required help={curriculumHelp.numberOfClasses} />
             <input
               name="numLessonsInput"
               type="number"
@@ -228,7 +230,7 @@ export function CurriculumBuilderClient() {
         <h2 style={sectionHeaderStyle}>Course Vision</h2>
         <div style={{ display: "grid", gap: 16, marginTop: 16 }}>
           <div>
-            <label style={labelStyle}>Target Skill — What main skill will students develop? *</label>
+            <FieldLabel label="Target Skill — What main skill will students develop?" required help={curriculumHelp.targetSkill} />
             <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 6px" }}>
               Examples: creative problem solving · negotiation · public speaking · design thinking · financial literacy
             </p>
@@ -242,7 +244,7 @@ export function CurriculumBuilderClient() {
           </div>
 
           <div>
-            <label style={labelStyle}>Final Student Outcome — What will students create, present, or accomplish?</label>
+            <FieldLabel label="Final Student Outcome — What will students create, present, or accomplish?" help={curriculumHelp.finalOutcome} />
             <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 6px" }}>
               Examples: startup pitch · podcast episode · debate performance · research presentation · business prototype · competition entry
             </p>

@@ -637,8 +637,12 @@ model User {
 
   // Instructor Content Creation Relations
   passionLabsCreated         SpecialProgram[]          @relation("PassionLabsCreated")
+  passionLabsReviewed        SpecialProgram[]          @relation("PassionLabReviewer")
   pathwaysCreated            Pathway[]                 @relation("PathwaysCreated")
   competitionsCreated        SeasonalCompetition[]     @relation("CompetitionsCreated")
+  competitionsReviewed       SeasonalCompetition[]     @relation("CompetitionReviewer")
+  passionLabProgressRecords  PassionLabProgress[]      @relation("PassionLabProgressRecords")
+  competitionPrepProgress    CompetitionPrepProgress[] @relation("CompetitionPrepProgressRecords")
   rubricsCreated             Rubric[]
   instructorCohortsCreated   InstructorCohort[]        @relation("InstructorCohortsCreated")
   instructorCohortMemberships InstructorCohortMember[] @relation("InstructorCohortMemberships")
@@ -824,6 +828,14 @@ model PathwayStep {
   classTemplateId  String?
   specialProgramId String?
   title            String? // for standalone steps with no linked content
+
+  // DAG prerequisites: this step requires ALL of these to be completed
+  prerequisites    PathwayStep[] @relation("StepPrerequisites")
+  dependents       PathwayStep[] @relation("StepPrerequisites")
+
+  // Visual positioning for the DAG editor
+  positionX        Float?   @default(0)
+  positionY        Float?   @default(0)
 
   pathway          Pathway         @relation(fields: [pathwayId], references: [id])
   course           Course?         @relation(fields: [courseId], references: [id])
@@ -1842,9 +1854,19 @@ model SpecialProgram {
   createdBy        User?                      @relation("PassionLabsCreated", fields: [createdById], references: [id])
   submissionStatus CurriculumSubmissionStatus @default(DRAFT)
 
+  // Template fields for clone library
+  isTemplate       Boolean                    @default(false)
+  templateCategory String?
+
+  // Review fields
+  reviewNotes      String?                    @db.Text
+  reviewedById     String?
+  reviewedBy       User?                      @relation("PassionLabReviewer", fields: [reviewedById], references: [id])
+
   participants     SpecialProgramEnrollment[]
   sessions         ProgramSession[]
   pathwaySteps     PathwayStep[]              @relation("SpecialProgramSteps")
+  labProgress      PassionLabProgress[]
   createdAt        DateTime                   @default(now())
   updatedAt        DateTime                   @updatedAt
 }
@@ -5648,8 +5670,14 @@ model SeasonalCompetition {
   createdById String?
   createdBy   User?   @relation("CompetitionsCreated", fields: [createdById], references: [id])
 
-  entries CompetitionEntry[]
-  votes   CompetitionVote[]
+  // Review fields
+  reviewNotes String? @db.Text
+  reviewedById String?
+  reviewedBy   User?   @relation("CompetitionReviewer", fields: [reviewedById], references: [id])
+
+  entries         CompetitionEntry[]
+  votes           CompetitionVote[]
+  prepMilestones  CompetitionPrepMilestone[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -6932,4 +6960,66 @@ model InstructorCohortMember {
 
   @@unique([cohortId, userId])
   @@index([userId])
+}
+
+// ============================================
+// PASSION LAB PROGRESS TRACKING
+// ============================================
+
+model PassionLabProgress {
+  id              String         @id @default(cuid())
+  programId       String
+  program         SpecialProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  studentId       String
+  student         User           @relation("PassionLabProgressRecords", fields: [studentId], references: [id])
+  sessionIndex    Int            // 0-based index into sessionTopics array
+  status          String         @default("NOT_STARTED") // NOT_STARTED, IN_PROGRESS, COMPLETED
+  artifactUrl     String?
+  artifactNotes   String?        @db.Text
+  instructorNotes String?        @db.Text
+  completedAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([programId, studentId, sessionIndex])
+  @@index([programId])
+  @@index([studentId])
+}
+
+// ============================================
+// COMPETITION PREP TIMELINE
+// ============================================
+
+model CompetitionPrepMilestone {
+  id              String              @id @default(cuid())
+  competitionId   String
+  competition     SeasonalCompetition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?             @db.Text
+  dueDate         DateTime
+  milestoneType   String              @default("CHECKPOINT") // CHECKPOINT, PRACTICE_SUBMISSION, WORKSHOP, REVIEW
+  resources       String?             @db.Text
+  sortOrder       Int                 @default(0)
+  createdAt       DateTime            @default(now())
+
+  studentProgress CompetitionPrepProgress[]
+
+  @@index([competitionId, sortOrder])
+}
+
+model CompetitionPrepProgress {
+  id              String                   @id @default(cuid())
+  milestoneId     String
+  milestone       CompetitionPrepMilestone  @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  studentId       String
+  student         User                     @relation("CompetitionPrepProgressRecords", fields: [studentId], references: [id])
+  status          String                   @default("NOT_STARTED") // NOT_STARTED, IN_PROGRESS, COMPLETED
+  submissionUrl   String?
+  instructorNotes String?                  @db.Text
+  completedAt     DateTime?
+  createdAt       DateTime                 @default(now())
+
+  @@unique([milestoneId, studentId])
+  @@index([milestoneId])
+  @@index([studentId])
 }

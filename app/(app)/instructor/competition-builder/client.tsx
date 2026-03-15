@@ -11,6 +11,9 @@ import {
   type CompetitionPlanningDetails,
   emptyCompetitionPlanningDetails,
 } from "@/lib/instructor-builder-blueprints";
+import { ReviewNotesBanner } from "@/components/review-notes-banner";
+import { FieldLabel } from "@/components/field-help";
+import { competitionHelp } from "@/data/instructor-guide-content";
 
 type PassionArea = { id: string; name: string; category: string };
 type ChapterUser = { id: string; name: string; email: string };
@@ -21,6 +24,15 @@ type JudgingCriterion = {
   description: string;
 };
 
+type PrepMilestone = {
+  title: string;
+  description: string;
+  dueDate: string;
+  milestoneType: string;
+  resources: string;
+  sortOrder: number;
+};
+
 type Draft = {
   id: string;
   season: string;
@@ -29,12 +41,35 @@ type Draft = {
   createdAt: Date;
 };
 
+type EditData = {
+  id: string;
+  season: string;
+  theme: string;
+  passionArea: string;
+  rules: string;
+  startDate: string;
+  endDate: string;
+  submissionDeadline: string;
+  votingEnabled: boolean;
+  communityVoteWeight: number;
+  firstPlaceReward: string;
+  secondPlaceReward: string;
+  thirdPlaceReward: string;
+  judgingCriteria: JudgingCriterion[];
+  judgeIds: string[];
+  planningDetails: CompetitionPlanningDetails;
+  status: string;
+  reviewNotes?: string | null;
+  reviewerName?: string | null;
+};
+
 type Props = {
   existingDrafts: Draft[];
   passionAreas: PassionArea[];
   chapterUsers: ChapterUser[];
   isDraftBuilderAvailable: boolean;
   isPlanningDetailsAvailable: boolean;
+  editData?: EditData | null;
 };
 
 export function CompetitionBuilderClient({
@@ -43,32 +78,39 @@ export function CompetitionBuilderClient({
   chapterUsers,
   isDraftBuilderAvailable,
   isPlanningDetailsAvailable,
+  editData,
 }: Props) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [savedId, setSavedId] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(editData?.id ?? null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [showReviewBanner, setShowReviewBanner] = useState(true);
+
+  const isEditMode = !!editData;
 
   // Form state
-  const [season, setSeason] = useState("");
-  const [theme, setTheme] = useState("");
-  const [passionArea, setPassionArea] = useState("");
-  const [rules, setRules] = useState<string | null>(null);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [submissionDeadline, setSubmissionDeadline] = useState("");
-  const [votingEnabled, setVotingEnabled] = useState(false);
-  const [communityVoteWeight, setCommunityVoteWeight] = useState(0.3);
-  const [firstPlaceReward, setFirstPlaceReward] = useState("");
-  const [secondPlaceReward, setSecondPlaceReward] = useState("");
-  const [thirdPlaceReward, setThirdPlaceReward] = useState("");
+  const [season, setSeason] = useState(editData?.season ?? "");
+  const [theme, setTheme] = useState(editData?.theme ?? "");
+  const [passionArea, setPassionArea] = useState(editData?.passionArea ?? "");
+  const [rules, setRules] = useState<string | null>(editData?.rules ?? null);
+  const [startDate, setStartDate] = useState(editData?.startDate ?? "");
+  const [endDate, setEndDate] = useState(editData?.endDate ?? "");
+  const [submissionDeadline, setSubmissionDeadline] = useState(editData?.submissionDeadline ?? "");
+  const [votingEnabled, setVotingEnabled] = useState(editData?.votingEnabled ?? false);
+  const [communityVoteWeight, setCommunityVoteWeight] = useState(editData?.communityVoteWeight ?? 0.3);
+  const [firstPlaceReward, setFirstPlaceReward] = useState(editData?.firstPlaceReward ?? "");
+  const [secondPlaceReward, setSecondPlaceReward] = useState(editData?.secondPlaceReward ?? "");
+  const [thirdPlaceReward, setThirdPlaceReward] = useState(editData?.thirdPlaceReward ?? "");
   const [planningDetails, setPlanningDetails] = useState<CompetitionPlanningDetails>(
-    emptyCompetitionPlanningDetails()
+    editData?.planningDetails ?? emptyCompetitionPlanningDetails()
   );
-  const [judgingCriteria, setJudgingCriteria] = useState<JudgingCriterion[]>([
-    { name: "", weight: 1, description: "" },
-  ]);
-  const [selectedJudgeIds, setSelectedJudgeIds] = useState<string[]>([]);
+  const [prepMilestones, setPrepMilestones] = useState<PrepMilestone[]>([]);
+  const [judgingCriteria, setJudgingCriteria] = useState<JudgingCriterion[]>(
+    editData?.judgingCriteria?.length
+      ? editData.judgingCriteria
+      : [{ name: "", weight: 1, description: "" }]
+  );
+  const [selectedJudgeIds, setSelectedJudgeIds] = useState<string[]>(editData?.judgeIds ?? []);
 
   function addCriterion() {
     setJudgingCriteria((prev) => [...prev, { name: "", weight: 1, description: "" }]);
@@ -88,6 +130,35 @@ export function CompetitionBuilderClient({
     setSelectedJudgeIds((prev) =>
       prev.includes(id) ? prev.filter((j) => j !== id) : [...prev, id]
     );
+  }
+
+  function addMilestone() {
+    setPrepMilestones((prev) => [
+      ...prev,
+      { title: "", description: "", dueDate: "", milestoneType: "CHECKPOINT", resources: "", sortOrder: prev.length },
+    ]);
+  }
+
+  function updateMilestone(idx: number, field: keyof PrepMilestone, value: string | number) {
+    setPrepMilestones((prev) =>
+      prev.map((m, i) => (i === idx ? { ...m, [field]: value } : m))
+    );
+  }
+
+  function removeMilestone(idx: number) {
+    setPrepMilestones((prev) =>
+      prev.filter((_, i) => i !== idx).map((m, i) => ({ ...m, sortOrder: i }))
+    );
+  }
+
+  function moveMilestone(idx: number, direction: "up" | "down") {
+    setPrepMilestones((prev) => {
+      const arr = [...prev];
+      const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+      if (swapIdx < 0 || swapIdx >= arr.length) return prev;
+      [arr[idx], arr[swapIdx]] = [arr[swapIdx], arr[idx]];
+      return arr.map((m, i) => ({ ...m, sortOrder: i }));
+    });
   }
 
   function updatePlanningDetail(
@@ -112,6 +183,10 @@ export function CompetitionBuilderClient({
     if (secondPlaceReward) fd.set("secondPlaceReward", secondPlaceReward);
     if (thirdPlaceReward) fd.set("thirdPlaceReward", thirdPlaceReward);
     fd.set("planningDetails", JSON.stringify(planningDetails));
+    fd.set(
+      "prepMilestones",
+      JSON.stringify(prepMilestones.filter((m) => m.title.trim()))
+    );
     fd.set(
       "judgingCriteria",
       JSON.stringify(
@@ -178,11 +253,70 @@ export function CompetitionBuilderClient({
   return (
     <div style={{ padding: 24, maxWidth: 860 }}>
       <div style={{ marginBottom: 24 }}>
-        <h1 className="page-title" style={{ marginBottom: 4 }}>Competition Builder</h1>
-        <p style={{ fontSize: 14, color: "var(--muted)" }}>
-          Draft a competition. An admin will review and publish it.
-        </p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h1 className="page-title" style={{ marginBottom: 4 }}>
+              {isEditMode ? "Edit Competition" : "Competition Builder"}
+            </h1>
+            <p style={{ fontSize: 14, color: "var(--muted)" }}>
+              {isEditMode
+                ? `Editing: ${editData?.theme || "Untitled"}`
+                : "Draft a competition. An admin will review and publish it."}
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {isEditMode && editData?.status && (
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: "4px 12px",
+                  borderRadius: "var(--radius-full)",
+                  background:
+                    editData.status === "OPEN_FOR_SUBMISSIONS"
+                      ? "#e8f5e9"
+                      : editData.status === "NEEDS_REVISION"
+                        ? "#fef2f2"
+                        : "#f3f0ff",
+                  color:
+                    editData.status === "OPEN_FOR_SUBMISSIONS"
+                      ? "#2e7d32"
+                      : editData.status === "NEEDS_REVISION"
+                        ? "#991b1b"
+                        : "var(--ypp-purple)",
+                }}
+              >
+                {editData.status.replace(/_/g, " ")}
+              </span>
+            )}
+            <a
+              href="/instructor/guide?tab=competitions"
+              className="button outline small"
+              style={{ textDecoration: "none" }}
+            >
+              View Guide
+            </a>
+            {isEditMode && (
+              <a
+                href="/instructor/competition-builder"
+                className="button outline small"
+                style={{ textDecoration: "none" }}
+              >
+                + New Competition
+              </a>
+            )}
+          </div>
+        </div>
       </div>
+
+      {isEditMode && showReviewBanner && (
+        <ReviewNotesBanner
+          status={editData?.status ?? ""}
+          reviewNotes={editData?.reviewNotes}
+          reviewerName={editData?.reviewerName}
+          onDismiss={() => setShowReviewBanner(false)}
+        />
+      )}
 
       {/* Admin review notice */}
       <div
@@ -256,7 +390,7 @@ export function CompetitionBuilderClient({
         {/* Basic Info */}
         <div className="form-grid">
           <div className="form-row">
-            <label>Season *</label>
+            <FieldLabel label="Season" required help={competitionHelp.season} />
             <input
               className="input"
               value={season}
@@ -265,7 +399,7 @@ export function CompetitionBuilderClient({
             />
           </div>
           <div className="form-row">
-            <label>Theme *</label>
+            <FieldLabel label="Theme" required help={competitionHelp.theme} />
             <input
               className="input"
               value={theme}
@@ -276,7 +410,7 @@ export function CompetitionBuilderClient({
         </div>
 
         <div className="form-row">
-          <label>Passion Area</label>
+          <FieldLabel label="Passion Area" help={competitionHelp.passionArea} />
           <select className="input" value={passionArea} onChange={(e) => setPassionArea(e.target.value)}>
             <option value="">All passion areas</option>
             {passionAreas.map((a) => (
@@ -303,7 +437,7 @@ export function CompetitionBuilderClient({
 
         {/* Rules */}
         <div className="form-row">
-          <label>Rules *</label>
+          <FieldLabel label="Rules" required help={competitionHelp.rules} />
           <RichTextEditor
             value={rules}
             onChange={setRules}
@@ -330,7 +464,7 @@ export function CompetitionBuilderClient({
             ["promotionPlan", "Promotion Plan", "How will you announce and promote the competition?"],
           ] as const).map(([field, label, placeholder]) => (
             <div className="form-row" key={field}>
-              <label>{label}</label>
+              <FieldLabel label={label} help={competitionHelp[field]} />
               <textarea
                 className="input"
                 rows={2}
@@ -340,6 +474,131 @@ export function CompetitionBuilderClient({
               />
             </div>
           ))}
+        </div>
+
+        {/* Prep Timeline */}
+        <div style={{ display: "grid", gap: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <strong style={{ display: "block", marginBottom: 4 }}>Prep Timeline</strong>
+              <p style={{ fontSize: 12, color: "var(--muted)", margin: 0 }}>
+                Add milestones to guide students through preparation before the deadline.
+              </p>
+            </div>
+            <button type="button" className="button outline small" onClick={addMilestone}>
+              + Add Milestone
+            </button>
+          </div>
+          {prepMilestones.length > 0 && (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr 120px 140px 1fr 80px",
+                gap: 4,
+                fontSize: 12,
+                fontWeight: 600,
+                color: "var(--muted)",
+                padding: "0 4px",
+              }}
+            >
+              <span>Title</span>
+              <span>Description</span>
+              <span>Due Date</span>
+              <span>Type</span>
+              <span>Resources</span>
+              <span />
+            </div>
+          )}
+          {prepMilestones.map((m, idx) => (
+            <div
+              key={idx}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr 120px 140px 1fr 80px",
+                gap: 6,
+                alignItems: "center",
+              }}
+            >
+              <input
+                className="input"
+                value={m.title}
+                onChange={(e) => updateMilestone(idx, "title", e.target.value)}
+                placeholder="Milestone title"
+              />
+              <input
+                className="input"
+                value={m.description}
+                onChange={(e) => updateMilestone(idx, "description", e.target.value)}
+                placeholder="Brief description"
+              />
+              <input
+                className="input"
+                type="date"
+                value={m.dueDate}
+                onChange={(e) => updateMilestone(idx, "dueDate", e.target.value)}
+              />
+              <select
+                className="input"
+                value={m.milestoneType}
+                onChange={(e) => updateMilestone(idx, "milestoneType", e.target.value)}
+              >
+                <option value="CHECKPOINT">Checkpoint</option>
+                <option value="PRACTICE_SUBMISSION">Practice Submission</option>
+                <option value="WORKSHOP">Workshop</option>
+                <option value="REVIEW">Review</option>
+              </select>
+              <input
+                className="input"
+                value={m.resources}
+                onChange={(e) => updateMilestone(idx, "resources", e.target.value)}
+                placeholder="Links or resource notes"
+              />
+              <div style={{ display: "flex", gap: 2 }}>
+                <button
+                  type="button"
+                  className="button outline small"
+                  onClick={() => moveMilestone(idx, "up")}
+                  disabled={idx === 0}
+                  style={{ padding: "6px 6px", fontSize: 11 }}
+                  title="Move up"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  className="button outline small"
+                  onClick={() => moveMilestone(idx, "down")}
+                  disabled={idx === prepMilestones.length - 1}
+                  style={{ padding: "6px 6px", fontSize: 11 }}
+                  title="Move down"
+                >
+                  ↓
+                </button>
+                <button
+                  type="button"
+                  className="button danger small"
+                  onClick={() => removeMilestone(idx)}
+                  style={{ padding: "6px 8px" }}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          ))}
+          {prepMilestones.length === 0 && (
+            <div
+              style={{
+                padding: "16px",
+                textAlign: "center",
+                fontSize: 13,
+                color: "var(--muted)",
+                border: "1px dashed var(--border)",
+                borderRadius: "var(--radius-md)",
+              }}
+            >
+              No milestones yet. Click &quot;+ Add Milestone&quot; to build a prep timeline.
+            </div>
+          )}
         </div>
 
         {/* Judging Criteria */}
@@ -536,16 +795,25 @@ export function CompetitionBuilderClient({
                       : d.status.replace(/_/g, " ")}
                   </div>
                 </div>
-                {d.status === "UPCOMING" && (
-                  <button
-                    type="button"
-                    className="button danger small"
-                    onClick={() => handleDelete(d.id)}
-                    disabled={isPending}
+                <div style={{ display: "flex", gap: 6 }}>
+                  <a
+                    href={`/instructor/competition-builder?id=${d.id}`}
+                    className="button outline small"
+                    style={{ textDecoration: "none" }}
                   >
-                    Delete
-                  </button>
-                )}
+                    Edit
+                  </a>
+                  {d.status === "UPCOMING" && (
+                    <button
+                      type="button"
+                      className="button danger small"
+                      onClick={() => handleDelete(d.id)}
+                      disabled={isPending}
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>

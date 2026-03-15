@@ -326,3 +326,187 @@ export async function getPendingInstructorCompetitionDrafts() {
     orderBy: { createdAt: "asc" },
   });
 }
+
+// ─── Prep Timeline ────────────────────────────────────────────────────────────
+
+export async function savePrepTimeline(
+  competitionId: string,
+  milestones: Array<{
+    title: string;
+    description?: string;
+    dueDate: string;
+    milestoneType: string;
+    resources?: string;
+    sortOrder: number;
+  }>
+) {
+  await requireInstructor();
+
+  const competition = await prisma.seasonalCompetition.findUnique({
+    where: { id: competitionId },
+    select: { id: true },
+  });
+  if (!competition) throw new Error("Competition not found");
+
+  // Delete existing milestones and replace with new ones
+  await prisma.competitionPrepMilestone.deleteMany({
+    where: { competitionId },
+  });
+
+  if (milestones.length > 0) {
+    await prisma.competitionPrepMilestone.createMany({
+      data: milestones.map((m) => ({
+        competitionId,
+        title: m.title,
+        description: m.description || null,
+        dueDate: new Date(m.dueDate),
+        milestoneType: m.milestoneType,
+        resources: m.resources || null,
+        sortOrder: m.sortOrder,
+      })),
+    });
+  }
+
+  revalidatePath("/instructor/competition-builder");
+  return { success: true };
+}
+
+export async function getPrepTimeline(competitionId: string) {
+  await requireInstructor();
+
+  return prisma.competitionPrepMilestone.findMany({
+    where: { competitionId },
+    orderBy: { sortOrder: "asc" },
+  });
+}
+
+// ─── Competition Submissions ──────────────────────────────────────────────────
+
+export async function getCompetitionSubmissions(competitionId: string) {
+  await requireInstructor();
+
+  return prisma.competitionEntry.findMany({
+    where: { competitionId },
+    include: {
+      student: {
+        select: { id: true, name: true, email: true },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+// ─── Review Actions ──────────────────────────────────────────────────────────
+
+export async function getCompetitionById(id: string) {
+  const session = await requireInstructor();
+
+  const competition = await prisma.seasonalCompetition.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      season: true,
+      theme: true,
+      passionArea: true,
+      rules: true,
+      startDate: true,
+      endDate: true,
+      submissionDeadline: true,
+      votingEnabled: true,
+      communityVoteWeight: true,
+      firstPlaceReward: true,
+      secondPlaceReward: true,
+      thirdPlaceReward: true,
+      judgingCriteria: true,
+      status: true,
+      createdById: true,
+      createdBy: { select: { id: true, name: true } },
+      reviewNotes: true,
+      reviewedBy: { select: { id: true, name: true } },
+      planningDetails: true,
+      judges: { select: { id: true, name: true } },
+    },
+  });
+  if (!competition) throw new Error("Competition not found");
+
+  const roles = session.user.roles ?? [];
+  const isCreator = competition.createdById === session.user.id;
+  const isAdmin = roles.includes("ADMIN") || roles.includes("CHAPTER_LEAD");
+  if (!isCreator && !isAdmin) {
+    throw new Error("Not authorized to view this competition");
+  }
+
+  return competition;
+}
+
+export async function requestCompetitionRevision(id: string, notes: string) {
+  const session = await requireInstructor();
+
+  const roles = session.user.roles ?? [];
+  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_LEAD")) {
+    throw new Error("Only admins and chapter leads can request revisions");
+  }
+
+  await prisma.seasonalCompetition.update({
+    where: { id },
+    data: {
+      status: "NEEDS_REVISION",
+      reviewNotes: notes,
+      reviewedById: session.user.id,
+    },
+  });
+
+  revalidatePath("/instructor/competition-builder");
+  return { success: true };
+}
+
+export async function approveCompetition(id: string) {
+  const session = await requireInstructor();
+
+  const roles = session.user.roles ?? [];
+  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_LEAD")) {
+    throw new Error("Only admins and chapter leads can approve competitions");
+  }
+
+  await prisma.seasonalCompetition.update({
+    where: { id },
+    data: {
+      status: "OPEN_FOR_SUBMISSIONS",
+      reviewNotes: null,
+      reviewedById: session.user.id,
+    },
+  });
+
+  revalidatePath("/instructor/competition-builder");
+  revalidatePath("/competitions");
+  return { success: true };
+}
+
+export async function scoreSubmission(
+  entryId: string,
+  score: number,
+  feedback: string
+) {
+  await requireInstructor();
+
+  if (score < 0 || score > 100) {
+    throw new Error("Score must be between 0 and 100");
+  }
+
+  const entry = await prisma.competitionEntry.findUnique({
+    where: { id: entryId },
+    select: { id: true },
+  });
+  if (!entry) throw new Error("Submission not found");
+
+  await prisma.competitionEntry.update({
+    where: { id: entryId },
+    data: {
+      judgeScore: score,
+      description: feedback,
+    },
+  });
+
+  revalidatePath("/instructor/competition-builder/submissions");
+  return { success: true };
+}

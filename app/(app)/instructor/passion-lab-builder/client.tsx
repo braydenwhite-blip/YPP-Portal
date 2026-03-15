@@ -15,6 +15,8 @@ import {
   emptyPassionLabBlueprint,
   emptyPassionLabSessionTopic,
 } from "@/lib/instructor-builder-blueprints";
+import { FieldLabel } from "@/components/field-help";
+import { passionLabHelp } from "@/data/instructor-guide-content";
 
 type PassionArea = { id: string; name: string; category: string };
 
@@ -36,11 +38,31 @@ type ReadinessSummary = {
   };
 };
 
+type EditData = {
+  id: string;
+  name: string;
+  description: string;
+  interestArea: string;
+  drivingQuestion: string | null;
+  targetAgeGroup: string;
+  difficulty: string;
+  deliveryMode: string;
+  finalShowcase: string | null;
+  submissionFormat: string;
+  maxParticipants: number;
+  labBlueprint: PassionLabBlueprint;
+  sessionTopics: PassionLabSessionTopic[];
+  startDate: string;
+  endDate: string;
+  submissionStatus: string;
+};
+
 type Props = {
   existingLabs: ExistingLab[];
   passionAreas: PassionArea[];
   chapterId: string | null;
   readiness: ReadinessSummary;
+  editData?: EditData | null;
 };
 
 type Step = "core" | "sessions" | "offering" | "done";
@@ -64,35 +86,39 @@ export function PassionLabBuilderClient({
   passionAreas,
   chapterId,
   readiness,
+  editData,
 }: Props) {
-  const [step, setStep] = useState<Step>("core");
-  const [savedProgramId, setSavedProgramId] = useState<string | null>(null);
+  const isEditMode = !!editData;
+  const [step, setStep] = useState<Step>(isEditMode ? "core" : "core");
+  const [savedProgramId, setSavedProgramId] = useState<string | null>(editData?.id ?? null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  // Core form state
-  const [name, setName] = useState("");
-  const [interestArea, setInterestArea] = useState("");
-  const [drivingQuestion, setDrivingQuestion] = useState<string | null>(null);
-  const [targetAgeGroup, setTargetAgeGroup] = useState("");
-  const [difficulty, setDifficulty] = useState("BEGINNER");
-  const [deliveryMode, setDeliveryMode] = useState("VIRTUAL");
-  const [finalShowcase, setFinalShowcase] = useState<string | null>(null);
-  const [submissionFormat, setSubmissionFormat] = useState("");
-  const [description, setDescription] = useState("");
+  // Core form state — pre-populate from editData if available
+  const [name, setName] = useState(editData?.name ?? "");
+  const [interestArea, setInterestArea] = useState(editData?.interestArea ?? "");
+  const [drivingQuestion, setDrivingQuestion] = useState<string | null>(editData?.drivingQuestion ?? null);
+  const [targetAgeGroup, setTargetAgeGroup] = useState(editData?.targetAgeGroup ?? "");
+  const [difficulty, setDifficulty] = useState(editData?.difficulty ?? "BEGINNER");
+  const [deliveryMode, setDeliveryMode] = useState(editData?.deliveryMode ?? "VIRTUAL");
+  const [finalShowcase, setFinalShowcase] = useState<string | null>(editData?.finalShowcase ?? null);
+  const [submissionFormat, setSubmissionFormat] = useState(editData?.submissionFormat ?? "");
+  const [description, setDescription] = useState(editData?.description ?? "");
   const [labBlueprint, setLabBlueprint] = useState<PassionLabBlueprint>(
-    emptyPassionLabBlueprint()
+    editData?.labBlueprint ?? emptyPassionLabBlueprint()
   );
 
   // Session topics
-  const [sessionTopics, setSessionTopics] = useState<PassionLabSessionTopic[]>([
-    emptyPassionLabSessionTopic(),
-  ]);
+  const [sessionTopics, setSessionTopics] = useState<PassionLabSessionTopic[]>(
+    editData?.sessionTopics && editData.sessionTopics.length > 0
+      ? editData.sessionTopics
+      : [emptyPassionLabSessionTopic()]
+  );
 
   // Offering setup
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [maxParticipants, setMaxParticipants] = useState(25);
+  const [startDate, setStartDate] = useState(editData?.startDate ?? "");
+  const [endDate, setEndDate] = useState(editData?.endDate ?? "");
+  const [maxParticipants, setMaxParticipants] = useState(editData?.maxParticipants ?? 25);
   const [locationName, setLocationName] = useState("");
   const [zoomLink, setZoomLink] = useState("");
   const publishBlocked = !readiness.canPublishFirstOffering;
@@ -212,10 +238,66 @@ export function PassionLabBuilderClient({
     <div style={{ padding: "24px", maxWidth: 860 }}>
       {/* Page header */}
       <div style={{ marginBottom: 24 }}>
-        <h1 className="page-title" style={{ marginBottom: 4 }}>Passion Lab Builder</h1>
-        <p style={{ fontSize: 14, color: "var(--muted)" }}>
-          Create a structured, passion-driven lab experience for students.
-        </p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h1 className="page-title" style={{ marginBottom: 4 }}>
+              {isEditMode ? `Edit: ${editData?.name}` : "Passion Lab Builder"}
+            </h1>
+            <p style={{ fontSize: 14, color: "var(--muted)" }}>
+              {isEditMode
+                ? "Edit this passion lab's details, sessions, and offering settings."
+                : "Create a structured, passion-driven lab experience for students."}
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <a
+              href="/instructor/guide?tab=passion-labs"
+              className="button outline small"
+              style={{ textDecoration: "none", fontSize: 12 }}
+            >
+              View Guide
+            </a>
+            {isEditMode && (
+              <a
+                href="/instructor/passion-lab-builder"
+                className="button outline small"
+                style={{ textDecoration: "none", fontSize: 12 }}
+              >
+                + New Lab
+              </a>
+            )}
+          </div>
+        </div>
+        {isEditMode && editData?.submissionStatus && (
+          <div
+            style={{
+              marginTop: 8,
+              padding: "6px 12px",
+              display: "inline-block",
+              borderRadius: "var(--radius-full)",
+              fontSize: 12,
+              fontWeight: 600,
+              background:
+                editData.submissionStatus === "APPROVED"
+                  ? "#dcfce7"
+                  : editData.submissionStatus === "NEEDS_REVISION"
+                  ? "#fee2e2"
+                  : editData.submissionStatus === "SUBMITTED"
+                  ? "#dbeafe"
+                  : "var(--surface-alt)",
+              color:
+                editData.submissionStatus === "APPROVED"
+                  ? "#166534"
+                  : editData.submissionStatus === "NEEDS_REVISION"
+                  ? "#991b1b"
+                  : editData.submissionStatus === "SUBMITTED"
+                  ? "#1e40af"
+                  : "var(--muted)",
+            }}
+          >
+            Status: {editData.submissionStatus.replace(/_/g, " ")}
+          </div>
+        )}
       </div>
 
       {/* Step indicator */}
@@ -282,7 +364,7 @@ export function PassionLabBuilderClient({
 
           <div className="form-grid">
             <div className="form-row">
-              <label>Lab Name *</label>
+              <FieldLabel label="Lab Name" required help={passionLabHelp.name} />
               <input
                 className="input"
                 value={name}
@@ -292,7 +374,7 @@ export function PassionLabBuilderClient({
             </div>
 
             <div className="form-row">
-              <label>Passion Area *</label>
+              <FieldLabel label="Passion Area" required help={passionLabHelp.interestArea} />
               <select className="input" value={interestArea} onChange={(e) => setInterestArea(e.target.value)}>
                 <option value="">Select area…</option>
                 {passionAreas.map((a) => (
@@ -303,7 +385,7 @@ export function PassionLabBuilderClient({
           </div>
 
           <div className="form-row">
-            <label>Driving Question</label>
+            <FieldLabel label="Driving Question" help={passionLabHelp.drivingQuestion} />
             <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
               The central inquiry students will explore throughout the lab.
             </p>
@@ -317,7 +399,7 @@ export function PassionLabBuilderClient({
 
           <div className="form-grid">
             <div className="form-row">
-              <label>Target Age Group</label>
+              <FieldLabel label="Target Age Group" help={passionLabHelp.targetAgeGroup} />
               <select className="input" value={targetAgeGroup} onChange={(e) => setTargetAgeGroup(e.target.value)}>
                 <option value="">Select…</option>
                 {AGE_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
@@ -325,7 +407,7 @@ export function PassionLabBuilderClient({
             </div>
 
             <div className="form-row">
-              <label>Difficulty</label>
+              <FieldLabel label="Difficulty" help={passionLabHelp.difficulty} />
               <select className="input" value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
                 {DIFFICULTY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
@@ -333,7 +415,7 @@ export function PassionLabBuilderClient({
           </div>
 
           <div className="form-row">
-            <label>Delivery Mode</label>
+            <FieldLabel label="Delivery Mode" help={passionLabHelp.deliveryMode} />
             <div style={{ display: "flex", gap: 8 }}>
               {DELIVERY_MODES.map((m) => (
                 <button
@@ -349,7 +431,7 @@ export function PassionLabBuilderClient({
           </div>
 
           <div className="form-row">
-            <label>Final Showcase / Outcome</label>
+            <FieldLabel label="Final Showcase / Outcome" help={passionLabHelp.finalShowcase} />
             <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
               What will students create, present, or demonstrate by the end?
             </p>
@@ -362,7 +444,7 @@ export function PassionLabBuilderClient({
           </div>
 
           <div className="form-row">
-            <label>Submission Format</label>
+            <FieldLabel label="Submission Format" help={passionLabHelp.submissionFormat} />
             <input
               className="input"
               value={submissionFormat}
@@ -388,7 +470,7 @@ export function PassionLabBuilderClient({
               ["resourcePlan", "Resource Plan", "What materials, spaces, or digital tools will the lab need?"],
             ] as const).map(([field, label, placeholder]) => (
               <div className="form-row" key={field}>
-                <label>{label}</label>
+                <FieldLabel label={label} help={passionLabHelp[field]} />
                 <textarea
                   className="input"
                   rows={2}
@@ -734,13 +816,22 @@ export function PassionLabBuilderClient({
                     {lab._count.participants} enrolled · {lab.isActive ? "Published" : lab.submissionStatus}
                   </div>
                 </div>
-                <a
-                  href={`/programs/${lab.id}`}
-                  className="button outline small"
-                  style={{ textDecoration: "none" }}
-                >
-                  View
-                </a>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <a
+                    href={`/instructor/passion-lab-builder?id=${lab.id}`}
+                    className="button outline small"
+                    style={{ textDecoration: "none" }}
+                  >
+                    Edit
+                  </a>
+                  <a
+                    href={`/programs/${lab.id}`}
+                    className="button outline small"
+                    style={{ textDecoration: "none" }}
+                  >
+                    View
+                  </a>
+                </div>
               </div>
             ))}
           </div>

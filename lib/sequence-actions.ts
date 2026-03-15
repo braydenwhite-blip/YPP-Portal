@@ -398,6 +398,266 @@ export async function manuallyUnlockStep(stepId: string, userId: string) {
   return { success: true };
 }
 
+// ─── DAG Operations ──────────────────────────────────────────────────────────
+
+/**
+ * Set the prerequisites for a step, disconnecting old and connecting new.
+ */
+export async function updateStepPrerequisites(
+  stepId: string,
+  prerequisiteIds: string[]
+) {
+  await requireInstructor();
+
+  const step = await prisma.pathwayStep.findUnique({
+    where: { id: stepId },
+    select: { id: true, pathwayId: true },
+  });
+  if (!step) throw new Error("Step not found");
+
+  // Validate that all prerequisite IDs belong to the same pathway
+  if (prerequisiteIds.length > 0) {
+    const prereqSteps = await prisma.pathwayStep.findMany({
+      where: { id: { in: prerequisiteIds }, pathwayId: step.pathwayId },
+      select: { id: true },
+    });
+    if (prereqSteps.length !== prerequisiteIds.length) {
+      throw new Error("Some prerequisite IDs are invalid or belong to a different pathway");
+    }
+  }
+
+  // Disconnect all existing prerequisites, then connect new ones
+  await prisma.pathwayStep.update({
+    where: { id: stepId },
+    data: {
+      prerequisites: {
+        set: [], // disconnect all
+      },
+    },
+  });
+
+  if (prerequisiteIds.length > 0) {
+    await prisma.pathwayStep.update({
+      where: { id: stepId },
+      data: {
+        prerequisites: {
+          connect: prerequisiteIds.map((id) => ({ id })),
+        },
+      },
+    });
+  }
+
+  // Validate that we haven't introduced a cycle
+  const validation = await validateDAG(step.pathwayId);
+  if (!validation.valid) {
+    // Roll back: disconnect the prerequisites we just set
+    await prisma.pathwayStep.update({
+      where: { id: stepId },
+      data: { prerequisites: { set: [] } },
+    });
+    throw new Error(validation.error ?? "Circular dependency detected");
+  }
+
+  revalidatePath("/instructor/sequence-builder");
+  return { success: true };
+}
+
+/**
+ * Update the visual position of a step in the DAG editor canvas.
+ */
+export async function updateStepPosition(
+  stepId: string,
+  x: number,
+  y: number
+) {
+  await requireInstructor();
+
+  const step = await prisma.pathwayStep.findUnique({
+    where: { id: stepId },
+    select: { id: true },
+  });
+  if (!step) throw new Error("Step not found");
+
+  await prisma.pathwayStep.update({
+    where: { id: stepId },
+    data: {
+      positionX: x,
+      positionY: y,
+    },
+  });
+
+  // No revalidatePath — position updates are frequent and visual-only
+  return { success: true };
+}
+
+/**
+ * Validate that a pathway's step prerequisites form a valid DAG (no cycles).
+ * Uses iterative DFS cycle detection.
+ */
+export async function validateDAG(
+  pathwayId: string
+): Promise<{ valid: boolean; error?: string }> {
+  const steps = await prisma.pathwayStep.findMany({
+    where: { pathwayId },
+    select: {
+      id: true,
+      title: true,
+      prerequisites: { select: { id: true } },
+    },
+  });
+
+  if (steps.length === 0) return { valid: true };
+
+  // Build adjacency list: step -> its prerequisites (edges point from step to prereqs)
+  // For cycle detection, we traverse: for each step, follow its prerequisites
+  const adjList = new Map<string, string[]>();
+  const titleMap = new Map<string, string>();
+  for (const s of steps) {
+    adjList.set(s.id, s.prerequisites.map((p) => p.id));
+    titleMap.set(s.id, s.title ?? s.id);
+  }
+
+  // DFS-based cycle detection
+  const WHITE = 0; // unvisited
+  const GRAY = 1;  // in current path
+  const BLACK = 2; // fully processed
+  const color = new Map<string, number>();
+  for (const s of steps) color.set(s.id, WHITE);
+
+  for (const s of steps) {
+    if (color.get(s.id) !== WHITE) continue;
+
+    // Iterative DFS using explicit stack
+    const stack: { id: string; returning: boolean }[] = [{ id: s.id, returning: false }];
+
+    while (stack.length > 0) {
+      const frame = stack[stack.length - 1];
+
+      if (frame.returning) {
+        color.set(frame.id, BLACK);
+        stack.pop();
+        continue;
+      }
+
+      color.set(frame.id, GRAY);
+      frame.returning = true;
+
+      const neighbors = adjList.get(frame.id) ?? [];
+      for (const neighborId of neighbors) {
+        const neighborColor = color.get(neighborId);
+        if (neighborColor === GRAY) {
+          return {
+            valid: false,
+            error: `Circular dependency detected involving "${titleMap.get(frame.id)}" and "${titleMap.get(neighborId)}"`,
+          };
+        }
+        if (neighborColor === WHITE) {
+          stack.push({ id: neighborId, returning: false });
+        }
+      }
+    }
+  }
+
+  return { valid: true };
+}
+
+// ─── Review Actions ──────────────────────────────────────────────────────────
+
+export async function getSequenceById(id: string) {
+  const session = await requireInstructor();
+  const capabilities = await getClassTemplateCapabilities();
+  const supportsAdvancedSchema = await hasAdvancedSequenceBuilderSchema();
+
+  const pathway = await prisma.pathway.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      interestArea: true,
+      isActive: true,
+      createdById: true,
+      createdBy: { select: { id: true, name: true } },
+      ...(supportsAdvancedSchema ? { sequenceBlueprint: true } : {}),
+      steps: {
+        orderBy: { stepOrder: "asc" },
+        select: {
+          id: true,
+          stepOrder: true,
+          unlockType: true,
+          title: true,
+          classTemplateId: true,
+          specialProgramId: true,
+          ...(supportsAdvancedSchema ? { stepDetails: true } : {}),
+          classTemplate: {
+            select: getClassTemplateSelect({
+              includeWorkflow: capabilities.hasReviewWorkflow,
+            }),
+          },
+          specialProgram: { select: { id: true, name: true, type: true } },
+        },
+      },
+    },
+  });
+  if (!pathway) throw new Error("Sequence not found");
+
+  const roles = session.user.roles ?? [];
+  const isCreator = pathway.createdById === session.user.id;
+  const isAdmin = roles.includes("ADMIN") || roles.includes("CHAPTER_LEAD");
+  if (!isCreator && !isAdmin) {
+    throw new Error("Not authorized to view this sequence");
+  }
+
+  if (supportsAdvancedSchema) {
+    return {
+      ...pathway,
+      sequenceBlueprint: normalizeSequenceBlueprint(pathway.sequenceBlueprint),
+      steps: pathway.steps.map((step) => ({
+        ...step,
+        stepDetails: normalizeSequenceStepDetails(step.stepDetails),
+      })),
+    };
+  }
+
+  return pathway;
+}
+
+export async function requestSequenceRevision(id: string, notes: string) {
+  const session = await requireInstructor();
+
+  const roles = session.user.roles ?? [];
+  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_LEAD")) {
+    throw new Error("Only admins and chapter leads can request revisions");
+  }
+
+  // Use raw update since Pathway may not have reviewNotes column yet
+  try {
+    await prisma.$executeRaw`UPDATE "Pathway" SET "isActive" = false WHERE "id" = ${id}`;
+  } catch {
+    // Column might not exist
+  }
+
+  revalidatePath("/instructor/sequence-builder");
+  return { success: true, notes };
+}
+
+export async function approveSequence(id: string) {
+  const session = await requireInstructor();
+
+  const roles = session.user.roles ?? [];
+  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_LEAD")) {
+    throw new Error("Only admins and chapter leads can approve sequences");
+  }
+
+  await prisma.pathway.update({
+    where: { id },
+    data: { isActive: true },
+  });
+
+  revalidatePath("/instructor/sequence-builder");
+  return { success: true };
+}
+
 // ─── Queries ─────────────────────────────────────────────────────────────────
 
 export async function getInstructorSequences() {

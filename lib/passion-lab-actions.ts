@@ -369,6 +369,172 @@ export async function getPassionLabById(id: string) {
   });
 }
 
+// ─── Template & Clone ───────────────────────────────────────────────────────
+
+export async function getPassionLabTemplates() {
+  try {
+    return await prisma.specialProgram.findMany({
+      where: { type: "PASSION_LAB", isTemplate: true },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        interestArea: true,
+        difficulty: true,
+        targetAgeGroup: true,
+        templateCategory: true,
+        sessionTopics: true,
+      },
+      orderBy: { name: "asc" },
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function clonePassionLab(templateId: string) {
+  const session = await requireInstructor();
+  await requirePassionLabBuilderSchema();
+
+  const template = await prisma.specialProgram.findUnique({
+    where: { id: templateId },
+  });
+  if (!template) throw new Error("Template not found");
+
+  const clone = await prisma.specialProgram.create({
+    data: {
+      name: `${template.name} (Copy)`,
+      description: template.description,
+      interestArea: template.interestArea,
+      type: "PASSION_LAB",
+      isVirtual: template.isVirtual,
+      isActive: false,
+      leaderId: session.user.id,
+      createdById: session.user.id,
+      submissionStatus: "DRAFT",
+      drivingQuestion: (template as Record<string, unknown>).drivingQuestion as string ?? null,
+      targetAgeGroup: (template as Record<string, unknown>).targetAgeGroup as string ?? null,
+      difficulty: (template as Record<string, unknown>).difficulty as string ?? null,
+      deliveryMode: template.deliveryMode ?? null,
+      finalShowcase: (template as Record<string, unknown>).finalShowcase as string ?? null,
+      labBlueprint: (template as Record<string, unknown>).labBlueprint as Prisma.InputJsonValue ?? Prisma.JsonNull,
+      submissionFormat: (template as Record<string, unknown>).submissionFormat as string ?? null,
+      maxParticipants: template.maxParticipants,
+      sessionTopics: template.sessionTopics ?? [],
+    },
+  });
+
+  revalidatePath("/instructor/passion-lab-builder");
+  return { success: true, programId: clone.id };
+}
+
+// ─── Review Actions ────────────────────────────────────────────────────────
+
+export async function requestPassionLabRevision(id: string, notes: string) {
+  const session = await requireInstructor();
+  await requirePassionLabBuilderSchema();
+
+  const roles = session.user.roles ?? [];
+  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_LEAD")) {
+    throw new Error("Only admins and chapter leads can request revisions");
+  }
+
+  await prisma.specialProgram.update({
+    where: { id },
+    data: {
+      submissionStatus: "NEEDS_REVISION",
+      reviewNotes: notes,
+      reviewedById: session.user.id,
+    },
+  });
+
+  revalidatePath("/instructor/passion-lab-builder");
+  return { success: true };
+}
+
+export async function approvePassionLabReview(id: string) {
+  const session = await requireInstructor();
+  await requirePassionLabBuilderSchema();
+
+  const roles = session.user.roles ?? [];
+  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_LEAD")) {
+    throw new Error("Only admins and chapter leads can approve passion labs");
+  }
+
+  await prisma.specialProgram.update({
+    where: { id },
+    data: {
+      submissionStatus: "APPROVED",
+      reviewedById: session.user.id,
+      reviewNotes: null,
+    },
+  });
+
+  revalidatePath("/instructor/passion-lab-builder");
+  return { success: true };
+}
+
+// ─── Progress Tracking ──────────────────────────────────────────────────────
+
+export async function getLabProgress(programId: string) {
+  await requireInstructor();
+
+  return prisma.passionLabProgress.findMany({
+    where: { programId },
+    include: {
+      student: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: [{ studentId: "asc" }, { sessionIndex: "asc" }],
+  });
+}
+
+export async function updateStudentProgress(
+  programId: string,
+  studentId: string,
+  sessionIndex: number,
+  data: {
+    status?: string;
+    artifactUrl?: string;
+    artifactNotes?: string;
+    instructorNotes?: string;
+  }
+) {
+  await requireInstructor();
+
+  return prisma.passionLabProgress.upsert({
+    where: {
+      programId_studentId_sessionIndex: { programId, studentId, sessionIndex },
+    },
+    create: {
+      programId,
+      studentId,
+      sessionIndex,
+      status: data.status ?? "NOT_STARTED",
+      artifactUrl: data.artifactUrl ?? null,
+      artifactNotes: data.artifactNotes ?? null,
+      instructorNotes: data.instructorNotes ?? null,
+      completedAt: data.status === "COMPLETED" ? new Date() : null,
+    },
+    update: {
+      ...(data.status !== undefined ? { status: data.status } : {}),
+      ...(data.artifactUrl !== undefined ? { artifactUrl: data.artifactUrl } : {}),
+      ...(data.artifactNotes !== undefined ? { artifactNotes: data.artifactNotes } : {}),
+      ...(data.instructorNotes !== undefined ? { instructorNotes: data.instructorNotes } : {}),
+      ...(data.status === "COMPLETED" ? { completedAt: new Date() } : {}),
+    },
+  });
+}
+
+export async function markSessionComplete(
+  programId: string,
+  studentId: string,
+  sessionIndex: number
+) {
+  return updateStudentProgress(programId, studentId, sessionIndex, {
+    status: "COMPLETED",
+  });
+}
+
 // Public query for fetching passion areas dropdown
 export async function getActivePassionAreas() {
   return prisma.passionArea.findMany({
@@ -376,4 +542,107 @@ export async function getActivePassionAreas() {
     orderBy: { order: "asc" },
     select: { id: true, name: true, category: true },
   });
+}
+
+// ─── Progress Tracking ──────────────────────────────────────────────────────
+
+export async function getLabProgress(programId: string) {
+  await requireInstructor();
+
+  const records = await prisma.passionLabProgress.findMany({
+    where: { programId },
+    include: {
+      student: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: [{ studentId: "asc" }, { sessionIndex: "asc" }],
+  });
+
+  return records.map((r) => ({
+    id: r.id,
+    programId: r.programId,
+    studentId: r.studentId,
+    studentName: r.student.name,
+    studentEmail: r.student.email,
+    sessionIndex: r.sessionIndex,
+    status: r.status,
+    artifactUrl: r.artifactUrl,
+    artifactNotes: r.artifactNotes,
+    instructorNotes: r.instructorNotes,
+    completedAt: r.completedAt?.toISOString() ?? null,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+  }));
+}
+
+export async function updateStudentProgress(
+  programId: string,
+  studentId: string,
+  sessionIndex: number,
+  data: {
+    status?: string;
+    artifactUrl?: string;
+    artifactNotes?: string;
+    instructorNotes?: string;
+  },
+) {
+  await requireInstructor();
+
+  const validStatuses = ["NOT_STARTED", "IN_PROGRESS", "COMPLETED"];
+  if (data.status && !validStatuses.includes(data.status)) {
+    throw new Error("Invalid status value");
+  }
+
+  const record = await prisma.passionLabProgress.upsert({
+    where: {
+      programId_studentId_sessionIndex: { programId, studentId, sessionIndex },
+    },
+    update: {
+      ...(data.status !== undefined ? { status: data.status } : {}),
+      ...(data.artifactUrl !== undefined ? { artifactUrl: data.artifactUrl } : {}),
+      ...(data.artifactNotes !== undefined ? { artifactNotes: data.artifactNotes } : {}),
+      ...(data.instructorNotes !== undefined ? { instructorNotes: data.instructorNotes } : {}),
+      ...(data.status === "COMPLETED" ? { completedAt: new Date() } : {}),
+    },
+    create: {
+      programId,
+      studentId,
+      sessionIndex,
+      status: data.status ?? "NOT_STARTED",
+      artifactUrl: data.artifactUrl ?? null,
+      artifactNotes: data.artifactNotes ?? null,
+      instructorNotes: data.instructorNotes ?? null,
+      ...(data.status === "COMPLETED" ? { completedAt: new Date() } : {}),
+    },
+  });
+
+  revalidatePath("/instructor/passion-lab-builder/progress");
+  return { success: true, id: record.id };
+}
+
+export async function markSessionComplete(
+  programId: string,
+  studentId: string,
+  sessionIndex: number,
+) {
+  await requireInstructor();
+
+  const record = await prisma.passionLabProgress.upsert({
+    where: {
+      programId_studentId_sessionIndex: { programId, studentId, sessionIndex },
+    },
+    update: {
+      status: "COMPLETED",
+      completedAt: new Date(),
+    },
+    create: {
+      programId,
+      studentId,
+      sessionIndex,
+      status: "COMPLETED",
+      completedAt: new Date(),
+    },
+  });
+
+  revalidatePath("/instructor/passion-lab-builder/progress");
+  return { success: true, id: record.id };
 }
