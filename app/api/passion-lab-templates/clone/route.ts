@@ -64,7 +64,7 @@ export async function POST(req: Request) {
           drivingQuestion: example.fields.drivingQuestion.value,
           targetAgeGroup: example.fields.targetAgeGroup.value,
           difficulty: example.fields.difficulty.value,
-          deliveryMode: example.fields.deliveryMode.value,
+          deliveryMode: example.fields.deliveryMode.value as import("@prisma/client").DeliveryMode | null | undefined,
           finalShowcase: example.fields.finalShowcase.value,
           submissionFormat: example.fields.submissionFormat.value,
           labBlueprint: {
