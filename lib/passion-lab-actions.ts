@@ -474,67 +474,6 @@ export async function approvePassionLabReview(id: string) {
   return { success: true };
 }
 
-// ─── Progress Tracking ──────────────────────────────────────────────────────
-
-export async function getLabProgress(programId: string) {
-  await requireInstructor();
-
-  return prisma.passionLabProgress.findMany({
-    where: { programId },
-    include: {
-      student: { select: { id: true, name: true, email: true } },
-    },
-    orderBy: [{ studentId: "asc" }, { sessionIndex: "asc" }],
-  });
-}
-
-export async function updateStudentProgress(
-  programId: string,
-  studentId: string,
-  sessionIndex: number,
-  data: {
-    status?: string;
-    artifactUrl?: string;
-    artifactNotes?: string;
-    instructorNotes?: string;
-  }
-) {
-  await requireInstructor();
-
-  return prisma.passionLabProgress.upsert({
-    where: {
-      programId_studentId_sessionIndex: { programId, studentId, sessionIndex },
-    },
-    create: {
-      programId,
-      studentId,
-      sessionIndex,
-      status: data.status ?? "NOT_STARTED",
-      artifactUrl: data.artifactUrl ?? null,
-      artifactNotes: data.artifactNotes ?? null,
-      instructorNotes: data.instructorNotes ?? null,
-      completedAt: data.status === "COMPLETED" ? new Date() : null,
-    },
-    update: {
-      ...(data.status !== undefined ? { status: data.status } : {}),
-      ...(data.artifactUrl !== undefined ? { artifactUrl: data.artifactUrl } : {}),
-      ...(data.artifactNotes !== undefined ? { artifactNotes: data.artifactNotes } : {}),
-      ...(data.instructorNotes !== undefined ? { instructorNotes: data.instructorNotes } : {}),
-      ...(data.status === "COMPLETED" ? { completedAt: new Date() } : {}),
-    },
-  });
-}
-
-export async function markSessionComplete(
-  programId: string,
-  studentId: string,
-  sessionIndex: number
-) {
-  return updateStudentProgress(programId, studentId, sessionIndex, {
-    status: "COMPLETED",
-  });
-}
-
 // Public query for fetching passion areas dropdown
 export async function getActivePassionAreas() {
   return prisma.passionArea.findMany({
