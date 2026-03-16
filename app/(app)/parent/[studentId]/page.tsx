@@ -452,8 +452,8 @@ export default async function ParentStudentDetailPage({
                             ? "#7c3aed"
                             : h.status === "BEHIND_SCHEDULE"
                             ? "#d97706"
-                            : h.status === "NEEDS_ATTENTION"
-                            ? "#dc2626"
+                            : h.status === "GETTING_STARTED"
+                            ? "#eab308"
                             : "#9ca3af";
                         return (
                           <span
