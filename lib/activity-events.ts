@@ -100,7 +100,7 @@ export async function logActivityEvent(
         detail: detail ?? null,
         link: link ?? null,
         icon: icon ?? EVENT_ICONS[type] ?? null,
-        metadata: metadata ?? undefined,
+        metadata: metadata ?? null,
       },
     });
   } catch (error) {
