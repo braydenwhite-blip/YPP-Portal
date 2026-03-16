@@ -6,6 +6,7 @@ import {
   requireAnyRole as requireAuthorizedRole,
   requireSessionUser,
 } from "@/lib/authorization";
+import { onProgressEvent } from "@/lib/progress-events";
 
 // ============================================
 // HELPERS
@@ -292,6 +293,11 @@ export async function checkInChallenge(formData: FormData) {
       completedAt: isComplete ? new Date() : null,
     },
   });
+
+  // Fire progress event on completion
+  if (isComplete) {
+    onProgressEvent({ type: "CHALLENGE_COMPLETED", userId: session.user.id, metadata: { challengeId } }).catch(() => {});
+  }
 
   // Award XP on completion
   if (isComplete && challenge) {
