@@ -3,12 +3,24 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import ProgressSummaryStrip from "@/components/progress-summary-strip";
+import CrossLinkSection from "@/components/cross-link-section";
+import SmartSuggestionCard from "@/components/smart-suggestion";
+import { getPageProgressSummary, getCrossLinks, getSmartSuggestions } from "@/lib/cross-links";
 
 export default async function CommunityFeedPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     redirect("/login");
   }
+
+  const userId = session.user.id;
+
+  const [progressSummary, crossLinks, suggestions] = await Promise.all([
+    getPageProgressSummary(userId, "/community/feed").catch(() => ({ items: [] })),
+    getCrossLinks(userId, "/community/feed").catch(() => ({ related: [], connections: [] })),
+    getSmartSuggestions(userId, "/community/feed").catch(() => []),
+  ]);
 
   // Get recent peer recognitions
   const recognitions = await prisma.peerRecognition.findMany({
@@ -39,6 +51,8 @@ export default async function CommunityFeedPage() {
           Give Recognition
         </Link>
       </div>
+
+      <ProgressSummaryStrip data={progressSummary} />
 
       <div className="grid two" style={{ marginBottom: 28 }}>
         <div className="card">
@@ -128,6 +142,9 @@ export default async function CommunityFeedPage() {
           </div>
         )}
       </div>
+
+      <CrossLinkSection data={crossLinks} />
+      <SmartSuggestionCard suggestions={suggestions} />
     </div>
   );
 }

@@ -2,14 +2,21 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getActiveReflectionForm, submitReflection, getMyReflections } from "@/lib/reflection-actions";
+import ProgressSummaryStrip from "@/components/progress-summary-strip";
+import CrossLinkSection from "@/components/cross-link-section";
+import SmartSuggestionCard from "@/components/smart-suggestion";
+import { getPageProgressSummary, getCrossLinks, getSmartSuggestions } from "@/lib/cross-links";
 
 export default async function ReflectionPage() {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
 
-  const [form, myReflections] = await Promise.all([
+  const [form, myReflections, progressSummary, crossLinks, suggestions] = await Promise.all([
     getActiveReflectionForm(),
     getMyReflections(),
+    getPageProgressSummary(session.user.id, "/reflection").catch(() => ({ items: [] })),
+    getCrossLinks(session.user.id, "/reflection").catch(() => ({ related: [], connections: [] })),
+    getSmartSuggestions(session.user.id, "/reflection").catch(() => []),
   ]);
 
   // Check if already submitted this month
@@ -49,6 +56,7 @@ export default async function ReflectionPage() {
   return (
     <main className="main-content">
       <h1>Monthly Self-Reflection</h1>
+      <ProgressSummaryStrip data={progressSummary} />
       <p className="subtitle">{form.description}</p>
 
       {hasSubmittedThisMonth ? (
@@ -157,6 +165,8 @@ export default async function ReflectionPage() {
         </form>
       )}
 
+      <CrossLinkSection data={crossLinks} />
+      <SmartSuggestionCard suggestions={suggestions} />
     </main>
   );
 }

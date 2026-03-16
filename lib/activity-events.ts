@@ -201,7 +201,7 @@ export async function getRecentActivitySummary(
         byCategory[cat] = (byCategory[cat] ?? 0) + 1;
       }
 
-      const mostActiveArea =
+      const mostActiveArea: string | null =
         Object.entries(byCategory).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 
       return {
@@ -214,8 +214,8 @@ export async function getRecentActivitySummary(
     () => ({
       totalThisWeek: 0,
       totalThisMonth: 0,
-      byCategory: { learning: 0, achievement: 0, social: 0 },
-      mostActiveArea: null,
+      byCategory: { learning: 0, achievement: 0, social: 0 } as Record<string, number>,
+      mostActiveArea: null as string | null,
     })
   );
 }

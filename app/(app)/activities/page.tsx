@@ -5,6 +5,10 @@ import Link from "next/link";
 import { getActivityFeedForUser } from "@/lib/activity-hub/actions";
 import type { ActivitySourceType } from "@/lib/activity-hub/types";
 import { isFeatureEnabledForUser } from "@/lib/feature-gates";
+import ProgressSummaryStrip from "@/components/progress-summary-strip";
+import CrossLinkSection from "@/components/cross-link-section";
+import SmartSuggestionCard from "@/components/smart-suggestion";
+import { getPageProgressSummary, getCrossLinks, getSmartSuggestions } from "@/lib/cross-links";
 
 const SOURCE_LABELS: Record<ActivitySourceType, string> = {
   PORTAL_CHALLENGE: "Portal Challenges",
@@ -74,11 +78,16 @@ export default async function ActivitiesPage({
   const sourceFilter = normalizeSource(searchParams?.source);
   const passionFilter = searchParams?.passion || undefined;
 
-  const feed = await getActivityFeedForUser(session.user.id, {
-    sourceTypes: sourceFilter ? [sourceFilter] : undefined,
-    passionId: passionFilter,
-    limit: 150,
-  });
+  const [feed, progressSummary, crossLinks, suggestions] = await Promise.all([
+    getActivityFeedForUser(session.user.id, {
+      sourceTypes: sourceFilter ? [sourceFilter] : undefined,
+      passionId: passionFilter,
+      limit: 150,
+    }),
+    getPageProgressSummary(session.user.id, "/activities").catch(() => ({ items: [] })),
+    getCrossLinks(session.user.id, "/activities").catch(() => ({ related: [], connections: [] })),
+    getSmartSuggestions(session.user.id, "/activities").catch(() => []),
+  ]);
 
   const items = feed.items;
   const sourceEntries = Object.entries(SOURCE_LABELS) as Array<[ActivitySourceType, string]>;
@@ -100,6 +109,8 @@ export default async function ActivitiesPage({
           <Link href="/world" className="button secondary">Passion World</Link>
         </div>
       </div>
+
+      <ProgressSummaryStrip data={progressSummary} />
 
       <div className="grid three" style={{ marginBottom: 20 }}>
         <div className="card" style={{ textAlign: "center" }}>
@@ -185,6 +196,9 @@ export default async function ActivitiesPage({
           })}
         </div>
       )}
+
+      <CrossLinkSection data={crossLinks} />
+      <SmartSuggestionCard suggestions={suggestions} />
     </div>
   );
 }

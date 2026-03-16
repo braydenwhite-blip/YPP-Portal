@@ -5,6 +5,10 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { updateProfile, updateBasicInfo } from "@/lib/profile-actions";
 import FileUpload from "@/components/file-upload";
+import ProgressSummaryStrip from "@/components/progress-summary-strip";
+import CrossLinkSection from "@/components/cross-link-section";
+import SmartSuggestionCard from "@/components/smart-suggestion";
+import { getPageProgressSummary, getCrossLinks, getSmartSuggestions } from "@/lib/cross-links";
 
 export default async function ProfilePage() {
   const session = await getServerSession(authOptions);
@@ -13,26 +17,31 @@ export default async function ProfilePage() {
     redirect("/login");
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    include: {
-      roles: true,
-      chapter: true,
-      profile: true,
-      enrollments: {
-        include: { course: true },
-        take: 5,
-        orderBy: { createdAt: "desc" }
-      },
-      courses: { take: 5 },
-      certificates: {
-        include: { template: true },
-        take: 3,
-        orderBy: { issuedAt: "desc" }
-      },
-      awards: { take: 3, orderBy: { awardedAt: "desc" } }
-    }
-  });
+  const [user, progressSummary, crossLinks, suggestions] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: {
+        roles: true,
+        chapter: true,
+        profile: true,
+        enrollments: {
+          include: { course: true },
+          take: 5,
+          orderBy: { createdAt: "desc" }
+        },
+        courses: { take: 5 },
+        certificates: {
+          include: { template: true },
+          take: 3,
+          orderBy: { issuedAt: "desc" }
+        },
+        awards: { take: 3, orderBy: { awardedAt: "desc" } }
+      }
+    }),
+    getPageProgressSummary(session.user.id, "/profile").catch(() => ({ items: [] })),
+    getCrossLinks(session.user.id, "/profile").catch(() => ({ related: [], connections: [] })),
+    getSmartSuggestions(session.user.id, "/profile").catch(() => []),
+  ]);
 
   if (!user) {
     redirect("/login");
@@ -66,6 +75,8 @@ export default async function ProfilePage() {
           {roles.join(" · ")}
         </div>
       </div>
+
+      <ProgressSummaryStrip data={progressSummary} />
 
       <div className="grid two">
         <div className="card">
@@ -331,6 +342,9 @@ export default async function ProfilePage() {
           </div>
         )}
       </div>
+
+      <CrossLinkSection data={crossLinks} />
+      <SmartSuggestionCard suggestions={suggestions} />
     </div>
   );
 }

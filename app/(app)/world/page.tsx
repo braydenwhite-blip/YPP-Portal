@@ -10,6 +10,10 @@ import {
   WorldLoadingSkeleton,
 } from "@/components/world/world-loading";
 import { isFeatureEnabledForUser } from "@/lib/feature-gates";
+import ProgressSummaryStrip from "@/components/progress-summary-strip";
+import CrossLinkSection from "@/components/cross-link-section";
+import SmartSuggestionCard from "@/components/smart-suggestion";
+import { getPageProgressSummary, getCrossLinks, getSmartSuggestions } from "@/lib/cross-links";
 
 const PassionWorld = dynamic(
   () => import("@/components/world/passion-world"),
@@ -29,8 +33,16 @@ async function WorldContent() {
 export default async function WorldPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
+  const userId = session.user.id;
+
+  const [progressSummary, crossLinks, suggestions] = await Promise.all([
+    getPageProgressSummary(userId, "/world").catch(() => ({ items: [] })),
+    getCrossLinks(userId, "/world").catch(() => ({ related: [], connections: [] })),
+    getSmartSuggestions(userId, "/world").catch(() => []),
+  ]);
+
   const featureEnabled = await isFeatureEnabledForUser("PASSION_WORLD", {
-    userId: session.user.id,
+    userId,
   });
 
   if (!featureEnabled) {
@@ -58,10 +70,15 @@ export default async function WorldPage() {
   }
 
   return (
-    <WorldErrorBoundary>
-      <Suspense fallback={<WorldLoadingSkeleton />}>
-        <WorldContent />
-      </Suspense>
-    </WorldErrorBoundary>
+    <div>
+      <ProgressSummaryStrip data={progressSummary} />
+      <WorldErrorBoundary>
+        <Suspense fallback={<WorldLoadingSkeleton />}>
+          <WorldContent />
+        </Suspense>
+      </WorldErrorBoundary>
+      <CrossLinkSection data={crossLinks} />
+      <SmartSuggestionCard suggestions={suggestions} />
+    </div>
   );
 }

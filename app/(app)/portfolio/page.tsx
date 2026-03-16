@@ -8,6 +8,10 @@ import {
   addPortfolioItem,
   deletePortfolioItem,
 } from "@/lib/portfolio-actions";
+import ProgressSummaryStrip from "@/components/progress-summary-strip";
+import CrossLinkSection from "@/components/cross-link-section";
+import SmartSuggestionCard from "@/components/smart-suggestion";
+import { getPageProgressSummary, getCrossLinks, getSmartSuggestions } from "@/lib/cross-links";
 
 export default async function PortfolioBuilderPage() {
   const session = await getServerSession(authOptions);
@@ -15,12 +19,17 @@ export default async function PortfolioBuilderPage() {
     redirect("/login");
   }
 
-  const portfolio = await prisma.portfolio.findUnique({
-    where: { userId: session.user.id },
-    include: {
-      items: { orderBy: { sortOrder: "asc" } },
-    },
-  });
+  const [portfolio, progressSummary, crossLinks, suggestions] = await Promise.all([
+    prisma.portfolio.findUnique({
+      where: { userId: session.user.id },
+      include: {
+        items: { orderBy: { sortOrder: "asc" } },
+      },
+    }),
+    getPageProgressSummary(session.user.id, "/portfolio").catch(() => ({ items: [] })),
+    getCrossLinks(session.user.id, "/portfolio").catch(() => ({ related: [], connections: [] })),
+    getSmartSuggestions(session.user.id, "/portfolio").catch(() => []),
+  ]);
 
   return (
     <div>
@@ -30,6 +39,8 @@ export default async function PortfolioBuilderPage() {
           <h1 className="page-title">Portfolio Builder</h1>
         </div>
       </div>
+
+      <ProgressSummaryStrip data={progressSummary} />
 
       {/* Portfolio settings form */}
       <div className="card" style={{ marginBottom: 24 }}>
@@ -136,6 +147,9 @@ export default async function PortfolioBuilderPage() {
           <p>Create your portfolio above to start adding items.</p>
         </div>
       )}
+
+      <CrossLinkSection data={crossLinks} />
+      <SmartSuggestionCard suggestions={suggestions} />
     </div>
   );
 }

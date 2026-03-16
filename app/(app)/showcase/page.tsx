@@ -4,6 +4,10 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getStudentShowcase, getMyContent } from "@/lib/engagement-actions";
 import { getPublicIncubatorLaunches } from "@/lib/incubator-actions";
+import ProgressSummaryStrip from "@/components/progress-summary-strip";
+import CrossLinkSection from "@/components/cross-link-section";
+import SmartSuggestionCard from "@/components/smart-suggestion";
+import { getPageProgressSummary, getCrossLinks, getSmartSuggestions } from "@/lib/cross-links";
 
 const CONTENT_TYPE_COLORS: Record<string, string> = {
   VIDEO: "#ef4444",
@@ -22,10 +26,18 @@ export default async function ShowcasePage() {
     redirect("/login");
   }
 
+  const userId = session.user.id;
+
   const [showcaseContent, myContent, incubatorLaunches] = await Promise.all([
     getStudentShowcase(),
     getMyContent(),
     getPublicIncubatorLaunches(),
+  ]);
+
+  const [progressSummary, crossLinks, suggestions] = await Promise.all([
+    getPageProgressSummary(userId, "/showcase").catch(() => ({ items: [] })),
+    getCrossLinks(userId, "/showcase").catch(() => ({ related: [], connections: [] })),
+    getSmartSuggestions(userId, "/showcase").catch(() => []),
   ]);
 
   const featuredContent = showcaseContent.filter(
@@ -56,6 +68,8 @@ export default async function ShowcasePage() {
           </Link>
         </div>
       </div>
+
+      <ProgressSummaryStrip data={progressSummary} />
 
       {/* Stats Row */}
       <div className="grid three" style={{ marginBottom: 28 }}>
@@ -398,6 +412,8 @@ export default async function ShowcasePage() {
           </div>
         )}
       </div>
+      <CrossLinkSection data={crossLinks} />
+      <SmartSuggestionCard suggestions={suggestions} />
     </div>
   );
 }

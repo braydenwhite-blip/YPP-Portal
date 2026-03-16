@@ -4,6 +4,10 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { CreateProjectForm } from "./client";
+import ProgressSummaryStrip from "@/components/progress-summary-strip";
+import CrossLinkSection from "@/components/cross-link-section";
+import SmartSuggestionCard from "@/components/smart-suggestion";
+import { getPageProgressSummary, getCrossLinks, getSmartSuggestions } from "@/lib/cross-links";
 
 const STATUS_COLORS: Record<string, string> = {
   PLANNING: "#6366f1",
@@ -16,6 +20,14 @@ const STATUS_COLORS: Record<string, string> = {
 export default async function ProjectTrackerPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
+
+  const userId = session.user.id;
+
+  const [progressSummary, crossLinks, suggestions] = await Promise.all([
+    getPageProgressSummary(userId, "/projects/tracker").catch(() => ({ items: [] })),
+    getCrossLinks(userId, "/projects/tracker").catch(() => ({ related: [], connections: [] })),
+    getSmartSuggestions(userId, "/projects/tracker").catch(() => []),
+  ]);
 
   const projects = await prisma.projectTracker.findMany({
     where: { studentId: session.user.id },
@@ -47,6 +59,8 @@ export default async function ProjectTrackerPage() {
           Project Incubator
         </Link>
       </div>
+
+      <ProgressSummaryStrip data={progressSummary} />
 
       {/* Stats */}
       <div className="grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
@@ -139,6 +153,9 @@ export default async function ProjectTrackerPage() {
           </p>
         </div>
       )}
+
+      <CrossLinkSection data={crossLinks} />
+      <SmartSuggestionCard suggestions={suggestions} />
     </div>
   );
 }

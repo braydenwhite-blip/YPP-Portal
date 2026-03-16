@@ -3,12 +3,21 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getMyCourses } from "@/lib/student-actions";
 import Link from "next/link";
+import ProgressSummaryStrip from "@/components/progress-summary-strip";
+import CrossLinkSection from "@/components/cross-link-section";
+import SmartSuggestionCard from "@/components/smart-suggestion";
+import { getPageProgressSummary, getCrossLinks, getSmartSuggestions } from "@/lib/cross-links";
 
 export default async function MyCoursesPage() {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
 
-  const { current, completed, dropped } = await getMyCourses();
+  const [{ current, completed, dropped }, progressSummary, crossLinks, suggestions] = await Promise.all([
+    getMyCourses(),
+    getPageProgressSummary(session.user.id, "/my-courses").catch(() => ({ items: [] })),
+    getCrossLinks(session.user.id, "/my-courses").catch(() => ({ related: [], connections: [] })),
+    getSmartSuggestions(session.user.id, "/my-courses").catch(() => []),
+  ]);
 
   return (
     <main className="main-content my-courses-page">
@@ -18,6 +27,8 @@ export default async function MyCoursesPage() {
           Browse Courses
         </Link>
       </div>
+
+      <ProgressSummaryStrip data={progressSummary} />
 
       {/* Stats */}
       <div className="stats-row">
@@ -259,6 +270,9 @@ export default async function MyCoursesPage() {
         }
       
 `}</style>
+
+      <CrossLinkSection data={crossLinks} />
+      <SmartSuggestionCard suggestions={suggestions} />
     </main>
   );
 }

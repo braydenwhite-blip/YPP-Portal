@@ -60,7 +60,7 @@ async function getUserPassionNames(userId: string): Promise<string[]> {
     where: { id: { in: ids } },
     select: { name: true },
   });
-  return areas.map((a) => a.name);
+  return areas.map((a: { name: string }) => a.name);
 }
 
 async function getCoreStats(userId: string) {
@@ -895,7 +895,7 @@ async function progressSummaryForRoute(
         where: { userId },
         select: { step: { select: { pathway: { select: { id: true } } } } },
       });
-      const uniquePathways = new Set(pathways.map((p) => p.step.pathway?.id).filter(Boolean));
+      const uniquePathways = new Set(pathways.map((p: { step: { pathway: { id: string } | null } }) => p.step.pathway?.id).filter(Boolean));
       return {
         headline: `You're progressing through ${uniquePathways.size} pathway${uniquePathways.size === 1 ? "" : "s"}`,
         items: [

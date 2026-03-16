@@ -16,6 +16,10 @@ import {
   INCUBATOR_PHASE_COLORS,
   INCUBATOR_PHASE_LABELS,
 } from "@/lib/incubator-workflow";
+import ProgressSummaryStrip from "@/components/progress-summary-strip";
+import CrossLinkSection from "@/components/cross-link-section";
+import SmartSuggestionCard from "@/components/smart-suggestion";
+import { getPageProgressSummary, getCrossLinks, getSmartSuggestions } from "@/lib/cross-links";
 
 function formatDate(value: Date | string | null | undefined) {
   if (!value) return "TBD";
@@ -35,6 +39,14 @@ function phaseLabelFor(phase: string | null | undefined) {
 export default async function IncubatorPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
+
+  const userId = session.user.id;
+
+  const [progressSummary, crossLinks, suggestions] = await Promise.all([
+    getPageProgressSummary(userId, "/incubator").catch(() => ({ items: [] })),
+    getCrossLinks(userId, "/incubator").catch(() => ({ related: [], connections: [] })),
+    getSmartSuggestions(userId, "/incubator").catch(() => []),
+  ]);
 
   const featureEnabled = await isFeatureEnabledForUser("INCUBATOR", {
     userId: session.user.id,
@@ -138,6 +150,8 @@ export default async function IncubatorPage() {
           </div>
         </div>
       </div>
+
+      <ProgressSummaryStrip data={progressSummary} />
 
       <div
         className="grid"
@@ -397,6 +411,9 @@ export default async function IncubatorPage() {
           </div>
         )}
       </section>
+
+      <CrossLinkSection data={crossLinks} />
+      <SmartSuggestionCard suggestions={suggestions} />
     </div>
   );
 }

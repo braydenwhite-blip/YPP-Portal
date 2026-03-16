@@ -3,6 +3,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import ProgressSummaryStrip from "@/components/progress-summary-strip";
+import CrossLinkSection from "@/components/cross-link-section";
+import SmartSuggestionCard from "@/components/smart-suggestion";
+import { getPageProgressSummary, getCrossLinks, getSmartSuggestions } from "@/lib/cross-links";
 
 export default async function CertificatesPage() {
   const session = await getServerSession(authOptions);
@@ -11,8 +15,16 @@ export default async function CertificatesPage() {
     redirect("/login");
   }
 
+  const userId = session.user.id;
+
+  const [progressSummary, crossLinks, suggestions] = await Promise.all([
+    getPageProgressSummary(userId, "/certificates").catch(() => ({ items: [] })),
+    getCrossLinks(userId, "/certificates").catch(() => ({ related: [], connections: [] })),
+    getSmartSuggestions(userId, "/certificates").catch(() => []),
+  ]);
+
   const certificates = await prisma.certificate.findMany({
-    where: { recipientId: session.user.id },
+    where: { recipientId: userId },
     include: {
       template: true,
       course: true,
@@ -47,6 +59,8 @@ export default async function CertificatesPage() {
           {certificates.length} certificate{certificates.length !== 1 ? "s" : ""} earned
         </div>
       </div>
+
+      <ProgressSummaryStrip data={progressSummary} />
 
       {certificates.length === 0 ? (
         <div className="card">
@@ -106,6 +120,8 @@ export default async function CertificatesPage() {
           </div>
         ))
       )}
+      <CrossLinkSection data={crossLinks} />
+      <SmartSuggestionCard suggestions={suggestions} />
     </div>
   );
 }

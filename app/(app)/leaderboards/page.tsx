@@ -4,12 +4,21 @@ import { redirect } from "next/navigation";
 import { getMyRankings } from "@/lib/engagement-actions";
 import Link from "next/link";
 import { LeaderboardTabs } from "./client";
+import ProgressSummaryStrip from "@/components/progress-summary-strip";
+import CrossLinkSection from "@/components/cross-link-section";
+import SmartSuggestionCard from "@/components/smart-suggestion";
+import { getPageProgressSummary, getCrossLinks, getSmartSuggestions } from "@/lib/cross-links";
 
 export default async function LeaderboardsPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
 
-  const myRankings = await getMyRankings();
+  const [myRankings, progressSummary, crossLinks, suggestions] = await Promise.all([
+    getMyRankings(),
+    getPageProgressSummary(session.user.id, "/leaderboards").catch(() => ({ items: [] })),
+    getCrossLinks(session.user.id, "/leaderboards").catch(() => ({ related: [], connections: [] })),
+    getSmartSuggestions(session.user.id, "/leaderboards").catch(() => []),
+  ]);
 
   const categoryLabels: Record<string, string> = {
     XP: "Total XP", STREAKS: "Longest Streak", CHALLENGES: "Challenges Won", PRACTICE_HOURS: "Practice Hours",
@@ -38,6 +47,8 @@ export default async function LeaderboardsPage() {
         <Link href="/challenges" className="button secondary">Challenges</Link>
       </div>
 
+      <ProgressSummaryStrip data={progressSummary} />
+
       {/* My Rankings Summary */}
       <div className="grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", display: "grid", gap: 12, marginBottom: 28 }}>
         {["XP", "STREAKS", "CHALLENGES", "PRACTICE_HOURS"].map((cat) => {
@@ -62,6 +73,9 @@ export default async function LeaderboardsPage() {
 
       {/* Interactive Leaderboard */}
       <LeaderboardTabs />
+
+      <CrossLinkSection data={crossLinks} />
+      <SmartSuggestionCard suggestions={suggestions} />
     </div>
   );
 }

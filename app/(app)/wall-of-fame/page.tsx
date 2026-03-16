@@ -3,12 +3,24 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import EmptyState from "@/components/empty-state";
+import ProgressSummaryStrip from "@/components/progress-summary-strip";
+import CrossLinkSection from "@/components/cross-link-section";
+import SmartSuggestionCard from "@/components/smart-suggestion";
+import { getPageProgressSummary, getCrossLinks, getSmartSuggestions } from "@/lib/cross-links";
 
 export default async function WallOfFamePage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     redirect("/login");
   }
+
+  const userId = session.user.id;
+
+  const [progressSummary, crossLinks, suggestions] = await Promise.all([
+    getPageProgressSummary(userId, "/wall-of-fame").catch(() => ({ items: [] })),
+    getCrossLinks(userId, "/wall-of-fame").catch(() => ({ related: [], connections: [] })),
+    getSmartSuggestions(userId, "/wall-of-fame").catch(() => []),
+  ]);
 
   const entries = await prisma.wallOfFame.findMany({
     where: { isActive: true },
@@ -40,6 +52,8 @@ export default async function WallOfFamePage() {
         </div>
       </div>
 
+      <ProgressSummaryStrip data={progressSummary} />
+
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         {entries.map((entry, index) => (
           <div key={entry.id} className="card" style={{
@@ -63,6 +77,8 @@ export default async function WallOfFamePage() {
           </div>
         ))}
       </div>
+      <CrossLinkSection data={crossLinks} />
+      <SmartSuggestionCard suggestions={suggestions} />
     </div>
   );
 }

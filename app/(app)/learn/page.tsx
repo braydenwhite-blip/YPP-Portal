@@ -4,6 +4,10 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getMyPracticeStats } from "@/lib/practice-actions";
 import { getPublishedModules, getMyModuleProgress } from "@/lib/module-actions";
+import ProgressSummaryStrip from "@/components/progress-summary-strip";
+import CrossLinkSection from "@/components/cross-link-section";
+import SmartSuggestionCard from "@/components/smart-suggestion";
+import { getPageProgressSummary, getCrossLinks, getSmartSuggestions } from "@/lib/cross-links";
 
 export default async function LearnIndexPage() {
   const session = await getServerSession(authOptions);
@@ -11,9 +15,14 @@ export default async function LearnIndexPage() {
     redirect("/login");
   }
 
-  const [allModules, stats] = await Promise.all([
+  const userId = session.user.id;
+
+  const [allModules, stats, progressSummary, crossLinks, suggestions] = await Promise.all([
     getPublishedModules({}),
     getMyPracticeStats(),
+    getPageProgressSummary(userId, "/learn").catch(() => ({ items: [] })),
+    getCrossLinks(userId, "/learn").catch(() => ({ related: [], connections: [] })),
+    getSmartSuggestions(userId, "/learn").catch(() => []),
   ]);
 
   const moduleIds = allModules.map((m) => m.id);
@@ -33,6 +42,8 @@ export default async function LearnIndexPage() {
           </p>
         </div>
       </div>
+
+      <ProgressSummaryStrip data={progressSummary} />
 
       {/* Quick stats */}
       <div className="stats-grid" style={{ marginBottom: 32 }}>
@@ -256,6 +267,9 @@ export default async function LearnIndexPage() {
           </Link>
         </div>
       )}
+
+      <CrossLinkSection data={crossLinks} />
+      <SmartSuggestionCard suggestions={suggestions} />
     </div>
   );
 }

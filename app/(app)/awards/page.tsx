@@ -2,6 +2,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import ProgressSummaryStrip from "@/components/progress-summary-strip";
+import CrossLinkSection from "@/components/cross-link-section";
+import SmartSuggestionCard from "@/components/smart-suggestion";
+import { getPageProgressSummary, getCrossLinks, getSmartSuggestions } from "@/lib/cross-links";
 
 const CATEGORY_META: Record<string, { label: string; icon: string; how: string }> = {
   PURSUIT: {
@@ -37,8 +41,16 @@ export default async function AwardsPage() {
     redirect("/login");
   }
 
+  const userId = session.user.id;
+
+  const [progressSummary, crossLinks, suggestions] = await Promise.all([
+    getPageProgressSummary(userId, "/awards").catch(() => ({ items: [] })),
+    getCrossLinks(userId, "/awards").catch(() => ({ related: [], connections: [] })),
+    getSmartSuggestions(userId, "/awards").catch(() => []),
+  ]);
+
   const studentAwards = await prisma.studentAward.findMany({
-    where: { studentId: session.user.id },
+    where: { studentId: userId },
     include: {
       award: {
         select: { name: true, description: true, category: true, icon: true, xpReward: true },
@@ -67,6 +79,8 @@ export default async function AwardsPage() {
           </p>
         </div>
       </div>
+
+      <ProgressSummaryStrip data={progressSummary} />
 
       {studentAwards.length > 0 ? (
         <>
@@ -130,6 +144,8 @@ export default async function AwardsPage() {
           </div>
         </>
       )}
+      <CrossLinkSection data={crossLinks} />
+      <SmartSuggestionCard suggestions={suggestions} />
     </div>
   );
 }
