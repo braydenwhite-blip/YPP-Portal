@@ -3,6 +3,13 @@
 import { prisma } from "@/lib/prisma";
 import { withPrismaFallback } from "@/lib/prisma-guard";
 import type { NavGroup } from "@/lib/navigation/types";
+import {
+  SECTION_NAV_GROUP_MAP,
+  SECTION_REQUIREMENTS,
+} from "@/lib/unlock-nav-groups";
+
+// Re-export the pure utility so callers don't need to know about the split.
+export { getVisibleNavGroups } from "@/lib/unlock-nav-groups";
 
 // ============================================
 // SECTION UNLOCK MAP
@@ -21,10 +28,10 @@ type SectionDef = {
 
 const SECTION_UNLOCK_MAP: Record<string, SectionDef> = {
   challenges: {
-    navGroups: ["Challenges"],
+    navGroups: SECTION_NAV_GROUP_MAP.challenges,
     unlockCriteria: {
       type: "ACHIEVEMENT",
-      requirement: "Complete any Pathway 101 step",
+      requirement: SECTION_REQUIREMENTS.challenges,
       check: async (userId: string) => {
         const count = await prisma.pathwayStepUnlock.count({
           where: { userId },
@@ -34,10 +41,10 @@ const SECTION_UNLOCK_MAP: Record<string, SectionDef> = {
     },
   },
   projects: {
-    navGroups: ["Projects"],
+    navGroups: SECTION_NAV_GROUP_MAP.projects,
     unlockCriteria: {
       type: "ACHIEVEMENT",
-      requirement: "Earn your first badge",
+      requirement: SECTION_REQUIREMENTS.projects,
       check: async (userId: string) => {
         const count = await prisma.studentBadge.count({
           where: { studentId: userId },
@@ -47,26 +54,25 @@ const SECTION_UNLOCK_MAP: Record<string, SectionDef> = {
     },
   },
   opportunities: {
-    navGroups: ["Opportunities"],
+    navGroups: SECTION_NAV_GROUP_MAP.opportunities,
     unlockCriteria: {
       type: "ACHIEVEMENT",
-      requirement: "Complete any Pathway 201",
+      requirement: SECTION_REQUIREMENTS.opportunities,
       check: async (userId: string) => {
-        // Check if user has completed a pathway that contains "201" in the name
+        // If they have more than 4 step unlocks, consider them ready for opportunities
         const completedPathways = await prisma.pathwayStepUnlock.findMany({
           where: { userId },
           select: { step: { select: { pathway: { select: { name: true } } } } },
         });
-        // If they have more than 4 step unlocks, consider them ready for opportunities
         return completedPathways.length >= 4;
       },
     },
   },
   people_support: {
-    navGroups: ["People & Support"],
+    navGroups: SECTION_NAV_GROUP_MAP.people_support,
     unlockCriteria: {
       type: "ACHIEVEMENT",
-      requirement: "Complete 2 pathway steps",
+      requirement: SECTION_REQUIREMENTS.people_support,
       check: async (userId: string) => {
         const count = await prisma.pathwayStepUnlock.count({
           where: { userId },
@@ -76,30 +82,6 @@ const SECTION_UNLOCK_MAP: Record<string, SectionDef> = {
     },
   },
 };
-
-// Roles that see everything unlocked by default
-const FULL_ACCESS_ROLES = new Set([
-  "ADMIN",
-  "INSTRUCTOR",
-  "CHAPTER_LEAD",
-  "MENTOR",
-  "STAFF",
-]);
-
-// Nav groups always visible for students (never locked)
-const ALWAYS_VISIBLE_GROUPS: NavGroup[] = [
-  "Start Here",
-  "Learning",
-  "Progress",
-  "Profile & Settings",
-];
-
-// Nav groups always visible for parents
-const PARENT_ALWAYS_VISIBLE: NavGroup[] = [
-  "Family",
-  "Start Here",
-  "Profile & Settings",
-];
 
 // ============================================
 // CORE FUNCTIONS
@@ -170,49 +152,10 @@ export async function getUnlockProgress(
 
   return Object.entries(SECTION_UNLOCK_MAP).map(([key, def]) => ({
     sectionKey: key,
-    navGroups: def.unlockCriteria ? def.navGroups : def.navGroups,
+    navGroups: def.navGroups,
     isUnlocked: unlocked.has(key),
     requirement: def.unlockCriteria.requirement,
   }));
-}
-
-/**
- * Given a user's role and unlocked sections, returns the set of NavGroup names
- * that should be visible in navigation.
- */
-export function getVisibleNavGroups(
-  primaryRole: string,
-  unlockedSections: Set<string>
-): { visibleGroups: Set<NavGroup>; lockedGroups: Map<NavGroup, string> } {
-  // Non-student roles see everything
-  if (FULL_ACCESS_ROLES.has(primaryRole)) {
-    return { visibleGroups: new Set<NavGroup>(), lockedGroups: new Map() };
-  }
-
-  const visibleGroups = new Set<NavGroup>();
-  const lockedGroups = new Map<NavGroup, string>();
-
-  // Always-visible groups
-  const alwaysVisible =
-    primaryRole === "PARENT" ? PARENT_ALWAYS_VISIBLE : ALWAYS_VISIBLE_GROUPS;
-  for (const g of alwaysVisible) {
-    visibleGroups.add(g);
-  }
-
-  // Check each lockable section
-  for (const [sectionKey, def] of Object.entries(SECTION_UNLOCK_MAP)) {
-    if (unlockedSections.has(sectionKey)) {
-      for (const g of def.navGroups) {
-        visibleGroups.add(g);
-      }
-    } else {
-      for (const g of def.navGroups) {
-        lockedGroups.set(g, def.unlockCriteria.requirement);
-      }
-    }
-  }
-
-  return { visibleGroups, lockedGroups };
 }
 
 // ============================================

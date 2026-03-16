@@ -1,6 +1,6 @@
 import { CORE_NAV_LIMIT, CORE_NAV_MAP, PRIMARY_ROLE_FALLBACK_ORDER } from "@/lib/navigation/core-map";
 import { NAV_CATALOG } from "@/lib/navigation/catalog";
-import { getVisibleNavGroups } from "@/lib/unlock-manager";
+import { getVisibleNavGroups } from "@/lib/unlock-nav-groups";
 import type { NavGroup, NavLink, NavRole, NavViewModel } from "@/lib/navigation/types";
 
 const AWARD_TIERS = new Set(["BRONZE", "SILVER", "GOLD"]);
