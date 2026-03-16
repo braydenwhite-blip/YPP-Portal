@@ -6,6 +6,10 @@ import Link from "next/link";
 import { PathwayActionButtons } from "./pathway-actions-client";
 import { buildContextTrail } from "@/lib/context-trail";
 import ContextTrail from "@/components/context-trail";
+import ProgressSummaryStrip from "@/components/progress-summary-strip";
+import CrossLinkSection from "@/components/cross-link-section";
+import SmartSuggestionCard from "@/components/smart-suggestion";
+import { getPageProgressSummary, getCrossLinks, getSmartSuggestions } from "@/lib/cross-links";
 
 function formatCourseLabel(format: string, level: string | null) {
   if (format === "LEVELED" && level) return level.replace("LEVEL_", "");
@@ -24,6 +28,12 @@ export default async function PathwaysPage() {
   } catch {
     trailItems = [];
   }
+
+  const [progressSummary, crossLinks, suggestions] = await Promise.all([
+    getPageProgressSummary(userId, "/pathways").catch(() => ({ items: [] })),
+    getCrossLinks(userId, "/pathways").catch(() => ({ related: [], connections: [] })),
+    getSmartSuggestions(userId, "/pathways").catch(() => []),
+  ]);
 
   // Load all active pathways with steps
   const allPathways = await prisma.pathway.findMany({
@@ -84,6 +94,7 @@ export default async function PathwaysPage() {
       </div>
 
       <ContextTrail items={trailItems} />
+      <ProgressSummaryStrip data={progressSummary} />
 
       {/* Info cards */}
       <div className="grid two" style={{ marginBottom: 28 }}>
@@ -239,6 +250,9 @@ export default async function PathwaysPage() {
           </div>
         )}
       </div>
+
+      <CrossLinkSection data={crossLinks} />
+      <SmartSuggestionCard suggestions={suggestions} />
     </div>
   );
 }

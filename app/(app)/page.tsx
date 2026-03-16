@@ -17,6 +17,8 @@ import DailyChecklist from "@/components/dashboard/daily-checklist";
 import JourneyRoadmap from "@/components/dashboard/journey-roadmap";
 import NudgeStrip from "@/components/dashboard/nudge-strip";
 import LegacyOverviewPage from "./legacy-overview-page";
+import ActivityFeedWidget from "@/components/activity-feed-widget";
+import { getActivityFeed } from "@/lib/activity-events";
 
 function isMissingTableError(error: unknown) {
   return (
@@ -107,9 +109,12 @@ export default async function OverviewPage() {
       };
     }
   }
-  const studentSnapshot = dashboard.role === "STUDENT"
-    ? await getStudentProgressSnapshot(session.user.id)
-    : null;
+  const [studentSnapshot, recentActivity] = await Promise.all([
+    dashboard.role === "STUDENT"
+      ? getStudentProgressSnapshot(session.user.id)
+      : Promise.resolve(null),
+    getActivityFeed(session.user.id, 8).catch(() => []),
+  ]);
 
   const roleFocus: Record<string, string[]> = {
     ADMIN: [
@@ -383,6 +388,9 @@ export default async function OverviewPage() {
       {dashboard.journeyMilestones && (
         <JourneyRoadmap milestones={dashboard.journeyMilestones} />
       )}
+
+      {/* Activity Feed Widget */}
+      <ActivityFeedWidget events={recentActivity} />
 
       {launchBanner ? (
         <div className="card" style={{ marginBottom: 16, borderLeft: "4px solid var(--ypp-purple)" }}>

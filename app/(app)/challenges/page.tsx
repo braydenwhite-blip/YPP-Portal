@@ -8,6 +8,10 @@ import { ChallengeCard } from "./client";
 import { isFeatureEnabledForUser } from "@/lib/feature-gates";
 import { buildContextTrail } from "@/lib/context-trail";
 import ContextTrail from "@/components/context-trail";
+import ProgressSummaryStrip from "@/components/progress-summary-strip";
+import CrossLinkSection from "@/components/cross-link-section";
+import SmartSuggestionCard from "@/components/smart-suggestion";
+import { getPageProgressSummary, getCrossLinks, getSmartSuggestions } from "@/lib/cross-links";
 
 export default async function ChallengesPage() {
   const session = await getServerSession(authOptions);
@@ -48,6 +52,12 @@ export default async function ChallengesPage() {
   } catch {
     trailItems = [];
   }
+
+  const [progressSummary, crossLinks, suggestions] = await Promise.all([
+    getPageProgressSummary(session.user.id, "/challenges").catch(() => ({ items: [] })),
+    getCrossLinks(session.user.id, "/challenges").catch(() => ({ related: [], connections: [] })),
+    getSmartSuggestions(session.user.id, "/challenges").catch(() => []),
+  ]);
 
   const [challenges, myProgress, passionAreas] = await Promise.all([
     getActiveChallenges(),
@@ -101,6 +111,7 @@ export default async function ChallengesPage() {
       </div>
 
       <ContextTrail items={trailItems} />
+      <ProgressSummaryStrip data={progressSummary} />
 
       {/* My Progress Summary */}
       <div className="grid three" style={{ marginBottom: 24 }}>
@@ -277,6 +288,9 @@ export default async function ChallengesPage() {
           </div>
         </div>
       )}
+
+      <CrossLinkSection data={crossLinks} />
+      <SmartSuggestionCard suggestions={suggestions} />
     </div>
   );
 }

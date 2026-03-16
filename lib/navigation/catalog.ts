@@ -157,6 +157,15 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 12,
     },
     { href: "/analytics", label: "Analytics", icon: "📊", roles: STUDENT_ONLY },
+    {
+      href: "/activity-feed",
+      label: "Activity Feed",
+      icon: "📰",
+      roles: STUDENT_ONLY,
+      searchAliases: ["Timeline", "Recent Activity"],
+      dashboardDescription: "See your full activity timeline across all portal sections.",
+      dashboardPriority: 13,
+    },
     { href: "/learn/path-generator", label: "Learning Paths", icon: "🧭", roles: STUDENT_ONLY },
     { href: "/pathways/progress", label: "Pathway Progress", icon: "📈", roles: STUDENT_ONLY },
     {

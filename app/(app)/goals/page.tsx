@@ -7,6 +7,10 @@ import { PROGRESS_STATUS_META } from "@/lib/mentorship-review-helpers";
 import { prisma } from "@/lib/prisma";
 import { buildContextTrail } from "@/lib/context-trail";
 import ContextTrail from "@/components/context-trail";
+import ProgressSummaryStrip from "@/components/progress-summary-strip";
+import CrossLinkSection from "@/components/cross-link-section";
+import SmartSuggestionCard from "@/components/smart-suggestion";
+import { getPageProgressSummary, getCrossLinks, getSmartSuggestions } from "@/lib/cross-links";
 
 const TONE_STYLES = {
   neutral: { background: "#e2e8f0", color: "#334155" },
@@ -153,6 +157,12 @@ export default async function GoalsPage() {
     trailItems = [];
   }
 
+  const [progressSummary, crossLinks, suggestions] = await Promise.all([
+    getPageProgressSummary(userId, "/goals").catch(() => ({ items: [] })),
+    getCrossLinks(userId, "/goals").catch(() => ({ related: [], connections: [] })),
+    getSmartSuggestions(userId, "/goals").catch(() => []),
+  ]);
+
   const roles = user.roles.map((role) => role.role);
   const isInstructor = roles.includes("INSTRUCTOR");
   const isChapterLead = roles.includes("CHAPTER_LEAD");
@@ -204,6 +214,7 @@ export default async function GoalsPage() {
       </div>
 
       <ContextTrail items={trailItems} />
+      <ProgressSummaryStrip data={progressSummary} />
 
       <div className="card" style={{ marginBottom: 24 }}>
         <div
@@ -626,6 +637,9 @@ export default async function GoalsPage() {
           )}
         </div>
       </div>
+
+      <CrossLinkSection data={crossLinks} />
+      <SmartSuggestionCard suggestions={suggestions} />
     </div>
   );
 }

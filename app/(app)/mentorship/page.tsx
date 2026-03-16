@@ -11,6 +11,10 @@ import { prisma } from "@/lib/prisma";
 import { formatEnum } from "@/lib/format-utils";
 import { buildContextTrail } from "@/lib/context-trail";
 import ContextTrail from "@/components/context-trail";
+import ProgressSummaryStrip from "@/components/progress-summary-strip";
+import CrossLinkSection from "@/components/cross-link-section";
+import SmartSuggestionCard from "@/components/smart-suggestion";
+import { getPageProgressSummary, getCrossLinks, getSmartSuggestions } from "@/lib/cross-links";
 
 const TONE_STYLES = {
   neutral: { background: "#e2e8f0", color: "#334155" },
@@ -38,6 +42,12 @@ export default async function MentorshipPage() {
   } catch {
     trailItems = [];
   }
+
+  const [progressSummary, crossLinks, suggestions] = await Promise.all([
+    getPageProgressSummary(userId, "/mentorship").catch(() => ({ items: [] })),
+    getCrossLinks(userId, "/mentorship").catch(() => ({ related: [], connections: [] })),
+    getSmartSuggestions(userId, "/mentorship").catch(() => []),
+  ]);
 
   const currentMonth = new Date();
   const normalizedMonth = new Date(
@@ -247,6 +257,7 @@ export default async function MentorshipPage() {
       </div>
 
       <ContextTrail items={trailItems} />
+      <ProgressSummaryStrip data={progressSummary} />
 
       <div className="grid two" style={{ marginBottom: 24 }}>
         <div className="card">
@@ -725,6 +736,9 @@ export default async function MentorshipPage() {
           </Link>
         </div>
       </div>
+
+      <CrossLinkSection data={crossLinks} />
+      <SmartSuggestionCard suggestions={suggestions} />
     </div>
   );
 }

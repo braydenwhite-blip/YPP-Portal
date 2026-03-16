@@ -5,6 +5,10 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { buildContextTrail } from "@/lib/context-trail";
 import ContextTrail from "@/components/context-trail";
+import ProgressSummaryStrip from "@/components/progress-summary-strip";
+import CrossLinkSection from "@/components/cross-link-section";
+import SmartSuggestionCard from "@/components/smart-suggestion";
+import { getPageProgressSummary, getCrossLinks, getSmartSuggestions } from "@/lib/cross-links";
 
 export default async function BadgesPage() {
   const session = await getServerSession(authOptions);
@@ -20,6 +24,12 @@ export default async function BadgesPage() {
   } catch {
     trailItems = [];
   }
+
+  const [progressSummary, crossLinks, suggestions] = await Promise.all([
+    getPageProgressSummary(userId, "/badges").catch(() => ({ items: [] })),
+    getCrossLinks(userId, "/badges").catch(() => ({ related: [], connections: [] })),
+    getSmartSuggestions(userId, "/badges").catch(() => []),
+  ]);
 
   // Get user's badges
   const userBadges = await prisma.skillBadge.findMany({
@@ -57,6 +67,7 @@ export default async function BadgesPage() {
       </div>
 
       <ContextTrail items={trailItems} />
+      <ProgressSummaryStrip data={progressSummary} />
 
       <div className="grid two" style={{ marginBottom: 28 }}>
         <div className="card">
@@ -239,6 +250,9 @@ export default async function BadgesPage() {
           )}
         </div>
       )}
+
+      <CrossLinkSection data={crossLinks} />
+      <SmartSuggestionCard suggestions={suggestions} />
     </div>
   );
 }
