@@ -3,8 +3,11 @@ import { authOptions } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import { Suspense } from "react";
 import { PathwayActionButtons } from "../pathway-actions-client";
 import { StepEnrollButton } from "./step-enroll-client";
+import PathwayNextMission from "@/components/pathway-next-mission";
+import PathwayCelebration from "@/components/pathway-celebration";
 
 function formatCourseLabel(format: string, level: string | null) {
   if (format === "LEVELED" && level) return level.replace("LEVEL_", "");
@@ -42,16 +45,31 @@ export default async function PathwayDetailPage({ params }: { params: { id: stri
   const isEnrolled = enrolledCount > 0;
   const isComplete = completedCount === totalCount && totalCount > 0;
 
+  // Current active step (enrolled but not completed)
+  const currentStep = pathway.steps.find((s) => {
+    if (!s.courseId) return false;
+    const status = enrollmentMap.get(s.courseId);
+    return status && status !== "COMPLETED";
+  }) ?? null;
+
   // Enrolled student count
   const enrolledStudentsCount = await prisma.enrollment.groupBy({
     by: ["userId"],
-    where: { courseId: { in: stepCourseIds } }, // stepCourseIds already filtered to string[]
+    where: { courseId: { in: stepCourseIds } },
     _count: true,
   }).then((r) => r.length);
 
   // Certificate for this user
   const certificate = isComplete
     ? await prisma.certificate.findFirst({ where: { recipientId: userId, pathwayId: pathway.id } })
+    : null;
+
+  // Pathway completion badge
+  const pathwayBadge = isComplete
+    ? await prisma.studentBadge.findFirst({
+        where: { userId, badge: { name: `${pathway.name} Graduate` } },
+        include: { badge: true },
+      }).catch(() => null)
     : null;
 
   // Upcoming events
@@ -63,6 +81,11 @@ export default async function PathwayDetailPage({ params }: { params: { id: stri
 
   return (
     <div>
+      {/* Celebration overlay / toast — reads ?celebrate= from URL client-side */}
+      <Suspense fallback={null}>
+        <PathwayCelebration pathwayName={pathway.name} pathwayId={pathway.id} xpEarned={500} />
+      </Suspense>
+
       <div className="topbar">
         <div>
           <Link href="/pathways" style={{ fontSize: 13, color: "var(--gray-500)", textDecoration: "none" }}>
@@ -85,6 +108,19 @@ export default async function PathwayDetailPage({ params }: { params: { id: stri
           )}
         </div>
       </div>
+
+      {/* Next Mission hero — shown when enrolled and in progress */}
+      {isEnrolled && !isComplete && currentStep && currentStep.courseId && (
+        <PathwayNextMission
+          stepOrder={currentStep.stepOrder}
+          courseTitle={currentStep.course?.title ?? `Step ${currentStep.stepOrder}`}
+          courseId={currentStep.courseId}
+          progressPercent={progressPercent}
+          totalSteps={totalCount}
+          completedSteps={completedCount}
+          pathwayName={pathway.name}
+        />
+      )}
 
       <div className="grid two" style={{ marginBottom: 24 }}>
         <div className="card">
@@ -115,8 +151,17 @@ export default async function PathwayDetailPage({ params }: { params: { id: stri
               {isComplete ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   <div className="onboarding-callout" style={{ background: "var(--green-50, #f0fff4)", color: "var(--green-700, #276749)" }}>
-                    You&apos;ve completed this pathway!
+                    You&apos;ve completed this pathway! 🎓
                   </div>
+                  {pathwayBadge && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "var(--purple-50, #faf5ff)", borderRadius: 8 }}>
+                      <span style={{ fontSize: 20 }}>{pathwayBadge.badge.icon ?? "🎓"}</span>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 13 }}>{pathwayBadge.badge.name}</div>
+                        <div style={{ fontSize: 12, color: "var(--gray-500)" }}>Pathway badge earned</div>
+                      </div>
+                    </div>
+                  )}
                   {certificate ? (
                     <Link href={`/pathways/${pathway.id}/certificate`} className="button">
                       View Certificate
@@ -156,6 +201,7 @@ export default async function PathwayDetailPage({ params }: { params: { id: stri
             const prevStep = idx > 0 ? pathway.steps[idx - 1] : null;
             const prevCompleted = prevStep ? (prevStep.courseId ? enrollmentMap.get(prevStep.courseId) === "COMPLETED" : false) : true;
             const isLocked = !isStepCompleted && !isStepEnrolled && !prevCompleted;
+            const isCurrent = isStepEnrolled;
 
             return (
               <div
@@ -166,8 +212,9 @@ export default async function PathwayDetailPage({ params }: { params: { id: stri
                   alignItems: "center",
                   gap: 16,
                   opacity: isLocked ? 0.55 : 1,
-                  borderLeft: `4px solid ${isStepCompleted ? "var(--green-500, #48bb78)" : isStepEnrolled ? "var(--ypp-purple)" : "var(--gray-300, #e2e8f0)"}`,
+                  borderLeft: `4px solid ${isStepCompleted ? "var(--green-500, #48bb78)" : isCurrent ? "var(--ypp-purple)" : "var(--gray-300, #e2e8f0)"}`,
                   padding: "12px 16px",
+                  background: isCurrent ? "var(--purple-50, #faf5ff)" : undefined,
                 }}
               >
                 {/* Step number / status icon */}
@@ -182,15 +229,23 @@ export default async function PathwayDetailPage({ params }: { params: { id: stri
                       <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                     </svg>
                   ) : (
-                    <span style={{ fontWeight: 700, color: isStepEnrolled ? "var(--ypp-purple)" : "var(--gray-400)", fontSize: 16 }}>
+                    <span style={{ fontWeight: 700, color: isCurrent ? "var(--ypp-purple)" : "var(--gray-400)", fontSize: 16 }}>
                       {step.stepOrder}
                     </span>
                   )}
                 </div>
 
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: 15 }}>{step.course?.title ?? ""}</div>
-                  <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                  <div style={{ fontWeight: isCurrent ? 700 : 600, fontSize: 15 }}>
+                    {step.courseId && !isLocked ? (
+                      <Link href={`/courses/${step.courseId}`} style={{ textDecoration: "none", color: "inherit" }}>
+                        {step.course?.title ?? ""}
+                      </Link>
+                    ) : (
+                      step.course?.title ?? ""
+                    )}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
                     <span className="pill" style={{ fontSize: 12 }}>
                       {step.course ? formatCourseLabel(step.course.format, step.course.level) : ""}
                     </span>
@@ -199,9 +254,9 @@ export default async function PathwayDetailPage({ params }: { params: { id: stri
                         Completed
                       </span>
                     )}
-                    {isStepEnrolled && (
-                      <span className="pill" style={{ fontSize: 12, background: "var(--purple-100, #faf5ff)", color: "var(--ypp-purple)" }}>
-                        In Progress
+                    {isCurrent && (
+                      <span className="pill" style={{ fontSize: 12, background: "var(--purple-100, #faf5ff)", color: "var(--ypp-purple)", fontWeight: 600 }}>
+                        In Progress ← You are here
                       </span>
                     )}
                     {isLocked && (
@@ -211,6 +266,11 @@ export default async function PathwayDetailPage({ params }: { params: { id: stri
                     )}
                   </div>
                 </div>
+
+                {/* XP reward preview for upcoming unlocked steps */}
+                {!isStepCompleted && !isLocked && !isCurrent && (
+                  <div style={{ fontSize: 12, color: "var(--gray-400)", whiteSpace: "nowrap" }}>+50 XP</div>
+                )}
               </div>
             );
           })}

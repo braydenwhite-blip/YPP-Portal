@@ -155,7 +155,7 @@ export async function enrollInNextPathwayStep(pathwayId: string) {
           data: { userId: session.user.id, courseId: step.courseId, status: "ENROLLED" },
         });
         try {
-          await awardXp(session.user.id, XP_REWARDS.ENROLL_COURSE, "Enrolled in pathway step", { pathwayId, courseId: step.courseId });
+          await awardXp(session.user.id, XP_REWARDS.UNLOCK_PATHWAY_STEP, "Unlocked pathway step", { pathwayId, courseId: step.courseId });
         } catch { /* XP may not exist */ }
         return { success: true, enrolledCourseId: step.courseId };
       }
@@ -171,7 +171,7 @@ export async function enrollInNextPathwayStep(pathwayId: string) {
         data: { userId: session.user.id, courseId: step.courseId, status: "ENROLLED" },
       });
       try {
-        await awardXp(session.user.id, XP_REWARDS.ENROLL_COURSE, "Enrolled in pathway step", { pathwayId, courseId: step.courseId });
+        await awardXp(session.user.id, XP_REWARDS.UNLOCK_PATHWAY_STEP, "Unlocked pathway step", { pathwayId, courseId: step.courseId });
       } catch { /* XP may not exist */ }
       return { success: true, enrolledCourseId: step.courseId };
     }
@@ -224,8 +224,17 @@ export async function checkAndAwardPathwayCertificate(userId: string, pathwayId:
   });
 
   try {
-    await awardXp(userId, 500, `Completed ${pathway.name}`, { pathwayId });
+    await awardXp(userId, XP_REWARDS.COMPLETE_PATHWAY, `Completed ${pathway.name}`, { pathwayId });
+    try {
+      const { updateLeaderboards } = await import("@/lib/engagement-actions");
+      await updateLeaderboards(userId);
+    } catch { /* leaderboard update optional */ }
   } catch { /* XP may not exist */ }
+
+  try {
+    const { awardPathwayBadge } = await import("@/lib/pathway-badge-actions");
+    await awardPathwayBadge(userId, pathwayId, pathway.name);
+  } catch { /* badge award optional */ }
 }
 
 export async function leavePathway(pathwayId: string) {

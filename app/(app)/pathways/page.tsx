@@ -6,13 +6,15 @@ import Link from "next/link";
 import { PathwayActionButtons } from "./pathway-actions-client";
 import { buildContextTrail } from "@/lib/context-trail";
 import ContextTrail from "@/components/context-trail";
+import { getRecommendedPathways } from "@/lib/pathway-recommendations";
+import PathwayDiscoveryFilters from "./pathway-discovery-filters";
 
 function formatCourseLabel(format: string, level: string | null) {
   if (format === "LEVELED" && level) return level.replace("LEVEL_", "");
   return format.replace(/_/g, " ");
 }
 
-export default async function PathwaysPage() {
+export default async function PathwaysPage({ searchParams }: { searchParams: { area?: string } }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
 
@@ -70,6 +72,26 @@ export default async function PathwaysPage() {
 
   const enrolledSummaries = summaries.filter((s) => s.isEnrolled);
   const availableSummaries = summaries.filter((s) => !s.isEnrolled);
+
+  // Smart recommendations
+  const completedCourseIds = new Set(
+    enrollments.filter((e) => e.status === "COMPLETED").map((e) => e.courseId).filter((id): id is string => id !== null)
+  );
+  const recommendations = getRecommendedPathways(
+    enrolledSummaries.map((s) => ({ pathway: s.pathway, completedCount: s.completedCount })),
+    availableSummaries.map((s) => s.pathway),
+    completedCourseIds
+  );
+  const recommendedIds = new Set(recommendations.map((r) => r.pathway.id));
+
+  // Interest area filter
+  const allInterestAreas = [...new Set(availableSummaries.map((s) => s.pathway.interestArea).filter(Boolean))].sort();
+  const activeArea = searchParams.area ?? null;
+  const filteredAvailable = activeArea
+    ? availableSummaries.filter((s) => s.pathway.interestArea === activeArea)
+    : availableSummaries.filter((s) => !recommendedIds.has(s.pathway.id));
+
+  const weeksPerCourse = 8;
 
   return (
     <div>
@@ -191,51 +213,133 @@ export default async function PathwaysPage() {
         </div>
       )}
 
+      {/* Recommended For You */}
+      {recommendations.length > 0 && !activeArea && (
+        <div style={{ marginBottom: 32 }}>
+          <div className="section-title">Recommended For You</div>
+          <div className="grid two">
+            {recommendations.map(({ pathway, reason }) => {
+              const estimatedWeeks = pathway.steps.length * weeksPerCourse;
+              return (
+                <div key={pathway.id} className="card" style={{ display: "flex", flexDirection: "column", gap: 12, borderTop: "3px solid var(--ypp-purple)" }}>
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                      <h3 style={{ marginBottom: 2 }}>
+                        <Link href={`/pathways/${pathway.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+                          {pathway.name}
+                        </Link>
+                      </h3>
+                      <span
+                        className="pill"
+                        style={{ background: "var(--purple-100, #faf5ff)", color: "var(--ypp-purple)", fontSize: 11, whiteSpace: "nowrap", marginLeft: 8 }}
+                      >
+                        ✦ {reason}
+                      </span>
+                    </div>
+                    <span className="pill">{pathway.interestArea}</span>
+                    <p style={{ margin: "8px 0 0", color: "var(--gray-600)", fontSize: 14 }}>{pathway.description}</p>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, fontSize: 12, color: "var(--gray-500)" }}>
+                    <span>{pathway.steps.length} steps</span>
+                    <span>·</span>
+                    <span>~{estimatedWeeks} weeks</span>
+                    {pathway._count.certificates > 0 && (
+                      <>
+                        <span>·</span>
+                        <span>{pathway._count.certificates} students completed</span>
+                      </>
+                    )}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <PathwayActionButtons pathwayId={pathway.id} isEnrolled={false} progressPercent={0} />
+                    <Link href={`/pathways/${pathway.id}`} style={{ fontSize: 13, color: "var(--gray-500)" }}>
+                      View details
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Available Pathways */}
       <div>
-        <div className="section-title">{enrolledSummaries.length > 0 ? "More Pathways" : "Available Pathways"}</div>
-        {availableSummaries.length === 0 ? (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <div className="section-title" style={{ margin: 0 }}>
+            {enrolledSummaries.length > 0 ? "More Pathways" : "Available Pathways"}
+          </div>
+        </div>
+
+        {/* Interest-area filter pills */}
+        {allInterestAreas.length > 1 && (
+          <PathwayDiscoveryFilters areas={allInterestAreas} activeArea={activeArea} />
+        )}
+
+        {filteredAvailable.length === 0 ? (
           <div className="card">
-            <p>You&apos;ve joined all available pathways.</p>
+            {activeArea ? (
+              <p>No pathways in <strong>{activeArea}</strong> available right now.{" "}
+                <Link href="/pathways" style={{ color: "var(--ypp-purple)" }}>Clear filter</Link>
+              </p>
+            ) : (
+              <p>You&apos;ve joined all available pathways.</p>
+            )}
           </div>
         ) : (
           <div className="grid two">
-            {availableSummaries.map(({ pathway }) => (
-              <div key={pathway.id} className="card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <div>
-                  <h3 style={{ marginBottom: 2 }}>
-                    <Link href={`/pathways/${pathway.id}`} style={{ textDecoration: "none", color: "inherit" }}>
-                      {pathway.name}
-                    </Link>
-                  </h3>
-                  <span className="pill">{pathway.interestArea}</span>
-                  <p style={{ margin: "8px 0 0", color: "var(--gray-600)", fontSize: 14 }}>{pathway.description}</p>
-                </div>
+            {filteredAvailable.map(({ pathway }) => {
+              const estimatedWeeks = pathway.steps.length * weeksPerCourse;
+              return (
+                <div key={pathway.id} className="card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div>
+                    <h3 style={{ marginBottom: 2 }}>
+                      <Link href={`/pathways/${pathway.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+                        {pathway.name}
+                      </Link>
+                    </h3>
+                    <span className="pill">{pathway.interestArea}</span>
+                    <p style={{ margin: "8px 0 0", color: "var(--gray-600)", fontSize: 14 }}>{pathway.description}</p>
+                  </div>
 
-                {/* Step preview */}
-                <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
-                  {pathway.steps.map((step, idx) => (
-                    <span key={step.id} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      {idx > 0 && <span style={{ color: "var(--gray-400)", fontSize: 12 }}>→</span>}
-                      <span className="pill" style={{ fontSize: 12 }}>
-                        {step.course ? formatCourseLabel(step.course.format, step.course.level) : ""}
+                  {/* Meta info */}
+                  <div style={{ display: "flex", gap: 8, fontSize: 12, color: "var(--gray-500)" }}>
+                    <span>{pathway.steps.length} steps</span>
+                    <span>·</span>
+                    <span>~{estimatedWeeks} weeks</span>
+                    {pathway._count.certificates > 0 && (
+                      <>
+                        <span>·</span>
+                        <span>{pathway._count.certificates} students completed</span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Step preview */}
+                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+                    {pathway.steps.map((step, idx) => (
+                      <span key={step.id} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        {idx > 0 && <span style={{ color: "var(--gray-400)", fontSize: 12 }}>→</span>}
+                        <span className="pill" style={{ fontSize: 12 }}>
+                          {step.course ? formatCourseLabel(step.course.format, step.course.level) : ""}
+                        </span>
                       </span>
-                    </span>
-                  ))}
-                </div>
+                    ))}
+                  </div>
 
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <PathwayActionButtons
-                    pathwayId={pathway.id}
-                    isEnrolled={false}
-                    progressPercent={0}
-                  />
-                  <Link href={`/pathways/${pathway.id}`} style={{ fontSize: 13, color: "var(--gray-500)" }}>
-                    View details
-                  </Link>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <PathwayActionButtons
+                      pathwayId={pathway.id}
+                      isEnrolled={false}
+                      progressPercent={0}
+                    />
+                    <Link href={`/pathways/${pathway.id}`} style={{ fontSize: 13, color: "var(--gray-500)" }}>
+                      View details
+                    </Link>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

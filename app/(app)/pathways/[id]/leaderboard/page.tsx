@@ -69,10 +69,24 @@ export default async function PathwayLeaderboardPage({ params }: { params: { id:
       </div>
 
       {currentUserRank > 0 && (
-        <div className="card" style={{ marginBottom: 16, borderLeft: "4px solid var(--ypp-purple)" }}>
-          <p style={{ margin: 0, fontSize: 14 }}>
-            Your rank: <strong>#{currentUserRank}</strong> out of {ranked.length} enrolled students
-          </p>
+        <div className="card" style={{ marginBottom: 16, borderLeft: "4px solid var(--ypp-purple)", background: "var(--purple-50, #faf5ff)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+            <div>
+              <p style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>
+                You&apos;re #{currentUserRank} in this pathway
+              </p>
+              <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--gray-600)" }}>
+                {currentUserRank === 1
+                  ? "You're leading the pack — amazing work!"
+                  : currentUserRank <= 3
+                  ? "You're on the podium — keep it up!"
+                  : "Complete the next step to climb higher!"}
+              </p>
+            </div>
+            <Link href={`/pathways/${params.id}`} className="button outline small">
+              Continue Pathway →
+            </Link>
+          </div>
         </div>
       )}
 

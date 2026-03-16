@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { getStudentProgressSnapshot } from "@/lib/student-progress-actions";
+import XpDisplay from "@/components/xp-display";
 
 export default async function PathwayProgressPage() {
   const session = await getServerSession(authOptions);
@@ -12,6 +13,12 @@ export default async function PathwayProgressPage() {
   }
 
   const snapshot = await getStudentProgressSnapshot(session.user.id);
+
+  // User XP for display
+  const userXpData = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { xp: true, level: true },
+  }).catch(() => null);
 
   // Get user's enrollments with course and pathway information
   const enrollments = await prisma.enrollment.findMany({
@@ -112,6 +119,13 @@ export default async function PathwayProgressPage() {
         </Link>
       </div>
 
+      {/* XP Level Widget */}
+      {userXpData && (
+        <div style={{ marginBottom: 18 }}>
+          <XpDisplay xp={userXpData.xp} level={userXpData.level} />
+        </div>
+      )}
+
       <div className="card" style={{ marginBottom: 18 }}>
         <h3 style={{ marginTop: 0 }}>Unified Progress Snapshot</h3>
         <div className="grid four" style={{ marginTop: 10 }}>
@@ -200,24 +214,47 @@ export default async function PathwayProgressPage() {
                   </div>
                 </div>
 
-                {estimatedWeeksRemaining > 0 && (
+                {estimatedWeeksRemaining > 0 ? (
                   <div style={{
-                    padding: 12,
+                    padding: 14,
                     backgroundColor: "var(--ypp-purple-50)",
-                    borderRadius: 6,
-                    marginBottom: 20
+                    borderRadius: 8,
+                    marginBottom: 20,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: 8,
                   }}>
-                    <strong>Estimated Completion:</strong>{" "}
-                    {estimatedCompletionDate.toLocaleDateString("en-US", {
-                      month: "long",
-                      year: "numeric"
-                    })}
-                    {" "}
-                    <span style={{ color: "var(--text-secondary)" }}>
-                      ({estimatedWeeksRemaining} weeks remaining)
+                    <div>
+                      <strong>Certificate in ~{estimatedWeeksRemaining} weeks</strong>
+                      <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
+                        Keep your pace — estimated {estimatedCompletionDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                      </div>
+                    </div>
+                    <span style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      padding: "4px 10px",
+                      borderRadius: 99,
+                      background: "var(--green-100, #f0fff4)",
+                      color: "var(--green-700, #276749)",
+                    }}>
+                      On Track ✓
                     </span>
                   </div>
-                )}
+                ) : completedCount === totalSteps ? (
+                  <div style={{
+                    padding: 14,
+                    backgroundColor: "var(--green-50, #f0fff4)",
+                    borderRadius: 8,
+                    marginBottom: 20,
+                    color: "var(--green-700, #276749)",
+                    fontWeight: 600,
+                  }}>
+                    🎓 Pathway Complete! Check your certificate.
+                  </div>
+                ) : null}
 
                 {/* Timeline */}
                 <div className="section-title" style={{ marginTop: 20 }}>Pathway Timeline</div>

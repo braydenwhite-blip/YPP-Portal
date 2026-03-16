@@ -25,6 +25,11 @@ export async function savePathwayReflection(input: SaveReflectionInput) {
     },
   });
 
+  try {
+    const { awardXp, XP_REWARDS } = await import("@/lib/xp");
+    await awardXp(session.user.id, XP_REWARDS.SUBMIT_REFLECTION, "Wrote pathway reflection", { pathwayId: input.pathwayId });
+  } catch { /* XP optional */ }
+
   return { success: true };
 }
 
