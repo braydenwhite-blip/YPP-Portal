@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { getServerSession } from "next-auth";
 import { createSystemNotification } from "@/lib/notification-actions";
 import { onProgressEvent } from "@/lib/progress-events";
+import { logActivityEvent } from "@/lib/activity-events";
 
 async function requireAuth() {
   const session = await getServerSession(authOptions);
@@ -253,4 +254,5 @@ export async function markEnrollmentComplete(formData: FormData) {
 
   // Fire progress event for course completion
   onProgressEvent({ type: "COURSE_COMPLETED", userId: enrollment.userId, metadata: { courseId: enrollment.courseId } }).catch(() => {});
+  logActivityEvent(enrollment.userId, "COURSE_COMPLETE", "Completed a course", undefined, "/my-courses").catch(() => {});
 }

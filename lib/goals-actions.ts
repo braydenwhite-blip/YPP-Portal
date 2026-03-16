@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { ProgressStatus, RoleType } from "@prisma/client";
 import { parseRoleType } from "@/lib/authorization";
 import { onProgressEvent } from "@/lib/progress-events";
+import { logActivityEvent } from "@/lib/activity-events";
 
 async function requireAuth() {
   const session = await getServerSession(authOptions);
@@ -150,6 +151,7 @@ export async function assignGoalToUser(formData: FormData) {
   });
 
   onProgressEvent({ type: "GOAL_UPDATED", userId, metadata: { templateId } }).catch(() => {});
+  logActivityEvent(userId, "GOAL_SET", "Set a new goal", undefined, "/goals").catch(() => {});
 
   revalidatePath("/admin/goals");
   revalidatePath("/goals");
@@ -193,6 +195,7 @@ export async function assignGoalsToUserByRole(formData: FormData) {
     });
 
     onProgressEvent({ type: "GOAL_UPDATED", userId, metadata: { roleType, count: newGoals.length } }).catch(() => {});
+    logActivityEvent(userId, "GOAL_SET", `Set ${newGoals.length} new goal${newGoals.length === 1 ? "" : "s"}`, undefined, "/goals").catch(() => {});
   }
 
   revalidatePath("/admin/goals");
@@ -266,6 +269,7 @@ export async function submitProgressUpdate(formData: FormData) {
   });
 
   onProgressEvent({ type: "GOAL_UPDATED", userId: forUserId, metadata: { goalId, status } }).catch(() => {});
+  logActivityEvent(forUserId, "GOAL_UPDATE", "Updated goal progress", undefined, "/goals").catch(() => {});
 
   revalidatePath("/goals");
   revalidatePath("/mentorship");
@@ -327,6 +331,7 @@ export async function submitBulkProgressUpdates(formData: FormData) {
   });
 
   onProgressEvent({ type: "GOAL_UPDATED", userId: forUserId, metadata: { bulkCount: updates.length } }).catch(() => {});
+  logActivityEvent(forUserId, "GOAL_UPDATE", `Updated ${updates.length} goal${updates.length === 1 ? "" : "s"}`, undefined, "/goals").catch(() => {});
 
   revalidatePath("/goals");
   revalidatePath("/mentorship");

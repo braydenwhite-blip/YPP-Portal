@@ -16,6 +16,7 @@ import { Prisma } from "@prisma/client";
 import { checkAndIssueTrainingCompletion } from "@/lib/auto-certificate-actions";
 import { getInstructorReadiness } from "@/lib/instructor-readiness";
 import { onProgressEvent } from "@/lib/progress-events";
+import { logActivityEvent } from "@/lib/activity-events";
 
 async function requireAuth() {
   const session = await getServerSession(authOptions);
@@ -451,6 +452,7 @@ async function syncAssignmentFromArtifacts(userId: string, moduleId: string) {
   if (isComplete) {
     await checkAndIssueTrainingCompletion(userId);
     onProgressEvent({ type: "TRAINING_MODULE_COMPLETED", userId, metadata: { moduleId } }).catch(() => {});
+    logActivityEvent(userId, "TRAINING_COMPLETE", "Completed a training module", undefined, "/instructor-training").catch(() => {});
   }
 
   return {

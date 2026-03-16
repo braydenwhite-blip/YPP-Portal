@@ -7,6 +7,7 @@ import {
   requireSessionUser,
 } from "@/lib/authorization";
 import { onProgressEvent } from "@/lib/progress-events";
+import { logActivityEvent } from "@/lib/activity-events";
 
 // ============================================
 // HELPERS
@@ -200,6 +201,14 @@ export async function joinChallenge(challengeId: string) {
     },
   });
 
+  logActivityEvent(
+    session.user.id,
+    "CHALLENGE_JOIN",
+    `Joined challenge: ${challenge.title}`,
+    undefined,
+    `/challenges/${challengeId}`
+  ).catch(() => {});
+
   revalidatePath("/challenges");
 }
 
@@ -297,6 +306,7 @@ export async function checkInChallenge(formData: FormData) {
   // Fire progress event on completion
   if (isComplete) {
     onProgressEvent({ type: "CHALLENGE_COMPLETED", userId: session.user.id, metadata: { challengeId } }).catch(() => {});
+    logActivityEvent(session.user.id, "CHALLENGE_COMPLETE", `Completed challenge: ${challenge?.title ?? "a challenge"}`, undefined, `/challenges/${challengeId}`).catch(() => {});
   }
 
   // Award XP on completion

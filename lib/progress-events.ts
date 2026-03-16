@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { createNudge } from "@/lib/nudge-engine";
 import { checkAndAutoUnlock, unlockSection } from "@/lib/unlock-manager";
+import { logActivityEvent } from "@/lib/activity-events";
 
 // ============================================
 // TYPES
@@ -153,6 +154,8 @@ async function checkMilestones(userId: string) {
         def.label,
         "/"
       );
+
+      logActivityEvent(userId, "MILESTONE_REACHED", def.label, undefined, "/").catch(() => {});
     }
   }
 }
@@ -175,6 +178,8 @@ async function notifyNewUnlocks(userId: string, newUnlocks: string[]) {
       `/${sectionKey.replace("_", "-")}`,
       { sectionKey }
     );
+
+    logActivityEvent(userId, "SECTION_UNLOCKED", `Unlocked: ${label}`, undefined, `/${sectionKey.replace("_", "-")}`).catch(() => {});
   }
 }
 
@@ -289,6 +294,8 @@ async function awardBadge(
     "/badges",
     { badgeId, badgeName }
   );
+
+  logActivityEvent(userId, "BADGE_EARNED", `Earned badge: ${badgeName}`, undefined, "/badges").catch(() => {});
 }
 
 async function notifyMentor(event: ProgressEvent) {
