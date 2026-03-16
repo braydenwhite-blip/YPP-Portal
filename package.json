@@ -29,7 +29,8 @@
     "training:import": "node scripts/import-training-academy-content.mjs",
     "training:export": "node scripts/export-training-academy-content.mjs",
     "training:sync": "npm run training:validate && npm run training:import",
-    "backfill:email-verified": "node scripts/backfill-email-verified.mjs"
+    "backfill:email-verified": "node scripts/backfill-email-verified.mjs",
+    "backfill:mentorship-redesign": "node scripts/backfill-mentorship-redesign.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

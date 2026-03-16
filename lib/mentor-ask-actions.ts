@@ -1,32 +1,31 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { revalidatePath } from "next/cache";
+import {
+  createMentorshipRequest,
+  markMentorshipResponseHelpful,
+  respondToMentorshipRequest,
+} from "@/lib/mentorship-hub-actions";
 
 export async function submitMentorQuestion(formData: FormData) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) throw new Error("Unauthorized");
 
-  const passionId = formData.get("passionId") as string | null;
-  const question = formData.get("question") as string;
-  const isAnonymous = formData.get("isAnonymous") === "on";
+  const question = String(formData.get("question") ?? "").trim();
+  if (!question) throw new Error("Question is required");
 
-  if (!question?.trim()) throw new Error("Question is required");
+  const requestFormData = new FormData();
+  requestFormData.set("kind", "GENERAL_QNA");
+  requestFormData.set("visibility", "PUBLIC");
+  requestFormData.set("question", question);
 
-  await prisma.mentorQuestion.create({
-    data: {
-      studentId: session.user.id,
-      passionId: passionId || null,
-      question: question.trim(),
-      isAnonymous,
-      status: "PENDING",
-      views: 0,
-    },
-  });
+  const passionId = String(formData.get("passionId") ?? "").trim();
+  if (passionId) {
+    requestFormData.set("passionId", passionId);
+  }
 
-  revalidatePath("/mentor/ask");
+  await createMentorshipRequest(requestFormData);
 }
 
 export async function answerMentorQuestion(formData: FormData) {
@@ -41,37 +40,15 @@ export async function answerMentorQuestion(formData: FormData) {
     roles.includes("ADMIN");
   if (!canAnswer) throw new Error("Unauthorized");
 
-  const questionId = formData.get("questionId") as string;
-  const answer = formData.get("answer") as string;
-
-  if (!questionId || !answer?.trim()) throw new Error("Missing fields");
-
-  await prisma.mentorAnswer.create({
-    data: {
-      questionId,
-      mentorId: session.user.id,
-      answer: answer.trim(),
-      helpful: 0,
-    },
-  });
-
-  // Mark question as answered
-  await prisma.mentorQuestion.update({
-    where: { id: questionId },
-    data: { status: "ANSWERED" },
-  });
-
-  revalidatePath("/mentor/ask");
+  const requestFormData = new FormData();
+  requestFormData.set("requestId", String(formData.get("questionId") ?? ""));
+  requestFormData.set("answer", String(formData.get("answer") ?? ""));
+  await respondToMentorshipRequest(requestFormData);
 }
 
 export async function upvoteMentorAnswer(answerId: string) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) throw new Error("Unauthorized");
 
-  await prisma.mentorAnswer.update({
-    where: { id: answerId },
-    data: { helpful: { increment: 1 } },
-  });
-
-  revalidatePath("/mentor/ask");
+  await markMentorshipResponseHelpful(answerId);
 }

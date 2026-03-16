@@ -1,201 +1,217 @@
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getMyStudentMentor } from "@/lib/student-actions";
-import { prisma } from "@/lib/prisma";
-import { formatEnum } from "@/lib/format-utils";
+import { redirect } from "next/navigation";
+
+import { authOptions } from "@/lib/auth";
+import { SUPPORT_ROLE_META, getStudentSupportCircleData } from "@/lib/mentorship-hub";
+import { updateMentorshipActionItemStatus } from "@/lib/mentorship-hub-actions";
 
 export default async function MyMentorPage() {
   const session = await getServerSession(authOptions);
-  if (!session) redirect("/login");
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
 
-  const mentorship = await getMyStudentMentor();
+  const workspace = await getStudentSupportCircleData(session.user.id);
 
-  if (!mentorship) {
-    // Find the student's chapter lead so we can show their contact info
-    const userWithChapter = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: {
-        chapter: {
-          select: {
-            name: true,
-            users: {
-              where: { roles: { some: { role: "CHAPTER_LEAD" } } },
-              select: { name: true, email: true },
-              take: 1,
-            },
-          },
-        },
-      },
-    });
-    const chapterLead = userWithChapter?.chapter?.users[0] ?? null;
-
+  if (!workspace || !workspace.mentorship) {
     return (
       <main className="main-content my-mentor-page">
         <div className="topbar">
           <div>
             <Link href="/mentorship" style={{ fontSize: 13, color: "var(--muted)", display: "inline-block", marginBottom: 4 }}>
-              &larr; Mentorship Dashboard
+              &larr; Mentorship Hub
             </Link>
-            <h1 className="page-title">My Mentor</h1>
-            <p className="page-subtitle">Your assigned mentor guides you through your YPP journey.</p>
+            <h1 className="page-title">My Support Circle</h1>
+            <p className="page-subtitle">Your layered support team will appear here once a circle is assigned.</p>
           </div>
         </div>
-        <div className="card no-mentor">
-          <div className="icon">👤</div>
-          <h2>No Mentor Assigned Yet</h2>
-          <p>
-            You don&apos;t currently have a student mentor assigned. Mentors are
-            matched by your chapter president or YPP administrator.
-          </p>
-          {chapterLead ? (
-            <p style={{ marginTop: 16 }}>
-              Contact your chapter president{" "}
-              <strong>{chapterLead.name}</strong> at{" "}
-              <a href={`mailto:${chapterLead.email}`} className="link">
-                {chapterLead.email}
-              </a>{" "}
-              to request a mentor pairing.
-            </p>
-          ) : (
-            <p style={{ marginTop: 16, color: "var(--muted)" }}>
-              Contact your chapter president or YPP administrator to request a
-              mentor pairing.
-            </p>
-          )}
-        </div>
 
-        <style>{`
-          .my-mentor-page .no-mentor {
-            text-align: center;
-            padding: 3rem;
-            max-width: 500px;
-            margin: 2rem auto;
-          }
-          .my-mentor-page .icon {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-          }
-          .my-mentor-page .no-mentor h2 {
-            margin: 0 0 1rem;
-          }
-          .my-mentor-page .no-mentor p {
-            color: var(--muted);
-            margin: 0;
-          }
-        `}</style>
+        <div className="card" style={{ textAlign: "center", padding: "3rem 1.5rem", maxWidth: 640, margin: "2rem auto" }}>
+          <div style={{ fontSize: 44, marginBottom: 12 }}>🧭</div>
+          <h2 style={{ marginTop: 0 }}>No support circle assigned yet</h2>
+          <p style={{ color: "var(--muted)", marginBottom: 16 }}>
+            The redesigned mentorship experience works best when you have a primary mentor plus supporting roles.
+            Ask your chapter lead or admin to create your circle.
+          </p>
+          <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+            <Link href="/mentor/ask" className="button secondary small">
+              Ask the Mentor Commons
+            </Link>
+            <Link href="/mentor/resources" className="button secondary small">
+              Browse Resources
+            </Link>
+          </div>
+        </div>
       </main>
     );
   }
 
-  const mentor = mentorship.mentor;
+  const mentorship = workspace.mentorship;
+  const openActionItems = workspace.actionItems.filter((item) => item.status !== "COMPLETE");
+  const upcomingSessions = workspace.sessions.filter(
+    (item) => !item.completedAt && item.scheduledAt.getTime() >= Date.now()
+  );
+  const primaryMentor = workspace.circleMembers.find((member) => member.role === "PRIMARY_MENTOR");
 
   return (
     <main className="main-content my-mentor-page">
       <div className="topbar">
         <div>
           <Link href="/mentorship" style={{ fontSize: 13, color: "var(--muted)", display: "inline-block", marginBottom: 4 }}>
-            &larr; Mentorship Dashboard
+            &larr; Mentorship Hub
           </Link>
-          <h1 className="page-title">My Mentor</h1>
-          <p className="page-subtitle">Your assigned mentor guides you through your YPP journey — check in regularly for support and feedback.</p>
+          <h1 className="page-title">My Support Circle</h1>
+          <p className="page-subtitle">
+            Your mentor, support roles, upcoming sessions, and action plan all live here.
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Link href="/mentor/feedback" className="button primary small">
+            Request Feedback
+          </Link>
+          <Link href="/mentor/ask" className="button secondary small">
+            Ask a Mentor
+          </Link>
         </div>
       </div>
 
-      <div className="mentor-grid">
-        {/* Mentor Profile */}
-        <section className="card mentor-profile">
-          <div className="mentor-header">
-            <div className="avatar">
-              {mentor.profile?.avatarUrl ? (
-                <img src={mentor.profile.avatarUrl} alt={mentor.name} />
-              ) : (
-                mentor.name.charAt(0).toUpperCase()
-              )}
+      <div className="grid two" style={{ marginBottom: 24 }}>
+        <section className="card">
+          <div className="section-title">Circle Overview</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div>
+              <strong>Primary mentor:</strong> {primaryMentor?.user.name ?? mentorship.mentor.name}
             </div>
-            <div className="mentor-info">
-              <h2>{mentor.name}</h2>
-              <span className="role">Your Student Mentor</span>
+            <div>
+              <strong>Track:</strong> {mentorship.track?.name ?? "General mentorship"}
             </div>
-          </div>
-
-          {mentor.profile?.bio && (
-            <div className="bio">
-              <h3>About</h3>
-              <p>{mentor.profile.bio}</p>
+            <div>
+              <strong>Started:</strong> {new Date(mentorship.startDate).toLocaleDateString()}
             </div>
-          )}
-
-          <div className="contact-section">
-            <h3>Contact Information</h3>
-            <div className="contact-item">
-              <span className="icon">📧</span>
-              <a href={`mailto:${mentor.email}`}>{mentor.email}</a>
+            <div>
+              <strong>Upcoming sessions:</strong> {upcomingSessions.length}
             </div>
-            {mentor.phone && (
-              <div className="contact-item">
-                <span className="icon">📱</span>
-                <a href={`tel:${mentor.phone}`}>{mentor.phone}</a>
-              </div>
-            )}
-          </div>
-
-          <div className="actions">
-            <a href={`mailto:${mentor.email}`} className="btn btn-primary">
-              Send Email
-            </a>
-          </div>
-        </section>
-
-        {/* Mentorship Details */}
-        <section className="card mentorship-details">
-          <h3>Mentorship Details</h3>
-          <div className="detail-item">
-            <span className="label">Status</span>
-            <span className="status status-active">{formatEnum(mentorship.status)}</span>
-          </div>
-          <div className="detail-item">
-            <span className="label">Started</span>
-            <span className="value">
-              {new Date(mentorship.startDate).toLocaleDateString()}
-            </span>
+            <div>
+              <strong>Open requests:</strong> {workspace.requests.filter((request) => request.status === "OPEN").length}
+            </div>
           </div>
           {mentorship.notes && (
-            <div className="notes">
-              <span className="label">Notes</span>
-              <p>{mentorship.notes}</p>
+            <p style={{ marginTop: 14, color: "var(--muted)" }}>{mentorship.notes}</p>
+          )}
+        </section>
+
+        <section className="card">
+          <div className="section-title">Next Steps</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <Link href="/reflection" className="button primary small" style={{ width: "fit-content" }}>
+              Monthly Self-Reflection
+            </Link>
+            <Link href="/mentor/resources" className="button secondary small" style={{ width: "fit-content" }}>
+              Open Resource Commons
+            </Link>
+            <Link href={`/mentorship/reviews/${workspace.mentee.id}`} className="button secondary small" style={{ width: "fit-content" }}>
+              View Current Review
+            </Link>
+          </div>
+        </section>
+      </div>
+
+      <section className="card" style={{ marginBottom: 24 }}>
+        <div className="section-title" style={{ marginBottom: 14 }}>Support Roles</div>
+        <div className="grid two">
+          {workspace.circleMembers.map((member) => (
+            <div
+              key={member.id}
+              style={{
+                border: "1px solid var(--border)",
+                borderRadius: 14,
+                padding: 16,
+                background: "var(--surface-alt)",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                <div>
+                  <div style={{ fontWeight: 700 }}>{member.user.name}</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                    {SUPPORT_ROLE_META[member.role].label} · {member.user.primaryRole.replace(/_/g, " ")}
+                  </div>
+                </div>
+                <span
+                  className="pill"
+                  style={{
+                    background: `${SUPPORT_ROLE_META[member.role].tone}15`,
+                    color: SUPPORT_ROLE_META[member.role].tone,
+                  }}
+                >
+                  {member.role.replace(/_/g, " ")}
+                </span>
+              </div>
+              <p style={{ margin: "10px 0 0", color: "var(--muted)", fontSize: 13 }}>
+                {SUPPORT_ROLE_META[member.role].description}
+              </p>
+              <div style={{ marginTop: 12, fontSize: 13 }}>
+                <a href={`mailto:${member.user.email}`} className="link">
+                  {member.user.email}
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <div className="grid two" style={{ marginBottom: 24 }}>
+        <section className="card">
+          <div className="section-title">Upcoming Sessions</div>
+          {upcomingSessions.length === 0 ? (
+            <p style={{ color: "var(--muted)", margin: 0 }}>
+              No session is scheduled yet. Your primary mentor can create one from the workspace.
+            </p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {upcomingSessions.map((sessionItem) => (
+                <div key={sessionItem.id} style={{ borderBottom: "1px solid var(--border)", paddingBottom: 10 }}>
+                  <div style={{ fontWeight: 600 }}>{sessionItem.title}</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                    {new Date(sessionItem.scheduledAt).toLocaleString()} · {sessionItem.type.replace(/_/g, " ")}
+                  </div>
+                  {sessionItem.agenda && (
+                    <p style={{ margin: "8px 0 0", fontSize: 13 }}>{sessionItem.agenda}</p>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </section>
 
-        {/* Recent Check-ins */}
-        <section className="card check-ins">
-          <h3>Recent Check-ins</h3>
-          {mentorship.checkIns.length === 0 ? (
-            <p className="empty">No check-ins recorded yet. Your mentor will log notes after each meeting.</p>
+        <section className="card">
+          <div className="section-title">Action Plan</div>
+          {openActionItems.length === 0 ? (
+            <p style={{ color: "var(--muted)", margin: 0 }}>
+              No active action items right now. New next steps will appear here after each session.
+            </p>
           ) : (
-            <div className="check-ins-list">
-              {mentorship.checkIns.map((checkIn) => (
-                <div key={checkIn.id} className="check-in-item">
-                  <div className="check-in-header">
-                    <span className="date">
-                      {new Date(checkIn.createdAt).toLocaleDateString()}
-                    </span>
-                    {checkIn.rating && (
-                      <span className="rating">
-                        {[1, 2, 3, 4, 5].map((n) => (
-                          <span
-                            key={n}
-                            className={n <= checkIn.rating! ? "star filled" : "star"}
-                          >
-                            ★
-                          </span>
-                        ))}
-                      </span>
-                    )}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {openActionItems.map((item) => (
+                <div key={item.id} style={{ borderBottom: "1px solid var(--border)", paddingBottom: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                    <div>
+                      <div style={{ fontWeight: 600 }}>{item.title}</div>
+                      <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                        {item.owner?.name ? `Owner: ${item.owner.name}` : "Shared responsibility"}
+                        {item.dueAt ? ` · Due ${new Date(item.dueAt).toLocaleDateString()}` : ""}
+                      </div>
+                    </div>
+                    <span className="pill">{item.status.replace(/_/g, " ")}</span>
                   </div>
-                  <p className="notes">{checkIn.notes}</p>
+                  {item.details && <p style={{ margin: "8px 0 0", fontSize: 13 }}>{item.details}</p>}
+                  <form action={updateMentorshipActionItemStatus} style={{ marginTop: 8 }}>
+                    <input type="hidden" name="itemId" value={item.id} />
+                    <input type="hidden" name="status" value="COMPLETE" />
+                    <button type="submit" className="button secondary small">
+                      Mark Complete
+                    </button>
+                  </form>
                 </div>
               ))}
             </div>
@@ -203,167 +219,59 @@ export default async function MyMentorPage() {
         </section>
       </div>
 
-      <style>{`
+      <div className="grid two">
+        <section className="card">
+          <div className="section-title">Recent Requests</div>
+          {workspace.requests.length === 0 ? (
+            <p style={{ color: "var(--muted)", margin: 0 }}>
+              No support requests yet. Use the feedback and mentor commons links above to start one.
+            </p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {workspace.requests.slice(0, 4).map((request) => (
+                <div key={request.id} style={{ borderBottom: "1px solid var(--border)", paddingBottom: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                    <div>
+                      <div style={{ fontWeight: 600 }}>{request.title}</div>
+                      <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                        {request.kind.replace(/_/g, " ")} · {request.visibility.toLowerCase()}
+                      </div>
+                    </div>
+                    <span className="pill">{request.status.replace(/_/g, " ")}</span>
+                  </div>
+                  <p style={{ margin: "8px 0 0", fontSize: 13 }}>{request.details}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
 
-        .my-mentor-page .mentor-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 1.5rem;
-        }
-        @media (max-width: 768px) {
-          .my-mentor-page .mentor-grid {
-            grid-template-columns: 1fr;
-          }
-        }
-        .my-mentor-page .card {
-          padding: 1.5rem;
-        }
-        .my-mentor-page .mentor-profile {
-          grid-row: span 2;
-        }
-        .my-mentor-page .mentor-header {
-          display: flex;
-          gap: 1.5rem;
-          align-items: center;
-          margin-bottom: 1.5rem;
-          padding-bottom: 1.5rem;
-          border-bottom: 1px solid var(--border);
-        }
-        .my-mentor-page .avatar {
-          width: 80px;
-          height: 80px;
-          border-radius: 50%;
-          background: var(--primary);
-          color: white;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 2rem;
-          font-weight: 700;
-          overflow: hidden;
-        }
-        .my-mentor-page .avatar img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-        .my-mentor-page .mentor-info h2 {
-          margin: 0;
-        }
-        .my-mentor-page .role {
-          color: var(--muted);
-          font-size: 0.875rem;
-        }
-        .my-mentor-page .bio {
-          margin-bottom: 1.5rem;
-        }
-        .my-mentor-page .bio h3,
-        .my-mentor-page .contact-section h3 {
-          margin: 0 0 0.75rem;
-          font-size: 1rem;
-        }
-        .my-mentor-page .bio p {
-          margin: 0;
-          color: var(--muted);
-        }
-        .my-mentor-page .contact-section {
-          margin-bottom: 1.5rem;
-        }
-        .my-mentor-page .contact-item {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          padding: 0.5rem 0;
-        }
-        .my-mentor-page .contact-item .icon {
-          font-size: 1.25rem;
-        }
-        .my-mentor-page .contact-item a {
-          color: var(--primary);
-          text-decoration: none;
-        }
-        .my-mentor-page .contact-item a:hover {
-          text-decoration: underline;
-        }
-        .my-mentor-page .actions {
-          padding-top: 1.5rem;
-          border-top: 1px solid var(--border);
-        }
-        .my-mentor-page .mentorship-details h3,
-        .my-mentor-page .check-ins h3 {
-          margin: 0 0 1rem;
-        }
-        .my-mentor-page .detail-item {
-          display: flex;
-          justify-content: space-between;
-          padding: 0.75rem 0;
-          border-bottom: 1px solid var(--border);
-        }
-        .my-mentor-page .detail-item:last-child {
-          border-bottom: none;
-        }
-        .my-mentor-page .label {
-          color: var(--muted);
-        }
-        .my-mentor-page .status {
-          padding: 0.25rem 0.75rem;
-          border-radius: 1rem;
-          font-size: 0.75rem;
-          font-weight: 500;
-        }
-        .my-mentor-page .status-active {
-          background: #dcfce7;
-          color: #166534;
-        }
-        .my-mentor-page .notes {
-          margin-top: 1rem;
-        }
-        .my-mentor-page .notes .label {
-          display: block;
-          margin-bottom: 0.5rem;
-        }
-        .my-mentor-page .notes p {
-          margin: 0;
-          padding: 0.75rem;
-          background: var(--background);
-          border-radius: 0.5rem;
-        }
-        .my-mentor-page .empty {
-          color: var(--muted);
-          font-style: italic;
-        }
-        .my-mentor-page .check-ins-list {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-        }
-        .my-mentor-page .check-in-item {
-          padding: 1rem;
-          background: var(--background);
-          border-radius: 0.5rem;
-        }
-        .my-mentor-page .check-in-header {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 0.5rem;
-        }
-        .my-mentor-page .date {
-          font-size: 0.875rem;
-          color: var(--muted);
-        }
-        .my-mentor-page .rating .star {
-          color: var(--border);
-        }
-        .my-mentor-page .rating .star.filled {
-          color: #eab308;
-        }
-        .my-mentor-page .check-in-item .notes {
-          margin: 0;
-          padding: 0;
-          background: none;
-        }
-      
-`}</style>
+        <section className="card">
+          <div className="section-title">Resources For Me</div>
+          {workspace.resources.length === 0 ? (
+            <p style={{ color: "var(--muted)", margin: 0 }}>
+              Resources attached to your sessions, requests, or support circle will appear here.
+            </p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {workspace.resources.slice(0, 4).map((resource) => (
+                <div key={resource.id} style={{ borderBottom: "1px solid var(--border)", paddingBottom: 10 }}>
+                  <div style={{ fontWeight: 600 }}>{resource.title}</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                    Shared by {resource.createdBy.name}
+                  </div>
+                  {resource.description && <p style={{ margin: "8px 0 0", fontSize: 13 }}>{resource.description}</p>}
+                  {resource.url && (
+                    <a href={resource.url} target="_blank" rel="noreferrer" className="link">
+                      Open resource
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
     </main>
   );
 }

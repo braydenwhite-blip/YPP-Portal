@@ -1,10 +1,19 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
+import { MentorshipType, SupportRole } from "@prisma/client";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { MentorshipType } from "@prisma/client";
+
+import { authOptions } from "@/lib/auth";
+import {
+  deriveMentorshipTypeFromRole,
+  scoreSupportMatch,
+} from "@/lib/mentorship-hub";
+import {
+  assignSupportCircleMember,
+  ensureMentorshipSupportCircle,
+} from "@/lib/mentorship-hub-actions";
+import { prisma } from "@/lib/prisma";
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
@@ -15,6 +24,12 @@ async function requireAdmin() {
   return session;
 }
 
+type MatchSupportRole =
+  | "PRIMARY_MENTOR"
+  | "SPECIALIST_MENTOR"
+  | "COLLEGE_ADVISOR"
+  | "ALUMNI_ADVISOR";
+
 export interface MentorMatchSuggestion {
   mentorId: string;
   mentorName: string;
@@ -22,6 +37,7 @@ export interface MentorMatchSuggestion {
   mentorChapter: string | null;
   mentorInterests: string[];
   mentorCurrentMentees: number;
+  mentorAvailability: string | null;
   menteeId: string;
   menteeName: string;
   menteeEmail: string;
@@ -30,122 +46,162 @@ export interface MentorMatchSuggestion {
   matchScore: number;
   matchReasons: string[];
   type: MentorshipType;
+  supportRole: MatchSupportRole;
 }
 
-export async function computeMentorMatches(type: "INSTRUCTOR" | "STUDENT") {
+export async function computeMentorMatches(
+  type: "INSTRUCTOR" | "STUDENT",
+  supportRole: MatchSupportRole = "PRIMARY_MENTOR"
+) {
   await requireAdmin();
 
-  // Get all mentors with profiles and current active mentorships
-  const mentors = await prisma.user.findMany({
-    where: { roles: { some: { role: "MENTOR" } } },
-    include: {
-      profile: true,
-      chapter: true,
-      mentorPairs: {
-        where: { status: "ACTIVE" },
-      },
-    },
-  });
-
-  // Get potential mentees based on type
   const menteeRole = type === "INSTRUCTOR" ? "INSTRUCTOR" : "STUDENT";
+
   const potentialMentees = await prisma.user.findMany({
     where: {
       roles: { some: { role: menteeRole } },
-      // Exclude those who already have an active mentorship of this type
-      NOT: {
-        menteePairs: {
-          some: { status: "ACTIVE", type },
-        },
-      },
+      ...(supportRole === "PRIMARY_MENTOR"
+        ? {
+            NOT: {
+              menteePairs: {
+                some: {
+                  status: "ACTIVE",
+                  type,
+                },
+              },
+            },
+          }
+        : {
+            NOT: {
+              supportCircleForMentees: {
+                some: {
+                  role: supportRole as SupportRole,
+                  isActive: true,
+                },
+              },
+            },
+          }),
     },
     include: {
       profile: true,
       chapter: true,
-      menteePairs: { where: { status: "ACTIVE" } },
+      menteePairs: {
+        where: { status: "ACTIVE" },
+      },
+      supportCircleForMentees: {
+        where: { isActive: true },
+      },
     },
   });
 
-  if (mentors.length === 0 || potentialMentees.length === 0) {
+  if (potentialMentees.length === 0) {
     return [];
   }
+
+  const mentorPool =
+    supportRole === "COLLEGE_ADVISOR"
+      ? await prisma.collegeAdvisor.findMany({
+          where: { isActive: true },
+          include: {
+            user: {
+              include: {
+                profile: true,
+                chapter: true,
+              },
+            },
+            advisees: {
+              where: { endDate: null },
+            },
+          },
+        })
+      : await prisma.user.findMany({
+          where:
+            supportRole === "ALUMNI_ADVISOR"
+              ? {
+                  alumniProfile: {
+                    isNot: null,
+                  },
+                }
+              : {
+                  roles: {
+                    some: {
+                      role: {
+                        in: ["MENTOR", "INSTRUCTOR", "CHAPTER_LEAD", "ADMIN", "STAFF"],
+                      },
+                    },
+                  },
+                },
+          include: {
+            profile: true,
+            chapter: true,
+            mentorPairs: {
+              where: { status: "ACTIVE" },
+            },
+            supportCircleMemberships: {
+              where: { isActive: true },
+            },
+          },
+        });
 
   const suggestions: MentorMatchSuggestion[] = [];
 
   for (const mentee of potentialMentees) {
-    const menteeInterests = mentee.profile?.interests ?? [];
-    const menteeChapterId = mentee.chapterId;
-
     let bestMatch: MentorMatchSuggestion | null = null;
-    let bestScore = -1;
+    let bestScore = Number.NEGATIVE_INFINITY;
 
-    for (const mentor of mentors) {
-      // Don't match someone to themselves
-      if (mentor.id === mentee.id) continue;
+    for (const mentorCandidate of mentorPool) {
+      const mentor =
+        supportRole === "COLLEGE_ADVISOR"
+          ? (mentorCandidate as any).user
+          : (mentorCandidate as any);
+
+      if (mentor.id === mentee.id) {
+        continue;
+      }
 
       const mentorInterests = mentor.profile?.interests ?? [];
-      const mentorChapterId = mentor.chapterId;
-      const currentMenteeCount = mentor.mentorPairs.length;
+      const menteeInterests = mentee.profile?.interests ?? [];
+      const currentLoad =
+        supportRole === "COLLEGE_ADVISOR"
+          ? (mentorCandidate as any).advisees.length
+          : mentor.mentorPairs.length + mentor.supportCircleMemberships.length;
+      const availability =
+        supportRole === "COLLEGE_ADVISOR"
+          ? (mentorCandidate as any).availability
+          : mentor.profile?.mentorAvailability ?? null;
+      const capacity =
+        supportRole === "COLLEGE_ADVISOR" ? null : mentor.profile?.mentorCapacity ?? null;
 
-      let score = 0;
-      const reasons: string[] = [];
+      const result = scoreSupportMatch({
+        supportRole: supportRole as SupportRole,
+        mentorInterests,
+        menteeInterests,
+        sameChapter: Boolean(mentee.chapterId && mentor.chapterId && mentee.chapterId === mentor.chapterId),
+        currentLoad,
+        capacity,
+        availability,
+        hasProfile: Boolean(mentor.profile?.bio),
+      });
 
-      // Shared interests (up to 40 points)
-      const sharedInterests = menteeInterests.filter((i) =>
-        mentorInterests.some((mi) => mi.toLowerCase() === i.toLowerCase())
-      );
-      if (sharedInterests.length > 0) {
-        const interestScore = Math.min(sharedInterests.length * 10, 40);
-        score += interestScore;
-        reasons.push(
-          `${sharedInterests.length} shared interest${sharedInterests.length > 1 ? "s" : ""}: ${sharedInterests.join(", ")}`
-        );
-      }
-
-      // Same chapter (20 points)
-      if (
-        menteeChapterId &&
-        mentorChapterId &&
-        menteeChapterId === mentorChapterId
-      ) {
-        score += 20;
-        reasons.push(`Same chapter: ${mentor.chapter?.name ?? "Unknown"}`);
-      }
-
-      // Lower workload preference (up to 30 points)
-      const workloadScore = Math.max(0, 30 - currentMenteeCount * 10);
-      score += workloadScore;
-      if (currentMenteeCount === 0) {
-        reasons.push("Mentor has no current mentees");
-      } else if (currentMenteeCount <= 2) {
-        reasons.push(`Mentor has ${currentMenteeCount} current mentee${currentMenteeCount > 1 ? "s" : ""}`);
-      } else {
-        reasons.push(`Mentor has ${currentMenteeCount} mentees (high load)`);
-      }
-
-      // Bonus for having a profile set up (10 points)
-      if (mentor.profile?.bio) {
-        score += 10;
-        reasons.push("Mentor has a complete profile");
-      }
-
-      if (score > bestScore) {
-        bestScore = score;
+      if (result.score > bestScore) {
+        bestScore = result.score;
         bestMatch = {
           mentorId: mentor.id,
           mentorName: mentor.name,
           mentorEmail: mentor.email,
           mentorChapter: mentor.chapter?.name ?? null,
           mentorInterests,
-          mentorCurrentMentees: currentMenteeCount,
+          mentorCurrentMentees: currentLoad,
+          mentorAvailability: availability,
           menteeId: mentee.id,
           menteeName: mentee.name,
           menteeEmail: mentee.email,
           menteeChapter: mentee.chapter?.name ?? null,
           menteeInterests,
-          matchScore: score,
-          matchReasons: reasons,
+          matchScore: result.score,
+          matchReasons: result.reasons,
           type,
+          supportRole,
         };
       }
     }
@@ -155,41 +211,58 @@ export async function computeMentorMatches(type: "INSTRUCTOR" | "STUDENT") {
     }
   }
 
-  // Sort by score descending
   suggestions.sort((a, b) => b.matchScore - a.matchScore);
-
   return suggestions;
 }
 
 export async function approveMentorMatch(formData: FormData) {
   await requireAdmin();
 
-  const mentorId = formData.get("mentorId") as string;
-  const menteeId = formData.get("menteeId") as string;
-  const type = formData.get("type") as MentorshipType;
+  const mentorId = String(formData.get("mentorId") ?? "").trim();
+  const menteeId = String(formData.get("menteeId") ?? "").trim();
+  const type = String(formData.get("type") ?? "").trim() as MentorshipType;
+  const supportRole =
+    (String(formData.get("supportRole") ?? "").trim() as MatchSupportRole) ||
+    "PRIMARY_MENTOR";
 
   if (!mentorId || !menteeId || !type) {
     throw new Error("Missing required fields");
   }
 
-  // Check if mentorship already exists
-  const existing = await prisma.mentorship.findFirst({
-    where: { mentorId, menteeId, type, status: "ACTIVE" },
-  });
+  if (supportRole === "PRIMARY_MENTOR") {
+    const mentee = await prisma.user.findUniqueOrThrow({
+      where: { id: menteeId },
+      select: { id: true, primaryRole: true },
+    });
 
-  if (existing) {
-    throw new Error("This mentorship pairing already exists");
+    const existing = await prisma.mentorship.findFirst({
+      where: { menteeId, type, status: "ACTIVE" },
+    });
+
+    if (existing) {
+      throw new Error("This mentee already has an active primary mentor for that track");
+    }
+
+    const mentorship = await prisma.mentorship.create({
+      data: {
+        mentorId,
+        menteeId,
+        type: deriveMentorshipTypeFromRole(mentee.primaryRole),
+        notes: "Created via layered mentor match",
+      },
+    });
+
+    await ensureMentorshipSupportCircle(mentorship.id);
+  } else {
+    const assignmentFormData = new FormData();
+    assignmentFormData.set("menteeId", menteeId);
+    assignmentFormData.set("userId", mentorId);
+    assignmentFormData.set("role", supportRole);
+    assignmentFormData.set("notes", "Created via layered mentor match");
+    await assignSupportCircleMember(assignmentFormData);
   }
 
-  await prisma.mentorship.create({
-    data: {
-      mentorId,
-      menteeId,
-      type,
-      notes: "Created via Mentor Match Algorithm",
-    },
-  });
-
   revalidatePath("/admin/mentor-match");
+  revalidatePath("/admin/mentorship-program");
   revalidatePath("/mentorship");
 }

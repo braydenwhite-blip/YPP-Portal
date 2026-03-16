@@ -7,8 +7,10 @@ import {
   createMentorshipTrack,
   updateMentorshipGovernance,
 } from "@/lib/mentorship-program-actions";
+import { assignSupportCircleMember } from "@/lib/mentorship-hub-actions";
 import { prisma } from "@/lib/prisma";
 import { getProgramAnalytics } from "@/lib/mentorship-overview-actions";
+import { getMentorshipGovernanceSnapshot } from "@/lib/mentorship-hub";
 import TabLayout from "./tab-layout";
 import PairingsPanel from "./pairings-panel";
 import ChairsPanel from "./chairs-panel";
@@ -23,7 +25,7 @@ export default async function MentorshipProgramAdminPage() {
   if (!roles.includes("ADMIN")) redirect("/");
 
   // Parallel data fetch
-  const [pairings, goals, chairs, potentialMentors, potentialMentees, analytics, tracks, committees, governanceUsers] = await Promise.all([
+  const [pairings, goals, chairs, potentialMentors, potentialMentees, analytics, tracks, committees, governanceUsers, governanceSnapshot] = await Promise.all([
     // All mentorships (active + past) involving roles that participate in the program
     prisma.mentorship.findMany({
       include: {
@@ -111,6 +113,8 @@ export default async function MentorshipProgramAdminPage() {
       },
       orderBy: { name: "asc" },
     }),
+
+    getMentorshipGovernanceSnapshot(),
   ]);
 
   // Serialize for client components (dates → strings)
@@ -157,6 +161,9 @@ export default async function MentorshipProgramAdminPage() {
   const availableMentees = potentialMentees.filter(
     (u) => !menteeIdsWithActivePairing.has(u.id)
   );
+  const activeMentees = pairings
+    .filter((pairing) => pairing.status === "ACTIVE")
+    .map((pairing) => pairing.mentee);
 
   return (
     <div>
@@ -187,6 +194,100 @@ export default async function MentorshipProgramAdminPage() {
         <div className="card">
           <p className="kpi">{pairings.filter((p) => p.status !== "ACTIVE").length}</p>
           <p className="kpi-label">Completed Pairings</p>
+        </div>
+      </div>
+
+      <div className="grid three" style={{ marginBottom: "2rem" }}>
+        <div className="card">
+          <div className="section-title">Staffing Gaps</div>
+          <p className="kpi" style={{ marginBottom: 4 }}>{governanceSnapshot.staffingGaps.length}</p>
+          <p className="kpi-label">circles need another role filled</p>
+        </div>
+        <div className="card">
+          <div className="section-title">Cadence Risks</div>
+          <p className="kpi" style={{ marginBottom: 4 }}>{governanceSnapshot.cadenceRisks.length}</p>
+          <p className="kpi-label">circles have stale or missing sessions</p>
+        </div>
+        <div className="card">
+          <div className="section-title">Open Requests</div>
+          <p className="kpi" style={{ marginBottom: 4 }}>{governanceSnapshot.openRequests}</p>
+          <p className="kpi-label">support requests waiting on an answer</p>
+        </div>
+      </div>
+
+      <div className="grid two" style={{ marginBottom: "2rem" }}>
+        <div className="card">
+          <div className="section-title">Assign Support Role</div>
+          <form action={assignSupportCircleMember} className="form-grid">
+            <div className="form-row">
+              <label>Mentee</label>
+              <select name="menteeId" className="input" required>
+                <option value="">Select mentee...</option>
+                {activeMentees.map((mentee) => (
+                  <option key={mentee.id} value={mentee.id}>
+                    {mentee.name} ({mentee.primaryRole})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="form-row">
+              <label>Supporter</label>
+              <select name="userId" className="input" required>
+                <option value="">Select user...</option>
+                {governanceUsers.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name} ({user.roles.map((role) => role.role).join(", ")})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="form-row">
+              <label>Role</label>
+              <select name="role" className="input" defaultValue="SPECIALIST_MENTOR">
+                <option value="PRIMARY_MENTOR">Primary mentor</option>
+                <option value="CHAIR">Chair</option>
+                <option value="SPECIALIST_MENTOR">Specialist mentor</option>
+                <option value="COLLEGE_ADVISOR">College advisor</option>
+                <option value="ALUMNI_ADVISOR">Alumni advisor</option>
+                <option value="PEER_SUPPORT">Peer support</option>
+              </select>
+            </div>
+            <div className="form-row">
+              <label>Notes</label>
+              <textarea name="notes" className="input" rows={3} placeholder="Why this person is joining the circle" />
+            </div>
+            <button type="submit" className="button primary small">
+              Add Support Role
+            </button>
+          </form>
+        </div>
+
+        <div className="card">
+          <div className="section-title">Governance Watchlist</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {governanceSnapshot.staffingGaps.slice(0, 4).map((gap) => (
+              <div key={gap.mentorshipId} style={{ borderBottom: "1px solid var(--border)", paddingBottom: 10 }}>
+                <strong>{gap.menteeName}</strong>
+                <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                  Missing {gap.missing.join(" + ")}
+                </div>
+              </div>
+            ))}
+            {governanceSnapshot.cadenceRisks.slice(0, 4).map((risk) => (
+              <div key={risk.mentorshipId} style={{ borderBottom: "1px solid var(--border)", paddingBottom: 10 }}>
+                <strong>{risk.menteeName}</strong>
+                <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                  {risk.lastSessionAt ? `Last session ${new Date(risk.lastSessionAt).toLocaleDateString()}` : "No session yet"}
+                  {risk.overdueActions > 0 ? ` · ${risk.overdueActions} overdue action items` : ""}
+                </div>
+              </div>
+            ))}
+            {governanceSnapshot.staffingGaps.length === 0 && governanceSnapshot.cadenceRisks.length === 0 && (
+              <p style={{ color: "var(--muted)", margin: 0 }}>
+                No immediate staffing or cadence issues detected.
+              </p>
+            )}
+          </div>
         </div>
       </div>
 

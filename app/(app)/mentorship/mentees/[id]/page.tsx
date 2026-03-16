@@ -3,20 +3,15 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth";
-import { ProgressBar, GoalProgressDisplay } from "@/components/progress-bar";
 import {
-  getMonthlyCycleLabel,
-  PROGRESS_STATUS_META,
-} from "@/lib/mentorship-review-helpers";
-import { prisma } from "@/lib/prisma";
-import { formatEnum, formatEnumStripPrefix } from "@/lib/format-utils";
-
-const TONE_STYLES = {
-  neutral: { background: "#e2e8f0", color: "#334155" },
-  warning: { background: "#fef3c7", color: "#92400e" },
-  success: { background: "#dcfce7", color: "#166534" },
-  danger: { background: "#fee2e2", color: "#991b1b" },
-} as const;
+  SUPPORT_ROLE_META,
+  getSupportWorkspaceData,
+} from "@/lib/mentorship-hub";
+import {
+  createMentorshipActionItem,
+  createMentorshipSession,
+  updateMentorshipActionItemStatus,
+} from "@/lib/mentorship-hub-actions";
 
 export default async function MenteeDetailPage({
   params,
@@ -25,774 +20,490 @@ export default async function MenteeDetailPage({
 }) {
   const { id: menteeId } = await params;
   const session = await getServerSession(authOptions);
-  const userId = session?.user?.id;
-  const roles = session?.user?.roles ?? [];
-
-  if (!userId) {
+  if (!session?.user?.id) {
     redirect("/login");
   }
 
-  const isMentor = roles.includes("MENTOR");
-  const isChapterLead = roles.includes("CHAPTER_LEAD");
-  const isAdmin = roles.includes("ADMIN");
-
-  if (!isMentor && !isChapterLead && !isAdmin) {
-    redirect("/");
-  }
-
-  const currentMonth = new Date();
-  const normalizedMonth = new Date(
-    currentMonth.getFullYear(),
-    currentMonth.getMonth(),
-    1
-  );
-  const nextMonth = new Date(
-    currentMonth.getFullYear(),
-    currentMonth.getMonth() + 1,
-    1
-  );
-
-  const accessMentorship = await prisma.mentorship.findFirst({
-    where: {
-      menteeId,
-      status: "ACTIVE",
-      ...(isAdmin
-        ? {}
-        : {
-            OR: [{ mentorId: userId }, { chairId: userId }],
-          }),
-    },
-    select: { id: true },
+  const workspace = await getSupportWorkspaceData({
+    viewerId: session.user.id,
+    roles: session.user.roles ?? [],
+    menteeId,
   });
 
-  if (!accessMentorship) {
-    redirect("/mentorship/mentees");
-  }
-
-  const [mentee, activeMentorship, currentMonthReview, latestApprovedReview, achievementPoints] =
-    await Promise.all([
-      prisma.user.findUnique({
-        where: { id: menteeId },
-        include: {
-          roles: true,
-          chapter: true,
-          profile: true,
-          goals: {
-            include: {
-              template: true,
-              progress: {
-                orderBy: { createdAt: "desc" },
-                include: {
-                  submittedBy: { select: { name: true } },
-                },
-              },
-            },
-            orderBy: { template: { sortOrder: "asc" } },
-          },
-          reflectionSubmissions: {
-            include: {
-              form: true,
-              responses: {
-                include: {
-                  question: true,
-                },
-              },
-            },
-            orderBy: { submittedAt: "desc" },
-            take: 5,
-          },
-          courses: true,
-          trainings: {
-            include: { module: true },
-          },
-          approvals: {
-            include: { levels: true },
-          },
-        },
-      }),
-      prisma.mentorship.findFirst({
-        where: {
-          menteeId,
-          status: "ACTIVE",
-        },
-        include: {
-          mentor: { select: { id: true, name: true, email: true } },
-          chair: { select: { id: true, name: true, email: true } },
-          track: { select: { id: true, name: true } },
-          checkIns: {
-            orderBy: { createdAt: "desc" },
-            take: 5,
-          },
-        },
-      }),
-      prisma.monthlyGoalReview.findFirst({
-        where: {
-          mentorshipId: accessMentorship.id,
-          month: normalizedMonth,
-        },
-        include: {
-          goalRatings: {
-            include: {
-              goal: {
-                include: { template: true },
-              },
-            },
-            orderBy: {
-              goal: {
-                template: {
-                  sortOrder: "asc",
-                },
-              },
-            },
-          },
-          reflectionSubmission: {
-            include: {
-              responses: {
-                include: { question: true },
-                orderBy: {
-                  question: { sortOrder: "asc" },
-                },
-              },
-            },
-          },
-        },
-      }),
-      prisma.monthlyGoalReview.findFirst({
-        where: {
-          menteeId,
-          status: "APPROVED",
-        },
-        include: {
-          goalRatings: {
-            include: {
-              goal: {
-                include: { template: true },
-              },
-            },
-            orderBy: {
-              goal: {
-                template: {
-                  sortOrder: "asc",
-                },
-              },
-            },
-          },
-        },
-        orderBy: [{ month: "desc" }, { publishedAt: "desc" }],
-      }),
-      prisma.achievementPointLedger.aggregate({
-        where: { userId: menteeId },
-        _sum: { points: true },
-      }),
-    ]);
-
-  if (!mentee) {
+  if (!workspace) {
     notFound();
   }
 
-  const currentMonthReflection =
-    currentMonthReview?.reflectionSubmission ??
-    mentee.reflectionSubmissions.find((submission) => {
-      const submissionMonth = new Date(submission.month);
-      return (
-        submissionMonth >= normalizedMonth && submissionMonth < nextMonth
-      );
-    }) ??
-    null;
-
-  const cycleLabel = getMonthlyCycleLabel({
-    hasReflection: Boolean(currentMonthReflection),
-    reviewStatus: currentMonthReview?.status ?? null,
-  });
-  const displayedReview = currentMonthReview ?? latestApprovedReview;
-
-  const goalsForDisplay = mentee.goals.map((goal) => ({
-    id: goal.id,
-    title: goal.template.title,
-    timetable: goal.timetable,
-    latestStatus: goal.progress[0]?.status ?? null,
-  }));
+  const upcomingSessions = workspace.sessions.filter(
+    (item) => !item.completedAt && item.scheduledAt.getTime() >= Date.now()
+  );
+  const recentSessions = workspace.sessions.filter((item) => item.completedAt).slice(0, 4);
+  const openActionItems = workspace.actionItems.filter((item) => item.status !== "COMPLETE");
+  const overdueActionItems = openActionItems.filter(
+    (item) => item.dueAt && item.dueAt.getTime() < Date.now()
+  );
 
   return (
     <div>
       <div className="topbar">
         <div>
-          <Link
-            href="/mentorship/mentees"
-            style={{ color: "var(--muted)", fontSize: 13 }}
-          >
-            &larr; Back to Mentees
+          <Link href="/mentorship/mentees" style={{ color: "var(--muted)", fontSize: 13 }}>
+            &larr; Back to Support Circles
           </Link>
-          <h1 className="page-title">{mentee.name}</h1>
-          <p style={{ marginTop: 4, color: "var(--muted)", fontSize: 14 }}>
-            Current cycle first, legacy history second.
+          <h1 className="page-title">{workspace.mentee.name}</h1>
+          <p className="page-subtitle">
+            The full support-circle workspace: people, sessions, action plan, requests, resources, and progress signals.
           </p>
         </div>
-        <Link
-          href={`/mentorship/reviews/${menteeId}`}
-          className="button small secondary"
-          style={{ textDecoration: "none" }}
-        >
-          Open Monthly Review
-        </Link>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Link href={`/mentorship/reviews/${workspace.mentee.id}`} className="button primary small">
+            Monthly Review
+          </Link>
+          <Link href="/mentor/feedback" className="button secondary small">
+            Private Queue
+          </Link>
+        </div>
+      </div>
+
+      <div className="grid three" style={{ marginBottom: 24 }}>
+        <div className="card">
+          <div className="section-title">Circle Health</div>
+          <p style={{ margin: "0 0 6px", fontSize: 26, fontWeight: 700 }}>
+            {workspace.circleMembers.length}
+          </p>
+          <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
+            active supporter{workspace.circleMembers.length === 1 ? "" : "s"} in the circle
+          </p>
+          <p style={{ margin: "10px 0 0", color: "var(--muted)", fontSize: 13 }}>
+            {upcomingSessions.length} upcoming session{upcomingSessions.length === 1 ? "" : "s"} and{" "}
+            {recentSessions.length} recent session{recentSessions.length === 1 ? "" : "s"} logged.
+          </p>
+        </div>
+        <div className="card">
+          <div className="section-title">Action Plan</div>
+          <p style={{ margin: "0 0 6px", fontSize: 26, fontWeight: 700 }}>
+            {openActionItems.length}
+          </p>
+          <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
+            open action item{openActionItems.length === 1 ? "" : "s"}
+          </p>
+          <p style={{ margin: "10px 0 0", color: "var(--muted)", fontSize: 13 }}>
+            {overdueActionItems.length} overdue and {workspace.requests.filter((item) => item.status === "OPEN").length} open
+            support request{workspace.requests.filter((item) => item.status === "OPEN").length === 1 ? "" : "s"}.
+          </p>
+        </div>
+        <div className="card">
+          <div className="section-title">Momentum Signals</div>
+          <p style={{ margin: "0 0 6px", fontSize: 26, fontWeight: 700 }}>
+            {workspace.mentee.incubatorProjects.length}
+          </p>
+          <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
+            incubator project{workspace.mentee.incubatorProjects.length === 1 ? "" : "s"} in flight
+          </p>
+          <p style={{ margin: "10px 0 0", color: "var(--muted)", fontSize: 13 }}>
+            {workspace.mentee.goals.length} goal{workspace.mentee.goals.length === 1 ? "" : "s"} and{" "}
+            {workspace.mentee.enrollments.length} recent enrollment
+            {workspace.mentee.enrollments.length === 1 ? "" : "s"} connected to mentoring.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid two" style={{ marginBottom: 24 }}>
+        <section className="card">
+          <div className="section-title">Profile</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div>
+              <strong>Email:</strong> {workspace.mentee.email}
+            </div>
+            {workspace.mentee.phone && (
+              <div>
+                <strong>Phone:</strong> {workspace.mentee.phone}
+              </div>
+            )}
+            <div>
+              <strong>Role:</strong> {workspace.mentee.primaryRole.replace(/_/g, " ")}
+            </div>
+            {workspace.mentee.chapter && (
+              <div>
+                <strong>Chapter:</strong> {workspace.mentee.chapter.name}
+              </div>
+            )}
+            {workspace.mentee.profile?.bio && (
+              <p style={{ margin: "8px 0 0", color: "var(--muted)" }}>{workspace.mentee.profile.bio}</p>
+            )}
+          </div>
+        </section>
+
+        <section className="card">
+          <div className="section-title">Current Review Spine</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div>
+              <strong>Active mentorship:</strong>{" "}
+              {workspace.mentorship ? new Date(workspace.mentorship.startDate).toLocaleDateString() : "Not assigned"}
+            </div>
+            <div>
+              <strong>Current monthly review:</strong>{" "}
+              {workspace.currentReview?.status?.replace(/_/g, " ") ?? "No review started yet"}
+            </div>
+            <div>
+              <strong>Reflections on file:</strong> {workspace.mentee.reflectionSubmissions.length}
+            </div>
+            <div>
+              <strong>Latest track:</strong> {workspace.mentorship?.track?.name ?? "No track assigned"}
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section className="card" style={{ marginBottom: 24 }}>
+        <div className="section-title" style={{ marginBottom: 14 }}>Support Circle Roster</div>
+        <div className="grid two">
+          {workspace.circleMembers.map((member) => (
+            <div
+              key={member.id}
+              style={{
+                border: "1px solid var(--border)",
+                borderRadius: 14,
+                padding: 16,
+                background: "var(--surface-alt)",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                <div>
+                  <div style={{ fontWeight: 700 }}>{member.user.name}</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                    {member.user.primaryRole.replace(/_/g, " ")}
+                  </div>
+                </div>
+                <span
+                  className="pill"
+                  style={{
+                    background: `${SUPPORT_ROLE_META[member.role].tone}15`,
+                    color: SUPPORT_ROLE_META[member.role].tone,
+                  }}
+                >
+                  {SUPPORT_ROLE_META[member.role].label}
+                </span>
+              </div>
+              <p style={{ margin: "10px 0 0", fontSize: 13, color: "var(--muted)" }}>
+                {SUPPORT_ROLE_META[member.role].description}
+              </p>
+              <div style={{ marginTop: 10, fontSize: 13 }}>
+                <a href={`mailto:${member.user.email}`} className="link">
+                  {member.user.email}
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <div className="grid two" style={{ marginBottom: 24 }}>
+        <section className="card">
+          <div className="section-title">Schedule or Log a Session</div>
+          <form action={createMentorshipSession} className="form-grid">
+            <input type="hidden" name="menteeId" value={workspace.mentee.id} />
+            <div className="form-row">
+              <label>Session type</label>
+              <select name="type" className="input" defaultValue="CHECK_IN">
+                <option value="KICKOFF">Kickoff</option>
+                <option value="CHECK_IN">Check-in</option>
+                <option value="REVIEW_PREP">Review prep</option>
+                <option value="QUARTERLY_REVIEW">Quarterly review</option>
+                <option value="OFFICE_HOURS">Office hours</option>
+              </select>
+            </div>
+            <div className="form-row">
+              <label>Title</label>
+              <input name="title" className="input" placeholder="April momentum check-in" />
+            </div>
+            <div className="form-row">
+              <label>Scheduled at</label>
+              <input type="datetime-local" name="scheduledAt" className="input" required />
+            </div>
+            <div className="form-row">
+              <label>Length (minutes)</label>
+              <input type="number" name="durationMinutes" className="input" min="15" step="15" defaultValue="30" />
+            </div>
+            <div className="form-row">
+              <label>Agenda</label>
+              <textarea name="agenda" className="input" rows={3} placeholder="What will we cover?" />
+            </div>
+            <div className="form-row">
+              <label>Notes (optional)</label>
+              <textarea name="notes" className="input" rows={3} placeholder="Add notes if this session is already complete." />
+            </div>
+            <div className="form-row">
+              <label>Mark complete immediately</label>
+              <select name="completedNow" className="input" defaultValue="false">
+                <option value="false">No, schedule it</option>
+                <option value="true">Yes, log it now</option>
+              </select>
+            </div>
+            <button type="submit" className="button primary small">
+              Save Session
+            </button>
+          </form>
+        </section>
+
+        <section className="card">
+          <div className="section-title">Create an Action Item</div>
+          <form action={createMentorshipActionItem} className="form-grid">
+            <input type="hidden" name="menteeId" value={workspace.mentee.id} />
+            <div className="form-row">
+              <label>Title</label>
+              <input name="title" className="input" placeholder="Draft the project pitch outline" required />
+            </div>
+            <div className="form-row">
+              <label>Owner</label>
+              <select name="ownerId" className="input" defaultValue={workspace.mentee.id}>
+                <option value="">Shared responsibility</option>
+                <option value={workspace.mentee.id}>{workspace.mentee.name}</option>
+                {workspace.circleMembers.map((member) => (
+                  <option key={member.user.id} value={member.user.id}>
+                    {member.user.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="form-row">
+              <label>Due date</label>
+              <input type="date" name="dueAt" className="input" />
+            </div>
+            <div className="form-row">
+              <label>Details</label>
+              <textarea name="details" className="input" rows={4} placeholder="What does success look like for this next step?" />
+            </div>
+            <button type="submit" className="button primary small">
+              Add Action Item
+            </button>
+          </form>
+        </section>
+      </div>
+
+      <div className="grid two" style={{ marginBottom: 24 }}>
+        <section className="card">
+          <div className="section-title">Session Timeline</div>
+          {workspace.sessions.length === 0 ? (
+            <p style={{ color: "var(--muted)", margin: 0 }}>
+              No sessions have been logged yet. Start by creating a kickoff or check-in session above.
+            </p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {workspace.sessions.map((sessionItem) => (
+                <div key={sessionItem.id} style={{ borderBottom: "1px solid var(--border)", paddingBottom: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                    <div>
+                      <div style={{ fontWeight: 700 }}>{sessionItem.title}</div>
+                      <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                        {sessionItem.type.replace(/_/g, " ")} · {new Date(sessionItem.scheduledAt).toLocaleString()}
+                      </div>
+                    </div>
+                    <span className="pill">
+                      {sessionItem.completedAt ? "Completed" : "Scheduled"}
+                    </span>
+                  </div>
+                  {sessionItem.agenda && <p style={{ margin: "8px 0 0", fontSize: 13 }}>{sessionItem.agenda}</p>}
+                  {sessionItem.notes && <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--muted)" }}>{sessionItem.notes}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="card">
+          <div className="section-title">Action Plan</div>
+          {workspace.actionItems.length === 0 ? (
+            <p style={{ color: "var(--muted)", margin: 0 }}>
+              No action items yet. Action items turn sessions into next steps the mentee can actually follow.
+            </p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {workspace.actionItems.map((item) => (
+                <div key={item.id} style={{ borderBottom: "1px solid var(--border)", paddingBottom: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                    <div>
+                      <div style={{ fontWeight: 700 }}>{item.title}</div>
+                      <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                        {item.owner?.name ? `Owner: ${item.owner.name}` : "Shared"} · {item.status.replace(/_/g, " ")}
+                        {item.dueAt ? ` · Due ${new Date(item.dueAt).toLocaleDateString()}` : ""}
+                      </div>
+                    </div>
+                    {item.status !== "COMPLETE" && (
+                      <form action={updateMentorshipActionItemStatus}>
+                        <input type="hidden" name="itemId" value={item.id} />
+                        <input type="hidden" name="status" value="COMPLETE" />
+                        <button type="submit" className="button secondary small">
+                          Complete
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                  {item.details && <p style={{ margin: "8px 0 0", fontSize: 13 }}>{item.details}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+
+      <div className="grid two" style={{ marginBottom: 24 }}>
+        <section className="card">
+          <div className="section-title">Requests and Escalations</div>
+          {workspace.requests.length === 0 ? (
+            <p style={{ color: "var(--muted)", margin: 0 }}>
+              No requests yet. Private feedback, escalations, and public questions will all show up here.
+            </p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {workspace.requests.map((request) => (
+                <div key={request.id} style={{ borderBottom: "1px solid var(--border)", paddingBottom: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                    <div>
+                      <div style={{ fontWeight: 700 }}>{request.title}</div>
+                      <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                        {request.kind.replace(/_/g, " ")} · {request.visibility.toLowerCase()} ·{" "}
+                        {request.assignedTo?.name ? `Assigned to ${request.assignedTo.name}` : "Open to supporters"}
+                      </div>
+                    </div>
+                    <span className="pill">{request.status.replace(/_/g, " ")}</span>
+                  </div>
+                  <p style={{ margin: "8px 0 0", fontSize: 13 }}>{request.details}</p>
+                  {request.responses.length > 0 && (
+                    <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                      {request.responses.slice(0, 2).map((response) => (
+                        <div key={response.id} style={{ background: "var(--surface-alt)", borderRadius: 12, padding: 10 }}>
+                          <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                            {response.responder.name} · {new Date(response.createdAt).toLocaleDateString()}
+                          </div>
+                          <p style={{ margin: "6px 0 0", fontSize: 13 }}>{response.body}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="card">
+          <div className="section-title">Resource Attachments</div>
+          {workspace.resources.length === 0 ? (
+            <p style={{ color: "var(--muted)", margin: 0 }}>
+              Resources attached to requests, sessions, or promoted answers will appear here.
+            </p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {workspace.resources.map((resource) => (
+                <div key={resource.id} style={{ borderBottom: "1px solid var(--border)", paddingBottom: 12 }}>
+                  <div style={{ fontWeight: 700 }}>{resource.title}</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                    {resource.type.replace(/_/g, " ")} · Shared by {resource.createdBy.name}
+                  </div>
+                  {resource.description && <p style={{ margin: "8px 0 0", fontSize: 13 }}>{resource.description}</p>}
+                  {resource.url && (
+                    <a href={resource.url} target="_blank" rel="noreferrer" className="link">
+                      Open resource
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
 
       <div className="grid two">
-        <div className="card">
-          <div className="section-title">Profile</div>
-          <div style={{ marginBottom: 16 }}>
-            <p style={{ margin: "0 0 4px" }}>
-              <strong>Email:</strong> {mentee.email}
-            </p>
-            {mentee.phone && (
-              <p style={{ margin: "0 0 4px" }}>
-                <strong>Phone:</strong> {mentee.phone}
-              </p>
-            )}
-            <p style={{ margin: "0 0 4px" }}>
-              <strong>Role:</strong> {formatEnum(mentee.primaryRole)}
-            </p>
-            {mentee.chapter && (
-              <p style={{ margin: "0 0 4px" }}>
-                <strong>Chapter:</strong> {mentee.chapter.name}
-              </p>
-            )}
-          </div>
-          {mentee.profile?.bio && (
-            <div style={{ marginTop: 16 }}>
-              <strong>Bio:</strong>
-              <p style={{ margin: "4px 0 0", color: "var(--muted)" }}>
-                {mentee.profile.bio}
-              </p>
-            </div>
-          )}
-          {mentee.profile?.curriculumUrl && (
-            <div style={{ marginTop: 12 }}>
-              <a
-                href={mentee.profile.curriculumUrl}
-                target="_blank"
-                className="link"
-              >
-                View Curriculum &rarr;
-              </a>
-            </div>
-          )}
-        </div>
-
-        <div className="card">
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: 12,
-              marginBottom: 12,
-            }}
-          >
-            <div className="section-title" style={{ margin: 0 }}>
-              Mentorship Structure
-            </div>
-            <span className="pill" style={TONE_STYLES[cycleLabel.tone]}>
-              {cycleLabel.label}
-            </span>
-          </div>
-
-          {activeMentorship ? (
-            <>
-              <p style={{ margin: "0 0 4px" }}>
-                <strong>Mentor:</strong> {activeMentorship.mentor.name}
-              </p>
-              <p style={{ margin: "0 0 4px" }}>
-                <strong>Mentor Committee Chair:</strong>{" "}
-                {activeMentorship.chair?.name || "Not assigned"}
-              </p>
-              <p style={{ margin: "0 0 4px" }}>
-                <strong>Track:</strong>{" "}
-                {activeMentorship.track?.name || "Not assigned"}
-              </p>
-              <p style={{ margin: "0 0 4px" }}>
-                <strong>Started:</strong>{" "}
-                {new Date(activeMentorship.startDate).toLocaleDateString()}
-              </p>
-              <p style={{ margin: "0 0 4px" }}>
-                <strong>Kickoff Scheduled:</strong>{" "}
-                {activeMentorship.kickoffScheduledAt
-                  ? new Date(
-                      activeMentorship.kickoffScheduledAt
-                    ).toLocaleDateString()
-                  : "Not scheduled"}
-              </p>
-              <p style={{ margin: "0 0 4px" }}>
-                <strong>Kickoff Completed:</strong>{" "}
-                {activeMentorship.kickoffCompletedAt
-                  ? new Date(
-                      activeMentorship.kickoffCompletedAt
-                    ).toLocaleDateString()
-                  : "Not completed"}
-              </p>
-              {activeMentorship.notes && (
-                <div style={{ marginTop: 12 }}>
-                  <strong>Governance Notes:</strong>
-                  <p style={{ margin: "4px 0 0", color: "var(--muted)" }}>
-                    {activeMentorship.notes}
-                  </p>
-                </div>
-              )}
-              <div style={{ marginTop: 16 }}>
-                <strong>Total Achievement Points:</strong>{" "}
-                {achievementPoints._sum.points ?? 0}
-              </div>
-            </>
-          ) : (
-            <p style={{ color: "var(--muted)" }}>
-              No active mentorship structure has been assigned.
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className="card" style={{ marginTop: 24 }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: 16,
-            flexWrap: "wrap",
-            alignItems: "flex-start",
-            marginBottom: 20,
-          }}
-        >
-          <div>
-            <div className="section-title" style={{ marginBottom: 6 }}>
-              Current Monthly Cycle
-            </div>
-            <h3 style={{ margin: 0 }}>
-              {normalizedMonth.toLocaleDateString("en-US", {
-                month: "long",
-                year: "numeric",
-              })}
-            </h3>
-          </div>
-          <span className="pill" style={TONE_STYLES[cycleLabel.tone]}>
-            {cycleLabel.label}
-          </span>
-        </div>
-
-        <div className="grid three" style={{ marginBottom: 20 }}>
-          <div
-            style={{
-              padding: 14,
-              background: "var(--surface-alt)",
-              borderRadius: "var(--radius-md)",
-              border: "1px solid var(--border)",
-            }}
-          >
-            <strong style={{ display: "block", marginBottom: 6 }}>
-              Monthly Self-Reflection
-            </strong>
-            <div style={{ fontSize: 13, color: "var(--muted)" }}>
-              {currentMonthReflection
-                ? `Submitted ${new Date(
-                    currentMonthReflection.submittedAt
-                  ).toLocaleDateString()}`
-                : "Not submitted yet"}
-            </div>
-          </div>
-          <div
-            style={{
-              padding: 14,
-              background: "var(--surface-alt)",
-              borderRadius: "var(--radius-md)",
-              border: "1px solid var(--border)",
-            }}
-          >
-            <strong style={{ display: "block", marginBottom: 6 }}>
-              Monthly Goal Review
-            </strong>
-            <div style={{ fontSize: 13, color: "var(--muted)" }}>
-              {currentMonthReview ? formatEnum(currentMonthReview.status) : "Not started yet"}
-            </div>
-          </div>
-          <div
-            style={{
-              padding: 14,
-              background: "var(--surface-alt)",
-              borderRadius: "var(--radius-md)",
-              border: "1px solid var(--border)",
-            }}
-          >
-            <strong style={{ display: "block", marginBottom: 6 }}>
-              Next Step
-            </strong>
-            <div style={{ fontSize: 13, color: "var(--muted)" }}>
-              {currentMonthReview?.status === "PENDING_CHAIR_APPROVAL"
-                ? "Chair approval is next."
-                : currentMonthReview?.status === "RETURNED"
-                  ? "Mentor revisions are needed before approval."
-                  : currentMonthReview?.status === "APPROVED"
-                    ? "Approved review is ready for the mentee."
-                    : currentMonthReflection
-                      ? "Mentor review should be drafted next."
-                      : "Reflection must be submitted first."}
-            </div>
-          </div>
-        </div>
-
-        {displayedReview ? (
-          <>
-            {displayedReview.overallStatus && (
-              <div style={{ marginBottom: 20 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginBottom: 8,
-                    fontSize: 13,
-                  }}
-                >
-                  <strong>Overall Progress</strong>
-                  <span style={{ color: "var(--muted)" }}>
-                    {PROGRESS_STATUS_META[displayedReview.overallStatus].label}
-                  </span>
-                </div>
-                <ProgressBar status={displayedReview.overallStatus} />
-              </div>
-            )}
-
-            <div className="grid two" style={{ marginBottom: 20 }}>
-              <div>
-                <p style={{ marginTop: 0, fontSize: 13 }}>
-                  <strong>Overall Comments:</strong>{" "}
-                  {displayedReview.overallComments || "No overall comments recorded."}
-                </p>
-                <p style={{ marginTop: 12, fontSize: 13 }}>
-                  <strong>Strengths:</strong>{" "}
-                  {displayedReview.strengths || "No strengths recorded."}
-                </p>
-                <p style={{ marginTop: 12, fontSize: 13 }}>
-                  <strong>Focus Areas:</strong>{" "}
-                  {displayedReview.focusAreas || "No focus areas recorded."}
-                </p>
-                <p style={{ marginTop: 12, fontSize: 13 }}>
-                  <strong>Next Month Plan:</strong>{" "}
-                  {displayedReview.nextMonthPlan || "No next-month plan recorded."}
-                </p>
-              </div>
-              <div>
-                <p style={{ marginTop: 0, fontSize: 13 }}>
-                  <strong>Collaboration Notes:</strong>{" "}
-                  {displayedReview.collaborationNotes || "No collaboration notes recorded."}
-                </p>
-                <p style={{ marginTop: 12, fontSize: 13 }}>
-                  <strong>Promotion Readiness:</strong>{" "}
-                  {displayedReview.promotionReadiness || "No promotion note recorded."}
-                </p>
-                <p style={{ marginTop: 12, fontSize: 13 }}>
-                  <strong>Character & Culture Points:</strong>{" "}
-                  {displayedReview.characterCulturePoints}
-                </p>
-                <p style={{ marginTop: 12, fontSize: 13 }}>
-                  <strong>Total Achievement Points:</strong>{" "}
-                  {displayedReview.totalAchievementPoints}
-                </p>
-                {displayedReview.chairDecisionNotes && (
-                  <p style={{ marginTop: 12, fontSize: 13 }}>
-                    <strong>Chair Decision Notes:</strong>{" "}
-                    {displayedReview.chairDecisionNotes}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {displayedReview.goalRatings.length > 0 && (
-              <div>
-                <h4 style={{ margin: "0 0 12px" }}>Goal Ratings</h4>
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  {displayedReview.goalRatings.map((rating) => (
-                    <div
-                      key={rating.id}
-                      style={{
-                        padding: 16,
-                        background: "var(--surface-alt)",
-                        borderRadius: "var(--radius-md)",
-                        border: "1px solid var(--border)",
-                      }}
-                    >
-                      <strong>{rating.goal.template.title}</strong>
-                      <div style={{ marginTop: 10 }}>
-                        <ProgressBar status={rating.status} />
+        <section className="card">
+          <div className="section-title">Goals, Courses, and Training</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <strong>Goals</strong>
+              {workspace.mentee.goals.length === 0 ? (
+                <p style={{ margin: "6px 0 0", color: "var(--muted)" }}>No goals assigned yet.</p>
+              ) : (
+                <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+                  {workspace.mentee.goals.slice(0, 5).map((goal) => (
+                    <div key={goal.id}>
+                      <div style={{ fontWeight: 600 }}>{goal.template.title}</div>
+                      <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                        Latest: {goal.progress[0]?.status?.replace(/_/g, " ") ?? "No update yet"}
                       </div>
-                      {rating.comments && (
-                        <p style={{ margin: "10px 0 0", fontSize: 13 }}>
-                          {rating.comments}
-                        </p>
-                      )}
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-          </>
-        ) : (
-          <p style={{ color: "var(--muted)" }}>
-            No Monthly Goal Review has been recorded yet.
-          </p>
-        )}
-      </div>
-
-      <div className="grid two" style={{ marginTop: 24 }}>
-        <div className="card">
-          <div className="section-title">Training & Approvals</div>
-          {mentee.trainings.length === 0 ? (
-            <p style={{ color: "var(--muted)" }}>No training assignments.</p>
-          ) : (
-            <div className="timeline">
-              {mentee.trainings.map((training) => (
-                <div key={training.id} className="timeline-item">
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <strong>{training.module.title}</strong>
-                    <span
-                      className={`pill ${
-                        training.status === "COMPLETE"
-                          ? "pill-success"
-                          : training.status === "IN_PROGRESS"
-                            ? ""
-                            : "pill-declined"
-                      }`}
-                    >
-                      {formatEnum(training.status)}
-                    </span>
-                  </div>
-                </div>
-              ))}
+              )}
             </div>
-          )}
-          {mentee.approvals.length > 0 && (
-            <div style={{ marginTop: 16 }}>
-              <strong>Approved Levels:</strong>
-              <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
-                {mentee.approvals[0].levels.map((level) => (
-                  <span
-                    key={level.id}
-                    className={`pill level-${level.level
-                      .replace("LEVEL_", "")
-                      .toLowerCase()}`}
-                  >
-                    {formatEnumStripPrefix(level.level, "LEVEL_")}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
 
-          {activeMentorship?.checkIns && activeMentorship.checkIns.length > 0 && (
-            <div style={{ marginTop: 20 }}>
-              <strong>Recent Check-ins:</strong>
-              <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
-                {activeMentorship.checkIns.map((checkIn) => (
-                  <div
-                    key={checkIn.id}
-                    style={{
-                      padding: 12,
-                      background: "var(--surface-alt)",
-                      borderRadius: "var(--radius-sm)",
-                      border: "1px solid var(--border)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 12,
-                        fontSize: 12,
-                        color: "var(--muted)",
-                      }}
-                    >
-                      <span>
-                        {new Date(checkIn.createdAt).toLocaleDateString()}
-                      </span>
-                      {checkIn.rating && <span>Rating: {checkIn.rating}/5</span>}
+            <div>
+              <strong>Recent Enrollments</strong>
+              {workspace.mentee.enrollments.length === 0 ? (
+                <p style={{ margin: "6px 0 0", color: "var(--muted)" }}>No recent course enrollments.</p>
+              ) : (
+                <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+                  {workspace.mentee.enrollments.map((enrollment) => (
+                    <div key={enrollment.id}>
+                      <div style={{ fontWeight: 600 }}>{enrollment.course.title}</div>
+                      <div style={{ fontSize: 12, color: "var(--muted)" }}>{enrollment.course.interestArea}</div>
                     </div>
-                    <p style={{ margin: "8px 0 0", fontSize: 13 }}>
-                      {checkIn.notes}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="card">
-          <div className="section-title">Recent Reflections</div>
-          {mentee.reflectionSubmissions.length > 0 ? (
-            <div className="timeline">
-              {mentee.reflectionSubmissions.map((submission) => (
-                <div key={submission.id} className="timeline-item">
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <strong>{submission.form.title}</strong>
-                    <span style={{ fontSize: 12, color: "var(--muted)" }}>
-                      {new Date(submission.month).toLocaleDateString("en-US", {
-                        month: "long",
-                        year: "numeric",
-                      })}
-                    </span>
-                  </div>
-                  <div style={{ marginTop: 12 }}>
-                    {submission.responses.slice(0, 3).map((response) => (
-                      <div key={response.id} style={{ marginTop: 8 }}>
-                        <strong
-                          style={{ fontSize: 12, color: "var(--muted)" }}
-                        >
-                          {response.question.sectionTitle || "Reflection"}:{" "}
-                          {response.question.question}
-                        </strong>
-                        <p style={{ margin: "4px 0 0", fontSize: 13 }}>
-                          {response.value.slice(0, 150)}
-                          {response.value.length > 150 ? "..." : ""}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          ) : (
-            <p style={{ color: "var(--muted)" }}>No reflections submitted yet.</p>
-          )}
-        </div>
-      </div>
 
-      <div className="card" style={{ marginTop: 24 }}>
-        <div className="section-title">Legacy Progress History</div>
-        <p style={{ marginTop: 0, color: "var(--muted)", fontSize: 13 }}>
-          These older progress updates remain visible for continuity, but the
-          Monthly Goal Review is now the primary review record.
-        </p>
+            <div>
+              <strong>Training Assignments</strong>
+              <p style={{ margin: "6px 0 0", color: "var(--muted)" }}>
+                {workspace.mentee.trainings.length} training module
+                {workspace.mentee.trainings.length === 1 ? "" : "s"} on record.
+              </p>
+            </div>
+          </div>
+        </section>
 
-        {mentee.goals.length === 0 ? (
-          <p style={{ color: "var(--muted)" }}>
-            No goals assigned to this mentee yet.
-          </p>
-        ) : (
-          <>
-            <GoalProgressDisplay goals={goalsForDisplay} showOverall={true} />
-
-            <div style={{ marginTop: 32 }}>
-              <h4 style={{ margin: "0 0 16px" }}>Goal Details & Comments</h4>
-              {mentee.goals.map((goal, index) => (
-                <div
-                  key={goal.id}
-                  style={{
-                    padding: 16,
-                    marginBottom: 16,
-                    background: "var(--surface-alt)",
-                    borderRadius: "var(--radius-md)",
-                    border: "1px solid var(--border)",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                    }}
-                  >
-                    <div>
-                      <strong>
-                        Goal {index + 1}: {goal.template.title}
-                      </strong>
-                      {goal.timetable && (
-                        <span
-                          style={{
-                            marginLeft: 8,
-                            color: "var(--muted)",
-                            fontSize: 13,
-                          }}
-                        >
-                          (By {goal.timetable})
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  {goal.template.description && (
-                    <p
-                      style={{
-                        margin: "8px 0 0",
-                        color: "var(--muted)",
-                        fontSize: 13,
-                      }}
-                    >
-                      {goal.template.description}
-                    </p>
-                  )}
-
-                  {goal.progress.length > 0 && (
-                    <div style={{ marginTop: 16 }}>
-                      <strong style={{ fontSize: 13 }}>Progress History:</strong>
-                      <div style={{ marginTop: 8 }}>
-                        {goal.progress.slice(0, 3).map((update) => (
-                          <div
-                            key={update.id}
-                            style={{
-                              padding: 12,
-                              marginTop: 8,
-                              background: "white",
-                              borderRadius: "var(--radius-sm)",
-                              border: "1px solid var(--border)",
-                            }}
-                          >
-                            <div
-                              style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                              }}
-                            >
-                              <span className="pill">
-                                {PROGRESS_STATUS_META[update.status].label}
-                              </span>
-                              <span
-                                style={{ fontSize: 12, color: "var(--muted)" }}
-                              >
-                                {new Date(update.createdAt).toLocaleDateString()}
-                              </span>
-                            </div>
-                            {update.comments && (
-                              <p style={{ margin: "8px 0 0", fontSize: 13 }}>
-                                {update.comments}
-                              </p>
-                            )}
-                            <p
-                              style={{
-                                margin: "4px 0 0",
-                                fontSize: 11,
-                                color: "var(--muted)",
-                              }}
-                            >
-                              By {update.submittedBy.name}
-                            </p>
-                          </div>
-                        ))}
+        <section className="card">
+          <div className="section-title">Incubator and Reflection Timeline</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <strong>Incubator Projects</strong>
+              {workspace.mentee.incubatorProjects.length === 0 ? (
+                <p style={{ margin: "6px 0 0", color: "var(--muted)" }}>No incubator projects yet.</p>
+              ) : (
+                <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+                  {workspace.mentee.incubatorProjects.map((project) => (
+                    <div key={project.id}>
+                      <div style={{ fontWeight: 600 }}>{project.title}</div>
+                      <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                        {project.currentPhase.replace(/_/g, " ")} · {project.xpEarned} XP
                       </div>
                     </div>
-                  )}
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          </>
-        )}
+
+            <div>
+              <strong>Reflections</strong>
+              {workspace.mentee.reflectionSubmissions.length === 0 ? (
+                <p style={{ margin: "6px 0 0", color: "var(--muted)" }}>No reflections submitted yet.</p>
+              ) : (
+                <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+                  {workspace.mentee.reflectionSubmissions.slice(0, 4).map((reflection) => (
+                    <div key={reflection.id}>
+                      <div style={{ fontWeight: 600 }}>
+                        {reflection.form.title}
+                      </div>
+                      <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                        {new Date(reflection.submittedAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );

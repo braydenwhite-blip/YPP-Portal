@@ -20,6 +20,7 @@ import {
   getDefaultPointCategory,
   normalizeMonthlyReviewMonth,
 } from "@/lib/mentorship-review-helpers";
+import { ensureMentorshipSupportCircle } from "@/lib/mentorship-hub-actions";
 import { prisma } from "@/lib/prisma";
 
 function getString(formData: FormData, key: string, required = true) {
@@ -117,6 +118,8 @@ export async function assignProgramMentor(formData: FormData) {
     description: `Program mentor assigned: ${mentor.name} -> ${mentee.name}`,
   });
 
+  await ensureMentorshipSupportCircle(mentorship.id);
+
   revalidatePath("/admin/mentorship-program");
 }
 
@@ -137,6 +140,11 @@ export async function endProgramMentorship(formData: FormData) {
   await prisma.mentorship.update({
     where: { id: mentorshipId },
     data: { status: newStatus, endDate: new Date() },
+  });
+
+  await prisma.mentorshipCircleMember.updateMany({
+    where: { mentorshipId },
+    data: { isActive: false },
   });
 
   await logAuditEvent({
@@ -991,6 +999,8 @@ export async function updateMentorshipGovernance(formData: FormData) {
       notes: notes || null,
     },
   });
+
+  await ensureMentorshipSupportCircle(mentorshipId);
 
   revalidatePath("/admin/mentorship-program");
   revalidatePath("/admin/mentor-match");

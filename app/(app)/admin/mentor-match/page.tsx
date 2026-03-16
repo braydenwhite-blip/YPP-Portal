@@ -62,7 +62,7 @@ export default async function AdminMentorMatchPage() {
           <p className="badge">Admin</p>
           <h1 className="page-title">Mentor Match</h1>
           <p className="page-subtitle">
-            Automatically pair mentors with instructors or students based on shared interests, chapter, and mentor availability. Review suggested matches before confirming.
+            Match primary mentors and layered support roles based on shared interests, chapter affinity, availability, and current load.
           </p>
         </div>
       </div>

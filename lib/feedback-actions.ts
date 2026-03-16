@@ -1,6 +1,12 @@
 "use server";
 
 import { authOptions } from "@/lib/auth";
+import {
+  createMentorshipRequest,
+  markMentorshipResponseHelpful,
+  respondToMentorshipRequest,
+} from "@/lib/mentorship-hub-actions";
+import { getPrivateMentorshipRequests } from "@/lib/mentorship-hub";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
@@ -134,106 +140,88 @@ export async function updateCycleStatus(formData: FormData) {
 
 export async function getMyFeedbackRequests() {
   const session = await requireAuth();
-  const userId = session.user.id as string;
   const roles = (session.user as { roles?: string[] }).roles ?? [];
-  const isMentor =
-    roles.includes("MENTOR") ||
-    roles.includes("INSTRUCTOR") ||
-    roles.includes("CHAPTER_LEAD") ||
-    roles.includes("ADMIN");
-
-  if (isMentor) {
-    return prisma.mentorFeedbackRequest.findMany({
-      where: {
-        OR: [{ status: "PENDING" }, { responses: { some: { mentorId: userId } } }],
-      },
-      include: {
-        student: { select: { id: true, name: true } },
-        responses: {
-          include: { mentor: { select: { id: true, name: true } } },
-          orderBy: { respondedAt: "desc" },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 30,
-    });
-  }
-
-  return prisma.mentorFeedbackRequest.findMany({
-    where: { studentId: userId },
-    include: {
-      student: { select: { id: true, name: true } },
-      responses: {
-        include: { mentor: { select: { id: true, name: true } } },
-        orderBy: { respondedAt: "desc" },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 20,
+  const requests = await getPrivateMentorshipRequests({
+    userId: session.user.id as string,
+    roles,
   });
+
+  return requests.map((request) => ({
+    id: request.id,
+    status: request.status === "OPEN" ? "PENDING" : request.status,
+    passionId: request.passionId ?? "general",
+    question: request.details,
+    mediaUrls: request.resources
+      .map((resource) => resource.url)
+      .filter((url): url is string => Boolean(url)),
+    createdAt: request.requestedAt,
+    student: {
+      id: request.mentee.id,
+      name: request.requester.name,
+    },
+    responses: request.responses.map((response) => ({
+      id: response.id,
+      feedback: response.body,
+      respondedAt: response.createdAt,
+      isHelpful: response.isHelpful,
+      mentor: {
+        id: response.responder.id,
+        name: response.responder.name,
+      },
+      resources: response.resourceLinks,
+    })),
+  }));
 }
 
 export async function createFeedbackRequest(formData: FormData) {
-  const session = await requireAuth();
-  const userId = session.user.id as string;
+  const requestFormData = new FormData();
+  requestFormData.set("kind", "PROJECT_FEEDBACK");
+  requestFormData.set("visibility", "PRIVATE");
+  requestFormData.set("question", getString(formData, "question"));
 
-  const passionId = formData.get("passionId") as string;
-  const question = formData.get("question") as string;
-  const mediaUrl = formData.get("mediaUrl") as string | null;
+  const passionId = getString(formData, "passionId", false);
+  const mediaUrl = getString(formData, "mediaUrl", false);
 
-  if (!passionId || !question) {
-    throw new Error("Passion area and question are required");
+  if (passionId) {
+    requestFormData.set("passionId", passionId);
   }
 
-  await prisma.mentorFeedbackRequest.create({
-    data: {
-      studentId: userId,
-      passionId,
-      question,
-      mediaUrls: mediaUrl ? [mediaUrl] : [],
-      status: "PENDING",
-    },
-  });
+  const createdRequest = await createMentorshipRequest(requestFormData);
+
+  if (mediaUrl) {
+    const session = await requireAuth();
+    if (createdRequest) {
+      await prisma.mentorshipResource.create({
+        data: {
+          requestId: createdRequest.id,
+          menteeId: createdRequest.menteeId,
+          createdById: session.user.id as string,
+          type: "LINK",
+          title: "Attached work sample",
+          description: "Added when the feedback request was created.",
+          url: mediaUrl,
+          passionId: passionId || null,
+          isPublished: false,
+        },
+      });
+    }
+  }
 
   revalidatePath("/mentor/feedback");
+  revalidatePath("/mentorship");
 }
 
 export async function respondToFeedback(formData: FormData) {
-  const session = await requireAuth();
-  const userId = session.user.id as string;
-
-  const requestId = formData.get("requestId") as string;
-  const feedback = formData.get("feedback") as string;
-  const resourceUrl = formData.get("resourceUrl") as string | null;
-
-  if (!requestId || !feedback) {
-    throw new Error("Request ID and feedback are required");
+  const requestFormData = new FormData();
+  requestFormData.set("requestId", getString(formData, "requestId"));
+  requestFormData.set("feedback", getString(formData, "feedback"));
+  const resourceUrl = getString(formData, "resourceUrl", false);
+  if (resourceUrl) {
+    requestFormData.set("resourceUrl", resourceUrl);
   }
-
-  await prisma.mentorResponse.create({
-    data: {
-      requestId,
-      mentorId: userId,
-      feedback,
-      resources: resourceUrl ? [resourceUrl] : [],
-    },
-  });
-
-  await prisma.mentorFeedbackRequest.update({
-    where: { id: requestId },
-    data: { status: "ANSWERED" },
-  });
-
-  revalidatePath("/mentor/feedback");
+  await respondToMentorshipRequest(requestFormData);
 }
 
 export async function markResponseHelpful(responseId: string) {
-  await requireAuth();
-
-  await prisma.mentorResponse.update({
-    where: { id: responseId },
-    data: { isHelpful: true },
-  });
-
-  revalidatePath("/mentor/feedback");
+  await markMentorshipResponseHelpful(responseId);
 }

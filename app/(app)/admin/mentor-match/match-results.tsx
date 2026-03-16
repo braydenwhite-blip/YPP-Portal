@@ -29,6 +29,9 @@ export default function MentorMatchUI({
   studentCount: number;
 }) {
   const [matchType, setMatchType] = useState<"INSTRUCTOR" | "STUDENT">("INSTRUCTOR");
+  const [supportRole, setSupportRole] = useState<
+    "PRIMARY_MENTOR" | "SPECIALIST_MENTOR" | "COLLEGE_ADVISOR" | "ALUMNI_ADVISOR"
+  >("PRIMARY_MENTOR");
   const [suggestions, setSuggestions] = useState<MentorMatchSuggestion[]>([]);
   const [hasRun, setHasRun] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -36,7 +39,7 @@ export default function MentorMatchUI({
 
   function runMatch() {
     startTransition(async () => {
-      const results = await computeMentorMatches(matchType);
+      const results = await computeMentorMatches(matchType, supportRole);
       setSuggestions(results);
       setHasRun(true);
       setApprovedPairs(new Set());
@@ -48,6 +51,7 @@ export default function MentorMatchUI({
     formData.set("mentorId", suggestion.mentorId);
     formData.set("menteeId", suggestion.menteeId);
     formData.set("type", suggestion.type);
+    formData.set("supportRole", suggestion.supportRole);
 
     startTransition(async () => {
       await approveMentorMatch(formData);
@@ -91,9 +95,9 @@ export default function MentorMatchUI({
       <div className="card" style={{ marginBottom: 24 }}>
         <h3>Run Matching Algorithm</h3>
         <p style={{ marginBottom: 16 }}>
-          The algorithm scores potential pairs based on shared interests, chapter proximity,
-          mentor workload, and profile completeness. Unmatched mentees (those without an active
-          mentorship of the selected type) will be matched to the best available mentor.
+          The algorithm scores potential support assignments based on passion overlap, chapter
+          affinity, current workload, availability, and profile depth. Choose whether you are
+          filling a primary mentor seat or one of the layered support roles in the circle.
         </p>
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <div className="mentor-match-type-toggle">
@@ -110,6 +114,20 @@ export default function MentorMatchUI({
               Student Mentees
             </button>
           </div>
+          <select
+            className="input"
+            value={supportRole}
+            onChange={(event) => {
+              setSupportRole(event.target.value as typeof supportRole);
+              setHasRun(false);
+            }}
+            style={{ minWidth: 220 }}
+          >
+            <option value="PRIMARY_MENTOR">Primary mentor</option>
+            <option value="SPECIALIST_MENTOR">Specialist mentor</option>
+            <option value="COLLEGE_ADVISOR">College advisor</option>
+            <option value="ALUMNI_ADVISOR">Alumni advisor</option>
+          </select>
           <button
             className="button small"
             onClick={runMatch}
@@ -130,8 +148,7 @@ export default function MentorMatchUI({
           {suggestions.length === 0 ? (
             <div className="card">
               <p className="empty">
-                No unmatched {matchType === "INSTRUCTOR" ? "instructors" : "students"} found,
-                or no mentors available.
+                No matching candidates found for this role yet.
               </p>
             </div>
           ) : (
@@ -149,6 +166,7 @@ export default function MentorMatchUI({
                       <span className={`pill ${getScoreColor(s.matchScore)}`}>
                         Score: {s.matchScore}
                       </span>
+                      <span className="pill pill-small">{s.supportRole.replace(/_/g, " ")}</span>
                       {isApproved && (
                         <span className="pill pill-success">Approved</span>
                       )}
@@ -165,6 +183,9 @@ export default function MentorMatchUI({
                         <div className="mentor-match-person-detail">
                           {s.mentorCurrentMentees} current mentee{s.mentorCurrentMentees !== 1 ? "s" : ""}
                         </div>
+                        {s.mentorAvailability && (
+                          <div className="mentor-match-person-detail">Availability: {s.mentorAvailability}</div>
+                        )}
                         {s.mentorInterests.length > 0 && (
                           <div className="mentor-match-interests">
                             {s.mentorInterests.slice(0, 4).map((i) => (
@@ -216,7 +237,7 @@ export default function MentorMatchUI({
                           disabled={isPending}
                           style={{ marginTop: 0 }}
                         >
-                          Approve & Create Pairing
+                          Approve Assignment
                         </button>
                       </div>
                     )}
