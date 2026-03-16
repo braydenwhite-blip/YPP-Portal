@@ -59,6 +59,25 @@ export default async function ParentReportsPage() {
         </div>
       </div>
 
+      {/* What is a Progress Report? */}
+      <div
+        style={{
+          padding: "12px 16px",
+          background: "var(--surface-alt)",
+          borderRadius: "var(--radius-sm)",
+          borderLeft: "3px solid var(--ypp-purple)",
+          marginBottom: 20,
+          fontSize: 13,
+          color: "var(--text-secondary)",
+        }}
+      >
+        <strong style={{ color: "var(--foreground)" }}>What is a Progress Report?</strong>{" "}
+        Progress reports are written by instructors or mentors at the end of a
+        program period (monthly or quarterly). They summarize your child&apos;s XP
+        earned, goals progress, highlights, and areas to grow — giving you a
+        fuller picture beyond day-to-day attendance and grades.
+      </div>
+
       {studentIds.length === 0 ? (
         <div className="card" style={{ textAlign: "center", padding: 40 }}>
           <h3>No linked students</h3>

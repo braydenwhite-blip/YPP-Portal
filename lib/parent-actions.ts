@@ -144,7 +144,7 @@ export async function getStudentProgress(studentId: string) {
           },
           progress: {
             orderBy: { createdAt: "desc" },
-            take: 1,
+            take: 6,
           },
         },
       },
@@ -166,7 +166,7 @@ export async function getStudentProgress(studentId: string) {
     throw new Error("Student not found");
   }
 
-  const [challengeParticipations, incubatorProjects, latestIncubatorUpdate] = await Promise.all([
+  const [challengeParticipations, incubatorProjects, latestIncubatorUpdate, studentInterests] = await Promise.all([
     prisma.challengeParticipant.findMany({
       where: { studentId },
       select: {
@@ -208,6 +208,15 @@ export async function getStudentProgress(studentId: string) {
         projectId: true,
       },
     }).catch(() => null),
+    prisma.studentInterest.findMany({
+      where: { studentId },
+      include: {
+        passion: {
+          select: { name: true, category: true, color: true, icon: true },
+        },
+      },
+      orderBy: { xpPoints: "desc" },
+    }).catch(() => []),
   ]);
 
   // Compute training summary
@@ -231,7 +240,7 @@ export async function getStudentProgress(studentId: string) {
     (r) => r.status === "EXCUSED"
   ).length;
 
-  // Map goals with latest progress status
+  // Map goals with latest progress status + history
   const goals = student.goals.map((goal) => ({
     id: goal.id,
     title: goal.template.title,
@@ -239,6 +248,45 @@ export async function getStudentProgress(studentId: string) {
     latestStatus: goal.progress[0]?.status ?? null,
     latestComments: goal.progress[0]?.comments ?? null,
     lastUpdatedAt: goal.progress[0]?.createdAt ?? null,
+    history: goal.progress.map((p) => ({
+      status: p.status,
+      createdAt: p.createdAt,
+    })),
+  }));
+
+  // Build 8-week attendance trend
+  const now = new Date();
+  const attendanceTrend: Array<{ week: string; present: number; total: number }> = [];
+  for (let i = 7; i >= 0; i--) {
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - i * 7 - now.getDay());
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 7);
+
+    const weekRecords = student.attendanceRecords.filter((r) => {
+      const d = r.session?.date ? new Date(r.session.date) : null;
+      return d && d >= weekStart && d < weekEnd;
+    });
+    const present = weekRecords.filter(
+      (r) => r.status === "PRESENT" || r.status === "LATE"
+    ).length;
+    attendanceTrend.push({
+      week: weekStart.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      present,
+      total: weekRecords.length,
+    });
+  }
+
+  // Map passion/skill areas
+  const passions = studentInterests.map((si) => ({
+    name: si.passion.name,
+    category: String(si.passion.category),
+    color: si.passion.color ?? null,
+    icon: si.passion.icon ?? null,
+    xpPoints: si.xpPoints,
+    level: si.currentLevel,
+    isPrimary: si.isPrimary,
   }));
 
   const activeChallenges = challengeParticipations.filter(
@@ -287,6 +335,8 @@ export async function getStudentProgress(studentId: string) {
       lateCount,
       excusedCount,
     },
+    attendanceTrend,
+    passions,
     challenge: {
       activeCount: activeChallenges.length,
       completedCount: completedChallenges.length,
@@ -463,6 +513,124 @@ export async function enrollChildInCourse(formData: FormData) {
     data: {
       userId: studentId,
       courseId,
+      status: "ENROLLED",
+    },
+  });
+
+  revalidatePath("/parent");
+  revalidatePath(`/parent/${studentId}`);
+}
+
+// ============================================
+// GET AVAILABLE CLASS OFFERINGS FOR ENROLLMENT
+// ============================================
+
+export async function getAvailableClassOfferings(studentId: string) {
+  const session = await requireParent();
+  const parentId = session.user.id;
+
+  // Verify approved link
+  const link = await prisma.parentStudent.findUnique({
+    where: { parentId_studentId: { parentId, studentId } },
+  });
+  if (!link || link.approvalStatus !== "APPROVED") {
+    throw new Error("Access denied");
+  }
+
+  // Get student's existing class enrollments
+  const existingEnrollments = await prisma.classEnrollment.findMany({
+    where: { studentId, status: { not: "DROPPED" } },
+    select: { offeringId: true },
+  });
+  const enrolledOfferingIds = new Set(existingEnrollments.map((e) => e.offeringId));
+
+  const offerings = await prisma.classOffering.findMany({
+    where: {
+      enrollmentOpen: true,
+      startDate: { gt: new Date() },
+      status: { in: ["PUBLISHED", "ENROLLING_OPEN"] as any[] },
+    },
+    select: {
+      id: true,
+      title: true,
+      startDate: true,
+      endDate: true,
+      meetingDays: true,
+      meetingTime: true,
+      timezone: true,
+      deliveryMode: true,
+      locationName: true,
+      capacity: true,
+      semester: true,
+      instructor: { select: { id: true, name: true } },
+      _count: { select: { enrollments: true } },
+    },
+    orderBy: { startDate: "asc" },
+    take: 50,
+  });
+
+  return offerings
+    .filter((o) => !enrolledOfferingIds.has(o.id))
+    .map((o) => ({
+      id: o.id,
+      title: o.title,
+      startDate: o.startDate,
+      endDate: o.endDate,
+      meetingDays: o.meetingDays,
+      meetingTime: o.meetingTime,
+      timezone: o.timezone,
+      deliveryMode: String(o.deliveryMode),
+      locationName: o.locationName ?? null,
+      capacity: o.capacity,
+      semester: o.semester ?? null,
+      instructorName: o.instructor?.name ?? "TBD",
+      seatsRemaining: Math.max(0, o.capacity - o._count.enrollments),
+    }));
+}
+
+// ============================================
+// ENROLL CHILD IN CLASS OFFERING
+// ============================================
+
+export async function enrollChildInClassOffering(formData: FormData) {
+  const session = await requireParent();
+  const parentId = session.user.id;
+
+  const studentId = String(formData.get("studentId") ?? "").trim();
+  const offeringId = String(formData.get("offeringId") ?? "").trim();
+
+  if (!studentId || !offeringId) throw new Error("Missing required fields");
+
+  // Verify approved link
+  const link = await prisma.parentStudent.findUnique({
+    where: { parentId_studentId: { parentId, studentId } },
+  });
+  if (!link || link.approvalStatus !== "APPROVED") {
+    throw new Error("You do not have access to enroll this student");
+  }
+
+  // Verify offering is open and has capacity
+  const offering = await prisma.classOffering.findUnique({
+    where: { id: offeringId },
+    include: { _count: { select: { enrollments: true } } },
+  });
+
+  if (!offering) throw new Error("Class not found");
+  if (!offering.enrollmentOpen) throw new Error("Enrollment is not open for this class");
+  if (offering._count.enrollments >= offering.capacity) {
+    throw new Error("This class is full");
+  }
+
+  // Check if already enrolled
+  const existing = await prisma.classEnrollment.findFirst({
+    where: { studentId, offeringId },
+  });
+  if (existing) throw new Error("Student is already enrolled in this class");
+
+  await prisma.classEnrollment.create({
+    data: {
+      studentId,
+      offeringId,
       status: "ENROLLED",
     },
   });

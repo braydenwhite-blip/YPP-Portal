@@ -103,6 +103,21 @@ export default async function ParentConnectPage() {
       {pending.length > 0 && (
         <div style={{ marginBottom: 24 }}>
           <div className="section-title">Pending Approval</div>
+          <div
+            style={{
+              padding: "10px 14px",
+              background: "#fffbeb",
+              borderRadius: "var(--radius-sm)",
+              border: "1px solid #fcd34d",
+              marginBottom: 10,
+              fontSize: 13,
+              color: "#78350f",
+            }}
+          >
+            These connections are waiting for a YPP admin to review and approve.
+            This typically takes 1–2 business days. You&apos;ll be notified once
+            approved. Until then, student data is not visible.
+          </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {pending.map((link) => (
               <div
@@ -177,6 +192,22 @@ export default async function ParentConnectPage() {
       {rejected.length > 0 && (
         <div style={{ marginBottom: 24 }}>
           <div className="section-title">Rejected Requests</div>
+          <div
+            style={{
+              padding: "10px 14px",
+              background: "#fef2f2",
+              borderRadius: "var(--radius-sm)",
+              border: "1px solid #fca5a5",
+              marginBottom: 10,
+              fontSize: 13,
+              color: "#7f1d1d",
+            }}
+          >
+            These requests were not approved. This may be because the student
+            email didn&apos;t match records, the relationship couldn&apos;t be
+            verified, or the student&apos;s account is restricted. Contact your
+            chapter admin for more information.
+          </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {rejected.map((link) => (
               <div

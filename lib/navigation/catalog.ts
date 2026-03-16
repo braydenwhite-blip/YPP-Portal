@@ -69,6 +69,14 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardDescription: "Share feedback about chapters, instructors, and programs.",
       dashboardPriority: 10,
     },
+    {
+      href: "/parent/messages",
+      label: "Messages",
+      icon: "✉",
+      roles: PARENT_ONLY,
+      dashboardDescription: "Message your child's instructors directly.",
+      dashboardPriority: 9,
+    },
   ]),
 
   ...groupLinks("Start Here", 200, [
@@ -408,6 +416,14 @@ export const NAV_CATALOG: NavLink[] = [
       roles: ["INSTRUCTOR", "ADMIN", "CHAPTER_LEAD"] as NavRole[],
       dashboardDescription: "View parent feedback and communications for your classes.",
       dashboardPriority: 13,
+    },
+    {
+      href: "/instructor/parent-messages",
+      label: "Parent Messages",
+      icon: "✉",
+      roles: ["INSTRUCTOR", "ADMIN", "CHAPTER_LEAD"] as NavRole[],
+      dashboardDescription: "Reply to direct messages from parents of your enrolled students.",
+      dashboardPriority: 14,
     },
   ]),
 

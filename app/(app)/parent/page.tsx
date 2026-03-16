@@ -2,14 +2,14 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
 import {
   getLinkedStudents,
   getStudentProgress,
   linkStudent,
   unlinkStudent,
+  getAvailableClassOfferings,
 } from "@/lib/parent-actions";
-import ParentEnroll from "@/components/parent-enroll";
+import ParentEnrollOffering from "@/components/parent-enroll-offering";
 
 export default async function ParentPortalPage() {
   const session = await getServerSession(authOptions);
@@ -23,31 +23,35 @@ export default async function ParentPortalPage() {
     redirect("/");
   }
 
-  // Fetch all linked students and available courses
-  const [linkedStudents, allCourses] = await Promise.all([
-    getLinkedStudents(),
-    prisma.course.findMany({
-      select: { id: true, title: true, format: true, level: true },
-      orderBy: { title: "asc" },
-    }),
+  // Fetch all linked students
+  const linkedStudents = await getLinkedStudents();
+
+  // Fetch progress + available offerings for each linked student in parallel
+  const [progressData, offeringsData] = await Promise.all([
+    Promise.all(
+      linkedStudents.map(async (student) => {
+        try {
+          const progress = await getStudentProgress(student.studentId);
+          return { studentId: student.studentId, progress };
+        } catch {
+          return { studentId: student.studentId, progress: null };
+        }
+      })
+    ),
+    Promise.all(
+      linkedStudents.map(async (student) => {
+        try {
+          const offerings = await getAvailableClassOfferings(student.studentId);
+          return { studentId: student.studentId, offerings };
+        } catch {
+          return { studentId: student.studentId, offerings: [] };
+        }
+      })
+    ),
   ]);
 
-  // Fetch progress data for each linked student in parallel
-  const progressData = await Promise.all(
-    linkedStudents.map(async (student) => {
-      try {
-        const progress = await getStudentProgress(student.studentId);
-        return { studentId: student.studentId, progress };
-      } catch {
-        return { studentId: student.studentId, progress: null };
-      }
-    })
-  );
-
-  // Build a lookup map for easy access
-  const progressMap = new Map(
-    progressData.map((p) => [p.studentId, p.progress])
-  );
+  const progressMap = new Map(progressData.map((p) => [p.studentId, p.progress]));
+  const offeringsMap = new Map(offeringsData.map((o) => [o.studentId, o.offerings]));
 
   return (
     <div className="main-content">
@@ -55,6 +59,11 @@ export default async function ParentPortalPage() {
         <div>
           <p className="badge">Parent Portal</p>
           <h1 className="page-title">Parent Dashboard</h1>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Link href="/parent/messages" className="button small secondary">
+            ✉ Messages
+          </Link>
         </div>
       </div>
 
@@ -64,6 +73,111 @@ export default async function ParentPortalPage() {
           across the Young People&apos;s Project.
         </p>
       </div>
+
+      {/* ============================================
+          ONBOARDING EMPTY STATE
+          ============================================ */}
+      {linkedStudents.length === 0 ? (
+        <div className="card" style={{ marginBottom: 24 }}>
+          <h3 style={{ margin: "0 0 16px" }}>Get Started</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {[
+              {
+                step: "1",
+                title: "Link your child's account",
+                desc: "Enter their YPP email below. They must already be registered as a student.",
+                done: false,
+              },
+              {
+                step: "2",
+                title: "Admin approves the connection",
+                desc: "A YPP admin will review and approve the link request (usually within 1–2 business days).",
+                done: false,
+              },
+              {
+                step: "3",
+                title: "Track progress & enroll in classes",
+                desc: "Once approved, you can view attendance, goals, certificates, and enroll your child in upcoming classes.",
+                done: false,
+              },
+            ].map((item) => (
+              <div key={item.step} style={{ display: "flex", gap: 12 }}>
+                <div
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: "50%",
+                    background: "var(--ypp-purple)",
+                    color: "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontWeight: 700,
+                    fontSize: 13,
+                    flexShrink: 0,
+                    marginTop: 2,
+                  }}
+                >
+                  {item.step}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>{item.title}</div>
+                  <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                    {item.desc}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {/* ============================================
+          ATTENDANCE ALERTS
+          ============================================ */}
+      {linkedStudents.map((student) => {
+        const progress = progressMap.get(student.studentId);
+        if (!progress) return null;
+        const { totalSessions, presentCount, lateCount } = progress.attendance;
+        if (totalSessions < 3) return null;
+        const rate = Math.round(((presentCount + lateCount) / totalSessions) * 100);
+        if (rate >= 80) return null;
+        return (
+          <div
+            key={`alert-${student.studentId}`}
+            style={{
+              padding: "12px 16px",
+              background: "#fffbeb",
+              border: "1px solid #fcd34d",
+              borderRadius: "var(--radius)",
+              marginBottom: 12,
+              display: "flex",
+              gap: 12,
+              alignItems: "center",
+            }}
+          >
+            <span style={{ fontSize: 20 }}>⚠️</span>
+            <div style={{ flex: 1 }}>
+              <strong style={{ fontSize: 14, color: "#92400e" }}>
+                Attendance Alert — {student.name}
+              </strong>
+              <p style={{ margin: "2px 0 0", fontSize: 13, color: "#78350f" }}>
+                {student.name.split(" ")[0]}&apos;s attendance is at{" "}
+                <strong>{rate}%</strong> this period ({presentCount + lateCount} of{" "}
+                {totalSessions} sessions). 80%+ is considered strong. Consider
+                reaching out to their instructor.
+              </p>
+            </div>
+            <Link
+              href={`/parent/${student.studentId}/messages`}
+              className="button small"
+              style={{ flexShrink: 0, fontSize: 12 }}
+            >
+              Message Instructor
+            </Link>
+          </div>
+        );
+      })}
 
       {/* ============================================
           LINK A NEW STUDENT
@@ -103,21 +217,18 @@ export default async function ParentPortalPage() {
       {/* ============================================
           LINKED STUDENTS
           ============================================ */}
-      {linkedStudents.length === 0 ? (
-        <div className="card">
-          <p className="empty">
-            No students are linked to your account yet. Use the form above to
-            link your child&apos;s student account by their email address.
-          </p>
-        </div>
-      ) : (
+      {linkedStudents.length > 0 && (
         <>
-          <div className="section-title" style={{ marginTop: 24, marginBottom: 16 }}>
+          <div
+            className="section-title"
+            style={{ marginTop: 24, marginBottom: 16 }}
+          >
             Linked Students ({linkedStudents.length})
           </div>
 
           {linkedStudents.map((student) => {
             const progress = progressMap.get(student.studentId);
+            const availableOfferings = offeringsMap.get(student.studentId) ?? [];
 
             // Compute summary stats
             const enrollmentCount = progress?.enrollments?.length ?? 0;
@@ -133,9 +244,12 @@ export default async function ParentPortalPage() {
             const certificateCount = progress?.certificates?.length ?? 0;
             const attendanceTotal = progress?.attendance?.totalSessions ?? 0;
             const attendancePresent = progress?.attendance?.presentCount ?? 0;
+            const attendanceLate = progress?.attendance?.lateCount ?? 0;
             const attendanceRate =
               attendanceTotal > 0
-                ? Math.round((attendancePresent / attendanceTotal) * 100)
+                ? Math.round(
+                    ((attendancePresent + attendanceLate) / attendanceTotal) * 100
+                  )
                 : 0;
 
             return (
@@ -151,14 +265,25 @@ export default async function ParentPortalPage() {
                 >
                   <div>
                     <h3 style={{ margin: 0 }}>{student.name}</h3>
-                    <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--muted)" }}>
+                    <p
+                      style={{
+                        margin: "4px 0 0",
+                        fontSize: 13,
+                        color: "var(--muted)",
+                      }}
+                    >
                       {student.email}
                     </p>
-                    <div style={{ display: "flex", gap: 12, marginTop: 8, flexWrap: "wrap" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 12,
+                        marginTop: 8,
+                        flexWrap: "wrap",
+                      }}
+                    >
                       {student.chapter && (
-                        <span className="pill">
-                          {student.chapter.name}
-                        </span>
+                        <span className="pill">{student.chapter.name}</span>
                       )}
                       <span className="pill pill-pathway">
                         {student.relationship}
@@ -169,14 +294,21 @@ export default async function ParentPortalPage() {
                         </span>
                       )}
                       {student.school && (
-                        <span className="pill">
-                          {student.school}
-                        </span>
+                        <span className="pill">{student.school}</span>
                       )}
                     </div>
                   </div>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <Link href={`/parent/${student.studentId}`} className="button small">
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <Link
+                      href={`/parent/${student.studentId}/messages`}
+                      className="button small secondary"
+                    >
+                      ✉ Message Instructor
+                    </Link>
+                    <Link
+                      href={`/parent/${student.studentId}`}
+                      className="button small"
+                    >
                       View Details
                     </Link>
                     <form action={unlinkStudent} style={{ margin: 0 }}>
@@ -193,9 +325,7 @@ export default async function ParentPortalPage() {
                   <div className="stat-card">
                     <span className="stat-label">Enrollments</span>
                     <span className="stat-value">{enrollmentCount}</span>
-                    <span className="stat-link">
-                      {activeEnrollments} active
-                    </span>
+                    <span className="stat-link">{activeEnrollments} active</span>
                   </div>
                   <div className="stat-card">
                     <span className="stat-label">Training Progress</span>
@@ -209,9 +339,23 @@ export default async function ParentPortalPage() {
                     <span className="stat-value">{certificateCount}</span>
                     <span className="stat-link">earned</span>
                   </div>
-                  <div className="stat-card">
+                  <div
+                    className="stat-card"
+                    style={
+                      attendanceTotal > 0 && attendanceRate < 80
+                        ? { borderColor: "#fcd34d", background: "#fffbeb" }
+                        : {}
+                    }
+                  >
                     <span className="stat-label">Attendance Rate</span>
-                    <span className="stat-value">
+                    <span
+                      className="stat-value"
+                      style={
+                        attendanceTotal > 0 && attendanceRate < 80
+                          ? { color: "#d97706" }
+                          : {}
+                      }
+                    >
                       {attendanceTotal > 0 ? `${attendanceRate}%` : "N/A"}
                     </span>
                     <span className="stat-link">
@@ -220,10 +364,13 @@ export default async function ParentPortalPage() {
                   </div>
                 </div>
 
-                {/* Goals Summary (if available) */}
+                {/* Goals Summary */}
                 {progress?.goals && progress.goals.length > 0 && (
                   <div style={{ marginTop: 12 }}>
-                    <div className="section-title" style={{ fontSize: 13, marginBottom: 8 }}>
+                    <div
+                      className="section-title"
+                      style={{ fontSize: 13, marginBottom: 8 }}
+                    >
                       Active Goals
                     </div>
                     <div className="enrollments-list">
@@ -232,7 +379,13 @@ export default async function ParentPortalPage() {
                           <div>
                             <strong>{goal.title}</strong>
                             {goal.description && (
-                              <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--muted)" }}>
+                              <p
+                                style={{
+                                  margin: "2px 0 0",
+                                  fontSize: 12,
+                                  color: "var(--muted)",
+                                }}
+                              >
                                 {goal.description}
                               </p>
                             )}
@@ -248,6 +401,17 @@ export default async function ParentPortalPage() {
                                   ? "pill-pathway"
                                   : ""
                               }`}
+                              title={
+                                goal.latestStatus === "ON_TRACK"
+                                  ? "Your child is meeting expectations for this goal."
+                                  : goal.latestStatus === "BEHIND_SCHEDULE"
+                                  ? "Progress is slower than expected. Consider discussing with their instructor."
+                                  : goal.latestStatus === "ABOVE_AND_BEYOND"
+                                  ? "Your child is exceeding expectations. Great work!"
+                                  : goal.latestStatus === "NEEDS_ATTENTION"
+                                  ? "This goal needs attention. Please reach out to the instructor."
+                                  : ""
+                              }
                             >
                               {goal.latestStatus.replace(/_/g, " ")}
                             </span>
@@ -258,17 +422,22 @@ export default async function ParentPortalPage() {
                   </div>
                 )}
 
-                {/* Recent Certificates (if available) */}
+                {/* Recent Certificates */}
                 {progress?.certificates && progress.certificates.length > 0 && (
                   <div style={{ marginTop: 12 }}>
-                    <div className="section-title" style={{ fontSize: 13, marginBottom: 8 }}>
+                    <div
+                      className="section-title"
+                      style={{ fontSize: 13, marginBottom: 8 }}
+                    >
                       Recent Certificates
                     </div>
                     <div className="enrollments-list">
                       {progress.certificates.slice(0, 3).map((cert) => (
                         <div key={cert.id} className="enrollment-item">
                           <strong>{cert.title}</strong>
-                          <span style={{ fontSize: 12, color: "var(--muted)" }}>
+                          <span
+                            style={{ fontSize: 12, color: "var(--muted)" }}
+                          >
                             {new Date(cert.issuedAt).toLocaleDateString()}
                           </span>
                         </div>
@@ -277,17 +446,12 @@ export default async function ParentPortalPage() {
                   </div>
                 )}
 
-                {/* Enroll in Course */}
-                {student.isPrimary && (
-                  <ParentEnroll
-                    studentId={student.studentId}
-                    studentName={student.name}
-                    courses={allCourses}
-                    enrolledCourseIds={
-                      progress?.enrollments?.map((e) => e.course.id) ?? []
-                    }
-                  />
-                )}
+                {/* Enroll in Class Offering */}
+                <ParentEnrollOffering
+                  studentId={student.studentId}
+                  studentName={student.name}
+                  offerings={availableOfferings}
+                />
               </div>
             );
           })}
