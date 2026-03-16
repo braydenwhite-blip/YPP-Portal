@@ -77,10 +77,10 @@ export default async function PathwayLeaderboardPage({ params }: { params: { id:
               </p>
               <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--gray-600)" }}>
                 {currentUserRank === 1
-                  ? "You're leading the pack — amazing work!"
+                  ? "You're leading the pack! Keep it up."
                   : currentUserRank <= 3
-                  ? "You're on the podium — keep it up!"
-                  : "Complete the next step to climb higher!"}
+                  ? "You're on the podium — amazing work!"
+                  : `Complete the next step to climb higher!`}
               </p>
             </div>
             <Link href={`/pathways/${params.id}`} className="button outline small">
