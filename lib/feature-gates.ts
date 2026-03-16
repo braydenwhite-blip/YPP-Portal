@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { normalizeRoleSet, requireAnyRole } from "@/lib/authorization";
 import {
   FEATURE_KEYS,
+  FEATURE_KEY_DEFAULTS,
   type FeatureKey,
   type FeatureUserContext,
 } from "@/lib/feature-gate-constants";
@@ -80,6 +81,75 @@ async function resolveUserContext(
   };
 }
 
+function defaultFeatureEnabled(featureKey: FeatureKey): boolean {
+  return FEATURE_KEY_DEFAULTS[featureKey];
+}
+
+async function resolveFeatureRuleValue(
+  featureKey: FeatureKey,
+  userContext: FeatureUserContext
+): Promise<boolean> {
+  const now = new Date();
+  const context = await resolveUserContext(userContext);
+  const commonWhere = activeWindowWhere(now);
+
+  if (context.userId) {
+    const userRule = await prisma.featureGateRule.findFirst({
+      where: {
+        ...commonWhere,
+        featureKey,
+        scope: "USER",
+        userId: context.userId,
+      },
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+    });
+
+    if (userRule) return userRule.enabled;
+  }
+
+  if (context.chapterId) {
+    const chapterRule = await prisma.featureGateRule.findFirst({
+      where: {
+        ...commonWhere,
+        featureKey,
+        scope: "CHAPTER",
+        chapterId: context.chapterId,
+      },
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+    });
+
+    if (chapterRule) return chapterRule.enabled;
+  }
+
+  const roles = Array.from(context.roleSet);
+  if (roles.length > 0) {
+    const roleRule = await prisma.featureGateRule.findFirst({
+      where: {
+        ...commonWhere,
+        featureKey,
+        scope: "ROLE",
+        role: { in: roles as any },
+      },
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+    });
+
+    if (roleRule) return roleRule.enabled;
+  }
+
+  const globalRule = await prisma.featureGateRule.findFirst({
+    where: {
+      ...commonWhere,
+      featureKey,
+      scope: "GLOBAL",
+    },
+    orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+  });
+
+  if (globalRule) return globalRule.enabled;
+
+  return defaultFeatureEnabled(featureKey);
+}
+
 export async function isFeatureEnabledForUser(
   featureKey: string,
   userContext: FeatureUserContext
@@ -88,70 +158,31 @@ export async function isFeatureEnabledForUser(
     return true;
   }
 
-  const now = new Date();
-
   try {
-    const context = await resolveUserContext(userContext);
-    const commonWhere = activeWindowWhere(now);
-
-    if (context.userId) {
-      const userRule = await prisma.featureGateRule.findFirst({
-        where: {
-          ...commonWhere,
-          featureKey,
-          scope: "USER",
-          userId: context.userId,
-        },
-        orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
-      });
-
-      if (userRule) return userRule.enabled;
-    }
-
-    if (context.chapterId) {
-      const chapterRule = await prisma.featureGateRule.findFirst({
-        where: {
-          ...commonWhere,
-          featureKey,
-          scope: "CHAPTER",
-          chapterId: context.chapterId,
-        },
-        orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
-      });
-
-      if (chapterRule) return chapterRule.enabled;
-    }
-
-    const roles = Array.from(context.roleSet);
-    if (roles.length > 0) {
-      const roleRule = await prisma.featureGateRule.findFirst({
-        where: {
-          ...commonWhere,
-          featureKey,
-          scope: "ROLE",
-          role: { in: roles as any },
-        },
-        orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
-      });
-
-      if (roleRule) return roleRule.enabled;
-    }
-
-    const globalRule = await prisma.featureGateRule.findFirst({
-      where: {
-        ...commonWhere,
-        featureKey,
-        scope: "GLOBAL",
-      },
-      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
-    });
-
-    if (globalRule) return globalRule.enabled;
-
-    return true;
+    return await resolveFeatureRuleValue(featureKey, userContext);
   } catch (error) {
     if (isMissingFeatureGateTableError(error)) {
-      return true;
+      return defaultFeatureEnabled(featureKey);
+    }
+    throw error;
+  }
+}
+
+export async function getEnabledFeatureKeysForUser(
+  userContext: FeatureUserContext
+): Promise<FeatureKey[]> {
+  try {
+    const resolved = await Promise.all(
+      FEATURE_KEYS.map(async (featureKey) => ({
+        featureKey,
+        enabled: await resolveFeatureRuleValue(featureKey, userContext),
+      }))
+    );
+
+    return resolved.filter((entry) => entry.enabled).map((entry) => entry.featureKey);
+  } catch (error) {
+    if (isMissingFeatureGateTableError(error)) {
+      return FEATURE_KEYS.filter((featureKey) => defaultFeatureEnabled(featureKey));
     }
     throw error;
   }
@@ -162,6 +193,12 @@ function revalidateFeatureGateSurfaces() {
   revalidatePath("/challenges");
   revalidatePath("/incubator");
   revalidatePath("/world");
+  revalidatePath("/lesson-plans");
+  revalidatePath("/instructor/workspace");
+  revalidatePath("/instructor/class-settings");
+  revalidatePath("/instructor/parent-feedback");
+  revalidatePath("/interviews");
+  revalidatePath("/admin/feature-gates");
   revalidatePath("/admin/rollout-comms");
 }
 
@@ -276,6 +313,60 @@ export async function setGlobalFeatureGateRule(formData: FormData) {
         data: {
           featureKey,
           scope: "GLOBAL",
+          enabled,
+          note,
+          createdById: sessionUser.id,
+          updatedById: sessionUser.id,
+        },
+      });
+    }
+  } catch (error) {
+    rethrowFeatureGateSetupError(error);
+  }
+
+  revalidateFeatureGateSurfaces();
+}
+
+export async function setUserFeatureGateRule(formData: FormData) {
+  const sessionUser = await requireAnyRole(["ADMIN"]);
+
+  const featureKey = String(formData.get("featureKey") || "").trim();
+  const userId = String(formData.get("userId") || "").trim();
+  const enabled = String(formData.get("enabled") || "true") === "true";
+  const note = String(formData.get("note") || "").trim() || null;
+
+  if (!isKnownFeatureKey(featureKey)) {
+    throw new Error("Invalid feature key.");
+  }
+  if (!userId) {
+    throw new Error("User is required.");
+  }
+
+  try {
+    const existing = await prisma.featureGateRule.findFirst({
+      where: {
+        featureKey,
+        scope: "USER",
+        userId,
+      },
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+    });
+
+    if (existing) {
+      await prisma.featureGateRule.update({
+        where: { id: existing.id },
+        data: {
+          enabled,
+          note,
+          updatedById: sessionUser.id,
+        },
+      });
+    } else {
+      await prisma.featureGateRule.create({
+        data: {
+          featureKey,
+          scope: "USER",
+          userId,
           enabled,
           note,
           createdById: sessionUser.id,

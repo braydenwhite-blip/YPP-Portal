@@ -2,6 +2,13 @@ import { getServerSession } from "next-auth";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { authOptions } from "@/lib/auth";
+import { getEnabledFeatureKeysForUser } from "@/lib/feature-gates";
+import {
+  getHiringChairStatus,
+  isHiringDecisionApproved,
+  isHiringDecisionPending,
+  isHiringDecisionReturned,
+} from "@/lib/hiring-decision-utils";
 import { prisma } from "@/lib/prisma";
 import {
   cancelApplicationInterviewSlot,
@@ -156,6 +163,7 @@ export default async function ApplicationWorkspacePage({
       decision: {
         include: {
           decidedBy: { select: { id: true, name: true } },
+          hiringChair: { select: { id: true, name: true } },
         },
       },
     },
@@ -168,18 +176,35 @@ export default async function ApplicationWorkspacePage({
   const roles = currentUser.roles.map((role) => role.role);
   const isAdmin = roles.includes("ADMIN");
   const isChapterLead = roles.includes("CHAPTER_LEAD");
+  const enabledFeatureKeys = await getEnabledFeatureKeysForUser({
+    userId: currentUser.id,
+    chapterId: currentUser.chapterId,
+    roles,
+    primaryRole: session.user.primaryRole ?? null,
+  }).catch(() => [] as Awaited<ReturnType<typeof getEnabledFeatureKeysForUser>>);
+  const isDesignatedInterviewer = new Set(enabledFeatureKeys).has("INTERVIEWER");
   const isApplicant = application.applicantId === currentUser.id;
   const isChapterReviewer =
     isChapterLead &&
     !!application.position.chapterId &&
     currentUser.chapterId === application.position.chapterId;
-  const canReview = isAdmin || isChapterReviewer;
+  const isInterviewReviewer =
+    isAdmin ||
+    isChapterReviewer ||
+    (isDesignatedInterviewer &&
+      !!application.position.chapterId &&
+      currentUser.chapterId === application.position.chapterId);
+  const canManagePipeline = isAdmin || isChapterReviewer;
 
-  if (!isApplicant && !canReview) {
+  if (!isApplicant && !isInterviewReviewer) {
     redirect("/applications");
   }
 
   const isClosedApplication = ["ACCEPTED", "REJECTED", "WITHDRAWN"].includes(application.status);
+  const decisionStatus = getHiringChairStatus(application.decision);
+  const hasApprovedDecision = isHiringDecisionApproved(application.decision);
+  const hasPendingDecision = isHiringDecisionPending(application.decision);
+  const hasReturnedDecision = isHiringDecisionReturned(application.decision);
   const reviewStatuses: ApplicationStatus[] = [
     "UNDER_REVIEW",
     "INTERVIEW_SCHEDULED",
@@ -208,13 +233,24 @@ export default async function ApplicationWorkspacePage({
   const canChapterDecideRole = ["INSTRUCTOR", "MENTOR", "STAFF", "CHAPTER_PRESIDENT"].includes(
     application.position.type
   );
-  const canShowChapterDecision = isChapterReviewer && canChapterDecideRole;
+  const canShowChapterDecision = !isAdmin && isInterviewReviewer && canChapterDecideRole;
   const canShowAdminDecision = isAdmin;
 
   const canSubmitDecision =
-    !application.decision &&
     application.status !== "WITHDRAWN" &&
+    !hasPendingDecision &&
+    !hasApprovedDecision &&
     decisionBlockers.length === 0;
+
+  const finalDecisionDetail = hasApprovedDecision
+    ? `${application.decision?.accepted ? "Accepted" : "Rejected"} on ${new Date(
+        application.decision?.hiringChairAt ?? application.decision?.decidedAt ?? application.submittedAt
+      ).toLocaleString()}`
+    : hasPendingDecision
+      ? `Submitted on ${new Date(application.decision?.decidedAt ?? application.submittedAt).toLocaleString()} · waiting for Chair approval`
+      : hasReturnedDecision
+        ? "Returned by Chair for revision"
+        : "Pending";
 
   const chapterProposal = parseChapterProposalMetadata(application.additionalMaterials);
 
@@ -269,13 +305,9 @@ export default async function ApplicationWorkspacePage({
         },
         {
           label: "Final Decision",
-          complete: Boolean(application.decision),
-          active: !application.decision && decisionBlockers.length === 0,
-          detail: application.decision
-            ? `${application.decision.accepted ? "Accepted" : "Rejected"} on ${new Date(
-                application.decision.decidedAt
-              ).toLocaleString()}`
-            : "Pending",
+          complete: hasApprovedDecision,
+          active: !hasApprovedDecision && !hasPendingDecision && decisionBlockers.length === 0,
+          detail: finalDecisionDetail,
         },
       ]
     : [
@@ -299,21 +331,19 @@ export default async function ApplicationWorkspacePage({
         },
         {
           label: "Final Decision",
-          complete: Boolean(application.decision),
-          active: !application.decision,
-          detail: application.decision
-            ? `${application.decision.accepted ? "Accepted" : "Rejected"} on ${new Date(
-                application.decision.decidedAt
-              ).toLocaleString()}`
-            : "Pending",
+          complete: hasApprovedDecision,
+          active: !hasApprovedDecision && !hasPendingDecision,
+          detail: finalDecisionDetail,
         },
       ];
 
-  const backHref = canReview
-    ? isAdmin
+  const backHref = isApplicant
+    ? "/applications"
+    : isAdmin
       ? "/admin/applications"
-      : "/chapter/recruiting"
-    : "/applications";
+      : isChapterReviewer
+        ? "/chapter/recruiting"
+        : "/interviews?scope=hiring&view=team&state=needs_action";
 
   return (
     <div>
@@ -516,7 +546,7 @@ export default async function ApplicationWorkspacePage({
                           </form>
                         ) : null}
 
-                        {canReview && slot.status === "CONFIRMED" && !isClosedApplication ? (
+                        {isInterviewReviewer && slot.status === "CONFIRMED" && !isClosedApplication && !hasPendingDecision ? (
                           <form action={markApplicationInterviewCompleted}>
                             <input type="hidden" name="slotId" value={slot.id} />
                             <button type="submit" className="button small">
@@ -525,7 +555,7 @@ export default async function ApplicationWorkspacePage({
                           </form>
                         ) : null}
 
-                        {canReview && slot.status !== "COMPLETED" && slot.status !== "CANCELLED" && !isClosedApplication ? (
+                        {isInterviewReviewer && slot.status !== "COMPLETED" && slot.status !== "CANCELLED" && !isClosedApplication && !hasPendingDecision ? (
                           <form action={cancelApplicationInterviewSlot}>
                             <input type="hidden" name="slotId" value={slot.id} />
                             <button type="submit" className="button small ghost">
@@ -553,24 +583,50 @@ export default async function ApplicationWorkspacePage({
 
           {application.decision ? (
             <div className="card" style={{ marginTop: 16 }}>
-              <div className="section-title">Final Decision</div>
+              <div className="section-title">
+                {hasApprovedDecision ? "Final Decision" : "Chair Review Status"}
+              </div>
               <p style={{ marginTop: 0 }}>
-                <span className={`pill ${application.decision.accepted ? "pill-success" : "pill-declined"}`}>
-                  {application.decision.accepted ? "Accepted" : "Rejected"}
+                <span
+                  className={`pill ${
+                    hasApprovedDecision
+                      ? application.decision.accepted
+                        ? "pill-success"
+                        : "pill-declined"
+                      : hasPendingDecision
+                        ? "pill-pathway"
+                        : "pill-pending"
+                  }`}
+                >
+                  {hasApprovedDecision
+                    ? application.decision.accepted
+                      ? "Accepted"
+                      : "Rejected"
+                    : decisionStatus?.replace(/_/g, " ")}
                 </span>
               </p>
               {application.decision.notes ? (
                 <p style={{ whiteSpace: "pre-wrap" }}>{application.decision.notes}</p>
               ) : null}
+              {application.decision.hiringChairNote ? (
+                <p style={{ whiteSpace: "pre-wrap", fontSize: 13 }}>
+                  <strong>Chair note:</strong> {application.decision.hiringChairNote}
+                </p>
+              ) : null}
               <p style={{ color: "var(--muted)", fontSize: 13, marginBottom: 0 }}>
-                Decided by {application.decision.decidedBy.name} on {new Date(application.decision.decidedAt).toLocaleString()}
+                Submitted by {application.decision.decidedBy.name} on {new Date(application.decision.decidedAt).toLocaleString()}
+                {application.decision.hiringChair
+                  ? ` · Chair: ${application.decision.hiringChair.name} on ${new Date(
+                      application.decision.hiringChairAt ?? application.decision.decidedAt
+                    ).toLocaleString()}`
+                  : ""}
               </p>
             </div>
           ) : null}
         </div>
 
         <div>
-          {canReview ? (
+          {isInterviewReviewer ? (
             <>
               <div className="card">
                 <div className="section-title">Decision Eligibility</div>
@@ -591,9 +647,19 @@ export default async function ApplicationWorkspacePage({
                     No interview required. You can make a decision based on the application materials.
                   </div>
                 ) : null}
+                {hasPendingDecision ? (
+                  <p style={{ marginTop: 0, color: "#1d4ed8" }}>
+                    A recommendation is already in the Chair queue. Wait for approval or a return note before editing it.
+                  </p>
+                ) : null}
+                {hasReturnedDecision && application.decision?.hiringChairNote ? (
+                  <p style={{ marginTop: 0, color: "#b45309" }}>
+                    Chair returned this decision: {application.decision.hiringChairNote}
+                  </p>
+                ) : null}
                 {decisionBlockers.length === 0 ? (
                   <p style={{ marginTop: 0, color: "#166534" }}>
-                    This candidate is ready for a final decision.
+                    This candidate is ready for a Chair-reviewed recommendation.
                   </p>
                 ) : (
                   <div style={{ marginTop: 0 }}>
@@ -632,27 +698,29 @@ export default async function ApplicationWorkspacePage({
                   </Link>
                 </div>
 
-                <form action={updateApplicationStatus} className="form-grid" style={{ marginBottom: 18 }}>
-                  <input type="hidden" name="applicationId" value={application.id} />
-                  <div className="form-row">
-                    <label>Status</label>
-                    <select
-                      name="status"
-                      className="input"
-                      defaultValue={reviewStatuses.includes(application.status) ? application.status : "UNDER_REVIEW"}
-                      disabled={isClosedApplication}
-                    >
-                      {reviewStatuses.map((status) => (
-                        <option key={status} value={status}>
-                          {formatStatus(status)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <button type="submit" className="button small" disabled={isClosedApplication}>
-                    Update Status
-                  </button>
-                </form>
+                {canManagePipeline ? (
+                  <form action={updateApplicationStatus} className="form-grid" style={{ marginBottom: 18 }}>
+                    <input type="hidden" name="applicationId" value={application.id} />
+                    <div className="form-row">
+                      <label>Status</label>
+                      <select
+                        name="status"
+                        className="input"
+                        defaultValue={reviewStatuses.includes(application.status) ? application.status : "UNDER_REVIEW"}
+                        disabled={isClosedApplication}
+                      >
+                        {reviewStatuses.map((status) => (
+                          <option key={status} value={status}>
+                            {formatStatus(status)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <button type="submit" className="button small" disabled={isClosedApplication}>
+                      Update Status
+                    </button>
+                  </form>
+                ) : null}
 
                 {/* Interview scheduling - show for all positions but label clearly */}
                 <div style={{ marginBottom: 18 }}>
@@ -672,7 +740,7 @@ export default async function ApplicationWorkspacePage({
                           className="input"
                           defaultValue={defaultInterviewDate}
                           required
-                          disabled={isClosedApplication}
+                          disabled={isClosedApplication || hasPendingDecision}
                         />
                       </div>
                       <div className="form-row">
@@ -682,7 +750,7 @@ export default async function ApplicationWorkspacePage({
                           name="scheduledAt2"
                           className="input"
                           defaultValue={defaultInterviewDate2}
-                          disabled={isClosedApplication}
+                          disabled={isClosedApplication || hasPendingDecision}
                         />
                       </div>
                       <div className="form-row">
@@ -692,7 +760,7 @@ export default async function ApplicationWorkspacePage({
                           name="scheduledAt3"
                           className="input"
                           defaultValue={defaultInterviewDate3}
-                          disabled={isClosedApplication}
+                          disabled={isClosedApplication || hasPendingDecision}
                         />
                       </div>
                     </div>
@@ -705,7 +773,7 @@ export default async function ApplicationWorkspacePage({
                         defaultValue={30}
                         min={15}
                         max={180}
-                        disabled={isClosedApplication}
+                        disabled={isClosedApplication || hasPendingDecision}
                       />
                     </div>
                     <div className="form-row">
@@ -715,10 +783,10 @@ export default async function ApplicationWorkspacePage({
                         name="meetingLink"
                         className="input"
                         placeholder="https://zoom.us/..."
-                        disabled={isClosedApplication}
+                        disabled={isClosedApplication || hasPendingDecision}
                       />
                     </div>
-                    <button type="submit" className="button small" disabled={isClosedApplication}>
+                    <button type="submit" className="button small" disabled={isClosedApplication || hasPendingDecision}>
                       Post Interview Slots
                     </button>
                   </form>
@@ -726,12 +794,12 @@ export default async function ApplicationWorkspacePage({
 
                 <ReviewerInterviewNoteForm
                   applicationId={application.id}
-                  disabled={isClosedApplication}
+                  disabled={isClosedApplication || hasPendingDecision}
                   action={saveStructuredInterviewNote}
                 />
               </div>
 
-              {canShowAdminDecision && !application.decision && application.status !== "WITHDRAWN" ? (
+              {canShowAdminDecision && (!application.decision || hasReturnedDecision) && application.status !== "WITHDRAWN" ? (
                 <ReviewerDecisionForm
                   applicationId={application.id}
                   positionTitle={application.position.title}
@@ -742,7 +810,7 @@ export default async function ApplicationWorkspacePage({
                 />
               ) : null}
 
-              {canShowChapterDecision && !application.decision && application.status !== "WITHDRAWN" ? (
+              {canShowChapterDecision && (!application.decision || hasReturnedDecision) && application.status !== "WITHDRAWN" ? (
                 <ReviewerDecisionForm
                   applicationId={application.id}
                   positionTitle={application.position.title}

@@ -23,6 +23,8 @@ export async function submitChapterFeedback(formData: FormData) {
   const chapterId = formData.get("chapterId") as string;
   const type = formData.get("type") as string;
   const targetUserId = formData.get("targetUserId") as string | null;
+  const studentId = formData.get("studentId") as string | null;
+  const courseId = formData.get("courseId") as string | null;
   const rating = parseInt(formData.get("rating") as string, 10);
   const comments = formData.get("comments") as string;
   const wouldRecommend = formData.get("wouldRecommend") === "true";
@@ -38,6 +40,8 @@ export async function submitChapterFeedback(formData: FormData) {
       chapterId,
       type: type as any,
       targetUserId: targetUserId || null,
+      studentId: studentId || null,
+      courseId: courseId || null,
       rating,
       comments: comments || "",
       wouldRecommend,
@@ -47,6 +51,7 @@ export async function submitChapterFeedback(formData: FormData) {
 
   revalidatePath("/parent/feedback");
   revalidatePath("/admin/parent-feedback");
+  revalidatePath("/instructor/parent-feedback");
 }
 
 export async function getChapterFeedbackSummary(chapterId: string) {

@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import AppShell from "@/components/app-shell";
 import { authOptions } from "@/lib/auth";
+import { getEnabledFeatureKeysForUser } from "@/lib/feature-gates";
 import { prisma } from "@/lib/prisma";
 import { getUnlockedSections, checkAndAutoUnlock } from "@/lib/unlock-manager";
 import { getVisibleNavGroups } from "@/lib/unlock-nav-groups";
@@ -54,11 +55,12 @@ export default async function AppLayout({
   // Get user's highest award tier + badge counts for navigation
   let awardTier: string | undefined;
   let badges: { notifications?: number; messages?: number; approvals?: number } = {};
+  let enabledFeatureKeysArray: string[] | undefined;
   let unlockedSectionsArray: string[] | undefined;
   let recentlyUnlockedGroupsArray: string[] | undefined;
   if (session?.user?.id) {
     const userId = session.user.id;
-    const [userWithAwards, unreadNotifications, unreadMessages, pendingApprovals] =
+    const [userWithAwards, unreadNotifications, unreadMessages, pendingApprovals, enabledFeatureKeys] =
       await Promise.all([
         prisma.user.findUnique({
           where: { id: userId },
@@ -89,6 +91,12 @@ export default async function AppLayout({
           .catch(() => 0),
         // Pending approvals placeholder (future: parent approvals, instructor readiness, etc.)
         Promise.resolve(0),
+        getEnabledFeatureKeysForUser({
+          userId,
+          chapterId: session.user.chapterId ?? null,
+          roles,
+          primaryRole,
+        }).catch(() => []),
       ]);
 
     awardTier = getHighestAwardTier(userWithAwards?.awards ?? []);
@@ -97,6 +105,7 @@ export default async function AppLayout({
       messages: unreadMessages || undefined,
       approvals: pendingApprovals || undefined,
     };
+    enabledFeatureKeysArray = enabledFeatureKeys;
 
     // Fetch unlock data for progressive nav reveal (STUDENT and PARENT roles)
     if (primaryRole === "STUDENT" || primaryRole === "PARENT") {
@@ -151,6 +160,7 @@ export default async function AppLayout({
       primaryRole={primaryRole}
       awardTier={awardTier}
       badges={badges}
+      enabledFeatureKeys={enabledFeatureKeysArray}
       unlockedSections={unlockedSectionsArray}
       recentlyUnlockedGroups={recentlyUnlockedGroupsArray}
     >

@@ -13,6 +13,7 @@ export default function AppShell({
   primaryRole,
   awardTier,
   badges,
+  enabledFeatureKeys,
   unlockedSections,
   recentlyUnlockedGroups,
 }: {
@@ -22,6 +23,7 @@ export default function AppShell({
   primaryRole?: string | null;
   awardTier?: string;
   badges?: NavBadges;
+  enabledFeatureKeys?: string[];
   unlockedSections?: string[];
   recentlyUnlockedGroups?: string[];
 }) {
@@ -36,6 +38,10 @@ export default function AppShell({
   const recentlyUnlockedGroupsSet = useMemo(
     () => (recentlyUnlockedGroups ? new Set(recentlyUnlockedGroups) : undefined),
     [recentlyUnlockedGroups],
+  );
+  const enabledFeatureKeysSet = useMemo(
+    () => (enabledFeatureKeys ? new Set(enabledFeatureKeys) : undefined),
+    [enabledFeatureKeys],
   );
 
   return (
@@ -92,6 +98,7 @@ export default function AppShell({
             primaryRole={primaryRole}
             awardTier={awardTier}
             badges={badges}
+            enabledFeatureKeys={enabledFeatureKeysSet}
             onNavigate={() => setSidebarOpen(false)}
             unlockedSections={unlockedSectionsSet}
             recentlyUnlockedGroups={recentlyUnlockedGroupsSet}

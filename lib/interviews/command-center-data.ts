@@ -1,9 +1,11 @@
 import { prisma } from "@/lib/prisma";
+import { getEnabledFeatureKeysForUser } from "@/lib/feature-gates";
 import {
   buildHiringInterviewTask,
   buildReadinessInterviewTask,
   matchesInterviewState,
 } from "@/lib/interviews/workflow";
+import { isHiringDecisionApproved } from "@/lib/hiring-decision-utils";
 import type {
   InterviewCommandCenterData,
   InterviewHubFilters,
@@ -89,13 +91,7 @@ export async function getInterviewCommandCenterData(
 ): Promise<InterviewCommandCenterData> {
   const isAdmin = input.roles.includes("ADMIN");
   const isChapterLead = input.roles.includes("CHAPTER_LEAD");
-  const isReviewer = isAdmin || isChapterLead;
   const isInstructor = input.roles.includes("INSTRUCTOR");
-  const canTeamView = isReviewer;
-  const canHiring = ["STUDENT", "INSTRUCTOR", "STAFF", "ADMIN", "CHAPTER_LEAD"].some((role) =>
-    input.roles.includes(role)
-  );
-  const canReadiness = isInstructor || isReviewer;
 
   const user = await prisma.user.findUnique({
     where: { id: input.userId },
@@ -108,6 +104,22 @@ export async function getInterviewCommandCenterData(
   if (!user) {
     throw new Error("User not found");
   }
+
+  const enabledFeatureKeys = await getEnabledFeatureKeysForUser({
+    userId: input.userId,
+    chapterId: user.chapterId,
+    roles: input.roles,
+    primaryRole: null,
+  }).catch(() => [] as Awaited<ReturnType<typeof getEnabledFeatureKeysForUser>>);
+  const isDesignatedInterviewer = new Set(enabledFeatureKeys).has("INTERVIEWER");
+  const isReviewer = isAdmin || isChapterLead;
+  const canTeamView = isReviewer || isDesignatedInterviewer;
+  const canHiring =
+    isDesignatedInterviewer ||
+    ["STUDENT", "INSTRUCTOR", "STAFF", "ADMIN", "CHAPTER_LEAD"].some((role) =>
+      input.roles.includes(role)
+    );
+  const canReadiness = isInstructor || isReviewer;
 
   const filters: InterviewHubFilters = {
     scope: normalizeScope(input.scope, canHiring, canReadiness),
@@ -155,6 +167,7 @@ export async function getInterviewCommandCenterData(
           decision: {
             select: {
               accepted: true,
+              hiringChairStatus: true,
             },
           },
         },
@@ -172,13 +185,15 @@ export async function getInterviewCommandCenterData(
             submittedAt: application.submittedAt,
             slots: application.interviewSlots,
             notes: application.interviewNotes,
-            decisionAccepted: application.decision?.accepted ?? null,
+            decisionAccepted: isHiringDecisionApproved(application.decision)
+              ? application.decision?.accepted ?? null
+              : null,
             audience: "mine",
             viewerRole: "applicant",
           })
         );
       }
-    } else if (isReviewer) {
+    } else if (canTeamView) {
       const where: Prisma.ApplicationWhereInput = {
         decision: null,
         status: { notIn: [...FINAL_APPLICATION_STATUSES] },
@@ -220,6 +235,7 @@ export async function getInterviewCommandCenterData(
           decision: {
             select: {
               accepted: true,
+              hiringChairStatus: true,
             },
           },
         },
@@ -237,7 +253,9 @@ export async function getInterviewCommandCenterData(
             submittedAt: application.submittedAt,
             slots: application.interviewSlots,
             notes: application.interviewNotes,
-            decisionAccepted: application.decision?.accepted ?? null,
+            decisionAccepted: isHiringDecisionApproved(application.decision)
+              ? application.decision?.accepted ?? null
+              : null,
             audience: "team",
             viewerRole: "reviewer",
           })

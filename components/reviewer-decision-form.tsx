@@ -38,7 +38,10 @@ export default function ReviewerDecisionForm({
 
   return (
     <div className="card" style={{ marginTop: 16 }}>
-      <div className="section-title">Final Decision ({label})</div>
+      <div className="section-title">Decision Submission ({label})</div>
+      <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 12px" }}>
+        Submit your recommendation to the hiring Chair. Nothing is finalized until the Chair approves it.
+      </p>
       {!interviewRequired && (
         <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 12px" }}>
           No interview required. Make your decision based on the application materials and any notes.
@@ -66,12 +69,12 @@ export default function ReviewerDecisionForm({
           </select>
         </div>
         <div className="form-row">
-          <label>Decision Notes</label>
+          <label>Recommendation Notes</label>
           <textarea
             name="notes"
             className="input"
             rows={4}
-            placeholder="Add rationale and follow-up instructions..."
+            placeholder="Add rationale and anything the Chair should know..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />
@@ -114,7 +117,7 @@ export default function ReviewerDecisionForm({
         )}
 
         <button type="submit" className="button" disabled={!canActuallySubmit}>
-          Submit {label} Decision
+          Submit to Chair Queue
         </button>
       </form>
     </div>

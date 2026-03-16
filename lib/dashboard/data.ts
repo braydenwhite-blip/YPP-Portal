@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { getEnabledFeatureKeysForUser } from "@/lib/feature-gates";
 import { getDashboardModulesForRole } from "@/lib/dashboard/catalog";
 import { resolveDashboardRole } from "@/lib/dashboard/resolve-dashboard";
 import type {
@@ -15,7 +16,7 @@ import type {
   NudgeItemData,
 } from "@/lib/dashboard/types";
 import { getActiveNudges, generateContextualNudges } from "@/lib/nudge-engine";
-import { checkAndAutoUnlock } from "@/lib/unlock-manager";
+import { checkAndAutoUnlock, getUnlockedSections } from "@/lib/unlock-manager";
 import { getInstructorReadiness, buildFallbackInstructorReadiness, isInterviewGateEnforced } from "@/lib/instructor-readiness";
 import { getRecommendedActivitiesForUser } from "@/lib/activity-hub/actions";
 import { withPrismaFallback } from "@/lib/prisma-guard";
@@ -91,9 +92,30 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     roles: roleTypes,
   });
   const hasAward = user.awards.length > 0;
+  const needsUnlockedSections = role === "STUDENT" || role === "PARENT";
+
+  if (needsUnlockedSections) {
+    await checkAndAutoUnlock(userId).catch(() => {});
+  }
+
+  const [enabledFeatureKeys, unlockedSections] = await Promise.all([
+    getEnabledFeatureKeysForUser({
+      userId,
+      chapterId: user.chapterId,
+      roles: roleTypes,
+      primaryRole: role,
+    }).catch(() => []),
+    needsUnlockedSections ? getUnlockedSections(userId).catch(() => undefined) : Promise.resolve(undefined),
+  ]);
 
   const [{ modules, sections }, unreadNotifications, unreadMessages, myOpenChapterProposals] = await Promise.all([
-    Promise.resolve(getDashboardModulesForRole(role, { hasAward })),
+    Promise.resolve(
+      getDashboardModulesForRole(role, {
+        hasAward,
+        unlockedSections,
+        enabledFeatureKeys: new Set(enabledFeatureKeys),
+      })
+    ),
     prisma.notification.count({ where: { userId, isRead: false } }),
     getUnreadMessageCount(userId),
     prisma.application.count({
@@ -127,6 +149,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     const [
       pendingParentApprovals,
       pendingAppDecisions,
+      pendingHiringDecisions,
       trainingEvidenceQueue,
       readinessReviewQueue,
       waitlistWaiting,
@@ -140,6 +163,11 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
         where: {
           decision: null,
           status: { notIn: [...FINAL_APPLICATION_STATUSES] },
+        },
+      }),
+      prisma.decision.count({
+        where: {
+          hiringChairStatus: "PENDING_CHAIR",
         },
       }),
       withPrismaFallback(
@@ -191,6 +219,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     kpis = [
       { id: "pending_parent_approvals", label: "Pending Parent Approvals", value: pendingParentApprovals },
       { id: "pending_app_decisions", label: "Pending Application Decisions", value: pendingAppDecisions },
+      { id: "pending_hiring_decisions", label: "Chair Hiring Reviews", value: pendingHiringDecisions },
       { id: "pending_incubator_applications", label: "Incubator Reviews", value: pendingIncubatorApplications },
       { id: "chapter_proposal_queue", label: "Chapter Proposals", value: chapterProposalQueue },
       { id: "training_evidence_queue", label: "Training Evidence Queue", value: trainingEvidenceQueue },
@@ -212,11 +241,20 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
       {
         id: "pending_app_decisions",
         title: "Application Decision Queue",
-        description: "Finalize unresolved hiring applications.",
+        description: "Prepare interview-complete applications for recommendation submission.",
         count: pendingAppDecisions,
         href: "/interviews?scope=hiring&view=team&state=needs_action",
         status: queueStatus(pendingAppDecisions, 20),
         badgeKey: "pending_app_decisions",
+      },
+      {
+        id: "pending_hiring_decisions",
+        title: "Hiring Chair Queue",
+        description: "Approve or return submitted hiring recommendations.",
+        count: pendingHiringDecisions,
+        href: "/admin/hiring-committee",
+        status: queueStatus(pendingHiringDecisions, 12),
+        badgeKey: "pending_hiring_decisions",
       },
       {
         id: "chapter_proposal_queue",
@@ -1199,9 +1237,6 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     fetchNudges(userId, role).catch(() => [] as NudgeItemData[]),
     fetchJourneyMilestones(userId).catch(() => [] as JourneyMilestoneData[]),
   ]);
-
-  // Best-effort: auto-unlock sections based on achievements
-  checkAndAutoUnlock(userId).catch(() => {});
 
   return {
     role,

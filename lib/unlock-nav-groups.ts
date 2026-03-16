@@ -7,6 +7,7 @@ export const STUDENT_ALWAYS_VISIBLE_GROUPS: NavGroup[] = [
   "Start Here",
   "Learning",
   "Progress",
+  "People & Support",
   "Profile & Settings",
 ];
 
@@ -17,12 +18,19 @@ export const PARENT_ALWAYS_VISIBLE_GROUPS: NavGroup[] = [
   "Profile & Settings",
 ];
 
+// Nav groups always visible for instructors. Everything else is hidden by default.
+export const INSTRUCTOR_ALWAYS_VISIBLE_GROUPS: NavGroup[] = [
+  "Start Here",
+  "Progress",
+  "People & Support",
+  "Profile & Settings",
+];
+
 // Section key → nav groups (kept in sync with SECTION_UNLOCK_MAP in unlock-manager.ts)
 export const SECTION_NAV_GROUP_MAP: Record<string, NavGroup[]> = {
   challenges: ["Challenges"],
   projects: ["Projects"],
   opportunities: ["Opportunities"],
-  people_support: ["People & Support"],
 };
 
 // Section key → human-readable unlock requirement
@@ -30,13 +38,11 @@ export const SECTION_REQUIREMENTS: Record<string, string> = {
   challenges: "Complete any Pathway 101 step",
   projects: "Earn your first badge",
   opportunities: "Complete any Pathway 201",
-  people_support: "Complete 2 pathway steps",
 };
 
 // Roles that see everything unlocked by default
 export const FULL_ACCESS_ROLES = new Set([
   "ADMIN",
-  "INSTRUCTOR",
   "CHAPTER_LEAD",
   "MENTOR",
   "STAFF",
@@ -52,7 +58,14 @@ export function getVisibleNavGroups(
   primaryRole: string,
   unlockedSections: Set<string>
 ): { visibleGroups: Set<NavGroup>; lockedGroups: Map<NavGroup, string> } {
-  // Non-student roles see everything
+  if (primaryRole === "INSTRUCTOR") {
+    return {
+      visibleGroups: new Set<NavGroup>(INSTRUCTOR_ALWAYS_VISIBLE_GROUPS),
+      lockedGroups: new Map(),
+    };
+  }
+
+  // Admin/support roles see everything
   if (FULL_ACCESS_ROLES.has(primaryRole)) {
     return { visibleGroups: new Set<NavGroup>(), lockedGroups: new Map() };
   }

@@ -380,7 +380,7 @@ export default async function ChapterRecruitingPage({
         <div className="card">
           <h3>Decision Queue</h3>
           {decisionQueue.length === 0 ? (
-            <p className="empty">No candidates ready for final decision.</p>
+            <p className="empty">No candidates are ready for recommendation submission.</p>
           ) : (
             <div style={{ display: "grid", gap: 10 }}>
               {decisionQueue.map((app) => {
@@ -396,7 +396,7 @@ export default async function ChapterRecruitingPage({
                     </p>
                     {!decisionReady ? (
                       <p style={{ margin: "6px 0 0", fontSize: 12, color: "#b45309" }}>
-                        Blocked: complete interview and add recommendation note before decision.
+                        Blocked: complete interview and add recommendation note before submitting to Chair review.
                       </p>
                     ) : null}
 
@@ -424,12 +424,12 @@ export default async function ChapterRecruitingPage({
                           </select>
                         </label>
                         <label className="form-row">
-                          Decision Notes
+                          Recommendation Notes
                           <input name="notes" className="input" placeholder="Optional context" />
                         </label>
                       </div>
                       <button type="submit" className="button small" disabled={!decisionReady}>
-                        Submit Decision
+                        Submit to Chair Queue
                       </button>
                     </form>
                   </div>

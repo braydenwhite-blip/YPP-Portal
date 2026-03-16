@@ -4,6 +4,11 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { withdrawApplication } from "@/lib/application-actions";
+import {
+  isHiringDecisionApproved,
+  isHiringDecisionPending,
+  isHiringDecisionReturned,
+} from "@/lib/hiring-decision-utils";
 
 const FINAL_STATUSES = ["ACCEPTED", "REJECTED", "WITHDRAWN"];
 const FILTER_OPTIONS = [
@@ -152,6 +157,9 @@ export default async function MyApplicationsPage({
           ) : (
             <div className="grid two">
               {filteredApplications.map((application) => {
+                const hasApprovedDecision = isHiringDecisionApproved(application.decision);
+                const hasPendingDecision = isHiringDecisionPending(application.decision);
+                const hasReturnedDecision = isHiringDecisionReturned(application.decision);
                 const postedInterview = application.interviewSlots.find(
                   (slot) =>
                     slot.status === "POSTED" &&
@@ -190,16 +198,25 @@ export default async function MyApplicationsPage({
 
                     <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--muted)" }}>
                       <span>Applied: {new Date(application.submittedAt).toLocaleDateString()}</span>
-                      {!application.decision && !["WITHDRAWN"].includes(application.status) && (
+                      {!hasApprovedDecision && !["WITHDRAWN"].includes(application.status) && (
                         <span style={{
                           fontSize: 12,
                           color: "#7c3aed",
                           fontWeight: 500,
                         }}>
-                          {application.status === "SUBMITTED" && "Awaiting review"}
-                          {application.status === "UNDER_REVIEW" && (application.position.interviewRequired ? "Interview pending" : "Decision pending")}
-                          {application.status === "INTERVIEW_SCHEDULED" && "Confirm your interview"}
-                          {application.status === "INTERVIEW_COMPLETED" && "Decision pending"}
+                          {hasPendingDecision
+                            ? "Chair review pending"
+                            : hasReturnedDecision
+                              ? "Returned for revision"
+                              : application.status === "SUBMITTED"
+                                ? "Awaiting review"
+                                : application.status === "UNDER_REVIEW"
+                                  ? application.position.interviewRequired
+                                    ? "Interview pending"
+                                    : "Decision pending"
+                                  : application.status === "INTERVIEW_SCHEDULED"
+                                    ? "Confirm your interview"
+                                    : "Decision pending"}
                         </span>
                       )}
                     </div>
@@ -267,17 +284,33 @@ export default async function MyApplicationsPage({
                         style={{
                           marginTop: 16,
                           padding: 12,
-                          background: application.decision.accepted ? "#dcfce7" : "#fee2e2",
+                          background: hasApprovedDecision
+                            ? application.decision.accepted
+                              ? "#dcfce7"
+                              : "#fee2e2"
+                            : hasPendingDecision
+                              ? "#dbeafe"
+                              : "#fef3c7",
                           borderRadius: "var(--radius-sm)"
                         }}
                       >
                         <strong style={{ fontSize: 13 }}>
-                          {application.decision.accepted ? "Congratulations!" : "Decision"}
+                          {hasApprovedDecision
+                            ? application.decision.accepted
+                              ? "Congratulations!"
+                              : "Decision"
+                            : hasPendingDecision
+                              ? "Chair Review Pending"
+                              : "Decision Returned"}
                         </strong>
                         <p style={{ margin: "4px 0 0", fontSize: 13 }}>
-                          {application.decision.accepted
-                            ? "Your application has been accepted!"
-                            : "Unfortunately, we've decided to move forward with other candidates."}
+                          {hasApprovedDecision
+                            ? application.decision.accepted
+                              ? "Your application has been accepted!"
+                              : "Unfortunately, we've decided to move forward with other candidates."
+                            : hasPendingDecision
+                              ? "A recommendation has been submitted, and the hiring Chair is reviewing it now."
+                              : application.decision.hiringChairNote || "The hiring Chair returned this recommendation for revision."}
                         </p>
                         {application.decision.notes && (
                           <p style={{ margin: "8px 0 0", fontSize: 13, fontStyle: "italic" }}>

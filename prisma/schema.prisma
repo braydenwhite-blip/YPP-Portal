@@ -492,6 +492,7 @@ model User {
   applications                           Application[]
   interviewNotesAuthored                 InterviewNote[]                 @relation("InterviewNotesAuthored")
   decisionsMade                          Decision[]                      @relation("DecisionsMade")
+  hiringChairDecisions                   Decision[]                      @relation("HiringChairDecisions")
   announcements                          Announcement[]
   goals                                  Goal[]
   progressUpdatesSubmitted               ProgressUpdate[]                @relation("ProgressUpdatesSubmitted")
@@ -786,6 +787,7 @@ model User {
   // Parent Feedback & Survey Relations
   parentChapterFeedbacks ParentChapterFeedback[] @relation("ParentChapterFeedbacks")
   parentFeedbackTargets  ParentChapterFeedback[] @relation("ParentFeedbackTargets")
+  parentFeedbackStudents ParentChapterFeedback[] @relation("ParentFeedbackStudents")
   parentSurveysCreated   ParentSurvey[]          @relation("ParentSurveysCreated")
   parentSurveyResponses  ParentSurveyResponse[]  @relation("ParentSurveyResponses")
 
@@ -925,6 +927,7 @@ model Course {
   waitlistEntries    WaitlistEntry[]
   pathwaySteps       PathwayStep[]
   feedback           Feedback[]
+  parentFeedbacks    ParentChapterFeedback[]
   certificates       Certificate[]
   attendanceSessions AttendanceSession[]
   resources          Resource[]
@@ -1839,6 +1842,11 @@ model Decision {
   accepted      Boolean
   notes         String?
   decidedAt     DateTime    @default(now())
+  hiringChairStatus String?
+  hiringChairNote   String?
+  hiringChairId     String?
+  hiringChair       User?    @relation("HiringChairDecisions", fields: [hiringChairId], references: [id])
+  hiringChairAt     DateTime?
 }
 
 // ============================================
@@ -7514,6 +7522,10 @@ model ParentChapterFeedback {
   type           ParentFeedbackType
   targetUserId   String?
   targetUser     User?              @relation("ParentFeedbackTargets", fields: [targetUserId], references: [id])
+  studentId      String?
+  student        User?              @relation("ParentFeedbackStudents", fields: [studentId], references: [id])
+  courseId       String?
+  course         Course?            @relation(fields: [courseId], references: [id])
   rating         Int
   comments       String             @db.Text
   wouldRecommend Boolean?
@@ -7523,6 +7535,8 @@ model ParentChapterFeedback {
   @@index([chapterId, type])
   @@index([parentId])
   @@index([targetUserId])
+  @@index([studentId])
+  @@index([courseId])
 }
 
 model ParentSurvey {

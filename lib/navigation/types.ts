@@ -1,3 +1,5 @@
+import type { FeatureKey } from "@/lib/feature-gate-constants";
+
 export type NavRole =
   | "ADMIN"
   | "APPLICANT"
@@ -37,6 +39,7 @@ export interface NavLink {
   badgeKey?: NavBadgeKey;
   searchAliases?: string[];
   requiresAward?: boolean;
+  featureKey?: FeatureKey;
   dashboardDescription?: string;
   dashboardBadgeKey?: string;
   dashboardPriority?: number;

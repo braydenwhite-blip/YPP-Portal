@@ -15,12 +15,20 @@ import {
 import {
   assertAdminOrChapterLead,
   assertCanMakeChapterDecision,
+  assertCanManageHiringInterviews,
   assertCanManagePosition,
   getHiringActor,
   isAdmin,
+  isDesignatedInterviewer,
 } from "@/lib/chapter-hiring-permissions";
 import { createSystemNotification } from "@/lib/notification-actions";
 import { sendApplicationStatusEmail, sendNotificationEmail } from "@/lib/email";
+import {
+  getHiringChairStatus,
+  isHiringDecisionApproved,
+  isHiringDecisionPending,
+  isHiringDecisionReturned,
+} from "@/lib/hiring-decision-utils";
 
 const REVIEWABLE_APPLICATION_STATUSES: ApplicationStatus[] = [
   "UNDER_REVIEW",
@@ -101,6 +109,15 @@ async function requireAdminOrChapterLead() {
   const session = await requireAuth();
   const actor = await getHiringActor(session.user.id);
   assertAdminOrChapterLead(actor);
+  return { session, actor };
+}
+
+async function requireHiringReviewer() {
+  const session = await requireAuth();
+  const actor = await getHiringActor(session.user.id);
+  if (!isAdmin(actor) && !actor.roles.includes("CHAPTER_LEAD") && !isDesignatedInterviewer(actor)) {
+    throw new Error("Unauthorized - Hiring reviewer access required");
+  }
   return { session, actor };
 }
 
@@ -210,6 +227,7 @@ function revalidateHiringPaths(chapterId?: string | null, applicationId?: string
   revalidatePath("/chapters/propose");
   revalidatePath("/chapter/recruiting");
   revalidatePath("/admin/recruiting");
+  revalidatePath("/admin/hiring-committee");
   revalidatePath("/chapter/applicants");
   revalidatePath("/admin/applications");
 
@@ -221,6 +239,28 @@ function revalidateHiringPaths(chapterId?: string | null, applicationId?: string
   if (applicationId) {
     revalidatePath(`/applications/${applicationId}`);
   }
+}
+
+function assertDecisionCanBeEdited(
+  decision: {
+    hiringChairStatus?: string | null;
+  } | null | undefined
+) {
+  if (!decision) {
+    return;
+  }
+
+  if (isHiringDecisionReturned(decision)) {
+    return;
+  }
+
+  if (isHiringDecisionPending(decision)) {
+    throw new Error(
+      "This application already has a decision waiting on Chair review. Return it for changes before editing interviews."
+    );
+  }
+
+  throw new Error("Cannot update interviews after final decision.");
 }
 
 async function getApplicationForReview(applicationId: string) {
@@ -488,7 +528,7 @@ async function applyAcceptedCandidateEffects(
   }
 }
 
-async function finalizeDecision({
+async function submitDecisionForChairReview({
   applicationId,
   accepted,
   notes,
@@ -503,8 +543,12 @@ async function finalizeDecision({
 }) {
   const application = await getApplicationForReview(applicationId);
 
-  if (application.decision) {
+  if (application.decision && isHiringDecisionApproved(application.decision)) {
     throw new Error("A final decision already exists for this application.");
+  }
+
+  if (application.decision && isHiringDecisionPending(application.decision)) {
+    throw new Error("This decision is already waiting on Chair review.");
   }
 
   if (application.position.interviewRequired && enforceInterviewReadiness) {
@@ -515,66 +559,65 @@ async function finalizeDecision({
   }
 
   await prisma.$transaction(async (tx) => {
-    await tx.decision.create({
-      data: {
-        applicationId,
-        decidedById,
-        accepted,
-        notes: notes || null,
-      },
-    });
+    const decisionData = {
+      decidedById,
+      accepted,
+      notes: notes || null,
+      decidedAt: new Date(),
+      hiringChairStatus: "PENDING_CHAIR",
+      hiringChairNote: null,
+      hiringChairId: null,
+      hiringChairAt: null,
+    };
 
-    await tx.application.update({
-      where: { id: applicationId },
-      data: { status: accepted ? "ACCEPTED" : "REJECTED" },
-    });
-
-    if (accepted) {
-      await applyAcceptedCandidateEffects(
-        tx,
-        {
-          id: application.id,
-          applicantId: application.applicantId,
-          position: application.position,
-          interviewSlots: application.interviewSlots.map((slot) => ({
-            status: slot.status,
-            isConfirmed: slot.isConfirmed,
-          })),
-          interviewNotes: application.interviewNotes.map((note) => ({
-            recommendation: note.recommendation,
-          })),
-          additionalMaterials: application.additionalMaterials || null,
+    if (application.decision) {
+      await tx.decision.update({
+        where: { id: application.decision.id },
+        data: decisionData,
+      });
+    } else {
+      await tx.decision.create({
+        data: {
+          applicationId,
+          ...decisionData,
         },
-        decidedById
-      );
+      });
     }
   });
+
+  const admins = await prisma.user.findMany({
+    where: {
+      roles: {
+        some: {
+          role: "ADMIN",
+        },
+      },
+    },
+    select: { id: true },
+  });
+
+  for (const admin of admins) {
+    if (admin.id === decidedById) continue;
+    await createSystemNotification(
+      admin.id,
+      "SYSTEM",
+      "Hiring Decision Waiting on Chair Review",
+      `${application.applicant.name} has a ${accepted ? "hire" : "reject"} recommendation waiting for Chair approval.`,
+      "/admin/hiring-committee",
+      true
+    );
+  }
 
   await createSystemNotification(
     application.applicantId,
     "SYSTEM",
-    accepted ? "Application Accepted" : "Application Decision Posted",
-    accepted
-      ? `Your application for ${application.position.title} was accepted.`
-      : `Your application for ${application.position.title} has been reviewed.`,
+    "Application Update",
+    `A hiring recommendation was submitted for ${application.position.title}. A Chair is reviewing it now.`,
     `/applications/${applicationId}`,
     true
   );
 
-  // Email applicant: final decision
-  if (application.applicant?.email) {
-    const baseUrl = process.env.NEXTAUTH_URL || "";
-    sendApplicationStatusEmail({
-      to: application.applicant.email,
-      applicantName: application.applicant.name || "Applicant",
-      positionTitle: application.position.title,
-      status: accepted ? "APPROVED" : "DECLINED",
-      message: notes || undefined,
-      portalUrl: `${baseUrl}/applications/${applicationId}`,
-    }).catch(() => {});
-  }
-
-  await createHiringAudit(decidedById, "chapter_hiring_decision", {
+  await createHiringAudit(decidedById, "chapter_hiring_decision_submitted", {
     applicationId,
     accepted,
     positionType: application.position.type,
@@ -583,6 +626,242 @@ async function finalizeDecision({
   });
 
   revalidateHiringPaths(application.position.chapterId, applicationId);
+}
+
+export async function approveHiringDecision(decisionId: string, chairId: string, chairNote?: string | null) {
+  const decision = await prisma.decision.findUnique({
+    where: { id: decisionId },
+    include: {
+      decidedBy: {
+        select: { id: true, name: true, email: true },
+      },
+      application: {
+        include: {
+          applicant: {
+            select: { id: true, name: true, email: true },
+          },
+          position: {
+            select: {
+              title: true,
+              type: true,
+              chapterId: true,
+              interviewRequired: true,
+            },
+          },
+          interviewSlots: {
+            orderBy: { scheduledAt: "asc" },
+          },
+          interviewNotes: {
+            orderBy: { createdAt: "desc" },
+          },
+        },
+      },
+    },
+  });
+
+  if (!decision) {
+    throw new Error("Decision not found.");
+  }
+
+  if (decision.decidedById === chairId) {
+    throw new Error("The reviewer who submitted this decision cannot approve it as Chair.");
+  }
+
+  if (isHiringDecisionApproved(decision)) {
+    throw new Error("This decision is already approved.");
+  }
+
+  if (!isHiringDecisionPending(decision)) {
+    throw new Error("Only decisions waiting on Chair review can be approved.");
+  }
+
+  const now = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    await tx.decision.update({
+      where: { id: decisionId },
+      data: {
+        hiringChairStatus: "APPROVED",
+        hiringChairNote: chairNote || null,
+        hiringChairId: chairId,
+        hiringChairAt: now,
+      },
+    });
+
+    await tx.application.update({
+      where: { id: decision.applicationId },
+      data: { status: decision.accepted ? "ACCEPTED" : "REJECTED" },
+    });
+
+    if (decision.accepted) {
+      await applyAcceptedCandidateEffects(
+        tx,
+        {
+          id: decision.application.id,
+          applicantId: decision.application.applicantId,
+          position: decision.application.position,
+          interviewSlots: decision.application.interviewSlots.map((slot) => ({
+            status: slot.status,
+            isConfirmed: slot.isConfirmed,
+          })),
+          interviewNotes: decision.application.interviewNotes.map((note) => ({
+            recommendation: note.recommendation,
+          })),
+          additionalMaterials: decision.application.additionalMaterials || null,
+        },
+        decision.decidedById
+      );
+    }
+  });
+
+  await createSystemNotification(
+    decision.application.applicantId,
+    "SYSTEM",
+    decision.accepted ? "Application Accepted" : "Application Decision Posted",
+    decision.accepted
+      ? `Your application for ${decision.application.position.title} was accepted.`
+      : `Your application for ${decision.application.position.title} has been reviewed.`,
+    `/applications/${decision.applicationId}`,
+    true
+  );
+
+  await createSystemNotification(
+    decision.decidedById,
+    "SYSTEM",
+    "Hiring Decision Approved",
+    `Your recommendation for ${decision.application.applicant.name} was approved by the hiring Chair.`,
+    `/applications/${decision.applicationId}`,
+    true
+  );
+
+  if (decision.application.applicant?.email) {
+    const baseUrl = process.env.NEXTAUTH_URL || "";
+    sendApplicationStatusEmail({
+      to: decision.application.applicant.email,
+      applicantName: decision.application.applicant.name || "Applicant",
+      positionTitle: decision.application.position.title,
+      status: decision.accepted ? "APPROVED" : "DECLINED",
+      message: decision.notes || chairNote || undefined,
+      portalUrl: `${baseUrl}/applications/${decision.applicationId}`,
+    }).catch(() => {});
+  }
+
+  await createHiringAudit(chairId, "chapter_hiring_decision_approved", {
+    applicationId: decision.applicationId,
+    accepted: decision.accepted,
+    positionType: decision.application.position.type,
+    chapterId: decision.application.position.chapterId,
+    submitterId: decision.decidedById,
+  });
+
+  revalidateHiringPaths(decision.application.position.chapterId, decision.applicationId);
+}
+
+export async function returnHiringDecision(decisionId: string, chairId: string, chairNote: string) {
+  const decision = await prisma.decision.findUnique({
+    where: { id: decisionId },
+    include: {
+      application: {
+        include: {
+          applicant: {
+            select: { name: true },
+          },
+          position: {
+            select: {
+              title: true,
+              chapterId: true,
+              type: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!decision) {
+    throw new Error("Decision not found.");
+  }
+
+  if (decision.decidedById === chairId) {
+    throw new Error("The reviewer who submitted this decision cannot return it as Chair.");
+  }
+
+  if (isHiringDecisionApproved(decision)) {
+    throw new Error("Approved decisions cannot be returned.");
+  }
+
+  if (!chairNote.trim()) {
+    throw new Error("A Chair note is required when returning a decision.");
+  }
+
+  await prisma.decision.update({
+    where: { id: decisionId },
+    data: {
+      hiringChairStatus: "RETURNED",
+      hiringChairNote: chairNote.trim(),
+      hiringChairId: chairId,
+      hiringChairAt: new Date(),
+    },
+  });
+
+  await createSystemNotification(
+    decision.decidedById,
+    "SYSTEM",
+    "Hiring Decision Returned",
+    `Your recommendation for ${decision.application.applicant.name} was returned by the hiring Chair: ${chairNote.trim()}`,
+    `/applications/${decision.applicationId}`,
+    true
+  );
+
+  await createHiringAudit(chairId, "chapter_hiring_decision_returned", {
+    applicationId: decision.applicationId,
+    accepted: decision.accepted,
+    chapterId: decision.application.position.chapterId,
+    positionType: decision.application.position.type,
+    submitterId: decision.decidedById,
+  });
+
+  revalidateHiringPaths(decision.application.position.chapterId, decision.applicationId);
+}
+
+export async function getHiringChairQueue() {
+  return prisma.decision.findMany({
+    where: {
+      hiringChairStatus: "PENDING_CHAIR",
+    },
+    include: {
+      decidedBy: {
+        select: { id: true, name: true, email: true },
+      },
+      application: {
+        include: {
+          applicant: {
+            select: { id: true, name: true, email: true },
+          },
+          position: {
+            include: {
+              chapter: {
+                select: { id: true, name: true },
+              },
+            },
+          },
+          interviewNotes: {
+            orderBy: { createdAt: "desc" },
+            take: 3,
+            include: {
+              author: {
+                select: { id: true, name: true },
+              },
+            },
+          },
+          interviewSlots: {
+            orderBy: { scheduledAt: "asc" },
+          },
+        },
+      },
+    },
+    orderBy: { decidedAt: "asc" },
+  });
 }
 
 // ============================================
@@ -1164,7 +1443,7 @@ export async function updateApplicationStatus(formData: FormData) {
 }
 
 export async function postApplicationInterviewSlot(formData: FormData) {
-  const { actor } = await requireAdminOrChapterLead();
+  const { actor } = await requireHiringReviewer();
 
   const applicationId = getString(formData, "applicationId");
   const scheduledAt = new Date(getString(formData, "scheduledAt"));
@@ -1177,11 +1456,9 @@ export async function postApplicationInterviewSlot(formData: FormData) {
   }
 
   const application = await getApplicationForReview(applicationId);
-  assertCanManagePosition(actor, application.position.chapterId);
+  assertCanManageHiringInterviews(actor, application.position.chapterId);
 
-  if (application.decision) {
-    throw new Error("Cannot schedule interview after a final decision.");
-  }
+  assertDecisionCanBeEdited(application.decision);
 
   const interviewerId = interviewerIdRaw || actor.id;
 
@@ -1259,7 +1536,7 @@ function parseBulkScheduledAtValues(formData: FormData, keys: string[]) {
 }
 
 export async function postApplicationInterviewSlotsBulk(formData: FormData) {
-  const { actor } = await requireAdminOrChapterLead();
+  const { actor } = await requireHiringReviewer();
 
   const applicationId = getString(formData, "applicationId");
   const duration = Number(getString(formData, "duration", false) || "30");
@@ -1268,11 +1545,9 @@ export async function postApplicationInterviewSlotsBulk(formData: FormData) {
 
   const slotDates = parseBulkScheduledAtValues(formData, ["scheduledAt1", "scheduledAt2", "scheduledAt3"]);
   const application = await getApplicationForReview(applicationId);
-  assertCanManagePosition(actor, application.position.chapterId);
+  assertCanManageHiringInterviews(actor, application.position.chapterId);
 
-  if (application.decision) {
-    throw new Error("Cannot schedule interview after a final decision.");
-  }
+  assertDecisionCanBeEdited(application.decision);
 
   const interviewerId = interviewerIdRaw || actor.id;
 
@@ -1431,7 +1706,7 @@ export async function confirmApplicationInterviewSlot(formData: FormData) {
 }
 
 export async function cancelApplicationInterviewSlot(formData: FormData) {
-  const { actor } = await requireAdminOrChapterLead();
+  const { actor } = await requireHiringReviewer();
 
   const slotId = getString(formData, "slotId");
 
@@ -1442,6 +1717,9 @@ export async function cancelApplicationInterviewSlot(formData: FormData) {
         include: {
           applicant: {
             select: { id: true },
+          },
+          decision: {
+            select: { hiringChairStatus: true },
           },
           position: {
             select: {
@@ -1458,7 +1736,9 @@ export async function cancelApplicationInterviewSlot(formData: FormData) {
     throw new Error("Interview slot not found");
   }
 
-  assertCanManagePosition(actor, slot.application.position.chapterId);
+  assertCanManageHiringInterviews(actor, slot.application.position.chapterId);
+
+  assertDecisionCanBeEdited(slot.application.decision);
 
   if (slot.status === "COMPLETED") {
     throw new Error("Completed interview slots cannot be cancelled.");
@@ -1493,7 +1773,7 @@ export async function cancelApplicationInterviewSlot(formData: FormData) {
 }
 
 export async function markApplicationInterviewCompleted(formData: FormData) {
-  const { actor } = await requireAdminOrChapterLead();
+  const { actor } = await requireHiringReviewer();
 
   const slotId = getString(formData, "slotId");
 
@@ -1504,6 +1784,9 @@ export async function markApplicationInterviewCompleted(formData: FormData) {
         include: {
           applicant: {
             select: { id: true },
+          },
+          decision: {
+            select: { hiringChairStatus: true },
           },
           position: {
             select: {
@@ -1520,7 +1803,9 @@ export async function markApplicationInterviewCompleted(formData: FormData) {
     throw new Error("Interview slot not found");
   }
 
-  assertCanManagePosition(actor, slot.application.position.chapterId);
+  assertCanManageHiringInterviews(actor, slot.application.position.chapterId);
+
+  assertDecisionCanBeEdited(slot.application.decision);
 
   if (slot.status !== "CONFIRMED") {
     throw new Error("Only confirmed interview slots can be marked complete.");
@@ -1573,7 +1858,7 @@ export async function markApplicationInterviewCompleted(formData: FormData) {
 }
 
 export async function completeApplicationInterviewAndNote(formData: FormData) {
-  const { actor } = await requireAdminOrChapterLead();
+  const { actor } = await requireHiringReviewer();
 
   const applicationId = getString(formData, "applicationId");
   const slotId = getString(formData, "slotId");
@@ -1585,11 +1870,9 @@ export async function completeApplicationInterviewAndNote(formData: FormData) {
   const nextStepSuggestion = getString(formData, "nextStepSuggestion", false);
 
   const application = await getApplicationForReview(applicationId);
-  assertCanManagePosition(actor, application.position.chapterId);
+  assertCanManageHiringInterviews(actor, application.position.chapterId);
 
-  if (application.decision) {
-    throw new Error("Cannot update interviews after final decision.");
-  }
+  assertDecisionCanBeEdited(application.decision);
 
   const slot = await prisma.interviewSlot.findUnique({
     where: { id: slotId },
@@ -1660,7 +1943,7 @@ export async function completeApplicationInterviewAndNote(formData: FormData) {
 }
 
 export async function saveStructuredInterviewNote(formData: FormData) {
-  const { actor } = await requireAdminOrChapterLead();
+  const { actor } = await requireHiringReviewer();
 
   const applicationId = getString(formData, "applicationId");
   const content = getString(formData, "content");
@@ -1671,7 +1954,9 @@ export async function saveStructuredInterviewNote(formData: FormData) {
   const nextStepSuggestion = getString(formData, "nextStepSuggestion", false);
 
   const application = await getApplicationForReview(applicationId);
-  assertCanManagePosition(actor, application.position.chapterId);
+  assertCanManageHiringInterviews(actor, application.position.chapterId);
+
+  assertDecisionCanBeEdited(application.decision);
 
   await prisma.interviewNote.create({
     data: {
@@ -1698,11 +1983,13 @@ export async function saveStructuredInterviewNote(formData: FormData) {
 }
 
 export async function setApplicationInterviewReadiness(formData: FormData) {
-  const { actor } = await requireAdminOrChapterLead();
+  const { actor } = await requireHiringReviewer();
 
   const applicationId = getString(formData, "applicationId");
   const application = await getApplicationForReview(applicationId);
-  assertCanManagePosition(actor, application.position.chapterId);
+  assertCanManageHiringInterviews(actor, application.position.chapterId);
+
+  assertDecisionCanBeEdited(application.decision);
 
   await setApplicationInterviewReadinessInternal(applicationId);
 
@@ -1734,7 +2021,7 @@ export async function makeDecision(formData: FormData) {
   const accepted = parseBoolean(formData, "accepted");
   const notes = getString(formData, "notes", false);
 
-  await finalizeDecision({
+  await submitDecisionForChairReview({
     applicationId,
     accepted,
     notes,
@@ -1744,7 +2031,7 @@ export async function makeDecision(formData: FormData) {
 }
 
 export async function chapterMakeDecision(formData: FormData) {
-  const { actor } = await requireAdminOrChapterLead();
+  const { actor } = await requireHiringReviewer();
 
   const applicationId = getString(formData, "applicationId");
   const accepted = parseBoolean(formData, "accepted");
@@ -1776,7 +2063,7 @@ export async function chapterMakeDecision(formData: FormData) {
       justification: overrideJustification.trim(),
     });
 
-    await finalizeDecision({
+    await submitDecisionForChairReview({
       applicationId,
       accepted,
       notes: notes
@@ -1802,7 +2089,7 @@ export async function chapterMakeDecision(formData: FormData) {
     throw new Error("Before making a chapter decision, you must add at least one interview note with a recommendation (Strong Yes, Yes, Maybe, or No). Use the 'Save Structured Interview Note' form to add one.");
   }
 
-  await finalizeDecision({
+  await submitDecisionForChairReview({
     applicationId,
     accepted,
     notes,

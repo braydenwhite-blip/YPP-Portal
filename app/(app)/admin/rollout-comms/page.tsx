@@ -4,7 +4,7 @@ import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { normalizeRoleSet } from "@/lib/authorization";
-import { FEATURE_KEYS } from "@/lib/feature-gate-constants";
+import { FEATURE_KEYS, FEATURE_KEY_DEFAULTS } from "@/lib/feature-gate-constants";
 import {
   deleteFeatureGateRule,
   listFeatureGateRules,
@@ -240,7 +240,7 @@ export default async function RolloutCommsPage({
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                   <strong>{featureKey}</strong>
                   <span className="pill">
-                    Global: {globalRule ? (globalRule.enabled ? "ON" : "OFF") : "Default ON"}
+                    Global: {globalRule ? (globalRule.enabled ? "ON" : "OFF") : `Default ${FEATURE_KEY_DEFAULTS[featureKey] ? "ON" : "OFF"}`}
                   </span>
                 </div>
 

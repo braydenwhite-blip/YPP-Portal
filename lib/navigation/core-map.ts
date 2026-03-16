@@ -31,13 +31,13 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
   ],
   INSTRUCTOR: [
     "/",
-    "/instructor/workspace",
-    "/instructor/class-settings",
-    "/lesson-plans",
     "/instructor-training",
     "/attendance",
-    "/instructor/mentee-health",
+    "/instructor/parent-feedback",
+    "/mentorship",
+    "/my-program/awards",
     "/messages",
+    "/notifications",
   ],
   ADMIN: [
     "/",

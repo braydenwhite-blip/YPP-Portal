@@ -146,6 +146,7 @@ export interface ResolveNavInput {
   pathname: string;
   maxCoreItems?: number;
   unlockedSections?: Set<string>;
+  enabledFeatureKeys?: Set<string>;
 }
 
 function toNavRole(value: string | null | undefined): NavRole | null {
@@ -195,6 +196,11 @@ function hasRoleAccess(item: NavLink, roles: NavRole[]): boolean {
 function hasAwardAccess(item: NavLink, roles: NavRole[], hasAward: boolean): boolean {
   if (!item.requiresAward) return true;
   return hasAward || roles.includes("ADMIN");
+}
+
+function hasFeatureAccess(item: NavLink, enabledFeatureKeys: Set<string> | undefined): boolean {
+  if (!item.featureKey) return true;
+  return enabledFeatureKeys?.has(item.featureKey) ?? false;
 }
 
 function groupIndex(primaryRole: NavRole, group: NavGroup): number {
@@ -250,18 +256,19 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
   const primaryRole = resolvePrimaryRole(input.primaryRole, roles);
   const hasAward = isAwardTier(input.awardTier);
   const limit = Math.min(input.maxCoreItems ?? CORE_NAV_LIMIT, CORE_NAV_LIMIT);
+  const usesUnlockVisibility =
+    primaryRole === "INSTRUCTOR" ||
+    (input.unlockedSections && (primaryRole === "STUDENT" || primaryRole === "PARENT"));
 
   // Determine which groups are visible/locked based on unlock status
   let unlockVisibleGroups: Set<NavGroup> | null = null;
   let unlockLockedGroups: Map<NavGroup, string> | null = null;
+  const restrictToVisibleGroups = primaryRole === "INSTRUCTOR";
 
-  if (
-    input.unlockedSections &&
-    (primaryRole === "STUDENT" || primaryRole === "PARENT")
-  ) {
+  if (usesUnlockVisibility) {
     const { visibleGroups, lockedGroups } = getVisibleNavGroups(
       primaryRole,
-      input.unlockedSections,
+      input.unlockedSections ?? new Set<string>(),
     );
     unlockVisibleGroups = visibleGroups;
     unlockLockedGroups = lockedGroups;
@@ -271,11 +278,15 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
     NAV_CATALOG.filter((item) => {
       if (!hasRoleAccess(item, roles)) return false;
       if (!hasAwardAccess(item, roles, hasAward)) return false;
+      if (!hasFeatureAccess(item, input.enabledFeatureKeys)) return false;
 
       // If unlock filtering is active, only include items whose group is visible
       // or whose group is not in the locked set (i.e. groups not managed by the
       // unlock system, like Admin groups, pass through unchanged).
       if (unlockVisibleGroups) {
+        if (restrictToVisibleGroups) {
+          return unlockVisibleGroups.has(item.group);
+        }
         if (unlockVisibleGroups.has(item.group)) return true;
         if (unlockLockedGroups && unlockLockedGroups.has(item.group)) return false;
         // Group is neither in visible nor locked — it's not managed by the

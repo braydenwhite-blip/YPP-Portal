@@ -169,6 +169,9 @@ export default async function AdminRecruitingPage({
           <Link href="/admin/applications" className="button small outline" style={{ textDecoration: "none" }}>
             Review Applications
           </Link>
+          <Link href="/admin/hiring-committee" className="button small outline" style={{ textDecoration: "none" }}>
+            Open Hiring Chair Queue
+          </Link>
           <Link href="/applications" className="button small ghost" style={{ textDecoration: "none" }}>
             Open Application Workspaces
           </Link>

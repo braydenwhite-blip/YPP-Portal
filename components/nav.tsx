@@ -63,6 +63,7 @@ export default function Nav({
   primaryRole,
   awardTier,
   badges,
+  enabledFeatureKeys,
   onNavigate,
   unlockedSections,
   recentlyUnlockedGroups,
@@ -72,6 +73,7 @@ export default function Nav({
   primaryRole?: string | null;
   awardTier?: string;
   badges?: NavBadges;
+  enabledFeatureKeys?: Set<string>;
   onNavigate?: () => void;
   unlockedSections?: Set<string>;
   recentlyUnlockedGroups?: Set<string>;
@@ -86,9 +88,10 @@ export default function Nav({
         primaryRole,
         awardTier,
         pathname,
+        enabledFeatureKeys,
         unlockedSections,
       }),
-    [awardTier, pathname, primaryRole, roles, unlockedSections],
+    [awardTier, enabledFeatureKeys, pathname, primaryRole, roles, unlockedSections],
   );
 
   // Use locked groups from the model (computed from unlockedSections) or from explicit prop

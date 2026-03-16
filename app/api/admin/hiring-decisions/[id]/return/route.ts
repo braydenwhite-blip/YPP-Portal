@@ -1,0 +1,43 @@
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { returnHiringDecision } from "@/lib/application-actions";
+
+function errorStatus(message: string) {
+  if (message.includes("cannot return it as Chair")) {
+    return 403;
+  }
+  if (message.includes("Unauthorized")) {
+    return 403;
+  }
+  if (message.includes("not found")) {
+    return 404;
+  }
+  return 400;
+}
+
+export async function POST(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const roles = session.user.roles ?? [];
+  if (!roles.includes("ADMIN")) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const chairNote = typeof body.chairNote === "string" ? body.chairNote : "";
+
+  try {
+    await returnHiringDecision(params.id, session.user.id, chairNote);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to return decision.";
+    return NextResponse.json({ error: message }, { status: errorStatus(message) });
+  }
+}

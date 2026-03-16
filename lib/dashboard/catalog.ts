@@ -35,11 +35,20 @@ function groupModules(modules: DashboardModule[]): DashboardSection[] {
   }));
 }
 
-export function getDashboardModulesForRole(role: DashboardRole, options?: { hasAward?: boolean }) {
+export function getDashboardModulesForRole(
+  role: DashboardRole,
+  options?: {
+    hasAward?: boolean;
+    unlockedSections?: Set<string>;
+    enabledFeatureKeys?: Set<string>;
+  }
+) {
   const nav = resolveNavModel({
     roles: [role],
     primaryRole: role,
     pathname: "/",
+    unlockedSections: options?.unlockedSections,
+    enabledFeatureKeys: options?.enabledFeatureKeys,
   });
 
   const hasAward = options?.hasAward ?? false;

@@ -1,10 +1,12 @@
 import { PositionType } from "@prisma/client";
+import { getEnabledFeatureKeysForUser } from "@/lib/feature-gates";
 import { prisma } from "@/lib/prisma";
 
 export type HiringActor = {
   id: string;
   chapterId: string | null;
   roles: string[];
+  featureKeys: Set<string>;
 };
 
 export async function getHiringActor(userId: string): Promise<HiringActor> {
@@ -21,10 +23,21 @@ export async function getHiringActor(userId: string): Promise<HiringActor> {
     throw new Error("User not found.");
   }
 
+  const roles = user.roles.map((role) => role.role);
+  const featureKeys = new Set(
+    await getEnabledFeatureKeysForUser({
+      userId: user.id,
+      chapterId: user.chapterId,
+      roles,
+      primaryRole: null,
+    })
+  );
+
   return {
     id: user.id,
     chapterId: user.chapterId,
-    roles: user.roles.map((role) => role.role),
+    roles,
+    featureKeys,
   };
 }
 
@@ -34,6 +47,10 @@ export function isAdmin(actor: HiringActor): boolean {
 
 export function isChapterLead(actor: HiringActor): boolean {
   return actor.roles.includes("CHAPTER_LEAD");
+}
+
+export function isDesignatedInterviewer(actor: HiringActor): boolean {
+  return actor.featureKeys.has("INTERVIEWER");
 }
 
 export function assertAdminOrChapterLead(actor: HiringActor) {
@@ -64,6 +81,22 @@ export function canChapterLeadDecidePositionType(type: PositionType): boolean {
   return ["INSTRUCTOR", "MENTOR", "STAFF", "CHAPTER_PRESIDENT"].includes(type);
 }
 
+export function assertCanManageHiringInterviews(actor: HiringActor, chapterId: string | null) {
+  if (isAdmin(actor)) {
+    return;
+  }
+
+  if (!actor.chapterId || !chapterId || actor.chapterId !== chapterId) {
+    throw new Error("Interview access is limited to your own chapter.");
+  }
+
+  if (isChapterLead(actor) || isDesignatedInterviewer(actor)) {
+    return;
+  }
+
+  throw new Error("Unauthorized");
+}
+
 export function assertCanMakeChapterDecision(
   actor: HiringActor,
   type: PositionType,
@@ -73,15 +106,15 @@ export function assertCanMakeChapterDecision(
     return;
   }
 
-  if (!isChapterLead(actor)) {
+  if (!actor.chapterId || !chapterId || actor.chapterId !== chapterId) {
+    throw new Error("Chapter reviewers can only decide hiring outcomes in their own chapter.");
+  }
+
+  if (!isChapterLead(actor) && !isDesignatedInterviewer(actor)) {
     throw new Error("Unauthorized");
   }
 
-  if (!actor.chapterId || !chapterId || actor.chapterId !== chapterId) {
-    throw new Error("Chapter Leads can only decide hiring outcomes in their own chapter.");
-  }
-
   if (!canChapterLeadDecidePositionType(type)) {
-    throw new Error("Chapter Leads cannot decide this position type.");
+    throw new Error("This reviewer cannot decide this position type.");
   }
 }

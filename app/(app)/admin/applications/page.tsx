@@ -2,6 +2,11 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { authOptions } from "@/lib/auth";
+import {
+  isHiringDecisionApproved,
+  isHiringDecisionPending,
+  isHiringDecisionReturned,
+} from "@/lib/hiring-decision-utils";
 import { prisma } from "@/lib/prisma";
 import { PositionType } from "@prisma/client";
 
@@ -86,7 +91,7 @@ export default async function AdminApplicationsPage({
         orderBy: { scheduledAt: "asc" },
       },
       decision: {
-        select: { accepted: true, decidedAt: true },
+        select: { accepted: true, decidedAt: true, hiringChairStatus: true },
       },
     },
     orderBy: { submittedAt: "desc" },
@@ -109,7 +114,7 @@ export default async function AdminApplicationsPage({
           <p className="badge">Admin</p>
           <h1 className="page-title">Application Pipeline</h1>
           <p className="page-subtitle">
-            Review applications, manage interview scheduling, and finalize decisions.
+            Review applications, manage interview scheduling, and monitor Chair-reviewed decisions.
           </p>
         </div>
       </div>
@@ -234,13 +239,21 @@ export default async function AdminApplicationsPage({
                     </td>
                     <td>
                       {application.decision ? (
-                        <span
-                          className={`pill ${
-                            application.decision.accepted ? "pill-success" : "pill-declined"
-                          }`}
-                        >
-                          {application.decision.accepted ? "Accepted" : "Rejected"}
-                        </span>
+                        isHiringDecisionApproved(application.decision) ? (
+                          <span
+                            className={`pill ${
+                              application.decision.accepted ? "pill-success" : "pill-declined"
+                            }`}
+                          >
+                            {application.decision.accepted ? "Accepted" : "Rejected"}
+                          </span>
+                        ) : isHiringDecisionPending(application.decision) ? (
+                          <span className="pill pill-pathway">Chair Review</span>
+                        ) : isHiringDecisionReturned(application.decision) ? (
+                          <span className="pill pill-pending">Returned</span>
+                        ) : (
+                          <span style={{ color: "var(--muted)", fontSize: 13 }}>Pending</span>
+                        )
                       ) : (
                         <span style={{ color: "var(--muted)", fontSize: 13 }}>Pending</span>
                       )}
