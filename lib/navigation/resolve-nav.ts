@@ -198,8 +198,9 @@ function hasAwardAccess(item: NavLink, roles: NavRole[], hasAward: boolean): boo
   return hasAward || roles.includes("ADMIN");
 }
 
-function hasFeatureAccess(item: NavLink, enabledFeatureKeys: Set<string> | undefined): boolean {
+function hasFeatureAccess(item: NavLink, enabledFeatureKeys: Set<string> | undefined, roles: NavRole[]): boolean {
   if (!item.featureKey) return true;
+  if (roles.includes("ADMIN")) return true;
   return enabledFeatureKeys?.has(item.featureKey) ?? false;
 }
 
@@ -278,7 +279,7 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
     NAV_CATALOG.filter((item) => {
       if (!hasRoleAccess(item, roles)) return false;
       if (!hasAwardAccess(item, roles, hasAward)) return false;
-      if (!hasFeatureAccess(item, input.enabledFeatureKeys)) return false;
+      if (!hasFeatureAccess(item, input.enabledFeatureKeys, roles)) return false;
 
       // If unlock filtering is active, only include items whose group is visible
       // or whose group is not in the locked set (i.e. groups not managed by the
