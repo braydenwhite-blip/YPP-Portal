@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { saveCurriculumDraft, submitCurriculumDraft } from "@/lib/curriculum-draft-actions";
+import { ExampleCurriculumPanel } from "./components/example-curriculum-panel";
+import { CurriculumBuilderPanel } from "./components/curriculum-builder-panel";
+import { ActivityDetailDrawer } from "./components/activity-detail-drawer";
+import { ActivityTemplates } from "./components/activity-templates";
+
+// ── Types ──────────────────────────────────────────────────
 
 type ActivityType =
   | "WARM_UP"
@@ -11,297 +18,421 @@ type ActivityType =
   | "BREAK"
   | "REFLECTION"
   | "GROUP_WORK";
-import { BootScreen } from "./components/boot-screen";
-import { IntroPanel } from "./components/intro-panel";
-import { ExampleViewer } from "./components/example-viewer";
-import { PlanBuilderPanel } from "./components/plan-builder-panel";
-import { CompletionScreen } from "./components/completion-screen";
-import { OsDock } from "./components/os-dock";
 
-// ── Types ──────────────────────────────────────────────────────
-
-interface LessonBlueprint {
-  index: number;
-  topic: string;
-  lessonGoal: string;
-  warmUpHook: string;
-  miniLesson: string;
-  guidedPractice: string;
-  independentBuild: string;
-  exitTicket: string;
-  materialsTools: string;
-}
-
-interface CurriculumData {
+interface WeekActivity {
   id: string;
   title: string;
-  interestArea: string;
-  lessons: LessonBlueprint[];
-}
-
-interface SavedPlan {
-  id: string;
-  title: string;
+  type: ActivityType;
+  durationMin: number;
   description: string | null;
-  totalMinutes: number;
-  classTemplateId: string | null;
-  isTemplate: boolean;
+  resources: string | null;
+  notes: string | null;
+  sortOrder: number;
+}
+
+interface WeekPlan {
+  id: string;
+  weekNumber: number;
+  title: string;
+  classDurationMin: number;
+  activities: WeekActivity[];
+}
+
+interface DraftData {
+  id: string;
+  title: string;
+  description: string;
+  interestArea: string;
+  outcomes: string[];
+  weeklyPlans: unknown[];
+  status: string;
   updatedAt: string;
-  activities: Array<{
-    id: string;
-    title: string;
-    description: string | null;
-    type: ActivityType;
-    durationMin: number;
-    sortOrder: number;
-    resources: string | null;
-    notes: string | null;
-  }>;
 }
 
 interface StudioClientProps {
   userId: string;
   userName: string;
-  curriculum: CurriculumData | null;
-  existingPlans: SavedPlan[];
+  draft: DraftData;
 }
 
-// ── Phase constants ─────────────────────────────────────────────
-// 0 = Boot, 1 = Intro, 2 = Good Examples, 3 = Bad Examples,
-// 4 = Build Plans, 5 = Complete
+function generateId() {
+  return `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+}
 
-const PHASE_LABELS = ["Boot", "Intro", "Good Examples", "Bad Examples", "Build Plans", "Complete"];
-const DOCK_PHASES = ["Intro", "Good ✓", "Bad ✗", "Build", "Done"];
+// ── Component ──────────────────────────────────────────────
 
-export function StudioClient({ userId, userName, curriculum, existingPlans }: StudioClientProps) {
-  // Check localStorage for saved progress so returning users skip the boot
-  const progressKey = `lds-progress-${userId}`;
-
-  function getInitialPhase() {
-    if (typeof window === "undefined") return 0;
-    try {
-      const saved = localStorage.getItem(progressKey);
-      if (saved) {
-        const n = parseInt(saved, 10);
-        // Return to phase 4 (Build) if they had started, else phase 0 (Boot)
-        return n >= 1 ? Math.min(n, 4) : 0;
-      }
-    } catch {
-      // ignore
-    }
-    return 0;
-  }
-
-  const [phase, setPhase] = useState<number>(getInitialPhase);
-  const [activeLessonIndex, setActiveLessonIndex] = useState(0);
-
-  // Track which plans have been saved this session, keyed by lesson index
-  // Pre-populate from server-loaded existing plans
-  const [savedPlansByLesson, setSavedPlansByLesson] = useState<Map<number, SavedPlan>>(() => {
-    const map = new Map<number, SavedPlan>();
-    if (curriculum) {
-      existingPlans.forEach((plan, i) => {
-        // Try to match existing plans to lesson indexes by order
-        map.set(i, plan as SavedPlan);
-      });
-    } else if (existingPlans.length > 0) {
-      map.set(0, existingPlans[0] as SavedPlan);
-    }
-    return map;
+export function StudioClient({ userId, userName, draft }: StudioClientProps) {
+  // ── State ────────────────────────────────────────────────
+  const [title, setTitle] = useState(draft.title);
+  const [description, setDescription] = useState(draft.description);
+  const [interestArea, setInterestArea] = useState(draft.interestArea);
+  const [outcomes, setOutcomes] = useState<string[]>(draft.outcomes);
+  const [weeklyPlans, setWeeklyPlans] = useState<WeekPlan[]>(() => {
+    const plans = draft.weeklyPlans as WeekPlan[];
+    return Array.isArray(plans) && plans.length > 0
+      ? plans
+      : [
+          {
+            id: generateId(),
+            weekNumber: 1,
+            title: "",
+            classDurationMin: 60,
+            activities: [],
+          },
+        ];
   });
 
-  const [savedPlansForCompletion, setSavedPlansForCompletion] = useState<
-    Array<{ planId: string; title: string; totalMinutes: number }>
-  >(() =>
-    existingPlans.map((p) => ({ planId: p.id, title: p.title, totalMinutes: p.totalMinutes }))
-  );
+  const [activeExampleTab, setActiveExampleTab] = useState(0);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [isSubmitted, setIsSubmitted] = useState(draft.status === "SUBMITTED");
 
-  const advancePhase = useCallback(
-    (next: number) => {
-      setPhase(next);
-      try {
-        localStorage.setItem(progressKey, String(next));
-      } catch {
-        // ignore
-      }
+  // Activity drawer state
+  const [drawerWeekId, setDrawerWeekId] = useState<string | null>(null);
+  const [drawerActivityId, setDrawerActivityId] = useState<string | null>(null);
+
+  // Templates modal state
+  const [templatesWeekId, setTemplatesWeekId] = useState<string | null>(null);
+
+  // Mobile tab state
+  const [mobileView, setMobileView] = useState<"examples" | "builder">("builder");
+
+  // ── Auto-save ────────────────────────────────────────────
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, []);
+
+  const triggerAutoSave = useCallback(
+    (t: string, d: string, ia: string, oc: string[], wp: WeekPlan[]) => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(async () => {
+        if (!isMountedRef.current) return;
+        setSaveStatus("saving");
+        try {
+          await saveCurriculumDraft({
+            draftId: draft.id,
+            title: t,
+            description: d,
+            interestArea: ia,
+            outcomes: oc,
+            weeklyPlans: wp,
+          });
+          if (isMountedRef.current) setSaveStatus("saved");
+          setTimeout(() => {
+            if (isMountedRef.current) setSaveStatus("idle");
+          }, 2000);
+        } catch {
+          if (isMountedRef.current) setSaveStatus("error");
+        }
+      }, 1500);
     },
-    [progressKey]
+    [draft.id]
   );
 
-  const handlePlanSaved = useCallback(
-    (lessonIdx: number, planId: string, title: string, totalMinutes: number) => {
-      // Update savedPlansByLesson
-      setSavedPlansByLesson((prev) => {
-        const next = new Map(prev);
-        const existing = next.get(lessonIdx);
-        next.set(lessonIdx, {
-          ...(existing ?? ({} as SavedPlan)),
-          id: planId,
-          title,
-          totalMinutes,
-        } as SavedPlan);
+  // ── Field update handlers ────────────────────────────────
+
+  const handleUpdate = useCallback(
+    (field: string, value: unknown) => {
+      let nextTitle = title;
+      let nextDesc = description;
+      let nextIA = interestArea;
+      let nextOC = outcomes;
+
+      switch (field) {
+        case "title":
+          nextTitle = value as string;
+          setTitle(nextTitle);
+          break;
+        case "description":
+          nextDesc = value as string;
+          setDescription(nextDesc);
+          break;
+        case "interestArea":
+          nextIA = value as string;
+          setInterestArea(nextIA);
+          break;
+        case "outcomes":
+          nextOC = value as string[];
+          setOutcomes(nextOC);
+          break;
+      }
+      triggerAutoSave(nextTitle, nextDesc, nextIA, nextOC, weeklyPlans);
+    },
+    [title, description, interestArea, outcomes, weeklyPlans, triggerAutoSave]
+  );
+
+  const handleUpdateWeek = useCallback(
+    (weekId: string, field: string, value: unknown) => {
+      setWeeklyPlans((prev) => {
+        const next = prev.map((w) =>
+          w.id === weekId ? { ...w, [field]: value } : w
+        );
+        triggerAutoSave(title, description, interestArea, outcomes, next);
         return next;
       });
-
-      // Update completion list
-      setSavedPlansForCompletion((prev) => {
-        const filtered = prev.filter((p) => p.planId !== planId);
-        return [...filtered, { planId, title, totalMinutes }];
-      });
     },
-    []
+    [title, description, interestArea, outcomes, triggerAutoSave]
   );
 
-  // Determine lessons to show in the builder
-  const lessons: Array<LessonBlueprint | null> = curriculum
-    ? curriculum.lessons
-    : [null]; // Applicant path: single blank lesson
+  const handleAddWeek = useCallback(() => {
+    setWeeklyPlans((prev) => {
+      const next = [
+        ...prev,
+        {
+          id: generateId(),
+          weekNumber: prev.length + 1,
+          title: "",
+          classDurationMin: 60,
+          activities: [],
+        },
+      ];
+      triggerAutoSave(title, description, interestArea, outcomes, next);
+      return next;
+    });
+  }, [title, description, interestArea, outcomes, triggerAutoSave]);
 
-  const totalLessons = lessons.length;
+  const handleRemoveWeek = useCallback(
+    (weekId: string) => {
+      setWeeklyPlans((prev) => {
+        const next = prev
+          .filter((w) => w.id !== weekId)
+          .map((w, i) => ({ ...w, weekNumber: i + 1 }));
+        triggerAutoSave(title, description, interestArea, outcomes, next);
+        return next;
+      });
+    },
+    [title, description, interestArea, outcomes, triggerAutoSave]
+  );
 
-  // ── Dock items for lesson slots ───────────────────────────────
-  const dockItems = curriculum
-    ? lessons.map((l, i) => ({
-        index: i,
-        label: l?.topic.slice(0, 12) || `L${i + 1}`,
-        isSaved: savedPlansByLesson.has(i),
-        isActive: phase === 4 && i === activeLessonIndex,
-      }))
-    : [];
+  const handleAddActivity = useCallback(
+    (weekId: string, activity: Omit<WeekActivity, "id" | "sortOrder">) => {
+      setWeeklyPlans((prev) => {
+        const next = prev.map((w) => {
+          if (w.id !== weekId) return w;
+          const newActivity: WeekActivity = {
+            ...activity,
+            id: generateId(),
+            sortOrder: w.activities.length,
+          };
+          return { ...w, activities: [...w.activities, newActivity] };
+        });
+        triggerAutoSave(title, description, interestArea, outcomes, next);
+        return next;
+      });
+    },
+    [title, description, interestArea, outcomes, triggerAutoSave]
+  );
 
-  // ── Render ────────────────────────────────────────────────────
+  const handleRemoveActivity = useCallback(
+    (weekId: string, activityId: string) => {
+      setWeeklyPlans((prev) => {
+        const next = prev.map((w) => {
+          if (w.id !== weekId) return w;
+          return {
+            ...w,
+            activities: w.activities
+              .filter((a) => a.id !== activityId)
+              .map((a, i) => ({ ...a, sortOrder: i })),
+          };
+        });
+        triggerAutoSave(title, description, interestArea, outcomes, next);
+        return next;
+      });
+      // Close drawer if this activity was being edited
+      if (drawerActivityId === activityId) {
+        setDrawerWeekId(null);
+        setDrawerActivityId(null);
+      }
+    },
+    [title, description, interestArea, outcomes, triggerAutoSave, drawerActivityId]
+  );
 
-  if (phase === 0) {
-    return (
-      <div className="lesson-design-studio">
-        <BootScreen onComplete={() => advancePhase(1)} />
-      </div>
-    );
-  }
+  const handleUpdateActivity = useCallback(
+    (weekId: string, activityId: string, fields: Partial<WeekActivity>) => {
+      setWeeklyPlans((prev) => {
+        const next = prev.map((w) => {
+          if (w.id !== weekId) return w;
+          return {
+            ...w,
+            activities: w.activities.map((a) =>
+              a.id === activityId ? { ...a, ...fields } : a
+            ),
+          };
+        });
+        triggerAutoSave(title, description, interestArea, outcomes, next);
+        return next;
+      });
+    },
+    [title, description, interestArea, outcomes, triggerAutoSave]
+  );
+
+  const handleReorderActivities = useCallback(
+    (weekId: string, activeId: string, overId: string) => {
+      setWeeklyPlans((prev) => {
+        const next = prev.map((w) => {
+          if (w.id !== weekId) return w;
+          const oldIndex = w.activities.findIndex((a) => a.id === activeId);
+          const newIndex = w.activities.findIndex((a) => a.id === overId);
+          if (oldIndex === -1 || newIndex === -1) return w;
+          const items = [...w.activities];
+          const [moved] = items.splice(oldIndex, 1);
+          items.splice(newIndex, 0, moved);
+          return { ...w, activities: items.map((a, i) => ({ ...a, sortOrder: i })) };
+        });
+        triggerAutoSave(title, description, interestArea, outcomes, next);
+        return next;
+      });
+    },
+    [title, description, interestArea, outcomes, triggerAutoSave]
+  );
+
+  // ── Drawer ───────────────────────────────────────────────
+
+  const handleOpenDrawer = useCallback((weekId: string, activityId: string) => {
+    setDrawerWeekId(weekId);
+    setDrawerActivityId(activityId);
+  }, []);
+
+  const handleCloseDrawer = useCallback(() => {
+    setDrawerWeekId(null);
+    setDrawerActivityId(null);
+  }, []);
+
+  const drawerActivity = (() => {
+    if (!drawerWeekId || !drawerActivityId) return null;
+    const week = weeklyPlans.find((w) => w.id === drawerWeekId);
+    return week?.activities.find((a) => a.id === drawerActivityId) ?? null;
+  })();
+
+  // ── Templates modal ──────────────────────────────────────
+
+  const handleOpenTemplates = useCallback((weekId: string) => {
+    setTemplatesWeekId(weekId);
+  }, []);
+
+  const handleInsertTemplate = useCallback(
+    (template: { title: string; type: ActivityType; durationMin: number; description: string }) => {
+      if (!templatesWeekId) return;
+      handleAddActivity(templatesWeekId, {
+        title: template.title,
+        type: template.type,
+        durationMin: template.durationMin,
+        description: template.description,
+        resources: null,
+        notes: null,
+      });
+    },
+    [templatesWeekId, handleAddActivity]
+  );
+
+  // ── PDF export ───────────────────────────────────────────
+
+  const handleExportPdf = useCallback(() => {
+    window.open(`/instructor/lesson-design-studio/print?draftId=${draft.id}`, "_blank");
+  }, [draft.id]);
+
+  // ── Submit ───────────────────────────────────────────────
+
+  const handleSubmit = useCallback(async () => {
+    try {
+      await submitCurriculumDraft(draft.id);
+      setIsSubmitted(true);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to submit");
+    }
+  }, [draft.id]);
+
+  // ── Render ───────────────────────────────────────────────
 
   return (
-    <div className="lesson-design-studio">
+    <div className="cbs-studio">
       {/* Menu bar */}
-      <div className="os-menubar">
-        <div className="os-menubar-logo">
-          <span>🎨</span>
-          <strong>Lesson Design Studio</strong>
+      <div className="cbs-menubar">
+        <div className="cbs-menubar-logo">
+          <span className="cbs-menubar-icon">📚</span>
+          <strong>Curriculum Builder Studio</strong>
         </div>
-        {curriculum && (
-          <span className="os-menubar-title">— {curriculum.title}</span>
-        )}
-        <div className="os-menubar-spacer" />
-        <div className="os-menubar-progress">
-          <div className="os-menubar-dots">
-            {DOCK_PHASES.map((label, i) => {
-              const phaseNum = i + 1;
-              return (
-                <div
-                  key={label}
-                  className={`os-menubar-dot ${phase > phaseNum ? "done" : phase === phaseNum ? "active" : ""}`}
-                  title={label}
-                />
-              );
-            })}
-          </div>
-          <span style={{ fontSize: 11, color: "var(--os-text-dim)" }}>
-            {PHASE_LABELS[phase]}
-          </span>
+        <div className="cbs-menubar-spacer" />
+        <div className="cbs-menubar-status">
+          {saveStatus === "saving" && <span className="cbs-status-saving">Saving...</span>}
+          {saveStatus === "saved" && <span className="cbs-status-saved">Auto-saved</span>}
+          {saveStatus === "error" && <span className="cbs-status-error">Save failed</span>}
+          {isSubmitted && <span className="cbs-status-submitted">Submitted</span>}
         </div>
       </div>
 
-      {/* Main content */}
-      <div className="os-content">
-        {phase === 1 && (
-          <IntroPanel onNext={() => advancePhase(2)} />
-        )}
-
-        {phase === 2 && (
-          <ExampleViewer
-            mode="good"
-            onNext={() => advancePhase(3)}
-            onBack={() => advancePhase(1)}
-          />
-        )}
-
-        {phase === 3 && (
-          <ExampleViewer
-            mode="bad"
-            onNext={() => advancePhase(4)}
-            onBack={() => advancePhase(2)}
-          />
-        )}
-
-        {phase === 4 && (
-          <>
-            <div className="os-phase-header">
-              <div className="os-phase-eyebrow">Phase 4 of 5 — Build Your Plans</div>
-              <h2 className="os-phase-title">
-                {curriculum
-                  ? `Build all ${totalLessons} lesson plan${totalLessons === 1 ? "" : "s"} for "${curriculum.title}"`
-                  : "Build your first lesson plan"}
-              </h2>
-              <p className="os-phase-sub">
-                {curriculum
-                  ? `Your curriculum's lesson outlines are pre-loaded. Edit each one, add or adjust activities, then save. You can come back and update any plan at any time.`
-                  : "Create your first lesson plan. Add activities, set durations, and save when you're ready."}
-              </p>
-            </div>
-
-            <PlanBuilderPanel
-              lesson={lessons[activeLessonIndex]}
-              lessonIndex={activeLessonIndex}
-              totalLessons={totalLessons}
-              classTemplateId={curriculum?.id ?? null}
-              existingPlan={(savedPlansByLesson.get(activeLessonIndex) ?? null) as SavedPlan | null}
-              onSaved={(planId, title, totalMinutes) =>
-                handlePlanSaved(activeLessonIndex, planId, title, totalMinutes)
-              }
-              onSelectLesson={(i) => setActiveLessonIndex(i)}
-              allLessons={lessons}
-              savedPlansByLesson={savedPlansByLesson}
-            />
-
-            <div className="os-nav-actions">
-              <button
-                className="os-btn os-btn-secondary"
-                onClick={() => advancePhase(3)}
-                type="button"
-              >
-                ← Back to Examples
-              </button>
-              <button
-                className="os-btn os-btn-primary"
-                onClick={() => advancePhase(5)}
-                type="button"
-              >
-                Finish →
-              </button>
-            </div>
-          </>
-        )}
-
-        {phase === 5 && (
-          <CompletionScreen
-            savedPlans={savedPlansForCompletion}
-            curriculumId={curriculum?.id ?? null}
-            curriculumTitle={curriculum?.title ?? null}
-          />
-        )}
+      {/* Mobile tabs */}
+      <div className="cbs-mobile-tabs">
+        <button
+          className={`cbs-mobile-tab ${mobileView === "examples" ? "active" : ""}`}
+          onClick={() => setMobileView("examples")}
+          type="button"
+        >
+          Examples
+        </button>
+        <button
+          className={`cbs-mobile-tab ${mobileView === "builder" ? "active" : ""}`}
+          onClick={() => setMobileView("builder")}
+          type="button"
+        >
+          My Curriculum
+        </button>
       </div>
 
-      {/* Dock — only show from phase 1+ */}
-      {phase >= 1 && (
-        <OsDock
-          items={dockItems}
-          onSelect={(i) => {
-            setActiveLessonIndex(i);
-            if (phase !== 4) advancePhase(4);
-          }}
-          phase={phase - 1}
-          phases={DOCK_PHASES}
-        />
-      )}
+      {/* Split screen */}
+      <div className="cbs-split">
+        <div className={`cbs-split-left ${mobileView === "examples" ? "cbs-mobile-visible" : "cbs-mobile-hidden"}`}>
+          <ExampleCurriculumPanel
+            activeTab={activeExampleTab}
+            onTabChange={setActiveExampleTab}
+          />
+        </div>
+
+        <div className={`cbs-split-right ${mobileView === "builder" ? "cbs-mobile-visible" : "cbs-mobile-hidden"}`}>
+          <CurriculumBuilderPanel
+            title={title}
+            description={description}
+            interestArea={interestArea}
+            outcomes={outcomes}
+            weeklyPlans={weeklyPlans}
+            onUpdate={handleUpdate}
+            onUpdateWeek={handleUpdateWeek}
+            onAddWeek={handleAddWeek}
+            onRemoveWeek={handleRemoveWeek}
+            onAddActivity={handleAddActivity}
+            onRemoveActivity={handleRemoveActivity}
+            onUpdateActivity={handleUpdateActivity}
+            onReorderActivities={handleReorderActivities}
+            onOpenDrawer={handleOpenDrawer}
+            onOpenTemplates={handleOpenTemplates}
+            saveStatus={saveStatus}
+            onExportPdf={handleExportPdf}
+            onSubmit={handleSubmit}
+            isSubmitted={isSubmitted}
+          />
+        </div>
+      </div>
+
+      {/* Activity detail drawer */}
+      <ActivityDetailDrawer
+        activity={drawerActivity}
+        onUpdate={(id, fields) => {
+          if (drawerWeekId) handleUpdateActivity(drawerWeekId, id, fields);
+        }}
+        onClose={handleCloseDrawer}
+      />
+
+      {/* Activity templates modal */}
+      <ActivityTemplates
+        open={templatesWeekId !== null}
+        onClose={() => setTemplatesWeekId(null)}
+        onInsert={handleInsertTemplate}
+      />
     </div>
   );
 }
