@@ -403,6 +403,51 @@ export default async function InstructorTrainingPage() {
         </div>
       </div>
 
+      {/* Lesson Design Studio promo card */}
+      <div
+        className="card"
+        style={{
+          marginBottom: 20,
+          background: "linear-gradient(135deg, #1e1030 0%, #13111c 100%)",
+          border: "1px solid rgba(124,58,237,0.35)",
+          color: "#f2f2f7",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 12,
+                background: "linear-gradient(135deg, #7c3aed, #4f46e5)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 22,
+                flexShrink: 0,
+                boxShadow: "0 0 20px rgba(124,58,237,0.4)",
+              }}
+            >
+              🎨
+            </div>
+            <div>
+              <h3 style={{ margin: 0, color: "#f2f2f7", fontSize: 15 }}>Lesson Design Studio</h3>
+              <p style={{ margin: "4px 0 0", color: "rgba(242,242,247,0.6)", fontSize: 13 }}>
+                Learn what makes a great lesson plan — then build all yours in one guided session.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/instructor/lesson-design-studio"
+            className="button primary"
+            style={{ fontSize: 13, flexShrink: 0, background: "#7c3aed", borderColor: "#7c3aed" }}
+          >
+            Open Studio →
+          </Link>
+        </div>
+      </div>
+
       <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start" }}>
           <div>

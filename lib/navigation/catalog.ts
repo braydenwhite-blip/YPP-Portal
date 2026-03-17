@@ -202,6 +202,15 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardBadgeKey: "training_incomplete",
     },
     {
+      href: "/instructor/lesson-design-studio",
+      label: "Lesson Design Studio",
+      icon: "🎨",
+      roles: INSTRUCTOR_ROLES,
+      featureKey: "INSTRUCTOR_TEACHING_TOOLS",
+      dashboardDescription: "Learn lesson design through examples, then build all your lesson plans in one guided session.",
+      dashboardPriority: 17,
+    },
+    {
       href: "/lesson-plans",
       label: "Lesson Plans",
       icon: "📋",

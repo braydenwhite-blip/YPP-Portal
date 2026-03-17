@@ -200,8 +200,11 @@ export default async function CurriculumBuilderPage() {
                       </form>
                     ) : null;
                   })()}
+                  <Link href={`/instructor/lesson-design-studio?templateId=${template.id}`} className="button primary" style={{ fontSize: 13 }}>
+                    🎨 Design Lesson Plans
+                  </Link>
                   <Link href={`/lesson-plans?templateId=${template.id}`} className="button secondary" style={{ fontSize: 13 }}>
-                    Build Lesson Plan
+                    Lesson Plans
                   </Link>
                   <Link href={`/instructor/class-settings?template=${template.id}`} className="button secondary" style={{ fontSize: 13 }}>
                     Create Offering
