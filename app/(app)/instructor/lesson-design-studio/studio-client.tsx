@@ -1,6 +1,16 @@
 "use client";
 
 import { useState, useCallback } from "react";
+
+type ActivityType =
+  | "WARM_UP"
+  | "INSTRUCTION"
+  | "PRACTICE"
+  | "DISCUSSION"
+  | "ASSESSMENT"
+  | "BREAK"
+  | "REFLECTION"
+  | "GROUP_WORK";
 import { BootScreen } from "./components/boot-screen";
 import { IntroPanel } from "./components/intro-panel";
 import { ExampleViewer } from "./components/example-viewer";
@@ -41,7 +51,7 @@ interface SavedPlan {
     id: string;
     title: string;
     description: string | null;
-    type: string;
+    type: ActivityType;
     durationMin: number;
     sortOrder: number;
     resources: string | null;
