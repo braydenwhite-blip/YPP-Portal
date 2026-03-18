@@ -2442,9 +2442,6 @@ model Certificate {
   pathwayId   String?
   pathway     Pathway?            @relation(fields: [pathwayId], references: [id])
 
-  // Training Academy Certificate Support: store module scores, completion dates, etc.
-  completionData Json?
-
   title             String
   description       String?
   issuedAt          DateTime @default(now())

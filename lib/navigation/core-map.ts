@@ -17,6 +17,11 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
   APPLICANT: [
     "/",
     "/application-status",
+    "/instructor-training",
+    "/instructor/lesson-design-studio",
+    "/positions",
+    "/applications",
+    "/messages",
     "/notifications",
   ],
   STUDENT: [
@@ -56,7 +61,7 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/calendar",
     "/parent/connect",
     "/goals",
-    "/messages",
+    "/parent/messages",
     "/notifications",
   ],
   CHAPTER_LEAD: [

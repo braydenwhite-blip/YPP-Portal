@@ -7,7 +7,7 @@ type CatalogInput = Omit<NavLink, "group" | "priority" | "coreEligible"> & {
 const INSTRUCTOR_ROLES: NavRole[] = ["INSTRUCTOR", "ADMIN", "CHAPTER_LEAD"];
 const INSTRUCTOR_AND_APPLICANT_ROLES: NavRole[] = ["APPLICANT", "INSTRUCTOR", "ADMIN", "CHAPTER_LEAD"];
 const MENTOR_ROLES: NavRole[] = ["MENTOR", "CHAPTER_LEAD", "ADMIN"];
-const APPLICANT_ROLES: NavRole[] = ["STUDENT", "INSTRUCTOR", "STAFF", "ADMIN"];
+const APPLICANT_ROLES: NavRole[] = ["APPLICANT", "STUDENT", "INSTRUCTOR", "STAFF", "ADMIN"];
 const INTERVIEW_ROLES: NavRole[] = ["STUDENT", "INSTRUCTOR", "STAFF", "ADMIN", "CHAPTER_LEAD"];
 const ADMIN_ONLY: NavRole[] = ["ADMIN"];
 const PARENT_ONLY: NavRole[] = ["PARENT"];
@@ -61,14 +61,6 @@ export const NAV_CATALOG: NavLink[] = [
       roles: PARENT_ONLY,
       dashboardDescription: "Connect and manage student link requests.",
       dashboardPriority: 11,
-    },
-    {
-      href: "/parent/feedback",
-      label: "Give Feedback",
-      icon: "💬",
-      roles: PARENT_ONLY,
-      dashboardDescription: "Share feedback about chapters, instructors, and programs.",
-      dashboardPriority: 10,
     },
     {
       href: "/parent/messages",
@@ -126,6 +118,7 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/messages",
       label: "Messages",
       icon: "✉",
+      roles: ["STUDENT", "INSTRUCTOR", "ADMIN", "CHAPTER_LEAD", "MENTOR", "STAFF", "APPLICANT"] as NavRole[],
       badgeKey: "messages",
       dashboardBadgeKey: "unread_messages",
       dashboardDescription: "Open direct messages and team conversations.",
@@ -203,7 +196,7 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardBadgeKey: "training_incomplete",
     },
     {
-      href: "/instructor/lesson-design-studio?entry=nav",
+      href: "/instructor/lesson-design-studio",
       label: "Lesson Design Studio",
       icon: "🎨",
       roles: INSTRUCTOR_AND_APPLICANT_ROLES,
@@ -423,7 +416,7 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/instructor/parent-feedback",
       label: "Parent Feedback",
       icon: "💬",
-      roles: ["INSTRUCTOR", "ADMIN", "CHAPTER_LEAD"] as NavRole[],
+      roles: ["INSTRUCTOR", "CHAPTER_LEAD"] as NavRole[],
       dashboardDescription: "View parent feedback and communications for your classes.",
       dashboardPriority: 13,
     },
@@ -431,7 +424,7 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/instructor/parent-messages",
       label: "Parent Messages",
       icon: "✉",
-      roles: ["INSTRUCTOR", "ADMIN", "CHAPTER_LEAD"] as NavRole[],
+      roles: ["INSTRUCTOR", "CHAPTER_LEAD"] as NavRole[],
       dashboardDescription: "Reply to direct messages from parents of your enrolled students.",
       dashboardPriority: 14,
     },
@@ -593,21 +586,9 @@ export const NAV_CATALOG: NavLink[] = [
       roles: ADMIN_ONLY,
     },
     {
-      href: "/admin/import-applications",
-      label: "Import Applications",
-      icon: "📤",
-      roles: ADMIN_ONLY,
-    },
-    {
       href: "/admin/parent-feedback",
       label: "Parent Feedback",
       icon: "💬",
-      roles: ADMIN_ONLY,
-    },
-    {
-      href: "/admin/parent-surveys",
-      label: "Parent Surveys",
-      icon: "📊",
       roles: ADMIN_ONLY,
     },
     {

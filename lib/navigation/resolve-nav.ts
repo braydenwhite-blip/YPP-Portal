@@ -154,6 +154,7 @@ function toNavRole(value: string | null | undefined): NavRole | null {
   const normalized = value.toUpperCase();
   if (
     normalized === "ADMIN" ||
+    normalized === "APPLICANT" ||
     normalized === "CHAPTER_LEAD" ||
     normalized === "INSTRUCTOR" ||
     normalized === "MENTOR" ||
