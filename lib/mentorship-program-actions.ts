@@ -3,17 +3,38 @@
 import {
   AuditAction,
   MenteeRoleType,
+  MentorshipAwardPolicy,
+  MentorshipAwardLevel,
+  MentorshipCommitteeScope,
+  MentorshipGovernanceMode,
+  MentorshipProgramGroup,
   MentorshipStatus,
   MentorshipReviewStatus,
   MentorshipType,
   NotificationType,
   ProgressStatus,
+  RoleType,
 } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 
 import { authOptions } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit-log-actions";
+import {
+  ensureCanonicalTrack,
+  enforceFullProgramMentorCapacity,
+  getAchievementAwardLevelForPoints,
+  getAwardPolicyForProgramGroup,
+  getCommitteeScopeForProgramGroup,
+  getDefaultMentorCapForProgramGroup,
+  getGovernanceModeForProgramGroup,
+  getLegacyMenteeRoleTypeForRole,
+  getMentorshipProgramGroupForRole,
+  getMentorshipTypeForProgramGroup,
+  mentorshipRequiresChairApproval,
+  mentorshipRequiresKickoff,
+  mentorshipRequiresMonthlyReflection,
+} from "@/lib/mentorship-canonical";
 import {
   calculateOverallProgress,
   getAchievementPointsForCategory,
@@ -45,6 +66,11 @@ function getOptionalNumber(value: FormDataEntryValue | null) {
   return Number(String(value)) || 0;
 }
 
+function getBoolean(formData: FormData, key: string) {
+  const value = formData.get(key);
+  return value === "true" || value === "on";
+}
+
 async function requireSession() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -66,6 +92,132 @@ function hasRole(roles: string[], role: string) {
   return roles.includes(role);
 }
 
+function parseProgramGroup(
+  value: string | null | undefined,
+  fallbackRole?: RoleType | string | null
+) {
+  if (value && Object.values(MentorshipProgramGroup).includes(value as MentorshipProgramGroup)) {
+    return value as MentorshipProgramGroup;
+  }
+  return getMentorshipProgramGroupForRole(fallbackRole);
+}
+
+function parseGovernanceMode(
+  value: string | null | undefined,
+  programGroup: MentorshipProgramGroup
+) {
+  if (
+    value &&
+    Object.values(MentorshipGovernanceMode).includes(
+      value as MentorshipGovernanceMode
+    )
+  ) {
+    return value as MentorshipGovernanceMode;
+  }
+  return getGovernanceModeForProgramGroup(programGroup);
+}
+
+function parseCommitteeScope(
+  value: string | null | undefined,
+  programGroup: MentorshipProgramGroup
+) {
+  if (
+    value &&
+    Object.values(MentorshipCommitteeScope).includes(
+      value as MentorshipCommitteeScope
+    )
+  ) {
+    return value as MentorshipCommitteeScope;
+  }
+  return getCommitteeScopeForProgramGroup(programGroup);
+}
+
+function parseAwardPolicy(
+  value: string | null | undefined,
+  programGroup: MentorshipProgramGroup
+) {
+  if (
+    value &&
+    Object.values(MentorshipAwardPolicy).includes(value as MentorshipAwardPolicy)
+  ) {
+    return value as MentorshipAwardPolicy;
+  }
+  return getAwardPolicyForProgramGroup(programGroup);
+}
+
+async function resolveMentorshipChairId(params: {
+  trackId?: string | null;
+  primaryRole?: RoleType | string | null;
+  existingChairId?: string | null;
+}) {
+  const { trackId = null, primaryRole, existingChairId = null } = params;
+  if (existingChairId) {
+    return existingChairId;
+  }
+
+  if (trackId) {
+    const track = await prisma.mentorshipTrack.findUnique({
+      where: { id: trackId },
+      select: {
+        committees: {
+          where: {
+            chairUserId: {
+              not: null,
+            },
+          },
+          orderBy: { createdAt: "asc" },
+          select: { chairUserId: true },
+        },
+      },
+    });
+
+    const committeeChairId = track?.committees[0]?.chairUserId ?? null;
+    if (committeeChairId) {
+      return committeeChairId;
+    }
+  }
+
+  const legacyRoleType = getLegacyMenteeRoleTypeForRole(primaryRole);
+  const legacyChair = await prisma.mentorCommitteeChair.findFirst({
+    where: {
+      roleType: legacyRoleType,
+      isActive: true,
+    },
+    orderBy: { updatedAt: "desc" },
+    select: { userId: true },
+  });
+
+  return legacyChair?.userId ?? null;
+}
+
+async function resolveCanonicalTrackForMentee(params: {
+  trackId?: string | null;
+  primaryRole?: RoleType | string | null;
+  chapterId?: string | null;
+  chapterName?: string | null;
+}) {
+  const { trackId = null, primaryRole, chapterId = null, chapterName = null } = params;
+
+  if (trackId) {
+    return prisma.mentorshipTrack.findUniqueOrThrow({
+      where: { id: trackId },
+    });
+  }
+
+  const programGroup = getMentorshipProgramGroupForRole(primaryRole);
+  const scopedChapterId =
+    programGroup === MentorshipProgramGroup.INSTRUCTOR ||
+    programGroup === MentorshipProgramGroup.STUDENT
+      ? chapterId
+      : null;
+
+  return ensureCanonicalTrack({
+    group: programGroup,
+    chapterId: scopedChapterId,
+    chapterName,
+  });
+}
+
 export async function assignProgramMentor(formData: FormData) {
   const session = await requireAdmin();
   const mentorId = getString(formData, "mentorId");
@@ -83,7 +235,13 @@ export async function assignProgramMentor(formData: FormData) {
     }),
     prisma.user.findUniqueOrThrow({
       where: { id: menteeId },
-      select: { id: true, name: true, primaryRole: true },
+      select: {
+        id: true,
+        name: true,
+        primaryRole: true,
+        chapterId: true,
+        chapter: { select: { name: true } },
+      },
     }),
   ]);
 
@@ -95,17 +253,34 @@ export async function assignProgramMentor(formData: FormData) {
     throw new Error(`${mentee.name} already has an active program mentor`);
   }
 
-  const programType: MentorshipType =
-    mentee.primaryRole === "STUDENT"
-      ? MentorshipType.STUDENT
-      : MentorshipType.INSTRUCTOR;
+  const programGroup = getMentorshipProgramGroupForRole(mentee.primaryRole);
+  const governanceMode = getGovernanceModeForProgramGroup(programGroup);
+  const track = await resolveCanonicalTrackForMentee({
+    primaryRole: mentee.primaryRole,
+    chapterId: mentee.chapterId,
+    chapterName: mentee.chapter?.name ?? null,
+  });
+  const chairId = await resolveMentorshipChairId({
+    trackId: track.id,
+    primaryRole: mentee.primaryRole,
+  });
+
+  await enforceFullProgramMentorCapacity({
+    mentorId: mentor.id,
+    programGroup,
+    governanceMode,
+  });
 
   const mentorship = await prisma.mentorship.create({
     data: {
       mentorId: mentor.id,
       menteeId: mentee.id,
-      type: programType,
+      type: getMentorshipTypeForProgramGroup(programGroup),
+      programGroup,
+      governanceMode,
       status: MentorshipStatus.ACTIVE,
+      trackId: track.id,
+      chairId,
       notes: notes || null,
     },
   });
@@ -369,6 +544,54 @@ async function createMentorshipNotification(params: {
   });
 }
 
+async function syncAwardRecommendationFromPoints(params: {
+  tx: Omit<
+    typeof prisma,
+    "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
+  >;
+  userId: string;
+  reviewId: string;
+  trackId?: string | null;
+  recommendedById: string;
+  totalPoints: number;
+}) {
+  const { tx, userId, reviewId, trackId = null, recommendedById, totalPoints } = params;
+  const level = getAchievementAwardLevelForPoints(totalPoints);
+  if (!level) {
+    return null;
+  }
+
+  const existing = await tx.mentorshipAwardRecommendation.findFirst({
+    where: {
+      userId,
+      level,
+    },
+  });
+
+  if (existing) {
+    return existing;
+  }
+
+  const requiresBoard =
+    level === MentorshipAwardLevel.GOLD ||
+    level === MentorshipAwardLevel.LIFETIME;
+
+  return tx.mentorshipAwardRecommendation.create({
+    data: {
+      userId,
+      reviewId,
+      trackId,
+      level,
+      recommendedById,
+      approvedById: requiresBoard ? null : recommendedById,
+      status: requiresBoard
+        ? "PENDING_BOARD_APPROVAL"
+        : "APPROVED",
+      notes: `Automatically created after cumulative achievement points reached the ${level.toLowerCase()} threshold.`,
+    },
+  });
+}
+
 export async function getCurrentMonthlyGoalReview(menteeId: string, month?: string) {
   const session = await requireSession();
   const roles = session.user.roles ?? [];
@@ -419,6 +642,7 @@ export async function getPendingChairReviews() {
   return prisma.monthlyGoalReview.findMany({
     where: {
       status: MentorshipReviewStatus.PENDING_CHAIR_APPROVAL,
+      requiresChairApproval: true,
       ...(isAdmin || isChapterLead
         ? {}
         : {
@@ -487,6 +711,7 @@ export async function submitMonthlyGoalReview(formData: FormData) {
   const currentUserId = session.user.id;
   const menteeId = getString(formData, "forUserId");
   const month = normalizeMonthlyReviewMonth(formData.get("month") as string | null);
+  const escalateToChair = getBoolean(formData, "escalateToChair");
 
   const mentorship = await getAccessibleMentorship({
     menteeId,
@@ -500,6 +725,31 @@ export async function submitMonthlyGoalReview(formData: FormData) {
 
   if (!hasRole(roles, "ADMIN") && mentorship.mentorId !== currentUserId) {
     throw new Error("Only the assigned mentor can submit the monthly goal review");
+  }
+
+  const programGroup =
+    mentorship.programGroup ??
+    mentorship.track?.programGroup ??
+    getMentorshipProgramGroupForRole(mentorship.mentee.primaryRole);
+  const governanceMode =
+    mentorship.governanceMode ??
+    mentorship.track?.governanceMode ??
+    getGovernanceModeForProgramGroup(programGroup);
+  const requiresKickoff = mentorshipRequiresKickoff({ programGroup, governanceMode });
+  const requiresReflection = mentorshipRequiresMonthlyReflection({
+    programGroup,
+    governanceMode,
+  });
+  const requiresChairApproval = mentorshipRequiresChairApproval({
+    programGroup,
+    governanceMode,
+    escalateToChair,
+  });
+
+  if (requiresKickoff && !mentorship.kickoffCompletedAt) {
+    throw new Error(
+      "Complete the mentorship kickoff before submitting the monthly goal review."
+    );
   }
 
   const goals = await prisma.goal.findMany({
@@ -557,6 +807,15 @@ export async function submitMonthlyGoalReview(formData: FormData) {
     orderBy: { submittedAt: "desc" },
   });
 
+  if (requiresReflection && !reflectionSubmission) {
+    throw new Error(
+      "This mentorship track requires a monthly self-reflection before the mentor review can be submitted."
+    );
+  }
+
+  const submittedAt = new Date();
+  const publishedAt = requiresChairApproval ? null : submittedAt;
+
   const review = await prisma.$transaction(async (tx) => {
     const existingReview = await tx.monthlyGoalReview.findFirst({
       where: {
@@ -573,7 +832,10 @@ export async function submitMonthlyGoalReview(formData: FormData) {
             mentorId: mentorship.mentorId,
             menteeId,
             reflectionSubmissionId: reflectionSubmission?.id ?? null,
-            status: MentorshipReviewStatus.PENDING_CHAIR_APPROVAL,
+            requiresChairApproval,
+            status: requiresChairApproval
+              ? MentorshipReviewStatus.PENDING_CHAIR_APPROVAL
+              : MentorshipReviewStatus.APPROVED,
             overallStatus,
             overallComments,
             strengths: strengths || null,
@@ -583,10 +845,11 @@ export async function submitMonthlyGoalReview(formData: FormData) {
             nextMonthPlan,
             mentorInternalNotes: mentorInternalNotes || null,
             characterCulturePoints,
-            mentorSubmittedAt: new Date(),
+            mentorSubmittedAt: submittedAt,
+            chairId: null,
             chairDecisionAt: null,
             chairDecisionNotes: null,
-            publishedAt: null,
+            publishedAt,
           },
         })
       : await tx.monthlyGoalReview.create({
@@ -597,7 +860,10 @@ export async function submitMonthlyGoalReview(formData: FormData) {
             mentorId: mentorship.mentorId,
             reflectionSubmissionId: reflectionSubmission?.id ?? null,
             month,
-            status: MentorshipReviewStatus.PENDING_CHAIR_APPROVAL,
+            requiresChairApproval,
+            status: requiresChairApproval
+              ? MentorshipReviewStatus.PENDING_CHAIR_APPROVAL
+              : MentorshipReviewStatus.APPROVED,
             overallStatus,
             overallComments,
             strengths: strengths || null,
@@ -607,7 +873,8 @@ export async function submitMonthlyGoalReview(formData: FormData) {
             nextMonthPlan,
             mentorInternalNotes: mentorInternalNotes || null,
             characterCulturePoints,
-            mentorSubmittedAt: new Date(),
+            mentorSubmittedAt: submittedAt,
+            publishedAt,
           },
         });
 
@@ -642,12 +909,19 @@ export async function submitMonthlyGoalReview(formData: FormData) {
     return savedReview;
   });
 
-  if (mentorship.chairId) {
+  if (requiresChairApproval && mentorship.chairId) {
     await createMentorshipNotification({
       userId: mentorship.chairId,
       title: "Monthly Goal Review Needs Approval",
       body: `${mentorship.mentor.name} submitted ${mentorship.mentee.name}'s monthly goal review.`,
       link: "/mentorship/reviews",
+    });
+  } else {
+    await createMentorshipNotification({
+      userId: menteeId,
+      title: "Your Monthly Goal Review Is Ready",
+      body: "Your mentor published this month's goal review directly to the mentorship workspace.",
+      link: "/goals",
     });
   }
 
@@ -662,6 +936,10 @@ export async function submitMonthlyGoalReview(formData: FormData) {
       month: month.toISOString(),
       overallStatus,
       characterCulturePoints,
+      programGroup,
+      governanceMode,
+      requiresChairApproval,
+      escalateToChair,
     },
   });
 
@@ -712,6 +990,10 @@ export async function approveMonthlyGoalReview(formData: FormData) {
     throw new Error("Monthly goal review not found");
   }
 
+  if (!review.requiresChairApproval) {
+    throw new Error("This review does not require chair approval.");
+  }
+
   if (
     !canApproveReview({
       roles,
@@ -728,15 +1010,23 @@ export async function approveMonthlyGoalReview(formData: FormData) {
     throw new Error("You are not allowed to approve this review");
   }
 
+  const programGroup =
+    review.mentorship.programGroup ??
+    review.mentorship.track?.programGroup ??
+    getMentorshipProgramGroupForRole(review.mentee.primaryRole);
+  const awardPolicy =
+    review.mentorship.track?.awardPolicy ?? getAwardPolicyForProgramGroup(programGroup);
   const pointCategory =
     review.mentorship.track?.pointCategory ??
     getDefaultPointCategory(review.mentee.primaryRole);
-  const baseAchievementPoints = getAchievementPointsForCategory(
-    pointCategory,
-    review.overallStatus
-  );
+  const baseAchievementPoints =
+    awardPolicy === MentorshipAwardPolicy.ACHIEVEMENT_LADDER && review.overallStatus
+      ? getAchievementPointsForCategory(pointCategory, review.overallStatus)
+      : 0;
   const totalAchievementPoints =
-    baseAchievementPoints + review.characterCulturePoints;
+    awardPolicy === MentorshipAwardPolicy.ACHIEVEMENT_LADDER
+      ? baseAchievementPoints + review.characterCulturePoints
+      : 0;
 
   await prisma.$transaction(async (tx) => {
     await tx.monthlyGoalReview.update({
@@ -752,11 +1042,14 @@ export async function approveMonthlyGoalReview(formData: FormData) {
       },
     });
 
-    if (totalAchievementPoints > 0) {
-      const existingLedger = await tx.achievementPointLedger.findFirst({
-        where: { reviewId: review.id },
-      });
+    const existingLedger = await tx.achievementPointLedger.findFirst({
+      where: { reviewId: review.id },
+    });
 
+    if (
+      awardPolicy === MentorshipAwardPolicy.ACHIEVEMENT_LADDER &&
+      totalAchievementPoints > 0
+    ) {
       if (existingLedger) {
         await tx.achievementPointLedger.update({
           where: { id: existingLedger.id },
@@ -785,6 +1078,26 @@ export async function approveMonthlyGoalReview(formData: FormData) {
           },
         });
       }
+    } else if (existingLedger) {
+      await tx.achievementPointLedger.delete({
+        where: { id: existingLedger.id },
+      });
+    }
+
+    if (awardPolicy === MentorshipAwardPolicy.ACHIEVEMENT_LADDER) {
+      const totals = await tx.achievementPointLedger.aggregate({
+        where: { userId: review.menteeId },
+        _sum: { points: true },
+      });
+
+      await syncAwardRecommendationFromPoints({
+        tx,
+        userId: review.menteeId,
+        reviewId: review.id,
+        trackId: review.trackId,
+        recommendedById: currentUserId,
+        totalPoints: totals._sum.points ?? 0,
+      });
     }
   });
 
@@ -812,6 +1125,7 @@ export async function approveMonthlyGoalReview(formData: FormData) {
       totalAchievementPoints,
       baseAchievementPoints,
       pointCategory,
+      awardPolicy,
     },
   });
 
@@ -906,6 +1220,37 @@ export async function createMentorshipTrack(formData: FormData) {
   const description = getString(formData, "description", false);
   const scope = getString(formData, "scope", false) || "GLOBAL";
   const pointCategory = getString(formData, "pointCategory", false) || "CUSTOM";
+  const chapterId = getString(formData, "chapterId", false);
+  const requestedProgramGroup = getString(formData, "programGroup", false);
+  const programGroup = parseProgramGroup(
+    requestedProgramGroup || null,
+    pointCategory === "STUDENT"
+      ? "STUDENT"
+      : pointCategory === "INSTRUCTOR"
+      ? "INSTRUCTOR"
+      : "CHAPTER_LEAD"
+  );
+  const governanceMode = parseGovernanceMode(
+    getString(formData, "governanceMode", false) || null,
+    programGroup
+  );
+  const committeeScope = parseCommitteeScope(
+    getString(formData, "committeeScope", false) || null,
+    programGroup
+  );
+  const mentorCapRaw = getString(formData, "mentorCap", false);
+  const mentorCap = mentorCapRaw
+    ? Number.parseInt(mentorCapRaw, 10)
+    : getDefaultMentorCapForProgramGroup(programGroup);
+  const awardPolicy = parseAwardPolicy(
+    getString(formData, "awardPolicy", false) || null,
+    programGroup
+  );
+  const requiresQuarterlyReview = getString(
+    formData,
+    "requiresQuarterlyReview",
+    false
+  );
 
   await prisma.mentorshipTrack.create({
     data: {
@@ -913,6 +1258,18 @@ export async function createMentorshipTrack(formData: FormData) {
       slug,
       description: description || null,
       scope,
+      chapterId: chapterId || null,
+      programGroup,
+      governanceMode,
+      committeeScope,
+      mentorCap: Number.isFinite(mentorCap)
+        ? mentorCap
+        : getDefaultMentorCapForProgramGroup(programGroup),
+      awardPolicy,
+      requiresQuarterlyReview:
+        requiresQuarterlyReview === ""
+          ? programGroup !== MentorshipProgramGroup.STUDENT
+          : requiresQuarterlyReview === "true",
       pointCategory: pointCategory as any,
     },
   });
@@ -989,11 +1346,50 @@ export async function updateMentorshipGovernance(formData: FormData) {
   const kickoffCompletedAt = getOptionalDate(formData.get("kickoffCompletedAt"));
   const notes = getString(formData, "notes", false);
 
+  const mentorship = await prisma.mentorship.findUniqueOrThrow({
+    where: { id: mentorshipId },
+    include: {
+      mentee: {
+        select: {
+          primaryRole: true,
+          chapterId: true,
+          chapter: { select: { name: true } },
+        },
+      },
+    },
+  });
+
+  const track = await resolveCanonicalTrackForMentee({
+    trackId: trackId || mentorship.trackId,
+    primaryRole: mentorship.mentee.primaryRole,
+    chapterId: mentorship.mentee.chapterId,
+    chapterName: mentorship.mentee.chapter?.name ?? null,
+  });
+  const programGroup =
+    track.programGroup ??
+    getMentorshipProgramGroupForRole(mentorship.mentee.primaryRole);
+  const governanceMode =
+    track.governanceMode ?? getGovernanceModeForProgramGroup(programGroup);
+  const resolvedChairId = await resolveMentorshipChairId({
+    trackId: track.id,
+    primaryRole: mentorship.mentee.primaryRole,
+    existingChairId: chairId || mentorship.chairId,
+  });
+
+  await enforceFullProgramMentorCapacity({
+    mentorId: mentorship.mentorId,
+    programGroup,
+    governanceMode,
+    excludeMentorshipId: mentorship.id,
+  });
+
   await prisma.mentorship.update({
     where: { id: mentorshipId },
     data: {
-      trackId: trackId || null,
-      chairId: chairId || null,
+      trackId: track.id,
+      chairId: resolvedChairId,
+      programGroup,
+      governanceMode,
       kickoffScheduledAt,
       kickoffCompletedAt,
       notes: notes || null,

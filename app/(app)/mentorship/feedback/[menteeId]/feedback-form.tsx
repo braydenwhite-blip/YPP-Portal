@@ -41,6 +41,8 @@ interface FeedbackFormProps {
   month: string;
   goals: Goal[];
   existingReview: ExistingReview | null;
+  requiresChairApproval: boolean;
+  allowChairEscalation?: boolean;
   submitAction: (formData: FormData) => Promise<void>;
 }
 
@@ -49,6 +51,8 @@ export function FeedbackForm({
   month,
   goals,
   existingReview,
+  requiresChairApproval,
+  allowChairEscalation = false,
   submitAction,
 }: FeedbackFormProps) {
   const router = useRouter();
@@ -99,6 +103,7 @@ export function FeedbackForm({
   const [characterCulturePoints, setCharacterCulturePoints] = useState(
     existingReview?.characterCulturePoints ?? 0
   );
+  const [escalateToChair, setEscalateToChair] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: React.FormEvent) {
@@ -118,6 +123,7 @@ export function FeedbackForm({
       formData.append("nextMonthPlan", nextMonthPlan);
       formData.append("mentorInternalNotes", mentorInternalNotes);
       formData.append("characterCulturePoints", String(characterCulturePoints));
+      formData.append("escalateToChair", String(escalateToChair));
 
       goals.forEach((goal) => {
         formData.append(`goal_${goal.id}_status`, goalStatuses[goal.id]);
@@ -150,9 +156,29 @@ export function FeedbackForm({
           Monthly Goal Review Workflow
         </div>
         <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
-          Step 1: review each goal. Step 2: write the mentor summary. Step 3:
-          submit this review to the Mentor Committee Chair for approval.
+          {requiresChairApproval
+            ? "Step 1: review each goal. Step 2: write the mentor summary. Step 3: submit this review to the Mentor Committee Chair for approval."
+            : "Step 1: review each goal. Step 2: write the mentor summary. Step 3: publish this review directly to the mentorship workspace unless you choose to escalate it to chair review."}
         </p>
+        {allowChairEscalation && (
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginTop: 12,
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={escalateToChair}
+              onChange={(event) => setEscalateToChair(event.target.checked)}
+            />
+            Escalate this student review to chair approval
+          </label>
+        )}
       </div>
 
       <div className="section-title">Per-Goal Ratings</div>

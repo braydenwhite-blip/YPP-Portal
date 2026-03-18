@@ -6,12 +6,10 @@ import { revalidatePath } from "next/cache";
 
 import { authOptions } from "@/lib/auth";
 import {
-  deriveMentorshipTypeFromRole,
   scoreSupportMatch,
 } from "@/lib/mentorship-hub";
 import {
   assignSupportCircleMember,
-  ensureMentorshipSupportCircle,
 } from "@/lib/mentorship-hub-actions";
 import { prisma } from "@/lib/prisma";
 
@@ -229,38 +227,12 @@ export async function approveMentorMatch(formData: FormData) {
     throw new Error("Missing required fields");
   }
 
-  if (supportRole === "PRIMARY_MENTOR") {
-    const mentee = await prisma.user.findUniqueOrThrow({
-      where: { id: menteeId },
-      select: { id: true, primaryRole: true },
-    });
-
-    const existing = await prisma.mentorship.findFirst({
-      where: { menteeId, type, status: "ACTIVE" },
-    });
-
-    if (existing) {
-      throw new Error("This mentee already has an active primary mentor for that track");
-    }
-
-    const mentorship = await prisma.mentorship.create({
-      data: {
-        mentorId,
-        menteeId,
-        type: deriveMentorshipTypeFromRole(mentee.primaryRole),
-        notes: "Created via layered mentor match",
-      },
-    });
-
-    await ensureMentorshipSupportCircle(mentorship.id);
-  } else {
-    const assignmentFormData = new FormData();
-    assignmentFormData.set("menteeId", menteeId);
-    assignmentFormData.set("userId", mentorId);
-    assignmentFormData.set("role", supportRole);
-    assignmentFormData.set("notes", "Created via layered mentor match");
-    await assignSupportCircleMember(assignmentFormData);
-  }
+  const assignmentFormData = new FormData();
+  assignmentFormData.set("menteeId", menteeId);
+  assignmentFormData.set("userId", mentorId);
+  assignmentFormData.set("role", supportRole);
+  assignmentFormData.set("notes", "Created via layered mentor match");
+  await assignSupportCircleMember(assignmentFormData);
 
   revalidatePath("/admin/mentor-match");
   revalidatePath("/admin/mentorship-program");

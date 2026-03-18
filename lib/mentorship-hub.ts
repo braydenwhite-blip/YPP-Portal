@@ -7,6 +7,7 @@ import {
   type MentorshipType,
 } from "@prisma/client";
 
+import { mentorshipRequiresMonthlyReflection } from "@/lib/mentorship-canonical";
 import { prisma } from "@/lib/prisma";
 
 const MENTOR_ROLES = ["MENTOR", "INSTRUCTOR", "CHAPTER_LEAD", "ADMIN", "STAFF"] as const;
@@ -398,6 +399,7 @@ export async function getMentorshipHubData(params: {
         where: {
           month: currentMonth,
           status: "PENDING_CHAIR_APPROVAL",
+          requiresChairApproval: true,
           ...(accessibleMenteeIds == null
             ? {}
             : { menteeId: { in: accessibleMenteeIds.length === 0 ? ["__none__"] : accessibleMenteeIds } }),
@@ -419,7 +421,11 @@ export async function getMentorshipHubData(params: {
     const overdueActions = mentorship.actionItems.filter(
       (item) => item.dueAt && item.dueAt.getTime() < now
     ).length;
-    const needsReflection = mentorship.mentee.reflectionSubmissions.length === 0;
+    const needsReflection =
+      mentorshipRequiresMonthlyReflection({
+        programGroup: mentorship.programGroup,
+        governanceMode: mentorship.governanceMode,
+      }) && mentorship.mentee.reflectionSubmissions.length === 0;
     const currentReview = mentorship.monthlyReviews[0] ?? null;
     const pendingRequests = mentorship.supportRequests.filter(
       (request) => request.status === MentorshipRequestStatus.OPEN

@@ -5,12 +5,21 @@ import {
   MentorshipRequestKind,
   MentorshipRequestStatus,
   MentorshipRequestVisibility,
+  MentorshipProgramGroup,
   SupportRole,
 } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 
 import { authOptions } from "@/lib/auth";
+import {
+  ensureCanonicalTrack,
+  enforceFullProgramMentorCapacity,
+  getGovernanceModeForProgramGroup,
+  getLegacyMenteeRoleTypeForRole,
+  getMentorshipProgramGroupForRole,
+  getMentorshipTypeForProgramGroup,
+} from "@/lib/mentorship-canonical";
 import {
   deriveMentorshipTypeFromRole,
   getMentorshipRoleFlags,
@@ -89,7 +98,7 @@ async function getActiveMentorshipContext(menteeId: string) {
     },
     include: {
       track: {
-        select: { id: true },
+        select: { id: true, programGroup: true, governanceMode: true },
       },
       circleMembers: {
         where: { isActive: true },
@@ -97,6 +106,46 @@ async function getActiveMentorshipContext(menteeId: string) {
       },
     },
   });
+}
+
+async function resolveSupportCircleChairId(params: {
+  trackId?: string | null;
+  primaryRole: string;
+}) {
+  const { trackId = null, primaryRole } = params;
+
+  if (trackId) {
+    const track = await prisma.mentorshipTrack.findUnique({
+      where: { id: trackId },
+      select: {
+        committees: {
+          where: {
+            chairUserId: {
+              not: null,
+            },
+          },
+          orderBy: { createdAt: "asc" },
+          select: { chairUserId: true },
+        },
+      },
+    });
+
+    const committeeChairId = track?.committees[0]?.chairUserId ?? null;
+    if (committeeChairId) {
+      return committeeChairId;
+    }
+  }
+
+  const fallbackChair = await prisma.mentorCommitteeChair.findFirst({
+    where: {
+      roleType: getLegacyMenteeRoleTypeForRole(primaryRole),
+      isActive: true,
+    },
+    orderBy: { updatedAt: "desc" },
+    select: { userId: true },
+  });
+
+  return fallbackChair?.userId ?? null;
 }
 
 async function upsertCircleMember(args: {
@@ -202,7 +251,12 @@ export async function assignSupportCircleMember(formData: FormData) {
   const [mentee, targetUser, activeMentorship] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: menteeId },
-      select: { id: true, primaryRole: true },
+      select: {
+        id: true,
+        primaryRole: true,
+        chapterId: true,
+        chapter: { select: { name: true } },
+      },
     }),
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
@@ -214,11 +268,45 @@ export async function assignSupportCircleMember(formData: FormData) {
   let mentorshipId = activeMentorship?.id ?? null;
 
   if (role === SupportRole.PRIMARY_MENTOR) {
+    const programGroup = getMentorshipProgramGroupForRole(mentee.primaryRole);
+    const governanceMode = getGovernanceModeForProgramGroup(programGroup);
+    const scopedChapterId =
+      programGroup === MentorshipProgramGroup.INSTRUCTOR ||
+      programGroup === MentorshipProgramGroup.STUDENT
+        ? mentee.chapterId
+        : null;
+    const track =
+      activeMentorship?.trackId != null
+        ? await prisma.mentorshipTrack.findUniqueOrThrow({
+            where: { id: activeMentorship.trackId },
+          })
+        : await ensureCanonicalTrack({
+            group: programGroup,
+            chapterId: scopedChapterId,
+            chapterName: mentee.chapter?.name ?? null,
+          });
+    const resolvedChairId = await resolveSupportCircleChairId({
+      trackId: track.id,
+      primaryRole: mentee.primaryRole,
+    });
+
+    await enforceFullProgramMentorCapacity({
+      mentorId: userId,
+      programGroup,
+      governanceMode,
+      excludeMentorshipId: activeMentorship?.id ?? null,
+    });
+
     if (activeMentorship) {
       await prisma.mentorship.update({
         where: { id: activeMentorship.id },
         data: {
           mentorId: userId,
+          type: getMentorshipTypeForProgramGroup(programGroup),
+          programGroup,
+          governanceMode,
+          trackId: track.id,
+          chairId: activeMentorship.chairId ?? resolvedChairId,
         },
       });
       mentorshipId = activeMentorship.id;
@@ -227,7 +315,11 @@ export async function assignSupportCircleMember(formData: FormData) {
         data: {
           mentorId: userId,
           menteeId,
-          type: deriveMentorshipTypeFromRole(mentee.primaryRole),
+          type: getMentorshipTypeForProgramGroup(programGroup),
+          programGroup,
+          governanceMode,
+          trackId: track.id,
+          chairId: resolvedChairId,
           notes: notes || "Created from support circle assignment",
         },
       });

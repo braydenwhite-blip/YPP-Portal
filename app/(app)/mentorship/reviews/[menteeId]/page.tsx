@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth";
+import { mentorshipRequiresChairApproval } from "@/lib/mentorship-canonical";
 import { submitMonthlyGoalReview } from "@/lib/mentorship-program-actions";
 import { prisma } from "@/lib/prisma";
 import { FeedbackForm } from "../../feedback/[menteeId]/feedback-form";
@@ -86,6 +87,13 @@ export default async function MonthlyReviewEditorPage({
         },
       })
     : null;
+  const activeMentorship = mentee.menteePairs[0] ?? null;
+  const requiresChairApproval = activeMentorship
+    ? mentorshipRequiresChairApproval({
+        programGroup: activeMentorship.programGroup,
+        governanceMode: activeMentorship.governanceMode,
+      })
+    : true;
 
   const goalsData = mentee.goals.map((goal) => ({
     id: goal.id,
@@ -124,7 +132,10 @@ export default async function MonthlyReviewEditorPage({
               month: "long",
               year: "numeric",
             })}
-            . This will move into chair approval once submitted.
+            .{" "}
+            {requiresChairApproval
+              ? "This will move into chair approval once submitted."
+              : "This will publish directly unless you intentionally escalate it to chair review."}
           </p>
         </div>
 
@@ -173,6 +184,8 @@ export default async function MonthlyReviewEditorPage({
                   }
                 : null
             }
+            requiresChairApproval={requiresChairApproval}
+            allowChairEscalation={!requiresChairApproval}
             submitAction={submitMonthlyGoalReview}
           />
         )}

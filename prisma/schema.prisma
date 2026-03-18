@@ -393,6 +393,27 @@ enum MentorshipResourceType {
   ANSWER
 }
 
+enum MentorshipProgramGroup {
+  OFFICER
+  INSTRUCTOR
+  STUDENT
+}
+
+enum MentorshipGovernanceMode {
+  FULL_PROGRAM
+  CONNECTED_STUDENT
+}
+
+enum MentorshipCommitteeScope {
+  GLOBAL
+  CHAPTER
+}
+
+enum MentorshipAwardPolicy {
+  ACHIEVEMENT_LADDER
+  STUDENT_RECOGNITION
+}
+
 // ============================================
 // CORE MODELS
 // ============================================
@@ -418,6 +439,7 @@ model Chapter {
   chapterUpdates    ChapterUpdate[]
   classTemplates    ClassTemplate[]
   launchTasks       LaunchTask[]
+  mentorshipTracks  MentorshipTrack[]
   rolloutCampaigns  RolloutCampaign[]
   featureGateRules  FeatureGateRule[]
   pathwayConfigs    ChapterPathway[]
@@ -1476,6 +1498,8 @@ model Mentorship {
   mentorId           String
   menteeId           String
   type               MentorshipType
+  programGroup       MentorshipProgramGroup     @default(INSTRUCTOR)
+  governanceMode     MentorshipGovernanceMode   @default(FULL_PROGRAM)
   status             MentorshipStatus    @default(ACTIVE)
   startDate          DateTime            @default(now())
   endDate            DateTime?
@@ -1883,6 +1907,7 @@ model GoalTemplate {
   title       String
   description String?
   roleType    RoleType
+  mentorshipProgramGroup MentorshipProgramGroup?
   chapterId   String?
   chapter     Chapter? @relation(fields: [chapterId], references: [id])
   isActive    Boolean  @default(true)
@@ -1932,6 +1957,7 @@ model ReflectionForm {
   title       String
   description String?
   roleType    RoleType
+  mentorshipProgramGroup MentorshipProgramGroup?
   questions   ReflectionQuestion[]
   submissions ReflectionSubmission[]
   isActive    Boolean                @default(true)
@@ -1987,6 +2013,14 @@ model MentorshipTrack {
   name                     String
   description              String?
   scope                    String                          @default("GLOBAL")
+  chapterId                String?
+  chapter                  Chapter?                        @relation(fields: [chapterId], references: [id])
+  programGroup             MentorshipProgramGroup         @default(INSTRUCTOR)
+  governanceMode           MentorshipGovernanceMode       @default(FULL_PROGRAM)
+  committeeScope           MentorshipCommitteeScope       @default(GLOBAL)
+  mentorCap                Int                            @default(3)
+  awardPolicy              MentorshipAwardPolicy          @default(ACHIEVEMENT_LADDER)
+  requiresQuarterlyReview  Boolean                        @default(true)
   pointCategory            MentorshipPointCategory         @default(CUSTOM)
   isActive                 Boolean                         @default(true)
   committees               MentorCommittee[]
@@ -1999,6 +2033,9 @@ model MentorshipTrack {
   resourceLibrary          MentorshipResource[]
   createdAt                DateTime                        @default(now())
   updatedAt                DateTime                        @updatedAt
+
+  @@index([chapterId])
+  @@index([programGroup, governanceMode])
 }
 
 model MentorCommittee {
@@ -2046,6 +2083,7 @@ model MonthlyGoalReview {
   reflectionSubmissionId   String?
   reflectionSubmission     ReflectionSubmission?           @relation(fields: [reflectionSubmissionId], references: [id], onDelete: SetNull)
   month                    DateTime
+  requiresChairApproval    Boolean                         @default(true)
   status                   MentorshipReviewStatus          @default(DRAFT)
   overallStatus            ProgressStatus?
   overallComments          String?

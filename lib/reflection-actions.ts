@@ -4,8 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { QuestionType, RoleType } from "@prisma/client";
+import { MentorshipProgramGroup, QuestionType, RoleType } from "@prisma/client";
 import { parseRoleType } from "@/lib/authorization";
+import { getMentorshipProgramGroupForRole } from "@/lib/mentorship-canonical";
 
 // ============================================
 // REFLECTION FORM MANAGEMENT (Admin)
@@ -63,12 +64,21 @@ export async function createReflectionForm(formData: FormData) {
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
   const roleType = parseRoleType(formData.get("roleType")) as RoleType;
+  const groupRaw = String(formData.get("mentorshipProgramGroup") ?? "").trim();
+  const mentorshipProgramGroup =
+    groupRaw &&
+    Object.values(MentorshipProgramGroup).includes(
+      groupRaw as MentorshipProgramGroup
+    )
+      ? (groupRaw as MentorshipProgramGroup)
+      : null;
 
   const form = await prisma.reflectionForm.create({
     data: {
       title,
       description,
       roleType,
+      mentorshipProgramGroup,
     },
   });
 
@@ -97,6 +107,14 @@ export async function updateReflectionForm(formId: string, formData: FormData) {
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
   const isActive = formData.get("isActive") === "true";
+  const groupRaw = String(formData.get("mentorshipProgramGroup") ?? "").trim();
+  const mentorshipProgramGroup =
+    groupRaw &&
+    Object.values(MentorshipProgramGroup).includes(
+      groupRaw as MentorshipProgramGroup
+    )
+      ? (groupRaw as MentorshipProgramGroup)
+      : null;
 
   const form = await prisma.reflectionForm.update({
     where: { id: formId },
@@ -104,6 +122,7 @@ export async function updateReflectionForm(formId: string, formData: FormData) {
       title,
       description,
       isActive,
+      mentorshipProgramGroup,
     },
   });
 
@@ -240,14 +259,29 @@ export async function getActiveReflectionForm() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) throw new Error("Unauthorized");
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-  });
+  const [user, activeMentorship] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+    }),
+    prisma.mentorship.findFirst({
+      where: {
+        menteeId: session.user.id,
+        status: "ACTIVE",
+      },
+      select: {
+        programGroup: true,
+      },
+      orderBy: { startDate: "desc" },
+    }),
+  ]);
 
   if (!user) throw new Error("User not found");
 
-  // Find the active form for the user's role
-  const form = await prisma.reflectionForm.findFirst({
+  const programGroup =
+    activeMentorship?.programGroup ??
+    getMentorshipProgramGroupForRole(user.primaryRole);
+
+  const forms = await prisma.reflectionForm.findMany({
     where: {
       roleType: user.primaryRole,
       isActive: true,
@@ -257,9 +291,15 @@ export async function getActiveReflectionForm() {
         orderBy: { sortOrder: "asc" },
       },
     },
+    orderBy: { updatedAt: "desc" },
   });
 
-  return form;
+  return (
+    forms.find((form) => form.mentorshipProgramGroup === programGroup) ??
+    forms.find((form) => form.mentorshipProgramGroup == null) ??
+    forms[0] ??
+    null
+  );
 }
 
 export async function submitReflection(formData: FormData) {
@@ -268,7 +308,8 @@ export async function submitReflection(formData: FormData) {
 
   const formId = formData.get("formId") as string;
   const monthStr = formData.get("month") as string;
-  const month = new Date(monthStr);
+  const parsedMonth = new Date(monthStr);
+  const month = new Date(parsedMonth.getFullYear(), parsedMonth.getMonth(), 1);
 
   // Check if already submitted for this month
   const existingSubmission = await prisma.reflectionSubmission.findFirst({
@@ -323,6 +364,7 @@ export async function submitReflection(formData: FormData) {
 
   revalidatePath("/reflection");
   revalidatePath("/reflection/history");
+  revalidatePath("/mentorship");
   return submission;
 }
 

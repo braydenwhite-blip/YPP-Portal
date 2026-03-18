@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/auth";
+import { mentorshipRequiresMonthlyReflection } from "@/lib/mentorship-canonical";
 import { ProgressBar } from "@/components/progress-bar";
 import {
   getMonthlyCycleLabel,
@@ -135,10 +136,12 @@ export default async function MenteesPage() {
       },
     });
 
-    mentees = mentorships.map((mentorship) => ({
+        mentees = mentorships.map((mentorship) => ({
       ...mentorship.mentee,
       menteePairs: [
         {
+          programGroup: mentorship.programGroup,
+          governanceMode: mentorship.governanceMode,
           mentor: { name: "You" },
           chair: mentorship.chair,
           track: mentorship.track,
@@ -188,8 +191,15 @@ export default async function MenteesPage() {
               )[0];
             const currentStatus =
               currentReview?.overallStatus ?? latestProgress?.status ?? null;
+            const requiresReflection = activeMentorship
+              ? mentorshipRequiresMonthlyReflection({
+                  programGroup: activeMentorship.programGroup,
+                  governanceMode: activeMentorship.governanceMode,
+                })
+              : true;
             const cycleLabel = getMonthlyCycleLabel({
-              hasReflection: mentee.reflectionSubmissions.length > 0,
+              hasReflection:
+                mentee.reflectionSubmissions.length > 0 || !requiresReflection,
               reviewStatus: currentReview?.status ?? null,
             });
 
