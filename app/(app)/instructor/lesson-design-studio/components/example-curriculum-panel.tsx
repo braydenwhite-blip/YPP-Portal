@@ -1,6 +1,6 @@
 "use client";
 
-import { EXAMPLE_CURRICULA, type ExampleCurriculum, type ExampleWeek, type ActivityType } from "../examples-data";
+import { EXAMPLE_CURRICULA, type ExampleWeek, type ActivityType } from "../examples-data";
 
 const ACTIVITY_TYPES: { value: ActivityType; label: string; color: string; icon: string }[] = [
   { value: "WARM_UP",     label: "Warm Up",     color: "#f59e0b", icon: "☀" },
@@ -13,6 +13,13 @@ const ACTIVITY_TYPES: { value: ActivityType; label: string; color: string; icon:
   { value: "GROUP_WORK",  label: "Group Work",  color: "#14b8a6", icon: "👥" },
 ];
 
+const AT_HOME_ICONS: Record<string, string> = {
+  REFLECTION_PROMPT: "✍",
+  PRACTICE_TASK: "🎯",
+  QUIZ: "📝",
+  PRE_READING: "📖",
+};
+
 function getActivityConfig(type: ActivityType) {
   return ACTIVITY_TYPES.find((a) => a.value === type) ?? ACTIVITY_TYPES[0];
 }
@@ -20,9 +27,14 @@ function getActivityConfig(type: ActivityType) {
 interface ExampleCurriculumPanelProps {
   activeTab: number;
   onTabChange: (index: number) => void;
+  onImportWeek: (week: ExampleWeek) => void;
 }
 
-export function ExampleCurriculumPanel({ activeTab, onTabChange }: ExampleCurriculumPanelProps) {
+export function ExampleCurriculumPanel({
+  activeTab,
+  onTabChange,
+  onImportWeek,
+}: ExampleCurriculumPanelProps) {
   const curriculum = EXAMPLE_CURRICULA[activeTab] ?? EXAMPLE_CURRICULA[0];
 
   return (
@@ -30,7 +42,7 @@ export function ExampleCurriculumPanel({ activeTab, onTabChange }: ExampleCurric
       {/* Header */}
       <div className="cbs-example-header">
         <h2>Learn from Examples</h2>
-        <p>Study these curricula to understand good structure</p>
+        <p>Study real curricula — or click <strong>Import Week</strong> to use one as a starting point</p>
       </div>
 
       {/* Tabs */}
@@ -116,6 +128,34 @@ export function ExampleCurriculumPanel({ activeTab, onTabChange }: ExampleCurric
                   );
                 })}
               </div>
+
+              {/* Teaching tips */}
+              {week.teachingTips && (
+                <div className="cbs-example-week-tips">
+                  <span className="cbs-example-tips-label">💡 Teaching Tips</span>
+                  <p className="cbs-example-tips-text">{week.teachingTips}</p>
+                </div>
+              )}
+
+              {/* At-home assignment */}
+              {week.atHomeAssignment && (
+                <div className="cbs-example-week-homework">
+                  <span className="cbs-example-homework-label">
+                    {AT_HOME_ICONS[week.atHomeAssignment.type] ?? "📋"} At-Home Assignment
+                  </span>
+                  <p className="cbs-example-homework-title">{week.atHomeAssignment.title}</p>
+                  <p className="cbs-example-homework-desc">{week.atHomeAssignment.description}</p>
+                </div>
+              )}
+
+              {/* Import button */}
+              <button
+                className="cbs-example-import-btn"
+                onClick={() => onImportWeek(week)}
+                type="button"
+              >
+                + Import this week into my curriculum
+              </button>
             </div>
           );
         })}

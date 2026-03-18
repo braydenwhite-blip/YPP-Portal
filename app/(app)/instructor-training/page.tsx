@@ -432,9 +432,9 @@ export default async function InstructorTrainingPage() {
               🎨
             </div>
             <div>
-              <h3 style={{ margin: 0, color: "#f2f2f7", fontSize: 15 }}>Lesson Design Studio</h3>
+              <h3 style={{ margin: 0, color: "#f2f2f7", fontSize: 15 }}>Lesson Design Studio — Final Training Module</h3>
               <p style={{ margin: "4px 0 0", color: "rgba(242,242,247,0.6)", fontSize: 13 }}>
-                Learn what makes a great lesson plan — then build all yours in one guided session.
+                Your final training step: complete the guided tour, build your first full curriculum, and submit it as your capstone evidence.
               </p>
             </div>
           </div>

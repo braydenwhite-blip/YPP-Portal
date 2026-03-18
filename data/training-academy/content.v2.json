@@ -1250,6 +1250,129 @@
           "explanation": "Traceable revisions speed review and improve quality."
         }
       ]
+    },
+
+    {
+      "contentKey": "academy_lesson_studio_006",
+      "title": "Lesson Design Studio: Build Your Curriculum",
+      "description": "Put your lesson design skills to work. Open the Lesson Design Studio, complete the guided onboarding tour, and build your first full curriculum — including weekly plans, activities, objectives, and at-home assignments. Submit your finished curriculum as your final training evidence.",
+      "type": "CURRICULUM_REVIEW",
+      "required": true,
+      "sortOrder": 6,
+      "estimatedMinutes": 120,
+      "requiresQuiz": false,
+      "requiresEvidence": true,
+      "passScorePct": 80,
+
+      "videos": [
+        {
+          "title": "Your First Curriculum: A Walkthrough",
+          "description": "Primary training video walking through building your first full curriculum in the Lesson Design Studio",
+          "videoUrl": "[PLACEHOLDER - Primary Training Video]",
+          "videoProvider": "YOUTUBE",
+          "videoDuration": 900,
+          "isSupplementary": false,
+          "sortOrder": 1,
+          "segments": [
+            {
+              "title": "Opening the Lesson Design Studio",
+              "startTime": 0,
+              "endTime": 120,
+              "sortOrder": 1
+            },
+            {
+              "title": "Using the Examples Panel",
+              "startTime": 120,
+              "endTime": 300,
+              "sortOrder": 2
+            },
+            {
+              "title": "Building Your First Week",
+              "startTime": 300,
+              "endTime": 480,
+              "sortOrder": 3
+            },
+            {
+              "title": "Adding Activities and Details",
+              "startTime": 480,
+              "endTime": 660,
+              "sortOrder": 4
+            },
+            {
+              "title": "Week Objectives and At-Home Assignments",
+              "startTime": 660,
+              "endTime": 780,
+              "sortOrder": 5
+            },
+            {
+              "title": "Submitting Your Curriculum",
+              "startTime": 780,
+              "endTime": 900,
+              "sortOrder": 6
+            }
+          ]
+        },
+        {
+          "title": "Advanced Studio Features",
+          "description": "Supplementary video covering advanced features of the Lesson Design Studio",
+          "videoUrl": "[PLACEHOLDER - Supplementary Video]",
+          "videoProvider": "YOUTUBE",
+          "videoDuration": 360,
+          "isSupplementary": true,
+          "sortOrder": 2,
+          "segments": []
+        }
+      ],
+
+      "resources": [
+        {
+          "title": "Lesson Design Best Practices Guide",
+          "description": "Comprehensive guide to lesson design best practices",
+          "resourceUrl": "[PLACEHOLDER - PDF Link]",
+          "resourceType": "PDF",
+          "sortOrder": 1
+        },
+        {
+          "title": "Example Curricula Reference",
+          "description": "Browse example curricula in the Lesson Design Studio",
+          "resourceUrl": "/instructor/lesson-design-studio",
+          "resourceType": "LINK",
+          "sortOrder": 2
+        }
+      ],
+
+      "checkpoints": [
+        {
+          "contentKey": "studio_onboarding_tour",
+          "title": "Complete the Studio onboarding tour",
+          "description": "Complete the guided onboarding tour in the Lesson Design Studio.",
+          "required": true,
+          "sortOrder": 1
+        },
+        {
+          "contentKey": "studio_first_week",
+          "title": "Create your first week with at least 3 activities",
+          "description": "Build your first week plan with a minimum of three activities.",
+          "required": true,
+          "sortOrder": 2
+        },
+        {
+          "contentKey": "studio_week_objective",
+          "title": "Set a learning objective for at least one week",
+          "description": "Define a clear learning objective for at least one week in your curriculum.",
+          "required": true,
+          "sortOrder": 3
+        },
+        {
+          "contentKey": "studio_at_home_assignment",
+          "title": "Add an at-home assignment to at least one week",
+          "description": "Include an at-home assignment in at least one week of your curriculum.",
+          "required": true,
+          "sortOrder": 4
+        }
+      ],
+
+      "quizQuestions": []
     }
   ]
 }
