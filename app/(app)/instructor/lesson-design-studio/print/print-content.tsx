@@ -12,7 +12,10 @@ export function PrintContent() {
 
   return (
     <div className="cbs-print-auto-trigger">
-      <p>Print dialog should open automatically. If it doesn't, press Ctrl+P (Cmd+P on Mac).</p>
+      <p>
+        Print dialog should open automatically. If it doesn&apos;t, press Ctrl+P
+        (Cmd+P on Mac).
+      </p>
     </div>
   );
 }

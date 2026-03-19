@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { StudioClient } from "@/app/(app)/instructor/lesson-design-studio/studio-client";
@@ -15,7 +15,7 @@ const routerMocks = vi.hoisted(() => ({
   refresh: vi.fn(),
 }));
 
-const exampleWeek = {
+const libraryExampleWeek = {
   weekNumber: 1,
   title: "Imported Week",
   goal: "Practice a real skill",
@@ -53,39 +53,13 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock(
-  "@/app/(app)/instructor/lesson-design-studio/components/curriculum-builder-panel",
-  () => ({
-    CurriculumBuilderPanel: (props: any) => (
-      <div>
-        <div data-testid="panel-title">{props.title}</div>
-        <div data-testid="panel-score">
-          {String(props.understandingChecks.lastScorePct ?? "none")}
-        </div>
-        <button type="button" onClick={() => props.onUpdate("title", "Updated Title")}>
-          Update Title
-        </button>
-        <button type="button" onClick={() => void props.onExportPdf("student")}>
-          Export Student
-        </button>
-        <button type="button" onClick={() => void props.onSubmit()}>
-          Submit Draft
-        </button>
-        <button type="button" onClick={() => props.onOpenExamplesLibrary("missing-week")}>
-          Open Targeted Library
-        </button>
-      </div>
-    ),
-  })
-);
-
-vi.mock(
   "@/app/(app)/instructor/lesson-design-studio/components/examples-library",
   () => ({
     ExamplesLibrary: (props: any) =>
       props.open ? (
         <div>
           <div data-testid="examples-error">{props.errorMessage ?? ""}</div>
-          <button type="button" onClick={() => props.onImportWeek(exampleWeek)}>
+          <button type="button" onClick={() => props.onImportWeek(libraryExampleWeek)}>
             Import Example
           </button>
         </div>
@@ -193,6 +167,7 @@ function buildDraft(overrides: Partial<any> = {}) {
 function buildReadyDraft(overrides: Partial<any> = {}) {
   return buildDraft({
     title: "Ready Draft",
+    description: "A strong first course",
     interestArea: "Finance",
     outcomes: ["Outcome one", "Outcome two", "Outcome three"],
     weeklyPlans: [
@@ -208,7 +183,7 @@ function buildReadyDraft(overrides: Partial<any> = {}) {
           { id: "a3", title: "Practice", type: "PRACTICE", durationMin: 20, description: null, resources: null, notes: null, sortOrder: 2, materials: null, differentiationTips: null, energyLevel: null, standardsTags: [], rubric: null },
         ],
         objective: "Learn skill one",
-        teacherPrepNotes: null,
+        teacherPrepNotes: "Set up materials.",
         materialsChecklist: [],
         atHomeAssignment: {
           type: "REFLECTION_PROMPT",
@@ -265,6 +240,8 @@ function buildReadyDraft(overrides: Partial<any> = {}) {
   });
 }
 
+const COMPLETE_UNDERSTANDING_CHECKS = buildReadyDraft().understandingChecks;
+
 describe("StudioClient", () => {
   beforeEach(() => {
     actionMocks.saveCurriculumDraft.mockReset().mockResolvedValue({ success: true });
@@ -280,6 +257,28 @@ describe("StudioClient", () => {
     localStorage.clear();
   });
 
+  it("shows the guided shell recommendation and lets the user switch steps", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <StudioClient
+        userId="user-1"
+        userName="Instructor"
+        draft={buildDraft()}
+        currentPhase="START"
+      />
+    );
+
+    expect(screen.getByText("Recommended next move")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Pick a starter scaffold" })
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Course Map/i }));
+
+    expect(screen.getByRole("heading", { name: "Shape the course promise" })).toBeInTheDocument();
+  });
+
   it("flushes the latest draft before exporting", async () => {
     const user = userEvent.setup();
     const exportWindow = {
@@ -293,12 +292,15 @@ describe("StudioClient", () => {
         userId="user-1"
         userName="Instructor"
         draft={buildReadyDraft()}
-        currentPhase="READINESS"
+        currentPhase="COURSE_MAP"
       />
     );
 
-    await user.click(screen.getByRole("button", { name: "Update Title" }));
-    await user.click(screen.getByRole("button", { name: "Export Student" }));
+    const titleInput = screen.getByLabelText("Curriculum title");
+    await user.clear(titleInput);
+    await user.type(titleInput, "Updated Title");
+    await user.click(screen.getByRole("button", { name: /Review & Launch/i }));
+    await user.click(screen.getByRole("button", { name: "Export student view" }));
 
     await waitFor(() => {
       expect(actionMocks.saveCurriculumDraft).toHaveBeenCalledWith(
@@ -328,12 +330,15 @@ describe("StudioClient", () => {
         userId="user-1"
         userName="Instructor"
         draft={buildReadyDraft()}
-        currentPhase="READINESS"
+        currentPhase="COURSE_MAP"
       />
     );
 
-    await user.click(screen.getByRole("button", { name: "Update Title" }));
-    await user.click(screen.getByRole("button", { name: "Submit Draft" }));
+    const titleInput = screen.getByLabelText("Curriculum title");
+    await user.clear(titleInput);
+    await user.type(titleInput, "Updated Title");
+    await user.click(screen.getByRole("button", { name: /Review & Launch/i }));
+    await user.click(screen.getByRole("button", { name: "Submit curriculum for review" }));
 
     await waitFor(() => {
       expect(callOrder).toEqual(["save", "submit"]);
@@ -356,9 +361,7 @@ describe("StudioClient", () => {
             courseConfig: buildDraft().courseConfig,
             weeklyPlans: buildDraft().weeklyPlans,
             understandingChecks: {
-              answers: {},
-              lastScorePct: 100,
-              passed: true,
+              ...COMPLETE_UNDERSTANDING_CHECKS,
               completedAt: "2026-03-18T15:00:00.000Z",
             },
           },
@@ -375,17 +378,18 @@ describe("StudioClient", () => {
       />
     );
 
-    expect(screen.getByTestId("panel-score")).toHaveTextContent("none");
+    expect(screen.getByText("Overall 0% / 80% needed")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "View Version History" }));
+    await user.click(screen.getByRole("button", { name: "View version history" }));
     await user.click(screen.getByRole("button", { name: /saved version/i }));
 
     await waitFor(() => {
-      expect(screen.getByTestId("panel-score")).toHaveTextContent("100");
+      expect(screen.getByText("Passed")).toBeInTheDocument();
+      expect(screen.getByText("Overall 100% / 80% needed")).toBeInTheDocument();
     });
   });
 
-  it("shows the onboarding tour only for eligible editable drafts and marks completion", async () => {
+  it("shows starter support only when the user asks for the walkthrough and marks completion", async () => {
     const user = userEvent.setup();
 
     const firstRender = render(
@@ -397,12 +401,17 @@ describe("StudioClient", () => {
       />
     );
 
+    expect(screen.queryByTestId("tour")).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getAllByRole("button", { name: "Rebuild with starter support" })[0]
+    );
+
     expect(screen.getByTestId("tour")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Finish Tour" }));
 
     await waitFor(() => {
-      expect(actionMocks.markLessonDesignStudioTourComplete).toHaveBeenCalledTimes(1);
       expect(actionMocks.markLessonDesignStudioTourComplete).toHaveBeenCalledWith(
         "draft-1"
       );
@@ -415,15 +424,18 @@ describe("StudioClient", () => {
       <StudioClient
         userId="user-1"
         userName="Instructor"
-        draft={buildDraft({ status: "SUBMITTED" })}
+        draft={buildReadyDraft({ status: "SUBMITTED" })}
         currentPhase="REVIEW_LAUNCH"
       />
     );
 
     expect(screen.queryByTestId("tour")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Rebuild with starter support" })
+    ).not.toBeInTheDocument();
   });
 
-  it("refuses to import into a stale targeted session and shows a helpful error", async () => {
+  it("keeps session authoring in focus mode and lets the user switch the selected session", async () => {
     const user = userEvent.setup();
 
     render(
@@ -435,13 +447,28 @@ describe("StudioClient", () => {
       />
     );
 
-    await user.click(screen.getByRole("button", { name: "Open Targeted Library" }));
-    await user.click(screen.getByRole("button", { name: "Import Example" }));
+    expect(screen.getByLabelText("Session title")).toHaveValue("Week 1");
 
-    expect(screen.getByTestId("examples-error")).toHaveTextContent(
-      "That session changed while the library was open. Pick a session again before importing."
+    await user.click(screen.getByRole("button", { name: /Week 2Week 2/i }));
+
+    expect(screen.getByLabelText("Session title")).toHaveValue("Week 2");
+  });
+
+  it("imports an inline example week into the selected session", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <StudioClient
+        userId="user-1"
+        userName="Instructor"
+        draft={buildDraft({ interestArea: "Finance", outcomes: ["One", "Two", "Three"] })}
+        currentPhase="SESSIONS"
+      />
     );
-    expect(actionMocks.saveCurriculumDraft).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Import this example week" }));
+
+    expect(screen.getByLabelText("Session title")).toHaveValue("Budgeting Basics");
   });
 
   it("opens a working copy from a read-only submitted draft", async () => {
@@ -456,7 +483,7 @@ describe("StudioClient", () => {
       />
     );
 
-    await user.click(screen.getByRole("button", { name: "Use as starting point" }));
+    await user.click(screen.getAllByRole("button", { name: "Use as starting point" })[0]);
 
     await waitFor(() => {
       expect(actionMocks.createWorkingCopyFromCurriculumDraft).toHaveBeenCalledWith(
@@ -468,19 +495,19 @@ describe("StudioClient", () => {
     });
   });
 
-  it("does not save when a read-only draft receives an edit event", async () => {
-    const user = userEvent.setup();
-
+  it("does not save when a read-only draft receives a forced edit event", () => {
     render(
       <StudioClient
         userId="user-1"
         userName="Instructor"
         draft={buildReadyDraft({ status: "SUBMITTED" })}
-        currentPhase="REVIEW_LAUNCH"
+        currentPhase="COURSE_MAP"
       />
     );
 
-    await user.click(screen.getByRole("button", { name: "Update Title" }));
+    fireEvent.change(screen.getByLabelText("Curriculum title"), {
+      target: { value: "Changed" },
+    });
 
     expect(actionMocks.saveCurriculumDraft).not.toHaveBeenCalled();
   });

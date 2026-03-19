@@ -1,110 +1,18 @@
 "use client";
 
 import { useEffect } from "react";
-
-type ActivityType =
-  | "WARM_UP"
-  | "INSTRUCTION"
-  | "PRACTICE"
-  | "DISCUSSION"
-  | "ASSESSMENT"
-  | "BREAK"
-  | "REFLECTION"
-  | "GROUP_WORK";
-
-interface TemplateData {
-  title: string;
-  type: ActivityType;
-  durationMin: number;
-  description: string;
-}
+import type { ActivityType } from "../types";
+import {
+  ACTIVITY_TEMPLATE_CATEGORIES,
+  getActivityTypeConfig,
+  type ActivityTemplateData,
+} from "./activity-template-data";
 
 interface ActivityTemplatesProps {
   open: boolean;
   onClose: () => void;
-  onInsert: (template: TemplateData) => void;
+  onInsert: (template: ActivityTemplateData) => void;
 }
-
-const TYPE_COLORS: Record<ActivityType, string> = {
-  WARM_UP: "#f59e0b",
-  INSTRUCTION: "#3b82f6",
-  PRACTICE: "#22c55e",
-  DISCUSSION: "#8b5cf6",
-  ASSESSMENT: "#ef4444",
-  BREAK: "#6b7280",
-  REFLECTION: "#ec4899",
-  GROUP_WORK: "#14b8a6",
-};
-
-const TYPE_LABELS: Record<ActivityType, string> = {
-  WARM_UP: "Warm Up",
-  INSTRUCTION: "Instruction",
-  PRACTICE: "Practice",
-  DISCUSSION: "Discussion",
-  ASSESSMENT: "Assessment",
-  BREAK: "Break",
-  REFLECTION: "Reflection",
-  GROUP_WORK: "Group Work",
-};
-
-interface Category {
-  label: string;
-  icon: string;
-  templates: TemplateData[];
-}
-
-const CATEGORIES: Category[] = [
-  {
-    label: "Engagement",
-    icon: "\u26A1",
-    templates: [
-      { title: "Hook Question", type: "WARM_UP", durationMin: 8, description: "Pose an intriguing question or scenario to spark curiosity and activate prior knowledge" },
-      { title: "Think-Pair-Share", type: "DISCUSSION", durationMin: 10, description: "Students think independently, discuss with a partner, then share with the group" },
-      { title: "Gallery Walk", type: "GROUP_WORK", durationMin: 12, description: "Students rotate through stations examining displayed work and leaving feedback" },
-      { title: "Icebreaker", type: "WARM_UP", durationMin: 5, description: "Quick interactive activity to build rapport and energize the room" },
-    ],
-  },
-  {
-    label: "Instruction",
-    icon: "\uD83D\uDCD6",
-    templates: [
-      { title: "Mini Lesson", type: "INSTRUCTION", durationMin: 15, description: "Focused direct instruction on a single concept with visual aids" },
-      { title: "Demo + Explain", type: "INSTRUCTION", durationMin: 12, description: "Live demonstration with step-by-step explanation and think-aloud modeling" },
-      { title: "Video + Discussion", type: "INSTRUCTION", durationMin: 18, description: "Watch a short video clip followed by guided discussion questions" },
-      { title: "I Do, We Do, You Do", type: "INSTRUCTION", durationMin: 20, description: "Gradual release: teacher models, class practices together, students work independently" },
-    ],
-  },
-  {
-    label: "Practice",
-    icon: "\u270F\uFE0F",
-    templates: [
-      { title: "Guided Practice", type: "PRACTICE", durationMin: 12, description: "Teacher-led practice with scaffolding, gradually releasing responsibility to students" },
-      { title: "Independent Build", type: "PRACTICE", durationMin: 15, description: "Students work independently on an applied task with teacher circulating for support" },
-      { title: "Partner Work", type: "PRACTICE", durationMin: 10, description: "Collaborative practice in pairs with structured roles and shared accountability" },
-      { title: "Skill Drill", type: "PRACTICE", durationMin: 8, description: "Rapid-fire practice of a specific skill with immediate self-checking" },
-    ],
-  },
-  {
-    label: "Assessment",
-    icon: "\uD83D\uDCCA",
-    templates: [
-      { title: "Exit Ticket", type: "ASSESSMENT", durationMin: 6, description: "Quick end-of-class check: students answer 1-3 questions to show understanding" },
-      { title: "Formative Check", type: "ASSESSMENT", durationMin: 8, description: "Mid-lesson comprehension check using thumbs up/down, whiteboard responses, or polls" },
-      { title: "Peer Review", type: "ASSESSMENT", durationMin: 10, description: "Students evaluate each other\u2019s work using a rubric or structured feedback form" },
-      { title: "Quiz Bowl", type: "ASSESSMENT", durationMin: 12, description: "Team-based competitive review game testing key concepts from the lesson" },
-    ],
-  },
-  {
-    label: "Closure",
-    icon: "\uD83C\uDFAF",
-    templates: [
-      { title: "Reflection Journal", type: "REFLECTION", durationMin: 6, description: "Students write a brief reflection on what they learned and questions they still have" },
-      { title: "Group Share-Out", type: "DISCUSSION", durationMin: 8, description: "Each group presents key takeaways or solutions to the full class" },
-      { title: "Preview Next Session", type: "INSTRUCTION", durationMin: 5, description: "Brief teaser of next lesson\u2019s topic to build anticipation and connect concepts" },
-      { title: "Muddiest Point", type: "REFLECTION", durationMin: 5, description: "Students identify the most confusing concept from today\u2019s lesson for follow-up" },
-    ],
-  },
-];
 
 export function ActivityTemplates({ open, onClose, onInsert }: ActivityTemplatesProps) {
   useEffect(() => {
@@ -123,7 +31,7 @@ export function ActivityTemplates({ open, onClose, onInsert }: ActivityTemplates
 
   if (!open) return null;
 
-  function handleCardClick(template: TemplateData) {
+  function handleCardClick(template: ActivityTemplateData) {
     onInsert(template);
     onClose();
   }
@@ -147,7 +55,7 @@ export function ActivityTemplates({ open, onClose, onInsert }: ActivityTemplates
 
         {/* Body */}
         <div className="cbs-templates-body">
-          {CATEGORIES.map((category) => (
+          {ACTIVITY_TEMPLATE_CATEGORIES.map((category) => (
             <section key={category.label} className="cbs-templates-category">
               <h3 className="cbs-templates-category-header">
                 <span className="cbs-templates-category-icon">{category.icon}</span>
@@ -156,7 +64,7 @@ export function ActivityTemplates({ open, onClose, onInsert }: ActivityTemplates
 
               <div className="cbs-templates-grid">
                 {category.templates.map((template) => {
-                  const color = TYPE_COLORS[template.type];
+                  const config = getActivityTypeConfig(template.type);
                   return (
                     <button
                       key={template.title}
@@ -166,9 +74,9 @@ export function ActivityTemplates({ open, onClose, onInsert }: ActivityTemplates
                       <div className="cbs-templates-card-top">
                         <span
                           className="cbs-templates-badge"
-                          style={{ background: color + "22", color }}
+                          style={{ background: config.color + "22", color: config.color }}
                         >
-                          {TYPE_LABELS[template.type]}
+                          {config.label}
                         </span>
                         <span className="cbs-templates-duration">
                           {template.durationMin}m
