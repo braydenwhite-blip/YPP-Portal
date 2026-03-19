@@ -215,8 +215,8 @@ export default async function MentorshipPage() {
           </p>
           <div style={{ marginTop: 16, display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
             {hub.flags.isAdmin && (
-              <Link href="/admin/mentor-match" className="button primary small">
-                Open Mentor Match
+              <Link href="/admin/mentorship-program?focus=matching" className="button primary small">
+                Open Mentorship Command Center
               </Link>
             )}
             <Link href="/mentor/ask" className="button secondary small">

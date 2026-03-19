@@ -1,6 +1,9 @@
+import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+
 import { authOptions } from "@/lib/auth";
+import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
 import {
   addMentorCommitteeMember,
   createMentorCommittee,
@@ -8,323 +11,708 @@ import {
   updateMentorshipGovernance,
 } from "@/lib/mentorship-program-actions";
 import { assignSupportCircleMember } from "@/lib/mentorship-hub-actions";
-import { prisma } from "@/lib/prisma";
-import { getProgramAnalytics } from "@/lib/mentorship-overview-actions";
-import { getMentorshipGovernanceSnapshot } from "@/lib/mentorship-hub";
-import TabLayout from "./tab-layout";
-import PairingsPanel from "./pairings-panel";
+import {
+  ADMIN_MENTORSHIP_LANE_META,
+  ADMIN_MENTORSHIP_LANES,
+  getAdminMentorshipLaneForUser,
+  parseAdminMentorshipLane,
+  toLaneQueryValue,
+} from "@/lib/mentorship-admin-helpers";
+import { getAdminMentorshipCommandCenterData } from "@/lib/admin-mentorship-command-center";
+
 import ChairsPanel from "./chairs-panel";
 import GoalsPanel from "./goals-panel";
-import AnalyticsPanel from "./analytics-panel";
+import MatchingPanel from "./matching-panel";
 
-export const metadata = { title: "Mentorship Program — Admin" };
+export const metadata = { title: "Mentorship Command Center — Admin" };
 
-export default async function MentorshipProgramAdminPage() {
+type SearchParams = {
+  lane?: string;
+  focus?: string;
+  menteeId?: string;
+  supportRole?: string;
+};
+
+type MatchSupportRole =
+  | "PRIMARY_MENTOR"
+  | "CHAIR"
+  | "SPECIALIST_MENTOR"
+  | "COLLEGE_ADVISOR"
+  | "ALUMNI_ADVISOR";
+
+function parseFocus(raw?: string) {
+  if (
+    raw === "queue" ||
+    raw === "matching" ||
+    raw === "staffing" ||
+    raw === "governance"
+  ) {
+    return raw;
+  }
+
+  return "queue";
+}
+
+function parseSupportRole(raw?: string): MatchSupportRole {
+  if (
+    raw === "PRIMARY_MENTOR" ||
+    raw === "CHAIR" ||
+    raw === "SPECIALIST_MENTOR" ||
+    raw === "COLLEGE_ADVISOR" ||
+    raw === "ALUMNI_ADVISOR"
+  ) {
+    return raw;
+  }
+
+  return "PRIMARY_MENTOR";
+}
+
+function getFocusCardStyle(isActive: boolean) {
+  return {
+    border: isActive
+      ? "1px solid rgba(59, 130, 246, 0.35)"
+      : "1px solid var(--border)",
+    boxShadow: isActive ? "0 0 0 3px rgba(59, 130, 246, 0.08)" : "none",
+  };
+}
+
+export default async function MentorshipProgramAdminPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   const session = await getServerSession(authOptions);
   const roles = session?.user?.roles ?? [];
-  if (!roles.includes("ADMIN")) redirect("/");
 
-  // Parallel data fetch
-  const [pairings, goals, chairs, potentialMentors, potentialMentees, analytics, tracks, committees, governanceUsers, governanceSnapshot] = await Promise.all([
-    // All mentorships (active + past) involving roles that participate in the program
-    prisma.mentorship.findMany({
-      include: {
-        mentor: { select: { id: true, name: true, email: true } },
-        mentee: { select: { id: true, name: true, email: true, primaryRole: true } },
-        chair: { select: { id: true, name: true } },
-        track: { select: { id: true, name: true } },
-      },
-      orderBy: { startDate: "desc" },
-    }),
+  if (!roles.includes("ADMIN")) {
+    redirect("/");
+  }
 
-    // All program goals, sorted by role + order
-    prisma.mentorshipProgramGoal.findMany({
-      orderBy: [{ roleType: "asc" }, { sortOrder: "asc" }],
-    }),
+  const lane = parseAdminMentorshipLane(searchParams.lane);
+  const focus = parseFocus(searchParams.focus);
+  const supportRole = parseSupportRole(searchParams.supportRole);
+  const data = await getAdminMentorshipCommandCenterData();
 
-    // All committee chair records (active + past)
-    prisma.mentorCommitteeChair.findMany({
-      include: { user: { select: { id: true, name: true, email: true } } },
-      orderBy: { createdAt: "desc" },
-    }),
-
-    // Potential mentors: users with MENTOR, ADMIN, or STAFF role
-    prisma.user.findMany({
-      where: {
-        roles: {
-          some: { role: { in: ["MENTOR", "ADMIN", "STAFF"] } },
-        },
-      },
-      select: { id: true, name: true, email: true, primaryRole: true },
-      orderBy: { name: "asc" },
-    }),
-
-    // Potential mentees: Instructors, Chapter Leads, and Admin/Staff
-    prisma.user.findMany({
-      where: {
-        primaryRole: { in: ["INSTRUCTOR", "CHAPTER_LEAD", "ADMIN", "STAFF"] },
-      },
-      select: { id: true, name: true, email: true, primaryRole: true },
-      orderBy: { name: "asc" },
-    }),
-
-    // Program analytics for the Reports tab
-    getProgramAnalytics(),
-
-    prisma.mentorshipTrack.findMany({
-      include: {
-        committees: {
-          include: {
-            chairUser: { select: { id: true, name: true } },
-            members: {
-              include: {
-                user: { select: { id: true, name: true } },
-              },
-            },
-          },
-        },
-        _count: { select: { mentorships: true } },
-      },
-      orderBy: [{ isActive: "desc" }, { name: "asc" }],
-    }),
-
-    prisma.mentorCommittee.findMany({
-      include: {
-        track: true,
-        chairUser: { select: { id: true, name: true } },
-      },
-      orderBy: [{ track: { name: "asc" } }, { name: "asc" }],
-    }),
-
-    prisma.user.findMany({
-      where: {
-        roles: {
-          some: {
-            role: {
-              in: ["MENTOR", "CHAPTER_LEAD", "ADMIN", "STAFF"],
-            },
-          },
-        },
-      },
-      select: {
-        id: true,
-        name: true,
-        roles: { select: { role: true } },
-      },
-      orderBy: { name: "asc" },
-    }),
-
-    getMentorshipGovernanceSnapshot(),
-  ]);
-
-  // Serialize for client components (dates → strings)
-  const serializedPairings = pairings.map((m) => ({
-    id: m.id,
-    mentorName: m.mentor.name,
-    mentorEmail: m.mentor.email,
-    menteeName: m.mentee.name,
-    menteeEmail: m.mentee.email,
-    menteeRole: m.mentee.primaryRole,
-    startDate: m.startDate.toISOString(),
-    status: m.status,
-  }));
-
-  const serializedChairs = chairs.map((c) => ({
-    id: c.id,
-    userId: c.userId,
-    userName: c.user.name,
-    userEmail: c.user.email,
-    roleType: c.roleType,
-    isActive: c.isActive,
-  }));
-
-  const serializedGoals = goals.map((g) => ({
-    id: g.id,
-    title: g.title,
-    description: g.description,
-    roleType: g.roleType,
-    isActive: g.isActive,
-    sortOrder: g.sortOrder,
-  }));
-
-  const activePairings = serializedPairings.filter((p) => p.status === "ACTIVE");
-  const activeChairs = serializedChairs.filter((c) => c.isActive);
-  const activeGoals = serializedGoals.filter((g) => g.isActive);
-
-  // Mentees who already have an active pairing (exclude from dropdown)
-  const menteeIdsWithActivePairing = new Set(activePairings.map((p) => {
-    // find menteeId from full pairings
-    const full = pairings.find((m) => m.id === p.id);
-    return full?.menteeId ?? "";
-  }));
-
-  const availableMentees = potentialMentees.filter(
-    (u) => !menteeIdsWithActivePairing.has(u.id)
+  const laneMeta = ADMIN_MENTORSHIP_LANE_META[lane];
+  const selectedSummary =
+    data.laneSummaries.find((summary) => summary.lane === lane) ??
+    data.laneSummaries[0];
+  const laneWatchlist = data.watchlist.filter((item) => item.lane === lane);
+  const laneCircles = data.circleSummaries.filter((circle) => circle.lane === lane);
+  const laneRequests = data.requestSummaries.filter((request) => request.lane === lane);
+  const laneUnassigned = data.unassignedMentees.filter(
+    (mentee) => mentee.lane === lane
   );
-  const activeMentees = pairings
-    .filter((pairing) => pairing.status === "ACTIVE")
-    .map((pairing) => pairing.mentee);
+  const laneMentorships = data.mentorships.filter((mentorship) => {
+    const mentorshipLane = getAdminMentorshipLaneForUser({
+      primaryRole: mentorship.mentee.primaryRole,
+      roles: mentorship.mentee.roles.map((role) => role.role),
+    });
+    return mentorshipLane === lane;
+  });
 
   return (
     <div>
       <div className="topbar">
         <div>
           <p className="badge">Admin</p>
-          <h1 className="page-title">Mentorship Program</h1>
+          <h1 className="page-title">Mentorship Command Center</h1>
           <p className="page-subtitle">
-            Manage mentor pairings, committee chairs, and role-specific goals for the YPP Mentorship Program
+            One place to watch risk, build shortlists, staff support circles,
+            and keep review routing clean across students, instructors, and
+            leadership.
           </p>
         </div>
       </div>
 
-      {/* KPI bar */}
-      <div className="grid four" style={{ marginBottom: "2rem" }}>
-        <div className="card">
-          <p className="kpi">{activePairings.length}</p>
-          <p className="kpi-label">Active Pairings</p>
-        </div>
-        <div className="card">
-          <p className="kpi">{activeChairs.length} / 3</p>
-          <p className="kpi-label">Committee Chairs Filled</p>
-        </div>
-        <div className="card">
-          <p className="kpi">{activeGoals.length}</p>
-          <p className="kpi-label">Active Goals</p>
-        </div>
-        <div className="card">
-          <p className="kpi">{pairings.filter((p) => p.status !== "ACTIVE").length}</p>
-          <p className="kpi-label">Completed Pairings</p>
-        </div>
-      </div>
-
-      <div className="grid three" style={{ marginBottom: "2rem" }}>
-        <div className="card">
-          <div className="section-title">Staffing Gaps</div>
-          <p className="kpi" style={{ marginBottom: 4 }}>{governanceSnapshot.staffingGaps.length}</p>
-          <p className="kpi-label">circles need another role filled</p>
-        </div>
-        <div className="card">
-          <div className="section-title">Cadence Risks</div>
-          <p className="kpi" style={{ marginBottom: 4 }}>{governanceSnapshot.cadenceRisks.length}</p>
-          <p className="kpi-label">circles have stale or missing sessions</p>
-        </div>
-        <div className="card">
-          <div className="section-title">Open Requests</div>
-          <p className="kpi" style={{ marginBottom: 4 }}>{governanceSnapshot.openRequests}</p>
-          <p className="kpi-label">support requests waiting on an answer</p>
-        </div>
-      </div>
-
-      <div className="grid two" style={{ marginBottom: "2rem" }}>
-        <div className="card">
-          <div className="section-title">Assign Support Role</div>
-          <form action={assignSupportCircleMember} className="form-grid">
-            <div className="form-row">
-              <label>Mentee</label>
-              <select name="menteeId" className="input" required>
-                <option value="">Select mentee...</option>
-                {activeMentees.map((mentee) => (
-                  <option key={mentee.id} value={mentee.id}>
-                    {mentee.name} ({mentee.primaryRole})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-row">
-              <label>Supporter</label>
-              <select name="userId" className="input" required>
-                <option value="">Select user...</option>
-                {governanceUsers.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name} ({user.roles.map((role) => role.role).join(", ")})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-row">
-              <label>Role</label>
-              <select name="role" className="input" defaultValue="SPECIALIST_MENTOR">
-                <option value="PRIMARY_MENTOR">Primary mentor</option>
-                <option value="CHAIR">Chair</option>
-                <option value="SPECIALIST_MENTOR">Specialist mentor</option>
-                <option value="COLLEGE_ADVISOR">College advisor</option>
-                <option value="ALUMNI_ADVISOR">Alumni advisor</option>
-                <option value="PEER_SUPPORT">Peer support</option>
-              </select>
-            </div>
-            <div className="form-row">
-              <label>Notes</label>
-              <textarea name="notes" className="input" rows={3} placeholder="Why this person is joining the circle" />
-            </div>
-            <button type="submit" className="button primary small">
-              Add Support Role
-            </button>
-          </form>
-        </div>
-
-        <div className="card">
-          <div className="section-title">Governance Watchlist</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {governanceSnapshot.staffingGaps.slice(0, 4).map((gap) => (
-              <div key={gap.mentorshipId} style={{ borderBottom: "1px solid var(--border)", paddingBottom: 10 }}>
-                <strong>{gap.menteeName}</strong>
-                <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                  Missing {gap.missing.join(" + ")}
-                </div>
-              </div>
-            ))}
-            {governanceSnapshot.cadenceRisks.slice(0, 4).map((risk) => (
-              <div key={risk.mentorshipId} style={{ borderBottom: "1px solid var(--border)", paddingBottom: 10 }}>
-                <strong>{risk.menteeName}</strong>
-                <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                  {risk.lastSessionAt ? `Last session ${new Date(risk.lastSessionAt).toLocaleDateString()}` : "No session yet"}
-                  {risk.overdueActions > 0 ? ` · ${risk.overdueActions} overdue action items` : ""}
-                </div>
-              </div>
-            ))}
-            {governanceSnapshot.staffingGaps.length === 0 && governanceSnapshot.cadenceRisks.length === 0 && (
-              <p style={{ color: "var(--muted)", margin: 0 }}>
-                No immediate staffing or cadence issues detected.
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <TabLayout
-        stats={{
-          activePairings: activePairings.length,
-          activeChairs: activeChairs.length,
-          activeGoals: activeGoals.length,
-        }}
-        pairingsPanel={
-          <PairingsPanel
-            pairings={serializedPairings}
-            potentialMentors={potentialMentors}
-            potentialMentees={availableMentees}
-          />
-        }
-        chairsPanel={
-          <ChairsPanel
-            chairs={serializedChairs}
-            eligibleUsers={potentialMentors}
-          />
-        }
-        goalsPanel={<GoalsPanel goals={serializedGoals} />}
-        reportsPanel={analytics ? <AnalyticsPanel analytics={analytics} /> : <p style={{ color: "var(--muted)" }}>No analytics data available.</p>}
+      <MentorshipGuideCard
+        title="How This Command Center Works"
+        intro="This page is organized around the real admin jobs in the mentorship system so you can move from signal to action without switching between separate products."
+        items={[
+          {
+            label: "Queue / Watchlist",
+            meaning:
+              "This is the early-warning layer. It shows who still needs a primary mentor, where circles are under-staffed, where cadence is slipping, and where support requests are waiting.",
+            howToUse:
+              "Start here first. If something looks risky, use the action button on that card so you land in the right next step instead of hunting through tabs.",
+          },
+          {
+            label: "Matching",
+            meaning:
+              "Matching is decision support, not auto-assignment. You get a ranked shortlist with fit reasons and staffing context.",
+            howToUse:
+              "Use it when someone needs a primary mentor or another circle role. Compare the shortlist, then approve the best option when it feels right.",
+          },
+          {
+            label: "Circle Staffing",
+            meaning:
+              "This is where you add or replace support roles after the primary mentor is chosen.",
+            howToUse:
+              "Use the staffing form for direct assignments, then scan the circle cards below it to see what roles are filled and what gaps still remain.",
+          },
+          {
+            label: "Governance",
+            meaning:
+              "Governance keeps tracks, chairs, committees, goals, and review routing aligned with the newer mentorship workflow.",
+            howToUse:
+              "Use this area when the problem is structural rather than person-level, like chair coverage, track setup, or review routing cleanup.",
+          },
+        ]}
       />
 
-      <div style={{ marginTop: "2rem" }}>
-        <div className="section-title" style={{ marginBottom: 12 }}>
-          Governance Extensions
+      <div
+        className="card"
+        style={{ marginBottom: 24, background: "var(--surface-alt)" }}
+      >
+        <div className="section-title" style={{ marginBottom: 10 }}>
+          Population Lanes
         </div>
-        <p style={{ margin: "0 0 1.5rem", color: "var(--muted)", fontSize: 13 }}>
-          These controls extend the existing mentorship program with tracks, mentor committees,
-          kickoff tracking, and pairing governance for the monthly review workflow.
+        <p style={{ margin: "0 0 14px", color: "var(--muted)", fontSize: 13 }}>
+          Keep unlike cases separate. Each lane keeps its own workload, watchlist,
+          staffing defaults, and review rhythm.
+        </p>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: 12,
+          }}
+        >
+          {ADMIN_MENTORSHIP_LANES.map((laneOption) => {
+            const summary =
+              data.laneSummaries.find((item) => item.lane === laneOption) ??
+              selectedSummary;
+            const isSelected = laneOption === lane;
+
+            return (
+              <Link
+                key={laneOption}
+                href={`/admin/mentorship-program?lane=${toLaneQueryValue(
+                  laneOption
+                )}&focus=${focus}`}
+                className="card"
+                style={{
+                  textDecoration: "none",
+                  color: "inherit",
+                  border: isSelected
+                    ? "1px solid rgba(59, 130, 246, 0.35)"
+                    : "1px solid var(--border)",
+                  boxShadow: isSelected
+                    ? "0 0 0 3px rgba(59, 130, 246, 0.08)"
+                    : "none",
+                  background: isSelected ? "rgba(59, 130, 246, 0.04)" : "white",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    marginBottom: 8,
+                  }}
+                >
+                  <strong>{ADMIN_MENTORSHIP_LANE_META[laneOption].label}</strong>
+                  {isSelected ? <span className="pill pill-small">Current lane</span> : null}
+                </div>
+                <p style={{ margin: "0 0 12px", color: "var(--muted)", fontSize: 13 }}>
+                  {ADMIN_MENTORSHIP_LANE_META[laneOption].staffingExpectation}
+                </p>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                    gap: 8,
+                    fontSize: 12,
+                    color: "var(--muted)",
+                  }}
+                >
+                  <div>
+                    <strong style={{ color: "var(--foreground)" }}>
+                      {summary.activeCircles}
+                    </strong>{" "}
+                    active circles
+                  </div>
+                  <div>
+                    <strong style={{ color: "var(--foreground)" }}>
+                      {summary.peopleNeedingPrimaryMentor}
+                    </strong>{" "}
+                    unstaffed
+                  </div>
+                  <div>
+                    <strong style={{ color: "var(--foreground)" }}>
+                      {summary.staffingGaps}
+                    </strong>{" "}
+                    staffing gaps
+                  </div>
+                  <div>
+                    <strong style={{ color: "var(--foreground)" }}>
+                      {summary.openRequests}
+                    </strong>{" "}
+                    open requests
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      <div
+        style={{
+          marginBottom: 24,
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: "var(--space-4)",
+        }}
+      >
+        <div className="card">
+          <p className="kpi">{selectedSummary.activeCircles}</p>
+          <p className="kpi-label">{laneMeta.shortLabel} active circles</p>
+        </div>
+        <div className="card">
+          <p className="kpi">{selectedSummary.peopleNeedingPrimaryMentor}</p>
+          <p className="kpi-label">Need primary mentor</p>
+        </div>
+        <div className="card">
+          <p className="kpi">{selectedSummary.staffingGaps}</p>
+          <p className="kpi-label">Circle staffing gaps</p>
+        </div>
+        <div className="card">
+          <p className="kpi">{selectedSummary.pendingReviews}</p>
+          <p className="kpi-label">Chair approvals pending</p>
+        </div>
+        <div className="card">
+          <p className="kpi">{selectedSummary.openRequests}</p>
+          <p className="kpi-label">Open support requests</p>
+        </div>
+      </div>
+
+      <div className="grid three" style={{ marginBottom: 24 }}>
+        <div className="card">
+          <div className="section-title">Program-wide signal</div>
+          <p className="kpi" style={{ marginBottom: 4 }}>
+            {data.analytics.pendingChairReviews}
+          </p>
+          <p className="kpi-label">reviews waiting on chair approval</p>
+        </div>
+        <div className="card">
+          <div className="section-title">Approved this month</div>
+          <p className="kpi" style={{ marginBottom: 4 }}>
+            {data.analytics.approvedThisMonth}
+          </p>
+          <p className="kpi-label">reviews published this month</p>
+        </div>
+        <div className="card">
+          <div className="section-title">Resource commons</div>
+          <p className="kpi" style={{ marginBottom: 4 }}>
+            {data.analytics.publishedResources}
+          </p>
+          <p className="kpi-label">published mentorship resources</p>
+        </div>
+      </div>
+
+      <section
+        id="queue"
+        className="card"
+        style={{ marginBottom: 24, ...getFocusCardStyle(focus === "queue") }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
+            marginBottom: 12,
+          }}
+        >
+          <div>
+            <div className="section-title">Queue / Watchlist</div>
+            <p style={{ margin: "6px 0 0", color: "var(--muted)", fontSize: 13 }}>
+              Start here to see what needs attention in the {laneMeta.label.toLowerCase()} lane.
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Link
+              href={`/admin/mentorship-program?lane=${toLaneQueryValue(
+                lane
+              )}&focus=matching#matching`}
+              className="button secondary small"
+            >
+              Open matching
+            </Link>
+            <Link
+              href={`/admin/mentorship-program?lane=${toLaneQueryValue(
+                lane
+              )}&focus=staffing#staffing`}
+              className="button secondary small"
+            >
+              Open staffing
+            </Link>
+          </div>
+        </div>
+
+        <div className="grid two" style={{ marginBottom: 20 }}>
+          <div
+            style={{
+              padding: 14,
+              borderRadius: "var(--radius-md)",
+              border: "1px solid var(--border)",
+              background: "var(--surface-alt)",
+            }}
+          >
+            <div className="section-title" style={{ marginBottom: 8 }}>
+              Lane expectations
+            </div>
+            <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
+              {laneMeta.description}
+            </p>
+          </div>
+          <div
+            style={{
+              padding: 14,
+              borderRadius: "var(--radius-md)",
+              border: "1px solid var(--border)",
+              background: "var(--surface-alt)",
+            }}
+          >
+            <div className="section-title" style={{ marginBottom: 8 }}>
+              What the counts mean
+            </div>
+            <p style={{ margin: "0 0 8px", color: "var(--muted)", fontSize: 13 }}>
+              A good lane has low unstaffed counts, low staffing gaps, and a clean
+              chair-approval queue.
+            </p>
+            <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
+              If a card below feels urgent, use its action button so you land in
+              the correct next step.
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gap: 12 }}>
+          {laneWatchlist.length === 0 ? (
+            <div
+              style={{
+                padding: 16,
+                borderRadius: "var(--radius-md)",
+                border: "1px dashed var(--border)",
+                color: "var(--muted)",
+              }}
+            >
+              No watchlist items are active in this lane right now.
+            </div>
+          ) : (
+            laneWatchlist.map((item) => (
+              <div
+                key={item.id}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 16,
+                  flexWrap: "wrap",
+                  padding: 16,
+                  borderRadius: "var(--radius-md)",
+                  border: "1px solid var(--border)",
+                  background: "white",
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 240 }}>
+                  <strong>{item.title}</strong>
+                  <p style={{ margin: "6px 0 8px", color: "var(--muted)", fontSize: 13 }}>
+                    {item.description}
+                  </p>
+                  <span className="pill pill-small pill-pending">{item.emphasis}</span>
+                </div>
+                <div style={{ alignSelf: "center" }}>
+                  <Link href={item.actionHref} className="button primary small">
+                    {item.actionLabel}
+                  </Link>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div id="requests" style={{ marginTop: 24 }}>
+          <div className="section-title" style={{ marginBottom: 10 }}>
+            Open Requests ({laneRequests.length})
+          </div>
+          {laneRequests.length === 0 ? (
+            <p style={{ color: "var(--muted)", margin: 0 }}>
+              No open support requests are waiting in this lane.
+            </p>
+          ) : (
+            <div style={{ display: "grid", gap: 12 }}>
+              {laneRequests.map((request) => (
+                <div
+                  key={request.id}
+                  style={{
+                    padding: 14,
+                    borderRadius: "var(--radius-md)",
+                    border: "1px solid var(--border)",
+                    background: "var(--surface-alt)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 12,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <div>
+                      <strong>{request.title}</strong>
+                      <p style={{ margin: "6px 0 0", color: "var(--muted)", fontSize: 13 }}>
+                        {request.menteeName} · {request.kind.toLowerCase()}
+                        {request.trackName ? ` · ${request.trackName}` : ""}
+                      </p>
+                    </div>
+                    <Link href={request.actionHref} className="button secondary small">
+                      Open circle
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section
+        id="matching"
+        className="card"
+        style={{ marginBottom: 24, ...getFocusCardStyle(focus === "matching") }}
+      >
+        <div className="section-title" style={{ marginBottom: 8 }}>
+          Matching
+        </div>
+        <p style={{ margin: "0 0 16px", color: "var(--muted)", fontSize: 13 }}>
+          Use shortlist matching when someone needs a new assignment decision. The
+          system ranks candidates, but you still make the call.
+        </p>
+        <MatchingPanel
+          key={`${lane}-${focus}-${supportRole}-${searchParams.menteeId ?? "all"}`}
+          initialLane={lane}
+          initialSupportRole={supportRole}
+          initialMenteeId={searchParams.menteeId}
+          autoRun={focus === "matching" || Boolean(searchParams.menteeId)}
+        />
+      </section>
+
+      <section
+        id="staffing"
+        className="card"
+        style={{ marginBottom: 24, ...getFocusCardStyle(focus === "staffing") }}
+      >
+        <div className="section-title" style={{ marginBottom: 8 }}>
+          Circle Staffing
+        </div>
+        <p style={{ margin: "0 0 16px", color: "var(--muted)", fontSize: 13 }}>
+          Use this when the primary mentor already exists and you need to add or
+          replace support roles around that circle.
+        </p>
+
+        <div className="grid two" style={{ marginBottom: 20 }}>
+          <div className="card" style={{ marginBottom: 0 }}>
+            <div className="section-title" style={{ marginBottom: 10 }}>
+              Add Or Replace A Support Role
+            </div>
+            <form action={assignSupportCircleMember} className="form-grid">
+              <div className="form-row">
+                <label>Mentee</label>
+                <select name="menteeId" className="input" required>
+                  <option value="">Select active circle...</option>
+                  {laneCircles.map((circle) => (
+                    <option key={circle.menteeId} value={circle.menteeId}>
+                      {circle.menteeName} ({circle.menteeRole.replace(/_/g, " ")})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-row">
+                <label>Supporter</label>
+                <select name="userId" className="input" required>
+                  <option value="">Select user...</option>
+                  {data.governanceUsers.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name} ({user.roles.map((role) => role.role).join(", ")})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-row">
+                <label>Role</label>
+                <select name="role" className="input" defaultValue="SPECIALIST_MENTOR">
+                  <option value="PRIMARY_MENTOR">Primary mentor</option>
+                  <option value="CHAIR">Chair</option>
+                  <option value="SPECIALIST_MENTOR">Specialist mentor</option>
+                  <option value="COLLEGE_ADVISOR">College advisor</option>
+                  <option value="ALUMNI_ADVISOR">Alumni advisor</option>
+                  <option value="PEER_SUPPORT">Peer support</option>
+                </select>
+              </div>
+              <div className="form-row">
+                <label>Notes</label>
+                <textarea
+                  name="notes"
+                  className="input"
+                  rows={3}
+                  placeholder="Explain why this person is being added to the circle."
+                />
+              </div>
+              <button type="submit" className="button primary small">
+                Save staffing change
+              </button>
+            </form>
+          </div>
+
+          <div className="card" style={{ marginBottom: 0 }}>
+            <div className="section-title" style={{ marginBottom: 10 }}>
+              How To Use Staffing
+            </div>
+            <p style={{ margin: "0 0 10px", color: "var(--muted)", fontSize: 13 }}>
+              Use matching for primary mentor gaps. Use staffing once the circle exists
+              and you need to fill missing chairs, specialist roles, or advisors.
+            </p>
+            <p style={{ margin: "0 0 10px", color: "var(--muted)", fontSize: 13 }}>
+              The cards below show whether each lane circle already has the minimum
+              coverage the command center expects.
+            </p>
+            <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
+              {laneMeta.staffingExpectation}
+            </p>
+          </div>
+        </div>
+
+        {laneCircles.length === 0 ? (
+          <div
+            style={{
+              padding: 16,
+              borderRadius: "var(--radius-md)",
+              border: "1px dashed var(--border)",
+              color: "var(--muted)",
+            }}
+          >
+            There are no active circles in this lane yet. If people are waiting,
+            use matching to assign a primary mentor first.
+          </div>
+        ) : (
+          <div style={{ display: "grid", gap: 14 }}>
+            {laneCircles.map((circle) => (
+              <div
+                key={circle.mentorshipId}
+                style={{
+                  padding: 16,
+                  borderRadius: "var(--radius-md)",
+                  border: "1px solid var(--border)",
+                  background: "var(--surface-alt)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    flexWrap: "wrap",
+                    marginBottom: 10,
+                  }}
+                >
+                  <div>
+                    <strong>{circle.menteeName}</strong>
+                    <p style={{ margin: "4px 0 0", color: "var(--muted)", fontSize: 13 }}>
+                      {circle.menteeRole.replace(/_/g, " ")} · Mentor: {circle.mentorName}
+                      {circle.trackName ? ` · ${circle.trackName}` : ""}
+                    </p>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {circle.latestReviewLabel ? (
+                      <span className={`pill pill-small ${circle.latestReviewToneClass ?? ""}`}>
+                        {circle.latestReviewLabel}
+                      </span>
+                    ) : (
+                      <span className="pill pill-small">No monthly review yet</span>
+                    )}
+                    <Link
+                      href={`/mentorship/mentees/${circle.menteeId}`}
+                      className="button secondary small"
+                    >
+                      Open circle
+                    </Link>
+                  </div>
+                </div>
+
+                <div className="grid two">
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.04em",
+                        color: "var(--muted)",
+                        marginBottom: 8,
+                      }}
+                    >
+                      Roles already filled
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {circle.currentRoles.map((role) => (
+                        <span key={role} className="pill pill-small pill-success">
+                          {role}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.04em",
+                        color: "var(--muted)",
+                        marginBottom: 8,
+                      }}
+                    >
+                      Gaps still open
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {circle.missingRoles.length > 0 ? (
+                        circle.missingRoles.map((role) => (
+                          <span key={role} className="pill pill-small pill-pending">
+                            {role}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="pill pill-small pill-success">
+                          Watchlist coverage looks complete
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section
+        id="governance"
+        className="card"
+        style={{ marginBottom: 24, ...getFocusCardStyle(focus === "governance") }}
+      >
+        <div className="section-title" style={{ marginBottom: 8 }}>
+          Governance
+        </div>
+        <p style={{ margin: "0 0 16px", color: "var(--muted)", fontSize: 13 }}>
+          Governance keeps the structural parts of mentorship aligned: tracks,
+          chairs, committees, goals, and review routing.
         </p>
 
         <div className="grid two" style={{ marginBottom: 24 }}>
-          <div className="card">
+          <div className="card" style={{ marginBottom: 0 }}>
             <div className="section-title">Create Mentorship Track</div>
             <form action={createMentorshipTrack} className="form-grid">
               <div className="form-row">
@@ -334,7 +722,7 @@ export default async function MentorshipProgramAdminPage() {
                   name="name"
                   className="input"
                   required
-                  placeholder="Instructor Mentorship"
+                  placeholder="Leadership Mentorship"
                 />
               </div>
               <div className="form-row">
@@ -344,7 +732,7 @@ export default async function MentorshipProgramAdminPage() {
                   name="slug"
                   className="input"
                   required
-                  placeholder="instructor-mentorship"
+                  placeholder="leadership-mentorship"
                 />
               </div>
               <div className="form-row">
@@ -370,19 +758,19 @@ export default async function MentorshipProgramAdminPage() {
                 </select>
               </div>
               <button type="submit" className="button">
-                Create Track
+                Create track
               </button>
             </form>
           </div>
 
-          <div className="card">
+          <div className="card" style={{ marginBottom: 0 }}>
             <div className="section-title">Create Mentor Committee</div>
             <form action={createMentorCommittee} className="form-grid">
               <div className="form-row">
                 <label>Track</label>
                 <select name="trackId" className="input" required>
                   <option value="">Select track...</option>
-                  {tracks.map((track) => (
+                  {data.tracks.map((track) => (
                     <option key={track.id} value={track.id}>
                       {track.name}
                     </option>
@@ -390,13 +778,13 @@ export default async function MentorshipProgramAdminPage() {
                 </select>
               </div>
               <div className="form-row">
-                <label>Committee Name</label>
+                <label>Committee name</label>
                 <input
                   type="text"
                   name="name"
                   className="input"
                   required
-                  placeholder="Instructor Mentor Committee"
+                  placeholder="Leadership Review Committee"
                 />
               </div>
               <div className="form-row">
@@ -407,7 +795,7 @@ export default async function MentorshipProgramAdminPage() {
                 <label>Chair</label>
                 <select name="chairUserId" className="input">
                   <option value="">No chair yet</option>
-                  {governanceUsers.map((user) => (
+                  {data.governanceUsers.map((user) => (
                     <option key={user.id} value={user.id}>
                       {user.name}
                     </option>
@@ -415,7 +803,7 @@ export default async function MentorshipProgramAdminPage() {
                 </select>
               </div>
               <button type="submit" className="button secondary">
-                Create Committee
+                Create committee
               </button>
             </form>
           </div>
@@ -423,12 +811,16 @@ export default async function MentorshipProgramAdminPage() {
 
         <div className="card" style={{ marginBottom: 24 }}>
           <div className="section-title">Committee Membership</div>
-          <form action={addMentorCommitteeMember} className="grid three" style={{ alignItems: "end" }}>
+          <form
+            action={addMentorCommitteeMember}
+            className="grid three"
+            style={{ alignItems: "end" }}
+          >
             <div className="form-row">
               <label>Committee</label>
               <select name="committeeId" className="input" required>
                 <option value="">Select committee...</option>
-                {committees.map((committee) => (
+                {data.committees.map((committee) => (
                   <option key={committee.id} value={committee.id}>
                     {committee.track.name} · {committee.name}
                   </option>
@@ -439,7 +831,7 @@ export default async function MentorshipProgramAdminPage() {
               <label>User</label>
               <select name="userId" className="input" required>
                 <option value="">Select user...</option>
-                {governanceUsers.map((user) => (
+                {data.governanceUsers.map((user) => (
                   <option key={user.id} value={user.id}>
                     {user.name} ({user.roles.map((role) => role.role).join(", ")})
                   </option>
@@ -447,7 +839,7 @@ export default async function MentorshipProgramAdminPage() {
               </select>
             </div>
             <div className="form-row">
-              <label>Committee Role</label>
+              <label>Committee role</label>
               <select name="role" className="input" defaultValue="MEMBER">
                 <option value="MEMBER">Member</option>
                 <option value="CHAIR">Chair</option>
@@ -455,60 +847,72 @@ export default async function MentorshipProgramAdminPage() {
               </select>
             </div>
             <button type="submit" className="button">
-              Add Or Update Member
+              Add or update member
             </button>
           </form>
         </div>
 
+        <div className="grid two" style={{ marginBottom: 24 }}>
+          <div className="card" style={{ marginBottom: 0 }}>
+            <div className="section-title" style={{ marginBottom: 12 }}>
+              Committee Chairs
+            </div>
+            <ChairsPanel chairs={data.chairs} eligibleUsers={data.governanceUsers} />
+          </div>
+          <div className="card" style={{ marginBottom: 0 }}>
+            <div className="section-title" style={{ marginBottom: 12 }}>
+              Program Goals
+            </div>
+            <GoalsPanel goals={data.goals} />
+          </div>
+        </div>
+
         <div className="card" style={{ marginBottom: 24 }}>
-          <div className="section-title">Mentorship Tracks</div>
-          {tracks.length === 0 ? (
-            <p style={{ color: "var(--muted)" }}>No mentorship tracks created yet.</p>
+          <div className="section-title" style={{ marginBottom: 12 }}>
+            Mentorship Tracks
+          </div>
+          {data.tracks.length === 0 ? (
+            <p style={{ color: "var(--muted)", margin: 0 }}>
+              No mentorship tracks exist yet.
+            </p>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {tracks.map((track) => (
+            <div style={{ display: "grid", gap: 14 }}>
+              {data.tracks.map((track) => (
                 <div
                   key={track.id}
                   style={{
                     padding: 16,
                     borderRadius: "var(--radius-md)",
-                    background: "var(--surface-alt)",
                     border: "1px solid var(--border)",
+                    background: "var(--surface-alt)",
                   }}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 16,
+                      flexWrap: "wrap",
+                    }}
+                  >
                     <div>
                       <strong>{track.name}</strong>
-                      <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 4 }}>
+                      <p style={{ margin: "6px 0 0", color: "var(--muted)", fontSize: 13 }}>
                         {track.scope} · {track.pointCategory.replace(/_/g, " ")} ·{" "}
-                        {track._count.mentorships} active pairings
-                      </div>
-                      {track.description && (
+                        {track._count.mentorships} active circles
+                      </p>
+                      {track.description ? (
                         <p style={{ margin: "8px 0 0", color: "var(--muted)", fontSize: 13 }}>
                           {track.description}
                         </p>
-                      )}
+                      ) : null}
                     </div>
-                    <span className={`pill ${track.isActive ? "pill-success" : "pill-declined"}`}>
+                    <span
+                      className={`pill ${track.isActive ? "pill-success" : "pill-declined"}`}
+                    >
                       {track.isActive ? "Active" : "Inactive"}
                     </span>
                   </div>
-                  {track.committees.length > 0 && (
-                    <div style={{ marginTop: 12 }}>
-                      <strong style={{ display: "block", marginBottom: 8 }}>Committees</strong>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                        {track.committees.map((committee) => (
-                          <div key={committee.id} style={{ fontSize: 13 }}>
-                            <strong>{committee.name}</strong>
-                            <span style={{ color: "var(--muted)" }}>
-                              {" "}· Chair: {committee.chairUser?.name || "Unassigned"} · Members:{" "}
-                              {committee.members.length}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
@@ -516,100 +920,144 @@ export default async function MentorshipProgramAdminPage() {
         </div>
 
         <div className="card">
-          <div className="section-title">Active Pairing Governance</div>
-          {pairings.filter((pairing) => pairing.status === "ACTIVE").length === 0 ? (
-            <p style={{ color: "var(--muted)" }}>No active mentorship pairings yet.</p>
+          <div className="section-title" style={{ marginBottom: 12 }}>
+            Review Routing And Circle Governance
+          </div>
+          {laneMentorships.length === 0 ? (
+            <p style={{ color: "var(--muted)", margin: 0 }}>
+              No active circles in this lane yet.
+            </p>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {pairings
-                .filter((pairing) => pairing.status === "ACTIVE")
-                .map((pairing) => (
-                  <form
-                    key={pairing.id}
-                    action={updateMentorshipGovernance}
-                    style={{
-                      padding: 16,
-                      borderRadius: "var(--radius-md)",
-                      background: "var(--surface-alt)",
-                      border: "1px solid var(--border)",
-                    }}
-                  >
-                    <input type="hidden" name="mentorshipId" value={pairing.id} />
-                    <div style={{ marginBottom: 12 }}>
-                      <strong>{pairing.mentee.name}</strong>
-                      <span style={{ color: "var(--muted)" }}>
-                        {" "}· Mentor: {pairing.mentor.name} · {pairing.mentee.primaryRole.replace("_", " ")}
-                      </span>
+            <div style={{ display: "grid", gap: 16 }}>
+              {laneMentorships.map((mentorship) => (
+                <form
+                  key={mentorship.id}
+                  action={updateMentorshipGovernance}
+                  style={{
+                    padding: 16,
+                    borderRadius: "var(--radius-md)",
+                    background: "var(--surface-alt)",
+                    border: "1px solid var(--border)",
+                  }}
+                >
+                  <input type="hidden" name="mentorshipId" value={mentorship.id} />
+                  <div style={{ marginBottom: 12 }}>
+                    <strong>{mentorship.mentee.name}</strong>
+                    <span style={{ color: "var(--muted)" }}>
+                      {" "}· Mentor: {mentorship.mentor.name} ·{" "}
+                      {mentorship.mentee.primaryRole.replace(/_/g, " ")}
+                    </span>
+                  </div>
+                  <div className="grid four" style={{ alignItems: "end" }}>
+                    <div className="form-row">
+                      <label>Track</label>
+                      <select name="trackId" className="input" defaultValue={mentorship.trackId ?? ""}>
+                        <option value="">No track</option>
+                        {data.tracks.map((track) => (
+                          <option key={track.id} value={track.id}>
+                            {track.name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                    <div className="grid four" style={{ alignItems: "end" }}>
-                      <div className="form-row">
-                        <label>Track</label>
-                        <select name="trackId" className="input" defaultValue={pairing.trackId ?? ""}>
-                          <option value="">No track</option>
-                          {tracks.map((track) => (
-                            <option key={track.id} value={track.id}>
-                              {track.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="form-row">
-                        <label>Chair</label>
-                        <select name="chairId" className="input" defaultValue={pairing.chairId ?? ""}>
-                          <option value="">No chair</option>
-                          {governanceUsers.map((user) => (
-                            <option key={user.id} value={user.id}>
-                              {user.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="form-row">
-                        <label>Kickoff Scheduled</label>
-                        <input
-                          type="date"
-                          name="kickoffScheduledAt"
-                          className="input"
-                          defaultValue={
-                            pairing.kickoffScheduledAt
-                              ? pairing.kickoffScheduledAt.toISOString().slice(0, 10)
-                              : ""
-                          }
-                        />
-                      </div>
-                      <div className="form-row">
-                        <label>Kickoff Completed</label>
-                        <input
-                          type="date"
-                          name="kickoffCompletedAt"
-                          className="input"
-                          defaultValue={
-                            pairing.kickoffCompletedAt
-                              ? pairing.kickoffCompletedAt.toISOString().slice(0, 10)
-                              : ""
-                          }
-                        />
-                      </div>
+                    <div className="form-row">
+                      <label>Chair</label>
+                      <select name="chairId" className="input" defaultValue={mentorship.chairId ?? ""}>
+                        <option value="">No chair</option>
+                        {data.governanceUsers.map((user) => (
+                          <option key={user.id} value={user.id}>
+                            {user.name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                    <div className="form-row" style={{ marginTop: 12 }}>
-                      <label>Pairing Notes</label>
-                      <textarea
-                        name="notes"
+                    <div className="form-row">
+                      <label>Kickoff scheduled</label>
+                      <input
+                        type="date"
+                        name="kickoffScheduledAt"
                         className="input"
-                        rows={3}
-                        defaultValue={pairing.notes ?? ""}
-                        placeholder="Add getting-started notes, assignment context, or workload notes."
+                        defaultValue={
+                          mentorship.kickoffScheduledAt
+                            ? mentorship.kickoffScheduledAt.toISOString().slice(0, 10)
+                            : ""
+                        }
                       />
                     </div>
-                    <button type="submit" className="button small" style={{ marginTop: 12 }}>
-                      Save Pairing Governance
-                    </button>
-                  </form>
-                ))}
+                    <div className="form-row">
+                      <label>Kickoff completed</label>
+                      <input
+                        type="date"
+                        name="kickoffCompletedAt"
+                        className="input"
+                        defaultValue={
+                          mentorship.kickoffCompletedAt
+                            ? mentorship.kickoffCompletedAt.toISOString().slice(0, 10)
+                            : ""
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="form-row" style={{ marginTop: 12 }}>
+                    <label>Routing notes</label>
+                    <textarea
+                      name="notes"
+                      className="input"
+                      rows={3}
+                      defaultValue={mentorship.notes ?? ""}
+                      placeholder="Use this for committee context, kickoff notes, or review-routing details."
+                    />
+                  </div>
+                  <button type="submit" className="button small" style={{ marginTop: 12 }}>
+                    Save governance
+                  </button>
+                </form>
+              ))}
             </div>
           )}
         </div>
-      </div>
+      </section>
+
+      {laneUnassigned.length > 0 ? (
+        <div className="card" style={{ marginTop: 24 }}>
+          <div className="section-title" style={{ marginBottom: 10 }}>
+            Waiting For A Primary Mentor ({laneUnassigned.length})
+          </div>
+          <div style={{ display: "grid", gap: 12 }}>
+            {laneUnassigned.map((mentee) => (
+              <div
+                key={mentee.id}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  flexWrap: "wrap",
+                  padding: 14,
+                  borderRadius: "var(--radius-md)",
+                  border: "1px solid var(--border)",
+                  background: "var(--surface-alt)",
+                }}
+              >
+                <div>
+                  <strong>{mentee.name}</strong>
+                  <p style={{ margin: "6px 0 0", color: "var(--muted)", fontSize: 13 }}>
+                    {mentee.primaryRole.replace(/_/g, " ")}
+                    {mentee.chapterName ? ` · ${mentee.chapterName}` : ""}
+                  </p>
+                </div>
+                <Link
+                  href={`/admin/mentorship-program?lane=${toLaneQueryValue(
+                    lane
+                  )}&focus=matching&menteeId=${mentee.id}&supportRole=PRIMARY_MENTOR#matching`}
+                  className="button primary small"
+                >
+                  Find primary mentor
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

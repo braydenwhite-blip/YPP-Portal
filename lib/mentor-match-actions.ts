@@ -9,6 +9,15 @@ import {
   scoreSupportMatch,
 } from "@/lib/mentorship-hub";
 import {
+  getAdminMentorshipLaneForUser,
+  getMentorshipTypeForAdminLane,
+  getRemainingGapLabelsAfterAssignment,
+  getSupportRoleGapLabels,
+  getSupportRoleLabel,
+  getSupportRolesPresent,
+  type AdminMentorshipLane,
+} from "@/lib/mentorship-admin-helpers";
+import {
   assignSupportCircleMember,
 } from "@/lib/mentorship-hub-actions";
 import { prisma } from "@/lib/prisma";
@@ -24,6 +33,7 @@ async function requireAdmin() {
 
 type MatchSupportRole =
   | "PRIMARY_MENTOR"
+  | "CHAIR"
   | "SPECIALIST_MENTOR"
   | "COLLEGE_ADVISOR"
   | "ALUMNI_ADVISOR";
@@ -47,17 +57,37 @@ export interface MentorMatchSuggestion {
   supportRole: MatchSupportRole;
 }
 
+export interface MentorMatchGroup {
+  menteeId: string;
+  menteeName: string;
+  menteeEmail: string;
+  menteeChapter: string | null;
+  menteeRole: string;
+  lane: AdminMentorshipLane;
+  type: MentorshipType;
+  supportRole: MatchSupportRole;
+  currentMentorName: string | null;
+  currentTrackName: string | null;
+  currentRoles: string[];
+  missingRoles: string[];
+  remainingGapsAfterApproval: string[];
+  candidates: MentorMatchSuggestion[];
+}
+
 export async function computeMentorMatches(
-  type: "INSTRUCTOR" | "STUDENT",
-  supportRole: MatchSupportRole = "PRIMARY_MENTOR"
+  lane: AdminMentorshipLane,
+  supportRole: MatchSupportRole = "PRIMARY_MENTOR",
+  menteeId?: string
 ) {
   await requireAdmin();
 
-  const menteeRole = type === "INSTRUCTOR" ? "INSTRUCTOR" : "STUDENT";
+  const type = getMentorshipTypeForAdminLane(lane);
+  const laneWhere = getLaneWhere(lane);
 
   const potentialMentees = await prisma.user.findMany({
     where: {
-      roles: { some: { role: menteeRole } },
+      ...laneWhere,
+      ...(menteeId ? { id: menteeId } : {}),
       ...(supportRole === "PRIMARY_MENTOR"
         ? {
             NOT: {
@@ -70,6 +100,12 @@ export async function computeMentorMatches(
             },
           }
         : {
+            menteePairs: {
+              some: {
+                status: "ACTIVE",
+                type,
+              },
+            },
             NOT: {
               supportCircleForMentees: {
                 some: {
@@ -83,13 +119,46 @@ export async function computeMentorMatches(
     include: {
       profile: true,
       chapter: true,
+      roles: {
+        select: { role: true },
+      },
       menteePairs: {
-        where: { status: "ACTIVE" },
+        where: { status: "ACTIVE", type },
+        orderBy: { startDate: "desc" },
+        take: 1,
+        include: {
+          mentor: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          track: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          chair: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          circleMembers: {
+            where: { isActive: true },
+            select: {
+              role: true,
+            },
+          },
+        },
       },
       supportCircleForMentees: {
         where: { isActive: true },
+        select: { role: true },
       },
     },
+    orderBy: { name: "asc" },
   });
 
   if (potentialMentees.length === 0) {
@@ -135,17 +204,25 @@ export async function computeMentorMatches(
             mentorPairs: {
               where: { status: "ACTIVE" },
             },
+            chairedMentorships: {
+              where: { status: "ACTIVE" },
+            },
             supportCircleMemberships: {
               where: { isActive: true },
             },
           },
         });
 
-  const suggestions: MentorMatchSuggestion[] = [];
+  const groupedSuggestions: MentorMatchGroup[] = [];
 
   for (const mentee of potentialMentees) {
-    let bestMatch: MentorMatchSuggestion | null = null;
-    let bestScore = Number.NEGATIVE_INFINITY;
+    const candidates: MentorMatchSuggestion[] = [];
+    const activeMentorship = mentee.menteePairs[0] ?? null;
+    const rolesPresent = getSupportRolesPresent({
+      mentorAssigned: Boolean(activeMentorship?.mentorId),
+      chairAssigned: Boolean(activeMentorship?.chairId),
+      circleRoles: activeMentorship?.circleMembers.map((member) => member.role) ?? [],
+    });
 
     for (const mentorCandidate of mentorPool) {
       const mentor =
@@ -162,7 +239,9 @@ export async function computeMentorMatches(
       const currentLoad =
         supportRole === "COLLEGE_ADVISOR"
           ? (mentorCandidate as any).advisees.length
-          : mentor.mentorPairs.length + mentor.supportCircleMemberships.length;
+          : mentor.mentorPairs.length +
+            mentor.supportCircleMemberships.length +
+            (supportRole === "CHAIR" ? mentor.chairedMentorships.length : 0);
       const availability =
         supportRole === "COLLEGE_ADVISOR"
           ? (mentorCandidate as any).availability
@@ -181,36 +260,60 @@ export async function computeMentorMatches(
         hasProfile: Boolean(mentor.profile?.bio),
       });
 
-      if (result.score > bestScore) {
-        bestScore = result.score;
-        bestMatch = {
-          mentorId: mentor.id,
-          mentorName: mentor.name,
-          mentorEmail: mentor.email,
-          mentorChapter: mentor.chapter?.name ?? null,
-          mentorInterests,
-          mentorCurrentMentees: currentLoad,
-          mentorAvailability: availability,
-          menteeId: mentee.id,
-          menteeName: mentee.name,
-          menteeEmail: mentee.email,
-          menteeChapter: mentee.chapter?.name ?? null,
-          menteeInterests,
-          matchScore: result.score,
-          matchReasons: result.reasons,
-          type,
-          supportRole,
-        };
-      }
+      candidates.push({
+        mentorId: mentor.id,
+        mentorName: mentor.name,
+        mentorEmail: mentor.email,
+        mentorChapter: mentor.chapter?.name ?? null,
+        mentorInterests,
+        mentorCurrentMentees: currentLoad,
+        mentorAvailability: availability,
+        menteeId: mentee.id,
+        menteeName: mentee.name,
+        menteeEmail: mentee.email,
+        menteeChapter: mentee.chapter?.name ?? null,
+        menteeInterests,
+        matchScore: result.score,
+        matchReasons: result.reasons,
+        type,
+        supportRole,
+      });
     }
 
-    if (bestMatch) {
-      suggestions.push(bestMatch);
-    }
+    candidates.sort((left, right) => right.matchScore - left.matchScore);
+
+    groupedSuggestions.push({
+      menteeId: mentee.id,
+      menteeName: mentee.name,
+      menteeEmail: mentee.email,
+      menteeChapter: mentee.chapter?.name ?? null,
+      menteeRole: mentee.primaryRole,
+      lane: getAdminMentorshipLaneForUser({
+        primaryRole: mentee.primaryRole,
+        roles: mentee.roles.map((role) => role.role),
+      }),
+      type,
+      supportRole,
+      currentMentorName: activeMentorship?.mentor.name ?? null,
+      currentTrackName: activeMentorship?.track?.name ?? null,
+      currentRoles: rolesPresent.map((role) => getSupportRoleLabel(role)),
+      missingRoles: getSupportRoleGapLabels(rolesPresent),
+      remainingGapsAfterApproval: getRemainingGapLabelsAfterAssignment({
+        rolesPresent,
+        supportRole: supportRole as SupportRole,
+      }),
+      candidates: candidates.slice(0, 3),
+    });
   }
 
-  suggestions.sort((a, b) => b.matchScore - a.matchScore);
-  return suggestions;
+  groupedSuggestions.sort((left, right) => {
+    const leftBest = left.candidates[0]?.matchScore ?? Number.NEGATIVE_INFINITY;
+    const rightBest =
+      right.candidates[0]?.matchScore ?? Number.NEGATIVE_INFINITY;
+    return rightBest - leftBest;
+  });
+
+  return groupedSuggestions;
 }
 
 export async function approveMentorMatch(formData: FormData) {
@@ -237,4 +340,27 @@ export async function approveMentorMatch(formData: FormData) {
   revalidatePath("/admin/mentor-match");
   revalidatePath("/admin/mentorship-program");
   revalidatePath("/mentorship");
+}
+
+function getLaneWhere(lane: AdminMentorshipLane) {
+  if (lane === "STUDENTS") {
+    return {
+      OR: [{ roles: { some: { role: "STUDENT" } } }, { primaryRole: "STUDENT" }],
+    };
+  }
+
+  if (lane === "INSTRUCTORS") {
+    return {
+      OR: [
+        { roles: { some: { role: "INSTRUCTOR" } } },
+        { primaryRole: "INSTRUCTOR" },
+      ],
+    };
+  }
+
+  return {
+    primaryRole: {
+      in: ["CHAPTER_LEAD", "ADMIN", "STAFF"],
+    },
+  };
 }
