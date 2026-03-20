@@ -45,6 +45,7 @@ export default async function CurriculumPage({
       deliveryMode: params.mode,
       semester: params.semester,
       search: params.search,
+      userId: session.user.id,
     }),
     prisma.pathway.findMany({
       where: { isActive: true },
@@ -219,6 +220,15 @@ export default async function CurriculumPage({
             const isAlmostFull = spotsLeft > 0 && spotsLeft <= 3;
             const myStatus = enrollmentByOfferingId.get(offering.id);
             const nextSession = (offering as { sessions?: { date: Date; startTime: string; topic: string }[] }).sessions?.[0];
+            const exactPathway = offering.pathwayStep?.pathway ?? null;
+            const fallbackPathways = exactPathway
+              ? []
+              : pathwayByArea.get(offering.template.interestArea.toLowerCase()) ?? [];
+            const chapterLabel = offering.chapter
+              ? offering.chapter.city
+                ? `${offering.chapter.name} (${offering.chapter.city})`
+                : offering.chapter.name
+              : null;
 
             return (
               <Link
@@ -262,12 +272,11 @@ export default async function CurriculumPage({
                   </span>
                   <span className="pill">{offering.template.interestArea}</span>
                   <span className="pill">{offering.deliveryMode.replace("_", " ")}</span>
+                  {chapterLabel ? <span className="pill">{chapterLabel}</span> : null}
                   {offering.introVideoUrl && <span className="pill pill-info">Instructor Intro Video</span>}
-                  {/* Pathway context labels */}
-                  {(pathwayByArea.get(offering.template.interestArea.toLowerCase()) ?? []).map((pw) => (
+                  {exactPathway ? (
                     <Link
-                      key={pw.id}
-                      href={`/pathways/${pw.id}`}
+                      href={`/pathways/${exactPathway.id}`}
                       onClick={(e) => e.stopPropagation()}
                       className="pill"
                       style={{
@@ -278,9 +287,27 @@ export default async function CurriculumPage({
                         fontSize: 11,
                       }}
                     >
-                      {pw.name} Pathway →
+                      Step {offering.pathwayStep?.stepOrder} in {exactPathway.name} →
                     </Link>
-                  ))}
+                  ) : (
+                    fallbackPathways.map((pw) => (
+                      <Link
+                        key={pw.id}
+                        href={`/pathways/${pw.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="pill"
+                        style={{
+                          background: "var(--ypp-purple-100, #ede9fe)",
+                          color: "var(--ypp-purple, #7c3aed)",
+                          fontWeight: 600,
+                          textDecoration: "none",
+                          fontSize: 11,
+                        }}
+                      >
+                        {pw.name} Pathway →
+                      </Link>
+                    ))
+                  )}
                 </div>
 
                 <div style={{ marginTop: 12, fontSize: 14, color: "var(--text-secondary)" }}>
@@ -297,6 +324,13 @@ export default async function CurriculumPage({
                   <div style={{ marginTop: 4 }}>
                     {offering.meetingDays.join(", ")} | {offering.meetingTime}
                   </div>
+                  {offering.locationName ? (
+                    <div style={{ marginTop: 4 }}>
+                      {offering.deliveryMode === "IN_PERSON" ? "In person at " : "Location: "}
+                      {offering.locationName}
+                      {offering.locationAddress ? ` - ${offering.locationAddress}` : ""}
+                    </div>
+                  ) : null}
                   {nextSession && (
                     <div style={{ marginTop: 4, fontSize: 12, color: "var(--ypp-purple)", fontWeight: 500 }}>
                       Next:{" "}

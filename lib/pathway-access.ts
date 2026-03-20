@@ -4,6 +4,9 @@ export type ChapterPathwayConfigValue = {
   isAvailable: boolean;
   isFeatured: boolean;
   displayOrder: number;
+  runStatus: "NOT_OFFERED" | "COMING_SOON" | "ACTIVE" | "PAUSED";
+  ownerId: string | null;
+  ownerName: string | null;
 };
 
 export type ChapterPathwayConfigMap = Map<string, ChapterPathwayConfigValue>;
@@ -24,21 +27,27 @@ export async function getChapterPathwayConfigMapForUser(userId: string) {
   const configs = await prisma.chapterPathway
     .findMany({
       where: { chapterId: user.chapterId },
-      select: {
-        pathwayId: true,
-        isAvailable: true,
-        isFeatured: true,
-        displayOrder: true,
-      },
-    })
-    .catch(
-      () =>
-        [] as Array<{
-          pathwayId: string;
-          isAvailable: boolean;
-          isFeatured: boolean;
-          displayOrder: number;
-        }>
+        select: {
+          pathwayId: true,
+          isAvailable: true,
+          isFeatured: true,
+          displayOrder: true,
+          runStatus: true,
+          ownerId: true,
+          owner: { select: { name: true } },
+        },
+      })
+      .catch(
+        () =>
+          [] as Array<{
+            pathwayId: string;
+            isAvailable: boolean;
+            isFeatured: boolean;
+            displayOrder: number;
+            runStatus: "NOT_OFFERED" | "COMING_SOON" | "ACTIVE" | "PAUSED";
+            ownerId: string | null;
+            owner: { name: string } | null;
+          }>
     );
 
   return {
@@ -50,6 +59,9 @@ export async function getChapterPathwayConfigMapForUser(userId: string) {
           isAvailable: config.isAvailable,
           isFeatured: config.isFeatured,
           displayOrder: config.displayOrder,
+          runStatus: config.runStatus,
+          ownerId: config.ownerId,
+          ownerName: config.owner?.name ?? null,
         },
       ])
     ),

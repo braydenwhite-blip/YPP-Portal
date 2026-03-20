@@ -1,6 +1,7 @@
 "use server";
 
 import { requireSessionUser } from "@/lib/authorization";
+import { getStudentChapterJourneyData } from "@/lib/chapter-pathway-journey";
 import { prisma } from "@/lib/prisma";
 
 export type StudentProgressSnapshot = {
@@ -42,21 +43,16 @@ export async function getStudentProgressSnapshot(userId: string): Promise<Studen
 
   const [
     activeClassEnrollments,
-    activeLegacyEnrollments,
     dueAssignmentsNext7Days,
     upcomingSessionsNext7Days,
     trainingDue,
     submissionsStarted,
     checkInsThisWeek,
     onboarding,
-    pathways,
-    legacyEnrollments,
+    chapterJourney,
   ] = await Promise.all([
     prisma.classEnrollment.count({
       where: { studentId: userId, status: "ENROLLED" },
-    }),
-    prisma.enrollment.count({
-      where: { userId, status: "ENROLLED" },
     }),
     prisma.classAssignment.count({
       where: {
@@ -114,25 +110,14 @@ export async function getStudentProgressSnapshot(userId: string): Promise<Studen
       where: { userId },
       select: { profileCompleted: true },
     }),
-    prisma.pathway.findMany({
-      select: {
-        steps: {
-          select: { courseId: true },
-        },
-      },
-    }),
-    prisma.enrollment.findMany({
-      where: { userId },
-      select: { courseId: true },
-    }),
+    getStudentChapterJourneyData(userId),
   ]);
 
-  const enrolledCourseIds = new Set(legacyEnrollments.map((enrollment) => enrollment.courseId));
-  const nextPathwaySteps = pathways.filter((pathway) =>
-    pathway.steps.some((step) => step.courseId && !enrolledCourseIds.has(step.courseId))
+  const nextPathwaySteps = chapterJourney.visiblePathways.filter(
+    (pathway) => pathway.nextRecommendedStep && !pathway.isComplete
   ).length;
 
-  const activeEnrollments = activeClassEnrollments + activeLegacyEnrollments;
+  const activeEnrollments = activeClassEnrollments;
 
   return {
     activeEnrollments,

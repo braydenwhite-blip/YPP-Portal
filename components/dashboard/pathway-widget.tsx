@@ -10,11 +10,11 @@ export default function PathwayWidget({ pathways }: PathwayWidgetProps) {
     return (
       <div className="card">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <h3 style={{ margin: 0 }}>My Pathways</h3>
-          <Link href="/pathways" className="button outline small">Browse Pathways</Link>
+          <h3 style={{ margin: 0 }}>My Chapter Pathways</h3>
+          <Link href="/my-chapter" className="button outline small">Open My Chapter</Link>
         </div>
         <p style={{ color: "var(--gray-500)", fontSize: 14 }}>
-          You haven&apos;t joined any pathways yet. Browse available pathways to start your structured learning journey.
+          You haven&apos;t joined any pathways yet. Open your chapter hub to see local runs first and then explore the broader pathway library.
         </p>
       </div>
     );
@@ -23,9 +23,9 @@ export default function PathwayWidget({ pathways }: PathwayWidgetProps) {
   return (
     <div className="card">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <h3 style={{ margin: 0 }}>My Pathways</h3>
-        <Link href="/pathways" style={{ fontSize: 13, color: "var(--ypp-purple)" }}>
-          View all →
+        <h3 style={{ margin: 0 }}>My Chapter Pathways</h3>
+        <Link href="/my-chapter" style={{ fontSize: 13, color: "var(--ypp-purple)" }}>
+          Open hub →
         </Link>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

@@ -216,10 +216,10 @@ export default async function OverviewPage() {
         ]
       : [
           {
-            title: "Activity Hub",
-            description: "Pick your next activity across challenge, incubator, and project paths.",
-            href: "/activities",
-            tag: "HUB",
+            title: "My Chapter",
+            description: "See your local pathways, next class step, and partner fallback options in one place.",
+            href: "/my-chapter",
+            tag: "CHP",
           },
           {
             title: "Challenges",
@@ -484,8 +484,8 @@ export default async function OverviewPage() {
               <Link href="/curriculum" className="button secondary" style={{ fontSize: 13 }}>
                 Open Curriculum
               </Link>
-              <Link href="/pathways/progress" className="button secondary" style={{ fontSize: 13 }}>
-                Open Pathway Progress
+              <Link href="/my-chapter" className="button secondary" style={{ fontSize: 13 }}>
+                Open My Chapter
               </Link>
             </div>
           </div>

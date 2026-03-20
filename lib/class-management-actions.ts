@@ -167,6 +167,233 @@ function normalizeIntroVideoFields(formData: FormData) {
   };
 }
 
+type SessionBuildInput = {
+  offeringId: string;
+  startDate: Date;
+  endDate: Date;
+  meetingDays: string[];
+  meetingTime: string;
+  durationWeeks: number;
+  weeklyTopics: WeeklyTopic[];
+};
+
+async function getAssignableChapterIdsForUser(userId: string, roles: string[]) {
+  if (roles.includes("ADMIN")) {
+    const chapters = await prisma.chapter.findMany({
+      select: { id: true },
+    });
+    return new Set(chapters.map((chapter) => chapter.id));
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { chapterId: true },
+  });
+
+  return new Set(user?.chapterId ? [user.chapterId] : []);
+}
+
+async function assertChapterAssignmentAllowed(userId: string, roles: string[], chapterId: string | null) {
+  if (!chapterId) return;
+
+  const allowedChapterIds = await getAssignableChapterIdsForUser(userId, roles);
+  if (!allowedChapterIds.has(chapterId)) {
+    throw new Error("You can only post pathway-serving chapter classes inside your allowed chapter.");
+  }
+}
+
+async function validatePathwayLink({
+  templateId,
+  chapterId,
+  pathwayId,
+  pathwayStepId,
+}: {
+  templateId: string;
+  chapterId: string | null;
+  pathwayId: string | null;
+  pathwayStepId: string | null;
+}) {
+  if (!pathwayId && !pathwayStepId) {
+    return null;
+  }
+
+  if (!chapterId) {
+    throw new Error("Pathway-serving class offerings must be attached to a chapter.");
+  }
+
+  if (!pathwayId || !pathwayStepId) {
+    throw new Error("Choose both a pathway and a specific pathway step for a pathway-serving class.");
+  }
+
+  const step = await prisma.pathwayStep.findUnique({
+    where: { id: pathwayStepId },
+    select: {
+      id: true,
+      pathwayId: true,
+      classTemplateId: true,
+    },
+  });
+
+  if (!step || step.pathwayId !== pathwayId) {
+    throw new Error("That pathway step does not belong to the selected pathway.");
+  }
+
+  if (!step.classTemplateId) {
+    throw new Error("This pathway step has not been migrated to a class template yet.");
+  }
+
+  if (step.classTemplateId !== templateId) {
+    throw new Error("The selected class template does not match the selected pathway step.");
+  }
+
+  return step;
+}
+
+function validateDeliveryRequirements(params: {
+  deliveryMode: "IN_PERSON" | "VIRTUAL" | "HYBRID";
+  chapterId: string | null;
+  locationName: string;
+  locationAddress: string;
+  zoomLink: string;
+}) {
+  const { deliveryMode, chapterId, locationName, locationAddress, zoomLink } = params;
+
+  if (deliveryMode === "IN_PERSON") {
+    if (!chapterId) {
+      throw new Error("In-person offerings must be assigned to a chapter.");
+    }
+    if (!locationName || !locationAddress) {
+      throw new Error("In-person offerings must include a location name and address.");
+    }
+  }
+
+  if (deliveryMode === "VIRTUAL" || deliveryMode === "HYBRID") {
+    if (!zoomLink) {
+      throw new Error("Virtual and hybrid offerings must include a meeting link.");
+    }
+  }
+}
+
+function buildOfferingSessions(input: SessionBuildInput) {
+  const sessions: {
+    offeringId: string;
+    sessionNumber: number;
+    date: Date;
+    startTime: string;
+    endTime: string;
+    topic: string;
+    learningOutcomes: string[];
+    milestone: string | null;
+  }[] = [];
+
+  const [startTimeStr, endTimeStr] = input.meetingTime.split("-").map((value) => value.trim());
+  const dayMap: Record<string, number> = {
+    Sunday: 0,
+    Monday: 1,
+    Tuesday: 2,
+    Wednesday: 3,
+    Thursday: 4,
+    Friday: 5,
+    Saturday: 6,
+  };
+  const meetingDayNumbers = input.meetingDays
+    .map((day) => dayMap[day] ?? -1)
+    .filter((day) => day >= 0);
+
+  let sessionNumber = 1;
+  for (let week = 0; week < input.durationWeeks; week += 1) {
+    const weekStart = new Date(input.startDate);
+    weekStart.setDate(weekStart.getDate() + week * 7);
+
+    for (let dayOffset = 0; dayOffset < 7; dayOffset += 1) {
+      const day = new Date(weekStart);
+      day.setDate(day.getDate() + dayOffset);
+
+      if (day > input.endDate) {
+        break;
+      }
+
+      if (!meetingDayNumbers.includes(day.getDay())) {
+        continue;
+      }
+
+      const weekTopic = input.weeklyTopics.find((topic) => topic.week === week + 1);
+      sessions.push({
+        offeringId: input.offeringId,
+        sessionNumber,
+        date: day,
+        startTime: startTimeStr || "16:00",
+        endTime: endTimeStr || "18:00",
+        topic: weekTopic?.topic || `Session ${sessionNumber}`,
+        learningOutcomes: weekTopic?.outcomes || [],
+        milestone: weekTopic?.milestone || null,
+      });
+      sessionNumber += 1;
+    }
+  }
+
+  return sessions;
+}
+
+async function rebuildOfferingSessions(params: {
+  offeringId: string;
+  templateId: string;
+  startDate: Date;
+  endDate: Date;
+  meetingDays: string[];
+  meetingTime: string;
+}) {
+  const [template, existingSessions] = await Promise.all([
+    prisma.classTemplate.findUnique({
+      where: { id: params.templateId },
+      select: {
+        durationWeeks: true,
+        weeklyTopics: true,
+      },
+    }),
+    prisma.classSession.findMany({
+      where: { offeringId: params.offeringId },
+      select: {
+        id: true,
+        attendance: {
+          select: { id: true },
+          take: 1,
+        },
+      },
+    }),
+  ]);
+
+  if (!template) {
+    return;
+  }
+
+  const hasRecordedAttendance = existingSessions.some((session) => session.attendance.length > 0);
+  if (hasRecordedAttendance) {
+    throw new Error("This class already has attendance records, so its generated session schedule cannot be rebuilt automatically.");
+  }
+
+  const weeklyTopics = (template.weeklyTopics as WeeklyTopic[] | null) ?? [];
+  const sessions = buildOfferingSessions({
+    offeringId: params.offeringId,
+    startDate: params.startDate,
+    endDate: params.endDate,
+    meetingDays: params.meetingDays,
+    meetingTime: params.meetingTime,
+    durationWeeks: template.durationWeeks,
+    weeklyTopics,
+  });
+
+  await prisma.classSession.deleteMany({
+    where: { offeringId: params.offeringId },
+  });
+
+  if (sessions.length > 0) {
+    await prisma.classSession.createMany({
+      data: sessions,
+    });
+  }
+}
+
 // ============================================
 // CLASS TEMPLATE ACTIONS
 // ============================================
@@ -457,6 +684,7 @@ export async function publishClassTemplate(id: string) {
 
 export async function createClassOffering(formData: FormData) {
   const session = await requireInstructor();
+  const roles = session.user?.roles ?? [];
 
   const templateId = getString(formData, "templateId");
   const title = getString(formData, "title");
@@ -478,7 +706,9 @@ export async function createClassOffering(formData: FormData) {
   const locationName = getString(formData, "locationName", false);
   const locationAddress = getString(formData, "locationAddress", false);
   const zoomLink = getString(formData, "zoomLink", false);
-  const chapterId = getString(formData, "chapterId", false);
+  const chapterId = getString(formData, "chapterId", false) || null;
+  const pathwayId = getString(formData, "pathwayId", false) || null;
+  const pathwayStepId = getString(formData, "pathwayStepId", false) || null;
   const introVideo = normalizeIntroVideoFields(formData);
 
   const send24Hr = formData.get("send24HrReminder") !== "false";
@@ -488,6 +718,38 @@ export async function createClassOffering(formData: FormData) {
   const endDate = new Date(endDateStr);
   if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
     throw new Error("Invalid date format");
+  }
+
+  await assertChapterAssignmentAllowed(session.user.id, roles, chapterId);
+  validateDeliveryRequirements({
+    deliveryMode,
+    chapterId,
+    locationName,
+    locationAddress,
+    zoomLink,
+  });
+
+  const [pathwayStep, template] = await Promise.all([
+    validatePathwayLink({
+      templateId,
+      chapterId,
+      pathwayId,
+      pathwayStepId,
+    }),
+    prisma.classTemplate.findUnique({
+      where: { id: templateId },
+      select: {
+        deliveryModes: true,
+      },
+    }),
+  ]);
+
+  if (!template) {
+    throw new Error("Class template not found.");
+  }
+
+  if (!template.deliveryModes.includes(deliveryMode)) {
+    throw new Error("This class template does not support the selected delivery mode.");
   }
 
   // Create the offering
@@ -508,86 +770,48 @@ export async function createClassOffering(formData: FormData) {
       send24HrReminder: send24Hr,
       send1HrReminder: send1Hr,
       status: "DRAFT",
-      chapterId: chapterId || null,
+      chapterId,
+      pathwayStepId,
       semester: semester || null,
       ...introVideo,
     },
   });
 
-  // Auto-generate sessions from the template
-  const template = await prisma.classTemplate.findUnique({
-    where: { id: templateId },
-    select: {
-      durationWeeks: true,
-      weeklyTopics: true,
-    },
+  await rebuildOfferingSessions({
+    offeringId: offering.id,
+    templateId,
+    startDate,
+    endDate,
+    meetingDays,
+    meetingTime,
   });
 
-  if (template) {
-    const weeklyTopics = (template.weeklyTopics as Array<{
-      week?: number;
-      topic?: string;
-      milestone?: string;
-      outcomes?: string[];
-    }>) || [];
-
-    const sessions: {
-      offeringId: string;
-      sessionNumber: number;
-      date: Date;
-      startTime: string;
-      endTime: string;
-      topic: string;
-      learningOutcomes: string[];
-      milestone: string | null;
-    }[] = [];
-
-    const [startTimeStr, endTimeStr] = meetingTime.split("-").map((s) => s.trim());
-
-    // Generate sessions based on duration and meeting days
-    const totalWeeks = template.durationWeeks;
-    let sessionNumber = 1;
-    const current = new Date(startDate);
-
-    const dayMap: Record<string, number> = {
-      Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3,
-      Thursday: 4, Friday: 5, Saturday: 6,
-    };
-    const meetingDayNumbers = meetingDays.map((d) => dayMap[d] ?? -1).filter((d) => d >= 0);
-
-    for (let week = 0; week < totalWeeks; week++) {
-      const weekStart = new Date(startDate);
-      weekStart.setDate(weekStart.getDate() + week * 7);
-
-      for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
-        const day = new Date(weekStart);
-        day.setDate(day.getDate() + dayOffset);
-
-        if (day > endDate) break;
-        if (!meetingDayNumbers.includes(day.getDay())) continue;
-
-        const weekTopic = weeklyTopics.find((t) => t.week === week + 1);
-        sessions.push({
-          offeringId: offering.id,
-          sessionNumber,
-          date: day,
-          startTime: startTimeStr || "16:00",
-          endTime: endTimeStr || "18:00",
-          topic: weekTopic?.topic || `Session ${sessionNumber}`,
-          learningOutcomes: weekTopic?.outcomes || [],
-          milestone: weekTopic?.milestone || null,
-        });
-        sessionNumber++;
-      }
-    }
-
-    if (sessions.length > 0) {
-      await prisma.classSession.createMany({ data: sessions });
-    }
+  if (pathwayStep && pathwayId && chapterId) {
+    await prisma.chapterPathway.upsert({
+      where: {
+        chapterId_pathwayId: {
+          chapterId,
+          pathwayId,
+        },
+      },
+      create: {
+        chapterId,
+        pathwayId,
+        isAvailable: true,
+        runStatus: "ACTIVE",
+        ownerId: session.user.id,
+      },
+      update: {
+        isAvailable: true,
+        runStatus: "ACTIVE",
+        ownerId: session.user.id,
+      },
+    });
   }
 
   revalidatePath("/curriculum");
   revalidatePath("/instructor/curriculum-builder");
+  revalidatePath("/my-chapter");
   return { success: true, id: offering.id };
 }
 
@@ -604,6 +828,8 @@ export async function updateClassOffering(formData: FormData) {
   }
 
   const title = getString(formData, "title");
+  const startDateStr = getString(formData, "startDate");
+  const endDateStr = getString(formData, "endDate");
   const meetingTime = getString(formData, "meetingTime");
   const deliveryMode = getString(formData, "deliveryMode") as
     | "IN_PERSON"
@@ -620,6 +846,9 @@ export async function updateClassOffering(formData: FormData) {
   const locationName = getString(formData, "locationName", false);
   const locationAddress = getString(formData, "locationAddress", false);
   const zoomLink = getString(formData, "zoomLink", false);
+  const chapterId = getString(formData, "chapterId", false) || null;
+  const pathwayId = getString(formData, "pathwayId", false) || null;
+  const pathwayStepId = getString(formData, "pathwayStepId", false) || null;
   const introVideo = normalizeIntroVideoFields(formData);
   const status = getString(formData, "status", false) as
     | "DRAFT"
@@ -628,6 +857,44 @@ export async function updateClassOffering(formData: FormData) {
     | "COMPLETED"
     | "CANCELLED"
     | "";
+
+  const startDate = new Date(startDateStr);
+  const endDate = new Date(endDateStr);
+  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+    throw new Error("Invalid date format");
+  }
+
+  await assertChapterAssignmentAllowed(session.user.id, roles, chapterId);
+  validateDeliveryRequirements({
+    deliveryMode,
+    chapterId,
+    locationName,
+    locationAddress,
+    zoomLink,
+  });
+
+  const [pathwayStep, template] = await Promise.all([
+    validatePathwayLink({
+      templateId: existing.templateId,
+      chapterId,
+      pathwayId,
+      pathwayStepId,
+    }),
+    prisma.classTemplate.findUnique({
+      where: { id: existing.templateId },
+      select: {
+        deliveryModes: true,
+      },
+    }),
+  ]);
+
+  if (!template) {
+    throw new Error("Class template not found.");
+  }
+
+  if (!template.deliveryModes.includes(deliveryMode)) {
+    throw new Error("This class template does not support the selected delivery mode.");
+  }
 
   const movesIntoLiveState =
     (status === "PUBLISHED" || status === "IN_PROGRESS") &&
@@ -645,12 +912,16 @@ export async function updateClassOffering(formData: FormData) {
     where: { id },
     data: {
       title,
+      startDate,
+      endDate,
       meetingDays,
       meetingTime,
       deliveryMode,
       locationName: locationName || null,
       locationAddress: locationAddress || null,
       zoomLink: zoomLink || null,
+      chapterId,
+      pathwayStepId,
       capacity,
       send24HrReminder: send24Hr,
       send1HrReminder: send1Hr,
@@ -660,21 +931,83 @@ export async function updateClassOffering(formData: FormData) {
     },
   });
 
+  const scheduleChanged =
+    existing.startDate.getTime() !== startDate.getTime() ||
+    existing.endDate.getTime() !== endDate.getTime() ||
+    existing.meetingTime !== meetingTime ||
+    existing.meetingDays.join("|") !== meetingDays.join("|");
+
+  if (scheduleChanged) {
+    await rebuildOfferingSessions({
+      offeringId: id,
+      templateId: existing.templateId,
+      startDate,
+      endDate,
+      meetingDays,
+      meetingTime,
+    });
+  }
+
+  if (pathwayStep && pathwayId && chapterId) {
+    await prisma.chapterPathway.upsert({
+      where: {
+        chapterId_pathwayId: {
+          chapterId,
+          pathwayId,
+        },
+      },
+      create: {
+        chapterId,
+        pathwayId,
+        isAvailable: true,
+        runStatus: "ACTIVE",
+        ownerId: session.user.id,
+      },
+      update: {
+        isAvailable: true,
+        runStatus: "ACTIVE",
+        ownerId: session.user.id,
+      },
+    });
+  }
+
   revalidatePath("/curriculum");
   revalidatePath(`/curriculum/${id}`);
+  revalidatePath("/my-chapter");
   return { success: true };
 }
 
 export async function publishClassOffering(id: string) {
   const session = await requireInstructor();
 
-  const existing = await prisma.classOffering.findUnique({ where: { id } });
+  const existing = await prisma.classOffering.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      instructorId: true,
+      templateId: true,
+      chapterId: true,
+      pathwayStepId: true,
+      deliveryMode: true,
+      locationName: true,
+      locationAddress: true,
+      zoomLink: true,
+    },
+  });
   if (!existing) throw new Error("Offering not found");
 
   const roles = session.user?.roles ?? [];
   if (existing.instructorId !== session.user.id && !roles.includes("ADMIN")) {
     throw new Error("Not authorized");
   }
+
+  validateDeliveryRequirements({
+    deliveryMode: existing.deliveryMode,
+    chapterId: existing.chapterId,
+    locationName: existing.locationName || "",
+    locationAddress: existing.locationAddress || "",
+    zoomLink: existing.zoomLink || "",
+  });
 
   await assertCanPublishOffering(existing.instructorId, existing.templateId, existing.id);
 
@@ -685,6 +1018,7 @@ export async function publishClassOffering(id: string) {
 
   revalidatePath("/curriculum");
   revalidatePath(`/curriculum/${id}`);
+  revalidatePath("/my-chapter");
   return { success: true };
 }
 
@@ -695,6 +1029,13 @@ export async function publishClassOffering(id: string) {
 export async function enrollInClass(offeringId: string) {
   const session = await requireAuth();
   const studentId = session.user.id;
+
+  const student = await prisma.user.findUnique({
+    where: { id: studentId },
+    select: {
+      chapterId: true,
+    },
+  });
 
   const offering = await prisma.classOffering.findUnique({
     where: { id: offeringId },
@@ -708,6 +1049,27 @@ export async function enrollInClass(offeringId: string) {
   if (!offering.enrollmentOpen) throw new Error("Enrollment is closed");
   if (offering.status !== "PUBLISHED" && offering.status !== "IN_PROGRESS") {
     throw new Error("Class is not accepting enrollment");
+  }
+
+  if (
+    offering.chapterId &&
+    student?.chapterId &&
+    offering.chapterId !== student.chapterId &&
+    !(session.user.roles ?? []).includes("ADMIN") &&
+    !(session.user.roles ?? []).includes("STAFF")
+  ) {
+    const approvedFallback = await prisma.pathwayFallbackRequest.findFirst({
+      where: {
+        studentId,
+        targetOfferingId: offeringId,
+        status: "APPROVED",
+      },
+      select: { id: true },
+    });
+
+    if (!approvedFallback) {
+      throw new Error("This partner-chapter class needs an approved fallback request before you can enroll.");
+    }
   }
 
   // Check if already enrolled
@@ -747,6 +1109,7 @@ export async function enrollInClass(offeringId: string) {
 
   revalidatePath(`/curriculum/${offeringId}`);
   revalidatePath("/curriculum/schedule");
+  revalidatePath("/my-chapter");
   return { success: true, waitlisted: isWaitlisted };
 }
 
@@ -985,6 +1348,7 @@ export async function getClassCatalog(filters?: {
   deliveryMode?: string;
   semester?: string;
   search?: string;
+  userId?: string;
 }) {
   const capabilities = await getClassTemplateCapabilities();
   const where: Record<string, unknown> = {
@@ -1007,7 +1371,14 @@ export async function getClassCatalog(filters?: {
     where.title = { contains: filters.search, mode: "insensitive" };
   }
 
-  return prisma.classOffering.findMany({
+  const user = filters?.userId
+    ? await prisma.user.findUnique({
+        where: { id: filters.userId },
+        select: { chapterId: true },
+      })
+    : null;
+
+  const offerings = await prisma.classOffering.findMany({
     where,
     include: {
       template: {
@@ -1016,6 +1387,27 @@ export async function getClassCatalog(filters?: {
         }),
       },
       instructor: { select: { id: true, name: true, email: true } },
+      chapter: {
+        select: {
+          id: true,
+          name: true,
+          city: true,
+          region: true,
+        },
+      },
+      pathwayStep: {
+        select: {
+          id: true,
+          stepOrder: true,
+          pathwayId: true,
+          pathway: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      },
       sessions: {
         where: { date: { gte: new Date() }, isCancelled: false },
         orderBy: { date: "asc" },
@@ -1029,7 +1421,21 @@ export async function getClassCatalog(filters?: {
         },
       },
     },
-    orderBy: { startDate: "asc" },
+    orderBy: [{ startDate: "asc" }, { title: "asc" }],
+  });
+
+  if (!user?.chapterId) {
+    return offerings;
+  }
+
+  return offerings.sort((left, right) => {
+    const leftScore = Number(left.chapterId === user.chapterId);
+    const rightScore = Number(right.chapterId === user.chapterId);
+    if (leftScore !== rightScore) {
+      return rightScore - leftScore;
+    }
+
+    return left.startDate.getTime() - right.startDate.getTime();
   });
 }
 
@@ -1105,6 +1511,28 @@ export async function getClassOfferingDetail(offeringId: string) {
         }),
       },
       instructor: { select: { id: true, name: true, email: true } },
+      chapter: {
+        select: {
+          id: true,
+          name: true,
+          city: true,
+          region: true,
+        },
+      },
+      pathwayStep: {
+        select: {
+          id: true,
+          stepOrder: true,
+          pathwayId: true,
+          pathway: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+            },
+          },
+        },
+      },
       sessions: {
         orderBy: { sessionNumber: "asc" },
         include: {

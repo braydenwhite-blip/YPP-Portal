@@ -25,6 +25,20 @@ interface ChapterOption {
   city: string | null;
 }
 
+interface PathwayStepOption {
+  id: string;
+  stepOrder: number;
+  classTemplateId: string;
+  title: string;
+}
+
+interface PathwayOption {
+  id: string;
+  name: string;
+  interestArea: string;
+  steps: PathwayStepOption[];
+}
+
 interface OfferingData {
   id: string;
   templateId: string;
@@ -47,6 +61,8 @@ interface OfferingData {
   send1HrReminder: boolean;
   status: string;
   chapterId: string;
+  pathwayId: string;
+  pathwayStepId: string;
   semester: string;
   enrolledCount: number;
 }
@@ -74,12 +90,14 @@ export function ClassSettingsClient({
   chapters,
   selectedTemplateId,
   readiness,
+  pathwayOptions,
   offering,
 }: {
   templates: TemplateOption[];
   chapters: ChapterOption[];
   selectedTemplateId: string | null;
   readiness: ReadinessSummary;
+  pathwayOptions: PathwayOption[];
   offering: OfferingData | null;
 }) {
   const router = useRouter();
@@ -90,14 +108,40 @@ export function ClassSettingsClient({
   const [meetingDays, setMeetingDays] = useState<string[]>(offering?.meetingDays || []);
   const [deliveryMode, setDeliveryMode] = useState(offering?.deliveryMode || "VIRTUAL");
   const [introVideoProvider, setIntroVideoProvider] = useState(offering?.introVideoProvider || "YOUTUBE");
+  const [selectedPathwayId, setSelectedPathwayId] = useState(offering?.pathwayId || "");
+  const [selectedPathwayStepId, setSelectedPathwayStepId] = useState(offering?.pathwayStepId || "");
   const publishBlocked = !readiness.canPublishFirstOffering && offering?.status === "DRAFT";
 
   const selectedTemplate = templates.find((t) => t.id === templateId);
+  const eligiblePathways = pathwayOptions
+    .map((pathway) => ({
+      ...pathway,
+      steps: pathway.steps.filter((step) => step.classTemplateId === templateId),
+    }))
+    .filter((pathway) => pathway.steps.length > 0);
+  const selectedPathway = eligiblePathways.find((pathway) => pathway.id === selectedPathwayId) ?? null;
 
   function toggleDay(day: string) {
     setMeetingDays((prev) =>
       prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
     );
+  }
+
+  function handleTemplateChange(nextTemplateId: string) {
+    setTemplateId(nextTemplateId);
+    const pathwayStillMatches = pathwayOptions.some((pathway) =>
+      pathway.id === selectedPathwayId &&
+      pathway.steps.some((step) => step.id === selectedPathwayStepId && step.classTemplateId === nextTemplateId)
+    );
+    if (!pathwayStillMatches) {
+      setSelectedPathwayId("");
+      setSelectedPathwayStepId("");
+    }
+  }
+
+  function handlePathwayChange(nextPathwayId: string) {
+    setSelectedPathwayId(nextPathwayId);
+    setSelectedPathwayStepId("");
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -112,6 +156,8 @@ export function ClassSettingsClient({
       formData.set("meetingDays", meetingDays.join(","));
       formData.set("deliveryMode", deliveryMode);
       formData.set("introVideoProvider", introVideoProvider);
+      formData.set("pathwayId", selectedPathwayId);
+      formData.set("pathwayStepId", selectedPathwayStepId);
 
       if (offering) {
         formData.set("id", offering.id);
@@ -188,7 +234,7 @@ export function ClassSettingsClient({
             <select
               className="form-input"
               value={templateId}
-              onChange={(e) => setTemplateId(e.target.value)}
+              onChange={(e) => handleTemplateChange(e.target.value)}
               required
             >
               <option value="">Select a curriculum...</option>
@@ -331,6 +377,45 @@ export function ClassSettingsClient({
             min={1}
             defaultValue={offering?.capacity || selectedTemplate?.maxStudents || 25}
           />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Pathway (optional)</label>
+          <select
+            className="form-input"
+            value={selectedPathwayId}
+            onChange={(e) => handlePathwayChange(e.target.value)}
+            disabled={!templateId}
+          >
+            <option value="">Standalone class / not serving a pathway step</option>
+            {eligiblePathways.map((pathway) => (
+              <option key={pathway.id} value={pathway.id}>
+                {pathway.name} ({pathway.interestArea})
+              </option>
+            ))}
+          </select>
+          <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--text-secondary)" }}>
+            If this class advances a chapter pathway, choose the pathway and exact step below.
+          </p>
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Pathway Step</label>
+          <select
+            className="form-input"
+            value={selectedPathwayStepId}
+            onChange={(e) => setSelectedPathwayStepId(e.target.value)}
+            disabled={!selectedPathway}
+          >
+            <option value="">
+              {selectedPathway ? "Select the step this class fulfills" : "Choose a pathway first"}
+            </option>
+            {(selectedPathway?.steps ?? []).map((step) => (
+              <option key={step.id} value={step.id}>
+                Step {step.stepOrder}: {step.title}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Location (for in-person/hybrid) */}

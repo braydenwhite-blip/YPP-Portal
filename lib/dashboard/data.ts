@@ -19,6 +19,7 @@ import { getActiveNudges, generateContextualNudges } from "@/lib/nudge-engine";
 import { checkAndAutoUnlock, getUnlockedSections } from "@/lib/unlock-manager";
 import { getInstructorReadiness, buildFallbackInstructorReadiness, isInterviewGateEnforced } from "@/lib/instructor-readiness";
 import { getRecommendedActivitiesForUser } from "@/lib/activity-hub/actions";
+import { getStudentChapterJourneyData } from "@/lib/chapter-pathway-journey";
 import { withPrismaFallback } from "@/lib/prisma-guard";
 
 const FINAL_APPLICATION_STATUSES = ["ACCEPTED", "REJECTED", "WITHDRAWN"] as const;
@@ -670,36 +671,20 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
   } else if (role === "STUDENT") {
     const [
       enrollments,
-      pathways,
+      chapterJourney,
       activeApplications,
       studentTrainingDue,
       challengeParticipations,
       activeIncubatorProject,
       recommendedActivities,
     ] = await Promise.all([
-      prisma.enrollment.findMany({
-        where: { userId },
+      prisma.classEnrollment.findMany({
+        where: { studentId: userId },
         select: {
-          courseId: true,
           status: true,
         },
       }),
-      prisma.pathway.findMany({
-        where: { isActive: true },
-        select: {
-          id: true,
-          name: true,
-          interestArea: true,
-          steps: {
-            select: {
-              courseId: true,
-              stepOrder: true,
-              course: { select: { title: true } },
-            },
-            orderBy: { stepOrder: "asc" },
-          },
-        },
-      }),
+      getStudentChapterJourneyData(userId),
       prisma.application.count({
         where: {
           applicantId: userId,
@@ -742,34 +727,22 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     ]);
 
     const activeEnrollments = enrollments.filter((enrollment) => enrollment.status === "ENROLLED").length;
-    const enrolledCourseIds = new Set(enrollments.map((enrollment) => enrollment.courseId));
-    const enrollmentStatusById = new Map(enrollments.map((e) => [e.courseId, e.status]));
-
-    const nextPathwaySteps = pathways.filter((pathway) =>
-      pathway.steps.some((step) => step.courseId && !enrolledCourseIds.has(step.courseId))
+    const nextPathwaySteps = chapterJourney.visiblePathways.filter(
+      (pathway) => pathway.nextRecommendedStep && !pathway.isComplete
     ).length;
 
     // Build active pathway summaries for the dashboard widget
-    dashboardActivePathways = pathways
-      .filter((pathway) => pathway.steps.some((step) => step.courseId && enrolledCourseIds.has(step.courseId)))
+    dashboardActivePathways = chapterJourney.visiblePathways
+      .filter((pathway) => pathway.isEnrolled)
       .map((pathway) => {
-        const steps = pathway.steps;
-        const totalCount = steps.length;
-        const completedCount = steps.filter((s) => s.courseId && enrollmentStatusById.get(s.courseId) === "COMPLETED").length;
-        const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-        const nextStep = steps.find((s) => {
-          if (!s.courseId) return false;
-          const status = enrollmentStatusById.get(s.courseId);
-          return status === "ENROLLED";
-        }) ?? steps.find((s) => s.courseId && !enrolledCourseIds.has(s.courseId)) ?? null;
         return {
           id: pathway.id,
           name: pathway.name,
           interestArea: pathway.interestArea,
-          progressPercent,
-          completedCount,
-          totalCount,
-          nextStepTitle: nextStep ? (nextStep.course?.title ?? null) : null,
+          progressPercent: pathway.progressPercent,
+          completedCount: pathway.completedCount,
+          totalCount: pathway.totalCount,
+          nextStepTitle: pathway.nextRecommendedStep?.title ?? null,
         };
       });
     const activeChallengeCount = challengeParticipations.filter(
@@ -786,8 +759,10 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
       ? activeIncubatorProject.currentPhase.replace(/_/g, " ")
       : "Not Started";
 
-    heroTitle = "Student Command Center";
-    heroSubtitle = "See your progress, pending actions, and opportunities in one place.";
+    heroTitle = "Student Chapter Command Center";
+    heroSubtitle = chapterJourney.chapterName
+      ? `Track your ${chapterJourney.chapterName} pathway journey, local classes, and fallback options in one place.`
+      : "Track your pathway journey, local classes, and fallback options in one place.";
 
     kpis = [
       { id: "student_active_enrollments", label: "Active Enrollments", value: activeEnrollments },
@@ -843,7 +818,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
         title: "Pathway Next Steps",
         description: "Complete one next step this week to stay on track.",
         count: nextPathwaySteps,
-        href: "/pathways",
+        href: "/my-chapter",
         status: queueStatus(nextPathwaySteps, 6),
         badgeKey: "student_next_steps",
       },
@@ -874,7 +849,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
         id: "student-pathway",
         title: "Complete your next pathway step",
         detail: `${nextPathwaySteps} pathway step(s) are available now.`,
-        href: "/pathways",
+        href: "/my-chapter",
       });
     }
 
@@ -933,6 +908,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     }
 
     moduleBadgeByHref["/my-courses"] = activeEnrollments;
+    moduleBadgeByHref["/my-chapter"] = nextPathwaySteps;
     moduleBadgeByHref["/pathways"] = nextPathwaySteps;
     moduleBadgeByHref["/applications"] = activeApplications;
     moduleBadgeByHref["/interviews"] = activeApplications;
@@ -1333,9 +1309,9 @@ async function buildChecklist(
     const suggestions: ChecklistItemData[] = [
       {
         id: "sug-pathways",
-        title: "Explore a new pathway",
-        detail: "Discover something that interests you",
-        href: "/pathways",
+        title: "Open your chapter hub",
+        detail: "See what your chapter is running and what step is next",
+        href: "/my-chapter",
         priority: "anytime",
         category: "suggestion",
         icon: "📚",

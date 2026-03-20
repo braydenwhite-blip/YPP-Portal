@@ -4,12 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import {
-  arePathwayStepRequirementsMet,
-  getCourseBackedPathwaySteps,
-  getFirstJoinablePathwayCourseStep,
-  getPathwayStepTitle,
-  getRequiredCourseStepsFor,
-} from "@/lib/pathway-logic";
+  getSingleStudentPathwayJourney,
+} from "@/lib/chapter-pathway-journey";
+import { enrollInClass } from "@/lib/class-management-actions";
 import { awardXp, XP_REWARDS } from "@/lib/xp";
 
 export async function getOnboardingProgress() {
@@ -103,58 +100,43 @@ export async function selectPathways(pathwayIds: string[]) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return { error: "Not authenticated" };
   let joinablePathwayCount = 0;
+  const unavailableMessages: string[] = [];
 
   for (const pathwayId of pathwayIds) {
-    const steps = await prisma.pathwayStep.findMany({
-      where: { pathwayId },
-      include: {
-        prerequisites: {
-          select: {
-            id: true,
-            stepOrder: true,
-            title: true,
-            courseId: true,
-          },
-        },
-      },
-      orderBy: { stepOrder: "asc" },
-    });
+    const pathway = await getSingleStudentPathwayJourney(session.user.id, pathwayId);
+    if (!pathway) continue;
+    if (!pathway.isVisibleInChapter && !pathway.isEnrolled) {
+      unavailableMessages.push(`${pathway.name} is currently hidden for your chapter.`);
+      continue;
+    }
+    if (!pathway.localNextOffering) {
+      if (pathway.fallbackOfferings.length > 0) {
+        unavailableMessages.push(`${pathway.name} does not have a local run right now. Request a partner-chapter fallback from My Chapter.`);
+      } else {
+        unavailableMessages.push(`${pathway.name} does not have a local class run available yet.`);
+      }
+      continue;
+    }
 
-    if (steps.length === 0) continue;
-
-    const courseStepIds = steps
-      .map((step) => step.courseId)
-      .filter((courseId): courseId is string => courseId !== null);
-    const completedEnrollments = await prisma.enrollment.findMany({
-      where: {
-        userId: session.user.id,
-        courseId: { in: courseStepIds },
-        status: "COMPLETED",
-      },
-      select: { courseId: true },
-    });
-    const completedCourseIds = new Set(
-      completedEnrollments.map((enrollment) => enrollment.courseId)
-    );
-    const firstStep = getFirstJoinablePathwayCourseStep(steps, completedCourseIds);
-
-    if (!firstStep?.courseId) continue;
     joinablePathwayCount += 1;
 
-    const existing = await prisma.enrollment.findFirst({
-      where: { userId: session.user.id, courseId: firstStep.courseId },
-    });
-    if (!existing) {
-      await prisma.enrollment.create({
-        data: {
-          userId: session.user.id,
-          courseId: firstStep.courseId,
-          status: "ENROLLED",
+    const existing = await prisma.classEnrollment.findUnique({
+      where: {
+        studentId_offeringId: {
+          studentId: session.user.id,
+          offeringId: pathway.localNextOffering.id,
         },
-      });
+      },
+      select: { id: true, status: true },
+    });
 
+    if (!existing || existing.status === "DROPPED") {
+      await enrollInClass(pathway.localNextOffering.id);
       try {
-        await awardXp(session.user.id, XP_REWARDS.ENROLL_COURSE, "Enrolled in pathway course", { pathwayId, courseId: firstStep.courseId });
+        await awardXp(session.user.id, XP_REWARDS.ENROLL_COURSE, "Joined chapter pathway class", {
+          pathwayId,
+          offeringId: pathway.localNextOffering.id,
+        });
       } catch {
         // XP columns may not exist yet
       }
@@ -162,7 +144,7 @@ export async function selectPathways(pathwayIds: string[]) {
   }
 
   if (pathwayIds.length > 0 && joinablePathwayCount === 0) {
-    return { error: "This pathway does not have a joinable course step yet." };
+    return { error: unavailableMessages[0] ?? "This pathway does not have a joinable local class step yet." };
   }
 
   return { success: true };
@@ -172,77 +154,49 @@ export async function enrollInNextPathwayStep(pathwayId: string) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return { error: "Not authenticated" };
 
-  const steps = await prisma.pathwayStep.findMany({
-    where: { pathwayId },
-    orderBy: { stepOrder: "asc" },
-    include: {
-      course: true,
-      prerequisites: {
-        include: {
-          course: true,
-        },
-      },
-    },
-  });
-
-  const courseSteps = getCourseBackedPathwaySteps(steps);
-  if (courseSteps.length === 0) {
-    return { error: "This pathway does not have a course step to enroll in yet." };
+  const pathway = await getSingleStudentPathwayJourney(session.user.id, pathwayId);
+  if (!pathway) {
+    return { error: "Pathway not found." };
   }
 
-  const stepCourseIds = courseSteps.map((step) => step.courseId);
-  const userEnrollments = await prisma.enrollment.findMany({
-    where: { userId: session.user.id, courseId: { in: stepCourseIds } },
-  });
-  const enrollmentByCourseId = new Map(userEnrollments.map((e) => [e.courseId, e]));
-  const completedCourseIds = new Set(
-    userEnrollments
-      .filter((enrollment) => enrollment.status === "COMPLETED")
-      .map((enrollment) => enrollment.courseId)
-  );
+  if (pathway.currentStep) {
+    return { success: true, alreadyOnTrack: true };
+  }
 
-  for (const step of courseSteps) {
-    const enrollment = enrollmentByCourseId.get(step.courseId);
-    if (!enrollment) {
-      if (!arePathwayStepRequirementsMet(step, steps, completedCourseIds)) {
-        const requiredSteps = getRequiredCourseStepsFor(step, steps);
-        const requirementLabel =
-          requiredSteps.length > 0
-            ? requiredSteps.map((requiredStep) => getPathwayStepTitle(requiredStep)).join(" and ")
-            : "the previous required step";
-        return {
-          error: `Complete "${requirementLabel}" first to unlock this step.`,
-          locked: true,
-        };
-      }
+  if (!pathway.nextJoinableStep) {
+    return { success: true, allStepsEnrolled: true };
+  }
 
-      await prisma.enrollment.create({
-        data: { userId: session.user.id, courseId: step.courseId, status: "ENROLLED" },
-      });
-      try {
-        await awardXp(session.user.id, XP_REWARDS.ENROLL_COURSE, "Enrolled in pathway step", { pathwayId, courseId: step.courseId });
-      } catch { /* XP may not exist */ }
-      return { success: true, enrolledCourseId: step.courseId };
+  if (!pathway.localNextOffering) {
+    if (pathway.fallbackOfferings.length > 0) {
+      return {
+        error: "Your chapter is not running the next step right now. Open My Chapter to request a partner-chapter fallback.",
+        locked: true,
+      };
     }
+
+    return {
+      error: "Your chapter does not have a local class run for the next step yet.",
+      locked: true,
+    };
   }
 
-  return { success: true, allStepsEnrolled: true };
+  await enrollInClass(pathway.localNextOffering.id);
+  try {
+    await awardXp(session.user.id, XP_REWARDS.ENROLL_COURSE, "Enrolled in chapter pathway step", {
+      pathwayId,
+      offeringId: pathway.localNextOffering.id,
+    });
+  } catch {
+    // XP columns may not exist yet
+  }
+
+  return { success: true, enrolledOfferingId: pathway.localNextOffering.id };
 }
 
 export async function checkAndAwardPathwayCertificate(userId: string, pathwayId: string) {
-  const steps = await prisma.pathwayStep.findMany({
-    where: { pathwayId },
-    select: { id: true, stepOrder: true, title: true, courseId: true },
-    orderBy: { stepOrder: "asc" },
-  });
-  const courseStepIds = getCourseBackedPathwaySteps(steps).map((step) => step.courseId);
-  if (courseStepIds.length === 0) return;
-
-  const completedEnrollments = await prisma.enrollment.count({
-    where: { userId, courseId: { in: courseStepIds }, status: "COMPLETED" },
-  });
-
-  if (completedEnrollments < courseStepIds.length) return; // Not all course steps complete
+  const summary = await getSingleStudentPathwayJourney(userId, pathwayId);
+  if (!summary || summary.totalCount === 0 || !summary.isComplete) return;
 
   // Check if certificate already issued
   const existing = await prisma.certificate.findFirst({ where: { recipientId: userId, pathwayId } });
@@ -285,18 +239,29 @@ export async function leavePathway(pathwayId: string) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return { error: "Not authenticated" };
 
-  // Get all courses in this pathway
   const steps = await prisma.pathwayStep.findMany({
     where: { pathwayId },
-    select: { courseId: true },
+    select: { id: true, classTemplateId: true },
   });
-  const courseIds = steps.map((s) => s.courseId).filter((id): id is string => id !== null);
+  const stepIds = steps.map((step) => step.id);
+  const templateIds = steps
+    .map((step) => step.classTemplateId)
+    .filter((templateId): templateId is string => Boolean(templateId));
 
-  // Remove all non-completed enrollments in pathway courses
-  await prisma.enrollment.deleteMany({
+  await prisma.classEnrollment.deleteMany({
     where: {
-      userId: session.user.id,
-      courseId: { in: courseIds },
+      studentId: session.user.id,
+      offering: {
+        OR: [
+          stepIds.length > 0 ? { pathwayStepId: { in: stepIds } } : undefined,
+          templateIds.length > 0
+            ? {
+                pathwayStepId: null,
+                templateId: { in: templateIds },
+              }
+            : undefined,
+        ].filter(Boolean) as Array<Record<string, unknown>>,
+      },
       status: { not: "COMPLETED" },
     },
   });

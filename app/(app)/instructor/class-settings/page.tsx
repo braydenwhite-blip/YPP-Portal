@@ -21,9 +21,20 @@ export default async function InstructorClassSettingsPage({
   }
 
   const params = await searchParams;
+  const instructorProfile = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: {
+      chapterId: true,
+    },
+  });
+  const chapterWhere = roles.includes("ADMIN")
+    ? undefined
+    : instructorProfile?.chapterId
+      ? { id: instructorProfile.chapterId }
+      : { id: "__no_chapter__" };
 
   // Get templates for offering creation
-  const [templates, chapters, readiness] = await Promise.all([
+  const [templates, chapters, readiness, pathwayOptions] = await Promise.all([
     prisma.classTemplate.findMany({
       where: {
         OR: [
@@ -35,20 +46,67 @@ export default async function InstructorClassSettingsPage({
       orderBy: { title: "asc" },
     }),
     prisma.chapter.findMany({
+      where: chapterWhere,
       orderBy: { name: "asc" },
       select: { id: true, name: true, city: true },
     }),
     getInstructorReadiness(session.user.id),
+    prisma.pathway.findMany({
+      where: {
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        interestArea: true,
+        steps: {
+          where: { classTemplateId: { not: null } },
+          select: {
+            id: true,
+            stepOrder: true,
+            classTemplateId: true,
+            classTemplate: {
+              select: {
+                title: true,
+              },
+            },
+            title: true,
+          },
+          orderBy: { stepOrder: "asc" },
+        },
+      },
+      orderBy: { name: "asc" },
+    }),
   ]);
 
   // If editing an offering, load it
   let offering = null;
   if (params.offering) {
+    const accessCheck = await prisma.classOffering.findUnique({
+      where: { id: params.offering },
+      select: {
+        id: true,
+        instructorId: true,
+      },
+    });
+    if (!accessCheck) {
+      redirect("/instructor/class-settings");
+    }
+    if (accessCheck.instructorId !== session.user.id && !roles.includes("ADMIN")) {
+      redirect("/");
+    }
+
     offering = await prisma.classOffering.findUnique({
       where: { id: params.offering },
       include: {
         template: {
           select: getClassTemplateSelect(),
+        },
+        pathwayStep: {
+          select: {
+            id: true,
+            pathwayId: true,
+          },
         },
         sessions: { orderBy: { sessionNumber: "asc" } },
         enrollments: {
@@ -91,6 +149,17 @@ export default async function InstructorClassSettingsPage({
         chapters={chapters}
         selectedTemplateId={selectedTemplate?.id || null}
         readiness={readiness}
+        pathwayOptions={pathwayOptions.map((pathway) => ({
+          id: pathway.id,
+          name: pathway.name,
+          interestArea: pathway.interestArea,
+          steps: pathway.steps.map((step) => ({
+            id: step.id,
+            stepOrder: step.stepOrder,
+            classTemplateId: step.classTemplateId || "",
+            title: step.classTemplate?.title ?? step.title ?? `Step ${step.stepOrder}`,
+          })),
+        }))}
         offering={offering ? {
           id: offering.id,
           templateId: offering.templateId,
@@ -113,6 +182,8 @@ export default async function InstructorClassSettingsPage({
           send1HrReminder: offering.send1HrReminder,
           status: offering.status,
           chapterId: offering.chapterId || "",
+          pathwayId: offering.pathwayStep?.pathwayId || "",
+          pathwayStepId: offering.pathwayStepId || "",
           semester: offering.semester || "",
           enrolledCount: offering.enrollments.filter((e) => e.status === "ENROLLED").length,
         } : null}

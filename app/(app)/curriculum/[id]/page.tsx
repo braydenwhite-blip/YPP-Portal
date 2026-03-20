@@ -2,7 +2,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getClassOfferingDetail } from "@/lib/class-management-actions";
-import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { ClassDetailClient } from "./client";
 import { SessionManager } from "./session-manager";
@@ -52,13 +51,7 @@ export default async function ClassDetailPage({
   if (!session?.user?.id) redirect("/login");
 
   const { id } = await params;
-  const [offering, relatedPathways] = await Promise.all([
-    getClassOfferingDetail(id),
-    prisma.pathway.findMany({
-      where: { isActive: true },
-      select: { id: true, name: true, interestArea: true },
-    }),
-  ]);
+  const offering = await getClassOfferingDetail(id);
 
   if (!offering) {
     return (
@@ -109,6 +102,11 @@ export default async function ClassDetailPage({
           <h1 className="page-title" style={{ marginTop: 4 }}>{offering.title}</h1>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          {offering.pathwayStep?.pathway && (
+            <Link href={`/pathways/${offering.pathwayStep.pathway.id}`} className="button secondary">
+              View Pathway
+            </Link>
+          )}
           <Link href={`/curriculum/${id}/assignments`} className="button secondary">
             Assignments
           </Link>
@@ -142,29 +140,45 @@ export default async function ClassDetailPage({
               <span className="pill">{offering.template.interestArea}</span>
               <span className="pill">{offering.deliveryMode.replace("_", " ")}</span>
               <span className="pill">{offering.status.replace("_", " ")}</span>
+              {offering.chapter && (
+                <span className="pill">
+                  {offering.chapter.city ? `${offering.chapter.name} (${offering.chapter.city})` : offering.chapter.name}
+                </span>
+              )}
               {offering.semester && <span className="pill">{offering.semester}</span>}
-              {relatedPathways
-                .filter((pw) => pw.interestArea.toLowerCase() === offering.template.interestArea.toLowerCase())
-                .map((pw) => (
-                  <Link
-                    key={pw.id}
-                    href={`/pathways/${pw.id}`}
-                    className="pill"
-                    style={{
-                      background: "var(--ypp-purple-100, #ede9fe)",
-                      color: "var(--ypp-purple, #7c3aed)",
-                      fontWeight: 600,
-                      textDecoration: "none",
-                      fontSize: 11,
-                    }}
-                  >
-                    {pw.name} Pathway →
-                  </Link>
-                ))}
+              {offering.pathwayStep?.pathway && (
+                <Link
+                  href={`/pathways/${offering.pathwayStep.pathway.id}`}
+                  className="pill"
+                  style={{
+                    background: "var(--ypp-purple-100, #ede9fe)",
+                    color: "var(--ypp-purple, #7c3aed)",
+                    fontWeight: 600,
+                    textDecoration: "none",
+                    fontSize: 11,
+                  }}
+                >
+                  Step {offering.pathwayStep.stepOrder} in {offering.pathwayStep.pathway.name} →
+                </Link>
+              )}
             </div>
 
             <div style={{ fontSize: 14, color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: 4 }}>
               <div><strong>Instructor:</strong> {offering.instructor.name}</div>
+              {offering.pathwayStep?.pathway ? (
+                <div>
+                  <strong>Pathway:</strong>{" "}
+                  <Link href={`/pathways/${offering.pathwayStep.pathway.id}`} style={{ color: "var(--ypp-purple)" }}>
+                    Step {offering.pathwayStep.stepOrder} in {offering.pathwayStep.pathway.name}
+                  </Link>
+                </div>
+              ) : null}
+              {offering.chapter ? (
+                <div>
+                  <strong>Hosted by:</strong> {offering.chapter.name}
+                  {offering.chapter.city ? ` (${offering.chapter.city}${offering.chapter.region ? `, ${offering.chapter.region}` : ""})` : ""}
+                </div>
+              ) : null}
               <div>
                 <strong>Schedule:</strong>{" "}
                 {offering.meetingDays.join(", ")} | {offering.meetingTime}

@@ -4,99 +4,64 @@ import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { hasInstructorPathwaySpecTable } from "@/lib/instructor-pathway-spec-compat";
+import { getSingleStudentPathwayJourney } from "@/lib/chapter-pathway-journey";
 
 export default async function PathwayMentorsPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
+
   const userId = session.user.id;
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { chapterId: true },
-  });
+  const [viewer, pathway] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { chapterId: true, chapter: { select: { name: true } } },
+    }),
+    getSingleStudentPathwayJourney(userId, params.id),
+  ]);
 
-  const pathway = await prisma.pathway.findUnique({
-    where: { id: params.id },
-    select: {
-      id: true,
-      name: true,
-      interestArea: true,
-      steps: {
-        select: { courseId: true },
-      },
-    },
-  });
-  if (!pathway) notFound();
-
-  const chapterConfig = user?.chapterId
-    ? await prisma.chapterPathway.findUnique({
-        where: {
-          chapterId_pathwayId: {
-            chapterId: user.chapterId,
-            pathwayId: pathway.id,
-          },
-        },
-        select: { isAvailable: true },
-      })
-    : null;
-  const pathwayCourseIds = pathway.steps
-    .map((step) => step.courseId)
-    .filter((courseId): courseId is string => courseId !== null);
-  const hasPathwayEnrollment =
-    pathwayCourseIds.length > 0
-      ? Boolean(
-          await prisma.enrollment.findFirst({
-            where: {
-              userId,
-              courseId: { in: pathwayCourseIds },
-            },
-            select: { id: true },
-          })
-        )
-      : false;
-
-  if ((chapterConfig?.isAvailable ?? true) === false && !hasPathwayEnrollment) {
+  if (!pathway || !viewer) notFound();
+  if (!pathway.isVisibleInChapter && !pathway.isEnrolled && !pathway.isComplete) {
     notFound();
   }
 
   const hasPathwaySpecTable = await hasInstructorPathwaySpecTable();
 
-  // Find instructors who specialize in this pathway
   const pathwaySpecs = hasPathwaySpecTable
-    ? await prisma.instructorPathwaySpec.findMany({
-        where: {
-          pathwayId: pathway.id,
-          user: {
-            roles: {
-              some: {
-                role: "INSTRUCTOR",
+    ? await prisma.instructorPathwaySpec
+        .findMany({
+          where: {
+            pathwayId: pathway.id,
+            user: {
+              roles: {
+                some: {
+                  role: "INSTRUCTOR",
+                },
               },
             },
           },
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              primaryRole: true,
-              chapterId: true,
-              chapter: { select: { name: true } },
-              profile: { select: { bio: true } },
-              menteePairs: { select: { id: true } },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                primaryRole: true,
+                chapterId: true,
+                chapter: { select: { name: true } },
+                profile: { select: { bio: true } },
+                menteePairs: { select: { id: true } },
+              },
             },
           },
-        },
-      }).catch(() => [] as any[])
+        })
+        .catch(() => [] as any[])
     : [];
 
-  // If no specialists, fall back to instructors in same chapter or interestArea match
-  let instructors = pathwaySpecs.map((s) => s.user);
+  let instructors = pathwaySpecs.map((spec) => spec.user);
   if (instructors.length === 0) {
-    // Find instructors in the same chapter
-    const fallback = await prisma.user.findMany({
+    instructors = await prisma.user.findMany({
       where: {
         primaryRole: "INSTRUCTOR",
-        ...(user?.chapterId ? { chapterId: user.chapterId } : {}),
+        ...(viewer.chapterId ? { chapterId: viewer.chapterId } : {}),
       },
       select: {
         id: true,
@@ -109,10 +74,8 @@ export default async function PathwayMentorsPage({ params }: { params: { id: str
       },
       take: 10,
     });
-    instructors = fallback;
   }
 
-  // Check if user is already in a mentorship
   const existingMentorship = await prisma.mentorship.findFirst({
     where: { menteeId: userId, status: "ACTIVE" },
     select: { id: true, mentorId: true },
@@ -122,9 +85,29 @@ export default async function PathwayMentorsPage({ params }: { params: { id: str
     <div>
       <div className="topbar">
         <div>
-          <Link href={`/pathways/${params.id}`} style={{ fontSize: 13, color: "var(--gray-500)", textDecoration: "none" }}>← {pathway.name}</Link>
+          <Link href={`/pathways/${params.id}`} style={{ fontSize: 13, color: "var(--gray-500)", textDecoration: "none" }}>
+            ← {pathway.name}
+          </Link>
           <h1 className="page-title">Find a Mentor</h1>
           <p className="page-subtitle">Connect with an instructor who can guide you through {pathway.name}</p>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3 style={{ marginTop: 0 }}>Pathway context</h3>
+        <div className="grid three" style={{ gap: 12 }}>
+          <div>
+            <div className="kpi">{pathway.progressPercent}%</div>
+            <div className="kpi-label">Complete</div>
+          </div>
+          <div>
+            <div className="kpi">{pathway.completedCount}</div>
+            <div className="kpi-label">Mapped steps done</div>
+          </div>
+          <div>
+            <div className="kpi">{instructors.length}</div>
+            <div className="kpi-label">Mentor options</div>
+          </div>
         </div>
       </div>
 
@@ -132,7 +115,9 @@ export default async function PathwayMentorsPage({ params }: { params: { id: str
         <div className="card" style={{ marginBottom: 16, borderLeft: "4px solid var(--green-500, #48bb78)" }}>
           <p style={{ margin: 0, fontSize: 14 }}>
             You already have a mentor assigned.{" "}
-            <Link href="/mentorship" style={{ color: "var(--ypp-purple)" }}>View your mentorship →</Link>
+            <Link href="/mentorship" style={{ color: "var(--ypp-purple)" }}>
+              View your mentorship →
+            </Link>
           </p>
         </div>
       )}
@@ -152,10 +137,17 @@ export default async function PathwayMentorsPage({ params }: { params: { id: str
               <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
                 <div
                   style={{
-                    width: 48, height: 48, borderRadius: "50%",
-                    background: "var(--ypp-purple)", color: "white",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 20, fontWeight: 700, flexShrink: 0,
+                    width: 48,
+                    height: 48,
+                    borderRadius: "50%",
+                    background: "var(--ypp-purple)",
+                    color: "white",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 20,
+                    fontWeight: 700,
+                    flexShrink: 0,
                   }}
                 >
                   {instructor.name[0].toUpperCase()}
@@ -173,7 +165,8 @@ export default async function PathwayMentorsPage({ params }: { params: { id: str
 
               {instructor.profile?.bio && (
                 <p style={{ fontSize: 14, color: "var(--gray-600)", margin: 0 }}>
-                  {instructor.profile.bio.slice(0, 120)}{instructor.profile.bio.length > 120 ? "..." : ""}
+                  {instructor.profile.bio.slice(0, 120)}
+                  {instructor.profile.bio.length > 120 ? "..." : ""}
                 </p>
               )}
 
@@ -181,7 +174,7 @@ export default async function PathwayMentorsPage({ params }: { params: { id: str
                 <Link href={`/messages?to=${instructor.id}`} className="button small">
                   Message
                 </Link>
-                {pathwaySpecs.some((s) => s.user.id === instructor.id) && (
+                {pathwaySpecs.some((spec) => spec.user.id === instructor.id) && (
                   <span className="pill" style={{ fontSize: 12, background: "var(--purple-50, #faf5ff)", color: "var(--ypp-purple)" }}>
                     ★ Pathway Specialist
                   </span>
@@ -195,9 +188,15 @@ export default async function PathwayMentorsPage({ params }: { params: { id: str
       <div className="card" style={{ marginTop: 24 }}>
         <h3>How Mentorship Works</h3>
         <div className="timeline">
-          <div className="timeline-item">Choose an instructor and send them a message introducing yourself and your pathway goals.</div>
-          <div className="timeline-item">Your mentor will check in monthly to review your progress and help unblock you.</div>
-          <div className="timeline-item">Quarterly, you&apos;ll have a deeper review session to set new milestones.</div>
+          <div className="timeline-item">
+            Choose an instructor and send them a message introducing yourself and your pathway goals.
+          </div>
+          <div className="timeline-item">
+            Your mentor will check in monthly to review your progress and help unblock you.
+          </div>
+          <div className="timeline-item">
+            Quarterly, you&apos;ll have a deeper review session to set new milestones.
+          </div>
         </div>
       </div>
     </div>

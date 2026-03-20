@@ -4,46 +4,55 @@ import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { EventRegistrationButton } from "./event-registration-client";
-import { getCourseBackedPathwayStepsThroughOrder } from "@/lib/pathway-logic";
+import { getSingleStudentPathwayJourney } from "@/lib/chapter-pathway-journey";
+
+function hasCompletedThroughStepOrder(
+  steps: Array<{ stepOrder: number; status: "NOT_STARTED" | "WAITLISTED" | "ENROLLED" | "COMPLETED" }>,
+  requiredStepOrder: number
+) {
+  return steps
+    .filter((step) => step.stepOrder <= requiredStepOrder)
+    .every((step) => step.status === "COMPLETED");
+}
 
 export default async function PathwayEventsPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
+
   const userId = session.user.id;
-  const viewer = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { chapterId: true },
-  });
-
-  const pathway = await prisma.pathway.findUnique({
-    where: { id: params.id },
-    select: {
-      id: true,
-      name: true,
-      steps: {
-        select: { courseId: true, stepOrder: true, title: true },
-        orderBy: { stepOrder: "asc" },
+  const [pathway, viewer] = await Promise.all([
+    getSingleStudentPathwayJourney(userId, params.id),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        chapterId: true,
+        chapter: { select: { name: true } },
       },
-    },
-  });
+    }),
+  ]);
+
   if (!pathway) notFound();
+  if (!pathway.isVisibleInChapter && !pathway.isEnrolled && !pathway.isComplete) {
+    notFound();
+  }
 
-  const chapterConfig = viewer?.chapterId
-    ? await prisma.chapterPathway.findUnique({
-        where: {
-          chapterId_pathwayId: {
-            chapterId: viewer.chapterId,
-            pathwayId: pathway.id,
-          },
-        },
-        select: { isAvailable: true },
-      })
-    : null;
-
-  // Load pathway events
   const events = await prisma.pathwayEvent.findMany({
-    where: { pathwayId: params.id },
+    where: {
+      pathwayId: params.id,
+      OR: viewer?.chapterId
+        ? [{ chapterId: null }, { chapterId: viewer.chapterId }]
+        : [{ chapterId: null }],
+    },
     include: {
+      chapter: { select: { id: true, name: true } },
+      pathwayStep: {
+        select: {
+          id: true,
+          stepOrder: true,
+          title: true,
+          classTemplate: { select: { title: true } },
+        },
+      },
       registrations: { where: { userId }, select: { id: true } },
       _count: {
         select: { registrations: true },
@@ -52,37 +61,30 @@ export default async function PathwayEventsPage({ params }: { params: { id: stri
     orderBy: { eventDate: "asc" },
   }).catch(() => [] as any[]);
 
-  // Get user's highest completed step
-  const courseIds = pathway.steps.map((s) => s.courseId).filter((id): id is string => id !== null);
-  const completedEnrollments = await prisma.enrollment.findMany({
-    where: { userId, courseId: { in: courseIds }, status: "COMPLETED" },
-    select: { courseId: true },
-  });
-  const completedCourseIds = new Set(completedEnrollments.map((e) => e.courseId));
-  const hasPathwayEnrollment =
-    courseIds.length > 0
-      ? Boolean(
-          await prisma.enrollment.findFirst({
-            where: { userId, courseId: { in: courseIds } },
-            select: { id: true },
-          })
-        )
-      : false;
-
-  if ((chapterConfig?.isAvailable ?? true) === false && !hasPathwayEnrollment) {
-    notFound();
-  }
-
   const now = new Date();
 
   return (
     <div>
       <div className="topbar">
         <div>
-          <Link href={`/pathways/${params.id}`} style={{ fontSize: 13, color: "var(--gray-500)", textDecoration: "none" }}>← {pathway.name}</Link>
+          <Link href={`/pathways/${params.id}`} style={{ fontSize: 13, color: "var(--gray-500)", textDecoration: "none" }}>
+            ← {pathway.name}
+          </Link>
           <h1 className="page-title">Pathway Events</h1>
-          <p className="page-subtitle">Milestone workshops and events for {pathway.name}. Registration opens once the required course steps are complete.</p>
+          <p className="page-subtitle">
+            Milestone workshops and events for {pathway.name}. Registration opens once the required
+            mapped class steps are complete.
+          </p>
         </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 18 }}>
+        <h3 style={{ marginTop: 0 }}>How unlocks work now</h3>
+        <p style={{ marginBottom: 0, color: "var(--gray-600)" }}>
+          Local chapter events are advisory and optional. If an event points to a pathway step, you need
+          to finish that mapped step. If it uses a step order, you need every mapped step up through that
+          order to be complete.
+        </p>
       </div>
 
       {events.length === 0 ? (
@@ -90,7 +92,7 @@ export default async function PathwayEventsPage({ params }: { params: { id: stri
           <h3>No events scheduled yet</h3>
           <p style={{ color: "var(--gray-500)" }}>
             Your chapter admin will schedule workshops and milestone events for this pathway.
-            Check back soon!
+            Check back soon.
           </p>
         </div>
       ) : (
@@ -98,19 +100,14 @@ export default async function PathwayEventsPage({ params }: { params: { id: stri
           {events.map((event: any) => {
             const isPast = event.eventDate && new Date(event.eventDate) < now;
             const isRegistered = event.registrations.length > 0;
-            const requiredStep = event.requiredStepOrder ?? 0;
-            const hasMatchingRequiredStep =
-              requiredStep === 0 ||
-              pathway.steps.some((step) => step.stepOrder === requiredStep);
-            const requiredCourseSteps =
-              requiredStep > 0
-                ? getCourseBackedPathwayStepsThroughOrder(pathway.steps, requiredStep)
-                : [];
+            const requiredStepOrder = event.pathwayStep?.stepOrder ?? event.requiredStepOrder ?? 0;
+            const requiredStepId = event.pathwayStep?.id ?? null;
             const canRegister =
-              hasMatchingRequiredStep &&
-              requiredCourseSteps.every((step) =>
-                completedCourseIds.has(step.courseId)
-              );
+              requiredStepId != null
+                ? pathway.steps.some((step) => step.id === requiredStepId && step.status === "COMPLETED")
+                : requiredStepOrder > 0
+                  ? hasCompletedThroughStepOrder(pathway.steps, requiredStepOrder)
+                  : true;
             const isFull =
               event.maxAttendees != null &&
               event._count.registrations >= event.maxAttendees;
@@ -120,7 +117,7 @@ export default async function PathwayEventsPage({ params }: { params: { id: stri
                 key={event.id}
                 className="card"
                 style={{
-                  opacity: isPast ? 0.7 : 1,
+                  opacity: isPast ? 0.75 : 1,
                   borderLeft: `4px solid ${isPast ? "var(--gray-300)" : isRegistered ? "var(--green-500, #48bb78)" : "var(--ypp-purple)"}`,
                 }}
               >
@@ -128,30 +125,42 @@ export default async function PathwayEventsPage({ params }: { params: { id: stri
                   <div>
                     <h3 style={{ margin: "0 0 4px" }}>{event.title}</h3>
                     {event.description && (
-                      <p style={{ margin: "0 0 8px", fontSize: 14, color: "var(--gray-600)" }}>{event.description}</p>
+                      <p style={{ margin: "0 0 8px", fontSize: 14, color: "var(--gray-600)" }}>
+                        {event.description}
+                      </p>
                     )}
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: 13 }}>
                       {event.eventDate && (
                         <span className="pill">
-                          {new Date(event.eventDate).toLocaleDateString("en-US", { weekday: "short", month: "long", day: "numeric", year: "numeric" })}
+                          {new Date(event.eventDate).toLocaleDateString("en-US", {
+                            weekday: "short",
+                            month: "long",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
                         </span>
                       )}
-                      {event.locationOrLink && (
-                        <span className="pill">{event.locationOrLink}</span>
+                      {event.chapter?.name ? (
+                        <span className="pill">{event.chapter.name}</span>
+                      ) : (
+                        <span className="pill">Network event</span>
                       )}
+                      {event.locationOrLink && <span className="pill">{event.locationOrLink}</span>}
                       {event.maxAttendees && (
                         <span className="pill">
                           {event._count.registrations} / {event.maxAttendees} registered
                         </span>
                       )}
-                      {requiredStep > 0 && (
+                      {requiredStepOrder > 0 && (
                         <span
                           className="pill"
-                          style={canRegister
-                            ? { background: "var(--green-50, #f0fff4)", color: "var(--green-700, #276749)" }
-                            : { background: "var(--red-50, #fff5f5)", color: "var(--red-700, #c53030)" }}
+                          style={
+                            canRegister
+                              ? { background: "var(--green-50, #f0fff4)", color: "var(--green-700, #276749)" }
+                              : { background: "var(--red-50, #fff5f5)", color: "var(--red-700, #c53030)" }
+                          }
                         >
-                          {canRegister ? "✓ Unlocked" : `Finish course steps through Step ${requiredStep}`}
+                          {canRegister ? "Unlocked" : `Finish through Step ${requiredStepOrder}`}
                         </span>
                       )}
                       {isPast && <span className="pill" style={{ color: "var(--gray-400)" }}>Past</span>}
@@ -164,7 +173,7 @@ export default async function PathwayEventsPage({ params }: { params: { id: stri
                       isRegistered={isRegistered}
                       canRegister={canRegister}
                       isFull={isFull}
-                      requiredStep={requiredStep}
+                      requiredStep={requiredStepOrder}
                     />
                   )}
                   {isPast && isRegistered && (

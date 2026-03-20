@@ -16,12 +16,12 @@ interface JourneyRoadmapProps {
 const DEFAULT_MILESTONES: { key: string; label: string; href?: string }[] = [
   { key: "FIRST_LOGIN", label: "Joined YPP", href: "/" },
   { key: "FIRST_GOAL_SET", label: "Set first goal", href: "/goals" },
-  { key: "FIRST_PATHWAY_STEP", label: "First pathway step", href: "/pathways" },
+  { key: "FIRST_PATHWAY_STEP", label: "First pathway step", href: "/my-chapter" },
   { key: "FIRST_BADGE", label: "Earned first badge", href: "/badges" },
   { key: "FIRST_CHALLENGE", label: "First challenge", href: "/challenges" },
-  { key: "FIVE_PATHWAY_STEPS", label: "5 pathway steps", href: "/pathways" },
+  { key: "FIVE_PATHWAY_STEPS", label: "5 pathway steps", href: "/my-chapter" },
   { key: "THREE_BADGES", label: "3 badges earned", href: "/badges" },
-  { key: "TEN_PATHWAY_STEPS", label: "10 pathway steps", href: "/pathways" },
+  { key: "TEN_PATHWAY_STEPS", label: "10 pathway steps", href: "/my-chapter" },
   { key: "FIVE_BADGES", label: "5 badges earned", href: "/badges" },
 ];
 

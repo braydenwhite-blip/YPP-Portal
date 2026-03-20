@@ -128,6 +128,14 @@ export const NAV_CATALOG: NavLink[] = [
   ]),
 
   ...groupLinks("Learning", 300, [
+    {
+      href: "/my-chapter",
+      label: "My Chapter",
+      icon: "🏠",
+      roles: STUDENT_ONLY,
+      dashboardDescription: "Open your chapter-first pathway hub with local runs, next steps, and fallback options.",
+      dashboardPriority: 4,
+    },
     { href: "/pathways", label: "Pathways", icon: "🗺" },
     { href: "/curriculum", label: "Curriculum Catalog", icon: "📖" },
     { href: "/my-courses", label: "My Courses", icon: "🎓", roles: STUDENT_ONLY },

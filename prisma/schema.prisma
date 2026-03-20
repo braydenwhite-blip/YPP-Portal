@@ -443,6 +443,10 @@ model Chapter {
   rolloutCampaigns  RolloutCampaign[]
   featureGateRules  FeatureGateRule[]
   pathwayConfigs    ChapterPathway[]
+  classOfferings    ClassOffering[]
+  pathwayEvents     PathwayEvent[]
+  pathwayFallbackRequestsFrom PathwayFallbackRequest[] @relation("PathwayFallbackFromChapter")
+  pathwayFallbackRequestsTo   PathwayFallbackRequest[] @relation("PathwayFallbackToChapter")
   specialPrograms   SpecialProgram[]   @relation("ChapterSpecialPrograms")
   rubrics           Rubric[]
   instructorCohorts InstructorCohort[]
@@ -693,6 +697,9 @@ model User {
   classAttendanceRecords   ClassAttendanceRecord[] @relation("ClassAttendanceRecords")
   classRemindersReceived   ClassReminder[]         @relation("ClassRemindersReceived")
   classAnnouncements       ClassAnnouncement[]     @relation("ClassAnnouncementsAuthored")
+  ownedChapterPathways     ChapterPathway[]        @relation("ChapterPathwayOwner")
+  pathwayFallbackRequests  PathwayFallbackRequest[] @relation("PathwayFallbackRequestStudent")
+  pathwayFallbackReviews   PathwayFallbackRequest[] @relation("PathwayFallbackReviewedBy")
   launchTasksCreated       LaunchTask[]            @relation("LaunchTasksCreatedBy")
   launchTasksUpdated       LaunchTask[]            @relation("LaunchTasksUpdatedBy")
   rolloutCampaignsCreated  RolloutCampaign[]       @relation("RolloutCampaignsCreatedBy")
@@ -990,6 +997,7 @@ model Pathway {
   events          PathwayEvent[]          @relation("PathwayEvents")
   instructorSpecs InstructorPathwaySpec[] @relation("PathwayInstructorSpecs")
   chapterConfigs  ChapterPathway[]        @relation("PathwayChapterConfigs")
+  fallbackRequests PathwayFallbackRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1021,6 +1029,9 @@ model PathwayStep {
   classTemplate  ClassTemplate?      @relation("ClassTemplateSteps", fields: [classTemplateId], references: [id])
   specialProgram SpecialProgram?     @relation("SpecialProgramSteps", fields: [specialProgramId], references: [id])
   stepUnlocks    PathwayStepUnlock[]
+  classOfferings ClassOffering[]     @relation("PathwayStepOfferings")
+  pathwayEvents  PathwayEvent[]
+  fallbackRequests PathwayFallbackRequest[]
 
   @@index([pathwayId, stepOrder])
 }
@@ -5204,6 +5215,20 @@ enum FeatureGateScope {
   ROLE
 }
 
+enum ChapterPathwayRunStatus {
+  NOT_OFFERED
+  COMING_SOON
+  ACTIVE
+  PAUSED
+}
+
+enum PathwayFallbackRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
 // Class template: reusable curriculum design (Feature #61, #62, #63, #64)
 model ClassTemplate {
   id              String          @id @default(cuid())
@@ -5268,6 +5293,8 @@ model ClassOffering {
   template     ClassTemplate @relation(fields: [templateId], references: [id])
   instructorId String
   instructor   User          @relation("ClassOfferingsInstructed", fields: [instructorId], references: [id])
+  pathwayStepId String?
+  pathwayStep   PathwayStep? @relation("PathwayStepOfferings", fields: [pathwayStepId], references: [id])
 
   // Schedule (Feature #80)
   title       String // Can override template title
@@ -5302,6 +5329,7 @@ model ClassOffering {
   // Status
   status                         ClassOfferingStatus @default(DRAFT)
   chapterId                      String?
+  chapter                        Chapter?            @relation(fields: [chapterId], references: [id])
   semester                       String? // "Spring 2025", "Fall 2025"
   grandfatheredTrainingExemption Boolean             @default(false)
 
@@ -5311,6 +5339,7 @@ model ClassOffering {
   reminders     ClassReminder[]
   assignments   ClassAssignment[]
   announcements ClassAnnouncement[]
+  fallbackRequests PathwayFallbackRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -5319,6 +5348,8 @@ model ClassOffering {
   @@index([instructorId])
   @@index([startDate])
   @@index([status])
+  @@index([chapterId])
+  @@index([pathwayStepId])
 }
 
 // Individual class session (meeting) within an offering
@@ -7005,6 +7036,10 @@ model PathwayEvent {
   id                String                     @id @default(cuid())
   pathwayId         String
   pathway           Pathway                    @relation("PathwayEvents", fields: [pathwayId], references: [id])
+  chapterId         String?
+  chapter           Chapter?                   @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  pathwayStepId     String?
+  pathwayStep       PathwayStep?               @relation(fields: [pathwayStepId], references: [id], onDelete: SetNull)
   title             String
   description       String?
   eventDate         DateTime?
@@ -7016,6 +7051,8 @@ model PathwayEvent {
   updatedAt         DateTime                   @updatedAt
 
   @@index([pathwayId])
+  @@index([chapterId])
+  @@index([pathwayStepId])
 }
 
 /// Student registration for a pathway event
@@ -7052,12 +7089,44 @@ model ChapterPathway {
   pathway      Pathway  @relation("PathwayChapterConfigs", fields: [pathwayId], references: [id])
   isAvailable  Boolean  @default(true) // chapter can hide a global pathway
   isFeatured   Boolean  @default(false) // featured pathways appear first
+  runStatus    ChapterPathwayRunStatus @default(NOT_OFFERED)
+  ownerId      String?
+  owner        User?    @relation("ChapterPathwayOwner", fields: [ownerId], references: [id])
   displayOrder Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   @@unique([chapterId, pathwayId])
   @@index([chapterId])
+}
+
+model PathwayFallbackRequest {
+  id               String                       @id @default(cuid())
+  studentId        String
+  student          User                         @relation("PathwayFallbackRequestStudent", fields: [studentId], references: [id])
+  pathwayId        String
+  pathway          Pathway                      @relation(fields: [pathwayId], references: [id], onDelete: Cascade)
+  pathwayStepId    String
+  pathwayStep      PathwayStep                  @relation(fields: [pathwayStepId], references: [id], onDelete: Cascade)
+  fromChapterId    String?
+  fromChapter      Chapter?                     @relation("PathwayFallbackFromChapter", fields: [fromChapterId], references: [id], onDelete: SetNull)
+  toChapterId      String?
+  toChapter        Chapter?                     @relation("PathwayFallbackToChapter", fields: [toChapterId], references: [id], onDelete: SetNull)
+  targetOfferingId String?
+  targetOffering   ClassOffering?               @relation(fields: [targetOfferingId], references: [id], onDelete: SetNull)
+  status           PathwayFallbackRequestStatus @default(PENDING)
+  note             String?
+  reviewedById     String?
+  reviewedBy       User?                        @relation("PathwayFallbackReviewedBy", fields: [reviewedById], references: [id])
+  reviewedAt       DateTime?
+  createdAt        DateTime                     @default(now())
+  updatedAt        DateTime                     @updatedAt
+
+  @@index([studentId])
+  @@index([pathwayId])
+  @@index([pathwayStepId])
+  @@index([targetOfferingId])
+  @@index([status])
 }
 
 // ============================================
