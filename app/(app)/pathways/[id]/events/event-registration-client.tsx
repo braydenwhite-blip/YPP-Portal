@@ -8,17 +8,24 @@ interface EventRegistrationButtonProps {
   eventId: string;
   isRegistered: boolean;
   canRegister: boolean;
+  isFull: boolean;
   requiredStep: number;
 }
 
-export function EventRegistrationButton({ eventId, isRegistered, canRegister, requiredStep }: EventRegistrationButtonProps) {
+export function EventRegistrationButton({
+  eventId,
+  isRegistered,
+  canRegister,
+  isFull,
+  requiredStep,
+}: EventRegistrationButtonProps) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
   if (!canRegister) {
     return (
       <span style={{ fontSize: 13, color: "var(--gray-400)", whiteSpace: "nowrap" }}>
-        Complete Step {requiredStep} to unlock
+        Finish course steps through Step {requiredStep}
       </span>
     );
   }
@@ -36,14 +43,31 @@ export function EventRegistrationButton({ eventId, isRegistered, canRegister, re
     );
   }
 
+  if (isFull) {
+    return (
+      <span style={{ fontSize: 13, color: "var(--gray-400)", whiteSpace: "nowrap" }}>
+        Event full
+      </span>
+    );
+  }
+
   return (
     <button
       className="button small"
-      onClick={() => startTransition(async () => { await registerForPathwayEvent(eventId); router.refresh(); })}
+      onClick={() =>
+        startTransition(async () => {
+          const result = await registerForPathwayEvent(eventId);
+          if (result?.error) {
+            alert(result.error);
+            return;
+          }
+          router.refresh();
+        })
+      }
       disabled={isPending}
       style={{ whiteSpace: "nowrap" }}
     >
-      {isPending ? "Registering..." : "Register"}
+      {isPending ? "Registering..." : "Register for Event"}
     </button>
   );
 }

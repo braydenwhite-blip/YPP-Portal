@@ -41,6 +41,10 @@ import {
   getDefaultPointCategory,
   normalizeMonthlyReviewMonth,
 } from "@/lib/mentorship-review-helpers";
+import {
+  getMentorshipAccessibleMenteeIds,
+  hasMentorshipMenteeAccess,
+} from "@/lib/mentorship-access";
 import { ensureMentorshipSupportCircle } from "@/lib/mentorship-hub-actions";
 import { prisma } from "@/lib/prisma";
 
@@ -457,22 +461,20 @@ async function getAccessibleMentorship(params: {
   roles: string[];
 }) {
   const { menteeId, currentUserId, roles } = params;
-  const isAdmin = hasRole(roles, "ADMIN");
-  const isChapterLead = hasRole(roles, "CHAPTER_LEAD");
+  const canAccess = await hasMentorshipMenteeAccess(
+    currentUserId,
+    roles,
+    menteeId
+  );
+
+  if (!canAccess) {
+    return null;
+  }
 
   return prisma.mentorship.findFirst({
     where: {
       menteeId,
       status: "ACTIVE",
-      ...(isAdmin || isChapterLead
-        ? {}
-        : {
-            OR: [
-              { mentorId: currentUserId },
-              { chairId: currentUserId },
-              { menteeId: currentUserId },
-            ],
-          }),
     },
     include: {
       mentor: { select: { id: true, name: true, email: true } },
@@ -498,10 +500,11 @@ async function getAccessibleMentorship(params: {
   });
 }
 
-function canApproveReview(args: {
+async function canApproveReview(args: {
   roles: string[];
   currentUserId: string;
   review: {
+    menteeId: string;
     chairId: string | null;
     mentorship: {
       chairId: string | null;
@@ -512,8 +515,12 @@ function canApproveReview(args: {
   };
 }) {
   const { roles, currentUserId, review } = args;
-  if (hasRole(roles, "ADMIN") || hasRole(roles, "CHAPTER_LEAD")) {
+  if (hasRole(roles, "ADMIN")) {
     return true;
+  }
+
+  if (hasRole(roles, "CHAPTER_LEAD")) {
+    return hasMentorshipMenteeAccess(currentUserId, roles, review.menteeId);
   }
 
   if (review.chairId === currentUserId || review.mentorship.chairId === currentUserId) {
@@ -638,13 +645,26 @@ export async function getPendingChairReviews() {
   const currentUserId = session.user.id;
   const isAdmin = hasRole(roles, "ADMIN");
   const isChapterLead = hasRole(roles, "CHAPTER_LEAD");
+  const accessibleMenteeIds =
+    isAdmin || !isChapterLead
+      ? null
+      : await getMentorshipAccessibleMenteeIds(currentUserId, roles);
 
   return prisma.monthlyGoalReview.findMany({
     where: {
       status: MentorshipReviewStatus.PENDING_CHAIR_APPROVAL,
       requiresChairApproval: true,
-      ...(isAdmin || isChapterLead
+      ...(isAdmin
         ? {}
+        : isChapterLead
+          ? {
+              menteeId: {
+                in:
+                  accessibleMenteeIds && accessibleMenteeIds.length > 0
+                    ? accessibleMenteeIds
+                    : ["__none__"],
+              },
+            }
         : {
             OR: [
               { chairId: currentUserId },
@@ -994,18 +1014,23 @@ export async function approveMonthlyGoalReview(formData: FormData) {
     throw new Error("This review does not require chair approval.");
   }
 
+  if (review.status !== MentorshipReviewStatus.PENDING_CHAIR_APPROVAL) {
+    throw new Error("Only reviews waiting on chair approval can be approved.");
+  }
+
   if (
-    !canApproveReview({
+    !(await canApproveReview({
       roles,
       currentUserId,
       review: {
+        menteeId: review.menteeId,
         chairId: review.chairId,
         mentorship: {
           chairId: review.mentorship.chairId,
           track: review.mentorship.track,
         },
       },
-    })
+    }))
   ) {
     throw new Error("You are not allowed to approve this review");
   }
@@ -1159,18 +1184,27 @@ export async function returnMonthlyGoalReview(formData: FormData) {
     throw new Error("Monthly goal review not found");
   }
 
+  if (!review.requiresChairApproval) {
+    throw new Error("This review does not require chair approval.");
+  }
+
+  if (review.status !== MentorshipReviewStatus.PENDING_CHAIR_APPROVAL) {
+    throw new Error("Only reviews waiting on chair approval can be returned.");
+  }
+
   if (
-    !canApproveReview({
+    !(await canApproveReview({
       roles,
       currentUserId,
       review: {
+        menteeId: review.menteeId,
         chairId: review.chairId,
         mentorship: {
           chairId: review.mentorship.chairId,
           track: review.mentorship.track,
         },
       },
-    })
+    }))
   ) {
     throw new Error("You are not allowed to return this review");
   }

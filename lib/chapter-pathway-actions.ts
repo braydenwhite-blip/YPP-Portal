@@ -15,7 +15,7 @@ interface UpdateChapterPathwayConfigInput {
 export async function updateChapterPathwayConfig(input: UpdateChapterPathwayConfigInput) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return { error: "Not authenticated" };
-  if (session.user.primaryRole !== "ADMIN") return { error: "Unauthorized" };
+  if (!(session.user.roles ?? []).includes("ADMIN")) return { error: "Unauthorized" };
 
   await prisma.chapterPathway.upsert({
     where: { chapterId_pathwayId: { chapterId: input.chapterId, pathwayId: input.pathwayId } },

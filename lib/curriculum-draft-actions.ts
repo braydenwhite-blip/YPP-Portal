@@ -14,6 +14,7 @@ import { TrainingModuleType } from "@prisma/client";
 import {
   getCurriculumDraftProgress,
   normalizeCourseConfig,
+  syncSessionPlansToCourseConfig,
   normalizeUnderstandingChecks,
 } from "@/lib/curriculum-draft-progress";
 import {
@@ -27,6 +28,7 @@ import {
   type CurriculumDraftSummaryRecord,
 } from "@/lib/curriculum-draft-lifecycle";
 import { syncTrainingAssignmentFromArtifacts } from "@/lib/training-actions";
+import { canAccessCurriculumDraftForPrint } from "@/lib/curriculum-draft-access";
 
 const LESSON_DESIGN_STUDIO_MODULE_KEY = "academy_lesson_studio_006";
 const LESSON_DESIGN_STUDIO_TOUR_KEY = "studio_onboarding_tour";
@@ -462,6 +464,15 @@ export async function saveCurriculumDraft(data: {
     );
   }
 
+  const normalizedCourseConfig = normalizeCourseConfig(data.courseConfig);
+  const normalizedUnderstandingChecks = normalizeUnderstandingChecks(
+    data.understandingChecks
+  );
+  const syncedWeeklyPlans = syncSessionPlansToCourseConfig(
+    data.weeklyPlans,
+    normalizedCourseConfig
+  );
+
   const nextStatus =
     existing.status === "NEEDS_REVISION"
       ? existing.status
@@ -469,9 +480,9 @@ export async function saveCurriculumDraft(data: {
           title: data.title,
           interestArea: data.interestArea,
           outcomes: data.outcomes,
-          courseConfig: data.courseConfig,
-          weeklyPlans: data.weeklyPlans,
-          understandingChecks: data.understandingChecks,
+          courseConfig: normalizedCourseConfig,
+          weeklyPlans: syncedWeeklyPlans,
+          understandingChecks: normalizedUnderstandingChecks,
         });
 
   const draft = await prisma.curriculumDraft.update({
@@ -481,11 +492,9 @@ export async function saveCurriculumDraft(data: {
       description: data.description || null,
       interestArea: data.interestArea,
       outcomes: data.outcomes,
-      courseConfig: normalizeCourseConfig(data.courseConfig) as any,
-      weeklyPlans: data.weeklyPlans as any,
-      understandingChecks: normalizeUnderstandingChecks(
-        data.understandingChecks
-      ) as any,
+      courseConfig: normalizedCourseConfig as any,
+      weeklyPlans: syncedWeeklyPlans as any,
+      understandingChecks: normalizedUnderstandingChecks as any,
       status: nextStatus,
       completedAt: nextStatus === "COMPLETED" ? new Date() : null,
       updatedAt: new Date(),
@@ -576,18 +585,34 @@ export async function markLessonDesignStudioTourComplete(draftId: string) {
  */
 export async function getCurriculumDraftById(draftId: string) {
   const session = await requireStudioAccess();
+  const roles = session.user.roles ?? [];
+  const requesterChapterId = roles.includes("CHAPTER_LEAD")
+    ? (
+        await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { chapterId: true },
+        })
+      )?.chapterId ?? null
+    : null;
 
   const draft = await prisma.curriculumDraft.findUnique({
     where: { id: draftId },
     include: {
-      author: { select: { name: true } },
+      author: { select: { name: true, chapterId: true } },
     },
   });
 
   if (!draft) return null;
 
-  const roles = session.user.roles ?? [];
-  if (draft.authorId !== session.user.id && !roles.includes("ADMIN")) {
+  if (
+    !canAccessCurriculumDraftForPrint({
+      requesterId: session.user.id,
+      requesterRoles: roles,
+      requesterChapterId,
+      authorId: draft.authorId,
+      authorChapterId: draft.author.chapterId,
+    })
+  ) {
     return null;
   }
 

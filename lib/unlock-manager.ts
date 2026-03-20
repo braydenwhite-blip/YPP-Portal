@@ -1,5 +1,12 @@
 "use server";
 
+import { getServerSession } from "next-auth";
+
+import { authOptions } from "@/lib/auth";
+import {
+  getMentorshipAccessibleMenteeIds,
+  hasMentorshipMenteeAccess,
+} from "@/lib/mentorship-access";
 import { prisma } from "@/lib/prisma";
 import { withPrismaFallback } from "@/lib/prisma-guard";
 import type { NavGroup } from "@/lib/navigation/types";
@@ -7,6 +14,46 @@ import {
   SECTION_NAV_GROUP_MAP,
   SECTION_REQUIREMENTS,
 } from "@/lib/unlock-nav-groups";
+
+const UNLOCK_SUPPORT_ROLES = new Set([
+  "MENTOR",
+  "INSTRUCTOR",
+  "CHAPTER_LEAD",
+  "ADMIN",
+  "STAFF",
+]);
+
+async function requireUnlockAuth() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    throw new Error("Unauthorized");
+  }
+  return session;
+}
+
+function canManageUnlocks(roles: string[]) {
+  return roles.some((role) => UNLOCK_SUPPORT_ROLES.has(role));
+}
+
+async function requireSupportUnlockAccess(studentId: string) {
+  const session = await requireUnlockAuth();
+  const roles = session.user.roles ?? [];
+  if (!canManageUnlocks(roles)) {
+    throw new Error("Unauthorized");
+  }
+  if (!(await hasMentorshipMenteeAccess(session.user.id, roles, studentId))) {
+    throw new Error("Unauthorized");
+  }
+  return session;
+}
+
+async function requireUnlockAdmin() {
+  const session = await requireUnlockAuth();
+  if (!(session.user.roles ?? []).includes("ADMIN")) {
+    throw new Error("Unauthorized");
+  }
+  return session;
+}
 
 // ============================================
 // SECTION UNLOCK MAP
@@ -161,29 +208,28 @@ export async function getUnlockProgress(
 
 export async function createUnlockRecommendation(
   studentId: string,
-  mentorId: string,
   sectionKey: string,
   reason?: string
 ) {
+  const session = await requireSupportUnlockAccess(studentId);
+
   return prisma.unlockRecommendation.create({
     data: {
       studentId,
-      mentorId,
+      mentorId: session.user.id,
       sectionKey,
       reason: reason ?? null,
     },
   });
 }
 
-export async function approveUnlockRecommendation(
-  recommendationId: string,
-  reviewerId: string
-) {
+export async function approveUnlockRecommendation(recommendationId: string) {
+  const session = await requireUnlockAdmin();
   const rec = await prisma.unlockRecommendation.update({
     where: { id: recommendationId },
     data: {
       status: "APPROVED",
-      reviewedById: reviewerId,
+      reviewedById: session.user.id,
       reviewedAt: new Date(),
     },
   });
@@ -192,25 +238,20 @@ export async function approveUnlockRecommendation(
   return rec;
 }
 
-export async function denyUnlockRecommendation(
-  recommendationId: string,
-  reviewerId: string
-) {
+export async function denyUnlockRecommendation(recommendationId: string) {
+  const session = await requireUnlockAdmin();
   return prisma.unlockRecommendation.update({
     where: { id: recommendationId },
     data: {
       status: "DENIED",
-      reviewedById: reviewerId,
+      reviewedById: session.user.id,
       reviewedAt: new Date(),
     },
   });
 }
 
-export async function mentorDirectUnlock(
-  studentId: string,
-  mentorId: string,
-  sectionKey: string
-) {
+export async function mentorDirectUnlock(studentId: string, sectionKey: string) {
+  const session = await requireSupportUnlockAccess(studentId);
   // Only basic sections can be directly unlocked by mentors
   const basicSections = new Set(["challenges", "projects", "people_support"]);
   if (!basicSections.has(sectionKey)) {
@@ -218,10 +259,12 @@ export async function mentorDirectUnlock(
       "This section requires a recommendation for admin approval"
     );
   }
-  await unlockSection(studentId, sectionKey, "MENTOR", mentorId);
+  await unlockSection(studentId, sectionKey, "MENTOR", session.user.id);
 }
 
 export async function getPendingRecommendations() {
+  await requireUnlockAdmin();
+
   return prisma.unlockRecommendation.findMany({
     where: { status: "PENDING" },
     include: {
@@ -232,9 +275,29 @@ export async function getPendingRecommendations() {
   });
 }
 
-export async function getMenteeUnlockStatus(mentorId: string) {
+export async function getMenteeUnlockStatus() {
+  const session = await requireUnlockAuth();
+  const roles = session.user.roles ?? [];
+  if (!canManageUnlocks(roles)) {
+    throw new Error("Unauthorized");
+  }
+
+  const accessibleMenteeIds = await getMentorshipAccessibleMenteeIds(
+    session.user.id,
+    roles
+  );
+
   const mentorships = await prisma.mentorship.findMany({
-    where: { mentorId, status: "ACTIVE" },
+    where: {
+      status: "ACTIVE",
+      ...(accessibleMenteeIds == null
+        ? {}
+        : {
+            menteeId: {
+              in: accessibleMenteeIds.length === 0 ? ["__none__"] : accessibleMenteeIds,
+            },
+          }),
+    },
     select: {
       mentee: {
         select: {

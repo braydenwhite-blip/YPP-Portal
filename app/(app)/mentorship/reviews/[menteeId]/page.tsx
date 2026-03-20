@@ -213,6 +213,28 @@ export default async function MonthlyReviewEditorPage({
               </Link>
             )}
           </div>
+        ) : !activeMentorship ? (
+          <div
+            style={{
+              padding: 24,
+              textAlign: "center",
+              color: "var(--muted)",
+            }}
+          >
+            <p style={{ marginTop: 0 }}>
+              This mentee does not have an active mentorship yet, so there is no monthly review cycle to submit.
+            </p>
+            <p style={{ margin: "8px 0 0" }}>
+              Assign a mentor or activate the support relationship first, then come back here to write the review.
+            </p>
+            <Link
+              href={`/mentorship/mentees/${menteeId}`}
+              className="button small"
+              style={{ marginTop: 12, display: "inline-block" }}
+            >
+              Back to Support Workspace
+            </Link>
+          </div>
         ) : (
           <FeedbackForm
             menteeId={menteeId}

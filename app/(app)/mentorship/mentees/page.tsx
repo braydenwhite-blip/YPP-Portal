@@ -10,6 +10,7 @@ import {
   getMonthlyCycleLabel,
   PROGRESS_STATUS_META,
 } from "@/lib/mentorship-review-helpers";
+import { getMentorshipAccessibleMenteeIds } from "@/lib/mentorship-access";
 import { prisma } from "@/lib/prisma";
 import { formatEnum } from "@/lib/format-utils";
 
@@ -127,12 +128,17 @@ export default async function MenteesPage() {
       orderBy: { name: "asc" },
     });
   } else {
+    const accessibleMenteeIds =
+      (await getMentorshipAccessibleMenteeIds(userId, roles)) ?? [];
     const mentorships = await prisma.mentorship.findMany({
       where: {
-        mentorId: userId,
         status: "ACTIVE",
+        menteeId: {
+          in: accessibleMenteeIds.length > 0 ? accessibleMenteeIds : ["__none__"],
+        },
       },
       include: {
+        mentor: { select: { name: true } },
         chair: { select: { name: true } },
         track: { select: { name: true } },
         monthlyReviews: {
@@ -174,7 +180,7 @@ export default async function MenteesPage() {
         {
           programGroup: mentorship.programGroup,
           governanceMode: mentorship.governanceMode,
-          mentor: { name: "You" },
+          mentor: { name: mentorship.mentorId === userId ? "You" : mentorship.mentor.name },
           chair: mentorship.chair,
           track: mentorship.track,
           monthlyReviews: mentorship.monthlyReviews,
@@ -387,13 +393,22 @@ export default async function MenteesPage() {
                   >
                     View Details
                   </Link>
-                  <Link
-                    href={`/mentorship/reviews/${mentee.id}`}
-                    className="button small secondary"
-                    style={{ textDecoration: "none" }}
-                  >
-                    Open Monthly Review
-                  </Link>
+                  {activeMentorship ? (
+                    <Link
+                      href={`/mentorship/reviews/${mentee.id}`}
+                      className="button small secondary"
+                      style={{ textDecoration: "none" }}
+                    >
+                      Open Monthly Review
+                    </Link>
+                  ) : (
+                    <span
+                      className="pill"
+                      style={{ alignSelf: "center", color: "var(--muted)" }}
+                    >
+                      Assign a mentor to start monthly reviews
+                    </span>
+                  )}
                 </div>
               </div>
             );

@@ -123,4 +123,54 @@ describe("curriculum draft lifecycle helpers", () => {
     expect(workingCopy.reviewNotes).toBeNull();
     expect(workingCopy.generatedTemplateId).toBeNull();
   });
+
+  it("syncs copied session plans to the active course shape", () => {
+    const workingCopy = buildWorkingCopyCurriculumDraftRecord({
+      title: "Expanded Draft",
+      description: "A curriculum that now has more sessions.",
+      interestArea: "Finance",
+      outcomes: ["One", "Two", "Three"],
+      courseConfig: {
+        ...DEFAULT_COURSE_CONFIG,
+        durationWeeks: 2,
+        sessionsPerWeek: 2,
+      },
+      weeklyPlans: [
+        {
+          id: "session-1",
+          weekNumber: 1,
+          sessionNumber: 1,
+          title: "Week 1",
+          classDurationMin: 60,
+          objective: "Students practice budgeting.",
+          teacherPrepNotes: "Prep slides.",
+          materialsChecklist: ["Slides"],
+          atHomeAssignment: {
+            type: "REFLECTION_PROMPT",
+            title: "Reflect",
+            description: "Reflect on budgeting.",
+          },
+          activities: [
+            { title: "Warm up", type: "WARM_UP", durationMin: 10 },
+            { title: "Teach", type: "INSTRUCTION", durationMin: 20 },
+            { title: "Practice", type: "PRACTICE", durationMin: 20 },
+          ],
+        },
+      ],
+      understandingChecks: buildUnderstandingChecksState({}),
+    });
+
+    expect(workingCopy.weeklyPlans).toHaveLength(4);
+    expect(workingCopy.weeklyPlans[0]).toMatchObject({
+      weekNumber: 1,
+      sessionNumber: 1,
+      title: "Week 1",
+    });
+    expect(workingCopy.weeklyPlans[3]).toMatchObject({
+      weekNumber: 2,
+      sessionNumber: 2,
+      title: "",
+      activities: [],
+    });
+  });
 });

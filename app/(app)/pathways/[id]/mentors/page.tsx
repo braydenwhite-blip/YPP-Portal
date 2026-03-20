@@ -8,24 +8,71 @@ import { hasInstructorPathwaySpecTable } from "@/lib/instructor-pathway-spec-com
 export default async function PathwayMentorsPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
-
-  const pathway = await prisma.pathway.findUnique({
-    where: { id: params.id },
-    select: { id: true, name: true, interestArea: true },
-  });
-  if (!pathway) notFound();
-
   const userId = session.user.id;
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { chapterId: true },
   });
+
+  const pathway = await prisma.pathway.findUnique({
+    where: { id: params.id },
+    select: {
+      id: true,
+      name: true,
+      interestArea: true,
+      steps: {
+        select: { courseId: true },
+      },
+    },
+  });
+  if (!pathway) notFound();
+
+  const chapterConfig = user?.chapterId
+    ? await prisma.chapterPathway.findUnique({
+        where: {
+          chapterId_pathwayId: {
+            chapterId: user.chapterId,
+            pathwayId: pathway.id,
+          },
+        },
+        select: { isAvailable: true },
+      })
+    : null;
+  const pathwayCourseIds = pathway.steps
+    .map((step) => step.courseId)
+    .filter((courseId): courseId is string => courseId !== null);
+  const hasPathwayEnrollment =
+    pathwayCourseIds.length > 0
+      ? Boolean(
+          await prisma.enrollment.findFirst({
+            where: {
+              userId,
+              courseId: { in: pathwayCourseIds },
+            },
+            select: { id: true },
+          })
+        )
+      : false;
+
+  if ((chapterConfig?.isAvailable ?? true) === false && !hasPathwayEnrollment) {
+    notFound();
+  }
+
   const hasPathwaySpecTable = await hasInstructorPathwaySpecTable();
 
   // Find instructors who specialize in this pathway
   const pathwaySpecs = hasPathwaySpecTable
     ? await prisma.instructorPathwaySpec.findMany({
-        where: { pathwayId: pathway.id },
+        where: {
+          pathwayId: pathway.id,
+          user: {
+            roles: {
+              some: {
+                role: "INSTRUCTOR",
+              },
+            },
+          },
+        },
         include: {
           user: {
             select: {
@@ -67,7 +114,7 @@ export default async function PathwayMentorsPage({ params }: { params: { id: str
 
   // Check if user is already in a mentorship
   const existingMentorship = await prisma.mentorship.findFirst({
-    where: { menteeId: userId },
+    where: { menteeId: userId, status: "ACTIVE" },
     select: { id: true, mentorId: true },
   }).catch(() => null);
 

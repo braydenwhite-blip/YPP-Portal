@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import { getCourseBackedPathwaySteps } from "@/lib/pathway-logic";
 
 export default async function PathwayCertificatePage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -11,9 +12,10 @@ export default async function PathwayCertificatePage({ params }: { params: { id:
 
   const pathway = await prisma.pathway.findUnique({
     where: { id: params.id },
-    include: { steps: { select: { courseId: true } } },
+    include: { steps: { select: { courseId: true, stepOrder: true }, orderBy: { stepOrder: "asc" } } },
   });
   if (!pathway) notFound();
+  const courseSteps = getCourseBackedPathwaySteps(pathway.steps);
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -22,11 +24,11 @@ export default async function PathwayCertificatePage({ params }: { params: { id:
   if (!user) redirect("/login");
 
   // Check if all steps are completed
-  const courseIds = pathway.steps.map((s) => s.courseId).filter((id): id is string => id !== null);
+  const courseIds = courseSteps.map((step) => step.courseId);
   const completedCount = await prisma.enrollment.count({
     where: { userId, courseId: { in: courseIds }, status: "COMPLETED" },
   });
-  const isComplete = completedCount >= pathway.steps.length && pathway.steps.length > 0;
+  const isComplete = completedCount >= courseSteps.length && courseSteps.length > 0;
 
   // Find or trigger certificate creation
   let certificate = await prisma.certificate.findFirst({ where: { recipientId: userId, pathwayId: pathway.id } });
@@ -68,8 +70,11 @@ export default async function PathwayCertificatePage({ params }: { params: { id:
         </div>
         <div className="card">
           <h3>Not yet earned</h3>
-          <p>You need to complete all {pathway.steps.length} steps in <strong>{pathway.name}</strong> to earn your certificate.</p>
-          <p>Progress: {completedCount} / {pathway.steps.length} steps complete.</p>
+          <p>You need to complete all {courseSteps.length} course steps in <strong>{pathway.name}</strong> to earn your certificate.</p>
+          <p>Progress: {completedCount} / {courseSteps.length} course steps complete.</p>
+          <p style={{ color: "var(--gray-500)", fontSize: 13 }}>
+            Informational milestones may still appear in the pathway, but they do not count toward certificate completion.
+          </p>
           <Link href={`/pathways/${params.id}`} className="button" style={{ marginTop: 12, display: "inline-block" }}>
             Continue Pathway →
           </Link>

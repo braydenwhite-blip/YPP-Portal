@@ -67,6 +67,8 @@ export default async function MenteeDetailPage({
     notFound();
   }
 
+  const isSelfWorkspace = session.user.id === workspace.mentee.id;
+  const canRunSupportActions = Boolean(workspace.mentorship) && !isSelfWorkspace;
   const upcomingSessions = workspace.sessions.filter(
     (item) => !item.completedAt && item.scheduledAt.getTime() >= Date.now()
   );
@@ -89,9 +91,11 @@ export default async function MenteeDetailPage({
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Link href={`/mentorship/reviews/${workspace.mentee.id}`} className="button primary small">
-            Open Monthly Review
-          </Link>
+          {canRunSupportActions && (
+            <Link href={`/mentorship/reviews/${workspace.mentee.id}`} className="button primary small">
+              Open Monthly Review
+            </Link>
+          )}
           <Link href="/mentor/feedback" className="button secondary small">
             Feedback Queue
           </Link>
@@ -103,6 +107,24 @@ export default async function MenteeDetailPage({
         intro="This workspace is the day-to-day operating area for one mentee. Work from top to bottom when you want the full picture."
         items={WORKSPACE_GUIDE_ITEMS}
       />
+
+      {!workspace.mentorship ? (
+        <section className="card" style={{ marginBottom: 24, borderLeft: "4px solid var(--gray-300, #d1d5db)" }}>
+          <strong>No active mentorship yet</strong>
+          <p style={{ margin: "8px 0 0", color: "var(--muted)" }}>
+            You can still review this student&apos;s history, requests, and progress signals below. Session logging, action items, and monthly reviews stay disabled until an active mentor or support circle is assigned.
+          </p>
+        </section>
+      ) : null}
+
+      {isSelfWorkspace ? (
+        <section className="card" style={{ marginBottom: 24, borderLeft: "4px solid var(--ypp-purple)" }}>
+          <strong>Your self-view workspace</strong>
+          <p style={{ margin: "8px 0 0", color: "var(--muted)" }}>
+            This view lets you see the full support picture for yourself, but mentor-only actions stay hidden so you cannot accidentally act on your own record.
+          </p>
+        </section>
+      ) : null}
 
       <div className="grid three" style={{ marginBottom: 24 }}>
         <div className="card">
@@ -240,171 +262,187 @@ export default async function MenteeDetailPage({
       <div className="grid two" style={{ marginBottom: 24 }}>
         <section className="card">
           <div className="section-title">Schedule or Log a Session</div>
-          <form action={createMentorshipSession} className="form-grid">
-            <input type="hidden" name="menteeId" value={workspace.mentee.id} />
-            <div className="form-row">
-              <FieldLabel
-                label="Session type"
-                help={{
-                  title: "Session Type",
-                  guidance:
-                    "This tells the system what kind of support moment you are recording, like a kickoff, a routine check-in, or a review meeting.",
-                  example: "Use 'Check-in' for normal progress conversations and 'Review prep' when you are preparing for a formal monthly review.",
-                }}
-              />
-              <select name="type" className="input" defaultValue="CHECK_IN">
-                <option value="KICKOFF">Kickoff</option>
-                <option value="CHECK_IN">Check-in</option>
-                <option value="REVIEW_PREP">Review prep</option>
-                <option value="QUARTERLY_REVIEW">Quarterly review</option>
-                <option value="OFFICE_HOURS">Office hours</option>
-              </select>
-            </div>
-            <div className="form-row">
-              <FieldLabel
-                label="Title"
-                help={{
-                  title: "Session Title",
-                  guidance:
-                    "Give the meeting a simple name so everyone can recognize it later in the timeline.",
-                  example: "April momentum check-in",
-                }}
-              />
-              <input name="title" className="input" placeholder="April momentum check-in" />
-            </div>
-            <div className="form-row">
-              <FieldLabel
-                label="Scheduled at"
-                help={{
-                  title: "Scheduled At",
-                  guidance:
-                    "This is the date and time the conversation will happen or already happened.",
-                  example: "Set the real meeting time so the timeline and upcoming-session counts stay accurate.",
-                }}
-              />
-              <input type="datetime-local" name="scheduledAt" className="input" required />
-            </div>
-            <div className="form-row">
-              <FieldLabel
-                label="Length (minutes)"
-                help={{
-                  title: "Session Length",
-                  guidance:
-                    "This records how long the session is expected to be or how long it lasted.",
-                  example: "30 for a normal check-in, 60 for a deeper review conversation.",
-                }}
-              />
-              <input type="number" name="durationMinutes" className="input" min="15" step="15" defaultValue="30" />
-            </div>
-            <div className="form-row">
-              <FieldLabel
-                label="Agenda"
-                help={{
-                  title: "Agenda",
-                  guidance:
-                    "This is the plan for the session. It helps mentors and mentees arrive ready for the same conversation.",
-                  example: "Review reflection, check project blockers, choose one next action.",
-                }}
-              />
-              <textarea name="agenda" className="input" rows={3} placeholder="What will we cover?" />
-            </div>
-            <div className="form-row">
-              <FieldLabel
-                label="Notes (optional)"
-                help={{
-                  title: "Session Notes",
-                  guidance:
-                    "Use notes to capture what actually happened, especially if you are logging a session after the fact.",
-                  example: "Student finished draft one, needs examples before next meeting.",
-                }}
-              />
-              <textarea name="notes" className="input" rows={3} placeholder="Add notes if this session is already complete." />
-            </div>
-            <div className="form-row">
-              <FieldLabel
-                label="Mark complete immediately"
-                help={{
-                  title: "Mark Complete Immediately",
-                  guidance:
-                    "This decides whether the form creates an upcoming session or instantly records it as already finished.",
-                  example: "Choose 'No' to schedule a future meeting. Choose 'Yes' if the session already happened and you are logging it now.",
-                }}
-              />
-              <select name="completedNow" className="input" defaultValue="false">
-                <option value="false">No, schedule it</option>
-                <option value="true">Yes, log it now</option>
-              </select>
-            </div>
-            <button type="submit" className="button primary small">
-              Save Session
-            </button>
-          </form>
+          {canRunSupportActions ? (
+            <form action={createMentorshipSession} className="form-grid">
+              <input type="hidden" name="menteeId" value={workspace.mentee.id} />
+              <div className="form-row">
+                <FieldLabel
+                  label="Session type"
+                  help={{
+                    title: "Session Type",
+                    guidance:
+                      "This tells the system what kind of support moment you are recording, like a kickoff, a routine check-in, or a review meeting.",
+                    example: "Use 'Check-in' for normal progress conversations and 'Review prep' when you are preparing for a formal monthly review.",
+                  }}
+                />
+                <select name="type" className="input" defaultValue="CHECK_IN">
+                  <option value="KICKOFF">Kickoff</option>
+                  <option value="CHECK_IN">Check-in</option>
+                  <option value="REVIEW_PREP">Review prep</option>
+                  <option value="QUARTERLY_REVIEW">Quarterly review</option>
+                  <option value="OFFICE_HOURS">Office hours</option>
+                </select>
+              </div>
+              <div className="form-row">
+                <FieldLabel
+                  label="Title"
+                  help={{
+                    title: "Session Title",
+                    guidance:
+                      "Give the meeting a simple name so everyone can recognize it later in the timeline.",
+                    example: "April momentum check-in",
+                  }}
+                />
+                <input name="title" className="input" placeholder="April momentum check-in" />
+              </div>
+              <div className="form-row">
+                <FieldLabel
+                  label="Scheduled at"
+                  help={{
+                    title: "Scheduled At",
+                    guidance:
+                      "This is the date and time the conversation will happen or already happened.",
+                    example: "Set the real meeting time so the timeline and upcoming-session counts stay accurate.",
+                  }}
+                />
+                <input type="datetime-local" name="scheduledAt" className="input" required />
+              </div>
+              <div className="form-row">
+                <FieldLabel
+                  label="Length (minutes)"
+                  help={{
+                    title: "Session Length",
+                    guidance:
+                      "This records how long the session is expected to be or how long it lasted.",
+                    example: "30 for a normal check-in, 60 for a deeper review conversation.",
+                  }}
+                />
+                <input type="number" name="durationMinutes" className="input" min="15" step="15" defaultValue="30" />
+              </div>
+              <div className="form-row">
+                <FieldLabel
+                  label="Agenda"
+                  help={{
+                    title: "Agenda",
+                    guidance:
+                      "This is the plan for the session. It helps mentors and mentees arrive ready for the same conversation.",
+                    example: "Review reflection, check project blockers, choose one next action.",
+                  }}
+                />
+                <textarea name="agenda" className="input" rows={3} placeholder="What will we cover?" />
+              </div>
+              <div className="form-row">
+                <FieldLabel
+                  label="Notes (optional)"
+                  help={{
+                    title: "Session Notes",
+                    guidance:
+                      "Use notes to capture what actually happened, especially if you are logging a session after the fact.",
+                    example: "Student finished draft one, needs examples before next meeting.",
+                  }}
+                />
+                <textarea name="notes" className="input" rows={3} placeholder="Add notes if this session is already complete." />
+              </div>
+              <div className="form-row">
+                <FieldLabel
+                  label="Mark complete immediately"
+                  help={{
+                    title: "Mark Complete Immediately",
+                    guidance:
+                      "This decides whether the form creates an upcoming session or instantly records it as already finished.",
+                    example: "Choose 'No' to schedule a future meeting. Choose 'Yes' if the session already happened and you are logging it now.",
+                  }}
+                />
+                <select name="completedNow" className="input" defaultValue="false">
+                  <option value="false">No, schedule it</option>
+                  <option value="true">Yes, log it now</option>
+                </select>
+              </div>
+              <button type="submit" className="button primary small">
+                Save Session
+              </button>
+            </form>
+          ) : (
+            <p style={{ color: "var(--muted)", margin: 0 }}>
+              {workspace.mentorship
+                ? "Only mentors and support-circle members can log sessions from this workspace."
+                : "Assign an active mentor before sessions can be scheduled or logged here."}
+            </p>
+          )}
         </section>
 
         <section className="card">
           <div className="section-title">Create an Action Item</div>
-          <form action={createMentorshipActionItem} className="form-grid">
-            <input type="hidden" name="menteeId" value={workspace.mentee.id} />
-            <div className="form-row">
-              <FieldLabel
-                label="Title"
-                help={{
-                  title: "Action Item Title",
-                  guidance:
-                    "Write the next step as one small job that someone can clearly finish.",
-                  example: "Draft the project pitch outline",
-                }}
-              />
-              <input name="title" className="input" placeholder="Draft the project pitch outline" required />
-            </div>
-            <div className="form-row">
-              <FieldLabel
-                label="Owner"
-                help={{
-                  title: "Action Item Owner",
-                  guidance:
-                    "This says who is mainly responsible for completing the next step.",
-                  example: "Pick the mentee for independent work, a mentor for follow-up, or leave it shared when more than one person owns it.",
-                }}
-              />
-              <select name="ownerId" className="input" defaultValue={workspace.mentee.id}>
-                <option value="">Shared responsibility</option>
-                <option value={workspace.mentee.id}>{workspace.mentee.name}</option>
-                {workspace.circleMembers.map((member) => (
-                  <option key={member.user.id} value={member.user.id}>
-                    {member.user.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-row">
-              <FieldLabel
-                label="Due date"
-                help={{
-                  title: "Due Date",
-                  guidance:
-                    "This is the target day the next step should be done by.",
-                  example: "Leave it blank if the item is ongoing, or set a date if you want the system to track overdue work.",
-                }}
-              />
-              <input type="date" name="dueAt" className="input" />
-            </div>
-            <div className="form-row">
-              <FieldLabel
-                label="Details"
-                help={{
-                  title: "Action Item Details",
-                  guidance:
-                    "Describe what good completion looks like so the owner knows exactly what success means.",
-                  example: "Bring a 5-slide draft and one sentence for the main pitch message.",
-                }}
-              />
-              <textarea name="details" className="input" rows={4} placeholder="What does success look like for this next step?" />
-            </div>
-            <button type="submit" className="button primary small">
-              Add Action Item
-            </button>
-          </form>
+          {canRunSupportActions ? (
+            <form action={createMentorshipActionItem} className="form-grid">
+              <input type="hidden" name="menteeId" value={workspace.mentee.id} />
+              <div className="form-row">
+                <FieldLabel
+                  label="Title"
+                  help={{
+                    title: "Action Item Title",
+                    guidance:
+                      "Write the next step as one small job that someone can clearly finish.",
+                    example: "Draft the project pitch outline",
+                  }}
+                />
+                <input name="title" className="input" placeholder="Draft the project pitch outline" required />
+              </div>
+              <div className="form-row">
+                <FieldLabel
+                  label="Owner"
+                  help={{
+                    title: "Action Item Owner",
+                    guidance:
+                      "This says who is mainly responsible for completing the next step.",
+                    example: "Pick the mentee for independent work, a mentor for follow-up, or leave it shared when more than one person owns it.",
+                  }}
+                />
+                <select name="ownerId" className="input" defaultValue={workspace.mentee.id}>
+                  <option value="">Shared responsibility</option>
+                  <option value={workspace.mentee.id}>{workspace.mentee.name}</option>
+                  {workspace.circleMembers.map((member) => (
+                    <option key={member.user.id} value={member.user.id}>
+                      {member.user.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-row">
+                <FieldLabel
+                  label="Due date"
+                  help={{
+                    title: "Due Date",
+                    guidance:
+                      "This is the target day the next step should be done by.",
+                    example: "Leave it blank if the item is ongoing, or set a date if you want the system to track overdue work.",
+                  }}
+                />
+                <input type="date" name="dueAt" className="input" />
+              </div>
+              <div className="form-row">
+                <FieldLabel
+                  label="Details"
+                  help={{
+                    title: "Action Item Details",
+                    guidance:
+                      "Describe what good completion looks like so the owner knows exactly what success means.",
+                    example: "Bring a 5-slide draft and one sentence for the main pitch message.",
+                  }}
+                />
+                <textarea name="details" className="input" rows={4} placeholder="What does success look like for this next step?" />
+              </div>
+              <button type="submit" className="button primary small">
+                Add Action Item
+              </button>
+            </form>
+          ) : (
+            <p style={{ color: "var(--muted)", margin: 0 }}>
+              {workspace.mentorship
+                ? "Only mentors and support-circle members can create action items from this workspace."
+                : "Assign an active mentor before action items can be created here."}
+            </p>
+          )}
         </section>
       </div>
 

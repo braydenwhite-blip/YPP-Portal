@@ -29,6 +29,7 @@ import {
   isHiringDecisionPending,
   isHiringDecisionReturned,
 } from "@/lib/hiring-decision-utils";
+import { jobApplicationSchema } from "@/lib/application-schemas";
 
 const REVIEWABLE_APPLICATION_STATUSES: ApplicationStatus[] = [
   "UNDER_REVIEW",
@@ -119,6 +120,14 @@ async function requireHiringReviewer() {
     throw new Error("Unauthorized - Hiring reviewer access required");
   }
   return { session, actor };
+}
+
+async function assertValidInterviewInterviewer(
+  interviewerId: string,
+  chapterId: string | null
+) {
+  const interviewer = await getHiringActor(interviewerId);
+  assertCanManageHiringInterviews(interviewer, chapterId);
 }
 
 const FIELD_LABELS: Record<string, string> = {
@@ -1137,6 +1146,16 @@ export async function submitApplication(formData: FormData) {
   const resumeUrl = getString(formData, "resumeUrl", false);
   const additionalMaterials = getString(formData, "additionalMaterials", false);
 
+  const validation = jobApplicationSchema.safeParse({
+    positionId,
+    coverLetter,
+    resumeUrl,
+    additionalMaterials,
+  });
+  if (!validation.success) {
+    throw new Error(validation.error.issues[0]?.message || "Application details are invalid.");
+  }
+
   const position = await prisma.position.findUnique({
     where: { id: positionId },
     select: {
@@ -1461,6 +1480,7 @@ export async function postApplicationInterviewSlot(formData: FormData) {
   assertDecisionCanBeEdited(application.decision);
 
   const interviewerId = interviewerIdRaw || actor.id;
+  await assertValidInterviewInterviewer(interviewerId, application.position.chapterId);
 
   await prisma.$transaction([
     prisma.interviewSlot.create({
@@ -1550,6 +1570,7 @@ export async function postApplicationInterviewSlotsBulk(formData: FormData) {
   assertDecisionCanBeEdited(application.decision);
 
   const interviewerId = interviewerIdRaw || actor.id;
+  await assertValidInterviewInterviewer(interviewerId, application.position.chapterId);
 
   await prisma.$transaction([
     prisma.interviewSlot.createMany({
@@ -2082,11 +2103,13 @@ export async function chapterMakeDecision(formData: FormData) {
     }
   }
 
-  const hasRecommendation = application.interviewNotes.some(
-    (note) => note.recommendation !== null
-  );
-  if (!hasRecommendation) {
-    throw new Error("Before making a chapter decision, you must add at least one interview note with a recommendation (Strong Yes, Yes, Maybe, or No). Use the 'Save Structured Interview Note' form to add one.");
+  if (application.position.interviewRequired) {
+    const hasRecommendation = application.interviewNotes.some(
+      (note) => note.recommendation !== null
+    );
+    if (!hasRecommendation) {
+      throw new Error("Before making a chapter decision, you must add at least one interview note with a recommendation (Strong Yes, Yes, Maybe, or No). Use the 'Save Structured Interview Note' form to add one.");
+    }
   }
 
   await submitDecisionForChairReview({

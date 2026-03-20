@@ -157,7 +157,7 @@ export async function getMyFeedbackRequests() {
     createdAt: request.requestedAt,
     student: {
       id: request.mentee.id,
-      name: request.requester.name,
+      name: request.mentee.name,
     },
     responses: request.responses.map((response) => ({
       id: response.id,

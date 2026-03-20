@@ -6,6 +6,10 @@ import Link from "next/link";
 import { PathwayActionButtons } from "./pathway-actions-client";
 import { buildContextTrail } from "@/lib/context-trail";
 import ContextTrail from "@/components/context-trail";
+import {
+  getPathwayProgressSummary,
+  getPathwayStepTitle,
+} from "@/lib/pathway-logic";
 
 function formatCourseLabel(format: string, level: string | null) {
   if (format === "LEVELED" && level) return level.replace("LEVEL_", "");
@@ -17,6 +21,11 @@ export default async function PathwaysPage() {
   if (!session?.user?.id) redirect("/login");
 
   const userId = session.user.id;
+  const viewer = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { chapterId: true },
+  });
+  const chapterId = viewer?.chapterId ?? null;
 
   let trailItems: Awaited<ReturnType<typeof buildContextTrail>> = [];
   try {
@@ -30,7 +39,14 @@ export default async function PathwaysPage() {
     where: { isActive: true },
     include: {
       steps: {
-        include: { course: true },
+        include: {
+          course: true,
+          prerequisites: {
+            include: {
+              course: true,
+            },
+          },
+        },
         orderBy: { stepOrder: "asc" },
       },
       _count: { select: { certificates: true } },
@@ -45,6 +61,23 @@ export default async function PathwaysPage() {
     select: { courseId: true, status: true },
   });
   const enrollmentMap = new Map(enrollments.map((e) => [e.courseId, e.status]));
+  const chapterConfigs = chapterId
+    ? await prisma.chapterPathway.findMany({
+        where: {
+          chapterId,
+          pathwayId: { in: allPathways.map((pathway) => pathway.id) },
+        },
+        select: {
+          pathwayId: true,
+          isAvailable: true,
+          isFeatured: true,
+          displayOrder: true,
+        },
+      })
+    : [];
+  const chapterConfigByPathwayId = new Map(
+    chapterConfigs.map((config) => [config.pathwayId, config])
+  );
 
   // Compute per-pathway metrics
   type PathwaySummary = {
@@ -53,23 +86,37 @@ export default async function PathwaysPage() {
     completedCount: number;
     totalCount: number;
     progressPercent: number;
+    isAvailable: boolean;
+    isFeatured: boolean;
+    displayOrder: number;
     nextStep: typeof allPathways[0]["steps"][0] | null;
   };
 
   const summaries: PathwaySummary[] = allPathways.map((pathway) => {
-    const steps = pathway.steps;
-    const completedCount = steps.filter((s) => s.courseId ? enrollmentMap.get(s.courseId) === "COMPLETED" : false).length;
-    const enrolledCount = steps.filter((s) => s.courseId !== null && enrollmentMap.has(s.courseId)).length;
-    const isEnrolled = enrolledCount > 0;
-    const totalCount = steps.length;
-    const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-    const nextStep = steps.find((s) => s.courseId !== null && enrollmentMap.get(s.courseId) !== "COMPLETED" && enrollmentMap.has(s.courseId)) ?? null;
+    const summary = getPathwayProgressSummary(pathway.steps, enrollmentMap);
+    const chapterConfig = chapterConfigByPathwayId.get(pathway.id);
 
-    return { pathway, isEnrolled, completedCount, totalCount, progressPercent, nextStep };
+    return {
+      pathway,
+      isEnrolled: summary.isEnrolled,
+      completedCount: summary.completedCount,
+      totalCount: summary.totalCount,
+      progressPercent: summary.progressPercent,
+      isAvailable: chapterConfig?.isAvailable ?? true,
+      isFeatured: chapterConfig?.isFeatured ?? false,
+      displayOrder: chapterConfig?.displayOrder ?? Number.MAX_SAFE_INTEGER,
+      nextStep: summary.nextActionStep,
+    };
   });
 
-  const enrolledSummaries = summaries.filter((s) => s.isEnrolled);
-  const availableSummaries = summaries.filter((s) => !s.isEnrolled);
+  const sortSummaries = (left: PathwaySummary, right: PathwaySummary) =>
+    Number(right.isFeatured) - Number(left.isFeatured) ||
+    left.displayOrder - right.displayOrder ||
+    left.pathway.name.localeCompare(right.pathway.name);
+  const enrolledSummaries = summaries.filter((s) => s.isEnrolled).sort(sortSummaries);
+  const availableSummaries = summaries
+    .filter((s) => !s.isEnrolled && s.isAvailable)
+    .sort(sortSummaries);
 
   return (
     <div>
@@ -92,6 +139,10 @@ export default async function PathwaysPage() {
           <p>
             Pathways guide you from foundational courses (101) through mastery (301+), connecting
             curriculum, mentorship, and real-world projects in one clear progression.
+          </p>
+          <p style={{ marginTop: 10, fontSize: 13, color: "var(--gray-600)" }}>
+            Progress and certificates are based on course-backed steps. Informational milestones still
+            appear inside a pathway so the bigger journey stays visible.
           </p>
           <div className="timeline" style={{ marginTop: 12 }}>
             <div className="timeline-item"><strong>Curriculum:</strong> leveled 101/201/301, Passion Labs, and the Commons.</div>
@@ -151,7 +202,7 @@ export default async function PathwaysPage() {
                 {/* Progress bar */}
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--gray-600)", marginBottom: 4 }}>
-                    <span>{completedCount} / {totalCount} steps complete</span>
+                    <span>{completedCount} / {totalCount} course steps complete</span>
                     <span>{progressPercent}%</span>
                   </div>
                   <div style={{ height: 8, background: "var(--gray-200, #e2e8f0)", borderRadius: 4, overflow: "hidden" }}>
@@ -173,7 +224,9 @@ export default async function PathwaysPage() {
                           fontSize: 12,
                         }}
                       >
-                        {step.course ? formatCourseLabel(step.course.format, step.course.level) : ""}
+                        {step.course
+                          ? formatCourseLabel(step.course.format, step.course.level)
+                          : getPathwayStepTitle(step)}
                       </span>
                     );
                   })}
@@ -200,7 +253,7 @@ export default async function PathwaysPage() {
           </div>
         ) : (
           <div className="grid two">
-            {availableSummaries.map(({ pathway }) => (
+            {availableSummaries.map(({ pathway, totalCount }) => (
               <div key={pathway.id} className="card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <div>
                   <h3 style={{ marginBottom: 2 }}>
@@ -218,18 +271,26 @@ export default async function PathwaysPage() {
                     <span key={step.id} style={{ display: "flex", alignItems: "center", gap: 4 }}>
                       {idx > 0 && <span style={{ color: "var(--gray-400)", fontSize: 12 }}>→</span>}
                       <span className="pill" style={{ fontSize: 12 }}>
-                        {step.course ? formatCourseLabel(step.course.format, step.course.level) : ""}
+                        {step.course
+                          ? formatCourseLabel(step.course.format, step.course.level)
+                          : getPathwayStepTitle(step)}
                       </span>
                     </span>
                   ))}
                 </div>
 
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <PathwayActionButtons
-                    pathwayId={pathway.id}
-                    isEnrolled={false}
-                    progressPercent={0}
-                  />
+                  {totalCount > 0 ? (
+                    <PathwayActionButtons
+                      pathwayId={pathway.id}
+                      isEnrolled={false}
+                      progressPercent={0}
+                    />
+                  ) : (
+                    <span className="pill" style={{ fontSize: 12, color: "var(--gray-500)" }}>
+                      Visible now, first course coming soon
+                    </span>
+                  )}
                   <Link href={`/pathways/${pathway.id}`} style={{ fontSize: 13, color: "var(--gray-500)" }}>
                     View details
                   </Link>

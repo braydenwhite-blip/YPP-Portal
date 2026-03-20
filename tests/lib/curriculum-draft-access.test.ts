@@ -1,0 +1,45 @@
+import { describe, expect, it } from "vitest";
+
+import { canAccessCurriculumDraftForPrint } from "@/lib/curriculum-draft-access";
+
+describe("curriculum-draft-access", () => {
+  it("allows the author and admins to open the print view", () => {
+    expect(
+      canAccessCurriculumDraftForPrint({
+        requesterId: "author-1",
+        requesterRoles: ["INSTRUCTOR"],
+        authorId: "author-1",
+      })
+    ).toBe(true);
+
+    expect(
+      canAccessCurriculumDraftForPrint({
+        requesterId: "admin-1",
+        requesterRoles: ["ADMIN"],
+        authorId: "author-1",
+      })
+    ).toBe(true);
+  });
+
+  it("allows chapter leads only when they share the author's chapter", () => {
+    expect(
+      canAccessCurriculumDraftForPrint({
+        requesterId: "lead-1",
+        requesterRoles: ["CHAPTER_LEAD"],
+        requesterChapterId: "chapter-1",
+        authorId: "author-1",
+        authorChapterId: "chapter-1",
+      })
+    ).toBe(true);
+
+    expect(
+      canAccessCurriculumDraftForPrint({
+        requesterId: "lead-2",
+        requesterRoles: ["CHAPTER_LEAD"],
+        requesterChapterId: "chapter-2",
+        authorId: "author-1",
+        authorChapterId: "chapter-1",
+      })
+    ).toBe(false);
+  });
+});

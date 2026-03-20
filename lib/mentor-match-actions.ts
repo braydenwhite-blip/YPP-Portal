@@ -239,9 +239,21 @@ export async function computeMentorMatches(
       const currentLoad =
         supportRole === "COLLEGE_ADVISOR"
           ? (mentorCandidate as any).advisees.length
-          : mentor.mentorPairs.length +
-            mentor.supportCircleMemberships.length +
-            (supportRole === "CHAIR" ? mentor.chairedMentorships.length : 0);
+          : new Set<string>([
+              ...mentor.mentorPairs.map((pair: { menteeId: string }) => pair.menteeId),
+              ...mentor.chairedMentorships.map(
+                (mentorship: { menteeId: string }) => mentorship.menteeId
+              ),
+              ...mentor.supportCircleMemberships
+                .filter(
+                  (membership: { role: SupportRole; menteeId: string }) =>
+                    membership.role !== SupportRole.PRIMARY_MENTOR &&
+                    membership.role !== SupportRole.CHAIR
+                )
+                .map(
+                  (membership: { menteeId: string }) => membership.menteeId
+                ),
+            ]).size;
       const availability =
         supportRole === "COLLEGE_ADVISOR"
           ? (mentorCandidate as any).availability

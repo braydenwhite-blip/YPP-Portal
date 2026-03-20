@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import { getCourseBackedPathwaySteps } from "@/lib/pathway-logic";
 
 export default async function PathwaySharePage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -11,9 +12,10 @@ export default async function PathwaySharePage({ params }: { params: { id: strin
 
   const pathway = await prisma.pathway.findUnique({
     where: { id: params.id },
-    include: { steps: { select: { courseId: true }, orderBy: { stepOrder: "asc" } } },
+    include: { steps: { select: { courseId: true, stepOrder: true }, orderBy: { stepOrder: "asc" } } },
   });
   if (!pathway) notFound();
+  const courseSteps = getCourseBackedPathwaySteps(pathway.steps);
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -26,12 +28,12 @@ export default async function PathwaySharePage({ params }: { params: { id: strin
   });
   if (!user) redirect("/login");
 
-  const courseIds = pathway.steps.map((s) => s.courseId).filter((id): id is string => id !== null);
+  const courseIds = courseSteps.map((step) => step.courseId);
   const completedCount = await prisma.enrollment.count({
     where: { userId, courseId: { in: courseIds }, status: "COMPLETED" },
   });
-  const progressPercent = pathway.steps.length > 0
-    ? Math.round((completedCount / pathway.steps.length) * 100)
+  const progressPercent = courseSteps.length > 0
+    ? Math.round((completedCount / courseSteps.length) * 100)
     : 0;
 
   const certificate = await prisma.certificate.findFirst({
@@ -41,7 +43,7 @@ export default async function PathwaySharePage({ params }: { params: { id: strin
 
   const nameParts = user.name.trim().split(" ");
   const initial = nameParts[0][0].toUpperCase();
-  const isComplete = completedCount === pathway.steps.length && pathway.steps.length > 0;
+  const isComplete = completedCount === courseSteps.length && courseSteps.length > 0;
 
   return (
     <div>
@@ -102,7 +104,7 @@ export default async function PathwaySharePage({ params }: { params: { id: strin
             {/* Progress bar */}
             <div style={{ marginBottom: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6, opacity: 0.9 }}>
-                <span>{completedCount} of {pathway.steps.length} steps complete</span>
+                <span>{completedCount} of {courseSteps.length} course steps complete</span>
                 <span style={{ fontWeight: 700 }}>{progressPercent}%</span>
               </div>
               <div style={{ height: 10, background: "rgba(255,255,255,0.2)", borderRadius: 5, overflow: "hidden" }}>
@@ -127,7 +129,7 @@ export default async function PathwaySharePage({ params }: { params: { id: strin
               </div>
             ) : (
               <div style={{ fontSize: 13, opacity: 0.8 }}>
-                {isComplete ? "🎓 All steps complete!" : `${pathway.steps.length - completedCount} steps remaining`}
+                {isComplete ? "🎓 All steps complete!" : `${courseSteps.length - completedCount} steps remaining`}
               </div>
             )}
 
@@ -143,6 +145,9 @@ export default async function PathwaySharePage({ params }: { params: { id: strin
           <h3 style={{ marginTop: 0 }}>Share Your Progress</h3>
           <p style={{ fontSize: 14, color: "var(--gray-600)" }}>
             Screenshot the card above to share on Discord, Instagram, or include in your college application portfolio.
+          </p>
+          <p style={{ fontSize: 13, color: "var(--gray-500)", marginTop: 8 }}>
+            This card tracks course-step progress only, so informational milestones do not change the percentage.
           </p>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
             {isComplete && (

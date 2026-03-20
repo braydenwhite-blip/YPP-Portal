@@ -5,6 +5,7 @@ import {
   getCurriculumDraftProgress,
   normalizeCourseConfig,
   normalizeUnderstandingChecks,
+  syncSessionPlansToCourseConfig,
 } from "@/lib/curriculum-draft-progress";
 
 export const EDITABLE_CURRICULUM_DRAFT_STATUSES = [
@@ -136,7 +137,10 @@ export function buildWorkingCopyCurriculumDraftRecord(source: {
   const normalizedUnderstandingChecks = normalizeUnderstandingChecks(
     source.understandingChecks
   );
-  const weeklyPlans = Array.isArray(source.weeklyPlans) ? source.weeklyPlans : [];
+  const weeklyPlans = syncSessionPlansToCourseConfig(
+    source.weeklyPlans,
+    normalizedCourseConfig
+  );
   const status = deriveEditableCurriculumDraftStatus({
     title: source.title,
     interestArea: source.interestArea,

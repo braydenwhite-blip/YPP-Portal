@@ -495,6 +495,60 @@ describe("StudioClient", () => {
     });
   });
 
+  it("duplicates a session into a blank slot without overwriting a built one", async () => {
+    const user = userEvent.setup();
+    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => undefined);
+
+    render(
+      <StudioClient
+        userId="user-1"
+        userName="Instructor"
+        draft={buildDraft({
+          courseConfig: {
+            ...buildDraft().courseConfig,
+            durationWeeks: 3,
+          },
+          weeklyPlans: [
+            buildReadyDraft().weeklyPlans[0],
+            {
+              ...buildReadyDraft().weeklyPlans[1],
+              id: "session-2",
+              title: "Week 2 existing",
+            },
+            {
+              id: "session-3",
+              weekNumber: 3,
+              sessionNumber: 1,
+              title: "",
+              classDurationMin: 60,
+              activities: [],
+              objective: null,
+              teacherPrepNotes: null,
+              materialsChecklist: [],
+              atHomeAssignment: null,
+            },
+          ],
+        })}
+        currentPhase="SESSIONS"
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: "Duplicate this session" }));
+
+    expect(alertSpy).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Session title")).toHaveValue("Week 1 (Copy)");
+
+    await user.click(
+      screen.getByRole("button", { name: /Week 2.*Week 2 existing/i })
+    );
+
+    expect(screen.getByLabelText("Session title")).toHaveValue(
+      "Week 2 existing"
+    );
+
+    alertSpy.mockRestore();
+  });
+
   it("does not save when a read-only draft receives a forced edit event", () => {
     render(
       <StudioClient

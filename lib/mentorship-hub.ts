@@ -7,6 +7,7 @@ import {
   type MentorshipType,
 } from "@prisma/client";
 
+import { getMentorshipAccessibleMenteeIds } from "@/lib/mentorship-access";
 import { mentorshipRequiresMonthlyReflection } from "@/lib/mentorship-canonical";
 import { prisma } from "@/lib/prisma";
 
@@ -161,37 +162,6 @@ export function scoreSupportMatch(params: {
   return { score, reasons };
 }
 
-async function getAccessibleMenteeIds(userId: string, roles: string[]) {
-  const { isAdmin, isChapterLead } = getMentorshipRoleFlags(roles);
-  if (isAdmin || isChapterLead) {
-    return null;
-  }
-
-  const [pairings, memberships] = await Promise.all([
-    prisma.mentorship.findMany({
-      where: {
-        status: "ACTIVE",
-        OR: [{ mentorId: userId }, { chairId: userId }],
-      },
-      select: { menteeId: true },
-    }),
-    prisma.mentorshipCircleMember.findMany({
-      where: {
-        userId,
-        isActive: true,
-      },
-      select: { menteeId: true },
-    }),
-  ]);
-
-  return Array.from(
-    new Set([
-      ...pairings.map((pairing) => pairing.menteeId),
-      ...memberships.map((member) => member.menteeId),
-    ])
-  );
-}
-
 function buildParticipantLookup(
   circleMembers: Array<{
     user: { id: string; name: string; email: string; primaryRole: string };
@@ -224,7 +194,7 @@ export async function getMentorshipHubData(params: {
   const nextMonth = startOfNextMonth();
   const accessibleMenteeIds = flags.isStudent
     ? [userId]
-    : await getAccessibleMenteeIds(userId, roles);
+    : await getMentorshipAccessibleMenteeIds(userId, roles);
 
   const mentorshipWhere =
     accessibleMenteeIds == null
@@ -492,7 +462,9 @@ export async function getSupportWorkspaceData(params: {
 }) {
   const { viewerId, roles, menteeId } = params;
   const flags = getMentorshipRoleFlags(roles);
-  const accessibleMenteeIds = flags.isStudent ? [viewerId] : await getAccessibleMenteeIds(viewerId, roles);
+  const accessibleMenteeIds = flags.isStudent
+    ? [viewerId]
+    : await getMentorshipAccessibleMenteeIds(viewerId, roles);
   const canAccess =
     flags.isAdmin ||
     flags.isChapterLead ||
@@ -733,7 +705,9 @@ export async function getPrivateMentorshipRequests(params: {
 }) {
   const { userId, roles } = params;
   const flags = getMentorshipRoleFlags(roles);
-  const accessibleMenteeIds = flags.isStudent ? [userId] : await getAccessibleMenteeIds(userId, roles);
+  const accessibleMenteeIds = flags.isStudent
+    ? [userId]
+    : await getMentorshipAccessibleMenteeIds(userId, roles);
   const where =
     flags.isStudent
       ? {

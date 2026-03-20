@@ -11,9 +11,9 @@ export async function toggleInstructorPathwaySpec(pathwayId: string) {
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const roles = session.user.roles ?? [];
-  const canAccess =
-    roles.includes("INSTRUCTOR") || roles.includes("ADMIN") || roles.includes("CHAPTER_LEAD");
-  if (!canAccess) throw new Error("Forbidden");
+  if (!roles.includes("INSTRUCTOR")) {
+    throw new Error("Only instructors can manage teaching specialties.");
+  }
   if (!(await hasInstructorPathwaySpecTable())) {
     throw new Error("Teaching specialties will be available after the latest pathway database migration is applied.");
   }
@@ -33,4 +33,6 @@ export async function toggleInstructorPathwaySpec(pathwayId: string) {
   }
 
   revalidatePath("/instructor/workspace");
+  revalidatePath(`/pathways/${pathwayId}/mentors`);
+  revalidatePath("/admin/mentor-match");
 }

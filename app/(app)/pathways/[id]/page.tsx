@@ -5,6 +5,12 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { PathwayActionButtons } from "../pathway-actions-client";
 import { StepEnrollButton } from "./step-enroll-client";
+import {
+  arePathwayStepRequirementsMet,
+  getPathwayProgressSummary,
+  getPathwayStepTitle,
+  getRequiredCourseStepsFor,
+} from "@/lib/pathway-logic";
 
 function formatCourseLabel(format: string, level: string | null) {
   if (format === "LEVELED" && level) return level.replace("LEVEL_", "");
@@ -15,12 +21,23 @@ export default async function PathwayDetailPage({ params }: { params: { id: stri
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
   const userId = session.user.id;
+  const viewer = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { chapterId: true },
+  });
 
   const pathway = await prisma.pathway.findUnique({
     where: { id: params.id },
     include: {
       steps: {
-        include: { course: true },
+        include: {
+          course: true,
+          prerequisites: {
+            include: {
+              course: true,
+            },
+          },
+        },
         orderBy: { stepOrder: "asc" },
       },
     },
@@ -28,19 +45,36 @@ export default async function PathwayDetailPage({ params }: { params: { id: stri
 
   if (!pathway) notFound();
 
+  const chapterConfig = viewer?.chapterId
+    ? await prisma.chapterPathway.findUnique({
+        where: {
+          chapterId_pathwayId: {
+            chapterId: viewer.chapterId,
+            pathwayId: pathway.id,
+          },
+        },
+        select: {
+          isAvailable: true,
+        },
+      })
+    : null;
+
   const stepCourseIds = pathway.steps.map((s) => s.courseId).filter((id): id is string => id !== null);
   const enrollments = await prisma.enrollment.findMany({
     where: { userId, courseId: { in: stepCourseIds } },
     select: { courseId: true, status: true },
   });
   const enrollmentMap = new Map(enrollments.map((e) => [e.courseId, e.status]));
+  const summary = getPathwayProgressSummary(pathway.steps, enrollmentMap);
+  const completedCount = summary.completedCount;
+  const totalCount = summary.totalCount;
+  const progressPercent = summary.progressPercent;
+  const isEnrolled = summary.isEnrolled;
+  const isComplete = summary.isComplete;
 
-  const completedCount = pathway.steps.filter((s) => s.courseId ? enrollmentMap.get(s.courseId) === "COMPLETED" : false).length;
-  const enrolledCount = enrollments.length;
-  const totalCount = pathway.steps.length;
-  const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-  const isEnrolled = enrolledCount > 0;
-  const isComplete = completedCount === totalCount && totalCount > 0;
+  if ((chapterConfig?.isAvailable ?? true) === false && !isEnrolled) {
+    notFound();
+  }
 
   // Enrolled student count
   const enrolledStudentsCount = await prisma.enrollment.groupBy({
@@ -92,7 +126,7 @@ export default async function PathwayDetailPage({ params }: { params: { id: stri
           <div className="grid two">
             <div>
               <div className="kpi">{totalCount}</div>
-              <div className="kpi-label">Steps</div>
+              <div className="kpi-label">Course Steps</div>
             </div>
             <div>
               <div className="kpi">{enrolledStudentsCount}</div>
@@ -106,12 +140,15 @@ export default async function PathwayDetailPage({ params }: { params: { id: stri
           {isEnrolled ? (
             <>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, color: "var(--gray-600)" }}>
-                <span>{completedCount} / {totalCount} steps complete</span>
+                <span>{completedCount} / {totalCount} course steps complete</span>
                 <span>{progressPercent}%</span>
               </div>
               <div style={{ height: 10, background: "var(--gray-200, #e2e8f0)", borderRadius: 5, overflow: "hidden" }}>
                 <div style={{ height: "100%", width: `${progressPercent}%`, background: "var(--ypp-purple)", borderRadius: 5 }} />
               </div>
+              <p style={{ margin: 0, fontSize: 12, color: "var(--gray-500)" }}>
+                Informational milestones stay in the pathway map, but only course-backed steps count toward unlocks and certificates.
+              </p>
               {isComplete ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   <div className="onboarding-callout" style={{ background: "var(--green-50, #f0fff4)", color: "var(--green-700, #276749)" }}>
@@ -125,8 +162,16 @@ export default async function PathwayDetailPage({ params }: { params: { id: stri
                     <p style={{ fontSize: 13, color: "var(--gray-500)" }}>Your certificate is being prepared.</p>
                   )}
                 </div>
-              ) : (
+              ) : summary.nextJoinableStep ? (
                 <StepEnrollButton pathwayId={pathway.id} label="Enroll in Next Step" />
+              ) : summary.currentStep ? (
+                <p style={{ fontSize: 13, color: "var(--gray-500)", margin: 0 }}>
+                  Finish "{getPathwayStepTitle(summary.currentStep)}" to unlock the next course step.
+                </p>
+              ) : (
+                <p style={{ fontSize: 13, color: "var(--gray-500)", margin: 0 }}>
+                  No additional course steps are available to enroll right now.
+                </p>
               )}
               <PathwayActionButtons
                 pathwayId={pathway.id}
@@ -137,9 +182,17 @@ export default async function PathwayDetailPage({ params }: { params: { id: stri
           ) : (
             <>
               <p style={{ color: "var(--gray-600)", fontSize: 14 }}>
-                Join this pathway to start your structured journey through {totalCount} courses.
+                {totalCount > 0
+                  ? `Join this pathway to start your structured journey through ${totalCount} courses.`
+                  : "This pathway is visible, but the course sequence has not been published yet."}
               </p>
-              <PathwayActionButtons pathwayId={pathway.id} isEnrolled={false} progressPercent={0} />
+              {totalCount > 0 ? (
+                <PathwayActionButtons pathwayId={pathway.id} isEnrolled={false} progressPercent={0} />
+              ) : (
+                <p style={{ fontSize: 13, color: "var(--gray-500)", margin: 0 }}>
+                  Check back soon for the first enrollable course step.
+                </p>
+              )}
             </>
           )}
         </div>
@@ -148,14 +201,33 @@ export default async function PathwayDetailPage({ params }: { params: { id: stri
       {/* Step list */}
       <div style={{ marginBottom: 24 }}>
         <div className="section-title">Pathway Steps</div>
+        <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--gray-500)" }}>
+          Every step stays visible here so you can see the whole path. Only steps connected to a course affect enrollment order, progress, and certificates.
+        </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {pathway.steps.map((step, idx) => {
+          {pathway.steps.map((step) => {
             const status = step.courseId ? enrollmentMap.get(step.courseId) : undefined;
+            const isCourseStep = Boolean(step.courseId);
             const isStepCompleted = status === "COMPLETED";
-            const isStepEnrolled = !!status && !isStepCompleted;
-            const prevStep = idx > 0 ? pathway.steps[idx - 1] : null;
-            const prevCompleted = prevStep ? (prevStep.courseId ? enrollmentMap.get(prevStep.courseId) === "COMPLETED" : false) : true;
-            const isLocked = !isStepCompleted && !isStepEnrolled && !prevCompleted;
+            const isStepEnrolled = Boolean(status) && !isStepCompleted;
+            const requiredSteps = isCourseStep
+              ? getRequiredCourseStepsFor(step, pathway.steps)
+              : [];
+            const requirementsMet = isCourseStep
+              ? arePathwayStepRequirementsMet(
+                  step,
+                  pathway.steps,
+                  summary.completedCourseIds
+                )
+              : true;
+            const isLocked =
+              isCourseStep && !isStepCompleted && !isStepEnrolled && !requirementsMet;
+            const lockLabel =
+              requiredSteps.length > 0
+                ? `Complete ${requiredSteps
+                    .map((requiredStep) => getPathwayStepTitle(requiredStep))
+                    .join(" and ")} to unlock`
+                : "This step is not unlocked yet";
 
             return (
               <div
@@ -189,10 +261,12 @@ export default async function PathwayDetailPage({ params }: { params: { id: stri
                 </div>
 
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: 15 }}>{step.course?.title ?? ""}</div>
+                  <div style={{ fontWeight: 600, fontSize: 15 }}>{getPathwayStepTitle(step)}</div>
                   <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
                     <span className="pill" style={{ fontSize: 12 }}>
-                      {step.course ? formatCourseLabel(step.course.format, step.course.level) : ""}
+                      {step.course
+                        ? formatCourseLabel(step.course.format, step.course.level)
+                        : "Milestone"}
                     </span>
                     {isStepCompleted && (
                       <span className="pill" style={{ fontSize: 12, background: "var(--green-100, #f0fff4)", color: "var(--green-700, #276749)" }}>
@@ -206,7 +280,12 @@ export default async function PathwayDetailPage({ params }: { params: { id: stri
                     )}
                     {isLocked && (
                       <span className="pill" style={{ fontSize: 12, color: "var(--gray-500)" }}>
-                        Complete step {step.stepOrder - 1} to unlock
+                        {lockLabel}
+                      </span>
+                    )}
+                    {!isCourseStep && (
+                      <span className="pill" style={{ fontSize: 12, color: "var(--gray-500)" }}>
+                        Informational milestone
                       </span>
                     )}
                   </div>

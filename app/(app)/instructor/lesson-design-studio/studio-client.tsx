@@ -644,13 +644,19 @@ export function StudioClient({
   const handleDuplicateWeek = useCallback(
     (weekId: string) => {
       if (!isDraftEditable) return;
+      let duplicatedTargetWeekId: string | null = null;
       setWeeklyPlans((prev) => {
         const sourceIndex = prev.findIndex((week) => week.id === weekId);
         if (sourceIndex === -1) return prev;
 
-        const targetIndex =
-          sourceIndex + 1 < prev.length ? sourceIndex + 1 : sourceIndex;
         const source = prev[sourceIndex];
+        const targetIndex = prev.findIndex(
+          (plan, index) => index !== sourceIndex && isBlankWeekPlan(plan)
+        );
+        if (targetIndex === -1) {
+          return prev;
+        }
+
         const next = prev.map((plan, index) =>
           index === targetIndex
             ? {
@@ -670,9 +676,19 @@ export function StudioClient({
             : plan
         );
 
+        duplicatedTargetWeekId = next[targetIndex]?.id ?? null;
         triggerAutoSave(buildSnapshot({ weeklyPlans: next }));
         return next;
       });
+
+      if (!duplicatedTargetWeekId) {
+        alert(
+          "There is not an empty session available to duplicate into yet. Clear a session first, then duplicate the pattern forward."
+        );
+        return;
+      }
+
+      setSelectedWeekId(duplicatedTargetWeekId);
     },
     [buildSnapshot, isDraftEditable, triggerAutoSave]
   );
@@ -1455,7 +1471,7 @@ export function StudioClient({
       sessionsBuiltLabel={`${progress.fullyBuiltSessions}/${progress.totalSessionsExpected}`}
       understandingLabel={progress.understandingChecksPassed ? "Passed" : "In progress"}
       blockerLabel={blockerCount === 0 ? "None" : String(blockerCount)}
-      updatedAtLabel={`Last updated ${new Date(lastSavedAt).toLocaleString()}`}
+      updatedAtLabel={`Last saved ${new Date(lastSavedAt).toLocaleString()}`}
       workflowNotice={workflowNotice}
       readOnlyNotice={readOnlyNotice}
       readOnlyBody={readOnlyBody}

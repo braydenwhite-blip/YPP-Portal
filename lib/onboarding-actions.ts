@@ -3,6 +3,13 @@
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import {
+  arePathwayStepRequirementsMet,
+  getCourseBackedPathwaySteps,
+  getFirstJoinablePathwayCourseStep,
+  getPathwayStepTitle,
+  getRequiredCourseStepsFor,
+} from "@/lib/pathway-logic";
 import { awardXp, XP_REWARDS } from "@/lib/xp";
 
 export async function getOnboardingProgress() {
@@ -95,15 +102,44 @@ export async function saveOnboardingProfile(formData: FormData) {
 export async function selectPathways(pathwayIds: string[]) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return { error: "Not authenticated" };
+  let joinablePathwayCount = 0;
 
   for (const pathwayId of pathwayIds) {
-    const firstStep = await prisma.pathwayStep.findFirst({
+    const steps = await prisma.pathwayStep.findMany({
       where: { pathwayId },
+      include: {
+        prerequisites: {
+          select: {
+            id: true,
+            stepOrder: true,
+            title: true,
+            courseId: true,
+          },
+        },
+      },
       orderBy: { stepOrder: "asc" },
     });
-    if (!firstStep) continue;
 
-    if (!firstStep.courseId) continue;
+    if (steps.length === 0) continue;
+
+    const courseStepIds = steps
+      .map((step) => step.courseId)
+      .filter((courseId): courseId is string => courseId !== null);
+    const completedEnrollments = await prisma.enrollment.findMany({
+      where: {
+        userId: session.user.id,
+        courseId: { in: courseStepIds },
+        status: "COMPLETED",
+      },
+      select: { courseId: true },
+    });
+    const completedCourseIds = new Set(
+      completedEnrollments.map((enrollment) => enrollment.courseId)
+    );
+    const firstStep = getFirstJoinablePathwayCourseStep(steps, completedCourseIds);
+
+    if (!firstStep?.courseId) continue;
+    joinablePathwayCount += 1;
 
     const existing = await prisma.enrollment.findFirst({
       where: { userId: session.user.id, courseId: firstStep.courseId },
@@ -125,6 +161,10 @@ export async function selectPathways(pathwayIds: string[]) {
     }
   }
 
+  if (pathwayIds.length > 0 && joinablePathwayCount === 0) {
+    return { error: "This pathway does not have a joinable course step yet." };
+  }
+
   return { success: true };
 }
 
@@ -135,38 +175,47 @@ export async function enrollInNextPathwayStep(pathwayId: string) {
   const steps = await prisma.pathwayStep.findMany({
     where: { pathwayId },
     orderBy: { stepOrder: "asc" },
-    include: { course: true },
+    include: {
+      course: true,
+      prerequisites: {
+        include: {
+          course: true,
+        },
+      },
+    },
   });
 
-  const stepCourseIds = steps.map((s) => s.courseId).filter((id): id is string => id !== null);
+  const courseSteps = getCourseBackedPathwaySteps(steps);
+  if (courseSteps.length === 0) {
+    return { error: "This pathway does not have a course step to enroll in yet." };
+  }
+
+  const stepCourseIds = courseSteps.map((step) => step.courseId);
   const userEnrollments = await prisma.enrollment.findMany({
     where: { userId: session.user.id, courseId: { in: stepCourseIds } },
   });
   const enrollmentByCourseId = new Map(userEnrollments.map((e) => [e.courseId, e]));
+  const completedCourseIds = new Set(
+    userEnrollments
+      .filter((enrollment) => enrollment.status === "COMPLETED")
+      .map((enrollment) => enrollment.courseId)
+  );
 
-  for (const step of steps) {
-    if (!step.courseId) continue; // Skip non-course steps (Passion Lab / Standalone)
+  for (const step of courseSteps) {
     const enrollment = enrollmentByCourseId.get(step.courseId);
     if (!enrollment) {
-      // This step is not enrolled — check if previous step is complete (or it's step 1)
-      if (step.stepOrder === 1) {
-        // First step: enroll freely
-        await prisma.enrollment.create({
-          data: { userId: session.user.id, courseId: step.courseId, status: "ENROLLED" },
-        });
-        try {
-          await awardXp(session.user.id, XP_REWARDS.ENROLL_COURSE, "Enrolled in pathway step", { pathwayId, courseId: step.courseId });
-        } catch { /* XP may not exist */ }
-        return { success: true, enrolledCourseId: step.courseId };
+      if (!arePathwayStepRequirementsMet(step, steps, completedCourseIds)) {
+        const requiredSteps = getRequiredCourseStepsFor(step, steps);
+        const requirementLabel =
+          requiredSteps.length > 0
+            ? requiredSteps.map((requiredStep) => getPathwayStepTitle(requiredStep)).join(" and ")
+            : "the previous required step";
+        return {
+          error: `Complete "${requirementLabel}" first to unlock this step.`,
+          locked: true,
+        };
       }
-      // Find previous step
-      const prevStep = steps.find((s) => s.stepOrder === step.stepOrder - 1);
-      if (!prevStep) return { error: "Previous step not found" };
-      const prevEnrollment = prevStep.courseId ? enrollmentByCourseId.get(prevStep.courseId) : null;
-      if (!prevEnrollment || prevEnrollment.status !== "COMPLETED") {
-        return { error: `Complete "${prevStep.course?.title ?? "previous step"}" first to unlock this step.`, locked: true };
-      }
-      // Prev step completed: enroll in this step
+
       await prisma.enrollment.create({
         data: { userId: session.user.id, courseId: step.courseId, status: "ENROLLED" },
       });
@@ -181,15 +230,19 @@ export async function enrollInNextPathwayStep(pathwayId: string) {
 }
 
 export async function checkAndAwardPathwayCertificate(userId: string, pathwayId: string) {
-  const steps = await prisma.pathwayStep.findMany({ where: { pathwayId }, select: { courseId: true } });
-  if (steps.length === 0) return;
+  const steps = await prisma.pathwayStep.findMany({
+    where: { pathwayId },
+    select: { id: true, stepOrder: true, title: true, courseId: true },
+    orderBy: { stepOrder: "asc" },
+  });
+  const courseStepIds = getCourseBackedPathwaySteps(steps).map((step) => step.courseId);
+  if (courseStepIds.length === 0) return;
 
-  const courseStepIds = steps.map((s) => s.courseId).filter((id): id is string => id !== null);
   const completedEnrollments = await prisma.enrollment.count({
     where: { userId, courseId: { in: courseStepIds }, status: "COMPLETED" },
   });
 
-  if (completedEnrollments < steps.length) return; // Not all steps complete
+  if (completedEnrollments < courseStepIds.length) return; // Not all course steps complete
 
   // Check if certificate already issued
   const existing = await prisma.certificate.findFirst({ where: { recipientId: userId, pathwayId } });

@@ -4,11 +4,16 @@ import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { ReflectionForm } from "./reflection-form";
+import { getPathwayStepTitle } from "@/lib/pathway-logic";
 
 export default async function PathwayJournalPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
   const userId = session.user.id;
+  const viewer = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { chapterId: true },
+  });
 
   const pathway = await prisma.pathway.findUnique({
     where: { id: params.id },
@@ -17,6 +22,18 @@ export default async function PathwayJournalPage({ params }: { params: { id: str
     },
   });
   if (!pathway) notFound();
+
+  const chapterConfig = viewer?.chapterId
+    ? await prisma.chapterPathway.findUnique({
+        where: {
+          chapterId_pathwayId: {
+            chapterId: viewer.chapterId,
+            pathwayId: pathway.id,
+          },
+        },
+        select: { isAvailable: true },
+      })
+    : null;
 
   // Load user's reflections for this pathway
   const reflections = await prisma.pathwayReflection.findMany({
@@ -31,6 +48,19 @@ export default async function PathwayJournalPage({ params }: { params: { id: str
     select: { courseId: true },
   });
   const completedCourseIds = new Set(completedEnrollments.map((e) => e.courseId));
+  const hasPathwayEnrollment =
+    courseIds.length > 0
+      ? Boolean(
+          await prisma.enrollment.findFirst({
+            where: { userId, courseId: { in: courseIds } },
+            select: { id: true },
+          })
+        )
+      : false;
+
+  if ((chapterConfig?.isAvailable ?? true) === false && !hasPathwayEnrollment) {
+    notFound();
+  }
 
   const completedSteps = pathway.steps.filter((s) => s.courseId !== null && completedCourseIds.has(s.courseId));
   const reflectedStepOrders = new Set(reflections.map((r: any) => r.stepOrder));
@@ -44,7 +74,7 @@ export default async function PathwayJournalPage({ params }: { params: { id: str
         <div>
           <Link href={`/pathways/${params.id}`} style={{ fontSize: 13, color: "var(--gray-500)", textDecoration: "none" }}>← {pathway.name}</Link>
           <h1 className="page-title">My Reflections</h1>
-          <p className="page-subtitle">Your learning journal for {pathway.name}</p>
+          <p className="page-subtitle">Your learning journal for {pathway.name}. Reflections unlock after you complete a course step.</p>
         </div>
       </div>
 
@@ -53,7 +83,7 @@ export default async function PathwayJournalPage({ params }: { params: { id: str
         <div className="card" style={{ marginBottom: 24, borderLeft: "4px solid var(--ypp-purple)" }}>
           <h3 style={{ marginTop: 0, marginBottom: 8 }}>Steps awaiting reflection</h3>
           <p style={{ fontSize: 14, color: "var(--gray-600)", marginBottom: 16 }}>
-            Write a short reflection on each step you completed. What did you learn? What surprised you?
+            Write a short reflection on each completed course step. What did you learn, what surprised you, and what will you apply next?
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {pendingReflectionSteps.map((step) => (
@@ -61,7 +91,7 @@ export default async function PathwayJournalPage({ params }: { params: { id: str
                 key={step.id}
                 pathwayId={params.id}
                 stepOrder={step.stepOrder}
-                stepTitle={step.course?.title ?? ""}
+                stepTitle={getPathwayStepTitle(step)}
               />
             ))}
           </div>
@@ -74,7 +104,7 @@ export default async function PathwayJournalPage({ params }: { params: { id: str
         {reflections.length === 0 ? (
           <div className="card">
             <p style={{ color: "var(--gray-500)" }}>
-              No reflections yet. Complete a pathway step and write your first reflection above.
+              No reflections yet. Complete a course step and your next reflection form will appear above.
             </p>
           </div>
         ) : (
@@ -85,7 +115,8 @@ export default async function PathwayJournalPage({ params }: { params: { id: str
                 <div key={reflection.id} className="timeline-item" style={{ paddingBottom: 16 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                     <strong style={{ fontSize: 14 }}>
-                      Step {reflection.stepOrder}{step ? `: ${step.course?.title ?? ""}` : ""}
+                      Step {reflection.stepOrder}
+                      {step ? `: ${getPathwayStepTitle(step)}` : ""}
                     </strong>
                     <span style={{ fontSize: 12, color: "var(--gray-400)" }}>
                       {new Date(reflection.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}

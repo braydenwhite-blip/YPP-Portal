@@ -12,6 +12,10 @@ import {
   sendInfoRequestEmail,
   sendInterviewScheduledEmail,
 } from "@/lib/email";
+import {
+  getLegacyApplicationTransitionError,
+  type LegacyApplicationReviewAction,
+} from "@/lib/legacy-application-review";
 
 type FormState = {
   status: "idle" | "error" | "success";
@@ -26,14 +30,41 @@ function getString(formData: FormData, key: string, required = true) {
   return value ? String(value).trim() : "";
 }
 
-async function requireAdminOrChapterLead() {
+async function requireAdmin() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) throw new Error("Unauthorized");
   const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_LEAD")) {
-    throw new Error("Unauthorized - Admin or Chapter Lead access required");
+  if (!roles.includes("ADMIN")) {
+    throw new Error("Unauthorized - Admin access required");
   }
   return session;
+}
+
+async function notifyChapterPresidentApplicationReviewers(applicantId: string) {
+  const [applicant, reviewers] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: applicantId },
+      select: { name: true },
+    }),
+    prisma.user.findMany({
+      where: {
+        roles: { some: { role: RoleType.ADMIN } },
+      },
+      select: { email: true },
+    }),
+  ]);
+
+  const emails = reviewers.map((reviewer) => reviewer.email).filter(Boolean);
+  if (emails.length === 0) {
+    return;
+  }
+
+  const baseUrl = process.env.NEXTAUTH_URL || "https://portal.youthpassionproject.org";
+  await sendNewApplicationNotification({
+    to: emails,
+    applicantName: applicant?.name ?? "Unknown",
+    reviewUrl: `${baseUrl}/admin/chapter-president-applicants`,
+  });
 }
 
 export async function submitChapterPresidentApplication(
@@ -55,22 +86,53 @@ export async function submitChapterPresidentApplication(
     const chapterVision = getString(formData, "chapterVision");
     const availability = getString(formData, "availability");
     const chapterId = getString(formData, "chapterId", false) || null;
+    const formTemplate = await prisma.applicationFormTemplate.findFirst({
+      where: {
+        roleType: "CHAPTER_PRESIDENT",
+        isActive: true,
+      },
+      select: {
+        fields: {
+          select: {
+            id: true,
+            label: true,
+            fieldType: true,
+            required: true,
+          },
+          orderBy: { sortOrder: "asc" },
+        },
+      },
+    });
+    const allowedFieldIds = new Set(formTemplate?.fields.map((field) => field.id) ?? []);
 
     // Get custom field responses
     const customFields: { fieldId: string; value: string; fileUrl?: string }[] = [];
     for (const [key, value] of formData.entries()) {
       if (key.startsWith("custom_field_")) {
         const fieldId = key.replace("custom_field_", "");
+        if (!allowedFieldIds.has(fieldId)) continue;
         customFields.push({ fieldId, value: String(value) });
       }
       if (key.startsWith("custom_file_")) {
         const fieldId = key.replace("custom_file_", "");
+        if (!allowedFieldIds.has(fieldId)) continue;
         const existing = customFields.find((f) => f.fieldId === fieldId);
         if (existing) {
           existing.fileUrl = String(value);
         } else {
           customFields.push({ fieldId, value: "", fileUrl: String(value) });
         }
+      }
+    }
+    for (const field of formTemplate?.fields ?? []) {
+      const response = customFields.find((entry) => entry.fieldId === field.id);
+      const hasValue =
+        field.fieldType === "FILE_UPLOAD"
+          ? Boolean(response?.fileUrl?.trim())
+          : Boolean(response?.value?.trim());
+
+      if (field.required && !hasValue) {
+        throw new Error(`${field.label} is required.`);
       }
     }
 
@@ -100,31 +162,7 @@ export async function submitChapterPresidentApplication(
 
     // Notify reviewers
     try {
-      const applicant = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { name: true, chapterId: true },
-      });
-      const reviewers = await prisma.user.findMany({
-        where: {
-          OR: [
-            { roles: { some: { role: RoleType.ADMIN } } },
-            {
-              roles: { some: { role: RoleType.CHAPTER_LEAD } },
-              chapterId: chapterId ?? undefined,
-            },
-          ],
-        },
-        select: { email: true },
-      });
-      const emails = reviewers.map((r) => r.email).filter(Boolean);
-      if (emails.length > 0) {
-        const baseUrl = process.env.NEXTAUTH_URL || "https://portal.youthpassionproject.org";
-        await sendNewApplicationNotification({
-          to: emails,
-          applicantName: applicant?.name ?? "Unknown",
-          reviewUrl: `${baseUrl}/admin/chapter-president-applicants`,
-        });
-      }
+      await notifyChapterPresidentApplicationReviewers(session.user.id);
     } catch (e) {
       console.error("[submitCPApplication] notify failed:", e);
     }
@@ -146,7 +184,7 @@ export async function reviewChapterPresidentApplication(
   formData: FormData
 ): Promise<FormState> {
   try {
-    const session = await requireAdminOrChapterLead();
+    const session = await requireAdmin();
     const action = getString(formData, "action");
     const applicationId = getString(formData, "applicationId");
 
@@ -156,7 +194,16 @@ export async function reviewChapterPresidentApplication(
     });
     if (!application) return { status: "error", message: "Application not found." };
 
-    switch (action) {
+    const reviewAction = action as LegacyApplicationReviewAction;
+    const transitionError = getLegacyApplicationTransitionError({
+      status: application.status,
+      action: reviewAction,
+    });
+    if (transitionError) {
+      return { status: "error", message: transitionError };
+    }
+
+    switch (reviewAction) {
       case "mark_under_review":
         await prisma.chapterPresidentApplication.update({
           where: { id: applicationId },
@@ -165,6 +212,13 @@ export async function reviewChapterPresidentApplication(
         break;
 
       case "approve": {
+        if (!application.chapterId) {
+          return {
+            status: "error",
+            message: "Assign a chapter before approving this chapter president application.",
+          };
+        }
+
         const notes = getString(formData, "notes", false);
         const chapterId = application.chapterId;
 
@@ -348,6 +402,12 @@ export async function submitCPInfoResponse(
     if (application.applicantId !== session.user.id) {
       return { status: "error", message: "Unauthorized." };
     }
+    if (application.status !== ChapterPresidentApplicationStatus.INFO_REQUESTED) {
+      return {
+        status: "error",
+        message: "Your application is not waiting on an information response right now.",
+      };
+    }
 
     await prisma.chapterPresidentApplication.update({
       where: { id: application.id },
@@ -356,6 +416,12 @@ export async function submitCPInfoResponse(
         status: ChapterPresidentApplicationStatus.SUBMITTED,
       },
     });
+
+    try {
+      await notifyChapterPresidentApplicationReviewers(session.user.id);
+    } catch (e) {
+      console.error("[submitCPInfoResponse] notify failed:", e);
+    }
 
     revalidatePath("/application-status");
     return { status: "success", message: "Your response has been submitted." };

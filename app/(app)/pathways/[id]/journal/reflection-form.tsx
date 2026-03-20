@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { savePathwayReflection } from "@/lib/pathway-reflection-actions";
 
@@ -21,7 +21,16 @@ export function ReflectionForm({ pathwayId, stepOrder, stepTitle }: ReflectionFo
     e.preventDefault();
     if (!content.trim()) return;
     startTransition(async () => {
-      await savePathwayReflection({ pathwayId, stepOrder, content: content.trim(), visibleToMentor });
+      const result = await savePathwayReflection({
+        pathwayId,
+        stepOrder,
+        content: content.trim(),
+        visibleToMentor,
+      });
+      if (result && "error" in result && result.error) {
+        alert(result.error);
+        return;
+      }
       setSaved(true);
       router.refresh();
     });
@@ -50,14 +59,19 @@ export function ReflectionForm({ pathwayId, stepOrder, stepTitle }: ReflectionFo
         style={{ width: "100%", marginBottom: 10 }}
       />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
-          <input
-            type="checkbox"
-            checked={visibleToMentor}
-            onChange={(e) => setVisibleToMentor(e.target.checked)}
-          />
-          Share with mentor
-        </label>
+        <div>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={visibleToMentor}
+              onChange={(e) => setVisibleToMentor(e.target.checked)}
+            />
+            Share with mentor
+          </label>
+          <div style={{ marginTop: 4, fontSize: 12, color: "var(--gray-500)" }}>
+            Turn this off if you want to keep this reflection private to you.
+          </div>
+        </div>
         <button type="submit" className="button small" disabled={isPending || !content.trim()}>
           {isPending ? "Saving..." : "Save Reflection"}
         </button>

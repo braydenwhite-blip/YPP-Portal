@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import { getCourseBackedPathwaySteps } from "@/lib/pathway-logic";
 
 export default async function PathwayLeaderboardPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -14,7 +15,8 @@ export default async function PathwayLeaderboardPage({ params }: { params: { id:
   });
   if (!pathway) notFound();
 
-  const courseIds = pathway.steps.map((s) => s.courseId).filter((id): id is string => id !== null);
+  const courseSteps = getCourseBackedPathwaySteps(pathway.steps);
+  const courseIds = courseSteps.map((step) => step.courseId);
   if (courseIds.length === 0) {
     return (
       <div>
@@ -109,7 +111,7 @@ export default async function PathwayLeaderboardPage({ params }: { params: { id:
                       {isMe && <span style={{ fontSize: 12, color: "var(--ypp-purple)", marginLeft: 6 }}>you</span>}
                     </td>
                     <td style={{ textAlign: "center", padding: "10px 12px" }}>
-                      <span className="pill">{entry.completedSteps} / {pathway.steps.length}</span>
+                      <span className="pill">{entry.completedSteps} / {courseSteps.length}</span>
                     </td>
                     <td style={{ textAlign: "center", padding: "10px 12px" }}>Lv {entry.level}</td>
                     <td style={{ textAlign: "center", padding: "10px 12px" }}>{entry.xp.toLocaleString()} XP</td>

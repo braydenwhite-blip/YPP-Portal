@@ -25,6 +25,13 @@ export async function submitMentorQuestion(formData: FormData) {
     requestFormData.set("passionId", passionId);
   }
 
+  if (
+    formData.get("isAnonymous") === "on" ||
+    String(formData.get("isAnonymous") ?? "").trim() === "true"
+  ) {
+    requestFormData.set("isAnonymous", "true");
+  }
+
   await createMentorshipRequest(requestFormData);
 }
 

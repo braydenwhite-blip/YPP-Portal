@@ -51,7 +51,7 @@ export default async function UnlockSectionsPage() {
 
   let menteeData: Awaited<ReturnType<typeof getMenteeUnlockStatus>> = [];
   try {
-    menteeData = await getMenteeUnlockStatus(session.user.id);
+    menteeData = await getMenteeUnlockStatus();
   } catch {
     // Tables may not exist yet
   }
@@ -65,7 +65,7 @@ export default async function UnlockSectionsPage() {
     const sectionKey = formData.get("sectionKey") as string;
 
     try {
-      await mentorDirectUnlock(studentId, sess.user.id, sectionKey);
+      await mentorDirectUnlock(studentId, sectionKey);
     } catch {
       // Section may require recommendation instead
     }
@@ -81,12 +81,7 @@ export default async function UnlockSectionsPage() {
     const sectionKey = formData.get("sectionKey") as string;
     const reason = (formData.get("reason") as string) || undefined;
 
-    await createUnlockRecommendation(
-      studentId,
-      sess.user.id,
-      sectionKey,
-      reason
-    );
+    await createUnlockRecommendation(studentId, sectionKey, reason);
     revalidatePath("/mentorship/unlock-sections");
   }
 

@@ -31,11 +31,11 @@ interface GuidedStudioShellProps {
 function getSavePill(saveStatus: GuidedStudioShellProps["saveStatus"]) {
   switch (saveStatus) {
     case "saving":
-      return <span className="pill">Saving</span>;
+      return <span className="pill">Saving draft</span>;
     case "saved":
-      return <span className="pill pill-success">Auto-saved</span>;
+      return <span className="pill pill-success">Draft saved</span>;
     case "error":
-      return <span className="pill pill-pending">Save failed</span>;
+      return <span className="pill pill-pending">Save needs attention</span>;
     default:
       return null;
   }

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { getStudentProgressSnapshot } from "@/lib/student-progress-actions";
+import { getCourseBackedPathwaySteps } from "@/lib/pathway-logic";
 
 export default async function PathwayProgressPage() {
   const session = await getServerSession(authOptions);
@@ -53,12 +54,13 @@ export default async function PathwayProgressPage() {
           include: { course: true },
           orderBy: { stepOrder: "asc" }
         });
+        const courseSteps = getCourseBackedPathwaySteps(allSteps);
 
         // Get user's enrollments for this pathway
         const pathwayEnrollments = await prisma.enrollment.findMany({
           where: {
             userId: session.user.id,
-            courseId: { in: allSteps.map(s => s.courseId).filter((id): id is string => id !== null) }
+            courseId: { in: courseSteps.map((step) => step.courseId) }
           },
           include: { course: true }
         });
@@ -72,24 +74,24 @@ export default async function PathwayProgressPage() {
         const inProgress: any[] = [];
         const upcoming: any[] = [];
 
-        for (const pathwayStep of allSteps) {
+        for (const pathwayStep of courseSteps) {
           const courseId = pathwayStep.courseId;
 
-          if (courseId && completedCourseIds.has(courseId)) {
+          if (completedCourseIds.has(courseId)) {
             completed.push({ ...pathwayStep, enrollment: pathwayEnrollments.find(e => e.courseId === courseId) });
-          } else if (courseId && enrolledCourseIds.has(courseId)) {
+          } else if (enrolledCourseIds.has(courseId)) {
             inProgress.push({ ...pathwayStep, enrollment: pathwayEnrollments.find(e => e.courseId === courseId) });
           } else {
             upcoming.push(pathwayStep);
           }
         }
 
-        pathwayProgress.set(pathwayId, {
+          pathwayProgress.set(pathwayId, {
           pathway: step.pathway,
           completed,
           inProgress,
           upcoming,
-          allSteps
+          allSteps: courseSteps
         });
       }
     }
@@ -147,7 +149,8 @@ export default async function PathwayProgressPage() {
           {progressArray.map(({ pathway, completed, inProgress, upcoming, allSteps }) => {
             const totalSteps = allSteps.length;
             const completedCount = completed.length;
-            const progressPercent = Math.round((completedCount / totalSteps) * 100);
+            const progressPercent =
+              totalSteps > 0 ? Math.round((completedCount / totalSteps) * 100) : 0;
             const estimatedWeeksRemaining = (totalSteps - completedCount - inProgress.length) * weeksPerCourse;
             const estimatedCompletionDate = new Date();
             estimatedCompletionDate.setDate(estimatedCompletionDate.getDate() + (estimatedWeeksRemaining * 7));

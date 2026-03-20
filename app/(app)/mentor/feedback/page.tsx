@@ -306,7 +306,7 @@ export default async function MentorFeedbackPage() {
                         </span>
                       ) : (
                         isStudent &&
-                        req.studentId === userId && (
+                        req.student.id === userId && (
                           <HelpfulButton responseId={resp.id} />
                         )
                       )}

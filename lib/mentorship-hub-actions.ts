@@ -24,6 +24,10 @@ import {
   deriveMentorshipTypeFromRole,
   getMentorshipRoleFlags,
 } from "@/lib/mentorship-hub";
+import {
+  getMentorshipAccessibleMenteeIds,
+  hasMentorshipMenteeAccess,
+} from "@/lib/mentorship-access";
 import { prisma } from "@/lib/prisma";
 
 function getString(formData: FormData, key: string, required = true) {
@@ -62,32 +66,21 @@ async function requireAuth() {
 }
 
 async function canManageMentee(userId: string, roles: string[], menteeId: string) {
+  return hasMentorshipMenteeAccess(userId, roles, menteeId);
+}
+
+async function canSupportMentee(userId: string, roles: string[], menteeId: string) {
   const flags = getMentorshipRoleFlags(roles);
-  if (flags.isAdmin || flags.isChapterLead || userId === menteeId) {
+  if (!flags.canSupport) {
+    return false;
+  }
+
+  if (flags.isAdmin) {
     return true;
   }
 
-  const access = await prisma.mentorship.findFirst({
-    where: {
-      menteeId,
-      status: "ACTIVE",
-      OR: [
-        { mentorId: userId },
-        { chairId: userId },
-        {
-          circleMembers: {
-            some: {
-              userId,
-              isActive: true,
-            },
-          },
-        },
-      ],
-    },
-    select: { id: true },
-  });
-
-  return Boolean(access);
+  const accessibleMenteeIds = await getMentorshipAccessibleMenteeIds(userId, roles);
+  return accessibleMenteeIds == null || accessibleMenteeIds.includes(menteeId);
 }
 
 async function getActiveMentorshipContext(menteeId: string) {
@@ -197,6 +190,50 @@ async function upsertCircleMember(args: {
   });
 }
 
+const EXCLUSIVE_SUPPORT_ROLES = new Set<SupportRole>([
+  SupportRole.PRIMARY_MENTOR,
+  SupportRole.CHAIR,
+]);
+const PRIMARY_MENTOR_ELIGIBLE_ROLES = new Set([
+  "MENTOR",
+  "INSTRUCTOR",
+  "CHAPTER_LEAD",
+  "ADMIN",
+  "STAFF",
+]);
+const CHAIR_ELIGIBLE_ROLES = new Set(["CHAPTER_LEAD", "ADMIN"]);
+
+function hasEligibleSupportRole(targetRoles: string[], allowedRoles: Set<string>) {
+  return targetRoles.some((role) => allowedRoles.has(role));
+}
+
+async function deactivateExclusiveSupportRoleMembers(args: {
+  mentorshipId?: string | null;
+  menteeId: string;
+  role: SupportRole;
+  keepUserId: string;
+}) {
+  if (!EXCLUSIVE_SUPPORT_ROLES.has(args.role)) {
+    return;
+  }
+
+  await prisma.mentorshipCircleMember.updateMany({
+    where: {
+      menteeId: args.menteeId,
+      role: args.role,
+      isActive: true,
+      userId: {
+        not: args.keepUserId,
+      },
+    },
+    data: {
+      mentorshipId: args.mentorshipId ?? null,
+      isActive: false,
+      isPrimary: false,
+    },
+  });
+}
+
 export async function ensureMentorshipSupportCircle(mentorshipId: string) {
   const mentorship = await prisma.mentorship.findUnique({
     where: { id: mentorshipId },
@@ -244,9 +281,17 @@ export async function assignSupportCircleMember(formData: FormData) {
   }
 
   const menteeId = getString(formData, "menteeId");
-  const userId = getString(formData, "userId");
+  const supporterId = getString(formData, "userId");
   const role = getString(formData, "role") as SupportRole;
   const notes = getString(formData, "notes", false);
+
+  if (supporterId === menteeId) {
+    throw new Error("A mentee cannot be assigned to their own support circle.");
+  }
+
+  if (!(await hasMentorshipMenteeAccess(session.user.id, roles, menteeId))) {
+    throw new Error("Unauthorized");
+  }
 
   const [mentee, targetUser, activeMentorship] = await Promise.all([
     prisma.user.findUniqueOrThrow({
@@ -259,13 +304,38 @@ export async function assignSupportCircleMember(formData: FormData) {
       },
     }),
     prisma.user.findUniqueOrThrow({
-      where: { id: userId },
-      select: { id: true },
+      where: { id: supporterId },
+      select: {
+        id: true,
+        primaryRole: true,
+        roles: {
+          select: { role: true },
+        },
+      },
     }),
     getActiveMentorshipContext(menteeId),
   ]);
 
   let mentorshipId = activeMentorship?.id ?? null;
+
+  if (role !== SupportRole.PRIMARY_MENTOR && !activeMentorship) {
+    throw new Error("Assign a primary mentor before adding other support roles.");
+  }
+
+  const targetRoles = Array.from(
+    new Set([targetUser.primaryRole, ...targetUser.roles.map((entry) => entry.role)])
+  );
+
+  if (
+    role === SupportRole.PRIMARY_MENTOR &&
+    !hasEligibleSupportRole(targetRoles, PRIMARY_MENTOR_ELIGIBLE_ROLES)
+  ) {
+    throw new Error("Primary mentors must have an active mentor or instructor support role.");
+  }
+
+  if (role === SupportRole.CHAIR && !hasEligibleSupportRole(targetRoles, CHAIR_ELIGIBLE_ROLES)) {
+    throw new Error("Chairs must be chapter leads or admins.");
+  }
 
   if (role === SupportRole.PRIMARY_MENTOR) {
     const programGroup = getMentorshipProgramGroupForRole(mentee.primaryRole);
@@ -291,7 +361,7 @@ export async function assignSupportCircleMember(formData: FormData) {
     });
 
     await enforceFullProgramMentorCapacity({
-      mentorId: userId,
+      mentorId: supporterId,
       programGroup,
       governanceMode,
       excludeMentorshipId: activeMentorship?.id ?? null,
@@ -301,7 +371,7 @@ export async function assignSupportCircleMember(formData: FormData) {
       await prisma.mentorship.update({
         where: { id: activeMentorship.id },
         data: {
-          mentorId: userId,
+          mentorId: supporterId,
           type: getMentorshipTypeForProgramGroup(programGroup),
           programGroup,
           governanceMode,
@@ -313,7 +383,7 @@ export async function assignSupportCircleMember(formData: FormData) {
     } else {
       const mentorship = await prisma.mentorship.create({
         data: {
-          mentorId: userId,
+          mentorId: supporterId,
           menteeId,
           type: getMentorshipTypeForProgramGroup(programGroup),
           programGroup,
@@ -325,14 +395,29 @@ export async function assignSupportCircleMember(formData: FormData) {
       });
       mentorshipId = mentorship.id;
     }
+
+    await deactivateExclusiveSupportRoleMembers({
+      mentorshipId,
+      menteeId,
+      role: SupportRole.PRIMARY_MENTOR,
+      keepUserId: targetUser.id,
+    });
   }
 
   if (role === SupportRole.CHAIR && activeMentorship) {
     await prisma.mentorship.update({
       where: { id: activeMentorship.id },
       data: {
-        chairId: userId,
+        chairId: supporterId,
       },
+    });
+
+    mentorshipId = activeMentorship.id;
+    await deactivateExclusiveSupportRoleMembers({
+      mentorshipId,
+      menteeId,
+      role: SupportRole.CHAIR,
+      keepUserId: targetUser.id,
     });
   }
 
@@ -364,7 +449,7 @@ export async function createMentorshipSession(formData: FormData) {
   const userId = session.user.id;
   const menteeId = getString(formData, "menteeId");
 
-  if (!(await canManageMentee(userId, roles, menteeId))) {
+  if (!(await canSupportMentee(userId, roles, menteeId))) {
     throw new Error("Unauthorized");
   }
 
@@ -381,16 +466,19 @@ export async function createMentorshipSession(formData: FormData) {
   const completedNow = getString(formData, "completedNow", false) === "true";
 
   const activeMentorship = await getActiveMentorshipContext(menteeId);
+  if (!activeMentorship) {
+    throw new Error("Assign an active mentor before logging sessions.");
+  }
   const participantIds = Array.from(
     new Set([
       menteeId,
-      ...(activeMentorship?.circleMembers.map((member) => member.userId) ?? []),
+      ...activeMentorship.circleMembers.map((member) => member.userId),
     ])
   );
 
   await prisma.mentorshipSession.create({
     data: {
-      mentorshipId: activeMentorship?.id ?? null,
+      mentorshipId: activeMentorship.id,
       menteeId,
       type,
       title,
@@ -418,7 +506,7 @@ export async function createMentorshipActionItem(formData: FormData) {
   const userId = session.user.id;
   const menteeId = getString(formData, "menteeId");
 
-  if (!(await canManageMentee(userId, roles, menteeId))) {
+  if (!(await canSupportMentee(userId, roles, menteeId))) {
     throw new Error("Unauthorized");
   }
 
@@ -428,10 +516,36 @@ export async function createMentorshipActionItem(formData: FormData) {
   const sessionId = getString(formData, "sessionId", false);
   const dueAt = getOptionalDate(formData.get("dueAt"));
   const activeMentorship = await getActiveMentorshipContext(menteeId);
+  if (!activeMentorship) {
+    throw new Error("Assign an active mentor before creating action items.");
+  }
+
+  const allowedOwnerIds = new Set([
+    menteeId,
+    ...activeMentorship.circleMembers.map((member) => member.userId),
+  ]);
+  if (ownerId && !allowedOwnerIds.has(ownerId)) {
+    throw new Error("Owners must be the mentee or an active support-circle member.");
+  }
+
+  if (sessionId) {
+    const linkedSession = await prisma.mentorshipSession.findUnique({
+      where: { id: sessionId },
+      select: { id: true, menteeId: true, mentorshipId: true },
+    });
+
+    if (
+      !linkedSession ||
+      linkedSession.menteeId !== menteeId ||
+      linkedSession.mentorshipId !== activeMentorship.id
+    ) {
+      throw new Error("Action items can only be attached to sessions for this mentee's active mentorship.");
+    }
+  }
 
   await prisma.mentorshipActionItem.create({
     data: {
-      mentorshipId: activeMentorship?.id ?? null,
+      mentorshipId: activeMentorship.id,
       menteeId,
       sessionId: sessionId || null,
       title,
@@ -466,7 +580,6 @@ export async function updateMentorshipActionItemStatus(formData: FormData) {
   const flags = getMentorshipRoleFlags(roles);
   const canUpdate =
     flags.isAdmin ||
-    flags.isChapterLead ||
     item.ownerId === userId ||
     item.menteeId === userId ||
     (await canManageMentee(userId, roles, item.menteeId));
@@ -578,7 +691,9 @@ export async function respondToMentorshipRequest(formData: FormData) {
   const canReply =
     flags.isAdmin ||
     request.assignedToId === session.user.id ||
-    (await canManageMentee(session.user.id, roles, request.menteeId));
+    (request.visibility === MentorshipRequestVisibility.PUBLIC
+      ? flags.canSupport
+      : await canSupportMentee(session.user.id, roles, request.menteeId));
   if (!canReply) {
     throw new Error("Unauthorized");
   }
@@ -629,15 +744,58 @@ export async function respondToMentorshipRequest(formData: FormData) {
 }
 
 export async function markMentorshipResponseHelpful(responseId: string) {
-  await requireAuth();
+  const session = await requireAuth();
 
-  await prisma.mentorshipRequestResponse.update({
+  const response = await prisma.mentorshipRequestResponse.findUnique({
     where: { id: responseId },
-    data: {
+    select: {
+      id: true,
+      responderId: true,
       isHelpful: true,
-      helpfulCount: { increment: 1 },
+      helpfulCount: true,
+      request: {
+        select: {
+          visibility: true,
+          menteeId: true,
+          requesterId: true,
+        },
+      },
     },
   });
+  if (!response) {
+    throw new Error("Response not found");
+  }
+
+  if (response.request.visibility === MentorshipRequestVisibility.PRIVATE) {
+    const canMarkPrivateFeedbackHelpful =
+      session.user.id === response.request.menteeId ||
+      session.user.id === response.request.requesterId;
+    if (!canMarkPrivateFeedbackHelpful) {
+      throw new Error("Unauthorized");
+    }
+    if (response.isHelpful) {
+      return;
+    }
+
+    await prisma.mentorshipRequestResponse.update({
+      where: { id: responseId },
+      data: {
+        isHelpful: true,
+        helpfulCount: response.helpfulCount + 1,
+      },
+    });
+  } else {
+    if (response.responderId === session.user.id) {
+      throw new Error("You cannot upvote your own answer.");
+    }
+
+    await prisma.mentorshipRequestResponse.update({
+      where: { id: responseId },
+      data: {
+        helpfulCount: { increment: 1 },
+      },
+    });
+  }
 
   revalidatePath("/mentor/feedback");
   revalidatePath("/mentor/ask");
@@ -666,6 +824,7 @@ export async function promoteMentorshipResponseToResource(formData: FormData) {
           menteeId: true,
           trackId: true,
           passionId: true,
+          visibility: true,
         },
       },
     },
@@ -673,6 +832,14 @@ export async function promoteMentorshipResponseToResource(formData: FormData) {
 
   if (!response) {
     throw new Error("Response not found");
+  }
+
+  if (response.request.visibility !== MentorshipRequestVisibility.PUBLIC) {
+    throw new Error("Only public mentorship answers can be promoted into shared resources.");
+  }
+
+  if (!flags.isAdmin && response.responderId !== session.user.id) {
+    throw new Error("Only the responder or an admin can publish this answer.");
   }
 
   await prisma.mentorshipResource.create({

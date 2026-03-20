@@ -12,6 +12,10 @@ import {
   sendInfoRequestEmail,
   sendInterviewScheduledEmail,
 } from "@/lib/email";
+import {
+  getLegacyApplicationTransitionError,
+  type LegacyApplicationReviewAction,
+} from "@/lib/legacy-application-review";
 
 type FormState = {
   status: "idle" | "error" | "success";
@@ -101,7 +105,16 @@ export async function reviewInstructorApplication(
     if (!application) return { status: "error", message: "Application not found." };
     await assertReviewerCanManageApplicant(session.user.id, application.applicantId);
 
-    switch (action) {
+    const reviewAction = action as LegacyApplicationReviewAction;
+    const transitionError = getLegacyApplicationTransitionError({
+      status: application.status,
+      action: reviewAction,
+    });
+    if (transitionError) {
+      return { status: "error", message: transitionError };
+    }
+
+    switch (reviewAction) {
       case "mark_under_review":
         await prisma.instructorApplication.update({
           where: { id: applicationId },
@@ -363,6 +376,12 @@ export async function submitInfoResponse(
     if (!application) return { status: "error", message: "Application not found." };
     if (application.applicantId !== session.user.id) {
       return { status: "error", message: "Unauthorized." };
+    }
+    if (application.status !== InstructorApplicationStatus.INFO_REQUESTED) {
+      return {
+        status: "error",
+        message: "Your application is not waiting on an information response right now.",
+      };
     }
 
     await prisma.instructorApplication.update({

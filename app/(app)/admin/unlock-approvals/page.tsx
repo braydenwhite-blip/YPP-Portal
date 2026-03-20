@@ -43,7 +43,7 @@ export default async function UnlockApprovalsPage() {
     if (!sess?.user?.id) return;
 
     const id = formData.get("recommendationId") as string;
-    await approveUnlockRecommendation(id, sess.user.id);
+    await approveUnlockRecommendation(id);
     revalidatePath("/admin/unlock-approvals");
   }
 
@@ -53,7 +53,7 @@ export default async function UnlockApprovalsPage() {
     if (!sess?.user?.id) return;
 
     const id = formData.get("recommendationId") as string;
-    await denyUnlockRecommendation(id, sess.user.id);
+    await denyUnlockRecommendation(id);
     revalidatePath("/admin/unlock-approvals");
   }
 

@@ -56,19 +56,37 @@ export async function getSuggestedMentorsForPathway(
           profile: { select: { bio: true } },
           menteePairs: { select: { id: true } },
         },
-        take: 10,
       })
     : [];
+  const chapterInstructorIds = new Set(chapterInstructors.map((instructor: any) => instructor.id));
+  const otherInstructors = await prisma.user.findMany({
+    where: {
+      primaryRole: "INSTRUCTOR",
+      id: {
+        notIn: [...specialistIds, ...chapterInstructorIds],
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+      chapterId: true,
+      chapter: { select: { name: true } },
+      profile: { select: { bio: true } },
+      menteePairs: { select: { id: true } },
+    },
+  });
 
   const allMentors = [
     ...specialists.map((s: any) => ({ ...s.user, isSpecialist: true })),
     ...chapterInstructors.map((u: any) => ({ ...u, isSpecialist: false })),
+    ...otherInstructors.map((u: any) => ({ ...u, isSpecialist: false })),
   ];
 
   return allMentors
     .map((m: any) => ({
       id: m.id,
       name: m.name,
+      chapterId: m.chapterId ?? null,
       chapterName: m.chapter?.name ?? null,
       bio: m.profile?.bio ?? null,
       menteeCount: m.menteePairs?.length ?? 0,
@@ -76,6 +94,10 @@ export async function getSuggestedMentorsForPathway(
     }))
     .sort((a: any, b: any) => {
       if (a.isSpecialist !== b.isSpecialist) return a.isSpecialist ? -1 : 1;
+      const aSameChapter = Boolean(user?.chapterId && a.chapterId === user.chapterId);
+      const bSameChapter = Boolean(user?.chapterId && b.chapterId === user.chapterId);
+      if (aSameChapter !== bSameChapter) return aSameChapter ? -1 : 1;
       return a.menteeCount - b.menteeCount;
-    });
+    })
+    .map(({ chapterId, ...mentor }: any) => mentor);
 }

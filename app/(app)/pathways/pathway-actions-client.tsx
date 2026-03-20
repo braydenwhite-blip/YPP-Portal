@@ -22,13 +22,17 @@ export function PathwayActionButtons({
 
   function handleJoin() {
     startTransition(async () => {
-      await selectPathways([pathwayId]);
+      const result = await selectPathways([pathwayId]);
+      if (result && "error" in result && result.error) {
+        alert(result.error);
+        return;
+      }
       router.refresh();
     });
   }
 
   function handleLeave() {
-    if (!confirm("Leave this pathway? Your completed courses won't be affected, but you'll lose your current progress.")) return;
+    if (!confirm("Leave this pathway? Completed courses stay on your record, but any unfinished pathway enrollments will be removed.")) return;
     startTransition(async () => {
       await leavePathway(pathwayId);
       router.refresh();
@@ -54,7 +58,7 @@ export function PathwayActionButtons({
           disabled={isPending}
           style={{ marginLeft: "auto", fontSize: 13, color: "var(--red, #e53e3e)", borderColor: "var(--red, #e53e3e)" }}
         >
-          {isPending ? "Leaving..." : "Leave"}
+          {isPending ? "Leaving..." : "Leave Pathway"}
         </button>
       </div>
     );

@@ -115,28 +115,60 @@ export function buildHiringInterviewTask(input: HiringTaskInput): InterviewTask 
     };
   }
 
+  if (!input.interviewRequired) {
+    const viewerTitle =
+      input.viewerRole === "applicant"
+        ? input.positionTitle
+        : `${input.applicantName} · ${input.positionTitle}`;
+
+    return {
+      id: `hiring-${input.applicationId}`,
+      domain: "HIRING",
+      audience: input.audience,
+      stage: "COMPLETED",
+      title: viewerTitle,
+      subtitle: `${input.chapterName} · Interview not required`,
+      detail: "This application can move straight to review and decision.",
+      ownerName: input.applicantName,
+      href,
+      primaryAction: {
+        kind: "open_details",
+        label:
+          input.viewerRole === "applicant"
+            ? "View Application Status"
+            : "Open Application",
+        href,
+      },
+      secondaryLinks: [{ label: "Open Application", href }],
+      blockers: [],
+      timestamps: {
+        submittedAt: input.submittedAt,
+      },
+    };
+  }
+
   if (input.viewerRole === "applicant") {
-    if (postedSlot) {
+    if (completedSlot) {
       return {
         id: `hiring-${input.applicationId}`,
         domain: "HIRING",
         audience: input.audience,
-        stage: "NEEDS_ACTION",
+        stage: "COMPLETED",
         title: `${input.positionTitle}`,
-        subtitle: `${input.chapterName} · Confirm your interview`,
-        detail: `Interview slot posted for ${formatDateTime(postedSlot.scheduledAt)}.`,
+        subtitle: `${input.chapterName} · Interview complete`,
+        detail: "Interview completed. Waiting for final decision.",
         ownerName: input.applicantName,
         href,
         primaryAction: {
-          kind: "confirm_hiring_slot",
-          label: "Confirm Interview Slot",
-          slotId: postedSlot.id,
+          kind: "open_details",
+          label: "View Application Status",
+          href,
         },
         secondaryLinks: [{ label: "Open Application", href }],
         blockers: [],
         timestamps: {
           submittedAt: input.submittedAt,
-          scheduledAt: postedSlot.scheduledAt,
+          completedAt: completedSlot.completedAt ?? completedSlot.scheduledAt,
         },
       };
     }
@@ -166,27 +198,27 @@ export function buildHiringInterviewTask(input: HiringTaskInput): InterviewTask 
       };
     }
 
-    if (completedSlot) {
+    if (postedSlot) {
       return {
         id: `hiring-${input.applicationId}`,
         domain: "HIRING",
         audience: input.audience,
-        stage: "COMPLETED",
+        stage: "NEEDS_ACTION",
         title: `${input.positionTitle}`,
-        subtitle: `${input.chapterName} · Interview complete`,
-        detail: "Interview completed. Waiting for final decision.",
+        subtitle: `${input.chapterName} · Confirm your interview`,
+        detail: `Interview slot posted for ${formatDateTime(postedSlot.scheduledAt)}.`,
         ownerName: input.applicantName,
         href,
         primaryAction: {
-          kind: "open_details",
-          label: "View Application Status",
-          href,
+          kind: "confirm_hiring_slot",
+          label: "Confirm Interview Slot",
+          slotId: postedSlot.id,
         },
         secondaryLinks: [{ label: "Open Application", href }],
         blockers: [],
         timestamps: {
           submittedAt: input.submittedAt,
-          completedAt: completedSlot.completedAt ?? completedSlot.scheduledAt,
+          scheduledAt: postedSlot.scheduledAt,
         },
       };
     }
@@ -208,30 +240,6 @@ export function buildHiringInterviewTask(input: HiringTaskInput): InterviewTask 
       },
       secondaryLinks: [{ label: "Open Application", href }],
       blockers: ["Waiting for reviewer to post interview slot."],
-      timestamps: {
-        submittedAt: input.submittedAt,
-      },
-    };
-  }
-
-  if (!input.interviewRequired) {
-    return {
-      id: `hiring-${input.applicationId}`,
-      domain: "HIRING",
-      audience: input.audience,
-      stage: "COMPLETED",
-      title: `${input.applicantName} · ${input.positionTitle}`,
-      subtitle: `${input.chapterName} · Interview optional`,
-      detail: "Interview is optional for this position.",
-      ownerName: input.applicantName,
-      href,
-      primaryAction: {
-        kind: "open_details",
-        label: "Open Application",
-        href,
-      },
-      secondaryLinks: [{ label: "Open Application", href }],
-      blockers: [],
       timestamps: {
         submittedAt: input.submittedAt,
       },
@@ -398,26 +406,26 @@ export function buildReadinessInterviewTask(input: ReadinessTaskInput): Intervie
   }
 
   if (input.viewerRole === "instructor") {
-    if (postedSlot) {
+    if (completedSlot) {
       return {
         id: `readiness-${input.gateId}`,
         domain: "READINESS",
         audience: input.audience,
-        stage: "NEEDS_ACTION",
+        stage: "COMPLETED",
         title: "Instructor Interview Readiness",
-        subtitle: `${input.chapterName} · Confirm posted interview slot`,
-        detail: `Slot posted for ${formatDateTime(postedSlot.scheduledAt)}.`,
+        subtitle: `${input.chapterName} · Interview complete`,
+        detail: "Your readiness interview is complete. Wait for the final readiness decision.",
         ownerName: input.instructorName,
         href: trainingHref,
         primaryAction: {
-          kind: "confirm_readiness_slot",
-          label: "Confirm Interview Slot",
-          slotId: postedSlot.id,
+          kind: "open_details",
+          label: "View Training Details",
+          href: trainingHref,
         },
         secondaryLinks: [{ label: "Open Training Academy", href: trainingHref }],
         blockers: [],
         timestamps: {
-          scheduledAt: postedSlot.scheduledAt,
+          completedAt: completedSlot.completedAt ?? completedSlot.scheduledAt,
         },
       };
     }
@@ -442,6 +450,30 @@ export function buildReadinessInterviewTask(input: ReadinessTaskInput): Intervie
         blockers: [],
         timestamps: {
           scheduledAt: confirmedSlot.scheduledAt,
+        },
+      };
+    }
+
+    if (postedSlot) {
+      return {
+        id: `readiness-${input.gateId}`,
+        domain: "READINESS",
+        audience: input.audience,
+        stage: "NEEDS_ACTION",
+        title: "Instructor Interview Readiness",
+        subtitle: `${input.chapterName} · Confirm posted interview slot`,
+        detail: `Slot posted for ${formatDateTime(postedSlot.scheduledAt)}.`,
+        ownerName: input.instructorName,
+        href: trainingHref,
+        primaryAction: {
+          kind: "confirm_readiness_slot",
+          label: "Confirm Interview Slot",
+          slotId: postedSlot.id,
+        },
+        secondaryLinks: [{ label: "Open Training Academy", href: trainingHref }],
+        blockers: [],
+        timestamps: {
+          scheduledAt: postedSlot.scheduledAt,
         },
       };
     }

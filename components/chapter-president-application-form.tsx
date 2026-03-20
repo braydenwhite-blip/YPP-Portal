@@ -253,17 +253,24 @@ export default function ChapterPresidentApplicationForm({
             )}
 
             {field.fieldType === "FILE_UPLOAD" && (
-              <FileUpload
-                category="OTHER"
-                entityType="APPLICATION_CUSTOM"
-                accept="*"
-                maxSizeMB={10}
-                label="Upload File"
-                compact
-                onUploadComplete={(file) =>
-                  setCustomValues((v) => ({ ...v, [field.id]: file.url }))
-                }
-              />
+              <>
+                <FileUpload
+                  category="OTHER"
+                  entityType="APPLICATION_CUSTOM"
+                  accept="*"
+                  maxSizeMB={10}
+                  label="Upload File"
+                  compact
+                  onUploadComplete={(file) =>
+                    setCustomValues((v) => ({ ...v, [field.id]: file.url }))
+                  }
+                />
+                <input
+                  type="hidden"
+                  name={`custom_file_${field.id}`}
+                  value={customValues[field.id] || ""}
+                />
+              </>
             )}
           </div>
         ))}
