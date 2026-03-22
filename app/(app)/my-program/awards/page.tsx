@@ -30,7 +30,7 @@ export default async function MyAwardsPage() {
   const data = await getMyAwardsData();
   if (!data) redirect("/my-program");
 
-  const { totalPoints, currentTier, pointLogs, nominations, tierProgress } = data;
+  const { totalPoints, currentTier, pointLogs, nominations, tierProgress, volunteerHoursAwarded } = data;
 
   const approvedNominations = nominations.filter((n) => n.status === "APPROVED");
   const pendingNominations = nominations.filter(
@@ -49,6 +49,31 @@ export default async function MyAwardsPage() {
           ← My Program
         </Link>
       </div>
+
+      {/* Volunteer hours badge */}
+      {volunteerHoursAwarded > 0 && (
+        <div
+          className="card"
+          style={{
+            marginBottom: "1.5rem",
+            display: "flex",
+            alignItems: "center",
+            gap: "1rem",
+            background: "#f0fdf4",
+            border: "1px solid #bbf7d0",
+          }}
+        >
+          <div style={{ fontSize: "2rem" }}>🤝</div>
+          <div>
+            <p style={{ fontWeight: 700, margin: 0, color: "#16a34a" }}>
+              {volunteerHoursAwarded} Volunteer Hours Recognized
+            </p>
+            <p style={{ color: "var(--muted)", fontSize: "0.82rem", margin: "0.2rem 0 0" }}>
+              Based on your {currentTier ? TIER_CONFIG[currentTier].label : ""} Achievement Award tier
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Points + Tier summary */}
       <div className="grid two" style={{ marginBottom: "1.5rem" }}>

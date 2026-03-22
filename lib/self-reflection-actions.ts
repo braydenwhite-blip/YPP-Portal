@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
+import { createMentorshipNotification } from "@/lib/mentorship-program-actions";
 
 async function requireMentee() {
   const session = await getServerSession(authOptions);
@@ -266,6 +267,14 @@ export async function submitSelfReflection(formData: FormData) {
       },
     });
     return r;
+  });
+
+  // Notify the assigned mentor that a new reflection was submitted
+  await createMentorshipNotification({
+    userId: mentorship.mentorId,
+    title: "New Self-Reflection Submitted",
+    body: `A mentee has submitted their Cycle ${cycleNumber} self-reflection and is ready for your review.`,
+    link: "/mentorship-program/reviews",
   });
 
   revalidatePath("/my-program");

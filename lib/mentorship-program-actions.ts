@@ -8,6 +8,7 @@ import {
   MentorshipCommitteeScope,
   MentorshipGovernanceMode,
   MentorshipProgramGroup,
+  MentorshipSessionType,
   MentorshipStatus,
   MentorshipReviewStatus,
   MentorshipType,
@@ -299,6 +300,30 @@ export async function assignProgramMentor(formData: FormData) {
 
   await ensureMentorshipSupportCircle(mentorship.id);
 
+  // Auto-create kickoff meeting session
+  const kickoffDate = new Date();
+  kickoffDate.setDate(kickoffDate.getDate() + 7); // Schedule 1 week out
+  await prisma.mentorshipSession.create({
+    data: {
+      mentorshipId: mentorship.id,
+      menteeId: mentee.id,
+      type: MentorshipSessionType.KICKOFF,
+      title: `Kickoff Meeting: ${mentor.name} & ${mentee.name}`,
+      scheduledAt: kickoffDate,
+      agenda: [
+        "1. Introductions and get to know each other",
+        "2. Discuss mentee's goals and expectations",
+        "3. Review the mentorship program process and timeline",
+        "4. Set communication preferences and meeting cadence",
+        "5. Exchange contact information",
+        "6. Q&A and next steps",
+      ].join("\n"),
+      createdById: session.user.id,
+      ledById: mentor.id,
+      participantIds: [mentor.id, mentee.id],
+    },
+  });
+
   revalidatePath("/admin/mentorship-program");
 }
 
@@ -534,7 +559,7 @@ async function canApproveReview(args: {
   );
 }
 
-async function createMentorshipNotification(params: {
+export async function createMentorshipNotification(params: {
   userId: string;
   title: string;
   body: string;

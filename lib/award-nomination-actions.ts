@@ -8,6 +8,7 @@ import { AchievementAwardTier, AwardNominationStatus } from "@prisma/client";
 import { logAuditEvent } from "@/lib/audit-log-actions";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import { TIER_CONFIG } from "@/lib/award-tier-config";
+import { createMentorshipNotification } from "@/lib/mentorship-program-actions";
 
 const TIER_ORDER: AchievementAwardTier[] = ["BRONZE", "SILVER", "GOLD", "LIFETIME"];
 
@@ -169,6 +170,7 @@ export async function getMyAwardsData() {
     return {
       totalPoints: 0,
       currentTier: null,
+      volunteerHoursAwarded: 0,
       pointLogs: [] as { id: string; points: number; reason: string | null; cycleMonth: string; cycleNumber: number; overallRating: string }[],
       nominations: [] as { id: string; tier: AchievementAwardTier; status: AwardNominationStatus; nominatorName: string; createdAt: string; boardApprovedAt: string | null }[],
       tierProgress: computeTierProgress(0, null),
@@ -178,6 +180,7 @@ export async function getMyAwardsData() {
   return {
     totalPoints: summary.totalPoints,
     currentTier: summary.currentTier,
+    volunteerHoursAwarded: summary.volunteerHoursAwarded,
     pointLogs: summary.pointLogs.map((log) => ({
       id: log.id,
       points: log.points,
@@ -268,6 +271,14 @@ export async function nominateForAward(formData: FormData) {
     description: `${nominee.name} nominated for ${tier} award`,
   });
 
+  // Notify mentee about their nomination
+  await createMentorshipNotification({
+    userId: nomineeId,
+    title: `${TIER_CONFIG[tier].emoji} ${TIER_CONFIG[tier].label} Award Nomination`,
+    body: `Congratulations! You have been nominated for the ${TIER_CONFIG[tier].label} Achievement Award.`,
+    link: "/my-program/awards",
+  });
+
   revalidatePath("/mentorship-program/awards");
 }
 
@@ -295,13 +306,24 @@ export async function chairApproveNomination(formData: FormData) {
   const requiresBoard = TIER_CONFIG[nomination.tier].requiresBoard;
   const newStatus: AwardNominationStatus = requiresBoard ? "PENDING_BOARD" : "APPROVED";
 
-  await prisma.awardNomination.update({
-    where: { id: nominationId },
-    data: {
-      status: newStatus,
-      chairApproverId: session.user.id,
-      chairApprovedAt: new Date(),
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.awardNomination.update({
+      where: { id: nominationId },
+      data: {
+        status: newStatus,
+        chairApproverId: session.user.id,
+        chairApprovedAt: new Date(),
+      },
+    });
+
+    // If directly approved (Bronze/Silver), grant volunteer hours
+    if (newStatus === "APPROVED") {
+      const hours = TIER_CONFIG[nomination.tier].volunteerHours;
+      await tx.achievementPointSummary.updateMany({
+        where: { userId: nomination.nomineeId },
+        data: { volunteerHoursAwarded: hours },
+      });
+    }
   });
 
   await logAuditEvent({
@@ -334,13 +356,22 @@ export async function boardApproveNomination(formData: FormData) {
 
   if (nomination.status !== "PENDING_BOARD") throw new Error("Not in PENDING_BOARD status");
 
-  await prisma.awardNomination.update({
-    where: { id: nominationId },
-    data: {
-      status: "APPROVED",
-      boardApproverId: session.user.id,
-      boardApprovedAt: new Date(),
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.awardNomination.update({
+      where: { id: nominationId },
+      data: {
+        status: "APPROVED",
+        boardApproverId: session.user.id,
+        boardApprovedAt: new Date(),
+      },
+    });
+
+    // Grant volunteer hours for this tier
+    const hours = TIER_CONFIG[nomination.tier].volunteerHours;
+    await tx.achievementPointSummary.updateMany({
+      where: { userId: nomination.nomineeId },
+      data: { volunteerHoursAwarded: hours },
+    });
   });
 
   await logAuditEvent({

@@ -12,16 +12,18 @@ import {
 } from "@prisma/client";
 import { logAuditEvent } from "@/lib/audit-log-actions";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
+import { createMentorshipNotification } from "@/lib/mentorship-program-actions";
 
 // ============================================
 // POINT TABLE
 // ============================================
 
+// Achievement point values per overall rating × role type (from YPP Mentorship Program PDF)
 const POINT_TABLE: Record<GoalRatingColor, Record<MenteeRoleType, number>> = {
   BEHIND_SCHEDULE: { INSTRUCTOR: 0, CHAPTER_PRESIDENT: 0, GLOBAL_LEADERSHIP: 0 },
-  GETTING_STARTED: { INSTRUCTOR: 5, CHAPTER_PRESIDENT: 8, GLOBAL_LEADERSHIP: 10 },
-  ACHIEVED: { INSTRUCTOR: 10, CHAPTER_PRESIDENT: 15, GLOBAL_LEADERSHIP: 20 },
-  ABOVE_AND_BEYOND: { INSTRUCTOR: 15, CHAPTER_PRESIDENT: 22, GLOBAL_LEADERSHIP: 30 },
+  GETTING_STARTED: { INSTRUCTOR: 10, CHAPTER_PRESIDENT: 20, GLOBAL_LEADERSHIP: 25 },
+  ACHIEVED: { INSTRUCTOR: 35, CHAPTER_PRESIDENT: 50, GLOBAL_LEADERSHIP: 60 },
+  ABOVE_AND_BEYOND: { INSTRUCTOR: 75, CHAPTER_PRESIDENT: 85, GLOBAL_LEADERSHIP: 100 },
 };
 
 const TIER_THRESHOLDS: { tier: AchievementAwardTier; min: number }[] = [
@@ -178,6 +180,11 @@ export async function saveGoalReview(formData: FormData) {
   const promotionReadiness = getString(formData, "promotionReadiness", false);
   const submitForApproval = formData.get("submitForApproval") === "true";
 
+  // Character & Culture bonus points (0–25)
+  const bonusPointsRaw = formData.get("bonusPoints");
+  const bonusPoints = bonusPointsRaw ? Math.max(0, Math.min(25, parseInt(String(bonusPointsRaw), 10) || 0)) : 0;
+  const bonusReason = getString(formData, "bonusReason", false);
+
   const overallRating = overallRatingRaw as GoalRatingColor;
   if (!Object.values(GoalRatingColor).includes(overallRating)) {
     throw new Error("Invalid overall rating");
@@ -186,7 +193,8 @@ export async function saveGoalReview(formData: FormData) {
   const reflection = await prisma.monthlySelfReflection.findUniqueOrThrow({
     where: { id: reflectionId },
     include: {
-      mentorship: { select: { mentorId: true, menteeId: true } },
+      mentorship: { select: { mentorId: true, menteeId: true, chairId: true } },
+      mentee: { select: { name: true } },
       goalReview: { select: { id: true, status: true } },
     },
   });
@@ -232,6 +240,8 @@ export async function saveGoalReview(formData: FormData) {
           planOfAction,
           projectedFuturePath: isQuarterly ? (projectedFuturePath || null) : null,
           promotionReadiness: isQuarterly ? (promotionReadiness || null) : null,
+          bonusPoints,
+          bonusReason: bonusReason || null,
           status: newStatus,
         },
       });
@@ -266,6 +276,8 @@ export async function saveGoalReview(formData: FormData) {
           planOfAction,
           projectedFuturePath: isQuarterly ? (projectedFuturePath || null) : null,
           promotionReadiness: isQuarterly ? (promotionReadiness || null) : null,
+          bonusPoints,
+          bonusReason: bonusReason || null,
           status: newStatus,
           goalRatings: {
             create: goalRatings.map((gr) => ({
@@ -278,6 +290,16 @@ export async function saveGoalReview(formData: FormData) {
       });
     }
   });
+
+  // Notify chair when review is submitted for approval
+  if (submitForApproval && reflection.mentorship.chairId) {
+    await createMentorshipNotification({
+      userId: reflection.mentorship.chairId,
+      title: "Review Pending Your Approval",
+      body: `A mentor has submitted a goal review for ${reflection.mentee?.name ?? "a mentee"} and it needs your approval.`,
+      link: "/mentorship-program/chair",
+    });
+  }
 
   revalidatePath("/mentorship-program/reviews");
 }
@@ -416,10 +438,17 @@ export async function approveGoalReview(formData: FormData) {
   const reviewId = getString(formData, "reviewId");
   const chairComments = getString(formData, "chairComments", false);
 
+  // Chair can adjust bonus points (optional)
+  const chairAdjustedBonusRaw = formData.get("chairAdjustedBonusPoints");
+  const chairAdjustedBonusPoints = chairAdjustedBonusRaw !== null && chairAdjustedBonusRaw !== ""
+    ? Math.max(0, Math.min(25, parseInt(String(chairAdjustedBonusRaw), 10) || 0))
+    : null;
+
   const review = await prisma.mentorGoalReview.findUniqueOrThrow({
     where: { id: reviewId },
     include: {
       mentee: { select: { id: true, name: true, primaryRole: true } },
+      mentor: { select: { id: true } },
     },
   });
 
@@ -428,7 +457,9 @@ export async function approveGoalReview(formData: FormData) {
   const menteeRoleType = toMenteeRoleType(review.mentee.primaryRole);
   if (!menteeRoleType) throw new Error("Mentee role not eligible for point awards");
 
-  const pointsAwarded = POINT_TABLE[review.overallRating][menteeRoleType];
+  const basePoints = POINT_TABLE[review.overallRating][menteeRoleType];
+  const effectiveBonus = chairAdjustedBonusPoints ?? review.bonusPoints;
+  const pointsAwarded = basePoints + effectiveBonus;
   const now = new Date();
 
   await prisma.$transaction(async (tx) => {
@@ -442,6 +473,7 @@ export async function approveGoalReview(formData: FormData) {
         chairApprovedAt: now,
         releasedToMenteeAt: now,
         pointsAwarded,
+        chairAdjustedBonusPoints: chairAdjustedBonusPoints,
       },
     });
 
@@ -483,7 +515,23 @@ export async function approveGoalReview(formData: FormData) {
     actorId: session.user.id,
     targetType: "MentorGoalReview",
     targetId: reviewId,
-    description: `Goal review approved for ${review.mentee.name} — ${pointsAwarded} pts awarded`,
+    description: `Goal review approved for ${review.mentee.name} — ${pointsAwarded} pts awarded (base: ${basePoints}, bonus: ${effectiveBonus})`,
+  });
+
+  // Notify mentor that their review was approved
+  await createMentorshipNotification({
+    userId: review.mentor.id,
+    title: "Goal Review Approved",
+    body: `Your review for ${review.mentee.name} (Cycle ${review.cycleNumber}) has been approved. ${pointsAwarded} points awarded.`,
+    link: "/mentorship-program/reviews",
+  });
+
+  // Notify mentee that their review is available
+  await createMentorshipNotification({
+    userId: review.menteeId,
+    title: "New Goal Review Available",
+    body: `Your Cycle ${review.cycleNumber} goal review has been completed and released. You earned ${pointsAwarded} achievement points!`,
+    link: "/my-program",
   });
 
   revalidatePath("/mentorship-program/chair");
@@ -501,7 +549,7 @@ export async function requestReviewChanges(formData: FormData) {
 
   const review = await prisma.mentorGoalReview.findUniqueOrThrow({
     where: { id: reviewId },
-    include: { mentee: { select: { name: true } } },
+    include: { mentee: { select: { name: true } }, mentor: { select: { id: true } } },
   });
 
   if (review.status === "APPROVED") throw new Error("Cannot request changes on an approved review");
@@ -521,6 +569,14 @@ export async function requestReviewChanges(formData: FormData) {
     targetType: "MentorGoalReview",
     targetId: reviewId,
     description: `Changes requested on goal review for ${review.mentee.name}`,
+  });
+
+  // Notify mentor that changes were requested
+  await createMentorshipNotification({
+    userId: review.mentor.id,
+    title: "Review Changes Requested",
+    body: `The chair has requested changes on your review for ${review.mentee.name}. Please review the feedback and update.`,
+    link: "/mentorship-program/reviews",
   });
 
   revalidatePath("/mentorship-program/chair");

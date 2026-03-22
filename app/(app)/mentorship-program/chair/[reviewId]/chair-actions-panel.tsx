@@ -9,15 +9,21 @@ interface Props {
   currentStatus: string;
   pointsToAward: number;
   menteeName: string;
+  bonusPoints?: number;
+  bonusReason?: string | null;
 }
 
-export default function ChairActionsPanel({ reviewId, currentStatus, pointsToAward, menteeName }: Props) {
+export default function ChairActionsPanel({ reviewId, currentStatus, pointsToAward, menteeName, bonusPoints = 0, bonusReason }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [chairComments, setChairComments] = useState("");
+  const [chairAdjustedBonus, setChairAdjustedBonus] = useState<string>("");
   const [mode, setMode] = useState<"idle" | "approve" | "changes">("idle");
+
+  const effectiveBonus = chairAdjustedBonus !== "" ? Math.max(0, Math.min(25, parseInt(chairAdjustedBonus, 10) || 0)) : bonusPoints;
+  const totalPoints = pointsToAward - bonusPoints + effectiveBonus;
 
   if (currentStatus === "APPROVED") {
     return (
@@ -31,16 +37,19 @@ export default function ChairActionsPanel({ reviewId, currentStatus, pointsToAwa
   }
 
   function handleApprove() {
-    if (!confirm(`Approve this review and release it to ${menteeName}? This will award ${pointsToAward} achievement points.`)) return;
+    if (!confirm(`Approve this review and release it to ${menteeName}? This will award ${totalPoints} achievement points.`)) return;
     setError(null);
     setSuccess(null);
     const formData = new FormData();
     formData.set("reviewId", reviewId);
     formData.set("chairComments", chairComments);
+    if (chairAdjustedBonus !== "") {
+      formData.set("chairAdjustedBonusPoints", String(effectiveBonus));
+    }
     startTransition(async () => {
       try {
         await approveGoalReview(formData);
-        setSuccess(`Approved! ${pointsToAward} points awarded to ${menteeName}. Review released.`);
+        setSuccess(`Approved! ${totalPoints} points awarded to ${menteeName}. Review released.`);
         setTimeout(() => router.push("/mentorship-program/chair"), 1500);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to approve");
@@ -81,8 +90,47 @@ export default function ChairActionsPanel({ reviewId, currentStatus, pointsToAwa
         }}
       >
         <span style={{ color: "var(--muted)" }}>Points that will be awarded on approval: </span>
-        <strong style={{ fontSize: "1.05rem" }}>{pointsToAward} pts</strong>
+        <strong style={{ fontSize: "1.05rem" }}>{totalPoints} pts</strong>
+        <span style={{ color: "var(--muted)", fontSize: "0.78rem", marginLeft: "0.5rem" }}>
+          (base: {pointsToAward - bonusPoints}{bonusPoints > 0 || effectiveBonus > 0 ? ` + bonus: ${effectiveBonus}` : ""})
+        </span>
       </div>
+
+      {/* Mentor's bonus points */}
+      {(bonusPoints > 0 || bonusReason) && (
+        <div
+          style={{
+            padding: "0.75rem 1rem",
+            background: "#fefce8",
+            border: "1px solid #fde68a",
+            borderRadius: "var(--radius-sm)",
+            marginBottom: "1rem",
+            fontSize: "0.85rem",
+          }}
+        >
+          <p style={{ fontWeight: 700, color: "#92400e", marginBottom: "0.3rem", fontSize: "0.82rem" }}>
+            Mentor&apos;s Character & Culture Bonus: {bonusPoints} pts
+          </p>
+          {bonusReason && (
+            <p style={{ color: "var(--text)", fontSize: "0.82rem", margin: 0 }}>{bonusReason}</p>
+          )}
+          <div style={{ marginTop: "0.5rem" }}>
+            <label style={{ fontWeight: 600, fontSize: "0.78rem", color: "var(--muted)" }}>
+              Adjust bonus (leave blank to keep mentor&apos;s value):
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={25}
+              value={chairAdjustedBonus}
+              onChange={(e) => setChairAdjustedBonus(e.target.value)}
+              placeholder={String(bonusPoints)}
+              disabled={isPending}
+              style={{ width: "80px", marginLeft: "0.5rem" }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Comments field */}
       <div style={{ marginBottom: "1rem" }}>
@@ -118,7 +166,7 @@ export default function ChairActionsPanel({ reviewId, currentStatus, pointsToAwa
           disabled={isPending}
           onClick={() => { setMode("approve"); handleApprove(); }}
         >
-          {isPending && mode === "approve" ? "Approving…" : `Approve & Award ${pointsToAward} pts`}
+          {isPending && mode === "approve" ? "Approving…" : `Approve & Award ${totalPoints} pts`}
         </button>
         <button
           className="button outline"

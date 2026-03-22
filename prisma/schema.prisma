@@ -7258,6 +7258,11 @@ model MentorGoalReview {
   chairApprovedAt    DateTime?
   releasedToMenteeAt DateTime?
 
+  // Character & Culture bonus points (mentor awards 0–25, chair can adjust)
+  bonusPoints              Int     @default(0)
+  bonusReason              String?
+  chairAdjustedBonusPoints Int?
+
   // Points awarded (auto-set on chair approval based on overallRating × roleType table)
   pointsAwarded Int?
 
@@ -7290,11 +7295,12 @@ model GoalReviewRating {
 /// Running achievement point total and current award tier per user.
 /// One record per user; updated automatically when a goal review is approved.
 model AchievementPointSummary {
-  id          String                @id @default(cuid())
-  userId      String                @unique
-  user        User                  @relation("AchievementPointSummary", fields: [userId], references: [id])
-  totalPoints Int                   @default(0)
-  currentTier AchievementAwardTier?
+  id                    String                @id @default(cuid())
+  userId                String                @unique
+  user                  User                  @relation("AchievementPointSummary", fields: [userId], references: [id])
+  totalPoints           Int                   @default(0)
+  currentTier           AchievementAwardTier?
+  volunteerHoursAwarded Int                   @default(0)
 
   pointLogs   AchievementPointLog[]
   nominations AwardNomination[]

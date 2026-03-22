@@ -31,6 +31,8 @@ interface Props {
     planOfAction: string;
     projectedFuturePath: string | null;
     promotionReadiness: string | null;
+    bonusPoints: number;
+    bonusReason: string | null;
     status: string;
     goalRatings: ExistingRating[];
     chairComments: string | null;
@@ -126,6 +128,8 @@ export default function ReviewForm({
   const [planOfAction, setPlanOfAction] = useState(existingReview?.planOfAction ?? "");
   const [projectedFuturePath, setProjectedFuturePath] = useState(existingReview?.projectedFuturePath ?? "");
   const [promotionReadiness, setPromotionReadiness] = useState(existingReview?.promotionReadiness ?? "");
+  const [bonusPoints, setBonusPoints] = useState(existingReview?.bonusPoints ?? 0);
+  const [bonusReason, setBonusReason] = useState(existingReview?.bonusReason ?? "");
   const [goalRatings, setGoalRatings] = useState<Record<string, RatingValue | "">>(
     Object.fromEntries(
       goalResponses.map((gr) => [
@@ -147,6 +151,7 @@ export default function ReviewForm({
     if (!overallRating) { setError("Please select an overall rating."); return; }
     if (!overallComments.trim()) { setError("Overall comments are required."); return; }
     if (!planOfAction.trim()) { setError("Plan of action is required."); return; }
+    if (bonusPoints > 0 && !bonusReason.trim()) { setError("Please provide a reason for the bonus points."); return; }
     for (const gr of goalResponses) {
       if (!goalRatings[gr.goal.id]) { setError(`Please select a rating for: ${gr.goal.title}`); return; }
     }
@@ -161,6 +166,8 @@ export default function ReviewForm({
         formData.set("planOfAction", planOfAction);
         formData.set("projectedFuturePath", projectedFuturePath);
         formData.set("promotionReadiness", promotionReadiness);
+        formData.set("bonusPoints", String(bonusPoints));
+        formData.set("bonusReason", bonusReason);
         formData.set("submitForApproval", String(submitForApproval));
         goalResponses.forEach((gr) => {
           formData.append("goalIds", gr.goal.id);
@@ -302,7 +309,7 @@ export default function ReviewForm({
           />
         </div>
 
-        <div style={{ marginBottom: isQuarterly ? "1.25rem" : 0 }}>
+        <div style={{ marginBottom: "1.25rem" }}>
           <label style={{ fontWeight: 600, fontSize: "0.88rem" }}>
             Plan of Action <span style={{ color: "#ef4444" }}>*</span>
           </label>
@@ -317,6 +324,51 @@ export default function ReviewForm({
             placeholder="Describe the plan and priorities for next month…"
             style={{ width: "100%", resize: "vertical" }}
           />
+        </div>
+
+        {/* Character & Culture Bonus Points */}
+        <div
+          style={{
+            padding: "1rem 1.25rem",
+            background: "#fefce8",
+            border: "1px solid #fde68a",
+            borderRadius: "var(--radius-sm)",
+            marginBottom: isQuarterly ? "1.25rem" : 0,
+          }}
+        >
+          <p style={{ fontWeight: 700, fontSize: "0.88rem", marginBottom: "0.3rem", color: "#92400e" }}>
+            Character & Culture Bonus
+          </p>
+          <p style={{ fontSize: "0.78rem", color: "var(--muted)", marginBottom: "0.75rem" }}>
+            Award 0–25 bonus points for exceptional community involvement, character, or cultural contribution.
+          </p>
+          <div style={{ display: "flex", gap: "1rem", alignItems: "flex-start" }}>
+            <div style={{ width: "100px", flexShrink: 0 }}>
+              <label style={{ fontWeight: 600, fontSize: "0.82rem" }}>Points (0–25)</label>
+              <input
+                type="number"
+                min={0}
+                max={25}
+                value={bonusPoints}
+                onChange={(e) => setBonusPoints(Math.max(0, Math.min(25, parseInt(e.target.value, 10) || 0)))}
+                disabled={isReadOnly}
+                style={{ width: "100%", marginTop: "0.3rem" }}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontWeight: 600, fontSize: "0.82rem" }}>
+                Reason {bonusPoints > 0 && <span style={{ color: "#ef4444" }}>*</span>}
+              </label>
+              <textarea
+                value={bonusReason}
+                onChange={(e) => setBonusReason(e.target.value)}
+                rows={2}
+                disabled={isReadOnly}
+                placeholder="Describe the community involvement or character trait being recognized…"
+                style={{ width: "100%", marginTop: "0.3rem", resize: "vertical" }}
+              />
+            </div>
+          </div>
         </div>
 
         {isQuarterly && (
