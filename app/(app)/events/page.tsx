@@ -1,8 +1,33 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export default async function EventsPage() {
-  const events = await prisma.event.findMany({ orderBy: { startDate: "asc" } });
+  const session = await getServerSession(authOptions);
+  const user = session?.user?.id
+    ? await prisma.user.findUnique({
+        where: { id: session.user.id },
+        include: { roles: { select: { role: true } } },
+      })
+    : null;
+  const isAdmin = user?.roles.some((role) => role.role === "ADMIN") ?? false;
+  const chapterId = user?.chapterId ?? null;
+
+  const events = await prisma.event.findMany({
+    where: {
+      isCancelled: false,
+      ...(isAdmin
+        ? {}
+        : {
+            OR: [
+              { visibility: "PUBLIC" },
+              ...(chapterId ? [{ chapterId, visibility: "INTERNAL" as const }] : []),
+            ],
+          }),
+    },
+    orderBy: { startDate: "asc" },
+  });
   const prepCourses = await prisma.course.findMany({
     where: { format: "COMPETITION_PREP" }
   });

@@ -3,7 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { redirect } from "next/navigation";
-import { EventType } from "@prisma/client";
+import { EventScope, EventType, EventVisibility } from "@prisma/client";
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -40,11 +40,15 @@ export async function POST(request: Request) {
       title,
       description: typeof description === "string" ? description : "",
       eventType,
+      scope: typeof chapterId === "string" && chapterId ? EventScope.CHAPTER : EventScope.GLOBAL,
+      visibility: typeof chapterId === "string" && chapterId ? EventVisibility.INTERNAL : EventVisibility.PUBLIC,
       startDate: new Date(startDate),
       endDate: new Date(endDate),
       location: typeof location === "string" && location ? location : null,
       chapterId: typeof chapterId === "string" && chapterId ? chapterId : null,
-      isAlumniOnly
+      isAlumniOnly,
+      createdById: session.user.id,
+      updatedById: session.user.id,
     }
   });
 

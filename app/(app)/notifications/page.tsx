@@ -3,9 +3,11 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import {
   getNotifications,
+  getNotificationPreferences,
   markAsRead,
   markAllAsRead,
   deleteNotification,
+  updateNotificationPreferences,
 } from "@/lib/notification-actions";
 import Link from "next/link";
 
@@ -25,6 +27,10 @@ function getTypeIcon(type: string): string {
       return "[A]";
     case "MESSAGE":
       return "[>]";
+    case "EVENT_UPDATE":
+      return "[E]";
+    case "EVENT_REMINDER":
+      return "[!]";
     case "SYSTEM":
       return "[*]";
     default:
@@ -48,6 +54,10 @@ function getTypeLabel(type: string): string {
       return "Attendance";
     case "MESSAGE":
       return "Message";
+    case "EVENT_UPDATE":
+      return "Event Update";
+    case "EVENT_REMINDER":
+      return "Event Reminder";
     case "SYSTEM":
       return "System";
     default:
@@ -82,6 +92,7 @@ export default async function NotificationsPage() {
   }
 
   const notifications = await getNotifications();
+  const preferences = await getNotificationPreferences();
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   return (
@@ -256,6 +267,56 @@ export default async function NotificationsPage() {
           ))}
         </div>
       )}
+
+      <div className="card" style={{ marginTop: 20 }}>
+        <h2 style={{ marginTop: 0 }}>Notification Preferences</h2>
+        <p style={{ color: "var(--muted, #6b7280)" }}>
+          Turn categories on or off so chapter event updates and reminders match the way you want to work.
+        </p>
+        <form action={updateNotificationPreferences} style={{ display: "grid", gap: 12 }}>
+          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <input type="checkbox" name="inAppEnabled" defaultChecked={preferences.inAppEnabled} />
+            In-app notifications
+          </label>
+          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <input type="checkbox" name="emailEnabled" defaultChecked={preferences.emailEnabled} />
+            Email notifications
+          </label>
+          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <input type="checkbox" name="announcements" defaultChecked={preferences.announcements} />
+            Announcements
+          </label>
+          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <input type="checkbox" name="courseUpdates" defaultChecked={preferences.courseUpdates} />
+            Course and class updates
+          </label>
+          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <input type="checkbox" name="eventUpdates" defaultChecked={preferences.eventUpdates} />
+            Chapter event updates
+          </label>
+          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <input type="checkbox" name="eventReminders" defaultChecked={preferences.eventReminders} />
+            Chapter event reminders
+          </label>
+          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <input type="checkbox" name="mentorUpdates" defaultChecked={preferences.mentorUpdates} />
+            Mentor updates
+          </label>
+          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <input type="checkbox" name="goalReminders" defaultChecked={preferences.goalReminders} />
+            Goal reminders
+          </label>
+          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <input type="checkbox" name="reflectionReminders" defaultChecked={preferences.reflectionReminders} />
+            Reflection reminders
+          </label>
+          <div>
+            <button type="submit" className="btn btn-primary">
+              Save Notification Preferences
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

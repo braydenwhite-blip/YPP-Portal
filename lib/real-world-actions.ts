@@ -184,7 +184,11 @@ export async function getChapterEventsForMap() {
   const chapters = await prisma.chapter.findMany({
     include: {
       events: {
-        where: { startDate: { gte: new Date() } },
+        where: {
+          startDate: { gte: new Date() },
+          visibility: "PUBLIC",
+          isCancelled: false,
+        },
         orderBy: { startDate: "asc" },
         take: 5,
       },

@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 import { NotificationType } from "@prisma/client";
-import { sendNotificationEmail, isEmailConfigured } from "@/lib/email";
+import { deliverNotification, deliverBulkNotifications } from "@/lib/notification-delivery";
 
 async function requireAuth() {
   const session = await getServerSession(authOptions);
@@ -21,54 +21,6 @@ function getString(formData: FormData, key: string, required = true) {
     throw new Error(`Missing ${key}`);
   }
   return value ? String(value).trim() : "";
-}
-
-// ---------------------------------------------------------------------------
-// Helper: Send email notification if user has it enabled
-// ---------------------------------------------------------------------------
-async function sendEmailNotificationIfEnabled(
-  userId: string,
-  title: string,
-  body: string,
-  link?: string
-) {
-  if (!isEmailConfigured()) return;
-
-  try {
-    // Get user and their preferences
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        email: true,
-        name: true,
-        notificationPreference: {
-          select: { emailEnabled: true }
-        }
-      }
-    });
-
-    if (!user) return;
-
-    // Check if email is enabled (default to true if no preferences set)
-    const emailEnabled = user.notificationPreference?.emailEnabled ?? true;
-    if (!emailEnabled) return;
-
-    // Build full URL for link
-    const baseUrl = process.env.NEXTAUTH_URL ||
-      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
-    const fullLink = link ? `${baseUrl}${link.startsWith("/") ? link : `/${link}`}` : undefined;
-
-    await sendNotificationEmail({
-      to: user.email,
-      name: user.name,
-      title,
-      body,
-      link: fullLink
-    });
-  } catch (error) {
-    // Log but don't fail the notification creation
-    console.error("[Notification] Failed to send email:", error);
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -160,23 +112,18 @@ export async function createNotification(
     throw new Error("Unauthorized - Admin access required");
   }
 
-  const notification = await prisma.notification.create({
-    data: {
-      userId,
-      type,
-      title,
-      body,
-      link: link || null,
-    },
+  const delivered = await deliverNotification({
+    userId,
+    type,
+    title,
+    body,
+    link: link || null,
   });
-
-  // Send email notification (non-blocking)
-  sendEmailNotificationIfEnabled(userId, title, body, link || undefined);
 
   revalidatePath("/notifications");
   revalidatePath("/");
 
-  return notification;
+  return delivered;
 }
 
 // ---------------------------------------------------------------------------
@@ -198,25 +145,20 @@ export async function createBulkNotifications(
 
   if (userIds.length === 0) return [];
 
-  const data = userIds.map((userId) => ({
-    userId,
-    type,
-    title,
-    body,
-    link: link || null,
-  }));
-
-  const result = await prisma.notification.createMany({ data });
-
-  // Send email notifications to all users (non-blocking, in background)
-  for (const userId of userIds) {
-    sendEmailNotificationIfEnabled(userId, title, body, link || undefined);
-  }
+  await deliverBulkNotifications(
+    userIds.map((userId) => ({
+      userId,
+      type,
+      title,
+      body,
+      link: link || null,
+    }))
+  );
 
   revalidatePath("/notifications");
   revalidatePath("/");
 
-  return result;
+  return { count: userIds.length };
 }
 
 // ---------------------------------------------------------------------------
@@ -238,6 +180,8 @@ export async function getNotificationPreferences() {
       goalReminders: true,
       courseUpdates: true,
       reflectionReminders: true,
+      eventUpdates: true,
+      eventReminders: true,
     },
   });
 
@@ -259,6 +203,8 @@ export async function updateNotificationPreferences(formData: FormData) {
   const goalReminders = formData.get("goalReminders") === "on";
   const courseUpdates = formData.get("courseUpdates") === "on";
   const reflectionReminders = formData.get("reflectionReminders") === "on";
+  const eventUpdates = formData.get("eventUpdates") === "on";
+  const eventReminders = formData.get("eventReminders") === "on";
 
   await prisma.notificationPreference.upsert({
     where: { userId },
@@ -270,6 +216,8 @@ export async function updateNotificationPreferences(formData: FormData) {
       goalReminders,
       courseUpdates,
       reflectionReminders,
+      eventUpdates,
+      eventReminders,
     },
     create: {
       userId,
@@ -280,6 +228,8 @@ export async function updateNotificationPreferences(formData: FormData) {
       goalReminders,
       courseUpdates,
       reflectionReminders,
+      eventUpdates,
+      eventReminders,
     },
   });
 
@@ -331,21 +281,14 @@ export async function createSystemNotification(
     throw new Error("Unauthorized");
   }
 
-  const notification = await prisma.notification.create({
-    data: {
-      userId,
-      type,
-      title,
-      body,
-      link: link || null,
-    },
+  return await deliverNotification({
+    userId,
+    type,
+    title,
+    body,
+    link: link || null,
+    sendEmail: doSendEmail,
   });
-
-  if (doSendEmail) {
-    sendEmailNotificationIfEnabled(userId, title, body, link || undefined);
-  }
-
-  return notification;
 }
 
 // ---------------------------------------------------------------------------
@@ -366,19 +309,14 @@ export async function createBulkSystemNotifications(
 
   if (userIds.length === 0) return;
 
-  const data = userIds.map((uid) => ({
-    userId: uid,
-    type,
-    title,
-    body,
-    link: link || null,
-  }));
-
-  await prisma.notification.createMany({ data });
-
-  if (doSendEmail) {
-    for (const uid of userIds) {
-      sendEmailNotificationIfEnabled(uid, title, body, link || undefined);
-    }
-  }
+  await deliverBulkNotifications(
+    userIds.map((uid) => ({
+      userId: uid,
+      type,
+      title,
+      body,
+      link: link || null,
+      sendEmail: doSendEmail,
+    }))
+  );
 }

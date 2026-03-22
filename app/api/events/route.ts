@@ -9,23 +9,42 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    include: { roles: { select: { role: true } } },
+  });
+  const isAdmin = user?.roles.some((role) => role.role === "ADMIN") ?? false;
+  const chapterId = user?.chapterId ?? null;
+
   const { searchParams } = new URL(request.url);
   const start = searchParams.get("start");
   const end = searchParams.get("end");
 
-  const where: Record<string, unknown> = {};
+  const where: Record<string, unknown> = {
+    isCancelled: false,
+  };
+
+  if (!isAdmin) {
+    where.OR = [
+      { visibility: "PUBLIC" },
+      ...(chapterId ? [{ chapterId, visibility: "INTERNAL" }] : []),
+    ];
+  }
 
   if (start && end) {
-    where.startDate = { gte: new Date(start) };
-    where.endDate = { lte: new Date(end) };
-    // Also include events that span across the range
-    where.OR = [
-      { startDate: { gte: new Date(start), lte: new Date(end) } },
-      { endDate: { gte: new Date(start), lte: new Date(end) } },
-      { AND: [{ startDate: { lte: new Date(start) } }, { endDate: { gte: new Date(end) } }] },
+    const existingOr = Array.isArray(where.OR) ? where.OR : [];
+    where.AND = [
+      {
+        OR: [
+          { startDate: { gte: new Date(start), lte: new Date(end) } },
+          { endDate: { gte: new Date(start), lte: new Date(end) } },
+          { AND: [{ startDate: { lte: new Date(start) } }, { endDate: { gte: new Date(end) } }] },
+        ],
+      },
     ];
-    delete where.startDate;
-    delete where.endDate;
+    if (existingOr.length > 0) {
+      where.OR = existingOr;
+    }
   }
 
   try {

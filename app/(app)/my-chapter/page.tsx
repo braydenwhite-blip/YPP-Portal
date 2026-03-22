@@ -133,6 +133,8 @@ export default async function MyChapterPage() {
           style={{
             position: "absolute", top: 12, right: 16,
             display: "flex", gap: 8,
+            alignItems: "center",
+            flexWrap: "wrap",
           }}
         >
           <span
@@ -144,6 +146,9 @@ export default async function MyChapterPage() {
           >
             {chapter?._count.users ?? 0} members
           </span>
+          <Link href="/my-chapter/calendar" className="button outline small">
+            Chapter Calendar
+          </Link>
         </div>
       </div>
 

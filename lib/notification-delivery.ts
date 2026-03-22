@@ -1,0 +1,140 @@
+import { NotificationType } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { isEmailConfigured, sendNotificationEmail } from "@/lib/email";
+
+type DeliveryInput = {
+  userId: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  link?: string | null;
+  sendEmail?: boolean;
+};
+
+type PreferenceRecord = {
+  emailEnabled: boolean;
+  inAppEnabled: boolean;
+  announcements: boolean;
+  mentorUpdates: boolean;
+  goalReminders: boolean;
+  courseUpdates: boolean;
+  reflectionReminders: boolean;
+  eventUpdates: boolean;
+  eventReminders: boolean;
+};
+
+function preferenceKeyForType(type: NotificationType): keyof PreferenceRecord | null {
+  switch (type) {
+    case "ANNOUNCEMENT":
+      return "announcements";
+    case "MENTOR_FEEDBACK":
+      return "mentorUpdates";
+    case "GOAL_DEADLINE":
+      return "goalReminders";
+    case "COURSE_UPDATE":
+    case "CLASS_REMINDER":
+      return "courseUpdates";
+    case "REFLECTION_REMINDER":
+      return "reflectionReminders";
+    case "EVENT_UPDATE":
+      return "eventUpdates";
+    case "EVENT_REMINDER":
+      return "eventReminders";
+    default:
+      return null;
+  }
+}
+
+function getBaseUrl() {
+  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return "http://localhost:3000";
+}
+
+function isTypeEnabled(
+  preferences: PreferenceRecord | null | undefined,
+  type: NotificationType
+) {
+  const key = preferenceKeyForType(type);
+  if (!key) return true;
+  return preferences?.[key] ?? true;
+}
+
+export async function deliverNotification(input: DeliveryInput) {
+  const user = await prisma.user.findUnique({
+    where: { id: input.userId },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      notificationPreference: {
+        select: {
+          emailEnabled: true,
+          inAppEnabled: true,
+          announcements: true,
+          mentorUpdates: true,
+          goalReminders: true,
+          courseUpdates: true,
+          reflectionReminders: true,
+          eventUpdates: true,
+          eventReminders: true,
+        },
+      },
+    },
+  });
+
+  if (!user) return null;
+
+  const preferences = user.notificationPreference;
+  const typeEnabled = isTypeEnabled(preferences, input.type);
+  const shouldCreateInApp = (preferences?.inAppEnabled ?? true) && typeEnabled;
+  const shouldSendEmail =
+    input.sendEmail !== false &&
+    (preferences?.emailEnabled ?? true) &&
+    typeEnabled &&
+    isEmailConfigured();
+
+  let notification = null;
+
+  if (shouldCreateInApp) {
+    notification = await prisma.notification.create({
+      data: {
+        userId: input.userId,
+        type: input.type,
+        title: input.title,
+        body: input.body,
+        link: input.link || null,
+      },
+    });
+  }
+
+  if (shouldSendEmail) {
+    const fullLink = input.link
+      ? `${getBaseUrl()}${input.link.startsWith("/") ? input.link : `/${input.link}`}`
+      : undefined;
+
+    await sendNotificationEmail({
+      to: user.email,
+      name: user.name,
+      title: input.title,
+      body: input.body,
+      link: fullLink,
+    }).catch((error) => {
+      console.error("[NotificationDelivery] Failed to send email:", error);
+    });
+  }
+
+  return notification;
+}
+
+export async function deliverBulkNotifications(inputs: DeliveryInput[]) {
+  const uniqueInputs = new Map<string, DeliveryInput>();
+
+  for (const input of inputs) {
+    uniqueInputs.set(`${input.userId}:${input.type}:${input.title}:${input.link ?? ""}`, input);
+  }
+
+  for (const input of uniqueInputs.values()) {
+    await deliverNotification(input);
+  }
+}

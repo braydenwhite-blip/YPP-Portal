@@ -8,7 +8,9 @@ import bcrypt from "bcryptjs";
 import {
   CourseFormat,
   CourseLevel,
+  EventScope,
   EventType,
+  EventVisibility,
   MentorshipType,
   RoleType,
   TrainingModuleType
@@ -181,7 +183,7 @@ export async function createTrainingModule(formData: FormData) {
 }
 
 export async function createEvent(formData: FormData) {
-  await requireAdmin();
+  const session = await requireAdmin();
   const title = getString(formData, "title");
   const description = getString(formData, "description");
   const eventType = validateEnum(EventType, getString(formData, "eventType"), "eventType");
@@ -194,9 +196,13 @@ export async function createEvent(formData: FormData) {
       title,
       description,
       eventType,
+      scope: chapterId ? EventScope.CHAPTER : EventScope.GLOBAL,
+      visibility: chapterId ? EventVisibility.INTERNAL : EventVisibility.PUBLIC,
       startDate,
       endDate,
-      chapterId: chapterId || null
+      chapterId: chapterId || null,
+      createdById: session.user.id,
+      updatedById: session.user.id,
     }
   });
 

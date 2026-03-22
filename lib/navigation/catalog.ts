@@ -474,6 +474,14 @@ export const NAV_CATALOG: NavLink[] = [
       icon: "👑",
     },
     {
+      href: "/chapter/calendar",
+      label: "Chapter Calendar",
+      icon: "🗓",
+      roles: CHAPTER_LEAD_ONLY,
+      dashboardDescription: "Create chapter events, recurring series, and public calendar items.",
+      dashboardPriority: 4,
+    },
+    {
       href: "/chapter/onboarding",
       label: "CP Onboarding",
       icon: "🎓",

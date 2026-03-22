@@ -1,7 +1,20 @@
 import { prisma } from "@/lib/prisma";
 import CalendarView from "@/components/calendar-view";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export default async function CalendarPage() {
+  const session = await getServerSession(authOptions);
+  const user = session?.user?.id
+    ? await prisma.user.findUnique({
+        where: { id: session.user.id },
+        include: { roles: { select: { role: true } } },
+      })
+    : null;
+
+  const isAdmin = user?.roles.some((role) => role.role === "ADMIN") ?? false;
+  const chapterId = user?.chapterId ?? null;
+
   // Pre-fetch current month's events for SSR
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -9,10 +22,23 @@ export default async function CalendarPage() {
 
   const events = await prisma.event.findMany({
     where: {
-      OR: [
-        { startDate: { gte: startOfMonth, lte: endOfMonth } },
-        { endDate: { gte: startOfMonth, lte: endOfMonth } },
-        { AND: [{ startDate: { lte: startOfMonth } }, { endDate: { gte: endOfMonth } }] },
+      isCancelled: false,
+      ...(isAdmin
+        ? {}
+        : {
+            OR: [
+              { visibility: "PUBLIC" },
+              ...(chapterId ? [{ chapterId, visibility: "INTERNAL" as const }] : []),
+            ],
+          }),
+      AND: [
+        {
+          OR: [
+            { startDate: { gte: startOfMonth, lte: endOfMonth } },
+            { endDate: { gte: startOfMonth, lte: endOfMonth } },
+            { AND: [{ startDate: { lte: startOfMonth } }, { endDate: { gte: endOfMonth } }] },
+          ],
+        },
       ],
     },
     include: { chapter: { select: { name: true } } },

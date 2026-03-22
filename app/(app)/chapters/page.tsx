@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getPublicChapters } from "@/lib/chapter-join-actions";
+import { slugifyChapterName } from "@/lib/chapter-calendar";
 
 export default async function ChaptersPage() {
   const session = await getServerSession(authOptions);
@@ -39,7 +40,7 @@ export default async function ChaptersPage() {
       ) : (
         <div className="grid two">
           {chapters.map((chapter) => {
-            const href = chapter.slug ? `/chapters/${chapter.slug}` : null;
+            const href = `/chapters/${chapter.slug || slugifyChapterName(chapter.name)}`;
             const location = [chapter.city, chapter.region].filter(Boolean).join(", ");
 
             return (
@@ -150,15 +151,13 @@ export default async function ChaptersPage() {
                       {chapter.joinPolicy === "INVITE_ONLY" && "Invite only"}
                     </span>
 
-                    {href ? (
-                      <Link
-                        href={href}
-                        className="button small"
-                        style={{ textDecoration: "none", fontSize: 13 }}
-                      >
-                        View Chapter
-                      </Link>
-                    ) : null}
+                    <Link
+                      href={href}
+                      className="button small"
+                      style={{ textDecoration: "none", fontSize: 13 }}
+                    >
+                      View Chapter
+                    </Link>
                   </div>
                 </div>
               </div>

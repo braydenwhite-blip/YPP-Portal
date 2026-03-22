@@ -66,6 +66,10 @@ export default async function OverviewPage() {
     : null;
 
   const latestEvents = await prisma.event.findMany({
+    where: {
+      visibility: "PUBLIC",
+      isCancelled: false,
+    },
     orderBy: { startDate: "asc" },
     take: 3
   });

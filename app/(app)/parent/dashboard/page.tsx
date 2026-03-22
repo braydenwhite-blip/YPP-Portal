@@ -112,7 +112,11 @@ export default async function ParentDashboardPage() {
 
   // Fetch upcoming events (if any)
   const upcomingEvents = await prisma.event.findMany({
-    where: { startDate: { gte: new Date() } },
+    where: {
+      startDate: { gte: new Date() },
+      visibility: "PUBLIC",
+      isCancelled: false,
+    },
     orderBy: { startDate: "asc" },
     take: 5,
     select: { id: true, title: true, startDate: true, location: true },

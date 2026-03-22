@@ -6,6 +6,27 @@ import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { RoleType } from "@prisma/client";
 import { parseRoleTypes } from "@/lib/authorization";
+import { slugifyChapterName } from "@/lib/chapter-calendar";
+
+async function ensureUniqueChapterSlug(baseSlug: string, chapterId?: string) {
+  const cleaned = slugifyChapterName(baseSlug);
+  let candidate = cleaned || "chapter";
+  let suffix = 2;
+
+  while (true) {
+    const existing = await prisma.chapter.findFirst({
+      where: {
+        slug: candidate,
+        ...(chapterId ? { id: { not: chapterId } } : {}),
+      },
+      select: { id: true },
+    });
+
+    if (!existing) return candidate;
+    candidate = `${cleaned || "chapter"}-${suffix}`;
+    suffix += 1;
+  }
+}
 
 // ============================================
 // CHAPTER DASHBOARD DATA
@@ -607,6 +628,7 @@ export async function createChapter(formData: FormData) {
   await prisma.chapter.create({
     data: {
       name,
+      slug: await ensureUniqueChapterSlug(name),
       city: city || null,
       region: region || null,
       partnerSchool: partnerSchool || null,
@@ -632,6 +654,7 @@ export async function updateChapter(formData: FormData) {
     where: { id },
     data: {
       name,
+      slug: await ensureUniqueChapterSlug(name, id),
       city: city || null,
       region: region || null,
       partnerSchool: partnerSchool || null,

@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 import { RsvpStatus } from "@prisma/client";
+import { scheduleEventReminders } from "@/lib/chapter-calendar";
 
 async function requireAuth() {
   const session = await getServerSession(authOptions);
@@ -20,6 +21,27 @@ function getString(formData: FormData, key: string, required = true) {
     throw new Error(`Missing ${key}`);
   }
   return value ? String(value).trim() : "";
+}
+
+async function getCalendarViewer(userId?: string) {
+  const resolvedUserId = userId || (await getServerSession(authOptions))?.user?.id;
+  if (!resolvedUserId) return null;
+
+  return await prisma.user.findUnique({
+    where: { id: resolvedUserId },
+    include: { roles: { select: { role: true } } },
+  });
+}
+
+function canViewerAccessEvent(
+  viewer: Awaited<ReturnType<typeof getCalendarViewer>>,
+  event: { visibility: string; chapterId: string | null }
+) {
+  const isAdmin = viewer?.roles.some((role) => role.role === "ADMIN") ?? false;
+  if (isAdmin) return true;
+  if (event.visibility === "PUBLIC") return true;
+  if (viewer?.chapterId && viewer.chapterId === event.chapterId) return true;
+  return false;
 }
 
 // ============================================
@@ -47,8 +69,21 @@ export async function rsvpToEvent(formData: FormData) {
     }
   });
 
+  if (status === "GOING") {
+    await scheduleEventReminders(eventId);
+  } else {
+    await prisma.eventReminder.deleteMany({
+      where: {
+        eventId,
+        userId,
+        status: "PENDING",
+      },
+    });
+  }
+
   revalidatePath("/events");
   revalidatePath(`/events/${eventId}`);
+  revalidatePath("/my-chapter/calendar");
 }
 
 export async function cancelRsvp(formData: FormData) {
@@ -63,20 +98,34 @@ export async function cancelRsvp(formData: FormData) {
     }
   });
 
+  await prisma.eventReminder.deleteMany({
+    where: {
+      eventId,
+      userId,
+      status: "PENDING",
+    },
+  });
+
   revalidatePath("/events");
+  revalidatePath("/my-chapter/calendar");
 }
 
 // ============================================
 // ICAL GENERATION
 // ============================================
 
-export async function generateICalForEvent(eventId: string): Promise<string> {
+export async function generateICalForEvent(eventId: string, viewerUserId?: string): Promise<string> {
   const event = await prisma.event.findUnique({
     where: { id: eventId },
     include: { chapter: true }
   });
 
   if (!event) {
+    throw new Error("Event not found");
+  }
+
+  const viewer = await getCalendarViewer(viewerUserId);
+  if (!canViewerAccessEvent(viewer, event)) {
     throw new Error("Event not found");
   }
 
@@ -116,23 +165,35 @@ export async function generateICalForEvent(eventId: string): Promise<string> {
 }
 
 export async function generateICalForAllEvents(userId?: string): Promise<string> {
-  const session = await getServerSession(authOptions);
+  const viewer = await getCalendarViewer(userId);
 
   // Get user's RSVPs if logged in
-  const rsvpEventIds = userId || session?.user?.id
+  const rsvpEventIds = userId || viewer?.id
     ? await prisma.eventRsvp.findMany({
         where: {
-          userId: userId || session?.user?.id,
+          userId: userId || viewer?.id,
           status: "GOING"
         },
         select: { eventId: true }
       }).then(rsvps => rsvps.map(r => r.eventId))
     : [];
 
+  const isAdmin = viewer?.roles.some((role) => role.role === "ADMIN") ?? false;
   const events = await prisma.event.findMany({
     where: rsvpEventIds.length > 0
-      ? { id: { in: rsvpEventIds } }
-      : { startDate: { gte: new Date() } },
+      ? { id: { in: rsvpEventIds }, isCancelled: false }
+      : {
+          startDate: { gte: new Date() },
+          isCancelled: false,
+          ...(isAdmin
+            ? {}
+            : {
+                OR: [
+                  { visibility: "PUBLIC" },
+                  ...(viewer?.chapterId ? [{ chapterId: viewer.chapterId, visibility: "INTERNAL" as const }] : []),
+                ],
+              }),
+        },
     include: { chapter: true },
     orderBy: { startDate: "asc" },
     take: 50
