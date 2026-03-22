@@ -438,6 +438,7 @@ model Chapter {
   // Relations
   users             User[]
   joinRequests      ChapterJoinRequest[]
+  goals             ChapterGoal[]
   courses           Course[]
   events            Event[]
   feedbacks         Feedback[]
@@ -832,6 +833,7 @@ model User {
   // Chapter Join Request Relations
   chapterJoinRequests         ChapterJoinRequest[]
   chapterJoinRequestsReviewed ChapterJoinRequest[] @relation("JoinRequestReviewer")
+  chapterGoalsCreated         ChapterGoal[]        @relation("ChapterGoalCreator")
 
   // Parent Feedback & Survey Relations
   parentChapterFeedbacks ParentChapterFeedback[] @relation("ParentChapterFeedbacks")
@@ -7952,6 +7954,12 @@ model ChapterKpiSnapshot {
   enrollmentFillPercent Float? // avg enrollment / capacity across classes
   mentorshipPairCount   Int @default(0)
 
+  // Growth & Engagement KPIs
+  retentionRate      Float? // % members active in last 30 days
+  newMembersThisWeek Int    @default(0)
+  eventsThisWeek     Int    @default(0)
+  postsThisWeek      Int    @default(0)
+
   // Risk flags
   isAtRisk  Boolean @default(false)
   riskFlags String[] // e.g. ["no_active_instructors", "overdue_queues_high"]
@@ -8065,5 +8073,28 @@ model ChapterJoinRequest {
   updatedAt    DateTime          @updatedAt
 
   @@unique([userId, chapterId])
+  @@index([chapterId, status])
+}
+
+// ============================================
+// CHAPTER GOALS
+// ============================================
+
+model ChapterGoal {
+  id           String     @id @default(cuid())
+  chapterId    String
+  chapter      Chapter    @relation(fields: [chapterId], references: [id])
+  createdById  String
+  createdBy    User       @relation("ChapterGoalCreator", fields: [createdById], references: [id])
+  title        String
+  description  String?
+  targetValue  Int
+  currentValue Int        @default(0)
+  unit         String     // "members", "events", "enrollments", "courses"
+  deadline     DateTime?
+  status       GoalStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
   @@index([chapterId, status])
 }
