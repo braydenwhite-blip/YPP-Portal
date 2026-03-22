@@ -244,6 +244,15 @@ export async function submitSelfReflection(formData: FormData) {
     throw new Error("No goals found for your role. Contact your administrator.");
   }
 
+  // Compute reflection streak: increment if last reflection was within 45 days
+  const lastReflectionDate = mentorship.selfReflections[0]?.submittedAt ?? null;
+  const daysSinceLast = lastReflectionDate
+    ? (now.getTime() - lastReflectionDate.getTime()) / (1000 * 60 * 60 * 24)
+    : null;
+  const isOnTime = daysSinceLast === null || daysSinceLast <= 45;
+  const newStreak = isOnTime ? (mentorship.reflectionStreak ?? 0) + 1 : 1;
+  const newLongest = Math.max(newStreak, mentorship.longestReflectionStreak ?? 0);
+
   // Create reflection + per-goal responses in a transaction
   const reflection = await prisma.$transaction(async (tx) => {
     const r = await tx.monthlySelfReflection.create({
@@ -265,6 +274,11 @@ export async function submitSelfReflection(formData: FormData) {
           create: goalResponses,
         },
       },
+    });
+    // Update streak counters on the mentorship
+    await tx.mentorship.update({
+      where: { id: mentorship.id },
+      data: { reflectionStreak: newStreak, longestReflectionStreak: newLongest },
     });
     return r;
   });

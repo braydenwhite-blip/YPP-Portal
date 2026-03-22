@@ -87,6 +87,10 @@ function normalizeText(value: string | null | undefined) {
   return (value ?? "").trim().toLowerCase();
 }
 
+// Maximum possible raw score (for normalizing to compatibility %)
+// Interest: 36 + Chapter: 20 + Capacity: 24 + Availability: 10 + Profile: 6 + Effectiveness: 15 = 111
+const MAX_MATCH_SCORE = 111;
+
 export function scoreSupportMatch(params: {
   supportRole: SupportRole;
   mentorInterests: string[];
@@ -96,6 +100,7 @@ export function scoreSupportMatch(params: {
   capacity: number | null;
   availability: string | null;
   hasProfile: boolean;
+  effectivenessScore?: number | null; // 0–100, from MentorEffectivenessScore.totalScore
 }) {
   const {
     supportRole,
@@ -106,6 +111,7 @@ export function scoreSupportMatch(params: {
     capacity,
     availability,
     hasProfile,
+    effectivenessScore,
   } = params;
 
   let score = 0;
@@ -159,7 +165,16 @@ export function scoreSupportMatch(params: {
     reasons.push("Future-planning support role");
   }
 
-  return { score, reasons };
+  // Effectiveness score bonus (0–15 pts based on 0–100 effectiveness score)
+  if (effectivenessScore != null && effectivenessScore > 0) {
+    const effectivenessBonus = Math.round((effectivenessScore / 100) * 15);
+    score += effectivenessBonus;
+    reasons.push(`Effectiveness score: ${effectivenessScore}/100`);
+  }
+
+  const compatibilityPercent = Math.min(100, Math.round(Math.max(0, score) / MAX_MATCH_SCORE * 100));
+
+  return { score, reasons, compatibilityPercent };
 }
 
 function buildParticipantLookup(

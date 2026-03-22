@@ -193,7 +193,15 @@ export async function saveGoalReview(formData: FormData) {
   const reflection = await prisma.monthlySelfReflection.findUniqueOrThrow({
     where: { id: reflectionId },
     include: {
-      mentorship: { select: { mentorId: true, menteeId: true, chairId: true } },
+      mentorship: {
+        select: {
+          mentorId: true,
+          menteeId: true,
+          chairId: true,
+          reviewStreak: true,
+          longestReviewStreak: true,
+        },
+      },
       mentee: { select: { name: true } },
       goalReview: { select: { id: true, status: true } },
     },
@@ -228,6 +236,17 @@ export async function saveGoalReview(formData: FormData) {
   });
 
   const isQuarterly = reflection.cycleNumber % 3 === 0;
+
+  // Compute mentor review streak (only when submitting for approval, not saving drafts)
+  let newReviewStreak = reflection.mentorship.reviewStreak ?? 0;
+  let newLongestReviewStreak = reflection.mentorship.longestReviewStreak ?? 0;
+  if (submitForApproval) {
+    const daysSinceReflection =
+      (new Date().getTime() - reflection.submittedAt.getTime()) / (1000 * 60 * 60 * 24);
+    const reviewedOnTime = daysSinceReflection <= 7;
+    newReviewStreak = reviewedOnTime ? newReviewStreak + 1 : 1;
+    newLongestReviewStreak = Math.max(newReviewStreak, newLongestReviewStreak);
+  }
 
   await prisma.$transaction(async (tx) => {
     if (reflection.goalReview) {
@@ -287,6 +306,13 @@ export async function saveGoalReview(formData: FormData) {
             })),
           },
         },
+      });
+    }
+    // Update review streak on submission
+    if (submitForApproval) {
+      await tx.mentorship.update({
+        where: { id: reflection.mentorshipId },
+        data: { reviewStreak: newReviewStreak, longestReviewStreak: newLongestReviewStreak },
       });
     }
   });

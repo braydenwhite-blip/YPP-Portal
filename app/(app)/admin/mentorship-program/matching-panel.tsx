@@ -439,6 +439,11 @@ export default function MatchingPanel({
                           <div className="mentor-match-card-header">
                             <span className={`pill ${getScoreColor(candidate.matchScore)}`}>
                               Score: {candidate.matchScore}
+                              {candidate.compatibilityPercent !== undefined && (
+                                <span style={{ marginLeft: "0.35rem", opacity: 0.75 }}>
+                                  ({candidate.compatibilityPercent}% match)
+                                </span>
+                              )}
                             </span>
                             <span className="pill pill-small">
                               {candidate.mentorCurrentMentees} active assignment

@@ -8,6 +8,7 @@ import { authOptions } from "@/lib/auth";
 import {
   scoreSupportMatch,
 } from "@/lib/mentorship-hub";
+import { getMentorEffectivenessScores } from "@/lib/mentor-effectiveness";
 import {
   getAdminMentorshipLaneForUser,
   getMentorshipTypeForAdminLane,
@@ -53,6 +54,7 @@ export interface MentorMatchSuggestion {
   menteeInterests: string[];
   matchScore: number;
   matchReasons: string[];
+  compatibilityPercent: number;
   type: MentorshipType;
   supportRole: MatchSupportRole;
 }
@@ -213,6 +215,17 @@ export async function computeMentorMatches(
           },
         });
 
+  // Fetch effectiveness scores for all mentors (best-effort; empty map if unavailable)
+  let effectivenessMap = new Map<string, number>();
+  try {
+    const scores = await getMentorEffectivenessScores();
+    for (const s of scores) {
+      effectivenessMap.set(s.mentorId, s.totalScore);
+    }
+  } catch {
+    // Non-critical: proceed without effectiveness scores
+  }
+
   const groupedSuggestions: MentorMatchGroup[] = [];
 
   for (const mentee of potentialMentees) {
@@ -270,6 +283,7 @@ export async function computeMentorMatches(
         capacity,
         availability,
         hasProfile: Boolean(mentor.profile?.bio),
+        effectivenessScore: effectivenessMap.get(mentor.id) ?? null,
       });
 
       candidates.push({
@@ -287,6 +301,7 @@ export async function computeMentorMatches(
         menteeInterests,
         matchScore: result.score,
         matchReasons: result.reasons,
+        compatibilityPercent: result.compatibilityPercent,
         type,
         supportRole,
       });
