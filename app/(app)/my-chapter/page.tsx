@@ -3,21 +3,12 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getStudentChapterJourneyData } from "@/lib/chapter-pathway-journey";
+import { getMyChapterHomeData } from "@/lib/chapter-member-actions";
 import { FallbackRequestButton } from "./fallback-request-button";
 
 function formatDateRange(startDate: Date, endDate: Date) {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-  });
+  const formatter = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
   return `${formatter.format(startDate)} - ${formatter.format(endDate)}`;
-}
-
-function formatChapterLabel(name: string | null, city: string | null, region: string | null) {
-  if (!name) return "Your chapter";
-  if (city && region) return `${name} in ${city}, ${region}`;
-  if (city) return `${name} in ${city}`;
-  return name;
 }
 
 function formatDeliveryMode(mode: "IN_PERSON" | "VIRTUAL" | "HYBRID") {
@@ -44,347 +35,436 @@ function statusTone(status: string | null | undefined) {
   }
 }
 
+function formatEventDate(date: Date) {
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(date));
+}
+
+const ROLE_COLORS: Record<string, string> = {
+  CHAPTER_LEAD: "#6d28d9",
+  ADMIN: "#dc2626",
+  INSTRUCTOR: "#0369a1",
+  MENTOR: "#ca8a04",
+  STUDENT: "#6b7280",
+  STAFF: "#059669",
+};
+
 export default async function MyChapterPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
 
+  // Load chapter home data and pathway journey in parallel
+  const [homeData, journey] = await Promise.all([
+    getMyChapterHomeData(),
+    getStudentChapterJourneyData(session.user.id).catch(() => null),
+  ]);
+
+  // If user has no chapter, redirect to join
+  if (!homeData) redirect("/join-chapter");
+
+  const { chapter, members, channels, recentAnnouncements, myEnrollments } = homeData;
   const roles = new Set(session.user.roles ?? []);
   const canReviewFallbacks = roles.has("ADMIN") || roles.has("STAFF") || roles.has("CHAPTER_LEAD");
-  const journey = await getStudentChapterJourneyData(session.user.id);
-  const localPathways = journey.activeLocalPathways;
-  const secondaryPathways = journey.visiblePathways.filter((pathway) => !pathway.hasLocalRun);
-  const spotlightPathway = localPathways[0] ?? journey.visiblePathways[0] ?? null;
-  const pendingFallbackRequests = journey.pathways.flatMap((pathway) =>
-    pathway.steps.flatMap((step) =>
-      step.allOfferings
-        .filter((offering) => offering.requestStatus === "PENDING")
-        .map((offering) => ({
-          pathwayId: pathway.id,
-          pathwayName: pathway.name,
-          stepId: step.id,
-          stepTitle: step.title,
-          offering,
-        }))
-    )
-  );
+
+  // Get pathway data if available
+  const localPathways = journey?.activeLocalPathways ?? [];
+  const spotlightPathway = localPathways[0] ?? null;
 
   return (
     <main className="main-content">
-      <div className="topbar">
-        <div>
-          <p className="badge">My Chapter</p>
-          <h1 className="page-title">
-            {journey.chapterName ? journey.chapterName : "Your chapter hub"}
-          </h1>
-          <p style={{ margin: "6px 0 0", color: "var(--gray-600)" }}>
-            {formatChapterLabel(journey.chapterName, journey.chapterCity, journey.chapterRegion)}
-          </p>
+      {/* Chapter Header with Branding */}
+      <div style={{ borderRadius: 16, overflow: "hidden", marginBottom: 24, position: "relative" }}>
+        {chapter?.bannerUrl ? (
+          <div style={{ height: 140, overflow: "hidden" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={chapter.bannerUrl}
+              alt=""
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
+          </div>
+        ) : (
+          <div
+            style={{
+              height: 140,
+              background: "linear-gradient(135deg, var(--ypp-purple) 0%, var(--ypp-pink) 100%)",
+            }}
+          />
+        )}
+        <div
+          style={{
+            position: "absolute",
+            bottom: 16,
+            left: 24,
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+          }}
+        >
+          {chapter?.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={chapter.logoUrl}
+              alt=""
+              style={{
+                width: 52, height: 52, borderRadius: 12, objectFit: "cover",
+                border: "3px solid white",
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: 52, height: 52, borderRadius: 12,
+                background: "rgba(255,255,255,0.2)", backdropFilter: "blur(8px)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: "white", fontWeight: 700, fontSize: 20, border: "3px solid white",
+              }}
+            >
+              {chapter?.name?.charAt(0) ?? "C"}
+            </div>
+          )}
+          <div style={{ color: "white", textShadow: "0 1px 3px rgba(0,0,0,0.4)" }}>
+            <h1 style={{ margin: 0, fontSize: 22 }}>{chapter?.name ?? "My Chapter"}</h1>
+            {chapter?.tagline && (
+              <p style={{ margin: 0, fontSize: 14, opacity: 0.9 }}>{chapter.tagline}</p>
+            )}
+          </div>
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Link href="/pathways" className="button outline small">
-            Full Pathway Library
-          </Link>
-          <Link href="/curriculum" className="button outline small">
-            Browse Classes
-          </Link>
+        <div
+          style={{
+            position: "absolute", top: 12, right: 16,
+            display: "flex", gap: 8,
+          }}
+        >
+          <span
+            style={{
+              padding: "4px 10px", borderRadius: 8,
+              background: "rgba(255,255,255,0.2)", backdropFilter: "blur(8px)",
+              color: "white", fontSize: 13,
+            }}
+          >
+            {chapter?._count.users ?? 0} members
+          </span>
         </div>
       </div>
 
-      <div className="grid two" style={{ marginBottom: 24 }}>
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>What this page does</h3>
-          <p style={{ marginBottom: 0, color: "var(--gray-600)" }}>
-            This is your chapter-first home. It puts local pathways, the next step you can take,
-            and partner-chapter fallback options in one place.
-          </p>
-        </div>
-        <div className="card">
-          <div className="grid two" style={{ gap: 12 }}>
-            <div>
-              <div className="kpi">{localPathways.length}</div>
-              <div className="kpi-label">Local pathways</div>
+      <div className="grid two" style={{ alignItems: "start" }}>
+        {/* Left Column: Community & Activity */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {/* Announcements */}
+          {recentAnnouncements.length > 0 && (
+            <div className="card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <h3 style={{ margin: 0 }}>Announcements</h3>
+                <Link href="/chapter/updates" style={{ fontSize: 12, color: "var(--ypp-purple)" }}>
+                  View all →
+                </Link>
+              </div>
+              <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+                {recentAnnouncements.map((update) => (
+                  <div
+                    key={update.id}
+                    style={{
+                      padding: 12, borderRadius: 8,
+                      border: "1px solid var(--border)",
+                      background: update.isPinned ? "#fefce8" : "transparent",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <strong style={{ fontSize: 14 }}>
+                        {update.isPinned && "📌 "}{update.title}
+                      </strong>
+                      <span style={{ fontSize: 11, color: "var(--muted)" }}>
+                        {new Date(update.publishedAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--muted)", lineHeight: 1.4 }}>
+                      {update.content.slice(0, 150)}{update.content.length > 150 ? "..." : ""}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div>
-              <div className="kpi">{journey.visiblePathways.length}</div>
-              <div className="kpi-label">Visible pathways</div>
-            </div>
-            <div>
-              <div className="kpi">{pendingFallbackRequests.length}</div>
-              <div className="kpi-label">Pending fallback requests</div>
-            </div>
-            <div>
-              <div className="kpi">{journey.activeLocalPathways.filter((pathway) => pathway.isComplete).length}</div>
-              <div className="kpi-label">Completed locally</div>
-            </div>
-          </div>
-          {canReviewFallbacks ? (
-            <div style={{ marginTop: 14 }}>
-              <Link href="/chapter/pathway-fallbacks" className="button outline small">
-                Review fallback requests
+          )}
+
+          {/* Chapter Members */}
+          <div className="card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 style={{ margin: 0 }}>Your Chapter People</h3>
+              <Link href="/chapter/members" style={{ fontSize: 12, color: "var(--ypp-purple)" }}>
+                View all →
               </Link>
             </div>
-          ) : null}
-        </div>
-      </div>
-
-      {spotlightPathway && (
-        <div className="card" style={{ marginBottom: 24 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-            <div style={{ flex: 1, minWidth: 260 }}>
-              <p className="section-title" style={{ marginTop: 0 }}>Next step spotlight</p>
-              <h3 style={{ marginTop: 0 }}>{spotlightPathway.name}</h3>
-              <p style={{ marginTop: 0, color: "var(--gray-600)" }}>{spotlightPathway.description}</p>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                <span className="pill">{spotlightPathway.interestArea}</span>
-                <span className="pill">{spotlightPathway.runStatus.replace("_", " ")}</span>
-                {spotlightPathway.ownerName ? <span className="pill">Owned by {spotlightPathway.ownerName}</span> : null}
-                {spotlightPathway.hasLegacyOnlySteps ? <span className="pill">Migration needed</span> : null}
-              </div>
-            </div>
-            <div style={{ minWidth: 220 }}>
-              <div className="kpi">{spotlightPathway.progressPercent}%</div>
-              <div className="kpi-label">Pathway progress</div>
-              <div style={{ marginTop: 10, height: 8, background: "var(--gray-200)", borderRadius: 999 }}>
+            <div
+              style={{
+                marginTop: 12,
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 6,
+              }}
+            >
+              {members.map((member) => (
                 <div
+                  key={member.id}
                   style={{
-                    width: `${spotlightPathway.progressPercent}%`,
-                    height: "100%",
-                    borderRadius: 999,
-                    background: "var(--ypp-purple)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "4px 10px 4px 4px",
+                    borderRadius: 20,
+                    border: "1px solid var(--border)",
+                    fontSize: 13,
                   }}
-                />
-              </div>
+                >
+                  <div
+                    style={{
+                      width: 24, height: 24, borderRadius: "50%",
+                      background: ROLE_COLORS[member.primaryRole] ?? "#6b7280",
+                      color: "white", display: "flex", alignItems: "center",
+                      justifyContent: "center", fontSize: 11, fontWeight: 600,
+                    }}
+                  >
+                    {member.name.charAt(0)}
+                  </div>
+                  <span>{member.name}</span>
+                </div>
+              ))}
+              {(chapter?._count.users ?? 0) > members.length && (
+                <Link
+                  href="/chapter/members"
+                  style={{
+                    padding: "4px 12px", borderRadius: 20, border: "1px dashed var(--border)",
+                    fontSize: 13, color: "var(--muted)", textDecoration: "none",
+                    display: "flex", alignItems: "center",
+                  }}
+                >
+                  +{(chapter?._count.users ?? 0) - members.length} more
+                </Link>
+              )}
             </div>
           </div>
-        </div>
-      )}
 
-      <div style={{ marginBottom: 32 }}>
-        <div className="section-title">Local pathways first</div>
-        {localPathways.length === 0 ? (
-          <div className="card">
-            <p style={{ marginTop: 0, color: "var(--gray-600)" }}>
-              Your chapter does not have any active pathways yet. The full library is still available
-              below, and the chapter lead can turn pathways on when local classes are ready.
-            </p>
-          </div>
-        ) : (
-          <div style={{ display: "grid", gap: 16 }}>
-            {localPathways.map((pathway) => {
-              const nextStep = pathway.nextRecommendedStep;
-
-              return (
-              <section key={pathway.id} className="card">
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-                  <div style={{ flex: 1, minWidth: 280 }}>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-                      <span className="pill">{pathway.interestArea}</span>
-                      <span className="pill">{pathway.runStatus.replace("_", " ")}</span>
-                      {pathway.isFeatured ? <span className="pill">Featured in chapter</span> : null}
-                      {pathway.isComplete ? <span className="pill" style={{ background: "#dcfce7", color: "#166534" }}>Complete</span> : null}
-                    </div>
-                    <h3 style={{ marginTop: 0, marginBottom: 8 }}>
-                      <Link href={`/pathways/${pathway.id}`} style={{ textDecoration: "none", color: "inherit" }}>
-                        {pathway.name}
-                      </Link>
-                    </h3>
-                    <p style={{ marginTop: 0, color: "var(--gray-600)" }}>{pathway.description}</p>
-                    <p style={{ marginBottom: 0, color: "var(--gray-500)", fontSize: 13 }}>
-                      {pathway.completedCount} of {pathway.totalCount} academic steps complete.
-                      {pathway.ownerName ? ` Chapter lead: ${pathway.ownerName}.` : ""}
-                    </p>
+          {/* Pathway Progress (if available) */}
+          {spotlightPathway && (
+            <div className="card">
+              <h3 style={{ margin: 0 }}>Your Pathway Progress</h3>
+              <div style={{ marginTop: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <strong>{spotlightPathway.name}</strong>
+                    <span style={{ marginLeft: 8, fontSize: 12, color: "var(--muted)" }}>
+                      {spotlightPathway.completedCount}/{spotlightPathway.totalCount} steps
+                    </span>
                   </div>
-                  <div style={{ minWidth: 200 }}>
-                    <div className="kpi">{pathway.progressPercent}%</div>
-                    <div className="kpi-label">Progress</div>
-                    <div style={{ marginTop: 10, height: 8, background: "var(--gray-200)", borderRadius: 999 }}>
-                      <div
-                        style={{
-                          width: `${pathway.progressPercent}%`,
-                          height: "100%",
-                          borderRadius: 999,
-                          background: "var(--ypp-purple)",
-                        }}
-                      />
-                    </div>
-                  </div>
+                  <span style={{ fontWeight: 700, color: "var(--ypp-purple)" }}>
+                    {spotlightPathway.progressPercent}%
+                  </span>
                 </div>
+                <div style={{ marginTop: 8, height: 8, background: "var(--border)", borderRadius: 4 }}>
+                  <div
+                    style={{
+                      width: `${spotlightPathway.progressPercent}%`,
+                      height: "100%", borderRadius: 4, background: "var(--ypp-purple)",
+                    }}
+                  />
+                </div>
+                {spotlightPathway.nextRecommendedStep && (
+                  <p style={{ marginTop: 8, fontSize: 13, color: "var(--muted)" }}>
+                    Next: Step {spotlightPathway.nextRecommendedStep.stepOrder} — {spotlightPathway.nextRecommendedStep.title}
+                  </p>
+                )}
+              </div>
+              {localPathways.length > 1 && (
+                <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {localPathways.slice(1, 4).map((pw) => (
+                    <Link
+                      key={pw.id}
+                      href={`/pathways/${pw.id}`}
+                      style={{
+                        fontSize: 12, padding: "4px 10px", borderRadius: 20,
+                        border: "1px solid var(--border)", textDecoration: "none",
+                        color: "var(--text)",
+                      }}
+                    >
+                      {pw.name} ({pw.progressPercent}%)
+                    </Link>
+                  ))}
+                </div>
+              )}
+              <Link
+                href="/pathways"
+                style={{ display: "inline-block", marginTop: 10, fontSize: 12, color: "var(--ypp-purple)" }}
+              >
+                View all pathways →
+              </Link>
+            </div>
+          )}
 
-                <div style={{ marginTop: 18, display: "grid", gap: 12 }}>
-                  {nextStep ? (
-                    <div style={{ padding: 16, borderRadius: 16, background: "var(--gray-50, #f9fafb)", border: "1px solid var(--gray-200, #e5e7eb)" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                        <div>
-                          <div className="section-title" style={{ marginTop: 0 }}>Next step</div>
-                          <h4 style={{ marginTop: 0, marginBottom: 6 }}>
-                            Step {nextStep.stepOrder}: {nextStep.title}
-                          </h4>
-                          <p style={{ marginTop: 0, color: "var(--gray-600)", fontSize: 14 }}>
-                            {nextStep.requirementsMet
-                              ? "You can join this step now."
-                              : "Finish the earlier academic step before you join this one."}
-                          </p>
-                        </div>
-                        <div style={{ minWidth: 180 }}>
-                          <span className="pill" style={statusTone(nextStep.status)}>
-                            {nextStep.status.replace("_", " ")}
-                          </span>
-                        </div>
-                      </div>
+          {/* My Enrollments */}
+          {myEnrollments.length > 0 && (
+            <div className="card">
+              <h3 style={{ margin: 0 }}>My Courses</h3>
+              <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+                {myEnrollments.map((enrollment) => (
+                  <Link
+                    key={enrollment.id}
+                    href={`/curriculum/${enrollment.course.id}`}
+                    style={{
+                      display: "block", padding: "8px 12px", borderRadius: 8,
+                      border: "1px solid var(--border)", textDecoration: "none", color: "inherit",
+                      fontSize: 14,
+                    }}
+                  >
+                    {enrollment.course.title}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
-                      {nextStep.localOfferings.length > 0 && (
-                        <div style={{ marginTop: 12 }}>
-                          <div style={{ fontWeight: 600, marginBottom: 8 }}>Local offerings</div>
-                          <div style={{ display: "grid", gap: 10 }}>
-                            {nextStep.localOfferings.map((offering) => (
-                              <div
-                                key={offering.id}
-                                className="card"
-                                style={{ margin: 0, padding: 14, borderRadius: 14 }}
-                              >
-                                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                                  <div>
-                                    <h4 style={{ marginTop: 0, marginBottom: 4 }}>{offering.title}</h4>
-                                    <p style={{ margin: 0, color: "var(--gray-600)", fontSize: 13 }}>
-                                      {formatDateRange(offering.startDate, offering.endDate)} · {formatDeliveryMode(offering.deliveryMode)}
-                                      {offering.chapterLabel ? ` · ${offering.chapterLabel}` : ""}
-                                    </p>
-                                    <p style={{ margin: "6px 0 0", color: "var(--gray-500)", fontSize: 13 }}>
-                                      Instructor: {offering.instructorName} · {offering.enrolledCount} enrolled
-                                    </p>
-                                  </div>
-                                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                                    <span className="pill" style={statusTone(offering.requestStatus)}>
-                                      {offering.requestStatus ? `Request ${offering.requestStatus.toLowerCase()}` : "Local"}
-                                    </span>
-                                    <Link href={`/curriculum/${offering.id}`} className="button outline small">
-                                      View class
-                                    </Link>
-                                  </div>
-                                </div>
-                                {offering.deliveryMode === "IN_PERSON" && offering.locationName ? (
-                                  <p style={{ margin: "8px 0 0", color: "var(--gray-500)", fontSize: 13 }}>
-                                    In-person at {offering.locationName}
-                                    {offering.locationAddress ? `, ${offering.locationAddress}` : ""}
-                                  </p>
-                                ) : null}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+        {/* Right Column: Channels, Events, Quick Links */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {/* Channels */}
+          <div className="card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 style={{ margin: 0 }}>Chapter Channels</h3>
+              <Link href="/chapter/channels" style={{ fontSize: 12, color: "var(--ypp-purple)" }}>
+                View all →
+              </Link>
+            </div>
+            {channels.length === 0 ? (
+              <p style={{ color: "var(--muted)", fontSize: 13, marginTop: 10 }}>
+                No channels yet.
+              </p>
+            ) : (
+              <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+                {channels.map((ch) => (
+                  <Link
+                    key={ch.id}
+                    href={`/chapter/channels/${ch.id}`}
+                    style={{
+                      display: "flex", justifyContent: "space-between", alignItems: "center",
+                      padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border)",
+                      textDecoration: "none", color: "inherit", fontSize: 14,
+                    }}
+                  >
+                    <span># {ch.name}</span>
+                    <span style={{ fontSize: 12, color: "var(--muted)" }}>
+                      {ch._count.messages} msgs
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
 
-                      {nextStep.localOfferings.length === 0 &&
-                        nextStep.partnerOfferings.length > 0 && (
-                          <div style={{ marginTop: 12 }}>
-                            <div style={{ fontWeight: 600, marginBottom: 8 }}>Partner chapter fallback options</div>
-                            <div style={{ display: "grid", gap: 10 }}>
-                              {nextStep.partnerOfferings.map((offering) => (
-                                <div
-                                  key={offering.id}
-                                  className="card"
-                                  style={{ margin: 0, padding: 14, borderRadius: 14 }}
-                                >
-                                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                                    <div>
-                                      <h4 style={{ marginTop: 0, marginBottom: 4 }}>{offering.title}</h4>
-                                      <p style={{ margin: 0, color: "var(--gray-600)", fontSize: 13 }}>
-                                        {formatDateRange(offering.startDate, offering.endDate)} · {formatDeliveryMode(offering.deliveryMode)}
-                                        {offering.chapterLabel ? ` · ${offering.chapterLabel}` : ""}
-                                      </p>
-                                      <p style={{ margin: "6px 0 0", color: "var(--gray-500)", fontSize: 13 }}>
-                                        Instructor: {offering.instructorName} · {offering.enrolledCount} enrolled
-                                      </p>
-                                    </div>
-                                    <FallbackRequestButton
-                                      pathwayId={pathway.id}
-                                      pathwayStepId={nextStep.id}
-                                      targetOfferingId={offering.id}
-                                      requestStatus={offering.requestStatus}
-                                    />
-                                  </div>
-                                  {offering.deliveryMode === "IN_PERSON" && offering.locationName ? (
-                                    <p style={{ margin: "8px 0 0", color: "var(--gray-500)", fontSize: 13 }}>
-                                      In-person at {offering.locationName}
-                                      {offering.locationAddress ? `, ${offering.locationAddress}` : ""}
-                                    </p>
-                                  ) : null}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                      {nextStep.localOfferings.length === 0 &&
-                      nextStep.partnerOfferings.length === 0 ? (
-                        <p style={{ margin: "12px 0 0", color: "var(--gray-500)", fontSize: 13 }}>
-                          No class offering is attached to this step yet.
-                        </p>
-                      ) : null}
+          {/* Upcoming Events */}
+          <div className="card">
+            <h3 style={{ margin: 0 }}>Upcoming Events</h3>
+            {(!chapter?.events || chapter.events.length === 0) ? (
+              <p style={{ color: "var(--muted)", fontSize: 13, marginTop: 10 }}>
+                No upcoming events.
+              </p>
+            ) : (
+              <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                {chapter.events.map((event) => (
+                  <div
+                    key={event.id}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 12,
+                      padding: "8px 0", borderBottom: "1px solid var(--border)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 42, height: 42, borderRadius: 8, background: "var(--bg)",
+                        display: "flex", flexDirection: "column", alignItems: "center",
+                        justifyContent: "center", flexShrink: 0,
+                      }}
+                    >
+                      <span style={{ fontSize: 14, fontWeight: 700, lineHeight: 1 }}>
+                        {new Date(event.startDate).getDate()}
+                      </span>
+                      <span style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase" }}>
+                        {new Date(event.startDate).toLocaleDateString("en-US", { month: "short" })}
+                      </span>
                     </div>
-                  ) : (
-                    <div style={{ padding: 16, borderRadius: 16, background: "var(--gray-50, #f9fafb)", border: "1px solid var(--gray-200, #e5e7eb)" }}>
-                      <strong>This pathway is complete.</strong>
-                      <p style={{ marginBottom: 0, color: "var(--gray-600)" }}>
-                        You have finished the academic steps that are currently mapped to class offerings.
+                    <div>
+                      <p style={{ fontWeight: 600, fontSize: 14, margin: 0 }}>{event.title}</p>
+                      <p style={{ color: "var(--muted)", fontSize: 12, margin: 0 }}>
+                        {event.eventType}
+                        {event.location ? ` · ${event.location}` : ""}
                       </p>
                     </div>
-                  )}
-
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {pathway.steps.map((step) => (
-                      <span key={step.id} className="pill" style={statusTone(step.status)}>
-                        Step {step.stepOrder}: {step.title}
-                      </span>
-                    ))}
                   </div>
-                </div>
-              </section>
-              );
-            })}
+                ))}
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      <div style={{ marginBottom: 32 }}>
-        <div className="section-title">Chapter pathways library</div>
-        {secondaryPathways.length === 0 ? (
+          {/* Quick Links */}
           <div className="card">
-            <p style={{ margin: 0, color: "var(--gray-600)" }}>
-              Everything your chapter sees right now is already local. When other pathways become
-              visible here, they will appear as network options.
-            </p>
+            <h3 style={{ margin: 0 }}>Quick Links</h3>
+            <div
+              style={{
+                marginTop: 12,
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 8,
+              }}
+            >
+              <Link href="/pathways" className="action-btn" style={{ textDecoration: "none", fontSize: 13 }}>
+                🗺 Pathways
+              </Link>
+              <Link href="/curriculum" className="action-btn" style={{ textDecoration: "none", fontSize: 13 }}>
+                📖 Browse Classes
+              </Link>
+              <Link href="/chapter/channels" className="action-btn" style={{ textDecoration: "none", fontSize: 13 }}>
+                💬 Channels
+              </Link>
+              <Link href="/chapter/members" className="action-btn" style={{ textDecoration: "none", fontSize: 13 }}>
+                👥 Members
+              </Link>
+              <Link href="/messages" className="action-btn" style={{ textDecoration: "none", fontSize: 13 }}>
+                ✉️ Messages
+              </Link>
+              {canReviewFallbacks && (
+                <Link href="/chapter/pathway-fallbacks" className="action-btn" style={{ textDecoration: "none", fontSize: 13 }}>
+                  🔄 Fallbacks
+                </Link>
+              )}
+            </div>
           </div>
-        ) : (
-          <div style={{ display: "grid", gap: 16 }}>
-            {secondaryPathways.map((pathway) => (
-              <section key={pathway.id} className="card">
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-                  <div style={{ flex: 1, minWidth: 280 }}>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-                      <span className="pill">{pathway.interestArea}</span>
-                      <span className="pill">Not offered here</span>
-                      {pathway.hasLegacyOnlySteps ? <span className="pill">Migration needed</span> : null}
-                    </div>
-                    <h3 style={{ marginTop: 0, marginBottom: 8 }}>
-                      <Link href={`/pathways/${pathway.id}`} style={{ textDecoration: "none", color: "inherit" }}>
-                        {pathway.name}
-                      </Link>
-                    </h3>
-                    <p style={{ marginTop: 0, color: "var(--gray-600)" }}>{pathway.description}</p>
-                    <p style={{ marginBottom: 0, color: "var(--gray-500)", fontSize: 13 }}>
-                      This pathway is visible in the network, but your chapter does not have a local run yet.
-                    </p>
-                  </div>
-                  <div style={{ minWidth: 160 }}>
-                    <div className="kpi">{pathway.totalCount}</div>
-                    <div className="kpi-label">Mapped steps</div>
-                  </div>
-                </div>
-              </section>
-            ))}
+
+          {/* Chapter Stats */}
+          <div className="card" style={{ background: "var(--bg)" }}>
+            <div style={{ display: "flex", gap: 16 }}>
+              <div style={{ textAlign: "center", flex: 1 }}>
+                <div className="kpi" style={{ fontSize: 20 }}>{chapter?._count.users ?? 0}</div>
+                <div className="kpi-label">Members</div>
+              </div>
+              <div style={{ textAlign: "center", flex: 1 }}>
+                <div className="kpi" style={{ fontSize: 20 }}>{chapter?._count.courses ?? 0}</div>
+                <div className="kpi-label">Courses</div>
+              </div>
+              <div style={{ textAlign: "center", flex: 1 }}>
+                <div className="kpi" style={{ fontSize: 20 }}>{localPathways.length}</div>
+                <div className="kpi-label">Pathways</div>
+              </div>
+            </div>
+            {chapter?.slug && (
+              <Link
+                href={`/chapters/${chapter.slug}`}
+                style={{
+                  display: "block", marginTop: 12, textAlign: "center",
+                  fontSize: 12, color: "var(--ypp-purple)",
+                }}
+              >
+                View public chapter page →
+              </Link>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </main>
   );

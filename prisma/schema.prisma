@@ -439,6 +439,7 @@ model Chapter {
   users             User[]
   joinRequests      ChapterJoinRequest[]
   goals             ChapterGoal[]
+  channels          ChapterChannel[]
   courses           Course[]
   events            Event[]
   feedbacks         Feedback[]
@@ -834,6 +835,7 @@ model User {
   chapterJoinRequests         ChapterJoinRequest[]
   chapterJoinRequestsReviewed ChapterJoinRequest[] @relation("JoinRequestReviewer")
   chapterGoalsCreated         ChapterGoal[]        @relation("ChapterGoalCreator")
+  chapterChannelMessages      ChapterChannelMessage[] @relation("ChapterChannelMessages")
 
   // Parent Feedback & Survey Relations
   parentChapterFeedbacks ParentChapterFeedback[] @relation("ParentChapterFeedbacks")
@@ -8074,6 +8076,38 @@ model ChapterJoinRequest {
 
   @@unique([userId, chapterId])
   @@index([chapterId, status])
+}
+
+// ============================================
+// CHAPTER CHANNELS & COMMUNITY
+// ============================================
+
+model ChapterChannel {
+  id          String   @id @default(cuid())
+  chapterId   String
+  chapter     Chapter  @relation(fields: [chapterId], references: [id])
+  name        String
+  description String?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  messages ChapterChannelMessage[]
+
+  @@unique([chapterId, name])
+  @@index([chapterId])
+}
+
+model ChapterChannelMessage {
+  id        String         @id @default(cuid())
+  channelId String
+  channel   ChapterChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User           @relation("ChapterChannelMessages", fields: [authorId], references: [id])
+  content   String
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([channelId, createdAt])
 }
 
 // ============================================

@@ -489,6 +489,20 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardBadgeKey: "chapter_recruiting_queue",
     },
     {
+      href: "/chapter/channels",
+      label: "Chapter Channels",
+      icon: "💬",
+      dashboardDescription: "Discussion channels for your chapter community.",
+      dashboardPriority: 22,
+    },
+    {
+      href: "/chapter/members",
+      label: "Chapter Members",
+      icon: "👥",
+      dashboardDescription: "View and search your chapter's member directory.",
+      dashboardPriority: 21,
+    },
+    {
       href: "/chapter/settings",
       label: "Chapter Settings",
       icon: "⚙️",
