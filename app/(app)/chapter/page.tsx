@@ -1,43 +1,125 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { getChapterDashboard } from "@/lib/chapter-actions";
+import { getCommandCenterData } from "@/lib/chapter-dashboard-actions";
 import Link from "next/link";
+import { ActionCenter } from "@/components/chapter-dashboard/action-center";
+import { MemberPulse } from "@/components/chapter-dashboard/member-pulse";
+import { GrowthChart } from "@/components/chapter-dashboard/growth-chart";
+import { ChapterGoals } from "@/components/chapter-dashboard/chapter-goals";
 
 export default async function ChapterDashboardPage() {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
 
-  const data = await getChapterDashboard();
+  const data = await getCommandCenterData();
 
   return (
     <main className="main-content">
-      <div className="page-header">
-        <div>
-          <h1>Chapter Dashboard</h1>
-          <p className="subtitle">{data.chapter?.name}</p>
+      {/* Chapter Header with Branding */}
+      <div
+        style={{
+          borderRadius: 16,
+          overflow: "hidden",
+          marginBottom: 24,
+          position: "relative",
+        }}
+      >
+        {data.chapter?.bannerUrl ? (
+          <div style={{ height: 140, overflow: "hidden" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={data.chapter.bannerUrl}
+              alt=""
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
+          </div>
+        ) : (
+          <div
+            style={{
+              height: 140,
+              background:
+                "linear-gradient(135deg, var(--ypp-purple) 0%, var(--ypp-pink) 100%)",
+            }}
+          />
+        )}
+        <div
+          style={{
+            position: "absolute",
+            bottom: 16,
+            left: 24,
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+          }}
+        >
+          {data.chapter?.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={data.chapter.logoUrl}
+              alt=""
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 12,
+                objectFit: "cover",
+                border: "3px solid white",
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 12,
+                background: "rgba(255,255,255,0.2)",
+                backdropFilter: "blur(8px)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "white",
+                fontWeight: 700,
+                fontSize: 20,
+                border: "3px solid white",
+              }}
+            >
+              {data.chapter?.name?.charAt(0) ?? "C"}
+            </div>
+          )}
+          <div style={{ color: "white", textShadow: "0 1px 3px rgba(0,0,0,0.4)" }}>
+            <h1 style={{ margin: 0, fontSize: 22 }}>{data.chapter?.name}</h1>
+            {data.chapter?.tagline && (
+              <p style={{ margin: 0, fontSize: 14, opacity: 0.9 }}>
+                {data.chapter.tagline}
+              </p>
+            )}
+          </div>
         </div>
+        <Link
+          href="/chapter/settings"
+          style={{
+            position: "absolute",
+            top: 12,
+            right: 16,
+            padding: "4px 12px",
+            borderRadius: 8,
+            background: "rgba(255,255,255,0.2)",
+            backdropFilter: "blur(8px)",
+            color: "white",
+            fontSize: 13,
+            textDecoration: "none",
+            fontWeight: 500,
+          }}
+        >
+          Settings
+        </Link>
       </div>
 
-      {/* Stats Grid */}
+      {/* Top Stats Row */}
       <div className="stats-grid">
         <div className="stat-card">
-          <span className="stat-value">{data.stats.totalInstructors}</span>
-          <span className="stat-label">Instructors</span>
-          <Link href="/chapter/instructors" className="stat-link">
-            View All →
-          </Link>
-        </div>
-        <div className="stat-card">
-          <span className="stat-value">{data.stats.totalStudents}</span>
-          <span className="stat-label">Students</span>
-          <Link href="/chapter/students" className="stat-link">
-            View All →
-          </Link>
-        </div>
-        <div className="stat-card">
-          <span className="stat-value">{data.stats.totalMentors}</span>
-          <span className="stat-label">Mentors</span>
+          <span className="stat-value">{data.stats.totalMembers}</span>
+          <span className="stat-label">Total Members</span>
         </div>
         <div className="stat-card">
           <span className="stat-value">{data.stats.totalCourses}</span>
@@ -50,161 +132,177 @@ export default async function ChapterDashboardPage() {
         <div className="stat-card">
           <span className="stat-value">{data.stats.openPositions}</span>
           <span className="stat-label">Open Positions</span>
-          <Link href="/chapter/recruiting" className="stat-link">
-            Open Recruiting →
-          </Link>
+          {data.stats.totalApplications > 0 && (
+            <Link href="/chapter/recruiting" className="stat-link">
+              {data.stats.totalApplications} applications →
+            </Link>
+          )}
         </div>
       </div>
 
-      <div className="dashboard-grid">
-        {/* Quick Actions */}
-        <section className="card quick-actions">
-          <h2>Quick Actions</h2>
-          <div className="actions-list">
-            <Link href="/chapter/recruiting" className="action-btn">
-              🧑‍💼 Chapter Recruiting
-            </Link>
-            <Link href="/chapter/recruiting?tab=interviews" className="action-btn">
-              📅 Interview Queue
-            </Link>
-            <Link href="/chapter/recruiting/positions/new" className="action-btn">
-              ➕ New Opening
-            </Link>
-            <Link href="/chapter/updates" className="action-btn">
-              📢 Send Update
-            </Link>
-            <Link href="/chapter/marketing" className="action-btn">
-              📊 Marketing Stats
-            </Link>
-            <Link href="/admin/reflections" className="action-btn">
-              📝 View Reflections
-            </Link>
-            <Link href="/mentorship/mentees" className="action-btn">
-              👥 Mentee Progress
-            </Link>
+      {/* Main Grid: Two Columns */}
+      <div className="grid two" style={{ marginTop: 24, alignItems: "start" }}>
+        {/* Left Column */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          {/* Action Center */}
+          <ActionCenter
+            actionItems={data.actionItems}
+            pendingJoinRequests={data.pendingJoinRequests}
+            pendingApplications={data.pendingApplications}
+          />
+
+          {/* Growth Chart */}
+          <GrowthChart snapshots={data.kpiSnapshots} />
+
+          {/* Quick Actions */}
+          <div className="card">
+            <h2 style={{ margin: 0 }}>Quick Actions</h2>
+            <div
+              style={{
+                marginTop: 12,
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 8,
+              }}
+            >
+              <Link
+                href="/chapter/recruiting"
+                className="action-btn"
+                style={{ textDecoration: "none" }}
+              >
+                🧑‍💼 Recruiting
+              </Link>
+              <Link
+                href="/chapter/recruiting/positions/new"
+                className="action-btn"
+                style={{ textDecoration: "none" }}
+              >
+                ➕ New Position
+              </Link>
+              <Link
+                href="/chapter/updates"
+                className="action-btn"
+                style={{ textDecoration: "none" }}
+              >
+                📢 Send Update
+              </Link>
+              <Link
+                href="/chapter/marketing"
+                className="action-btn"
+                style={{ textDecoration: "none" }}
+              >
+                📊 Marketing
+              </Link>
+              <Link
+                href="/chapter/instructors"
+                className="action-btn"
+                style={{ textDecoration: "none" }}
+              >
+                👩‍🏫 Instructors
+              </Link>
+              <Link
+                href="/chapter/students"
+                className="action-btn"
+                style={{ textDecoration: "none" }}
+              >
+                🎓 Students
+              </Link>
+            </div>
           </div>
-        </section>
+        </div>
 
-        {/* Recent Enrollments */}
-        <section className="card">
-          <h2>Recent Enrollments</h2>
-          {data.recentEnrollments.length === 0 ? (
-            <p className="empty">No recent enrollments</p>
-          ) : (
-            <div className="enrollments-list">
-              {data.recentEnrollments.map((enrollment) => (
-                <div key={enrollment.id} className="enrollment-item">
-                  <div>
-                    <strong>{enrollment.user.name}</strong>
-                    <span className="course-name">{enrollment.course.title}</span>
-                  </div>
-                  <span className="date">
-                    {new Date(enrollment.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-              ))}
+        {/* Right Column */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          {/* Member Pulse */}
+          <MemberPulse
+            stats={data.stats}
+            inactiveMembers={data.inactiveMembers}
+          />
+
+          {/* Chapter Goals */}
+          <ChapterGoals goals={data.activeGoals} />
+
+          {/* Upcoming Events */}
+          <div className="card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h2 style={{ margin: 0 }}>Upcoming Events</h2>
+              <span style={{ color: "var(--muted)", fontSize: 13 }}>
+                {data.chapter?.events.length ?? 0} scheduled
+              </span>
             </div>
-          )}
-        </section>
-
-        {/* Upcoming Events */}
-        <section className="card">
-          <h2>Upcoming Events</h2>
-          {data.chapter?.events.length === 0 ? (
-            <p className="empty">No upcoming events</p>
-          ) : (
-            <div className="events-list">
-              {data.chapter?.events.map((event) => (
-                <div key={event.id} className="event-item">
-                  <div className="event-date">
-                    <span className="day">
-                      {new Date(event.startDate).getDate()}
-                    </span>
-                    <span className="month">
-                      {new Date(event.startDate).toLocaleDateString("en-US", {
-                        month: "short",
-                      })}
-                    </span>
-                  </div>
-                  <div className="event-details">
-                    <strong>{event.title}</strong>
-                    <span className="event-type">{event.eventType}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* Active Courses */}
-        <section className="card">
-          <h2>Active Courses</h2>
-          {data.chapter?.courses.length === 0 ? (
-            <p className="empty">No active courses</p>
-          ) : (
-            <div className="courses-list">
-              {data.chapter?.courses.slice(0, 5).map((course) => (
-                <div key={course.id} className="course-item">
-                  <div>
-                    <strong>{course.title}</strong>
-                    {course.leadInstructor && (
-                      <span className="instructor">
-                        Led by {course.leadInstructor.name}
+            {(!data.chapter?.events || data.chapter.events.length === 0) ? (
+              <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 12 }}>
+                No upcoming events.
+              </p>
+            ) : (
+              <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                {data.chapter.events.map((event) => (
+                  <div
+                    key={event.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      padding: "8px 0",
+                      borderBottom: "1px solid var(--border)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 42,
+                        height: 42,
+                        borderRadius: 8,
+                        background: "var(--bg)",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <span style={{ fontSize: 14, fontWeight: 700, lineHeight: 1 }}>
+                        {new Date(event.startDate).getDate()}
                       </span>
-                    )}
+                      <span style={{ fontSize: 10, color: "var(--muted)", textTransform: "uppercase" }}>
+                        {new Date(event.startDate).toLocaleDateString("en-US", { month: "short" })}
+                      </span>
+                    </div>
+                    <div>
+                      <p style={{ fontWeight: 600, fontSize: 14, margin: 0 }}>{event.title}</p>
+                      <p style={{ color: "var(--muted)", fontSize: 12, margin: 0 }}>
+                        {event.eventType}
+                      </p>
+                    </div>
                   </div>
-                  <span className="enrollment-count">
-                    {course.enrollments.length} enrolled
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+                ))}
+              </div>
+            )}
+          </div>
 
-        {/* Announcements */}
-        <section className="card">
-          <h2>Recent Announcements</h2>
-          {data.chapter?.announcements.length === 0 ? (
-            <p className="empty">No announcements</p>
-          ) : (
-            <div className="announcements-list">
-              {data.chapter?.announcements.map((ann) => (
-                <div key={ann.id} className="announcement-item">
-                  <strong>{ann.title}</strong>
-                  <p>{ann.content.slice(0, 100)}...</p>
-                  <span className="date">
-                    {new Date(ann.publishedAt).toLocaleDateString()}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* Open Positions */}
-        <section className="card">
-          <h2>Open Positions</h2>
-          {data.chapter?.positions.length === 0 ? (
-            <p className="empty">No open positions</p>
-          ) : (
-            <div className="positions-list">
-              {data.chapter?.positions.map((pos) => (
-                <div key={pos.id} className="position-item">
-                  <div>
-                    <strong>{pos.title}</strong>
-                    <span className="type">{pos.type}</span>
+          {/* Recent Enrollments */}
+          {data.recentEnrollments.length > 0 && (
+            <div className="card">
+              <h2 style={{ margin: 0 }}>Recent Enrollments</h2>
+              <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+                {data.recentEnrollments.map((enrollment) => (
+                  <div
+                    key={enrollment.id}
+                    style={{ fontSize: 13, display: "flex", justifyContent: "space-between" }}
+                  >
+                    <span>
+                      <strong>{enrollment.user.name}</strong>
+                      <span style={{ color: "var(--muted)" }}> → {enrollment.course.title}</span>
+                    </span>
+                    <span style={{ color: "var(--muted)", fontSize: 12 }}>
+                      {new Date(enrollment.createdAt).toLocaleDateString()}
+                    </span>
                   </div>
-                  <span className="applications">
-                    {pos._count.applications} applications
-                  </span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
-        </section>
+        </div>
       </div>
-
     </main>
   );
 }

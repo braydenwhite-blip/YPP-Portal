@@ -441,10 +441,17 @@ export const NAV_CATALOG: NavLink[] = [
   ...groupLinks("Chapters", 900, [
     {
       href: "/chapters",
-      label: "Chapters",
-      icon: "🏢",
-      dashboardDescription: "View chapter network details and updates.",
+      label: "Find a Chapter",
+      icon: "🔍",
+      dashboardDescription: "Browse chapters and find a community near you.",
       dashboardPriority: 26,
+    },
+    {
+      href: "/join-chapter",
+      label: "Join a Chapter",
+      icon: "🤝",
+      dashboardDescription: "Pick a chapter to join and start your journey.",
+      dashboardPriority: 25,
     },
     {
       href: "/chapter/apply",
@@ -480,6 +487,28 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardDescription: "Manage openings, candidates, interviews, and decisions.",
       dashboardPriority: 2,
       dashboardBadgeKey: "chapter_recruiting_queue",
+    },
+    {
+      href: "/chapter/channels",
+      label: "Chapter Channels",
+      icon: "💬",
+      dashboardDescription: "Discussion channels for your chapter community.",
+      dashboardPriority: 22,
+    },
+    {
+      href: "/chapter/members",
+      label: "Chapter Members",
+      icon: "👥",
+      dashboardDescription: "View and search your chapter's member directory.",
+      dashboardPriority: 21,
+    },
+    {
+      href: "/chapter/settings",
+      label: "Chapter Settings",
+      icon: "⚙️",
+      roles: CHAPTER_LEAD_ONLY,
+      dashboardDescription: "Customize your chapter profile, branding, and join policy.",
+      dashboardPriority: 20,
     },
     {
       href: "/chapter-lead/dashboard",

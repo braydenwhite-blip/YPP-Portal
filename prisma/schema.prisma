@@ -421,13 +421,25 @@ enum MentorshipAwardPolicy {
 model Chapter {
   id            String  @id @default(cuid())
   name          String
+  slug          String? @unique
   city          String?
   region        String?
   partnerSchool String?
   programNotes  String?
 
+  // Chapter Identity & Discovery
+  description   String?
+  tagline       String?
+  logoUrl       String?
+  bannerUrl     String?
+  isPublic      Boolean @default(true)
+  joinPolicy    ChapterJoinPolicy @default(OPEN)
+
   // Relations
   users             User[]
+  joinRequests      ChapterJoinRequest[]
+  goals             ChapterGoal[]
+  channels          ChapterChannel[]
   courses           Course[]
   events            Event[]
   feedbacks         Feedback[]
@@ -818,6 +830,12 @@ model User {
   chapterPresidentApplicationsReviewed ChapterPresidentApplication[] @relation("ChapterPresidentApplicationReviews")
   applicationCohortsCreated            ApplicationCohort[]           @relation("ApplicationCohortsCreated")
   chapterPresidentOnboarding           ChapterPresidentOnboarding?   @relation("ChapterPresidentOnboarding")
+
+  // Chapter Join Request Relations
+  chapterJoinRequests         ChapterJoinRequest[]
+  chapterJoinRequestsReviewed ChapterJoinRequest[] @relation("JoinRequestReviewer")
+  chapterGoalsCreated         ChapterGoal[]        @relation("ChapterGoalCreator")
+  chapterChannelMessages      ChapterChannelMessage[] @relation("ChapterChannelMessages")
 
   // Parent Feedback & Survey Relations
   parentChapterFeedbacks ParentChapterFeedback[] @relation("ParentChapterFeedbacks")
@@ -7938,6 +7956,12 @@ model ChapterKpiSnapshot {
   enrollmentFillPercent Float? // avg enrollment / capacity across classes
   mentorshipPairCount   Int @default(0)
 
+  // Growth & Engagement KPIs
+  retentionRate      Float? // % members active in last 30 days
+  newMembersThisWeek Int    @default(0)
+  eventsThisWeek     Int    @default(0)
+  postsThisWeek      Int    @default(0)
+
   // Risk flags
   isAtRisk  Boolean @default(false)
   riskFlags String[] // e.g. ["no_active_instructors", "overdue_queues_high"]
@@ -8019,4 +8043,92 @@ model OpsRuleViolation {
   @@index([chapterId])
   @@index([acknowledged])
   @@index([snapshotDate])
+}
+
+// ============================================
+// CHAPTER DISCOVERY & JOIN FLOW
+// ============================================
+
+enum ChapterJoinPolicy {
+  OPEN
+  APPROVAL
+  INVITE_ONLY
+}
+
+enum JoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model ChapterJoinRequest {
+  id           String            @id @default(cuid())
+  userId       String
+  user         User              @relation(fields: [userId], references: [id])
+  chapterId    String
+  chapter      Chapter           @relation(fields: [chapterId], references: [id])
+  message      String?
+  status       JoinRequestStatus @default(PENDING)
+  reviewedById String?
+  reviewedBy   User?             @relation("JoinRequestReviewer", fields: [reviewedById], references: [id])
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@unique([userId, chapterId])
+  @@index([chapterId, status])
+}
+
+// ============================================
+// CHAPTER CHANNELS & COMMUNITY
+// ============================================
+
+model ChapterChannel {
+  id          String   @id @default(cuid())
+  chapterId   String
+  chapter     Chapter  @relation(fields: [chapterId], references: [id])
+  name        String
+  description String?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  messages ChapterChannelMessage[]
+
+  @@unique([chapterId, name])
+  @@index([chapterId])
+}
+
+model ChapterChannelMessage {
+  id        String         @id @default(cuid())
+  channelId String
+  channel   ChapterChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User           @relation("ChapterChannelMessages", fields: [authorId], references: [id])
+  content   String
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([channelId, createdAt])
+}
+
+// ============================================
+// CHAPTER GOALS
+// ============================================
+
+model ChapterGoal {
+  id           String     @id @default(cuid())
+  chapterId    String
+  chapter      Chapter    @relation(fields: [chapterId], references: [id])
+  createdById  String
+  createdBy    User       @relation("ChapterGoalCreator", fields: [createdById], references: [id])
+  title        String
+  description  String?
+  targetValue  Int
+  currentValue Int        @default(0)
+  unit         String     // "members", "events", "enrollments", "courses"
+  deadline     DateTime?
+  status       GoalStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([chapterId, status])
 }
