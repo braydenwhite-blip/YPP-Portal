@@ -831,6 +831,16 @@ model User {
   // Curriculum Builder Studio
   curriculumDrafts CurriculumDraft[]
 
+  // Goals & Responsibilities (G&R) System
+  grDocuments                GRDocument[]         @relation("GRDocuments")
+  grResourcesCreated         GRResource[]         @relation("GRResourcesCreated")
+  grTemplatesCreated         GRTemplate[]         @relation("GRTemplatesCreated")
+  grTemplatesLastEdited      GRTemplate[]         @relation("GRTemplatesLastEdited")
+  grTemplateCommentsAuthored GRTemplateComment[]   @relation("GRTemplateCommentsAuthored")
+  grGoalChangesProposed      GRGoalChange[]       @relation("GRGoalChangesProposed")
+  grGoalChangesReviewed      GRGoalChange[]       @relation("GRGoalChangesReviewed")
+  grDocumentVersionsCreated  GRDocumentVersion[]  @relation("GRDocumentVersionsCreated")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1534,6 +1544,7 @@ model Mentorship {
   actionItems     MentorshipActionItem[]
   supportRequests MentorshipRequest[]
   resources       MentorshipResource[]
+  grDocuments     GRDocument[]
 
   @@index([trackId])
   @@index([chairId])
@@ -2787,6 +2798,8 @@ model FileUpload {
   entityType   String?
   createdAt    DateTime       @default(now())
 
+  grResources GRResource[]
+
   @@index([userId])
   @@index([category])
   @@index([entityId, entityType])
@@ -2871,6 +2884,14 @@ enum AuditAction {
   PARENT_LINK_REJECTED
   WAITLIST_PROMOTED
   SETTINGS_CHANGED
+  GR_TEMPLATE_CREATED
+  GR_TEMPLATE_UPDATED
+  GR_TEMPLATE_PUBLISHED
+  GR_DOCUMENT_CREATED
+  GR_DOCUMENT_UPDATED
+  GR_GOAL_CHANGE_PROPOSED
+  GR_GOAL_CHANGE_REVIEWED
+  GR_BULK_UPDATE
 }
 
 model AuditLog {
@@ -7905,4 +7926,350 @@ model CurriculumDraft {
   @@index([authorId])
   @@index([status])
   @@index([generatedTemplateId])
+}
+
+// ============================================
+// GOALS & RESPONSIBILITIES (G&R) SYSTEM
+// ============================================
+
+enum GRTimePhase {
+  FIRST_MONTH
+  FIRST_QUARTER
+  FULL_YEAR
+}
+
+enum GRDocumentStatus {
+  DRAFT
+  PENDING_APPROVAL
+  ACTIVE
+  ARCHIVED
+}
+
+enum GRGoalChangeStatus {
+  PROPOSED
+  APPROVED
+  REJECTED
+}
+
+enum GRBulkUpdatePolicy {
+  NEW_ONLY
+  IMMEDIATE_ALL
+  NEXT_CYCLE
+}
+
+enum GRTemplateStatus {
+  GR_DRAFT
+  IN_REVIEW
+  GR_APPROVED
+  GR_ARCHIVED
+}
+
+enum KPISourceType {
+  AUTO_PARENT_FEEDBACK
+  AUTO_TRAINING_COMPLETION
+  AUTO_COMMUNITY_ENGAGEMENT
+  AUTO_ATTENDANCE
+  MANUAL_MENTOR_RATING
+  MANUAL_QUALITATIVE
+}
+
+/// Role-wide base template that admins author collaboratively
+model GRTemplate {
+  id              String           @id @default(cuid())
+  title           String
+  roleType        MenteeRoleType
+  officerPosition String?
+  roleMission     String           @db.Text
+  status          GRTemplateStatus @default(GR_DRAFT)
+  version         Int              @default(1)
+  publishedAt     DateTime?
+  isActive        Boolean          @default(true)
+
+  createdById    String
+  createdBy      User    @relation("GRTemplatesCreated", fields: [createdById], references: [id])
+  lastEditedById String?
+  lastEditedBy   User?   @relation("GRTemplatesLastEdited", fields: [lastEditedById], references: [id])
+
+  goals           GRTemplateGoal[]
+  successCriteria GRTemplateSuccessCriteria[]
+  resources       GRTemplateResource[]
+  comments        GRTemplateComment[]
+  versions        GRTemplateVersion[]
+  assignments     GRDocument[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([roleType])
+  @@index([officerPosition])
+}
+
+/// Individual goals within a template, organized by time phase
+model GRTemplateGoal {
+  id          String      @id @default(cuid())
+  templateId  String
+  template    GRTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  title       String
+  description String      @db.Text
+  timePhase   GRTimePhase
+  sortOrder   Int         @default(0)
+  isActive    Boolean     @default(true)
+
+  kpiDefinitions GRKPIDefinition[]
+  documentGoals  GRDocumentGoal[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([templateId, timePhase])
+}
+
+/// Structured success criteria per time phase on a template
+model GRTemplateSuccessCriteria {
+  id         String      @id @default(cuid())
+  templateId String
+  template   GRTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  timePhase  GRTimePhase
+  criteria   String      @db.Text
+  sortOrder  Int         @default(0)
+
+  documentCriteria GRDocumentSuccessCriteria[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([templateId, timePhase])
+}
+
+/// Join table linking templates to resources from the shared library
+model GRTemplateResource {
+  id         String     @id @default(cuid())
+  templateId String
+  template   GRTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  resourceId String
+  resource   GRResource @relation(fields: [resourceId], references: [id])
+  sortOrder  Int        @default(0)
+
+  @@unique([templateId, resourceId])
+}
+
+/// Shared resource library (uploads & links), reusable across G&Rs
+model GRResource {
+  id           String      @id @default(cuid())
+  title        String
+  description  String?
+  url          String
+  isUpload     Boolean     @default(false)
+  fileUploadId String?
+  fileUpload   FileUpload? @relation(fields: [fileUploadId], references: [id])
+  tags         String[]
+  isActive     Boolean     @default(true)
+  createdById  String
+  createdBy    User        @relation("GRResourcesCreated", fields: [createdById], references: [id])
+
+  templateLinks GRTemplateResource[]
+  documentLinks GRDocumentResource[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tags])
+}
+
+/// Collaborative drafting comments on templates
+model GRTemplateComment {
+  id         String     @id @default(cuid())
+  templateId String
+  template   GRTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User       @relation("GRTemplateCommentsAuthored", fields: [authorId], references: [id])
+  body       String     @db.Text
+  resolvedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([templateId])
+}
+
+/// Full version history for templates
+model GRTemplateVersion {
+  id         String     @id @default(cuid())
+  templateId String
+  template   GRTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  version    Int
+  snapshot   Json
+  changedBy  String
+  changeNote String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([templateId, version])
+  @@index([templateId])
+}
+
+/// Per-person G&R document, instantiated from a template plus individual customizations
+model GRDocument {
+  id           String           @id @default(cuid())
+  userId       String
+  user         User             @relation("GRDocuments", fields: [userId], references: [id])
+  mentorshipId String
+  mentorship   Mentorship       @relation(fields: [mentorshipId], references: [id])
+  templateId   String
+  template     GRTemplate       @relation(fields: [templateId], references: [id])
+
+  roleMission   String          @db.Text
+  mentorInfo    Json?
+  officerInfo   Json?
+  roleStartDate DateTime
+  status        GRDocumentStatus @default(DRAFT)
+
+  goals           GRDocumentGoal[]
+  successCriteria GRDocumentSuccessCriteria[]
+  resources       GRDocumentResource[]
+  plansOfAction   GRPlanOfAction[]
+  goalChanges     GRGoalChange[]
+  versions        GRDocumentVersion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, templateId])
+  @@index([userId])
+  @@index([mentorshipId])
+}
+
+/// Individual goal instance on a person's G&R document
+model GRDocumentGoal {
+  id             String          @id @default(cuid())
+  documentId     String
+  document       GRDocument      @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  templateGoalId String?
+  templateGoal   GRTemplateGoal? @relation(fields: [templateGoalId], references: [id])
+
+  title       String
+  description String      @db.Text
+  timePhase   GRTimePhase
+  sortOrder   Int         @default(0)
+  isCustom    Boolean     @default(false)
+  isActive    Boolean     @default(true)
+
+  kpiValues GRKPIValue[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([documentId, timePhase])
+}
+
+/// Per-person success criteria (copied from template, customizable)
+model GRDocumentSuccessCriteria {
+  id                 String                    @id @default(cuid())
+  documentId         String
+  document           GRDocument                @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  templateCriteriaId String?
+  templateCriteria   GRTemplateSuccessCriteria? @relation(fields: [templateCriteriaId], references: [id])
+  timePhase          GRTimePhase
+  criteria           String                    @db.Text
+
+  @@unique([documentId, timePhase])
+}
+
+/// Links from the shared library attached to a specific person's G&R
+model GRDocumentResource {
+  id         String     @id @default(cuid())
+  documentId String
+  document   GRDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  resourceId String
+  resource   GRResource @relation(fields: [resourceId], references: [id])
+  sortOrder  Int        @default(0)
+
+  @@unique([documentId, resourceId])
+}
+
+/// Mentee-written plan of action, revised monthly alongside self-reflection
+model GRPlanOfAction {
+  id          String     @id @default(cuid())
+  documentId  String
+  document    GRDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  cycleNumber Int
+  content     String     @db.Text
+  reflectionId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([documentId, cycleNumber])
+  @@index([documentId])
+}
+
+/// Mentor-proposed changes to a person's goals, requiring admin approval
+model GRGoalChange {
+  id           String             @id @default(cuid())
+  documentId   String
+  document     GRDocument         @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  proposedById String
+  proposedBy   User               @relation("GRGoalChangesProposed", fields: [proposedById], references: [id])
+
+  changeType   String
+  goalId       String?
+  proposedData Json
+  reason       String?
+
+  status       GRGoalChangeStatus @default(PROPOSED)
+  reviewedById String?
+  reviewedBy   User?              @relation("GRGoalChangesReviewed", fields: [reviewedById], references: [id])
+  reviewNote   String?
+  reviewedAt   DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([documentId, status])
+}
+
+/// Version history for individual G&R documents
+model GRDocumentVersion {
+  id         String     @id @default(cuid())
+  documentId String
+  document   GRDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  version    Int
+  snapshot   Json
+  changedById String
+  changedBy   User      @relation("GRDocumentVersionsCreated", fields: [changedById], references: [id])
+  changeNote String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([documentId, version])
+  @@index([documentId])
+}
+
+/// KPI metric definitions attached to template goals
+model GRKPIDefinition {
+  id             String         @id @default(cuid())
+  templateGoalId String
+  templateGoal   GRTemplateGoal @relation(fields: [templateGoalId], references: [id], onDelete: Cascade)
+  label          String
+  sourceType     KPISourceType
+  targetValue    String?
+  unit           String?
+
+  values GRKPIValue[]
+
+  @@index([templateGoalId])
+}
+
+/// Actual KPI measurements per person per goal
+model GRKPIValue {
+  id           String          @id @default(cuid())
+  goalId       String
+  goal         GRDocumentGoal  @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  definitionId String
+  definition   GRKPIDefinition @relation(fields: [definitionId], references: [id])
+  value        String
+  measuredAt   DateTime        @default(now())
+  isAutomatic  Boolean         @default(false)
+  notes        String?
+
+  @@index([goalId])
+  @@index([definitionId])
 }

@@ -5,6 +5,7 @@ export const FEATURE_KEYS = [
   "PASSION_WORLD",
   "INSTRUCTOR_TEACHING_TOOLS",
   "INTERVIEWER",
+  "GR_SYSTEM",
 ] as const;
 
 export type FeatureKey = (typeof FEATURE_KEYS)[number];
@@ -16,6 +17,7 @@ export const FEATURE_KEY_DEFAULTS: Record<FeatureKey, boolean> = {
   PASSION_WORLD: false,
   INSTRUCTOR_TEACHING_TOOLS: false,
   INTERVIEWER: false,
+  GR_SYSTEM: false,
 };
 
 export type FeatureUserContext = {
