@@ -1,7 +1,8 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
-import { getMyCertificate, generateVolunteerHoursLetter, generateCertificateSvg } from "@/lib/award-ceremony-actions";
+import { getMyCertificate, generateVolunteerHoursLetter } from "@/lib/award-ceremony-actions";
+import { generateCertificateSvg } from "@/lib/certificate-utils";
 import Link from "next/link";
 import AwardCeremonyClient from "./award-ceremony-client";
 

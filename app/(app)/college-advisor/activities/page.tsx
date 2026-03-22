@@ -1,7 +1,8 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
-import { getMyActivities, generateCommonAppExport, CATEGORY_CONFIG } from "@/lib/college-activity-actions";
+import { getMyActivities, generateCommonAppExport } from "@/lib/college-activity-actions";
+import { ACTIVITY_CATEGORY_CONFIG as CATEGORY_CONFIG } from "@/lib/college-activity-config";
 import ActivitiesClient from "./activities-client";
 import Link from "next/link";
 

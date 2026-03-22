@@ -1,7 +1,8 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
-import { getMyRoadmapData, STAGE_ORDER } from "@/lib/college-roadmap-actions";
+import { getMyRoadmapData } from "@/lib/college-roadmap-actions";
+import { STAGE_ORDER } from "@/lib/college-roadmap-config";
 import RoadmapClient from "./roadmap-client";
 import Link from "next/link";
 

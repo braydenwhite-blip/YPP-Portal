@@ -2,9 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { createActivity, deleteActivity, populateYppActivities } from "@/lib/college-activity-actions";
-import type { CATEGORY_CONFIG } from "@/lib/college-activity-actions";
+import type { ACTIVITY_CATEGORY_CONFIG } from "@/lib/college-activity-config";
 
-type CategoryConfigType = typeof CATEGORY_CONFIG;
+type CategoryConfigType = typeof ACTIVITY_CATEGORY_CONFIG;
 
 interface Props {
   mode: "add-activity-form" | "delete-button" | "populate-ypp-button" | "export-button";

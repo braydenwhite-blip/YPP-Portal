@@ -5,23 +5,10 @@ import { authOptions } from "@/lib/auth";
 import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 import { ActivityCategory } from "@prisma/client";
+import { ACTIVITY_CATEGORY_CONFIG } from "@/lib/college-activity-config";
 
-// ============================================
-// COMMON APP FORMAT
-// Max 10 activities, 150-char description, 50-char position
-// ============================================
-
-export const CATEGORY_CONFIG: Record<ActivityCategory, { label: string; emoji: string; commonAppCategory: string }> = {
-  LEADERSHIP: { label: "Leadership", emoji: "🌟", commonAppCategory: "School/Community Leadership" },
-  COMMUNITY_SERVICE: { label: "Community Service", emoji: "🤝", commonAppCategory: "Community Service" },
-  ATHLETICS: { label: "Athletics", emoji: "⚽", commonAppCategory: "Athletics: General" },
-  ARTS_CREATIVE: { label: "Arts & Creative", emoji: "🎨", commonAppCategory: "Art" },
-  ACADEMIC: { label: "Academic", emoji: "📚", commonAppCategory: "Academic" },
-  WORK_INTERNSHIP: { label: "Work/Internship", emoji: "💼", commonAppCategory: "Work" },
-  PERSONAL_PROJECT: { label: "Personal Project", emoji: "💡", commonAppCategory: "Other" },
-  STEM: { label: "STEM", emoji: "🔬", commonAppCategory: "Science/Math" },
-  OTHER: { label: "Other", emoji: "📌", commonAppCategory: "Other" },
-};
+// Private alias for internal use
+const CATEGORY_CONFIG = ACTIVITY_CATEGORY_CONFIG;
 
 // ============================================
 // FETCH

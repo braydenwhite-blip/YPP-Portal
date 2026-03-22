@@ -755,7 +755,28 @@ export async function getQuarterlyReviewData(reviewId: string) {
       }
     : null;
 
-  const mapReview = (r: typeof review) => ({
+  type ReviewForMap = {
+    id: string;
+    cycleNumber: number;
+    cycleMonth: Date;
+    overallRating: GoalRatingColor;
+    pointsAwarded: number | null;
+    overallComments: string;
+    planOfAction: string;
+    bonusPoints: number;
+    bonusReason: string | null;
+    isQuarterly: boolean;
+    projectedFuturePath: string | null;
+    promotionReadiness: string | null;
+    chairComments: string | null;
+    goalRatings: Array<{
+      rating: GoalRatingColor;
+      comments: string | null;
+      goal: { title: string };
+    }>;
+  };
+
+  const mapReview = (r: ReviewForMap) => ({
     id: r.id,
     cycleNumber: r.cycleNumber,
     cycleMonth: r.cycleMonth.toISOString(),
