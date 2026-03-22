@@ -24,6 +24,7 @@ interface Props {
   goalResponses: GoalResponse[];
   isQuarterly: boolean;
   cycleNumber: number;
+  mentorshipId?: string;
   existingReview: {
     id: string;
     overallRating: string;
@@ -114,6 +115,7 @@ export default function ReviewForm({
   goalResponses,
   isQuarterly,
   cycleNumber,
+  mentorshipId,
   existingReview,
   isReadOnly,
 }: Props) {
@@ -382,9 +384,21 @@ export default function ReviewForm({
                 fontSize: "0.82rem",
                 color: "var(--ypp-purple-700)",
                 fontWeight: 600,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
               }}
             >
-              Quarterly Fields — completed by full Mentor Committee
+              <span>Quarterly Fields — completed by full Mentor Committee</span>
+              {existingReview?.status === "APPROVED" && (
+                <a
+                  href={`/mentorship-program/quarterly/${existingReview.id}`}
+                  className="button primary small"
+                  style={{ fontSize: "0.72rem" }}
+                >
+                  Quarterly Dashboard + Stakeholder Feedback →
+                </a>
+              )}
             </div>
             <div style={{ marginBottom: "1.25rem" }}>
               <label style={{ fontWeight: 600, fontSize: "0.88rem" }}>Projected Future Path (optional)</label>

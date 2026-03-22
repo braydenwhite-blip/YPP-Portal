@@ -538,6 +538,234 @@ export async function approveGoalReview(formData: FormData) {
   revalidatePath("/my-program");
 }
 
+// ============================================
+// QUARTERLY STAKEHOLDER FEEDBACK
+// ============================================
+
+/**
+ * Mentor creates a stakeholder feedback request for a quarterly review cycle.
+ * Returns the unique token to share with external stakeholders.
+ */
+export async function createFeedbackRequest(formData: FormData) {
+  const session = await requireMentor();
+
+  const mentorshipId = getString(formData, "mentorshipId");
+  const reviewId = getString(formData, "reviewId", false);
+  const quarterNumber = parseInt(getString(formData, "quarterNumber") || "1", 10);
+
+  // Verify mentor owns this mentorship
+  const mentorship = await prisma.mentorship.findUniqueOrThrow({
+    where: { id: mentorshipId },
+    select: { mentorId: true },
+  });
+
+  const roles = session.user.roles ?? [];
+  const isAdmin = roles.includes("ADMIN");
+  if (mentorship.mentorId !== session.user.id && !isAdmin) {
+    throw new Error("Unauthorized");
+  }
+
+  const request = await prisma.quarterlyFeedbackRequest.create({
+    data: {
+      mentorshipId,
+      reviewId: reviewId || null,
+      quarterNumber,
+      requestedById: session.user.id,
+    },
+  });
+
+  revalidatePath(`/mentorship-program/quarterly/${reviewId}`);
+  return { success: true, token: request.token };
+}
+
+/**
+ * Submit a stakeholder feedback response via public token link.
+ */
+export async function submitFeedbackResponse(formData: FormData) {
+  const token = getString(formData, "token");
+  const respondentName = getString(formData, "respondentName");
+  const respondentEmail = getString(formData, "respondentEmail", false);
+  const respondentRole = getString(formData, "respondentRole");
+  const overallRatingRaw = parseInt(getString(formData, "overallRating"), 10);
+  const strengths = getString(formData, "strengths");
+  const areasForGrowth = getString(formData, "areasForGrowth");
+  const additionalNotes = getString(formData, "additionalNotes", false);
+
+  if (overallRatingRaw < 1 || overallRatingRaw > 5) throw new Error("Rating must be 1-5");
+
+  const request = await prisma.quarterlyFeedbackRequest.findUnique({
+    where: { token },
+  });
+  if (!request) throw new Error("Invalid feedback link");
+
+  await prisma.quarterlyFeedbackResponse.create({
+    data: {
+      requestId: request.id,
+      respondentName,
+      respondentEmail: respondentEmail || null,
+      respondentRole,
+      overallRating: overallRatingRaw,
+      strengths,
+      areasForGrowth,
+      additionalNotes: additionalNotes || null,
+    },
+  });
+
+  return { success: true };
+}
+
+/**
+ * Get a summary of stakeholder feedback responses for a feedback request.
+ */
+export async function getFeedbackSummary(token: string) {
+  const request = await prisma.quarterlyFeedbackRequest.findUnique({
+    where: { token },
+    include: {
+      responses: {
+        orderBy: { submittedAt: "desc" },
+      },
+    },
+  });
+
+  if (!request) return null;
+
+  const responses = request.responses;
+  const avgRating =
+    responses.length > 0
+      ? responses.reduce((sum, r) => sum + r.overallRating, 0) / responses.length
+      : null;
+
+  return {
+    requestId: request.id,
+    token: request.token,
+    quarterNumber: request.quarterNumber,
+    totalResponses: responses.length,
+    avgRating: avgRating !== null ? Math.round(avgRating * 10) / 10 : null,
+    responses: responses.map((r) => ({
+      id: r.id,
+      respondentName: r.respondentName,
+      respondentRole: r.respondentRole,
+      overallRating: r.overallRating,
+      strengths: r.strengths,
+      areasForGrowth: r.areasForGrowth,
+      additionalNotes: r.additionalNotes,
+      submittedAt: r.submittedAt.toISOString(),
+    })),
+  };
+}
+
+/**
+ * Get quarterly review data (3 monthly reviews side-by-side) for the quarterly dashboard.
+ */
+export async function getQuarterlyReviewData(reviewId: string) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return null;
+
+  const userId = session.user.id as string;
+  const roles = session.user.roles ?? [];
+  const isAdmin = roles.includes("ADMIN");
+
+  const review = await prisma.mentorGoalReview.findUnique({
+    where: { id: reviewId },
+    include: {
+      mentor: { select: { id: true, name: true } },
+      mentee: { select: { id: true, name: true, email: true, primaryRole: true } },
+      mentorship: { select: { id: true, mentorId: true } },
+      goalRatings: {
+        include: { goal: { select: { title: true, sortOrder: true } } },
+        orderBy: { goal: { sortOrder: "asc" } },
+      },
+      feedbackRequests: {
+        include: { responses: true },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
+    },
+  });
+
+  if (!review) return null;
+
+  // Access: mentor, mentee (if released), or admin
+  const isMentor = review.mentorship.mentorId === userId;
+  const isMentee = review.menteeId === userId && review.releasedToMenteeAt !== null;
+  if (!isMentor && !isMentee && !isAdmin) return null;
+
+  if (!review.isQuarterly) return null;
+
+  // Fetch the 2 preceding reviews in the same quarter group
+  const precedingReviews = await prisma.mentorGoalReview.findMany({
+    where: {
+      mentorshipId: review.mentorshipId,
+      cycleNumber: { in: [review.cycleNumber - 2, review.cycleNumber - 1] },
+      status: "APPROVED",
+    },
+    include: {
+      goalRatings: {
+        include: { goal: { select: { title: true, sortOrder: true } } },
+        orderBy: { goal: { sortOrder: "asc" } },
+      },
+    },
+    orderBy: { cycleNumber: "asc" },
+  });
+
+  // Feedback summary
+  const feedbackRequest = review.feedbackRequests[0] ?? null;
+  const feedbackSummary = feedbackRequest
+    ? {
+        token: feedbackRequest.token,
+        totalResponses: feedbackRequest.responses.length,
+        avgRating:
+          feedbackRequest.responses.length > 0
+            ? feedbackRequest.responses.reduce((s, r) => s + r.overallRating, 0) /
+              feedbackRequest.responses.length
+            : null,
+        responses: feedbackRequest.responses.map((r) => ({
+          respondentName: r.respondentName,
+          respondentRole: r.respondentRole,
+          overallRating: r.overallRating,
+          strengths: r.strengths,
+          areasForGrowth: r.areasForGrowth,
+        })),
+      }
+    : null;
+
+  const mapReview = (r: typeof review) => ({
+    id: r.id,
+    cycleNumber: r.cycleNumber,
+    cycleMonth: r.cycleMonth.toISOString(),
+    overallRating: r.overallRating,
+    pointsAwarded: r.pointsAwarded,
+    overallComments: r.overallComments,
+    planOfAction: r.planOfAction,
+    bonusPoints: r.bonusPoints,
+    bonusReason: r.bonusReason,
+    isQuarterly: r.isQuarterly,
+    projectedFuturePath: r.projectedFuturePath,
+    promotionReadiness: r.promotionReadiness,
+    chairComments: r.chairComments,
+    goalRatings: r.goalRatings.map((gr) => ({
+      goalTitle: gr.goal.title,
+      rating: gr.rating,
+      comments: gr.comments,
+    })),
+  });
+
+  return {
+    quarterlyReview: mapReview(review),
+    precedingReviews: precedingReviews.map(mapReview),
+    mentee: {
+      id: review.mentee.id,
+      name: review.mentee.name,
+      email: review.mentee.email,
+      role: review.mentee.primaryRole,
+    },
+    mentor: { id: review.mentor.id, name: review.mentor.name },
+    mentorshipId: review.mentorshipId,
+    isMentor: isMentor || isAdmin,
+    feedbackSummary,
+  };
+}
+
 /**
  * Chair requests changes on a review (sends it back to CHANGES_REQUESTED).
  */

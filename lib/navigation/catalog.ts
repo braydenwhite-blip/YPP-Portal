@@ -401,6 +401,33 @@ export const NAV_CATALOG: NavLink[] = [
       roles: ["INSTRUCTOR", "CHAPTER_LEAD", "ADMIN", "STAFF"] as NavRole[],
       dashboardDescription: "View your achievement points, tier progress, and award nominations.",
     },
+    {
+      href: "/my-program/achievement-journey",
+      label: "Achievement Journey",
+      icon: "🏆",
+      roles: ["INSTRUCTOR", "CHAPTER_LEAD", "ADMIN", "STAFF"] as NavRole[],
+      dashboardDescription: "Visualize your tier progress, earning velocity, and point history.",
+    },
+    {
+      href: "/my-program/schedule",
+      label: "Schedule Meeting",
+      icon: "📅",
+      roles: ["INSTRUCTOR", "CHAPTER_LEAD", "ADMIN", "STAFF"] as NavRole[],
+      dashboardDescription: "Request a meeting with your mentor or manage upcoming sessions.",
+    },
+    {
+      href: "/mentorship-program/schedule",
+      label: "Meeting Requests",
+      icon: "📨",
+      roles: ["MENTOR", "CHAPTER_LEAD", "ADMIN"] as NavRole[],
+      dashboardDescription: "Review and confirm incoming meeting requests from your mentees.",
+    },
+    {
+      href: "/mentorship/calendar",
+      label: "Program Calendar",
+      icon: "🗓",
+      dashboardDescription: "View reflection deadlines, review windows, sessions, and milestones.",
+    },
     { href: "/events", label: "Events & Prep", icon: "📅" },
     { href: "/calendar", label: "Calendar", icon: "🗓" },
     {

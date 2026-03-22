@@ -1,5 +1,7 @@
 "use client";
 
+import type { MentorEffectivenessScore } from "@/lib/mentor-effectiveness";
+
 const TIER_CONFIG: Record<string, { label: string; color: string; bg: string; emoji: string }> = {
   NONE: { label: "No Tier", color: "var(--muted)", bg: "var(--surface-alt)", emoji: "—" },
   BRONZE: { label: "Bronze", color: "#cd7f32", bg: "#fdf6ec", emoji: "🥉" },
@@ -55,9 +57,10 @@ interface AnalyticsData {
 
 interface Props {
   analytics: AnalyticsData;
+  mentorScores?: MentorEffectivenessScore[];
 }
 
-export default function AnalyticsPanel({ analytics }: Props) {
+export default function AnalyticsPanel({ analytics, mentorScores }: Props) {
   const {
     activePairs,
     totalReflections,
@@ -256,6 +259,79 @@ export default function AnalyticsPanel({ analytics }: Props) {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* Mentor Effectiveness Leaderboard */}
+      {mentorScores && mentorScores.length > 0 && (
+        <div className="card" style={{ marginBottom: "1.5rem" }}>
+          <p style={{ fontWeight: 700, marginBottom: "1rem" }}>Mentor Effectiveness Leaderboard</p>
+          <div style={{ overflowX: "auto" }}>
+            <table className="table" style={{ width: "100%" }}>
+              <thead>
+                <tr>
+                  <th className="th">#</th>
+                  <th className="th">Mentor</th>
+                  <th className="th">Score</th>
+                  <th className="th">Progress</th>
+                  <th className="th">Timeliness</th>
+                  <th className="th">Engagement</th>
+                  <th className="th">Retention</th>
+                  <th className="th">Satisfaction</th>
+                  <th className="th">Mentees</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mentorScores.slice(0, 15).map((mentor, i) => {
+                  const scoreColor =
+                    mentor.totalScore >= 80
+                      ? "#16a34a"
+                      : mentor.totalScore >= 60
+                      ? "#d97706"
+                      : "#ef4444";
+                  return (
+                    <tr key={mentor.mentorId}>
+                      <td className="td" style={{ color: "var(--muted)", fontWeight: 600 }}>
+                        {i + 1}
+                      </td>
+                      <td className="td">
+                        <div style={{ fontWeight: 600, fontSize: "0.88rem" }}>{mentor.mentorName}</div>
+                        <div style={{ fontSize: "0.75rem", color: "var(--muted)" }}>{mentor.mentorEmail}</div>
+                      </td>
+                      <td className="td">
+                        <span
+                          style={{
+                            fontWeight: 800,
+                            fontSize: "1.1rem",
+                            color: scoreColor,
+                          }}
+                        >
+                          {mentor.totalScore}
+                        </span>
+                        <span style={{ fontSize: "0.7rem", color: "var(--muted)" }}>/100</span>
+                      </td>
+                      <td className="td" style={{ textAlign: "center" }}>{mentor.breakdown.menteeProgress}<span style={{ fontSize: "0.7rem", color: "var(--muted)" }}>/40</span></td>
+                      <td className="td" style={{ textAlign: "center" }}>{mentor.breakdown.reviewTimeliness}<span style={{ fontSize: "0.7rem", color: "var(--muted)" }}>/20</span></td>
+                      <td className="td" style={{ textAlign: "center" }}>{mentor.breakdown.engagement}<span style={{ fontSize: "0.7rem", color: "var(--muted)" }}>/20</span></td>
+                      <td className="td" style={{ textAlign: "center" }}>{mentor.breakdown.retention}<span style={{ fontSize: "0.7rem", color: "var(--muted)" }}>/10</span></td>
+                      <td className="td" style={{ textAlign: "center" }}>{mentor.breakdown.satisfaction}<span style={{ fontSize: "0.7rem", color: "var(--muted)" }}>/10</span></td>
+                      <td className="td" style={{ textAlign: "center" }}>
+                        <span style={{ fontWeight: 600 }}>{mentor.activeMenteeCount}</span>
+                        {mentor.totalMenteeCount !== mentor.activeMenteeCount && (
+                          <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>
+                            /{mentor.totalMenteeCount}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p style={{ fontSize: "0.72rem", color: "var(--muted)", marginTop: "0.75rem" }}>
+            Score breakdown: Progress (40) · Timeliness (20) · Engagement (20) · Retention (10) · Satisfaction (10)
+          </p>
         </div>
       )}
 

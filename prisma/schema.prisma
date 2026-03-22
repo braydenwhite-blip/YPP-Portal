@@ -508,6 +508,8 @@ model User {
   mentorshipRequestsAssigned     MentorshipRequest[]                      @relation("MentorshipRequestsAssigned")
   mentorshipRequestsForMentee    MentorshipRequest[]                      @relation("MentorshipRequestsForMentee")
   mentorshipRequestResponses     MentorshipRequestResponse[]              @relation("MentorshipRequestResponses")
+  feedbackRequestsCreated        QuarterlyFeedbackRequest[]               @relation("FeedbackRequestsCreated")
+  scheduleRequestsCreated        MentorshipScheduleRequest[]              @relation("ScheduleRequestsCreated")
   mentorshipResourcesCreated     MentorshipResource[]                     @relation("MentorshipResourcesCreated")
   mentorshipResourcesForMentee   MentorshipResource[]                     @relation("MentorshipResourcesForMentee")
   feedbackGiven                  Feedback[]                               @relation("FeedbackSource")
@@ -1532,8 +1534,10 @@ model Mentorship {
   circleMembers   MentorshipCircleMember[]
   sessions        MentorshipSession[]
   actionItems     MentorshipActionItem[]
-  supportRequests MentorshipRequest[]
-  resources       MentorshipResource[]
+  supportRequests    MentorshipRequest[]
+  resources          MentorshipResource[]
+  feedbackRequests   QuarterlyFeedbackRequest[]
+  scheduleRequests   MentorshipScheduleRequest[]
 
   @@index([trackId])
   @@index([chairId])
@@ -7337,7 +7341,8 @@ model MentorGoalReview {
   // Points awarded (auto-set on chair approval based on overallRating × roleType table)
   pointsAwarded Int?
 
-  pointLog AchievementPointLog?
+  pointLog         AchievementPointLog?
+  feedbackRequests QuarterlyFeedbackRequest[] @relation("FeedbackRequests")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -7877,6 +7882,67 @@ enum CurriculumDraftStatus {
   NEEDS_REVISION
   APPROVED
   REJECTED
+}
+
+// ============================================
+// PHASE 3: MENTORSHIP ENHANCEMENTS
+// ============================================
+
+/// Token-based stakeholder feedback request (360-degree quarterly review)
+model QuarterlyFeedbackRequest {
+  id           String   @id @default(cuid())
+  mentorshipId String
+  mentorship   Mentorship @relation(fields: [mentorshipId], references: [id], onDelete: Cascade)
+  reviewId     String?
+  review       MentorGoalReview? @relation("FeedbackRequests", fields: [reviewId], references: [id], onDelete: SetNull)
+  quarterNumber Int
+  requestedById String
+  requestedBy   User     @relation("FeedbackRequestsCreated", fields: [requestedById], references: [id])
+  token         String   @unique @default(cuid())
+  responses     QuarterlyFeedbackResponse[]
+  createdAt     DateTime @default(now())
+
+  @@index([mentorshipId])
+  @@index([reviewId])
+}
+
+/// External stakeholder response to a quarterly feedback request
+model QuarterlyFeedbackResponse {
+  id              String                   @id @default(cuid())
+  requestId       String
+  request         QuarterlyFeedbackRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  respondentName  String
+  respondentEmail String?
+  respondentRole  String   // "Parent", "Student", "School Official", "Leadership"
+  overallRating   Int      // 1-5
+  strengths       String
+  areasForGrowth  String
+  additionalNotes String?
+  submittedAt     DateTime @default(now())
+
+  @@index([requestId])
+}
+
+/// Mentee-initiated meeting scheduling request with mentor
+model MentorshipScheduleRequest {
+  id           String     @id @default(cuid())
+  mentorshipId String
+  mentorship   Mentorship @relation(fields: [mentorshipId], references: [id], onDelete: Cascade)
+  requestedById String
+  requestedBy  User       @relation("ScheduleRequestsCreated", fields: [requestedById], references: [id])
+  sessionType  MentorshipSessionType @default(CHECK_IN)
+  title        String
+  notes        String?
+  preferredSlots Json     @default("[]") // Array of ISO datetime strings the requester prefers
+  status       String     @default("PENDING") // PENDING, CONFIRMED, DECLINED, CANCELLED
+  confirmedAt  DateTime?
+  scheduledAt  DateTime?
+  meetingLink  String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([mentorshipId])
+  @@index([requestedById])
 }
 
 model CurriculumDraft {
