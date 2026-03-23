@@ -3,55 +3,9 @@
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { getServerSession } from "next-auth";
-import { toMenteeRoleType } from "@/lib/mentee-role-utils";
+import { TIER_THRESHOLDS } from "@/lib/achievement-journey-config";
+import type { AchievementJourneyData } from "@/lib/achievement-journey-config";
 
-// ============================================
-// TIER CONFIG
-// ============================================
-
-export const TIER_THRESHOLDS = [
-  { tier: "LIFETIME" as const, min: 1800, label: "Lifetime" },
-  { tier: "GOLD" as const, min: 700, label: "Gold" },
-  { tier: "SILVER" as const, min: 350, label: "Silver" },
-  { tier: "BRONZE" as const, min: 175, label: "Bronze" },
-];
-
-// ============================================
-// FETCH: ACHIEVEMENT JOURNEY DATA
-// ============================================
-
-export interface AchievementJourneyData {
-  totalPoints: number;
-  currentTier: string | null;
-  nextTier: { tier: string; min: number; label: string } | null;
-  nextTierThreshold: number;
-  progressPercent: number;
-  pointsSinceLastTier: number;
-  pointsToNextTier: number;
-  pointLogs: Array<{
-    id: string;
-    points: number;
-    reason: string | null;
-    cycleMonth: string;
-    cycleNumber: number;
-    overallRating: string;
-  }>;
-  recentReviews: Array<{
-    id: string;
-    cycleNumber: number;
-    cycleMonth: string;
-    overallRating: string;
-    pointsAwarded: number | null;
-    bonusPoints: number;
-    bonusReason: string | null;
-    releasedToMenteeAt: string | null;
-  }>;
-  // Earning velocity in months to next tier, or null if no data
-  monthsToNextTier: number | null;
-  // Milestone messages (25%, 50%, 75% through current tier band)
-  milestoneMessage: string | null;
-  earnedThisCycle: number;
-}
 
 export async function getAchievementJourneyData(): Promise<AchievementJourneyData | null> {
   const session = await getServerSession(authOptions);

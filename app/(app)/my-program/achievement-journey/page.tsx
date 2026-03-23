@@ -1,7 +1,8 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
-import { getAchievementJourneyData, TIER_THRESHOLDS } from "@/lib/achievement-journey-actions";
+import { getAchievementJourneyData } from "@/lib/achievement-journey-actions";
+import { TIER_THRESHOLDS } from "@/lib/achievement-journey-config";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import Link from "next/link";
 
