@@ -443,6 +443,7 @@ model Chapter {
   onboardingSteps   ChapterOnboardingStep[]
   memberOnboardingProgress MemberOnboardingProgress[]
   invites           ChapterInvite[]
+  milestones        ChapterMilestone[]
   courses           Course[]
   events            Event[]
   feedbacks         Feedback[]
@@ -8216,4 +8217,39 @@ model ChapterInvite {
 
   @@index([chapterId])
   @@index([code])
+}
+
+// ============================================
+// CHAPTER GAMIFICATION — MILESTONES
+// ============================================
+
+enum ChapterMilestoneType {
+  MEMBER_COUNT      // "Reach X members"
+  EVENT_COUNT       // "Host X events"
+  COURSE_COUNT      // "Offer X courses"
+  PATHWAY_COMPLETE  // "X members complete a pathway"
+  STREAK            // "X consecutive weeks of activity"
+  CUSTOM            // Lead-defined milestone
+}
+
+model ChapterMilestone {
+  id          String               @id @default(cuid())
+  chapterId   String
+  chapter     Chapter              @relation(fields: [chapterId], references: [id])
+
+  type        ChapterMilestoneType
+  title       String
+  description String?
+  icon        String               @default("🏆")
+  threshold   Int                  // Target value to unlock
+  currentValue Int                 @default(0)
+  isUnlocked  Boolean              @default(false)
+  unlockedAt  DateTime?
+  xpReward    Int                  @default(0)   // Bonus XP for all members when unlocked
+
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@index([chapterId])
+  @@index([chapterId, isUnlocked])
 }

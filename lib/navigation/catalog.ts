@@ -503,6 +503,20 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 21,
     },
     {
+      href: "/chapter/leaderboard",
+      label: "XP Leaderboard",
+      icon: "🏆",
+      dashboardDescription: "See who's leading in XP within your chapter.",
+      dashboardPriority: 25,
+    },
+    {
+      href: "/chapter/achievements",
+      label: "Chapter Achievements",
+      icon: "🎯",
+      dashboardDescription: "Track your chapter's collective milestones and achievements.",
+      dashboardPriority: 26,
+    },
+    {
       href: "/chapter/invites",
       label: "Invite Links",
       icon: "🔗",

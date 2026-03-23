@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getStudentChapterJourneyData } from "@/lib/chapter-pathway-journey";
 import { getMyChapterHomeData } from "@/lib/chapter-member-actions";
+import { getChapterGamificationSummary } from "@/lib/chapter-gamification-actions";
 import { FallbackRequestButton } from "./fallback-request-button";
 
 function formatDateRange(startDate: Date, endDate: Date) {
@@ -52,10 +53,11 @@ export default async function MyChapterPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
 
-  // Load chapter home data and pathway journey in parallel
-  const [homeData, journey] = await Promise.all([
+  // Load chapter home data, pathway journey, and gamification in parallel
+  const [homeData, journey, gamification] = await Promise.all([
     getMyChapterHomeData(),
     getStudentChapterJourneyData(session.user.id).catch(() => null),
+    getChapterGamificationSummary().catch(() => null),
   ]);
 
   // If user has no chapter, redirect to join
@@ -402,6 +404,98 @@ export default async function MyChapterPage() {
             )}
           </div>
 
+          {/* Gamification Widget */}
+          {gamification && (
+            <div className="card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <h3 style={{ margin: 0 }}>Your Progress</h3>
+                <Link href="/chapter/leaderboard" style={{ fontSize: 12, color: "var(--ypp-purple)" }}>
+                  Leaderboard →
+                </Link>
+              </div>
+              {/* XP & Level */}
+              <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 12 }}>
+                <div
+                  style={{
+                    width: 44, height: 44, borderRadius: "50%",
+                    background: "linear-gradient(135deg, var(--ypp-purple), var(--ypp-pink))",
+                    color: "white", display: "flex", alignItems: "center",
+                    justifyContent: "center", fontWeight: 700, fontSize: 16,
+                  }}
+                >
+                  {gamification.user.level}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                    <strong>{gamification.user.title}</strong>
+                    <span style={{ color: "var(--ypp-purple)", fontWeight: 700 }}>
+                      {gamification.user.xp.toLocaleString()} XP
+                    </span>
+                  </div>
+                  <div style={{ marginTop: 4, height: 6, background: "var(--border)", borderRadius: 3, overflow: "hidden" }}>
+                    <div
+                      style={{
+                        width: `${gamification.user.progress * 100}%`,
+                        height: "100%", borderRadius: 3,
+                        background: "linear-gradient(90deg, var(--ypp-purple), var(--ypp-pink))",
+                      }}
+                    />
+                  </div>
+                  <div style={{ marginTop: 2, fontSize: 11, color: "var(--muted)" }}>
+                    Rank #{gamification.user.rank} of {gamification.user.totalMembers}
+                  </div>
+                </div>
+              </div>
+              {/* Top 3 Mini Leaderboard */}
+              {gamification.topMembers.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  {gamification.topMembers.slice(0, 3).map((m, i) => (
+                    <div
+                      key={m.id}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 8,
+                        padding: "4px 0", fontSize: 13,
+                        borderBottom: i < 2 ? "1px solid var(--border)" : "none",
+                      }}
+                    >
+                      <span style={{ width: 16, fontWeight: 700, color: "var(--muted)", fontSize: 12 }}>
+                        {i + 1}
+                      </span>
+                      <span style={{ flex: 1 }}>{m.name}</span>
+                      <span style={{ fontWeight: 600, color: "var(--ypp-purple)", fontSize: 12 }}>
+                        {m.xp} XP
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Recent Milestones */}
+              {gamification.recentMilestones.length > 0 && (
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
+                  <Link
+                    href="/chapter/achievements"
+                    style={{ fontSize: 12, color: "var(--muted)", textDecoration: "none" }}
+                  >
+                    Recent Achievements:
+                  </Link>
+                  <div style={{ marginTop: 4, display: "flex", gap: 6 }}>
+                    {gamification.recentMilestones.map((m: { icon: string; title: string }, i: number) => (
+                      <span
+                        key={i}
+                        style={{
+                          fontSize: 12, padding: "2px 8px", borderRadius: 6,
+                          background: "var(--bg)", display: "flex", alignItems: "center", gap: 4,
+                        }}
+                      >
+                        {m.icon} {m.title}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Quick Links */}
           <div className="card">
             <h3 style={{ margin: 0 }}>Quick Links</h3>
@@ -424,6 +518,12 @@ export default async function MyChapterPage() {
               </Link>
               <Link href="/chapter/members" className="action-btn" style={{ textDecoration: "none", fontSize: 13 }}>
                 👥 Members
+              </Link>
+              <Link href="/chapter/leaderboard" className="action-btn" style={{ textDecoration: "none", fontSize: 13 }}>
+                🏆 Leaderboard
+              </Link>
+              <Link href="/chapter/achievements" className="action-btn" style={{ textDecoration: "none", fontSize: 13 }}>
+                🎯 Achievements
               </Link>
               <Link href="/messages" className="action-btn" style={{ textDecoration: "none", fontSize: 13 }}>
                 ✉️ Messages
