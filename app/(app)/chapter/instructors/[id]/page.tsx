@@ -4,6 +4,7 @@ import { redirect, notFound } from "next/navigation";
 import { getInstructorDetail } from "@/lib/chapter-actions";
 import Link from "next/link";
 import { ProgressBar } from "@/components/progress-bar";
+import UserAvatar from "@/components/user-avatar";
 
 export default async function InstructorDetailPage({
   params,
@@ -39,11 +40,20 @@ export default async function InstructorDetailPage({
           <Link href="/chapter/instructors" className="back-link">
             ← Back to Instructors
           </Link>
-          <h1>{instructor.name}</h1>
-          <p className="subtitle">
-            {instructor.primaryRole} |{" "}
-            {instructor.chapter?.name || "No Chapter"}
-          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <UserAvatar
+              avatarUrl={instructor.profile?.avatarUrl ?? instructor.image}
+              userName={instructor.name}
+              size="xl"
+            />
+            <div>
+              <h1>{instructor.name}</h1>
+              <p className="subtitle">
+                {instructor.primaryRole} |{" "}
+                {instructor.chapter?.name || "No Chapter"}
+              </p>
+            </div>
+          </div>
         </div>
         <Link
           href={`/mentorship/reviews/${instructor.id}`}

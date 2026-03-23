@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getChapterInstructors } from "@/lib/chapter-actions";
 import Link from "next/link";
+import UserAvatar from "@/components/user-avatar";
 
 export default async function ChapterInstructorsPage() {
   const session = await getServerSession(authOptions);
@@ -76,9 +77,11 @@ export default async function ChapterInstructorsPage() {
                 className="instructor-card"
               >
                 <div className="instructor-header">
-                  <div className="avatar">
-                    {instructor.name.charAt(0).toUpperCase()}
-                  </div>
+                  <UserAvatar
+                    avatarUrl={instructor.profile?.avatarUrl ?? instructor.image}
+                    userName={instructor.name}
+                    size="md"
+                  />
                   <div className="instructor-info">
                     <h3>{instructor.name}</h3>
                     <span className="email">{instructor.email}</span>

@@ -5,6 +5,7 @@ import Image from "next/image";
 import Nav, { type NavBadges } from "@/components/nav";
 import LogoutButton from "@/components/logout-button";
 import AdminQuickActions from "@/components/admin-quick-actions";
+import AvatarMenu from "@/components/avatar-menu";
 
 export default function AppShell({
   children,
@@ -16,6 +17,8 @@ export default function AppShell({
   enabledFeatureKeys,
   unlockedSections,
   recentlyUnlockedGroups,
+  avatarUrl,
+  hasUnreadNotifications,
 }: {
   children: React.ReactNode;
   userName?: string | null;
@@ -26,6 +29,8 @@ export default function AppShell({
   enabledFeatureKeys?: string[];
   unlockedSections?: string[];
   recentlyUnlockedGroups?: string[];
+  avatarUrl?: string | null;
+  hasUnreadNotifications?: boolean;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const sidebarId = "portal-sidebar";
@@ -121,7 +126,15 @@ export default function AppShell({
         </div>
       </aside>
 
-      <main>{children}</main>
+      <main>
+        <AvatarMenu
+          userName={userName}
+          primaryRole={primaryRole}
+          avatarUrl={avatarUrl}
+          hasUnreadNotifications={hasUnreadNotifications}
+        />
+        {children}
+      </main>
 
       {/* Admin Quick Actions Floating Bar */}
       {roles?.includes("ADMIN") && <AdminQuickActions />}

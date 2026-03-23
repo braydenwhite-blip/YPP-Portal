@@ -1386,7 +1386,7 @@ export async function getClassCatalog(filters?: {
           includeWorkflow: capabilities.hasReviewWorkflow,
         }),
       },
-      instructor: { select: { id: true, name: true, email: true } },
+      instructor: { select: { id: true, name: true, email: true, image: true, profile: { select: { avatarUrl: true } } } },
       chapter: {
         select: {
           id: true,
@@ -1510,7 +1510,7 @@ export async function getClassOfferingDetail(offeringId: string) {
           includeWorkflow: capabilities.hasReviewWorkflow,
         }),
       },
-      instructor: { select: { id: true, name: true, email: true } },
+      instructor: { select: { id: true, name: true, email: true, image: true, profile: { select: { avatarUrl: true } } } },
       chapter: {
         select: {
           id: true,

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getChapterMembers } from "@/lib/chapter-member-actions";
 import { MemberSearch } from "./member-search";
+import UserAvatar from "@/components/user-avatar";
 
 const ROLE_LABELS: Record<string, { label: string; color: string; bg: string }> = {
   CHAPTER_LEAD: { label: "Chapter Lead", color: "#6d28d9", bg: "#ede9fe" },
@@ -95,23 +96,11 @@ export default async function ChapterMembersPage({
                         className="card"
                         style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}
                       >
-                        <div
-                          style={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: "50%",
-                            background: info.color,
-                            color: "white",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: 16,
-                            fontWeight: 600,
-                            flexShrink: 0,
-                          }}
-                        >
-                          {member.name.charAt(0)}
-                        </div>
+                        <UserAvatar
+                          avatarUrl={(member as any).profile?.avatarUrl ?? (member as any).image}
+                          userName={member.name}
+                          size="md"
+                        />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>{member.name}</p>
                           <p

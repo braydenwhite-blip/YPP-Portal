@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { hasInstructorPathwaySpecTable } from "@/lib/instructor-pathway-spec-compat";
 import { getSingleStudentPathwayJourney } from "@/lib/chapter-pathway-journey";
+import UserAvatar from "@/components/user-avatar";
 
 export default async function PathwayMentorsPage({ params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -44,10 +45,11 @@ export default async function PathwayMentorsPage({ params }: { params: { id: str
               select: {
                 id: true,
                 name: true,
+                image: true,
                 primaryRole: true,
                 chapterId: true,
                 chapter: { select: { name: true } },
-                profile: { select: { bio: true } },
+                profile: { select: { bio: true, avatarUrl: true } },
                 menteePairs: { select: { id: true } },
               },
             },
@@ -66,10 +68,11 @@ export default async function PathwayMentorsPage({ params }: { params: { id: str
       select: {
         id: true,
         name: true,
+        image: true,
         primaryRole: true,
         chapterId: true,
         chapter: { select: { name: true } },
-        profile: { select: { bio: true } },
+        profile: { select: { bio: true, avatarUrl: true } },
         menteePairs: { select: { id: true } },
       },
       take: 10,
@@ -135,23 +138,11 @@ export default async function PathwayMentorsPage({ params }: { params: { id: str
           {instructors.map((instructor) => (
             <div key={instructor.id} className="card" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                <div
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: "50%",
-                    background: "var(--ypp-purple)",
-                    color: "white",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 20,
-                    fontWeight: 700,
-                    flexShrink: 0,
-                  }}
-                >
-                  {instructor.name[0].toUpperCase()}
-                </div>
+                <UserAvatar
+                  avatarUrl={instructor.profile?.avatarUrl ?? instructor.image}
+                  userName={instructor.name}
+                  size="lg"
+                />
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 15 }}>{instructor.name}</div>
                   <div style={{ fontSize: 13, color: "var(--gray-500)" }}>

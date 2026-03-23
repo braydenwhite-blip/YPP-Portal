@@ -628,6 +628,182 @@ main {
 }
 
 /* ============================================
+   USER AVATAR
+   ============================================ */
+
+.user-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--ypp-purple-600);
+  color: white;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.user-avatar-sm {
+  width: 32px;
+  height: 32px;
+  font-size: 12px;
+}
+
+.user-avatar-md {
+  width: 48px;
+  height: 48px;
+  font-size: 16px;
+}
+
+.user-avatar-lg {
+  width: 80px;
+  height: 80px;
+  font-size: 28px;
+}
+
+.user-avatar-xl {
+  width: 100px;
+  height: 100px;
+  font-size: 34px;
+}
+
+.user-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.user-avatar-initials {
+  line-height: 1;
+  user-select: none;
+}
+
+/* ============================================
+   AVATAR MENU (top-right corner)
+   ============================================ */
+
+.avatar-menu-wrapper {
+  position: sticky;
+  top: 0;
+  float: right;
+  z-index: 30;
+  padding: 20px 32px 0 0;
+  margin-bottom: -52px;
+}
+
+.avatar-menu-container {
+  position: relative;
+  display: inline-block;
+}
+
+.avatar-menu-trigger {
+  position: relative;
+  background: none;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-full);
+  padding: 0;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.avatar-menu-trigger:hover {
+  border-color: var(--ypp-purple-400);
+  box-shadow: var(--shadow-purple);
+}
+
+.avatar-menu-trigger:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.avatar-notification-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: #ef4444;
+  border: 2px solid var(--surface);
+  pointer-events: none;
+}
+
+.avatar-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 4px 0;
+  z-index: 40;
+  animation: avatarDropdownIn 150ms ease;
+}
+
+@keyframes avatarDropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.avatar-dropdown-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.avatar-dropdown-header .user-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.avatar-dropdown-header .user-role {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: capitalize;
+}
+
+.avatar-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  font-size: 14px;
+  color: var(--text);
+  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: background var(--transition-fast);
+}
+
+.avatar-dropdown-item:hover,
+.avatar-dropdown-item:focus {
+  background: var(--surface-hover);
+}
+
+.avatar-dropdown-item:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.avatar-dropdown-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+/* ============================================
    BADGE & PILL
    ============================================ */
 
@@ -2438,6 +2614,16 @@ select.input {
     padding-top: 72px;
   }
 
+  .avatar-menu-wrapper {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    float: none;
+    margin-bottom: 0;
+    padding: 0;
+    z-index: 45;
+  }
+
   .grid.two,
   .grid.three {
     grid-template-columns: 1fr;
@@ -2557,6 +2743,7 @@ select.input {
   .topbar,
   .sidebar,
   .sidebar-toggle,
+  .avatar-menu-wrapper,
   nav,
   .button {
     display: none !important;

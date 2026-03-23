@@ -310,9 +310,10 @@ export const authOptions: NextAuthOptions = {
             }
           });
 
-          // Inject the database user's id and roles into the user object
+          // Inject the database user's id, roles, and image into the user object
           // so the jwt callback can pick them up
           (user as any).id = dbUser.id;
+          (user as any).image = dbUser.image ?? user.image;
           (user as any).roles = dbUser.roles.map((r) => r.role);
           (user as any).primaryRole = dbUser.primaryRole;
 
@@ -329,6 +330,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user, account }) {
       if (user) {
         token.id = (user as any).id;
+        token.image = (user as any).image ?? null;
         token.roles = (user as any).roles;
         token.primaryRole = (user as any).primaryRole;
         token.rolesRefreshedAt = Date.now();
@@ -367,6 +369,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         (session.user as any).id = token.id;
+        (session.user as any).image = token.image;
         (session.user as any).roles = token.roles;
         (session.user as any).primaryRole = token.primaryRole;
         (session.user as any).provider = token.provider;

@@ -129,7 +129,7 @@ export async function getChapterBySlug(slug: string) {
           where: {
             roles: { some: { role: { in: ["CHAPTER_LEAD", "ADMIN"] } } },
           },
-          select: { id: true, name: true, primaryRole: true },
+          select: { id: true, name: true, primaryRole: true, image: true, profile: { select: { avatarUrl: true } } },
           take: 5,
         },
         pathwayConfigs: {

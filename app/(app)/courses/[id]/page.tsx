@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect, notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
+import UserAvatar from "@/components/user-avatar";
 
 export default async function CourseDetailPage({
   params,
@@ -16,7 +17,7 @@ export default async function CourseDetailPage({
   const course = await prisma.course.findUnique({
     where: { id: params.id },
     include: {
-      leadInstructor: { select: { id: true, name: true } },
+      leadInstructor: { select: { id: true, name: true, image: true, profile: { select: { avatarUrl: true } } } },
       pathwaySteps: {
         include: {
           pathway: { select: { id: true, name: true } },
@@ -98,9 +99,19 @@ export default async function CourseDetailPage({
               {course.description}
             </p>
             {course.leadInstructor && (
-              <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}>
-                Instructor: <strong>{course.leadInstructor.name}</strong>
-              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "0 0 4px" }}>
+                <UserAvatar
+                  avatarUrl={course.leadInstructor.profile?.avatarUrl ?? course.leadInstructor.image}
+                  userName={course.leadInstructor.name}
+                  size="xl"
+                />
+                <div>
+                  <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>Instructor</p>
+                  <p style={{ fontSize: 16, fontWeight: 600, color: "var(--text)", margin: 0 }}>
+                    {course.leadInstructor.name}
+                  </p>
+                </div>
+              </div>
             )}
             {course.maxEnrollment && (
               <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>

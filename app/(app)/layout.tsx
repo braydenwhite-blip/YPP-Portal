@@ -58,9 +58,11 @@ export default async function AppLayout({
   let enabledFeatureKeysArray: string[] | undefined;
   let unlockedSectionsArray: string[] | undefined;
   let recentlyUnlockedGroupsArray: string[] | undefined;
+  let resolvedAvatarUrl: string | null = null;
+  let hasUnreadNotifications = false;
   if (session?.user?.id) {
     const userId = session.user.id;
-    const [userWithAwards, unreadNotifications, unreadMessages, pendingApprovals, enabledFeatureKeys] =
+    const [userWithAwards, unreadNotifications, unreadMessages, pendingApprovals, enabledFeatureKeys, userProfile] =
       await Promise.all([
         prisma.user.findUnique({
           where: { id: userId },
@@ -97,6 +99,11 @@ export default async function AppLayout({
           roles,
           primaryRole,
         }).catch(() => []),
+        // User profile avatar
+        prisma.userProfile.findUnique({
+          where: { userId },
+          select: { avatarUrl: true },
+        }).catch(() => null),
       ]);
 
     awardTier = getHighestAwardTier(userWithAwards?.awards ?? []);
@@ -106,6 +113,10 @@ export default async function AppLayout({
       approvals: pendingApprovals || undefined,
     };
     enabledFeatureKeysArray = enabledFeatureKeys;
+
+    // Resolve avatar URL: uploaded photo → Google OAuth image → null
+    resolvedAvatarUrl = userProfile?.avatarUrl ?? session.user.image ?? null;
+    hasUnreadNotifications = (unreadNotifications ?? 0) > 0;
 
     // Fetch unlock data for progressive nav reveal (STUDENT and PARENT roles)
     if (primaryRole === "STUDENT" || primaryRole === "PARENT") {
@@ -163,6 +174,8 @@ export default async function AppLayout({
       enabledFeatureKeys={enabledFeatureKeysArray}
       unlockedSections={unlockedSectionsArray}
       recentlyUnlockedGroups={recentlyUnlockedGroupsArray}
+      avatarUrl={resolvedAvatarUrl}
+      hasUnreadNotifications={hasUnreadNotifications}
     >
       {children}
     </AppShell>

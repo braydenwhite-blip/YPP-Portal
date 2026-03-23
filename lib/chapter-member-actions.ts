@@ -66,6 +66,8 @@ export async function getChapterMembers(search?: string) {
       email: true,
       primaryRole: true,
       createdAt: true,
+      image: true,
+      profile: { select: { avatarUrl: true } },
       roles: { select: { role: true } },
     },
     orderBy: [{ primaryRole: "asc" }, { name: "asc" }],

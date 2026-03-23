@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import Link from "next/link";
 import { getChapterBySlug, getMyJoinRequestStatus } from "@/lib/chapter-join-actions";
 import { JoinChapterButton } from "./join-chapter-button";
+import UserAvatar from "@/components/user-avatar";
 
 type ChapterProfile = NonNullable<Awaited<ReturnType<typeof getChapterBySlug>>>;
 
@@ -247,22 +248,11 @@ export default async function ChapterProfilePage({
               <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
                 {chapter.users.map((leader: ChapterProfile["users"][number]) => (
                   <div key={leader.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div
-                      style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: "50%",
-                        background: "var(--ypp-purple)",
-                        color: "white",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontWeight: 600,
-                        fontSize: 14,
-                      }}
-                    >
-                      {leader.name.charAt(0)}
-                    </div>
+                    <UserAvatar
+                      avatarUrl={(leader as any).profile?.avatarUrl ?? (leader as any).image}
+                      userName={leader.name}
+                      size="lg"
+                    />
                     <div>
                       <p style={{ fontWeight: 600, fontSize: 14, margin: 0 }}>{leader.name}</p>
                       <p style={{ color: "var(--muted)", fontSize: 12, margin: 0 }}>

@@ -5,6 +5,7 @@ import { getClassCatalog } from "@/lib/class-management-actions";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { CurriculumSearchInput } from "./search-input";
+import UserAvatar from "@/components/user-avatar";
 
 const difficultyLabels: Record<string, string> = {
   LEVEL_101: "101 - Beginner",
@@ -311,7 +312,14 @@ export default async function CurriculumPage({
                 </div>
 
                 <div style={{ marginTop: 12, fontSize: 14, color: "var(--text-secondary)" }}>
-                  <div>{offering.instructor.name}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <UserAvatar
+                      avatarUrl={(offering.instructor as any).profile?.avatarUrl ?? (offering.instructor as any).image}
+                      userName={offering.instructor.name}
+                      size="md"
+                    />
+                    <span>{offering.instructor.name}</span>
+                  </div>
                   <div style={{ marginTop: 4 }}>
                     {new Date(offering.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                     {" - "}
