@@ -7839,9 +7839,58 @@ model ChapterPresidentApplication {
   chapterId            String?
   chapter              Chapter?                          @relation(fields: [chapterId], references: [id])
   status               ChapterPresidentApplicationStatus @default(SUBMITTED)
+
+  // --- Core application essays ---
   leadershipExperience String                            @db.Text
   chapterVision        String                            @db.Text
   availability         String
+
+  // --- Personal Information ---
+  legalName            String?
+  preferredFirstName   String?
+  phoneNumber          String?
+  dateOfBirth          String?
+  hearAboutYPP         String?
+
+  // --- Location ---
+  city                 String?
+  stateProvince        String?
+  zipCode              String?
+  country              String?
+
+  // --- Academic Background ---
+  schoolName           String?
+  graduationYear       Int?
+  gpa                  String?
+  classRank            String?
+
+  // --- Chapter-specific essays ---
+  whyChapterPresident  String?                           @db.Text
+  partnerSchool        String?
+  recruitmentPlan      String?                           @db.Text
+  launchPlan           String?                           @db.Text
+  extracurriculars     String?                           @db.Text
+  priorOrganizing      String?                           @db.Text
+  specialSkills        String?                           @db.Text
+
+  // --- Referral ---
+  referralEmails       String?                           @db.Text
+
+  // --- Availability details ---
+  hoursPerWeek         Int?
+  preferredStartDate   String?
+
+  // --- Optional demographics ---
+  ethnicity            String?
+
+  // --- Reviewer scoring rubric ---
+  scoreLeadership      Int?
+  scoreVision          Int?
+  scoreOrganization    Int?
+  scoreCommitment      Int?
+  scoreFit             Int?
+
+  // --- Review workflow ---
   reviewerId           String?
   reviewer             User?                             @relation("ChapterPresidentApplicationReviews", fields: [reviewerId], references: [id])
   reviewerNotes        String?                           @db.Text
@@ -7861,6 +7910,8 @@ model ChapterPresidentApplication {
   @@index([reviewerId])
   @@index([chapterId])
   @@index([cohortId])
+  @@index([graduationYear])
+  @@index([stateProvince])
 }
 
 // ============================================

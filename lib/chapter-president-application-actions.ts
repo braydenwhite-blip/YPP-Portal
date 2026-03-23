@@ -86,6 +86,45 @@ export async function submitChapterPresidentApplication(
     const chapterVision = getString(formData, "chapterVision");
     const availability = getString(formData, "availability");
     const chapterId = getString(formData, "chapterId", false) || null;
+
+    // Personal info
+    const legalName = getString(formData, "legalName", false);
+    const preferredFirstName = getString(formData, "preferredFirstName", false);
+    const phoneNumber = getString(formData, "phoneNumber", false);
+    const dateOfBirth = getString(formData, "dateOfBirth", false);
+    const hearAboutYPP = getString(formData, "hearAboutYPP", false);
+
+    // Location
+    const city = getString(formData, "city", false);
+    const stateProvince = getString(formData, "stateProvince", false);
+    const zipCode = getString(formData, "zipCode", false);
+    const country = getString(formData, "country", false) || "United States";
+    const countryOther = getString(formData, "countryOther", false);
+
+    // Academic
+    const schoolName = getString(formData, "schoolName", false);
+    const graduationYearRaw = getString(formData, "graduationYear", false);
+    const graduationYear = graduationYearRaw ? parseInt(graduationYearRaw, 10) : null;
+    const gpa = getString(formData, "gpa", false);
+    const classRank = getString(formData, "classRank", false);
+
+    // Chapter-specific essays
+    const whyChapterPresident = getString(formData, "whyChapterPresident", false);
+    const partnerSchool = getString(formData, "partnerSchool", false);
+    const recruitmentPlan = getString(formData, "recruitmentPlan", false);
+    const launchPlan = getString(formData, "launchPlan", false);
+    const extracurriculars = getString(formData, "extracurriculars", false);
+    const priorOrganizing = getString(formData, "priorOrganizing", false);
+    const specialSkills = getString(formData, "specialSkills", false);
+
+    // Referral & availability
+    const referralEmails = getString(formData, "referralEmails", false);
+    const hoursPerWeekRaw = getString(formData, "hoursPerWeek", false);
+    const hoursPerWeek = hoursPerWeekRaw ? parseInt(hoursPerWeekRaw, 10) : null;
+    const preferredStartDate = getString(formData, "preferredStartDate", false);
+
+    // Demographics
+    const ethnicity = getString(formData, "ethnicity", false);
     const formTemplate = await prisma.applicationFormTemplate.findFirst({
       where: {
         roleType: "CHAPTER_PRESIDENT",
@@ -144,6 +183,30 @@ export async function submitChapterPresidentApplication(
           leadershipExperience,
           chapterVision,
           availability,
+          legalName: legalName || null,
+          preferredFirstName: preferredFirstName || null,
+          phoneNumber: phoneNumber || null,
+          dateOfBirth: dateOfBirth || null,
+          hearAboutYPP: hearAboutYPP || null,
+          city: city || null,
+          stateProvince: stateProvince || null,
+          zipCode: zipCode || null,
+          country: country === "Other" ? (countryOther || "Other") : country,
+          schoolName: schoolName || null,
+          graduationYear: graduationYear && !isNaN(graduationYear) ? graduationYear : null,
+          gpa: gpa || null,
+          classRank: classRank || null,
+          whyChapterPresident: whyChapterPresident || null,
+          partnerSchool: partnerSchool || null,
+          recruitmentPlan: recruitmentPlan || null,
+          launchPlan: launchPlan || null,
+          extracurriculars: extracurriculars || null,
+          priorOrganizing: priorOrganizing || null,
+          specialSkills: specialSkills || null,
+          referralEmails: referralEmails || null,
+          hoursPerWeek: hoursPerWeek && !isNaN(hoursPerWeek) ? hoursPerWeek : null,
+          preferredStartDate: preferredStartDate || null,
+          ethnicity: ethnicity || null,
         },
       });
 
