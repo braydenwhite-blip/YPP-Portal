@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import Link from "next/link";
 import { getChapterBySlug, getMyJoinRequestStatus } from "@/lib/chapter-join-actions";
 import { JoinChapterButton } from "./join-chapter-button";
 
@@ -43,6 +44,18 @@ export default async function ChapterProfilePage({
 
   return (
     <main className="main-content">
+      {/* Navigation */}
+      <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <Link href="/chapters" style={{ fontSize: 13, color: "var(--ypp-purple)", textDecoration: "none" }}>
+          ← All Chapters
+        </Link>
+        {isMember && (
+          <Link href="/my-chapter" style={{ fontSize: 13, color: "var(--ypp-purple)", textDecoration: "none" }}>
+            Go to Chapter Home →
+          </Link>
+        )}
+      </div>
+
       {/* Banner */}
       <div style={{ borderRadius: 16, overflow: "hidden", marginBottom: 24 }}>
         {chapter.bannerUrl ? (

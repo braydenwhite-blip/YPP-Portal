@@ -115,6 +115,15 @@ export default async function ChapterDashboardPage() {
         </Link>
       </div>
 
+      {/* Breadcrumb */}
+      <div style={{ marginBottom: 16, fontSize: 13 }}>
+        <Link href="/my-chapter" style={{ color: "var(--ypp-purple)", textDecoration: "none" }}>
+          ← Chapter Home
+        </Link>
+        <span style={{ color: "var(--muted)", margin: "0 6px" }}>/</span>
+        <span style={{ color: "var(--muted)" }}>Command Center</span>
+      </div>
+
       {/* Top Stats Row */}
       <div className="stats-grid">
         <div className="stat-card">

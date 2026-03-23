@@ -463,6 +463,10 @@ model Chapter {
   joinRequests                ChapterJoinRequest[]
   goals                       ChapterGoal[]
   channels                    ChapterChannel[]
+  onboardingSteps             ChapterOnboardingStep[]
+  memberOnboardingProgress    MemberOnboardingProgress[]
+  invites                     ChapterInvite[]
+  achievementMilestones       ChapterAchievementMilestone[]
   courses                     Course[]
   events                      Event[]
   eventSeries                 EventSeries[]
@@ -880,6 +884,13 @@ model User {
   chapterJoinRequestsReviewed ChapterJoinRequest[]    @relation("JoinRequestReviewer")
   chapterGoalsCreated         ChapterGoal[]           @relation("ChapterGoalCreator")
   chapterChannelMessages      ChapterChannelMessage[] @relation("ChapterChannelMessages")
+  memberOnboardingProgress    MemberOnboardingProgress[] @relation("MemberOnboardingProgress")
+  chapterInvitesCreated       ChapterInvite[]         @relation("ChapterInviteCreator")
+  chapterInviteUsed           ChapterInvite?          @relation("ChapterInviteUsedBy", fields: [joinedViaInviteId], references: [id])
+  joinedViaInviteId           String?
+  referredBy                  User?                   @relation("UserReferrals", fields: [referredById], references: [id])
+  referredById                String?
+  referrals                   User[]                  @relation("UserReferrals")
 
   // Parent Feedback & Survey Relations
   parentChapterFeedbacks ParentChapterFeedback[] @relation("ParentChapterFeedbacks")
@@ -8670,6 +8681,53 @@ model ChapterJoinRequest {
 }
 
 // ============================================
+// CHAPTER MEMBER ONBOARDING
+// ============================================
+
+enum OnboardingStepType {
+  INTRO_VIDEO
+  MEET_THE_TEAM
+  JOIN_CHANNELS
+  SET_INTERESTS
+  INTRODUCE_SELF
+  COMPLETE_PROFILE
+  FIRST_PATHWAY
+  CUSTOM
+}
+
+model ChapterOnboardingStep {
+  id          String             @id @default(cuid())
+  chapterId   String
+  chapter     Chapter            @relation(fields: [chapterId], references: [id])
+  title       String
+  description String?
+  type        OnboardingStepType
+  sortOrder   Int
+  isRequired  Boolean            @default(true)
+  metadata    Json?
+  createdAt   DateTime           @default(now())
+
+  progress MemberOnboardingProgress[]
+
+  @@index([chapterId, sortOrder])
+}
+
+model MemberOnboardingProgress {
+  id          String                @id @default(cuid())
+  userId      String
+  user        User                  @relation("MemberOnboardingProgress", fields: [userId], references: [id])
+  chapterId   String
+  chapter     Chapter               @relation(fields: [chapterId], references: [id])
+  stepId      String
+  step        ChapterOnboardingStep @relation(fields: [stepId], references: [id])
+  completedAt DateTime?
+  createdAt   DateTime              @default(now())
+
+  @@unique([userId, stepId])
+  @@index([userId, chapterId])
+}
+
+// ============================================
 // CHAPTER CHANNELS & COMMUNITY
 // ============================================
 
@@ -8722,6 +8780,69 @@ model ChapterGoal {
   updatedAt    DateTime   @updatedAt
 
   @@index([chapterId, status])
+}
+
+// ============================================
+// CHAPTER INVITES & REFERRAL TRACKING
+// ============================================
+
+model ChapterInvite {
+  id          String   @id @default(cuid())
+  chapterId   String
+  chapter     Chapter  @relation(fields: [chapterId], references: [id])
+  createdById String
+  createdBy   User     @relation("ChapterInviteCreator", fields: [createdById], references: [id])
+
+  code        String   @unique   // Short shareable code (e.g. "abc123")
+  label       String?            // Friendly name (e.g. "Summer 2026 Open House")
+  maxUses     Int?               // null = unlimited
+  useCount    Int      @default(0)
+  expiresAt   DateTime?          // null = never expires
+  isActive    Boolean  @default(true)
+
+  // Who used this invite
+  usedBy      User[]   @relation("ChapterInviteUsedBy")
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([chapterId])
+  @@index([code])
+}
+
+// ============================================
+// CHAPTER GAMIFICATION — MILESTONES
+// ============================================
+
+enum ChapterAchievementMilestoneType {
+  MEMBER_COUNT      // "Reach X members"
+  EVENT_COUNT       // "Host X events"
+  COURSE_COUNT      // "Offer X courses"
+  PATHWAY_COMPLETE  // "X members complete a pathway"
+  STREAK            // "X consecutive weeks of activity"
+  CUSTOM            // Lead-defined milestone
+}
+
+model ChapterAchievementMilestone {
+  id          String                          @id @default(cuid())
+  chapterId   String
+  chapter     Chapter                         @relation(fields: [chapterId], references: [id])
+
+  type        ChapterAchievementMilestoneType
+  title       String
+  description String?
+  icon        String                          @default("🏆")
+  threshold   Int                             // Target value to unlock
+  currentValue Int                            @default(0)
+  isUnlocked  Boolean                         @default(false)
+  unlockedAt  DateTime?
+  xpReward    Int                             @default(0)   // Bonus XP for all members when unlocked
+
+  createdAt   DateTime                        @default(now())
+  updatedAt   DateTime                        @updatedAt
+
+  @@index([chapterId])
+  @@index([chapterId, isUnlocked])
 }
 
 // ============================================

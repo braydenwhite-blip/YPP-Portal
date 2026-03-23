@@ -30,6 +30,9 @@ export default async function ChapterChannelsPage() {
           <h1>Chapter Channels</h1>
           <p className="subtitle">Discussion spaces for your chapter community</p>
         </div>
+        <Link href="/my-chapter" style={{ fontSize: 13, color: "var(--ypp-purple)" }}>
+          ← Chapter Home
+        </Link>
       </div>
 
       {isLead && <CreateChannelForm />}

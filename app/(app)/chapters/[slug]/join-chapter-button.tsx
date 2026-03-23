@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { joinChapter } from "@/lib/chapter-join-actions";
 
 export function JoinChapterButton({
@@ -10,6 +11,7 @@ export function JoinChapterButton({
   chapterId: string;
   joinPolicy: string;
 }) {
+  const router = useRouter();
   const [state, setState] = useState<"idle" | "form" | "loading" | "done">("idle");
   const [message, setMessage] = useState("");
   const [result, setResult] = useState<string | null>(null);
@@ -28,6 +30,10 @@ export function JoinChapterButton({
       const res = await joinChapter(chapterId, message || undefined);
       if (res.joined) {
         setResult(`You've joined ${res.chapterName}!`);
+        setState("done");
+        // Redirect to welcome/onboarding flow after a brief moment
+        setTimeout(() => router.push("/chapter/welcome"), 1500);
+        return;
       } else if (res.requested) {
         setResult(`Request sent to ${res.chapterName}. You'll be notified when reviewed.`);
       }

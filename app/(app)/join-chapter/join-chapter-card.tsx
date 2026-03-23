@@ -31,7 +31,7 @@ export function JoinChapterCard({ chapter }: { chapter: Chapter }) {
       const res = await joinChapter(chapter.id);
       if (res.joined) {
         setState("done");
-        router.push("/my-chapter");
+        router.push("/chapter/welcome");
       } else if (res.requested) {
         setState("done");
       }

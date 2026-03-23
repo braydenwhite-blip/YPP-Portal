@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getChapterMembers } from "@/lib/chapter-member-actions";
 import { MemberSearch } from "./member-search";
 
@@ -41,6 +42,9 @@ export default async function ChapterMembersPage({
           <h1>Chapter Members</h1>
           <p className="subtitle">{members.length} members</p>
         </div>
+        <Link href="/my-chapter" style={{ fontSize: 13, color: "var(--ypp-purple)" }}>
+          ← Chapter Home
+        </Link>
       </div>
 
       <MemberSearch defaultValue={searchParams.q} />

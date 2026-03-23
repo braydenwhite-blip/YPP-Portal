@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getChapterSettings } from "@/lib/chapter-settings-actions";
 import { getJoinRequests } from "@/lib/chapter-join-actions";
 import { ChapterSettingsForm } from "./chapter-settings-form";
@@ -28,6 +29,48 @@ export default async function ChapterSettingsPage() {
         <ChapterSettingsForm settings={settings} />
 
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          {/* Onboarding Settings Link */}
+          <Link
+            href="/chapter/settings/onboarding"
+            className="card"
+            style={{
+              textDecoration: "none",
+              color: "inherit",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div>
+              <strong style={{ fontSize: 14 }}>Onboarding Steps</strong>
+              <p style={{ color: "var(--muted)", fontSize: 13, margin: "2px 0 0" }}>
+                Customize the welcome experience for new members
+              </p>
+            </div>
+            <span style={{ color: "var(--ypp-purple)", fontSize: 18 }}>→</span>
+          </Link>
+
+          {/* Invite Links */}
+          <Link
+            href="/chapter/invites"
+            className="card"
+            style={{
+              textDecoration: "none",
+              color: "inherit",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div>
+              <strong style={{ fontSize: 14 }}>Invite Links</strong>
+              <p style={{ color: "var(--muted)", fontSize: 13, margin: "2px 0 0" }}>
+                Create shareable links to grow your chapter
+              </p>
+            </div>
+            <span style={{ color: "var(--ypp-purple)", fontSize: 18 }}>→</span>
+          </Link>
+
           {/* Preview Card */}
           <div className="card">
             <h3>Chapter Preview</h3>
