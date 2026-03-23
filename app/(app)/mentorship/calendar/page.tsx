@@ -82,7 +82,7 @@ async function getMentorshipCalendarData(userId: string, roles: string[]) {
   for (const m of menteeships) {
     const lastCycle = m.selfReflections[0];
     const lastCycleNumber = lastCycle?.cycleNumber ?? 0;
-    const lastCycleMonth = lastCycle?.cycleMonth ?? m.createdAt;
+    const lastCycleMonth = lastCycle?.cycleMonth ?? m.startDate;
 
     // Generate upcoming 3 monthly due dates
     for (let i = 1; i <= 3; i++) {
