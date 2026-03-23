@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { getInterviewCommandCenterData } from "@/lib/interviews/command-center-data";
 import InterviewHub from "@/components/interviews/interview-hub";
@@ -41,6 +42,9 @@ export default async function InterviewsPage({
             One place for hiring interviews and instructor-readiness interviews.
           </p>
         </div>
+        <Link href="/interviews/schedule" className="button primary small" style={{ textDecoration: "none" }}>
+          Scheduling
+        </Link>
       </div>
 
       <InterviewHub data={data} />

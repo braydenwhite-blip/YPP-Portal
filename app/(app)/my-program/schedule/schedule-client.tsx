@@ -531,9 +531,14 @@ export default function ScheduleClient({ data }: Props) {
                   </span>
                 </p>
               </div>
-              <Link href="/interviews" className="button secondary small">
-                Manage Interview →
-              </Link>
+              <div style={{ display: "flex", gap: "0.4rem" }}>
+                <Link href="/interviews/schedule" className="button primary small">
+                  Schedule Interview
+                </Link>
+                <Link href="/interviews" className="button secondary small">
+                  Command Center
+                </Link>
+              </div>
             </div>
 
             {data.interviewGate.slots.length > 0 && (
