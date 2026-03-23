@@ -90,7 +90,7 @@ export async function getSchedulePageData(): Promise<SchedulePageData | null> {
 
   // Interview gate for this user
   const interviewGate = await prisma.instructorInterviewGate.findFirst({
-    where: { ownerId: userId, status: { not: "COMPLETED" } },
+    where: { instructorId: userId, status: { not: "COMPLETED" } },
     include: {
       slots: {
         where: { status: { in: ["POSTED", "CONFIRMED"] } },
