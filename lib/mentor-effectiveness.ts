@@ -176,7 +176,7 @@ export async function getMentorEffectivenessScores(): Promise<MentorEffectivenes
       where: { mentorshipId: { in: mentorships.map((m) => m.id) } },
       select: { status: true },
     });
-    const completedItems = actionItems.filter((a) => a.status === "COMPLETED").length;
+    const completedItems = actionItems.filter((a) => a.status === "COMPLETE").length;
     const actionItemRate = actionItems.length > 0 ? completedItems / actionItems.length : 0;
     const actionItemScore = Math.round(actionItemRate * 10);
     const engagementScore = Math.min(20, sessionScore + actionItemScore);
