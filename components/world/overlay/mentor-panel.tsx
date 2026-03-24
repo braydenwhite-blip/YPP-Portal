@@ -109,9 +109,9 @@ export const MentorPanel = memo(function MentorPanel({ data, onClose }: MentorPa
             <span className={styles.panelLinkText}>Learning Pathways</span>
             <span className={styles.panelLinkArrow}>&rarr;</span>
           </Link>
-          <Link href="/courses/recommended" className={styles.panelLink}>
+          <Link href="/curriculum/recommended" className={styles.panelLink}>
             <span className={styles.panelLinkIcon}>{"\u{1F4DA}"}</span>
-            <span className={styles.panelLinkText}>Recommended Courses</span>
+            <span className={styles.panelLinkText}>Recommended Classes</span>
             <span className={styles.panelLinkArrow}>&rarr;</span>
           </Link>
         </div>

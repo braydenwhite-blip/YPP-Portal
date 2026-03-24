@@ -75,7 +75,7 @@ export async function getChapterMembers(search?: string) {
 }
 
 /**
- * Get the member home data: chapter info, members preview, upcoming events, user's courses.
+ * Get the member home data: chapter info, members preview, upcoming events, user's classes.
  */
 export async function getMyChapterHomeData() {
   const session = await getServerSession(authOptions);
@@ -183,14 +183,17 @@ export async function getMyChapterHomeData() {
       },
     }),
 
-    prisma.enrollment.findMany({
-      where: { userId: user.id },
+    prisma.classEnrollment.findMany({
+      where: {
+        studentId: user.id,
+        status: { in: ["ENROLLED", "WAITLISTED"] },
+      },
       include: {
-        course: {
+        offering: {
           select: { id: true, title: true, chapterId: true },
         },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: { enrolledAt: "desc" },
       take: 5,
     }),
   ]);
@@ -200,7 +203,7 @@ export async function getMyChapterHomeData() {
     members,
     channels,
     recentAnnouncements,
-    myEnrollments: myEnrollments.filter((e) => e.course.chapterId === chapterId),
+    myEnrollments: myEnrollments.filter((e) => e.offering.chapterId === chapterId),
     userId: user.id,
     userRole: user.primaryRole,
   };

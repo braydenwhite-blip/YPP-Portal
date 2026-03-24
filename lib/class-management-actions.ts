@@ -168,6 +168,15 @@ function normalizeIntroVideoFields(formData: FormData) {
   };
 }
 
+function revalidateStudentClassSurfaces(offeringId: string) {
+  revalidatePath("/curriculum");
+  revalidatePath("/curriculum/recommended");
+  revalidatePath(`/curriculum/${offeringId}`);
+  revalidatePath("/curriculum/schedule");
+  revalidatePath("/my-classes");
+  revalidatePath("/my-chapter");
+}
+
 type SessionBuildInput = {
   offeringId: string;
   startDate: Date;
@@ -1120,9 +1129,7 @@ export async function enrollInClass(offeringId: string) {
     });
   }
 
-  revalidatePath(`/curriculum/${offeringId}`);
-  revalidatePath("/curriculum/schedule");
-  revalidatePath("/my-chapter");
+  revalidateStudentClassSurfaces(offeringId);
   return { success: true, waitlisted: isWaitlisted };
 }
 
@@ -1177,7 +1184,7 @@ export async function enrollStudentInOffering(
     });
   }
 
-  revalidatePath(`/curriculum/${offeringId}`);
+  revalidateStudentClassSurfaces(offeringId);
   return { success: true, waitlisted: isWaitlisted, skipped: false };
 }
 
@@ -1212,8 +1219,7 @@ export async function dropClass(offeringId: string) {
     });
   }
 
-  revalidatePath(`/curriculum/${offeringId}`);
-  revalidatePath("/curriculum/schedule");
+  revalidateStudentClassSurfaces(offeringId);
   return { success: true };
 }
 

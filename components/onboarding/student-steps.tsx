@@ -453,11 +453,11 @@ export default function StudentSteps({
             <span>Find more pathways that match your interests</span>
           </div>
         </a>
-        <a href="/my-courses" className="onboarding-quicklink">
+        <a href="/my-classes" className="onboarding-quicklink">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
           <div>
-            <strong>My Courses</strong>
-            <span>See the courses you&apos;re enrolled in</span>
+            <strong>My Classes</strong>
+            <span>See your active classes, next sessions, and assignments</span>
           </div>
         </a>
         <a href="/goals" className="onboarding-quicklink">

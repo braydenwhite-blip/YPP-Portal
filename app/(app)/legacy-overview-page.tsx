@@ -334,14 +334,14 @@ export default async function OverviewPage() {
   } else if (isStudent) {
     quickActions.push(
       { href: "/world", label: "Passion World", description: "Explore your islands", accent: "#0ea5e9" },
-      { href: "/my-courses", label: "My Courses", description: "Continue learning", accent: "var(--ypp-purple-600)" },
+      { href: "/my-classes", label: "My Classes", description: "Continue learning", accent: "var(--ypp-purple-600)" },
       { href: "/pathways", label: "Pathways", description: "Explore pathways", accent: "#3b82f6" },
       { href: "/challenges", label: "Challenges", description: "Earn rewards", accent: "#f59e0b" },
     );
   } else {
     quickActions.push(
       { href: "/pathways", label: "Pathways", description: "Browse pathways", accent: "var(--ypp-purple-600)" },
-      { href: "/my-courses", label: "Courses", description: "View courses", accent: "#3b82f6" },
+      { href: "/my-classes", label: "Classes", description: "View classes", accent: "#3b82f6" },
       { href: "/goals", label: "Goals", description: "Set your goals", accent: "#22c55e" },
     );
   }
@@ -594,7 +594,7 @@ export default async function OverviewPage() {
               </div>
             )}
             <div style={{ marginTop: 12 }}>
-              <Link href="/my-courses" className="link">View all courses</Link>
+              <Link href="/my-classes" className="link">View all classes</Link>
             </div>
           </div>
           <div className="card">

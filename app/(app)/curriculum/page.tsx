@@ -6,8 +6,13 @@ import { getLegacyLearnerFitCopy, getLearnerFitSummary } from "@/lib/learner-fit
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { CurriculumSearchInput } from "./search-input";
+import { getRecommendedClassOfferings } from "@/lib/student-class-portal";
 
 const LEGACY_LEARNER_FIT_FILTERS = ["LEVEL_101", "LEVEL_201", "LEVEL_301", "LEVEL_401"] as const;
+const NOTICE_COPY: Record<string, string> = {
+  "legacy-courses-root":
+    "The older student Courses page has been folded into the Curriculum Catalog so discovery and enrollment stay in one place.",
+};
 
 export default async function CurriculumPage({
   searchParams,
@@ -18,6 +23,7 @@ export default async function CurriculumPage({
     mode?: string;
     semester?: string;
     search?: string;
+    notice?: string;
   }>;
 }) {
   const session = await getServerSession(authOptions);
@@ -26,8 +32,10 @@ export default async function CurriculumPage({
   const params = await searchParams;
   const roles = session?.user?.roles ?? [];
   const isInstructor = roles.includes("INSTRUCTOR") || roles.includes("ADMIN");
+  const isStudent = roles.includes("STUDENT");
+  const notice = params.notice ? NOTICE_COPY[params.notice] : null;
 
-  const [offerings, activePathways, myEnrollments] = await Promise.all([
+  const [offerings, activePathways, myEnrollments, recommendedOfferings] = await Promise.all([
     getClassCatalog({
       interestArea: params.interest,
       difficultyLevel: params.level,
@@ -47,6 +55,12 @@ export default async function CurriculumPage({
       },
       select: { offeringId: true, status: true },
     }),
+    isStudent
+      ? getRecommendedClassOfferings(session.user.id, {
+          interestArea: params.interest,
+          limit: 3,
+        })
+      : Promise.resolve([]),
   ]);
 
   const enrollmentByOfferingId = new Map(
@@ -72,9 +86,16 @@ export default async function CurriculumPage({
           <h1 className="page-title">Curriculum Catalog</h1>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <Link href="/curriculum/schedule" className="button secondary">
-            My Schedule
-          </Link>
+          {isStudent && (
+            <>
+              <Link href="/my-classes" className="button secondary">
+                My Classes
+              </Link>
+              <Link href="/curriculum/schedule" className="button secondary">
+                My Schedule
+              </Link>
+            </>
+          )}
           {isInstructor && (
             <Link href="/instructor/curriculum-builder" className="button primary">
               + Build Curriculum
@@ -82,6 +103,115 @@ export default async function CurriculumPage({
           )}
         </div>
       </div>
+
+      {notice && (
+        <div
+          className="card"
+          style={{
+            marginBottom: 20,
+            background: "#eff6ff",
+            borderLeft: "4px solid #2563eb",
+          }}
+        >
+          <strong style={{ color: "#1d4ed8" }}>Student class flow updated</strong>
+          <p style={{ marginTop: 6, color: "var(--text-secondary)" }}>{notice}</p>
+        </div>
+      )}
+
+      {isStudent && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 260 }}>
+              <h3 style={{ marginTop: 0 }}>Find classes your way</h3>
+              <p style={{ color: "var(--text-secondary)", marginTop: 8 }}>
+                Start from your chapter, your pathway journey, or the full catalog. Every route now feeds into the same student class pages and enrollment flow.
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "start" }}>
+              <Link href="/my-chapter" className="button secondary">
+                My Chapter
+              </Link>
+              <Link href="/pathways" className="button secondary">
+                Pathways
+              </Link>
+              <Link href="/curriculum/recommended" className="button secondary">
+                Recommended
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isStudent && recommendedOfferings.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              flexWrap: "wrap",
+              marginBottom: 12,
+            }}
+          >
+            <div>
+              <div className="section-title">Recommended for You</div>
+              <p style={{ color: "var(--text-secondary)", fontSize: 13, marginTop: 4 }}>
+                Based on your interests, your chapter, and the areas where you already have momentum.
+              </p>
+            </div>
+            <Link href="/curriculum/recommended" style={{ color: "var(--ypp-purple)" }}>
+              See all recommendations →
+            </Link>
+          </div>
+
+          <div className="grid three">
+            {recommendedOfferings.map((offering) => {
+              const learnerFit = getLearnerFitSummary({
+                learnerFitLabel: offering.template.learnerFitLabel,
+                learnerFitDescription: offering.template.learnerFitDescription,
+                difficultyLevel: offering.template.difficultyLevel,
+              });
+
+              return (
+                <Link
+                  key={offering.id}
+                  href={`/curriculum/${offering.id}`}
+                  className="card"
+                  style={{ textDecoration: "none", color: "inherit" }}
+                >
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+                    <span
+                      className="pill"
+                      style={{
+                        background: learnerFit.accent + "18",
+                        color: learnerFit.accent,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {learnerFit.label}
+                    </span>
+                    <span className="pill">{offering.template.interestArea}</span>
+                    {offering.reasonLabel ? (
+                      <span className="pill pill-info">{offering.reasonLabel}</span>
+                    ) : null}
+                  </div>
+                  <h3 style={{ marginTop: 0, marginBottom: 6 }}>{offering.title}</h3>
+                  <p style={{ color: "var(--text-secondary)", fontSize: 14 }}>
+                    {offering.description.slice(0, 110)}
+                    {offering.description.length > 110 ? "..." : ""}
+                  </p>
+                  {offering.recommendationReasons.length > 0 && (
+                    <div style={{ marginTop: 10, fontSize: 13, color: "var(--text-secondary)" }}>
+                      {offering.recommendationReasons[0]}
+                    </div>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: 24 }}>
         <CurriculumSearchInput defaultValue={params.search} />

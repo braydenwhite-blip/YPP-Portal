@@ -42,7 +42,7 @@ type RouteConfig = {
 
 const ROUTE_CONTEXT_MAP: Record<string, RouteConfig> = {
   "/pathways": { fetchPathway: true, relatedGoals: true, relatedBadges: true },
-  "/courses": { fetchCourse: true, parentPathway: true, relatedGoals: true },
+  "/curriculum": { fetchCourse: true, parentPathway: true, relatedGoals: true },
   "/goals": { relatedPathways: true, badgeProgress: true },
   "/badges": { relatedPathways: true },
   "/challenges": { relatedBadges: true, fetchChallenges: true },
@@ -189,7 +189,7 @@ async function addCourseTrail(
   if (course) {
     items.push({
       label: course.title,
-      href: `/courses/${course.id}`,
+      href: "/curriculum",
       icon: "📖",
       type: "course",
     });
@@ -315,4 +315,3 @@ async function addMentorshipTrail(
     });
   }
 }
-

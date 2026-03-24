@@ -828,9 +828,9 @@ export default function PassionWorld({ data }: { data: WorldData }) {
 
       {/* Portal Quick-Nav Bar */}
       <nav className={styles.portalNav} aria-label="Portal navigation">
-        <Link href="/my-courses" className={styles.portalNavBtn}>
+        <Link href="/my-classes" className={styles.portalNavBtn}>
           <span className={styles.portalNavIcon}>{"\u{1F4DA}"}</span>
-          Courses
+          My Classes
         </Link>
         <Link href="/pathways" className={styles.portalNavBtn}>
           <span className={styles.portalNavIcon}>{"\u{1F5FA}\uFE0F"}</span>
@@ -871,7 +871,7 @@ export default function PassionWorld({ data }: { data: WorldData }) {
           </button>
           <div className={styles.emptyPromptLinks}>
             <Link href="/pathways" className={styles.emptyPromptLink}>Browse Pathways</Link>
-            <Link href="/courses/recommended" className={styles.emptyPromptLink}>See Courses</Link>
+            <Link href="/curriculum/recommended" className={styles.emptyPromptLink}>See Classes</Link>
             <Link href="/challenges" className={styles.emptyPromptLink}>Try Challenges</Link>
           </div>
         </div>

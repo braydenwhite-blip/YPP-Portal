@@ -110,6 +110,9 @@ export default async function SemesterPlanningCalendarPage() {
     <div>
       <div className="topbar">
         <div>
+          <Link href="/my-classes" style={{ fontSize: 13, color: "var(--ypp-purple)" }}>
+            &larr; Back to My Classes
+          </Link>
           <p className="badge">My Schedule</p>
           <h1 className="page-title">Semester Planner</h1>
         </div>

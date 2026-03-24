@@ -84,11 +84,11 @@ export default async function BadgesPage() {
         <div className="card">
           <h3>No Badges Yet</h3>
           <p>
-            Complete courses and projects to earn your first skill badge! Instructors award badges
+            Complete classes and projects to earn your first skill badge! Instructors award badges
             based on your work and progress.
           </p>
-          <Link href="/courses" className="button primary" style={{ marginTop: 12 }}>
-            Browse Courses
+          <Link href="/curriculum" className="button primary" style={{ marginTop: 12 }}>
+            Browse Classes
           </Link>
         </div>
       ) : (

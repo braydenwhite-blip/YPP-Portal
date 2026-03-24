@@ -90,7 +90,7 @@ export async function processWaitlist(courseId: string) {
         type: "COURSE_UPDATE",
         title: "Spot Available in Course!",
         body: `A spot has opened up in "${course.title}". You have 48 hours to enroll.`,
-        link: `/courses/${courseId}`
+        link: "/my-classes?notice=legacy-course-notification"
       });
 
       return nextInLine;
@@ -128,7 +128,7 @@ export async function sendWaitlistExpiryReminders() {
         type: "COURSE_UPDATE",
         title: "Course Enrollment Expiring Soon",
         body: `Your spot in "${entry.course.title}" expires in a few hours. Enroll now or you'll lose your spot!`,
-        link: `/courses/${entry.courseId}`
+        link: "/my-classes?notice=legacy-course-notification"
       });
     }
 

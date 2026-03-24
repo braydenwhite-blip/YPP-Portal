@@ -324,19 +324,29 @@ export default async function MyChapterPage() {
           {/* My Enrollments */}
           {myEnrollments.length > 0 && (
             <div className="card">
-              <h3 style={{ margin: 0 }}>My Courses</h3>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                <h3 style={{ margin: 0 }}>My Classes</h3>
+                <Link href="/my-classes" style={{ fontSize: 12, color: "var(--ypp-purple)" }}>
+                  Open hub →
+                </Link>
+              </div>
               <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
                 {myEnrollments.map((enrollment) => (
                   <Link
                     key={enrollment.id}
-                    href={`/curriculum/${enrollment.course.id}`}
+                    href={`/curriculum/${enrollment.offering.id}`}
                     style={{
                       display: "block", padding: "8px 12px", borderRadius: 8,
                       border: "1px solid var(--border)", textDecoration: "none", color: "inherit",
                       fontSize: 14,
                     }}
                   >
-                    {enrollment.course.title}
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+                      <span>{enrollment.offering.title}</span>
+                      <span className="pill" style={statusTone(enrollment.status)}>
+                        {enrollment.status === "WAITLISTED" ? "Waitlisted" : "Enrolled"}
+                      </span>
+                    </div>
                   </Link>
                 ))}
               </div>

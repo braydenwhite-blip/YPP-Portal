@@ -7,6 +7,7 @@ import Link from "next/link";
 import { ClassDetailClient } from "./client";
 import { SessionManager } from "./session-manager";
 import { AnnouncementsPanel } from "./announcements";
+import { getStudentClassOpportunityContext } from "@/lib/student-class-portal";
 
 function getEmbeddedIntroVideoUrl(videoUrl: string, provider: string | null) {
   if (!provider) return null;
@@ -29,6 +30,75 @@ function getEmbeddedIntroVideoUrl(videoUrl: string, provider: string | null) {
   return null;
 }
 
+function AlternativeOfferingCard({
+  offering,
+}: {
+  offering: Awaited<ReturnType<typeof getStudentClassOpportunityContext>>["alternatives"][number];
+}) {
+  const learnerFit = getLearnerFitSummary({
+    learnerFitLabel: offering.template.learnerFitLabel,
+    learnerFitDescription: offering.template.learnerFitDescription,
+    difficultyLevel: offering.template.difficultyLevel,
+  });
+
+  return (
+    <Link
+      href={`/curriculum/${offering.id}`}
+      className="card"
+      style={{ textDecoration: "none", color: "inherit", margin: 0 }}
+    >
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+        <span
+          className="pill"
+          style={{
+            background: learnerFit.accent + "18",
+            color: learnerFit.accent,
+            fontWeight: 600,
+          }}
+        >
+          {learnerFit.label}
+        </span>
+        <span className="pill">{offering.template.interestArea}</span>
+        {offering.reasonLabel ? <span className="pill pill-info">{offering.reasonLabel}</span> : null}
+      </div>
+
+      <h4 style={{ marginTop: 0, marginBottom: 6 }}>{offering.title}</h4>
+      <p style={{ color: "var(--text-secondary)", fontSize: 13, marginTop: 0 }}>
+        {offering.chapterLabel ?? "Open class"} · {offering.meetingDays.join(", ")} · {offering.meetingTime}
+      </p>
+
+      {offering.nextSession ? (
+        <p style={{ fontSize: 12, color: "var(--ypp-purple)", fontWeight: 600, marginTop: 8 }}>
+          Next:{" "}
+          {offering.nextSession.date.toLocaleDateString("en-US", {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+          })}{" "}
+          at {offering.nextSession.startTime}
+        </p>
+      ) : null}
+
+      <div style={{ marginTop: 10, display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {offering.isFull ? (
+          <span className="pill" style={{ background: "#fffbeb", color: "#b45309" }}>
+            Waitlist
+          </span>
+        ) : (
+          <span className="pill" style={{ background: "#f0fdf4", color: "#166534" }}>
+            {offering.spotsLeft} spot{offering.spotsLeft === 1 ? "" : "s"} left
+          </span>
+        )}
+        {offering.recommendationReasons[0] ? (
+          <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+            {offering.recommendationReasons[0]}
+          </span>
+        ) : null}
+      </div>
+    </Link>
+  );
+}
+
 export default async function ClassDetailPage({
   params,
 }: {
@@ -38,7 +108,10 @@ export default async function ClassDetailPage({
   if (!session?.user?.id) redirect("/login");
 
   const { id } = await params;
-  const offering = await getClassOfferingDetail(id);
+  const [offering, opportunityContext] = await Promise.all([
+    getClassOfferingDetail(id),
+    getStudentClassOpportunityContext(id, session.user.id),
+  ]);
 
   if (!offering) {
     return (
@@ -83,6 +156,11 @@ export default async function ClassDetailPage({
     learnerFitDescription: offering.template.learnerFitDescription,
     difficultyLevel: offering.template.difficultyLevel,
   });
+  const showEnrollmentSupport =
+    !isInstructor &&
+    (spotsLeft <= 0 ||
+      (opportunityContext.requiresFallbackApproval &&
+        opportunityContext.fallbackRequestStatus !== "APPROVED"));
 
   return (
     <div>
@@ -182,7 +260,7 @@ export default async function ClassDetailPage({
                 {new Date(offering.endDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
               </div>
               <div><strong>Duration:</strong> {offering.template.durationWeeks} weeks ({offering.sessions.length} sessions)</div>
-              <div><strong>Who it's for:</strong> {learnerFit.description}</div>
+              <div><strong>Who it&apos;s for:</strong> {learnerFit.description}</div>
               {offering.zoomLink && (
                 <div><strong>Zoom:</strong>{" "}
                   <a href={offering.zoomLink} target="_blank" rel="noopener noreferrer" style={{ color: "var(--ypp-purple)" }}>
@@ -207,12 +285,21 @@ export default async function ClassDetailPage({
 
             <ClassDetailClient
               offeringId={offering.id}
+              title={offering.title}
+              interestArea={offering.template.interestArea}
+              learnerFitLabel={learnerFit.label}
+              deliveryMode={offering.deliveryMode.replace("_", " ")}
               isEnrolled={isEnrolled}
               isWaitlisted={isWaitlisted}
               isFull={spotsLeft <= 0}
               isInstructor={isInstructor}
               enrollmentOpen={offering.enrollmentOpen}
               waitlistPosition={myEnrollment?.waitlistPosition ?? undefined}
+              requiresFallbackApproval={opportunityContext.requiresFallbackApproval}
+              fallbackRequestStatus={opportunityContext.fallbackRequestStatus}
+              canRequestFallback={opportunityContext.canRequestFallback}
+              fallbackPathwayId={opportunityContext.fallbackPathwayId}
+              fallbackPathwayStepId={opportunityContext.fallbackPathwayStepId}
             />
 
             {completionPct !== null && isEnrolled && (
@@ -242,6 +329,62 @@ export default async function ClassDetailPage({
           </div>
         </div>
       </div>
+
+      {showEnrollmentSupport && (
+        <div className="card" style={{ marginBottom: 24 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            {opportunityContext.requiresFallbackApproval &&
+            opportunityContext.fallbackRequestStatus !== "APPROVED" ? (
+              <>
+                <h3 style={{ margin: 0 }}>Partner-chapter access support</h3>
+                {opportunityContext.fallbackRequestStatus ? (
+                  <span
+                    className="pill"
+                    style={
+                      opportunityContext.fallbackRequestStatus === "PENDING"
+                        ? { background: "#e0f2fe", color: "#075985", fontWeight: 700 }
+                        : opportunityContext.fallbackRequestStatus === "REJECTED"
+                          ? { background: "#fee2e2", color: "#991b1b", fontWeight: 700 }
+                          : { background: "#f3f4f6", color: "#374151", fontWeight: 700 }
+                    }
+                  >
+                    {opportunityContext.fallbackRequestStatus.toLowerCase()}
+                  </span>
+                ) : null}
+              </>
+            ) : (
+              <h3 style={{ margin: 0 }}>This class is full right now</h3>
+            )}
+          </div>
+
+          <p style={{ color: "var(--text-secondary)", marginTop: 10 }}>
+            {opportunityContext.requiresFallbackApproval &&
+            opportunityContext.fallbackRequestStatus !== "APPROVED"
+              ? "You can request partner-chapter access from the class card above. While that is pending, here are other classes that keep you moving."
+              : "You can still join the waitlist, and you do not have to stop there. These similar options can keep your momentum going right away."}
+          </p>
+
+          {opportunityContext.alternatives.length > 0 ? (
+            <div className="grid two" style={{ marginTop: 14 }}>
+              {opportunityContext.alternatives.map((alternative) => (
+                <AlternativeOfferingCard key={alternative.id} offering={alternative} />
+              ))}
+            </div>
+          ) : (
+            <div
+              style={{
+                marginTop: 14,
+                padding: "12px 14px",
+                borderRadius: 12,
+                background: "var(--gray-100)",
+                color: "var(--text-secondary)",
+              }}
+            >
+              No close alternatives are available yet. You can still use the catalog or your pathway view to look for the next best fit.
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Instructor Intro Video */}
       {offering.introVideoUrl && (

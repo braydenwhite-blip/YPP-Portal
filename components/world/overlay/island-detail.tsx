@@ -328,7 +328,7 @@ export function IslandDetail({
         <div className={styles.landmarkSection}>
           <div className={styles.landmarkSectionTitle}>Grow This Island</div>
           <div className={styles.panelActions}>
-            <Link href="/courses/recommended" className={styles.panelLink}>
+            <Link href="/curriculum/recommended" className={styles.panelLink}>
               <span className={styles.panelLinkIcon}>{"\u{1F4DA}"}</span>
               <span className={styles.panelLinkText}>
                 {island.category.replace(/_/g, " ")} Courses

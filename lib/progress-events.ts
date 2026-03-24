@@ -336,9 +336,9 @@ async function createProgressNudge(event: ProgressEvent) {
       link: "/pathways",
     },
     COURSE_ENROLLED: {
-      title: "New course started!",
-      body: "You enrolled in a new course. Exciting things ahead!",
-      link: "/courses",
+      title: "New class started!",
+      body: "You enrolled in a new class. Exciting things ahead!",
+      link: "/my-classes",
     },
     CHALLENGE_COMPLETED: {
       title: "Challenge conquered!",

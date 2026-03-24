@@ -453,7 +453,7 @@ export default async function OverviewPage() {
                 {
                   done: studentSnapshot.checklist.submittedFirstAssignment,
                   text: "Submit your first assignment",
-                  href: "/my-courses",
+                  href: "/my-classes",
                 },
                 {
                   done: studentSnapshot.checklist.checkedInAtLeastOnce,

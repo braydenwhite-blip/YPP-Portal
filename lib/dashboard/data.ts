@@ -896,7 +896,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
       });
     }
 
-    moduleBadgeByHref["/my-courses"] = activeEnrollments;
+    moduleBadgeByHref["/my-classes"] = activeEnrollments;
     moduleBadgeByHref["/my-chapter"] = nextPathwaySteps;
     moduleBadgeByHref["/pathways"] = nextPathwaySteps;
     moduleBadgeByHref["/applications"] = activeApplications;
