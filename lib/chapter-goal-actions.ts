@@ -19,10 +19,10 @@ async function requireChapterLead() {
   });
 
   const isAdmin = user?.roles.some((r) => r.role === "ADMIN");
-  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_LEAD");
+  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT");
 
   if (!isAdmin && !isChapterLead) {
-    throw new Error("Only Chapter Leads and Admins can manage goals");
+    throw new Error("Only Chapter Presidents and Admins can manage goals");
   }
 
   if (!user?.chapterId) throw new Error("User is not assigned to a chapter");

@@ -2,23 +2,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getClassCatalog } from "@/lib/class-management-actions";
+import { getLegacyLearnerFitCopy, getLearnerFitSummary } from "@/lib/learner-fit";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { CurriculumSearchInput } from "./search-input";
 
-const difficultyLabels: Record<string, string> = {
-  LEVEL_101: "101 - Beginner",
-  LEVEL_201: "201 - Intermediate",
-  LEVEL_301: "301 - Advanced",
-  LEVEL_401: "401 - Expert",
-};
-
-const difficultyColors: Record<string, string> = {
-  LEVEL_101: "#22c55e",
-  LEVEL_201: "#3b82f6",
-  LEVEL_301: "#f59e0b",
-  LEVEL_401: "#ef4444",
-};
+const LEGACY_LEARNER_FIT_FILTERS = ["LEVEL_101", "LEVEL_201", "LEVEL_301", "LEVEL_401"] as const;
 
 export default async function CurriculumPage({
   searchParams,
@@ -97,7 +86,7 @@ export default async function CurriculumPage({
       <div className="card" style={{ marginBottom: 24 }}>
         <CurriculumSearchInput defaultValue={params.search} />
 
-        <div style={{ marginBottom: 12, fontWeight: 600, fontSize: 14 }}>Browse by Level</div>
+        <div style={{ marginBottom: 12, fontWeight: 600, fontSize: 14 }}>Browse by Learner Fit</div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Link
             href="/curriculum"
@@ -107,9 +96,9 @@ export default async function CurriculumPage({
               ...(!params.level ? { background: "var(--ypp-purple)", color: "white" } : {}),
             }}
           >
-            All Levels
+            All Learner Fits
           </Link>
-          {Object.entries(difficultyLabels).map(([value, label]) => (
+          {LEGACY_LEARNER_FIT_FILTERS.map((value) => (
             <Link
               key={value}
               href={`/curriculum?level=${value}${params.interest ? `&interest=${params.interest}` : ""}${params.mode ? `&mode=${params.mode}` : ""}`}
@@ -117,13 +106,21 @@ export default async function CurriculumPage({
               style={{
                 fontSize: 13,
                 ...(params.level === value
-                  ? { background: difficultyColors[value], color: "white", borderColor: difficultyColors[value] }
+                  ? {
+                      background: getLegacyLearnerFitCopy(value).accent,
+                      color: "white",
+                      borderColor: getLegacyLearnerFitCopy(value).accent,
+                    }
                   : {}),
               }}
             >
-              {label}
+              {getLegacyLearnerFitCopy(value).label}
             </Link>
           ))}
+        </div>
+
+        <div style={{ marginTop: 8, fontSize: 12, color: "var(--text-secondary)" }}>
+          Learner fit explains who a class is best for. Prerequisites and age guidance still appear on each class page.
         </div>
 
         <div style={{ marginTop: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -214,6 +211,11 @@ export default async function CurriculumPage({
       ) : (
         <div className="grid two">
           {offerings.map((offering) => {
+            const learnerFit = getLearnerFitSummary({
+              learnerFitLabel: offering.template.learnerFitLabel,
+              learnerFitDescription: offering.template.learnerFitDescription,
+              difficultyLevel: offering.template.difficultyLevel,
+            });
             const enrolledCount = offering._count.enrollments;
             const spotsLeft = offering.capacity - enrolledCount;
             const isFull = spotsLeft <= 0;
@@ -250,12 +252,12 @@ export default async function CurriculumPage({
                       width: 8,
                       height: 8,
                       borderRadius: "50%",
-                      background: difficultyColors[offering.template.difficultyLevel] || "#888",
+                      background: learnerFit.accent,
                       flexShrink: 0,
                       marginTop: 6,
                       marginLeft: 8,
                     }}
-                    title={difficultyLabels[offering.template.difficultyLevel]}
+                    title={learnerFit.label}
                   />
                 </div>
 
@@ -263,12 +265,12 @@ export default async function CurriculumPage({
                   <span
                     className="pill"
                     style={{
-                      background: difficultyColors[offering.template.difficultyLevel] + "18",
-                      color: difficultyColors[offering.template.difficultyLevel],
+                      background: learnerFit.accent + "18",
+                      color: learnerFit.accent,
                       fontWeight: 600,
                     }}
                   >
-                    {difficultyLabels[offering.template.difficultyLevel]}
+                    {learnerFit.label}
                   </span>
                   <span className="pill">{offering.template.interestArea}</span>
                   <span className="pill">{offering.deliveryMode.replace("_", " ")}</span>
@@ -308,6 +310,10 @@ export default async function CurriculumPage({
                       </Link>
                     ))
                   )}
+                </div>
+
+                <div style={{ marginTop: 8, fontSize: 13, color: "var(--text-secondary)" }}>
+                  {learnerFit.description}
                 </div>
 
                 <div style={{ marginTop: 12, fontSize: 14, color: "var(--text-secondary)" }}>

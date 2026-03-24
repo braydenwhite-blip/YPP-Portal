@@ -45,7 +45,7 @@ function canSeeDraftContent(roleSet: Set<string>): boolean {
   return (
     roleSet.has("ADMIN") ||
     roleSet.has("INSTRUCTOR") ||
-    roleSet.has("CHAPTER_LEAD")
+    roleSet.has("CHAPTER_PRESIDENT")
   );
 }
 

@@ -35,9 +35,9 @@ export default async function AdminGoalsPage() {
   ]);
 
   const instructors = users.filter((u) => u.roles.some((r) => r.role === "INSTRUCTOR"));
-  const chapterLeads = users.filter((u) => u.roles.some((r) => r.role === "CHAPTER_LEAD"));
+  const chapterLeads = users.filter((u) => u.roles.some((r) => r.role === "CHAPTER_PRESIDENT"));
 
-  const roleTypes = ["INSTRUCTOR", "CHAPTER_LEAD", "MENTOR", "STAFF"];
+  const roleTypes = ["INSTRUCTOR", "CHAPTER_PRESIDENT", "MENTOR", "STAFF"];
 
   return (
     <div>
@@ -117,7 +117,7 @@ export default async function AdminGoalsPage() {
                     </option>
                   ))}
                 </optgroup>
-                <optgroup label="Chapter Leads">
+                <optgroup label="Chapter Presidents">
                   {chapterLeads.map((user) => (
                     <option key={user.id} value={user.id}>
                       {user.name} ({user.goals.length} goals)

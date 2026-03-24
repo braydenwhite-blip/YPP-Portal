@@ -2,24 +2,11 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getClassOfferingDetail } from "@/lib/class-management-actions";
+import { getLearnerFitSummary } from "@/lib/learner-fit";
 import Link from "next/link";
 import { ClassDetailClient } from "./client";
 import { SessionManager } from "./session-manager";
 import { AnnouncementsPanel } from "./announcements";
-
-const difficultyLabels: Record<string, string> = {
-  LEVEL_101: "101 - Beginner",
-  LEVEL_201: "201 - Intermediate",
-  LEVEL_301: "301 - Advanced",
-  LEVEL_401: "401 - Expert",
-};
-
-const difficultyColors: Record<string, string> = {
-  LEVEL_101: "#22c55e",
-  LEVEL_201: "#3b82f6",
-  LEVEL_301: "#f59e0b",
-  LEVEL_401: "#ef4444",
-};
 
 function getEmbeddedIntroVideoUrl(videoUrl: string, provider: string | null) {
   if (!provider) return null;
@@ -91,6 +78,11 @@ export default async function ClassDetailPage({
   const completionPct = offering.template.learningOutcomes.length > 0 && myEnrollment
     ? Math.round(((myEnrollment.outcomesAchieved?.length || 0) / offering.template.learningOutcomes.length) * 100)
     : null;
+  const learnerFit = getLearnerFitSummary({
+    learnerFitLabel: offering.template.learnerFitLabel,
+    learnerFitDescription: offering.template.learnerFitDescription,
+    difficultyLevel: offering.template.difficultyLevel,
+  });
 
   return (
     <div>
@@ -131,11 +123,11 @@ export default async function ClassDetailPage({
 
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
               <span className="pill" style={{
-                background: (difficultyColors[offering.template.difficultyLevel] || "#888") + "18",
-                color: difficultyColors[offering.template.difficultyLevel],
+                background: learnerFit.accent + "18",
+                color: learnerFit.accent,
                 fontWeight: 600,
               }}>
-                {difficultyLabels[offering.template.difficultyLevel]}
+                {learnerFit.label}
               </span>
               <span className="pill">{offering.template.interestArea}</span>
               <span className="pill">{offering.deliveryMode.replace("_", " ")}</span>
@@ -190,6 +182,7 @@ export default async function ClassDetailPage({
                 {new Date(offering.endDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
               </div>
               <div><strong>Duration:</strong> {offering.template.durationWeeks} weeks ({offering.sessions.length} sessions)</div>
+              <div><strong>Who it's for:</strong> {learnerFit.description}</div>
               {offering.zoomLink && (
                 <div><strong>Zoom:</strong>{" "}
                   <a href={offering.zoomLink} target="_blank" rel="noopener noreferrer" style={{ color: "var(--ypp-purple)" }}>

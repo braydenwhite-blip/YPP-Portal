@@ -12,7 +12,7 @@ export default async function LessonPlanTemplatesPage() {
 
   const roles = session.user.roles ?? [];
   const isInstructor =
-    roles.includes("INSTRUCTOR") || roles.includes("ADMIN") || roles.includes("CHAPTER_LEAD");
+    roles.includes("INSTRUCTOR") || roles.includes("ADMIN") || roles.includes("CHAPTER_PRESIDENT");
 
   if (!isInstructor) {
     redirect("/");

@@ -41,7 +41,7 @@ function formatEventDate(date: Date) {
 }
 
 const ROLE_COLORS: Record<string, string> = {
-  CHAPTER_LEAD: "#6d28d9",
+  CHAPTER_PRESIDENT: "#6d28d9",
   ADMIN: "#dc2626",
   INSTRUCTOR: "#0369a1",
   MENTOR: "#ca8a04",
@@ -65,7 +65,7 @@ export default async function MyChapterPage() {
 
   const { chapter, members, channels, recentAnnouncements, myEnrollments } = homeData;
   const roles = new Set(session.user.roles ?? []);
-  const canReviewFallbacks = roles.has("ADMIN") || roles.has("STAFF") || roles.has("CHAPTER_LEAD");
+  const canReviewFallbacks = roles.has("ADMIN") || roles.has("STAFF") || roles.has("CHAPTER_PRESIDENT");
 
   // Get pathway data if available
   const localPathways = journey?.activeLocalPathways ?? [];

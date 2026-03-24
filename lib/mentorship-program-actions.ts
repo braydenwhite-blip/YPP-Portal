@@ -544,7 +544,7 @@ async function canApproveReview(args: {
     return true;
   }
 
-  if (hasRole(roles, "CHAPTER_LEAD")) {
+  if (hasRole(roles, "CHAPTER_PRESIDENT")) {
     return hasMentorshipMenteeAccess(currentUserId, roles, review.menteeId);
   }
 
@@ -669,7 +669,7 @@ export async function getPendingChairReviews() {
   const roles = session.user.roles ?? [];
   const currentUserId = session.user.id;
   const isAdmin = hasRole(roles, "ADMIN");
-  const isChapterLead = hasRole(roles, "CHAPTER_LEAD");
+  const isChapterLead = hasRole(roles, "CHAPTER_PRESIDENT");
   const accessibleMenteeIds =
     isAdmin || !isChapterLead
       ? null
@@ -1287,7 +1287,7 @@ export async function createMentorshipTrack(formData: FormData) {
       ? "STUDENT"
       : pointCategory === "INSTRUCTOR"
       ? "INSTRUCTOR"
-      : "CHAPTER_LEAD"
+      : "CHAPTER_PRESIDENT"
   );
   const governanceMode = parseGovernanceMode(
     getString(formData, "governanceMode", false) || null,
@@ -1394,7 +1394,7 @@ export async function addMentorCommitteeMember(formData: FormData) {
 export async function updateMentorshipGovernance(formData: FormData) {
   const session = await requireSession();
   const roles = session.user.roles ?? [];
-  if (!hasRole(roles, "ADMIN") && !hasRole(roles, "CHAPTER_LEAD")) {
+  if (!hasRole(roles, "ADMIN") && !hasRole(roles, "CHAPTER_PRESIDENT")) {
     throw new Error("Unauthorized");
   }
 

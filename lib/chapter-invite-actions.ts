@@ -30,7 +30,7 @@ export async function createChapterInvite(formData: FormData) {
     include: { roles: true },
   });
 
-  const isLead = user?.roles.some((r) => r.role === "CHAPTER_LEAD" || r.role === "ADMIN");
+  const isLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT" || r.role === "ADMIN");
   if (!isLead || !user?.chapterId) throw new Error("Unauthorized");
 
   const label = (formData.get("label") as string) || null;
@@ -71,7 +71,7 @@ export async function getChapterInvites() {
     include: { roles: true },
   });
 
-  const isLead = user?.roles.some((r) => r.role === "CHAPTER_LEAD" || r.role === "ADMIN");
+  const isLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT" || r.role === "ADMIN");
   if (!isLead || !user?.chapterId) throw new Error("Unauthorized");
 
   const invites = await db.chapterInvite.findMany({
@@ -111,7 +111,7 @@ export async function deactivateInvite(inviteId: string) {
     include: { roles: true },
   });
 
-  const isLead = user?.roles.some((r) => r.role === "CHAPTER_LEAD" || r.role === "ADMIN");
+  const isLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT" || r.role === "ADMIN");
   if (!isLead || !user?.chapterId) throw new Error("Unauthorized");
 
   const invite = await db.chapterInvite.findUnique({ where: { id: inviteId } });
@@ -332,7 +332,7 @@ export async function getChapterReferralStats() {
     include: { roles: true },
   });
 
-  const isLead = user?.roles.some((r) => r.role === "CHAPTER_LEAD" || r.role === "ADMIN");
+  const isLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT" || r.role === "ADMIN");
   if (!isLead || !user?.chapterId) throw new Error("Unauthorized");
 
   // Get invite usage stats

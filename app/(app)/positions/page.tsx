@@ -63,7 +63,7 @@ export default async function PositionsPage({
     : null;
 
   const roles = currentUser?.roles.map((role) => role.role) ?? [];
-  const isPrivileged = roles.some((role) => ["ADMIN", "CHAPTER_LEAD", "STAFF"].includes(role));
+  const isPrivileged = roles.some((role) => ["ADMIN", "CHAPTER_PRESIDENT", "STAFF"].includes(role));
 
   const selectedType = normalizeEnum(params.type, POSITION_TYPE_OPTIONS);
   const selectedVisibility = normalizeEnum(params.visibility, [

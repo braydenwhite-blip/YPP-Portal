@@ -10,11 +10,29 @@ import {
   recordFailedLoginAttempt,
   clearAccountLockout,
 } from "@/lib/rate-limit-redis";
+import { normalizeRoleValue, normalizeRoleValues } from "@/lib/role-utils";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8)
 });
+
+function normalizeAuthRolePayload(input: {
+  roles: string[];
+  primaryRole?: string | null;
+}) {
+  const roles = normalizeRoleValues(input.roles);
+  const primaryRole = normalizeRoleValue(input.primaryRole) ?? roles[0] ?? "STUDENT";
+
+  if (!roles.includes(primaryRole)) {
+    roles.unshift(primaryRole);
+  }
+
+  return {
+    roles: Array.from(new Set(roles)),
+    primaryRole,
+  };
+}
 
 function buildProviders() {
   const providers: NextAuthOptions["providers"] = [
@@ -58,12 +76,17 @@ function buildProviders() {
 
           if (!user) return null;
 
+          const normalizedRoles = normalizeAuthRolePayload({
+            roles: user.roles.map((r) => r.role),
+            primaryRole: user.primaryRole,
+          });
+
           return {
             id: user.id,
             name: user.name,
             email: user.email,
-            roles: user.roles.map((r) => r.role),
-            primaryRole: user.primaryRole,
+            roles: normalizedRoles.roles,
+            primaryRole: normalizedRoles.primaryRole,
           } as any;
         }
 
@@ -94,12 +117,17 @@ function buildProviders() {
             data: { usedAt: new Date() },
           });
 
+          const normalizedRoles = normalizeAuthRolePayload({
+            roles: record.user.roles.map((r) => r.role),
+            primaryRole: record.user.primaryRole,
+          });
+
           return {
             id: record.user.id,
             name: record.user.name,
             email: record.user.email,
-            roles: record.user.roles.map((r) => r.role),
-            primaryRole: record.user.primaryRole,
+            roles: normalizedRoles.roles,
+            primaryRole: normalizedRoles.primaryRole,
           } as any;
         }
 
@@ -185,12 +213,17 @@ function buildProviders() {
           throw new Error(`TWO_FACTOR_REQUIRED::${challengeToken}`);
         }
 
+        const normalizedRoles = normalizeAuthRolePayload({
+          roles: user.roles.map((role) => role.role),
+          primaryRole: user.primaryRole,
+        });
+
         return {
           id: user.id,
           name: user.name,
           email: user.email,
-          roles: user.roles.map((role) => role.role),
-          primaryRole: user.primaryRole
+          roles: normalizedRoles.roles,
+          primaryRole: normalizedRoles.primaryRole
         } as any;
       }
     })
@@ -313,8 +346,12 @@ export const authOptions: NextAuthOptions = {
           // Inject the database user's id and roles into the user object
           // so the jwt callback can pick them up
           (user as any).id = dbUser.id;
-          (user as any).roles = dbUser.roles.map((r) => r.role);
-          (user as any).primaryRole = dbUser.primaryRole;
+          const normalizedRoles = normalizeAuthRolePayload({
+            roles: dbUser.roles.map((r) => r.role),
+            primaryRole: dbUser.primaryRole,
+          });
+          (user as any).roles = normalizedRoles.roles;
+          (user as any).primaryRole = normalizedRoles.primaryRole;
 
           return true;
         } catch (error) {
@@ -353,8 +390,12 @@ export const authOptions: NextAuthOptions = {
             }
           });
           if (dbUser) {
-            token.roles = dbUser.roles.map((r) => r.role);
-            token.primaryRole = dbUser.primaryRole;
+            const normalizedRoles = normalizeAuthRolePayload({
+              roles: dbUser.roles.map((r) => r.role),
+              primaryRole: dbUser.primaryRole,
+            });
+            token.roles = normalizedRoles.roles;
+            token.primaryRole = normalizedRoles.primaryRole;
           }
           token.rolesRefreshedAt = Date.now();
         } catch {

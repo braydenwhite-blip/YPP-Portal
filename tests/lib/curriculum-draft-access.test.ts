@@ -21,11 +21,11 @@ describe("curriculum-draft-access", () => {
     ).toBe(true);
   });
 
-  it("allows chapter leads only when they share the author's chapter", () => {
+  it("allows chapter presidents only when they share the author's chapter", () => {
     expect(
       canAccessCurriculumDraftForPrint({
         requesterId: "lead-1",
-        requesterRoles: ["CHAPTER_LEAD"],
+        requesterRoles: ["CHAPTER_PRESIDENT"],
         requesterChapterId: "chapter-1",
         authorId: "author-1",
         authorChapterId: "chapter-1",
@@ -35,7 +35,7 @@ describe("curriculum-draft-access", () => {
     expect(
       canAccessCurriculumDraftForPrint({
         requesterId: "lead-2",
-        requesterRoles: ["CHAPTER_LEAD"],
+        requesterRoles: ["CHAPTER_PRESIDENT"],
         requesterChapterId: "chapter-2",
         authorId: "author-1",
         authorChapterId: "chapter-1",

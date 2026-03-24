@@ -87,7 +87,7 @@ const CORE_CHAT_CHANNELS: ChatChannelSeed[] = [
   {
     slug: "leadership-ops",
     name: "Leadership Ops",
-    description: "Operational updates for chapter leads, staff, and admins.",
+    description: "Operational updates for chapter presidents, staff, and admins.",
     emoji: "📈",
     audience: "LEADERSHIP",
     source: "core",
@@ -98,12 +98,12 @@ function hasAudienceAccess(audience: ChannelAudience, roles: string[]) {
   if (audience === "ALL") return true;
   if (audience === "STUDENTS") return roles.includes("STUDENT") || roles.includes("ADMIN");
   if (audience === "INSTRUCTORS") {
-    return roles.includes("INSTRUCTOR") || roles.includes("CHAPTER_LEAD") || roles.includes("ADMIN");
+    return roles.includes("INSTRUCTOR") || roles.includes("CHAPTER_PRESIDENT") || roles.includes("ADMIN");
   }
   if (audience === "MENTORS") {
-    return roles.includes("MENTOR") || roles.includes("CHAPTER_LEAD") || roles.includes("ADMIN");
+    return roles.includes("MENTOR") || roles.includes("CHAPTER_PRESIDENT") || roles.includes("ADMIN");
   }
-  return roles.includes("CHAPTER_LEAD") || roles.includes("STAFF") || roles.includes("ADMIN");
+  return roles.includes("CHAPTER_PRESIDENT") || roles.includes("STAFF") || roles.includes("ADMIN");
 }
 
 function channelSubject(slug: string) {
@@ -175,7 +175,7 @@ async function getChannelUnreadCount(conversationId: string, userId: string) {
 
 async function getClassChannelSeeds(userId: string, roles: string[]) {
   const channelMap = new Map<string, ChatChannelSeed>();
-  const canTeach = roles.includes("INSTRUCTOR") || roles.includes("CHAPTER_LEAD") || roles.includes("ADMIN");
+  const canTeach = roles.includes("INSTRUCTOR") || roles.includes("CHAPTER_PRESIDENT") || roles.includes("ADMIN");
   const isStudent = roles.includes("STUDENT");
 
   if (canTeach) {
@@ -690,7 +690,7 @@ export async function getMessageableUsers() {
   const userIds = new Set<string>();
 
   // Mentors: can message their mentees
-  if (roleTypes.includes("MENTOR") || roleTypes.includes("CHAPTER_LEAD")) {
+  if (roleTypes.includes("MENTOR") || roleTypes.includes("CHAPTER_PRESIDENT")) {
     const mentorships = await prisma.mentorship.findMany({
       where: { mentorId: userId, status: "ACTIVE" },
       select: { menteeId: true },

@@ -30,7 +30,7 @@ type ExistingLab = {
 };
 
 type ReadinessSummary = {
-  canPublishFirstOffering: boolean;
+  baseReadinessComplete: boolean;
   nextAction: {
     title: string;
     detail: string;
@@ -121,7 +121,7 @@ export function PassionLabBuilderClient({
   const [maxParticipants, setMaxParticipants] = useState(editData?.maxParticipants ?? 25);
   const [locationName, setLocationName] = useState("");
   const [zoomLink, setZoomLink] = useState("");
-  const publishBlocked = !readiness.canPublishFirstOffering;
+  const publishBlocked = !readiness.baseReadinessComplete;
 
   function addSessionRow() {
     setSessionTopics((prev) => [...prev, emptyPassionLabSessionTopic()]);
@@ -338,7 +338,7 @@ export function PassionLabBuilderClient({
           {error}
         </div>
       )}
-      {!readiness.canPublishFirstOffering && (
+      {!readiness.baseReadinessComplete && (
         <div
           style={{
             padding: "10px 14px",
@@ -762,7 +762,7 @@ export function PassionLabBuilderClient({
               Publish to make it visible to students, then enroll your cohorts.
             </p>
           </div>
-          {!readiness.canPublishFirstOffering && (
+          {!readiness.baseReadinessComplete && (
             <div
               style={{
                 padding: "12px 16px",

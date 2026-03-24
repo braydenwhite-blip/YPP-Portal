@@ -68,7 +68,7 @@ export default function StaffReflectionsTable({
       label: "All Roles",
       options: [
         { value: "INSTRUCTOR", label: "Instructors" },
-        { value: "CHAPTER_LEAD", label: "Chapter Leads" },
+        { value: "CHAPTER_PRESIDENT", label: "Chapter Presidents" },
         { value: "STAFF", label: "Staff" }
       ]
     }

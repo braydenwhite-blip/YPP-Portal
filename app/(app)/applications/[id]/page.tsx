@@ -175,7 +175,7 @@ export default async function ApplicationWorkspacePage({
 
   const roles = currentUser.roles.map((role) => role.role);
   const isAdmin = roles.includes("ADMIN");
-  const isChapterLead = roles.includes("CHAPTER_LEAD");
+  const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
   const enabledFeatureKeys = await getEnabledFeatureKeysForUser({
     userId: currentUser.id,
     chapterId: currentUser.chapterId,

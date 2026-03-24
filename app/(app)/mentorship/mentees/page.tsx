@@ -62,7 +62,7 @@ export default async function MenteesPage() {
   }
 
   const isMentor = roles.includes("MENTOR");
-  const isChapterLead = roles.includes("CHAPTER_LEAD");
+  const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
   const isAdmin = roles.includes("ADMIN");
 
   if (!isMentor && !isChapterLead && !isAdmin) {
@@ -209,7 +209,7 @@ export default async function MenteesPage() {
 
       <MentorshipGuideCard
         title="How To Read The Mentee List"
-        intro="This page helps mentors, chapter leads, and admins quickly spot who needs support right now and where to click next."
+        intro="This page helps mentors, chapter presidents, and admins quickly spot who needs support right now and where to click next."
         items={MENTEES_GUIDE_ITEMS}
       />
 
@@ -218,7 +218,7 @@ export default async function MenteesPage() {
           <p style={{ color: "var(--muted)" }}>
             {isAdmin
               ? "No users have goals assigned yet. Assign goals from the Admin Goals page."
-              : "No mentees assigned yet. Your chapter lead will pair you with mentees."}
+              : "No mentees assigned yet. Your chapter president will pair you with mentees."}
           </p>
         </div>
       ) : (

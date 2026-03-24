@@ -51,7 +51,7 @@ async function resolveCanonicalPassionAreaId(
 // ============================================
 
 export async function createChallenge(formData: FormData) {
-  const session = await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+  const session = await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"]);
 
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
@@ -100,7 +100,7 @@ export async function createChallenge(formData: FormData) {
 }
 
 export async function publishChallenge(challengeId: string) {
-  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"]);
 
   await prisma.challenge.update({
     where: { id: challengeId },
@@ -112,7 +112,7 @@ export async function publishChallenge(challengeId: string) {
 }
 
 export async function unpublishChallenge(challengeId: string) {
-  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"]);
 
   await prisma.challenge.update({
     where: { id: challengeId },
@@ -124,7 +124,7 @@ export async function unpublishChallenge(challengeId: string) {
 }
 
 export async function archiveChallenge(challengeId: string) {
-  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"]);
 
   await prisma.challenge.update({
     where: { id: challengeId },
@@ -136,7 +136,7 @@ export async function archiveChallenge(challengeId: string) {
 }
 
 export async function updateChallenge(formData: FormData) {
-  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"]);
 
   const challengeId = formData.get("challengeId") as string;
   const title = formData.get("title") as string;
@@ -647,7 +647,7 @@ export async function toggleBadgePin(badgeId: string) {
 // ============================================
 
 export async function getChallengeAdminList() {
-  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"]);
 
   return prisma.challenge.findMany({
     include: {

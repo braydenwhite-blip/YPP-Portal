@@ -30,7 +30,7 @@ export default async function MentorIncubatorWorkspacePage() {
     (session.user as any).primaryRole ?? null
   );
   const canAccess =
-    roleSet.has("MENTOR") || roleSet.has("ADMIN") || roleSet.has("INSTRUCTOR") || roleSet.has("CHAPTER_LEAD");
+    roleSet.has("MENTOR") || roleSet.has("ADMIN") || roleSet.has("INSTRUCTOR") || roleSet.has("CHAPTER_PRESIDENT");
 
   if (!canAccess) redirect("/incubator");
 

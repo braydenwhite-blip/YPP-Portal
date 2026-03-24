@@ -22,7 +22,7 @@ const TIER_LABELS: Record<string, string> = {
 
 const ROLE_LABELS: Record<string, string> = {
   INSTRUCTOR: "Instructor",
-  CHAPTER_LEAD: "Chapter President",
+  CHAPTER_PRESIDENT: "Chapter President",
   ADMIN: "Global Leadership",
   STAFF: "Global Leadership",
 };
@@ -37,7 +37,7 @@ export default async function PrepPacketPage({
   if (!session?.user?.id) redirect("/login");
 
   const roles = session.user.roles ?? [];
-  const isAuthorized = roles.includes("ADMIN") || roles.includes("CHAPTER_LEAD");
+  const isAuthorized = roles.includes("ADMIN") || roles.includes("CHAPTER_PRESIDENT");
   if (!isAuthorized) redirect("/");
 
   if (!mentorshipId) {

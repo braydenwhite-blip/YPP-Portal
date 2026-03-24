@@ -201,7 +201,7 @@ describe("Authorization Helpers", () => {
       } as any);
 
       await expect(requireCanMessage("student-456")).rejects.toThrow(
-        "Students can only message instructors, mentors, staff, and chapter leads"
+        "Students can only message instructors, mentors, staff, and chapter presidents"
       );
     });
 
@@ -253,7 +253,7 @@ describe("Authorization Helpers", () => {
       } as any);
 
       await expect(requireCanMessage("student-456")).rejects.toThrow(
-        "Parents can only message staff, chapter leads, and instructors"
+        "Parents can only message staff, chapter presidents, and instructors"
       );
     });
 
@@ -315,16 +315,16 @@ describe("Authorization Helpers", () => {
       );
     });
 
-    it("should allow chapter leads to access attendance", async () => {
+    it("should allow chapter presidents to access attendance", async () => {
       vi.mocked(authorization.requireSessionUser).mockResolvedValue({
         id: "lead-123",
-        roles: ["CHAPTER_LEAD"],
-        primaryRole: "CHAPTER_LEAD",
+        roles: ["CHAPTER_PRESIDENT"],
+        primaryRole: "CHAPTER_PRESIDENT",
       });
 
       const result = await requireAttendanceAccess();
 
-      expect(result.roles).toContain("CHAPTER_LEAD");
+      expect(result.roles).toContain("CHAPTER_PRESIDENT");
     });
   });
 

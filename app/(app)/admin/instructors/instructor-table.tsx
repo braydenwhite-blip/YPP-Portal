@@ -11,7 +11,7 @@ interface Instructor {
   chapter: string;
   chapterId: string;
   approvalStatus: string;
-  approvedLevels: string;
+  approvalSummary: string;
   trainingProgress: string;
   trainingPercent: number;
   coursesCount: number;
@@ -48,14 +48,14 @@ export default function InstructorTable({
     { key: "chapter", label: "Chapter" },
     {
       key: "approvalStatus",
-      label: "Status",
+      label: "Publish Workflow",
       render: (item: Instructor) => (
         <span className={`pill ${getStatusClass(item.approvalStatus)}`}>
-          {item.approvalStatus.replace("_", " ")}
+          {formatStatusLabel(item.approvalStatus)}
         </span>
       )
     },
-    { key: "approvedLevels", label: "Levels" },
+    { key: "approvalSummary", label: "Offering Approvals" },
     {
       key: "trainingProgress",
       label: "Training",
@@ -85,10 +85,12 @@ export default function InstructorTable({
       key: "approvalStatus",
       label: "All Statuses",
       options: [
+        { value: "APPROVAL_READY", label: "Approval Ready" },
+        { value: "APPROVAL_IN_REVIEW", label: "Approval In Review" },
+        { value: "CHANGES_REQUESTED", label: "Changes Requested" },
         { value: "INTERVIEW_PENDING", label: "Interview Pending" },
         { value: "TRAINING_IN_PROGRESS", label: "Training In Progress" },
         { value: "APPROVED", label: "Approved" },
-        { value: "PAUSED", label: "Paused" }
       ]
     }
   ];
@@ -146,13 +148,30 @@ function getStatusClass(status: string): string {
   switch (status) {
     case "APPROVED":
       return "pill-success";
+    case "APPROVAL_READY":
+      return "pill-info";
+    case "APPROVAL_IN_REVIEW":
+      return "pill-pathway";
+    case "CHANGES_REQUESTED":
+      return "pill-declined";
     case "TRAINING_IN_PROGRESS":
       return "pill-pathway";
     case "INTERVIEW_PENDING":
       return "";
-    case "PAUSED":
-      return "pill-declined";
     default:
       return "";
+  }
+}
+
+function formatStatusLabel(status: string): string {
+  switch (status) {
+    case "APPROVAL_READY":
+      return "Approval Ready";
+    case "APPROVAL_IN_REVIEW":
+      return "Approval In Review";
+    case "CHANGES_REQUESTED":
+      return "Changes Requested";
+    default:
+      return status.replace(/_/g, " ");
   }
 }

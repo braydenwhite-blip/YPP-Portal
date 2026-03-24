@@ -124,7 +124,7 @@ export default async function BulkUserManagementPage({
               <select id="rolePreset" name="rolePreset" className="input" defaultValue="">
                 <option value="">Use CSV role per row</option>
                 <option value="INSTRUCTOR">Instructor Pilot</option>
-                <option value="CHAPTER_LEAD">Chapter President</option>
+                <option value="CHAPTER_PRESIDENT">Chapter President</option>
                 <option value="STUDENT">Student Cohort</option>
                 <option value="PARENT">Parent Accounts</option>
               </select>
@@ -215,7 +215,7 @@ export default async function BulkUserManagementPage({
                 <option value="INSTRUCTOR">Instructor</option>
                 <option value="MENTOR">Mentor</option>
                 <option value="PARENT">Parent</option>
-                <option value="CHAPTER_LEAD">Chapter Lead</option>
+                <option value="CHAPTER_PRESIDENT">Chapter President</option>
                 <option value="STAFF">Staff</option>
                 <option value="ADMIN">Admin</option>
               </select>

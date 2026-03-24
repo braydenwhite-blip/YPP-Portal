@@ -16,7 +16,7 @@ export default async function AdminStaffPage() {
       OR: [
         { roles: { some: { role: "STAFF" } } },
         { roles: { some: { role: "INSTRUCTOR" } } },
-        { roles: { some: { role: "CHAPTER_LEAD" } } }
+        { roles: { some: { role: "CHAPTER_PRESIDENT" } } }
       ]
     },
     include: {

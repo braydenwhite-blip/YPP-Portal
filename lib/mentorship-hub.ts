@@ -11,7 +11,7 @@ import { getMentorshipAccessibleMenteeIds } from "@/lib/mentorship-access";
 import { mentorshipRequiresMonthlyReflection } from "@/lib/mentorship-canonical";
 import { prisma } from "@/lib/prisma";
 
-const MENTOR_ROLES = ["MENTOR", "INSTRUCTOR", "CHAPTER_LEAD", "ADMIN", "STAFF"] as const;
+const MENTOR_ROLES = ["MENTOR", "INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as const;
 
 export const SUPPORT_ROLE_META: Record<
   SupportRole,
@@ -63,7 +63,7 @@ export const MENTORSHIP_RESOURCE_TYPE_META: Record<
 
 export function getMentorshipRoleFlags(roles: string[]) {
   const isAdmin = roles.includes("ADMIN");
-  const isChapterLead = roles.includes("CHAPTER_LEAD");
+  const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
   const isStudent = roles.includes("STUDENT");
   const isMentor = roles.some((role) => MENTOR_ROLES.includes(role as (typeof MENTOR_ROLES)[number]));
   return {

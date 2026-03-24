@@ -37,11 +37,11 @@ export default async function ChapterPresidentPage() {
     );
   }
 
-  // Find the chapter president (user with CHAPTER_LEAD role in this chapter)
+  // Find the chapter president (user with CHAPTER_PRESIDENT role in this chapter)
   const chapterPresident = await prisma.user.findFirst({
     where: {
       chapterId: currentUser.chapter.id,
-      roles: { some: { role: "CHAPTER_LEAD" } },
+      roles: { some: { role: "CHAPTER_PRESIDENT" } },
     },
   });
 

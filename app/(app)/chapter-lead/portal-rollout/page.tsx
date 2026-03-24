@@ -30,20 +30,20 @@ function buildChapterFallbackTasks({
 }): RolloutTask[] {
   return [
     {
-      phase: "Chapter Leadership Alignment",
-      owner: "Chapter Lead",
+      phase: "Chapter Presidentership Alignment",
+      owner: "Chapter President",
       dueDate: "2026-02-20",
       status: "IN_PROGRESS",
     },
     {
       phase: "Instructor Pilot Readiness",
-      owner: "Chapter Lead + Instructors",
+      owner: "Chapter President + Instructors",
       dueDate: "2026-03-13",
       status: readyInstructors >= 3 ? "IN_PROGRESS" : "BLOCKED",
       blocker:
         readyInstructors >= 3
           ? undefined
-          : "Need at least 3 publish-ready instructors in chapter.",
+          : "Need at least 3 approval-ready instructors in chapter.",
     },
     {
       phase: "Student Activation",
@@ -67,7 +67,7 @@ function buildChapterFallbackTasks({
 export default async function ChapterLeadPortalRolloutPage() {
   const session = await getServerSession(authOptions);
   const roles = session?.user?.roles ?? [];
-  if (!session?.user?.id || (!roles.includes("CHAPTER_LEAD") && !roles.includes("ADMIN"))) {
+  if (!session?.user?.id || (!roles.includes("CHAPTER_PRESIDENT") && !roles.includes("ADMIN"))) {
     redirect("/");
   }
 
@@ -84,7 +84,7 @@ export default async function ChapterLeadPortalRolloutPage() {
       <div>
         <div className="topbar">
           <div>
-            <p className="badge">Chapter Lead</p>
+            <p className="badge">Chapter President</p>
             <h1 className="page-title">Chapter Rollout Command Center</h1>
           </div>
         </div>
@@ -127,7 +127,7 @@ export default async function ChapterLeadPortalRolloutPage() {
     instructors.map(async (instructor) => getInstructorReadiness(instructor.id))
   );
 
-  const readyInstructors = readinessResults.filter((r) => r.canPublishFirstOffering).length;
+  const readyInstructors = readinessResults.filter((r) => r.baseReadinessComplete).length;
 
   const fallbackTasks = buildChapterFallbackTasks({
     readyInstructors,
@@ -189,7 +189,7 @@ export default async function ChapterLeadPortalRolloutPage() {
     <div>
       <div className="topbar">
         <div>
-          <p className="badge">Chapter Lead</p>
+          <p className="badge">Chapter President</p>
           <h1 className="page-title">Chapter Rollout Command Center</h1>
           <p className="page-subtitle">{user.chapter?.name}</p>
         </div>
@@ -202,7 +202,7 @@ export default async function ChapterLeadPortalRolloutPage() {
         </div>
         <div className="card">
           <div className="kpi">{readyInstructors}</div>
-          <div className="kpi-label">Publish-Ready Instructors</div>
+          <div className="kpi-label">Approval-Ready Instructors</div>
         </div>
         <div className="card">
           <div className="kpi">{activeEnrollments}</div>

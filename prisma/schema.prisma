@@ -23,6 +23,7 @@ enum RoleType {
   STUDENT
   MENTOR
   CHAPTER_LEAD
+  CHAPTER_PRESIDENT
   STAFF
   PARENT
   APPLICANT
@@ -531,6 +532,8 @@ model User {
   readinessReviewDecisions       ReadinessReviewRequest[]                 @relation("ReadinessReviewDecisions")
   teachingPermissions            InstructorTeachingPermission[]           @relation("TeachingPermissions")
   teachingPermissionGrants       InstructorTeachingPermission[]           @relation("TeachingPermissionGrants")
+  offeringApprovalRequests       ClassOfferingApproval[]                  @relation("ClassOfferingApprovalRequests")
+  offeringApprovalReviews        ClassOfferingApproval[]                  @relation("ClassOfferingApprovalReviews")
   interviewGate                  InstructorInterviewGate?                 @relation("InstructorInterviewGateOwner")
   interviewGateReviews           InstructorInterviewGate[]                @relation("InstructorInterviewGateReviews")
   interviewSlotsCreated          InstructorInterviewSlot[]                @relation("InstructorInterviewSlotsCreated")
@@ -5514,6 +5517,15 @@ enum PathwayFallbackRequestStatus {
   CANCELLED
 }
 
+enum ClassOfferingApprovalStatus {
+  NOT_REQUESTED
+  REQUESTED
+  UNDER_REVIEW
+  APPROVED
+  CHANGES_REQUESTED
+  REJECTED
+}
+
 // Class template: reusable curriculum design (Feature #61, #62, #63, #64)
 model ClassTemplate {
   id              String          @id @default(cuid())
@@ -5521,6 +5533,8 @@ model ClassTemplate {
   description     String          @db.Text
   interestArea    String // Passion area (matches existing pattern)
   difficultyLevel DifficultyLevel @default(LEVEL_101)
+  learnerFitLabel String?
+  learnerFitDescription String?   @db.Text
   prerequisites   String[] // e.g., ["ART-101", "ART-102"]
 
   // Curriculum (Feature #61)
@@ -5625,6 +5639,7 @@ model ClassOffering {
   assignments      ClassAssignment[]
   announcements    ClassAnnouncement[]
   fallbackRequests PathwayFallbackRequest[]
+  approval         ClassOfferingApproval?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -5635,6 +5650,27 @@ model ClassOffering {
   @@index([status])
   @@index([chapterId])
   @@index([pathwayStepId])
+}
+
+model ClassOfferingApproval {
+  id            String                     @id @default(cuid())
+  offeringId     String                     @unique
+  offering       ClassOffering              @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  status         ClassOfferingApprovalStatus @default(NOT_REQUESTED)
+  requestedById  String?
+  requestedBy    User?                      @relation("ClassOfferingApprovalRequests", fields: [requestedById], references: [id])
+  requestNotes   String?                    @db.Text
+  requestedAt    DateTime?
+  reviewedById   String?
+  reviewedBy     User?                      @relation("ClassOfferingApprovalReviews", fields: [reviewedById], references: [id])
+  reviewNotes    String?                    @db.Text
+  reviewedAt     DateTime?
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+
+  @@index([status])
+  @@index([requestedById])
+  @@index([reviewedById])
 }
 
 // Individual class session (meeting) within an offering
@@ -8270,7 +8306,7 @@ model CurriculumDraft {
   description         String?               @db.Text
   interestArea        String                @default("")
   outcomes            String[]
-  courseConfig        Json                  @default("{\"durationWeeks\":8,\"sessionsPerWeek\":1,\"classDurationMin\":60,\"targetAgeGroup\":\"\",\"deliveryModes\":[\"VIRTUAL\"],\"difficultyLevel\":\"LEVEL_101\",\"minStudents\":3,\"maxStudents\":25,\"idealSize\":12,\"estimatedHours\":8}")
+  courseConfig        Json                  @default("{\"durationWeeks\":8,\"sessionsPerWeek\":1,\"classDurationMin\":60,\"targetAgeGroup\":\"\",\"deliveryModes\":[\"VIRTUAL\"],\"difficultyLevel\":\"LEVEL_101\",\"learnerFitLabel\":\"Best for first-time learners\",\"learnerFitDescription\":\"No prior experience needed.\",\"minStudents\":3,\"maxStudents\":25,\"idealSize\":12,\"estimatedHours\":8}")
   weeklyPlans         Json                  @default("[]")
   understandingChecks Json                  @default("{\"answers\":{},\"lastScorePct\":null,\"passed\":false,\"completedAt\":null}")
   reviewRubric        Json?

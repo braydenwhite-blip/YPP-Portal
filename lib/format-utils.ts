@@ -1,7 +1,7 @@
 /**
  * Convert a database enum string to a human-readable label.
  * e.g. "BEHIND_SCHEDULE" → "Behind Schedule"
- *      "CHAPTER_LEAD"    → "Chapter Lead"
+ *      "CHAPTER_PRESIDENT"    → "Chapter President"
  *      "LEVEL_101"       → "Level 101"
  */
 export function formatEnum(str: string): string {

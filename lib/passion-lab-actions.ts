@@ -25,7 +25,7 @@ async function requireInstructor() {
     !session?.user?.id ||
     (!roles.includes("ADMIN") &&
       !roles.includes("INSTRUCTOR") &&
-      !roles.includes("CHAPTER_LEAD"))
+      !roles.includes("CHAPTER_PRESIDENT"))
   ) {
     throw new Error("Unauthorized – instructor role required");
   }
@@ -435,8 +435,8 @@ export async function requestPassionLabRevision(id: string, notes: string) {
   await requirePassionLabBuilderSchema();
 
   const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_LEAD")) {
-    throw new Error("Only admins and chapter leads can request revisions");
+  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT")) {
+    throw new Error("Only admins and chapter presidents can request revisions");
   }
 
   await prisma.specialProgram.update({
@@ -457,8 +457,8 @@ export async function approvePassionLabReview(id: string) {
   await requirePassionLabBuilderSchema();
 
   const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_LEAD")) {
-    throw new Error("Only admins and chapter leads can approve passion labs");
+  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT")) {
+    throw new Error("Only admins and chapter presidents can approve passion labs");
   }
 
   await prisma.specialProgram.update({

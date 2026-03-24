@@ -17,7 +17,7 @@ export type ActivityAudience =
   | "PARENT"
   | "MENTOR"
   | "INSTRUCTOR"
-  | "CHAPTER_LEAD"
+  | "CHAPTER_PRESIDENT"
   | "ADMIN"
   | "STAFF";
 

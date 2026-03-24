@@ -75,7 +75,7 @@ export default async function IncubatorProjectPage({ params }: { params: { id: s
   );
   const isAdmin = roleSet.has("ADMIN");
   const isInstructor = roleSet.has("INSTRUCTOR");
-  const isChapterLead = roleSet.has("CHAPTER_LEAD");
+  const isChapterLead = roleSet.has("CHAPTER_PRESIDENT");
   const isMentor = project.mentors.some((mentor) => mentor.mentorId === session.user.id);
   const canReview = !isOwner && (isAdmin || isInstructor || isChapterLead || isMentor);
   const phaseIndex = INCUBATOR_PHASES.indexOf(project.currentPhase);

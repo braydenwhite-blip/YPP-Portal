@@ -54,7 +54,7 @@ export default async function ChapterRecruitingPage({
   }
 
   const roles = user.roles.map((role) => role.role);
-  const canAccess = roles.includes("CHAPTER_LEAD") || roles.includes("ADMIN");
+  const canAccess = roles.includes("CHAPTER_PRESIDENT") || roles.includes("ADMIN");
 
   if (!canAccess) {
     redirect("/");

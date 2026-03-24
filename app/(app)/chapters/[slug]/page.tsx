@@ -314,10 +314,10 @@ export default async function ChapterProfilePage({
                 <>This chapter is open to everyone. Click &ldquo;Join Chapter&rdquo; to become a member instantly.</>
               )}
               {chapter.joinPolicy === "APPROVAL" && (
-                <>This chapter requires approval. Submit a request and the chapter lead will review your application.</>
+                <>This chapter requires approval. Submit a request and the chapter president will review your application.</>
               )}
               {chapter.joinPolicy === "INVITE_ONLY" && (
-                <>This chapter is invite-only. Contact the chapter leadership for an invitation.</>
+                <>This chapter is invite-only. Contact the chapter president team for an invitation.</>
               )}
             </p>
           </div>

@@ -13,7 +13,7 @@ Canonical route:
 3. Can make final decisions for all position types.
 4. Keeps override authority for protected/global roles.
 
-### 2.2 Chapter Lead
+### 2.2 Chapter President
 1. Can manage positions only in their own chapter.
 2. Can run interview actions only for applications in their own chapter.
 3. Can make final decisions only for chapter-scoped types:
@@ -74,15 +74,15 @@ Use `/positions` filters to verify discoverability by:
 4. Open/closed status.
 
 ## 6. Decision Authority Matrix
-1. `INSTRUCTOR`: Chapter Lead (same chapter) or Admin
-2. `MENTOR`: Chapter Lead (same chapter) or Admin
-3. `STAFF`: Chapter Lead (same chapter) or Admin
-4. `CHAPTER_PRESIDENT`: Chapter Lead (same chapter) or Admin
+1. `INSTRUCTOR`: Chapter President (same chapter) or Admin
+2. `MENTOR`: Chapter President (same chapter) or Admin
+3. `STAFF`: Chapter President (same chapter) or Admin
+4. `CHAPTER_PRESIDENT`: Chapter President (same chapter) or Admin
 5. `GLOBAL_ADMIN`: Admin only
 
 ## 7. Escalation Path
 1. If role type is `GLOBAL_ADMIN`: escalate to Admin reviewer immediately.
-2. If candidate belongs to another chapter: escalate to that chapter lead or Admin.
+2. If candidate belongs to another chapter: escalate to that chapter president or Admin.
 3. If chapter assignment is missing/wrong: escalate to Admin to correct user/position chapter mapping.
 4. If interview timeline is inconsistent (e.g., completed before confirmed): escalate to Admin to normalize slot state in workspace.
 

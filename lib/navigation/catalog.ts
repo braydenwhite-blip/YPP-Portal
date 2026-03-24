@@ -4,15 +4,15 @@ type CatalogInput = Omit<NavLink, "group" | "priority" | "coreEligible"> & {
   coreEligible?: boolean;
 };
 
-const INSTRUCTOR_ROLES: NavRole[] = ["INSTRUCTOR", "ADMIN", "CHAPTER_LEAD"];
-const INSTRUCTOR_AND_APPLICANT_ROLES: NavRole[] = ["APPLICANT", "INSTRUCTOR", "ADMIN", "CHAPTER_LEAD"];
-const MENTOR_ROLES: NavRole[] = ["MENTOR", "CHAPTER_LEAD", "ADMIN"];
+const INSTRUCTOR_ROLES: NavRole[] = ["INSTRUCTOR", "ADMIN", "CHAPTER_PRESIDENT"];
+const INSTRUCTOR_AND_APPLICANT_ROLES: NavRole[] = ["APPLICANT", "INSTRUCTOR", "ADMIN", "CHAPTER_PRESIDENT"];
+const MENTOR_ROLES: NavRole[] = ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"];
 const APPLICANT_ROLES: NavRole[] = ["APPLICANT", "STUDENT", "INSTRUCTOR", "STAFF", "ADMIN"];
-const INTERVIEW_ROLES: NavRole[] = ["STUDENT", "INSTRUCTOR", "STAFF", "ADMIN", "CHAPTER_LEAD"];
+const INTERVIEW_ROLES: NavRole[] = ["STUDENT", "INSTRUCTOR", "STAFF", "ADMIN", "CHAPTER_PRESIDENT"];
 const ADMIN_ONLY: NavRole[] = ["ADMIN"];
 const PARENT_ONLY: NavRole[] = ["PARENT"];
 const STUDENT_ONLY: NavRole[] = ["STUDENT"];
-const CHAPTER_LEAD_ONLY: NavRole[] = ["CHAPTER_LEAD"];
+const CHAPTER_PRESIDENT_ONLY: NavRole[] = ["CHAPTER_PRESIDENT"];
 const INSTRUCTOR_APPLICANT_ONLY: NavRole[] = ["APPLICANT"];
 
 function groupLinks(group: NavGroup, basePriority: number, links: CatalogInput[]): NavLink[] {
@@ -118,7 +118,7 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/messages",
       label: "Messages",
       icon: "✉",
-      roles: ["STUDENT", "INSTRUCTOR", "ADMIN", "CHAPTER_LEAD", "MENTOR", "STAFF", "APPLICANT"] as NavRole[],
+      roles: ["STUDENT", "INSTRUCTOR", "ADMIN", "CHAPTER_PRESIDENT", "MENTOR", "STAFF", "APPLICANT"] as NavRole[],
       badgeKey: "messages",
       dashboardBadgeKey: "unread_messages",
       dashboardDescription: "Open direct messages and team conversations.",
@@ -192,7 +192,7 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/reflection",
       label: "Monthly Reflection",
       icon: "📝",
-      roles: ["INSTRUCTOR", "CHAPTER_LEAD"],
+      roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT"],
     },
     {
       href: "/instructor-training",
@@ -363,14 +363,14 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/my-program",
       label: "My Program",
       icon: "🎯",
-      roles: ["INSTRUCTOR", "CHAPTER_LEAD", "ADMIN", "STAFF"] as NavRole[],
+      roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
       dashboardDescription: "Submit monthly reflections and view goal reviews for the YPP Mentorship Program.",
     },
     {
       href: "/my-program/gr",
       label: "My G&R",
       icon: "📋",
-      roles: ["INSTRUCTOR", "CHAPTER_LEAD", "ADMIN", "STAFF"] as NavRole[],
+      roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
       featureKey: "GR_SYSTEM",
       dashboardDescription: "View your Goals & Responsibilities document, track progress, and update your plan of action.",
       dashboardPriority: 5,
@@ -379,14 +379,14 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/mentorship-program",
       label: "Program Overview",
       icon: "📋",
-      roles: ["MENTOR", "CHAPTER_LEAD", "ADMIN"] as NavRole[],
+      roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
       dashboardDescription: "View all active mentees, cycle status, and program-wide actions at a glance.",
     },
     {
       href: "/mentorship-program/reviews",
       label: "Review Queue",
       icon: "📝",
-      roles: ["MENTOR", "CHAPTER_LEAD", "ADMIN"] as NavRole[],
+      roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
       dashboardDescription: "Write and submit monthly goal reviews for your assigned mentees.",
     },
     {
@@ -400,35 +400,35 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/mentorship-program/awards",
       label: "Awards",
       icon: "🏆",
-      roles: ["MENTOR", "CHAPTER_LEAD", "ADMIN"] as NavRole[],
+      roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
       dashboardDescription: "Nominate mentees for Bronze, Silver, Gold, and Lifetime achievement awards.",
     },
     {
       href: "/my-program/awards",
       label: "My Awards",
       icon: "🏅",
-      roles: ["INSTRUCTOR", "CHAPTER_LEAD", "ADMIN", "STAFF"] as NavRole[],
+      roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
       dashboardDescription: "View your achievement points, tier progress, and award nominations.",
     },
     {
       href: "/my-program/achievement-journey",
       label: "Achievement Journey",
       icon: "🏆",
-      roles: ["INSTRUCTOR", "CHAPTER_LEAD", "ADMIN", "STAFF"] as NavRole[],
+      roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
       dashboardDescription: "Visualize your tier progress, earning velocity, and point history.",
     },
     {
       href: "/my-program/schedule",
       label: "Schedule Meeting",
       icon: "📅",
-      roles: ["INSTRUCTOR", "CHAPTER_LEAD", "ADMIN", "STAFF"] as NavRole[],
+      roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
       dashboardDescription: "Request a meeting with your mentor or manage upcoming sessions.",
     },
     {
       href: "/mentorship-program/schedule",
       label: "Meeting Requests",
       icon: "📨",
-      roles: ["MENTOR", "CHAPTER_LEAD", "ADMIN"] as NavRole[],
+      roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
       dashboardDescription: "Review and confirm incoming meeting requests from your mentees.",
     },
     {
@@ -447,21 +447,21 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/my-program/certificate",
       label: "My Certificate",
       icon: "📜",
-      roles: ["INSTRUCTOR", "CHAPTER_LEAD", "ADMIN", "STAFF"] as NavRole[],
+      roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
       dashboardDescription: "Download your achievement certificate and volunteer hours verification letter.",
     },
     {
       href: "/college-advisor/roadmap",
       label: "College Roadmap",
       icon: "🎓",
-      roles: ["INSTRUCTOR", "CHAPTER_LEAD", "ADMIN", "STAFF"] as NavRole[],
+      roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
       dashboardDescription: "Follow your personalized college readiness journey from exploration to transition.",
     },
     {
       href: "/college-advisor/activities",
       label: "Activities Builder",
       icon: "📋",
-      roles: ["INSTRUCTOR", "CHAPTER_LEAD", "ADMIN", "STAFF"] as NavRole[],
+      roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
       dashboardDescription: "Build your extracurricular portfolio and export in Common App format.",
     },
     {
@@ -493,7 +493,7 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/instructor/parent-feedback",
       label: "Parent Feedback",
       icon: "💬",
-      roles: ["INSTRUCTOR", "CHAPTER_LEAD"] as NavRole[],
+      roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT"] as NavRole[],
       dashboardDescription: "View parent feedback and communications for your classes.",
       dashboardPriority: 13,
     },
@@ -501,7 +501,7 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/instructor/parent-messages",
       label: "Parent Messages",
       icon: "✉",
-      roles: ["INSTRUCTOR", "CHAPTER_LEAD"] as NavRole[],
+      roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT"] as NavRole[],
       dashboardDescription: "Reply to direct messages from parents of your enrolled students.",
       dashboardPriority: 14,
     },
@@ -533,7 +533,7 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/chapter",
       label: "My Chapter",
       icon: "🏠",
-      roles: CHAPTER_LEAD_ONLY,
+      roles: CHAPTER_PRESIDENT_ONLY,
       dashboardDescription: "Open chapter performance, members, and operations.",
       dashboardPriority: 6,
     },
@@ -546,7 +546,7 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/chapter/calendar",
       label: "Chapter Calendar",
       icon: "🗓",
-      roles: CHAPTER_LEAD_ONLY,
+      roles: CHAPTER_PRESIDENT_ONLY,
       dashboardDescription: "Create chapter events, recurring series, and public calendar items.",
       dashboardPriority: 4,
     },
@@ -554,13 +554,13 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/chapter/onboarding",
       label: "CP Onboarding",
       icon: "🎓",
-      roles: CHAPTER_LEAD_ONLY,
+      roles: CHAPTER_PRESIDENT_ONLY,
     },
     {
       href: "/chapter/recruiting",
       label: "Chapter Recruiting",
       icon: "🧑‍💼",
-      roles: CHAPTER_LEAD_ONLY,
+      roles: CHAPTER_PRESIDENT_ONLY,
       dashboardDescription: "Manage openings, candidates, interviews, and decisions.",
       dashboardPriority: 2,
       dashboardBadgeKey: "chapter_recruiting_queue",
@@ -597,13 +597,13 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/chapter/invites",
       label: "Invite Links",
       icon: "🔗",
-      roles: CHAPTER_LEAD_ONLY,
+      roles: CHAPTER_PRESIDENT_ONLY,
       dashboardDescription: "Create and manage shareable invite links to grow your chapter.",
       dashboardPriority: 23,
     },
     {
       href: "/chapters/leaderboard",
-      label: "Chapter Leaderboard",
+      label: "Chapter Presidenterboard",
       icon: "🏆",
       dashboardDescription: "See how chapters across the network are growing.",
       dashboardPriority: 24,
@@ -612,7 +612,7 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/chapter/settings",
       label: "Chapter Settings",
       icon: "⚙️",
-      roles: CHAPTER_LEAD_ONLY,
+      roles: CHAPTER_PRESIDENT_ONLY,
       dashboardDescription: "Customize your chapter profile, branding, and join policy.",
       dashboardPriority: 20,
     },
@@ -620,7 +620,7 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/chapter-lead/dashboard",
       label: "Chapter Dashboard",
       icon: "📊",
-      roles: CHAPTER_LEAD_ONLY,
+      roles: CHAPTER_PRESIDENT_ONLY,
       dashboardDescription: "Review chapter-wide KPIs and activity.",
       dashboardPriority: 15,
     },
@@ -628,7 +628,7 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/chapter-lead/instructor-applicants",
       label: "Instructor Applicants",
       icon: "📝",
-      roles: CHAPTER_LEAD_ONLY,
+      roles: CHAPTER_PRESIDENT_ONLY,
       dashboardDescription: "Review and approve instructor applications for your chapter.",
       dashboardPriority: 6,
     },
@@ -636,7 +636,7 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/chapter-lead/instructor-readiness",
       label: "Instructor Readiness",
       icon: "✅",
-      roles: CHAPTER_LEAD_ONLY,
+      roles: CHAPTER_PRESIDENT_ONLY,
       dashboardDescription: "Clear instructor training and interview blockers.",
       dashboardPriority: 7,
       dashboardBadgeKey: "instructor_readiness_blockers",
@@ -645,7 +645,7 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/chapter-lead/portal-rollout",
       label: "Rollout Command",
       icon: "🗓",
-      roles: CHAPTER_LEAD_ONLY,
+      roles: CHAPTER_PRESIDENT_ONLY,
       dashboardDescription: "Track chapter rollout timeline, owners, and blockers.",
       dashboardPriority: 5,
     },
@@ -786,15 +786,15 @@ export const NAV_CATALOG: NavLink[] = [
     { href: "/admin/goals", label: "Goals", icon: "🎯", roles: ADMIN_ONLY },
     { href: "/admin/reflections", label: "Self-Reflections", icon: "💭", roles: ADMIN_ONLY },
     { href: "/admin/reflection-forms", label: "Reflection Forms", icon: "📋", roles: ADMIN_ONLY },
-    { href: "/admin/challenges", label: "Challenges Mgmt", icon: "⚡", roles: ["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"] },
-    { href: "/admin/activities", label: "Activities Mgmt", icon: "🧭", roles: ["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"] },
-    { href: "/admin/passions", label: "Passion Areas", icon: "🌍", roles: ["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"] },
-    { href: "/admin/incubator", label: "Incubator Mgmt", icon: "🚀", roles: ["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"] },
+    { href: "/admin/challenges", label: "Challenges Mgmt", icon: "⚡", roles: ["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"] },
+    { href: "/admin/activities", label: "Activities Mgmt", icon: "🧭", roles: ["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"] },
+    { href: "/admin/passions", label: "Passion Areas", icon: "🌍", roles: ["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"] },
+    { href: "/admin/incubator", label: "Incubator Mgmt", icon: "🚀", roles: ["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"] },
     {
       href: "/admin/curricula",
       label: "Curriculum Review",
       icon: "📝",
-      roles: ["ADMIN", "CHAPTER_LEAD"] as NavRole[],
+      roles: ["ADMIN", "CHAPTER_PRESIDENT"] as NavRole[],
       dashboardDescription: "Review and approve instructor-submitted curricula before they go live.",
       dashboardPriority: 8,
       dashboardBadgeKey: "pending_curriculum_review",

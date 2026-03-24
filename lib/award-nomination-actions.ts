@@ -28,7 +28,7 @@ async function requireChairOrAdmin() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) throw new Error("Unauthorized");
   const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN") && !roles.includes("MENTOR") && !roles.includes("CHAPTER_LEAD")) {
+  if (!roles.includes("ADMIN") && !roles.includes("MENTOR") && !roles.includes("CHAPTER_PRESIDENT")) {
     throw new Error("Unauthorized");
   }
   return session as typeof session & { user: { id: string } };
@@ -52,7 +52,7 @@ export async function getEligibleMentees() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return null;
   const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN") && !roles.includes("MENTOR") && !roles.includes("CHAPTER_LEAD")) return null;
+  if (!roles.includes("ADMIN") && !roles.includes("MENTOR") && !roles.includes("CHAPTER_PRESIDENT")) return null;
 
   // All mentees with a point summary
   const summaries = await prisma.achievementPointSummary.findMany({
@@ -106,7 +106,7 @@ export async function getNominationQueue() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return null;
   const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN") && !roles.includes("MENTOR") && !roles.includes("CHAPTER_LEAD")) return null;
+  if (!roles.includes("ADMIN") && !roles.includes("MENTOR") && !roles.includes("CHAPTER_PRESIDENT")) return null;
 
   const nominations = await prisma.awardNomination.findMany({
     include: {

@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { createClassTemplate } from "@/lib/class-management-actions";
+import { getLegacyLearnerFitCopy } from "@/lib/learner-fit";
 import { useRouter } from "next/navigation";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import {
@@ -15,6 +16,7 @@ import { FieldLabel } from "@/components/field-help";
 import { curriculumHelp } from "@/data/instructor-guide-content";
 
 export function CurriculumBuilderClient() {
+  const defaultLearnerFit = getLegacyLearnerFitCopy("LEVEL_101");
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -23,6 +25,9 @@ export function CurriculumBuilderClient() {
   const [description, setDescription] = useState<string | null>(null);
   const [numLessons, setNumLessons] = useState(8);
   const [classDurationMin, setClassDurationMin] = useState(60);
+  const [learnerFitLevel, setLearnerFitLevel] = useState("LEVEL_101");
+  const [learnerFitLabel, setLearnerFitLabel] = useState(defaultLearnerFit.label);
+  const [learnerFitDescription, setLearnerFitDescription] = useState(defaultLearnerFit.description);
   const [lessons, setLessons] = useState<CurriculumLessonBlueprint[]>(() =>
     Array.from({ length: 8 }, emptyCurriculumLessonBlueprint)
   );
@@ -63,6 +68,13 @@ export function CurriculumBuilderClient() {
     setEngagement((prev) => ({ ...prev, [field]: value }));
   }
 
+  function handleLearnerFitLevelChange(nextLevel: string) {
+    const nextFit = getLegacyLearnerFitCopy(nextLevel);
+    setLearnerFitLevel(nextLevel);
+    setLearnerFitLabel(nextFit.label);
+    setLearnerFitDescription(nextFit.description);
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
@@ -89,6 +101,9 @@ export function CurriculumBuilderClient() {
 
       formData.set("weeklyTopics", JSON.stringify(weeklyTopics));
       formData.set("durationWeeks", String(numLessons));
+      formData.set("difficultyLevel", learnerFitLevel);
+      formData.set("learnerFitLabel", learnerFitLabel);
+      formData.set("learnerFitDescription", learnerFitDescription);
       // Override description with RichTextEditor JSON if state is set
       if (description) formData.set("description", description);
       formData.set("engagementStrategy", JSON.stringify(engagement));
@@ -202,13 +217,22 @@ export function CurriculumBuilderClient() {
           </div>
 
           <div>
-            <label style={labelStyle}>Difficulty Level *</label>
-            <select name="difficultyLevel" style={inputStyle} required>
-              <option value="LEVEL_101">101 — Beginner</option>
-              <option value="LEVEL_201">201 — Intermediate</option>
-              <option value="LEVEL_301">301 — Advanced</option>
-              <option value="LEVEL_401">401 — Expert</option>
+            <FieldLabel label="Learner Fit" required />
+            <select
+              name="difficultyLevel"
+              style={inputStyle}
+              required
+              value={learnerFitLevel}
+              onChange={(e) => handleLearnerFitLevelChange(e.target.value)}
+            >
+              <option value="LEVEL_101">Best for first-time learners</option>
+              <option value="LEVEL_201">Great if you&apos;ve tried the basics</option>
+              <option value="LEVEL_301">Best if you can work more independently</option>
+              <option value="LEVEL_401">Best if you&apos;re ready for advanced project work</option>
             </select>
+            <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "6px 0 0" }}>
+              This replaces the old numeric level labels in the live product.
+            </p>
           </div>
 
           <div>
@@ -265,6 +289,35 @@ export function CurriculumBuilderClient() {
               onChange={setDescription}
               placeholder="A brief overview of the course for students and parents..."
               minHeight={80}
+            />
+          </div>
+
+          <div>
+            <FieldLabel label="Learner Fit Label" required />
+            <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 6px" }}>
+              Short text shown on class cards so students can quickly tell whether this class fits them.
+            </p>
+            <input
+              name="learnerFitLabel"
+              style={inputStyle}
+              value={learnerFitLabel}
+              onChange={(e) => setLearnerFitLabel(e.target.value)}
+              placeholder="e.g., Best for first-time learners"
+            />
+          </div>
+
+          <div>
+            <FieldLabel label="Who This Is For" required />
+            <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 6px" }}>
+              One clear sentence that explains the kind of learner this course is designed for.
+            </p>
+            <textarea
+              name="learnerFitDescription"
+              style={textareaStyle}
+              rows={2}
+              value={learnerFitDescription}
+              onChange={(e) => setLearnerFitDescription(e.target.value)}
+              placeholder="No prior experience needed."
             />
           </div>
         </div>
@@ -771,7 +824,7 @@ export function CurriculumBuilderClient() {
       <div className="card">
         <h3 style={{ marginBottom: 8 }}>Save Your Curriculum</h3>
         <div style={{ padding: "12px 16px", background: "#f0f9ff", borderRadius: 10, marginBottom: 16, fontSize: 14 }}>
-          <strong>How it works:</strong> Save as a Draft anytime while building. When you&apos;re finished, find your curriculum in &apos;Your Curricula&apos; above and click <strong>Submit for Review</strong> — your chapter lead or admin will then review and approve it.
+          <strong>How it works:</strong> Save as a Draft anytime while building. When you&apos;re finished, find your curriculum in &apos;Your Curricula&apos; above and click <strong>Submit for Review</strong> — your chapter president or an admin will then review and approve it.
         </div>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <button type="submit" className="button primary" disabled={loading} style={{ minWidth: 140 }}>

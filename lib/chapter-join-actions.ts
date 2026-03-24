@@ -127,7 +127,7 @@ export async function getChapterBySlug(slug: string) {
         },
         users: {
           where: {
-            roles: { some: { role: { in: ["CHAPTER_LEAD", "ADMIN"] } } },
+            roles: { some: { role: { in: ["CHAPTER_PRESIDENT", "ADMIN"] } } },
           },
           select: { id: true, name: true, primaryRole: true },
           take: 5,
@@ -257,7 +257,7 @@ export async function joinChapter(chapterId: string, message?: string) {
   if (!chapter) throw new Error("Chapter not found");
 
   if (chapter.joinPolicy === "INVITE_ONLY") {
-    throw new Error("This chapter is invite-only. Contact the chapter lead for an invitation.");
+    throw new Error("This chapter is invite-only. Contact the chapter president for an invitation.");
   }
 
   if (chapter.joinPolicy === "OPEN") {
@@ -322,7 +322,7 @@ export async function leaveChapter() {
 }
 
 /**
- * Get pending join requests for a chapter (chapter lead only).
+ * Get pending join requests for a chapter (chapter president only).
  */
 export async function getJoinRequests() {
   const session = await getServerSession(authOptions);
@@ -334,7 +334,7 @@ export async function getJoinRequests() {
   });
 
   const isAdmin = user?.roles.some((r: RoleRecord) => r.role === "ADMIN");
-  const isChapterLead = user?.roles.some((r: RoleRecord) => r.role === "CHAPTER_LEAD");
+  const isChapterLead = user?.roles.some((r: RoleRecord) => r.role === "CHAPTER_PRESIDENT");
 
   if (!isAdmin && !isChapterLead) throw new Error("Unauthorized");
   if (!user?.chapterId) throw new Error("No chapter assigned");
@@ -364,7 +364,7 @@ export async function getJoinRequests() {
 }
 
 /**
- * Approve or reject a join request (chapter lead only).
+ * Approve or reject a join request (chapter president only).
  */
 export async function reviewJoinRequest(requestId: string, decision: "APPROVED" | "REJECTED") {
   const session = await getServerSession(authOptions);
@@ -376,7 +376,7 @@ export async function reviewJoinRequest(requestId: string, decision: "APPROVED" 
   });
 
   const isAdmin = user?.roles.some((r: RoleRecord) => r.role === "ADMIN");
-  const isChapterLead = user?.roles.some((r: RoleRecord) => r.role === "CHAPTER_LEAD");
+  const isChapterLead = user?.roles.some((r: RoleRecord) => r.role === "CHAPTER_PRESIDENT");
 
   if (!isAdmin && !isChapterLead) throw new Error("Unauthorized");
 

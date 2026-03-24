@@ -161,7 +161,7 @@ export async function enrollStudentInProgram(
     !session?.user?.id ||
     (!roles.includes("ADMIN") &&
       !roles.includes("INSTRUCTOR") &&
-      !roles.includes("CHAPTER_LEAD"))
+      !roles.includes("CHAPTER_PRESIDENT"))
   ) {
     throw new Error("Unauthorized – instructor role required");
   }

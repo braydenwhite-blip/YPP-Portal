@@ -16,7 +16,7 @@ export default async function InstructorClassSettingsPage({
   if (!session?.user?.id) redirect("/login");
 
   const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN") && !roles.includes("INSTRUCTOR") && !roles.includes("CHAPTER_LEAD")) {
+  if (!roles.includes("ADMIN") && !roles.includes("INSTRUCTOR") && !roles.includes("CHAPTER_PRESIDENT")) {
     redirect("/");
   }
 
@@ -102,6 +102,7 @@ export default async function InstructorClassSettingsPage({
         template: {
           select: getClassTemplateSelect(),
         },
+        approval: true,
         pathwayStep: {
           select: {
             id: true,
@@ -140,7 +141,8 @@ export default async function InstructorClassSettingsPage({
           id: t.id,
           title: t.title,
           interestArea: t.interestArea,
-          difficultyLevel: t.difficultyLevel,
+          learnerFitLabel: t.learnerFitLabel,
+          learnerFitDescription: t.learnerFitDescription,
           durationWeeks: t.durationWeeks,
           sessionsPerWeek: t.sessionsPerWeek,
           maxStudents: t.maxStudents,
@@ -186,6 +188,10 @@ export default async function InstructorClassSettingsPage({
           pathwayStepId: offering.pathwayStepId || "",
           semester: offering.semester || "",
           enrolledCount: offering.enrollments.filter((e) => e.status === "ENROLLED").length,
+          approvalStatus: offering.approval?.status || "NOT_REQUESTED",
+          approvalRequestNotes: offering.approval?.requestNotes || "",
+          approvalReviewNotes: offering.approval?.reviewNotes || "",
+          grandfatheredTrainingExemption: offering.grandfatheredTrainingExemption,
         } : null}
       />
     </div>

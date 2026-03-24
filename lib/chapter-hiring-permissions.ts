@@ -46,7 +46,7 @@ export function isAdmin(actor: HiringActor): boolean {
 }
 
 export function isChapterLead(actor: HiringActor): boolean {
-  return actor.roles.includes("CHAPTER_LEAD");
+  return actor.roles.includes("CHAPTER_PRESIDENT");
 }
 
 export function isDesignatedInterviewer(actor: HiringActor): boolean {
@@ -55,7 +55,7 @@ export function isDesignatedInterviewer(actor: HiringActor): boolean {
 
 export function assertAdminOrChapterLead(actor: HiringActor) {
   if (!isAdmin(actor) && !isChapterLead(actor)) {
-    throw new Error("Unauthorized - Admin or Chapter Lead access required");
+    throw new Error("Unauthorized - Admin or Chapter President access required");
   }
 }
 
@@ -69,11 +69,11 @@ export function assertCanManagePosition(actor: HiringActor, chapterId: string | 
   }
 
   if (!actor.chapterId) {
-    throw new Error("Chapter Lead account is missing chapter assignment.");
+    throw new Error("Chapter President account is missing chapter assignment.");
   }
 
   if (!chapterId || chapterId !== actor.chapterId) {
-    throw new Error("Chapter Leads can only manage hiring for their own chapter.");
+    throw new Error("Chapter Presidents can only manage hiring for their own chapter.");
   }
 }
 

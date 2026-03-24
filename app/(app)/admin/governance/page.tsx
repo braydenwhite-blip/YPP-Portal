@@ -308,7 +308,7 @@ export default async function GovernancePage() {
             </div>
             <div>
               <label style={{ fontSize: "0.82rem", fontWeight: 600 }}>Escalate To Roles (comma-separated)</label>
-              <input name="escalateToRoles" className="input" defaultValue="ADMIN,CHAPTER_LEAD" />
+              <input name="escalateToRoles" className="input" defaultValue="ADMIN,CHAPTER_PRESIDENT" />
             </div>
           </div>
           <div style={{ marginTop: "0.75rem" }}>

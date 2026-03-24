@@ -10,7 +10,7 @@ async function requireReviewer() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) throw new Error("Unauthorized");
   const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_LEAD")) throw new Error("Forbidden");
+  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT")) throw new Error("Forbidden");
   return session;
 }
 

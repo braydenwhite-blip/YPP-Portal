@@ -16,7 +16,7 @@ export default async function CreateClassAssignmentPage({
   const { id: offeringId } = await params;
 
   const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN") && !roles.includes("INSTRUCTOR") && !roles.includes("CHAPTER_LEAD")) {
+  if (!roles.includes("ADMIN") && !roles.includes("INSTRUCTOR") && !roles.includes("CHAPTER_PRESIDENT")) {
     redirect("/");
   }
 

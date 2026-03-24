@@ -14,6 +14,7 @@ import {
   type CurriculumEngagementStrategy,
   normalizeCurriculumEngagementStrategy,
 } from "@/lib/instructor-builder-blueprints";
+import { getLegacyLearnerFitCopy } from "@/lib/learner-fit";
 
 type WeeklyTopic = {
   week?: number;
@@ -51,7 +52,7 @@ async function requireInstructor() {
     !session?.user?.id ||
     (!roles.includes("ADMIN") &&
       !roles.includes("INSTRUCTOR") &&
-      !roles.includes("CHAPTER_LEAD"))
+      !roles.includes("CHAPTER_PRESIDENT"))
   ) {
     throw new Error("Unauthorized – instructor role required");
   }
@@ -405,11 +406,15 @@ export async function createClassTemplate(formData: FormData) {
   const title = getString(formData, "title");
   const description = getString(formData, "description", false);
   const interestArea = getString(formData, "interestArea");
-  const difficultyLevel = getString(formData, "difficultyLevel") as
+  const difficultyLevel = (getString(formData, "difficultyLevel", false) || "LEVEL_101") as
     | "LEVEL_101"
     | "LEVEL_201"
     | "LEVEL_301"
     | "LEVEL_401";
+  const learnerFitFallback = getLegacyLearnerFitCopy(difficultyLevel);
+  const learnerFitLabel = getString(formData, "learnerFitLabel", false) || learnerFitFallback.label;
+  const learnerFitDescription =
+    getString(formData, "learnerFitDescription", false) || learnerFitFallback.description;
   const durationWeeks = getInt(formData, "durationWeeks", 8);
   const sessionsPerWeek = getInt(formData, "sessionsPerWeek", 1);
   const estimatedHours = getInt(formData, "estimatedHours", 0);
@@ -463,6 +468,8 @@ export async function createClassTemplate(formData: FormData) {
       description: description || "",
       interestArea,
       difficultyLevel,
+      learnerFitLabel,
+      learnerFitDescription,
       prerequisites,
       weeklyTopics: weeklyTopics as Prisma.InputJsonValue,
       learningOutcomes,
@@ -542,11 +549,15 @@ export async function updateClassTemplate(formData: FormData) {
   const title = getString(formData, "title");
   const description = getString(formData, "description", false);
   const interestArea = getString(formData, "interestArea");
-  const difficultyLevel = getString(formData, "difficultyLevel") as
+  const difficultyLevel = (getString(formData, "difficultyLevel", false) || "LEVEL_101") as
     | "LEVEL_101"
     | "LEVEL_201"
     | "LEVEL_301"
     | "LEVEL_401";
+  const learnerFitFallback = getLegacyLearnerFitCopy(difficultyLevel);
+  const learnerFitLabel = getString(formData, "learnerFitLabel", false) || learnerFitFallback.label;
+  const learnerFitDescription =
+    getString(formData, "learnerFitDescription", false) || learnerFitFallback.description;
   const durationWeeks = getInt(formData, "durationWeeks", 8);
   const sessionsPerWeek = getInt(formData, "sessionsPerWeek", 1);
   const estimatedHours = getInt(formData, "estimatedHours", 0);
@@ -600,6 +611,8 @@ export async function updateClassTemplate(formData: FormData) {
       description: description || "",
       interestArea,
       difficultyLevel,
+      learnerFitLabel,
+      learnerFitDescription,
       prerequisites,
       weeklyTopics: weeklyTopics as Prisma.InputJsonValue,
       learningOutcomes,
@@ -1483,6 +1496,15 @@ export async function getInstructorOfferings(instructorId: string) {
   return prisma.classOffering.findMany({
     where: { instructorId },
     include: {
+      approval: {
+        select: {
+          status: true,
+          requestNotes: true,
+          reviewNotes: true,
+          requestedAt: true,
+          reviewedAt: true,
+        },
+      },
       template: {
         select: getClassTemplateSelect({
           includeWorkflow: capabilities.hasReviewWorkflow,

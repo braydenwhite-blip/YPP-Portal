@@ -127,7 +127,7 @@ export default function StudentSteps({
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
             </div>
             <h3>Learn Your Way</h3>
-            <p>Follow structured pathways from 101 through 301, building skills step by step.</p>
+            <p>Follow structured pathways with clear learner-fit guidance, building skills step by step.</p>
           </div>
           <div className="onboarding-feature-card">
             <div className="onboarding-feature-icon">
@@ -240,7 +240,7 @@ export default function StudentSteps({
             <p className="onboarding-subtitle">
               {recommendedPathwayIds.size > 0
                 ? "Based on your interests, we highlighted pathways that fit you best. Pick one or more to get started."
-                : "Pick one or more pathways that match your interests. Each pathway takes you from foundations (101) through mastery (301) and beyond."}
+                : "Pick one or more pathways that match your interests. Each pathway moves from beginner-friendly starts into more independent and advanced work over time."}
             </p>
 
             {pathways.length === 0 ? (

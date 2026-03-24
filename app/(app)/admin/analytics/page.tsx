@@ -57,7 +57,7 @@ export default async function AnalyticsDashboardPage({
           <p className="badge">Admin</p>
           <h1 className="page-title">Portal Reliability Dashboard</h1>
           <p className="page-subtitle">
-            One place to watch operations, growth, and workflow health across recruiting, readiness,
+            One place to watch operations, growth, and workflow health across recruiting, offering approvals,
             curriculum, registrations, and mentorship.
           </p>
         </div>
@@ -66,7 +66,7 @@ export default async function AnalyticsDashboardPage({
             Recruiting
           </Link>
           <Link href="/admin/instructor-readiness" className="button secondary small">
-            Readiness
+            Approvals
           </Link>
           <Link href="/admin/mentorship-program" className="button secondary small">
             Mentorship
@@ -172,7 +172,7 @@ export default async function AnalyticsDashboardPage({
       </div>
 
       <div className="card" style={{ marginBottom: 24 }}>
-        <div className="section-title">Applications And Readiness</div>
+        <div className="section-title">Applications And Offering Approvals</div>
         <div className="grid four" style={{ marginBottom: 20 }}>
           <div style={{ padding: 14, background: "var(--surface-alt)", borderRadius: "var(--radius-md)" }}>
             <div style={{ fontSize: 24, fontWeight: 700 }}>
@@ -194,9 +194,9 @@ export default async function AnalyticsDashboardPage({
           </div>
           <div style={{ padding: 14, background: "var(--surface-alt)", borderRadius: "var(--radius-md)" }}>
             <div style={{ fontSize: 24, fontWeight: 700 }}>
-              {formatNumber(analytics.readinessAndTraining.currentSnapshot.openReadinessQueue)}
+              {formatNumber(analytics.readinessAndTraining.currentSnapshot.openApprovalQueue)}
             </div>
-            <div style={{ fontSize: 12, color: "var(--muted)" }}>Current readiness requests waiting</div>
+            <div style={{ fontSize: 12, color: "var(--muted)" }}>Current offering approvals waiting</div>
           </div>
         </div>
 
@@ -256,8 +256,8 @@ export default async function AnalyticsDashboardPage({
             <div className="kpi-label">Evidence reviews waiting</div>
           </div>
           <div className="card" style={{ margin: 0 }}>
-            <div className="kpi">{formatDays(analytics.readinessAndTraining.currentSnapshot.averageReadinessQueueAgeDays)}</div>
-            <div className="kpi-label">Average readiness queue age</div>
+            <div className="kpi">{formatDays(analytics.readinessAndTraining.currentSnapshot.averageApprovalQueueAgeDays)}</div>
+            <div className="kpi-label">Average offering approval queue age</div>
           </div>
           <div className="card" style={{ margin: 0 }}>
             <div className="kpi">{formatNumber(analytics.applications.recent.approvedDecisionCount)}</div>
@@ -273,7 +273,7 @@ export default async function AnalyticsDashboardPage({
       <div className="card" style={{ marginBottom: 24 }}>
         <div className="section-title">Training And Curriculum Launch Funnel</div>
         <p style={{ color: "var(--muted)", fontSize: 13, marginTop: 6 }}>
-          Readiness cards below are current operational snapshots. The interest-area filter applies
+          Approval-readiness cards below are current operational snapshots. The interest-area filter applies
           to curriculum draft metrics in this section.
         </p>
 
@@ -292,15 +292,15 @@ export default async function AnalyticsDashboardPage({
           </div>
           <div style={{ padding: 14, background: "var(--surface-alt)", borderRadius: "var(--radius-md)" }}>
             <div style={{ fontSize: 24, fontWeight: 700 }}>
-              {formatNumber(analytics.readinessAndTraining.currentSnapshot.readyForFirstPublish)}
+              {formatNumber(analytics.readinessAndTraining.currentSnapshot.approvalReadyInstructors)}
             </div>
-            <div style={{ fontSize: 12, color: "var(--muted)" }}>Ready for first publish now</div>
+            <div style={{ fontSize: 12, color: "var(--muted)" }}>Ready to request offering approval</div>
           </div>
           <div style={{ padding: 14, background: "var(--surface-alt)", borderRadius: "var(--radius-md)" }}>
             <div style={{ fontSize: 24, fontWeight: 700 }}>
-              {formatNumber(analytics.readinessAndTraining.currentSnapshot.firstPublishBlocked)}
+              {formatNumber(analytics.readinessAndTraining.currentSnapshot.readinessBlockedInstructors)}
             </div>
-            <div style={{ fontSize: 12, color: "var(--muted)" }}>Blocked on first publish readiness</div>
+            <div style={{ fontSize: 12, color: "var(--muted)" }}>Still blocked on training or interview readiness</div>
           </div>
         </div>
 

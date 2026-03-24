@@ -875,7 +875,7 @@ export async function buildChapterPublicProfile(slug: string) {
     prisma.user.findFirst({
       where: {
         chapterId: chapter.id,
-        roles: { some: { role: "CHAPTER_LEAD" } },
+        roles: { some: { role: "CHAPTER_PRESIDENT" } },
       },
       select: { name: true, email: true },
     }),

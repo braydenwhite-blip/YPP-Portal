@@ -6,13 +6,15 @@ import {
   updateClassOffering,
   publishClassOffering,
 } from "@/lib/class-management-actions";
+import { requestOfferingApproval } from "@/lib/offering-approval-actions";
 import { useRouter } from "next/navigation";
 
 interface TemplateOption {
   id: string;
   title: string;
   interestArea: string;
-  difficultyLevel: string;
+  learnerFitLabel: string | null;
+  learnerFitDescription: string | null;
   durationWeeks: number;
   sessionsPerWeek: number;
   maxStudents: number;
@@ -65,10 +67,15 @@ interface OfferingData {
   pathwayStepId: string;
   semester: string;
   enrolledCount: number;
+  approvalStatus: string;
+  approvalRequestNotes: string;
+  approvalReviewNotes: string;
+  grandfatheredTrainingExemption: boolean;
 }
 
 interface ReadinessSummary {
-  canPublishFirstOffering: boolean;
+  baseReadinessComplete: boolean;
+  canRequestOfferingApproval: boolean;
   nextAction: {
     title: string;
     detail: string;
@@ -77,13 +84,6 @@ interface ReadinessSummary {
 }
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-
-const difficultyLabels: Record<string, string> = {
-  LEVEL_101: "101",
-  LEVEL_201: "201",
-  LEVEL_301: "301",
-  LEVEL_401: "401",
-};
 
 export function ClassSettingsClient({
   templates,
@@ -110,7 +110,12 @@ export function ClassSettingsClient({
   const [introVideoProvider, setIntroVideoProvider] = useState(offering?.introVideoProvider || "YOUTUBE");
   const [selectedPathwayId, setSelectedPathwayId] = useState(offering?.pathwayId || "");
   const [selectedPathwayStepId, setSelectedPathwayStepId] = useState(offering?.pathwayStepId || "");
-  const publishBlocked = !readiness.canPublishFirstOffering && offering?.status === "DRAFT";
+  const publishBlocked = Boolean(
+    offering &&
+      offering.status === "DRAFT" &&
+      !offering.grandfatheredTrainingExemption &&
+      (!readiness.baseReadinessComplete || offering.approvalStatus !== "APPROVED")
+  );
 
   const selectedTemplate = templates.find((t) => t.id === templateId);
   const eligiblePathways = pathwayOptions
@@ -196,6 +201,25 @@ export function ClassSettingsClient({
     }
   }
 
+  async function handleRequestApproval() {
+    if (!offering) return;
+    setLoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const formData = new FormData();
+      formData.set("offeringId", offering.id);
+      await requestOfferingApproval(formData);
+      setSuccess("Offering approval requested. Reviewers will see it in the approval queue.");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to request approval");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit} className="card">
       {error && (
@@ -208,7 +232,7 @@ export function ClassSettingsClient({
           {success}
         </div>
       )}
-      {!readiness.canPublishFirstOffering && (
+      {!readiness.baseReadinessComplete && (
         <div
           style={{
             padding: "12px 16px",
@@ -220,9 +244,29 @@ export function ClassSettingsClient({
           }}
         >
           <strong style={{ display: "block", marginBottom: 4 }}>
-            Publishing is still locked for your first class.
+            Offering approval is locked until your readiness is complete.
           </strong>
           <span>{readiness.nextAction.detail}</span>
+        </div>
+      )}
+      {offering && !offering.grandfatheredTrainingExemption && readiness.baseReadinessComplete && offering.approvalStatus !== "APPROVED" && (
+        <div
+          style={{
+            padding: "12px 16px",
+            background: "#eff6ff",
+            color: "#1d4ed8",
+            borderRadius: 8,
+            marginBottom: 16,
+            border: "1px solid #93c5fd",
+          }}
+        >
+          <strong style={{ display: "block", marginBottom: 4 }}>
+            Publish requires offering approval.
+          </strong>
+          <span>
+            Current status: {offering.approvalStatus.replace(/_/g, " ").toLowerCase()}.
+            {offering.approvalReviewNotes ? ` Reviewer note: ${offering.approvalReviewNotes}` : ""}
+          </span>
         </div>
       )}
 
@@ -240,7 +284,7 @@ export function ClassSettingsClient({
               <option value="">Select a curriculum...</option>
               {templates.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.title} ({difficultyLabels[t.difficultyLevel]} - {t.interestArea}) - {t.durationWeeks} weeks
+                  {t.title} ({t.learnerFitLabel || "Learner fit coming soon"} - {t.interestArea}) - {t.durationWeeks} weeks
                 </option>
               ))}
             </select>
@@ -248,6 +292,7 @@ export function ClassSettingsClient({
               <div style={{ marginTop: 8, fontSize: 13, color: "var(--text-secondary)" }}>
                 {selectedTemplate.durationWeeks} weeks, {selectedTemplate.sessionsPerWeek}x/week,
                 up to {selectedTemplate.maxStudents} students
+                {selectedTemplate.learnerFitDescription ? ` • ${selectedTemplate.learnerFitDescription}` : ""}
               </div>
             )}
           </div>
@@ -585,15 +630,34 @@ export function ClassSettingsClient({
           {loading ? "Saving..." : offering ? "Update Offering" : "Create Offering"}
         </button>
         {offering && offering.status === "DRAFT" && (
+          <>
+            {!offering.grandfatheredTrainingExemption && offering.approvalStatus !== "APPROVED" && (
+              <button
+                type="button"
+                className="button outline"
+                disabled={loading || !readiness.canRequestOfferingApproval}
+                onClick={handleRequestApproval}
+                title={!readiness.canRequestOfferingApproval ? readiness.nextAction.detail : undefined}
+              >
+                Request Offering Approval
+              </button>
+            )}
           <button
             type="button"
             className="button secondary"
             disabled={loading || publishBlocked}
             onClick={handlePublish}
-            title={publishBlocked ? readiness.nextAction.detail : undefined}
+            title={
+              publishBlocked
+                ? !readiness.baseReadinessComplete
+                  ? readiness.nextAction.detail
+                  : "This offering needs reviewer approval before it can publish."
+                : undefined
+            }
           >
             Publish & Open Enrollment
           </button>
+          </>
         )}
         {offering && (
           <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>

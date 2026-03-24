@@ -33,7 +33,7 @@ async function requireAdmin() {
 async function requireMentorOrAdmin() {
   const session = await requireAuth();
   const roles = session.user.roles ?? [];
-  if (!roles.includes("MENTOR") && !roles.includes("ADMIN") && !roles.includes("CHAPTER_LEAD")) {
+  if (!roles.includes("MENTOR") && !roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT")) {
     throw new Error("Unauthorized");
   }
   return session;

@@ -67,7 +67,7 @@ export default async function ChapterPathwayFallbacksPage() {
   if (!session?.user?.id) redirect("/login");
 
   const roles = new Set(session.user.roles ?? []);
-  const canReview = roles.has("ADMIN") || roles.has("STAFF") || roles.has("CHAPTER_LEAD");
+  const canReview = roles.has("ADMIN") || roles.has("STAFF") || roles.has("CHAPTER_PRESIDENT");
   if (!canReview) redirect("/my-chapter");
 
   const reviewer = await prisma.user.findUnique({
@@ -149,7 +149,7 @@ export default async function ChapterPathwayFallbacksPage() {
           <h3 style={{ marginTop: 0 }}>What this page is for</h3>
           <p style={{ marginBottom: 0, color: "var(--gray-600)" }}>
             Students can ask for access to a partner chapter offering when their local chapter does
-            not have the next step. This queue lets chapter leads, staff, and admins approve or deny
+            not have the next step. This queue lets chapter presidents, staff, and admins approve or deny
             those requests without opening unrestricted cross-chapter enrollment.
           </p>
         </div>

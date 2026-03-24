@@ -91,10 +91,11 @@ export async function createCourse(formData: FormData) {
   const title = getString(formData, "title");
   const description = getString(formData, "description");
   const format = validateEnum(CourseFormat, getString(formData, "format"), "format");
-  const levelValue = getString(formData, "level", false);
+  const levelValue =
+    getString(formData, "learnerFit", false) || getString(formData, "level", false);
   const level = levelValue ? (levelValue as CourseLevel) : null;
   if (format === "LEVELED" && !level) {
-    throw new Error("Level is required for leveled courses");
+    throw new Error("Learner fit is required for learner progression courses");
   }
   const interestArea = getString(formData, "interestArea");
   const isVirtual = formData.get("isVirtual") === "on";

@@ -37,7 +37,7 @@ export default async function UnlockSectionsPage() {
   const roles = session.user.roles ?? [];
   const isMentor =
     roles.includes("MENTOR") ||
-    roles.includes("CHAPTER_LEAD") ||
+    roles.includes("CHAPTER_PRESIDENT") ||
     roles.includes("ADMIN");
 
   if (!isMentor) {

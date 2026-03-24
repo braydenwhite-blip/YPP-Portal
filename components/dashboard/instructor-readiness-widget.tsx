@@ -1,12 +1,6 @@
 import Link from "next/link";
 import type { InstructorReadinessSummary } from "@/lib/dashboard/types";
 
-const LEVELS = ["LEVEL_101", "LEVEL_201", "LEVEL_301", "LEVEL_401"] as const;
-
-function levelNumber(l: string) {
-  return l.replace("LEVEL_", "");
-}
-
 function interviewLabel(status: string, passed: boolean): string {
   if (passed) return "Interview Passed";
   const map: Record<string, string> = {
@@ -44,59 +38,40 @@ export default function InstructorReadinessWidget({
           marginBottom: 14,
         }}
       >
-        <h3 style={{ margin: 0 }}>My Teaching Pathway</h3>
+        <h3 style={{ margin: 0 }}>My Publish Readiness</h3>
         <Link
           href="/instructor/workspace?tab=my-pathway"
           className="link"
           style={{ fontSize: 13 }}
         >
-          View full pathway →
+          View full workflow →
         </Link>
       </div>
 
-      {/* Level progression bar */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          marginBottom: 16,
-          flexWrap: "wrap",
-        }}
-      >
-        {LEVELS.map((level, i) => {
-          const approved = summary.approvedLevels.includes(level);
-          const isHighest = summary.highestApprovedLevel === level;
-          return (
-            <div key={level} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div
-                style={{
-                  padding: "6px 14px",
-                  borderRadius: 8,
-                  fontWeight: 700,
-                  fontSize: 14,
-                  background: approved ? "var(--ypp-purple, #7c3aed)" : "var(--surface-alt, #f3f4f6)",
-                  color: approved ? "#fff" : "var(--muted)",
-                  border: isHighest
-                    ? "2px solid var(--ypp-purple, #7c3aed)"
-                    : "2px solid transparent",
-                }}
-              >
-                {levelNumber(level)}
-              </div>
-              {i < 3 && (
-                <span aria-hidden style={{ color: "var(--muted)", fontSize: 12 }}>
-                  →
-                </span>
-              )}
-            </div>
-          );
-        })}
-        {!summary.highestApprovedLevel && (
-          <span style={{ fontSize: 12, color: "var(--muted)", marginLeft: 4 }}>
-            No level approved yet
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+        <span
+          className="pill"
+          style={summary.trainingComplete ? { background: "#dcfce7", color: "#166534" } : {}}
+        >
+          Training {summary.trainingComplete ? "Complete" : "In Progress"}
+        </span>
+        <span
+          className="pill"
+          style={summary.interviewPassed ? { background: "#dcfce7", color: "#166534" } : {}}
+        >
+          {interviewLabel(summary.interviewStatus, summary.interviewPassed)}
+        </span>
+        <span
+          className="pill"
+          style={summary.canRequestOfferingApproval ? { background: "#dcfce7", color: "#166534" } : {}}
+        >
+          {summary.canRequestOfferingApproval ? "Can Request Offering Approval" : "Approval Request Blocked"}
+        </span>
+        {summary.legacyExemptOfferingCount > 0 ? (
+          <span className="pill">
+            Legacy exemptions: {summary.legacyExemptOfferingCount}
           </span>
-        )}
+        ) : null}
       </div>
 
       {/* Training progress */}
@@ -172,8 +147,8 @@ export default function InstructorReadinessWidget({
 
       {/* CTA */}
       <div style={{ marginTop: 14 }}>
-        <Link href="/instructor/workspace?tab=my-pathway" className="button outline small">
-          View My Full Pathway →
+        <Link href="/instructor/class-settings" className="button outline small">
+          Open Class Settings →
         </Link>
       </div>
     </div>

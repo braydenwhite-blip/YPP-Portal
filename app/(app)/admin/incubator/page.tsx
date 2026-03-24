@@ -24,10 +24,10 @@ export default async function AdminIncubatorPage() {
   const canManage =
     roles.includes("ADMIN") ||
     roles.includes("INSTRUCTOR") ||
-    roles.includes("CHAPTER_LEAD") ||
+    roles.includes("CHAPTER_PRESIDENT") ||
     primaryRole === "ADMIN" ||
     primaryRole === "INSTRUCTOR" ||
-    primaryRole === "CHAPTER_LEAD";
+    primaryRole === "CHAPTER_PRESIDENT";
   if (!canManage) redirect("/incubator");
 
   const [cohorts, passions] = await Promise.all([

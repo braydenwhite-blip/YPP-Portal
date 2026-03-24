@@ -14,7 +14,6 @@ import {
 } from "@/lib/instructor-readiness";
 import { withPrismaFallback } from "@/lib/prisma-guard";
 import {
-  requestReadinessReview,
   setTrainingCheckpointCompletion,
 } from "@/lib/training-actions";
 
@@ -39,14 +38,14 @@ export default async function InstructorTrainingPage() {
 
   const roles = session.user.roles ?? [];
   const isInstructorUser =
-    roles.includes("INSTRUCTOR") || roles.includes("ADMIN") || roles.includes("CHAPTER_LEAD");
+    roles.includes("INSTRUCTOR") || roles.includes("ADMIN") || roles.includes("CHAPTER_PRESIDENT");
   const canAccessTraining = isInstructorUser || roles.includes("APPLICANT");
 
   if (!canAccessTraining) {
     redirect("/");
   }
 
-  const isReviewer = roles.includes("ADMIN") || roles.includes("CHAPTER_LEAD");
+  const isReviewer = roles.includes("ADMIN") || roles.includes("CHAPTER_PRESIDENT");
   const reviewerHref = roles.includes("ADMIN")
     ? "/admin/instructor-readiness"
     : "/chapter-lead/instructor-readiness";
@@ -92,7 +91,6 @@ export default async function InstructorTrainingPage() {
     checkpointCompletions,
     quizAttempts,
     evidenceSubmissions,
-    reviewRequests,
     interviewGate,
     readiness,
     trainingCertificate,
@@ -170,23 +168,6 @@ export default async function InstructorTrainingPage() {
             moduleId: true,
             status: true,
             createdAt: true,
-            reviewNotes: true,
-          },
-        }),
-      []
-    ),
-    withPrismaFallback(
-      "instructor-training:review-requests",
-      () =>
-        prisma.readinessReviewRequest.findMany({
-          where: { instructorId },
-          orderBy: { requestedAt: "desc" },
-          take: 3,
-          select: {
-            id: true,
-            status: true,
-            notes: true,
-            requestedAt: true,
             reviewNotes: true,
           },
         }),
@@ -343,10 +324,6 @@ export default async function InstructorTrainingPage() {
     (request) => request.status === "PENDING"
   );
 
-  const hasPendingReadinessReview = reviewRequests.some(
-    (request) => request.status === "REQUESTED" || request.status === "UNDER_REVIEW"
-  );
-
   const defaultAvailabilityStart = dateTimeLocalValue(new Date(Date.now() + 24 * 60 * 60 * 1000));
 
   const trainingPct =
@@ -366,7 +343,7 @@ export default async function InstructorTrainingPage() {
         <div>
           <p className="badge">Step 1 of Your Instructor Pathway</p>
           <h1 className="page-title">Instructor Training Academy</h1>
-          <p className="page-subtitle">Complete all required modules to unlock your readiness review and interview gate.</p>
+          <p className="page-subtitle">Complete all required modules to unlock offering approval readiness and the interview gate.</p>
         </div>
       </div>
 
@@ -573,43 +550,32 @@ export default async function InstructorTrainingPage() {
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
-        <h3 style={{ marginBottom: 8 }}>Readiness Review</h3>
+        <h3 style={{ marginBottom: 8 }}>Offering Approval</h3>
         <p style={{ marginTop: 0, fontSize: 14, color: "var(--muted)" }}>
-          Request reviewer approval after all required modules are complete.
+          Each offering now needs approval before it can publish. Training and interview clear your readiness. Class settings is where you request approval.
         </p>
-        <form action={requestReadinessReview}>
-          <label className="form-row" style={{ marginBottom: 10 }}>
-            Notes for reviewer (optional)
-            <textarea className="input" name="notes" rows={2} placeholder="Share context for your readiness review request" />
-          </label>
-          <button
-            type="submit"
-            className="button small"
-            disabled={!readiness.trainingComplete || hasPendingReadinessReview}
-          >
-            {hasPendingReadinessReview
-              ? "Review request pending"
-              : readiness.trainingComplete
-                ? "Request readiness review"
-                : "Complete training first"}
-          </button>
-        </form>
-
-        {reviewRequests.length > 0 ? (
-          <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-            {reviewRequests.map((request) => (
-              <div key={request.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 10 }}>
-                <p style={{ margin: 0, fontWeight: 600 }}>{request.status.replace(/_/g, " ")}</p>
-                <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--muted)" }}>
-                  Requested {formatDateTime(request.requestedAt)}
-                </p>
-                {request.reviewNotes ? (
-                  <p style={{ margin: "6px 0 0", fontSize: 13 }}>{request.reviewNotes}</p>
-                ) : null}
-              </div>
-            ))}
+        <div
+          style={{
+            border: "1px solid #bfdbfe",
+            background: "#eff6ff",
+            borderRadius: 10,
+            padding: 12,
+          }}
+        >
+          <p style={{ margin: "0 0 8px", fontWeight: 600 }}>
+            {readiness.canRequestOfferingApproval
+              ? "You are ready to request offering approval."
+              : "Finish readiness requirements before requesting offering approval."}
+          </p>
+          <p style={{ margin: 0, fontSize: 13, color: "#1d4ed8" }}>
+            {readiness.nextAction.detail}
+          </p>
+          <div style={{ marginTop: 12 }}>
+            <Link href="/instructor/class-settings" className="button small" style={{ textDecoration: "none" }}>
+              Open Class Settings
+            </Link>
           </div>
-        ) : null}
+        </div>
       </div>
 
       {trainingCertificate ? (

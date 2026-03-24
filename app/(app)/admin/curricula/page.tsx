@@ -4,15 +4,16 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { approveCurriculum, requestCurriculumRevision } from "@/lib/curriculum-review-actions";
 import { getClassTemplateCapabilities } from "@/lib/class-template-compat";
+import { getLearnerFitSummary } from "@/lib/learner-fit";
 
 export default async function AdminCurriculaPage() {
   const session = await getServerSession(authOptions);
   const roles = session?.user?.roles ?? [];
   const isAdmin = roles.includes("ADMIN");
-  const isChapterLead = roles.includes("CHAPTER_LEAD");
+  const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
   if (!isAdmin && !isChapterLead) redirect("/");
 
-  // Admins see all submitted curricula; chapter leads see their chapter's
+  // Admins see all submitted curricula; chapter presidents see their chapter's
   let chapterId: string | null = null;
   if (isChapterLead && !isAdmin && session?.user?.id) {
     const dbUser = await prisma.user.findUnique({
@@ -28,7 +29,7 @@ export default async function AdminCurriculaPage() {
       <div>
         <div className="topbar">
           <div>
-            <p className="badge">{isAdmin ? "Admin" : "Chapter Lead"}</p>
+            <p className="badge">{isAdmin ? "Admin" : "Chapter President"}</p>
             <h1 className="page-title">Curriculum Review Queue</h1>
             <p className="page-subtitle">Review and approve instructor-submitted curricula before they go live.</p>
           </div>
@@ -54,6 +55,8 @@ export default async function AdminCurriculaPage() {
       description: true,
       interestArea: true,
       difficultyLevel: true,
+      learnerFitLabel: true,
+      learnerFitDescription: true,
       durationWeeks: true,
       submissionStatus: true,
       submittedAt: true,
@@ -85,15 +88,11 @@ export default async function AdminCurriculaPage() {
     NEEDS_REVISION: { bg: "#fee2e2", color: "#991b1b" },
   };
 
-  const diffLabels: Record<string, string> = {
-    LEVEL_101: "101", LEVEL_201: "201", LEVEL_301: "301", LEVEL_401: "401",
-  };
-
   return (
     <div>
       <div className="topbar">
         <div>
-          <p className="badge">{isAdmin ? "Admin" : "Chapter Lead"}</p>
+          <p className="badge">{isAdmin ? "Admin" : "Chapter President"}</p>
           <h1 className="page-title">Curriculum Review Queue</h1>
           <p className="page-subtitle">Review and approve instructor-submitted curricula before they go live.</p>
         </div>
@@ -127,7 +126,6 @@ export default async function AdminCurriculaPage() {
                 key={curriculum.id}
                 curriculum={curriculum}
                 statusColors={statusColors}
-                diffLabels={diffLabels}
               />
             ))}
           </div>
@@ -147,29 +145,41 @@ export default async function AdminCurriculaPage() {
           <div style={{ display: "grid", gap: 12 }}>
             {[...byStatus.APPROVED, ...byStatus.NEEDS_REVISION].map((curriculum) => (
               <div key={curriculum.id} className="card" style={{ opacity: 0.85 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 12, flexWrap: "wrap" }}>
-                  <div>
-                    <h3 style={{ margin: 0 }}>{curriculum.title}</h3>
-                    <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 4 }}>
-                      {curriculum.createdBy.name} · {curriculum.createdBy.chapter?.name ?? "No chapter"} · {curriculum.interestArea} · Level {diffLabels[curriculum.difficultyLevel]}
-                    </div>
-                  </div>
-                  <span style={{
-                    padding: "3px 12px",
-                    borderRadius: 20,
-                    fontSize: 12,
-                    fontWeight: 700,
-                    background: statusColors[curriculum.submissionStatus]?.bg,
-                    color: statusColors[curriculum.submissionStatus]?.color,
-                  }}>
-                    {curriculum.submissionStatus.replace("_", " ")}
-                  </span>
-                </div>
-                {curriculum.reviewNotes && (
-                  <div style={{ marginTop: 10, padding: "8px 12px", background: "var(--surface-alt, #f9f9f9)", borderRadius: 8, fontSize: 13 }}>
-                    <strong>Review notes:</strong> {curriculum.reviewNotes}
-                  </div>
-                )}
+                {(() => {
+                  const learnerFit = getLearnerFitSummary({
+                    learnerFitLabel: (curriculum as { learnerFitLabel?: string | null }).learnerFitLabel,
+                    learnerFitDescription: (curriculum as { learnerFitDescription?: string | null }).learnerFitDescription,
+                    difficultyLevel: curriculum.difficultyLevel,
+                  });
+
+                  return (
+                    <>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 12, flexWrap: "wrap" }}>
+                        <div>
+                          <h3 style={{ margin: 0 }}>{curriculum.title}</h3>
+                          <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 4 }}>
+                            {curriculum.createdBy.name} · {curriculum.createdBy.chapter?.name ?? "No chapter"} · {curriculum.interestArea} · {learnerFit.label}
+                          </div>
+                        </div>
+                        <span style={{
+                          padding: "3px 12px",
+                          borderRadius: 20,
+                          fontSize: 12,
+                          fontWeight: 700,
+                          background: statusColors[curriculum.submissionStatus]?.bg,
+                          color: statusColors[curriculum.submissionStatus]?.color,
+                        }}>
+                          {curriculum.submissionStatus.replace(/_/g, " ")}
+                        </span>
+                      </div>
+                      {curriculum.reviewNotes && (
+                        <div style={{ marginTop: 10, padding: "8px 12px", background: "var(--surface-alt, #f9f9f9)", borderRadius: 8, fontSize: 13 }}>
+                          <strong>Review notes:</strong> {curriculum.reviewNotes}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             ))}
           </div>
@@ -182,7 +192,6 @@ export default async function AdminCurriculaPage() {
 function CurriculumReviewCard({
   curriculum,
   statusColors,
-  diffLabels,
 }: {
   curriculum: {
     id: string;
@@ -190,6 +199,8 @@ function CurriculumReviewCard({
     description: string;
     interestArea: string;
     difficultyLevel: string;
+    learnerFitLabel?: string | null;
+    learnerFitDescription?: string | null;
     durationWeeks: number;
     submissionStatus: string;
     submittedAt: Date | null;
@@ -203,12 +214,16 @@ function CurriculumReviewCard({
     reviewedBy: { id: string; name: string | null } | null;
   };
   statusColors: Record<string, { bg: string; color: string }>;
-  diffLabels: Record<string, string>;
 }) {
   const lessons = Array.isArray(curriculum.weeklyTopics) ? curriculum.weeklyTopics as Array<Record<string, string>> : [];
   const strategy = curriculum.engagementStrategy && typeof curriculum.engagementStrategy === "object"
     ? curriculum.engagementStrategy as Record<string, string>
     : null;
+  const learnerFit = getLearnerFitSummary({
+    learnerFitLabel: curriculum.learnerFitLabel,
+    learnerFitDescription: curriculum.learnerFitDescription,
+    difficultyLevel: curriculum.difficultyLevel,
+  });
 
   return (
     <div className="card" style={{ border: "2px solid #fbbf24" }}>
@@ -234,13 +249,19 @@ function CurriculumReviewCard({
       {/* Meta pills */}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
         <span className="pill">{curriculum.interestArea}</span>
-        <span className="pill">Level {diffLabels[curriculum.difficultyLevel]}</span>
+        <span className="pill" style={{ background: learnerFit.accent + "18", color: learnerFit.accent }}>
+          {learnerFit.label}
+        </span>
         <span className="pill">{curriculum.durationWeeks} lessons</span>
         {curriculum.targetAgeGroup && <span className="pill">Ages {curriculum.targetAgeGroup}</span>}
         {curriculum.classDurationMin && <span className="pill">{curriculum.classDurationMin} min/class</span>}
         {curriculum.submittedAt && (
           <span className="pill">Submitted {new Date(curriculum.submittedAt).toLocaleDateString()}</span>
         )}
+      </div>
+
+      <div style={{ marginTop: 8, fontSize: 13, color: "var(--text-secondary)" }}>
+        {learnerFit.description}
       </div>
 
       {/* Description */}

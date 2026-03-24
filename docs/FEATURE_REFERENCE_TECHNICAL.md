@@ -201,7 +201,7 @@ This document lists every feature in the portal — what it does, how it works t
 | `INSTRUCTOR` | Teach classes, manage curriculum |
 | `STUDENT` | Enroll in courses, track progress |
 | `MENTOR` | Mentor students and instructors |
-| `CHAPTER_LEAD` | Oversee a chapter |
+| `CHAPTER_PRESIDENT` | Oversee a chapter |
 | `STAFF` | Internal YPP staff operations |
 | `PARENT` | View child's progress |
 | `APPLICANT` | Job applicant (pre-hire) |
@@ -288,8 +288,8 @@ This document lists every feature in the portal — what it does, how it works t
 - Content defined in `data/training-academy/content.v1.json`, imported to database
 - `TrainingModule` → `TrainingCheckpoint` → Completion tracked per user
 - Four checkpoint types: `video`, `checkpoint`, `quiz`, `evidence`
-- `lib/instructor-readiness.ts` computes overall readiness score per level
-- `InstructorApproval` model tracks admin-granted approvals per level (101–401)
+- `lib/instructor-readiness.ts` computes readiness for training + interview completion
+- `ClassOfferingApproval` tracks per-offering publish approval requests and reviewer decisions
 - `InstructorInterviewGate` enforces interview before first class offering
 
 **Training checkpoint types:**
@@ -318,7 +318,7 @@ This document lists every feature in the portal — what it does, how it works t
 7. Request an interview slot
 8. Log in as Admin, approve the interview
 9. Mark interview as passed → instructor can now create a class offering
-10. Verify `InstructorApproval` record in DB for level 101
+10. Verify a `ClassOfferingApproval` record exists before the offering is published
 
 ---
 
@@ -428,7 +428,7 @@ This document lists every feature in the portal — what it does, how it works t
 | Format | Description |
 |--------|-------------|
 | `ONE_OFF` | Single standalone class |
-| `LEVELED` | 101 / 201 / 301 / 401 multi-level series |
+| `LEVELED` | Multi-step progression series with plain-language learner fit |
 | `LAB` | Project-based hands-on session |
 | `COMMONS` | Mentored open practice |
 | `COMPETITION_PREP` | Timed competition preparation |
@@ -458,7 +458,7 @@ This document lists every feature in the portal — what it does, how it works t
 
 **How to test:**
 1. Log in as Instructor (Avery) → go to `/instructor/curriculum-builder`
-2. Create a new 101-level course
+2. Create a new beginner-friendly course
 3. Submit curriculum for review
 4. Log in as Admin → go to `/admin/curricula` → approve it
 5. Log in as Student (Jordan) → go to `/curriculum` → find the course
@@ -564,7 +564,7 @@ This document lists every feature in the portal — what it does, how it works t
 - `Chapter` model linked to users, courses, events
 - `lib/chapter-actions.ts` handles chapter CRUD operations
 - Chapter President role unlocks additional management routes
-- Chapter Lead role (`CHAPTER_LEAD`) can access `chapter-lead/` routes
+- Chapter President role (`CHAPTER_PRESIDENT`) can access `chapter-lead/` routes
 - `ChapterPresidentApplication` for applying to lead a chapter
 
 **Routes:**
@@ -579,7 +579,7 @@ This document lists every feature in the portal — what it does, how it works t
 - `/chapter/apply` — apply to a chapter
 - `/chapters` — all chapters directory
 - `/chapters/propose` — propose a new chapter
-- `/chapter-lead/dashboard` — chapter lead tools
+- `/chapter-lead/dashboard` — chapter president tools
 - `/admin/chapters` — admin chapter management
 
 **How to test:**

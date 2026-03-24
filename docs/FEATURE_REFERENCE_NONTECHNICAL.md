@@ -1,6 +1,6 @@
 # YPP Pathways Portal — Feature Overview (Non-Technical)
 
-> **Intended for:** Product reviewers, stakeholders, chapter leads, program staff, and anyone reviewing the portal without a technical background.
+> **Intended for:** Product reviewers, stakeholders, chapter presidents, program staff, and anyone reviewing the portal without a technical background.
 > **Last updated:** 2026-03-16
 
 This document explains every feature in plain language — what it is, what problem it solves, who uses it, and how to verify it's working correctly.
@@ -89,7 +89,7 @@ Every person in the portal has a role that determines what they can see and do. 
 | **Instructor** | Teach classes, build curriculum, manage students |
 | **Student** | Enroll in courses, track progress, submit projects |
 | **Mentor** | Guide students and instructors, give feedback |
-| **Chapter Lead** | Oversee a chapter's operations and instructors |
+| **Chapter President** | Oversee a chapter's operations and instructors |
 | **Staff** | Internal YPP operations |
 | **Parent** | View their child's progress and communicate with the program |
 | **Applicant** | Someone who has applied for a role but hasn't been hired yet |
@@ -162,8 +162,8 @@ A mandatory training program that all instructors must complete before they're a
 4. Once training is done, request an interview with the team
 5. After passing the interview, the instructor is approved to offer classes
 
-### Training levels
-Instructors are approved at specific levels: 101, 201, 301, and 401 — matching the difficulty of courses they can teach.
+### Publish approval
+Instructors finish training, pass the interview gate, and then request approval for each class offering they want to publish.
 
 ### How to review it
 1. Log in as **Avery Lin** (Instructor)
@@ -268,7 +268,7 @@ The core learning system — instructors create classes, students enroll, and pr
 | Type | Description |
 |------|-------------|
 | One-Off | A single standalone class |
-| Leveled (101–401) | A multi-class progression series |
+| Leveled | A multi-class progression series with plain-language learner fit |
 | Lab | Hands-on project session |
 | Commons | Open mentored practice |
 | Competition Prep | Prep for a competition |
@@ -289,7 +289,7 @@ The core learning system — instructors create classes, students enroll, and pr
 
 ### How to review it
 1. Log in as **Avery** (Instructor) → go to `/instructor/curriculum-builder`
-2. Create a new 101-level course
+2. Create a new beginner-friendly course
 3. Submit it for review
 4. Log in as **Admin** → go to `/admin/curricula` → approve it
 5. Log in as **Jordan** (Student) → go to `/curriculum` → find the course → enroll
@@ -325,7 +325,7 @@ Curated sequences of courses and activities that guide a student through an enti
 The full pipeline from posting a job opening to making a hire — all within the portal.
 
 ### How it works
-1. Admin (or Chapter Lead) posts a position
+1. Admin (or Chapter President) posts a position
 2. Applicants apply through the public job board
 3. Admin reviews applications and schedules interviews
 4. Interviewer records notes and selects an outcome
@@ -353,7 +353,7 @@ Tools for managing a local YPP chapter — its instructors, students, hiring, an
 
 ### Who uses it
 - **Chapter Presidents** manage day-to-day operations
-- **Chapter Leads** oversee chapter health across the program
+- **Chapter Presidents** oversee chapter health across the program
 - **Admins** can manage all chapters centrally
 
 ### How to review it
@@ -627,7 +627,7 @@ Dashboards that show how the program is performing — for individual users, cha
 ### Who uses it
 - **Students/Instructors** see their personal activity charts at `/analytics`
 - **Admins** see system-wide metrics at `/admin/analytics`
-- **Chapter Leads** see chapter-specific reports at `/admin/chapter-reports`
+- **Chapter Presidents** see chapter-specific reports at `/admin/chapter-reports`
 
 ### How to review it
 1. Log in as **Jordan** and complete 2–3 activities

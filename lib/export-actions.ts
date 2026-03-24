@@ -164,7 +164,7 @@ export async function saveApplicationScores(
   try {
     const session = await getServerSession(authOptions);
     const roles = session?.user?.roles ?? [];
-    if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_LEAD")) {
+    if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT")) {
       return { status: "error", message: "Unauthorized" };
     }
 

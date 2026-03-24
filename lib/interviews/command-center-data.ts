@@ -90,7 +90,7 @@ export async function getInterviewCommandCenterData(
   input: GetInterviewCommandCenterDataInput
 ): Promise<InterviewCommandCenterData> {
   const isAdmin = input.roles.includes("ADMIN");
-  const isChapterLead = input.roles.includes("CHAPTER_LEAD");
+  const isChapterLead = input.roles.includes("CHAPTER_PRESIDENT");
   const isInstructor = input.roles.includes("INSTRUCTOR");
 
   const user = await prisma.user.findUnique({
@@ -116,7 +116,7 @@ export async function getInterviewCommandCenterData(
   const canTeamView = isReviewer || isDesignatedInterviewer;
   const canHiring =
     isDesignatedInterviewer ||
-    ["STUDENT", "INSTRUCTOR", "STAFF", "ADMIN", "CHAPTER_LEAD"].some((role) =>
+    ["STUDENT", "INSTRUCTOR", "STAFF", "ADMIN", "CHAPTER_PRESIDENT"].some((role) =>
       input.roles.includes(role)
     );
   const canReadiness = isInstructor || isReviewer;

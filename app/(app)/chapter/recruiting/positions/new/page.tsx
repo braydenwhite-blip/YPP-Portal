@@ -34,7 +34,7 @@ export default async function NewChapterPositionPage() {
 
   const roles = user.roles.map((role) => role.role);
   const isAdmin = roles.includes("ADMIN");
-  const isChapterLead = roles.includes("CHAPTER_LEAD");
+  const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
 
   if (!isAdmin && !isChapterLead) {
     redirect("/");
@@ -72,7 +72,7 @@ export default async function NewChapterPositionPage() {
           roles: {
             some: {
               role: {
-                in: ["ADMIN", "CHAPTER_LEAD", "STAFF"],
+                in: ["ADMIN", "CHAPTER_PRESIDENT", "STAFF"],
               },
             },
           },

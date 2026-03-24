@@ -34,7 +34,7 @@ function formatDate(d: Date | null | undefined) {
 export default async function ChapterLeadInstructorApplicantsPage() {
   const session = await getServerSession(authOptions);
   const roles = session?.user?.roles ?? [];
-  if (!roles.includes("CHAPTER_LEAD") && !roles.includes("ADMIN")) redirect("/");
+  if (!roles.includes("CHAPTER_PRESIDENT") && !roles.includes("ADMIN")) redirect("/");
 
   const currentUser = await prisma.user.findUnique({
     where: { id: session!.user.id },
@@ -65,7 +65,7 @@ export default async function ChapterLeadInstructorApplicantsPage() {
     <div className="page-shell">
       <div className="page-header">
         <div>
-          <span className="badge">Chapter Lead</span>
+          <span className="badge">Chapter President</span>
           <h1 className="page-title">Instructor Applicants</h1>
           <p className="page-subtitle">
             Review and manage legacy instructor applications for your chapter.
@@ -75,7 +75,7 @@ export default async function ChapterLeadInstructorApplicantsPage() {
 
       <div className="card" style={{ marginBottom: 24 }}>
         <p style={{ margin: 0, fontSize: 14, color: "var(--muted)" }}>
-          This page is kept for compatibility. Chapter Leads should do primary hiring work in{" "}
+          This page is kept for compatibility. Chapter Presidents should do primary hiring work in{" "}
           <Link href="/chapter/recruiting" className="link">
             Chapter Recruiting
           </Link>{" "}

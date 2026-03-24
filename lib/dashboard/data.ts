@@ -342,8 +342,8 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     moduleBadgeByHref["/admin/waitlist"] = waitlistWaiting;
     moduleBadgeByHref["/admin/incubator"] = pendingIncubatorApplications;
     moduleBadgeByHref["/admin/challenges"] = draftChallenges;
-  } else if (role === "CHAPTER_LEAD") {
-    const hasChapterLeadAccess = roleTypes.includes("CHAPTER_LEAD") || roleTypes.includes("ADMIN");
+  } else if (role === "CHAPTER_PRESIDENT") {
+    const hasChapterLeadAccess = roleTypes.includes("CHAPTER_PRESIDENT") || roleTypes.includes("ADMIN");
 
     if (!hasChapterLeadAccess || !user.chapterId) {
       heroTitle = "Chapter Command Center";
@@ -563,21 +563,6 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
       readiness.requiredModulesCount === 0
         ? 100
         : Math.round((readiness.completedRequiredModules / readiness.requiredModulesCount) * 100);
-    const LEVEL_RANK: Record<string, number> = {
-      LEVEL_101: 101,
-      LEVEL_201: 201,
-      LEVEL_301: 301,
-      LEVEL_401: 401,
-    };
-    const highestApprovedLevel =
-      readiness.approvedLevels.length > 0
-        ? readiness.approvedLevels.reduce((a, b) =>
-            (LEVEL_RANK[a] ?? 0) >= (LEVEL_RANK[b] ?? 0) ? a : b
-          )
-        : null;
-    const teachingLevelValue = highestApprovedLevel
-      ? highestApprovedLevel.replace("LEVEL_", "")
-      : "Pending";
     const trainingIncomplete = Math.max(
       0,
       readiness.requiredModulesCount - readiness.completedRequiredModules
@@ -588,7 +573,11 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     heroSubtitle = "Keep classes moving while clearing readiness blockers quickly.";
 
     kpis = [
-      { id: "instructor_teaching_level", label: "Teaching Level", value: teachingLevelValue },
+      {
+        id: "instructor_approval_readiness",
+        label: "Approval Readiness",
+        value: readiness.baseReadinessComplete ? "Ready" : "Blocked",
+      },
       {
         id: "instructor_training",
         label: "Training",
@@ -645,8 +634,8 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     }
     nextActions.push({
       id: "instructor-pathway",
-      title: "View my full pathway",
-      detail: "See level progression, training roadmap, and teaching specialties.",
+      title: "View my publish workflow",
+      detail: "See readiness blockers, offering approval guidance, and teaching specialties.",
       href: "/instructor/workspace?tab=my-pathway",
     });
 
@@ -662,10 +651,10 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
       trainingPercent,
       interviewStatus: readiness.interviewStatus,
       interviewPassed: readiness.interviewPassed,
-      approvedLevels: readiness.approvedLevels as string[],
-      highestApprovedLevel,
+      baseReadinessComplete: readiness.baseReadinessComplete,
+      canRequestOfferingApproval: readiness.canRequestOfferingApproval,
+      legacyExemptOfferingCount: readiness.legacyExemptOfferingCount,
       missingRequirementsCount: readiness.missingRequirements.length,
-      canPublishFirstOffering: readiness.canPublishFirstOffering,
       featureEnabled: readiness.featureEnabled,
     };
   } else if (role === "STUDENT") {

@@ -34,8 +34,8 @@ async function requireAdminOrChapterLead() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) throw new Error("Unauthorized");
   const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_LEAD")) {
-    throw new Error("Unauthorized - Admin or Chapter Lead access required");
+  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT")) {
+    throw new Error("Unauthorized - Admin or Chapter President access required");
   }
   return session;
 }
@@ -54,10 +54,10 @@ async function assertReviewerCanManageApplicant(reviewerId: string, applicantId:
   if (!reviewer || !applicant) throw new Error("Reviewer or applicant not found");
   const reviewerRoles = reviewer.roles.map((r) => r.role);
   const isAdmin = reviewerRoles.includes("ADMIN");
-  const isChapterLead = reviewerRoles.includes("CHAPTER_LEAD");
+  const isChapterLead = reviewerRoles.includes("CHAPTER_PRESIDENT");
   if (!isAdmin && !isChapterLead) throw new Error("Unauthorized");
   if (isChapterLead && !isAdmin && reviewer.chapterId !== applicant.chapterId) {
-    throw new Error("Chapter Leads can only review applicants in their own chapter.");
+    throw new Error("Chapter Presidents can only review applicants in their own chapter.");
   }
 }
 
@@ -72,7 +72,7 @@ export async function notifyReviewersOfNewApplication(applicantId: string) {
       OR: [
         { roles: { some: { role: RoleType.ADMIN } } },
         {
-          roles: { some: { role: RoleType.CHAPTER_LEAD } },
+          roles: { some: { role: RoleType.CHAPTER_PRESIDENT } },
           chapterId: applicant.chapterId ?? undefined,
         },
       ],

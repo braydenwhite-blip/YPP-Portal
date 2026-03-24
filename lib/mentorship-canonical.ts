@@ -37,7 +37,7 @@ export function getLegacyMenteeRoleTypeForRole(
   if (primaryRole === "INSTRUCTOR") {
     return MenteeRoleType.INSTRUCTOR;
   }
-  if (primaryRole === "CHAPTER_LEAD") {
+  if (primaryRole === "CHAPTER_PRESIDENT") {
     return MenteeRoleType.CHAPTER_PRESIDENT;
   }
   return MenteeRoleType.GLOBAL_LEADERSHIP;

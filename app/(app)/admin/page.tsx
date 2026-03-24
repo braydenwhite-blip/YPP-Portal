@@ -14,7 +14,6 @@ import {
 } from "@/lib/admin-actions";
 import {
   CourseFormat,
-  CourseLevel,
   EventType,
   MentorshipType,
   RoleType,
@@ -157,14 +156,13 @@ export default async function AdminPage() {
               </select>
             </label>
             <label className="form-row">
-              Level (only for 101/201/301)
-              <select className="input" name="level" defaultValue="">
-                <option value="">Not leveled</option>
-                {Object.values(CourseLevel).map((level) => (
-                  <option key={level} value={level}>
-                    {level.replace("LEVEL_", "")}
-                  </option>
-                ))}
+              Learner Fit
+              <select className="input" name="learnerFit" defaultValue="">
+                <option value="">Flexible / mixed experience</option>
+                <option value="LEVEL_101">Best for first-time learners</option>
+                <option value="LEVEL_201">Great if you&apos;ve tried the basics</option>
+                <option value="LEVEL_301">Best if you can work more independently</option>
+                <option value="LEVEL_401">Best if you&apos;re ready for advanced project work</option>
               </select>
             </label>
             <label className="form-row">

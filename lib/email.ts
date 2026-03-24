@@ -510,7 +510,7 @@ const emailShell = (body: string) => `
 </html>`;
 
 /**
- * Notify admins/chapter leads of a new instructor applicant
+ * Notify admins/chapter presidents of a new instructor applicant
  */
 export async function sendNewApplicationNotification({
   to,
@@ -529,7 +529,7 @@ export async function sendNewApplicationNotification({
     <div style="text-align: center; margin: 28px 0;">
       <a href="${reviewUrl}" style="background: #7c3aed; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Review Application</a>
     </div>
-    <p style="color: #78716c; font-size: 13px;">You are receiving this because you are an admin or chapter lead.</p>
+    <p style="color: #78716c; font-size: 13px;">You are receiving this because you are an admin or chapter president.</p>
   `);
   return sendEmail({ to, subject, html });
 }
@@ -646,7 +646,7 @@ export async function sendInterviewScheduledEmail({
     <div style="text-align: center; margin: 28px 0;">
       <a href="${statusUrl}" style="background: #7c3aed; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Application Status</a>
     </div>
-    <p style="color: #78716c; font-size: 13px;">If you have questions, please reach out to your chapter lead or admin.</p>
+    <p style="color: #78716c; font-size: 13px;">If you have questions, please reach out to your chapter president or admin.</p>
   `);
   return sendEmail({ to, subject, html });
 }

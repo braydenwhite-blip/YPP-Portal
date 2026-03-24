@@ -5,8 +5,6 @@ import { authOptions } from "@/lib/auth";
 import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 import {
-  CourseLevel,
-  ReadinessReviewStatus,
   TrainingEvidenceStatus,
   TrainingModuleType,
   TrainingStatus,
@@ -14,7 +12,6 @@ import {
 } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 import { checkAndIssueTrainingCompletion } from "@/lib/auto-certificate-actions";
-import { getInstructorReadiness } from "@/lib/instructor-readiness";
 import { onProgressEvent } from "@/lib/progress-events";
 import {
   emptyReviewRubric,
@@ -42,8 +39,8 @@ async function requireAdmin() {
 async function requireAdminOrChapterLead() {
   const session = await requireAuth();
   const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_LEAD")) {
-    throw new Error("Unauthorized - Admin or Chapter Lead access required");
+  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT")) {
+    throw new Error("Unauthorized - Admin or Chapter President access required");
   }
   return session;
 }
@@ -56,7 +53,7 @@ async function requireTrainingLearner() {
     roles.includes("APPLICANT") ||
     roles.includes("INSTRUCTOR") ||
     roles.includes("ADMIN") ||
-    roles.includes("CHAPTER_LEAD");
+    roles.includes("CHAPTER_PRESIDENT");
 
   if (!canAccessTraining) {
     throw new Error("Unauthorized - Training learner access required");
@@ -91,14 +88,14 @@ async function assertReviewerCanManageInstructor(
 
   const reviewerRoles = reviewer.roles.map((role) => role.role);
   const isAdmin = reviewerRoles.includes("ADMIN");
-  const isChapterLead = reviewerRoles.includes("CHAPTER_LEAD");
+  const isChapterLead = reviewerRoles.includes("CHAPTER_PRESIDENT");
 
   if (!isAdmin && !isChapterLead) {
     throw new Error("Unauthorized");
   }
 
   if (isChapterLead && !isAdmin && reviewer.chapterId !== instructor.chapterId) {
-    throw new Error("Chapter Leads can only review instructors in their own chapter.");
+    throw new Error("Chapter Presidents can only review instructors in their own chapter.");
   }
 }
 
@@ -157,13 +154,6 @@ function buildStudioReviewRubric(formData: FormData) {
     },
     summary: getString(formData, "rubricSummary", false),
   });
-}
-
-function getCourseLevel(raw: string): CourseLevel {
-  if (!["LEVEL_101", "LEVEL_201", "LEVEL_301", "LEVEL_401"].includes(raw)) {
-    throw new Error("Invalid course level");
-  }
-  return raw as CourseLevel;
 }
 
 type ModuleValidationInput = {
@@ -267,115 +257,6 @@ async function getModuleValidationInput(moduleId: string): Promise<ModuleValidat
     requiredCheckpointCount,
     quizQuestionCount,
   };
-}
-
-async function ensureSequentialPermission(instructorId: string, level: CourseLevel) {
-  const requiredPrereq: Record<CourseLevel, CourseLevel | null> = {
-    LEVEL_101: null,
-    LEVEL_201: "LEVEL_101",
-    LEVEL_301: "LEVEL_201",
-    LEVEL_401: "LEVEL_301",
-  };
-
-  const prereq = requiredPrereq[level];
-  if (!prereq) return;
-
-  const hasPrereqPermission = await prisma.instructorTeachingPermission.findUnique({
-    where: {
-      instructorId_level: { instructorId, level: prereq },
-    },
-    select: { id: true },
-  });
-
-  if (hasPrereqPermission) return;
-
-  const hasLegacyPrereq = await prisma.instructorApprovalLevel.findFirst({
-    where: {
-      level: prereq,
-      approval: { instructorId },
-    },
-    select: { id: true },
-  });
-
-  if (!hasLegacyPrereq) {
-    throw new Error(
-      `Cannot grant ${level.replace("LEVEL_", "")} before ${prereq.replace("LEVEL_", "")}.`
-    );
-  }
-}
-
-async function upsertTeachingPermission({
-  instructorId,
-  level,
-  grantedById,
-  reason,
-}: {
-  instructorId: string;
-  level: CourseLevel;
-  grantedById: string;
-  reason?: string | null;
-}) {
-  await ensureSequentialPermission(instructorId, level);
-
-  await prisma.instructorTeachingPermission.upsert({
-    where: {
-      instructorId_level: { instructorId, level },
-    },
-    create: {
-      instructorId,
-      level,
-      grantedById,
-      reason: reason || null,
-    },
-    update: {
-      grantedById,
-      reason: reason || null,
-      grantedAt: new Date(),
-    },
-  });
-
-  // Keep legacy approval records aligned for existing pages.
-  let approval = await prisma.instructorApproval.findFirst({
-    where: { instructorId },
-    orderBy: { createdAt: "asc" },
-    select: { id: true },
-  });
-
-  if (!approval) {
-    approval = await prisma.instructorApproval.create({
-      data: {
-        instructorId,
-        status: "APPROVED",
-        notes: "Auto-synced from native teaching permission.",
-      },
-      select: { id: true },
-    });
-  } else {
-    await prisma.instructorApproval.update({
-      where: { id: approval.id },
-      data: {
-        status: "APPROVED",
-        notes: "Auto-synced from native teaching permission.",
-      },
-    });
-  }
-
-  const existingLevel = await prisma.instructorApprovalLevel.findFirst({
-    where: {
-      approvalId: approval.id,
-      level,
-    },
-    select: { id: true },
-  });
-
-  if (!existingLevel) {
-    await prisma.instructorApprovalLevel.create({
-      data: {
-        approvalId: approval.id,
-        level,
-      },
-    });
-  }
 }
 
 async function syncAssignmentFromArtifacts(userId: string, moduleId: string) {
@@ -1258,31 +1139,6 @@ export async function submitTrainingEvidence(formData: FormData) {
   revalidatePath(`/training/${moduleId}`);
 }
 
-export async function requestReadinessReview(formData?: FormData) {
-  const session = await requireAuth();
-  const instructorId = session.user.id;
-  const notes = formData ? getString(formData, "notes", false) : "";
-
-  const readiness = await getInstructorReadiness(instructorId);
-  if (!readiness.trainingComplete) {
-    throw new Error("Complete all required training modules before requesting readiness review.");
-  }
-
-  await prisma.readinessReviewRequest.create({
-    data: {
-      instructorId,
-      status: "REQUESTED",
-      notes: notes || null,
-    },
-  });
-
-  revalidatePath("/instructor/training-progress");
-  revalidatePath("/instructor-training");
-  revalidatePath("/student-training");
-  revalidatePath("/admin/instructor-readiness");
-  revalidatePath("/chapter-lead/instructor-readiness");
-}
-
 export async function reviewTrainingEvidence(formData: FormData) {
   const session = await requireAdminOrChapterLead();
 
@@ -1362,118 +1218,6 @@ export async function reviewTrainingEvidence(formData: FormData) {
   revalidatePath("/instructor/lesson-design-studio");
   revalidatePath("/admin/training");
   revalidatePath(`/training/${submission.moduleId}`);
-}
-
-export async function grantTeachingPermission(formData: FormData) {
-  const session = await requireAdminOrChapterLead();
-
-  const instructorId = getString(formData, "instructorId");
-  const level = getCourseLevel(getString(formData, "level"));
-  const reason = getString(formData, "reason", false);
-
-  await assertReviewerCanManageInstructor(session.user.id, instructorId);
-
-  await upsertTeachingPermission({
-    instructorId,
-    level,
-    grantedById: session.user.id,
-    reason: reason || null,
-  });
-
-  revalidatePath("/admin/instructor-readiness");
-  revalidatePath("/chapter-lead/instructor-readiness");
-  revalidatePath("/instructor/certifications");
-}
-
-export async function approveReadinessReview(formData: FormData) {
-  const session = await requireAdminOrChapterLead();
-
-  const requestId = getString(formData, "requestId");
-  const level = getCourseLevel(getString(formData, "level", false) || "LEVEL_101");
-  const reviewNotes = getString(formData, "reviewNotes", false);
-
-  const request = await prisma.readinessReviewRequest.findUnique({
-    where: { id: requestId },
-    select: {
-      id: true,
-      instructorId: true,
-    },
-  });
-
-  if (!request) {
-    throw new Error("Readiness request not found");
-  }
-
-  await assertReviewerCanManageInstructor(session.user.id, request.instructorId);
-
-  await prisma.readinessReviewRequest.update({
-    where: { id: requestId },
-    data: {
-      status: "APPROVED",
-      reviewedById: session.user.id,
-      reviewedAt: new Date(),
-      reviewNotes: reviewNotes || null,
-    },
-  });
-
-  const interviewGate = await prisma.instructorInterviewGate.findUnique({
-    where: { instructorId: request.instructorId },
-    select: { status: true },
-  });
-
-  if (interviewGate && !["PASSED", "WAIVED"].includes(interviewGate.status)) {
-    throw new Error("Cannot approve readiness before interview gate is passed or waived.");
-  }
-
-  await upsertTeachingPermission({
-    instructorId: request.instructorId,
-    level,
-    grantedById: session.user.id,
-    reason:
-      reviewNotes || `Approved via readiness review ${requestId} by ${session.user.id}.`,
-  });
-
-  revalidatePath("/admin/instructor-readiness");
-  revalidatePath("/chapter-lead/instructor-readiness");
-}
-
-export async function requestReadinessRevision(formData: FormData) {
-  const session = await requireAdminOrChapterLead();
-
-  const requestId = getString(formData, "requestId");
-  const reviewNotes = getString(formData, "reviewNotes", false);
-  const statusRaw = getString(formData, "status", false) || "REVISION_REQUESTED";
-
-  if (!["REVISION_REQUESTED", "REJECTED"].includes(statusRaw)) {
-    throw new Error("Invalid readiness review status");
-  }
-
-  const request = await prisma.readinessReviewRequest.findUnique({
-    where: { id: requestId },
-    select: {
-      id: true,
-      instructorId: true,
-    },
-  });
-
-  if (!request) {
-    throw new Error("Readiness request not found");
-  }
-
-  await assertReviewerCanManageInstructor(session.user.id, request.instructorId);
-
-  await prisma.readinessReviewRequest.update({
-    where: { id: requestId },
-    data: {
-      status: statusRaw as ReadinessReviewStatus,
-      reviewedById: session.user.id,
-      reviewedAt: new Date(),
-      reviewNotes: reviewNotes || null,
-    },
-  });
-
-  revalidatePath("/admin/instructor-readiness");
-  revalidatePath("/chapter-lead/instructor-readiness");
 }
 
 // ============================================
@@ -1786,9 +1530,9 @@ export async function submitCurriculumFeedback(formData: FormData) {
   if (
     !roles.includes("ADMIN") &&
     !roles.includes("MENTOR") &&
-    !roles.includes("CHAPTER_LEAD")
+    !roles.includes("CHAPTER_PRESIDENT")
   ) {
-    throw new Error("Only admins, mentors, and chapter leads can submit curriculum feedback");
+    throw new Error("Only admins, mentors, and chapter presidents can submit curriculum feedback");
   }
 
   const instructorId = getString(formData, "instructorId");

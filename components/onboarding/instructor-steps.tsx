@@ -68,8 +68,8 @@ export default function InstructorSteps({
             <div className="onboarding-feature-icon">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
             </div>
-            <h3>Level Up</h3>
-            <p>Complete training modules to unlock teaching at higher levels (101 &rarr; 201 &rarr; 301 &rarr; 401).</p>
+            <h3>Get Approval-Ready</h3>
+            <p>Complete training modules, pass your interview, and request offering approval before publishing.</p>
           </div>
           <div className="onboarding-feature-card">
             <div className="onboarding-feature-icon">
@@ -280,24 +280,21 @@ export default function InstructorSteps({
 
         <div className="onboarding-info-grid">
           <div className="onboarding-info-card">
-            <h3>Course Levels &amp; Approval</h3>
+            <h3>Readiness &amp; Offering Approval</h3>
             <p>
-              Instructors are approved to teach at specific levels. Start at 101 and
-              work your way up to 201, 301, and 401 as you gain experience and complete
-              additional training.
+              Instructors complete training, pass an interview readiness check, and then request approval for each offering before publishing.
             </p>
             <div className="onboarding-level-badges">
-              <span className="pill level-101">101 - Foundations</span>
-              <span className="pill level-201">201 - Intermediate</span>
-              <span className="pill level-301">301 - Advanced</span>
-              <span className="pill level-301">401 - Mastery</span>
+              <span className="pill level-101">Training complete</span>
+              <span className="pill level-201">Interview passed</span>
+              <span className="pill level-301">Offering approved</span>
             </div>
           </div>
           <div className="onboarding-info-card">
             <h3>Class Formats</h3>
             <p>YPP offers multiple class formats depending on the subject and student needs:</p>
             <ul className="onboarding-format-list">
-              <li><strong>Leveled:</strong> Progressive classes (101 &rarr; 201 &rarr; 301)</li>
+              <li><strong>Pathway-based:</strong> Progressive classes with learner-fit guidance and sequenced next steps</li>
               <li><strong>One-Off:</strong> Standalone workshops on specific topics</li>
               <li><strong>Labs:</strong> Extended project-based sessions</li>
               <li><strong>Competition Prep:</strong> Preparing students for competitions</li>

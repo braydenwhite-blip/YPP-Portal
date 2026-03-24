@@ -22,7 +22,7 @@ export type StudentProgressSnapshot = {
 
 export async function getStudentProgressSnapshot(userId: string): Promise<StudentProgressSnapshot> {
   const sessionUser = await requireSessionUser();
-  const elevatedRoles = ["ADMIN", "STAFF", "INSTRUCTOR", "MENTOR", "CHAPTER_LEAD"];
+  const elevatedRoles = ["ADMIN", "STAFF", "INSTRUCTOR", "MENTOR", "CHAPTER_PRESIDENT"];
   const isSelf = sessionUser.id === userId;
   const hasElevatedRole = sessionUser.roles.some((r) =>
     elevatedRoles.includes(typeof r === "string" ? r : (r as { role: string }).role)

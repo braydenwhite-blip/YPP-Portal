@@ -18,7 +18,7 @@ export default async function ChapterUpdatesPage() {
     include: { roles: true },
   });
 
-  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_LEAD");
+  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT");
   const isAdmin = user?.roles.some((r) => r.role === "ADMIN");
   const canPost = isChapterLead || isAdmin;
 

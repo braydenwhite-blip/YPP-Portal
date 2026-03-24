@@ -56,7 +56,7 @@ type Sequence = {
 };
 
 type ReadinessSummary = {
-  canPublishFirstOffering: boolean;
+  baseReadinessComplete: boolean;
   nextAction: {
     title: string;
     detail: string;
@@ -112,7 +112,7 @@ export function SequenceBuilderClient({
   );
 
   const activeSequence = localSequences.find((s) => s.id === activeSequenceId) ?? null;
-  const publishBlocked = !readiness.canPublishFirstOffering;
+  const publishBlocked = !readiness.baseReadinessComplete;
 
   useEffect(() => {
     if (!activeSequence) {
@@ -379,7 +379,7 @@ export function SequenceBuilderClient({
           </a>
         </div>
       </div>
-      {!readiness.canPublishFirstOffering && (
+      {!readiness.baseReadinessComplete && (
         <div
           style={{
             padding: "10px 14px",

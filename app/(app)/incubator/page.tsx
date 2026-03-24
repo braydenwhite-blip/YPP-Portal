@@ -70,7 +70,7 @@ export default async function IncubatorPage() {
     (session.user as any).roles ?? [],
     (session.user as any).primaryRole ?? null
   );
-  const canManage = roleSet.has("ADMIN") || roleSet.has("INSTRUCTOR") || roleSet.has("CHAPTER_LEAD");
+  const canManage = roleSet.has("ADMIN") || roleSet.has("INSTRUCTOR") || roleSet.has("CHAPTER_PRESIDENT");
 
   const [activeCohort, myProjects, myApps, stats, allProjects, passionAreas] = await Promise.all([
     getActiveCohort(),

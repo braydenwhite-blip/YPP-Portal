@@ -84,7 +84,7 @@ export default function PairingsPanel({ pairings, potentialMentors, potentialMen
   const ROLE_LABELS: Record<string, string> = {
     ALL: "All Roles",
     INSTRUCTOR: "Instructors",
-    CHAPTER_LEAD: "Chapter Presidents",
+    CHAPTER_PRESIDENT: "Chapter Presidents",
     ADMIN: "Global Leadership",
     STAFF: "Global Leadership",
   };
@@ -247,7 +247,7 @@ export default function PairingsPanel({ pairings, potentialMentors, potentialMen
 function formatRole(role: string) {
   const map: Record<string, string> = {
     INSTRUCTOR: "Instructor",
-    CHAPTER_LEAD: "Chapter President",
+    CHAPTER_PRESIDENT: "Chapter President",
     ADMIN: "Global Leadership",
     STAFF: "Global Leadership",
     MENTOR: "Mentor",

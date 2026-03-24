@@ -14,7 +14,7 @@ export default async function LessonPlansPage({
   const isInstructor =
     roles.includes("INSTRUCTOR") ||
     roles.includes("ADMIN") ||
-    roles.includes("CHAPTER_LEAD");
+    roles.includes("CHAPTER_PRESIDENT");
 
   if (!isInstructor) {
     redirect("/");

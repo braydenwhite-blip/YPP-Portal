@@ -28,7 +28,7 @@ export default async function CurriculumBuilderStudioPage({
   const hasAccess =
     roles.includes("INSTRUCTOR") ||
     roles.includes("ADMIN") ||
-    roles.includes("CHAPTER_LEAD") ||
+    roles.includes("CHAPTER_PRESIDENT") ||
     roles.includes("APPLICANT");
 
   if (!hasAccess) redirect("/");

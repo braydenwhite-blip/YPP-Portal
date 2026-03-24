@@ -86,7 +86,7 @@ export default async function NewProposalPage() {
                   }}
                 >
                   <option value="ONE_OFF">One-Off</option>
-                  <option value="LEVELED">Leveled</option>
+                  <option value="LEVELED">Learner Progression</option>
                   <option value="LAB">Lab</option>
                   <option value="COMMONS">Commons</option>
                   <option value="COMPETITION_PREP">Competition Prep</option>
@@ -94,12 +94,12 @@ export default async function NewProposalPage() {
               </div>
 
               <div>
-                <label htmlFor="level" style={{ display: "block", fontWeight: 600, marginBottom: 8 }}>
-                  Level
+                <label htmlFor="learnerFit" style={{ display: "block", fontWeight: 600, marginBottom: 8 }}>
+                  Learner Fit
                 </label>
                 <select
-                  id="level"
-                  name="level"
+                  id="learnerFit"
+                  name="learnerFit"
                   style={{
                     width: "100%",
                     padding: 10,
@@ -109,10 +109,11 @@ export default async function NewProposalPage() {
                     backgroundColor: "var(--bg-primary)"
                   }}
                 >
-                  <option value="">N/A</option>
-                  <option value="LEVEL_101">101</option>
-                  <option value="LEVEL_201">201</option>
-                  <option value="LEVEL_301">301</option>
+                  <option value="">Flexible / mixed experience</option>
+                  <option value="LEVEL_101">Best for first-time learners</option>
+                  <option value="LEVEL_201">Great if you&apos;ve tried the basics</option>
+                  <option value="LEVEL_301">Best if you can work more independently</option>
+                  <option value="LEVEL_401">Best if you&apos;re ready for advanced project work</option>
                 </select>
               </div>
 

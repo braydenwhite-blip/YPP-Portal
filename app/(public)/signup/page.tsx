@@ -45,7 +45,7 @@ export default function SignupPage() {
             Please verify your email address first to activate your account.
           </p>
           <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.6, margin: "0 0 12px" }}>
-            Once verified, an admin or chapter lead will review your application and reach out to schedule an interview. You can log in at any time to check your application status.
+            Once verified, an admin or chapter president will review your application and reach out to schedule an interview. You can log in at any time to check your application status.
           </p>
           <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6, margin: "0 0 20px" }}>
             Didn&apos;t get the verification email? Check your spam folder, or request a new link below.
@@ -163,7 +163,7 @@ export default function SignupPage() {
             </select>
             {accountType === "APPLICANT" && (
               <span style={{ display: "block", fontSize: 12, color: "var(--muted)", marginTop: 6 }}>
-                Your application will be reviewed by an admin or chapter lead before you are approved as an instructor.
+                Your application will be reviewed by an admin or chapter president before you are approved as an instructor.
               </span>
             )}
           </label>

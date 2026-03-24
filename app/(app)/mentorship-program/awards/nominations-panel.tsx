@@ -56,7 +56,7 @@ const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
 
 const ROLE_LABELS: Record<string, string> = {
   INSTRUCTOR: "Instructor",
-  CHAPTER_LEAD: "Chapter President",
+  CHAPTER_PRESIDENT: "Chapter President",
   ADMIN: "Global Leadership",
   STAFF: "Global Leadership",
 };

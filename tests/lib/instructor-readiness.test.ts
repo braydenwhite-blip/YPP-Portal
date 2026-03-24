@@ -4,13 +4,13 @@ import { assertReadinessAllowsPublish } from "@/lib/instructor-readiness";
 describe("assertReadinessAllowsPublish", () => {
   it("allows publish when readiness is complete", () => {
     expect(() =>
-      assertReadinessAllowsPublish({ canPublishFirstOffering: true })
+      assertReadinessAllowsPublish({ baseReadinessComplete: true })
     ).not.toThrow();
   });
 
   it("blocks publish when readiness is incomplete", () => {
     expect(() =>
-      assertReadinessAllowsPublish({ canPublishFirstOffering: false })
+      assertReadinessAllowsPublish({ baseReadinessComplete: false })
     ).toThrow(
       "Publishing blocked. Complete required training modules and pass interview readiness first."
     );

@@ -12,7 +12,7 @@ async function requireAdminOrChair() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) throw new Error("Unauthorized");
   const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_LEAD")) {
+  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT")) {
     throw new Error("Unauthorized");
   }
   return session as typeof session & { user: { id: string } };

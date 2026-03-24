@@ -122,7 +122,7 @@ export default async function OverviewPage() {
       "Clear high-risk operational queues daily.",
       "Keep hiring, readiness, and waitlist motion visible.",
     ],
-    CHAPTER_LEAD: [
+    CHAPTER_PRESIDENT: [
       "Run chapter hiring and interviews without side spreadsheets.",
       "Keep instructor readiness blockers near zero.",
     ],

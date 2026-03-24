@@ -36,7 +36,7 @@ async function requireAdminOrMentor() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) throw new Error("Unauthorized");
   const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN") && !roles.includes("MENTOR") && !roles.includes("CHAPTER_LEAD")) {
+  if (!roles.includes("ADMIN") && !roles.includes("MENTOR") && !roles.includes("CHAPTER_PRESIDENT")) {
     throw new Error("Unauthorized");
   }
   return session as typeof session & { user: { id: string } };
@@ -48,7 +48,7 @@ export async function getMentorEffectivenessScores(): Promise<MentorEffectivenes
   // Fetch all mentors with their mentorships and reviews
   const mentors = await prisma.user.findMany({
     where: {
-      roles: { some: { role: { in: ["MENTOR", "CHAPTER_LEAD"] } } },
+      roles: { some: { role: { in: ["MENTOR", "CHAPTER_PRESIDENT"] } } },
     },
     select: {
       id: true,

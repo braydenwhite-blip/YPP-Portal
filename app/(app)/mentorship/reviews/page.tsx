@@ -54,7 +54,7 @@ export default async function ChairReviewQueuePage() {
   const roles = session.user.roles ?? [];
   if (
     !roles.includes("ADMIN") &&
-    !roles.includes("CHAPTER_LEAD") &&
+    !roles.includes("CHAPTER_PRESIDENT") &&
     !roles.includes("MENTOR")
   ) {
     redirect("/mentorship");

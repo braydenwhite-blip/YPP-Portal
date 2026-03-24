@@ -15,7 +15,7 @@ export default async function InstructorParentMessagesPage() {
   if (
     !roles.includes("INSTRUCTOR") &&
     !roles.includes("ADMIN") &&
-    !roles.includes("CHAPTER_LEAD")
+    !roles.includes("CHAPTER_PRESIDENT")
   ) {
     redirect("/");
   }

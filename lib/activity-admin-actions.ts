@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireAnyRole } from "@/lib/authorization";
 
 async function requireActivityAdmin() {
-  return requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+  return requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"]);
 }
 
 function revalidateActivitySurfaces() {

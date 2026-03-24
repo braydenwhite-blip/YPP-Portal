@@ -70,7 +70,7 @@ export default async function SessionDetailPage({
   const isStaff =
     roles.includes("ADMIN") ||
     roles.includes("INSTRUCTOR") ||
-    roles.includes("CHAPTER_LEAD");
+    roles.includes("CHAPTER_PRESIDENT");
 
   let attendanceSession;
   try {

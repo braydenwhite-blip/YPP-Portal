@@ -18,7 +18,7 @@ export default async function ChapterChannelsPage() {
   if (!session?.user?.id) redirect("/login");
 
   const isLead = session.user.roles?.some(
-    (r: string) => r === "CHAPTER_LEAD" || r === "ADMIN"
+    (r: string) => r === "CHAPTER_PRESIDENT" || r === "ADMIN"
   );
 
   const channels = await getChapterChannels();
@@ -44,7 +44,7 @@ export default async function ChapterChannelsPage() {
           <p style={{ color: "var(--muted)", fontSize: 14 }}>
             {isLead
               ? "Create your first channel to get conversations started."
-              : "Your chapter lead hasn't created any channels yet."}
+              : "Your chapter president hasn't created any channels yet."}
           </p>
         </div>
       ) : (

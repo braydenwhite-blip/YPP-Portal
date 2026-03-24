@@ -12,6 +12,7 @@ import {
   getClassTemplateCapabilities,
   getTemplateSubmissionStatus,
 } from "@/lib/class-template-compat";
+import { getLearnerFitSummary } from "@/lib/learner-fit";
 import { summarizeRichText } from "@/lib/rich-text-summary";
 import {
   getInstructorOfferings,
@@ -30,36 +31,12 @@ const TAB_LABELS: Record<WorkspaceTab, string> = {
   "lesson-plans": "Lesson Plans",
   offerings: "Offerings",
   readiness: "Readiness",
-  "my-pathway": "My Pathway",
-};
-
-const LEVELS = ["LEVEL_101", "LEVEL_201", "LEVEL_301", "LEVEL_401"] as const;
-const LEVEL_LABELS: Record<string, string> = {
-  LEVEL_101: "Level 101",
-  LEVEL_201: "Level 201",
-  LEVEL_301: "Level 301",
-  LEVEL_401: "Level 401",
-};
-const LEVEL_DESCRIPTIONS: Record<string, string> = {
-  LEVEL_101: "Foundations — teach entry-level classes",
-  LEVEL_201: "Intermediate — teach 200-level courses",
-  LEVEL_301: "Advanced — teach 300-level courses",
-  LEVEL_401: "Expert — teach all levels including 401",
+  "my-pathway": "Publish Workflow",
 };
 
 function safeTab(tab: string | undefined): WorkspaceTab {
   if (!tab) return "curricula";
   return tabs.includes(tab as WorkspaceTab) ? (tab as WorkspaceTab) : "curricula";
-}
-
-function difficultyLabel(level: string) {
-  const map: Record<string, string> = {
-    LEVEL_101: "101",
-    LEVEL_201: "201",
-    LEVEL_301: "301",
-    LEVEL_401: "401",
-  };
-  return map[level] || level;
 }
 
 export default async function InstructorWorkspacePage({
@@ -71,12 +48,12 @@ export default async function InstructorWorkspacePage({
   if (!session?.user?.id) redirect("/login");
 
   const roles = session.user.roles ?? [];
-  const canAccess = roles.includes("INSTRUCTOR") || roles.includes("ADMIN") || roles.includes("CHAPTER_LEAD");
+  const canAccess = roles.includes("INSTRUCTOR") || roles.includes("ADMIN") || roles.includes("CHAPTER_PRESIDENT");
   if (!canAccess) redirect("/");
 
   const tab = safeTab((await searchParams).tab);
 
-  const [capabilities, hasPathwaySpecsTable, templates, lessonPlans, offerings, readiness, teachingPermissions, allPathways, activeOfferings, menteeCount] = await Promise.all([
+  const [capabilities, hasPathwaySpecsTable, templates, lessonPlans, offerings, readiness, allPathways, activeOfferings, menteeCount] = await Promise.all([
     getClassTemplateCapabilities(),
     hasInstructorPathwaySpecTable(),
     getInstructorTemplates(session.user.id),
@@ -92,10 +69,6 @@ export default async function InstructorWorkspacePage({
     }),
     getInstructorOfferings(session.user.id),
     getInstructorReadiness(session.user.id),
-    prisma.instructorTeachingPermission.findMany({
-      where: { instructorId: session.user.id },
-      select: { level: true, grantedAt: true },
-    }),
     getActivePathwaysForInstructorWorkspace(session.user.id),
     prisma.classOffering.findMany({
       where: { instructorId: session.user.id, status: "PUBLISHED" },
@@ -153,7 +126,7 @@ export default async function InstructorWorkspacePage({
           <div className="kpi-label">Offerings</div>
         </div>
         <div className="card">
-          <div className="kpi">{readiness.canPublishFirstOffering ? "Ready" : "Blocked"}</div>
+          <div className="kpi">{readiness.baseReadinessComplete ? "Ready" : "Blocked"}</div>
           <div className="kpi-label">Readiness</div>
         </div>
       </div>
@@ -240,7 +213,18 @@ export default async function InstructorWorkspacePage({
                     </div>
                   </div>
                   <div style={{ marginTop: 10, display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    <span className="pill">{difficultyLabel(template.difficultyLevel)}</span>
+                    {(() => {
+                      const learnerFit = getLearnerFitSummary({
+                        learnerFitLabel: template.learnerFitLabel,
+                        learnerFitDescription: template.learnerFitDescription,
+                        difficultyLevel: template.difficultyLevel,
+                      });
+                      return (
+                        <span className="pill" style={{ background: learnerFit.accent + "18", color: learnerFit.accent }}>
+                          {learnerFit.label}
+                        </span>
+                      );
+                    })()}
                     <span className="pill">{template.interestArea}</span>
                     <span className="pill">{template.durationWeeks} weeks</span>
                   </div>
@@ -414,8 +398,8 @@ export default async function InstructorWorkspacePage({
               <div className="kpi-label">Interview Gate</div>
             </div>
             <div>
-              <div className="kpi">{readiness.canPublishFirstOffering ? "Ready" : "Blocked"}</div>
-              <div className="kpi-label">First Publish</div>
+              <div className="kpi">{readiness.baseReadinessComplete ? "Ready" : "Blocked"}</div>
+              <div className="kpi-label">Approval Request</div>
             </div>
           </div>
 
@@ -433,23 +417,40 @@ export default async function InstructorWorkspacePage({
             </div>
           ) : (
             <div style={{ marginTop: 14, padding: 12, background: "#f0fdf4", color: "#166534", borderRadius: 10 }}>
-              You are clear to publish your first offering.
+              You are clear to request offering approval from class settings.
             </div>
           )}
         </div>
       )}
 
       {tab === "my-pathway" && (() => {
-        const grantedLevels = new Set(teachingPermissions.map((p) => p.level));
-        const highestGranted = LEVELS.filter((l) => grantedLevels.has(l)).pop() ?? null;
-        const currentLevelIndex = highestGranted ? LEVELS.indexOf(highestGranted) : -1;
-        const nextLevel = currentLevelIndex < LEVELS.length - 1 ? LEVELS[currentLevelIndex + 1] : null;
         const trainingPct =
           readiness.requiredModulesCount > 0
             ? Math.round((readiness.completedRequiredModules / readiness.requiredModulesCount) * 100)
             : 0;
         const interviewStatus = readiness.interviewStatus;
         const interviewPassed = interviewStatus === "PASSED" || interviewStatus === "WAIVED";
+        const approvedTemplateCount = templates.filter(
+          (template) => getTemplateSubmissionStatus(template, hasReviewWorkflow) === "APPROVED"
+        ).length;
+        const submittedTemplateCount = hasReviewWorkflow
+          ? templates.filter((template) => getTemplateSubmissionStatus(template, hasReviewWorkflow) === "SUBMITTED").length
+          : 0;
+        const draftTemplateCount = templates.filter((template) => {
+          const status = getTemplateSubmissionStatus(template, hasReviewWorkflow);
+          return status === "DRAFT" || status === "NEEDS_REVISION";
+        }).length;
+        const approvedOfferingCount = offerings.filter(
+          (offering) => offering.grandfatheredTrainingExemption || offering.approval?.status === "APPROVED"
+        ).length;
+        const pendingOfferingApprovalCount = offerings.filter((offering) => {
+          if (offering.grandfatheredTrainingExemption) return false;
+          const status = offering.approval?.status ?? "NOT_REQUESTED";
+          return ["REQUESTED", "UNDER_REVIEW", "CHANGES_REQUESTED", "REJECTED"].includes(status);
+        }).length;
+        const visibleMilestones = INSTRUCTOR_MILESTONES.filter(
+          (milestone) => !milestone.key.startsWith("UNLOCK_LEVEL_")
+        );
 
         // Compute earned milestones from available data
         const earnedMilestoneKeys = new Set<string>();
@@ -457,81 +458,85 @@ export default async function InstructorWorkspacePage({
         if (interviewPassed) earnedMilestoneKeys.add("PASS_INTERVIEW_GATE");
         if (offerings.length >= 1) earnedMilestoneKeys.add("TEACH_FIRST_CLASS");
         if (offerings.length >= 10) earnedMilestoneKeys.add("TEACH_10_CLASSES");
-        if (grantedLevels.has("LEVEL_201")) earnedMilestoneKeys.add("UNLOCK_LEVEL_201");
-        if (grantedLevels.has("LEVEL_301")) earnedMilestoneKeys.add("UNLOCK_LEVEL_301");
-        if (grantedLevels.has("LEVEL_401")) earnedMilestoneKeys.add("UNLOCK_LEVEL_401");
         if (templates.some((template) => getTemplateSubmissionStatus(template, hasReviewWorkflow) === "APPROVED")) earnedMilestoneKeys.add("CURRICULUM_APPROVED");
         if (menteeCount >= 5) earnedMilestoneKeys.add("MENTOR_5_STUDENTS");
 
         return (
           <div style={{ display: "grid", gap: 20 }}>
-            {/* Level Progression Roadmap */}
             <div className="card">
-              <h3 style={{ marginBottom: 4 }}>Your Instructor Pathway</h3>
+              <h3 style={{ marginBottom: 4 }}>Your Publish Workflow</h3>
               <p style={{ marginTop: 0, marginBottom: 16, color: "var(--text-secondary)", fontSize: 14 }}>
-                Complete training, pass your interview, and earn teaching permissions at each level.
+                V1 publishing now follows four steps: finish readiness, get curriculum approved, request offering approval, then publish.
               </p>
               <div style={{ display: "grid", gap: 10 }}>
-                {LEVELS.map((level, idx) => {
-                  const granted = grantedLevels.has(level);
-                  const isCurrent = !granted && idx === currentLevelIndex + 1;
-                  const isLocked = !granted && !isCurrent;
-                  return (
-                    <div
-                      key={level}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 14,
-                        padding: "12px 16px",
-                        borderRadius: 10,
-                        border: `1px solid ${granted ? "#16a34a" : isCurrent ? "var(--ypp-purple)" : "var(--border)"}`,
-                        background: granted ? "#f0fdf4" : isCurrent ? "#faf5ff" : "var(--surface)",
-                        opacity: isLocked ? 0.55 : 1,
-                      }}
-                    >
-                      <div style={{
-                        width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
-                        background: granted ? "#16a34a" : isCurrent ? "var(--ypp-purple)" : "var(--gray-200)",
-                        color: granted || isCurrent ? "white" : "var(--text-secondary)",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontWeight: 700, fontSize: 13,
-                      }}>
-                        {granted ? "✓" : idx + 1}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 600, fontSize: 15 }}>{LEVEL_LABELS[level]}</div>
-                        <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
-                          {LEVEL_DESCRIPTIONS[level]}
-                        </div>
-                        {granted && (() => {
-                          const perm = teachingPermissions.find((p) => p.level === level);
-                          return perm ? (
-                            <div style={{ fontSize: 12, color: "#16a34a", marginTop: 4 }}>
-                              Granted {new Date(perm.grantedAt).toLocaleDateString()}
-                            </div>
-                          ) : null;
-                        })()}
-                      </div>
-                      <span
-                        className="pill"
-                        style={granted ? { background: "#dcfce7", color: "#166534" } : isCurrent ? { background: "#ede9fe", color: "#5b21b6" } : {}}
-                      >
-                        {granted ? "Unlocked" : isCurrent ? "In Progress" : "Locked"}
-                      </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)" }}>
+                  <div style={{ width: 36, height: 36, borderRadius: "50%", flexShrink: 0, background: readiness.trainingComplete ? "#16a34a" : "var(--ypp-purple)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13 }}>
+                    {readiness.trainingComplete ? "✓" : "1"}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 15 }}>Complete Training Academy</div>
+                    <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
+                      Finish required modules so your readiness foundation is complete.
                     </div>
-                  );
-                })}
+                  </div>
+                  <span className="pill" style={readiness.trainingComplete ? { background: "#dcfce7", color: "#166534" } : { background: "#ede9fe", color: "#5b21b6" }}>
+                    {readiness.trainingComplete ? "Complete" : "In Progress"}
+                  </span>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)" }}>
+                  <div style={{ width: 36, height: 36, borderRadius: "50%", flexShrink: 0, background: interviewPassed ? "#16a34a" : "var(--ypp-purple)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13 }}>
+                    {interviewPassed ? "✓" : "2"}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 15 }}>Pass Interview Readiness</div>
+                    <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
+                      Interview status must be passed or waived before any non-legacy offering can move to approval.
+                    </div>
+                  </div>
+                  <span className="pill" style={interviewPassed ? { background: "#dcfce7", color: "#166534" } : interviewStatus === "SCHEDULED" ? { background: "#fef9c3", color: "#854d0e" } : interviewStatus === "HOLD" || interviewStatus === "FAILED" ? { background: "#fee2e2", color: "#991b1b" } : {}}>
+                    {interviewStatus.replace(/_/g, " ")}
+                  </span>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)" }}>
+                  <div style={{ width: 36, height: 36, borderRadius: "50%", flexShrink: 0, background: approvedTemplateCount > 0 ? "#16a34a" : "var(--ypp-purple)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13 }}>
+                    {approvedTemplateCount > 0 ? "✓" : "3"}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 15 }}>Build and Approve Curriculum</div>
+                    <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
+                      Create curriculum and submit it for review so you have approved material ready for an offering.
+                    </div>
+                  </div>
+                  <span className="pill" style={approvedTemplateCount > 0 ? { background: "#dcfce7", color: "#166534" } : submittedTemplateCount > 0 ? { background: "#fef9c3", color: "#854d0e" } : {}}>
+                    {approvedTemplateCount > 0 ? `${approvedTemplateCount} approved` : submittedTemplateCount > 0 ? `${submittedTemplateCount} under review` : `${draftTemplateCount} draft`}
+                  </span>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)" }}>
+                  <div style={{ width: 36, height: 36, borderRadius: "50%", flexShrink: 0, background: approvedOfferingCount > 0 ? "#16a34a" : readiness.baseReadinessComplete ? "var(--ypp-purple)" : "var(--gray-300)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13 }}>
+                    {approvedOfferingCount > 0 ? "✓" : "4"}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 15 }}>Request Offering Approval Before Publish</div>
+                    <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
+                      Each new non-legacy offering needs its own approval from an admin or chapter president before you publish it.
+                    </div>
+                  </div>
+                  <span className="pill" style={approvedOfferingCount > 0 ? { background: "#dcfce7", color: "#166534" } : readiness.baseReadinessComplete ? { background: "#ede9fe", color: "#5b21b6" } : {}}>
+                    {approvedOfferingCount > 0 ? `${approvedOfferingCount} approved` : readiness.baseReadinessComplete ? "Ready to request" : "Blocked"}
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* Training Progress Card */}
             <div className="card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 12, flexWrap: "wrap" }}>
                 <div>
                   <h3 style={{ margin: 0 }}>Step 1 — Complete Training Academy</h3>
                   <p style={{ marginTop: 6, marginBottom: 0, color: "var(--text-secondary)", fontSize: 14 }}>
-                    Finish all required modules to unlock your readiness review and interview gate.
+                    Finish all required modules to unlock your interview gate and offering approval requests.
                   </p>
                 </div>
                 <span
@@ -565,7 +570,7 @@ export default async function InstructorWorkspacePage({
                 <div>
                   <h3 style={{ margin: 0 }}>Step 2 — Pass the Interview Gate</h3>
                   <p style={{ marginTop: 6, marginBottom: 0, color: "var(--text-secondary)", fontSize: 14 }}>
-                    Schedule and complete your instructor interview to unlock first-class publishing.
+                    Schedule and complete your instructor interview so your readiness can be marked complete.
                   </p>
                 </div>
                 <span
@@ -592,12 +597,11 @@ export default async function InstructorWorkspacePage({
               )}
               {interviewPassed && (
                 <div style={{ marginTop: 12, padding: 10, background: "#f0fdf4", borderRadius: 8, fontSize: 14, color: "#166534" }}>
-                  Interview complete — you are authorized to publish your first class.
+                  Interview complete — you can move into offering approval.
                 </div>
               )}
             </div>
 
-            {/* Step 3: Build Your Curriculum */}
             <div className="card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 12, flexWrap: "wrap" }}>
                 <div>
@@ -641,40 +645,45 @@ export default async function InstructorWorkspacePage({
               </div>
             </div>
 
-            {/* Next Level Requirements */}
-            {nextLevel && (
-              <div className="card">
-                <h3 style={{ marginBottom: 8 }}>What You Need to Unlock {LEVEL_LABELS[nextLevel]}</h3>
-                {readiness.missingRequirements.length > 0 ? (
-                  <div style={{ display: "grid", gap: 8 }}>
-                    {readiness.missingRequirements.map((req) => (
-                      <div key={req.code} style={{ padding: 10, border: "1px solid var(--border)", borderRadius: 10 }}>
-                        <div style={{ fontWeight: 600, fontSize: 14 }}>{req.title}</div>
-                        <div style={{ marginTop: 4, color: "var(--text-secondary)", fontSize: 13 }}>{req.detail}</div>
-                        <Link href={req.href} className="link" style={{ marginTop: 6, display: "inline-block", fontSize: 13 }}>
-                          Resolve now →
-                        </Link>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={{ padding: 12, background: "#f0fdf4", color: "#166534", borderRadius: 10, fontSize: 14 }}>
-                    All current requirements met — contact your chapter lead to request {LEVEL_LABELS[nextLevel]} approval.
-                  </div>
+            <div className="card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 12, flexWrap: "wrap" }}>
+                <div>
+                  <h3 style={{ margin: 0 }}>Step 4 — Request Offering Approval</h3>
+                  <p style={{ marginTop: 6, marginBottom: 0, color: "var(--text-secondary)", fontSize: 14 }}>
+                    When readiness is complete and your curriculum is ready, request approval for each draft offering in class settings.
+                  </p>
+                </div>
+                <span className="pill" style={approvedOfferingCount > 0 ? { background: "#dcfce7", color: "#166534" } : pendingOfferingApprovalCount > 0 ? { background: "#fef9c3", color: "#854d0e" } : readiness.baseReadinessComplete ? { background: "#ede9fe", color: "#5b21b6" } : {}}>
+                  {approvedOfferingCount > 0 ? `${approvedOfferingCount} approved` : pendingOfferingApprovalCount > 0 ? `${pendingOfferingApprovalCount} pending` : readiness.baseReadinessComplete ? "Ready to request" : "Blocked"}
+                </span>
+              </div>
+              {readiness.missingRequirements.length > 0 ? (
+                <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
+                  {readiness.missingRequirements.map((req) => (
+                    <div key={req.code} style={{ padding: 10, border: "1px solid var(--border)", borderRadius: 10 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>{req.title}</div>
+                      <div style={{ marginTop: 4, color: "var(--text-secondary)", fontSize: 13 }}>{req.detail}</div>
+                      <Link href={req.href} className="link" style={{ marginTop: 6, display: "inline-block", fontSize: 13 }}>
+                        Resolve now →
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ marginTop: 14, padding: 12, background: "#f0fdf4", color: "#166534", borderRadius: 10, fontSize: 14 }}>
+                  Your readiness blockers are cleared. Open class settings to request approval on each draft offering before publishing.
+                </div>
+              )}
+              <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <Link href="/instructor/class-settings" className="button primary" style={{ textDecoration: "none" }}>
+                  Open Class Settings
+                </Link>
+                {offerings.length > 0 && (
+                  <span className="pill">Legacy exemptions: {readiness.legacyExemptOfferingCount}</span>
                 )}
               </div>
-            )}
+            </div>
 
-            {highestGranted === "LEVEL_401" && (
-              <div className="card" style={{ borderColor: "#16a34a", background: "#f0fdf4" }}>
-                <h3 style={{ margin: 0, color: "#166534" }}>You have reached Level 401 — Expert Instructor</h3>
-                <p style={{ marginTop: 8, color: "#166534", fontSize: 14 }}>
-                  You are authorized to teach all course levels. Thank you for your dedication to YPP.
-                </p>
-              </div>
-            )}
-
-            {/* Phase 2: Specialty Tracks */}
             <div className="card">
               <h3 style={{ marginBottom: 4 }}>My Teaching Specialties</h3>
               <p style={{ marginTop: 0, marginBottom: 16, color: "var(--text-secondary)", fontSize: 14 }}>
@@ -744,7 +753,6 @@ export default async function InstructorWorkspacePage({
               )}
             </div>
 
-            {/* Phase 2: My Active Classes */}
             <div className="card">
               <h3 style={{ marginBottom: 4 }}>My Active Classes</h3>
               <p style={{ marginTop: 0, marginBottom: 12, color: "var(--text-secondary)", fontSize: 14 }}>
@@ -789,14 +797,14 @@ export default async function InstructorWorkspacePage({
                 </div>
               )}
             </div>
-            {/* Phase 5: Achievements / Milestones */}
+
             <div className="card">
               <h3 style={{ marginBottom: 4 }}>Instructor Achievements</h3>
               <p style={{ marginTop: 0, marginBottom: 16, color: "var(--text-secondary)", fontSize: 14 }}>
                 Earn XP and recognition as you grow through your instructor journey.
               </p>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
-                {INSTRUCTOR_MILESTONES.map((milestone) => {
+                {visibleMilestones.map((milestone) => {
                   const earned = earnedMilestoneKeys.has(milestone.key);
                   return (
                     <div

@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     const title = formData.get("title") as string;
     const description = formData.get("description") as string;
     const format = formData.get("format") as string;
-    const level = formData.get("level") as string | null;
+    const level = (formData.get("learnerFit") as string | null) || (formData.get("level") as string | null);
     const interestArea = formData.get("interestArea") as string;
     const targetAudience = formData.get("targetAudience") as string | null;
     const prerequisites = formData.get("prerequisites") as string | null;

@@ -8,7 +8,7 @@ const DEFAULT_PASSWORD =
 const USERS = {
   admin: process.env.E2E_ADMIN_EMAIL ?? "e2e.admin@ypp.test",
   chapterLead:
-    process.env.E2E_CHAPTER_LEAD_EMAIL ??
+    process.env.E2E_CHAPTER_PRESIDENT_EMAIL ??
     "e2e.chapter.lead.alpha@ypp.test",
   student: process.env.E2E_STUDENT_EMAIL ?? "e2e.student.alpha@ypp.test",
 } as const;

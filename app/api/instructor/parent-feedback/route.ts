@@ -16,7 +16,7 @@ export async function GET() {
 
   const roles = session.user.roles ?? [];
   const canAccess =
-    roles.includes("INSTRUCTOR") || roles.includes("ADMIN") || roles.includes("CHAPTER_LEAD");
+    roles.includes("INSTRUCTOR") || roles.includes("ADMIN") || roles.includes("CHAPTER_PRESIDENT");
 
   if (!canAccess) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -25,7 +25,7 @@ export async function GET() {
   const chapterId = session.user.chapterId ?? null;
   const feedback = roles.includes("ADMIN")
     ? await listAllParentFeedback()
-    : roles.includes("CHAPTER_LEAD") && chapterId
+    : roles.includes("CHAPTER_PRESIDENT") && chapterId
       ? await listChapterParentFeedback(chapterId)
       : await listInstructorScopedParentFeedback(session.user.id);
 

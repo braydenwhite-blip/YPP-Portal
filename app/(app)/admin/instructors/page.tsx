@@ -20,10 +20,20 @@ export default async function AdminInstructorsPage() {
       include: {
         roles: true,
         chapter: true,
-        approvals: { include: { levels: true } },
         trainings: { include: { module: true } },
         menteePairs: { include: { mentor: true } },
-        courses: true
+        courses: true,
+        interviewGate: { select: { status: true } },
+        classOfferingsInstructed: {
+          select: {
+            grandfatheredTrainingExemption: true,
+            approval: {
+              select: {
+                status: true,
+              },
+            },
+          },
+        },
       },
       orderBy: { name: "asc" }
     }),
@@ -35,10 +45,43 @@ export default async function AdminInstructorsPage() {
   ]);
 
   const instructorData = instructors.map((instructor) => {
-    const approval = instructor.approvals[0];
     const completedTrainings = instructor.trainings.filter((t) => t.status === "COMPLETE").length;
     const totalTrainings = instructor.trainings.length;
     const mentor = instructor.menteePairs.find((m) => m.type === "INSTRUCTOR")?.mentor;
+    const interviewPassed =
+      instructor.interviewGate?.status === "PASSED" || instructor.interviewGate?.status === "WAIVED";
+    const pendingApprovals = instructor.classOfferingsInstructed.filter((offering) =>
+      ["REQUESTED", "UNDER_REVIEW"].includes(offering.approval?.status ?? "")
+    ).length;
+    const changesRequested = instructor.classOfferingsInstructed.filter((offering) =>
+      ["CHANGES_REQUESTED", "REJECTED"].includes(offering.approval?.status ?? "")
+    ).length;
+    const approvedOfferings = instructor.classOfferingsInstructed.filter(
+      (offering) =>
+        offering.grandfatheredTrainingExemption ||
+        offering.approval?.status === "APPROVED"
+    ).length;
+    const legacyExemptions = instructor.classOfferingsInstructed.filter(
+      (offering) => offering.grandfatheredTrainingExemption
+    ).length;
+    const approvalStatus =
+      pendingApprovals > 0
+        ? "APPROVAL_IN_REVIEW"
+        : changesRequested > 0
+          ? "CHANGES_REQUESTED"
+          : totalTrainings > 0 && completedTrainings < totalTrainings
+            ? "TRAINING_IN_PROGRESS"
+            : !interviewPassed
+              ? "INTERVIEW_PENDING"
+              : approvedOfferings > 0
+                ? "APPROVED"
+                : "APPROVAL_READY";
+    const approvalSummaryParts = [
+      pendingApprovals > 0 ? `${pendingApprovals} waiting` : null,
+      changesRequested > 0 ? `${changesRequested} need updates` : null,
+      approvedOfferings > 0 ? `${approvedOfferings} approved` : null,
+      legacyExemptions > 0 ? `${legacyExemptions} legacy exempt` : null,
+    ].filter(Boolean);
 
     return {
       id: instructor.id,
@@ -46,8 +89,8 @@ export default async function AdminInstructorsPage() {
       email: instructor.email,
       chapter: instructor.chapter?.name ?? "None",
       chapterId: instructor.chapterId ?? "",
-      approvalStatus: approval?.status ?? "NOT_STARTED",
-      approvedLevels: approval?.levels.map((l) => l.level.replace("LEVEL_", "")).join(", ") || "None",
+      approvalStatus,
+      approvalSummary: approvalSummaryParts.join(" • ") || "No offering approvals yet",
       trainingProgress: totalTrainings > 0 ? `${completedTrainings}/${totalTrainings}` : "0/0",
       trainingPercent: totalTrainings > 0 ? Math.round((completedTrainings / totalTrainings) * 100) : 0,
       coursesCount: instructor.courses.length,

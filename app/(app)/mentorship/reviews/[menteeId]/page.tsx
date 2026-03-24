@@ -56,7 +56,7 @@ export default async function MonthlyReviewEditorPage({
   }
 
   const isMentor = roles.includes("MENTOR");
-  const isChapterLead = roles.includes("CHAPTER_LEAD");
+  const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
   const isAdmin = roles.includes("ADMIN");
 
   if (!isMentor && !isChapterLead && !isAdmin) {

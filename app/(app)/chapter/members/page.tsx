@@ -6,7 +6,7 @@ import { getChapterMembers } from "@/lib/chapter-member-actions";
 import { MemberSearch } from "./member-search";
 
 const ROLE_LABELS: Record<string, { label: string; color: string; bg: string }> = {
-  CHAPTER_LEAD: { label: "Chapter Lead", color: "#6d28d9", bg: "#ede9fe" },
+  CHAPTER_PRESIDENT: { label: "Chapter President", color: "#6d28d9", bg: "#ede9fe" },
   ADMIN: { label: "Admin", color: "#dc2626", bg: "#fee2e2" },
   INSTRUCTOR: { label: "Instructor", color: "#0369a1", bg: "#e0f2fe" },
   MENTOR: { label: "Mentor", color: "#ca8a04", bg: "#fef3c7" },
@@ -33,7 +33,7 @@ export default async function ChapterMembersPage({
     grouped[role].push(member);
   }
 
-  const roleOrder = ["CHAPTER_LEAD", "ADMIN", "INSTRUCTOR", "MENTOR", "STUDENT", "STAFF", "PARENT"];
+  const roleOrder = ["CHAPTER_PRESIDENT", "ADMIN", "INSTRUCTOR", "MENTOR", "STUDENT", "STAFF", "PARENT"];
 
   return (
     <main className="main-content">

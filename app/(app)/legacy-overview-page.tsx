@@ -7,6 +7,7 @@ import PathwayProgressMap from "@/components/pathway-progress-map";
 import { WorldPreviewCard } from "@/components/world-preview-card";
 import Link from "next/link";
 import { getNextRequiredAction } from "@/lib/instructor-readiness";
+import { getLearnerFitSummary } from "@/lib/learner-fit";
 
 export default async function OverviewPage() {
   const session = await getServerSession(authOptions);
@@ -33,7 +34,7 @@ export default async function OverviewPage() {
   const isInstructor = roles.includes("INSTRUCTOR");
   const isStudent = roles.includes("STUDENT");
   const isMentor = roles.includes("MENTOR");
-  const isChapterLead = roles.includes("CHAPTER_LEAD");
+  const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
 
   // Fetch XP data (may not have columns yet)
   let userXp = 0;
@@ -259,10 +260,10 @@ export default async function OverviewPage() {
   const trainingCompletionRate = trainingAssignments.length
     ? Math.round((completeTrainingCount / trainingAssignments.length) * 100)
     : 0;
-  const approvedLevels = Array.from(
+  const legacyApprovalLabels = Array.from(
     new Set(
       approvals.flatMap((approval) =>
-        approval.levels.map((level) => level.level.replace("LEVEL_", ""))
+        approval.levels.map((level) => getLearnerFitSummary({ difficultyLevel: level.level })?.label ?? "Flexible / mixed experience")
       )
     )
   );
@@ -380,7 +381,7 @@ export default async function OverviewPage() {
     : isInstructor
       ? [
           "Keep class progress, attendance, and learner momentum visible each week.",
-          "Complete training and approvals so you can teach at higher levels.",
+          "Complete training and offering approvals so you can publish with confidence.",
         ]
       : isStudent
         ? [
@@ -585,7 +586,7 @@ export default async function OverviewPage() {
                     </div>
                     <span className="pill pill-small pill-purple">
                       {enrollment.course.format === "LEVELED" && enrollment.course.level
-                        ? enrollment.course.level.replace("LEVEL_", "")
+                        ? (getLearnerFitSummary({ difficultyLevel: enrollment.course.level })?.label ?? "Flexible / mixed experience")
                         : enrollment.course.format.replace(/_/g, " ")}
                     </span>
                   </div>
@@ -599,7 +600,7 @@ export default async function OverviewPage() {
           <div className="card">
             <h3>Recommended Next Steps</h3>
             {nextSteps.length === 0 ? (
-              <p className="empty">Enroll in a 101 or one-off class to start your pathway.</p>
+              <p className="empty">Enroll in a beginner-friendly or one-off class to start your pathway.</p>
             ) : (
               <div className="compact-list">
                 {studentNextStepsToShow.map((step, index) => (
@@ -610,7 +611,7 @@ export default async function OverviewPage() {
                     </div>
                     <span className="pill pill-small pill-purple">
                       {step.course.format === "LEVELED" && step.course.level
-                        ? step.course.level.replace("LEVEL_", "")
+                        ? (getLearnerFitSummary({ difficultyLevel: step.course.level })?.label ?? "Flexible / mixed experience")
                         : step.course.format.replace(/_/g, " ")}
                     </span>
                   </div>
@@ -692,7 +693,7 @@ export default async function OverviewPage() {
                       <div className="instructor-item-actions">
                         <span className="pill pill-small pill-purple">
                           {course.format === "LEVELED" && course.level
-                            ? course.level.replace("LEVEL_", "")
+                            ? (getLearnerFitSummary({ difficultyLevel: course.level })?.label ?? "Flexible / mixed experience")
                             : course.format.replace(/_/g, " ")}
                         </span>
                         <Link href={`/instructor/engagement/${course.id}`} className="link">
@@ -769,17 +770,17 @@ export default async function OverviewPage() {
                 </p>
               ) : null}
               <div className="instructor-approved">
-                <span className="instructor-approved-label">Approved levels</span>
-                {approvedLevels.length ? (
+                <span className="instructor-approved-label">Legacy approval history</span>
+                {legacyApprovalLabels.length ? (
                   <div className="instructor-approved-levels">
-                    {approvedLevels.map((level) => (
+                    {legacyApprovalLabels.map((level) => (
                       <span key={level} className="pill pill-small pill-success">
                         {level}
                       </span>
                     ))}
                   </div>
                 ) : (
-                  <p className="instructor-footnote">No levels approved yet.</p>
+                  <p className="instructor-footnote">No legacy approval history yet.</p>
                 )}
               </div>
             </div>
@@ -846,7 +847,7 @@ export default async function OverviewPage() {
         </div>
       ) : null}
 
-      {/* Chapter Lead section */}
+      {/* Chapter President section */}
       {isChapterLead && chapter ? (
         <div style={{ marginTop: 20 }}>
           <div className="card">

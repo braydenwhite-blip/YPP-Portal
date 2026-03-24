@@ -23,7 +23,7 @@ export default async function TrainingModulePage({
     roles.includes("APPLICANT") ||
     roles.includes("INSTRUCTOR") ||
     roles.includes("ADMIN") ||
-    roles.includes("CHAPTER_LEAD") ||
+    roles.includes("CHAPTER_PRESIDENT") ||
     roles.includes("STUDENT");
 
   if (!canView) {
@@ -35,7 +35,7 @@ export default async function TrainingModulePage({
     roles.includes("STUDENT") &&
     !roles.includes("INSTRUCTOR") &&
     !roles.includes("ADMIN") &&
-    !roles.includes("CHAPTER_LEAD");
+    !roles.includes("CHAPTER_PRESIDENT");
 
   const trainingModule = await withPrismaFallback(
     "training-module:module",
@@ -73,7 +73,7 @@ export default async function TrainingModulePage({
     roles.includes("APPLICANT") ||
     roles.includes("INSTRUCTOR") ||
     roles.includes("ADMIN") ||
-    roles.includes("CHAPTER_LEAD");
+    roles.includes("CHAPTER_PRESIDENT");
 
   const lessonDesignStudioDraft =
     trainingModule.type === "CURRICULUM_REVIEW" && canAccessLessonDesignStudio

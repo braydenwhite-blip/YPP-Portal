@@ -19,10 +19,10 @@ async function requireChapterLead() {
   });
 
   const isAdmin = user?.roles.some((r) => r.role === "ADMIN");
-  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_LEAD");
+  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT");
 
   if (!isAdmin && !isChapterLead) {
-    throw new Error("Only Chapter Leads and Admins can access this");
+    throw new Error("Only Chapter Presidents and Admins can access this");
   }
 
   if (!user?.chapterId) throw new Error("User is not assigned to a chapter");
@@ -30,7 +30,7 @@ async function requireChapterLead() {
 }
 
 /**
- * Get all data needed for the chapter lead command center in a single call.
+ * Get all data needed for the chapter president command center in a single call.
  */
 export async function getCommandCenterData() {
   const { chapterId } = await requireChapterLead();

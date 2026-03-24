@@ -190,7 +190,7 @@ export async function hasCompletedOnboarding(userId: string, chapterId: string):
 }
 
 /**
- * Get onboarding step config for chapter leads to customize.
+ * Get onboarding step config for chapter presidents to customize.
  */
 export async function getOnboardingConfig() {
   const session = await getServerSession(authOptions);
@@ -201,7 +201,7 @@ export async function getOnboardingConfig() {
     include: { roles: true },
   });
 
-  const isLead = user?.roles.some((r) => r.role === "CHAPTER_LEAD" || r.role === "ADMIN");
+  const isLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT" || r.role === "ADMIN");
   if (!isLead || !user?.chapterId) throw new Error("Unauthorized");
 
   // Get or create default steps
@@ -224,7 +224,7 @@ export async function getOnboardingConfig() {
 }
 
 /**
- * Add a custom onboarding step (chapter lead only).
+ * Add a custom onboarding step (chapter president only).
  */
 export async function addOnboardingStep(formData: FormData) {
   const session = await getServerSession(authOptions);
@@ -235,7 +235,7 @@ export async function addOnboardingStep(formData: FormData) {
     include: { roles: true },
   });
 
-  const isLead = user?.roles.some((r) => r.role === "CHAPTER_LEAD" || r.role === "ADMIN");
+  const isLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT" || r.role === "ADMIN");
   if (!isLead || !user?.chapterId) throw new Error("Unauthorized");
 
   const title = formData.get("title") as string;
@@ -267,7 +267,7 @@ export async function addOnboardingStep(formData: FormData) {
 }
 
 /**
- * Remove an onboarding step (chapter lead only).
+ * Remove an onboarding step (chapter president only).
  */
 export async function removeOnboardingStep(stepId: string) {
   const session = await getServerSession(authOptions);
@@ -278,7 +278,7 @@ export async function removeOnboardingStep(stepId: string) {
     include: { roles: true },
   });
 
-  const isLead = user?.roles.some((r) => r.role === "CHAPTER_LEAD" || r.role === "ADMIN");
+  const isLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT" || r.role === "ADMIN");
   if (!isLead || !user?.chapterId) throw new Error("Unauthorized");
 
   const step = await prisma.chapterOnboardingStep.findUnique({
@@ -297,7 +297,7 @@ export async function removeOnboardingStep(stepId: string) {
 }
 
 /**
- * Toggle step required/optional (chapter lead only).
+ * Toggle step required/optional (chapter president only).
  */
 export async function toggleStepRequired(stepId: string) {
   const session = await getServerSession(authOptions);
@@ -308,7 +308,7 @@ export async function toggleStepRequired(stepId: string) {
     include: { roles: true },
   });
 
-  const isLead = user?.roles.some((r) => r.role === "CHAPTER_LEAD" || r.role === "ADMIN");
+  const isLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT" || r.role === "ADMIN");
   if (!isLead || !user?.chapterId) throw new Error("Unauthorized");
 
   const step = await prisma.chapterOnboardingStep.findUnique({ where: { id: stepId } });

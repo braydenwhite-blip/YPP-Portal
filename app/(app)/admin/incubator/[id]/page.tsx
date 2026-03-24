@@ -27,10 +27,10 @@ export default async function CohortDetailPage({ params }: { params: { id: strin
   const canManage =
     roles.includes("ADMIN") ||
     roles.includes("INSTRUCTOR") ||
-    roles.includes("CHAPTER_LEAD") ||
+    roles.includes("CHAPTER_PRESIDENT") ||
     primaryRole === "ADMIN" ||
     primaryRole === "INSTRUCTOR" ||
-    primaryRole === "CHAPTER_LEAD";
+    primaryRole === "CHAPTER_PRESIDENT";
   if (!canManage) redirect("/incubator");
 
   const [cohort, mentors] = await Promise.all([

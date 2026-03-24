@@ -18,7 +18,7 @@ import {
 const UNLOCK_SUPPORT_ROLES = new Set([
   "MENTOR",
   "INSTRUCTOR",
-  "CHAPTER_LEAD",
+  "CHAPTER_PRESIDENT",
   "ADMIN",
   "STAFF",
 ]);

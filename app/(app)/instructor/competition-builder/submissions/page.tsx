@@ -16,7 +16,7 @@ export default async function SubmissionsPage({
   if (
     !roles.includes("ADMIN") &&
     !roles.includes("INSTRUCTOR") &&
-    !roles.includes("CHAPTER_LEAD")
+    !roles.includes("CHAPTER_PRESIDENT")
   ) {
     redirect("/dashboard");
   }

@@ -12,7 +12,7 @@ export async function getMentorshipAccessibleMenteeIds(
     return null;
   }
 
-  if (hasRole(roles, "CHAPTER_LEAD")) {
+  if (hasRole(roles, "CHAPTER_PRESIDENT")) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { chapterId: true },

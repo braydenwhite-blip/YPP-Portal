@@ -239,7 +239,7 @@ export async function getChapterGamificationSummary() {
 }
 
 /**
- * Create a custom milestone (chapter lead only).
+ * Create a custom milestone (chapter president only).
  */
 export async function createCustomMilestone(formData: FormData) {
   const session = await getServerSession(authOptions);
@@ -250,7 +250,7 @@ export async function createCustomMilestone(formData: FormData) {
     include: { roles: true },
   });
 
-  const isLead = user?.roles.some((r) => r.role === "CHAPTER_LEAD" || r.role === "ADMIN");
+  const isLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT" || r.role === "ADMIN");
   if (!isLead || !user?.chapterId) throw new Error("Unauthorized");
 
   const title = formData.get("title") as string;

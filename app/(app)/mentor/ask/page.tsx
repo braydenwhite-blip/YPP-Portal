@@ -59,7 +59,7 @@ export default async function AskMentorPage({
   const isMentor =
     roles.includes("MENTOR") ||
     roles.includes("INSTRUCTOR") ||
-    roles.includes("CHAPTER_LEAD") ||
+    roles.includes("CHAPTER_PRESIDENT") ||
     roles.includes("ADMIN");
 
   const questions = await getMentorshipCommonsData({

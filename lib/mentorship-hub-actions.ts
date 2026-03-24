@@ -197,11 +197,11 @@ const EXCLUSIVE_SUPPORT_ROLES = new Set<SupportRole>([
 const PRIMARY_MENTOR_ELIGIBLE_ROLES = new Set([
   "MENTOR",
   "INSTRUCTOR",
-  "CHAPTER_LEAD",
+  "CHAPTER_PRESIDENT",
   "ADMIN",
   "STAFF",
 ]);
-const CHAIR_ELIGIBLE_ROLES = new Set(["CHAPTER_LEAD", "ADMIN"]);
+const CHAIR_ELIGIBLE_ROLES = new Set(["CHAPTER_PRESIDENT", "ADMIN"]);
 
 function hasEligibleSupportRole(targetRoles: string[], allowedRoles: Set<string>) {
   return targetRoles.some((role) => allowedRoles.has(role));
@@ -334,7 +334,7 @@ export async function assignSupportCircleMember(formData: FormData) {
   }
 
   if (role === SupportRole.CHAIR && !hasEligibleSupportRole(targetRoles, CHAIR_ELIGIBLE_ROLES)) {
-    throw new Error("Chairs must be chapter leads or admins.");
+    throw new Error("Chairs must be chapter presidents or admins.");
   }
 
   if (role === SupportRole.PRIMARY_MENTOR) {

@@ -11,7 +11,7 @@ export default async function MentorSchedulePage() {
   if (!session?.user?.id) redirect("/login");
 
   const roles = session.user.roles ?? [];
-  const isMentor = roles.includes("MENTOR") || roles.includes("CHAPTER_LEAD") || roles.includes("ADMIN");
+  const isMentor = roles.includes("MENTOR") || roles.includes("CHAPTER_PRESIDENT") || roles.includes("ADMIN");
   if (!isMentor) redirect("/");
 
   const requests = await getMentorScheduleQueue();

@@ -46,10 +46,10 @@ Route: `/admin/instructor-readiness`
 3. Choose `APPROVED`, `REVISION_REQUESTED`, or `REJECTED`.
 4. Submit review notes.
 
-### 4.2 Review readiness requests
-1. Open **Readiness Review Queue**.
-2. Approve and assign level (101/201/301/401), or request revision.
-3. Confirm instructor interview gate is passed/waived before approving.
+### 4.2 Review offering approvals
+1. Open **Offering Approval Queue**.
+2. Approve the offering, request changes, or reject it.
+3. Confirm instructor training is complete and the interview gate is passed/waived before approving.
 
 ### 4.3 Manage interview gate
 1. Open **Interview Queue**.
@@ -57,10 +57,10 @@ Route: `/admin/instructor-readiness`
 3. After interview happens, mark slot completed.
 4. Set final outcome: `PASS`, `HOLD`, `FAIL`, `WAIVE` (waive is admin-only).
 
-### 4.4 Grant manual teaching permissions
+### 4.4 Check publish readiness
 1. Use **Per-Instructor Readiness** card.
-2. Select level and reason.
-3. Submit grant.
+2. Confirm training, interview, and offering-approval blockers are clear.
+3. Route the instructor to class settings if an approval request still needs to be submitted.
 
 ### 4.5 Manage academy curriculum content
 Route: `/admin/training`
@@ -72,11 +72,11 @@ Route: `/admin/training`
 5. Keep required modules actionable with at least one path:
    video OR required checkpoints OR quiz OR evidence.
 
-## 5. Daily Reviewer Operations (Chapter Lead)
+## 5. Daily Reviewer Operations (Chapter President)
 Route: `/chapter-lead/instructor-readiness`
 
 Scope rules:
-1. Chapter leads can only act on instructors in their own chapter.
+1. Chapter presidents can only act on instructors in their own chapter.
 2. Admin can act across all chapters.
 3. Waive outcome remains admin-only.
 
@@ -86,7 +86,7 @@ Route: `/instructor-training`
 1. Complete each module at `/training/[id]`.
 2. Submit required quiz/evidence.
 3. Confirm a posted interview slot OR submit preferred times.
-4. Request readiness review after required modules are complete.
+4. Request offering approval from class settings after required modules and the interview are complete.
 5. Wait for reviewer decision.
 
 Compatibility note:
@@ -117,7 +117,7 @@ Allowed when:
 ## 9. Verification Checklist
 1. Instructor cannot publish first offering without readiness.
 2. Instructor can schedule interview from training progress.
-3. Admin and chapter lead can clear blockers from readiness pages.
+3. Admin and chapter president can clear blockers from readiness pages.
 4. Existing live offerings still run after rollout.
 5. Dashboard shows one next action from readiness engine.
 
@@ -155,7 +155,7 @@ When an instructor application is accepted:
 3. Instructor still completes academy requirements before first class publish.
 
 Decision authority for instructor applications:
-1. Chapter Lead can decide `INSTRUCTOR` applications only in their own chapter.
+1. Chapter President can decide `INSTRUCTOR` applications only in their own chapter.
 2. Admin can decide any chapter.
 3. `GLOBAL_ADMIN` remains admin-only.
 

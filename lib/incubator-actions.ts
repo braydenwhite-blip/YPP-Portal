@@ -446,7 +446,7 @@ async function createAcceptanceArtifacts(
 // ============================================
 
 export async function getCohorts() {
-  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"]);
   try {
     return await prisma.incubatorCohort.findMany({
       orderBy: { startDate: "desc" },
@@ -499,7 +499,7 @@ export async function getActiveCohort() {
 }
 
 export async function getCohortById(cohortId: string) {
-  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"]);
   try {
     await ensureCohortTemplates(prisma, cohortId);
 
@@ -543,7 +543,7 @@ export async function getCohortById(cohortId: string) {
 }
 
 export async function createCohort(formData: FormData) {
-  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"]);
 
   const name = String(formData.get("name") || "").trim();
   const description = String(formData.get("description") || "").trim() || null;
@@ -592,7 +592,7 @@ export async function createCohort(formData: FormData) {
 }
 
 export async function updateCohortStatus(cohortId: string, status: string) {
-  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"]);
   try {
     await prisma.incubatorCohort.update({
       where: { id: cohortId },
@@ -724,7 +724,7 @@ export async function reviewApplication(input: {
     commitment?: number | null;
   };
 }) {
-  const session = await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+  const session = await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"]);
 
   try {
     const application = await prisma.incubatorApplication.findUnique({
@@ -952,7 +952,7 @@ export async function getIncubatorProject(projectId: string) {
       return null;
     }
 
-    const privileged = hasAnyRole(session, ["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+    const privileged = hasAnyRole(session, ["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"]);
     const isAssignedMentor = project.mentors.some(
       (assignment) => assignment.mentorId === session.user.id && assignment.isActive
     );
@@ -969,9 +969,9 @@ export async function getIncubatorProject(projectId: string) {
 }
 
 export async function getAllIncubatorProjects(cohortId?: string) {
-  const session = await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD", "MENTOR", "STUDENT"]);
+  const session = await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT", "MENTOR", "STUDENT"]);
   try {
-    const privileged = hasAnyRole(session, ["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+    const privileged = hasAnyRole(session, ["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"]);
     const mentorOnly = !privileged && hasAnyRole(session, ["MENTOR"]);
     const whereClause: Prisma.IncubatorProjectWhereInput = mentorOnly
       ? {
@@ -1140,7 +1140,7 @@ export async function submitMilestone(projectId: string, milestoneId: string, fo
 }
 
 export async function approveMilestone(projectId: string, milestoneId: string) {
-  const session = await requireAnyRole(["ADMIN", "INSTRUCTOR", "MENTOR", "CHAPTER_LEAD"]);
+  const session = await requireAnyRole(["ADMIN", "INSTRUCTOR", "MENTOR", "CHAPTER_PRESIDENT"]);
 
   try {
     const project = await prisma.incubatorProject.findUnique({
@@ -1155,7 +1155,7 @@ export async function approveMilestone(projectId: string, milestoneId: string) {
 
     if (!project) throw new Error("Project not found");
 
-    const privileged = hasAnyRole(session, ["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+    const privileged = hasAnyRole(session, ["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"]);
     const isAssignedMentor = project.mentors.some((mentor) => mentor.mentorId === session.user.id);
     if (!privileged && !isAssignedMentor) {
       throw new Error("You are not assigned to review this milestone");
@@ -1288,7 +1288,7 @@ export async function submitProjectLaunch(projectId: string) {
 }
 
 export async function approveProjectLaunch(projectId: string) {
-  const session = await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+  const session = await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"]);
 
   try {
     const project = await prisma.incubatorProject.findUnique({
@@ -1397,7 +1397,7 @@ export async function postUpdate(projectId: string, formData: FormData) {
 // ============================================
 
 export async function assignMentor(projectId: string, mentorId: string, role?: string) {
-  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"]);
 
   try {
     const project = await prisma.incubatorProject.findUnique({ where: { id: projectId } });
@@ -1442,7 +1442,7 @@ export async function assignMentor(projectId: string, mentorId: string, role?: s
 }
 
 export async function removeMentor(assignmentId: string) {
-  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"]);
   try {
     const assignment = await prisma.incubatorMentor.findUnique({
       where: { id: assignmentId },
@@ -1470,7 +1470,7 @@ export async function removeMentor(assignmentId: string) {
 }
 
 export async function getAvailableMentors() {
-  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+  await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"]);
   return prisma.user.findMany({
     where: {
       OR: [
@@ -1496,9 +1496,9 @@ export async function getAvailableMentors() {
 }
 
 export async function getMentorIncubatorWorkspace() {
-  const session = await requireAnyRole(["MENTOR", "ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+  const session = await requireAnyRole(["MENTOR", "ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"]);
   try {
-    const privileged = hasAnyRole(session, ["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]) && !hasAnyRole(session, ["MENTOR"]);
+    const privileged = hasAnyRole(session, ["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"]) && !hasAnyRole(session, ["MENTOR"]);
     const projects = await prisma.incubatorProject.findMany({
       where: privileged
         ? {}
@@ -1568,7 +1568,7 @@ export async function getMentorIncubatorWorkspace() {
 // ============================================
 
 export async function submitPitchFeedback(projectId: string, formData: FormData) {
-  const session = await requireAnyRole(["ADMIN", "INSTRUCTOR", "MENTOR", "CHAPTER_LEAD"]);
+  const session = await requireAnyRole(["ADMIN", "INSTRUCTOR", "MENTOR", "CHAPTER_PRESIDENT"]);
 
   const clarityScore = parseInt(String(formData.get("clarityScore") || ""), 10) || null;
   const passionScore = parseInt(String(formData.get("passionScore") || ""), 10) || null;
@@ -1599,7 +1599,7 @@ export async function submitPitchFeedback(projectId: string, formData: FormData)
       throw new Error("Students cannot submit feedback on their own project");
     }
 
-    const privileged = hasAnyRole(session, ["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+    const privileged = hasAnyRole(session, ["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"]);
     const isAssignedMentor = project.mentors.some(
       (assignment) => assignment.mentorId === session.user.id && assignment.isActive
     );
@@ -1670,7 +1670,7 @@ export async function getProjectResourceRequests(projectId: string) {
     });
     if (!project) throw new Error("Project not found");
 
-    const privileged = hasAnyRole(session, ["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"]);
+    const privileged = hasAnyRole(session, ["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"]);
     const isAssignedMentor = project.mentors.some(
       (assignment) => assignment.mentorId === session.user.id && assignment.isActive
     );

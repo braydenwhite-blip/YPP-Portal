@@ -28,9 +28,29 @@ export default async function InstructorDetailPage({
     totalTrainings > 0
       ? Math.round((completedTrainings / totalTrainings) * 100)
       : 0;
+  const interviewStatus = instructor.interviewGate?.status ?? "REQUIRED";
+  const approvalSummary = instructor.classOfferingsInstructed.reduce(
+    (summary, offering) => {
+      if (offering.grandfatheredTrainingExemption) {
+        summary.legacyExempt += 1;
+      } else if (offering.approval?.status === "APPROVED") {
+        summary.approved += 1;
+      } else if (
+        offering.approval?.status === "REQUESTED" ||
+        offering.approval?.status === "UNDER_REVIEW"
+      ) {
+        summary.waiting += 1;
+      } else if (
+        offering.approval?.status === "CHANGES_REQUESTED" ||
+        offering.approval?.status === "REJECTED"
+      ) {
+        summary.changesRequested += 1;
+      }
 
-  // Get approved levels
-  const approvedLevels = instructor.approvals[0]?.levels || [];
+      return summary;
+    },
+    { approved: 0, waiting: 0, changesRequested: 0, legacyExempt: 0 }
+  );
 
   return (
     <main className="main-content">
@@ -255,19 +275,29 @@ export default async function InstructorDetailPage({
             </div>
           </section>
 
-          {/* Approved Levels */}
-          {approvedLevels.length > 0 && (
-            <section className="card">
-              <h2>Approved Levels</h2>
-              <div className="levels">
-                {approvedLevels.map((level) => (
-                  <span key={level.id} className="level-badge">
-                    {level.level.replace("LEVEL_", "")}
-                  </span>
-                ))}
-              </div>
-            </section>
-          )}
+          <section className="card">
+            <h2>Publish Workflow</h2>
+            <div className="levels">
+              <span className="level-badge">
+                Interview: {interviewStatus.replace(/_/g, " ")}
+              </span>
+              <span className="level-badge">
+                Approved offerings: {approvalSummary.approved}
+              </span>
+              <span className="level-badge">
+                Waiting review: {approvalSummary.waiting}
+              </span>
+              <span className="level-badge">
+                Changes requested: {approvalSummary.changesRequested}
+              </span>
+              <span className="level-badge">
+                Legacy exemptions: {approvalSummary.legacyExempt}
+              </span>
+            </div>
+            <p className="empty" style={{ marginTop: 12 }}>
+              This instructor now publishes through training completion, interview status, and per-offering approval.
+            </p>
+          </section>
 
           {/* Courses */}
           <section className="card">

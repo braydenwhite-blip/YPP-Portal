@@ -49,7 +49,7 @@ export default async function PositionDetailPage({
   }
 
   const roles = currentUser?.roles.map((role) => role.role) ?? [];
-  const isPrivileged = roles.some((role) => ["ADMIN", "CHAPTER_LEAD", "STAFF"].includes(role));
+  const isPrivileged = roles.some((role) => ["ADMIN", "CHAPTER_PRESIDENT", "STAFF"].includes(role));
 
   const canView =
     isPrivileged ||

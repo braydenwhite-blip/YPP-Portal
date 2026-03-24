@@ -46,7 +46,7 @@ export default async function MentorFeedbackPage() {
   const isMentor =
     roles.includes("MENTOR") ||
     roles.includes("INSTRUCTOR") ||
-    roles.includes("CHAPTER_LEAD") ||
+    roles.includes("CHAPTER_PRESIDENT") ||
     roles.includes("ADMIN");
   const isStudent = roles.includes("STUDENT");
 

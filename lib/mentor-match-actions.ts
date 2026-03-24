@@ -195,7 +195,7 @@ export async function computeMentorMatches(
                   roles: {
                     some: {
                       role: {
-                        in: ["MENTOR", "INSTRUCTOR", "CHAPTER_LEAD", "ADMIN", "STAFF"],
+                        in: ["MENTOR", "INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"],
                       },
                     },
                   },
@@ -387,7 +387,7 @@ function getLaneWhere(lane: AdminMentorshipLane): Prisma.UserWhereInput {
 
   return {
     primaryRole: {
-      in: ["CHAPTER_LEAD", "ADMIN", "STAFF"],
+      in: ["CHAPTER_PRESIDENT", "ADMIN", "STAFF"],
     },
   };
 }

@@ -14,7 +14,7 @@ export default async function InstructorFeedbackPage({
   if (!session?.user?.id) redirect("/login");
 
   const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN") && !roles.includes("INSTRUCTOR") && !roles.includes("CHAPTER_LEAD")) {
+  if (!roles.includes("ADMIN") && !roles.includes("INSTRUCTOR") && !roles.includes("CHAPTER_PRESIDENT")) {
     redirect("/");
   }
 

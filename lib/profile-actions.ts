@@ -139,7 +139,7 @@ export async function getFullUserProfile(userId: string) {
   const currentUserId = session?.user?.id;
 
   // Users can view their own profile, admins can view any
-  if (currentUserId !== userId && !roles.includes("ADMIN") && !roles.includes("MENTOR") && !roles.includes("CHAPTER_LEAD")) {
+  if (currentUserId !== userId && !roles.includes("ADMIN") && !roles.includes("MENTOR") && !roles.includes("CHAPTER_PRESIDENT")) {
     throw new Error("Unauthorized to view this profile");
   }
 

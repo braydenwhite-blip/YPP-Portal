@@ -14,7 +14,7 @@ export default async function AdminReflectionsPage() {
   });
 
   const isAdmin = user?.roles.some((r) => r.role === "ADMIN");
-  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_LEAD");
+  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT");
   const isMentor = user?.roles.some((r) => r.role === "MENTOR");
 
   if (!isAdmin && !isChapterLead && !isMentor) {

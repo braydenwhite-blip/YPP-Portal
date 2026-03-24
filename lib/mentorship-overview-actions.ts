@@ -14,7 +14,7 @@ export async function getMentorOverview() {
 
   const roles = session.user.roles ?? [];
   const isAdmin = roles.includes("ADMIN");
-  const isMentor = roles.includes("MENTOR") || roles.includes("CHAPTER_LEAD");
+  const isMentor = roles.includes("MENTOR") || roles.includes("CHAPTER_PRESIDENT");
   if (!isAdmin && !isMentor) return null;
 
   const userId = session.user.id as string;

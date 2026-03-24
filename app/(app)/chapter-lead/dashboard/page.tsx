@@ -10,7 +10,7 @@ export default async function ChapterLeadDashboardPage() {
   }
 
   const roles = session.user.roles ?? [];
-  if (!roles.includes("CHAPTER_LEAD") && !roles.includes("ADMIN")) {
+  if (!roles.includes("CHAPTER_PRESIDENT") && !roles.includes("ADMIN")) {
     redirect("/");
   }
 
@@ -44,7 +44,7 @@ export default async function ChapterLeadDashboardPage() {
       <div>
         <div className="topbar">
           <div>
-            <p className="badge">Chapter Lead</p>
+            <p className="badge">Chapter President</p>
             <h1 className="page-title">My Chapter Dashboard</h1>
           </div>
         </div>
@@ -68,13 +68,13 @@ export default async function ChapterLeadDashboardPage() {
     <div>
       <div className="topbar">
         <div>
-          <p className="badge">Chapter Lead</p>
+          <p className="badge">Chapter President</p>
           <h1 className="page-title">{chapter.name} Dashboard</h1>
         </div>
       </div>
 
       <div className="card" style={{ marginBottom: 28 }}>
-        <h3>Welcome, Chapter Lead!</h3>
+        <h3>Welcome, Chapter President!</h3>
         <p>Manage your chapter's activities, track metrics, and support your community.</p>
       </div>
 

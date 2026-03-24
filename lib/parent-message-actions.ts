@@ -26,7 +26,7 @@ async function requireInstructor() {
   if (
     !roles.includes("INSTRUCTOR") &&
     !roles.includes("ADMIN") &&
-    !roles.includes("CHAPTER_LEAD")
+    !roles.includes("CHAPTER_PRESIDENT")
   ) {
     throw new Error("Unauthorized - Instructor access required");
   }

@@ -42,7 +42,7 @@ export async function getChapterDashboard() {
   });
 
   const isAdmin = user?.roles.some((r) => r.role === "ADMIN");
-  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_LEAD");
+  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT");
 
   if (!isAdmin && !isChapterLead) {
     throw new Error("Only Chapter Presidents and Admins can access this");
@@ -144,7 +144,7 @@ export async function getChapterInstructors() {
   });
 
   const isAdmin = user?.roles.some((r) => r.role === "ADMIN");
-  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_LEAD");
+  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT");
 
   if (!isAdmin && !isChapterLead) {
     throw new Error("Unauthorized");
@@ -200,7 +200,7 @@ export async function getInstructorDetail(instructorId: string) {
 
   const isAdmin = currentUser?.roles.some((r) => r.role === "ADMIN");
   const isChapterLead = currentUser?.roles.some(
-    (r) => r.role === "CHAPTER_LEAD"
+    (r) => r.role === "CHAPTER_PRESIDENT"
   );
   const isMentor = currentUser?.roles.some((r) => r.role === "MENTOR");
 
@@ -237,6 +237,13 @@ export async function getInstructorDetail(instructorId: string) {
         include: { module: true },
         orderBy: { module: { sortOrder: "asc" } },
       },
+      interviewGate: true,
+      classOfferingsInstructed: {
+        include: {
+          approval: true,
+        },
+        orderBy: { updatedAt: "desc" },
+      },
       approvals: {
         include: { levels: true },
       },
@@ -261,7 +268,7 @@ export async function getInstructorDetail(instructorId: string) {
     },
   });
 
-  // Verify chapter access for chapter leads
+  // Verify chapter access for chapter presidents
   if (
     isChapterLead &&
     !isAdmin &&
@@ -287,7 +294,7 @@ export async function getChapterStudents() {
   });
 
   const isAdmin = user?.roles.some((r) => r.role === "ADMIN");
-  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_LEAD");
+  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT");
 
   if (!isAdmin && !isChapterLead) {
     throw new Error("Unauthorized");
@@ -361,7 +368,7 @@ export async function createChapterUpdate(formData: FormData) {
   });
 
   const isAdmin = user?.roles.some((r) => r.role === "ADMIN");
-  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_LEAD");
+  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT");
 
   if (!isAdmin && !isChapterLead) {
     throw new Error("Only Chapter Presidents can create updates");
@@ -403,7 +410,7 @@ export async function deleteChapterUpdate(updateId: string) {
   });
 
   const isAdmin = user?.roles.some((r) => r.role === "ADMIN");
-  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_LEAD");
+  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT");
 
   if (!isAdmin && !isChapterLead) {
     throw new Error("Unauthorized");
@@ -441,7 +448,7 @@ export async function getChapterMarketing() {
   });
 
   const isAdmin = user?.roles.some((r) => r.role === "ADMIN");
-  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_LEAD");
+  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT");
 
   if (!isAdmin && !isChapterLead) {
     throw new Error("Unauthorized");
@@ -474,7 +481,7 @@ export async function addMarketingStats(formData: FormData) {
   });
 
   const isAdmin = user?.roles.some((r) => r.role === "ADMIN");
-  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_LEAD");
+  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT");
 
   if (!isAdmin && !isChapterLead) {
     throw new Error("Unauthorized");
@@ -524,7 +531,7 @@ export async function addMarketingGoal(formData: FormData) {
   });
 
   const isAdmin = user?.roles.some((r) => r.role === "ADMIN");
-  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_LEAD");
+  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT");
 
   if (!isAdmin && !isChapterLead) {
     throw new Error("Unauthorized");
@@ -565,7 +572,7 @@ export async function getChapterApplicants() {
   });
 
   const isAdmin = user?.roles.some((r) => r.role === "ADMIN");
-  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_LEAD");
+  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT");
 
   if (!isAdmin && !isChapterLead) {
     throw new Error("Unauthorized");

@@ -26,7 +26,7 @@ export default async function CompetitionBuilderPage({
   if (
     !roles.includes("ADMIN") &&
     !roles.includes("INSTRUCTOR") &&
-    !roles.includes("CHAPTER_LEAD")
+    !roles.includes("CHAPTER_PRESIDENT")
   ) {
     redirect("/dashboard");
   }
@@ -49,7 +49,7 @@ export default async function CompetitionBuilderPage({
           where: {
             chapterId: instructor.chapterId,
             primaryRole: {
-              in: ["INSTRUCTOR", "ADMIN", "STAFF", "CHAPTER_LEAD"],
+              in: ["INSTRUCTOR", "ADMIN", "STAFF", "CHAPTER_PRESIDENT"],
             },
           },
           select: { id: true, name: true, email: true },

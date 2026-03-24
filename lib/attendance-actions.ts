@@ -26,7 +26,7 @@ async function requireStaffRole() {
     !session?.user?.id ||
     (!roles.includes("ADMIN") &&
       !roles.includes("INSTRUCTOR") &&
-      !roles.includes("CHAPTER_LEAD"))
+      !roles.includes("CHAPTER_PRESIDENT"))
   ) {
     throw new Error("Unauthorized");
   }
@@ -84,7 +84,7 @@ export async function getAttendanceSessions() {
 
   const isAdmin = roles.includes("ADMIN");
   const isInstructor = roles.includes("INSTRUCTOR");
-  const isChapterLead = roles.includes("CHAPTER_LEAD");
+  const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
 
   // Build the where clause based on role
   let whereClause = {};
@@ -235,7 +235,7 @@ export async function getSessionWithRecords(sessionId: string): Promise<Attendan
   }
 
   // Verify user has access to this session's attendance records
-  // Only instructors of the course, chapter leads, or admins can access
+  // Only instructors of the course, chapter presidents, or admins can access
   await requireAttendanceAccess(undefined, session.courseId || undefined);
 
   return session;
@@ -363,9 +363,9 @@ export async function getStudentAttendanceSummary(userId: string) {
   if (callerId === userId) {
     // Allow - viewing own attendance
   }
-  // Admins and chapter leads can view anyone's attendance
-  else if (callerRoles.includes("ADMIN") || callerRoles.includes("CHAPTER_LEAD")) {
-    // Allow - admin/chapter lead access
+  // Admins and chapter presidents can view anyone's attendance
+  else if (callerRoles.includes("ADMIN") || callerRoles.includes("CHAPTER_PRESIDENT")) {
+    // Allow - admin/chapter president access
   }
   // Instructors can only view attendance of students enrolled in their courses
   else if (callerRoles.includes("INSTRUCTOR")) {
@@ -427,7 +427,7 @@ export async function getStudentAttendanceSummary(userId: string) {
 // ============================================
 
 export async function getCourseAttendanceReport(courseId: string) {
-  // Verify user is the instructor of this course, chapter lead, or admin
+  // Verify user is the instructor of this course, chapter president, or admin
   await requireAttendanceAccess(undefined, courseId);
 
   // Get all sessions for this course with their records

@@ -19,7 +19,7 @@ export default async function ChapterLeaderboardPage() {
     <main className="main-content">
       <div className="page-header">
         <div>
-          <h1>Chapter Leaderboard</h1>
+          <h1>Chapter Presidenterboard</h1>
           <p className="subtitle">See how chapters across the network are growing</p>
         </div>
         <Link href="/chapters" style={{ fontSize: 13, color: "var(--ypp-purple)" }}>

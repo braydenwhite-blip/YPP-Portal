@@ -8,7 +8,7 @@ export const metadata = { title: "Role Matrix Audit" };
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: "Admin",
-  CHAPTER_LEAD: "Lead",
+  CHAPTER_PRESIDENT: "Lead",
   INSTRUCTOR: "Instr",
   MENTOR: "Mentor",
   STUDENT: "Student",
@@ -16,7 +16,7 @@ const ROLE_LABELS: Record<string, string> = {
   PARENT: "Parent",
 };
 
-const ROLE_KEYS = ["ADMIN", "CHAPTER_LEAD", "INSTRUCTOR", "MENTOR", "STUDENT", "STAFF", "PARENT"];
+const ROLE_KEYS = ["ADMIN", "CHAPTER_PRESIDENT", "INSTRUCTOR", "MENTOR", "STUDENT", "STAFF", "PARENT"];
 
 export default async function RoleMatrixPage() {
   const session = await getServerSession(authOptions);
@@ -78,7 +78,7 @@ export default async function RoleMatrixPage() {
                 <div style={{ display: "flex", gap: "0.3rem" }}>
                   {!ch.hasLead && (
                     <span className="pill" style={{ background: "#fef2f2", color: "#dc2626", fontSize: "0.7rem" }}>
-                      No Chapter Lead
+                      No Chapter President
                     </span>
                   )}
                   {!ch.hasInstructor && (
@@ -122,7 +122,7 @@ export default async function RoleMatrixPage() {
                 {ROLE_KEYS.map((role) => {
                   const count = ch.roleCounts[role] ?? 0;
                   const isWarning =
-                    (role === "CHAPTER_LEAD" && count === 0) ||
+                    (role === "CHAPTER_PRESIDENT" && count === 0) ||
                     (role === "INSTRUCTOR" && count === 0);
                   return (
                     <td

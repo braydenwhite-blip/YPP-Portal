@@ -22,7 +22,7 @@ export async function getChapterCalendarActor() {
 
   const roles = new Set(user.roles.map((role) => role.role));
   const isAdmin = roles.has("ADMIN");
-  const isChapterLead = roles.has("CHAPTER_LEAD");
+  const isChapterLead = roles.has("CHAPTER_PRESIDENT");
 
   return {
     session,

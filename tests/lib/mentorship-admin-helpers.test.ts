@@ -41,8 +41,8 @@ describe("mentorship-admin-helpers", () => {
 
       expect(
         getAdminMentorshipLaneForUser({
-          primaryRole: "CHAPTER_LEAD",
-          roles: ["CHAPTER_LEAD"],
+          primaryRole: "CHAPTER_PRESIDENT",
+          roles: ["CHAPTER_PRESIDENT"],
         })
       ).toBe("LEADERSHIP");
     });

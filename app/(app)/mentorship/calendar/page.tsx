@@ -63,7 +63,7 @@ interface CalendarEvent {
 
 async function getMentorshipCalendarData(userId: string, roles: string[]) {
   const isAdmin = roles.includes("ADMIN");
-  const isMentor = roles.includes("MENTOR") || roles.includes("CHAPTER_LEAD") || isAdmin;
+  const isMentor = roles.includes("MENTOR") || roles.includes("CHAPTER_PRESIDENT") || isAdmin;
   const today = new Date();
 
   const events: CalendarEvent[] = [];

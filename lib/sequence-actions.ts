@@ -31,7 +31,7 @@ async function requireInstructor() {
     !session?.user?.id ||
     (!roles.includes("ADMIN") &&
       !roles.includes("INSTRUCTOR") &&
-      !roles.includes("CHAPTER_LEAD"))
+      !roles.includes("CHAPTER_PRESIDENT"))
   ) {
     throw new Error("Unauthorized – instructor role required");
   }
@@ -607,7 +607,7 @@ export async function getSequenceById(id: string) {
 
   const roles = session.user.roles ?? [];
   const isCreator = pathway.createdById === session.user.id;
-  const isAdmin = roles.includes("ADMIN") || roles.includes("CHAPTER_LEAD");
+  const isAdmin = roles.includes("ADMIN") || roles.includes("CHAPTER_PRESIDENT");
   if (!isCreator && !isAdmin) {
     throw new Error("Not authorized to view this sequence");
   }
@@ -630,8 +630,8 @@ export async function requestSequenceRevision(id: string, notes: string) {
   const session = await requireInstructor();
 
   const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_LEAD")) {
-    throw new Error("Only admins and chapter leads can request revisions");
+  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT")) {
+    throw new Error("Only admins and chapter presidents can request revisions");
   }
 
   // Use raw update since Pathway may not have reviewNotes column yet
@@ -649,8 +649,8 @@ export async function approveSequence(id: string) {
   const session = await requireInstructor();
 
   const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_LEAD")) {
-    throw new Error("Only admins and chapter leads can approve sequences");
+  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT")) {
+    throw new Error("Only admins and chapter presidents can approve sequences");
   }
 
   await prisma.pathway.update({

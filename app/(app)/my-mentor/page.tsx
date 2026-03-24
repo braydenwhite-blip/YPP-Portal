@@ -64,7 +64,7 @@ export default async function MyMentorPage() {
           <h2 style={{ marginTop: 0 }}>No support circle assigned yet</h2>
           <p style={{ color: "var(--muted)", marginBottom: 16 }}>
             The redesigned mentorship experience works best when you have a primary mentor plus supporting roles.
-            Ask your chapter lead or admin to create your circle.
+            Ask your chapter president or admin to create your circle.
           </p>
           <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
             <Link href="/mentor/ask" className="button secondary small">

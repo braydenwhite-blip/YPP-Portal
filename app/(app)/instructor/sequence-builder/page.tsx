@@ -23,7 +23,7 @@ export default async function SequenceBuilderPage({
   if (
     !roles.includes("ADMIN") &&
     !roles.includes("INSTRUCTOR") &&
-    !roles.includes("CHAPTER_LEAD")
+    !roles.includes("CHAPTER_PRESIDENT")
   ) {
     redirect("/dashboard");
   }

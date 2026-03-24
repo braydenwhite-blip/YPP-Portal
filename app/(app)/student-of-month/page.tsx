@@ -23,7 +23,7 @@ export default async function StudentOfMonthPage() {
         badge="Recognition"
         title="Student of the Month"
         description="Each month, one outstanding student per chapter is recognized for dedication, growth, and community spirit in their passion pursuits."
-        addedBy="chapter leaders and admins"
+        addedBy="chapter presidents and admins"
         actionLabel="Manage Student of Month"
         actionHref="/admin/student-of-month"
       />

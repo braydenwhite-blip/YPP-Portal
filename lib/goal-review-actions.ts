@@ -48,7 +48,7 @@ async function requireMentor() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) throw new Error("Unauthorized");
   const roles = session.user.roles ?? [];
-  if (!roles.includes("MENTOR") && !roles.includes("ADMIN") && !roles.includes("CHAPTER_LEAD")) {
+  if (!roles.includes("MENTOR") && !roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT")) {
     throw new Error("Unauthorized");
   }
   return session as typeof session & { user: { id: string } };
@@ -369,7 +369,7 @@ export async function getChairQueue() {
                   rt === "INSTRUCTOR"
                     ? ["INSTRUCTOR"]
                     : rt === "CHAPTER_PRESIDENT"
-                    ? ["CHAPTER_LEAD"]
+                    ? ["CHAPTER_PRESIDENT"]
                     : ["ADMIN", "STAFF"]
                 ),
               },

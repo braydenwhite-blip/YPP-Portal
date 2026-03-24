@@ -27,7 +27,7 @@ export default async function NewAdminRecruitingPositionPage() {
         roles: {
           some: {
             role: {
-              in: ["ADMIN", "CHAPTER_LEAD", "STAFF"],
+              in: ["ADMIN", "CHAPTER_PRESIDENT", "STAFF"],
             },
           },
         },

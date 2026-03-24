@@ -33,7 +33,7 @@ async function requireAuth() {
 async function requireReviewer() {
   const session = await requireAuth();
   const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_LEAD")) {
+  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT")) {
     throw new Error("Unauthorized - reviewer role required");
   }
   return session;
@@ -78,14 +78,14 @@ async function assertReviewerCanManageInstructor(
 
   const reviewerRoles = reviewer.roles.map((role) => role.role);
   const isAdmin = reviewerRoles.includes("ADMIN");
-  const isChapterLead = reviewerRoles.includes("CHAPTER_LEAD");
+  const isChapterLead = reviewerRoles.includes("CHAPTER_PRESIDENT");
 
   if (!isAdmin && !isChapterLead) {
     throw new Error("Unauthorized");
   }
 
   if (isChapterLead && !isAdmin && reviewer.chapterId !== instructor.chapterId) {
-    throw new Error("Chapter Leads can only manage instructors in their chapter");
+    throw new Error("Chapter Presidents can only manage instructors in their chapter");
   }
 }
 
@@ -101,7 +101,7 @@ async function getReviewerIdsForInstructor(instructorId: string) {
         { roles: { some: { role: "ADMIN" } } },
         {
           AND: [
-            { roles: { some: { role: "CHAPTER_LEAD" } } },
+            { roles: { some: { role: "CHAPTER_PRESIDENT" } } },
             { chapterId: instructor?.chapterId ?? undefined },
           ],
         },

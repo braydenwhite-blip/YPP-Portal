@@ -40,7 +40,7 @@ async function requireStudioAccess() {
   const allowed =
     roles.includes("INSTRUCTOR") ||
     roles.includes("ADMIN") ||
-    roles.includes("CHAPTER_LEAD") ||
+    roles.includes("CHAPTER_PRESIDENT") ||
     roles.includes("APPLICANT");
   if (!allowed) throw new Error("Studio access requires Instructor or Applicant role");
   return session;
@@ -586,7 +586,7 @@ export async function markLessonDesignStudioTourComplete(draftId: string) {
 export async function getCurriculumDraftById(draftId: string) {
   const session = await requireStudioAccess();
   const roles = session.user.roles ?? [];
-  const requesterChapterId = roles.includes("CHAPTER_LEAD")
+  const requesterChapterId = roles.includes("CHAPTER_PRESIDENT")
     ? (
         await prisma.user.findUnique({
           where: { id: session.user.id },

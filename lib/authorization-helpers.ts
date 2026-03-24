@@ -61,7 +61,7 @@ export async function requireStudent(): Promise<SessionUser> {
 }
 
 /**
- * Require that the user is a chapter lead for the specified chapter
+ * Require that the user is a chapter president for the specified chapter
  * OR is an admin
  */
 export async function requireChapterAccess(chapterId: string): Promise<SessionUser> {
@@ -72,8 +72,8 @@ export async function requireChapterAccess(chapterId: string): Promise<SessionUs
     return user;
   }
 
-  // Check if user is a chapter lead for this chapter
-  if (user.roles.includes("CHAPTER_LEAD")) {
+  // Check if user is a chapter president for this chapter
+  if (user.roles.includes("CHAPTER_PRESIDENT")) {
     const chapterOwner = await prisma.user.findUnique({
       where: { id: user.id },
       select: { chapterId: true }
@@ -256,58 +256,58 @@ export async function requireCanMessage(recipientId: string): Promise<SessionUse
 
   switch (primaryRole) {
     case "STUDENT":
-      // Students can message: their instructors, their mentors, staff, chapter leads
+      // Students can message: their instructors, their mentors, staff, chapter presidents
       if (
         recipientRoles.includes("INSTRUCTOR") ||
         recipientRoles.includes("MENTOR") ||
         recipientRoles.includes("STAFF") ||
-        recipientRoles.includes("CHAPTER_LEAD")
+        recipientRoles.includes("CHAPTER_PRESIDENT")
       ) {
         return user;
       }
-      throw new Error("Students can only message instructors, mentors, staff, and chapter leads");
+      throw new Error("Students can only message instructors, mentors, staff, and chapter presidents");
 
     case "INSTRUCTOR":
-      // Instructors can message: their students, other instructors, mentors, staff, chapter leads
+      // Instructors can message: their students, other instructors, mentors, staff, chapter presidents
       if (
         recipientRoles.includes("STUDENT") ||
         recipientRoles.includes("INSTRUCTOR") ||
         recipientRoles.includes("MENTOR") ||
         recipientRoles.includes("STAFF") ||
-        recipientRoles.includes("CHAPTER_LEAD")
+        recipientRoles.includes("CHAPTER_PRESIDENT")
       ) {
         return user;
       }
       throw new Error("Unauthorized messaging recipient");
 
     case "MENTOR":
-      // Mentors can message: their mentees, instructors, other mentors, staff, chapter leads
+      // Mentors can message: their mentees, instructors, other mentors, staff, chapter presidents
       if (
         recipientRoles.includes("STUDENT") ||
         recipientRoles.includes("INSTRUCTOR") ||
         recipientRoles.includes("MENTOR") ||
         recipientRoles.includes("STAFF") ||
-        recipientRoles.includes("CHAPTER_LEAD")
+        recipientRoles.includes("CHAPTER_PRESIDENT")
       ) {
         return user;
       }
       throw new Error("Unauthorized messaging recipient");
 
-    case "CHAPTER_LEAD":
+    case "CHAPTER_PRESIDENT":
     case "STAFF":
-      // Staff and chapter leads can message anyone
+      // Staff and chapter presidents can message anyone
       return user;
 
     case "PARENT":
-      // Parents can message: staff, chapter leads, their children's instructors
+      // Parents can message: staff, chapter presidents, their children's instructors
       if (
         recipientRoles.includes("STAFF") ||
-        recipientRoles.includes("CHAPTER_LEAD") ||
+        recipientRoles.includes("CHAPTER_PRESIDENT") ||
         recipientRoles.includes("INSTRUCTOR")
       ) {
         return user;
       }
-      throw new Error("Parents can only message staff, chapter leads, and instructors");
+      throw new Error("Parents can only message staff, chapter presidents, and instructors");
 
     default:
       throw new Error("Unauthorized messaging");
@@ -316,7 +316,7 @@ export async function requireCanMessage(recipientId: string): Promise<SessionUse
 
 /**
  * Require that the user can view attendance records
- * (instructor of the class, chapter lead, or admin)
+ * (instructor of the class, chapter president, or admin)
  */
 export async function requireAttendanceAccess(
   classOfferingId?: string,
@@ -354,7 +354,7 @@ export async function requireAttendanceAccess(
   }
 
   // Chapter leads can access attendance for their chapter
-  if (user.roles.includes("CHAPTER_LEAD")) {
+  if (user.roles.includes("CHAPTER_PRESIDENT")) {
     // Could add chapter-specific check here if needed
     return user;
   }
@@ -398,7 +398,7 @@ export async function requireApplicationAccess(
   }
 
   // Chapter leads can access applications for their chapter
-  if (user.roles.includes("CHAPTER_LEAD") && application.position.chapterId) {
+  if (user.roles.includes("CHAPTER_PRESIDENT") && application.position.chapterId) {
     const chapterOwner = await prisma.user.findUnique({
       where: { id: user.id },
       select: { chapterId: true }

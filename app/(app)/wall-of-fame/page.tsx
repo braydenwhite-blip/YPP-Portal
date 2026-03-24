@@ -24,7 +24,7 @@ export default async function WallOfFamePage() {
         badge="Recognition"
         title="Wall of Fame"
         description="This page will celebrate extraordinary achievements from YPP students — accomplishments that inspire the entire community to pursue their passions."
-        addedBy="admins and chapter leaders"
+        addedBy="admins and chapter presidents"
         actionLabel="Manage Wall of Fame"
         actionHref="/admin/wall-of-fame"
       />

@@ -20,7 +20,7 @@ export async function getMyMentees() {
   });
 
   const isMentor = user?.roles.some(
-    (r) => r.role === "MENTOR" || r.role === "CHAPTER_LEAD" || r.role === "ADMIN"
+    (r) => r.role === "MENTOR" || r.role === "CHAPTER_PRESIDENT" || r.role === "ADMIN"
   );
 
   if (!isMentor) {
@@ -169,7 +169,7 @@ export async function submitProgressFeedback(formData: FormData) {
   });
 
   const isMentor = user?.roles.some(
-    (r) => r.role === "MENTOR" || r.role === "CHAPTER_LEAD" || r.role === "ADMIN"
+    (r) => r.role === "MENTOR" || r.role === "CHAPTER_PRESIDENT" || r.role === "ADMIN"
   );
 
   if (!isMentor) {

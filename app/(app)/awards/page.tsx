@@ -113,7 +113,7 @@ export default async function AwardsPage() {
         <>
           <div className="card" style={{ marginBottom: 28, padding: "28px 32px" }}>
             <p style={{ fontSize: 15, lineHeight: 1.7, color: "var(--text-secondary)" }}>
-              Awards are nominated by your instructors, mentors, and chapter leaders. There are five
+              Awards are nominated by your instructors, mentors, and chapter presidents. There are five
               categories — each recognizing a different kind of excellence. Once you earn one, it
               will appear here permanently.
             </p>

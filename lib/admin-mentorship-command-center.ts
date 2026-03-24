@@ -187,7 +187,7 @@ export async function getAdminMentorshipCommandCenterData() {
       where: {
         OR: [
           { roles: { some: { role: "STUDENT" } } },
-          { primaryRole: { in: ["INSTRUCTOR", "CHAPTER_LEAD", "ADMIN", "STAFF"] } },
+          { primaryRole: { in: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] } },
         ],
       },
       select: {
@@ -212,7 +212,7 @@ export async function getAdminMentorshipCommandCenterData() {
         roles: {
           some: {
             role: {
-              in: ["MENTOR", "INSTRUCTOR", "CHAPTER_LEAD", "ADMIN", "STAFF"],
+              in: ["MENTOR", "INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"],
             },
           },
         },

@@ -4,7 +4,7 @@ import type { DashboardRole } from "@/lib/dashboard/types";
 
 const SUPPORTED_ROLES: DashboardRole[] = [
   "ADMIN",
-  "CHAPTER_LEAD",
+  "CHAPTER_PRESIDENT",
   "INSTRUCTOR",
   "MENTOR",
   "PARENT",

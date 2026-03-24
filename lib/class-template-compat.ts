@@ -71,6 +71,8 @@ export function getClassTemplateSelect(options?: {
     description: true,
     interestArea: true,
     difficultyLevel: true,
+    learnerFitLabel: true,
+    learnerFitDescription: true,
     weeklyTopics: true,
     learningOutcomes: true,
     durationWeeks: true,

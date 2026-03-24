@@ -4,11 +4,10 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
-  approveReadinessReview,
-  grantTeachingPermission,
-  requestReadinessRevision,
-  reviewTrainingEvidence,
-} from "@/lib/training-actions";
+  approveOfferingApproval,
+  requestOfferingApprovalRevision,
+} from "@/lib/offering-approval-actions";
+import { reviewTrainingEvidence } from "@/lib/training-actions";
 import {
   buildFallbackInstructorReadiness,
   getInstructorReadiness,
@@ -35,7 +34,7 @@ export default async function InstructorReadinessPage() {
     redirect("/");
   }
 
-  const [requiredModules, instructors, evidenceQueue, readinessQueue, interviewQueue] =
+  const [requiredModules, instructors, evidenceQueue, approvalQueue, interviewQueue] =
     await Promise.all([
       withPrismaFallback(
         "admin-readiness:required-modules",
@@ -62,11 +61,6 @@ export default async function InstructorReadinessPage() {
                   status: true,
                 },
               },
-              teachingPermissions: {
-                select: {
-                  level: true,
-                },
-              },
               interviewGate: {
                 include: {
                   slots: {
@@ -76,19 +70,6 @@ export default async function InstructorReadinessPage() {
                     where: { status: "PENDING" },
                     orderBy: { createdAt: "desc" },
                   },
-                },
-              },
-              readinessReviewRequests: {
-                where: {
-                  status: { in: ["REQUESTED", "UNDER_REVIEW", "REVISION_REQUESTED"] },
-                },
-                orderBy: { requestedAt: "desc" },
-                take: 1,
-                select: {
-                  id: true,
-                  status: true,
-                  requestedAt: true,
-                  notes: true,
                 },
               },
             },
@@ -117,24 +98,35 @@ export default async function InstructorReadinessPage() {
         []
       ),
       withPrismaFallback(
-        "admin-readiness:readiness-queue",
+        "admin-readiness:approval-queue",
         () =>
-          prisma.readinessReviewRequest.findMany({
+          prisma.classOfferingApproval.findMany({
             where: {
-              status: { in: ["REQUESTED", "UNDER_REVIEW", "REVISION_REQUESTED"] },
+              status: { in: ["REQUESTED", "UNDER_REVIEW", "CHANGES_REQUESTED"] },
             },
             orderBy: { requestedAt: "asc" },
             select: {
-              id: true,
+              offeringId: true,
               status: true,
-              notes: true,
+              requestNotes: true,
               requestedAt: true,
-              instructor: {
+              reviewNotes: true,
+              offering: {
                 select: {
-                  id: true,
-                  name: true,
-                  email: true,
+                  title: true,
                   chapter: { select: { name: true } },
+                  template: {
+                    select: {
+                      learnerFitLabel: true,
+                    },
+                  },
+                  instructor: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                    },
+                  },
                 },
               },
             },
@@ -182,6 +174,17 @@ export default async function InstructorReadinessPage() {
     })
   );
   const readinessByInstructor = new Map(readinessEntries);
+  const approvalQueueByInstructor = new Map(
+    instructors.map((instructor) => [instructor.id, [] as typeof approvalQueue])
+  );
+  for (const request of approvalQueue) {
+    const requests = approvalQueueByInstructor.get(request.offering.instructor.id);
+    if (requests) {
+      requests.push(request);
+    } else {
+      approvalQueueByInstructor.set(request.offering.instructor.id, [request]);
+    }
+  }
 
   const totalInstructors = instructors.length;
   const trainingComplete = instructors.filter((instructor) => {
@@ -199,9 +202,9 @@ export default async function InstructorReadinessPage() {
     return status === "PASSED" || status === "WAIVED";
   }).length;
 
-  const readyToPublish = instructors.filter((instructor) => {
+  const readyToRequestApproval = instructors.filter((instructor) => {
     const readiness = readinessByInstructor.get(instructor.id);
-    return readiness?.canPublishFirstOffering;
+    return readiness?.canRequestOfferingApproval;
   }).length;
 
   return (
@@ -211,7 +214,7 @@ export default async function InstructorReadinessPage() {
           <p className="badge">Admin</p>
           <h1 className="page-title">Instructor Readiness Command Center</h1>
           <p className="page-subtitle">
-            Resolve training blockers, interview scheduling, and teaching permissions before first publish.
+            Resolve training blockers, interview scheduling, and offering approvals before publish.
           </p>
         </div>
       </div>
@@ -230,8 +233,8 @@ export default async function InstructorReadinessPage() {
           <div className="kpi-label">Interview Passed/Waived</div>
         </div>
         <div className="card">
-          <div className="kpi">{readyToPublish}</div>
-          <div className="kpi-label">Ready for First Publish</div>
+          <div className="kpi">{readyToRequestApproval}</div>
+          <div className="kpi-label">Ready for Approval Request</div>
         </div>
       </div>
 
@@ -371,47 +374,42 @@ export default async function InstructorReadinessPage() {
         </div>
 
         <div className="card">
-          <h3>Readiness Review Queue</h3>
-          {readinessQueue.length === 0 ? (
-            <p className="empty">No readiness requests pending review.</p>
+          <h3>Offering Approval Queue</h3>
+          {approvalQueue.length === 0 ? (
+            <p className="empty">No offering approvals are waiting for review.</p>
           ) : (
             <div style={{ display: "grid", gap: 10 }}>
-              {readinessQueue.map((request) => (
-                <div key={request.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
-                  <p style={{ margin: 0, fontWeight: 600 }}>{request.instructor.name}</p>
+              {approvalQueue.map((request) => (
+                <div key={request.offeringId} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
+                  <p style={{ margin: 0, fontWeight: 600 }}>{request.offering.title}</p>
                   <p style={{ margin: "6px 0", fontSize: 13, color: "var(--muted)" }}>
-                    {request.status.replace(/_/g, " ")} • {request.instructor.chapter?.name || "No chapter"} • {formatDate(request.requestedAt)}
+                    {request.status.replace(/_/g, " ")} • {request.offering.instructor.name} • {request.offering.chapter?.name || "No chapter"} • {formatDate(request.requestedAt)}
                   </p>
-                  {request.notes ? <p style={{ marginTop: 0 }}>{request.notes}</p> : null}
+                  <p style={{ marginTop: 0, marginBottom: 6, fontSize: 13, color: "var(--muted)" }}>
+                    Learner fit: {request.offering.template.learnerFitLabel || "Learner fit coming soon"}
+                  </p>
+                  {request.requestNotes ? <p style={{ marginTop: 0 }}>{request.requestNotes}</p> : null}
+                  {request.reviewNotes ? <p style={{ marginTop: 0, fontSize: 13 }}>{request.reviewNotes}</p> : null}
 
-                  <form action={approveReadinessReview} className="form-grid" style={{ marginBottom: 8 }}>
-                    <input type="hidden" name="requestId" value={request.id} />
-                    <div className="grid two">
-                      <label className="form-row">
-                        Level to grant
-                        <select name="level" className="input" defaultValue="LEVEL_101">
-                          <option value="LEVEL_101">LEVEL 101</option>
-                          <option value="LEVEL_201">LEVEL 201</option>
-                          <option value="LEVEL_301">LEVEL 301</option>
-                          <option value="LEVEL_401">LEVEL 401</option>
-                        </select>
-                      </label>
+                  <form action={approveOfferingApproval} className="form-grid" style={{ marginBottom: 8 }}>
+                    <input type="hidden" name="offeringId" value={request.offeringId} />
+                    <div className="grid one">
                       <label className="form-row">
                         Approval note
                         <input name="reviewNotes" className="input" placeholder="Optional note" />
                       </label>
                     </div>
-                    <button type="submit" className="button small">Approve readiness + grant level</button>
+                    <button type="submit" className="button small">Approve offering</button>
                   </form>
 
-                  <form action={requestReadinessRevision} className="form-grid">
-                    <input type="hidden" name="requestId" value={request.id} />
+                  <form action={requestOfferingApprovalRevision} className="form-grid">
+                    <input type="hidden" name="offeringId" value={request.offeringId} />
                     <div className="grid two">
                       <label className="form-row">
-                        Revision status
-                        <select name="status" className="input" defaultValue="REVISION_REQUESTED">
-                          <option value="REVISION_REQUESTED">Revision requested</option>
-                          <option value="REJECTED">Reject request</option>
+                        Approval status
+                        <select name="status" className="input" defaultValue="CHANGES_REQUESTED">
+                          <option value="CHANGES_REQUESTED">Changes requested</option>
+                          <option value="REJECTED">Reject offering</option>
                         </select>
                       </label>
                       <label className="form-row">
@@ -419,7 +417,7 @@ export default async function InstructorReadinessPage() {
                         <input name="reviewNotes" className="input" placeholder="Explain what is missing" />
                       </label>
                     </div>
-                    <button type="submit" className="button small outline">Send revision</button>
+                    <button type="submit" className="button small outline">Send update</button>
                   </form>
                 </div>
               ))}
@@ -512,7 +510,8 @@ export default async function InstructorReadinessPage() {
         <div style={{ display: "grid", gap: 10 }}>
           {instructors.map((instructor) => {
             const readiness = readinessByInstructor.get(instructor.id);
-            const pendingReview = instructor.readinessReviewRequests[0];
+            const pendingApprovals = approvalQueueByInstructor.get(instructor.id) ?? [];
+            const nextApproval = pendingApprovals[0];
             const gateStatus = instructor.interviewGate?.status ?? "REQUIRED";
 
             return (
@@ -535,11 +534,12 @@ export default async function InstructorReadinessPage() {
                     Training: {readiness?.completedRequiredModules ?? 0}/{readiness?.requiredModulesCount ?? 0}
                   </span>
                   <span className="pill pill-small">
-                    Can publish first offering: {readiness?.canPublishFirstOffering ? "Yes" : "No"}
+                    Ready for approval request: {readiness?.canRequestOfferingApproval ? "Yes" : "No"}
                   </span>
                   <span className="pill pill-small">
-                    Teaching levels: {instructor.teachingPermissions.map((permission) => permission.level.replace("LEVEL_", "")).join(", ") || "None"}
+                    Offering approvals waiting: {pendingApprovals.length}
                   </span>
+                  <span className="pill pill-small">Legacy exemptions: {readiness?.legacyExemptOfferingCount ?? 0}</span>
                 </div>
 
                 {readiness?.missingRequirements.length ? (
@@ -552,35 +552,15 @@ export default async function InstructorReadinessPage() {
                   </p>
                 )}
 
-                {pendingReview ? (
+                {nextApproval ? (
                   <p style={{ marginTop: 6, marginBottom: 0, fontSize: 13, color: "var(--muted)" }}>
-                    Pending reviewer action: {pendingReview.status.replace(/_/g, " ")} ({formatDate(pendingReview.requestedAt)})
+                    Next reviewer action: {nextApproval.offering.title} is {nextApproval.status.replace(/_/g, " ").toLowerCase()} ({formatDate(nextApproval.requestedAt)})
                   </p>
                 ) : (
                   <p style={{ marginTop: 6, marginBottom: 0, fontSize: 13, color: "var(--muted)" }}>
-                    Next reviewer action: {readiness?.missingRequirements[0]?.title || "None"}
+                    Next reviewer action: {readiness?.missingRequirements[0]?.title || "No reviewer action queued"}
                   </p>
                 )}
-
-                <form action={grantTeachingPermission} className="form-grid" style={{ marginTop: 10 }}>
-                  <input type="hidden" name="instructorId" value={instructor.id} />
-                  <div className="grid three">
-                    <label className="form-row">
-                      Grant level
-                      <select name="level" className="input" defaultValue="LEVEL_101">
-                        <option value="LEVEL_101">LEVEL 101</option>
-                        <option value="LEVEL_201">LEVEL 201</option>
-                        <option value="LEVEL_301">LEVEL 301</option>
-                        <option value="LEVEL_401">LEVEL 401</option>
-                      </select>
-                    </label>
-                    <label className="form-row" style={{ gridColumn: "span 2" }}>
-                      Reason
-                      <input name="reason" className="input" placeholder="Why permission is being granted" />
-                    </label>
-                  </div>
-                  <button type="submit" className="button small outline">Grant teaching permission</button>
-                </form>
               </div>
             );
           })}

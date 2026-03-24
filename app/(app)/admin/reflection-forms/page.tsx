@@ -60,7 +60,7 @@ export default async function ReflectionFormsPage() {
               <label>Role Type</label>
               <select name="roleType" required>
                 <option value="INSTRUCTOR">Instructor</option>
-                <option value="CHAPTER_LEAD">Chapter President</option>
+                <option value="CHAPTER_PRESIDENT">Chapter President</option>
                 <option value="STUDENT">Student</option>
                 <option value="MENTOR">Mentor</option>
                 <option value="STAFF">Staff</option>

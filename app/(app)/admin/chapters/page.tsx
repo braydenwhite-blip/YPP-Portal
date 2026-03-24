@@ -33,7 +33,7 @@ export default async function AdminChaptersPage() {
       u.roles.some((r) => r.role === "STUDENT")
     );
     const leads = chapter.users.filter((u) =>
-      u.roles.some((r) => r.role === "CHAPTER_LEAD")
+      u.roles.some((r) => r.role === "CHAPTER_PRESIDENT")
     );
 
     return {

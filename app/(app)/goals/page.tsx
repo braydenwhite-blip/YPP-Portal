@@ -169,7 +169,7 @@ export default async function GoalsPage() {
 
   const roles = user.roles.map((role) => role.role);
   const isInstructor = roles.includes("INSTRUCTOR");
-  const isChapterLead = roles.includes("CHAPTER_LEAD");
+  const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
   const mentor = user.menteePairs[0]?.mentor ?? null;
   const chair = user.menteePairs[0]?.chair ?? null;
   const track = user.menteePairs[0]?.track ?? null;

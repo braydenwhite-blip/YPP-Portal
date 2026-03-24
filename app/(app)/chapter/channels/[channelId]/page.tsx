@@ -15,7 +15,7 @@ function formatTime(date: Date): string {
 }
 
 const ROLE_COLORS: Record<string, string> = {
-  CHAPTER_LEAD: "#6d28d9",
+  CHAPTER_PRESIDENT: "#6d28d9",
   ADMIN: "#dc2626",
   INSTRUCTOR: "#0369a1",
   MENTOR: "#ca8a04",

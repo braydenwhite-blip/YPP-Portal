@@ -271,10 +271,10 @@ export async function getUserCertificates(userId?: string) {
   const session = await requireAuth();
   const targetUserId = userId || session.user.id;
 
-  // Users can view their own; admins/mentors/chapter leads can view others'
+  // Users can view their own; admins/mentors/chapter presidents can view others'
   if (targetUserId !== session.user.id) {
     const roles = session.user.roles ?? [];
-    if (!roles.includes("ADMIN") && !roles.includes("MENTOR") && !roles.includes("CHAPTER_LEAD")) {
+    if (!roles.includes("ADMIN") && !roles.includes("MENTOR") && !roles.includes("CHAPTER_PRESIDENT")) {
       throw new Error("Unauthorized");
     }
   }

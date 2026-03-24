@@ -67,7 +67,7 @@ export async function generateCommonAppExport(userId?: string) {
   // Advisors/admins can export for any student; students only for themselves
   const roles = session.user.roles ?? [];
   const isAdminOrAdvisor =
-    roles.includes("ADMIN") || roles.includes("STAFF") || roles.includes("CHAPTER_LEAD");
+    roles.includes("ADMIN") || roles.includes("STAFF") || roles.includes("CHAPTER_PRESIDENT");
   if (targetUserId !== session.user.id && !isAdminOrAdvisor) return null;
 
   const activities = await prisma.collegeActivity.findMany({

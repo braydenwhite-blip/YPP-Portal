@@ -20,7 +20,7 @@ describe("mentorship-canonical", () => {
     it("maps student and instructor roles directly and routes leadership roles to officer", () => {
       expect(getMentorshipProgramGroupForRole("STUDENT")).toBe("STUDENT");
       expect(getMentorshipProgramGroupForRole("INSTRUCTOR")).toBe("INSTRUCTOR");
-      expect(getMentorshipProgramGroupForRole("CHAPTER_LEAD")).toBe("OFFICER");
+      expect(getMentorshipProgramGroupForRole("CHAPTER_PRESIDENT")).toBe("OFFICER");
       expect(getMentorshipProgramGroupForRole("ADMIN")).toBe("OFFICER");
     });
 

@@ -2,21 +2,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getMyClassSchedule } from "@/lib/class-management-actions";
+import { getLearnerFitSummary } from "@/lib/learner-fit";
 import Link from "next/link";
-
-const difficultyLabels: Record<string, string> = {
-  LEVEL_101: "101",
-  LEVEL_201: "201",
-  LEVEL_301: "301",
-  LEVEL_401: "401",
-};
-
-const difficultyColors: Record<string, string> = {
-  LEVEL_101: "#22c55e",
-  LEVEL_201: "#3b82f6",
-  LEVEL_301: "#f59e0b",
-  LEVEL_401: "#ef4444",
-};
 
 const dayColors: Record<string, string> = {
   Monday: "#7c3aed",
@@ -49,6 +36,8 @@ export default async function SemesterPlanningCalendarPage() {
     zoomLink: string | null;
     interestArea: string;
     difficultyLevel: string;
+    learnerFitLabel: string | null;
+    learnerFitDescription: string | null;
     offeringId: string;
     isCancelled: boolean;
   }[] = [];
@@ -69,6 +58,8 @@ export default async function SemesterPlanningCalendarPage() {
         zoomLink: enrollment.offering.zoomLink,
         interestArea: enrollment.offering.template.interestArea,
         difficultyLevel: enrollment.offering.template.difficultyLevel,
+        learnerFitLabel: enrollment.offering.template.learnerFitLabel,
+        learnerFitDescription: enrollment.offering.template.learnerFitDescription,
         offeringId: enrollment.offering.id,
         isCancelled: s.isCancelled,
       });
@@ -197,6 +188,11 @@ export default async function SemesterPlanningCalendarPage() {
           <div className="section-title">This Week</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {thisWeekSessions.map((s) => {
+              const learnerFit = getLearnerFitSummary({
+                learnerFitLabel: s.learnerFitLabel,
+                learnerFitDescription: s.learnerFitDescription,
+                difficultyLevel: s.difficultyLevel,
+              });
               const gcStart = (() => {
                 const d = new Date(s.date);
                 const [h, m] = s.startTime.split(":").map(Number);
@@ -251,8 +247,8 @@ export default async function SemesterPlanningCalendarPage() {
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-                      <span className="pill" style={{ fontSize: 11, background: (difficultyColors[s.difficultyLevel] || "#888") + "18", color: difficultyColors[s.difficultyLevel] }}>
-                        {difficultyLabels[s.difficultyLevel]}
+                      <span className="pill" style={{ fontSize: 11, background: learnerFit.accent + "18", color: learnerFit.accent }}>
+                        {learnerFit.label}
                       </span>
                       <span className="pill" style={{ fontSize: 11 }}>{s.deliveryMode.replace("_", " ")}</span>
                     </div>
@@ -291,6 +287,11 @@ export default async function SemesterPlanningCalendarPage() {
           <div className="grid two">
             {enrollments.map((enrollment) => {
               const offering = enrollment.offering;
+              const learnerFit = getLearnerFitSummary({
+                learnerFitLabel: offering.template.learnerFitLabel,
+                learnerFitDescription: offering.template.learnerFitDescription,
+                difficultyLevel: offering.template.difficultyLevel,
+              });
               const remainingSessions = offering.sessions.filter(
                 (s) => new Date(s.date) >= now && !s.isCancelled
               ).length;
@@ -313,8 +314,8 @@ export default async function SemesterPlanningCalendarPage() {
                   </div>
                   <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
                     <span className="pill" style={{ fontSize: 11 }}>{offering.template.interestArea}</span>
-                    <span className="pill" style={{ fontSize: 11, background: (difficultyColors[offering.template.difficultyLevel] || "#888") + "18", color: difficultyColors[offering.template.difficultyLevel] }}>
-                      {difficultyLabels[offering.template.difficultyLevel]}
+                    <span className="pill" style={{ fontSize: 11, background: learnerFit.accent + "18", color: learnerFit.accent }}>
+                      {learnerFit.label}
                     </span>
                     <span className="pill" style={{ fontSize: 11 }}>{offering.meetingDays.join(", ")}</span>
                   </div>
@@ -336,37 +337,45 @@ export default async function SemesterPlanningCalendarPage() {
             <div key={month} style={{ marginBottom: 24 }}>
               <h3 style={{ marginBottom: 8 }}>{month}</h3>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {sessions.map((s) => (
-                  <div
-                    key={s.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      padding: "8px 12px",
-                      background: s.isCancelled ? "var(--gray-50)" : "var(--surface)",
-                      borderRadius: "var(--radius-sm)",
-                      border: "1px solid var(--border-light)",
-                      opacity: s.isCancelled ? 0.5 : 1,
-                      fontSize: 14,
-                    }}
-                  >
-                    <div style={{ width: 40, fontWeight: 600, color: "var(--text-secondary)", fontSize: 13 }}>
-                      {s.date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                {sessions.map((s) => {
+                  const learnerFit = getLearnerFitSummary({
+                    learnerFitLabel: s.learnerFitLabel,
+                    learnerFitDescription: s.learnerFitDescription,
+                    difficultyLevel: s.difficultyLevel,
+                  });
+
+                  return (
+                    <div
+                      key={s.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        padding: "8px 12px",
+                        background: s.isCancelled ? "var(--gray-50)" : "var(--surface)",
+                        borderRadius: "var(--radius-sm)",
+                        border: "1px solid var(--border-light)",
+                        opacity: s.isCancelled ? 0.5 : 1,
+                        fontSize: 14,
+                      }}
+                    >
+                      <div style={{ width: 40, fontWeight: 600, color: "var(--text-secondary)", fontSize: 13 }}>
+                        {s.date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </div>
+                      <div style={{ width: 80, fontSize: 12, color: "var(--text-secondary)" }}>
+                        {s.startTime}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <span style={{ fontWeight: 500 }}>{s.classTitle}</span>
+                        <span style={{ color: "var(--text-secondary)" }}> - {s.topic}</span>
+                        {s.isCancelled && <span style={{ color: "#ef4444" }}> (Cancelled)</span>}
+                      </div>
+                      <span className="pill" style={{ fontSize: 10, background: learnerFit.accent + "18", color: learnerFit.accent }}>
+                        {learnerFit.label}
+                      </span>
                     </div>
-                    <div style={{ width: 80, fontSize: 12, color: "var(--text-secondary)" }}>
-                      {s.startTime}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <span style={{ fontWeight: 500 }}>{s.classTitle}</span>
-                      <span style={{ color: "var(--text-secondary)" }}> - {s.topic}</span>
-                      {s.isCancelled && <span style={{ color: "#ef4444" }}> (Cancelled)</span>}
-                    </div>
-                    <span className="pill" style={{ fontSize: 10, background: (difficultyColors[s.difficultyLevel] || "#888") + "18", color: difficultyColors[s.difficultyLevel] }}>
-                      {difficultyLabels[s.difficultyLevel]}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))}

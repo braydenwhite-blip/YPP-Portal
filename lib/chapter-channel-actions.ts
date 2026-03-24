@@ -20,7 +20,7 @@ async function requireChapterMember() {
   });
 
   if (!user?.chapterId) throw new Error("You must be in a chapter to use channels");
-  const isLead = user.roles.some((r: { role: string }) => r.role === "CHAPTER_LEAD" || r.role === "ADMIN");
+  const isLead = user.roles.some((r: { role: string }) => r.role === "CHAPTER_PRESIDENT" || r.role === "ADMIN");
 
   return { userId: user.id, userName: user.name, chapterId: user.chapterId, isLead };
 }
@@ -136,11 +136,11 @@ export async function sendChannelMessage(channelId: string, content: string) {
 }
 
 /**
- * Create a new channel (chapter lead only).
+ * Create a new channel (chapter president only).
  */
 export async function createChannel(formData: FormData) {
   const { chapterId, isLead } = await requireChapterMember();
-  if (!isLead) throw new Error("Only chapter leads can create channels");
+  if (!isLead) throw new Error("Only chapter presidents can create channels");
 
   const name = (formData.get("name") as string)?.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
   const description = formData.get("description") as string | null;
@@ -163,11 +163,11 @@ export async function createChannel(formData: FormData) {
 }
 
 /**
- * Delete a channel (chapter lead only).
+ * Delete a channel (chapter president only).
  */
 export async function deleteChannel(channelId: string) {
   const { chapterId, isLead } = await requireChapterMember();
-  if (!isLead) throw new Error("Only chapter leads can delete channels");
+  if (!isLead) throw new Error("Only chapter presidents can delete channels");
 
   const channel = await prisma.chapterChannel.findUnique({
     where: { id: channelId },

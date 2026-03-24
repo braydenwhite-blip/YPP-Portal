@@ -19,7 +19,7 @@ export default async function ApplyChapterPresidentPage() {
       <div className="page-shell">
         <div className="page-header">
           <div>
-            <p className="badge">Chapter Leadership</p>
+            <p className="badge">Chapter Presidentership</p>
             <h1 className="page-title">Apply for Chapter President</h1>
           </div>
         </div>
@@ -67,7 +67,7 @@ export default async function ApplyChapterPresidentPage() {
     <div className="page-shell">
       <div className="page-header">
         <div>
-          <p className="badge">Chapter Leadership</p>
+          <p className="badge">Chapter Presidentership</p>
           <h1 className="page-title">Apply for Chapter President</h1>
           <p className="page-subtitle">
             Submit your application to lead a YPP chapter. The review process

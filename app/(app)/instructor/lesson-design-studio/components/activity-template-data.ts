@@ -88,10 +88,10 @@ export const DELIVERY_MODE_OPTIONS = [
 ] as const;
 
 export const DIFFICULTY_LEVEL_OPTIONS = [
-  { value: "LEVEL_101", label: "Level 101" },
-  { value: "LEVEL_201", label: "Level 201" },
-  { value: "LEVEL_301", label: "Level 301" },
-  { value: "LEVEL_401", label: "Level 401" },
+  { value: "LEVEL_101", label: "Best for first-time learners" },
+  { value: "LEVEL_201", label: "Great if you've tried the basics" },
+  { value: "LEVEL_301", label: "Best if you can work more independently" },
+  { value: "LEVEL_401", label: "Best if you're ready for advanced project work" },
 ] as const;
 
 export const ACTIVITY_TEMPLATE_CATEGORIES: ActivityTemplateCategory[] = [

@@ -61,10 +61,10 @@ export interface InstructorReadinessSummary {
   trainingPercent: number;
   interviewStatus: string;
   interviewPassed: boolean;
-  approvedLevels: string[];
-  highestApprovedLevel: string | null;
+  baseReadinessComplete: boolean;
+  canRequestOfferingApproval: boolean;
+  legacyExemptOfferingCount: number;
   missingRequirementsCount: number;
-  canPublishFirstOffering: boolean;
   featureEnabled: boolean;
 }
 

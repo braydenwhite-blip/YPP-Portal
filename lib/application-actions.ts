@@ -116,7 +116,7 @@ async function requireAdminOrChapterLead() {
 async function requireHiringReviewer() {
   const session = await requireAuth();
   const actor = await getHiringActor(session.user.id);
-  if (!isAdmin(actor) && !actor.roles.includes("CHAPTER_LEAD") && !isDesignatedInterviewer(actor)) {
+  if (!isAdmin(actor) && !actor.roles.includes("CHAPTER_PRESIDENT") && !isDesignatedInterviewer(actor)) {
     throw new Error("Unauthorized - Hiring reviewer access required");
   }
   return { session, actor };
@@ -207,7 +207,7 @@ function ensureValidApplicationDeadline(deadline: Date | null) {
 function roleForPosition(type: PositionType): RoleType {
   const roleMap: Record<PositionType, RoleType> = {
     INSTRUCTOR: "INSTRUCTOR",
-    CHAPTER_PRESIDENT: "CHAPTER_LEAD",
+    CHAPTER_PRESIDENT: "CHAPTER_PRESIDENT",
     MENTOR: "MENTOR",
     STAFF: "STAFF",
     GLOBAL_ADMIN: "ADMIN",
@@ -874,7 +874,7 @@ export async function getHiringChairQueue() {
 }
 
 // ============================================
-// POSITION MANAGEMENT (Admin and Chapter Leads)
+// POSITION MANAGEMENT (Admin and Chapter Presidents)
 // ============================================
 
 export async function createPosition(formData: FormData) {
@@ -1417,7 +1417,7 @@ export async function withdrawApplication(formData: FormData) {
 }
 
 // ============================================
-// APPLICATION REVIEW (Admin/Chapter Lead)
+// APPLICATION REVIEW (Admin/Chapter President)
 // ============================================
 
 export async function updateApplicationStatus(formData: FormData) {

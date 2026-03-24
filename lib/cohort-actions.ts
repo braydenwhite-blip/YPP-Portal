@@ -26,8 +26,8 @@ async function requireAdmin() {
 async function requireAdminOrChapterLead() {
   const session = await requireAuth();
   const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_LEAD")) {
-    throw new Error("Unauthorized - Admin or Chapter Lead access required");
+  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT")) {
+    throw new Error("Unauthorized - Admin or Chapter President access required");
   }
   return session;
 }

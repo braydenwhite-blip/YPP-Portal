@@ -12,6 +12,7 @@ import {
   getClassTemplateCapabilities,
   getTemplateSubmissionStatus,
 } from "@/lib/class-template-compat";
+import { getLearnerFitSummary } from "@/lib/learner-fit";
 import { summarizeRichText } from "@/lib/rich-text-summary";
 
 export default async function CurriculumBuilderPage() {
@@ -19,7 +20,7 @@ export default async function CurriculumBuilderPage() {
   if (!session?.user?.id) redirect("/login");
 
   const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN") && !roles.includes("INSTRUCTOR") && !roles.includes("CHAPTER_LEAD")) {
+  if (!roles.includes("ADMIN") && !roles.includes("INSTRUCTOR") && !roles.includes("CHAPTER_PRESIDENT")) {
     redirect("/");
   }
 
@@ -44,13 +45,6 @@ export default async function CurriculumBuilderPage() {
   }
 
   const hasReviewWorkflow = capabilities.hasReviewWorkflow;
-
-  const difficultyLabels: Record<string, string> = {
-    LEVEL_101: "101 - Beginner",
-    LEVEL_201: "201 - Intermediate",
-    LEVEL_301: "301 - Advanced",
-    LEVEL_401: "401 - Expert",
-  };
 
   const submissionStatusColors: Record<string, { bg: string; color: string }> = {
     DRAFT: { bg: "var(--gray-200)", color: "var(--text-secondary)" },
@@ -133,83 +127,101 @@ export default async function CurriculumBuilderPage() {
           <div className="grid two">
             {templates.map((template) => (
               <div key={template.id} className="card">
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
-                  <div>
-                    <h3>{template.title}</h3>
-                    <p style={{ color: "var(--text-secondary)", fontSize: 14, marginTop: 4 }}>
-                      {summarizeRichText(template.description, 120)}
-                    </p>
-                  </div>
-                  <span
-                    className={`pill ${template.isPublished ? "primary" : ""}`}
-                    style={!template.isPublished ? { background: "var(--gray-200)" } : {}}
-                  >
-                    {template.isPublished ? "Published" : "Draft"}
-                  </span>
-                </div>
-
-                <div style={{ marginTop: 12, display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  <span className="pill">{template.interestArea}</span>
-                  <span className="pill">{difficultyLabels[template.difficultyLevel] || template.difficultyLevel}</span>
-                  <span className="pill">{template.durationWeeks} weeks</span>
-                  <span className="pill">{template.sessionsPerWeek}x/week</span>
-                </div>
-
-                <div style={{ marginTop: 12, display: "flex", gap: 16, fontSize: 13, color: "var(--text-secondary)" }}>
-                  <span>{Array.isArray(template.learningOutcomes) ? template.learningOutcomes.length : 0} outcomes</span>
-                  <span>{template._count.offerings} offering{template._count.offerings !== 1 ? "s" : ""}</span>
-                  <span>Ideal: {template.idealSize} students</span>
-                </div>
-
-                {/* Submission status badge */}
                 {(() => {
-                  const status = getTemplateSubmissionStatus(template, hasReviewWorkflow);
-                  const colors = submissionStatusColors[status] ?? submissionStatusColors.DRAFT;
+                  const learnerFit = getLearnerFitSummary({
+                    learnerFitLabel: template.learnerFitLabel,
+                    learnerFitDescription: template.learnerFitDescription,
+                    difficultyLevel: template.difficultyLevel,
+                  });
+
                   return (
-                    <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{
-                        padding: "3px 10px",
-                        borderRadius: 20,
-                        fontSize: 12,
-                        fontWeight: 600,
-                        background: colors.bg,
-                        color: colors.color,
-                      }}>
-                        {status.replace(/_/g, " ")}
-                      </span>
-                      {status === "NEEDS_REVISION" && (
-                        <span style={{ fontSize: 12, color: "#991b1b" }}>Revision requested - update and resubmit</span>
-                      )}
-                    </div>
+                    <>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+                        <div>
+                          <h3>{template.title}</h3>
+                          <p style={{ color: "var(--text-secondary)", fontSize: 14, marginTop: 4 }}>
+                            {summarizeRichText(template.description, 120)}
+                          </p>
+                        </div>
+                        <span
+                          className={`pill ${template.isPublished ? "primary" : ""}`}
+                          style={!template.isPublished ? { background: "var(--gray-200)" } : {}}
+                        >
+                          {template.isPublished ? "Published" : "Draft"}
+                        </span>
+                      </div>
+
+                      <div style={{ marginTop: 12, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        <span className="pill" style={{ background: learnerFit.accent + "18", color: learnerFit.accent }}>
+                          {learnerFit.label}
+                        </span>
+                        <span className="pill">{template.interestArea}</span>
+                        <span className="pill">{template.durationWeeks} weeks</span>
+                        <span className="pill">{template.sessionsPerWeek}x/week</span>
+                      </div>
+
+                      <div style={{ marginTop: 8, fontSize: 13, color: "var(--text-secondary)" }}>
+                        {template.learnerFitDescription || learnerFit.description}
+                      </div>
+
+                      <div style={{ marginTop: 12, display: "flex", gap: 16, fontSize: 13, color: "var(--text-secondary)" }}>
+                        <span>{Array.isArray(template.learningOutcomes) ? template.learningOutcomes.length : 0} outcomes</span>
+                        <span>{template._count.offerings} offering{template._count.offerings !== 1 ? "s" : ""}</span>
+                        <span>Ideal: {template.idealSize} students</span>
+                      </div>
+
+                      {/* Submission status badge */}
+                      {(() => {
+                        const status = getTemplateSubmissionStatus(template, hasReviewWorkflow);
+                        const colors = submissionStatusColors[status] ?? submissionStatusColors.DRAFT;
+                        return (
+                          <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{
+                              padding: "3px 10px",
+                              borderRadius: 20,
+                              fontSize: 12,
+                              fontWeight: 600,
+                              background: colors.bg,
+                              color: colors.color,
+                            }}>
+                              {status.replace(/_/g, " ")}
+                            </span>
+                            {status === "NEEDS_REVISION" && (
+                              <span style={{ fontSize: 12, color: "#991b1b" }}>Revision requested - update and resubmit</span>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      <div style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <Link href={`/instructor/curriculum-builder#edit-${template.id}`} className="button secondary" style={{ fontSize: 13 }}>
+                          Edit
+                        </Link>
+                        {(() => {
+                          const status = getTemplateSubmissionStatus(template, hasReviewWorkflow);
+                          const canSubmit = hasReviewWorkflow && (status === "DRAFT" || status === "NEEDS_REVISION");
+                          return canSubmit ? (
+                            <form action={submitCurriculumForReview}>
+                              <input type="hidden" name="id" value={template.id} />
+                              <button type="submit" className="button primary" style={{ fontSize: 13 }}>
+                                Submit for Review
+                              </button>
+                            </form>
+                          ) : null;
+                        })()}
+                        <Link href="/instructor/lesson-design-studio?entry=nav" className="button primary" style={{ fontSize: 13 }}>
+                          Continue your studio journey
+                        </Link>
+                        <Link href="/lesson-plans" className="button secondary" style={{ fontSize: 13 }}>
+                          Lesson Plans
+                        </Link>
+                        <Link href={`/instructor/class-settings?template=${template.id}`} className="button secondary" style={{ fontSize: 13 }}>
+                          Create Offering
+                        </Link>
+                      </div>
+                    </>
                   );
                 })()}
-
-                <div style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <Link href={`/instructor/curriculum-builder#edit-${template.id}`} className="button secondary" style={{ fontSize: 13 }}>
-                    Edit
-                  </Link>
-                  {(() => {
-                    const status = getTemplateSubmissionStatus(template, hasReviewWorkflow);
-                    const canSubmit = hasReviewWorkflow && (status === "DRAFT" || status === "NEEDS_REVISION");
-                    return canSubmit ? (
-                      <form action={submitCurriculumForReview}>
-                        <input type="hidden" name="id" value={template.id} />
-                        <button type="submit" className="button primary" style={{ fontSize: 13 }}>
-                          Submit for Review
-                        </button>
-                      </form>
-                    ) : null;
-                  })()}
-                  <Link href="/instructor/lesson-design-studio?entry=nav" className="button primary" style={{ fontSize: 13 }}>
-                    Continue your studio journey
-                  </Link>
-                  <Link href="/lesson-plans" className="button secondary" style={{ fontSize: 13 }}>
-                    Lesson Plans
-                  </Link>
-                  <Link href={`/instructor/class-settings?template=${template.id}`} className="button secondary" style={{ fontSize: 13 }}>
-                    Create Offering
-                  </Link>
-                </div>
               </div>
             ))}
           </div>
@@ -259,7 +271,7 @@ export default async function CurriculumBuilderPage() {
       <div id="create" style={{ marginBottom: 32 }}>
         <div className="section-title">Build New Curriculum</div>
         <p style={{ color: "var(--text-secondary)", fontSize: 14, marginBottom: 20 }}>
-          Fill out each section below. Save as a draft anytime, then continue your studio journey when your curriculum is ready for review by your chapter lead or admin.
+          Fill out each section below. Save as a draft anytime, then continue your studio journey when your curriculum is ready for review by your chapter president or an admin.
         </p>
         <CurriculumBuilderClient />
       </div>

@@ -238,7 +238,7 @@ export async function getRoleMatrixData() {
     orderBy: { name: "asc" },
   });
 
-  const allRoles = ["ADMIN", "CHAPTER_LEAD", "INSTRUCTOR", "MENTOR", "STUDENT", "STAFF", "PARENT"] as const;
+  const allRoles = ["ADMIN", "CHAPTER_PRESIDENT", "INSTRUCTOR", "MENTOR", "STUDENT", "STAFF", "PARENT"] as const;
 
   return chapters.map((ch) => {
     const roleCounts: Record<string, number> = {};
@@ -260,7 +260,7 @@ export async function getRoleMatrixData() {
       region: ch.region,
       totalUsers: ch.users.length,
       roleCounts,
-      hasLead: roleCounts.CHAPTER_LEAD > 0,
+      hasLead: roleCounts.CHAPTER_PRESIDENT > 0,
       hasInstructor: roleCounts.INSTRUCTOR > 0,
     };
   });

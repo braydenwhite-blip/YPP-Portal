@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getInstructorReadiness } from "@/lib/instructor-readiness";
 import { prisma } from "@/lib/prisma";
 
 export default async function InstructorCertificationsPage() {
@@ -33,19 +34,34 @@ export default async function InstructorCertificationsPage() {
     include: { module: true },
     orderBy: { completedAt: "desc" }
   });
-
-  // Extract unique certification levels
-  const certifiedLevels = new Set<string>();
-  approvals.forEach(approval => {
-    approval.levels.forEach(level => {
-      certifiedLevels.add(level.level);
-    });
-  });
-
-  const levelBadges = [
-    { level: "LEVEL_101", name: "Level 101", color: "#10b981", icon: "🌱" },
-    { level: "LEVEL_201", name: "Level 201", color: "#3b82f6", icon: "🌿" },
-    { level: "LEVEL_301", name: "Level 301", color: "#8b5cf6", icon: "🌳" }
+  const readiness = await getInstructorReadiness(session.user.id);
+  const readinessBadges = [
+    {
+      key: "training",
+      name: "Training Academy",
+      complete: readiness.trainingComplete,
+      detail: `${readiness.completedRequiredModules}/${readiness.requiredModulesCount} required modules complete`,
+      color: "#10b981",
+      icon: "🎓",
+    },
+    {
+      key: "interview",
+      name: "Interview Readiness",
+      complete: readiness.interviewPassed,
+      detail: readiness.interviewStatus.replace(/_/g, " "),
+      color: "#3b82f6",
+      icon: "🗓️",
+    },
+    {
+      key: "approval",
+      name: "Offering Approval Requests",
+      complete: readiness.canRequestOfferingApproval,
+      detail: readiness.canRequestOfferingApproval
+        ? "You can request offering approval from class settings."
+        : readiness.nextAction.detail,
+      color: "#8b5cf6",
+      icon: "✅",
+    },
   ];
 
   return (
@@ -53,46 +69,46 @@ export default async function InstructorCertificationsPage() {
       <div className="topbar">
         <div>
           <p className="badge">Instructor Tools</p>
-          <h1 className="page-title">My Certifications</h1>
+          <h1 className="page-title">My Readiness & History</h1>
         </div>
       </div>
 
       <div className="card" style={{ marginBottom: 28 }}>
-        <h3>Instructor Certification Badges</h3>
+        <h3>Readiness Snapshot</h3>
         <p>
-          Display your certifications and training achievements. These badges show your approved
-          teaching levels and completed professional development.
+          Track your current instructor readiness and keep legacy approval history in one place.
         </p>
       </div>
 
-      {/* Certification badges */}
+      {/* Readiness badges */}
       <div style={{ marginBottom: 28 }}>
-        <div className="section-title">Teaching Level Certifications</div>
+        <div className="section-title">Current Readiness</div>
         <div className="grid three">
-          {levelBadges.map(badge => {
-            const isCertified = certifiedLevels.has(badge.level);
-
+          {readinessBadges.map((badge) => {
             return (
               <div
-                key={badge.level}
+                key={badge.key}
                 className="card"
                 style={{
                   textAlign: "center",
-                  opacity: isCertified ? 1 : 0.5,
-                  border: isCertified ? `2px solid ${badge.color}` : "1px solid var(--border-color)"
+                  opacity: badge.complete ? 1 : 0.7,
+                  border: badge.complete ? `2px solid ${badge.color}` : "1px solid var(--border-color)"
                 }}
               >
                 <div style={{ fontSize: 64, marginBottom: 12 }}>
-                  {isCertified ? badge.icon : "🔒"}
+                  {badge.complete ? badge.icon : "⏳"}
                 </div>
                 <h3>{badge.name}</h3>
                 <div style={{
                   marginTop: 8,
                   fontSize: 14,
                   fontWeight: 600,
-                  color: isCertified ? badge.color : "var(--text-secondary)"
+                  color: badge.complete ? badge.color : "var(--text-secondary)"
                 }}>
-                  {isCertified ? "✓ Certified" : "Not Certified"}
+                  {badge.complete ? "✓ Ready" : "In Progress"}
+                </div>
+                <div style={{ marginTop: 8, fontSize: 13, color: "var(--text-secondary)" }}>
+                  {badge.detail}
                 </div>
               </div>
             );
@@ -103,14 +119,14 @@ export default async function InstructorCertificationsPage() {
       {/* Approval history */}
       {approvals.length > 0 && (
         <div style={{ marginBottom: 28 }}>
-          <div className="section-title">Approval History</div>
+          <div className="section-title">Legacy Approval History</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {approvals.map(approval => (
               <div key={approval.id} className="card">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
                   <div>
                     <h3>
-                      {approval.levels.map(l => l.level.replace("LEVEL_", "Level ")).join(", ")}
+                      {approval.levels.map(l => l.level.replace("LEVEL_", "Legacy level ")).join(", ")}
                     </h3>
                     <div style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 4 }}>
                       Updated {new Date(approval.updatedAt).toLocaleDateString()}
@@ -141,7 +157,7 @@ export default async function InstructorCertificationsPage() {
         {completedTraining.length === 0 ? (
           <div className="card">
             <p style={{ color: "var(--text-secondary)" }}>
-              No training modules completed yet. Visit the Training Progress page to get started.
+              No training modules completed yet. Visit the instructor training page to get started.
             </p>
           </div>
         ) : (

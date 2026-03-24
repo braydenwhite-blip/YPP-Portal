@@ -13,7 +13,7 @@ export default async function NewPositionRedirectPage() {
     redirect("/admin/recruiting/positions/new");
   }
 
-  if (roles.includes("CHAPTER_LEAD")) {
+  if (roles.includes("CHAPTER_PRESIDENT")) {
     redirect("/chapter/recruiting/positions/new");
   }
 

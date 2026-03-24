@@ -4,7 +4,7 @@ export const CORE_NAV_LIMIT = 8;
 
 export const PRIMARY_ROLE_FALLBACK_ORDER: NavRole[] = [
   "ADMIN",
-  "CHAPTER_LEAD",
+  "CHAPTER_PRESIDENT",
   "INSTRUCTOR",
   "MENTOR",
   "PARENT",
@@ -64,7 +64,7 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/parent/messages",
     "/notifications",
   ],
-  CHAPTER_LEAD: [
+  CHAPTER_PRESIDENT: [
     "/",
     "/chapter-lead/dashboard",
     "/chapter-lead/portal-rollout",

@@ -422,7 +422,7 @@ export async function getReflectionById(submissionId: string) {
   const isOwner = submission.userId === session.user.id;
   const isAdmin = user?.roles.some((r) => r.role === "ADMIN");
   const isMentor = (user?.mentorPairs?.length || 0) > 0;
-  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_LEAD");
+  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT");
 
   if (!isOwner && !isAdmin && !isMentor && !isChapterLead) {
     throw new Error("Unauthorized to view this reflection");
@@ -449,7 +449,7 @@ export async function getMenteeReflections(menteeId?: string) {
 
   const isAdmin = user?.roles.some((r) => r.role === "ADMIN");
   const isMentor = user?.roles.some(
-    (r) => r.role === "MENTOR" || r.role === "CHAPTER_LEAD"
+    (r) => r.role === "MENTOR" || r.role === "CHAPTER_PRESIDENT"
   );
 
   if (!isAdmin && !isMentor) {
@@ -507,7 +507,7 @@ export async function getAllReflectionSubmissions(filters?: {
   });
 
   const isAdmin = user?.roles.some((r) => r.role === "ADMIN");
-  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_LEAD");
+  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT");
   const isMentor = user?.roles.some((r) => r.role === "MENTOR");
 
   if (!isAdmin && !isChapterLead && !isMentor) {
@@ -603,7 +603,7 @@ export async function createDefaultReflectionForms() {
       id: "default-chapter-lead-form",
       title: "Monthly Chapter President Self-Reflection",
       description: "Reflect on leadership progress, collaboration, and next steps.",
-      roleType: "CHAPTER_LEAD",
+      roleType: "CHAPTER_PRESIDENT",
     },
     {
       id: "default-mentor-form",

@@ -35,15 +35,15 @@ export const SECTION_NAV_GROUP_MAP: Record<string, NavGroup[]> = {
 
 // Section key → human-readable unlock requirement
 export const SECTION_REQUIREMENTS: Record<string, string> = {
-  challenges: "Complete any Pathway 101 step",
+  challenges: "Complete any pathway starter step",
   projects: "Earn your first badge",
-  opportunities: "Complete any Pathway 201",
+  opportunities: "Complete any pathway build step",
 };
 
 // Roles that see everything unlocked by default
 export const FULL_ACCESS_ROLES = new Set([
   "ADMIN",
-  "CHAPTER_LEAD",
+  "CHAPTER_PRESIDENT",
   "MENTOR",
   "STAFF",
 ]);

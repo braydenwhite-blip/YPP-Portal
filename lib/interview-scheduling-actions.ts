@@ -96,7 +96,7 @@ export async function getInterviewScheduleData(): Promise<InterviewSchedulePageD
   const userId = session.user.id;
   const roles = session.user.roles ?? [];
   const isAdmin = roles.includes("ADMIN");
-  const isChapterLead = roles.includes("CHAPTER_LEAD");
+  const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
   const isInstructor = roles.includes("INSTRUCTOR");
   const isReviewer = isAdmin || isChapterLead;
 
@@ -294,7 +294,7 @@ export async function scheduleInterviewSlots(formData: FormData) {
   const session = await requireSession();
   const roles = session.user.roles ?? [];
   const isAdmin = roles.includes("ADMIN");
-  const isChapterLead = roles.includes("CHAPTER_LEAD");
+  const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
 
   if (!isAdmin && !isChapterLead) throw new Error("Unauthorized - reviewer role required");
 
@@ -376,7 +376,7 @@ export async function acceptAvailabilityAndSchedule(formData: FormData) {
   const session = await requireSession();
   const roles = session.user.roles ?? [];
   const isAdmin = roles.includes("ADMIN");
-  const isChapterLead = roles.includes("CHAPTER_LEAD");
+  const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
 
   if (!isAdmin && !isChapterLead) throw new Error("Unauthorized - reviewer role required");
 
@@ -456,7 +456,7 @@ export async function cancelInterviewSlot(formData: FormData) {
   const session = await requireSession();
   const roles = session.user.roles ?? [];
   const isAdmin = roles.includes("ADMIN");
-  const isChapterLead = roles.includes("CHAPTER_LEAD");
+  const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
 
   if (!isAdmin && !isChapterLead) throw new Error("Unauthorized");
 
@@ -516,7 +516,7 @@ export async function scheduleHiringInterviewSlots(formData: FormData) {
   const session = await requireSession();
   const roles = session.user.roles ?? [];
   const isAdmin = roles.includes("ADMIN");
-  const isChapterLead = roles.includes("CHAPTER_LEAD");
+  const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
 
   if (!isAdmin && !isChapterLead) throw new Error("Unauthorized - reviewer role required");
 

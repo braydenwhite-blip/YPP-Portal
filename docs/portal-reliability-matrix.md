@@ -39,24 +39,24 @@ If a record has no usable `interestArea`, analytics must place it in `Unmapped`.
 
 | Step | State change | Owning route/action | Who may do it | Notification expectation | Analytics / audit expectation |
 |---|---|---|---|---|---|
-| Open position | no row -> `Position.isOpen=true` | `createPosition`, `createChapterPosition` | Admin; Chapter Lead for own chapter | none required immediately | `chapter_hiring_position_create` |
-| Edit position | update position fields | `updateChapterPosition` | Admin; Chapter Lead for own chapter | none required immediately | `chapter_hiring_position_update` |
-| Close position | `isOpen=true -> false` | `closeChapterPosition` | Admin; Chapter Lead for own chapter | none required immediately | `chapter_hiring_position_close` |
-| Reopen position | `isOpen=false -> true` | `reopenChapterPosition` | Admin; Chapter Lead for own chapter | none required immediately | `chapter_hiring_position_reopen` |
-| Change visibility | visibility update | `updatePositionVisibility` | Admin; Chapter Lead for own chapter | none required immediately | `chapter_hiring_position_visibility` |
+| Open position | no row -> `Position.isOpen=true` | `createPosition`, `createChapterPosition` | Admin; Chapter President for own chapter | none required immediately | `chapter_hiring_position_create` |
+| Edit position | update position fields | `updateChapterPosition` | Admin; Chapter President for own chapter | none required immediately | `chapter_hiring_position_update` |
+| Close position | `isOpen=true -> false` | `closeChapterPosition` | Admin; Chapter President for own chapter | none required immediately | `chapter_hiring_position_close` |
+| Reopen position | `isOpen=false -> true` | `reopenChapterPosition` | Admin; Chapter President for own chapter | none required immediately | `chapter_hiring_position_reopen` |
+| Change visibility | visibility update | `updatePositionVisibility` | Admin; Chapter President for own chapter | none required immediately | `chapter_hiring_position_visibility` |
 
 ### 2.2 Application lifecycle
 
 | Step | State change | Owning route/action | Who may do it | Notification expectation | Analytics / audit expectation |
 |---|---|---|---|---|---|
 | Apply | no row -> `Application.status=SUBMITTED` | `submitApplication` | Authenticated applicant | reviewer notification; applicant confirmation email | applicant-facing record created; reviewer queue count increases |
-| Start review | `SUBMITTED -> UNDER_REVIEW` | `updateApplicationStatus` from recruiting/application workspace | Admin; Chapter Lead or interviewer with permission | applicant receives status update | `chapter_hiring_application_status` |
-| Interview scheduled | `UNDER_REVIEW -> INTERVIEW_SCHEDULED` | `postApplicationInterviewSlot`, `postApplicationInterviewSlotsBulk` | Admin; Chapter Lead or interviewer with permission | applicant notified of slot(s) | `chapter_hiring_interview_slot_posted` or `chapter_hiring_interview_slot_bulk_posted` |
+| Start review | `SUBMITTED -> UNDER_REVIEW` | `updateApplicationStatus` from recruiting/application workspace | Admin; Chapter President or interviewer with permission | applicant receives status update | `chapter_hiring_application_status` |
+| Interview scheduled | `UNDER_REVIEW -> INTERVIEW_SCHEDULED` | `postApplicationInterviewSlot`, `postApplicationInterviewSlotsBulk` | Admin; Chapter President or interviewer with permission | applicant notified of slot(s) | `chapter_hiring_interview_slot_posted` or `chapter_hiring_interview_slot_bulk_posted` |
 | Interview confirmed | slot `POSTED -> CONFIRMED` | `confirmApplicationInterviewSlot` | Applicant | reviewers notified | applicant timeline shows confirmed interview |
-| Interview cancelled | slot `POSTED/CONFIRMED -> CANCELLED` | `cancelApplicationInterviewSlot` | Admin; Chapter Lead or interviewer with permission | applicant notified | `chapter_hiring_interview_slot_cancelled` |
-| Interview completed | slot `CONFIRMED -> COMPLETED`; app usually moves toward `INTERVIEW_COMPLETED` | `completeInterviewSlot`, `confirmInterviewSlot` follow-up path | Admin; Chapter Lead or interviewer with permission | applicant notified of completion/update | `chapter_hiring_interview_completed` |
-| Structured note saved | note added with recommendation | `saveStructuredInterviewNote` | Admin; Chapter Lead or interviewer with permission | none required immediately | `chapter_hiring_interview_note` or `chapter_hiring_interview_completed_with_note` |
-| Decision submitted | decision draft -> chair pending | `makeDecision`, `chapterMakeDecision` | Admin or same-chapter Chapter Lead for allowed roles | applicant notified that decision is under chair review; admins notified | `chapter_hiring_decision_submitted` |
+| Interview cancelled | slot `POSTED/CONFIRMED -> CANCELLED` | `cancelApplicationInterviewSlot` | Admin; Chapter President or interviewer with permission | applicant notified | `chapter_hiring_interview_slot_cancelled` |
+| Interview completed | slot `CONFIRMED -> COMPLETED`; app usually moves toward `INTERVIEW_COMPLETED` | `completeInterviewSlot`, `confirmInterviewSlot` follow-up path | Admin; Chapter President or interviewer with permission | applicant notified of completion/update | `chapter_hiring_interview_completed` |
+| Structured note saved | note added with recommendation | `saveStructuredInterviewNote` | Admin; Chapter President or interviewer with permission | none required immediately | `chapter_hiring_interview_note` or `chapter_hiring_interview_completed_with_note` |
+| Decision submitted | decision draft -> chair pending | `makeDecision`, `chapterMakeDecision` | Admin or same-chapter Chapter President for allowed roles | applicant notified that decision is under chair review; admins notified | `chapter_hiring_decision_submitted` |
 | Decision approved | `PENDING_CHAIR -> APPROVED`; app -> `ACCEPTED` or `REJECTED` | `approveHiringDecision` | Admin acting as chair | applicant notified; decision submitter notified | `chapter_hiring_decision_approved` |
 | Decision returned | `PENDING_CHAIR -> RETURNED` | `returnHiringDecision` | Admin acting as chair | decision submitter notified | `chapter_hiring_decision_returned` |
 
@@ -66,7 +66,7 @@ If a record has no usable `interestArea`, analytics must place it in `Unmapped`.
 - If `position.interviewRequired=true`, the decision must stay blocked until:
   - at least one interview slot is `COMPLETED`
   - at least one interview note includes a recommendation
-- Chapter Leads can only act inside their own chapter and only for chapter-scoped position types.
+- Chapter Presidents can only act inside their own chapter and only for chapter-scoped position types.
 
 ### 2.4 Chapter-president hiring rule
 - Canonical first-wave path: `Position.type=CHAPTER_PRESIDENT` through the recruiting system.
@@ -84,24 +84,24 @@ If a record has no usable `interestArea`, analytics must place it in `Unmapped`.
 | Checkpoint complete | checkpoint completion row created | `setTrainingCheckpointCompletion` | Learner | none required immediately | module artifact state updates |
 | Quiz submitted | quiz attempt row created; may mark pass path ready | `submitTrainingQuiz` | Learner | immediate pass/fail feedback | latest attempt appears in readiness calculations |
 | Evidence submitted | evidence row -> `PENDING_REVIEW` | `submitTrainingEvidence` | Learner | reviewer queue entry appears | evidence backlog increases |
-| Evidence approved | `PENDING_REVIEW -> APPROVED` | `reviewTrainingEvidence` | Admin; Chapter Lead for own chapter | learner sees approval | evidence backlog decreases; curriculum draft may move to `APPROVED` |
-| Evidence revision requested | `PENDING_REVIEW -> REVISION_REQUESTED` | `reviewTrainingEvidence` | Admin; Chapter Lead for own chapter | learner sees revision request | curriculum draft may move to `NEEDS_REVISION` |
-| Evidence rejected | `PENDING_REVIEW -> REJECTED` | `reviewTrainingEvidence` | Admin; Chapter Lead for own chapter | learner sees rejection | curriculum draft may move to `REJECTED` |
-| Readiness requested | no row -> `ReadinessReviewRequest.status=REQUESTED` | `requestReadinessReview` | Instructor / eligible user | reviewer queue entry appears | readiness backlog increases |
-| Readiness approved | `REQUESTED/UNDER_REVIEW -> APPROVED` | `approveReadinessReview` | Admin; Chapter Lead for own chapter | instructor sees approval | permission row upserted; readiness queue count decreases |
-| Readiness revision requested | -> `REVISION_REQUESTED` | `requestReadinessRevision` | Admin; Chapter Lead for own chapter | instructor sees requested changes | readiness queue remains trackable |
-| Teaching permission granted manually | upsert permission row | `grantTeachingPermission` | Admin; Chapter Lead for own chapter | instructor can teach at granted level | permission inventory changes |
+| Evidence approved | `PENDING_REVIEW -> APPROVED` | `reviewTrainingEvidence` | Admin; Chapter President for own chapter | learner sees approval | evidence backlog decreases; curriculum draft may move to `APPROVED` |
+| Evidence revision requested | `PENDING_REVIEW -> REVISION_REQUESTED` | `reviewTrainingEvidence` | Admin; Chapter President for own chapter | learner sees revision request | curriculum draft may move to `NEEDS_REVISION` |
+| Evidence rejected | `PENDING_REVIEW -> REJECTED` | `reviewTrainingEvidence` | Admin; Chapter President for own chapter | learner sees rejection | curriculum draft may move to `REJECTED` |
+| Offering approval requested | no row -> `ClassOfferingApproval.status=REQUESTED` | `requestOfferingApproval` | Instructor / eligible user | reviewer queue entry appears | offering approval backlog increases |
+| Offering approved | `REQUESTED/UNDER_REVIEW -> APPROVED` | `approveOfferingApproval` | Admin; Chapter President for own chapter | instructor sees approval | publish gate opens for that offering |
+| Offering changes requested | -> `CHANGES_REQUESTED` | `requestOfferingApprovalRevision` | Admin; Chapter President for own chapter | instructor sees requested changes | offering stays blocked from publish |
+| Offering rejected | -> `REJECTED` | `requestOfferingApprovalRevision` with `REJECTED` | Admin; Chapter President for own chapter | instructor sees rejection | offering stays blocked from publish |
 
 ### 3.2 Interview gate inside readiness
 
 | Step | State change | Owning route/action | Who may do it | Notification expectation | Analytics / audit expectation |
 |---|---|---|---|---|---|
-| Reviewer posts slot | interview slot row -> `POSTED` | `postInterviewSlot`, `postInstructorInterviewSlotsBulk` | Admin; Chapter Lead for own chapter | instructor notified | interview availability activity recorded |
+| Reviewer posts slot | interview slot row -> `POSTED` | `postInterviewSlot`, `postInstructorInterviewSlotsBulk` | Admin; Chapter President for own chapter | instructor notified | interview availability activity recorded |
 | Instructor confirms slot | `POSTED -> CONFIRMED` | `confirmPostedInterviewSlot` | Instructor / applicant | reviewer notified | interview funnel advances |
 | Instructor submits preferred times | availability request -> `PENDING` | `submitInterviewAvailabilityRequest` | Instructor / applicant | reviewer notified | backlog count increases |
-| Reviewer resolves request | request `PENDING -> ACCEPTED/DECLINED` and slot may be created | instructor interview actions | Admin; Chapter Lead for own chapter | instructor notified | request aging metrics update |
-| Interview completed | slot `CONFIRMED -> COMPLETED`; gate may move forward | instructor interview actions | Admin; Chapter Lead for own chapter | instructor notified | `analyticsEvent` row emitted from interview workflow |
-| Outcome recorded | gate -> `PASSED`, `HOLD`, `FAILED`, or `WAIVED` | instructor interview actions | Admin; Chapter Lead for own chapter; `WAIVED` admin only | instructor notified | readiness publish eligibility changes |
+| Reviewer resolves request | request `PENDING -> ACCEPTED/DECLINED` and slot may be created | instructor interview actions | Admin; Chapter President for own chapter | instructor notified | request aging metrics update |
+| Interview completed | slot `CONFIRMED -> COMPLETED`; gate may move forward | instructor interview actions | Admin; Chapter President for own chapter | instructor notified | `analyticsEvent` row emitted from interview workflow |
+| Outcome recorded | gate -> `PASSED`, `HOLD`, `FAILED`, or `WAIVED` | instructor interview actions | Admin; Chapter President for own chapter; `WAIVED` admin only | instructor notified | readiness publish eligibility changes |
 
 ### 3.3 Curriculum review and launch path
 
@@ -110,9 +110,9 @@ If a record has no usable `interestArea`, analytics must place it in `Unmapped`.
 | Draft in progress | `CurriculumDraft.status=IN_PROGRESS` | `/instructor/lesson-design-studio` | Instructor / applicant | none required immediately | draft progress visible in studio |
 | Draft ready | `IN_PROGRESS -> COMPLETED` | lesson design studio submit readiness checks | Instructor / applicant | none required immediately | curriculum funnel advances to review-ready |
 | Review submitted | `COMPLETED -> SUBMITTED` through evidence/review flow | studio + evidence submission path | Instructor / applicant | reviewer queue entry appears | curriculum review backlog increases |
-| Review approved | `SUBMITTED -> APPROVED` | `reviewTrainingEvidence` when linked to studio draft | Admin; Chapter Lead for own chapter | instructor sees approval | launch package created |
-| Review revision requested | `SUBMITTED -> NEEDS_REVISION` | `reviewTrainingEvidence` when linked to studio draft | Admin; Chapter Lead for own chapter | instructor sees requested changes | revision backlog increases |
-| Review rejected | `SUBMITTED -> REJECTED` | `reviewTrainingEvidence` when linked to studio draft | Admin; Chapter Lead for own chapter | instructor sees rejection | rejection count increases |
+| Review approved | `SUBMITTED -> APPROVED` | `reviewTrainingEvidence` when linked to studio draft | Admin; Chapter President for own chapter | instructor sees approval | launch package created |
+| Review revision requested | `SUBMITTED -> NEEDS_REVISION` | `reviewTrainingEvidence` when linked to studio draft | Admin; Chapter President for own chapter | instructor sees requested changes | revision backlog increases |
+| Review rejected | `SUBMITTED -> REJECTED` | `reviewTrainingEvidence` when linked to studio draft | Admin; Chapter President for own chapter | instructor sees rejection | rejection count increases |
 | First publish allowed | readiness gate passes | offering publish flow + `assertReadinessAllowsPublish` | Instructor with offering permissions | publish succeeds | first-publish-ready count increases |
 | First publish blocked | gate fails | offering publish flow + `assertReadinessAllowsPublish` | Instructor with offering permissions | clear blocking message shown | first-publish-blocked count increases |
 

@@ -96,7 +96,7 @@ export async function reviewPathwayFallbackRequest(input: {
 }) {
   const sessionUser = await requireSessionUser();
   const roles = new Set(sessionUser.roles);
-  if (!roles.has("ADMIN") && !roles.has("STAFF") && !roles.has("CHAPTER_LEAD")) {
+  if (!roles.has("ADMIN") && !roles.has("STAFF") && !roles.has("CHAPTER_PRESIDENT")) {
     throw new Error("Unauthorized");
   }
 
@@ -145,7 +145,7 @@ export async function reviewPathwayFallbackRequest(input: {
   }
 
   if (
-    roles.has("CHAPTER_LEAD") &&
+    roles.has("CHAPTER_PRESIDENT") &&
     !roles.has("ADMIN") &&
     !roles.has("STAFF") &&
     reviewer?.chapterId !== request.fromChapterId &&

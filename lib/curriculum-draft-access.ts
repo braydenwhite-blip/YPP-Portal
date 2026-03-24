@@ -19,7 +19,7 @@ export function canAccessCurriculumDraftForPrint(
   }
 
   return Boolean(
-    roles.includes("CHAPTER_LEAD") &&
+    roles.includes("CHAPTER_PRESIDENT") &&
       input.requesterChapterId &&
       input.authorChapterId &&
       input.requesterChapterId === input.authorChapterId

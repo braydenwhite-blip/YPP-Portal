@@ -35,7 +35,7 @@ North-star metric:
 
 ### Step 2: Production soft rollout
 1. Deploy with flag enabled.
-2. Watch logs and feedback for Admin and Chapter Lead users first.
+2. Watch logs and feedback for Admin and Chapter President users first.
 3. Confirm no cross-chapter data leakage.
 
 ### Step 3: Full rollout
@@ -58,7 +58,7 @@ North-star metric:
 4. Add role-specific smoke tests for dashboard payloads.
 
 Success target:
-1. 40% faster first required action completion for Admin and Chapter Lead.
+1. 40% faster first required action completion for Admin and Chapter President.
 
 ## Phase 2 (Days 15-30): Onboarding Tracker + Parent Ops
 1. Add onboarding tracker models:

@@ -1,9 +1,5 @@
-import { CourseLevel } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import {
-  isRecoverablePrismaError,
-  withPrismaFallback,
-} from "@/lib/prisma-guard";
+import { withPrismaFallback } from "@/lib/prisma-guard";
 
 type NextAction = {
   title: string;
@@ -27,11 +23,9 @@ export type InstructorReadiness = {
   interviewStatus: string;
   interviewOutcome: string | null;
   interviewPassed: boolean;
-  approvedLevels: CourseLevel[];
-  teachingPermissionLevels: CourseLevel[];
-  hasPublishedOffering: boolean;
-  grandfatheredOfferingCount: number;
-  canPublishFirstOffering: boolean;
+  baseReadinessComplete: boolean;
+  canRequestOfferingApproval: boolean;
+  legacyExemptOfferingCount: number;
   missingRequirements: MissingRequirement[];
   nextAction: NextAction;
 };
@@ -52,11 +46,9 @@ export function buildFallbackInstructorReadiness(
     interviewStatus: "UNAVAILABLE",
     interviewOutcome: null,
     interviewPassed: true,
-    approvedLevels: [],
-    teachingPermissionLevels: [],
-    hasPublishedOffering: false,
-    grandfatheredOfferingCount: 0,
-    canPublishFirstOffering: true,
+    baseReadinessComplete: true,
+    canRequestOfferingApproval: true,
+    legacyExemptOfferingCount: 0,
     missingRequirements: [],
     nextAction: {
       title: "Readiness checks unavailable",
@@ -82,21 +74,6 @@ export function isInterviewGateEnforced() {
   const raw = process.env.ENFORCE_PRE_OFFERING_INTERVIEW;
   if (!raw) return true;
   return envTrue(raw);
-}
-
-function levelRank(level: CourseLevel): number {
-  switch (level) {
-    case "LEVEL_101":
-      return 101;
-    case "LEVEL_201":
-      return 201;
-    case "LEVEL_301":
-      return 301;
-    case "LEVEL_401":
-      return 401;
-    default:
-      return 999;
-  }
 }
 
 export async function getInstructorReadiness(instructorId: string): Promise<InstructorReadiness> {
@@ -136,23 +113,11 @@ export async function getInstructorReadiness(instructorId: string): Promise<Inst
             outcome: true,
           },
         }),
-        prisma.instructorTeachingPermission.findMany({
-          where: { instructorId },
-          select: { level: true },
-        }),
-        prisma.instructorApproval.findMany({
-          where: { instructorId },
-          select: {
-            levels: { select: { level: true } },
-          },
-        }),
         prisma.classOffering.findMany({
           where: {
             instructorId,
-            status: { in: ["PUBLISHED", "IN_PROGRESS", "COMPLETED"] },
           },
           select: {
-            id: true,
             grandfatheredTrainingExemption: true,
           },
         }),
@@ -164,14 +129,7 @@ export async function getInstructorReadiness(instructorId: string): Promise<Inst
     return buildFallbackInstructorReadiness(instructorId);
   }
 
-  const [
-    requiredModules,
-    assignments,
-    interviewGate,
-    teachingPermissions,
-    approvals,
-    offerings,
-  ] = readinessData;
+  const [requiredModules, assignments, interviewGate, offerings] = readinessData;
 
   const moduleConfigIssueById = new Map<string, string>();
   for (const trainingModule of requiredModules) {
@@ -241,25 +199,10 @@ export async function getInstructorReadiness(instructorId: string): Promise<Inst
   const interviewPassed =
     !interviewRequired || interviewStatus === "PASSED" || interviewStatus === "WAIVED";
 
-  const approvedLevels = Array.from(
-    new Set(approvals.flatMap((approval) => approval.levels.map((level) => level.level)))
-  );
-  const teachingPermissionLevels = Array.from(
-    new Set(teachingPermissions.map((permission) => permission.level))
-  );
-
-  const hasPublishedOffering = offerings.length > 0;
-  const grandfatheredOfferingCount = offerings.filter(
-    (offering) => offering.grandfatheredTrainingExemption
-  ).length;
-  const isFirstPublish = !hasPublishedOffering;
   const remainingRequiredModules = Math.max(
     0,
     requiredModules.length - completedRequiredModules
   );
-
-  const canPublishFirstOffering =
-    !featureEnabled || !isFirstPublish || (trainingComplete && interviewPassed);
 
   const missingRequirements: MissingRequirement[] = [];
   if (moduleConfigIssueById.size > 0) {
@@ -285,11 +228,17 @@ export async function getInstructorReadiness(instructorId: string): Promise<Inst
       title: "Pass readiness interview",
       detail:
         interviewStatus === "FAILED" || interviewStatus === "HOLD"
-          ? "Interview outcome requires follow-up before first class publish."
+          ? "Interview outcome requires follow-up before offering approval can be granted."
           : "Schedule and complete your readiness interview.",
       href: INSTRUCTOR_TOOLS_HREF,
     });
   }
+
+  const baseReadinessComplete = !featureEnabled || missingRequirements.length === 0;
+  const canRequestOfferingApproval = baseReadinessComplete;
+  const legacyExemptOfferingCount = offerings.filter(
+    (offering) => offering.grandfatheredTrainingExemption
+  ).length;
 
   const nextAction =
     missingRequirements[0]
@@ -299,8 +248,9 @@ export async function getInstructorReadiness(instructorId: string): Promise<Inst
           href: missingRequirements[0].href,
         }
       : {
-          title: "Readiness complete for first publish",
-          detail: "You can publish your first class offering.",
+          title: "Ready to request offering approval",
+          detail:
+            "Your training and interview requirements are complete. Request offering approval from class settings before publishing.",
           href: INSTRUCTOR_PUBLISH_HREF,
         };
 
@@ -313,71 +263,18 @@ export async function getInstructorReadiness(instructorId: string): Promise<Inst
     interviewStatus,
     interviewOutcome,
     interviewPassed,
-    approvedLevels,
-    teachingPermissionLevels,
-    hasPublishedOffering,
-    grandfatheredOfferingCount,
-    canPublishFirstOffering,
+    baseReadinessComplete,
+    canRequestOfferingApproval,
+    legacyExemptOfferingCount,
     missingRequirements,
     nextAction,
   };
 }
 
-export async function canTeachLevel(
-  instructorId: string,
-  level: CourseLevel
-): Promise<boolean> {
-  if (!isNativeInstructorGateEnabled()) {
-    const legacyApproval = await prisma.instructorApprovalLevel.findFirst({
-      where: {
-        level,
-        approval: { instructorId },
-      },
-      select: { id: true },
-    });
-    return Boolean(legacyApproval);
-  }
-
-  let permission: { id: string } | null = null;
-  try {
-    permission = await prisma.instructorTeachingPermission.findUnique({
-      where: {
-        instructorId_level: { instructorId, level },
-      },
-      select: { id: true },
-    });
-  } catch (error) {
-    if (!isRecoverablePrismaError(error)) {
-      throw error;
-    }
-
-    console.error(
-      "[canTeachLevel] Teaching permission query unavailable; falling back to legacy approval check.",
-      error
-    );
-  }
-  if (permission) return true;
-
-  // Backward compatibility: honor legacy approval levels if explicit permissions have not been granted yet.
-  const legacyApproval = await prisma.instructorApprovalLevel.findFirst({
-    where: {
-      level,
-      approval: { instructorId },
-    },
-    select: { id: true },
-  });
-  return Boolean(legacyApproval);
-}
-
-export async function canPublishFirstOffering(instructorId: string): Promise<boolean> {
-  const readiness = await getInstructorReadiness(instructorId);
-  return readiness.canPublishFirstOffering;
-}
-
 export function assertReadinessAllowsPublish(
-  readiness: Pick<InstructorReadiness, "canPublishFirstOffering">
+  readiness: Pick<InstructorReadiness, "baseReadinessComplete">
 ): void {
-  if (!readiness.canPublishFirstOffering) {
+  if (!readiness.baseReadinessComplete) {
     throw new Error(
       "Publishing blocked. Complete required training modules and pass interview readiness first."
     );
@@ -386,43 +283,51 @@ export function assertReadinessAllowsPublish(
 
 export async function assertCanPublishOffering(
   instructorId: string,
-  templateId: string,
+  _templateId: string,
   offeringId?: string
 ): Promise<void> {
   if (!isNativeInstructorGateEnabled()) return;
-
-  const template = await prisma.classTemplate.findUnique({
-    where: { id: templateId },
-    select: { difficultyLevel: true },
-  });
-  if (!template) {
-    throw new Error("Class template not found");
+  if (!offeringId) {
+    throw new Error("Offering approval requires a saved offering.");
   }
 
-  if (offeringId) {
-    const offering = await prisma.classOffering.findUnique({
-      where: { id: offeringId },
-      select: { grandfatheredTrainingExemption: true },
-    });
-    if (offering?.grandfatheredTrainingExemption) {
-      return;
-    }
+  const offering = await prisma.classOffering.findUnique({
+    where: { id: offeringId },
+    select: {
+      grandfatheredTrainingExemption: true,
+      approval: {
+        select: {
+          status: true,
+        },
+      },
+    },
+  });
+
+  if (!offering) {
+    throw new Error("Offering not found");
+  }
+
+  if (offering.grandfatheredTrainingExemption) {
+    return;
   }
 
   const readiness = await getInstructorReadiness(instructorId);
   assertReadinessAllowsPublish(readiness);
 
-  const templateLevel = template.difficultyLevel as CourseLevel;
-  if (levelRank(templateLevel) > 101) {
-    const canTeach = await canTeachLevel(instructorId, templateLevel);
-    if (!canTeach) {
+  if (!offering.approval || offering.approval.status !== "APPROVED") {
+    if (offering.approval?.status === "CHANGES_REQUESTED") {
       throw new Error(
-        `Publishing blocked. You are not approved to teach ${templateLevel.replace(
-          "LEVEL_",
-          ""
-        )} classes yet.`
+        "Publishing blocked. Reviewers requested changes on this offering before it can be published."
       );
     }
+    if (offering.approval?.status === "REJECTED") {
+      throw new Error(
+        "Publishing blocked. This offering was rejected and needs a new review before publishing."
+      );
+    }
+    throw new Error(
+      "Publishing blocked. Request and receive offering approval before publishing this class."
+    );
   }
 }
 

@@ -13,7 +13,7 @@ export default async function ServiceProjectsPage() {
 
   const isAdmin = session.user.roles?.includes("ADMIN");
   const isInstructor = session.user.roles?.includes("INSTRUCTOR");
-  const isChapterLead = session.user.roles?.includes("CHAPTER_LEAD");
+  const isChapterLead = session.user.roles?.includes("CHAPTER_PRESIDENT");
 
   const statusColors: Record<string, string> = {
     RECRUITING: "#16a34a",

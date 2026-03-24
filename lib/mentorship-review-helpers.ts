@@ -95,7 +95,7 @@ export function getDefaultPointCategory(
   primaryRole?: RoleType | null
 ): MentorshipPointCategory {
   if (primaryRole === "INSTRUCTOR") return "INSTRUCTOR";
-  if (primaryRole === "CHAPTER_LEAD") return "CHAPTER_PRESIDENT";
+  if (primaryRole === "CHAPTER_PRESIDENT") return "CHAPTER_PRESIDENT";
   if (primaryRole === "STUDENT") return "STUDENT";
   if (primaryRole === "STAFF") return "STAFF";
   return "GLOBAL_LEADERSHIP";

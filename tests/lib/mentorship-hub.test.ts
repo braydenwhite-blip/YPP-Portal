@@ -18,8 +18,8 @@ describe("mentorship-hub", () => {
       });
     });
 
-    it("treats chapter leads and admins as supporters", () => {
-      expect(getMentorshipRoleFlags(["CHAPTER_LEAD"])).toMatchObject({
+    it("treats chapter presidents and admins as supporters", () => {
+      expect(getMentorshipRoleFlags(["CHAPTER_PRESIDENT"])).toMatchObject({
         isChapterLead: true,
         isMentor: true,
         canSupport: true,
@@ -39,7 +39,7 @@ describe("mentorship-hub", () => {
 
     it("maps non-student roles to the instructor mentorship track", () => {
       expect(deriveMentorshipTypeFromRole("INSTRUCTOR")).toBe("INSTRUCTOR");
-      expect(deriveMentorshipTypeFromRole("CHAPTER_LEAD")).toBe("INSTRUCTOR");
+      expect(deriveMentorshipTypeFromRole("CHAPTER_PRESIDENT")).toBe("INSTRUCTOR");
     });
   });
 

@@ -84,7 +84,7 @@ describe("mentorship-review-helpers", () => {
   describe("achievement point helpers", () => {
     it("maps default point categories from primary roles", () => {
       expect(getDefaultPointCategory("INSTRUCTOR")).toBe("INSTRUCTOR");
-      expect(getDefaultPointCategory("CHAPTER_LEAD")).toBe(
+      expect(getDefaultPointCategory("CHAPTER_PRESIDENT")).toBe(
         "CHAPTER_PRESIDENT"
       );
       expect(getDefaultPointCategory("STAFF")).toBe("STAFF");

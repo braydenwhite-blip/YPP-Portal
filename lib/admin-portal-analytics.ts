@@ -359,8 +359,7 @@ export async function getAdminPortalAnalytics(rawFilters: RawAnalyticsFilters) {
     requiredModules,
     trainingAssignments,
     interviewGates,
-    liveOfferings,
-    readinessRequests,
+    offeringApprovals,
     evidenceSubmissions,
     curriculumDrafts,
     enrollments,
@@ -405,26 +404,26 @@ export async function getAdminPortalAnalytics(rawFilters: RawAnalyticsFilters) {
         status: true,
       },
     }),
-    prisma.classOffering.findMany({
+    prisma.classOfferingApproval.findMany({
       where: {
-        instructorId: { in: instructorIds.length > 0 ? instructorIds : ["__none__"] },
-        status: { in: ["PUBLISHED", "IN_PROGRESS", "COMPLETED"] },
-      },
-      select: {
-        instructorId: true,
-      },
-    }),
-    prisma.readinessReviewRequest.findMany({
-      where: {
-        status: { in: ["REQUESTED", "UNDER_REVIEW", "REVISION_REQUESTED"] },
+        status: { in: ["REQUESTED", "UNDER_REVIEW", "CHANGES_REQUESTED"] },
+        offering: {
+          instructorId: { in: instructorIds.length > 0 ? instructorIds : ["__none__"] },
+        },
       },
       select: {
         status: true,
         requestedAt: true,
-        instructor: {
+        offering: {
           select: {
+            instructorId: true,
             chapterId: true,
-            chapter: { select: { name: true } },
+            instructor: {
+              select: {
+                chapterId: true,
+                chapter: { select: { name: true } },
+              },
+            },
           },
         },
       },
@@ -650,9 +649,6 @@ export async function getAdminPortalAnalytics(rawFilters: RawAnalyticsFilters) {
   const interviewGateStatusByInstructor = new Map(
     interviewGates.map((gate) => [gate.instructorId, gate.status])
   );
-  const liveOfferingInstructorIds = new Set(
-    liveOfferings.map((offering) => offering.instructorId)
-  );
   const nativeGateEnabled = isNativeInstructorGateEnabled();
   const interviewGateRequired = isInterviewGateEnforced();
 
@@ -669,23 +665,21 @@ export async function getAdminPortalAnalytics(rawFilters: RawAnalyticsFilters) {
       !interviewGateRequired ||
       interviewStatus === "PASSED" ||
       interviewStatus === "WAIVED";
-    const hasPublishedOffering = liveOfferingInstructorIds.has(instructor.id);
-    const canPublishFirstOffering =
-      !nativeGateEnabled ||
-      hasPublishedOffering ||
-      (trainingComplete && interviewPassed);
+    const approvalReady =
+      !nativeGateEnabled || (trainingComplete && interviewPassed);
 
     return {
       trainingComplete,
       interviewPassed,
-      hasPublishedOffering,
-      canPublishFirstOffering,
+      approvalReady,
     };
   });
 
-  const currentReadinessQueue = readinessRequests.filter((request) =>
-    matchesChapterFilter(filters, request.instructor.chapterId)
-  );
+  const currentApprovalQueue = offeringApprovals.filter((request) => {
+    const targetChapterId =
+      request.offering.chapterId || request.offering.instructor.chapterId;
+    return matchesChapterFilter(filters, targetChapterId);
+  });
   const currentEvidenceBacklog = evidenceSubmissions.filter((submission) =>
     matchesChapterFilter(filters, submission.user.chapterId)
   );
@@ -828,18 +822,19 @@ export async function getAdminPortalAnalytics(rawFilters: RawAnalyticsFilters) {
         instructorCount: filteredInstructors.length,
         trainingComplete: readinessSnapshot.filter((entry) => entry.trainingComplete).length,
         interviewPassed: readinessSnapshot.filter((entry) => entry.interviewPassed).length,
-        readyForFirstPublish: readinessSnapshot.filter(
-          (entry) => entry.canPublishFirstOffering
+        approvalReadyInstructors: readinessSnapshot.filter(
+          (entry) => entry.approvalReady
         ).length,
-        firstPublishBlocked: readinessSnapshot.filter(
-          (entry) => !entry.canPublishFirstOffering
+        readinessBlockedInstructors: readinessSnapshot.filter(
+          (entry) => !entry.approvalReady
         ).length,
-        openReadinessQueue: currentReadinessQueue.length,
+        openApprovalQueue: currentApprovalQueue.length,
         openEvidenceBacklog: currentEvidenceBacklog.length,
-        averageReadinessQueueAgeDays: average(
-          currentReadinessQueue.map((request) =>
-            daysBetween(request.requestedAt, new Date())
-          )
+        averageApprovalQueueAgeDays: average(
+          currentApprovalQueue
+            .map((request) => request.requestedAt)
+            .filter((requestedAt): requestedAt is Date => requestedAt instanceof Date)
+            .map((requestedAt) => daysBetween(requestedAt, new Date()))
         ),
       },
       curriculum: {

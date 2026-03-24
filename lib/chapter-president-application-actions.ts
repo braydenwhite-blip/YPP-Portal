@@ -296,18 +296,18 @@ export async function reviewChapterPresidentApplication(
             },
           });
 
-          // Assign CHAPTER_LEAD role
+          // Assign CHAPTER_PRESIDENT role
           await tx.user.update({
             where: { id: application.applicantId },
             data: {
-              primaryRole: RoleType.CHAPTER_LEAD,
+              primaryRole: RoleType.CHAPTER_PRESIDENT,
               ...(chapterId ? { chapterId } : {}),
             },
           });
           await tx.userRole.upsert({
-            where: { userId_role: { userId: application.applicantId, role: RoleType.CHAPTER_LEAD } },
+            where: { userId_role: { userId: application.applicantId, role: RoleType.CHAPTER_PRESIDENT } },
             update: {},
-            create: { userId: application.applicantId, role: RoleType.CHAPTER_LEAD },
+            create: { userId: application.applicantId, role: RoleType.CHAPTER_PRESIDENT },
           });
 
           // Create onboarding record
@@ -334,7 +334,7 @@ export async function reviewChapterPresidentApplication(
 
         revalidatePath("/admin/chapter-president-applicants");
         revalidatePath("/application-status");
-        return { status: "success", message: "Application approved. Applicant is now a Chapter Lead." };
+        return { status: "success", message: "Application approved. Applicant is now a Chapter President." };
       }
 
       case "reject": {

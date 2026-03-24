@@ -28,7 +28,7 @@ async function requireAdmin() {
 async function requireMentorOrAdmin() {
   const session = await requireAuth();
   const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN") && !roles.includes("MENTOR") && !roles.includes("CHAPTER_LEAD")) {
+  if (!roles.includes("ADMIN") && !roles.includes("MENTOR") && !roles.includes("CHAPTER_PRESIDENT")) {
     throw new Error("Unauthorized - Mentor or Admin access required");
   }
   return session;

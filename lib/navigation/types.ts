@@ -3,7 +3,7 @@ import type { FeatureKey } from "@/lib/feature-gate-constants";
 export type NavRole =
   | "ADMIN"
   | "APPLICANT"
-  | "CHAPTER_LEAD"
+  | "CHAPTER_PRESIDENT"
   | "INSTRUCTOR"
   | "MENTOR"
   | "PARENT"

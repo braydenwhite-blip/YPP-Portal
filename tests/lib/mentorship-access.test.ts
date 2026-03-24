@@ -22,7 +22,7 @@ describe("mentorship-access", () => {
     expect(prisma.user.findUnique).not.toHaveBeenCalled();
   });
 
-  it("scopes chapter leads to users in their own chapter", async () => {
+  it("scopes chapter presidents to users in their own chapter", async () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
       chapterId: "chapter-1",
     } as any);
@@ -32,7 +32,7 @@ describe("mentorship-access", () => {
     ] as any);
 
     const ids = await getMentorshipAccessibleMenteeIds("lead-1", [
-      "CHAPTER_LEAD",
+      "CHAPTER_PRESIDENT",
     ]);
 
     expect(ids).toEqual(["mentee-1", "mentee-2"]);
@@ -53,14 +53,14 @@ describe("mentorship-access", () => {
     expect(ids).toEqual(["mentee-1", "mentee-2", "mentee-3"]);
   });
 
-  it("blocks chapter leads from managing mentees outside their chapter", async () => {
+  it("blocks chapter presidents from managing mentees outside their chapter", async () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
       chapterId: "chapter-1",
     } as any);
     vi.mocked(prisma.user.findMany).mockResolvedValue([{ id: "mentee-1" }] as any);
 
     await expect(
-      hasMentorshipMenteeAccess("lead-1", ["CHAPTER_LEAD"], "mentee-2")
+      hasMentorshipMenteeAccess("lead-1", ["CHAPTER_PRESIDENT"], "mentee-2")
     ).resolves.toBe(false);
   });
 });

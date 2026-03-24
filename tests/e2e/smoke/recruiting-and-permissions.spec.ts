@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { loginAs } from "../helpers/auth";
 
-test("@smoke chapter lead can open the canonical recruiting workspace", async ({
+test("@smoke chapter president can open the canonical recruiting workspace", async ({
   page,
 }) => {
   await loginAs(page, "chapterLead");
@@ -15,7 +15,7 @@ test("@smoke chapter lead can open the canonical recruiting workspace", async ({
   await expect(page.getByText("Decision Queue", { exact: true })).toBeVisible();
 });
 
-test("@smoke chapter lead is redirected away from admin analytics", async ({
+test("@smoke chapter president is redirected away from admin analytics", async ({
   page,
 }) => {
   await loginAs(page, "chapterLead");

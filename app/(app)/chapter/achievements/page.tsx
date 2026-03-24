@@ -11,7 +11,7 @@ export default async function ChapterAchievementsPage() {
 
   const { milestones, unlockedCount, totalCount, stats } = await getChapterMilestones();
   const roles = new Set(session.user.roles ?? []);
-  const isLead = roles.has("CHAPTER_LEAD") || roles.has("ADMIN");
+  const isLead = roles.has("CHAPTER_PRESIDENT") || roles.has("ADMIN");
 
   return (
     <main className="main-content">

@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   }
 
   const roles = session.user.roles ?? [];
-  const canClone = roles.includes("INSTRUCTOR") || roles.includes("ADMIN") || roles.includes("CHAPTER_LEAD");
+  const canClone = roles.includes("INSTRUCTOR") || roles.includes("ADMIN") || roles.includes("CHAPTER_PRESIDENT");
   if (!canClone) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }

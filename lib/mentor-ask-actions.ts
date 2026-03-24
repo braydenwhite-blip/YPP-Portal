@@ -43,7 +43,7 @@ export async function answerMentorQuestion(formData: FormData) {
   const canAnswer =
     roles.includes("MENTOR") ||
     roles.includes("INSTRUCTOR") ||
-    roles.includes("CHAPTER_LEAD") ||
+    roles.includes("CHAPTER_PRESIDENT") ||
     roles.includes("ADMIN");
   if (!canAnswer) throw new Error("Unauthorized");
 

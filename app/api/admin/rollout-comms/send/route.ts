@@ -39,13 +39,13 @@ function templatePayload(template: TemplateKey, link: string, note: string) {
 function targetRoles(audience: string): RoleType[] {
   switch (audience) {
     case "INSTRUCTORS":
-      return ["INSTRUCTOR", "CHAPTER_LEAD"];
+      return ["INSTRUCTOR", "CHAPTER_PRESIDENT"];
     case "STUDENTS":
       return ["STUDENT"];
     case "PARENTS":
       return ["PARENT"];
     default:
-      return ["INSTRUCTOR", "CHAPTER_LEAD", "STUDENT", "PARENT", "STAFF", "MENTOR", "ADMIN"];
+      return ["INSTRUCTOR", "CHAPTER_PRESIDENT", "STUDENT", "PARENT", "STAFF", "MENTOR", "ADMIN"];
   }
 }
 

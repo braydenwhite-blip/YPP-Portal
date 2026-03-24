@@ -20,7 +20,7 @@ export default async function InstructorParentFeedbackPage() {
 
   const roles = session.user.roles ?? [];
   const canAccess =
-    roles.includes("INSTRUCTOR") || roles.includes("ADMIN") || roles.includes("CHAPTER_LEAD");
+    roles.includes("INSTRUCTOR") || roles.includes("ADMIN") || roles.includes("CHAPTER_PRESIDENT");
 
   if (!canAccess) {
     redirect("/");
@@ -30,13 +30,13 @@ export default async function InstructorParentFeedbackPage() {
 
   const feedback = roles.includes("ADMIN")
     ? await listAllParentFeedback()
-    : roles.includes("CHAPTER_LEAD") && chapterId
+    : roles.includes("CHAPTER_PRESIDENT") && chapterId
       ? await listChapterParentFeedback(chapterId)
       : await listInstructorScopedParentFeedback(session.user.id);
 
   const scopeLabel = roles.includes("ADMIN")
     ? "Platform-wide view for admin review."
-    : roles.includes("CHAPTER_LEAD")
+    : roles.includes("CHAPTER_PRESIDENT")
       ? chapterId
         ? `Chapter-scoped view for ${(
             await prisma.chapter.findUnique({

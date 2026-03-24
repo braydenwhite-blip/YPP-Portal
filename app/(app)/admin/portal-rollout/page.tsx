@@ -38,17 +38,17 @@ function buildGlobalFallbackTasks({
       owner: "Leadership Team",
       dueDate: "2026-02-19",
       status: chapterLeads > 0 ? "IN_PROGRESS" : "BLOCKED",
-      blocker: chapterLeads > 0 ? undefined : "No chapter leads assigned yet.",
+      blocker: chapterLeads > 0 ? undefined : "No chapter presidents assigned yet.",
     },
     {
       phase: "Instructor Pilot Ready",
-      owner: "Ian + Chapter Leads",
+      owner: "Ian + Chapter Presidents",
       dueDate: "2026-03-13",
       status: readyInstructors >= 6 ? "IN_PROGRESS" : "BLOCKED",
       blocker:
         readyInstructors >= 6
           ? undefined
-          : "Need at least 6 publish-ready instructors.",
+          : "Need at least 6 approval-ready instructors.",
     },
     {
       phase: "Student Rollout Ready",
@@ -92,14 +92,14 @@ export default async function AdminPortalRolloutPage() {
         },
       },
     }),
-    prisma.user.count({ where: { roles: { some: { role: "CHAPTER_LEAD" } } } }),
+    prisma.user.count({ where: { roles: { some: { role: "CHAPTER_PRESIDENT" } } } }),
   ]);
 
   const readinessResults = await Promise.all(
     instructors.map(async (instructor) => getInstructorReadiness(instructor.id))
   );
 
-  const readyInstructors = readinessResults.filter((r) => r.canPublishFirstOffering).length;
+  const readyInstructors = readinessResults.filter((r) => r.baseReadinessComplete).length;
   const fallbackTasks = buildGlobalFallbackTasks({
     chapterLeads,
     readyInstructors,
@@ -175,7 +175,7 @@ export default async function AdminPortalRolloutPage() {
         </div>
         <div className="card">
           <div className="kpi">{readyInstructors}</div>
-          <div className="kpi-label">Publish-Ready Instructors</div>
+          <div className="kpi-label">Approval-Ready Instructors</div>
         </div>
         <div className="card">
           <div className="kpi">{activeEnrollments}</div>

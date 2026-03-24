@@ -26,7 +26,7 @@ async function requirePassionAdmin() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) throw new Error("Unauthorized");
   const roles = extractRoleSet(session);
-  if (!roles.has("ADMIN") && !roles.has("INSTRUCTOR") && !roles.has("CHAPTER_LEAD")) {
+  if (!roles.has("ADMIN") && !roles.has("INSTRUCTOR") && !roles.has("CHAPTER_PRESIDENT")) {
     throw new Error("Unauthorized");
   }
   return session;

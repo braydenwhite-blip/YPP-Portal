@@ -69,20 +69,20 @@ export const INSTRUCTOR_MILESTONES: InstructorMilestone[] = [
   },
   {
     key: "UNLOCK_LEVEL_201",
-    label: "Level 201 Unlocked",
-    description: "Earned permission to teach 200-level courses",
+    label: "Learner-Fit Expansion",
+    description: "Earned approval to teach classes for learners with some prior experience",
     xp: XP_REWARDS.UNLOCK_LEVEL_201,
   },
   {
     key: "UNLOCK_LEVEL_301",
-    label: "Level 301 Unlocked",
-    description: "Earned permission to teach 300-level courses",
+    label: "Independent Learner Expansion",
+    description: "Earned approval to teach classes with lighter scaffolding and faster pacing",
     xp: XP_REWARDS.UNLOCK_LEVEL_301,
   },
   {
     key: "UNLOCK_LEVEL_401",
-    label: "Level 401 Unlocked",
-    description: "Reached Expert Instructor status",
+    label: "Advanced Project Expansion",
+    description: "Earned approval to teach advanced project-based offerings",
     xp: XP_REWARDS.UNLOCK_LEVEL_401,
   },
   {

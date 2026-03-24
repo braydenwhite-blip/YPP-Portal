@@ -203,8 +203,8 @@ function LoginPageContent() {
           </p>
           <div className="hero-grid">
             <div className="hero-card">
-              <h3>Curriculum Ladder</h3>
-              <p>Track one-off classes, 101/201/301 sequences, and labs in one view.</p>
+              <h3>Curriculum Flow</h3>
+              <p>Track one-off classes, learner-fit pathways, and labs in one view.</p>
             </div>
             <div className="hero-card">
               <h3>Mentorship + Growth</h3>
@@ -212,13 +212,13 @@ function LoginPageContent() {
             </div>
             <div className="hero-card">
               <h3>Training Readiness</h3>
-              <p>Approve instructors by level with clear training milestones and status.</p>
+              <p>Approve instructors with clear readiness steps and per-offering review status.</p>
             </div>
           </div>
           <div className="hero-metrics">
             <div>
-              <div className="kpi">101 &rarr; 301</div>
-              <div className="kpi-label">Leveled Pathways</div>
+              <div className="kpi">Learner Fit</div>
+              <div className="kpi-label">Clear Starting Points</div>
             </div>
             <div>
               <div className="kpi">Labs + Commons</div>

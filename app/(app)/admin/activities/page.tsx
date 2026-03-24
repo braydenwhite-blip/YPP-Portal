@@ -49,7 +49,7 @@ export default async function AdminActivitiesPage({
     (session.user as any).roles ?? [],
     (session.user as any).primaryRole ?? null
   );
-  const canManage = ["ADMIN", "INSTRUCTOR", "CHAPTER_LEAD"].some((role) =>
+  const canManage = ["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"].some((role) =>
     roleSet.has(role)
   );
   if (!canManage) redirect("/activities");

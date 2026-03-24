@@ -485,7 +485,7 @@ export default async function AdminCPApplicantsPage({
                             <textarea className="input" name="notes" rows={2} placeholder="Any notes for the new chapter president..." />
                           </label>
                           <button className="button" type="submit" style={{ fontSize: 13, background: "#16a34a" }}>
-                            Approve &amp; Assign as Chapter Lead
+                            Approve &amp; Assign as Chapter President
                           </button>
                         </form>
                       </details>
