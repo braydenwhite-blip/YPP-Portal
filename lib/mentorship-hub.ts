@@ -493,7 +493,7 @@ export async function getSupportWorkspaceData(params: {
 
   const currentMonth = startOfMonth();
 
-  const [mentee, mentorship, requests, resources] = await Promise.all([
+  const [mentee, mentorship, requests, resources, preAssignmentActionItems, launchedIntakeCase] = await Promise.all([
     prisma.user.findUnique({
       where: { id: menteeId },
       include: {
@@ -657,6 +657,37 @@ export async function getSupportWorkspaceData(params: {
       orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
       take: 10,
     }),
+    prisma.mentorshipActionItem.findMany({
+      where: {
+        menteeId,
+        mentorshipId: null,
+      },
+      include: {
+        owner: {
+          select: { id: true, name: true },
+        },
+        createdBy: {
+          select: { id: true, name: true },
+        },
+      },
+      orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
+      take: 12,
+    }),
+    prisma.studentIntakeCase.findFirst({
+      where: {
+        studentUserId: menteeId,
+        status: "MENTOR_PLAN_LAUNCHED",
+      },
+      include: {
+        chapter: {
+          select: { id: true, name: true },
+        },
+        reviewOwner: {
+          select: { id: true, name: true },
+        },
+      },
+      orderBy: { mentorPlanLaunchedAt: "desc" },
+    }),
   ]);
 
   if (!mentee) {
@@ -697,9 +728,10 @@ export async function getSupportWorkspaceData(params: {
     flags,
     mentee,
     mentorship,
+    intakePlanLaunch: launchedIntakeCase,
     circleMembers,
     sessions,
-    actionItems: mentorship?.actionItems ?? [],
+    actionItems: [...(mentorship?.actionItems ?? []), ...preAssignmentActionItems],
     requests,
     resources,
     currentReview,

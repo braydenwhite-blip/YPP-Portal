@@ -202,6 +202,13 @@ export default async function ChapterDashboardPage() {
                 🧑‍💼 Recruiting
               </Link>
               <Link
+                href="/chapter/student-intake"
+                className="action-btn"
+                style={{ textDecoration: "none" }}
+              >
+                🧭 Student Intake
+              </Link>
+              <Link
                 href="/interviews/schedule"
                 className="action-btn"
                 style={{ textDecoration: "none" }}

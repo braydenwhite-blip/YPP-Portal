@@ -9,6 +9,8 @@ import {
   unlinkStudent,
   getAvailableClassOfferings,
 } from "@/lib/parent-actions";
+import { getParentStudentIntakeCases } from "@/lib/student-intake-actions";
+import { getStudentIntakeStatusMeta } from "@/lib/student-intake-shared";
 import ParentEnrollOffering from "@/components/parent-enroll-offering";
 
 export default async function ParentPortalPage() {
@@ -25,6 +27,7 @@ export default async function ParentPortalPage() {
 
   // Fetch all linked students
   const linkedStudents = await getLinkedStudents();
+  const intakeCases = await getParentStudentIntakeCases();
 
   // Fetch progress + available offerings for each linked student in parallel
   const [progressData, offeringsData] = await Promise.all([
@@ -61,6 +64,9 @@ export default async function ParentPortalPage() {
           <h1 className="page-title">Parent Dashboard</h1>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          <Link href="/parent/student-intake/new" className="button small">
+            Start Student Journey
+          </Link>
           <Link href="/parent/messages" className="button small secondary">
             ✉ Messages
           </Link>
@@ -84,20 +90,20 @@ export default async function ParentPortalPage() {
             {[
               {
                 step: "1",
-                title: "Link your child's account",
-                desc: "Enter their YPP email below. They must already be registered as a student.",
+                title: "Start a student journey",
+                desc: "Use the new parent-led intake if your child is not in YPP yet. The chapter will review it and launch the first support plan.",
                 done: false,
               },
               {
                 step: "2",
-                title: "Admin approves the connection",
-                desc: "A YPP admin will review and approve the link request (usually within 1–2 business days).",
+                title: "Or link an existing student",
+                desc: "If your child already has a YPP student account, use the email-link option lower on this page.",
                 done: false,
               },
               {
                 step: "3",
-                title: "Track progress & enroll in classes",
-                desc: "Once approved, you can view attendance, goals, certificates, and enroll your child in upcoming classes.",
+                title: "Track progress and next steps",
+                desc: "Once the chapter approves access or intake, you can follow milestones, view progress, and enroll in classes.",
                 done: false,
               },
             ].map((item) => (
@@ -128,6 +134,76 @@ export default async function ParentPortalPage() {
                 </div>
               </div>
             ))}
+          </div>
+          <div style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Link href="/parent/student-intake/new" className="button">
+              Start Student Journey
+            </Link>
+            <Link href="/parent/connect" className="button secondary">
+              Manage Connections
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
+      {intakeCases.length > 0 ? (
+        <div className="card" style={{ marginBottom: 24 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+            <div>
+              <h3 style={{ margin: 0 }}>Student Journey Cases</h3>
+              <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--text-secondary)" }}>
+                Follow each milestone from parent intake through chapter review and mentor-plan launch.
+              </p>
+            </div>
+            <Link href="/parent/student-intake/new" className="button small">
+              Start Another Journey
+            </Link>
+          </div>
+
+          <div style={{ display: "grid", gap: 12, marginTop: 16 }}>
+            {intakeCases.map((item) => {
+              const statusMeta = getStudentIntakeStatusMeta(item.status);
+              const latestMilestone = item.milestones[item.milestones.length - 1] ?? null;
+
+              return (
+                <Link
+                  key={item.id}
+                  href={`/parent/student-intake/${item.id}`}
+                  style={{
+                    textDecoration: "none",
+                    color: "inherit",
+                    border: "1px solid var(--border)",
+                    borderRadius: "var(--radius)",
+                    padding: "14px 16px",
+                    background: "var(--surface-alt)",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                    <div>
+                      <div style={{ fontWeight: 700 }}>{item.studentName}</div>
+                      <div style={{ marginTop: 4, fontSize: 12, color: "var(--muted)" }}>
+                        {item.chapter.name} · {item.studentEmail}
+                      </div>
+                    </div>
+                    <span
+                      className="pill"
+                      style={{ background: statusMeta.background, color: statusMeta.color, fontSize: 12 }}
+                    >
+                      {statusMeta.label}
+                    </span>
+                  </div>
+
+                  <div style={{ marginTop: 10, fontSize: 13, color: "var(--text-secondary)" }}>
+                    {latestMilestone?.title ?? "Journey created"}
+                  </div>
+                  {latestMilestone?.body ? (
+                    <div style={{ marginTop: 4, fontSize: 12, color: "var(--muted)" }}>
+                      {latestMilestone.body}
+                    </div>
+                  ) : null}
+                </Link>
+              );
+            })}
           </div>
         </div>
       ) : null}

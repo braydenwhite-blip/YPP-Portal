@@ -48,6 +48,14 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 3,
     },
     {
+      href: "/parent/student-intake/new",
+      label: "Start Student Journey",
+      icon: "🧭",
+      roles: PARENT_ONLY,
+      dashboardDescription: "Begin a new parent-led student intake journey.",
+      dashboardPriority: 4,
+    },
+    {
       href: "/parent/resources",
       label: "Resources",
       icon: "📚",
@@ -564,6 +572,14 @@ export const NAV_CATALOG: NavLink[] = [
       roles: CHAPTER_PRESIDENT_ONLY,
       dashboardDescription: "Create chapter events, recurring series, and public calendar items.",
       dashboardPriority: 4,
+    },
+    {
+      href: "/chapter/student-intake",
+      label: "Student Intake",
+      icon: "🧭",
+      roles: ["CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
+      dashboardDescription: "Review parent-led student journeys and launch early support plans.",
+      dashboardPriority: 5,
     },
     {
       href: "/chapter/onboarding",
