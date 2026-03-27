@@ -531,6 +531,7 @@ model Chapter {
   chapterPresidentOnboardings  ChapterPresidentOnboarding[]
   parentChapterFeedbacks       ParentChapterFeedback[]
   parentSurveys                ParentSurvey[]
+  studentIntakeCases           StudentIntakeCase[]
 
   // Governance & Risk
   kpiSnapshots      ChapterKpiSnapshot[]
@@ -650,6 +651,11 @@ model User {
   eventRsvps                   EventRsvp[]
   parentLinks                  ParentStudent[]               @relation("ParentLinks")
   studentLinks                 ParentStudent[]               @relation("StudentLinks")
+  parentStudentIntakeCases     StudentIntakeCase[]          @relation("ParentStudentIntakeCases")
+  studentIntakeUserCases       StudentIntakeCase[]          @relation("StudentUserIntakeCases")
+  reviewOwnedStudentIntakeCases StudentIntakeCase[]         @relation("StudentIntakeCaseReviewOwners")
+  reviewedStudentIntakeCases   StudentIntakeCase[]          @relation("StudentIntakeCaseReviewers")
+  studentIntakeMilestonesAuthored StudentIntakeMilestone[]  @relation("StudentIntakeMilestonesAuthored")
   certificates                 Certificate[]
   analyticsEvents              AnalyticsEvent[]
   chapterUpdates               ChapterUpdate[]               @relation("ChapterUpdatesAuthored")
@@ -2913,6 +2919,15 @@ enum ParentLinkStatus {
   REJECTED
 }
 
+enum StudentIntakeCaseStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  MENTOR_PLAN_LAUNCHED
+}
+
 model ParentStudent {
   id             String           @id @default(cuid())
   parentId       String
@@ -2927,6 +2942,61 @@ model ParentStudent {
   createdAt      DateTime         @default(now())
 
   @@unique([parentId, studentId])
+}
+
+model StudentIntakeCase {
+  id                   String                  @id @default(cuid())
+  parentId             String
+  parent               User                    @relation("ParentStudentIntakeCases", fields: [parentId], references: [id], onDelete: Cascade)
+  studentUserId        String?
+  studentUser          User?                   @relation("StudentUserIntakeCases", fields: [studentUserId], references: [id], onDelete: SetNull)
+  chapterId            String
+  chapter              Chapter                 @relation(fields: [chapterId], references: [id])
+  status               StudentIntakeCaseStatus @default(DRAFT)
+  studentName          String
+  studentEmail         String
+  studentGrade         Int?
+  studentSchool        String?
+  relationship         String                  @default("Parent")
+  interests            String[]                @default([])
+  goals                String[]                @default([])
+  supportNeeds         String?
+  parentNotes          String?
+  reviewerNote         String?
+  blockerNote          String?
+  nextAction           String?
+  reviewOwnerId        String?
+  reviewOwner          User?                   @relation("StudentIntakeCaseReviewOwners", fields: [reviewOwnerId], references: [id], onDelete: SetNull)
+  reviewedById         String?
+  reviewedBy           User?                   @relation("StudentIntakeCaseReviewers", fields: [reviewedById], references: [id], onDelete: SetNull)
+  submittedAt          DateTime?
+  reviewedAt           DateTime?
+  mentorPlanLaunchedAt DateTime?
+  milestones           StudentIntakeMilestone[]
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+
+  @@index([parentId, status])
+  @@index([chapterId, status])
+  @@index([studentUserId])
+  @@index([reviewOwnerId, status])
+  @@index([submittedAt])
+}
+
+model StudentIntakeMilestone {
+  id           String                  @id @default(cuid())
+  intakeCaseId String
+  intakeCase   StudentIntakeCase       @relation(fields: [intakeCaseId], references: [id], onDelete: Cascade)
+  status       StudentIntakeCaseStatus
+  title        String
+  body         String?
+  createdById  String?
+  createdBy    User?                   @relation("StudentIntakeMilestonesAuthored", fields: [createdById], references: [id], onDelete: SetNull)
+  visibleToParent Boolean              @default(true)
+  createdAt    DateTime                @default(now())
+
+  @@index([intakeCaseId, createdAt])
+  @@index([status, createdAt])
 }
 
 // ============================================

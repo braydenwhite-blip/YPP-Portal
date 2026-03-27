@@ -100,6 +100,20 @@ async function getActiveMentorshipContext(menteeId: string) {
   });
 }
 
+async function getLaunchedIntakePlanContext(menteeId: string) {
+  return prisma.studentIntakeCase.findFirst({
+    where: {
+      studentUserId: menteeId,
+      status: "MENTOR_PLAN_LAUNCHED",
+    },
+    select: {
+      id: true,
+      reviewOwnerId: true,
+    },
+    orderBy: { mentorPlanLaunchedAt: "desc" },
+  });
+}
+
 async function resolveSupportCircleChairId(params: {
   trackId?: string | null;
   primaryRole: string;
@@ -520,14 +534,17 @@ export async function createMentorshipActionItem(formData: FormData) {
   const ownerId = getString(formData, "ownerId", false);
   const sessionId = getString(formData, "sessionId", false);
   const dueAt = getOptionalDate(formData.get("dueAt"));
-  const activeMentorship = await getActiveMentorshipContext(menteeId);
-  if (!activeMentorship) {
-    throw new Error("Assign an active mentor before creating action items.");
+  const [activeMentorship, launchedIntakePlan] = await Promise.all([
+    getActiveMentorshipContext(menteeId),
+    getLaunchedIntakePlanContext(menteeId),
+  ]);
+  if (!activeMentorship && !launchedIntakePlan) {
+    throw new Error("Assign an active mentor or launch an intake action plan before creating action items.");
   }
 
   const allowedOwnerIds = new Set([
     menteeId,
-    ...activeMentorship.circleMembers.map((member) => member.userId),
+    ...(activeMentorship?.circleMembers.map((member) => member.userId) ?? []),
   ]);
   if (ownerId && !allowedOwnerIds.has(ownerId)) {
     throw new Error("Owners must be the mentee or an active support-circle member.");
@@ -540,6 +557,7 @@ export async function createMentorshipActionItem(formData: FormData) {
     });
 
     if (
+      !activeMentorship ||
       !linkedSession ||
       linkedSession.menteeId !== menteeId ||
       linkedSession.mentorshipId !== activeMentorship.id
@@ -550,7 +568,7 @@ export async function createMentorshipActionItem(formData: FormData) {
 
   await prisma.mentorshipActionItem.create({
     data: {
-      mentorshipId: activeMentorship.id,
+      mentorshipId: activeMentorship?.id ?? null,
       menteeId,
       sessionId: sessionId || null,
       title,

@@ -13,6 +13,7 @@ type OpsCard = {
   queue:
     | "stale_interview_scheduling"
     | "today_next_interviews"
+    | "student_intake_cases"
     | "join_requests"
     | "new_applications"
     | "inactive_members"
@@ -52,6 +53,13 @@ const QUEUE_META: Record<
     background: "rgba(239, 246, 255, 0.95)",
     border: "rgba(59, 130, 246, 0.18)",
     text: "#1d4ed8",
+  },
+  student_intake_cases: {
+    icon: "Intake",
+    title: "Student Intake Cases",
+    background: "rgba(236, 254, 255, 0.96)",
+    border: "rgba(13, 148, 136, 0.18)",
+    text: "#0f766e",
   },
   join_requests: {
     icon: "Join",
@@ -222,6 +230,7 @@ export function ActionCenter({
   opsQueues: {
     staleInterviewScheduling: OpsCard[];
     todayNextInterviewBookings: OpsCard[];
+    studentIntakeCases: OpsCard[];
     joinRequests: OpsCard[];
     newApplications: OpsCard[];
     inactiveMembers: OpsCard[];
@@ -231,6 +240,7 @@ export function ActionCenter({
   const queueOrder: Array<{ queue: OpsCard["queue"]; cards: OpsCard[] }> = [
     { queue: "stale_interview_scheduling", cards: opsQueues.staleInterviewScheduling },
     { queue: "today_next_interviews", cards: opsQueues.todayNextInterviewBookings },
+    { queue: "student_intake_cases", cards: opsQueues.studentIntakeCases },
     { queue: "join_requests", cards: opsQueues.joinRequests },
     { queue: "new_applications", cards: opsQueues.newApplications },
     { queue: "inactive_members", cards: opsQueues.inactiveMembers },

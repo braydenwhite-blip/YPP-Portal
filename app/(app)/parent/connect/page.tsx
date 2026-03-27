@@ -53,6 +53,27 @@ export default async function ParentConnectPage() {
             Link student accounts and manage your notification preferences
           </p>
         </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Link href="/parent/student-intake/new" className="button small">
+            Start Student Journey
+          </Link>
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "12px 16px",
+          background: "var(--surface-alt)",
+          borderRadius: "var(--radius-sm)",
+          borderLeft: "3px solid var(--ypp-purple)",
+          marginBottom: 20,
+          fontSize: 13,
+          color: "var(--text-secondary)",
+        }}
+      >
+        <strong style={{ color: "var(--foreground)" }}>Need to start from scratch?</strong>{" "}
+        Use <Link href="/parent/student-intake/new">Start Student Journey</Link> when your child does not already
+        have a YPP student account. Keep the form below for students who are already registered and only need the parent link approved.
       </div>
 
       {/* Link a New Student */}
