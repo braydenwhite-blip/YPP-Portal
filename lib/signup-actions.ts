@@ -66,6 +66,7 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
         passwordHash,
         primaryRole,
         chapterId: chapterId || null,
+        emailVerified: new Date(),
         roles: {
           create: [{ role: primaryRole }]
         }
@@ -149,14 +150,6 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
       });
     }
 
-    // Send verification email (non-blocking — signup succeeds even if email fails)
-    try {
-      const { sendVerificationEmail } = await import("@/lib/email-verification-actions");
-      await sendVerificationEmail(newUser.id);
-    } catch (verifyError) {
-      console.error("[Signup] Failed to send verification email:", verifyError);
-    }
-
     // Notify reviewers of new applicant (non-blocking)
     if (primaryRole === RoleType.APPLICANT) {
       try {
@@ -173,7 +166,7 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
 
     return {
       status: "success",
-      message: "CHECK_EMAIL"
+      message: "ACCOUNT_CREATED"
     };
   } catch (error) {
     return {
@@ -221,6 +214,7 @@ export async function signUpParent(prevState: FormState, formData: FormData): Pr
         phone: phone || null,
         passwordHash,
         primaryRole: RoleType.PARENT,
+        emailVerified: new Date(),
         roles: {
           create: [{ role: RoleType.PARENT }]
         }
@@ -247,17 +241,9 @@ export async function signUpParent(prevState: FormState, formData: FormData): Pr
       }
     }
 
-    // Send verification email (non-blocking)
-    try {
-      const { sendVerificationEmail } = await import("@/lib/email-verification-actions");
-      await sendVerificationEmail(parent.id);
-    } catch (verifyError) {
-      console.error("[Signup] Failed to send parent verification email:", verifyError);
-    }
-
     return {
       status: "success",
-      message: "CHECK_EMAIL"
+      message: "ACCOUNT_CREATED"
     };
   } catch (error) {
     return {

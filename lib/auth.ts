@@ -200,14 +200,13 @@ function buildProviders() {
         // Clear lockout counter on successful login
         await clearAccountLockout(email);
 
-        // Block unverified accounts — frontend detects this error code and shows resend prompt
-        // IMPORTANT: run `npm run backfill:email-verified` against production BEFORE enabling this
-        if (!user.emailVerified) {
+        // Block unverified accounts for admins only
+        if (!user.emailVerified && user.primaryRole === "ADMIN") {
           throw new Error("EMAIL_NOT_VERIFIED");
         }
 
-        // If 2FA is enabled, issue a challenge token and require second factor
-        if ((user as any).twoFactorEnabled) {
+        // If 2FA is enabled, issue a challenge token — admins only
+        if ((user as any).twoFactorEnabled && user.primaryRole === "ADMIN") {
           const { issueTwoFactorChallenge } = await import("@/lib/two-factor-actions");
           const challengeToken = await issueTwoFactorChallenge(user.id);
           throw new Error(`TWO_FACTOR_REQUIRED::${challengeToken}`);
