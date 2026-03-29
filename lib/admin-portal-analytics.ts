@@ -653,6 +653,12 @@ export async function getAdminPortalAnalytics(rawFilters: RawAnalyticsFilters) {
   const nativeGateEnabled = isNativeInstructorGateEnabled();
   const interviewGateRequired = isInterviewGateEnforced();
 
+  const studioCapstoneCompleteByInstructor = new Set(
+    curriculumDrafts
+      .filter((draft) => draft.status === "SUBMITTED" || draft.status === "APPROVED")
+      .map((draft) => draft.authorId)
+  );
+
   const readinessSnapshot = filteredInstructors.map((instructor) => {
     const completedRequiredModules =
       completedRequiredModuleCounts.get(instructor.id) ?? 0;
