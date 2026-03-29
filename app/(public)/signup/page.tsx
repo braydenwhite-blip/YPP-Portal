@@ -59,30 +59,25 @@ export default function SignupPage() {
     );
   }
 
-  // Show "Check Your Email" confirmation after successful student signup
-  if (state.status === "success" && state.message === "CHECK_EMAIL") {
+  // Show confirmation after successful signup
+  if (state.status === "success" && state.message === "ACCOUNT_CREATED") {
     return (
       <div className="login-shell">
         <div className="login-card" style={{ justifySelf: "center" }}>
           <div className="login-card-header login-card-header--stacked">
             <BrandLockup height={36} className="brand-lockup" reloadOnClick />
             <div>
-              <h1 className="page-title" style={{ fontSize: 20 }}>Check Your Email</h1>
+              <h1 className="page-title" style={{ fontSize: 20 }}>Account Created</h1>
               <p className="page-subtitle mt-0" style={{ fontSize: 13 }}>
-                One more step to get started
+                You&apos;re ready to sign in
               </p>
             </div>
           </div>
           <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.6, margin: "0 0 20px" }}>
-            We sent a verification link to <strong>{submittedEmail || "your email"}</strong>.
-            Click it to activate your account and sign in.
+            Your account has been created. You can now sign in with your email and password.
           </p>
-          <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6, margin: "0 0 20px" }}>
-            Didn&apos;t get it? Check your spam folder, or request a new link below.
-          </p>
-          <ResendVerificationForm initialEmail={submittedEmail} />
           <div className="login-help" style={{ marginTop: 16 }}>
-            <Link href="/login">Back to Sign In</Link>
+            <Link href="/login">Sign In</Link>
           </div>
         </div>
       </div>
@@ -485,7 +480,7 @@ export default function SignupPage() {
             </>
           )}
 
-          {state.message && state.message !== "CHECK_EMAIL" && state.message !== "APPLICATION_SUBMITTED" && (
+          {state.message && state.message !== "ACCOUNT_CREATED" && state.message !== "APPLICATION_SUBMITTED" && (
             <div className={state.status === "error" ? "form-error" : "form-success"}>
               {state.message}
             </div>
