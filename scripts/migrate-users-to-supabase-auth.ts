@@ -63,11 +63,18 @@ async function main() {
   let failed = 0;
 
   for (const user of users) {
+    const email = user.email.trim().toLowerCase();
     const hasPassword = user.passwordHash && user.passwordHash.length > 0;
+
+    if (!email) {
+      console.log(`[SKIP] User ${user.id} has a blank email address and cannot be imported into Supabase Auth.`);
+      skipped++;
+      continue;
+    }
 
     if (isDryRun) {
       console.log(
-        `[DRY] Would migrate: ${user.email} (password: ${hasPassword ? "yes" : "no"}, oauth: ${user.oauthProvider ?? "none"})`
+        `[DRY] Would migrate: ${email} (password: ${hasPassword ? "yes" : "no"}, oauth: ${user.oauthProvider ?? "none"})`
       );
       migrated++;
       continue;
@@ -76,7 +83,7 @@ async function main() {
     try {
       // Build the createUser payload
       const payload: Record<string, unknown> = {
-        email: user.email,
+        email,
         email_confirm: !!user.emailVerified,
         user_metadata: {
           name: user.name,
@@ -101,7 +108,7 @@ async function main() {
           const { data: listData } =
             await supabase.auth.admin.listUsers();
           const existing = listData?.users?.find(
-            (u) => u.email === user.email
+            (u) => u.email === email
           );
           if (existing) {
             await prisma.user.update({
@@ -109,20 +116,20 @@ async function main() {
               data: { supabaseAuthId: existing.id },
             });
             console.log(
-              `[LINKED] ${user.email} → existing Supabase user ${existing.id}`
+              `[LINKED] ${email} → existing Supabase user ${existing.id}`
             );
             migrated++;
             continue;
           }
         }
 
-        console.error(`[FAIL] ${user.email}: ${error.message}`);
+        console.error(`[FAIL] ${email}: ${error.message}`);
         failed++;
         continue;
       }
 
       if (!data.user) {
-        console.error(`[FAIL] ${user.email}: No user returned`);
+        console.error(`[FAIL] ${email}: No user returned`);
         failed++;
         continue;
       }
@@ -133,10 +140,10 @@ async function main() {
         data: { supabaseAuthId: data.user.id },
       });
 
-      console.log(`[OK] ${user.email} → ${data.user.id}`);
+      console.log(`[OK] ${email} → ${data.user.id}`);
       migrated++;
     } catch (err) {
-      console.error(`[FAIL] ${user.email}: ${err}`);
+      console.error(`[FAIL] ${email}: ${err}`);
       failed++;
     }
   }

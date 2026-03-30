@@ -4,38 +4,37 @@
    ============================================================ */
 
 .cbs-studio {
-  --cbs-bg: #fffaf5;
-  --cbs-surface: rgba(255, 253, 249, 0.92);
-  --cbs-surface-raised: rgba(255, 248, 240, 0.98);
-  --cbs-titlebar: rgba(255, 250, 244, 0.94);
-  --cbs-border: rgba(148, 163, 184, 0.2);
-  --cbs-border-bright: rgba(148, 163, 184, 0.34);
-  --cbs-text: #1f2937;
-  --cbs-text-muted: rgba(51, 65, 85, 0.76);
-  --cbs-text-dim: rgba(71, 85, 105, 0.56);
-  --cbs-accent: #c2410c;
-  --cbs-accent-glow: rgba(194, 65, 12, 0.18);
+  --cbs-bg: var(--bg);
+  --cbs-surface: color-mix(in srgb, var(--surface) 92%, var(--ypp-blush) 8%);
+  --cbs-surface-raised: var(--surface);
+  --cbs-titlebar: color-mix(in srgb, var(--surface) 86%, var(--ypp-blush) 14%);
+  --cbs-border: rgba(107, 33, 200, 0.12);
+  --cbs-border-bright: rgba(107, 33, 200, 0.24);
+  --cbs-text: var(--text);
+  --cbs-text-muted: color-mix(in srgb, var(--text-secondary) 82%, transparent);
+  --cbs-text-dim: color-mix(in srgb, var(--muted) 74%, transparent);
+  --cbs-accent: var(--ypp-purple-600);
+  --cbs-accent-glow: rgba(107, 33, 200, 0.18);
   --cbs-green: #15803d;
   --cbs-yellow: #d97706;
   --cbs-red: #dc2626;
   --cbs-blue: #2563eb;
-  --cbs-radius: 12px;
-  --cbs-radius-sm: 8px;
-  --cbs-transition: 220ms cubic-bezier(0.4, 0, 0.2, 1);
-  --surface: #fffdf9;
-  --surface-alt: #f7efe4;
-  --text: #1f2937;
-  --text-secondary: #475569;
-  --muted: #64748b;
-  --border: #e5ddd2;
+  --cbs-radius: var(--radius-md);
+  --cbs-radius-sm: var(--radius-sm);
+  --cbs-radius-card: var(--radius-xl);
+  --cbs-transition: var(--transition-base);
+  --cbs-transition-fast: var(--transition-fast);
+  --cbs-shadow-soft: var(--shadow);
+  --cbs-shadow-md: var(--shadow-md);
+  --cbs-shadow-purple: var(--shadow-purple);
 
   min-height: 100vh;
   background:
-    radial-gradient(circle at top left, rgba(251, 191, 36, 0.16), transparent 34%),
-    radial-gradient(circle at top right, rgba(251, 146, 60, 0.12), transparent 30%),
-    linear-gradient(180deg, #fffaf5 0%, #fffdf9 46%, #fdf7ee 100%);
+    radial-gradient(circle at top left, rgba(107, 33, 200, 0.16), transparent 34%),
+    radial-gradient(circle at top right, rgba(168, 85, 247, 0.14), transparent 30%),
+    linear-gradient(180deg, var(--bg) 0%, color-mix(in srgb, var(--surface) 30%, var(--ypp-blush) 70%) 52%, var(--bg) 100%);
   color: var(--cbs-text);
-  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  font-family: var(--font-dm-sans), "Segoe UI", sans-serif;
   display: flex;
   flex-direction: column;
   isolation: isolate;
@@ -47,9 +46,9 @@
   position: fixed;
   inset: 0;
   background:
-    radial-gradient(ellipse 76% 60% at 14% -8%, rgba(251, 191, 36, 0.14) 0%, transparent 62%),
-    radial-gradient(ellipse 54% 46% at 88% 8%, rgba(249, 115, 22, 0.1) 0%, transparent 58%),
-    radial-gradient(ellipse 52% 42% at 80% 100%, rgba(253, 224, 71, 0.08) 0%, transparent 60%);
+    radial-gradient(ellipse 76% 60% at 14% -8%, rgba(107, 33, 200, 0.12) 0%, transparent 62%),
+    radial-gradient(ellipse 54% 46% at 88% 8%, rgba(168, 85, 247, 0.12) 0%, transparent 58%),
+    radial-gradient(ellipse 52% 42% at 80% 100%, rgba(244, 114, 182, 0.08) 0%, transparent 60%);
   pointer-events: none;
   z-index: 0;
 }
@@ -789,9 +788,10 @@
 .cbs-drawer-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(43, 16, 91, 0.28);
   z-index: 200;
   animation: cbsFadeIn 0.2s ease;
+  backdrop-filter: blur(6px);
 }
 
 .cbs-drawer {
@@ -799,15 +799,18 @@
   top: 0;
   right: 0;
   bottom: 0;
-  width: 380px;
+  width: 420px;
   max-width: 100vw;
-  background: var(--cbs-surface);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(243, 236, 255, 0.82)),
+    var(--cbs-surface);
   border-left: 1px solid var(--cbs-border);
   z-index: 201;
   display: flex;
   flex-direction: column;
   transform: translateX(100%);
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: -24px 0 60px rgba(76, 29, 149, 0.12);
 }
 
 .cbs-drawer-open {
@@ -818,9 +821,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: 18px 20px;
   border-bottom: 1px solid var(--cbs-border);
   background: var(--cbs-titlebar);
+  backdrop-filter: blur(14px);
+}
+
+.cbs-drawer-header-stack {
+  display: grid;
+  gap: 8px;
 }
 
 .cbs-drawer-header-title {
@@ -833,18 +842,50 @@
 
 .cbs-drawer-header-icon { font-size: 16px; }
 
+.cbs-drawer-header-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cbs-drawer-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(243, 236, 255, 0.94);
+  color: var(--ypp-purple-700);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.cbs-drawer-chip.subtle {
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--cbs-text-dim);
+}
+
 .cbs-drawer-close {
-  background: none;
-  border: none;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--cbs-border);
   color: var(--cbs-text-muted);
   cursor: pointer;
   font-size: 18px;
-  padding: 4px 6px;
-  border-radius: 4px;
-  transition: color var(--cbs-transition);
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  transition:
+    color var(--cbs-transition-fast),
+    transform var(--cbs-transition-fast),
+    box-shadow var(--cbs-transition-fast);
 }
 
-.cbs-drawer-close:hover { color: var(--cbs-text); }
+.cbs-drawer-close:hover {
+  color: var(--cbs-text);
+  transform: translateY(-2px);
+  box-shadow: var(--cbs-shadow-soft);
+}
 
 .cbs-drawer-body {
   flex: 1;
@@ -853,6 +894,50 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.cbs-drawer-section {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(107, 33, 200, 0.12);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: var(--cbs-shadow-soft);
+}
+
+.cbs-drawer-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.cbs-drawer-section-eyebrow {
+  margin: 0 0 4px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cbs-accent);
+}
+
+.cbs-drawer-section-title {
+  margin: 0;
+  font-family: var(--font-playfair), Georgia, "Times New Roman", serif;
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+.cbs-drawer-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cbs-drawer-field-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  gap: 12px;
 }
 
 .cbs-drawer-label {
@@ -868,23 +953,26 @@
 .cbs-drawer-input {
   width: 100%;
   background: var(--cbs-surface-raised);
-  border: 1px solid var(--cbs-border);
-  border-radius: 6px;
-  padding: 8px 12px;
+  border: 1px solid rgba(107, 33, 200, 0.14);
+  border-radius: 16px;
+  padding: 10px 12px;
   font-size: 13px;
   color: var(--cbs-text);
   outline: none;
   font-family: inherit;
 }
 
-.cbs-drawer-input:focus { border-color: var(--cbs-accent); }
+.cbs-drawer-input:focus {
+  border-color: var(--cbs-accent);
+  box-shadow: 0 0 0 4px rgba(107, 33, 200, 0.12);
+}
 
 .cbs-drawer-select {
   width: 100%;
   background: var(--cbs-surface-raised);
-  border: 1px solid var(--cbs-border);
-  border-radius: 6px;
-  padding: 8px 12px;
+  border: 1px solid rgba(107, 33, 200, 0.14);
+  border-radius: 16px;
+  padding: 10px 12px;
   font-size: 13px;
   color: var(--cbs-text);
   outline: none;
@@ -893,20 +981,24 @@
   appearance: none;
 }
 
-.cbs-drawer-select:focus { border-color: var(--cbs-accent); }
+.cbs-drawer-select:focus {
+  border-color: var(--cbs-accent);
+  box-shadow: 0 0 0 4px rgba(107, 33, 200, 0.12);
+}
 
 .cbs-drawer-duration {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 43px;
 }
 
 .cbs-drawer-duration-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
   background: var(--cbs-surface-raised);
-  border: 1px solid var(--cbs-border);
+  border: 1px solid rgba(107, 33, 200, 0.14);
   color: var(--cbs-text-muted);
   font-size: 16px;
   cursor: pointer;
@@ -917,17 +1009,18 @@
 }
 
 .cbs-drawer-duration-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(243, 236, 255, 0.82);
   color: var(--cbs-text);
+  transform: translateY(-2px);
 }
 
 .cbs-drawer-duration-input {
   width: 60px;
   text-align: center;
   background: var(--cbs-surface-raised);
-  border: 1px solid var(--cbs-border);
-  border-radius: 6px;
-  padding: 6px;
+  border: 1px solid rgba(107, 33, 200, 0.14);
+  border-radius: 14px;
+  padding: 8px 6px;
   font-size: 14px;
   font-weight: 600;
   color: var(--cbs-text);
@@ -935,11 +1028,16 @@
   font-family: inherit;
 }
 
+.cbs-drawer-duration-input:focus {
+  border-color: var(--cbs-accent);
+  box-shadow: 0 0 0 4px rgba(107, 33, 200, 0.12);
+}
+
 .cbs-drawer-textarea {
   width: 100%;
   background: var(--cbs-surface-raised);
-  border: 1px solid var(--cbs-border);
-  border-radius: 6px;
+  border: 1px solid rgba(107, 33, 200, 0.14);
+  border-radius: 16px;
   padding: 10px 12px;
   font-size: 13px;
   color: var(--cbs-text);
@@ -949,59 +1047,128 @@
   line-height: 1.6;
 }
 
-.cbs-drawer-textarea:focus { border-color: var(--cbs-accent); }
+.cbs-drawer-textarea:focus {
+  border-color: var(--cbs-accent);
+  box-shadow: 0 0 0 4px rgba(107, 33, 200, 0.12);
+}
 .cbs-drawer-textarea::placeholder { color: var(--cbs-text-dim); }
+
+.cbs-drawer-energy-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cbs-drawer-energy-chip {
+  display: inline-flex;
+  justify-content: center;
+  gap: 6px;
+  align-items: center;
+  padding: 10px 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(107, 33, 200, 0.14);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--cbs-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform var(--cbs-transition-fast),
+    border-color var(--cbs-transition-fast),
+    box-shadow var(--cbs-transition-fast);
+}
+
+.cbs-drawer-energy-chip:hover {
+  transform: translateY(-2px);
+  border-color: rgba(107, 33, 200, 0.22);
+  box-shadow: var(--cbs-shadow-soft);
+}
+
+.cbs-drawer-energy-chip.active {
+  border-color: color-mix(in srgb, var(--cbs-energy-color, var(--cbs-accent)) 45%, white);
+  background: color-mix(in srgb, var(--cbs-energy-color, var(--cbs-accent)) 14%, white);
+  color: var(--cbs-energy-color, var(--cbs-accent));
+}
 
 /* ── Templates Modal ───────────────────────────────────────── */
 
 .cbs-templates-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(43, 16, 91, 0.28);
   z-index: 300;
   display: flex;
   align-items: center;
   justify-content: center;
   animation: cbsFadeIn 0.2s ease;
+  backdrop-filter: blur(8px);
 }
 
 .cbs-templates-modal {
-  background: var(--cbs-surface);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(243, 236, 255, 0.88)),
+    var(--cbs-surface);
   border: 1px solid var(--cbs-border);
-  border-radius: var(--cbs-radius);
+  border-radius: var(--cbs-radius-card);
   width: 660px;
   max-width: 95vw;
-  max-height: 80vh;
+  max-height: 85vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--cbs-shadow-purple);
 }
 
 .cbs-templates-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  padding: 16px 20px;
+  gap: 16px;
+  padding: 18px 22px;
   border-bottom: 1px solid var(--cbs-border);
 }
 
+.cbs-templates-eyebrow {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cbs-accent);
+}
+
 .cbs-templates-title {
-  font-size: 16px;
-  font-weight: 700;
   margin: 0;
+  font-family: var(--font-playfair), Georgia, "Times New Roman", serif;
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.cbs-templates-copy {
+  margin: 8px 0 0;
+  color: var(--cbs-text-muted);
+  line-height: 1.6;
 }
 
 .cbs-templates-close {
-  background: none;
-  border: none;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--cbs-border);
   color: var(--cbs-text-muted);
   cursor: pointer;
   font-size: 18px;
-  padding: 4px 6px;
-  border-radius: 4px;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  transition:
+    transform var(--cbs-transition-fast),
+    box-shadow var(--cbs-transition-fast),
+    color var(--cbs-transition-fast);
 }
 
-.cbs-templates-close:hover { color: var(--cbs-text); }
+.cbs-templates-close:hover {
+  color: var(--cbs-text);
+  transform: translateY(-2px);
+  box-shadow: var(--cbs-shadow-soft);
+}
 
 .cbs-templates-body {
   flex: 1;
@@ -1016,8 +1183,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cbs-text-dim);
   margin: 0 0 10px;
 }
 
@@ -1031,17 +1201,23 @@
 
 .cbs-templates-card {
   background: var(--cbs-surface-raised);
-  border: 1px solid var(--cbs-border);
-  border-radius: var(--cbs-radius-sm);
-  padding: 12px;
+  border: 1px solid rgba(107, 33, 200, 0.14);
+  border-radius: 18px;
+  padding: 14px;
   cursor: pointer;
   text-align: left;
-  transition: all var(--cbs-transition);
+  transition:
+    transform var(--cbs-transition-fast),
+    border-color var(--cbs-transition-fast),
+    box-shadow var(--cbs-transition-fast),
+    background var(--cbs-transition-fast);
 }
 
 .cbs-templates-card:hover {
-  border-color: var(--cbs-accent);
-  background: rgba(107, 33, 200, 0.08);
+  transform: translateY(-2px);
+  border-color: rgba(107, 33, 200, 0.24);
+  background: rgba(250, 245, 255, 0.94);
+  box-shadow: var(--cbs-shadow-purple);
 }
 
 .cbs-templates-card-top {
@@ -1064,6 +1240,7 @@
 .cbs-templates-duration {
   font-size: 11px;
   color: var(--cbs-text-dim);
+  font-weight: 700;
 }
 
 .cbs-templates-card-title {
@@ -1138,40 +1315,55 @@
 /* ── Print page styles (used on /print route) ──────────────── */
 
 .cbs-print-page {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #1a1a1a;
+  font-family: var(--font-dm-sans), "Segoe UI", sans-serif;
+  color: var(--text);
   padding: 40px;
-  max-width: 800px;
+  max-width: 860px;
   margin: 0 auto;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(243, 236, 255, 0.72)),
+    var(--surface);
 }
 
 .cbs-print-cover {
   text-align: center;
-  padding: 40px 0 30px;
-  border-bottom: 2px solid #333;
+  padding: 44px 28px 34px;
+  border: 1px solid rgba(107, 33, 200, 0.16);
+  border-radius: 28px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(243, 236, 255, 0.9));
   margin-bottom: 30px;
+  box-shadow: var(--shadow);
 }
 
 .cbs-print-cover h1 {
-  font-size: 28px;
+  font-family: var(--font-playfair), Georgia, "Times New Roman", serif;
+  font-size: 34px;
   margin: 0 0 8px;
+  color: var(--ypp-purple-800);
 }
 
 .cbs-print-cover p {
   font-size: 14px;
-  color: #666;
+  color: var(--muted);
   margin: 4px 0;
 }
 
 .cbs-print-section {
   margin-bottom: 24px;
+  padding: 22px 24px;
+  border-radius: 24px;
+  border: 1px solid rgba(107, 33, 200, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--shadow-xs);
 }
 
 .cbs-print-section h2 {
-  font-size: 18px;
-  border-bottom: 1px solid #ccc;
-  padding-bottom: 6px;
+  font-family: var(--font-playfair), Georgia, "Times New Roman", serif;
+  font-size: 24px;
+  border-bottom: 1px solid rgba(107, 33, 200, 0.12);
+  padding-bottom: 8px;
   margin: 0 0 12px;
+  color: var(--ypp-purple-800);
 }
 
 .cbs-print-section h3 {
@@ -1199,7 +1391,7 @@
 
 .cbs-print-week-goal {
   font-size: 13px;
-  color: #666;
+  color: var(--muted);
   margin: 0 0 8px;
   font-style: italic;
 }
@@ -1212,25 +1404,53 @@
 
 .cbs-print-table th,
 .cbs-print-table td {
-  border: 1px solid #ddd;
-  padding: 6px 10px;
+  border: 1px solid rgba(107, 33, 200, 0.12);
+  padding: 8px 10px;
   text-align: left;
   vertical-align: top;
 }
 
 .cbs-print-table th {
-  background: #f5f5f5;
+  background: rgba(243, 236, 255, 0.92);
   font-weight: 600;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  color: var(--ypp-purple-700);
 }
 
 .cbs-print-auto-trigger {
   text-align: center;
-  padding: 20px;
-  color: #999;
+  padding: 20px 0 8px;
+  color: var(--muted);
   font-size: 13px;
+}
+
+.cbs-print-auto-card {
+  display: inline-grid;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(107, 33, 200, 0.12);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow-xs);
+}
+
+.cbs-print-auto-card p {
+  margin: 0;
+}
+
+.cbs-print-auto-badge {
+  display: inline-flex;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(243, 236, 255, 0.92);
+  color: var(--ypp-purple-700);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 @media print {
@@ -1882,16 +2102,18 @@
 /* ── Applicant-First Shell ─────────────────────────────────── */
 
 .lds-shell {
-  width: min(1180px, calc(100% - 32px));
+  width: min(1460px, calc(100% - 32px));
   margin: 0 auto;
   padding: 32px 0 56px;
   gap: 20px;
 }
 
 .lds-shell .card {
-  background: rgba(255, 253, 249, 0.9);
-  border-color: rgba(229, 221, 210, 0.9);
-  box-shadow: 0 18px 48px rgba(148, 163, 184, 0.08);
+  background: color-mix(in srgb, var(--surface) 94%, var(--ypp-blush) 6%);
+  border: 1px solid var(--cbs-border);
+  border-radius: var(--cbs-radius-card);
+  box-shadow: var(--cbs-shadow-soft);
+  backdrop-filter: blur(18px);
 }
 
 .lds-shell .button,
@@ -1903,11 +2125,12 @@
 .lds-hero-card {
   display: grid;
   gap: 24px;
-  border-radius: 28px;
+  border-radius: calc(var(--cbs-radius-card) + 8px);
   padding: 28px;
   background:
-    linear-gradient(135deg, rgba(255, 251, 235, 0.96), rgba(255, 248, 240, 0.96)),
-    #fffdf9;
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(243, 236, 255, 0.92)),
+    var(--surface);
+  box-shadow: var(--cbs-shadow-purple);
 }
 
 .lds-hero-top {
@@ -1926,15 +2149,16 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #c2410c;
+  color: var(--cbs-accent);
 }
 
 .lds-hero-title {
   margin: 0;
+  font-family: var(--font-playfair), Georgia, "Times New Roman", serif;
   font-size: clamp(2rem, 3.2vw, 3rem);
   line-height: 1.05;
   letter-spacing: -0.03em;
-  color: #1f2937;
+  color: var(--ypp-purple-800);
 }
 
 .lds-hero-copy,
@@ -1944,7 +2168,7 @@
   margin: 10px 0 0;
   font-size: 15px;
   line-height: 1.75;
-  color: #52606d;
+  color: var(--cbs-text-muted);
 }
 
 .lds-hero-statuses,
@@ -1969,8 +2193,9 @@
 .lds-review-summary-card {
   padding: 16px 18px;
   border-radius: 20px;
-  border: 1px solid rgba(226, 232, 240, 0.95);
-  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid var(--cbs-border);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .lds-stat-label {
@@ -1979,14 +2204,14 @@
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #64748b;
+  color: var(--cbs-text-dim);
 }
 
 .lds-stat-value,
 .lds-phase-title,
 .lds-library-title {
   margin: 0;
-  color: #1f2937;
+  color: var(--cbs-text);
 }
 
 .lds-stat-value {
@@ -2004,7 +2229,7 @@
 .lds-chooser-hero,
 .lds-chooser-section,
 .lds-readonly-banner {
-  border-radius: 24px;
+  border-radius: var(--cbs-radius-card);
   padding: 24px;
 }
 
@@ -2019,19 +2244,19 @@
   max-width: 360px;
   font-size: 13px;
   line-height: 1.6;
-  color: #64748b;
+  color: var(--cbs-text-dim);
 }
 
 .lds-chooser-notice-card {
   border-radius: 18px;
   padding: 18px 20px;
-  border: 1px solid rgba(251, 146, 60, 0.22);
-  background: rgba(255, 247, 237, 0.9);
+  border: 1px solid rgba(107, 33, 200, 0.18);
+  background: rgba(243, 236, 255, 0.78);
 }
 
 .lds-chooser-notice-card p {
   margin: 0;
-  color: #9a3412;
+  color: var(--ypp-purple-700);
   line-height: 1.65;
 }
 
@@ -2063,19 +2288,20 @@
   gap: 12px;
   padding: 20px;
   border-radius: 22px;
-  border: 1px solid rgba(229, 221, 210, 0.95);
+  border: 1px solid var(--cbs-border);
   background: rgba(255, 255, 255, 0.88);
+  box-shadow: var(--cbs-shadow-soft);
 }
 
 .lds-draft-card-primary {
-  background: linear-gradient(180deg, rgba(255, 247, 237, 0.96), rgba(255, 255, 255, 0.94));
-  border-color: rgba(251, 146, 60, 0.3);
-  box-shadow: 0 16px 34px rgba(251, 146, 60, 0.12);
+  background: linear-gradient(180deg, rgba(243, 236, 255, 0.96), rgba(255, 255, 255, 0.94));
+  border-color: rgba(107, 33, 200, 0.22);
+  box-shadow: var(--cbs-shadow-purple);
 }
 
 .lds-draft-card-legacy {
-  border-color: rgba(245, 158, 11, 0.28);
-  background: linear-gradient(180deg, rgba(255, 251, 235, 0.96), rgba(255, 255, 255, 0.94));
+  border-color: rgba(168, 85, 247, 0.24);
+  background: linear-gradient(180deg, rgba(250, 245, 255, 0.96), rgba(255, 255, 255, 0.94));
 }
 
 .lds-draft-card-top {
@@ -2087,13 +2313,13 @@
 
 .lds-draft-card-top h3 {
   margin: 8px 0 0;
-  color: #1f2937;
+  color: var(--cbs-text);
 }
 
 .lds-draft-card-meta {
   margin: 0;
   font-size: 13px;
-  color: #64748b;
+  color: var(--cbs-text-dim);
 }
 
 .lds-draft-card-actions {
@@ -2105,34 +2331,35 @@
 .lds-chooser-empty {
   padding: 20px;
   border-radius: 20px;
-  border: 1px dashed rgba(203, 213, 225, 0.92);
-  background: rgba(255, 255, 255, 0.72);
+  border: 1px dashed var(--cbs-border-bright);
+  background: rgba(255, 255, 255, 0.8);
 }
 
 .lds-chooser-empty h3 {
   margin: 0 0 6px;
-  color: #1f2937;
+  color: var(--cbs-text);
 }
 
 .lds-chooser-empty p {
   margin: 0;
-  color: #64748b;
+  color: var(--cbs-text-muted);
   line-height: 1.65;
 }
 
 .lds-readonly-banner {
-  border: 1px solid rgba(59, 130, 246, 0.16);
-  background: linear-gradient(180deg, rgba(239, 246, 255, 0.94), rgba(255, 255, 255, 0.92));
+  border: 1px solid rgba(107, 33, 200, 0.18);
+  background: linear-gradient(180deg, rgba(243, 236, 255, 0.95), rgba(255, 255, 255, 0.94));
+  box-shadow: var(--cbs-shadow-soft);
 }
 
 .lds-readonly-banner strong {
   display: block;
-  color: #1d4ed8;
+  color: var(--ypp-purple-700);
 }
 
 .lds-readonly-banner p {
   margin: 8px 0 0;
-  color: #475569;
+  color: var(--cbs-text-muted);
   line-height: 1.65;
 }
 
@@ -2145,7 +2372,7 @@
 .lds-updated-at {
   margin-left: auto;
   font-size: 13px;
-  color: #64748b;
+  color: var(--cbs-text-dim);
 }
 
 .lds-phase-strip {
@@ -2160,10 +2387,10 @@
   gap: 12px;
   width: 100%;
   padding: 14px 16px;
-  border: 1px solid rgba(229, 221, 210, 0.95);
+  border: 1px solid var(--cbs-border);
   border-radius: 999px;
-  background: rgba(255, 253, 249, 0.86);
-  color: #52606d;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--cbs-text-muted);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -2172,14 +2399,14 @@
 
 .lds-phase-pill:hover {
   transform: translateY(-1px);
-  border-color: rgba(194, 65, 12, 0.25);
-  box-shadow: 0 12px 28px rgba(148, 163, 184, 0.12);
+  border-color: rgba(107, 33, 200, 0.24);
+  box-shadow: var(--cbs-shadow-soft);
 }
 
 .lds-phase-pill.active {
-  background: linear-gradient(135deg, #fff7ed, #fff1f2);
-  border-color: rgba(194, 65, 12, 0.3);
-  color: #9a3412;
+  background: linear-gradient(135deg, rgba(243, 236, 255, 0.98), rgba(255, 255, 255, 0.92));
+  border-color: rgba(107, 33, 200, 0.28);
+  color: var(--ypp-purple-700);
 }
 
 .lds-phase-pill-index {
@@ -2190,14 +2417,14 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: rgba(194, 65, 12, 0.1);
-  color: #c2410c;
+  background: rgba(107, 33, 200, 0.1);
+  color: var(--cbs-accent);
   font-size: 12px;
   font-weight: 700;
 }
 
 .lds-phase-pill.active .lds-phase-pill-index {
-  background: #c2410c;
+  background: var(--cbs-accent);
   color: #fff;
 }
 
@@ -2239,8 +2466,8 @@
 .lds-review-summary-card {
   border-radius: 22px;
   padding: 20px;
-  border: 1px solid rgba(229, 221, 210, 0.95);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(255, 248, 240, 0.9));
+  border: 1px solid var(--cbs-border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(243, 236, 255, 0.76));
 }
 
 .lds-start-checklist {
@@ -2262,11 +2489,11 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: #fff7ed;
-  color: #c2410c;
+  background: rgba(243, 236, 255, 0.96);
+  color: var(--cbs-accent);
   font-size: 12px;
   font-weight: 700;
-  border: 1px solid rgba(251, 146, 60, 0.26);
+  border: 1px solid rgba(107, 33, 200, 0.18);
 }
 
 .lds-start-check strong,
@@ -2285,7 +2512,7 @@
 .lds-review-summary-card p,
 .lds-readiness-blockers li {
   margin: 0;
-  color: #52606d;
+  color: var(--cbs-text-muted);
   line-height: 1.65;
 }
 
@@ -2298,7 +2525,7 @@
 .lds-starter-card {
   padding: 18px;
   border-radius: 22px;
-  border: 1px solid rgba(229, 221, 210, 0.95);
+  border: 1px solid var(--cbs-border);
   background: rgba(255, 255, 255, 0.88);
   display: grid;
   gap: 12px;
@@ -2306,9 +2533,9 @@
 
 .lds-starter-card-featured,
 .lds-starter-card.featured {
-  background: linear-gradient(180deg, rgba(255, 247, 237, 0.96), rgba(255, 255, 255, 0.92));
-  border-color: rgba(251, 146, 60, 0.34);
-  box-shadow: 0 16px 34px rgba(251, 146, 60, 0.12);
+  background: linear-gradient(180deg, rgba(243, 236, 255, 0.96), rgba(255, 255, 255, 0.92));
+  border-color: rgba(107, 33, 200, 0.24);
+  box-shadow: var(--cbs-shadow-purple);
 }
 
 .lds-starter-card-top,
@@ -2323,7 +2550,7 @@
 .lds-starter-meta,
 .lds-course-shape-meta {
   font-size: 12px;
-  color: #64748b;
+  color: var(--cbs-text-dim);
 }
 
 .lds-form-grid {
@@ -2363,7 +2590,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #64748b;
+  color: var(--cbs-text-dim);
 }
 
 .lds-delivery-options {
@@ -2375,18 +2602,18 @@
 .lds-delivery-chip {
   padding: 10px 14px;
   border-radius: 999px;
-  border: 1px solid rgba(203, 213, 225, 0.9);
+  border: 1px solid rgba(107, 33, 200, 0.14);
   background: #fff;
-  color: #52606d;
+  color: var(--cbs-text-muted);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
 }
 
 .lds-delivery-chip.active {
-  border-color: rgba(194, 65, 12, 0.35);
-  background: #fff7ed;
-  color: #9a3412;
+  border-color: rgba(107, 33, 200, 0.3);
+  background: rgba(243, 236, 255, 0.92);
+  color: var(--ypp-purple-700);
 }
 
 .lds-session-support {
@@ -2416,8 +2643,8 @@
 .lds-launch-grid .dashboard-action-card {
   min-height: 132px;
   justify-content: center;
-  border-top-color: #fb923c;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 247, 237, 0.92));
+  border-top-color: var(--cbs-accent);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(243, 236, 255, 0.88));
 }
 
 .lds-library-overlay {
@@ -2436,16 +2663,18 @@
   max-height: min(90vh, 920px);
   overflow: hidden;
   border-radius: 28px;
-  border: 1px solid rgba(229, 221, 210, 0.96);
-  background: #fffdf9;
-  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.18);
+  border: 1px solid var(--cbs-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(243, 236, 255, 0.82)),
+    var(--surface);
+  box-shadow: var(--cbs-shadow-purple);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
 }
 
 .lds-library-header {
   padding: 24px 24px 18px;
-  border-bottom: 1px solid rgba(229, 221, 210, 0.9);
+  border-bottom: 1px solid var(--cbs-border);
 }
 
 .lds-library-title {
@@ -2456,7 +2685,7 @@
 .lds-library-target {
   margin: 12px 0 0;
   font-size: 13px;
-  color: #9a3412;
+  color: var(--ypp-purple-700);
 }
 
 .lds-library-error {
@@ -2472,10 +2701,10 @@
 .lds-library-close {
   width: 40px;
   height: 40px;
-  border: 1px solid rgba(203, 213, 225, 0.9);
+  border: 1px solid var(--cbs-border);
   border-radius: 50%;
   background: #fff;
-  color: #475569;
+  color: var(--cbs-text-muted);
   cursor: pointer;
   font-size: 20px;
   line-height: 1;
@@ -2501,39 +2730,33 @@
   z-index: 12;
   align-self: center;
   max-width: min(640px, calc(100vw - 32px));
-  padding: 12px 16px;
-  border-radius: 14px;
-  background: rgba(21, 128, 61, 0.14);
-  border: 1px solid rgba(21, 128, 61, 0.24);
+  padding: 14px 18px;
+  border-radius: 18px;
+  background: rgba(238, 255, 246, 0.94);
+  border: 1px solid rgba(21, 128, 61, 0.2);
   color: #166534;
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
-  backdrop-filter: blur(14px);
+  box-shadow: var(--cbs-shadow-soft);
+  backdrop-filter: blur(16px);
 }
 
 .lds-studio-toast.error {
-  background: rgba(220, 38, 38, 0.12);
-  border-color: rgba(220, 38, 38, 0.22);
+  background: rgba(255, 244, 245, 0.96);
+  border-color: rgba(220, 38, 38, 0.18);
   color: #991b1b;
 }
 
-.lds-guided-hero,
-.lds-guided-journey,
-.lds-step-card,
-.lds-session-roadmap-card,
-.lds-example-spotlight {
-  background: rgba(255, 252, 246, 0.96);
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 22px;
-  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.08);
+.lds-studio-toolbar {
+  padding: 24px 28px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(243, 236, 255, 0.9)),
+    var(--surface);
+  box-shadow: var(--cbs-shadow-purple);
 }
 
-.lds-guided-hero {
-  padding: 28px;
-}
-
+.lds-studio-toolbar-main,
+.lds-studio-toolbar-meta,
 .lds-guided-hero-top,
 .lds-step-card-header,
-.lds-guided-journey-header,
 .lds-subsection-header,
 .lds-start-card-top,
 .lds-example-spotlight-header {
@@ -2543,37 +2766,193 @@
   align-items: flex-start;
 }
 
-.lds-guided-hero-copy {
-  max-width: 760px;
+.lds-studio-toolbar-copy {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
 }
 
-.lds-guided-status-stack,
+.lds-toolbar-breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+}
+
+.lds-toolbar-breadcrumb {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(107, 33, 200, 0.12);
+  color: var(--cbs-text-dim);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.lds-toolbar-breadcrumb.complete {
+  color: #166534;
+  background: rgba(220, 252, 231, 0.9);
+  border-color: rgba(21, 128, 61, 0.16);
+}
+
+.lds-toolbar-breadcrumb.current {
+  color: var(--ypp-purple-700);
+  background: rgba(243, 236, 255, 0.96);
+  border-color: rgba(107, 33, 200, 0.24);
+}
+
+.lds-studio-toolbar-meta {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.lds-save-indicator {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-width: min(320px, 100%);
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid var(--cbs-border);
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.lds-save-indicator strong,
+.lds-save-indicator small {
+  display: block;
+}
+
+.lds-save-indicator strong {
+  color: var(--cbs-text);
+  font-size: 13px;
+}
+
+.lds-save-indicator small {
+  color: var(--cbs-text-dim);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.lds-save-indicator-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: rgba(107, 33, 200, 0.32);
+  box-shadow: 0 0 0 6px rgba(107, 33, 200, 0.08);
+}
+
+.lds-save-indicator.saving .lds-save-indicator-dot {
+  background: #d97706;
+  box-shadow: 0 0 0 6px rgba(217, 119, 6, 0.12);
+  animation: ldsPulse 1.2s ease-in-out infinite;
+}
+
+.lds-save-indicator.saved .lds-save-indicator-dot {
+  background: #15803d;
+  box-shadow: 0 0 0 6px rgba(21, 128, 61, 0.12);
+}
+
+.lds-save-indicator.error .lds-save-indicator-dot {
+  background: #dc2626;
+  box-shadow: 0 0 0 6px rgba(220, 38, 38, 0.12);
+}
+
+.lds-guided-workbench {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.lds-guided-rail,
+.lds-guided-hero,
+.lds-step-card,
+.lds-session-roadmap-card,
+.lds-example-spotlight,
+.lds-micro-check-card,
+.lds-start-card,
+.lds-subsection-card,
+.lds-guided-focus-card,
+.lds-example-callout,
+.lds-example-list-card,
+.lds-checklist-item {
+  border: 1px solid var(--cbs-border);
+  border-radius: var(--cbs-radius-card);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--cbs-shadow-soft);
+}
+
+.lds-guided-rail {
+  position: sticky;
+  top: 18px;
+  padding: 22px;
+  display: grid;
+  gap: 18px;
+}
+
+.lds-guided-rail-copy,
+.lds-guided-hero-copy,
 .lds-step-main,
-.lds-step-side {
+.lds-step-side,
+.lds-example-spotlight-body {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
+.lds-guided-rail-summary {
+  display: grid;
+  gap: 10px;
+}
+
+.lds-guided-rail-actions,
+.lds-guided-status-stack,
+.lds-inline-actions,
+.lds-template-suggestions,
+.lds-chip-row,
+.lds-session-metrics,
+.lds-start-meta,
+.lds-coaching-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.lds-guided-rail-actions .button {
+  width: 100%;
+  margin-top: 0;
+}
+
+.lds-guided-main {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+.lds-guided-hero {
+  padding: 24px 26px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(243, 236, 255, 0.72)),
+    var(--surface);
+}
+
+.lds-guided-status-stack {
+  justify-content: flex-end;
+  align-items: flex-end;
+}
+
 .lds-guided-hero-grid,
-.lds-guided-focus-row,
 .lds-checklist-grid,
 .lds-launch-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
-}
-
-.lds-guided-focus-card,
-.lds-subsection-card,
-.lds-example-callout,
-.lds-example-list-card,
-.lds-micro-check-card,
-.lds-start-card,
-.lds-checklist-item {
-  border-radius: 18px;
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  background: rgba(255, 255, 255, 0.82);
 }
 
 .lds-guided-focus-card,
@@ -2586,35 +2965,21 @@
 
 .lds-guided-focus-card.accent,
 .lds-subsection-card.accent {
-  background: linear-gradient(180deg, rgba(255, 237, 213, 0.9), rgba(255, 251, 235, 0.95));
-  border-color: rgba(194, 65, 12, 0.18);
+  background:
+    linear-gradient(180deg, rgba(243, 236, 255, 0.96), rgba(255, 255, 255, 0.92)),
+    var(--surface);
+  border-color: rgba(107, 33, 200, 0.18);
+  box-shadow: var(--cbs-shadow-purple);
 }
 
-.lds-guided-hero-actions,
-.lds-inline-actions,
-.lds-template-suggestions,
-.lds-chip-row,
-.lds-session-metrics,
-.lds-start-meta,
-.lds-coaching-strip {
+.lds-guided-editor {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.lds-guided-hero-actions {
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 18px;
-}
-
-.lds-guided-journey {
-  padding: 20px 22px;
+  flex-direction: column;
+  gap: 18px;
 }
 
 .lds-guided-pill-row {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -2624,19 +2989,24 @@
   align-items: center;
   padding: 14px;
   border-radius: 18px;
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(107, 33, 200, 0.1);
+  background: rgba(255, 255, 255, 0.84);
   color: var(--cbs-text);
   text-align: left;
   cursor: pointer;
-  transition: transform var(--cbs-transition), border-color var(--cbs-transition), box-shadow var(--cbs-transition);
+  transition:
+    transform var(--cbs-transition-fast),
+    border-color var(--cbs-transition-fast),
+    box-shadow var(--cbs-transition-fast),
+    background var(--cbs-transition-fast);
 }
 
 .lds-journey-pill:hover,
 .lds-journey-pill.active {
-  transform: translateY(-1px);
-  border-color: rgba(194, 65, 12, 0.3);
-  box-shadow: 0 12px 28px rgba(194, 65, 12, 0.12);
+  transform: translateY(-2px);
+  border-color: rgba(107, 33, 200, 0.26);
+  box-shadow: var(--cbs-shadow-purple);
+  background: rgba(250, 245, 255, 0.96);
 }
 
 .lds-journey-pill-status {
@@ -2653,24 +3023,25 @@
 }
 
 .lds-journey-pill-status.complete {
-  background: rgba(21, 128, 61, 0.12);
+  background: rgba(220, 252, 231, 0.9);
   color: #166534;
 }
 
 .lds-journey-pill-status.current {
-  background: rgba(194, 65, 12, 0.12);
+  background: rgba(243, 236, 255, 0.96);
   color: var(--cbs-accent);
 }
 
 .lds-journey-pill-status.upcoming {
-  background: rgba(148, 163, 184, 0.16);
-  color: #475569;
+  background: rgba(237, 233, 254, 0.9);
+  color: var(--ypp-purple-700);
 }
 
 .lds-journey-pill-copy {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
+  min-width: 0;
 }
 
 .lds-journey-pill-copy strong,
@@ -2681,6 +3052,12 @@
 .lds-example-callout strong {
   margin: 0;
   color: var(--cbs-text);
+}
+
+.lds-section-title {
+  font-family: var(--font-playfair), Georgia, "Times New Roman", serif;
+  font-size: 24px;
+  line-height: 1.1;
 }
 
 .lds-journey-pill-copy small,
@@ -2700,7 +3077,7 @@
 }
 
 .lds-step-layout.wide {
-  grid-template-columns: 240px minmax(0, 1.15fr) 340px;
+  grid-template-columns: 250px minmax(0, 1.15fr) 340px;
 }
 
 .lds-step-card,
@@ -2718,15 +3095,9 @@
   color: var(--cbs-accent);
 }
 
-.lds-section-title {
-  font-size: 22px;
-  line-height: 1.15;
-  margin-bottom: 6px;
-}
-
 .lds-section-copy {
   margin: 0;
-  line-height: 1.6;
+  line-height: 1.65;
 }
 
 .lds-start-grid {
@@ -2737,8 +3108,8 @@
 }
 
 .lds-start-card.recommended {
-  border-color: rgba(194, 65, 12, 0.32);
-  box-shadow: 0 16px 36px rgba(194, 65, 12, 0.12);
+  border-color: rgba(107, 33, 200, 0.24);
+  box-shadow: var(--cbs-shadow-purple);
 }
 
 .lds-start-card-top h3 {
@@ -2761,24 +3132,24 @@
 .lds-success-strip,
 .lds-empty-state {
   padding: 16px 18px;
-  border-radius: 16px;
+  border-radius: 18px;
   margin: 18px 0;
 }
 
 .lds-blocker-card {
-  background: rgba(254, 242, 242, 0.9);
-  border: 1px solid rgba(220, 38, 38, 0.12);
+  background: rgba(255, 244, 245, 0.96);
+  border: 1px solid rgba(220, 38, 38, 0.14);
 }
 
 .lds-success-strip {
-  background: rgba(236, 253, 245, 0.92);
+  background: rgba(238, 255, 246, 0.96);
   border: 1px solid rgba(21, 128, 61, 0.12);
   color: #166534;
 }
 
 .lds-empty-state {
-  background: rgba(248, 250, 252, 0.92);
-  border: 1px dashed rgba(148, 163, 184, 0.32);
+  background: rgba(250, 245, 255, 0.9);
+  border: 1px dashed rgba(107, 33, 200, 0.2);
   color: var(--cbs-text-muted);
 }
 
@@ -2795,6 +3166,10 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
   margin-top: 16px;
+}
+
+.lds-form-grid.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .lds-form-grid.three {
@@ -2818,17 +3193,38 @@
 .lds-form-field select,
 .lds-inline-edit-row input {
   width: 100%;
-  border-radius: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  background: rgba(255, 255, 255, 0.9);
+  border-radius: 16px;
+  border: 1px solid rgba(107, 33, 200, 0.14);
+  background: rgba(255, 255, 255, 0.94);
   color: var(--cbs-text);
   padding: 12px 14px;
   font: inherit;
   box-sizing: border-box;
+  transition:
+    transform var(--cbs-transition-fast),
+    box-shadow var(--cbs-transition-fast),
+    border-color var(--cbs-transition-fast);
 }
 
 .lds-form-field textarea {
   resize: vertical;
+}
+
+.lds-form-field input:focus,
+.lds-form-field textarea:focus,
+.lds-form-field select:focus,
+.lds-inline-edit-row input:focus,
+.lds-activity-primary:focus-visible,
+.lds-journey-pill:focus-visible,
+.lds-example-spotlight-summary:focus-visible,
+.cbs-drawer-close:focus-visible,
+.cbs-drawer-duration-btn:focus-visible,
+.cbs-drawer-energy-chip:focus-visible,
+.cbs-drawer-tag:focus-visible,
+.cbs-templates-card:focus-visible {
+  outline: none;
+  border-color: rgba(107, 33, 200, 0.36);
+  box-shadow: 0 0 0 4px rgba(107, 33, 200, 0.12);
 }
 
 .lds-inline-edit-row {
@@ -2863,28 +3259,67 @@
 .lds-chip {
   padding: 8px 14px;
   border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(107, 33, 200, 0.14);
+  background: rgba(255, 255, 255, 0.94);
   color: var(--cbs-text-muted);
   cursor: pointer;
+  transition:
+    transform var(--cbs-transition-fast),
+    border-color var(--cbs-transition-fast),
+    box-shadow var(--cbs-transition-fast);
+}
+
+.lds-chip:hover {
+  transform: translateY(-2px);
+  border-color: rgba(107, 33, 200, 0.24);
+  box-shadow: var(--cbs-shadow-soft);
 }
 
 .lds-chip.selected {
-  border-color: rgba(194, 65, 12, 0.28);
-  background: rgba(255, 237, 213, 0.9);
+  border-color: rgba(107, 33, 200, 0.28);
+  background: rgba(243, 236, 255, 0.92);
   color: var(--cbs-accent);
 }
 
 .lds-example-spotlight {
   position: sticky;
-  top: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  top: 18px;
+  display: grid;
+  gap: 0;
+}
+
+.lds-example-spotlight[open] {
+  box-shadow: var(--cbs-shadow-md);
+}
+
+.lds-example-spotlight-summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.lds-example-spotlight-summary::-webkit-details-marker {
+  display: none;
+}
+
+.lds-example-spotlight-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(243, 236, 255, 0.9);
+  color: var(--ypp-purple-700);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.lds-example-spotlight-body {
+  padding-top: 16px;
 }
 
 .lds-example-callout {
-  background: linear-gradient(180deg, rgba(255, 247, 237, 0.95), rgba(255, 251, 235, 0.94));
+  background: linear-gradient(180deg, rgba(243, 236, 255, 0.94), rgba(255, 255, 255, 0.96));
 }
 
 .lds-example-list-card ul {
@@ -2928,15 +3363,25 @@
   gap: 10px;
   align-items: flex-start;
   padding: 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 16px;
+  border: 1px solid rgba(107, 33, 200, 0.12);
   cursor: pointer;
-  background: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.88);
+  transition:
+    transform var(--cbs-transition-fast),
+    border-color var(--cbs-transition-fast),
+    box-shadow var(--cbs-transition-fast);
+}
+
+.lds-micro-check-option:hover {
+  transform: translateY(-2px);
+  border-color: rgba(107, 33, 200, 0.22);
+  box-shadow: var(--cbs-shadow-soft);
 }
 
 .lds-micro-check-option.selected {
-  border-color: rgba(194, 65, 12, 0.28);
-  background: rgba(255, 237, 213, 0.6);
+  border-color: rgba(107, 33, 200, 0.26);
+  background: rgba(243, 236, 255, 0.84);
 }
 
 .lds-micro-check-option input {
@@ -2946,7 +3391,7 @@
 .lds-micro-check-feedback {
   margin: 12px 0 0;
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
 .lds-micro-check-feedback.success {
@@ -2954,7 +3399,7 @@
 }
 
 .lds-micro-check-feedback.warning {
-  color: #9a3412;
+  color: #92400e;
 }
 
 .lds-micro-check-feedback.muted,
@@ -2977,19 +3422,29 @@
   width: 100%;
   text-align: left;
   padding: 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  background: rgba(255, 255, 255, 0.82);
+  border-radius: 18px;
+  border: 1px solid rgba(107, 33, 200, 0.12);
+  background: rgba(255, 255, 255, 0.84);
   cursor: pointer;
   display: flex;
   flex-direction: column;
   gap: 5px;
   color: var(--cbs-text);
+  transition:
+    transform var(--cbs-transition-fast),
+    border-color var(--cbs-transition-fast),
+    box-shadow var(--cbs-transition-fast);
+}
+
+.lds-session-roadmap-item:hover,
+.lds-session-roadmap-item.active {
+  transform: translateY(-2px);
+  border-color: rgba(107, 33, 200, 0.24);
+  box-shadow: var(--cbs-shadow-purple);
 }
 
 .lds-session-roadmap-item.active {
-  border-color: rgba(194, 65, 12, 0.28);
-  background: rgba(255, 237, 213, 0.65);
+  background: rgba(243, 236, 255, 0.92);
 }
 
 .lds-session-roadmap-label {
@@ -3003,9 +3458,9 @@
 .lds-session-metrics div,
 .lds-kpi-stack div {
   padding: 10px 12px;
-  border-radius: 14px;
-  background: rgba(248, 250, 252, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 16px;
+  background: rgba(250, 245, 255, 0.88);
+  border: 1px solid rgba(107, 33, 200, 0.12);
   color: var(--cbs-text-muted);
 }
 
@@ -3018,9 +3473,10 @@
 
 .lds-template-suggestion,
 .lds-activity-card {
-  border-radius: 16px;
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  background: rgba(255, 255, 255, 0.84);
+  border-radius: 18px;
+  border: 1px solid rgba(107, 33, 200, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--cbs-shadow-soft);
 }
 
 .lds-template-suggestion {
@@ -3028,8 +3484,18 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  min-width: 140px;
+  min-width: 150px;
   cursor: pointer;
+  transition:
+    transform var(--cbs-transition-fast),
+    border-color var(--cbs-transition-fast),
+    box-shadow var(--cbs-transition-fast);
+}
+
+.lds-template-suggestion:hover {
+  transform: translateY(-2px);
+  border-color: rgba(107, 33, 200, 0.22);
+  box-shadow: var(--cbs-shadow-purple);
 }
 
 .lds-activity-stack {
@@ -3039,26 +3505,57 @@
 }
 
 .lds-activity-card {
-  padding: 12px;
+  padding: 14px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
+  gap: 12px;
+  transition:
+    transform var(--cbs-transition-fast),
+    border-color var(--cbs-transition-fast),
+    box-shadow var(--cbs-transition-fast);
 }
 
+.lds-activity-card:hover,
 .lds-activity-card.active {
-  border-color: rgba(194, 65, 12, 0.28);
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--lds-activity-accent, var(--cbs-accent)) 42%, white);
+  box-shadow: 0 18px 34px color-mix(in srgb, var(--lds-activity-accent, var(--cbs-accent)) 18%, transparent);
 }
 
 .lds-activity-primary {
   border: none;
   background: transparent;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
   text-align: left;
   color: var(--cbs-text);
   cursor: pointer;
+}
+
+.lds-activity-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  color: color-mix(in srgb, var(--lds-activity-accent, var(--cbs-accent)) 66%, var(--cbs-text-dim));
+  font-size: 18px;
+  line-height: 1;
+}
+
+.lds-activity-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.lds-activity-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
 }
 
 .lds-activity-type {
@@ -3067,10 +3564,30 @@
   align-items: center;
   gap: 6px;
   border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  padding: 5px 10px;
+  border: 1px solid color-mix(in srgb, var(--lds-activity-accent, var(--cbs-accent)) 34%, white);
+  padding: 6px 10px;
   font-size: 12px;
   font-weight: 700;
+  color: var(--lds-activity-accent, var(--cbs-accent));
+  background: color-mix(in srgb, var(--lds-activity-accent, var(--cbs-accent)) 10%, white);
+}
+
+.lds-activity-duration-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(250, 245, 255, 0.92);
+  color: var(--cbs-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.lds-activity-description {
+  margin: 0;
+  color: var(--cbs-text-muted);
+  font-size: 13px;
+  line-height: 1.55;
 }
 
 .lds-activity-actions {
@@ -3083,10 +3600,10 @@
 
 .lds-advanced-panel {
   margin-top: 18px;
-  border-radius: 18px;
-  border: 1px dashed rgba(148, 163, 184, 0.28);
+  border-radius: 20px;
+  border: 1px dashed rgba(107, 33, 200, 0.2);
   padding: 16px;
-  background: rgba(248, 250, 252, 0.76);
+  background: rgba(250, 245, 255, 0.82);
 }
 
 .lds-advanced-panel summary {
@@ -3109,7 +3626,7 @@
 
 .lds-checklist-item.pass {
   border-color: rgba(21, 128, 61, 0.16);
-  background: rgba(236, 253, 245, 0.84);
+  background: rgba(238, 255, 246, 0.92);
 }
 
 .lds-checklist-item span {
@@ -3127,49 +3644,65 @@
   margin: 0;
   padding: 8px 12px;
   border-radius: 999px;
-  background: rgba(219, 234, 254, 0.9);
-  color: #1d4ed8;
+  background: rgba(243, 236, 255, 0.92);
+  color: var(--ypp-purple-700);
   font-weight: 700;
   text-transform: capitalize;
 }
 
 .lds-shell .button.ghost {
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.82);
   color: var(--cbs-text-muted);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  border: 1px solid rgba(107, 33, 200, 0.14);
+  box-shadow: none;
+}
+
+.lds-shell .button.ghost:hover {
+  background: rgba(250, 245, 255, 0.94);
+  color: var(--cbs-text);
 }
 
 .lds-shell .button.ghost.danger {
   color: #b91c1c;
-  border-color: rgba(220, 38, 38, 0.18);
+  border-color: rgba(220, 38, 38, 0.16);
+  background: rgba(255, 244, 245, 0.88);
 }
 
 .cbs-drawer-tag-group {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 8px;
+  gap: 8px;
 }
 
 .cbs-drawer-tag {
   border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(242, 242, 247, 0.72);
-  padding: 6px 10px;
+  border: 1px solid rgba(107, 33, 200, 0.14);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--cbs-text-muted);
+  padding: 7px 11px;
   font-size: 12px;
+  transition:
+    transform var(--cbs-transition-fast),
+    border-color var(--cbs-transition-fast),
+    box-shadow var(--cbs-transition-fast);
+}
+
+.cbs-drawer-tag:hover {
+  transform: translateY(-1px);
+  border-color: rgba(107, 33, 200, 0.26);
+  box-shadow: var(--cbs-shadow-soft);
 }
 
 .cbs-drawer-tag.active {
-  border-color: rgba(59, 130, 246, 0.5);
-  background: rgba(59, 130, 246, 0.18);
-  color: #bfdbfe;
+  border-color: rgba(107, 33, 200, 0.3);
+  background: rgba(243, 236, 255, 0.92);
+  color: var(--ypp-purple-700);
 }
 
 .cbs-drawer-tag.active.alt {
-  border-color: rgba(139, 92, 246, 0.5);
-  background: rgba(139, 92, 246, 0.18);
-  color: #ddd6fe;
+  border-color: rgba(168, 85, 247, 0.28);
+  background: rgba(250, 245, 255, 0.96);
+  color: #7e22ce;
 }
 
 .cbs-drawer-custom-tag-row {
@@ -3177,6 +3710,19 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
+}
+
+@keyframes ldsPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(0.9);
+    opacity: 0.72;
+  }
 }
 
 /* ── Responsive adjustments for new layout ───────────────────── */
@@ -3187,17 +3733,56 @@
     padding: 20px 0 40px;
   }
 
+  .lds-studio-toolbar,
+  .lds-guided-rail,
+  .lds-guided-hero,
+  .lds-step-card,
+  .lds-session-roadmap-card,
+  .lds-example-spotlight {
+    padding: 18px;
+  }
+
+  .lds-studio-toolbar-main,
+  .lds-studio-toolbar-meta,
+  .lds-guided-workbench,
   .lds-hero-grid,
   .lds-phase-strip,
   .lds-form-grid,
   .lds-start-grid,
   .lds-launch-grid,
   .lds-guided-hero-grid,
-  .lds-guided-focus-row,
   .lds-checklist-grid,
   .lds-guided-pill-row,
   .lds-step-layout,
   .lds-step-layout.wide {
+    grid-template-columns: 1fr;
+  }
+
+  .lds-save-indicator {
+    min-width: 100%;
+  }
+
+  .lds-guided-rail,
+  .lds-example-spotlight,
+  .lds-session-roadmap-card,
+  .lds-step-side {
+    position: static;
+  }
+
+  .lds-activity-card {
+    grid-template-columns: 1fr;
+  }
+
+  .lds-activity-actions {
+    justify-content: flex-start;
+  }
+
+  .cbs-drawer {
+    width: min(100vw, 560px);
+  }
+
+  .cbs-drawer-field-grid,
+  .cbs-drawer-energy-grid {
     grid-template-columns: 1fr;
   }
 
@@ -3213,18 +3798,9 @@
     display: none;
   }
 
-  .lds-hero-actions {
-    align-items: flex-start;
-  }
-
   .lds-updated-at {
     width: 100%;
     margin-left: 0;
-  }
-
-  .lds-step-side,
-  .lds-session-roadmap-card {
-    position: static;
   }
 
   .lds-phase-pill {
@@ -3243,6 +3819,22 @@
 }
 
 @media (max-width: 600px) {
+  .lds-toolbar-breadcrumbs,
+  .lds-inline-actions,
+  .lds-session-metrics,
+  .lds-coaching-strip {
+    gap: 8px;
+  }
+
+  .lds-activity-primary {
+    grid-template-columns: 1fr;
+  }
+
+  .lds-activity-handle {
+    width: auto;
+    justify-content: flex-start;
+  }
+
   .lds-phase-strip {
     grid-template-columns: 1fr;
   }
@@ -3253,5 +3845,9 @@
 
   .cbs-week-time-stat {
     order: 2;
+  }
+
+  .cbs-drawer {
+    width: 100vw;
   }
 }
