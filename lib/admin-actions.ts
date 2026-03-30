@@ -17,6 +17,16 @@ import {
 import { validateEnum } from "@/lib/validate-enum";
 import { logAuditEvent } from "@/lib/audit-log-actions";
 import { onProgressEvent } from "@/lib/progress-events";
+import { migrateUsersToSupabaseAuth } from "@/lib/supabase-user-migration";
+
+export type AdminUserMigrationResult = {
+  found: number;
+  migrated: number;
+  linked: number;
+  skipped: number;
+  failed: number;
+  highlights: Array<{ email: string; status: string; detail: string }>;
+};
 
 async function requireAdmin() {
   const session = await getSession();
@@ -36,6 +46,27 @@ function getString(formData: FormData, key: string, required = true) {
     throw new Error(`Missing ${key}`);
   }
   return value ? String(value).trim() : "";
+}
+
+export async function migrateMissingUsers(): Promise<AdminUserMigrationResult> {
+  await requireAdmin();
+
+  const result = await migrateUsersToSupabaseAuth();
+
+  revalidatePath("/admin");
+
+  return {
+    found: result.found,
+    migrated: result.migrated,
+    linked: result.linked,
+    skipped: result.skipped,
+    failed: result.failed,
+    highlights: result.logs.slice(0, 5).map((entry) => ({
+      email: entry.email,
+      status: entry.status,
+      detail: entry.detail,
+    })),
+  };
 }
 
 export async function createUser(formData: FormData) {
