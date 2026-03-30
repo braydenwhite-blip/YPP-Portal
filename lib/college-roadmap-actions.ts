@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { CollegeStage } from "@prisma/client";
 import { STAGE_ORDER, STAGE_CONFIG } from "@/lib/college-roadmap-config";
@@ -79,7 +78,7 @@ const TASK_TEMPLATES: Record<CollegeStage, { title: string; description: string;
 // ============================================
 
 export async function getMyRoadmap() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const userId = session.user.id as string;
@@ -100,7 +99,7 @@ export async function getMyRoadmap() {
  * Get roadmap data enriched with stage config and progress.
  */
 export async function getMyRoadmapData() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const userId = session.user.id as string;
@@ -178,7 +177,7 @@ export async function getMyRoadmapData() {
  * Toggle a task's completion status.
  */
 export async function toggleRoadmapTask(taskId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const userId = session.user.id as string;
@@ -203,7 +202,7 @@ export async function toggleRoadmapTask(taskId: string) {
  * Add a custom task to the roadmap.
  */
 export async function addRoadmapTask(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const userId = session.user.id as string;
@@ -245,7 +244,7 @@ export async function addRoadmapTask(formData: FormData) {
  * Update task notes.
  */
 export async function updateTaskNotes(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const userId = session.user.id as string;
@@ -272,7 +271,7 @@ export async function updateTaskNotes(formData: FormData) {
  * Advance the user to the next stage, loading template tasks for that stage.
  */
 export async function advanceRoadmapStage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const userId = session.user.id as string;
@@ -318,7 +317,7 @@ export async function advanceRoadmapStage() {
  * Update roadmap profile info (graduation year, dream colleges, majors).
  */
 export async function updateRoadmapProfile(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const userId = session.user.id as string;

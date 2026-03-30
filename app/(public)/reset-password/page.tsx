@@ -1,13 +1,9 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
-import { useFormState } from "react-dom";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import BrandLockup from "@/components/brand-lockup";
-import { validateResetToken, resetPassword, ActionResult } from "@/lib/password-reset-actions";
-
-const initialState: ActionResult = { status: "idle", message: "" };
+import { createBrowserClient } from "@/lib/supabase/client";
 
 export default function ResetPasswordPage() {
   return (
@@ -18,65 +14,54 @@ export default function ResetPasswordPage() {
 }
 
 function ResetPasswordPageContent() {
-  const searchParams = useSearchParams();
-  const token = searchParams.get("token") || "";
+  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const [validating, setValidating] = useState(true);
-  const [tokenValid, setTokenValid] = useState(false);
-  const [tokenError, setTokenError] = useState<string | null>(null);
-  const [email, setEmail] = useState<string | null>(null);
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    setStatus("idle");
 
-  const [state, formAction] = useFormState(resetPassword, initialState);
+    const formData = new FormData(e.currentTarget);
+    const password = String(formData.get("password") ?? "");
+    const confirmPassword = String(formData.get("confirmPassword") ?? "");
 
-  useEffect(() => {
-    async function checkToken() {
-      if (!token) {
-        setTokenError("Invalid reset link. Please request a new password reset.");
-        setValidating(false);
-        return;
-      }
-
-      const result = await validateResetToken(token);
-      setTokenValid(result.valid);
-      setTokenError(result.error || null);
-      setEmail(result.email || null);
-      setValidating(false);
+    if (password !== confirmPassword) {
+      setStatus("error");
+      setMessage("Passwords do not match.");
+      setLoading(false);
+      return;
     }
 
-    checkToken();
-  }, [token]);
+    if (password.length < 8) {
+      setStatus("error");
+      setMessage("Password must be at least 8 characters.");
+      setLoading(false);
+      return;
+    }
 
-  if (validating) {
-    return <ResetPasswordLoading />;
+    if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+      setStatus("error");
+      setMessage("Password must contain at least one letter and one number.");
+      setLoading(false);
+      return;
+    }
+
+    const supabase = createBrowserClient();
+    const { error } = await supabase.auth.updateUser({ password });
+
+    if (error) {
+      setStatus("error");
+      setMessage(error.message);
+    } else {
+      setStatus("success");
+      setMessage("Your password has been reset successfully.");
+    }
+    setLoading(false);
   }
 
-  if (!tokenValid) {
-    return (
-      <div className="login-shell">
-        <div className="login-card" style={{ justifySelf: "center" }}>
-          <div className="login-card-header login-card-header--stacked">
-            <BrandLockup height={36} className="brand-lockup" reloadOnClick />
-            <div>
-              <h1 className="page-title" style={{ fontSize: 20 }}>
-                Reset Link Invalid
-              </h1>
-            </div>
-          </div>
-          <div className="form-error">
-            {tokenError || "This reset link is invalid or has expired."}
-          </div>
-          <Link className="button" style={{ display: "block", textAlign: "center" }} href="/forgot-password">
-            Request New Reset Link
-          </Link>
-          <div className="login-help">
-            Remember your password? <Link href="/login">Sign in</Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (state.status === "success") {
+  if (status === "success") {
     return (
       <div className="login-shell">
         <div className="login-card" style={{ justifySelf: "center" }}>
@@ -89,7 +74,7 @@ function ResetPasswordPageContent() {
             </div>
           </div>
           <div className="form-success">
-            {state.message}
+            {message}
           </div>
           <Link className="button" style={{ display: "block", textAlign: "center" }} href="/login">
             Sign In
@@ -108,17 +93,10 @@ function ResetPasswordPageContent() {
             <h1 className="page-title" style={{ fontSize: 20 }}>
               Create New Password
             </h1>
-            {email && (
-              <p className="page-subtitle mt-0" style={{ fontSize: 13 }}>
-                For {email}
-              </p>
-            )}
           </div>
         </div>
 
-        <form action={formAction}>
-          <input type="hidden" name="token" value={token} />
-
+        <form onSubmit={handleSubmit}>
           <label className="form-label" style={{ marginTop: 0 }}>
             New Password
             <input
@@ -143,12 +121,12 @@ function ResetPasswordPageContent() {
             />
           </label>
 
-          {state.status === "error" && (
-            <div className="form-error">{state.message}</div>
+          {status === "error" && (
+            <div className="form-error">{message}</div>
           )}
 
-          <button className="button" type="submit">
-            Reset Password
+          <button className="button" type="submit" disabled={loading}>
+            {loading ? "Resetting\u2026" : "Reset Password"}
           </button>
         </form>
 
@@ -164,7 +142,7 @@ function ResetPasswordLoading() {
   return (
     <div className="login-shell">
       <div className="login-card" style={{ justifySelf: "center", textAlign: "center" }}>
-        <p style={{ color: "var(--muted)" }}>Validating reset link...</p>
+        <p style={{ color: "var(--muted)" }}>Loading...</p>
       </div>
     </div>
   );

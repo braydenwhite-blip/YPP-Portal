@@ -1,23 +1,42 @@
 "use client";
 
-import { useFormState } from "react-dom";
-import { resendVerificationEmail } from "@/lib/email-verification-actions";
-
-const initialState = { status: "", message: "" };
+import { useState } from "react";
+import { createBrowserClient } from "@/lib/supabase/client";
 
 export default function ResendVerificationForm({ initialEmail }: { initialEmail: string }) {
-  const [state, action] = useFormState(resendVerificationEmail, initialState);
+  const [status, setStatus] = useState<"" | "success" | "error">("");
+  const [message, setMessage] = useState("");
 
-  if (state.status === "success") {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const email = String(formData.get("email") ?? "").trim();
+
+    const supabase = createBrowserClient();
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+    });
+
+    if (error) {
+      setStatus("error");
+      setMessage(error.message);
+    } else {
+      setStatus("success");
+      setMessage("Verification email sent! Check your inbox.");
+    }
+  }
+
+  if (status === "success") {
     return (
-      <p className="form-success" style={{ margin: 0 }}>{state.message}</p>
+      <p className="form-success" style={{ margin: 0 }}>{message}</p>
     );
   }
 
   return (
-    <form action={action} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {state.status === "error" && (
-        <p className="form-error" style={{ margin: 0 }}>{state.message}</p>
+    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {status === "error" && (
+        <p className="form-error" style={{ margin: 0 }}>{message}</p>
       )}
       <label className="form-row" style={{ margin: 0 }}>
         Email address

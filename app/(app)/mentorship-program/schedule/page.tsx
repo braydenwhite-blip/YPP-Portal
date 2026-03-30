@@ -1,13 +1,12 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getMentorScheduleQueue } from "@/lib/mentorship-scheduling-actions";
 import MentorSchedulePanel from "./mentor-schedule-panel";
 
 export const metadata = { title: "Meeting Requests — Mentorship Program" };
 
 export default async function MentorSchedulePage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const roles = session.user.roles ?? [];

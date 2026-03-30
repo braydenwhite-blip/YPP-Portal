@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { withdrawApplication } from "@/lib/application-actions";
@@ -29,7 +28,7 @@ export default async function MyApplicationsPage({
   searchParams: Promise<{ status?: string }>;
 }) {
   const params = await searchParams;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   if (!session?.user?.id) {
     redirect("/login");

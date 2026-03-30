@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getCohorts } from "@/lib/incubator-actions";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
@@ -16,7 +15,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default async function AdminIncubatorPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const roles = (session.user as any).roles ?? [];

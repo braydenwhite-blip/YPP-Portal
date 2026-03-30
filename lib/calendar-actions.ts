@@ -1,14 +1,13 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { RsvpStatus } from "@prisma/client";
 import { scheduleEventReminders } from "@/lib/chapter-calendar";
 
 async function requireAuth() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
@@ -24,7 +23,7 @@ function getString(formData: FormData, key: string, required = true) {
 }
 
 async function getCalendarViewer(userId?: string) {
-  const resolvedUserId = userId || (await getServerSession(authOptions))?.user?.id;
+  const resolvedUserId = userId || (await getSession())?.user?.id;
   if (!resolvedUserId) return null;
 
   return await prisma.user.findUnique({

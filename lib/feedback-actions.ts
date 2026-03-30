@@ -1,7 +1,7 @@
 "use server";
 
-import { authOptions } from "@/lib/auth";
 import {
+import { getSession } from "@/lib/auth-supabase";
   createMentorshipRequest,
   markMentorshipResponseHelpful,
   respondToMentorshipRequest,
@@ -9,10 +9,9 @@ import {
 import { getPrivateMentorshipRequests } from "@/lib/mentorship-hub";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { getServerSession } from "next-auth";
 
 async function requireAuth() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }

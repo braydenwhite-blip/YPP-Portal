@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { buildContextTrail } from "@/lib/context-trail";
 import ContextTrail from "@/components/context-trail";
@@ -34,7 +33,7 @@ function getRunStatusStyle(status: "NOT_OFFERED" | "COMING_SOON" | "ACTIVE" | "P
 }
 
 export default async function PathwaysPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const [journey, trailItems] = await Promise.all([

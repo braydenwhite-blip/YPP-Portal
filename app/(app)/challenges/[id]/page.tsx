@@ -1,13 +1,12 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getChallengeDetail } from "@/lib/challenge-gamification-actions";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { CheckInForm, DropButton } from "../client";
 
 export default async function ChallengeDetailPage({ params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const { challenge, myParticipation } = await getChallengeDetail(params.id);

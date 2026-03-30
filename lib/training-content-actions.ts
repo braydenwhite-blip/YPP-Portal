@@ -1,14 +1,13 @@
 "use server";
 
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth-supabase";
 import {
   TrainingModuleType,
   TrainingStatus,
   VideoProvider,
 } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import { getServerSession } from "next-auth";
 
 type TrainingContentCheckpoint = {
   contentKey: string;
@@ -112,7 +111,7 @@ function createEmptyCounters(): ImportCounters {
 }
 
 async function requireAdmin() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }

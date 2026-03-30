@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { getActivityFeedForUser } from "@/lib/activity-hub/actions";
 import type { ActivitySourceType } from "@/lib/activity-hub/types";
@@ -39,7 +38,7 @@ export default async function ActivitiesPage({
 }: {
   searchParams?: { source?: string; passion?: string };
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
   const featureEnabled = await isFeatureEnabledForUser("ACTIVITY_HUB", {
     userId: session.user.id,

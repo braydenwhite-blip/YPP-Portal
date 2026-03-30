@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { MentorshipSessionType } from "@prisma/client";
 import { createMentorshipNotification } from "@/lib/mentorship-program-actions";
@@ -12,7 +11,7 @@ import { createMentorshipNotification } from "@/lib/mentorship-program-actions";
 // ============================================
 
 async function requireSession() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   return session as typeof session & { user: { id: string } };
 }

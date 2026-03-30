@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 
 export async function parseCSV(text: string): Promise<{
@@ -29,7 +28,7 @@ export async function importApplicationsFromCSV(formData: FormData): Promise<{
   skipped: number;
   errors: string[];
 }> {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!session || !roles.includes("ADMIN")) {
     throw new Error("Unauthorized: Admin access required");

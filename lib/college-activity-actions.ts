@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { ActivityCategory } from "@prisma/client";
 import { ACTIVITY_CATEGORY_CONFIG } from "@/lib/college-activity-config";
@@ -15,7 +14,7 @@ const CATEGORY_CONFIG = ACTIVITY_CATEGORY_CONFIG;
 // ============================================
 
 export async function getMyActivities() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const userId = session.user.id as string;
@@ -59,7 +58,7 @@ export async function getMyActivities() {
  * Generate Common App format export (top 10 activities).
  */
 export async function generateCommonAppExport(userId?: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const targetUserId = userId ?? (session.user.id as string);
@@ -95,7 +94,7 @@ export async function generateCommonAppExport(userId?: string) {
  * Auto-populate YPP activities from portal data (mentorship, awards, etc.).
  */
 export async function populateYppActivities() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const userId = session.user.id as string;
@@ -177,7 +176,7 @@ export async function populateYppActivities() {
 // ============================================
 
 export async function createActivity(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const userId = session.user.id as string;
@@ -223,7 +222,7 @@ export async function createActivity(formData: FormData) {
 }
 
 export async function updateActivity(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const userId = session.user.id as string;
@@ -255,7 +254,7 @@ export async function updateActivity(formData: FormData) {
 }
 
 export async function deleteActivity(activityId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const userId = session.user.id as string;
@@ -270,7 +269,7 @@ export async function deleteActivity(activityId: string) {
 }
 
 export async function addMilestone(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const userId = session.user.id as string;

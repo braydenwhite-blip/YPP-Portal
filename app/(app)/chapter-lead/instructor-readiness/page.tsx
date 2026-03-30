@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   approveOfferingApproval,
@@ -28,7 +27,7 @@ function getDraftIdFromEvidenceUrl(fileUrl: string) {
 }
 
 export default async function ChapterLeadInstructorReadinessPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }

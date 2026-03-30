@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import ReflectionForm from "./reflection-form";
@@ -9,7 +8,7 @@ import Link from "next/link";
 export const metadata = { title: "Submit Reflection — My Program" };
 
 export default async function ReflectPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const userId = session.user.id;

@@ -1,9 +1,8 @@
 "use server";
 
 import { Prisma, type IncubatorPhase } from "@prisma/client";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { awardXp } from "@/lib/xp";
 import { createNotification } from "@/lib/notifications";
@@ -41,7 +40,7 @@ const INCUBATOR_TABLES = new Set(
 );
 
 async function requireAuth() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   return session;
 }

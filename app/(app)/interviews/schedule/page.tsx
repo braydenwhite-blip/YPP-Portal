@@ -1,13 +1,12 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getInterviewScheduleData } from "@/lib/interview-scheduling-actions";
 import InterviewScheduleClient from "./interview-schedule-client";
 
 export const metadata = { title: "Interview Scheduling — YPP" };
 
 export default async function InterviewSchedulePage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const data = await getInterviewScheduleData();

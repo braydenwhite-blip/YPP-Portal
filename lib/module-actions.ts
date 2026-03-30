@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 
 // ---------------------------------------------------------------------------
@@ -10,7 +9,7 @@ import { revalidatePath } from "next/cache";
 // ---------------------------------------------------------------------------
 
 async function requireUser() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
@@ -56,7 +55,7 @@ export async function getModuleById(id: string) {
 
 /** Fetch the current user's watch progress for given module ids. */
 export async function getMyModuleProgress(moduleIds: string[]) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id || moduleIds.length === 0) return [];
 
   return prisma.moduleWatchProgress.findMany({
@@ -69,7 +68,7 @@ export async function getMyModuleProgress(moduleIds: string[]) {
 
 /** Fetch the current user's progress for a single module. */
 export async function getMyProgressForModule(moduleId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   return prisma.moduleWatchProgress.findUnique({

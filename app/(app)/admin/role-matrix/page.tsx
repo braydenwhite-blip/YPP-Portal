@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getRoleMatrixData } from "@/lib/governance/actions";
 import Link from "next/link";
 
@@ -19,7 +18,7 @@ const ROLE_LABELS: Record<string, string> = {
 const ROLE_KEYS = ["ADMIN", "CHAPTER_PRESIDENT", "INSTRUCTOR", "MENTOR", "STUDENT", "STAFF", "PARENT"];
 
 export default async function RoleMatrixPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session) redirect("/login");
   const roles = session.user.roles ?? [];
   if (!roles.includes("ADMIN")) redirect("/");

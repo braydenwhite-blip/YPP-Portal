@@ -1,15 +1,14 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 
 // ============================================
 // MENTOR OVERVIEW — per-mentee status cards
 // ============================================
 
 export async function getMentorOverview() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const roles = session.user.roles ?? [];
@@ -121,7 +120,7 @@ export async function getMentorOverview() {
 // ============================================
 
 export async function getProgramAnalytics() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
   const roles = session.user.roles ?? [];
   if (!roles.includes("ADMIN")) return null;

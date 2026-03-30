@@ -1,11 +1,10 @@
 "use server";
 
-import { authOptions } from "@/lib/auth";
 import { createSystemNotification } from "@/lib/notification-actions";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { InterviewOutcome, InterviewRequestStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import { getServerSession } from "next-auth";
 
 function getString(formData: FormData, key: string, required = true) {
   const value = formData.get(key);
@@ -23,7 +22,7 @@ function getNumber(formData: FormData, key: string, fallback: number) {
 }
 
 async function requireAuth() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }

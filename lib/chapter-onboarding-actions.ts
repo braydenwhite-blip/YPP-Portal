@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { OnboardingStepType } from "@prisma/client";
 
@@ -62,7 +61,7 @@ const DEFAULT_STEPS: Array<{
  * Creates default steps if the chapter has none.
  */
 export async function getOnboardingData() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -131,7 +130,7 @@ export async function getOnboardingData() {
  * Mark an onboarding step as complete.
  */
 export async function completeOnboardingStep(stepId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -193,7 +192,7 @@ export async function hasCompletedOnboarding(userId: string, chapterId: string):
  * Get onboarding step config for chapter presidents to customize.
  */
 export async function getOnboardingConfig() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -227,7 +226,7 @@ export async function getOnboardingConfig() {
  * Add a custom onboarding step (chapter president only).
  */
 export async function addOnboardingStep(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -270,7 +269,7 @@ export async function addOnboardingStep(formData: FormData) {
  * Remove an onboarding step (chapter president only).
  */
 export async function removeOnboardingStep(stepId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -300,7 +299,7 @@ export async function removeOnboardingStep(stepId: string) {
  * Toggle step required/optional (chapter president only).
  */
 export async function toggleStepRequired(stepId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({

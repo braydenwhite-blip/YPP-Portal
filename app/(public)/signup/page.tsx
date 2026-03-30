@@ -3,7 +3,7 @@
 import { useFormState } from "react-dom";
 import Link from "next/link";
 import BrandLockup from "@/components/brand-lockup";
-import { signIn } from "next-auth/react";
+import { createBrowserClient } from "@/lib/supabase/client";
 import { signUp } from "@/lib/signup-actions";
 import { useEffect, useState } from "react";
 import ResendVerificationForm from "@/app/(public)/verify-email/resend-form";
@@ -100,7 +100,15 @@ export default function SignupPage() {
         </div>
         <button
           type="button"
-          onClick={() => signIn("google", { callbackUrl: "/" })}
+          onClick={() => {
+            const supabase = createBrowserClient();
+            supabase.auth.signInWithOAuth({
+              provider: "google",
+              options: {
+                redirectTo: `${window.location.origin}/auth/callback?next=/`,
+              },
+            });
+          }}
           className="button secondary"
           style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12 }}
         >

@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
 import { PassionCategory } from "@prisma/client";
 import {
@@ -19,7 +18,7 @@ async function togglePassionAction(formData: FormData) {
 }
 
 export default async function AdminPassionsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const roles = (session.user as any).roles ?? [];

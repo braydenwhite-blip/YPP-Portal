@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getClassCatalog } from "@/lib/class-management-actions";
 import { getLegacyLearnerFitCopy, getLearnerFitSummary } from "@/lib/learner-fit";
 import { prisma } from "@/lib/prisma";
@@ -26,7 +25,7 @@ export default async function CurriculumPage({
     notice?: string;
   }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const params = await searchParams;

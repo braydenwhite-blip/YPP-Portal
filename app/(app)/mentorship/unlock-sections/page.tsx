@@ -1,7 +1,6 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
-import { authOptions } from "@/lib/auth";
 import {
   getMenteeUnlockStatus,
   mentorDirectUnlock,
@@ -31,7 +30,7 @@ const SECTION_LABELS: Record<string, { label: string; description: string }> = {
 const BASIC_SECTIONS = new Set(["challenges", "projects", "people_support"]);
 
 export default async function UnlockSectionsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const roles = session.user.roles ?? [];
@@ -58,7 +57,7 @@ export default async function UnlockSectionsPage() {
 
   async function handleDirectUnlock(formData: FormData) {
     "use server";
-    const sess = await getServerSession(authOptions);
+    const sess = await getSession();
     if (!sess?.user?.id) return;
 
     const studentId = formData.get("studentId") as string;
@@ -74,7 +73,7 @@ export default async function UnlockSectionsPage() {
 
   async function handleRecommend(formData: FormData) {
     "use server";
-    const sess = await getServerSession(authOptions);
+    const sess = await getSession();
     if (!sess?.user?.id) return;
 
     const studentId = formData.get("studentId") as string;

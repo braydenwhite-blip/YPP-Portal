@@ -1,74 +1,15 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import BrandLockup from "@/components/brand-lockup";
-import { signIn } from "next-auth/react";
-import { useFormState } from "react-dom";
-import { requestMagicLink, resendVerificationEmail } from "@/lib/email-verification-actions";
+import { createBrowserClient } from "@/lib/supabase/client";
 
-/**
- * With `redirect: false`, NextAuth still returns HTTP 200 + `{ url }` for some failure paths
- * (e.g. CSRF could not be verified → `/api/auth/signin?csrf=true`). The client treats that as
- * `ok: true`, we `router.push("/")` without a session, middleware sends us back to `/login`, and
- * a full reload clears the form with no error message.
- */
-function isNextAuthCredentialsFalseSuccess(result: { ok?: boolean; url?: string | null } | undefined): boolean {
-  if (!result?.ok || !result.url) return false;
-  try {
-    const u = new URL(result.url);
-    if (u.searchParams.get("csrf") === "true") return true;
-    if (u.pathname.includes("/api/auth/signin")) return true;
-    if (u.pathname.includes("/api/auth/error")) return true;
-    return false;
-  } catch {
-    return false;
-  }
-}
-
-// ------------------------------------
-// Inline resend-verification sub-form
-// ------------------------------------
-function ResendInline({ initialEmail }: { initialEmail: string }) {
-  const [state, action] = useFormState(resendVerificationEmail, { status: "", message: "" });
-
-  if (state.status === "success") {
-    return <p className="form-success" style={{ margin: "8px 0 0" }}>{state.message}</p>;
-  }
-
-  return (
-    <form action={action} style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-      {state.status === "error" && (
-        <p className="form-error" style={{ margin: 0 }}>{state.message}</p>
-      )}
-      <label className="form-label" style={{ margin: 0, fontSize: 13 }}>
-        Email address
-        <input
-          className="input"
-          name="email"
-          type="email"
-          required
-          defaultValue={initialEmail}
-          placeholder="your@email.com"
-        />
-      </label>
-      <button className="button secondary" type="submit" style={{ width: "100%" }}>
-        Resend Verification Email
-      </button>
-    </form>
-  );
-}
-
-// ------------------------------------
-// Main login content — uses useSearchParams (requires Suspense)
-// ------------------------------------
 function LoginPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-
   const callbackUrl = searchParams.get("callbackUrl") || "/";
-  const mt = searchParams.get("mt");
 
   const [loginMethod, setLoginMethod] = useState<"password" | "magic">("password");
   const [email, setEmail] = useState("");
@@ -76,98 +17,73 @@ function LoginPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [showResend, setShowResend] = useState(false);
-  const [resendEmail, setResendEmail] = useState("");
-  // 2FA challenge state
-  const [twoFactorStep, setTwoFactorStep] = useState(false);
-  const [challengeToken, setChallengeToken] = useState("");
+  const [magicSent, setMagicSent] = useState(false);
+
+  // MFA challenge state
+  const [mfaStep, setMfaStep] = useState(false);
+  const [mfaFactorId, setMfaFactorId] = useState("");
+  const [mfaChallengeId, setMfaChallengeId] = useState("");
   const [totpCode, setTotpCode] = useState("");
 
-  const [magicState, magicAction] = useFormState(requestMagicLink, { status: "", message: "" });
-
-  // Auto-sign in when a magic relay token (?mt=) is present
-  useEffect(() => {
-    if (!mt) return;
-    setLoading(true);
-    const absoluteCallback =
-      typeof window !== "undefined" ? new URL(callbackUrl, window.location.origin).href : callbackUrl;
-    signIn("credentials", { mt, redirect: false, callbackUrl: absoluteCallback }).then((result) => {
-      if (result?.ok && !isNextAuthCredentialsFalseSuccess(result)) {
-        router.refresh();
-        router.push(callbackUrl.startsWith("/") ? callbackUrl : "/");
-      } else if (isNextAuthCredentialsFalseSuccess(result)) {
-        setError(
-          "Could not verify sign-in. Set NEXTAUTH_SECRET in .env, match NEXTAUTH_URL to how you open the site (localhost vs 127.0.0.1), refresh, and open the magic link again."
-        );
-        setLoading(false);
-      } else {
-        setError("This magic link has expired or already been used. Please request a new one.");
-        setLoading(false);
-      }
-    });
-  }, [mt]); // eslint-disable-line react-hooks/exhaustive-deps
+  const supabase = createBrowserClient();
 
   async function handlePasswordSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    setShowResend(false);
     setLoading(true);
 
-    const absoluteCallback = new URL(callbackUrl, window.location.origin).href;
-    let result: Awaited<ReturnType<typeof signIn>>;
-    try {
-      result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-        callbackUrl: absoluteCallback,
-      });
-    } catch {
-      setError("Sign-in could not complete. Check your connection and try again.");
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (signInError) {
+      if (signInError.message.includes("Invalid login credentials")) {
+        setError("Invalid email or password.");
+      } else if (signInError.message.includes("Email not confirmed")) {
+        setError("Please verify your email before signing in.");
+      } else if (signInError.message.includes("Too many requests")) {
+        setError("Too many login attempts. Please try again later.");
+      } else {
+        setError(signInError.message);
+      }
       setLoading(false);
       return;
     }
 
-    if (result?.ok && !isNextAuthCredentialsFalseSuccess(result)) {
-      router.refresh();
-      router.push(callbackUrl.startsWith("/") ? callbackUrl : "/");
-      return;
-    }
-
-    if (isNextAuthCredentialsFalseSuccess(result)) {
-      setError(
-        "Sign-in session expired or could not be verified. Confirm NEXTAUTH_SECRET is set in .env, use the same host as NEXTAUTH_URL (e.g. only localhost or only 127.0.0.1), then refresh this page and try again."
-      );
-      setLoading(false);
-      return;
-    }
-
-    const err = result?.error ?? "";
-    if (err.startsWith("TWO_FACTOR_REQUIRED::")) {
-      const token = err.replace("TWO_FACTOR_REQUIRED::", "");
-      setChallengeToken(token);
-      setTwoFactorStep(true);
-      setLoading(false);
-      return;
-    } else if (err === "EMAIL_NOT_VERIFIED") {
-      setResendEmail(email);
-      setShowResend(true);
-      setError("Please verify your email before signing in.");
-    } else if (err === "CredentialsSignin" || err === "") {
-      setError("Invalid email or password.");
-    } else if (err.includes("Too many") || err.includes("locked")) {
-      setError(err.includes("locked")
-        ? "Account temporarily locked. Try again in 30 minutes or reset your password."
-        : "Too many login attempts. Please try again later.");
-    } else if (err.includes("Google sign-in")) {
-      setError("This account uses Google sign-in. Please use the button above.");
-    } else if (err === "MAGIC_LINK_EXPIRED") {
-      setError("This magic link has expired or already been used. Please request a new one.");
-    } else {
+    // Check if MFA is required
+    if (data.session === null && data.user === null) {
+      // This shouldn't happen with valid credentials, treat as error
       setError("Something went wrong. Please try again.");
+      setLoading(false);
+      return;
     }
 
-    setLoading(false);
+    // Check for MFA challenge
+    const { data: mfaData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (mfaData?.nextLevel === "aal2" && mfaData.currentLevel === "aal1") {
+      // User has MFA enrolled, need to verify
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const totpFactor = factors?.totp?.[0];
+      if (totpFactor) {
+        const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
+          factorId: totpFactor.id,
+        });
+        if (challengeError) {
+          setError("Could not start 2FA challenge. Please try again.");
+          setLoading(false);
+          return;
+        }
+        setMfaFactorId(totpFactor.id);
+        setMfaChallengeId(challenge.id);
+        setMfaStep(true);
+        setLoading(false);
+        return;
+      }
+    }
+
+    router.refresh();
+    router.push(callbackUrl.startsWith("/") ? callbackUrl : "/");
   }
 
   async function handleTotpSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -175,67 +91,65 @@ function LoginPageContent() {
     setError(null);
     setLoading(true);
 
-    const absoluteCallback = new URL(callbackUrl, window.location.origin).href;
-    let result: Awaited<ReturnType<typeof signIn>>;
-    try {
-      result = await signIn("credentials", {
-        challengeToken,
-        totpCode,
-        redirect: false,
-        callbackUrl: absoluteCallback,
-      });
-    } catch {
-      setError("Verification could not complete. Try again.");
+    const { error: verifyError } = await supabase.auth.mfa.verify({
+      factorId: mfaFactorId,
+      challengeId: mfaChallengeId,
+      code: totpCode,
+    });
+
+    if (verifyError) {
+      if (verifyError.message.includes("expired")) {
+        setMfaStep(false);
+        setMfaFactorId("");
+        setMfaChallengeId("");
+        setTotpCode("");
+        setError("2FA session expired. Please sign in again.");
+      } else {
+        setError("Invalid verification code. Please try again.");
+      }
       setLoading(false);
       return;
     }
 
-    if (result?.ok && !isNextAuthCredentialsFalseSuccess(result)) {
-      router.refresh();
-      router.push(callbackUrl.startsWith("/") ? callbackUrl : "/");
-      return;
-    }
-
-    if (isNextAuthCredentialsFalseSuccess(result)) {
-      setError(
-        "Session could not be verified. Refresh the page and sign in again. Use the same URL host as NEXTAUTH_URL in .env."
-      );
-      setLoading(false);
-      return;
-    }
-
-    const err = result?.error ?? "";
-    if (err.includes("expired")) {
-      setTwoFactorStep(false);
-      setChallengeToken("");
-      setTotpCode("");
-      setError("2FA session expired. Please sign in again.");
-    } else {
-      setError("Invalid verification code. Please try again.");
-    }
-    setLoading(false);
+    router.refresh();
+    router.push(callbackUrl.startsWith("/") ? callbackUrl : "/");
   }
 
   async function handleGoogleSignIn() {
     setError(null);
     setGoogleLoading(true);
-    await signIn("google", { callbackUrl });
-    // redirect:true navigates away; this line only reached on error
-    setGoogleLoading(false);
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(callbackUrl)}`,
+      },
+    });
+    if (oauthError) {
+      setError("Could not start Google sign-in. Please try again.");
+      setGoogleLoading(false);
+    }
   }
 
-  // Show a minimal loading screen while magic-token auto-signin is in progress
-  if (mt && loading) {
-    return (
-      <div className="login-shell">
-        <div className="login-card" style={{ justifySelf: "center", textAlign: "center", padding: "48px 32px" }}>
-          <div style={{ marginBottom: 16 }}>
-            <BrandLockup height={40} className="brand-lockup" reloadOnClick />
-          </div>
-          <p style={{ color: "var(--muted)", margin: 0 }}>Signing you in&hellip;</p>
-        </div>
-      </div>
-    );
+  async function handleMagicLink(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    const formData = new FormData(e.currentTarget);
+    const magicEmail = String(formData.get("email") ?? "").trim();
+
+    const { error: otpError } = await supabase.auth.signInWithOtp({
+      email: magicEmail,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(callbackUrl)}`,
+      },
+    });
+
+    if (otpError) {
+      setError(otpError.message);
+    } else {
+      setMagicSent(true);
+    }
+    setLoading(false);
   }
 
   const tabBtnBase: React.CSSProperties = {
@@ -307,14 +221,14 @@ function LoginPageContent() {
             </div>
           </div>
 
-          {/* 2FA step — shown after password is verified */}
-          {twoFactorStep && (
+          {/* MFA step — shown after password is verified */}
+          {mfaStep && (
             <form onSubmit={handleTotpSubmit}>
               <p style={{ fontSize: 14, color: "var(--foreground)", fontWeight: 500, marginBottom: 4 }}>
                 Two-Factor Authentication
               </p>
               <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 16, lineHeight: 1.5 }}>
-                Enter the 6-digit code from your authenticator app, or a recovery code.
+                Enter the 6-digit code from your authenticator app.
               </p>
               <label className="form-label" style={{ marginTop: 0 }}>
                 Verification Code
@@ -324,9 +238,9 @@ function LoginPageContent() {
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   placeholder="000000"
-                  maxLength={11}
+                  maxLength={6}
                   value={totpCode}
-                  onChange={(e) => setTotpCode(e.target.value.trim())}
+                  onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ""))}
                   autoFocus
                   required
                 />
@@ -339,15 +253,15 @@ function LoginPageContent() {
                 type="button"
                 className="button secondary"
                 style={{ marginTop: 8, width: "100%" }}
-                onClick={() => { setTwoFactorStep(false); setChallengeToken(""); setTotpCode(""); setError(null); }}
+                onClick={() => { setMfaStep(false); setMfaFactorId(""); setMfaChallengeId(""); setTotpCode(""); setError(null); }}
               >
                 Back to Sign In
               </button>
             </form>
           )}
 
-          {/* Normal sign-in UI — hidden during 2FA step */}
-          {!twoFactorStep && <>
+          {/* Normal sign-in UI — hidden during MFA step */}
+          {!mfaStep && <>
 
           {/* Google sign-in */}
           <button
@@ -382,7 +296,7 @@ function LoginPageContent() {
           <div style={{ display: "flex", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 3, gap: 3, marginBottom: 16 }}>
             <button
               type="button"
-              onClick={() => { setLoginMethod("password"); setError(null); setShowResend(false); }}
+              onClick={() => { setLoginMethod("password"); setError(null); setMagicSent(false); }}
               style={{
                 ...tabBtnBase,
                 background: loginMethod === "password" ? "var(--card)" : "transparent",
@@ -394,7 +308,7 @@ function LoginPageContent() {
             </button>
             <button
               type="button"
-              onClick={() => { setLoginMethod("magic"); setError(null); setShowResend(false); }}
+              onClick={() => { setLoginMethod("magic"); setError(null); setMagicSent(false); }}
               style={{
                 ...tabBtnBase,
                 background: loginMethod === "magic" ? "var(--card)" : "transparent",
@@ -437,10 +351,7 @@ function LoginPageContent() {
                 </Link>
               </div>
               {error && (
-                <div className="form-error">
-                  {error}
-                  {showResend && <ResendInline initialEmail={resendEmail} />}
-                </div>
+                <div className="form-error">{error}</div>
               )}
               <button className="button" type="submit" disabled={loading}>
                 {loading ? "Signing in\u2026" : "Sign In"}
@@ -450,7 +361,7 @@ function LoginPageContent() {
 
           {/* Magic link form */}
           {loginMethod === "magic" && (
-            <form action={magicAction}>
+            <form onSubmit={handleMagicLink}>
               <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 14px", lineHeight: 1.5 }}>
                 Enter your email and we&apos;ll send a one-click sign-in link — no password needed.
               </p>
@@ -464,15 +375,16 @@ function LoginPageContent() {
                   required
                 />
               </label>
-              {magicState.status === "error" && (
-                <div className="form-error">{magicState.message}</div>
+              {error && (
+                <div className="form-error">{error}</div>
               )}
-              {magicState.status === "success" && (
-                <div className="form-success">{magicState.message}</div>
-              )}
-              {magicState.status !== "success" && (
-                <button className="button" type="submit">
-                  Send Magic Link
+              {magicSent ? (
+                <div className="form-success">
+                  Check your email for a sign-in link. It may take a minute to arrive.
+                </div>
+              ) : (
+                <button className="button" type="submit" disabled={loading}>
+                  {loading ? "Sending\u2026" : "Send Magic Link"}
                 </button>
               )}
             </form>

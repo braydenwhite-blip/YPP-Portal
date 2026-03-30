@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { PositionType, PositionVisibility } from "@prisma/client";
 
@@ -49,7 +48,7 @@ export default async function PositionsPage({
   searchParams: Promise<PositionFilters>;
 }) {
   const params = await searchParams;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   const currentUser = session?.user?.id
     ? await prisma.user.findUnique({

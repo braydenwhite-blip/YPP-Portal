@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import bcrypt from "bcryptjs";
+import { createServiceClient } from "@/lib/supabase/server";
 import { RoleType } from "@prisma/client";
 import { checkRateLimit } from "@/lib/rate-limit";
 
@@ -56,17 +56,34 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
       };
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    // Create user in Supabase Auth
+    const supabaseAdmin = createServiceClient();
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        name,
+        primaryRole,
+        chapterId: chapterId || null,
+      },
+    });
+
+    if (authError) {
+      console.error("[Signup] Supabase auth error:", authError.message);
+      return { status: "error", message: "Something went wrong. Please try again." };
+    }
 
     const newUser = await prisma.user.create({
       data: {
         name,
         email,
         phone: phone || null,
-        passwordHash,
+        passwordHash: "", // Passwords now managed by Supabase Auth
         primaryRole,
         chapterId: chapterId || null,
         emailVerified: new Date(),
+        supabaseAuthId: authData.user.id,
         roles: {
           create: [{ role: primaryRole }]
         }
@@ -205,16 +222,29 @@ export async function signUpParent(prevState: FormState, formData: FormData): Pr
       };
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    // Create user in Supabase Auth
+    const supabaseAdmin = createServiceClient();
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { name, primaryRole: RoleType.PARENT },
+    });
+
+    if (authError) {
+      console.error("[Signup] Supabase auth error:", authError.message);
+      return { status: "error", message: "Something went wrong. Please try again." };
+    }
 
     const parent = await prisma.user.create({
       data: {
         name,
         email,
         phone: phone || null,
-        passwordHash,
+        passwordHash: "", // Passwords now managed by Supabase Auth
         primaryRole: RoleType.PARENT,
         emailVerified: new Date(),
+        supabaseAuthId: authData.user.id,
         roles: {
           create: [{ role: RoleType.PARENT }]
         }

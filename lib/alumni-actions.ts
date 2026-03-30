@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { AwardType } from "@prisma/client";
 
@@ -29,7 +28,7 @@ const SILVER_AWARDS: AwardType[] = [
 const GOLD_AWARDS: AwardType[] = ["GOLD_INSTRUCTOR", "GOLD_ACHIEVEMENT"];
 
 export async function getUserAwardTier(userId?: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const targetUserId = userId || session?.user?.id;
 
   if (!targetUserId) return null;
@@ -75,7 +74,7 @@ export async function getAlumniDirectory(filters?: {
   college?: string;
   major?: string;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   // Check access
@@ -122,7 +121,7 @@ export async function getAlumniDirectory(filters?: {
 }
 
 export async function getAlumniProfile(alumniId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const hasAccess = await canAccessAlumniDirectory();
@@ -152,7 +151,7 @@ export async function getAlumniProfile(alumniId: string) {
 // ============================================
 
 export async function getAlumniEvents() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const hasAccess = await canAccessAlumniDirectory();
@@ -179,7 +178,7 @@ export async function getAlumniEvents() {
 }
 
 export async function rsvpToAlumniEvent(eventId: string, status: "GOING" | "MAYBE" | "NOT_GOING") {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const hasAccess = await canAccessAlumniDirectory();
@@ -213,7 +212,7 @@ export async function rsvpToAlumniEvent(eventId: string, status: "GOING" | "MAYB
 // ============================================
 
 export async function getMyCollegeAdvisor() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const hasAccess = await canAccessCollegeAdvisor();
@@ -241,7 +240,7 @@ export async function getMyCollegeAdvisor() {
 }
 
 export async function getAvailableAdvisors() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const hasAccess = await canAccessCollegeAdvisor();
@@ -264,7 +263,7 @@ export async function getAvailableAdvisors() {
 }
 
 export async function requestAdvisor(advisorId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const hasAccess = await canAccessCollegeAdvisor();
@@ -300,7 +299,7 @@ export async function requestAdvisor(advisorId: string) {
 // ============================================
 
 export async function getMyAlumniProfile() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   return prisma.alumniProfile.findUnique({
@@ -309,7 +308,7 @@ export async function getMyAlumniProfile() {
 }
 
 export async function updateMyAlumniProfile(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const graduationYear = parseInt(formData.get("graduationYear") as string) || null;
@@ -349,7 +348,7 @@ export async function updateMyAlumniProfile(formData: FormData) {
 // ============================================
 
 export async function getMyAwards() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const awards = await prisma.award.findMany({
@@ -367,7 +366,7 @@ export async function getMyAwards() {
 // ============================================
 
 export async function getAllAlumniProfiles() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -395,7 +394,7 @@ export async function getAllAlumniProfiles() {
 }
 
 export async function grantAward(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -426,7 +425,7 @@ export async function grantAward(formData: FormData) {
 }
 
 export async function assignCollegeAdvisor(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -470,7 +469,7 @@ export async function assignCollegeAdvisor(formData: FormData) {
 }
 
 export async function createCollegeAdvisor(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({

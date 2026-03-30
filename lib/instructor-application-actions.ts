@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { RoleType, InstructorApplicationStatus, ApprovalStatus } from "@prisma/client";
 import {
@@ -31,7 +30,7 @@ function getString(formData: FormData, key: string, required = true) {
 }
 
 async function requireAdminOrChapterLead() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   const roles = session.user.roles ?? [];
   if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT")) {
@@ -365,7 +364,7 @@ export async function submitInfoResponse(
   formData: FormData
 ): Promise<FormState> {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
     if (!session?.user?.id) return { status: "error", message: "Unauthorized" };
 
     const response = getString(formData, "applicantResponse");

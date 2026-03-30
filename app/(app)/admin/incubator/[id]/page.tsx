@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getCohortById, getAvailableMentors } from "@/lib/incubator-actions";
 import Link from "next/link";
 import { ReviewApplicationActions, AssignMentorForm, ApproveLaunchButton } from "./client";
@@ -19,7 +18,7 @@ const APP_STATUS_COLORS: Record<string, string> = {
 };
 
 export default async function CohortDetailPage({ params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const roles = (session.user as any).roles ?? [];

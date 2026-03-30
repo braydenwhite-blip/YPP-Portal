@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { createMentorshipNotification } from "@/lib/mentorship-program-actions";
 
@@ -19,7 +18,7 @@ const TIER_INTRO_LIMITS: Record<string, number> = {
 // ============================================
 
 export async function getPanelEvents(options?: { upcoming?: boolean; limit?: number }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const userId = session.user.id as string;
@@ -68,7 +67,7 @@ export async function getPanelEvents(options?: { upcoming?: boolean; limit?: num
 }
 
 export async function getPanelEvent(eventId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const userId = session.user.id as string;
@@ -128,7 +127,7 @@ export async function getPanelEvent(eventId: string) {
 }
 
 export async function rsvpToEvent(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const userId = session.user.id as string;
@@ -160,7 +159,7 @@ export async function rsvpToEvent(formData: FormData) {
 }
 
 export async function createPanelEvent(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const roles = session.user.roles ?? [];
@@ -203,7 +202,7 @@ export async function createPanelEvent(formData: FormData) {
 // ============================================
 
 export async function getAlumniDirectory() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const userId = session.user.id as string;
@@ -254,7 +253,7 @@ export async function getAlumniDirectory() {
 }
 
 export async function sendIntroRequest(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const requesterId = session.user.id as string;
@@ -307,7 +306,7 @@ export async function sendIntroRequest(formData: FormData) {
 }
 
 export async function respondToIntroRequest(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const userId = session.user.id as string;
@@ -346,7 +345,7 @@ export async function respondToIntroRequest(formData: FormData) {
 }
 
 export async function getMyIntroRequests() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const userId = session.user.id as string;

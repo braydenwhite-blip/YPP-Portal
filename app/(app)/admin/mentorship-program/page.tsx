@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
 
-import { authOptions } from "@/lib/auth";
 import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
 import {
   addMentorCommitteeMember,
@@ -81,7 +80,7 @@ export default async function MentorshipProgramAdminPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
 
   if (!roles.includes("ADMIN")) {

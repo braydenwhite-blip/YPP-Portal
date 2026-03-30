@@ -1,9 +1,8 @@
 "use server";
 
-import { getServerSession } from "next-auth";
 
-import { authOptions } from "@/lib/auth";
 import {
+import { getSession } from "@/lib/auth-supabase";
   getMentorshipAccessibleMenteeIds,
   hasMentorshipMenteeAccess,
 } from "@/lib/mentorship-access";
@@ -24,7 +23,7 @@ const UNLOCK_SUPPORT_ROLES = new Set([
 ]);
 
 async function requireUnlockAuth() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }

@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getCollegeResources } from "@/lib/college-advisor-scheduling";
 import Link from "next/link";
 
@@ -18,7 +17,7 @@ const CATEGORY_CONFIG: Record<string, { label: string; emoji: string; color: str
 };
 
 export default async function ResourceLibraryPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session) redirect("/login");
 
   const resources = await getCollegeResources();

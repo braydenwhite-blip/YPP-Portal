@@ -1,7 +1,6 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import AppShell from "@/components/app-shell";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getEnabledFeatureKeysForUser } from "@/lib/feature-gates";
 import { prisma } from "@/lib/prisma";
 import { getUnlockedSections, checkAndAutoUnlock } from "@/lib/unlock-manager";
@@ -26,7 +25,7 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   const primaryRole = session?.user?.primaryRole ?? null;
 

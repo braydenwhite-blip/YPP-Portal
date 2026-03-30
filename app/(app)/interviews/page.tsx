@@ -1,7 +1,6 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
-import { authOptions } from "@/lib/auth";
 import { getInterviewCommandCenterData } from "@/lib/interviews/command-center-data";
 import InterviewHub from "@/components/interviews/interview-hub";
 
@@ -17,7 +16,7 @@ export default async function InterviewsPage({
   searchParams: Promise<InterviewSearchParams>;
 }) {
   const params = await searchParams;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   if (!session?.user?.id) {
     redirect("/login");

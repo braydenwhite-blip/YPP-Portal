@@ -7,8 +7,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { TrainingModuleType } from "@prisma/client";
 import {
@@ -34,7 +33,7 @@ const LESSON_DESIGN_STUDIO_MODULE_KEY = "academy_lesson_studio_006";
 const LESSON_DESIGN_STUDIO_TOUR_KEY = "studio_onboarding_tour";
 
 async function requireStudioAccess() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   const roles = session.user.roles ?? [];
   const allowed =

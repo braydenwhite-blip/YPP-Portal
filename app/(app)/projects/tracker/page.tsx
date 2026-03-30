@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { CreateProjectForm } from "./client";
@@ -14,7 +13,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default async function ProjectTrackerPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const projects = await prisma.projectTracker.findMany({

@@ -1,8 +1,7 @@
-import { getServerSession } from "next-auth";
 import Link from "next/link";
+import { getSession } from "@/lib/auth-supabase";
 import { notFound, redirect } from "next/navigation";
 
-import { authOptions } from "@/lib/auth";
 import { FieldLabel } from "@/components/field-help";
 import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
 import { formatEnum } from "@/lib/format-utils";
@@ -54,7 +53,7 @@ export default async function MenteeDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id: menteeId } = await params;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }

@@ -1,7 +1,6 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { Prisma } from "@prisma/client";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { normalizeRoleSet } from "@/lib/authorization";
 import { FEATURE_KEYS, FEATURE_KEY_DEFAULTS } from "@/lib/feature-gate-constants";
@@ -35,7 +34,7 @@ export default async function RolloutCommsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roleSet = normalizeRoleSet(
     (session?.user as any)?.roles ?? [],
     (session?.user as any)?.primaryRole ?? null

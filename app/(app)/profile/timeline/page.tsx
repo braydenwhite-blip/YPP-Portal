@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getMyTimeline } from "@/lib/engagement-actions";
 import Link from "next/link";
 
@@ -37,7 +36,7 @@ const ENTRY_TYPE_COLORS: Record<string, string> = {
 };
 
 export default async function PassionTimelinePage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }

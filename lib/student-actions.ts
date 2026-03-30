@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 
 // ============================================
@@ -10,7 +9,7 @@ import { revalidatePath } from "next/cache";
 // ============================================
 
 export async function getMyCourses() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   // Get all enrollments for the current user
@@ -41,7 +40,7 @@ export async function getMyCourses() {
 }
 
 export async function getCourseDetail(courseId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   // Get enrollment
@@ -83,7 +82,7 @@ export async function getCourseDetail(courseId: string) {
 }
 
 export async function submitCourseFeedback(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const courseId = formData.get("courseId") as string;
@@ -125,7 +124,7 @@ export async function submitCourseFeedback(formData: FormData) {
 }
 
 export async function dropCourse(courseId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const enrollment = await prisma.enrollment.updateMany({
@@ -148,7 +147,7 @@ export async function dropCourse(courseId: string) {
 // ============================================
 
 export async function getMyStudentMentor() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const mentorship = await prisma.mentorship.findFirst({
@@ -220,7 +219,7 @@ export async function getCourseCatalog(filters?: {
 }
 
 export async function enrollInCourse(courseId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   // Check if already enrolled
@@ -253,7 +252,7 @@ export async function enrollInCourse(courseId: string) {
 // ============================================
 
 export async function getInstructorContact(courseId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   // Verify enrollment

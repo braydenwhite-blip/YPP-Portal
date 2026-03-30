@@ -1,13 +1,12 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import ParentFeedbackPanel from "@/components/parent-feedback-panel";
 import { listAllParentFeedback, summarizeParentFeedback } from "@/lib/parent-feedback-service";
 
 export const metadata = { title: "Admin Parent Feedback | YPP" };
 
 export default async function AdminParentFeedbackPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }

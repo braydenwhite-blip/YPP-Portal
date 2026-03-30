@@ -1,14 +1,13 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { TIER_THRESHOLDS } from "@/lib/achievement-journey-config";
 import type { AchievementJourneyData } from "@/lib/achievement-journey-config";
 
 
 export async function getAchievementJourneyData(): Promise<AchievementJourneyData | null> {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const userId = session.user.id as string;

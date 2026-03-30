@@ -1,7 +1,6 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { reviewInstructorApplicationAction } from "@/lib/instructor-application-actions";
 import { InstructorApplicationStatus } from "@prisma/client";
@@ -32,7 +31,7 @@ function formatDate(d: Date | null | undefined) {
 }
 
 export default async function ChapterLeadInstructorApplicantsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!roles.includes("CHAPTER_PRESIDENT") && !roles.includes("ADMIN")) redirect("/");
 
