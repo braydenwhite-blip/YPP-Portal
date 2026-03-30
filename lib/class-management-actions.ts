@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { assertCanPublishOffering } from "@/lib/instructor-readiness";
 import {
+  createCompatibleClassTemplate,
   getClassTemplateCapabilities,
   getClassTemplateSelect,
 } from "@/lib/class-template-compat";
@@ -470,37 +471,28 @@ export async function createClassTemplate(formData: FormData) {
     }
   }
 
-  const template = await prisma.classTemplate.create({
-    data: {
-      title,
-      description: description || "",
-      interestArea,
-      difficultyLevel,
-      learnerFitLabel,
-      learnerFitDescription,
-      prerequisites,
-      weeklyTopics: weeklyTopics as Prisma.InputJsonValue,
-      learningOutcomes,
-      estimatedHours,
-      durationWeeks,
-      sessionsPerWeek,
-      minStudents,
-      maxStudents,
-      idealSize,
-      sizeNotes: sizeNotes || null,
-      deliveryModes: deliveryModes.length > 0 ? deliveryModes : ["VIRTUAL"],
-      ...(capabilities.hasAdvancedCurriculumFields
-        ? {
-            targetAgeGroup: targetAgeGroup || null,
-            classDurationMin: classDurationMin || null,
-            ...(engagementStrategy
-              ? { engagementStrategy: engagementStrategy as Prisma.InputJsonValue }
-              : {}),
-          }
-        : {}),
-      createdById: session.user.id,
-    },
-    select: { id: true },
+  const template = await createCompatibleClassTemplate(prisma, capabilities, {
+    title,
+    description: description || "",
+    interestArea,
+    difficultyLevel,
+    learnerFitLabel,
+    learnerFitDescription,
+    prerequisites,
+    weeklyTopics: weeklyTopics as Prisma.InputJsonValue,
+    learningOutcomes,
+    estimatedHours,
+    durationWeeks,
+    sessionsPerWeek,
+    minStudents,
+    maxStudents,
+    idealSize,
+    sizeNotes: sizeNotes || null,
+    deliveryModes: deliveryModes.length > 0 ? deliveryModes : ["VIRTUAL"],
+    targetAgeGroup: targetAgeGroup || null,
+    classDurationMin: classDurationMin || null,
+    engagementStrategy: engagementStrategy as Prisma.InputJsonValue | null,
+    createdById: session.user.id,
   });
 
   revalidatePath("/instructor/curriculum-builder");
@@ -619,8 +611,6 @@ export async function updateClassTemplate(formData: FormData) {
       description: description || "",
       interestArea,
       difficultyLevel,
-      learnerFitLabel,
-      learnerFitDescription,
       prerequisites,
       weeklyTopics: weeklyTopics as Prisma.InputJsonValue,
       learningOutcomes,
@@ -632,6 +622,12 @@ export async function updateClassTemplate(formData: FormData) {
       idealSize,
       sizeNotes: sizeNotes || null,
       deliveryModes: deliveryModes.length > 0 ? deliveryModes : ["VIRTUAL"],
+      ...(capabilities.hasLearnerFitFields
+        ? {
+            learnerFitLabel,
+            learnerFitDescription,
+          }
+        : {}),
       isPublished,
       ...(capabilities.hasAdvancedCurriculumFields
         ? {
@@ -1401,6 +1397,7 @@ export async function getClassCatalog(filters?: {
     include: {
       template: {
         select: getClassTemplateSelect({
+          includeLearnerFit: capabilities.hasLearnerFitFields,
           includeWorkflow: capabilities.hasReviewWorkflow,
         }),
       },
@@ -1469,6 +1466,7 @@ export async function getMyClassSchedule(userId: string) {
         include: {
           template: {
             select: getClassTemplateSelect({
+              includeLearnerFit: capabilities.hasLearnerFitFields,
               includeWorkflow: capabilities.hasReviewWorkflow,
             }),
           },
@@ -1490,6 +1488,7 @@ export async function getInstructorTemplates(instructorId: string) {
     where: { createdById: instructorId },
     select: getClassTemplateSelect({
       includeCounts: true,
+      includeLearnerFit: capabilities.hasLearnerFitFields,
       includeWorkflow: capabilities.hasReviewWorkflow,
     }),
     orderBy: { updatedAt: "desc" },
@@ -1512,6 +1511,7 @@ export async function getInstructorOfferings(instructorId: string) {
       },
       template: {
         select: getClassTemplateSelect({
+          includeLearnerFit: capabilities.hasLearnerFitFields,
           includeWorkflow: capabilities.hasReviewWorkflow,
         }),
       },
@@ -1534,6 +1534,7 @@ export async function getClassOfferingDetail(offeringId: string) {
       template: {
         select: getClassTemplateSelect({
           includeCreatedBy: true,
+          includeLearnerFit: capabilities.hasLearnerFitFields,
           includeWorkflow: capabilities.hasReviewWorkflow,
         }),
       },
