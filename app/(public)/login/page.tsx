@@ -5,6 +5,8 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import BrandLockup from "@/components/brand-lockup";
 import { createBrowserClient } from "@/lib/supabase/client";
+import { isLegacyAuthBypassEmail } from "@/lib/legacy-auth-config";
+import { signInLegacyBypass } from "@/lib/legacy-auth-actions";
 
 function LoginPageContent() {
   const searchParams = useSearchParams();
@@ -31,9 +33,23 @@ function LoginPageContent() {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (isLegacyAuthBypassEmail(normalizedEmail)) {
+      const legacyResult = await signInLegacyBypass({
+        email: normalizedEmail,
+        password,
+      });
+
+      if (legacyResult.success) {
+        router.refresh();
+        router.push(callbackUrl.startsWith("/") ? callbackUrl : "/");
+        return;
+      }
+    }
 
     const { data, error: signInError } = await supabase.auth.signInWithPassword({
-      email,
+      email: normalizedEmail,
       password,
     });
 

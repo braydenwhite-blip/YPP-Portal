@@ -19,6 +19,7 @@ import {
   TrainingModuleType
 } from "@prisma/client";
 import { CreateUserForm } from "@/components/create-user-form";
+import { MigrateMissingUsersForm } from "@/components/migrate-missing-users-form";
 
 export default async function AdminPage() {
   const session = await getSession();
@@ -133,6 +134,13 @@ export default async function AdminPage() {
           <CreateUserForm chapters={chapters} />
         </div>
 
+        <div className="card">
+          <h3>Migrate Missing Users</h3>
+          <MigrateMissingUsersForm />
+        </div>
+      </div>
+
+      <div className="grid two" style={{ marginTop: 24 }}>
         <div className="card">
           <h3>Create Course</h3>
           <form action={createCourse} className="form-grid">

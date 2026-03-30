@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createMiddlewareClient } from "@/lib/supabase/middleware";
+import { LEGACY_AUTH_COOKIE_NAME, verifyLegacySessionToken } from "@/lib/legacy-auth";
 
 const PUBLIC_PATHS = [
   "/login",
@@ -63,15 +64,19 @@ export async function middleware(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const legacySession = await verifyLegacySessionToken(
+    request.cookies.get(LEGACY_AUTH_COOKIE_NAME)?.value ?? null
+  );
+  const isAuthenticated = !!user || !!legacySession;
 
   // Unauthenticated users may access public routes only.
-  if (!user && !isPublic) {
+  if (!isAuthenticated && !isPublic) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     return NextResponse.redirect(loginUrl);
   }
 
-  if (user && (isLogin || isSignup)) {
+  if (isAuthenticated && (isLogin || isSignup)) {
     const appUrl = request.nextUrl.clone();
     appUrl.pathname = "/";
     return NextResponse.redirect(appUrl);
