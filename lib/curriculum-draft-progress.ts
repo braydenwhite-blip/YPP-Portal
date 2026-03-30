@@ -639,14 +639,14 @@ export function getCurriculumDraftProgress(input: {
   ).length;
   const sessionsWithinTimeBudget = sessionPlans.filter((plan) => {
     const totalMinutes = plan.activities.reduce(
-      (sum, activity) => sum + clampPositiveInteger(activity.durationMin, 0),
+      (sum, activity) => sum + clampPositiveInteger(activity.durationMin, 10),
       0
     );
     return totalMinutes > 0 && totalMinutes <= plan.classDurationMin;
   }).length;
   const fullyBuiltSessions = sessionPlans.filter((plan) => {
     const totalMinutes = plan.activities.reduce(
-      (sum, activity) => sum + clampPositiveInteger(activity.durationMin, 0),
+      (sum, activity) => sum + clampPositiveInteger(activity.durationMin, 10),
       0
     );
     return (

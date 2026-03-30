@@ -66,7 +66,10 @@ function generateId() {
   return `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 }
 
-function normalizeActivity(activity: any): WeekActivity {
+const VALID_ACTIVITY_TYPES = new Set(["WARM_UP","INSTRUCTION","PRACTICE","DISCUSSION","ASSESSMENT","BREAK","REFLECTION","GROUP_WORK"]);
+const VALID_AT_HOME_ASSIGNMENT_TYPES = new Set(["REFLECTION_PROMPT","PRACTICE_TASK","QUIZ","PRE_READING"]);
+
+function normalizeActivity(activity: Record<string, any>): WeekActivity {
   return {
     id: activity.id ?? generateId(),
     title: activity.title ?? "",
@@ -86,7 +89,7 @@ function normalizeActivity(activity: any): WeekActivity {
   };
 }
 
-function normalizeWeek(week: any): WeekPlan {
+function normalizeWeek(week: Record<string, any>): WeekPlan {
   return {
     id: week.id ?? generateId(),
     weekNumber: week.weekNumber ?? 1,
@@ -94,7 +97,7 @@ function normalizeWeek(week: any): WeekPlan {
     title: week.title ?? "",
     classDurationMin: week.classDurationMin ?? 60,
     activities: Array.isArray(week.activities)
-      ? week.activities.map(normalizeActivity)
+      ? (week.activities as Record<string, any>[]).map(normalizeActivity)
       : [],
     objective: week.objective ?? null,
     teacherPrepNotes: week.teacherPrepNotes ?? null,
@@ -291,7 +294,8 @@ export function StudioClient({
             ),
           },
         }));
-    } catch {
+    } catch (err) {
+      console.warn("[studio] Failed to parse version history:", err);
       return [];
     }
   });
@@ -392,7 +396,9 @@ export function StudioClient({
         const next = [version, ...prev].slice(0, 10);
         try {
           localStorage.setItem(historyStorageKey, JSON.stringify(next));
-        } catch {}
+        } catch (err) {
+          console.warn("[studio] Failed to save version history:", err);
+        }
         return next;
       });
     },
@@ -500,7 +506,7 @@ export function StudioClient({
         }
       };
 
-      const queuedSave = saveChainRef.current.catch(() => true).then(runSave);
+      const queuedSave = saveChainRef.current.catch((err) => { console.warn("[studio] Previous save failed:", err); return true; }).then(runSave);
       saveChainRef.current = queuedSave;
       return queuedSave;
     },
@@ -546,18 +552,22 @@ export function StudioClient({
 
       switch (field) {
         case "title":
+          if (typeof value !== 'string') break;
           nextSnapshot = { ...nextSnapshot, title: value as string };
           setTitle(nextSnapshot.title);
           break;
         case "description":
+          if (typeof value !== 'string') break;
           nextSnapshot = { ...nextSnapshot, description: value as string };
           setDescription(nextSnapshot.description);
           break;
         case "interestArea":
+          if (typeof value !== 'string') break;
           nextSnapshot = { ...nextSnapshot, interestArea: value as string };
           setInterestArea(nextSnapshot.interestArea);
           break;
         case "outcomes":
+          if (!Array.isArray(value)) break;
           nextSnapshot = { ...nextSnapshot, outcomes: value as string[] };
           setOutcomes(nextSnapshot.outcomes);
           break;
@@ -1156,7 +1166,7 @@ export function StudioClient({
             materialsChecklist: [],
             atHomeAssignment: seededWeek.atHomeAssignment
               ? {
-                  type: seededWeek.atHomeAssignment.type as AtHomeAssignmentType,
+                  type: (VALID_AT_HOME_ASSIGNMENT_TYPES.has(String(seededWeek.atHomeAssignment.type)) ? seededWeek.atHomeAssignment.type : "REFLECTION_PROMPT") as AtHomeAssignmentType,
                   title: seededWeek.atHomeAssignment.title,
                   description: seededWeek.atHomeAssignment.description,
                 }
@@ -1164,7 +1174,7 @@ export function StudioClient({
             activities: seededWeek.activities.map((activity, activityIndex) => ({
               id: generateId(),
               title: activity.title,
-              type: activity.type as ActivityType,
+              type: (VALID_ACTIVITY_TYPES.has(String(activity.type)) ? activity.type : "WARM_UP") as ActivityType,
               durationMin: activity.durationMin,
               description: activity.description,
               resources: null,
@@ -1232,7 +1242,9 @@ export function StudioClient({
   const restartOnboardingTour = useCallback(() => {
     try {
       localStorage.removeItem(onboardingStorageKey);
-    } catch {}
+    } catch (err) {
+      console.warn("[studio] Failed to clear onboarding state:", err);
+    }
 
     setManuallyRequestedTour(true);
     setTourInstanceKey((current) => current + 1);
@@ -1388,7 +1400,7 @@ export function StudioClient({
         isReadOnly={isDraftReadOnly}
         hasStartedDraft={hasStartedDraft}
         onApplyStarterScaffold={handleApplyStarterScaffold}
-        onMoveForward={() => setActivePhase(hasStartedDraft ? "COURSE_MAP" : "COURSE_MAP")}
+        onMoveForward={() => setActivePhase("COURSE_MAP")}
         onOpenStarterTour={restartOnboardingTour}
       />
     ) : activePhase === "COURSE_MAP" ? (

@@ -97,7 +97,7 @@ export default async function CurriculumBuilderStudioPage({
         interestArea: draft.interestArea,
         outcomes: draft.outcomes,
         courseConfig: draft.courseConfig,
-        weeklyPlans: (draft.weeklyPlans as unknown[]) ?? [],
+        weeklyPlans: Array.isArray(draft.weeklyPlans) ? draft.weeklyPlans : [],
         understandingChecks: draft.understandingChecks,
         reviewRubric: draft.reviewRubric,
         reviewNotes: draft.reviewNotes ?? "",
