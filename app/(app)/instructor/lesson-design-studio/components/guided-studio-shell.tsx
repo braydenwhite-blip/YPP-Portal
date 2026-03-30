@@ -22,6 +22,12 @@ interface GuidedStudioShellProps {
   workflowNotice?: string | null;
   readOnlyNotice?: string | null;
   readOnlyBody?: string | null;
+  toast?:
+    | {
+        kind: "error" | "success";
+        message: string;
+      }
+    | null;
   journey: GuidedStudioJourney;
   onPhaseChange: (phase: StudioPhase) => void;
   heroActions?: ReactNode;
@@ -81,6 +87,7 @@ export function GuidedStudioShell({
   workflowNotice,
   readOnlyNotice,
   readOnlyBody,
+  toast,
   journey,
   onPhaseChange,
   heroActions,
@@ -91,6 +98,15 @@ export function GuidedStudioShell({
 
   return (
     <div className="cbs-studio lds-shell lds-guided-shell">
+      {toast ? (
+        <section
+          className={`lds-studio-toast${toast.kind === "error" ? " error" : ""}`}
+          role="alert"
+        >
+          {toast.message}
+        </section>
+      ) : null}
+
       <section className="card lds-guided-hero">
         <div className="lds-guided-hero-top">
           <div className="lds-guided-hero-copy">

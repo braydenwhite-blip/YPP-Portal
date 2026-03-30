@@ -3,18 +3,19 @@
 import { useFormState } from "react-dom";
 import Link from "next/link";
 import BrandLockup from "@/components/brand-lockup";
+import ApplicantVideoUpload from "@/components/applicant-video-upload";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { signUp } from "@/lib/signup-actions";
 import { useEffect, useState } from "react";
-import ResendVerificationForm from "@/app/(public)/verify-email/resend-form";
 
 const initialState = { status: "idle" as const, message: "" };
 
 export default function SignupPage() {
   const [state, formAction] = useFormState(signUp, initialState);
   const [chapters, setChapters] = useState<Array<{ id: string; name: string }>>([]);
-  const [submittedEmail, setSubmittedEmail] = useState("");
   const [accountType, setAccountType] = useState("STUDENT");
+  const [motivationVideoUrl, setMotivationVideoUrl] = useState("");
+  const [motivationVideoUploading, setMotivationVideoUploading] = useState(false);
 
   useEffect(() => {
     async function loadChapters() {
@@ -41,18 +42,13 @@ export default function SignupPage() {
             </div>
           </div>
           <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.6, margin: "0 0 12px" }}>
-            We sent a verification link to <strong>{submittedEmail || "your email"}</strong>.
-            Please verify your email address first to activate your account.
+            Your account was created and your instructor application was submitted successfully.
           </p>
           <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.6, margin: "0 0 12px" }}>
-            Once verified, an admin or chapter president will review your application and reach out to schedule an interview. You can log in at any time to check your application status.
+            An admin or chapter president will review your application and reach out if they need anything else. You can sign in at any time to check your application status.
           </p>
-          <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6, margin: "0 0 20px" }}>
-            Didn&apos;t get the verification email? Check your spam folder, or request a new link below.
-          </p>
-          <ResendVerificationForm initialEmail={submittedEmail} />
           <div className="login-help" style={{ marginTop: 16 }}>
-            <Link href="/login">Back to Sign In</Link>
+            <Link href="/login">Sign In</Link>
           </div>
         </div>
       </div>
@@ -125,13 +121,7 @@ export default function SignupPage() {
           <span style={{ fontSize: 12, color: "var(--muted)" }}>or create account with email</span>
           <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
         </div>
-        <form
-          action={formAction}
-          onSubmit={(e) => {
-            const data = new FormData(e.currentTarget);
-            setSubmittedEmail(String(data.get("email") ?? ""));
-          }}
-        >
+        <form action={formAction}>
           <label className="form-label" style={{ marginTop: 0 }}>
             Full Name
             <input className="input" name="name" placeholder="Your full name" required />
@@ -353,16 +343,16 @@ export default function SignupPage() {
                 <span style={{ display: "block", fontSize: 12, color: "var(--muted)", marginTop: 4 }}>Minimum 100 characters.</span>
               </label>
               <label className="form-label">
-                What motivates you to want to teach? <span style={{ color: "#dc2626" }}>*</span>
-                <textarea
-                  className="input"
-                  name="motivation"
-                  placeholder="Share what inspires you to teach and what you hope to bring to your students..."
-                  required
-                  rows={4}
-                  style={{ resize: "vertical" }}
-                />
-                <span style={{ display: "block", fontSize: 12, color: "var(--muted)", marginTop: 4 }}>Minimum 100 characters.</span>
+                Walk us through your curriculum or teaching approach (2-5 minutes) <span style={{ color: "#dc2626" }}>*</span>
+                <div style={{ marginTop: 8 }}>
+                  <ApplicantVideoUpload
+                    onUploadComplete={(file) => setMotivationVideoUrl(file.url)}
+                    onUploadStateChange={setMotivationVideoUploading}
+                  />
+                </div>
+                <span style={{ display: "block", fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
+                  Record a short video explaining how you would teach, guide students, or structure your curriculum.
+                </span>
               </label>
               <label className="form-label">
                 Teaching or mentoring experience <span style={{ color: "#dc2626" }}>*</span>
@@ -493,9 +483,22 @@ export default function SignupPage() {
               {state.message}
             </div>
           )}
-          <button className="button" type="submit">
-            {accountType === "APPLICANT" ? "Submit Application" : "Create Account"}
+          <button
+            className="button"
+            type="submit"
+            disabled={accountType === "APPLICANT" && (motivationVideoUploading || !motivationVideoUrl)}
+          >
+            {accountType === "APPLICANT"
+              ? motivationVideoUploading
+                ? "Uploading Video..."
+                : "Submit Application"
+              : "Create Account"}
           </button>
+          {accountType === "APPLICANT" && !motivationVideoUrl && !motivationVideoUploading && (
+            <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
+              Upload the required teaching approach video to unlock submission.
+            </p>
+          )}
         </form>
         <div className="login-help">
           Already have an account? <Link href="/login">Sign in</Link>
