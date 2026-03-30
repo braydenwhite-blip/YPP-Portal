@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createServiceClient } from "@/lib/supabase/server";
 import { RoleType } from "@prisma/client";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { instructorApplicationSchema, type InstructorApplicationInput } from "@/lib/application-schemas";
 
 type FormState = {
   status: "idle" | "error" | "success";
@@ -98,6 +99,52 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
       return { status: "error", message: "Password must contain at least one letter and one number." };
     }
 
+    let instructorApplicationInput: InstructorApplicationInput | null = null;
+
+    if (primaryRole === RoleType.APPLICANT) {
+      const graduationYearRaw = getString(formData, "graduationYear", false);
+      const hoursPerWeekRaw = getString(formData, "hoursPerWeek", false);
+
+      const validation = instructorApplicationSchema.safeParse({
+        legalName: getString(formData, "legalName", false),
+        preferredFirstName: getString(formData, "preferredFirstName", false),
+        phoneNumber: getString(formData, "phoneNumber", false),
+        dateOfBirth: getString(formData, "dateOfBirth", false),
+        hearAboutYPP: getString(formData, "hearAboutYPP", false),
+        city: getString(formData, "city", false),
+        stateProvince: getString(formData, "stateProvince", false),
+        zipCode: getString(formData, "zipCode", false),
+        country: getString(formData, "country", false) || "United States",
+        countryOther: getString(formData, "countryOther", false),
+        schoolName: getString(formData, "schoolName", false),
+        graduationYear: graduationYearRaw ? parseInt(graduationYearRaw, 10) : undefined,
+        gpa: getString(formData, "gpa", false),
+        classRank: getString(formData, "classRank", false),
+        subjectsOfInterest: getString(formData, "subjectsOfInterest", false),
+        motivation: getString(formData, "motivation", false),
+        motivationVideoUrl: getString(formData, "motivationVideoUrl", false),
+        whyYPP: getString(formData, "whyYPP", false),
+        teachingExperience: getString(formData, "teachingExperience", false),
+        extracurriculars: getString(formData, "extracurriculars", false),
+        priorLeadership: getString(formData, "priorLeadership", false),
+        specialSkills: getString(formData, "specialSkills", false),
+        referralEmails: getString(formData, "referralEmails", false),
+        availability: getString(formData, "availability", false),
+        hoursPerWeek: hoursPerWeekRaw ? parseInt(hoursPerWeekRaw, 10) : undefined,
+        preferredStartDate: getString(formData, "preferredStartDate", false),
+        ethnicity: getString(formData, "ethnicity", false),
+      });
+
+      if (!validation.success) {
+        return {
+          status: "error",
+          message: validation.error.issues[0]?.message || "Please review your application and try again.",
+        };
+      }
+
+      instructorApplicationInput = validation.data;
+    }
+
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
       // M2: Generic message to prevent user enumeration
@@ -135,78 +182,39 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
     });
 
     // If applicant, create the InstructorApplication record with all fields
-    if (primaryRole === RoleType.APPLICANT) {
-      const motivation = getString(formData, "motivation");
-      const teachingExperience = getString(formData, "teachingExperience");
-      const availability = getString(formData, "availability");
-
-      // Personal info
-      const legalName = getString(formData, "legalName", false);
-      const preferredFirstName = getString(formData, "preferredFirstName", false);
-      const phoneNumber = getString(formData, "phoneNumber", false);
-      const dateOfBirth = getString(formData, "dateOfBirth", false);
-      const hearAboutYPP = getString(formData, "hearAboutYPP", false);
-
-      // Location
-      const city = getString(formData, "city", false);
-      const stateProvince = getString(formData, "stateProvince", false);
-      const zipCode = getString(formData, "zipCode", false);
-      const country = getString(formData, "country", false) || "United States";
-      const countryOther = getString(formData, "countryOther", false);
-
-      // Academic
-      const schoolName = getString(formData, "schoolName", false);
-      const graduationYearRaw = getString(formData, "graduationYear", false);
-      const graduationYear = graduationYearRaw ? parseInt(graduationYearRaw, 10) : null;
-      const gpa = getString(formData, "gpa", false);
-      const classRank = getString(formData, "classRank", false);
-      const subjectsOfInterest = getString(formData, "subjectsOfInterest", false);
-
-      // Essays
-      const whyYPP = getString(formData, "whyYPP", false);
-      const extracurriculars = getString(formData, "extracurriculars", false);
-      const priorLeadership = getString(formData, "priorLeadership", false);
-      const specialSkills = getString(formData, "specialSkills", false);
-
-      // Referral
-      const referralEmails = getString(formData, "referralEmails", false);
-
-      // Availability details
-      const hoursPerWeekRaw = getString(formData, "hoursPerWeek", false);
-      const hoursPerWeek = hoursPerWeekRaw ? parseInt(hoursPerWeekRaw, 10) : null;
-      const preferredStartDate = getString(formData, "preferredStartDate", false);
-
-      // Demographics
-      const ethnicity = getString(formData, "ethnicity", false);
-
+    if (primaryRole === RoleType.APPLICANT && instructorApplicationInput) {
       await prisma.instructorApplication.create({
         data: {
           applicantId: newUser.id,
-          motivation,
-          teachingExperience,
-          availability,
-          legalName: legalName || null,
-          preferredFirstName: preferredFirstName || null,
-          phoneNumber: phoneNumber || null,
-          dateOfBirth: dateOfBirth || null,
-          hearAboutYPP: hearAboutYPP || null,
-          city: city || null,
-          stateProvince: stateProvince || null,
-          zipCode: zipCode || null,
-          country: country === "Other" ? (countryOther || "Other") : country,
-          schoolName: schoolName || null,
-          graduationYear: graduationYear && !isNaN(graduationYear) ? graduationYear : null,
-          gpa: gpa || null,
-          classRank: classRank || null,
-          subjectsOfInterest: subjectsOfInterest || null,
-          whyYPP: whyYPP || null,
-          extracurriculars: extracurriculars || null,
-          priorLeadership: priorLeadership || null,
-          specialSkills: specialSkills || null,
-          referralEmails: referralEmails || null,
-          hoursPerWeek: hoursPerWeek && !isNaN(hoursPerWeek) ? hoursPerWeek : null,
-          preferredStartDate: preferredStartDate || null,
-          ethnicity: ethnicity || null,
+          motivation: instructorApplicationInput.motivation || null,
+          motivationVideoUrl: instructorApplicationInput.motivationVideoUrl,
+          teachingExperience: instructorApplicationInput.teachingExperience,
+          availability: instructorApplicationInput.availability,
+          legalName: instructorApplicationInput.legalName,
+          preferredFirstName: instructorApplicationInput.preferredFirstName,
+          phoneNumber: instructorApplicationInput.phoneNumber || null,
+          dateOfBirth: instructorApplicationInput.dateOfBirth || null,
+          hearAboutYPP: instructorApplicationInput.hearAboutYPP || null,
+          city: instructorApplicationInput.city,
+          stateProvince: instructorApplicationInput.stateProvince,
+          zipCode: instructorApplicationInput.zipCode,
+          country:
+            instructorApplicationInput.country === "Other"
+              ? instructorApplicationInput.countryOther || "Other"
+              : instructorApplicationInput.country,
+          schoolName: instructorApplicationInput.schoolName,
+          graduationYear: instructorApplicationInput.graduationYear,
+          gpa: instructorApplicationInput.gpa || null,
+          classRank: instructorApplicationInput.classRank || null,
+          subjectsOfInterest: instructorApplicationInput.subjectsOfInterest || null,
+          whyYPP: instructorApplicationInput.whyYPP,
+          extracurriculars: instructorApplicationInput.extracurriculars,
+          priorLeadership: instructorApplicationInput.priorLeadership,
+          specialSkills: instructorApplicationInput.specialSkills || null,
+          referralEmails: instructorApplicationInput.referralEmails || null,
+          hoursPerWeek: instructorApplicationInput.hoursPerWeek,
+          preferredStartDate: instructorApplicationInput.preferredStartDate || null,
+          ethnicity: instructorApplicationInput.ethnicity || null,
         },
       });
     }

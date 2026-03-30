@@ -19,6 +19,7 @@
     "test:e2e:list": "playwright test --list",
     "test:e2e:seed": "tsx scripts/seed-portal-e2e.ts",
     "smoke:release": "node scripts/smoke-release-checks.mjs",
+    "email:check": "tsx scripts/check-email.ts",
     "check:release": "npm run build && npm run nav:check && npm run smoke:release",
     "nav:check": "node scripts/validate-nav.mjs",
     "nav:ux-check": "node scripts/validate-nav.mjs",

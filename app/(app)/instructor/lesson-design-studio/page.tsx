@@ -4,7 +4,10 @@ import {
   getCurriculumDraftForStudio,
   listCurriculumDraftSummaries,
 } from "@/lib/curriculum-draft-actions";
-import { getCurriculumDraftProgress } from "@/lib/curriculum-draft-progress";
+import {
+  getCurriculumDraftProgress,
+  getWeeklyPlansInput,
+} from "@/lib/curriculum-draft-progress";
 import {
   deriveStudioPhase,
   getCanonicalStudioHref,
@@ -97,7 +100,7 @@ export default async function CurriculumBuilderStudioPage({
         interestArea: draft.interestArea,
         outcomes: draft.outcomes,
         courseConfig: draft.courseConfig,
-        weeklyPlans: (draft.weeklyPlans as unknown[]) ?? [],
+        weeklyPlans: getWeeklyPlansInput(draft.weeklyPlans),
         understandingChecks: draft.understandingChecks,
         reviewRubric: draft.reviewRubric,
         reviewNotes: draft.reviewNotes ?? "",

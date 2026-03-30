@@ -137,6 +137,8 @@ The sections below tell you exactly **what tech is used** and **which file(s) to
 ### Where it lives
 - Email sending + templates: `lib/email.ts`
 - Password reset flow that sends an email: `lib/password-reset-actions.ts`
+- Public reset password page: `app/(public)/forgot-password/page.tsx`
+- Legacy verification info page: `app/(public)/verify-email/page.tsx`
 
 ### What to edit
 - Change email HTML/branding:
@@ -145,6 +147,9 @@ The sections below tell you exactly **what tech is used** and **which file(s) to
   - `lib/password-reset-actions.ts`
 - Set env vars:
   - `.env` (local) and your hosting provider's env settings (prod)
+- Important note:
+  - Instructor applicant signup does not send a separate verification email.
+  - Password reset uses the app email service, so Resend/SMTP must be configured correctly.
 
 ---
 

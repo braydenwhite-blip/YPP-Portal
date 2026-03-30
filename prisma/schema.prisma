@@ -1302,8 +1302,9 @@ model InstructorApplication {
   applicant            User                        @relation("InstructorApplications", fields: [applicantId], references: [id])
   status               InstructorApplicationStatus @default(SUBMITTED)
 
-  // --- Core application essays ---
-  motivation           String                      @db.Text
+  // --- Core application responses ---
+  motivation           String?                     @db.Text
+  motivationVideoUrl   String?
   teachingExperience   String                      @db.Text
   availability         String
 
