@@ -46,7 +46,7 @@ export async function requestPasswordReset(
 
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { email: true, name: true },
+      select: { id: true, email: true, name: true },
     });
 
     // Keep the public response generic so the form does not reveal which emails exist.
@@ -65,7 +65,13 @@ export async function requestPasswordReset(
 
     const resetUrl = data.properties?.action_link;
     if (error || !resetUrl) {
-      console.error("[PasswordReset] Failed to generate recovery link:", error?.message);
+      if (error?.message?.includes("User with this email not found")) {
+        console.error(
+          `[PasswordReset] Prisma user ${user.id} (${user.email}) has no matching Supabase Auth user. Run scripts/migrate-users-to-supabase-auth.ts.`
+        );
+      } else {
+        console.error("[PasswordReset] Failed to generate recovery link:", error?.message);
+      }
       return {
         status: "error",
         message: "We could not send a reset email right now. Please try again in a few minutes.",

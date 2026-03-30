@@ -47,6 +47,35 @@ function getSavePill(saveStatus: GuidedStudioShellProps["saveStatus"]) {
   }
 }
 
+function getSaveIndicator(saveStatus: GuidedStudioShellProps["saveStatus"]) {
+  switch (saveStatus) {
+    case "saving":
+      return {
+        tone: "saving",
+        label: "Saving...",
+        detail: "Autosave is syncing your latest edits.",
+      };
+    case "saved":
+      return {
+        tone: "saved",
+        label: "Saved",
+        detail: "Your latest draft changes are safely stored.",
+      };
+    case "error":
+      return {
+        tone: "error",
+        label: "Save error",
+        detail: "The last save needs attention before you keep moving.",
+      };
+    default:
+      return {
+        tone: "idle",
+        label: "Autosave on",
+        detail: "Changes save automatically while you build.",
+      };
+  }
+}
+
 function StepPill({
   step,
   isActive,
@@ -59,9 +88,9 @@ function StepPill({
   return (
     <button
       type="button"
-      className={`lds-journey-pill${isActive ? " active" : ""}`}
+      className={`lds-journey-pill ${step.status}${isActive ? " active" : ""}`}
       onClick={onClick}
-      aria-pressed={isActive}
+      aria-current={isActive ? "step" : undefined}
     >
       <span className={`lds-journey-pill-status ${step.status}`}>{step.status === "complete" ? "✓" : step.shortLabel}</span>
       <span className="lds-journey-pill-copy">
@@ -95,6 +124,7 @@ export function GuidedStudioShell({
 }: GuidedStudioShellProps) {
   const activeStep =
     journey.steps.find((step) => step.id === journey.activePhase) ?? journey.steps[0];
+  const saveIndicator = getSaveIndicator(saveStatus);
 
   return (
     <div className="cbs-studio lds-shell lds-guided-shell">
@@ -107,97 +137,142 @@ export function GuidedStudioShell({
         </section>
       ) : null}
 
-      <section className="card lds-guided-hero">
-        <div className="lds-guided-hero-top">
-          <div className="lds-guided-hero-copy">
+      <section className="card lds-studio-toolbar">
+        <div className="lds-studio-toolbar-main">
+          <div className="lds-studio-toolbar-copy">
             <span className="badge">Lesson Design Studio</span>
+            <nav
+              className="lds-toolbar-breadcrumbs"
+              aria-label="Lesson design studio steps"
+            >
+              {journey.steps.map((step) => (
+                <span
+                  key={step.id}
+                  className={`lds-toolbar-breadcrumb ${
+                    step.id === journey.activePhase
+                      ? "current"
+                      : step.status === "complete"
+                        ? "complete"
+                        : ""
+                  }`}
+                >
+                  {step.label}
+                </span>
+              ))}
+            </nav>
             <p className="lds-hero-eyebrow">{eyebrow}</p>
             <h1 className="lds-hero-title">{title}</h1>
             <p className="lds-hero-copy">{body}</p>
           </div>
 
-          <div className="lds-guided-status-stack">
+          <div className="lds-studio-toolbar-meta">
+            <div className={`lds-save-indicator ${saveIndicator.tone}`} role="status" aria-live="polite">
+              <span className="lds-save-indicator-dot" aria-hidden="true" />
+              <div>
+                <strong>{saveIndicator.label}</strong>
+                <small>{saveIndicator.detail}</small>
+              </div>
+            </div>
             <span className={statusClassName}>{statusLabel}</span>
-            {getSavePill(saveStatus)}
+            <span className="lds-updated-at">{updatedAtLabel}</span>
           </div>
         </div>
+      </section>
 
-        <div className="lds-guided-hero-grid">
-          <div className="lds-stat-card">
-            <span className="lds-stat-label">Current step</span>
-            <strong className="lds-stat-value">{currentPhaseLabel}</strong>
-          </div>
-          <div className="lds-stat-card">
-            <span className="lds-stat-label">Sessions built</span>
-            <strong className="lds-stat-value">{sessionsBuiltLabel}</strong>
-          </div>
-          <div className="lds-stat-card">
-            <span className="lds-stat-label">Teaching checks</span>
-            <strong className="lds-stat-value">{understandingLabel}</strong>
-          </div>
-          <div className="lds-stat-card">
-            <span className="lds-stat-label">Current blockers</span>
-            <strong className="lds-stat-value">{blockerLabel}</strong>
-          </div>
-        </div>
-
-        <div className="lds-guided-focus-row">
-          <div className="lds-guided-focus-card">
-            <p className="lds-section-eyebrow">Why this step matters</p>
-            <h2 className="lds-section-title">{activeStep.headline}</h2>
-            <p className="lds-section-copy">{activeStep.whyItMatters}</p>
-          </div>
-          <div className="lds-guided-focus-card accent">
-            <p className="lds-section-eyebrow">Recommended next move</p>
-            <h2 className="lds-section-title">{journey.recommendedAction}</h2>
+      <div className="lds-guided-workbench">
+        <aside className="card lds-guided-rail">
+          <div className="lds-guided-rail-copy">
+            <p className="lds-section-eyebrow">Workspace map</p>
+            <h2 className="lds-section-title">Move step by step</h2>
             <p className="lds-section-copy">
-              {journey.blockers.length > 0
-                ? journey.blockers[0]
-                : "You have cleared the blockers for this step. Keep moving with confidence."}
+              Use the left rail to jump between phases while keeping your current
+              focus, blockers, and draft health in view.
             </p>
           </div>
-        </div>
 
-        <div className="lds-guided-hero-actions">
-          <div className="lds-inline-actions">{heroActions}</div>
-          <span className="lds-updated-at">{updatedAtLabel}</span>
-        </div>
-      </section>
+          <nav className="lds-guided-pill-row" aria-label="Studio steps">
+            {journey.steps.map((step) => (
+              <StepPill
+                key={step.id}
+                step={step}
+                isActive={step.id === journey.activePhase}
+                onClick={() => onPhaseChange(step.id)}
+              />
+            ))}
+          </nav>
 
-      {workflowNotice ? (
-        <section className="card lds-readonly-banner" role="status">
-          <strong>Studio update</strong>
-          <p>{workflowNotice}</p>
-        </section>
-      ) : null}
-
-      {readOnlyNotice && readOnlyBody ? (
-        <section className="card lds-readonly-banner">
-          <strong>{readOnlyNotice}</strong>
-          <p>{readOnlyBody}</p>
-        </section>
-      ) : null}
-
-      <section className="card lds-guided-journey">
-        <div className="lds-guided-journey-header">
-          <div>
-            <p className="lds-section-eyebrow">Guided journey</p>
-            <h2 className="lds-section-title">Stay on the rails while keeping the whole path visible</h2>
+          <div className="lds-guided-rail-summary">
+            <div className="lds-stat-card">
+              <span className="lds-stat-label">Current step</span>
+              <strong className="lds-stat-value">{currentPhaseLabel}</strong>
+            </div>
+            <div className="lds-stat-card">
+              <span className="lds-stat-label">Sessions built</span>
+              <strong className="lds-stat-value">{sessionsBuiltLabel}</strong>
+            </div>
+            <div className="lds-stat-card">
+              <span className="lds-stat-label">Teaching checks</span>
+              <strong className="lds-stat-value">{understandingLabel}</strong>
+            </div>
+            <div className="lds-stat-card">
+              <span className="lds-stat-label">Current blockers</span>
+              <strong className="lds-stat-value">{blockerLabel}</strong>
+            </div>
           </div>
-        </div>
-        <div className="lds-guided-pill-row" role="tablist" aria-label="Studio steps">
-          {journey.steps.map((step) => (
-            <StepPill
-              key={step.id}
-              step={step}
-              isActive={step.id === journey.activePhase}
-              onClick={() => onPhaseChange(step.id)}
-            />
-          ))}
-        </div>
-      </section>
 
-      {children}
+          {heroActions ? <div className="lds-guided-rail-actions">{heroActions}</div> : null}
+        </aside>
+
+        <div className="lds-guided-main">
+          <section className="card lds-guided-hero">
+            <div className="lds-guided-hero-top">
+              <div className="lds-guided-hero-copy">
+                <p className="lds-section-eyebrow">Current focus</p>
+                <h2 className="lds-section-title">{activeStep.headline}</h2>
+                <p className="lds-section-copy">{activeStep.whyItMatters}</p>
+              </div>
+
+              <div className="lds-guided-status-stack">
+                <span className={statusClassName}>{statusLabel}</span>
+                {getSavePill(saveStatus)}
+              </div>
+            </div>
+
+            <div className="lds-guided-hero-grid">
+              <div className="lds-guided-focus-card accent">
+                <p className="lds-section-eyebrow">Recommended next move</p>
+                <h3 className="lds-section-title">{journey.recommendedAction}</h3>
+                <p className="lds-section-copy">
+                  {journey.blockers.length > 0
+                    ? journey.blockers[0]
+                    : "You have cleared the blockers for this step. Keep building with the same momentum."}
+                </p>
+              </div>
+              <div className="lds-guided-focus-card">
+                <p className="lds-section-eyebrow">Step status</p>
+                <h3 className="lds-section-title">{activeStep.label}</h3>
+                <p className="lds-section-copy">{activeStep.recommendedAction}</p>
+              </div>
+            </div>
+          </section>
+
+          {workflowNotice ? (
+            <section className="card lds-readonly-banner" role="status">
+              <strong>Studio update</strong>
+              <p>{workflowNotice}</p>
+            </section>
+          ) : null}
+
+          {readOnlyNotice && readOnlyBody ? (
+            <section className="card lds-readonly-banner">
+              <strong>{readOnlyNotice}</strong>
+              <p>{readOnlyBody}</p>
+            </section>
+          ) : null}
+
+          <div className="lds-guided-editor">{children}</div>
+        </div>
+      </div>
     </div>
   );
 }
