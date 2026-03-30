@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import {
   ConversationContextType,
@@ -32,7 +31,7 @@ const DEFAULT_WINDOW_DAYS = 21;
 const FINAL_APPLICATION_STATUSES = ["ACCEPTED", "REJECTED", "WITHDRAWN"] as const;
 const ACTIVE_SLOT_STATUSES = ["POSTED", "CONFIRMED"] as const;
 
-type SessionUser = Awaited<ReturnType<typeof getServerSession>> & {
+type SessionUser = Awaited<ReturnType<typeof getSession>> & {
   user: {
     id: string;
     roles?: string[];
@@ -243,7 +242,7 @@ function getNumber(formData: FormData, key: string, fallback: number) {
 }
 
 async function requireSession(): Promise<SessionUser> {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }

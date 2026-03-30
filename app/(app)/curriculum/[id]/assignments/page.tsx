@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getOfferingAssignments } from "@/lib/assignment-actions";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
@@ -26,7 +25,7 @@ export default async function ClassAssignmentsPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const { id: offeringId } = await params;

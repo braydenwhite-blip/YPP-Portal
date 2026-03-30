@@ -1,7 +1,6 @@
-import { getServerSession } from "next-auth";
 import { redirect, notFound } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   getSingleStudentPathwayJourney,
@@ -193,7 +192,7 @@ function OfferingOptionCard({
 }
 
 export default async function PathwayDetailPage({ params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const [pathway, viewer] = await Promise.all([

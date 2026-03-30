@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getMyClassSchedule } from "@/lib/class-management-actions";
 import { getLearnerFitSummary } from "@/lib/learner-fit";
 import Link from "next/link";
@@ -16,7 +15,7 @@ const dayColors: Record<string, string> = {
 };
 
 export default async function SemesterPlanningCalendarPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const enrollments = await getMyClassSchedule(session.user.id);

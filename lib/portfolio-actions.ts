@@ -1,14 +1,13 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { PortfolioItemType } from "@prisma/client";
 import { validateEnum } from "@/lib/validate-enum";
 
 async function requireAuth() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }

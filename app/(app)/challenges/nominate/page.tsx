@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getNominatedChallenges } from "@/lib/engagement-actions";
 import Link from "next/link";
 import { VoteButton, PromoteButton } from "./client";
@@ -10,7 +9,7 @@ const DIFFICULTY_COLORS: Record<string, string> = {
 };
 
 export default async function NominateChallengesPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const nominations = await getNominatedChallenges();

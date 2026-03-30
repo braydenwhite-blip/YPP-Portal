@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { RoleType, ChapterPresidentApplicationStatus } from "@prisma/client";
 import {
@@ -31,7 +30,7 @@ function getString(formData: FormData, key: string, required = true) {
 }
 
 async function requireAdmin() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   const roles = session.user.roles ?? [];
   if (!roles.includes("ADMIN")) {
@@ -72,7 +71,7 @@ export async function submitChapterPresidentApplication(
   formData: FormData
 ): Promise<FormState> {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
     if (!session?.user?.id) return { status: "error", message: "Unauthorized" };
 
     const existing = await prisma.chapterPresidentApplication.findUnique({
@@ -453,7 +452,7 @@ export async function submitCPInfoResponse(
   formData: FormData
 ): Promise<FormState> {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
     if (!session?.user?.id) return { status: "error", message: "Unauthorized" };
 
     const response = getString(formData, "applicantResponse");

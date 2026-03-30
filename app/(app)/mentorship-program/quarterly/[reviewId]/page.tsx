@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { redirect, notFound } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getQuarterlyReviewData, createFeedbackRequest } from "@/lib/goal-review-actions";
 import Link from "next/link";
 
@@ -156,7 +155,7 @@ function ReviewCard({ review, isQuarterly }: { review: ReviewColumn; isQuarterly
 
 export default async function QuarterlyReviewPage({ params }: { params: Promise<{ reviewId: string }> }) {
   const { reviewId } = await params;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const data = await getQuarterlyReviewData(reviewId);

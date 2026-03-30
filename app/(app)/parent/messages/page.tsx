@@ -1,11 +1,10 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { getParentConversations } from "@/lib/parent-message-actions";
 
 export default async function ParentMessagesPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const roles = session.user.roles ?? [];

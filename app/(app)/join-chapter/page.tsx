@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { getPublicChapters } from "@/lib/chapter-join-actions";
 import { JoinChapterCard } from "./join-chapter-card";
@@ -8,7 +7,7 @@ import { JoinChapterCard } from "./join-chapter-card";
 type PublicChapter = Awaited<ReturnType<typeof getPublicChapters>>[number];
 
 export default async function JoinChapterPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   // If user already has a chapter, redirect to their chapter home

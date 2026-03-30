@@ -1,12 +1,11 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getServiceProjects } from "@/lib/real-world-actions";
 import Link from "next/link";
 import { JoinProjectButton, CreateProjectForm } from "./client";
 
 export default async function ServiceProjectsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const { projects, myProjectIds } = await getServiceProjects();

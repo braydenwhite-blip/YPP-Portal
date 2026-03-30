@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getMyCertificate, generateVolunteerHoursLetter } from "@/lib/award-ceremony-actions";
 import { generateCertificateSvg } from "@/lib/certificate-utils";
 import Link from "next/link";
@@ -9,7 +8,7 @@ import AwardCeremonyClient from "./award-ceremony-client";
 export const metadata = { title: "My Certificate — YPP" };
 
 export default async function CertificatePage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const [certificate, volunteerLetter] = await Promise.all([

@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getStreakData } from "@/lib/engagement-actions";
 import Link from "next/link";
 
@@ -13,7 +12,7 @@ const MILESTONE_COLORS: Record<number, string> = {
 };
 
 export default async function StreaksPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const streakData = await getStreakData();

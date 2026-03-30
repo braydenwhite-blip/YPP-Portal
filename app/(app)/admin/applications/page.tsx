@@ -1,7 +1,6 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
-import { authOptions } from "@/lib/auth";
 import {
   isHiringDecisionApproved,
   isHiringDecisionPending,
@@ -53,7 +52,7 @@ export default async function AdminApplicationsPage({
   searchParams: Promise<ApplicationFilters>;
 }) {
   const params = await searchParams;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
 
   if (!roles.includes("ADMIN")) {

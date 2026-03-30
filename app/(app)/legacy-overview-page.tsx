@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import AnnouncementBanner from "@/components/announcement-banner";
 import XpDisplay from "@/components/xp-display";
 import PathwayProgressMap from "@/components/pathway-progress-map";
@@ -10,7 +9,7 @@ import { getNextRequiredAction } from "@/lib/instructor-readiness";
 import { getLearnerFitSummary } from "@/lib/learner-fit";
 
 export default async function OverviewPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const userId = session?.user?.id;
 
   const user = userId

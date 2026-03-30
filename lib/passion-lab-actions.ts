@@ -1,9 +1,8 @@
 "use server";
 
 import { Prisma } from "@prisma/client";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { hasPassionLabBuilderSchema } from "@/lib/schema-compat";
 import { assertCanPublishInstructorContent } from "@/lib/instructor-readiness";
@@ -19,7 +18,7 @@ const PASSION_LAB_SCHEMA_MESSAGE =
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 async function requireInstructor() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (
     !session?.user?.id ||

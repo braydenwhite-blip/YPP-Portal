@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { InstructorApplicationStatus, ChapterPresidentApplicationStatus } from "@prisma/client";
 
 function escapeCsv(value: string | number | null | undefined): string {
@@ -24,7 +23,7 @@ export async function exportInstructorApplicationsCsv(filters?: {
   stateProvince?: string;
   search?: string;
 }): Promise<{ csv: string; filename: string } | { error: string }> {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!roles.includes("ADMIN")) return { error: "Unauthorized" };
 
@@ -162,7 +161,7 @@ export async function saveApplicationScores(
   formData: FormData
 ): Promise<{ status: "idle" | "error" | "success"; message: string }> {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
     const roles = session?.user?.roles ?? [];
     if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT")) {
       return { status: "error", message: "Unauthorized" };
@@ -206,7 +205,7 @@ export async function exportCPApplicationsCsv(filters?: {
   stateProvince?: string;
   search?: string;
 }): Promise<{ csv: string; filename: string } | { error: string }> {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!roles.includes("ADMIN")) return { error: "Unauthorized" };
 
@@ -289,7 +288,7 @@ export async function saveCPApplicationScores(
   formData: FormData
 ): Promise<{ status: "idle" | "error" | "success"; message: string }> {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
     const roles = session?.user?.roles ?? [];
     if (!roles.includes("ADMIN")) return { status: "error", message: "Unauthorized" };
 

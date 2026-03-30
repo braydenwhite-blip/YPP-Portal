@@ -1,14 +1,13 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import { createMentorshipNotification } from "@/lib/mentorship-program-actions";
 
 async function requireMentee() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   const primaryRole = session.user.primaryRole ?? "";
   const menteeRoleType = toMenteeRoleType(primaryRole);
@@ -36,7 +35,7 @@ function getString(formData: FormData, key: string, required = true): string {
  * Fetch all data needed for the mentee's My Program hub page.
  */
 export async function getMyProgramData() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const userId = session.user.id as string;
@@ -122,7 +121,7 @@ export async function getMyProgramData() {
  * Fetch a single self-reflection for read-only view (accessible to the mentee or their mentor/admin).
  */
 export async function getReflectionById(reflectionId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const userId = session.user.id as string;

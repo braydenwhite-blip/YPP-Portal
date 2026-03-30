@@ -1,33 +1,53 @@
 "use client";
 
-import { useState } from "react";
-import { setupTwoFactor, enableTwoFactor, disableTwoFactor } from "@/lib/two-factor-actions";
-import { useSession } from "next-auth/react";
+import { useState, useEffect } from "react";
+import { createBrowserClient } from "@/lib/supabase/client";
 
-type SetupState = "idle" | "scanning" | "confirming" | "recovery";
+type SetupState = "idle" | "scanning" | "confirming" | "enabled";
 
 export default function SecuritySettingsPage() {
-  const { data: session } = useSession();
-  const user = session?.user as any;
-  const has2FA = user?.twoFactorEnabled ?? false;
+  const [has2FA, setHas2FA] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(true);
 
   // Setup flow state
   const [setupState, setSetupState] = useState<SetupState>("idle");
-  const [qrCodeUrl, setQrCodeUrl] = useState("");
+  const [qrCodeUri, setQrCodeUri] = useState("");
   const [plainSecret, setPlainSecret] = useState("");
+  const [factorId, setFactorId] = useState("");
   const [verifyCode, setVerifyCode] = useState("");
-  const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [disableCode, setDisableCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const supabase = createBrowserClient();
+
+  useEffect(() => {
+    async function checkMfaStatus() {
+      const { data } = await supabase.auth.mfa.listFactors();
+      const activeTotpFactors = data?.totp?.filter((f) => f.status === "verified") ?? [];
+      setHas2FA(activeTotpFactors.length > 0);
+      if (activeTotpFactors.length > 0) {
+        setFactorId(activeTotpFactors[0].id);
+      }
+      setCheckingStatus(false);
+    }
+    checkMfaStatus();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleStartSetup() {
     setError(null);
     setLoading(true);
     try {
-      const result = await setupTwoFactor();
-      setQrCodeUrl(result.qrCodeUrl);
-      setPlainSecret(result.secret);
+      const { data, error: enrollError } = await supabase.auth.mfa.enroll({
+        factorType: "totp",
+        friendlyName: "YPP Portal Authenticator",
+      });
+
+      if (enrollError) throw enrollError;
+
+      setFactorId(data.id);
+      setQrCodeUri(data.totp.qr_code);
+      setPlainSecret(data.totp.secret);
       setSetupState("scanning");
     } catch (e: any) {
       setError(e.message ?? "Something went wrong");
@@ -40,9 +60,20 @@ export default function SecuritySettingsPage() {
     setError(null);
     setLoading(true);
     try {
-      const result = await enableTwoFactor(plainSecret, verifyCode);
-      setRecoveryCodes(result.recoveryCodes);
-      setSetupState("recovery");
+      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
+        factorId,
+      });
+      if (challengeError) throw challengeError;
+
+      const { error: verifyError } = await supabase.auth.mfa.verify({
+        factorId,
+        challengeId: challenge.id,
+        code: verifyCode,
+      });
+      if (verifyError) throw verifyError;
+
+      setHas2FA(true);
+      setSetupState("enabled");
     } catch (e: any) {
       setError(e.message ?? "Invalid code");
     } finally {
@@ -54,14 +85,41 @@ export default function SecuritySettingsPage() {
     setError(null);
     setLoading(true);
     try {
-      await disableTwoFactor(disableCode);
-      // Force session refresh so the UI reflects the change
-      window.location.reload();
+      // Verify the code first by doing a challenge + verify
+      const { data: challenge, error: challengeError } = await supabase.auth.mfa.challenge({
+        factorId,
+      });
+      if (challengeError) throw challengeError;
+
+      const { error: verifyError } = await supabase.auth.mfa.verify({
+        factorId,
+        challengeId: challenge.id,
+        code: disableCode,
+      });
+      if (verifyError) throw verifyError;
+
+      // Now unenroll the factor
+      const { error: unenrollError } = await supabase.auth.mfa.unenroll({
+        factorId,
+      });
+      if (unenrollError) throw unenrollError;
+
+      setHas2FA(false);
+      setFactorId("");
+      setDisableCode("");
     } catch (e: any) {
       setError(e.message ?? "Invalid code");
     } finally {
       setLoading(false);
     }
+  }
+
+  if (checkingStatus) {
+    return (
+      <div style={{ maxWidth: 560, margin: "40px auto", padding: "0 20px" }}>
+        <p style={{ color: "var(--muted)" }}>Loading security settings...</p>
+      </div>
+    );
   }
 
   return (
@@ -102,21 +160,21 @@ export default function SecuritySettingsPage() {
           <div className="form-error" style={{ marginBottom: 12 }}>{error}</div>
         )}
 
-        {/* ── 2FA not enabled ── */}
+        {/* 2FA not enabled */}
         {!has2FA && setupState === "idle" && (
           <button className="button" onClick={handleStartSetup} disabled={loading}>
             {loading ? "Loading\u2026" : "Enable Two-Factor Authentication"}
           </button>
         )}
 
-        {/* ── Step 1: Show QR code ── */}
+        {/* Step 1: Show QR code */}
         {setupState === "scanning" && (
           <div>
             <p style={{ fontSize: 14, marginBottom: 12 }}>
               Scan this QR code with your authenticator app, then click <strong>Next</strong>.
             </p>
-            {qrCodeUrl && (
-              <img src={qrCodeUrl} alt="2FA QR code" style={{ display: "block", marginBottom: 12, borderRadius: 8, border: "1px solid var(--border)" }} width={180} height={180} />
+            {qrCodeUri && (
+              <img src={qrCodeUri} alt="2FA QR code" style={{ display: "block", marginBottom: 12, borderRadius: 8, border: "1px solid var(--border)" }} width={180} height={180} />
             )}
             <details style={{ marginBottom: 16 }}>
               <summary style={{ fontSize: 12, color: "var(--muted)", cursor: "pointer" }}>
@@ -132,7 +190,7 @@ export default function SecuritySettingsPage() {
           </div>
         )}
 
-        {/* ── Step 2: Verify first TOTP code ── */}
+        {/* Step 2: Verify first TOTP code */}
         {setupState === "confirming" && (
           <div>
             <p style={{ fontSize: 14, marginBottom: 12 }}>
@@ -158,37 +216,23 @@ export default function SecuritySettingsPage() {
           </div>
         )}
 
-        {/* ── Step 3: Show recovery codes ── */}
-        {setupState === "recovery" && (
+        {/* Step 3: Success */}
+        {setupState === "enabled" && (
           <div>
             <p style={{ fontSize: 14, fontWeight: 500, marginBottom: 8 }}>
               Two-factor authentication is now enabled.
             </p>
-            <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 12 }}>
-              Save these recovery codes in a safe place. Each code can only be used once
-              if you lose access to your authenticator app.
+            <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 16 }}>
+              You will be asked for a verification code from your authenticator app
+              each time you sign in.
             </p>
-            <div style={{
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              borderRadius: 8,
-              padding: "12px 16px",
-              fontFamily: "monospace",
-              fontSize: 13,
-              lineHeight: 2,
-              marginBottom: 16,
-            }}>
-              {recoveryCodes.map((code) => (
-                <div key={code}>{code}</div>
-              ))}
-            </div>
             <button className="button secondary" onClick={() => window.location.reload()}>
               Done
             </button>
           </div>
         )}
 
-        {/* ── 2FA enabled — allow disabling ── */}
+        {/* 2FA enabled — allow disabling */}
         {has2FA && setupState === "idle" && (
           <div>
             <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 12 }}>

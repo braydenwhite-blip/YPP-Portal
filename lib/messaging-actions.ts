@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { requireCanMessage } from "@/lib/authorization-helpers";
 import { getPusherServer, isPusherConfigured } from "@/lib/pusher-server";
@@ -14,7 +13,7 @@ import { NotificationType } from "@prisma/client";
 // ============================================
 
 async function requireAuth() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }

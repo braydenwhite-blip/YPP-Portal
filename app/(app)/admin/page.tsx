@@ -1,7 +1,6 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   addPathwayStep,
@@ -22,7 +21,7 @@ import {
 import { CreateUserForm } from "@/components/create-user-form";
 
 export default async function AdminPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!roles.includes("ADMIN")) {
     redirect("/");

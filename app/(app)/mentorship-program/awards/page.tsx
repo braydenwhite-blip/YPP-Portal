@@ -1,12 +1,11 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 
-import { authOptions } from "@/lib/auth";
 
 export const metadata = { title: "Achievement Awards — Mentorship Program" };
 
 export default async function AwardsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
 
   if (roles.includes("ADMIN")) {

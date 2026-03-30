@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import ApplicationForm from "@/components/application-form";
@@ -16,7 +15,7 @@ export default async function PositionDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   const [position, currentUser] = await Promise.all([
     prisma.position.findUnique({

@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import {
   getProgramById,
   enrollInProgram,
@@ -13,7 +12,7 @@ export default async function ProgramDetailPage({
 }: {
   params: { id: string };
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session) redirect("/login");
 
   const { program, isEnrolled } = await getProgramById(params.id);

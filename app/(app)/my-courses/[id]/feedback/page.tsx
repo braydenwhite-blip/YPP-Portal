@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getCourseDetail, submitCourseFeedback } from "@/lib/student-actions";
 import Link from "next/link";
 
@@ -9,7 +8,7 @@ export default async function CourseFeedbackPage({
 }: {
   params: { id: string };
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session) redirect("/login");
 
   const { course, enrollment, hasGivenFeedback } = await getCourseDetail(

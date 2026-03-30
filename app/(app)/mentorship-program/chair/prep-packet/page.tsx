@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { generateCommitteePrepPacket } from "@/lib/committee-prep-actions";
 import Link from "next/link";
 
@@ -33,7 +32,7 @@ export default async function PrepPacketPage({
   searchParams: Promise<{ mentorshipId?: string }>;
 }) {
   const { mentorshipId } = await searchParams;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const roles = session.user.roles ?? [];

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { createMiddlewareClient } from "@/lib/supabase/middleware";
 
 const PUBLIC_PATHS = [
   "/login",
@@ -10,6 +10,8 @@ const PUBLIC_PATHS = [
   "/verify-email",
   "/magic-link",
   "/incubator/launches",
+  "/auth/callback",
+  "/auth/confirm",
 ];
 
 function isPublicPath(pathname: string) {
@@ -28,14 +30,6 @@ function generateNonce() {
   return btoa(binary);
 }
 
-async function readToken(request: NextRequest) {
-  try {
-    return await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
-  } catch {
-    return null;
-  }
-}
-
 function buildCsp(nonce: string): string {
   const isDev = process.env.NODE_ENV !== "production";
   const scriptSrc = [
@@ -52,7 +46,7 @@ function buildCsp(nonce: string): string {
     "img-src 'self' data: blob: https:",
     "font-src 'self' data: blob:",
     "frame-src 'self' https://www.youtube.com https://player.vimeo.com https://www.loom.com",
-    "connect-src 'self' blob: data: https://*.pusher.com wss://*.pusher.com https://*.pusherapp.com wss://*.pusherapp.com",
+    "connect-src 'self' blob: data: https://*.pusher.com wss://*.pusher.com https://*.pusherapp.com wss://*.pusherapp.com https://*.supabase.co",
     "worker-src 'self' blob:",
     "report-uri /api/csp-report",
   ].join("; ");
@@ -63,16 +57,21 @@ export async function middleware(request: NextRequest) {
   const isLogin = pathname.startsWith("/login");
   const isSignup = pathname.startsWith("/signup");
   const isPublic = isPublicPath(pathname);
-  const token = await readToken(request);
+
+  // Create Supabase client and refresh session
+  const { supabase, response } = createMiddlewareClient(request);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   // Unauthenticated users may access public routes only.
-  if (!token && !isPublic) {
+  if (!user && !isPublic) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     return NextResponse.redirect(loginUrl);
   }
 
-  if (token && (isLogin || isSignup)) {
+  if (user && (isLogin || isSignup)) {
     const appUrl = request.nextUrl.clone();
     appUrl.pathname = "/";
     return NextResponse.redirect(appUrl);
@@ -82,17 +81,12 @@ export async function middleware(request: NextRequest) {
   const nonce = generateNonce();
 
   // Forward nonce to server components via request header
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set("x-nonce", nonce);
-
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  response.headers.set("x-nonce", nonce);
 
   // Set dynamic nonce-based CSP on every response
   response.headers.set("Content-Security-Policy", buildCsp(nonce));
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  // Expose nonce to layout for use in <Script> nonce props if needed in the future
-  response.headers.set("x-nonce", nonce);
 
   return response;
 }

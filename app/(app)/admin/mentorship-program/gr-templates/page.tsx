@@ -1,13 +1,12 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getGRTemplates } from "@/lib/gr-actions";
 import GRTemplateListPanel from "@/components/gr/gr-template-list-panel";
 
 export const metadata = { title: "G&R Templates — Admin" };
 
 export default async function GRTemplatesPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.roles?.includes("ADMIN")) redirect("/");
 
   const templates = await getGRTemplates();

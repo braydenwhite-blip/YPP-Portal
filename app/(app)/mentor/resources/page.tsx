@@ -1,8 +1,7 @@
-import { getServerSession } from "next-auth";
 import Link from "next/link";
+import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
 
-import { authOptions } from "@/lib/auth";
 import { FieldLabel } from "@/components/field-help";
 import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
 import {
@@ -47,7 +46,7 @@ export default async function CuratedResourcesPage({
 }: {
   searchParams?: Promise<{ q?: string; passionId?: string }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }

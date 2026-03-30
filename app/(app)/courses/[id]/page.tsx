@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth-supabase";
 import { redirect, notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
@@ -10,7 +9,7 @@ export default async function CourseDetailPage({
 }: {
   params: { id: string };
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const course = await prisma.course.findUnique({

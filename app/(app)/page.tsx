@@ -1,7 +1,6 @@
-import { getServerSession } from "next-auth";
 import Link from "next/link";
+import { getSession } from "@/lib/auth-supabase";
 import { Prisma } from "@prisma/client";
-import { authOptions } from "@/lib/auth";
 import { getDashboardData } from "@/lib/dashboard/data";
 import { isUnifiedAllToolsDashboardEnabled } from "@/lib/dashboard/flags";
 import { getStudentProgressSnapshot } from "@/lib/student-progress-actions";
@@ -71,7 +70,7 @@ function buildHeroMetricStrip(
 }
 
 export default async function OverviewPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   if (!isUnifiedAllToolsDashboardEnabled()) {
     return <LegacyOverviewPage />;

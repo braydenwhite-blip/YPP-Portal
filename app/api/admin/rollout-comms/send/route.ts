@@ -1,8 +1,7 @@
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
+import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
 import { Prisma, RoleType, RolloutAudience } from "@prisma/client";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 type TemplateKey =
@@ -68,7 +67,7 @@ function isMissingTableError(error: unknown) {
 }
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
 
   if (!session?.user?.id) {

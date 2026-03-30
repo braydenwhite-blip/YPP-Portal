@@ -1,9 +1,8 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 
 export default async function AdminPositionsNewAliasPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
 
   if (!session?.user?.id) {

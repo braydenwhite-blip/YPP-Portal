@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import {
   getMyCollegeAdvisor,
   getAvailableAdvisors,
@@ -20,7 +19,7 @@ const TIER_MEETING_INFO: Record<string, string> = {
 };
 
 export default async function CollegeAdvisorPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session) redirect("/login");
 
   const hasAccess = await canAccessCollegeAdvisor();

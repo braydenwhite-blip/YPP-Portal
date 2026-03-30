@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { getChapterByPublicSlug, getChapterCalendarEntries } from "@/lib/chapter-calendar";
 
@@ -11,7 +10,7 @@ function addDays(base: Date, days: number) {
 }
 
 async function getSessionViewer() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const user = await prisma.user.findUnique({

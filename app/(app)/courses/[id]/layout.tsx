@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import type { ReactNode } from "react";
 import { shouldUseUnifiedStudentClassExperience } from "@/lib/student-class-portal";
 
@@ -9,7 +8,7 @@ export default async function LegacyCourseStudentRedirectLayout({
 }: {
   children: ReactNode;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const useStudentClassExperience = shouldUseUnifiedStudentClassExperience({
     primaryRole: session?.user?.primaryRole,
     roles: session?.user?.roles,

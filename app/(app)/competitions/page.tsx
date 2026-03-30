@@ -1,12 +1,11 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getCompetitions } from "@/lib/challenge-gamification-actions";
 import Link from "next/link";
 import { CompetitionEntryForm, CompetitionVoteForm } from "./client";
 
 export default async function CompetitionsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const { competitions, myEntryMap } = await getCompetitions();

@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import {
   getSingleStudentPathwayJourney,
 } from "@/lib/chapter-pathway-journey";
@@ -10,7 +9,7 @@ import { enrollInClass } from "@/lib/class-management-actions";
 import { awardXp, XP_REWARDS } from "@/lib/xp";
 
 export async function getOnboardingProgress() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   try {
@@ -23,7 +22,7 @@ export async function getOnboardingProgress() {
 }
 
 export async function saveOnboardingStep(step: number) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return { error: "Not authenticated" };
 
   try {
@@ -40,7 +39,7 @@ export async function saveOnboardingStep(step: number) {
 }
 
 export async function saveOnboardingProfile(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return { error: "Not authenticated" };
 
   const bio = formData.get("bio") as string | null;
@@ -97,7 +96,7 @@ export async function saveOnboardingProfile(formData: FormData) {
 }
 
 export async function selectPathways(pathwayIds: string[]) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return { error: "Not authenticated" };
   let joinablePathwayCount = 0;
   const unavailableMessages: string[] = [];
@@ -151,7 +150,7 @@ export async function selectPathways(pathwayIds: string[]) {
 }
 
 export async function enrollInNextPathwayStep(pathwayId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return { error: "Not authenticated" };
 
   const pathway = await getSingleStudentPathwayJourney(session.user.id, pathwayId);
@@ -236,7 +235,7 @@ export async function checkAndAwardPathwayCertificate(userId: string, pathwayId:
 }
 
 export async function leavePathway(pathwayId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return { error: "Not authenticated" };
 
   const steps = await prisma.pathwayStep.findMany({
@@ -270,7 +269,7 @@ export async function leavePathway(pathwayId: string) {
 }
 
 export async function completeOnboarding() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return { error: "Not authenticated" };
 
   try {

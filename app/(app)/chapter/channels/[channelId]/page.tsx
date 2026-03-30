@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { getChannelMessages } from "@/lib/chapter-channel-actions";
 import { ChannelMessageComposer } from "./channel-message-composer";
@@ -28,7 +27,7 @@ export default async function ChannelPage({
 }: {
   params: { channelId: string };
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const { channel, messages } = await getChannelMessages(params.channelId);

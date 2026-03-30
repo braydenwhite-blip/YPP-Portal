@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { getChapterMembers } from "@/lib/chapter-member-actions";
 import { MemberSearch } from "./member-search";
@@ -20,7 +19,7 @@ export default async function ChapterMembersPage({
 }: {
   searchParams: { q?: string };
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const members = await getChapterMembers(searchParams.q);

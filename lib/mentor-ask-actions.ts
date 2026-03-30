@@ -1,7 +1,6 @@
 "use server";
 
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import {
   createMentorshipRequest,
   markMentorshipResponseHelpful,
@@ -9,7 +8,7 @@ import {
 } from "@/lib/mentorship-hub-actions";
 
 export async function submitMentorQuestion(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const question = String(formData.get("question") ?? "").trim();
@@ -36,7 +35,7 @@ export async function submitMentorQuestion(formData: FormData) {
 }
 
 export async function answerMentorQuestion(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const roles = session.user.roles ?? [];
@@ -54,7 +53,7 @@ export async function answerMentorQuestion(formData: FormData) {
 }
 
 export async function upvoteMentorAnswer(answerId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   await markMentorshipResponseHelpful(answerId);

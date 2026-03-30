@@ -1,9 +1,8 @@
 "use server";
 
 import { Prisma } from "@prisma/client";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import {
   hasCompetitionDraftOwnership,
@@ -20,7 +19,7 @@ const COMPETITION_DRAFT_SCHEMA_MESSAGE =
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 async function requireInstructor() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (
     !session?.user?.id ||
@@ -34,7 +33,7 @@ async function requireInstructor() {
 }
 
 async function requireAdmin() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!session?.user?.id || !roles.includes("ADMIN")) {
     throw new Error("Unauthorized – admin role required");
@@ -292,7 +291,7 @@ export async function publishCompetitionDraft(id: string) {
 // ─── Admin: list instructor-drafted competitions pending review ───────────────
 
 export async function getPendingInstructorCompetitionDrafts() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!session?.user?.id || !roles.includes("ADMIN")) {
     throw new Error("Admin only");

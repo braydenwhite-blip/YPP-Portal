@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 
@@ -38,7 +37,7 @@ async function readPayload(request: Request): Promise<DashboardAnalyticsPayload>
 }
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }

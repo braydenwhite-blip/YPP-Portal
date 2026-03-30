@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import {
   getLinkedStudents,
@@ -12,7 +11,7 @@ import {
 import ParentEnrollOffering from "@/components/parent-enroll-offering";
 
 export default async function ParentPortalPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
 
   if (!session?.user?.id) {

@@ -1,5 +1,6 @@
 "use server";
 
+import { getSession } from "@/lib/auth-supabase";
 import {
   AuditAction,
   MenteeRoleType,
@@ -16,10 +17,8 @@ import {
   ProgressStatus,
   RoleType,
 } from "@prisma/client";
-import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 
-import { authOptions } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit-log-actions";
 import {
   ensureCanonicalTrack,
@@ -77,7 +76,7 @@ function getBoolean(formData: FormData, key: string) {
 }
 
 async function requireSession() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }

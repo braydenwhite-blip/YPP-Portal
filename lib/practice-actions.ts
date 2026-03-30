@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 
 // ---------------------------------------------------------------------------
@@ -10,7 +9,7 @@ import { revalidatePath } from "next/cache";
 // ---------------------------------------------------------------------------
 
 async function requireUser() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
@@ -25,7 +24,7 @@ const XP_PER_PRACTICE = 10;
 
 /** Fetch the current user's recent practice logs, newest first. */
 export async function getMyPracticeLogs(limit = 20) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return [];
 
   return prisma.practiceLog.findMany({
@@ -37,7 +36,7 @@ export async function getMyPracticeLogs(limit = 20) {
 
 /** Aggregate stats for the current user's practice. */
 export async function getMyPracticeStats() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     return { sessionsThisMonth: 0, totalMinutes: 0, streak: 0 };
   }
@@ -77,7 +76,7 @@ export async function getMyPracticeStats() {
 
 /** Get unique passion IDs the user has practiced. */
 export async function getMyPracticePassions() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return [];
 
   const logs = await prisma.practiceLog.findMany({

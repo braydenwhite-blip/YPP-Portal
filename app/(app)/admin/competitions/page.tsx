@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { getPendingInstructorCompetitionDrafts, publishCompetitionDraft } from "@/lib/competition-draft-actions";
 import { hasCompetitionDraftOwnership } from "@/lib/schema-compat";
@@ -13,7 +12,7 @@ async function publishDraftAction(formData: FormData) {
 }
 
 export default async function AdminCompetitionsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const roles = session.user.roles ?? [];

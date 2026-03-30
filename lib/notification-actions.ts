@@ -1,14 +1,13 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { NotificationType } from "@prisma/client";
 import { deliverNotification, deliverBulkNotifications } from "@/lib/notification-delivery";
 
 async function requireAuth() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
@@ -276,7 +275,7 @@ export async function createSystemNotification(
   doSendEmail = true
 ) {
   // Require at least an authenticated session to prevent abuse
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
@@ -302,7 +301,7 @@ export async function createBulkSystemNotifications(
   link?: string,
   doSendEmail = true
 ) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }

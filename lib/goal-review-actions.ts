@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import {
   GoalRatingColor,
@@ -45,7 +44,7 @@ function computeTier(totalPoints: number): AchievementAwardTier | null {
 // ============================================
 
 async function requireMentor() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   const roles = session.user.roles ?? [];
   if (!roles.includes("MENTOR") && !roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT")) {
@@ -55,7 +54,7 @@ async function requireMentor() {
 }
 
 async function requireAdmin() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   const roles = session.user.roles ?? [];
   if (!roles.includes("ADMIN")) throw new Error("Unauthorized");
@@ -77,7 +76,7 @@ function getString(formData: FormData, key: string, required = true): string {
  * Reflections without a review are "pending"; those with a DRAFT review are in-progress.
  */
 export async function getMyReviewQueue() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const userId = session.user.id as string;
@@ -130,7 +129,7 @@ export async function getMyReviewQueue() {
  * Fetch a single self-reflection with all data needed to write a review.
  */
 export async function getReflectionForReview(reflectionId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const userId = session.user.id as string;
@@ -339,7 +338,7 @@ export async function saveGoalReview(formData: FormData) {
  * Admins see all pending reviews.
  */
 export async function getChairQueue() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const userId = session.user.id as string;
@@ -409,7 +408,7 @@ export async function getChairQueue() {
  * Fetch a single review + full reflection for the chair approval detail page.
  */
 export async function getReviewForChair(reviewId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const userId = session.user.id as string;
@@ -684,7 +683,7 @@ export async function getFeedbackSummary(token: string) {
  * Get quarterly review data (3 monthly reviews side-by-side) for the quarterly dashboard.
  */
 export async function getQuarterlyReviewData(reviewId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const userId = session.user.id as string;

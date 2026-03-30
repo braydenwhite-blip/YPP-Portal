@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { getStudentChapterJourneyData } from "@/lib/chapter-pathway-journey";
 import { getMyChapterHomeData } from "@/lib/chapter-member-actions";
@@ -50,7 +49,7 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export default async function MyChapterPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   // Load chapter home data, pathway journey, and gamification in parallel

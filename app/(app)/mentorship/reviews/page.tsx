@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
 
-import { authOptions } from "@/lib/auth";
 import { FieldLabel } from "@/components/field-help";
 import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
 import { ProgressBar } from "@/components/progress-bar";
@@ -46,7 +45,7 @@ const CHAIR_QUEUE_GUIDE_ITEMS = [
 ] as const;
 
 export default async function ChairReviewQueuePage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }

@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { enrollStudentInOffering } from "@/lib/class-management-actions";
 import { enrollStudentInProgram } from "@/lib/program-actions";
@@ -14,7 +13,7 @@ const INSTRUCTOR_COHORT_SCHEMA_MESSAGE =
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 async function requireInstructor() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (
     !session?.user?.id ||

@@ -1,12 +1,11 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import ChapterPresidentApplicationForm from "@/components/chapter-president-application-form";
 import Link from "next/link";
 
 export default async function ApplyChapterPresidentPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   // Check if user already has an application

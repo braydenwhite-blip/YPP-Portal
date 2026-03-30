@@ -1,7 +1,6 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { reviewCPApplicationAction } from "@/lib/chapter-president-application-actions";
 import { saveCPApplicationScores } from "@/lib/export-actions";
@@ -65,7 +64,7 @@ export default async function AdminCPApplicantsPage({
 }: {
   searchParams: { status?: string; grad?: string; state?: string; search?: string };
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!roles.includes("ADMIN")) redirect("/");
 

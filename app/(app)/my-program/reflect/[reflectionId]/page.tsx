@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { redirect, notFound } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getReflectionById } from "@/lib/self-reflection-actions";
 import Link from "next/link";
 
@@ -46,7 +45,7 @@ function Field({ label, value }: { label: string; value: string | null | undefin
 export default async function ReflectionViewPage({ params }: { params: Promise<{ reflectionId: string }> }) {
   const { reflectionId } = await params;
 
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const reflection = await getReflectionById(reflectionId);

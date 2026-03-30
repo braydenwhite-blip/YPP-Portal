@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getAchievementJourneyData } from "@/lib/achievement-journey-actions";
 import { TIER_THRESHOLDS } from "@/lib/achievement-journey-config";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
@@ -54,7 +53,7 @@ const TIER_BENEFITS: Record<string, string[]> = {
 };
 
 export default async function AchievementJourneyPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const primaryRole = session.user.primaryRole ?? "";

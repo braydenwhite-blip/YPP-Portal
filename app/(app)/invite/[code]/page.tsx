@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getInviteByCode } from "@/lib/chapter-invite-actions";
 import { AcceptInviteButton } from "./accept-invite-button";
 import Link from "next/link";
@@ -10,7 +9,7 @@ export default async function InviteAcceptPage({
 }: {
   params: { code: string };
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect(`/login?callbackUrl=/invite/${params.code}`);
 
   const invite = await getInviteByCode(params.code);

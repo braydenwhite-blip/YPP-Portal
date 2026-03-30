@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getKudosFeed, getKudosRecipients } from "@/lib/peer-recognition-actions";
 import KudosFeedClient from "./kudos-feed-client";
 
@@ -16,7 +15,7 @@ const CATEGORY_CONFIG: Record<string, { label: string; emoji: string; color: str
 };
 
 export default async function PeerRecognitionPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const [feed, recipients] = await Promise.all([getKudosFeed(), getKudosRecipients()]);
