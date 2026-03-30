@@ -318,6 +318,7 @@ export async function advanceStudentInSequence(userId: string, pathwayId: string
       classTemplate: {
         select: {
           ...getClassTemplateSelect({
+            includeLearnerFit: capabilities.hasLearnerFitFields,
             includeWorkflow: capabilities.hasReviewWorkflow,
           }),
           offerings: {
@@ -594,6 +595,7 @@ export async function getSequenceById(id: string) {
           ...(supportsAdvancedSchema ? { stepDetails: true } : {}),
           classTemplate: {
             select: getClassTemplateSelect({
+              includeLearnerFit: capabilities.hasLearnerFitFields,
               includeWorkflow: capabilities.hasReviewWorkflow,
             }),
           },
@@ -693,6 +695,7 @@ export async function getInstructorSequences() {
           ...(supportsAdvancedSchema ? { stepDetails: true } : {}),
           classTemplate: {
             select: getClassTemplateSelect({
+              includeLearnerFit: capabilities.hasLearnerFitFields,
               includeWorkflow: capabilities.hasReviewWorkflow,
             }),
           },
