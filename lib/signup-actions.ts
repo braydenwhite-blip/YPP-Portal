@@ -18,6 +18,57 @@ function getString(formData: FormData, key: string, required = true) {
   return value ? String(value).trim() : "";
 }
 
+async function upsertPortalUser(params: {
+  name: string;
+  email: string;
+  phone?: string;
+  primaryRole: RoleType;
+  chapterId?: string;
+  supabaseAuthId: string;
+}) {
+  const user = await prisma.user.upsert({
+    where: { email: params.email },
+    update: {
+      name: params.name,
+      phone: params.phone || null,
+      passwordHash: "",
+      primaryRole: params.primaryRole,
+      chapterId: params.chapterId || null,
+      emailVerified: new Date(),
+      supabaseAuthId: params.supabaseAuthId,
+    },
+    create: {
+      name: params.name,
+      email: params.email,
+      phone: params.phone || null,
+      passwordHash: "",
+      primaryRole: params.primaryRole,
+      chapterId: params.chapterId || null,
+      emailVerified: new Date(),
+      supabaseAuthId: params.supabaseAuthId,
+      roles: {
+        create: [{ role: params.primaryRole }],
+      },
+    },
+  });
+
+  await prisma.userRole.upsert({
+    where: {
+      userId_role: {
+        userId: user.id,
+        role: params.primaryRole,
+      },
+    },
+    update: {},
+    create: {
+      userId: user.id,
+      role: params.primaryRole,
+    },
+  });
+
+  return user;
+}
+
 export async function signUp(prevState: FormState, formData: FormData): Promise<FormState> {
   try {
     const name = getString(formData, "name");
@@ -74,20 +125,13 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
       return { status: "error", message: "Something went wrong. Please try again." };
     }
 
-    const newUser = await prisma.user.create({
-      data: {
-        name,
-        email,
-        phone: phone || null,
-        passwordHash: "", // Passwords now managed by Supabase Auth
-        primaryRole,
-        chapterId: chapterId || null,
-        emailVerified: new Date(),
-        supabaseAuthId: authData.user.id,
-        roles: {
-          create: [{ role: primaryRole }]
-        }
-      }
+    const newUser = await upsertPortalUser({
+      name,
+      email,
+      phone,
+      primaryRole,
+      chapterId,
+      supabaseAuthId: authData.user.id,
     });
 
     // If applicant, create the InstructorApplication record with all fields
@@ -236,19 +280,12 @@ export async function signUpParent(prevState: FormState, formData: FormData): Pr
       return { status: "error", message: "Something went wrong. Please try again." };
     }
 
-    const parent = await prisma.user.create({
-      data: {
-        name,
-        email,
-        phone: phone || null,
-        passwordHash: "", // Passwords now managed by Supabase Auth
-        primaryRole: RoleType.PARENT,
-        emailVerified: new Date(),
-        supabaseAuthId: authData.user.id,
-        roles: {
-          create: [{ role: RoleType.PARENT }]
-        }
-      }
+    const parent = await upsertPortalUser({
+      name,
+      email,
+      phone,
+      primaryRole: RoleType.PARENT,
+      supabaseAuthId: authData.user.id,
     });
 
     // If child email provided, try to link
