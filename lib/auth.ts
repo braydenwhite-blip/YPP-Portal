@@ -200,18 +200,6 @@ function buildProviders() {
         // Clear lockout counter on successful login
         await clearAccountLockout(email);
 
-        // Block unverified accounts for admins only
-        if (!user.emailVerified && user.primaryRole === "ADMIN") {
-          throw new Error("EMAIL_NOT_VERIFIED");
-        }
-
-        // If 2FA is enabled, issue a challenge token — admins only
-        if ((user as any).twoFactorEnabled && user.primaryRole === "ADMIN") {
-          const { issueTwoFactorChallenge } = await import("@/lib/two-factor-actions");
-          const challengeToken = await issueTwoFactorChallenge(user.id);
-          throw new Error(`TWO_FACTOR_REQUIRED::${challengeToken}`);
-        }
-
         const normalizedRoles = normalizeAuthRolePayload({
           roles: user.roles.map((role) => role.role),
           primaryRole: user.primaryRole,
