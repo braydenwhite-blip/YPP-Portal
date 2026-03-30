@@ -1,5 +1,19 @@
-import NextAuth from "next-auth";
+import { NextResponse } from "next/server";
 
-const handler = NextAuth(authOptions);
+function retiredResponse() {
+  return NextResponse.json(
+    {
+      error: "NextAuth endpoint retired",
+      message: "Authentication now uses Supabase Auth. Start from /login.",
+    },
+    { status: 410 }
+  );
+}
 
-export { handler as GET, handler as POST };
+export async function GET() {
+  return retiredResponse();
+}
+
+export async function POST() {
+  return retiredResponse();
+}

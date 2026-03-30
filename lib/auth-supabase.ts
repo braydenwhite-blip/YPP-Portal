@@ -58,9 +58,8 @@ export async function getSessionUser(): Promise<SessionUser | null> {
 }
 
 /**
- * Drop-in replacement for `getServerSession(authOptions)`.
- * Returns a session-like object with `user` property, matching
- * the shape that all existing code expects.
+ * Returns a session-like object with `user` property so existing server code
+ * can keep reading `session.user` while auth is powered by Supabase.
  */
 export async function getSession(): Promise<{
   user: SessionUser & { image?: string | null };
