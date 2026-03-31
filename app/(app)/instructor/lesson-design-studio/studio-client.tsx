@@ -98,7 +98,6 @@ function normalizeEnergyLevel(value: unknown): WeekActivity["energyLevel"] {
 
 function normalizeActivity(activity: unknown): WeekActivity {
   const activityRecord = asRecord(activity);
-
   return {
     id:
       typeof activityRecord.id === "string" && activityRecord.id.trim().length > 0
@@ -627,7 +626,7 @@ export function StudioClient({
         }
       };
 
-      const queuedSave = saveChainRef.current.catch(() => true).then(runSave);
+      const queuedSave = saveChainRef.current.catch((err) => { console.warn("[studio] Previous save failed:", err); return true; }).then(runSave);
       saveChainRef.current = queuedSave;
       return queuedSave;
     },
@@ -675,18 +674,22 @@ export function StudioClient({
 
       switch (field) {
         case "title":
+          if (typeof value !== 'string') break;
           nextSnapshot = { ...nextSnapshot, title: value as string };
           setTitle(nextSnapshot.title);
           break;
         case "description":
+          if (typeof value !== 'string') break;
           nextSnapshot = { ...nextSnapshot, description: value as string };
           setDescription(nextSnapshot.description);
           break;
         case "interestArea":
+          if (typeof value !== 'string') break;
           nextSnapshot = { ...nextSnapshot, interestArea: value as string };
           setInterestArea(nextSnapshot.interestArea);
           break;
         case "outcomes":
+          if (!Array.isArray(value)) break;
           nextSnapshot = { ...nextSnapshot, outcomes: value as string[] };
           setOutcomes(nextSnapshot.outcomes);
           break;
@@ -1533,7 +1536,7 @@ export function StudioClient({
         isReadOnly={isDraftReadOnly}
         hasStartedDraft={hasStartedDraft}
         onApplyStarterScaffold={handleApplyStarterScaffold}
-        onMoveForward={() => setActivePhase(hasStartedDraft ? "COURSE_MAP" : "COURSE_MAP")}
+        onMoveForward={() => setActivePhase("COURSE_MAP")}
         onOpenStarterTour={restartOnboardingTour}
       />
     ) : activePhase === "COURSE_MAP" ? (

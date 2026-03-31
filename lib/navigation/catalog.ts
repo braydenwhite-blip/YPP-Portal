@@ -195,7 +195,7 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Instructor Training",
       icon: "🎓",
       roles: INSTRUCTOR_AND_APPLICANT_ROLES,
-      dashboardDescription: "Complete academy modules and finish with a fully built curriculum capstone.",
+      dashboardDescription: "Complete all required academy modules to unlock offering approval.",
       dashboardPriority: 4,
       dashboardBadgeKey: "training_incomplete",
     },

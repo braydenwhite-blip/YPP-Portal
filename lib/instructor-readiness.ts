@@ -225,9 +225,7 @@ export async function getInstructorReadiness(instructorId: string): Promise<Inst
   const studioCapstoneComplete = capstoneDrafts.some(
     (draft) => draft.status === "SUBMITTED" || draft.status === "APPROVED"
   );
-  const latestCapstoneStatus = capstoneDrafts[0]?.status ?? null;
-
-  const trainingComplete = academyModulesComplete && studioCapstoneComplete;
+  const trainingComplete = academyModulesComplete;
 
   const interviewStatus = interviewGate?.status ?? "REQUIRED";
   const interviewOutcome = interviewGate?.outcome ?? null;
@@ -255,21 +253,6 @@ export async function getInstructorReadiness(instructorId: string): Promise<Inst
       title: "Complete required training modules",
       detail: `Finish ${remainingRequiredModules} remaining required module(s).`,
       href: INSTRUCTOR_TOOLS_HREF,
-    });
-  }
-  if (academyModulesComplete && !studioCapstoneComplete) {
-    const capstoneDetail =
-      latestCapstoneStatus === "NEEDS_REVISION"
-        ? "Reviewers requested changes to your lesson design. Update your draft in Lesson Design Studio and resubmit."
-        : latestCapstoneStatus === "REJECTED"
-          ? "Your lesson design needs a new submission. Open Lesson Design Studio, revise, and submit again."
-          : "Finish the Lesson Design Studio capstone: build your class plan and submit it for review.";
-
-    missingRequirements.push({
-      code: "LDS_CAPSTONE_INCOMPLETE",
-      title: "Complete Lesson Design Studio capstone",
-      detail: capstoneDetail,
-      href: LESSON_DESIGN_STUDIO_HREF,
     });
   }
   if (interviewRequired && !interviewPassed) {
@@ -328,7 +311,7 @@ export function assertReadinessAllowsPublish(
 ): void {
   if (!readiness.baseReadinessComplete) {
     throw new Error(
-      "Publishing blocked. Complete academy modules, Lesson Design Studio capstone, and interview readiness first."
+      "Publishing blocked. Complete academy modules and interview readiness first."
     );
   }
 }

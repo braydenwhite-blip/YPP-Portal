@@ -197,8 +197,8 @@ export function StudioReviewLaunchStep({
             <section className="lds-subsection-card">
               <h3>Reviewer notes</h3>
               <ul className="lds-simple-list">
-                {reviewerNotes.map((note) => (
-                  <li key={note}>{note}</li>
+                {reviewerNotes.map((note, index) => (
+                  <li key={`reviewer-note-${index}`}>{note}</li>
                 ))}
               </ul>
             </section>

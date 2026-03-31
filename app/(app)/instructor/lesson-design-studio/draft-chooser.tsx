@@ -12,6 +12,11 @@ import {
   type StudioEntryContext,
 } from "@/lib/lesson-design-studio";
 
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? "Unknown" : d.toLocaleString();
+}
+
 interface DraftChooserProps {
   userName: string;
   entryContext: StudioEntryContext;
@@ -186,7 +191,7 @@ export function DraftChooser({
               <span className="pill">{getStatusLabel(primaryEditableDraft.status)}</span>
             </div>
             <p className="lds-draft-card-meta">
-              Last updated {new Date(primaryEditableDraft.updatedAt).toLocaleString()}
+              Last updated {formatDate(primaryEditableDraft.updatedAt)}
             </p>
             <div className="lds-draft-card-actions">
               <button
@@ -240,18 +245,18 @@ export function DraftChooser({
                   </div>
 
                   <p className="lds-draft-card-meta">
-                    Last updated {new Date(draft.updatedAt).toLocaleString()}
+                    Last updated {formatDate(draft.updatedAt)}
                   </p>
 
                   {draft.submittedAt ? (
                     <p className="lds-draft-card-meta">
-                      Submitted {new Date(draft.submittedAt).toLocaleString()}
+                      Submitted {formatDate(draft.submittedAt)}
                     </p>
                   ) : null}
 
                   {draft.approvedAt ? (
                     <p className="lds-draft-card-meta">
-                      Approved {new Date(draft.approvedAt).toLocaleString()}
+                      Approved {formatDate(draft.approvedAt)}
                     </p>
                   ) : null}
 

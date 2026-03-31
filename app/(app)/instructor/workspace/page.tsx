@@ -423,15 +423,9 @@ export default async function InstructorWorkspacePage({
       )}
 
       {tab === "my-pathway" && (() => {
-        const moduleWeight = readiness.requiredModulesCount;
-        const doneModuleWeight = readiness.academyModulesComplete
-          ? moduleWeight
-          : readiness.completedRequiredModules;
-        const totalTrainingWeight = moduleWeight + 1;
-        const doneTrainingWeight = doneModuleWeight + (readiness.studioCapstoneComplete ? 1 : 0);
         const trainingPct =
-          totalTrainingWeight > 0
-            ? Math.round((doneTrainingWeight / totalTrainingWeight) * 100)
+          readiness.requiredModulesCount > 0
+            ? Math.round((readiness.completedRequiredModules / readiness.requiredModulesCount) * 100)
             : 0;
         const interviewStatus = readiness.interviewStatus;
         const interviewPassed = interviewStatus === "PASSED" || interviewStatus === "WAIVED";
@@ -555,7 +549,6 @@ export default async function InstructorWorkspacePage({
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--text-secondary)", marginBottom: 6 }}>
                   <span>
                     {readiness.completedRequiredModules} of {readiness.requiredModulesCount} modules
-                    {readiness.studioCapstoneComplete ? " · LDS submitted" : " · LDS pending"}
                   </span>
                   <span style={{ fontWeight: 700, color: "var(--ypp-purple)" }}>{trainingPct}%</span>
                 </div>

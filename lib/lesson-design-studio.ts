@@ -249,7 +249,7 @@ export function deriveStudioPhase(input: {
 
   const status = String(input.status ?? "").trim().toUpperCase();
   const nonEmptyOutcomes = Array.isArray(input.outcomes)
-    ? input.outcomes.filter((outcome) => outcome.trim().length > 0)
+    ? input.outcomes.filter((outcome) => typeof outcome === 'string' && outcome.trim().length > 0)
     : [];
   const hasStartedDraft = hasStartedStudioWork({
     title: input.title,
@@ -326,7 +326,7 @@ function buildCourseMapBlockers(input: {
 }) {
   const blockers: string[] = [];
   const nonEmptyOutcomes = Array.isArray(input.outcomes)
-    ? input.outcomes.filter((outcome) => outcome.trim().length > 0)
+    ? input.outcomes.filter((outcome) => typeof outcome === 'string' && outcome.trim().length > 0)
     : [];
 
   if ((input.title ?? "").trim().length === 0) {
