@@ -278,9 +278,9 @@ async function sendCollegeAdvisorLifecycleEmails(params: {
         : null,
     },
     REMINDER_24H: {
-      subject: "Reminder: advising meeting tomorrow",
-      heading: "Your college advising meeting is tomorrow",
-      message: `${title} is coming up tomorrow.`,
+      subject: "Reminder: advising meeting within the next 24 hours",
+      heading: "Your college advising meeting is coming up soon",
+      message: `${title} is coming up soon.`,
       details: [
         { label: "Topic", value: title },
         { label: "When", value: when },
@@ -345,8 +345,8 @@ async function sendCollegeAdvisorLifecycleEmails(params: {
         : null,
     },
     REMINDER_24H: {
-      subject: "Reminder: advising meeting tomorrow",
-      heading: "Your college advising meeting is tomorrow",
+      subject: "Reminder: advising meeting within the next 24 hours",
+      heading: "Your college advising meeting is coming up soon",
       message: `${title} is almost here.`,
       details: [
         { label: "Topic", value: title },
@@ -1201,53 +1201,28 @@ export async function cancelAdvisorMeetingBooking(formData: FormData) {
 export async function processCollegeAdvisorSchedulingReminders() {
   const now = new Date();
   const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-  const before24Hours = new Date(now.getTime() + 23 * 60 * 60 * 1000);
-  const in2Hours = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-  const before2Hours = new Date(now.getTime() + 90 * 60 * 60 * 1000);
 
-  const [tomorrowMeetings, soonMeetings] = await Promise.all([
-    prisma.collegeAdvisorMeeting.findMany({
-      where: {
-        status: "CONFIRMED",
-        scheduledAt: { gte: before24Hours, lte: in24Hours },
-        reminder24SentAt: null,
-      },
-      include: {
-        advisorship: {
-          include: {
-            advisor: {
-              include: {
-                user: { select: { name: true, email: true } },
-              },
+  const tomorrowMeetings = await prisma.collegeAdvisorMeeting.findMany({
+    where: {
+      status: "CONFIRMED",
+      scheduledAt: { gt: now, lte: in24Hours },
+      reminder24SentAt: null,
+    },
+    include: {
+      advisorship: {
+        include: {
+          advisor: {
+            include: {
+              user: { select: { name: true, email: true } },
             },
-            advisee: { select: { name: true, email: true } },
           },
+          advisee: { select: { name: true, email: true } },
         },
       },
-    }),
-    prisma.collegeAdvisorMeeting.findMany({
-      where: {
-        status: "CONFIRMED",
-        scheduledAt: { gte: before2Hours, lte: in2Hours },
-        reminder2SentAt: null,
-      },
-      include: {
-        advisorship: {
-          include: {
-            advisor: {
-              include: {
-                user: { select: { name: true, email: true } },
-              },
-            },
-            advisee: { select: { name: true, email: true } },
-          },
-        },
-      },
-    }),
-  ]);
+    },
+  });
 
   let sent24 = 0;
-  let sent2 = 0;
 
   for (const meeting of tomorrowMeetings) {
     await sendCollegeAdvisorLifecycleEmails({
@@ -1267,25 +1242,7 @@ export async function processCollegeAdvisorSchedulingReminders() {
     sent24 += 1;
   }
 
-  for (const meeting of soonMeetings) {
-    await sendCollegeAdvisorLifecycleEmails({
-      event: "REMINDER_2H",
-      meetingId: meeting.id,
-      topic: meeting.topic,
-      scheduledAt: meeting.scheduledAt,
-      durationMinutes: meeting.durationMinutes,
-      meetingLink: meeting.meetingLink,
-      advisor: meeting.advisorship.advisor.user,
-      advisee: meeting.advisorship.advisee,
-    });
-    await prisma.collegeAdvisorMeeting.update({
-      where: { id: meeting.id },
-      data: { reminder2SentAt: new Date() },
-    });
-    sent2 += 1;
-  }
-
-  return { sent24, sent2 };
+  return { sent24 };
 }
 
 // ============================================

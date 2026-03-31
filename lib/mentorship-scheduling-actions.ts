@@ -312,8 +312,8 @@ async function sendMentorshipLifecycleEmails(params: {
         : null,
     },
     REMINDER_24H: {
-      subject: `Reminder: mentorship meeting tomorrow`,
-      heading: "Your mentorship meeting is tomorrow",
+      subject: `Reminder: mentorship meeting within the next 24 hours`,
+      heading: "Your mentorship meeting is coming up soon",
       message: `${title} is coming up soon.`,
       details: [
         { label: "Meeting", value: title },
@@ -387,8 +387,8 @@ async function sendMentorshipLifecycleEmails(params: {
         : null,
     },
     REMINDER_24H: {
-      subject: `Reminder: mentorship meeting tomorrow`,
-      heading: "Your mentorship meeting is tomorrow",
+      subject: `Reminder: mentorship meeting within the next 24 hours`,
+      heading: "Your mentorship meeting is coming up soon",
       message: `${title} is almost here.`,
       details: [
         { label: "Meeting", value: title },
@@ -1294,57 +1294,29 @@ export async function cancelScheduleRequest(formData: FormData) {
 export async function processMentorshipSchedulingReminders() {
   const now = new Date();
   const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-  const before24Hours = new Date(now.getTime() + 23 * 60 * 60 * 1000);
-  const in2Hours = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-  const before2Hours = new Date(now.getTime() + 90 * 60 * 60 * 1000);
-
-  const [tomorrowSessions, soonSessions] = await Promise.all([
-    prisma.mentorshipSession.findMany({
-      where: {
-        cancelledAt: null,
-        completedAt: null,
-        scheduledAt: { gte: before24Hours, lte: in24Hours },
-        reminder24SentAt: null,
-        scheduleRequestId: { not: null },
-      },
-      include: {
-        scheduleRequest: {
-          include: {
-            mentorship: {
-              include: {
-                mentor: { select: { name: true, email: true } },
-                mentee: { select: { name: true, email: true } },
-              },
+  const tomorrowSessions = await prisma.mentorshipSession.findMany({
+    where: {
+      cancelledAt: null,
+      completedAt: null,
+      scheduledAt: { gt: now, lte: in24Hours },
+      reminder24SentAt: null,
+      scheduleRequestId: { not: null },
+    },
+    include: {
+      scheduleRequest: {
+        include: {
+          mentorship: {
+            include: {
+              mentor: { select: { name: true, email: true } },
+              mentee: { select: { name: true, email: true } },
             },
           },
         },
       },
-    }),
-    prisma.mentorshipSession.findMany({
-      where: {
-        cancelledAt: null,
-        completedAt: null,
-        scheduledAt: { gte: before2Hours, lte: in2Hours },
-        reminder2SentAt: null,
-        scheduleRequestId: { not: null },
-      },
-      include: {
-        scheduleRequest: {
-          include: {
-            mentorship: {
-              include: {
-                mentor: { select: { name: true, email: true } },
-                mentee: { select: { name: true, email: true } },
-              },
-            },
-          },
-        },
-      },
-    }),
-  ]);
+    },
+  });
 
   let sent24 = 0;
-  let sent2 = 0;
 
   for (const sessionRecord of tomorrowSessions) {
     if (!sessionRecord.scheduleRequest) continue;
@@ -1367,26 +1339,5 @@ export async function processMentorshipSchedulingReminders() {
     sent24 += 1;
   }
 
-  for (const sessionRecord of soonSessions) {
-    if (!sessionRecord.scheduleRequest) continue;
-    await sendMentorshipLifecycleEmails({
-      event: "REMINDER_2H",
-      requestId: sessionRecord.scheduleRequest.id,
-      title: sessionRecord.title,
-      sessionType: sessionRecord.type,
-      scheduledAt: sessionRecord.scheduledAt,
-      durationMinutes: sessionRecord.durationMinutes ?? 30,
-      meetingLink: sessionRecord.meetingLink,
-      mentor: sessionRecord.scheduleRequest.mentorship.mentor,
-      mentee: sessionRecord.scheduleRequest.mentorship.mentee,
-      note: sessionRecord.agenda,
-    });
-    await prisma.mentorshipSession.update({
-      where: { id: sessionRecord.id },
-      data: { reminder2SentAt: new Date() },
-    });
-    sent2 += 1;
-  }
-
-  return { sent24, sent2 };
+  return { sent24 };
 }

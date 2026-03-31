@@ -403,8 +403,8 @@ async function sendInterviewLifecycleEmails(params: {
         : null,
     },
     REMINDER_24H: {
-      subject: `Reminder: your ${interviewLabel} is tomorrow`,
-      heading: `Your ${interviewLabel} is tomorrow`,
+      subject: `Reminder: your ${interviewLabel} is within the next 24 hours`,
+      heading: `Your ${interviewLabel} is coming up soon`,
       message: `${title} is coming up soon.`,
       calendar: null,
     },
@@ -448,8 +448,8 @@ async function sendInterviewLifecycleEmails(params: {
         : null,
     },
     REMINDER_24H: {
-      subject: `Reminder: ${interviewLabel} tomorrow`,
-      heading: `Your ${interviewLabel} is tomorrow`,
+      subject: `Reminder: ${interviewLabel} within the next 24 hours`,
+      heading: `Your ${interviewLabel} is coming up soon`,
       message: `${title} is coming up soon.`,
       calendar: null,
     },
@@ -889,39 +889,16 @@ function toSlotView(
 async function processInterviewAutomation() {
   const now = new Date();
   const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-  const in2Hours = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-  const before24Hours = new Date(now.getTime() + 23 * 60 * 60 * 1000);
-  const before2Hours = new Date(now.getTime() + 90 * 60 * 1000);
-
-  const [twentyFourHourReminders, twoHourReminders, staleChapterEscalations, staleAdminEscalations] =
+  const [twentyFourHourReminders, staleChapterEscalations, staleAdminEscalations] =
     await Promise.all([
       prisma.interviewSchedulingRequest.findMany({
         where: {
           status: "BOOKED",
           scheduledAt: {
-            gte: before24Hours,
+            gt: now,
             lte: in24Hours,
           },
           reminder24SentAt: null,
-        },
-        include: {
-          interviewee: { select: { id: true, name: true, email: true } },
-          interviewer: { select: { id: true, name: true, email: true } },
-          application: {
-            select: {
-              position: { select: { title: true } },
-            },
-          },
-        },
-      }),
-      prisma.interviewSchedulingRequest.findMany({
-        where: {
-          status: "BOOKED",
-          scheduledAt: {
-            gte: before2Hours,
-            lte: in2Hours,
-          },
-          reminder2SentAt: null,
         },
         include: {
           interviewee: { select: { id: true, name: true, email: true } },
@@ -976,7 +953,7 @@ async function processInterviewAutomation() {
       createSystemNotification(
         request.intervieweeId,
         "SYSTEM",
-        "Interview tomorrow",
+        "Interview coming up",
         `Your interview with ${request.interviewer.name} is scheduled for ${when}.`,
         `/interviews/schedule`,
         false
@@ -984,7 +961,7 @@ async function processInterviewAutomation() {
       createSystemNotification(
         request.interviewerId,
         "SYSTEM",
-        "Interview tomorrow",
+        "Interview coming up",
         `Your interview with ${request.interviewee.name} is scheduled for ${when}.`,
         `/interviews/schedule`,
         false
@@ -1006,51 +983,6 @@ async function processInterviewAutomation() {
       prisma.interviewSchedulingRequest.update({
         where: { id: request.id },
         data: { reminder24SentAt: new Date() },
-      }),
-    ]);
-  }
-
-  for (const request of twoHourReminders) {
-    if (!request.scheduledAt) continue;
-    const when = request.scheduledAt.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-    });
-
-    await Promise.all([
-      createSystemNotification(
-        request.intervieweeId,
-        "SYSTEM",
-        "Interview coming up",
-        `Your interview with ${request.interviewer.name} starts at ${when}.`,
-        `/interviews/schedule`,
-        false
-      ),
-      createSystemNotification(
-        request.interviewerId,
-        "SYSTEM",
-        "Interview coming up",
-        `Your interview with ${request.interviewee.name} starts at ${when}.`,
-        `/interviews/schedule`,
-        false
-      ),
-      sendInterviewLifecycleEmails({
-        event: "REMINDER_2H",
-        requestId: request.id,
-        domain: request.domain,
-        title:
-          request.domain === "HIRING"
-            ? `Interview: ${request.application?.position.title ?? "Application interview"}`
-            : "Instructor readiness interview",
-        interviewee: request.interviewee,
-        interviewer: request.interviewer,
-        scheduledAt: request.scheduledAt,
-        duration: request.duration,
-        meetingLink: request.meetingLink,
-      }),
-      prisma.interviewSchedulingRequest.update({
-        where: { id: request.id },
-        data: { reminder2SentAt: new Date() },
       }),
     ]);
   }

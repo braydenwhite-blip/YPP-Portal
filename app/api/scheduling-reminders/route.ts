@@ -39,25 +39,16 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   const now = new Date();
-  const [pendingInterview24, pendingInterview2, pendingMentorship24, pendingMentorship2, pendingAdvisor24, pendingAdvisor2] =
+  const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const [pendingInterview24, pendingMentorship24, pendingAdvisor24] =
     await Promise.all([
       prisma.interviewSchedulingRequest.count({
         where: {
           status: "BOOKED",
           reminder24SentAt: null,
           scheduledAt: {
-            gte: new Date(now.getTime() + 23 * 60 * 60 * 1000),
-            lte: new Date(now.getTime() + 24 * 60 * 60 * 1000),
-          },
-        },
-      }),
-      prisma.interviewSchedulingRequest.count({
-        where: {
-          status: "BOOKED",
-          reminder2SentAt: null,
-          scheduledAt: {
-            gte: new Date(now.getTime() + 90 * 60 * 1000),
-            lte: new Date(now.getTime() + 2 * 60 * 60 * 1000),
+            gt: now,
+            lte: in24Hours,
           },
         },
       }),
@@ -68,20 +59,8 @@ export async function GET() {
           reminder24SentAt: null,
           scheduleRequestId: { not: null },
           scheduledAt: {
-            gte: new Date(now.getTime() + 23 * 60 * 60 * 1000),
-            lte: new Date(now.getTime() + 24 * 60 * 60 * 1000),
-          },
-        },
-      }),
-      prisma.mentorshipSession.count({
-        where: {
-          cancelledAt: null,
-          completedAt: null,
-          reminder2SentAt: null,
-          scheduleRequestId: { not: null },
-          scheduledAt: {
-            gte: new Date(now.getTime() + 90 * 60 * 1000),
-            lte: new Date(now.getTime() + 2 * 60 * 60 * 1000),
+            gt: now,
+            lte: in24Hours,
           },
         },
       }),
@@ -90,18 +69,8 @@ export async function GET() {
           status: "CONFIRMED",
           reminder24SentAt: null,
           scheduledAt: {
-            gte: new Date(now.getTime() + 23 * 60 * 60 * 1000),
-            lte: new Date(now.getTime() + 24 * 60 * 60 * 1000),
-          },
-        },
-      }),
-      prisma.collegeAdvisorMeeting.count({
-        where: {
-          status: "CONFIRMED",
-          reminder2SentAt: null,
-          scheduledAt: {
-            gte: new Date(now.getTime() + 90 * 60 * 1000),
-            lte: new Date(now.getTime() + 2 * 60 * 60 * 1000),
+            gt: now,
+            lte: in24Hours,
           },
         },
       }),
@@ -111,11 +80,8 @@ export async function GET() {
     status: "ok",
     pending: {
       interview24: pendingInterview24,
-      interview2: pendingInterview2,
       mentorship24: pendingMentorship24,
-      mentorship2: pendingMentorship2,
       advisor24: pendingAdvisor24,
-      advisor2: pendingAdvisor2,
     },
   });
 }
