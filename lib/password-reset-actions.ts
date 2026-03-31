@@ -4,6 +4,7 @@ import { sendPasswordResetEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createServiceClient } from "@/lib/supabase/server";
+import { headers } from "next/headers";
 
 export type PasswordResetFormState = {
   status: "idle" | "error" | "success";
@@ -18,7 +19,21 @@ function getString(formData: FormData, key: string) {
   return value ? String(value).trim() : "";
 }
 
+function getHeaderValue(headerName: string) {
+  const value = headers().get(headerName)?.split(",")[0]?.trim();
+  return value || "";
+}
+
 function getBaseUrl() {
+  const forwardedHost = getHeaderValue("x-forwarded-host");
+  const host = forwardedHost || getHeaderValue("host");
+  const forwardedProto = getHeaderValue("x-forwarded-proto");
+
+  if (host) {
+    const protocol = forwardedProto || (host.includes("localhost") ? "http" : "https");
+    return `${protocol}://${host}`;
+  }
+
   const nextAuthUrl = process.env.NEXTAUTH_URL?.trim();
   if (nextAuthUrl) return nextAuthUrl.replace(/\/$/, "");
 
