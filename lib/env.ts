@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+const emailFromPattern =
+  /^(?:[^<>\s@]+@[^<>\s@]+\.[^<>\s@]+|[^<>]+ ?<[^<>\s@]+@[^<>\s@]+\.[^<>\s@]+>)$/;
+
 /**
  * Environment variable validation
  *
@@ -42,7 +45,14 @@ const envSchema = z.object({
 
   // Email (Optional)
   EMAIL_PROVIDER: z.enum(["auto", "smtp", "resend"]).default("auto"),
-  EMAIL_FROM: z.string().email().optional().or(z.literal("")),
+  EMAIL_FROM: z
+    .string()
+    .trim()
+    .refine(
+      (value) => value === "" || emailFromPattern.test(value),
+      "EMAIL_FROM must be email@example.com or Name <email@example.com>"
+    )
+    .optional(),
 
   // Resend
   RESEND_API_KEY: z.string().optional(),
