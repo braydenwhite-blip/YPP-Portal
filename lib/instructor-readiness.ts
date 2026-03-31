@@ -311,7 +311,7 @@ export function assertReadinessAllowsPublish(
 ): void {
   if (!readiness.baseReadinessComplete) {
     throw new Error(
-      "Publishing blocked. Complete academy modules, Lesson Design Studio capstone, and interview readiness first."
+      "Publishing blocked. Complete academy modules and interview readiness first."
     );
   }
 }

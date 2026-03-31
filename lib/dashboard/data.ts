@@ -450,23 +450,6 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
       ]);
 
       const chapterInstructorIds = chapterInstructors.map((instructor) => instructor.id);
-      const studioCapstoneAuthors = await withPrismaFallback(
-        "dashboard:chapter:studio-capstone",
-        () =>
-          prisma.curriculumDraft.findMany({
-            where: {
-              authorId: {
-                in: chapterInstructorIds.length > 0 ? chapterInstructorIds : ["__none__"],
-              },
-              status: { in: ["SUBMITTED", "APPROVED"] },
-            },
-            select: { authorId: true },
-          }),
-        []
-      );
-      const studioCapstoneAuthorSet = new Set(
-        studioCapstoneAuthors.map((row) => row.authorId)
-      );
 
       const decisionReadyCount = unresolvedApplications.filter((application) => {
         if (!application.position.interviewRequired) return true;
