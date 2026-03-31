@@ -487,8 +487,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
         const academyModulesComplete = Array.from(requiredSet).every((moduleId) =>
           completedRequired.has(moduleId)
         );
-        const studioCapstoneComplete = studioCapstoneAuthorSet.has(instructor.id);
-        const trainingComplete = academyModulesComplete && studioCapstoneComplete;
+        const trainingComplete = academyModulesComplete;
         const interviewStatus = instructor.interviewGate?.status ?? "REQUIRED";
         const interviewPassed =
           !interviewEnforced || interviewStatus === "PASSED" || interviewStatus === "WAIVED";
@@ -587,19 +586,12 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
 
     const classCount = courses.length;
     const learnerCount = courses.reduce((sum, course) => sum + course._count.enrollments, 0);
-    const moduleWeight = readiness.requiredModulesCount;
-    const doneModuleWeight = readiness.academyModulesComplete
-      ? moduleWeight
-      : readiness.completedRequiredModules;
-    const totalTrainingWeight = moduleWeight + 1;
-    const doneTrainingWeight = doneModuleWeight + (readiness.studioCapstoneComplete ? 1 : 0);
     const trainingPercent =
-      totalTrainingWeight === 0
+      readiness.requiredModulesCount === 0
         ? 100
-        : Math.round((doneTrainingWeight / totalTrainingWeight) * 100);
+        : Math.round((readiness.completedRequiredModules / readiness.requiredModulesCount) * 100);
     const trainingIncomplete =
-      Math.max(0, readiness.requiredModulesCount - readiness.completedRequiredModules) +
-      (readiness.academyModulesComplete && !readiness.studioCapstoneComplete ? 1 : 0);
+      Math.max(0, readiness.requiredModulesCount - readiness.completedRequiredModules);
     const interviewBlocked = isInterviewGateEnforced() && !readiness.interviewPassed;
 
     heroTitle = "Instructor Command Center";

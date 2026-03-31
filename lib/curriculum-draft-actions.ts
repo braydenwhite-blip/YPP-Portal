@@ -29,7 +29,7 @@ import {
 import { syncTrainingAssignmentFromArtifacts } from "@/lib/training-actions";
 import { canAccessCurriculumDraftForPrint } from "@/lib/curriculum-draft-access";
 
-const LESSON_DESIGN_STUDIO_MODULE_KEY = "academy_lesson_studio_006";
+const LESSON_DESIGN_STUDIO_MODULE_KEY = "academy_lesson_studio_004";
 const LESSON_DESIGN_STUDIO_TOUR_KEY = "studio_onboarding_tour";
 
 async function requireStudioAccess() {
@@ -110,10 +110,7 @@ async function getOwnedCurriculumDraftForStudio(userId: string, draftId: string)
 async function getLessonDesignStudioModules() {
   return prisma.trainingModule.findMany({
     where: {
-      OR: [
-        { contentKey: LESSON_DESIGN_STUDIO_MODULE_KEY },
-        { type: TrainingModuleType.CURRICULUM_REVIEW },
-      ],
+      contentKey: LESSON_DESIGN_STUDIO_MODULE_KEY,
     },
     select: {
       id: true,
