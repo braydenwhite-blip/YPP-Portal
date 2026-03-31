@@ -192,19 +192,14 @@ export default async function ChapterLeadInstructorApplicantsPage() {
 
                     <details style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px" }}>
                       <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Schedule Interview</summary>
-                      <form action={reviewInstructorApplicationAction} style={{ marginTop: 10 }}>
-                        <input type="hidden" name="applicationId" value={app.id} />
-                        <input type="hidden" name="action" value="schedule_interview" />
-                        <label className="form-label" style={{ marginTop: 0 }}>
-                          Interview Date &amp; Time
-                          <input className="input" type="datetime-local" name="scheduledAt" required />
-                        </label>
-                        <label className="form-label">
-                          Notes (optional)
-                          <input className="input" name="notes" placeholder="e.g. Zoom link, agenda..." />
-                        </label>
-                        <button className="button secondary" type="submit" style={{ fontSize: 13 }}>Schedule</button>
-                      </form>
+                      <div style={{ marginTop: 10 }}>
+                        <p style={{ fontSize: 13, color: "var(--muted)", marginTop: 0 }}>
+                          Use the shared interview scheduler so scheduling emails, reminders, and reschedules all stay together.
+                        </p>
+                        <Link href="/interviews/schedule" className="button secondary" style={{ fontSize: 13, textDecoration: "none" }}>
+                          Open Interview Scheduler
+                        </Link>
+                      </div>
                     </details>
 
                     {app.status === "INTERVIEW_SCHEDULED" && (

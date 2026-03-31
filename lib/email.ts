@@ -7,6 +7,15 @@ let smtpTransporter: nodemailer.Transporter | null = null;
 
 type EmailProvider = "auto" | "smtp" | "resend";
 
+export interface EmailAttachment {
+  filename: string;
+  content: string;
+  contentType?: string;
+  encoding?: string;
+  contentId?: string;
+  disposition?: "attachment" | "inline";
+}
+
 function getEmailProvider(): EmailProvider {
   const raw = (process.env.EMAIL_PROVIDER || "auto").toLowerCase().trim();
   if (raw === "smtp" || raw === "resend" || raw === "auto") return raw;
@@ -26,6 +35,18 @@ function getResendClient(): Resend | null {
 function parseBool(v: string | undefined): boolean {
   if (!v) return false;
   return ["1", "true", "yes", "y", "on"].includes(v.toLowerCase().trim());
+}
+
+function extractEmailAddress(raw: string) {
+  const match = raw.match(/<([^>]+)>/);
+  return (match?.[1] || raw).trim().toLowerCase();
+}
+
+function withResendSenderHint(message: string, from: string) {
+  const address = extractEmailAddress(from);
+  if (!address.endsWith("@resend.dev")) return message;
+
+  return `${message} EMAIL_FROM is still using Resend's test sender. Verify your domain in Resend and change EMAIL_FROM to a verified address like noreply@yourdomain.com.`;
 }
 
 function getDefaultFrom(): string {
@@ -80,17 +101,27 @@ export async function sendEmail({
   to,
   subject,
   html,
-  text
+  text,
+  attachments
 }: {
   to: string | string[];
   subject: string;
   html: string;
   text?: string;
+  attachments?: EmailAttachment[];
 }): Promise<EmailResult> {
   const provider = getEmailProvider();
   const from = getDefaultFrom();
   const toList = Array.isArray(to) ? to.join(", ") : to;
   const textBody = text || stripHtml(html);
+  const normalizedAttachments = attachments?.map((attachment) => ({
+    filename: attachment.filename,
+    content: attachment.content,
+    contentType: attachment.contentType,
+    encoding: attachment.encoding,
+    cid: attachment.contentId,
+    contentDisposition: attachment.disposition ?? "attachment",
+  }));
 
   // Provider order:
   // - If EMAIL_PROVIDER is set, honor it.
@@ -110,7 +141,8 @@ export async function sendEmail({
         to: toList,
         subject,
         html,
-        text: textBody
+        text: textBody,
+        attachments: normalizedAttachments,
       });
       return { success: true, messageId: info.messageId };
     } catch (error) {
@@ -132,18 +164,20 @@ export async function sendEmail({
         to: Array.isArray(to) ? to : [to],
         subject,
         html,
-        text: textBody
+        text: textBody,
+        attachments: normalizedAttachments as any,
       });
 
       if (result.error) {
         console.error("[Email] Failed to send via Resend:", result.error);
-        return { success: false, error: result.error.message };
+        return { success: false, error: withResendSenderHint(result.error.message, from) };
       }
 
       return { success: true, messageId: result.data?.id };
     } catch (error) {
       console.error("[Email] Error sending email via Resend:", error);
-      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return { success: false, error: withResendSenderHint(message, from) };
     }
   }
 

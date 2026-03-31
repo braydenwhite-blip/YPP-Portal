@@ -5,7 +5,6 @@ import { prisma } from "@/lib/prisma";
 import {
   cancelInterviewAvailabilityRequest,
   confirmPostedInterviewSlot,
-  submitInterviewAvailabilityRequest,
 } from "@/lib/instructor-interview-actions";
 import {
   buildFallbackInstructorReadiness,
@@ -19,12 +18,6 @@ import {
 function formatDateTime(value: Date | string | null | undefined) {
   if (!value) return "-";
   return new Date(value).toLocaleString();
-}
-
-function dateTimeLocalValue(value: Date) {
-  const copy = new Date(value);
-  copy.setMinutes(copy.getMinutes() - copy.getTimezoneOffset());
-  return copy.toISOString().slice(0, 16);
 }
 
 const TRACKABLE_REQUIRED_VIDEO_PROVIDERS = new Set(["YOUTUBE", "VIMEO", "CUSTOM"]);
@@ -317,8 +310,6 @@ export default async function InstructorTrainingPage() {
     (request) => request.status === "PENDING"
   );
 
-  const defaultAvailabilityStart = dateTimeLocalValue(new Date(Date.now() + 24 * 60 * 60 * 1000));
-
   const moduleWeight = readiness.requiredModulesCount;
   const doneModuleWeight = readiness.academyModulesComplete
     ? moduleWeight
@@ -503,32 +494,14 @@ export default async function InstructorTrainingPage() {
 
         <div style={{ marginTop: 18 }}>
           <h4 style={{ marginBottom: 8 }}>Request Preferred Times</h4>
-          <form action={submitInterviewAvailabilityRequest} className="form-grid">
-            <div className="grid three">
-              <label className="form-row">
-                Preferred Slot 1
-                <input className="input" type="datetime-local" name="preferredStart1" defaultValue={defaultAvailabilityStart} required />
-              </label>
-              <label className="form-row">
-                Preferred Slot 2
-                <input className="input" type="datetime-local" name="preferredStart2" />
-              </label>
-              <label className="form-row">
-                Preferred Slot 3
-                <input className="input" type="datetime-local" name="preferredStart3" />
-              </label>
-            </div>
-            <label className="form-row">
-              Notes (optional)
-              <textarea
-                className="input"
-                name="note"
-                rows={2}
-                placeholder="Include timezone, constraints, or preferred interviewer notes"
-              />
-            </label>
-            <button type="submit" className="button small">Submit availability request</button>
-          </form>
+          <div className="card" style={{ background: "var(--surface-alt)", padding: 16 }}>
+            <p style={{ marginTop: 0, fontSize: 13, color: "var(--muted)" }}>
+              Use the shared interview scheduler to request times, confirm slots, and keep your reminder emails in one place.
+            </p>
+            <Link href="/interviews/schedule" className="button small" style={{ textDecoration: "none" }}>
+              Open Interview Scheduler
+            </Link>
+          </div>
 
           {pendingAvailabilityRequests.length > 0 ? (
             <div style={{ marginTop: 12 }}>

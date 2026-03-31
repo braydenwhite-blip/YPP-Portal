@@ -2,7 +2,9 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
+  bookMentorAvailabilitySlot,
   requestMentorMeeting,
   cancelScheduleRequest,
   type SchedulePageData,
@@ -45,9 +47,14 @@ interface Props {
 }
 
 export default function ScheduleClient({ data }: Props) {
+  const router = useRouter();
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
   const [slotInput, setSlotInput] = useState("");
+  const [selectedBookableSlotKey, setSelectedBookableSlotKey] = useState<string | null>(null);
+  const [quickBookSessionType, setQuickBookSessionType] = useState("CHECK_IN");
+  const [quickBookTitle, setQuickBookTitle] = useState("");
+  const [quickBookNotes, setQuickBookNotes] = useState("");
   const [isPending, startTransition] = useTransition();
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -87,6 +94,7 @@ export default function ScheduleClient({ data }: Props) {
         setSuccess("Meeting request sent! Your mentor will confirm a time.");
         setShowRequestForm(false);
         setSelectedSlots([]);
+        router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to send request.");
       }
@@ -100,9 +108,49 @@ export default function ScheduleClient({ data }: Props) {
     startTransition(async () => {
       try {
         await cancelScheduleRequest(formData);
+        setSuccess("Meeting request cancelled.");
         setCancellingId(null);
+        router.refresh();
       } catch {
         setCancellingId(null);
+      }
+    });
+  }
+
+  function handleInstantBook(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+
+    if (!data?.mentorship?.id) {
+      setError("No active mentorship found.");
+      return;
+    }
+
+    if (!selectedBookableSlotKey) {
+      setError("Pick one of your mentor's open slots first.");
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        const formData = new FormData();
+        formData.set("mentorshipId", data.mentorship.id);
+        formData.set("slotKey", selectedBookableSlotKey);
+        formData.set("sessionType", quickBookSessionType);
+        formData.set(
+          "title",
+          quickBookTitle.trim() || `${SESSION_TYPE_LABELS[quickBookSessionType] ?? "Mentorship"} session`
+        );
+        formData.set("notes", quickBookNotes);
+        await bookMentorAvailabilitySlot(formData);
+        setSuccess("Mentor meeting booked. A calendar invite is on the way.");
+        setSelectedBookableSlotKey(null);
+        setQuickBookTitle("");
+        setQuickBookNotes("");
+        router.refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to book this slot.");
       }
     });
   }
@@ -114,6 +162,8 @@ export default function ScheduleClient({ data }: Props) {
   const pastRequests = (data?.scheduleRequests ?? []).filter(
     (r) => r.status === "DECLINED" || r.status === "CANCELLED"
   );
+  const selectedBookableSlot =
+    (data?.availableSlots ?? []).find((slot) => slot.slotKey === selectedBookableSlotKey) ?? null;
 
   return (
     <div>
@@ -131,10 +181,10 @@ export default function ScheduleClient({ data }: Props) {
           </Link>
           {hasMentorship && !showRequestForm && (
             <button
-              className="button primary small"
+              className="button secondary small"
               onClick={() => setShowRequestForm(true)}
             >
-              + Request Meeting
+              Need a Different Time?
             </button>
           )}
         </div>
@@ -216,6 +266,152 @@ export default function ScheduleClient({ data }: Props) {
           >
             Active Mentor
           </span>
+        </div>
+      )}
+
+      {data?.mentorship && (data.availableSlots?.length ?? 0) > 0 && (
+        <div className="card" style={{ marginBottom: "1.5rem", borderTop: "3px solid #16a34a" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+            <div>
+              <p style={{ fontWeight: 700, marginBottom: "0.15rem" }}>Book an Open Slot</p>
+              <p style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
+                These times come directly from your mentor&apos;s posted availability.
+              </p>
+            </div>
+            <span className="pill" style={{ background: "#f0fdf4", color: "#16a34a", fontSize: "0.72rem" }}>
+              Self-serve booking
+            </span>
+          </div>
+
+          <form onSubmit={handleInstantBook} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            <div>
+              <label style={{ display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.45rem" }}>
+                Available mentor slots
+              </label>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.45rem", maxHeight: "320px", overflowY: "auto" }}>
+                {data.availableSlots.slice(0, 18).map((slot) => {
+                  const isSelected = selectedBookableSlotKey === slot.slotKey;
+                  return (
+                    <button
+                      key={slot.slotKey}
+                      type="button"
+                      onClick={() => setSelectedBookableSlotKey(slot.slotKey)}
+                      style={{
+                        textAlign: "left",
+                        padding: "0.75rem 0.85rem",
+                        borderRadius: "var(--radius-sm)",
+                        border: isSelected ? "2px solid #16a34a" : "1px solid var(--border)",
+                        background: isSelected ? "#f0fdf4" : "var(--surface-alt)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <p style={{ margin: 0, fontWeight: 600 }}>
+                        {new Date(slot.startsAt).toLocaleDateString("en-US", {
+                          weekday: "short",
+                          month: "short",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                      <p style={{ margin: "0.15rem 0 0", fontSize: "0.78rem", color: "var(--muted)" }}>
+                        {slot.duration} min
+                        {slot.locationLabel ? ` · ${slot.locationLabel}` : ""}
+                      </p>
+                      {slot.warningLabels.length > 0 && (
+                        <p style={{ margin: "0.2rem 0 0", fontSize: "0.72rem", color: "#b45309" }}>
+                          {slot.warningLabels.join(", ")}
+                        </p>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.3rem" }}>
+                Session type
+              </label>
+              <select
+                value={quickBookSessionType}
+                onChange={(e) => setQuickBookSessionType(e.target.value)}
+                style={{ width: "100%" }}
+              >
+                {SESSION_TYPES.map((type) => (
+                  <option key={type.value} value={type.value}>
+                    {type.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.3rem" }}>
+                Title
+              </label>
+              <input
+                type="text"
+                value={quickBookTitle}
+                onChange={(e) => setQuickBookTitle(e.target.value)}
+                placeholder="e.g., Cycle 4 check-in"
+                className="input"
+                style={{ width: "100%", boxSizing: "border-box" }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.3rem" }}>
+                Notes (optional)
+              </label>
+              <textarea
+                value={quickBookNotes}
+                onChange={(e) => setQuickBookNotes(e.target.value)}
+                rows={3}
+                placeholder="Anything you want your mentor to see before the session?"
+                className="input"
+                style={{ width: "100%", boxSizing: "border-box", resize: "vertical" }}
+              />
+            </div>
+
+            {selectedBookableSlot && (
+              <div
+                style={{
+                  padding: "0.75rem 0.85rem",
+                  background: "#f0fdf4",
+                  border: "1px solid #bbf7d0",
+                  borderRadius: "var(--radius-sm)",
+                }}
+              >
+                <p style={{ margin: 0, fontWeight: 700, fontSize: "0.8rem" }}>Selected slot</p>
+                <p style={{ margin: "0.25rem 0 0", fontSize: "0.82rem" }}>
+                  {new Date(selectedBookableSlot.startsAt).toLocaleDateString("en-US", {
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </p>
+              </div>
+            )}
+
+            <button type="submit" disabled={isPending || !selectedBookableSlotKey} className="button primary">
+              {isPending ? "Booking..." : "Book Selected Slot"}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {data?.mentorship && (data.availableSlots?.length ?? 0) === 0 && (
+        <div className="card" style={{ marginBottom: "1.5rem" }}>
+          <p style={{ fontWeight: 700, marginBottom: "0.3rem" }}>No Posted Mentor Slots Yet</p>
+          <p style={{ color: "var(--muted)", fontSize: "0.82rem", marginBottom: "0.85rem" }}>
+            Your mentor hasn&apos;t posted open times yet, so you can still send a manual request below.
+          </p>
+          <button className="button primary small" onClick={() => setShowRequestForm(true)}>
+            Request a Custom Time
+          </button>
         </div>
       )}
 

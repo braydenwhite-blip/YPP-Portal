@@ -3,6 +3,23 @@ import { z } from "zod";
 const emailFromPattern =
   /^(?:[^<>\s@]+@[^<>\s@]+\.[^<>\s@]+|[^<>]+ ?<[^<>\s@]+@[^<>\s@]+\.[^<>\s@]+>)$/;
 
+function extractEmailAddress(value: string | undefined) {
+  if (!value) return "";
+  const match = value.match(/<([^>]+)>/);
+  return (match?.[1] || value).trim().toLowerCase();
+}
+
+function isLoopbackUrl(value: string | undefined) {
+  if (!value) return false;
+
+  try {
+    const url = new URL(value);
+    return ["localhost", "127.0.0.1", "0.0.0.0"].includes(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Environment variable validation
  *
@@ -32,6 +49,9 @@ const envSchema = z.object({
     .url("NEXTAUTH_URL must be a valid URL")
     .optional()
     .or(z.literal("")),
+  NEXT_PUBLIC_APP_URL: z.string().url().optional().or(z.literal("")),
+  NEXT_PUBLIC_SITE_URL: z.string().url().optional().or(z.literal("")),
+  SITE_URL: z.string().url().optional().or(z.literal("")),
 
   // File Storage (Optional - but required for production)
   BLOB_READ_WRITE_TOKEN: z.string().optional(),
@@ -56,6 +76,7 @@ const envSchema = z.object({
 
   // Resend
   RESEND_API_KEY: z.string().optional(),
+  CRON_SECRET: z.string().optional(),
 
   // SMTP
   SMTP_HOST: z.string().optional(),
@@ -68,6 +89,7 @@ const envSchema = z.object({
   VERCEL: z.string().optional(),
   VERCEL_ENV: z.enum(["production", "preview", "development"]).optional(),
   VERCEL_URL: z.string().optional(),
+  VERCEL_PROJECT_PRODUCTION_URL: z.string().optional(),
 });
 
 /**
@@ -114,6 +136,25 @@ function validateEnv() {
     if (!hasEmail) {
       warnings.push(
         "⚠️  Email not configured. Password resets and notifications will not work."
+      );
+    }
+
+    if (!result.data.CRON_SECRET) {
+      warnings.push(
+        "⚠️  CRON_SECRET is not set. Protected reminder cron routes can be triggered without a shared secret."
+      );
+    }
+
+    const emailFromAddress = extractEmailAddress(result.data.EMAIL_FROM);
+    if (emailFromAddress.endsWith("@resend.dev")) {
+      warnings.push(
+        "⚠️  EMAIL_FROM is using Resend's test sender. Verify your domain in Resend and switch EMAIL_FROM to a verified address before emailing real users."
+      );
+    }
+
+    if (isLoopbackUrl(result.data.NEXTAUTH_URL)) {
+      warnings.push(
+        "⚠️  NEXTAUTH_URL points to localhost in production. Password reset and auth emails can send localhost links. Set NEXTAUTH_URL to your real URL or leave it empty on Vercel."
       );
     }
 

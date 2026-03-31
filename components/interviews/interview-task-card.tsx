@@ -2,29 +2,17 @@ import Link from "next/link";
 import {
   completeApplicationInterviewAndNote,
   confirmInterviewSlot,
-  postApplicationInterviewSlotsBulk,
   saveStructuredInterviewNote,
 } from "@/lib/application-actions";
 import {
-  acceptInterviewAvailabilityRequest,
   completeInstructorInterviewAndSetOutcome,
   confirmPostedInterviewSlot,
-  postInstructorInterviewSlotsBulk,
-  submitInterviewAvailabilityRequest,
 } from "@/lib/instructor-interview-actions";
 import type { InterviewTask } from "@/lib/interviews/types";
 
 type InterviewTaskCardProps = {
   task: InterviewTask;
 };
-
-function withHourOffset(value: string, hours: number) {
-  const date = new Date(value);
-  date.setHours(date.getHours() + hours);
-  const local = new Date(date);
-  local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
-  return local.toISOString().slice(0, 16);
-}
 
 function stageLabel(stage: InterviewTask["stage"]) {
   if (stage === "NEEDS_ACTION") return "Needs Action";
@@ -63,37 +51,10 @@ function renderPrimaryAction(task: InterviewTask) {
   }
 
   if (action.kind === "post_hiring_slots_bulk") {
-    const second = withHourOffset(action.defaultDateTimeLocal, 2);
-    const third = withHourOffset(action.defaultDateTimeLocal, 4);
     return (
-      <form action={postApplicationInterviewSlotsBulk} className="form-grid">
-        <input type="hidden" name="applicationId" value={action.applicationId} />
-        <div className="grid three">
-          <label className="form-row">
-            Slot 1
-            <input type="datetime-local" name="scheduledAt1" className="input" defaultValue={action.defaultDateTimeLocal} required />
-          </label>
-          <label className="form-row">
-            Slot 2
-            <input type="datetime-local" name="scheduledAt2" className="input" defaultValue={second} />
-          </label>
-          <label className="form-row">
-            Slot 3
-            <input type="datetime-local" name="scheduledAt3" className="input" defaultValue={third} />
-          </label>
-        </div>
-        <div className="grid two">
-          <label className="form-row">
-            Duration (min)
-            <input type="number" className="input" name="duration" defaultValue={30} min={15} max={180} />
-          </label>
-          <label className="form-row">
-            Meeting Link (optional)
-            <input type="url" className="input" name="meetingLink" placeholder="https://..." />
-          </label>
-        </div>
-        <button type="submit" className="button small">{action.label}</button>
-      </form>
+      <Link href="/interviews/schedule" className="button small" style={{ textDecoration: "none" }}>
+        Open Interview Scheduler
+      </Link>
     );
   }
 
@@ -174,90 +135,26 @@ function renderPrimaryAction(task: InterviewTask) {
   }
 
   if (action.kind === "request_readiness_availability") {
-    const second = withHourOffset(action.defaultDateTimeLocal, 2);
-    const third = withHourOffset(action.defaultDateTimeLocal, 4);
     return (
-      <form action={submitInterviewAvailabilityRequest} className="form-grid">
-        <input type="hidden" name="instructorId" value={action.instructorId} />
-        <div className="grid three">
-          <label className="form-row">
-            Preferred 1
-            <input type="datetime-local" className="input" name="preferredStart1" defaultValue={action.defaultDateTimeLocal} required />
-          </label>
-          <label className="form-row">
-            Preferred 2
-            <input type="datetime-local" className="input" name="preferredStart2" defaultValue={second} />
-          </label>
-          <label className="form-row">
-            Preferred 3
-            <input type="datetime-local" className="input" name="preferredStart3" defaultValue={third} />
-          </label>
-        </div>
-        <label className="form-row">
-          Notes (optional)
-          <textarea name="note" className="input" rows={2} placeholder="Timezone, constraints, interviewer preferences..." />
-        </label>
-        <button type="submit" className="button small">{action.label}</button>
-      </form>
+      <Link href="/interviews/schedule" className="button small" style={{ textDecoration: "none" }}>
+        Open Interview Scheduler
+      </Link>
     );
   }
 
   if (action.kind === "post_readiness_slots_bulk") {
-    const second = withHourOffset(action.defaultDateTimeLocal, 2);
-    const third = withHourOffset(action.defaultDateTimeLocal, 4);
     return (
-      <form action={postInstructorInterviewSlotsBulk} className="form-grid">
-        <input type="hidden" name="instructorId" value={action.instructorId} />
-        <input type="hidden" name="gateId" value={action.gateId} />
-        <div className="grid three">
-          <label className="form-row">
-            Slot 1
-            <input type="datetime-local" className="input" name="scheduledAt1" defaultValue={action.defaultDateTimeLocal} required />
-          </label>
-          <label className="form-row">
-            Slot 2
-            <input type="datetime-local" className="input" name="scheduledAt2" defaultValue={second} />
-          </label>
-          <label className="form-row">
-            Slot 3
-            <input type="datetime-local" className="input" name="scheduledAt3" defaultValue={third} />
-          </label>
-        </div>
-        <div className="grid two">
-          <label className="form-row">
-            Duration (min)
-            <input type="number" className="input" name="duration" defaultValue={30} min={15} max={180} />
-          </label>
-          <label className="form-row">
-            Meeting Link (optional)
-            <input className="input" type="url" name="meetingLink" placeholder="https://..." />
-          </label>
-        </div>
-        <button type="submit" className="button small">{action.label}</button>
-      </form>
+      <Link href="/interviews/schedule" className="button small" style={{ textDecoration: "none" }}>
+        Open Interview Scheduler
+      </Link>
     );
   }
 
   if (action.kind === "accept_readiness_request") {
     return (
-      <form action={acceptInterviewAvailabilityRequest} className="form-grid">
-        <input type="hidden" name="requestId" value={action.requestId} />
-        <div className="grid two">
-          <label className="form-row">
-            Scheduled At
-            <input type="datetime-local" className="input" name="scheduledAt" defaultValue={action.defaultDateTimeLocal} required />
-          </label>
-          <label className="form-row">
-            Duration (min)
-            <input type="number" className="input" name="duration" defaultValue={30} min={15} max={180} />
-          </label>
-        </div>
-        <label className="form-row">
-          Meeting Link (optional)
-          <input type="url" className="input" name="meetingLink" placeholder="https://..." />
-        </label>
-        <button type="submit" className="button small">{action.label}</button>
-      </form>
+      <Link href="/interviews/schedule" className="button small" style={{ textDecoration: "none" }}>
+        Open Interview Scheduler
+      </Link>
     );
   }
 

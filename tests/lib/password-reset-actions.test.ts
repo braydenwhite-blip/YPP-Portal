@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sendPasswordResetEmail } from "@/lib/email";
 import { requestPasswordReset } from "@/lib/password-reset-actions";
@@ -24,6 +24,10 @@ describe("password-reset-actions", () => {
       remaining: 4,
       reset: Date.now() + 60_000,
     } as any);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("returns the generic success message when the user does not exist", async () => {
@@ -98,6 +102,50 @@ describe("password-reset-actions", () => {
       to: "test@example.com",
       name: "Test User",
       resetUrl: "https://example.supabase.co/auth/v1/verify?token=abc",
+    });
+  });
+
+  it("uses the Vercel URL when NEXTAUTH_URL is still localhost", async () => {
+    const generateLink = vi.fn().mockResolvedValue({
+      data: {
+        properties: {
+          action_link: "https://example.supabase.co/auth/v1/verify?token=abc",
+        },
+      },
+      error: null,
+    });
+
+    vi.stubEnv("NEXTAUTH_URL", "http://localhost:3000");
+    vi.stubEnv("VERCEL_URL", "youthpassionproject-portal.vercel.app");
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      id: "user-1",
+      email: "test@example.com",
+      name: "Test User",
+    } as any);
+    vi.mocked(createServiceClient).mockReturnValue({
+      auth: {
+        admin: {
+          generateLink,
+        },
+      },
+    } as any);
+    vi.mocked(sendPasswordResetEmail).mockResolvedValue({
+      success: true,
+      messageId: "message-1",
+    });
+
+    const formData = new FormData();
+    formData.set("email", "test@example.com");
+
+    await requestPasswordReset({ status: "idle", message: "" }, formData);
+
+    expect(generateLink).toHaveBeenCalledWith({
+      type: "recovery",
+      email: "test@example.com",
+      options: {
+        redirectTo:
+          "https://youthpassionproject-portal.vercel.app/auth/callback?next=%2Freset-password",
+      },
     });
   });
 

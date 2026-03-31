@@ -32,7 +32,6 @@ describe("admin-actions createUser", () => {
         roles: ["ADMIN"],
       },
     } as any);
-    vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
     vi.mocked(logAuditEvent).mockResolvedValue(undefined as any);
   });
 
@@ -54,6 +53,9 @@ describe("admin-actions createUser", () => {
         },
       },
     } as any);
+    vi.mocked(prisma.user.findUnique)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
     vi.mocked(prisma.user.create).mockResolvedValue({
       id: "portal-user-1",
       email: "newuser@example.com",
@@ -96,6 +98,67 @@ describe("admin-actions createUser", () => {
     });
   });
 
+  it("reuses the trigger-created Prisma user row when it already exists after auth creation", async () => {
+    const createSupabaseUser = vi.fn().mockResolvedValue({
+      data: {
+        user: {
+          id: "auth-user-1",
+        },
+      },
+      error: null,
+    });
+
+    vi.mocked(createServiceClient).mockReturnValue({
+      auth: {
+        admin: {
+          createUser: createSupabaseUser,
+          deleteUser: vi.fn(),
+        },
+      },
+    } as any);
+    vi.mocked(prisma.user.findUnique)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "portal-user-1",
+        supabaseAuthId: "auth-user-1",
+      } as any);
+    vi.mocked(prisma.user.update).mockResolvedValue({
+      id: "portal-user-1",
+      email: "newuser@example.com",
+    } as any);
+
+    const formData = new FormData();
+    formData.set("name", "New User");
+    formData.set("email", "newuser@example.com");
+    formData.set("password", "Passw0rd123");
+    formData.set("primaryRole", RoleType.STUDENT);
+    formData.append("roles", RoleType.STUDENT);
+    formData.append("roles", RoleType.MENTOR);
+
+    await createUser(formData);
+
+    expect(vi.mocked(prisma.user.update)).toHaveBeenCalledWith({
+      where: { id: "portal-user-1" },
+      data: {
+        name: "New User",
+        email: "newuser@example.com",
+        phone: null,
+        passwordHash: expect.any(String),
+        primaryRole: RoleType.STUDENT,
+        chapterId: null,
+        emailVerified: expect.any(Date),
+        supabaseAuthId: "auth-user-1",
+        roles: {
+          deleteMany: {},
+          create: [
+            { role: RoleType.STUDENT },
+            { role: RoleType.MENTOR },
+          ],
+        },
+      },
+    });
+  });
+
   it("deletes the Supabase auth user if the Prisma create fails", async () => {
     const createSupabaseUser = vi.fn().mockResolvedValue({
       data: {
@@ -120,6 +183,9 @@ describe("admin-actions createUser", () => {
         },
       },
     } as any);
+    vi.mocked(prisma.user.findUnique)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
     vi.mocked(prisma.user.create).mockRejectedValue(new Error("Database write failed"));
 
     const formData = new FormData();

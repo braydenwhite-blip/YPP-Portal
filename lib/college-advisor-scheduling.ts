@@ -6,6 +6,17 @@ import { revalidatePath } from "next/cache";
 import { CollegeMeetingStatus, CollegeResourceCategory } from "@prisma/client";
 import { getUserAwardTier } from "@/lib/alumni-actions";
 import { createMentorshipNotification } from "@/lib/mentorship-program-actions";
+import { toAbsoluteAppUrl } from "@/lib/public-app-url";
+import { getSchedulingEventUid } from "@/lib/scheduling/calendar";
+import { getUserBusyIntervals } from "@/lib/scheduling/busy-intervals";
+import { sendSchedulingLifecycleEmail } from "@/lib/scheduling/email";
+import {
+  formatScheduleDateTime,
+  generateSchedulingSlots,
+  rangesOverlap,
+  type SchedulingOverrideLike,
+  type SchedulingRuleLike,
+} from "@/lib/scheduling/shared";
 
 // ============================================
 // TIER MEETING LIMITS
@@ -21,6 +32,27 @@ const TIER_MEETING_LIMITS: Record<string, number> = {
 function getTierMeetingLimit(tier: string | null): number {
   if (!tier) return 0;
   return TIER_MEETING_LIMITS[tier] ?? 0;
+}
+
+function getString(formData: FormData, key: string, required = true) {
+  const value = formData.get(key);
+  if (required && (!value || String(value).trim() === "")) {
+    throw new Error(`Missing: ${key}`);
+  }
+  return value ? String(value).trim() : "";
+}
+
+function getNumber(formData: FormData, key: string, fallback = 0) {
+  const raw = formData.get(key);
+  if (!raw) return fallback;
+  const value = Number(String(raw));
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function getOptionalDate(raw: string | null | undefined) {
+  if (!raw) return null;
+  const value = new Date(raw);
+  return Number.isNaN(value.getTime()) ? null : value;
 }
 
 // ============================================
@@ -47,6 +79,330 @@ async function requireAdmin() {
   const roles = session.user.roles ?? [];
   if (!roles.includes("ADMIN")) throw new Error("Unauthorized");
   return session;
+}
+
+async function requireAdvisorOrAdmin() {
+  const session = await requireAuth();
+  const roles = session.user.roles ?? [];
+  const isAdmin = roles.includes("ADMIN");
+  const advisor = await prisma.collegeAdvisor.findUnique({
+    where: { userId: session.user.id },
+  });
+
+  if (!advisor && !isAdmin) {
+    throw new Error("Unauthorized");
+  }
+
+  return {
+    session,
+    isAdmin,
+    advisor,
+  };
+}
+
+type AdvisorBookableSlotView = {
+  slotKey: string;
+  startsAt: string;
+  endsAt: string;
+  timezone: string;
+  duration: number;
+  meetingLink: string | null;
+  locationLabel: string | null;
+  warningLabels: string[];
+};
+
+function formatDurationLabel(duration: number) {
+  return `${duration} min`;
+}
+
+async function getAdvisorAvailabilityData(advisorId: string) {
+  const [rules, overrides] = await Promise.all([
+    prisma.advisorAvailabilitySlot.findMany({
+      where: { advisorId, isActive: true },
+      orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
+    }),
+    prisma.advisorAvailabilityOverride.findMany({
+      where: {
+        advisorId,
+        isActive: true,
+        endsAt: { gte: new Date() },
+      },
+      orderBy: { startsAt: "asc" },
+    }),
+  ]);
+
+  return {
+    rules: rules.map<SchedulingRuleLike>((rule) => ({
+      id: rule.id,
+      ownerId: rule.advisorId,
+      dayOfWeek: rule.dayOfWeek,
+      startTime: rule.startTime,
+      endTime: rule.endTime,
+      timezone: rule.timezone,
+      slotDuration: rule.slotDuration,
+      bufferMinutes: rule.bufferMinutes,
+      meetingLink: rule.meetingLink,
+      locationLabel: rule.locationLabel,
+      isActive: rule.isActive,
+    })),
+    overrides: overrides.map<SchedulingOverrideLike>((override) => ({
+      id: override.id,
+      ownerId: override.advisorId,
+      ruleId: override.slotId,
+      type: override.type,
+      startsAt: override.startsAt,
+      endsAt: override.endsAt,
+      timezone: override.timezone,
+      slotDuration: override.slotDuration,
+      bufferMinutes: override.bufferMinutes,
+      meetingLink: override.meetingLink,
+      locationLabel: override.locationLabel,
+      note: override.note,
+      isActive: override.isActive,
+    })),
+  };
+}
+
+async function getAdvisorBookableSlots(advisorUserId: string, advisorId: string, rangeStart = new Date()) {
+  const [availability, busyIntervals] = await Promise.all([
+    getAdvisorAvailabilityData(advisorId),
+    getUserBusyIntervals(advisorUserId, rangeStart),
+  ]);
+
+  return generateSchedulingSlots({
+    ownerId: advisorId,
+    rules: availability.rules,
+    overrides: availability.overrides,
+    busyIntervals,
+    rangeStart,
+    days: 21,
+  });
+}
+
+async function assertCollegeMeetingConflict(userId: string, startsAt: Date, duration: number) {
+  const intervals = await getUserBusyIntervals(userId, new Date(startsAt.getTime() - 24 * 60 * 60 * 1000));
+  const endsAt = new Date(startsAt.getTime() + duration * 60_000);
+  const conflict = intervals.find((interval) =>
+    rangesOverlap(startsAt, endsAt, interval.startsAt, interval.endsAt)
+  );
+
+  if (conflict) {
+    throw new Error(
+      `That time conflicts with an existing booking${conflict.label ? ` (${conflict.label})` : ""}.`
+    );
+  }
+}
+
+async function sendCollegeAdvisorLifecycleEmails(params: {
+  event: "REQUESTED" | "CONFIRMED" | "RESCHEDULED" | "CANCELLED" | "REMINDER_24H" | "REMINDER_2H";
+  meetingId: string;
+  topic: string | null;
+  scheduledAt?: Date | null;
+  durationMinutes?: number;
+  meetingLink?: string | null;
+  advisor: { name: string | null; email: string | null };
+  advisee: { name: string | null; email: string | null };
+}) {
+  const {
+    event,
+    meetingId,
+    topic,
+    scheduledAt = null,
+    durationMinutes = 30,
+    meetingLink = null,
+    advisor,
+    advisee,
+  } = params;
+
+  const title = topic?.trim() || "College advising meeting";
+  const when = scheduledAt ? formatScheduleDateTime(scheduledAt) : "To be scheduled";
+  const uid = getSchedulingEventUid("college-advisor", meetingId);
+  const calendarBase =
+    scheduledAt && event !== "REQUESTED"
+      ? {
+          uid,
+          title,
+          startsAt: scheduledAt,
+          durationMinutes,
+          descriptionLines: [
+            `College advisor meeting`,
+            `Advisor: ${advisor.name ?? "Advisor"}`,
+            `Student: ${advisee.name ?? "Student"}`,
+            meetingLink ? `Meeting Link: ${meetingLink}` : "",
+          ].filter(Boolean),
+          location: meetingLink || "See YPP Portal for details",
+        }
+      : null;
+
+  const advisorTemplate = {
+    REQUESTED: {
+      subject: "New college advising meeting request",
+      heading: "A student asked for time with you",
+      message: `${advisee.name ?? "A student"} sent a new meeting request.`,
+      details: [{ label: "Topic", value: title }],
+      calendar: null,
+    },
+    CONFIRMED: {
+      subject: "College advising meeting confirmed",
+      heading: "The meeting is booked",
+      message: `${advisee.name ?? "Your student"} has a confirmed time.`,
+      details: [
+        { label: "Topic", value: title },
+        { label: "When", value: when },
+        { label: "Length", value: formatDurationLabel(durationMinutes) },
+      ],
+      calendar: calendarBase
+        ? { ...calendarBase, method: "REQUEST", filename: "advisor-confirmed.ics" as const }
+        : null,
+    },
+    RESCHEDULED: {
+      subject: "College advising meeting moved",
+      heading: "The meeting has a new time",
+      message: `${advisee.name ?? "Your student"} now has a new confirmed slot.`,
+      details: [
+        { label: "Topic", value: title },
+        { label: "New Time", value: when },
+        { label: "Length", value: formatDurationLabel(durationMinutes) },
+      ],
+      calendar: calendarBase
+        ? { ...calendarBase, method: "REQUEST", filename: "advisor-rescheduled.ics" as const }
+        : null,
+    },
+    CANCELLED: {
+      subject: "College advising meeting cancelled",
+      heading: "A meeting was cancelled",
+      message: `${title} was removed from the calendar.`,
+      details: [{ label: "Topic", value: title }],
+      calendar: calendarBase
+        ? { ...calendarBase, method: "CANCEL", status: "CANCELLED", filename: "advisor-cancelled.ics" as const }
+        : null,
+    },
+    REMINDER_24H: {
+      subject: "Reminder: advising meeting tomorrow",
+      heading: "Your college advising meeting is tomorrow",
+      message: `${title} is coming up tomorrow.`,
+      details: [
+        { label: "Topic", value: title },
+        { label: "When", value: when },
+        { label: "Length", value: formatDurationLabel(durationMinutes) },
+      ],
+      calendar: null,
+    },
+    REMINDER_2H: {
+      subject: "Reminder: advising meeting coming up",
+      heading: "Your college advising meeting starts soon",
+      message: `${title} starts in about two hours.`,
+      details: [
+        { label: "Topic", value: title },
+        { label: "When", value: when },
+        { label: "Length", value: formatDurationLabel(durationMinutes) },
+      ],
+      calendar: null,
+    },
+  } as const;
+
+  const adviseeTemplate = {
+    REQUESTED: {
+      subject: "Your college advising meeting request was sent",
+      heading: "Your request is on its way",
+      message: `We sent your request to ${advisor.name ?? "your advisor"}.`,
+      details: [{ label: "Topic", value: title }],
+      calendar: null,
+    },
+    CONFIRMED: {
+      subject: "College advising meeting confirmed",
+      heading: "Your advising meeting is booked",
+      message: `${advisor.name ?? "Your advisor"} confirmed your time.`,
+      details: [
+        { label: "Topic", value: title },
+        { label: "When", value: when },
+        { label: "Length", value: formatDurationLabel(durationMinutes) },
+      ],
+      calendar: calendarBase
+        ? { ...calendarBase, method: "REQUEST", filename: "advisor-confirmed.ics" as const }
+        : null,
+    },
+    RESCHEDULED: {
+      subject: "College advising meeting moved",
+      heading: "Your advising meeting has a new time",
+      message: `${advisor.name ?? "Your advisor"} updated the schedule.`,
+      details: [
+        { label: "Topic", value: title },
+        { label: "New Time", value: when },
+        { label: "Length", value: formatDurationLabel(durationMinutes) },
+      ],
+      calendar: calendarBase
+        ? { ...calendarBase, method: "REQUEST", filename: "advisor-rescheduled.ics" as const }
+        : null,
+    },
+    CANCELLED: {
+      subject: "College advising meeting cancelled",
+      heading: "Your advising meeting was cancelled",
+      message: "You can pick a new time in the portal whenever you are ready.",
+      details: [{ label: "Topic", value: title }],
+      calendar: calendarBase
+        ? { ...calendarBase, method: "CANCEL", status: "CANCELLED", filename: "advisor-cancelled.ics" as const }
+        : null,
+    },
+    REMINDER_24H: {
+      subject: "Reminder: advising meeting tomorrow",
+      heading: "Your college advising meeting is tomorrow",
+      message: `${title} is almost here.`,
+      details: [
+        { label: "Topic", value: title },
+        { label: "When", value: when },
+        { label: "Length", value: formatDurationLabel(durationMinutes) },
+      ],
+      calendar: null,
+    },
+    REMINDER_2H: {
+      subject: "Reminder: advising meeting coming up",
+      heading: "Your college advising meeting starts soon",
+      message: `${title} starts in about two hours.`,
+      details: [
+        { label: "Topic", value: title },
+        { label: "When", value: when },
+        { label: "Length", value: formatDurationLabel(durationMinutes) },
+      ],
+      calendar: null,
+    },
+  } as const;
+
+  const advisorCard = advisorTemplate[event];
+  const adviseeCard = adviseeTemplate[event];
+
+  await Promise.all(
+    [
+      advisor.email
+        ? sendSchedulingLifecycleEmail({
+            to: advisor.email,
+            recipientName: advisor.name,
+            eyebrow: "College Advisor Scheduling",
+            subject: advisorCard.subject,
+            heading: advisorCard.heading,
+            message: advisorCard.message,
+            details: advisorCard.details,
+            actionUrl: toAbsoluteAppUrl("/advisor-dashboard"),
+            actionLabel: "Open Advisor Dashboard",
+            calendar: advisorCard.calendar,
+          })
+        : null,
+      advisee.email
+        ? sendSchedulingLifecycleEmail({
+            to: advisee.email,
+            recipientName: advisee.name,
+            eyebrow: "College Advisor Scheduling",
+            subject: adviseeCard.subject,
+            heading: adviseeCard.heading,
+            message: adviseeCard.message,
+            details: adviseeCard.details,
+            actionUrl: toAbsoluteAppUrl("/college-advisor"),
+            actionLabel: "Open College Advisor",
+            calendar: adviseeCard.calendar,
+          })
+        : null,
+    ].filter(Boolean)
+  );
 }
 
 // ============================================
@@ -335,19 +691,43 @@ export async function cancelMeeting(formData: FormData) {
 export async function getMyAvailabilitySlots() {
   const { advisor } = await requireAdvisor();
 
-  const slots = await prisma.advisorAvailabilitySlot.findMany({
-    where: { advisorId: advisor.id, isActive: true },
-    orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
-  });
+  const [slots, overrides] = await Promise.all([
+    prisma.advisorAvailabilitySlot.findMany({
+      where: { advisorId: advisor.id, isActive: true },
+      orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
+    }),
+    prisma.advisorAvailabilityOverride.findMany({
+      where: {
+        advisorId: advisor.id,
+        isActive: true,
+        endsAt: { gte: new Date() },
+      },
+      orderBy: { startsAt: "asc" },
+    }),
+  ]);
 
-  return slots.map((s) => ({
-    id: s.id,
-    dayOfWeek: s.dayOfWeek,
-    startTime: s.startTime,
-    endTime: s.endTime,
-    timezone: s.timezone,
-    isRecurring: s.isRecurring,
-  }));
+  return {
+    slots: slots.map((s) => ({
+      id: s.id,
+      dayOfWeek: s.dayOfWeek,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      timezone: s.timezone,
+      slotDuration: s.slotDuration,
+      bufferMinutes: s.bufferMinutes,
+      meetingLink: s.meetingLink,
+      locationLabel: s.locationLabel,
+      isRecurring: s.isRecurring,
+    })),
+    overrides: overrides.map((override) => ({
+      id: override.id,
+      type: override.type,
+      startsAt: override.startsAt.toISOString(),
+      endsAt: override.endsAt.toISOString(),
+      timezone: override.timezone,
+      note: override.note,
+    })),
+  };
 }
 
 /**
@@ -356,17 +736,24 @@ export async function getMyAvailabilitySlots() {
 export async function getAdvisorAvailability(advisorId: string) {
   await requireAuth();
 
-  const slots = await prisma.advisorAvailabilitySlot.findMany({
-    where: { advisorId, isActive: true },
-    orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
+  const advisor = await prisma.collegeAdvisor.findUniqueOrThrow({
+    where: { id: advisorId },
+    include: {
+      user: { select: { id: true } },
+    },
   });
 
-  return slots.map((s) => ({
-    id: s.id,
-    dayOfWeek: s.dayOfWeek,
-    startTime: s.startTime,
-    endTime: s.endTime,
-    timezone: s.timezone,
+  const slots = await getAdvisorBookableSlots(advisor.user.id, advisor.id);
+
+  return slots.map<AdvisorBookableSlotView>((slot) => ({
+    slotKey: slot.slotKey,
+    startsAt: slot.startsAt.toISOString(),
+    endsAt: slot.endsAt.toISOString(),
+    timezone: slot.timezone,
+    duration: slot.duration,
+    meetingLink: slot.meetingLink,
+    locationLabel: slot.locationLabel,
+    warningLabels: slot.warningLabels,
   }));
 }
 
@@ -376,10 +763,14 @@ export async function getAdvisorAvailability(advisorId: string) {
 export async function addAvailabilitySlot(formData: FormData) {
   const { advisor } = await requireAdvisor();
 
-  const dayOfWeek = parseInt(formData.get("dayOfWeek") as string);
-  const startTime = formData.get("startTime") as string;
-  const endTime = formData.get("endTime") as string;
-  const timezone = (formData.get("timezone") as string) || "America/New_York";
+  const dayOfWeek = getNumber(formData, "dayOfWeek", -1);
+  const startTime = getString(formData, "startTime");
+  const endTime = getString(formData, "endTime");
+  const timezone = getString(formData, "timezone", false) || "America/New_York";
+  const slotDuration = getNumber(formData, "slotDuration", 30);
+  const bufferMinutes = getNumber(formData, "bufferMinutes", 10);
+  const meetingLink = getString(formData, "meetingLink", false) || null;
+  const locationLabel = getString(formData, "locationLabel", false) || null;
 
   if (dayOfWeek < 0 || dayOfWeek > 6) throw new Error("Invalid day of week");
   if (!startTime || !endTime) throw new Error("Start and end time required");
@@ -391,11 +782,16 @@ export async function addAvailabilitySlot(formData: FormData) {
       startTime,
       endTime,
       timezone,
+      slotDuration,
+      bufferMinutes,
+      meetingLink,
+      locationLabel,
     },
   });
 
   revalidatePath("/college-advisor/advisor-settings");
   revalidatePath("/advisor-dashboard");
+  revalidatePath("/college-advisor/schedule");
 }
 
 /**
@@ -417,6 +813,479 @@ export async function removeAvailabilitySlot(slotId: string) {
 
   revalidatePath("/college-advisor/advisor-settings");
   revalidatePath("/advisor-dashboard");
+  revalidatePath("/college-advisor/schedule");
+}
+
+export async function addAdvisorAvailabilityOverride(formData: FormData) {
+  const { advisor } = await requireAdvisor();
+
+  const startsAt = getOptionalDate(getString(formData, "startsAt"));
+  const endsAt = getOptionalDate(getString(formData, "endsAt"));
+  const type = getString(formData, "type") as "OPEN" | "BLOCKED";
+  const timezone = getString(formData, "timezone", false) || "America/New_York";
+  const slotDuration = getNumber(formData, "slotDuration", 30);
+  const bufferMinutes = getNumber(formData, "bufferMinutes", 10);
+  const meetingLink = getString(formData, "meetingLink", false) || null;
+  const locationLabel = getString(formData, "locationLabel", false) || null;
+  const note = getString(formData, "note", false) || null;
+
+  if (!startsAt || !endsAt || endsAt <= startsAt) {
+    throw new Error("Override end must be after start.");
+  }
+
+  await prisma.advisorAvailabilityOverride.create({
+    data: {
+      advisorId: advisor.id,
+      type,
+      startsAt,
+      endsAt,
+      timezone,
+      slotDuration,
+      bufferMinutes,
+      meetingLink,
+      locationLabel,
+      note,
+    },
+  });
+
+  revalidatePath("/college-advisor/advisor-settings");
+  revalidatePath("/advisor-dashboard");
+  revalidatePath("/college-advisor/schedule");
+}
+
+export async function deactivateAdvisorAvailabilityOverride(overrideId: string) {
+  const { advisor } = await requireAdvisor();
+  const override = await prisma.advisorAvailabilityOverride.findUniqueOrThrow({
+    where: { id: overrideId },
+  });
+
+  if (override.advisorId !== advisor.id) throw new Error("Not your override");
+
+  await prisma.advisorAvailabilityOverride.update({
+    where: { id: overrideId },
+    data: { isActive: false },
+  });
+
+  revalidatePath("/college-advisor/advisor-settings");
+  revalidatePath("/advisor-dashboard");
+  revalidatePath("/college-advisor/schedule");
+}
+
+export async function getCollegeAdvisorScheduleData() {
+  const session = await requireAuth();
+  const userId = session.user.id as string;
+
+  const advisorship = await prisma.collegeAdvisorship.findFirst({
+    where: { adviseeId: userId, endDate: null },
+    include: {
+      advisor: {
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+        },
+      },
+      meetings: {
+        where: {
+          status: { in: ["REQUESTED", "CONFIRMED"] },
+          scheduledAt: { gte: new Date() },
+        },
+        orderBy: { scheduledAt: "asc" },
+      },
+    },
+  });
+
+  if (!advisorship) return null;
+
+  const [slots, tier] = await Promise.all([
+    getAdvisorBookableSlots(advisorship.advisor.user.id, advisorship.advisor.id),
+    getUserAwardTier(userId),
+  ]);
+
+  return {
+    advisorshipId: advisorship.id,
+    tier,
+    advisor: {
+      id: advisorship.advisor.id,
+      name: advisorship.advisor.user.name,
+      email: advisorship.advisor.user.email,
+      college: advisorship.advisor.college,
+      major: advisorship.advisor.major,
+      bio: advisorship.advisor.bio,
+    },
+    availableSlots: slots.map<AdvisorBookableSlotView>((slot) => ({
+      slotKey: slot.slotKey,
+      startsAt: slot.startsAt.toISOString(),
+      endsAt: slot.endsAt.toISOString(),
+      timezone: slot.timezone,
+      duration: slot.duration,
+      meetingLink: slot.meetingLink,
+      locationLabel: slot.locationLabel,
+      warningLabels: slot.warningLabels,
+    })),
+    upcomingMeetings: advisorship.meetings.map((meeting) => ({
+      id: meeting.id,
+      scheduledAt: meeting.scheduledAt.toISOString(),
+      durationMinutes: meeting.durationMinutes,
+      status: meeting.status,
+      meetingLink: meeting.meetingLink,
+      topic: meeting.topic,
+      schedulingOverrideReason: meeting.schedulingOverrideReason,
+    })),
+  };
+}
+
+export async function getAdvisorScheduleManagerData() {
+  const { advisor } = await requireAdvisor();
+
+  const [availability, slotPreview, upcomingMeetings] = await Promise.all([
+    getMyAvailabilitySlots(),
+    getAdvisorBookableSlots(advisor.userId, advisor.id),
+    prisma.collegeAdvisorMeeting.findMany({
+      where: {
+        advisorship: { advisorId: advisor.id },
+        status: { in: ["REQUESTED", "CONFIRMED"] },
+        scheduledAt: { gte: new Date() },
+      },
+      include: {
+        advisorship: {
+          include: {
+            advisee: { select: { name: true, email: true } },
+          },
+        },
+      },
+      orderBy: { scheduledAt: "asc" },
+      take: 20,
+    }),
+  ]);
+
+  return {
+    availability,
+    slotPreview: slotPreview.slice(0, 16).map<AdvisorBookableSlotView>((slot) => ({
+      slotKey: slot.slotKey,
+      startsAt: slot.startsAt.toISOString(),
+      endsAt: slot.endsAt.toISOString(),
+      timezone: slot.timezone,
+      duration: slot.duration,
+      meetingLink: slot.meetingLink,
+      locationLabel: slot.locationLabel,
+      warningLabels: slot.warningLabels,
+    })),
+    upcomingMeetings: upcomingMeetings.map((meeting) => ({
+      id: meeting.id,
+      adviseeName: meeting.advisorship.advisee.name,
+      adviseeEmail: meeting.advisorship.advisee.email,
+      scheduledAt: meeting.scheduledAt.toISOString(),
+      durationMinutes: meeting.durationMinutes,
+      status: meeting.status,
+      topic: meeting.topic,
+      meetingLink: meeting.meetingLink,
+      schedulingOverrideReason: meeting.schedulingOverrideReason,
+    })),
+  };
+}
+
+export async function bookCollegeAdvisorMeeting(formData: FormData) {
+  const session = await requireAuth();
+  const userId = session.user.id as string;
+
+  const advisorshipId = getString(formData, "advisorshipId");
+  const slotKey = getString(formData, "slotKey");
+  const topic = getString(formData, "topic", false) || null;
+
+  const advisorship = await prisma.collegeAdvisorship.findUniqueOrThrow({
+    where: { id: advisorshipId },
+    include: {
+      advisor: {
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+        },
+      },
+      advisee: { select: { id: true, name: true, email: true } },
+    },
+  });
+
+  if (advisorship.adviseeId !== userId) throw new Error("Not your advisorship");
+
+  const tier = await getUserAwardTier(userId);
+  const limit = getTierMeetingLimit(tier);
+  if (limit === 0) {
+    throw new Error("Your award tier does not include college advisor meetings");
+  }
+
+  if (limit > 0) {
+    const existingCount = await prisma.collegeAdvisorMeeting.count({
+      where: {
+        advisorshipId,
+        status: { in: ["REQUESTED", "CONFIRMED", "COMPLETED"] },
+      },
+    });
+    if (existingCount >= limit) {
+      throw new Error(`You have reached your meeting limit (${limit} meetings for ${tier} tier)`);
+    }
+  }
+
+  const slots = await getAdvisorBookableSlots(advisorship.advisor.user.id, advisorship.advisor.id);
+  const slot = slots.find((candidate) => candidate.slotKey === slotKey);
+  if (!slot) throw new Error("That slot is no longer available.");
+
+  await Promise.all([
+    assertCollegeMeetingConflict(advisorship.advisor.user.id, slot.startsAt, slot.duration),
+    assertCollegeMeetingConflict(advisorship.adviseeId, slot.startsAt, slot.duration),
+  ]);
+
+  const meeting = await prisma.collegeAdvisorMeeting.create({
+    data: {
+      advisorshipId,
+      scheduledAt: slot.startsAt,
+      durationMinutes: slot.duration,
+      status: "CONFIRMED",
+      meetingLink: slot.meetingLink,
+      topic,
+    },
+  });
+
+  await Promise.all([
+    createMentorshipNotification({
+      userId: advisorship.advisor.user.id,
+      title: "New Meeting Booking",
+      body: `${advisorship.advisee.name ?? "A student"} booked ${topic || "a college advising meeting"}.`,
+      link: "/advisor-dashboard",
+    }),
+    createMentorshipNotification({
+      userId: advisorship.advisee.id,
+      title: "Meeting Confirmed",
+      body: `${topic || "Your college advising meeting"} is confirmed for ${formatScheduleDateTime(slot.startsAt)}.`,
+      link: "/college-advisor",
+    }),
+  ]);
+
+  await sendCollegeAdvisorLifecycleEmails({
+    event: "CONFIRMED",
+    meetingId: meeting.id,
+    topic,
+    scheduledAt: slot.startsAt,
+    durationMinutes: slot.duration,
+    meetingLink: slot.meetingLink,
+    advisor: advisorship.advisor.user,
+    advisee: advisorship.advisee,
+  });
+
+  revalidatePath("/college-advisor");
+  revalidatePath("/college-advisor/schedule");
+  revalidatePath("/advisor-dashboard");
+}
+
+export async function rescheduleCollegeAdvisorMeeting(formData: FormData) {
+  const session = await requireAuth();
+  const userId = session.user.id as string;
+  const roles = session.user.roles ?? [];
+  const isAdmin = roles.includes("ADMIN");
+
+  const meetingId = getString(formData, "meetingId");
+  const scheduledAt = getOptionalDate(getString(formData, "scheduledAt"));
+  const durationMinutes = getNumber(formData, "durationMinutes", 30);
+  const meetingLink = getString(formData, "meetingLink", false) || null;
+  const overrideReason = getString(formData, "overrideReason", false) || null;
+
+  if (!scheduledAt) throw new Error("Invalid date.");
+
+  const meeting = await prisma.collegeAdvisorMeeting.findUniqueOrThrow({
+    where: { id: meetingId },
+    include: {
+      advisorship: {
+        include: {
+          advisor: {
+            include: {
+              user: { select: { id: true, name: true, email: true } },
+            },
+          },
+          advisee: { select: { id: true, name: true, email: true } },
+        },
+      },
+    },
+  });
+
+  const canAct =
+    meeting.advisorship.adviseeId === userId ||
+    meeting.advisorship.advisor.user.id === userId ||
+    isAdmin;
+  if (!canAct) throw new Error("Unauthorized");
+
+  await Promise.all([
+    assertCollegeMeetingConflict(meeting.advisorship.advisor.user.id, scheduledAt, durationMinutes),
+    assertCollegeMeetingConflict(meeting.advisorship.adviseeId, scheduledAt, durationMinutes),
+  ]);
+
+  await prisma.collegeAdvisorMeeting.update({
+    where: { id: meetingId },
+    data: {
+      scheduledAt,
+      durationMinutes,
+      meetingLink,
+      status: "CONFIRMED",
+      schedulingOverrideReason: overrideReason,
+      reminder24SentAt: null,
+      reminder2SentAt: null,
+    },
+  });
+
+  await sendCollegeAdvisorLifecycleEmails({
+    event: "RESCHEDULED",
+    meetingId,
+    topic: meeting.topic,
+    scheduledAt,
+    durationMinutes,
+    meetingLink,
+    advisor: meeting.advisorship.advisor.user,
+    advisee: meeting.advisorship.advisee,
+  });
+
+  revalidatePath("/college-advisor");
+  revalidatePath("/college-advisor/meetings");
+  revalidatePath("/advisor-dashboard");
+}
+
+export async function cancelAdvisorMeetingBooking(formData: FormData) {
+  const session = await requireAuth();
+  const userId = session.user.id as string;
+  const roles = session.user.roles ?? [];
+  const isAdmin = roles.includes("ADMIN");
+  const meetingId = getString(formData, "meetingId");
+
+  const meeting = await prisma.collegeAdvisorMeeting.findUniqueOrThrow({
+    where: { id: meetingId },
+    include: {
+      advisorship: {
+        include: {
+          advisor: {
+            include: {
+              user: { select: { id: true, name: true, email: true } },
+            },
+          },
+          advisee: { select: { id: true, name: true, email: true } },
+        },
+      },
+    },
+  });
+
+  const canAct =
+    meeting.advisorship.adviseeId === userId ||
+    meeting.advisorship.advisor.user.id === userId ||
+    isAdmin;
+  if (!canAct) throw new Error("Unauthorized");
+
+  await prisma.collegeAdvisorMeeting.update({
+    where: { id: meetingId },
+    data: {
+      status: "CANCELLED",
+      reminder24SentAt: null,
+      reminder2SentAt: null,
+    },
+  });
+
+  await sendCollegeAdvisorLifecycleEmails({
+    event: "CANCELLED",
+    meetingId,
+    topic: meeting.topic,
+    scheduledAt: meeting.scheduledAt,
+    durationMinutes: meeting.durationMinutes,
+    meetingLink: meeting.meetingLink,
+    advisor: meeting.advisorship.advisor.user,
+    advisee: meeting.advisorship.advisee,
+  });
+
+  revalidatePath("/college-advisor");
+  revalidatePath("/college-advisor/meetings");
+  revalidatePath("/advisor-dashboard");
+}
+
+export async function processCollegeAdvisorSchedulingReminders() {
+  const now = new Date();
+  const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const before24Hours = new Date(now.getTime() + 23 * 60 * 60 * 1000);
+  const in2Hours = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+  const before2Hours = new Date(now.getTime() + 90 * 60 * 60 * 1000);
+
+  const [tomorrowMeetings, soonMeetings] = await Promise.all([
+    prisma.collegeAdvisorMeeting.findMany({
+      where: {
+        status: "CONFIRMED",
+        scheduledAt: { gte: before24Hours, lte: in24Hours },
+        reminder24SentAt: null,
+      },
+      include: {
+        advisorship: {
+          include: {
+            advisor: {
+              include: {
+                user: { select: { name: true, email: true } },
+              },
+            },
+            advisee: { select: { name: true, email: true } },
+          },
+        },
+      },
+    }),
+    prisma.collegeAdvisorMeeting.findMany({
+      where: {
+        status: "CONFIRMED",
+        scheduledAt: { gte: before2Hours, lte: in2Hours },
+        reminder2SentAt: null,
+      },
+      include: {
+        advisorship: {
+          include: {
+            advisor: {
+              include: {
+                user: { select: { name: true, email: true } },
+              },
+            },
+            advisee: { select: { name: true, email: true } },
+          },
+        },
+      },
+    }),
+  ]);
+
+  let sent24 = 0;
+  let sent2 = 0;
+
+  for (const meeting of tomorrowMeetings) {
+    await sendCollegeAdvisorLifecycleEmails({
+      event: "REMINDER_24H",
+      meetingId: meeting.id,
+      topic: meeting.topic,
+      scheduledAt: meeting.scheduledAt,
+      durationMinutes: meeting.durationMinutes,
+      meetingLink: meeting.meetingLink,
+      advisor: meeting.advisorship.advisor.user,
+      advisee: meeting.advisorship.advisee,
+    });
+    await prisma.collegeAdvisorMeeting.update({
+      where: { id: meeting.id },
+      data: { reminder24SentAt: new Date() },
+    });
+    sent24 += 1;
+  }
+
+  for (const meeting of soonMeetings) {
+    await sendCollegeAdvisorLifecycleEmails({
+      event: "REMINDER_2H",
+      meetingId: meeting.id,
+      topic: meeting.topic,
+      scheduledAt: meeting.scheduledAt,
+      durationMinutes: meeting.durationMinutes,
+      meetingLink: meeting.meetingLink,
+      advisor: meeting.advisorship.advisor.user,
+      advisee: meeting.advisorship.advisee,
+    });
+    await prisma.collegeAdvisorMeeting.update({
+      where: { id: meeting.id },
+      data: { reminder2SentAt: new Date() },
+    });
+    sent2 += 1;
+  }
+
+  return { sent24, sent2 };
 }
 
 // ============================================

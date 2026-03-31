@@ -462,6 +462,8 @@ export async function createMentorshipSession(formData: FormData) {
 
   const agenda = getString(formData, "agenda", false);
   const notes = getString(formData, "notes", false);
+  const meetingLink = getString(formData, "meetingLink", false);
+  const schedulingOverrideReason = getString(formData, "schedulingOverrideReason", false);
   const durationMinutes = getOptionalInt(formData.get("durationMinutes"));
   const completedNow = getString(formData, "completedNow", false) === "true";
 
@@ -487,6 +489,8 @@ export async function createMentorshipSession(formData: FormData) {
       durationMinutes,
       agenda: agenda || null,
       notes: notes || null,
+      meetingLink: meetingLink || null,
+      schedulingOverrideReason: schedulingOverrideReason || null,
       participantIds,
       attendedIds: completedNow ? participantIds : [],
       createdById: userId,
