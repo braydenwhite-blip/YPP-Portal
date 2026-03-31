@@ -16,7 +16,7 @@ type SchedulingEmailInput = {
   eyebrow?: string;
   heading: string;
   message: string;
-  details?: SchedulingEmailDetail[];
+  details?: readonly SchedulingEmailDetail[];
   actionUrl?: string | null;
   actionLabel?: string;
   footer?: string;
@@ -32,7 +32,7 @@ function escapeHtml(value: string) {
     .replace(/'/g, "&#39;");
 }
 
-function renderDetails(details: SchedulingEmailDetail[]) {
+function renderDetails(details: readonly SchedulingEmailDetail[]) {
   if (details.length === 0) return "";
 
   return `
