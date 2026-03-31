@@ -8,6 +8,14 @@ import { createBrowserClient } from "@/lib/supabase/client";
 import { isLegacyAuthBypassEmail } from "@/lib/legacy-auth-config";
 import { signInLegacyBypass } from "@/lib/legacy-auth-actions";
 
+function getGoogleOAuthErrorMessage(message?: string) {
+  if (message?.toLowerCase().includes("provider is not enabled")) {
+    return "Google sign-in is not enabled for this Supabase project yet. Turn it on in Supabase Dashboard -> Authentication -> Providers -> Google, then try again.";
+  }
+
+  return "Could not start Google sign-in. Please try again.";
+}
+
 function LoginPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -134,16 +142,27 @@ function LoginPageContent() {
   async function handleGoogleSignIn() {
     setError(null);
     setGoogleLoading(true);
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+    const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(callbackUrl)}`,
+        skipBrowserRedirect: true,
       },
     });
+
     if (oauthError) {
+      setError(getGoogleOAuthErrorMessage(oauthError.message));
+      setGoogleLoading(false);
+      return;
+    }
+
+    if (!data?.url) {
       setError("Could not start Google sign-in. Please try again.");
       setGoogleLoading(false);
+      return;
     }
+
+    window.location.assign(data.url);
   }
 
   async function handleMagicLink(e: React.FormEvent<HTMLFormElement>) {

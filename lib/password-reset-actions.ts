@@ -2,8 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { sendPasswordResetEmail } from "@/lib/email";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createClient } from "@supabase/supabase-js";
 
 export type PasswordResetFormState = {
   status: "idle" | "error" | "success";
@@ -12,6 +11,22 @@ export type PasswordResetFormState = {
 
 const GENERIC_SUCCESS_MESSAGE =
   "If an account exists with that email, a password reset link has been sent.";
+
+function createSupabaseAuthClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+  }
+
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+}
 
 function getString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -54,41 +69,18 @@ export async function requestPasswordReset(
       return { status: "success", message: GENERIC_SUCCESS_MESSAGE };
     }
 
-    const supabaseAdmin = createServiceClient();
+    const supabaseAuth = createSupabaseAuthClient();
     const redirectTo = `${getBaseUrl()}/auth/callback?next=${encodeURIComponent("/reset-password")}`;
 
-    const { data, error } = await supabaseAdmin.auth.admin.generateLink({
-      type: "recovery",
-      email,
-      options: { redirectTo },
+    const { error } = await supabaseAuth.auth.resetPasswordForEmail(email, {
+      redirectTo,
     });
 
-    const resetUrl = data.properties?.action_link;
-    if (error || !resetUrl) {
-      if (error?.message?.includes("User with this email not found")) {
-        console.error(
-          `[PasswordReset] Prisma user ${user.id} (${user.email}) has no matching Supabase Auth user. Run scripts/migrate-users-to-supabase-auth.ts.`
-        );
-      } else {
-        console.error("[PasswordReset] Failed to generate recovery link:", error?.message);
-      }
+    if (error) {
+      console.error("[PasswordReset] Failed to trigger Supabase recovery email:", error.message);
       return {
         status: "error",
-        message: "We could not send a reset email right now. Please try again in a few minutes.",
-      };
-    }
-
-    const emailResult = await sendPasswordResetEmail({
-      to: user.email,
-      name: user.name || "there",
-      resetUrl,
-    });
-
-    if (!emailResult.success) {
-      console.error("[PasswordReset] Failed to send recovery email:", emailResult.error);
-      return {
-        status: "error",
-        message: "We could not send a reset email right now. Please check the email setup and try again.",
+        message: "We could not send a reset email right now. Please check the Supabase email settings and try again.",
       };
     }
 
