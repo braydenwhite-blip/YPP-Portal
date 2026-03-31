@@ -1,8 +1,8 @@
 "use server";
 
+import { sendPasswordResetEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { sendPasswordResetEmail } from "@/lib/email";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export type PasswordResetFormState = {
@@ -60,21 +60,21 @@ export async function requestPasswordReset(
     const { data, error } = await supabaseAdmin.auth.admin.generateLink({
       type: "recovery",
       email,
-      options: { redirectTo },
+      options: {
+        redirectTo,
+      },
     });
 
-    const resetUrl = data.properties?.action_link;
+    const resetUrl = data?.properties?.action_link;
+
     if (error || !resetUrl) {
-      if (error?.message?.includes("User with this email not found")) {
-        console.error(
-          `[PasswordReset] Prisma user ${user.id} (${user.email}) has no matching Supabase Auth user. Run scripts/migrate-users-to-supabase-auth.ts.`
-        );
-      } else {
-        console.error("[PasswordReset] Failed to generate recovery link:", error?.message);
-      }
+      console.error(
+        "[PasswordReset] Failed to generate Supabase recovery link:",
+        error?.message || "No recovery link returned."
+      );
       return {
         status: "error",
-        message: "We could not send a reset email right now. Please try again in a few minutes.",
+        message: "We could not send a reset email right now. Please check the password reset configuration and try again.",
       };
     }
 
@@ -85,10 +85,13 @@ export async function requestPasswordReset(
     });
 
     if (!emailResult.success) {
-      console.error("[PasswordReset] Failed to send recovery email:", emailResult.error);
+      console.error(
+        "[PasswordReset] Failed to send recovery email:",
+        emailResult.error || "Unknown email delivery error."
+      );
       return {
         status: "error",
-        message: "We could not send a reset email right now. Please check the email setup and try again.",
+        message: "We could not send a reset email right now. Please check the password reset configuration and try again.",
       };
     }
 
