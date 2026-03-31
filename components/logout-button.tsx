@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@/lib/supabase/client";
+import { signOutLegacyBypass } from "@/lib/legacy-auth-actions";
 
 export default function LogoutButton({
   className = "button small ghost",
@@ -15,7 +16,7 @@ export default function LogoutButton({
 
   async function handleSignOut() {
     const supabase = createBrowserClient();
-    await supabase.auth.signOut();
+    await Promise.allSettled([supabase.auth.signOut(), signOutLegacyBypass()]);
     router.push("/login");
     router.refresh();
   }

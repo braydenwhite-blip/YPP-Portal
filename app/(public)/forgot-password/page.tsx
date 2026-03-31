@@ -1,37 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useFormState, useFormStatus } from "react-dom";
 import Link from "next/link";
 import BrandLockup from "@/components/brand-lockup";
-import { createBrowserClient } from "@/lib/supabase/client";
+import {
+  requestPasswordReset,
+  type PasswordResetFormState,
+} from "@/lib/password-reset-actions";
+
+const initialState: PasswordResetFormState = { status: "idle", message: "" };
 
 export default function ForgotPasswordPage() {
-  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setLoading(true);
-    setStatus("idle");
-
-    const formData = new FormData(e.currentTarget);
-    const email = String(formData.get("email") ?? "").trim().toLowerCase();
-
-    const supabase = createBrowserClient();
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-
-    if (error) {
-      setStatus("error");
-      setMessage(error.message);
-    } else {
-      setStatus("success");
-      setMessage("If an account exists with that email, a password reset link has been sent.");
-    }
-    setLoading(false);
-  }
+  const [state, formAction] = useFormState(requestPasswordReset, initialState);
 
   return (
     <div className="login-shell">
@@ -48,10 +28,10 @@ export default function ForgotPasswordPage() {
           </div>
         </div>
 
-        {status === "success" ? (
+        {state.status === "success" ? (
           <div>
             <div className="form-success">
-              {message}
+              {state.message}
             </div>
             <p style={{ marginTop: 16, fontSize: 14, color: "var(--muted)" }}>
               Check your inbox and spam folder. The link will expire in 1 hour.
@@ -61,7 +41,7 @@ export default function ForgotPasswordPage() {
             </Link>
           </div>
         ) : (
-          <form onSubmit={handleSubmit}>
+          <form action={formAction}>
             <label className="form-label" style={{ marginTop: 0 }}>
               Email Address
               <input
@@ -72,12 +52,10 @@ export default function ForgotPasswordPage() {
                 required
               />
             </label>
-            {status === "error" && (
-              <div className="form-error">{message}</div>
+            {state.status === "error" && (
+              <div className="form-error">{state.message}</div>
             )}
-            <button className="button" type="submit" disabled={loading}>
-              {loading ? "Sending\u2026" : "Send Reset Link"}
-            </button>
+            <SubmitButton />
           </form>
         )}
 
@@ -86,5 +64,15 @@ export default function ForgotPasswordPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button className="button" type="submit" disabled={pending}>
+      {pending ? "Sending\u2026" : "Send Reset Link"}
+    </button>
   );
 }

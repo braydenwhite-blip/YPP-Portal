@@ -1,6 +1,7 @@
 import { createServerClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { normalizeRoleValues, normalizeRoleValue } from "@/lib/role-utils";
+import { getLegacySessionFromCookies } from "@/lib/legacy-auth-server";
 
 export type SessionUser = {
   id: string;
@@ -18,42 +19,51 @@ export type SessionUser = {
  * Returns null if not authenticated or user not found in DB.
  */
 export async function getSessionUser(): Promise<SessionUser | null> {
+  async function resolvePrismaUser(where: { supabaseAuthId?: string; id?: string; email?: string }) {
+    return prisma.user.findFirst({
+      where,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        primaryRole: true,
+        chapterId: true,
+        roles: { select: { role: true } },
+      },
+    });
+  }
+
   const supabase = await createServerClient();
   const {
     data: { user: authUser },
   } = await supabase.auth.getUser();
 
-  if (!authUser) return null;
-
-  const prismaUser = await prisma.user.findUnique({
-    where: { supabaseAuthId: authUser.id },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      primaryRole: true,
-      chapterId: true,
-      roles: { select: { role: true } },
-    },
-  });
+  const prismaUser = authUser
+    ? await resolvePrismaUser({ supabaseAuthId: authUser.id })
+    : await (async () => {
+        const legacySession = await getLegacySessionFromCookies();
+        if (!legacySession) return null;
+        return resolvePrismaUser({ id: legacySession.userId, email: legacySession.email });
+      })();
 
   if (!prismaUser) return null;
 
-  const roles = normalizeRoleValues(prismaUser.roles.map((r) => r.role));
+  const resolvedUser = prismaUser;
+  const roles = normalizeRoleValues(resolvedUser.roles.map((r) => r.role));
   const primaryRole =
-    normalizeRoleValue(prismaUser.primaryRole) ?? roles[0] ?? "STUDENT";
+    normalizeRoleValue(resolvedUser.primaryRole) ?? roles[0] ?? "STUDENT";
 
   if (!roles.includes(primaryRole)) {
     roles.unshift(primaryRole);
   }
 
   return {
-    id: prismaUser.id,
-    name: prismaUser.name,
-    email: prismaUser.email,
+    id: resolvedUser.id,
+    name: resolvedUser.name,
+    email: resolvedUser.email,
     roles: Array.from(new Set(roles)),
     primaryRole,
-    chapterId: prismaUser.chapterId,
+    chapterId: resolvedUser.chapterId,
   };
 }
 

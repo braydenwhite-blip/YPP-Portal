@@ -275,6 +275,7 @@ async function getOfferingCards(where: Record<string, unknown>) {
     include: {
       template: {
         select: getClassTemplateSelect({
+          includeLearnerFit: capabilities.hasLearnerFitFields,
           includeWorkflow: capabilities.hasReviewWorkflow,
         }),
       },
@@ -620,6 +621,7 @@ export async function getMyClassesHubData(userId: string): Promise<MyClassesHubD
         include: {
           template: {
             select: getClassTemplateSelect({
+              includeLearnerFit: capabilities.hasLearnerFitFields,
               includeWorkflow: capabilities.hasReviewWorkflow,
             }),
           },

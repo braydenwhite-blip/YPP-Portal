@@ -10,6 +10,7 @@ import {
 import InfoResponseForm from "./info-response-form";
 import CPInfoResponseForm from "./cp-info-response-form";
 import Link from "next/link";
+import InstructorApplicationMotivationResponse from "@/components/instructor-application-motivation-response";
 
 function instructorStatusLabel(status: InstructorApplicationStatus): string {
   switch (status) {
@@ -274,8 +275,11 @@ export default async function ApplicationStatusPage() {
             </summary>
             <div style={{ marginTop: 16 }}>
               <div style={{ marginBottom: 16 }}>
-                <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Why you want to teach:</strong></p>
-                <p style={{ fontSize: 14, margin: 0, whiteSpace: "pre-wrap" }}>{instructorApp.motivation}</p>
+                <InstructorApplicationMotivationResponse
+                  motivation={instructorApp.motivation}
+                  motivationVideoUrl={instructorApp.motivationVideoUrl}
+                  label="Teaching approach video"
+                />
               </div>
               <div style={{ marginBottom: 16 }}>
                 <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Teaching experience:</strong></p>

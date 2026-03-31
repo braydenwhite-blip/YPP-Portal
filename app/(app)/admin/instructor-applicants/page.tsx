@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { reviewInstructorApplicationAction } from "@/lib/instructor-application-actions";
 import { saveApplicationScores } from "@/lib/export-actions";
 import { InstructorApplicationStatus } from "@prisma/client";
+import InstructorApplicationMotivationResponse from "@/components/instructor-application-motivation-response";
 import InstructorApplicantsClient from "./client";
 
 function statusColor(status: InstructorApplicationStatus): string {
@@ -304,8 +305,11 @@ export default async function AdminInstructorApplicantsPage({
                       </div>
                     )}
                     <div>
-                      <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 4px", fontWeight: 600 }}>MOTIVATION TO TEACH</p>
-                      <p style={{ fontSize: 14, margin: 0, whiteSpace: "pre-wrap" }}>{app.motivation}</p>
+                      <InstructorApplicationMotivationResponse
+                        motivation={app.motivation}
+                        motivationVideoUrl={app.motivationVideoUrl}
+                        label="TEACHING APPROACH VIDEO"
+                      />
                     </div>
                     <div>
                       <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 4px", fontWeight: 600 }}>TEACHING EXPERIENCE</p>

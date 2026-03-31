@@ -3,18 +3,29 @@
 import { useFormState } from "react-dom";
 import Link from "next/link";
 import BrandLockup from "@/components/brand-lockup";
+import ApplicantVideoUpload from "@/components/applicant-video-upload";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { signUp } from "@/lib/signup-actions";
 import { useEffect, useState } from "react";
-import ResendVerificationForm from "@/app/(public)/verify-email/resend-form";
 
 const initialState = { status: "idle" as const, message: "" };
+
+function getGoogleOAuthErrorMessage(message?: string) {
+  if (message?.toLowerCase().includes("provider is not enabled")) {
+    return "Google sign-up is not enabled for this Supabase project yet. Turn it on in Supabase Dashboard -> Authentication -> Providers -> Google, then try again.";
+  }
+
+  return "Could not start Google sign-up. Please try again.";
+}
 
 export default function SignupPage() {
   const [state, formAction] = useFormState(signUp, initialState);
   const [chapters, setChapters] = useState<Array<{ id: string; name: string }>>([]);
-  const [submittedEmail, setSubmittedEmail] = useState("");
   const [accountType, setAccountType] = useState("STUDENT");
+  const [motivationVideoUrl, setMotivationVideoUrl] = useState("");
+  const [motivationVideoUploading, setMotivationVideoUploading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleError, setGoogleError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadChapters() {
@@ -25,6 +36,34 @@ export default function SignupPage() {
     }
     loadChapters();
   }, []);
+
+  async function handleGoogleSignUp() {
+    setGoogleError(null);
+    setGoogleLoading(true);
+
+    const supabase = createBrowserClient();
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?next=/`,
+        skipBrowserRedirect: true,
+      },
+    });
+
+    if (error) {
+      setGoogleError(getGoogleOAuthErrorMessage(error.message));
+      setGoogleLoading(false);
+      return;
+    }
+
+    if (!data?.url) {
+      setGoogleError("Could not start Google sign-up. Please try again.");
+      setGoogleLoading(false);
+      return;
+    }
+
+    window.location.assign(data.url);
+  }
 
   // Show "Application Submitted" confirmation for new applicants
   if (state.status === "success" && state.message === "APPLICATION_SUBMITTED") {
@@ -41,18 +80,13 @@ export default function SignupPage() {
             </div>
           </div>
           <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.6, margin: "0 0 12px" }}>
-            We sent a verification link to <strong>{submittedEmail || "your email"}</strong>.
-            Please verify your email address first to activate your account.
+            Your account was created and your instructor application was submitted successfully.
           </p>
           <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.6, margin: "0 0 12px" }}>
-            Once verified, an admin or chapter president will review your application and reach out to schedule an interview. You can log in at any time to check your application status.
+            An admin or chapter president will review your application and reach out if they need anything else. You can sign in at any time to check your application status.
           </p>
-          <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6, margin: "0 0 20px" }}>
-            Didn&apos;t get the verification email? Check your spam folder, or request a new link below.
-          </p>
-          <ResendVerificationForm initialEmail={submittedEmail} />
           <div className="login-help" style={{ marginTop: 16 }}>
-            <Link href="/login">Back to Sign In</Link>
+            <Link href="/login">Sign In</Link>
           </div>
         </div>
       </div>
@@ -100,38 +134,32 @@ export default function SignupPage() {
         </div>
         <button
           type="button"
-          onClick={() => {
-            const supabase = createBrowserClient();
-            supabase.auth.signInWithOAuth({
-              provider: "google",
-              options: {
-                redirectTo: `${window.location.origin}/auth/callback?next=/`,
-              },
-            });
-          }}
+          onClick={handleGoogleSignUp}
+          disabled={googleLoading}
           className="button secondary"
           style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12 }}
         >
-          <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-            <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
-            <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
-            <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.039l3.007-2.332z"/>
-            <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z"/>
-          </svg>
-          Sign up with Google
+          {googleLoading ? (
+            <>Redirecting...</>
+          ) : (
+            <>
+              <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+                <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
+                <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
+                <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.039l3.007-2.332z"/>
+                <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z"/>
+              </svg>
+              Sign up with Google
+            </>
+          )}
         </button>
+        {googleError && <div className="form-error">{googleError}</div>}
         <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "4px 0 12px" }}>
           <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
           <span style={{ fontSize: 12, color: "var(--muted)" }}>or create account with email</span>
           <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
         </div>
-        <form
-          action={formAction}
-          onSubmit={(e) => {
-            const data = new FormData(e.currentTarget);
-            setSubmittedEmail(String(data.get("email") ?? ""));
-          }}
-        >
+        <form action={formAction}>
           <label className="form-label" style={{ marginTop: 0 }}>
             Full Name
             <input className="input" name="name" placeholder="Your full name" required />
@@ -353,16 +381,16 @@ export default function SignupPage() {
                 <span style={{ display: "block", fontSize: 12, color: "var(--muted)", marginTop: 4 }}>Minimum 100 characters.</span>
               </label>
               <label className="form-label">
-                What motivates you to want to teach? <span style={{ color: "#dc2626" }}>*</span>
-                <textarea
-                  className="input"
-                  name="motivation"
-                  placeholder="Share what inspires you to teach and what you hope to bring to your students..."
-                  required
-                  rows={4}
-                  style={{ resize: "vertical" }}
-                />
-                <span style={{ display: "block", fontSize: 12, color: "var(--muted)", marginTop: 4 }}>Minimum 100 characters.</span>
+                Walk us through your curriculum or teaching approach (2-5 minutes) <span style={{ color: "#dc2626" }}>*</span>
+                <div style={{ marginTop: 8 }}>
+                  <ApplicantVideoUpload
+                    onUploadComplete={(file) => setMotivationVideoUrl(file.url)}
+                    onUploadStateChange={setMotivationVideoUploading}
+                  />
+                </div>
+                <span style={{ display: "block", fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
+                  Record a short video explaining how you would teach, guide students, or structure your curriculum.
+                </span>
               </label>
               <label className="form-label">
                 Teaching or mentoring experience <span style={{ color: "#dc2626" }}>*</span>
@@ -493,9 +521,22 @@ export default function SignupPage() {
               {state.message}
             </div>
           )}
-          <button className="button" type="submit">
-            {accountType === "APPLICANT" ? "Submit Application" : "Create Account"}
+          <button
+            className="button"
+            type="submit"
+            disabled={accountType === "APPLICANT" && (motivationVideoUploading || !motivationVideoUrl)}
+          >
+            {accountType === "APPLICANT"
+              ? motivationVideoUploading
+                ? "Uploading Video..."
+                : "Submit Application"
+              : "Create Account"}
           </button>
+          {accountType === "APPLICANT" && !motivationVideoUrl && !motivationVideoUploading && (
+            <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
+              Upload the required teaching approach video to unlock submission.
+            </p>
+          )}
         </form>
         <div className="login-help">
           Already have an account? <Link href="/login">Sign in</Link>

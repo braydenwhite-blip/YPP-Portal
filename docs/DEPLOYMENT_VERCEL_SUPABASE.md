@@ -6,6 +6,12 @@
 2. Enable **connection pooling** (PgBouncer / “Transaction” pooler URL for serverless).
 3. Copy **DATABASE_URL** (pooled) and **DIRECT_URL** (migrations) into Vercel env and local `.env`.
 4. Run migrations: `npx prisma migrate deploy` against production (use direct URL).
+5. Open **Supabase Dashboard -> Authentication -> Providers -> Google**.
+6. Turn on the Google provider and paste your Google OAuth client ID and secret.
+7. In the same Supabase auth area, make sure your redirect URLs include your app callback route, for example:
+   - `http://localhost:3000/auth/callback`
+   - `https://yourdomain.com/auth/callback`
+8. In Google Cloud Console, add the exact callback URL shown by Supabase on the Google provider page to your OAuth client.
 
 ## 2. Vercel
 

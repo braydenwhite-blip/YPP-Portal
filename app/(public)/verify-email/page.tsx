@@ -2,9 +2,11 @@ import Link from "next/link";
 import BrandLockup from "@/components/brand-lockup";
 
 /**
- * Email verification is now handled by Supabase Auth automatically.
- * Supabase sends a confirmation email on signup and redirects to /auth/confirm.
- * This page serves as a fallback for legacy links or manual navigation.
+ * Legacy fallback page.
+ *
+ * Some auth flows may still send email links through Supabase, but accounts created
+ * through the portal signup form are confirmed immediately and do not need a
+ * separate verification email.
  */
 export default async function VerifyEmailPage() {
   return (
@@ -18,9 +20,9 @@ export default async function VerifyEmailPage() {
         </div>
 
         <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.6, margin: "0 0 20px" }}>
-          Email verification is handled automatically. Check your inbox for a
-          verification link from Supabase. If you&apos;ve already verified your
-          email, you can sign in below.
+          If you arrived here from an older email link, you can go back to sign in.
+          Accounts created through the portal signup form do not need a separate
+          verification step.
         </p>
 
         <Link href="/login" className="button" style={{ display: "inline-block", textDecoration: "none" }}>
