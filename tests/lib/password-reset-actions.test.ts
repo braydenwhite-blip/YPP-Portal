@@ -5,6 +5,7 @@ import { requestPasswordReset } from "@/lib/password-reset-actions";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createServiceClient } from "@/lib/supabase/server";
+import { headers } from "next/headers";
 
 vi.mock("@/lib/email", () => ({
   sendPasswordResetEmail: vi.fn(),
@@ -17,6 +18,7 @@ vi.mock("@/lib/rate-limit", () => ({
 describe("password-reset-actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(headers).mockReturnValue(new Headers());
     vi.mocked(checkRateLimit).mockReturnValue({
       success: true,
       remaining: 4,
@@ -67,6 +69,12 @@ describe("password-reset-actions", () => {
       success: true,
       messageId: "message-1",
     });
+    vi.mocked(headers).mockReturnValue(
+      new Headers([
+        ["x-forwarded-host", "youthpassionproject-portal.vercel.app"],
+        ["x-forwarded-proto", "https"],
+      ])
+    );
 
     const formData = new FormData();
     formData.set("email", "TEST@example.com");
@@ -82,7 +90,8 @@ describe("password-reset-actions", () => {
       type: "recovery",
       email: "test@example.com",
       options: {
-        redirectTo: "http://localhost:3000/auth/callback?next=%2Freset-password",
+        redirectTo:
+          "https://youthpassionproject-portal.vercel.app/auth/callback?next=%2Freset-password",
       },
     });
     expect(sendPasswordResetEmail).toHaveBeenCalledWith({
