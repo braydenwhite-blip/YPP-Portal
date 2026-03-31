@@ -122,7 +122,9 @@ export default function ScheduleClient({ data }: Props) {
     setError(null);
     setSuccess(null);
 
-    if (!data?.mentorship?.id) {
+    const mentorshipId = data?.mentorship?.id;
+
+    if (!mentorshipId) {
       setError("No active mentorship found.");
       return;
     }
@@ -135,7 +137,7 @@ export default function ScheduleClient({ data }: Props) {
     startTransition(async () => {
       try {
         const formData = new FormData();
-        formData.set("mentorshipId", data.mentorship.id);
+        formData.set("mentorshipId", mentorshipId);
         formData.set("slotKey", selectedBookableSlotKey);
         formData.set("sessionType", quickBookSessionType);
         formData.set(
