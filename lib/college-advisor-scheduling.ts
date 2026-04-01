@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { isRecoverablePrismaError, withPrismaFallback } from "@/lib/prisma-guard";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { CollegeMeetingStatus, CollegeResourceCategory } from "@prisma/client";
@@ -30,6 +31,14 @@ const TIER_MEETING_LIMITS: Record<string, number> = {
   SILVER: 1,
   GOLD: 2,
   LIFETIME: -1, // unlimited
+};
+const COLLEGE_ADVISOR_SCHEDULING_UNAVAILABLE_MESSAGE =
+  "College advisor scheduling is temporarily unavailable because this environment is missing the latest advisor scheduling tables. Run the latest Prisma migrations, then refresh this page.";
+
+type AdvisorAvailabilityData = {
+  rules: SchedulingRuleLike[];
+  overrides: SchedulingOverrideLike[];
+  availabilitySchemaReady: boolean;
 };
 
 function getTierMeetingLimit(tier: string | null): number {
@@ -123,58 +132,76 @@ function formatDurationLabel(duration: number) {
 }
 
 async function getAdvisorAvailabilityData(advisorId: string) {
-  const [rules, overrides] = await Promise.all([
-    prisma.advisorAvailabilitySlot.findMany({
-      where: { advisorId, isActive: true },
-      orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
-    }),
-    prisma.advisorAvailabilityOverride.findMany({
-      where: {
-        advisorId,
-        isActive: true,
-        endsAt: { gte: new Date() },
-      },
-      orderBy: { startsAt: "asc" },
-    }),
-  ]);
+  return withPrismaFallback<AdvisorAvailabilityData>(
+    "college-advisor-scheduling:getAdvisorAvailabilityData",
+    async () => {
+      const [rules, overrides] = await Promise.all([
+        prisma.advisorAvailabilitySlot.findMany({
+          where: { advisorId, isActive: true },
+          orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
+        }),
+        prisma.advisorAvailabilityOverride.findMany({
+          where: {
+            advisorId,
+            isActive: true,
+            endsAt: { gte: new Date() },
+          },
+          orderBy: { startsAt: "asc" },
+        }),
+      ]);
 
-  return {
-    rules: rules.map<SchedulingRuleLike>((rule) => ({
-      id: rule.id,
-      ownerId: rule.advisorId,
-      dayOfWeek: rule.dayOfWeek,
-      startTime: rule.startTime,
-      endTime: rule.endTime,
-      timezone: rule.timezone,
-      slotDuration: rule.slotDuration,
-      bufferMinutes: rule.bufferMinutes,
-      meetingLink: rule.meetingLink,
-      locationLabel: rule.locationLabel,
-      isActive: rule.isActive,
-    })),
-    overrides: overrides.map<SchedulingOverrideLike>((override) => ({
-      id: override.id,
-      ownerId: override.advisorId,
-      ruleId: override.slotId,
-      type: override.type,
-      startsAt: override.startsAt,
-      endsAt: override.endsAt,
-      timezone: override.timezone,
-      slotDuration: override.slotDuration,
-      bufferMinutes: override.bufferMinutes,
-      meetingLink: override.meetingLink,
-      locationLabel: override.locationLabel,
-      note: override.note,
-      isActive: override.isActive,
-    })),
-  };
+      return {
+        availabilitySchemaReady: true,
+        rules: rules.map<SchedulingRuleLike>((rule) => ({
+          id: rule.id,
+          ownerId: rule.advisorId,
+          dayOfWeek: rule.dayOfWeek,
+          startTime: rule.startTime,
+          endTime: rule.endTime,
+          timezone: rule.timezone,
+          slotDuration: rule.slotDuration,
+          bufferMinutes: rule.bufferMinutes,
+          meetingLink: rule.meetingLink,
+          locationLabel: rule.locationLabel,
+          isActive: rule.isActive,
+        })),
+        overrides: overrides.map<SchedulingOverrideLike>((override) => ({
+          id: override.id,
+          ownerId: override.advisorId,
+          ruleId: override.slotId,
+          type: override.type,
+          startsAt: override.startsAt,
+          endsAt: override.endsAt,
+          timezone: override.timezone,
+          slotDuration: override.slotDuration,
+          bufferMinutes: override.bufferMinutes,
+          meetingLink: override.meetingLink,
+          locationLabel: override.locationLabel,
+          note: override.note,
+          isActive: override.isActive,
+        })),
+      };
+    },
+    () => ({
+      availabilitySchemaReady: false,
+      rules: [],
+      overrides: [],
+    })
+  );
 }
 
-async function getAdvisorBookableSlots(advisorUserId: string, advisorId: string, rangeStart = new Date()) {
-  const [availability, busyIntervals] = await Promise.all([
-    getAdvisorAvailabilityData(advisorId),
-    getUserBusyIntervals(advisorUserId, rangeStart),
-  ]);
+async function getAdvisorBookableSlots(
+  advisorUserId: string,
+  advisorId: string,
+  rangeStart = new Date(),
+  availabilityInput?: AdvisorAvailabilityData
+) {
+  const availability = availabilityInput ?? (await getAdvisorAvailabilityData(advisorId));
+  if (!availability.availabilitySchemaReady) {
+    return [];
+  }
+
+  const busyIntervals = await getUserBusyIntervals(advisorUserId, rangeStart);
 
   return generateSchedulingSlots({
     ownerId: advisorId,
@@ -452,9 +479,6 @@ export async function getMyMeetings() {
   const advisorship = await prisma.collegeAdvisorship.findFirst({
     where: { adviseeId: userId, endDate: null },
     include: {
-      meetings: {
-        orderBy: { scheduledAt: "desc" },
-      },
       advisor: {
         include: { user: { select: { id: true, name: true } } },
       },
@@ -462,11 +486,20 @@ export async function getMyMeetings() {
   });
 
   if (!advisorship) return null;
+  const meetings = await withPrismaFallback(
+    "college-advisor-scheduling:getMyMeetings:meetings",
+    () =>
+      prisma.collegeAdvisorMeeting.findMany({
+        where: { advisorshipId: advisorship.id },
+        orderBy: { scheduledAt: "desc" },
+      }),
+    []
+  );
 
   return {
     advisorshipId: advisorship.id,
     advisorName: advisorship.advisor.user.name,
-    meetings: advisorship.meetings.map((m) => ({
+    meetings: meetings.map((m) => ({
       id: m.id,
       scheduledAt: m.scheduledAt.toISOString(),
       durationMinutes: m.durationMinutes,
@@ -724,20 +757,25 @@ export async function cancelMeeting(formData: FormData) {
 export async function getMyAvailabilitySlots() {
   const { advisor } = await requireAdvisor();
 
-  const [slots, overrides] = await Promise.all([
-    prisma.advisorAvailabilitySlot.findMany({
-      where: { advisorId: advisor.id, isActive: true },
-      orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
-    }),
-    prisma.advisorAvailabilityOverride.findMany({
-      where: {
-        advisorId: advisor.id,
-        isActive: true,
-        endsAt: { gte: new Date() },
-      },
-      orderBy: { startsAt: "asc" },
-    }),
-  ]);
+  const [slots, overrides] = await withPrismaFallback(
+    "college-advisor-scheduling:getMyAvailabilitySlots",
+    () =>
+      Promise.all([
+        prisma.advisorAvailabilitySlot.findMany({
+          where: { advisorId: advisor.id, isActive: true },
+          orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
+        }),
+        prisma.advisorAvailabilityOverride.findMany({
+          where: {
+            advisorId: advisor.id,
+            isActive: true,
+            endsAt: { gte: new Date() },
+          },
+          orderBy: { startsAt: "asc" },
+        }),
+      ]),
+    [[], []] as const
+  );
 
   return {
     slots: slots.map((s) => ({
@@ -916,21 +954,27 @@ export async function getCollegeAdvisorScheduleData() {
           user: { select: { id: true, name: true, email: true } },
         },
       },
-      meetings: {
-        where: {
-          status: { in: ["REQUESTED", "CONFIRMED"] },
-          scheduledAt: { gte: new Date() },
-        },
-        orderBy: { scheduledAt: "asc" },
-      },
     },
   });
 
   if (!advisorship) return null;
 
-  const [slots, tier] = await Promise.all([
+  const [slots, tier, meetings] = await Promise.all([
     getAdvisorBookableSlots(advisorship.advisor.user.id, advisorship.advisor.id),
     getUserAwardTier(userId),
+    withPrismaFallback(
+      "college-advisor-scheduling:getCollegeAdvisorScheduleData:meetings",
+      () =>
+        prisma.collegeAdvisorMeeting.findMany({
+          where: {
+            advisorshipId: advisorship.id,
+            status: { in: ["REQUESTED", "CONFIRMED"] },
+            scheduledAt: { gte: new Date() },
+          },
+          orderBy: { scheduledAt: "asc" },
+        }),
+      []
+    ),
   ]);
 
   return {
@@ -954,7 +998,7 @@ export async function getCollegeAdvisorScheduleData() {
       locationLabel: slot.locationLabel,
       warningLabels: slot.warningLabels,
     })),
-    upcomingMeetings: advisorship.meetings.map((meeting) => ({
+    upcomingMeetings: meetings.map((meeting) => ({
       id: meeting.id,
       scheduledAt: meeting.scheduledAt.toISOString(),
       durationMinutes: meeting.durationMinutes,
@@ -972,22 +1016,27 @@ export async function getAdvisorScheduleManagerData() {
   const [availability, slotPreview, upcomingMeetings] = await Promise.all([
     getMyAvailabilitySlots(),
     getAdvisorBookableSlots(advisor.userId, advisor.id),
-    prisma.collegeAdvisorMeeting.findMany({
-      where: {
-        advisorship: { advisorId: advisor.id },
-        status: { in: ["REQUESTED", "CONFIRMED"] },
-        scheduledAt: { gte: new Date() },
-      },
-      include: {
-        advisorship: {
-          include: {
-            advisee: { select: { name: true, email: true } },
+    withPrismaFallback(
+      "college-advisor-scheduling:getAdvisorScheduleManagerData:meetings",
+      () =>
+        prisma.collegeAdvisorMeeting.findMany({
+          where: {
+            advisorship: { advisorId: advisor.id },
+            status: { in: ["REQUESTED", "CONFIRMED"] },
+            scheduledAt: { gte: new Date() },
           },
-        },
-      },
-      orderBy: { scheduledAt: "asc" },
-      take: 20,
-    }),
+          include: {
+            advisorship: {
+              include: {
+                advisee: { select: { name: true, email: true } },
+              },
+            },
+          },
+          orderBy: { scheduledAt: "asc" },
+          take: 20,
+        }),
+      []
+    ),
   ]);
 
   return {
@@ -1300,15 +1349,20 @@ export async function getCollegeResources(filters?: {
     ];
   }
 
-  const resources = await prisma.collegeResource.findMany({
-    where,
-    include: {
-      advisor: {
-        include: { user: { select: { name: true } } },
-      },
-    },
-    orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
-  });
+  const resources = await withPrismaFallback(
+    "college-advisor-scheduling:getCollegeResources",
+    () =>
+      prisma.collegeResource.findMany({
+        where,
+        include: {
+          advisor: {
+            include: { user: { select: { name: true } } },
+          },
+        },
+        orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
+      }),
+    []
+  );
 
   return resources.map((r) => ({
     id: r.id,
@@ -1393,24 +1447,39 @@ export async function getAdvisorDashboardData() {
       },
       orderBy: { startDate: "desc" },
     }),
-    prisma.collegeAdvisorMeeting.findMany({
-      where: { advisorship: { advisorId: advisor.id } },
-      include: {
-        advisorship: {
-          include: { advisee: { select: { name: true } } },
-        },
-      },
-      orderBy: { scheduledAt: "desc" },
-      take: 20,
-    }),
-    prisma.collegeResource.findMany({
-      where: { advisorId: advisor.id },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.advisorAvailabilitySlot.findMany({
-      where: { advisorId: advisor.id, isActive: true },
-      orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
-    }),
+    withPrismaFallback(
+      "college-advisor-scheduling:getAdvisorDashboardData:meetings",
+      () =>
+        prisma.collegeAdvisorMeeting.findMany({
+          where: { advisorship: { advisorId: advisor.id } },
+          include: {
+            advisorship: {
+              include: { advisee: { select: { name: true } } },
+            },
+          },
+          orderBy: { scheduledAt: "desc" },
+          take: 20,
+        }),
+      []
+    ),
+    withPrismaFallback(
+      "college-advisor-scheduling:getAdvisorDashboardData:resources",
+      () =>
+        prisma.collegeResource.findMany({
+          where: { advisorId: advisor.id },
+          orderBy: { createdAt: "desc" },
+        }),
+      []
+    ),
+    withPrismaFallback(
+      "college-advisor-scheduling:getAdvisorDashboardData:slots",
+      () =>
+        prisma.advisorAvailabilitySlot.findMany({
+          where: { advisorId: advisor.id, isActive: true },
+          orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
+        }),
+      []
+    ),
   ]);
 
   // Compute average rating

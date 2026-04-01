@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth-supabase";
 import { createMentorshipNotification } from "@/lib/mentorship-program-actions";
 import { prisma } from "@/lib/prisma";
+import { isRecoverablePrismaError, withPrismaFallback } from "@/lib/prisma-guard";
 import { toAbsoluteAppUrl } from "@/lib/public-app-url";
 import {
   getSchedulingEventUid,
@@ -22,6 +23,10 @@ import {
 } from "@/lib/scheduling/shared";
 
 const DEFAULT_SLOT_WINDOW_DAYS = 21;
+const MENTOR_AVAILABILITY_UNAVAILABLE_MESSAGE =
+  "Availability settings are temporarily unavailable because this environment is missing the latest scheduling tables. Run the latest Prisma migrations, then refresh this page.";
+const MENTORSHIP_SCHEDULING_UNAVAILABLE_MESSAGE =
+  "Mentor scheduling is temporarily unavailable because this environment is missing the latest mentorship scheduling tables. Run the latest Prisma migrations, then refresh this page.";
 
 type SessionWithUser = Awaited<ReturnType<typeof getSession>> & {
   user: {
@@ -39,6 +44,12 @@ type BookableSlotView = {
   meetingLink: string | null;
   locationLabel: string | null;
   warningLabels: string[];
+};
+
+type MentorAvailabilityData = {
+  rules: SchedulingRuleLike[];
+  overrides: SchedulingOverrideLike[];
+  availabilitySchemaReady: boolean;
 };
 
 type MentorshipRequestRecord = {
@@ -119,72 +130,96 @@ async function requireMentorOrAdmin() {
 }
 
 async function getMentorshipScheduleRequest(requestId: string) {
-  return prisma.mentorshipScheduleRequest.findUniqueOrThrow({
-    where: { id: requestId },
-    include: {
-      mentorship: {
-        include: {
-          mentor: { select: { id: true, name: true, email: true } },
-          mentee: { select: { id: true, name: true, email: true } },
+  try {
+    return await prisma.mentorshipScheduleRequest.findUniqueOrThrow({
+      where: { id: requestId },
+      include: {
+        mentorship: {
+          include: {
+            mentor: { select: { id: true, name: true, email: true } },
+            mentee: { select: { id: true, name: true, email: true } },
+          },
         },
       },
-    },
-  });
+    });
+  } catch (error) {
+    if (isRecoverablePrismaError(error)) {
+      throw new Error(MENTORSHIP_SCHEDULING_UNAVAILABLE_MESSAGE);
+    }
+    throw error;
+  }
 }
 
 async function getMentorAvailabilityData(mentorId: string) {
-  const [rules, overrides] = await Promise.all([
-    prisma.mentorAvailabilityRule.findMany({
-      where: { mentorId, isActive: true },
-      orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
-    }),
-    prisma.mentorAvailabilityOverride.findMany({
-      where: {
-        mentorId,
-        isActive: true,
-        endsAt: { gte: new Date() },
-      },
-      orderBy: { startsAt: "asc" },
-    }),
-  ]);
+  return withPrismaFallback<MentorAvailabilityData>(
+    "mentorship-scheduling:getMentorAvailabilityData",
+    async () => {
+      const [rules, overrides] = await Promise.all([
+        prisma.mentorAvailabilityRule.findMany({
+          where: { mentorId, isActive: true },
+          orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
+        }),
+        prisma.mentorAvailabilityOverride.findMany({
+          where: {
+            mentorId,
+            isActive: true,
+            endsAt: { gte: new Date() },
+          },
+          orderBy: { startsAt: "asc" },
+        }),
+      ]);
 
-  return {
-    rules: rules.map<SchedulingRuleLike>((rule) => ({
-      id: rule.id,
-      ownerId: rule.mentorId,
-      dayOfWeek: rule.dayOfWeek,
-      startTime: rule.startTime,
-      endTime: rule.endTime,
-      timezone: rule.timezone,
-      slotDuration: rule.slotDuration,
-      bufferMinutes: rule.bufferMinutes,
-      meetingLink: rule.meetingLink,
-      locationLabel: rule.locationLabel,
-      isActive: rule.isActive,
-    })),
-    overrides: overrides.map<SchedulingOverrideLike>((override) => ({
-      id: override.id,
-      ownerId: override.mentorId,
-      ruleId: override.ruleId,
-      type: override.type,
-      startsAt: override.startsAt,
-      endsAt: override.endsAt,
-      timezone: override.timezone,
-      slotDuration: override.slotDuration,
-      bufferMinutes: override.bufferMinutes,
-      meetingLink: override.meetingLink,
-      locationLabel: override.locationLabel,
-      note: override.note,
-      isActive: override.isActive,
-    })),
-  };
+      return {
+        availabilitySchemaReady: true,
+        rules: rules.map<SchedulingRuleLike>((rule) => ({
+          id: rule.id,
+          ownerId: rule.mentorId,
+          dayOfWeek: rule.dayOfWeek,
+          startTime: rule.startTime,
+          endTime: rule.endTime,
+          timezone: rule.timezone,
+          slotDuration: rule.slotDuration,
+          bufferMinutes: rule.bufferMinutes,
+          meetingLink: rule.meetingLink,
+          locationLabel: rule.locationLabel,
+          isActive: rule.isActive,
+        })),
+        overrides: overrides.map<SchedulingOverrideLike>((override) => ({
+          id: override.id,
+          ownerId: override.mentorId,
+          ruleId: override.ruleId,
+          type: override.type,
+          startsAt: override.startsAt,
+          endsAt: override.endsAt,
+          timezone: override.timezone,
+          slotDuration: override.slotDuration,
+          bufferMinutes: override.bufferMinutes,
+          meetingLink: override.meetingLink,
+          locationLabel: override.locationLabel,
+          note: override.note,
+          isActive: override.isActive,
+        })),
+      };
+    },
+    () => ({
+      availabilitySchemaReady: false,
+      rules: [],
+      overrides: [],
+    })
+  );
 }
 
-async function getMentorBookableSlots(mentorId: string, rangeStart = new Date()) {
-  const [availability, busyIntervals] = await Promise.all([
-    getMentorAvailabilityData(mentorId),
-    getUserBusyIntervals(mentorId, rangeStart),
-  ]);
+async function getMentorBookableSlots(
+  mentorId: string,
+  rangeStart = new Date(),
+  availabilityInput?: MentorAvailabilityData
+) {
+  const availability = availabilityInput ?? (await getMentorAvailabilityData(mentorId));
+  if (!availability.availabilitySchemaReady) {
+    return [];
+  }
+
+  const busyIntervals = await getUserBusyIntervals(mentorId, rangeStart);
 
   return generateSchedulingSlots({
     ownerId: mentorId,
@@ -610,6 +645,8 @@ export interface MentorScheduleQueueItem {
 
 export interface MentorScheduleManagerData {
   mentorId: string;
+  availabilitySchemaReady: boolean;
+  availabilityStatusMessage: string | null;
   availabilityRules: Array<{
     id: string;
     dayOfWeek: number;
@@ -652,19 +689,6 @@ export async function getSchedulePageData(): Promise<SchedulePageData | null> {
     where: { menteeId: userId, status: "ACTIVE" },
     include: {
       mentor: { select: { id: true, name: true, email: true } },
-      scheduleRequests: {
-        orderBy: { createdAt: "desc" },
-        take: 10,
-      },
-      sessions: {
-        where: {
-          scheduledAt: { gte: new Date() },
-          completedAt: null,
-          cancelledAt: null,
-        },
-        orderBy: { scheduledAt: "asc" },
-        take: 8,
-      },
     },
   });
 
@@ -682,6 +706,35 @@ export async function getSchedulePageData(): Promise<SchedulePageData | null> {
   const availableSlots = mentorship
     ? await getMentorBookableSlots(mentorship.mentor.id)
     : [];
+  const scheduleRequests = mentorship
+    ? await withPrismaFallback(
+        "mentorship-scheduling:getSchedulePageData:scheduleRequests",
+        () =>
+          prisma.mentorshipScheduleRequest.findMany({
+            where: { mentorshipId: mentorship.id },
+            orderBy: { createdAt: "desc" },
+            take: 10,
+          }),
+        []
+      )
+    : [];
+  const upcomingSessions = mentorship
+    ? await withPrismaFallback(
+        "mentorship-scheduling:getSchedulePageData:upcomingSessions",
+        () =>
+          prisma.mentorshipSession.findMany({
+            where: {
+              mentorshipId: mentorship.id,
+              scheduledAt: { gte: new Date() },
+              completedAt: null,
+              cancelledAt: null,
+            },
+            orderBy: { scheduledAt: "asc" },
+            take: 8,
+          }),
+        []
+      )
+    : [];
 
   return {
     mentorship: mentorship
@@ -693,7 +746,7 @@ export async function getSchedulePageData(): Promise<SchedulePageData | null> {
           status: mentorship.status,
         }
       : null,
-    scheduleRequests: (mentorship?.scheduleRequests ?? []).map((request) => ({
+    scheduleRequests: scheduleRequests.map((request) => ({
       id: request.id,
       sessionType: request.sessionType,
       title: request.title,
@@ -704,7 +757,7 @@ export async function getSchedulePageData(): Promise<SchedulePageData | null> {
       meetingLink: request.meetingLink,
       createdAt: request.createdAt.toISOString(),
     })),
-    upcomingSessions: (mentorship?.sessions ?? []).map((sessionRecord) => ({
+    upcomingSessions: upcomingSessions.map((sessionRecord) => ({
       id: sessionRecord.id,
       scheduleRequestId: sessionRecord.scheduleRequestId,
       type: sessionRecord.type,
@@ -750,50 +803,64 @@ export async function getMentorScheduleManagerData(): Promise<MentorScheduleMana
   const userId = session.user.id;
 
   const mentorId = userId;
-  const [availability, slotPreview, pendingRequests, upcomingSessions] = await Promise.all([
-    getMentorAvailabilityData(mentorId),
-    getMentorBookableSlots(mentorId),
-    prisma.mentorshipScheduleRequest.findMany({
-      where: {
-        mentorship: isAdmin
-          ? { status: "ACTIVE" }
-          : {
-              mentorId: userId,
-              status: "ACTIVE",
-            },
-        status: "PENDING",
-      },
-      include: {
-        requestedBy: { select: { name: true, email: true } },
-      },
-      orderBy: { createdAt: "asc" },
-    }),
-    prisma.mentorshipSession.findMany({
-      where: isAdmin
-        ? {
-            scheduledAt: { gte: new Date() },
-            cancelledAt: null,
-            mentorship: { status: "ACTIVE" },
-          }
-        : {
-            scheduledAt: { gte: new Date() },
-            cancelledAt: null,
-            mentorship: { mentorId: userId, status: "ACTIVE" },
+  const availability = await getMentorAvailabilityData(mentorId);
+  const [slotPreview, pendingRequests, upcomingSessions] = await Promise.all([
+    getMentorBookableSlots(mentorId, new Date(), availability),
+    withPrismaFallback(
+      "mentorship-scheduling:getMentorScheduleManagerData:pendingRequests",
+      () =>
+        prisma.mentorshipScheduleRequest.findMany({
+          where: {
+            mentorship: isAdmin
+              ? { status: "ACTIVE" }
+              : {
+                  mentorId: userId,
+                  status: "ACTIVE",
+                },
+            status: "PENDING",
           },
-      include: {
-        mentorship: {
           include: {
-            mentee: { select: { name: true, email: true } },
+            requestedBy: { select: { name: true, email: true } },
           },
-        },
-      },
-      orderBy: { scheduledAt: "asc" },
-      take: 20,
-    }),
+          orderBy: { createdAt: "asc" },
+        }),
+      []
+    ),
+    withPrismaFallback(
+      "mentorship-scheduling:getMentorScheduleManagerData:upcomingSessions",
+      () =>
+        prisma.mentorshipSession.findMany({
+          where: isAdmin
+            ? {
+                scheduledAt: { gte: new Date() },
+                cancelledAt: null,
+                mentorship: { status: "ACTIVE" },
+              }
+            : {
+                scheduledAt: { gte: new Date() },
+                cancelledAt: null,
+                mentorship: { mentorId: userId, status: "ACTIVE" },
+              },
+          include: {
+            mentorship: {
+              include: {
+                mentee: { select: { name: true, email: true } },
+              },
+            },
+          },
+          orderBy: { scheduledAt: "asc" },
+          take: 20,
+        }),
+      []
+    ),
   ]);
 
   return {
     mentorId,
+    availabilitySchemaReady: availability.availabilitySchemaReady,
+    availabilityStatusMessage: availability.availabilitySchemaReady
+      ? null
+      : MENTOR_AVAILABILITY_UNAVAILABLE_MESSAGE,
     availabilityRules: availability.rules.map((rule) => ({
       id: rule.id,
       dayOfWeek: rule.dayOfWeek,
@@ -870,17 +937,25 @@ export async function requestMentorMeeting(formData: FormData) {
 
   if (mentorship.menteeId !== userId) throw new Error("Unauthorized");
 
-  const request = await prisma.mentorshipScheduleRequest.create({
-    data: {
-      mentorshipId,
-      requestedById: userId,
-      sessionType,
-      title,
-      notes: notes || null,
-      preferredSlots,
-      status: "PENDING",
-    },
-  });
+  let request;
+  try {
+    request = await prisma.mentorshipScheduleRequest.create({
+      data: {
+        mentorshipId,
+        requestedById: userId,
+        sessionType,
+        title,
+        notes: notes || null,
+        preferredSlots,
+        status: "PENDING",
+      },
+    });
+  } catch (error) {
+    if (isRecoverablePrismaError(error)) {
+      throw new Error(MENTORSHIP_SCHEDULING_UNAVAILABLE_MESSAGE);
+    }
+    throw error;
+  }
 
   await createMentorshipNotification({
     userId: mentorship.mentor.id,
@@ -921,19 +996,26 @@ export async function addMentorAvailabilityRule(formData: FormData) {
     throw new Error("Invalid day of week.");
   }
 
-  await prisma.mentorAvailabilityRule.create({
-    data: {
-      mentorId: session.user.id,
-      dayOfWeek,
-      startTime,
-      endTime,
-      timezone,
-      slotDuration,
-      bufferMinutes,
-      meetingLink,
-      locationLabel,
-    },
-  });
+  try {
+    await prisma.mentorAvailabilityRule.create({
+      data: {
+        mentorId: session.user.id,
+        dayOfWeek,
+        startTime,
+        endTime,
+        timezone,
+        slotDuration,
+        bufferMinutes,
+        meetingLink,
+        locationLabel,
+      },
+    });
+  } catch (error) {
+    if (isRecoverablePrismaError(error)) {
+      throw new Error(MENTOR_AVAILABILITY_UNAVAILABLE_MESSAGE);
+    }
+    throw error;
+  }
 
   revalidatePath("/mentorship-program/schedule");
   revalidatePath("/my-program/schedule");
@@ -941,18 +1023,25 @@ export async function addMentorAvailabilityRule(formData: FormData) {
 
 export async function removeMentorAvailabilityRule(ruleId: string) {
   const { session, isAdmin } = await requireMentorOrAdmin();
-  const rule = await prisma.mentorAvailabilityRule.findUniqueOrThrow({
-    where: { id: ruleId },
-  });
+  try {
+    const rule = await prisma.mentorAvailabilityRule.findUniqueOrThrow({
+      where: { id: ruleId },
+    });
 
-  if (!isAdmin && rule.mentorId !== session.user.id) {
-    throw new Error("Unauthorized");
+    if (!isAdmin && rule.mentorId !== session.user.id) {
+      throw new Error("Unauthorized");
+    }
+
+    await prisma.mentorAvailabilityRule.update({
+      where: { id: ruleId },
+      data: { isActive: false },
+    });
+  } catch (error) {
+    if (isRecoverablePrismaError(error)) {
+      throw new Error(MENTOR_AVAILABILITY_UNAVAILABLE_MESSAGE);
+    }
+    throw error;
   }
-
-  await prisma.mentorAvailabilityRule.update({
-    where: { id: ruleId },
-    data: { isActive: false },
-  });
 
   revalidatePath("/mentorship-program/schedule");
   revalidatePath("/my-program/schedule");
@@ -975,20 +1064,27 @@ export async function addMentorAvailabilityOverride(formData: FormData) {
     throw new Error("Override end must be after start.");
   }
 
-  await prisma.mentorAvailabilityOverride.create({
-    data: {
-      mentorId: session.user.id,
-      type,
-      startsAt,
-      endsAt,
-      timezone,
-      slotDuration,
-      bufferMinutes,
-      meetingLink,
-      locationLabel,
-      note,
-    },
-  });
+  try {
+    await prisma.mentorAvailabilityOverride.create({
+      data: {
+        mentorId: session.user.id,
+        type,
+        startsAt,
+        endsAt,
+        timezone,
+        slotDuration,
+        bufferMinutes,
+        meetingLink,
+        locationLabel,
+        note,
+      },
+    });
+  } catch (error) {
+    if (isRecoverablePrismaError(error)) {
+      throw new Error(MENTOR_AVAILABILITY_UNAVAILABLE_MESSAGE);
+    }
+    throw error;
+  }
 
   revalidatePath("/mentorship-program/schedule");
   revalidatePath("/my-program/schedule");
@@ -996,18 +1092,25 @@ export async function addMentorAvailabilityOverride(formData: FormData) {
 
 export async function deactivateMentorAvailabilityOverride(overrideId: string) {
   const { session, isAdmin } = await requireMentorOrAdmin();
-  const override = await prisma.mentorAvailabilityOverride.findUniqueOrThrow({
-    where: { id: overrideId },
-  });
+  try {
+    const override = await prisma.mentorAvailabilityOverride.findUniqueOrThrow({
+      where: { id: overrideId },
+    });
 
-  if (!isAdmin && override.mentorId !== session.user.id) {
-    throw new Error("Unauthorized");
+    if (!isAdmin && override.mentorId !== session.user.id) {
+      throw new Error("Unauthorized");
+    }
+
+    await prisma.mentorAvailabilityOverride.update({
+      where: { id: overrideId },
+      data: { isActive: false },
+    });
+  } catch (error) {
+    if (isRecoverablePrismaError(error)) {
+      throw new Error(MENTOR_AVAILABILITY_UNAVAILABLE_MESSAGE);
+    }
+    throw error;
   }
-
-  await prisma.mentorAvailabilityOverride.update({
-    where: { id: overrideId },
-    data: { isActive: false },
-  });
 
   revalidatePath("/mentorship-program/schedule");
   revalidatePath("/my-program/schedule");
@@ -1043,41 +1146,49 @@ export async function bookMentorAvailabilitySlot(formData: FormData) {
     assertUserCanTakeSlot(mentorship.menteeId, slot.startsAt, slot.duration),
   ]);
 
-  const request = await prisma.$transaction(async (tx) => {
-    const scheduleRequest = await tx.mentorshipScheduleRequest.create({
-      data: {
-        mentorshipId,
-        requestedById: userId,
-        sessionType,
-        title,
-        notes,
-        preferredSlots: [slot.startsAt.toISOString()],
-        status: "CONFIRMED",
-        confirmedAt: new Date(),
-        scheduledAt: slot.startsAt,
-        meetingLink: slot.meetingLink,
-      },
-    });
+  let request;
+  try {
+    request = await prisma.$transaction(async (tx) => {
+      const scheduleRequest = await tx.mentorshipScheduleRequest.create({
+        data: {
+          mentorshipId,
+          requestedById: userId,
+          sessionType,
+          title,
+          notes,
+          preferredSlots: [slot.startsAt.toISOString()],
+          status: "CONFIRMED",
+          confirmedAt: new Date(),
+          scheduledAt: slot.startsAt,
+          meetingLink: slot.meetingLink,
+        },
+      });
 
-    await tx.mentorshipSession.create({
-      data: {
-        mentorshipId,
-        scheduleRequestId: scheduleRequest.id,
-        menteeId: mentorship.menteeId,
-        type: sessionType,
-        title,
-        scheduledAt: slot.startsAt,
-        durationMinutes: slot.duration,
-        agenda: notes,
-        meetingLink: slot.meetingLink,
-        participantIds: [mentorship.mentorId, mentorship.menteeId],
-        createdById: userId,
-        ledById: mentorship.mentorId,
-      },
-    });
+      await tx.mentorshipSession.create({
+        data: {
+          mentorshipId,
+          scheduleRequestId: scheduleRequest.id,
+          menteeId: mentorship.menteeId,
+          type: sessionType,
+          title,
+          scheduledAt: slot.startsAt,
+          durationMinutes: slot.duration,
+          agenda: notes,
+          meetingLink: slot.meetingLink,
+          participantIds: [mentorship.mentorId, mentorship.menteeId],
+          createdById: userId,
+          ledById: mentorship.mentorId,
+        },
+      });
 
-    return scheduleRequest;
-  });
+      return scheduleRequest;
+    });
+  } catch (error) {
+    if (isRecoverablePrismaError(error)) {
+      throw new Error(MENTORSHIP_SCHEDULING_UNAVAILABLE_MESSAGE);
+    }
+    throw error;
+  }
 
   await notifyMentorshipBooking({
     event: "CONFIRMED",
@@ -1118,55 +1229,62 @@ export async function confirmScheduleRequest(formData: FormData) {
     assertUserCanTakeSlot(request.mentorship.menteeId, scheduledAt, 30),
   ]);
 
-  await prisma.$transaction(async (tx) => {
-    await tx.mentorshipScheduleRequest.update({
-      where: { id: requestId },
-      data: {
-        status: "CONFIRMED",
-        confirmedAt: new Date(),
-        scheduledAt,
-        meetingLink,
-      },
-    });
-
-    const existingSession = await tx.mentorshipSession.findFirst({
-      where: { scheduleRequestId: requestId },
-      select: { id: true },
-    });
-
-    if (existingSession) {
-      await tx.mentorshipSession.update({
-        where: { id: existingSession.id },
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.mentorshipScheduleRequest.update({
+        where: { id: requestId },
         data: {
+          status: "CONFIRMED",
+          confirmedAt: new Date(),
           scheduledAt,
-          durationMinutes: 30,
-          agenda: request.notes,
           meetingLink,
-          cancelledAt: null,
-          cancellationReason: null,
-          reminder24SentAt: null,
-          reminder2SentAt: null,
         },
       });
-    } else {
-      await tx.mentorshipSession.create({
-        data: {
-          mentorshipId: request.mentorshipId,
-          scheduleRequestId: requestId,
-          menteeId: request.mentorship.menteeId,
-          type: request.sessionType,
-          title: request.title,
-          scheduledAt,
-          durationMinutes: 30,
-          agenda: request.notes,
-          meetingLink,
-          participantIds: [request.mentorship.mentorId, request.mentorship.menteeId],
-          createdById: userId,
-          ledById: request.mentorship.mentorId,
-        },
+
+      const existingSession = await tx.mentorshipSession.findFirst({
+        where: { scheduleRequestId: requestId },
+        select: { id: true },
       });
+
+      if (existingSession) {
+        await tx.mentorshipSession.update({
+          where: { id: existingSession.id },
+          data: {
+            scheduledAt,
+            durationMinutes: 30,
+            agenda: request.notes,
+            meetingLink,
+            cancelledAt: null,
+            cancellationReason: null,
+            reminder24SentAt: null,
+            reminder2SentAt: null,
+          },
+        });
+      } else {
+        await tx.mentorshipSession.create({
+          data: {
+            mentorshipId: request.mentorshipId,
+            scheduleRequestId: requestId,
+            menteeId: request.mentorship.menteeId,
+            type: request.sessionType,
+            title: request.title,
+            scheduledAt,
+            durationMinutes: 30,
+            agenda: request.notes,
+            meetingLink,
+            participantIds: [request.mentorship.mentorId, request.mentorship.menteeId],
+            createdById: userId,
+            ledById: request.mentorship.mentorId,
+          },
+        });
+      }
+    });
+  } catch (error) {
+    if (isRecoverablePrismaError(error)) {
+      throw new Error(MENTORSHIP_SCHEDULING_UNAVAILABLE_MESSAGE);
     }
-  });
+    throw error;
+  }
 
   await notifyMentorshipBooking({
     event: "CONFIRMED",
@@ -1206,34 +1324,41 @@ export async function rescheduleMentorMeeting(formData: FormData) {
     assertUserCanTakeSlot(request.mentorship.menteeId, scheduledAt, durationMinutes),
   ]);
 
-  await prisma.$transaction(async (tx) => {
-    await tx.mentorshipScheduleRequest.update({
-      where: { id: requestId },
-      data: {
-        status: "CONFIRMED",
-        confirmedAt: request.confirmedAt ?? new Date(),
-        scheduledAt,
-        meetingLink,
-      },
-    });
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.mentorshipScheduleRequest.update({
+        where: { id: requestId },
+        data: {
+          status: "CONFIRMED",
+          confirmedAt: request.confirmedAt ?? new Date(),
+          scheduledAt,
+          meetingLink,
+        },
+      });
 
-    const sessionRecord = await tx.mentorshipSession.findFirstOrThrow({
-      where: { scheduleRequestId: requestId },
-      select: { id: true },
-    });
+      const sessionRecord = await tx.mentorshipSession.findFirstOrThrow({
+        where: { scheduleRequestId: requestId },
+        select: { id: true },
+      });
 
-    await tx.mentorshipSession.update({
-      where: { id: sessionRecord.id },
-      data: {
-        scheduledAt,
-        durationMinutes,
-        meetingLink,
-        schedulingOverrideReason: overrideReason,
-        reminder24SentAt: null,
-        reminder2SentAt: null,
-      },
+      await tx.mentorshipSession.update({
+        where: { id: sessionRecord.id },
+        data: {
+          scheduledAt,
+          durationMinutes,
+          meetingLink,
+          schedulingOverrideReason: overrideReason,
+          reminder24SentAt: null,
+          reminder2SentAt: null,
+        },
+      });
     });
-  });
+  } catch (error) {
+    if (isRecoverablePrismaError(error)) {
+      throw new Error(MENTORSHIP_SCHEDULING_UNAVAILABLE_MESSAGE);
+    }
+    throw error;
+  }
 
   await notifyMentorshipBooking({
     event: "RESCHEDULED",
@@ -1257,10 +1382,17 @@ export async function declineScheduleRequest(formData: FormData) {
   const isMentor = request.mentorship.mentorId === userId;
   if (!isMentor && !isAdmin) throw new Error("Unauthorized");
 
-  await prisma.mentorshipScheduleRequest.update({
-    where: { id: requestId },
-    data: { status: "DECLINED" },
-  });
+  try {
+    await prisma.mentorshipScheduleRequest.update({
+      where: { id: requestId },
+      data: { status: "DECLINED" },
+    });
+  } catch (error) {
+    if (isRecoverablePrismaError(error)) {
+      throw new Error(MENTORSHIP_SCHEDULING_UNAVAILABLE_MESSAGE);
+    }
+    throw error;
+  }
 
   await createMentorshipNotification({
     userId: request.mentorship.menteeId,
@@ -1290,29 +1422,36 @@ export async function cancelScheduleRequest(formData: FormData) {
     isAdmin;
   if (!canAct) throw new Error("Unauthorized");
 
-  await prisma.$transaction(async (tx) => {
-    await tx.mentorshipScheduleRequest.update({
-      where: { id: requestId },
-      data: { status: "CANCELLED" },
-    });
-
-    const sessionRecord = await tx.mentorshipSession.findFirst({
-      where: { scheduleRequestId: requestId },
-      select: { id: true },
-    });
-
-    if (sessionRecord) {
-      await tx.mentorshipSession.update({
-        where: { id: sessionRecord.id },
-        data: {
-          cancelledAt: new Date(),
-          cancellationReason: reason,
-          reminder24SentAt: null,
-          reminder2SentAt: null,
-        },
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.mentorshipScheduleRequest.update({
+        where: { id: requestId },
+        data: { status: "CANCELLED" },
       });
+
+      const sessionRecord = await tx.mentorshipSession.findFirst({
+        where: { scheduleRequestId: requestId },
+        select: { id: true },
+      });
+
+      if (sessionRecord) {
+        await tx.mentorshipSession.update({
+          where: { id: sessionRecord.id },
+          data: {
+            cancelledAt: new Date(),
+            cancellationReason: reason,
+            reminder24SentAt: null,
+            reminder2SentAt: null,
+          },
+        });
+      }
+    });
+  } catch (error) {
+    if (isRecoverablePrismaError(error)) {
+      throw new Error(MENTORSHIP_SCHEDULING_UNAVAILABLE_MESSAGE);
     }
-  });
+    throw error;
+  }
 
   await notifyMentorshipBooking({
     event: "CANCELLED",
