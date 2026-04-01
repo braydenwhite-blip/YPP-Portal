@@ -652,12 +652,6 @@ export async function getAdminPortalAnalytics(rawFilters: RawAnalyticsFilters) {
   const nativeGateEnabled = isNativeInstructorGateEnabled();
   const interviewGateRequired = isInterviewGateEnforced();
 
-  const studioCapstoneCompleteByInstructor = new Set(
-    curriculumDrafts
-      .filter((draft) => draft.status === "SUBMITTED" || draft.status === "APPROVED")
-      .map((draft) => draft.authorId)
-  );
-
   const readinessSnapshot = filteredInstructors.map((instructor) => {
     const completedRequiredModules =
       completedRequiredModuleCounts.get(instructor.id) ?? 0;
@@ -665,9 +659,7 @@ export async function getAdminPortalAnalytics(rawFilters: RawAnalyticsFilters) {
       eligibleRequiredModuleIds.size === 0
         ? true
         : completedRequiredModules >= eligibleRequiredModuleIds.size;
-    const studioCapstoneComplete =
-      studioCapstoneCompleteByInstructor.has(instructor.id);
-    const trainingComplete = academyModulesComplete && studioCapstoneComplete;
+    const trainingComplete = academyModulesComplete;
     const interviewStatus =
       interviewGateStatusByInstructor.get(instructor.id) ?? "REQUIRED";
     const interviewPassed =

@@ -21,6 +21,7 @@ function formatDateTime(value: Date | string | null | undefined) {
 }
 
 const TRACKABLE_REQUIRED_VIDEO_PROVIDERS = new Set(["YOUTUBE", "VIMEO", "CUSTOM"]);
+const LESSON_DESIGN_STUDIO_MODULE_KEY = "academy_lesson_studio_004";
 
 export default async function InstructorTrainingPage() {
   const session = await getSession();
@@ -343,8 +344,7 @@ export default async function InstructorTrainingPage() {
           <div>
             <div style={{ fontWeight: 600, fontSize: 15 }}>Training Progress</div>
             <div style={{ marginTop: 4, color: "var(--text-secondary)", fontSize: 13 }}>
-              {readiness.completedRequiredModules} of {readiness.requiredModulesCount} video modules complete
-              {readiness.studioCapstoneComplete ? " · Lesson Design Studio submitted" : ""}
+              {readiness.completedRequiredModules} of {readiness.requiredModulesCount} modules complete
             </div>
           </div>
           <div style={{ fontSize: 22, fontWeight: 700, color: readiness.trainingComplete ? "#16a34a" : "var(--ypp-purple)" }}>
@@ -354,11 +354,6 @@ export default async function InstructorTrainingPage() {
         <div style={{ marginTop: 10, height: 10, background: "var(--gray-200)", borderRadius: 6, overflow: "hidden" }}>
           <div style={{ width: `${trainingPct}%`, height: "100%", background: readiness.trainingComplete ? "#16a34a" : "var(--ypp-purple)", borderRadius: 6 }} />
         </div>
-        {readiness.academyModulesComplete && !readiness.studioCapstoneComplete && (
-          <div style={{ marginTop: 10, fontSize: 13, color: "#b45309", fontWeight: 600 }}>
-            Video modules complete — finish the Lesson Design Studio capstone and submit for review.
-          </div>
-        )}
         {readiness.trainingComplete && (
           <div style={{ marginTop: 10, fontSize: 13, color: "#16a34a", fontWeight: 600 }}>
             Training complete — proceed to Step 2: Pass the Interview Gate
@@ -379,55 +374,6 @@ export default async function InstructorTrainingPage() {
           <div className="kpi">{readiness.nextAction.title}</div>
           <div className="kpi-label">Next Required Action</div>
           <p style={{ marginTop: 8, fontSize: 12, color: "var(--muted)" }}>{readiness.nextAction.detail}</p>
-        </div>
-      </div>
-
-      <div
-        className="card"
-        style={{
-          marginBottom: 20,
-          background: "linear-gradient(135deg, #1e1030 0%, #13111c 100%)",
-          border: "1px solid rgba(107,33,200,0.35)",
-          color: "#f2f2f7",
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: 12,
-                background: "linear-gradient(135deg, #6b21c8, #4f46e5)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 22,
-                flexShrink: 0,
-                boxShadow: "0 0 20px rgba(107,33,200,0.4)",
-              }}
-            >
-              🎨
-            </div>
-            <div>
-              <h3 style={{ margin: 0, color: "#f2f2f7", fontSize: 15 }}>Lesson Design Studio — training capstone</h3>
-              <p style={{ margin: "4px 0 0", color: "rgba(242,242,247,0.6)", fontSize: 13 }}>
-                After the three video modules, build your class plan here and submit it for review. That submission completes the training lane before your readiness interview.
-              </p>
-              <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8 }}>
-                <span className="pill pill-small" style={{ background: "rgba(255,255,255,0.12)", color: "#f2f2f7" }}>
-                  {readiness.studioCapstoneComplete ? "Capstone submitted ✓" : "Capstone pending"}
-                </span>
-              </div>
-            </div>
-          </div>
-          <Link
-            href="/instructor/lesson-design-studio?entry=training"
-            className="button primary"
-            style={{ fontSize: 13, flexShrink: 0, background: "#6b21c8", borderColor: "#6b21c8" }}
-          >
-            Open Lesson Design Studio →
-          </Link>
         </div>
       </div>
 
@@ -700,8 +646,18 @@ export default async function InstructorTrainingPage() {
               ) : null}
 
               <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <Link href={`/training/${card.module.id}`} className="button small" style={{ textDecoration: "none" }}>
-                  Open module
+                <Link
+                  href={
+                    card.module.contentKey === LESSON_DESIGN_STUDIO_MODULE_KEY
+                      ? "/instructor/lesson-design-studio?entry=training"
+                      : `/training/${card.module.id}`
+                  }
+                  className="button small"
+                  style={{ textDecoration: "none" }}
+                >
+                  {card.module.contentKey === LESSON_DESIGN_STUDIO_MODULE_KEY
+                    ? "Open Lesson Design Studio"
+                    : "Open module"}
                 </Link>
                 <Link
                   href={`/training/${card.module.id}#section-checkpoints`}

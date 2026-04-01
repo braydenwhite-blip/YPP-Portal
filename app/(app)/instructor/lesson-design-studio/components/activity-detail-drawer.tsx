@@ -58,8 +58,8 @@ export function ActivityDetailDrawer({
     if (readOnly || !activity) return;
     const trimmed = customTagInput.trim();
     if (!trimmed) return;
-    if (!activity.standardsTags.includes(trimmed)) {
-      handleChange("standardsTags", [...activity.standardsTags, trimmed]);
+    if (!(activity.standardsTags ?? []).includes(trimmed)) {
+      handleChange("standardsTags", [...(activity.standardsTags ?? []), trimmed]);
     }
     setCustomTagInput("");
   }

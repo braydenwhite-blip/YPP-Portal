@@ -89,19 +89,6 @@ export default function InstructorReadinessWidget({
             {summary.completedRequiredModules} / {summary.requiredModulesCount}
           </span>
         </div>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            fontSize: 13,
-            marginBottom: 8,
-          }}
-        >
-          <span>Lesson Design Studio</span>
-          <span style={{ fontWeight: 600 }}>
-            {summary.studioCapstoneComplete ? "Submitted" : "Pending"}
-          </span>
-        </div>
         {summary.trainingComplete ? (
           <span
             className="pill"
