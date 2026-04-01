@@ -230,234 +230,264 @@ export default function MentorSchedulePanel({ data }: Props) {
         </div>
       )}
 
-      <div className="grid two" style={{ alignItems: "start", marginBottom: "1.5rem" }}>
-        <div className="card">
-          <p style={{ fontWeight: 700, marginBottom: "1rem" }}>Recurring Availability</p>
-          <form onSubmit={handleAddRule} style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-            <div>
-              <label style={{ display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.3rem" }}>
-                Day
-              </label>
-              <select value={dayOfWeek} onChange={(e) => setDayOfWeek(e.target.value)} style={{ width: "100%" }}>
-                {DAY_NAMES.map((day, index) => (
-                  <option key={day} value={index}>
-                    {day}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-              <div>
-                <label style={{ display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.3rem" }}>
-                  Start
-                </label>
-                <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} style={{ width: "100%" }} />
-              </div>
-              <div>
-                <label style={{ display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.3rem" }}>
-                  End
-                </label>
-                <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} style={{ width: "100%" }} />
-              </div>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-              <div>
-                <label style={{ display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.3rem" }}>
-                  Slot Length
-                </label>
-                <select value={slotDuration} onChange={(e) => setSlotDuration(e.target.value)} style={{ width: "100%" }}>
-                  <option value="15">15 min</option>
-                  <option value="30">30 min</option>
-                  <option value="45">45 min</option>
-                  <option value="60">60 min</option>
-                </select>
-              </div>
-              <div>
-                <label style={{ display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.3rem" }}>
-                  Buffer
-                </label>
-                <select value={bufferMinutes} onChange={(e) => setBufferMinutes(e.target.value)} style={{ width: "100%" }}>
-                  <option value="0">0 min</option>
-                  <option value="5">5 min</option>
-                  <option value="10">10 min</option>
-                  <option value="15">15 min</option>
-                </select>
-              </div>
-            </div>
-            <div>
-              <label style={{ display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.3rem" }}>
-                Default Meeting Link
-              </label>
-              <input
-                type="url"
-                value={defaultMeetingLink}
-                onChange={(e) => setDefaultMeetingLink(e.target.value)}
-                placeholder="https://meet.google.com/..."
-                style={{ width: "100%" }}
-              />
-            </div>
-            <div>
-              <label style={{ display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.3rem" }}>
-                Location Label
-              </label>
-              <input
-                type="text"
-                value={locationLabel}
-                onChange={(e) => setLocationLabel(e.target.value)}
-                placeholder="Zoom, Phone Call, Office..."
-                style={{ width: "100%" }}
-              />
-            </div>
-            <button className="button primary" type="submit" disabled={isPending}>
-              {isPending ? "Saving..." : "Save Weekly Availability"}
-            </button>
-          </form>
+      {data.availabilityStatusMessage && (
+        <div
+          style={{
+            background: "#fff7ed",
+            border: "1px solid #fdba74",
+            borderRadius: "var(--radius)",
+            padding: "0.85rem 1rem",
+            color: "#9a3412",
+            marginBottom: "1.25rem",
+          }}
+        >
+          {data.availabilityStatusMessage}
         </div>
+      )}
 
-        <div className="card">
-          <p style={{ fontWeight: 700, marginBottom: "1rem" }}>One-Off Override</p>
-          <form onSubmit={handleAddOverride} style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-            <div>
-              <label style={{ display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.3rem" }}>
-                Override Type
-              </label>
-              <select value={overrideType} onChange={(e) => setOverrideType(e.target.value)} style={{ width: "100%" }}>
-                <option value="OPEN">Open extra time</option>
-                <option value="BLOCKED">Block time</option>
-              </select>
+      {data.availabilitySchemaReady ? (
+        <>
+          <div className="grid two" style={{ alignItems: "start", marginBottom: "1.5rem" }}>
+            <div className="card">
+              <p style={{ fontWeight: 700, marginBottom: "1rem" }}>Recurring Availability</p>
+              <form onSubmit={handleAddRule} style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+                <div>
+                  <label style={{ display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.3rem" }}>
+                    Day
+                  </label>
+                  <select value={dayOfWeek} onChange={(e) => setDayOfWeek(e.target.value)} style={{ width: "100%" }}>
+                    {DAY_NAMES.map((day, index) => (
+                      <option key={day} value={index}>
+                        {day}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                  <div>
+                    <label style={{ display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.3rem" }}>
+                      Start
+                    </label>
+                    <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} style={{ width: "100%" }} />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.3rem" }}>
+                      End
+                    </label>
+                    <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} style={{ width: "100%" }} />
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                  <div>
+                    <label style={{ display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.3rem" }}>
+                      Slot Length
+                    </label>
+                    <select value={slotDuration} onChange={(e) => setSlotDuration(e.target.value)} style={{ width: "100%" }}>
+                      <option value="15">15 min</option>
+                      <option value="30">30 min</option>
+                      <option value="45">45 min</option>
+                      <option value="60">60 min</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.3rem" }}>
+                      Buffer
+                    </label>
+                    <select value={bufferMinutes} onChange={(e) => setBufferMinutes(e.target.value)} style={{ width: "100%" }}>
+                      <option value="0">0 min</option>
+                      <option value="5">5 min</option>
+                      <option value="10">10 min</option>
+                      <option value="15">15 min</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label style={{ display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.3rem" }}>
+                    Default Meeting Link
+                  </label>
+                  <input
+                    type="url"
+                    value={defaultMeetingLink}
+                    onChange={(e) => setDefaultMeetingLink(e.target.value)}
+                    placeholder="https://meet.google.com/..."
+                    style={{ width: "100%" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.3rem" }}>
+                    Location Label
+                  </label>
+                  <input
+                    type="text"
+                    value={locationLabel}
+                    onChange={(e) => setLocationLabel(e.target.value)}
+                    placeholder="Zoom, Phone Call, Office..."
+                    style={{ width: "100%" }}
+                  />
+                </div>
+                <button className="button primary" type="submit" disabled={isPending}>
+                  {isPending ? "Saving..." : "Save Weekly Availability"}
+                </button>
+              </form>
             </div>
-            <div>
-              <label style={{ display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.3rem" }}>
-                Starts
-              </label>
-              <input
-                type="datetime-local"
-                value={overrideStartsAt}
-                onChange={(e) => setOverrideStartsAt(e.target.value)}
-                style={{ width: "100%" }}
-                required
-              />
-            </div>
-            <div>
-              <label style={{ display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.3rem" }}>
-                Ends
-              </label>
-              <input
-                type="datetime-local"
-                value={overrideEndsAt}
-                onChange={(e) => setOverrideEndsAt(e.target.value)}
-                style={{ width: "100%" }}
-                required
-              />
-            </div>
-            <div>
-              <label style={{ display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.3rem" }}>
-                Note
-              </label>
-              <textarea
-                value={overrideNote}
-                onChange={(e) => setOverrideNote(e.target.value)}
-                rows={3}
-                placeholder={overrideType === "OPEN" ? "Optional note about this extra window" : "Why this time is blocked"}
-                style={{ width: "100%", resize: "vertical" }}
-              />
-            </div>
-            <button className="button primary" type="submit" disabled={isPending}>
-              {isPending ? "Saving..." : overrideType === "OPEN" ? "Add Opening" : "Block Time"}
-            </button>
-          </form>
-        </div>
-      </div>
 
-      <div className="grid two" style={{ alignItems: "start", marginBottom: "1.5rem" }}>
-        <div className="card">
-          <p style={{ fontWeight: 700, marginBottom: "1rem" }}>Current Weekly Schedule</p>
-          {rulesByDay.length === 0 ? (
-            <p style={{ color: "var(--muted)", fontSize: "0.85rem" }}>No recurring availability posted yet.</p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-              {rulesByDay.map((entry) => (
-                <div key={entry.dayIdx}>
-                  <p style={{ fontWeight: 600, fontSize: "0.82rem", color: "var(--muted)", marginBottom: "0.35rem" }}>
-                    {entry.day}
-                  </p>
-                  {entry.rules.map((rule) => (
-                    <div
-                      key={rule.id}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: "0.75rem",
-                        alignItems: "center",
-                        padding: "0.6rem 0.75rem",
-                        background: "var(--surface-alt)",
-                        borderRadius: "var(--radius-sm)",
-                        marginBottom: "0.35rem",
-                      }}
-                    >
-                      <div>
-                        <p style={{ margin: 0, fontWeight: 600, fontSize: "0.88rem" }}>
-                          {rule.startTime} - {rule.endTime}
-                        </p>
-                        <p style={{ margin: "0.15rem 0 0", fontSize: "0.75rem", color: "var(--muted)" }}>
-                          {rule.slotDuration} min slots, {rule.bufferMinutes} min buffer
-                          {rule.locationLabel ? `, ${rule.locationLabel}` : ""}
-                        </p>
-                      </div>
-                      <button className="button ghost small" onClick={() => handleRemoveRule(rule.id)} disabled={isPending}>
-                        Remove
-                      </button>
+            <div className="card">
+              <p style={{ fontWeight: 700, marginBottom: "1rem" }}>One-Off Override</p>
+              <form onSubmit={handleAddOverride} style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+                <div>
+                  <label style={{ display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.3rem" }}>
+                    Override Type
+                  </label>
+                  <select value={overrideType} onChange={(e) => setOverrideType(e.target.value)} style={{ width: "100%" }}>
+                    <option value="OPEN">Open extra time</option>
+                    <option value="BLOCKED">Block time</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.3rem" }}>
+                    Starts
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={overrideStartsAt}
+                    onChange={(e) => setOverrideStartsAt(e.target.value)}
+                    style={{ width: "100%" }}
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.3rem" }}>
+                    Ends
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={overrideEndsAt}
+                    onChange={(e) => setOverrideEndsAt(e.target.value)}
+                    style={{ width: "100%" }}
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: "0.3rem" }}>
+                    Note
+                  </label>
+                  <textarea
+                    value={overrideNote}
+                    onChange={(e) => setOverrideNote(e.target.value)}
+                    rows={3}
+                    placeholder={overrideType === "OPEN" ? "Optional note about this extra window" : "Why this time is blocked"}
+                    style={{ width: "100%", resize: "vertical" }}
+                  />
+                </div>
+                <button className="button primary" type="submit" disabled={isPending}>
+                  {isPending ? "Saving..." : overrideType === "OPEN" ? "Add Opening" : "Block Time"}
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <div className="grid two" style={{ alignItems: "start", marginBottom: "1.5rem" }}>
+            <div className="card">
+              <p style={{ fontWeight: 700, marginBottom: "1rem" }}>Current Weekly Schedule</p>
+              {rulesByDay.length === 0 ? (
+                <p style={{ color: "var(--muted)", fontSize: "0.85rem" }}>No recurring availability posted yet.</p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                  {rulesByDay.map((entry) => (
+                    <div key={entry.dayIdx}>
+                      <p style={{ fontWeight: 600, fontSize: "0.82rem", color: "var(--muted)", marginBottom: "0.35rem" }}>
+                        {entry.day}
+                      </p>
+                      {entry.rules.map((rule) => (
+                        <div
+                          key={rule.id}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: "0.75rem",
+                            alignItems: "center",
+                            padding: "0.6rem 0.75rem",
+                            background: "var(--surface-alt)",
+                            borderRadius: "var(--radius-sm)",
+                            marginBottom: "0.35rem",
+                          }}
+                        >
+                          <div>
+                            <p style={{ margin: 0, fontWeight: 600, fontSize: "0.88rem" }}>
+                              {rule.startTime} - {rule.endTime}
+                            </p>
+                            <p style={{ margin: "0.15rem 0 0", fontSize: "0.75rem", color: "var(--muted)" }}>
+                              {rule.slotDuration} min slots, {rule.bufferMinutes} min buffer
+                              {rule.locationLabel ? `, ${rule.locationLabel}` : ""}
+                            </p>
+                          </div>
+                          <button className="button ghost small" onClick={() => handleRemoveRule(rule.id)} disabled={isPending}>
+                            Remove
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   ))}
                 </div>
-              ))}
+              )}
             </div>
-          )}
-        </div>
 
-        <div className="card">
-          <p style={{ fontWeight: 700, marginBottom: "1rem" }}>Upcoming Overrides</p>
-          {data.availabilityOverrides.length === 0 ? (
-            <p style={{ color: "var(--muted)", fontSize: "0.85rem" }}>No one-off overrides yet.</p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
-              {data.availabilityOverrides.map((override) => (
-                <div
-                  key={override.id}
-                  style={{
-                    padding: "0.75rem 0.85rem",
-                    background: override.type === "OPEN" ? "#f0fdf4" : "#fef2f2",
-                    border: `1px solid ${override.type === "OPEN" ? "#bbf7d0" : "#fecaca"}`,
-                    borderRadius: "var(--radius-sm)",
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem" }}>
-                    <div>
-                      <p style={{ margin: 0, fontWeight: 700, fontSize: "0.84rem" }}>
-                        {override.type === "OPEN" ? "Special opening" : "Blocked time"}
-                      </p>
-                      <p style={{ margin: "0.2rem 0 0", fontSize: "0.78rem", color: "var(--muted)" }}>
-                        {formatSlotTime(override.startsAt)} - {formatSlotTime(override.endsAt)}
-                      </p>
-                      {override.note && (
-                        <p style={{ margin: "0.25rem 0 0", fontSize: "0.78rem" }}>{override.note}</p>
-                      )}
+            <div className="card">
+              <p style={{ fontWeight: 700, marginBottom: "1rem" }}>Upcoming Overrides</p>
+              {data.availabilityOverrides.length === 0 ? (
+                <p style={{ color: "var(--muted)", fontSize: "0.85rem" }}>No one-off overrides yet.</p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
+                  {data.availabilityOverrides.map((override) => (
+                    <div
+                      key={override.id}
+                      style={{
+                        padding: "0.75rem 0.85rem",
+                        background: override.type === "OPEN" ? "#f0fdf4" : "#fef2f2",
+                        border: `1px solid ${override.type === "OPEN" ? "#bbf7d0" : "#fecaca"}`,
+                        borderRadius: "var(--radius-sm)",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem" }}>
+                        <div>
+                          <p style={{ margin: 0, fontWeight: 700, fontSize: "0.84rem" }}>
+                            {override.type === "OPEN" ? "Special opening" : "Blocked time"}
+                          </p>
+                          <p style={{ margin: "0.2rem 0 0", fontSize: "0.78rem", color: "var(--muted)" }}>
+                            {formatSlotTime(override.startsAt)} - {formatSlotTime(override.endsAt)}
+                          </p>
+                          {override.note && (
+                            <p style={{ margin: "0.25rem 0 0", fontSize: "0.78rem" }}>{override.note}</p>
+                          )}
+                        </div>
+                        <button className="button ghost small" onClick={() => handleRemoveOverride(override.id)} disabled={isPending}>
+                          Remove
+                        </button>
+                      </div>
                     </div>
-                    <button className="button ghost small" onClick={() => handleRemoveOverride(override.id)} disabled={isPending}>
-                      Remove
-                    </button>
-                  </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          )}
+          </div>
+        </>
+      ) : (
+        <div className="card" style={{ marginBottom: "1.5rem" }}>
+          <p style={{ fontWeight: 700, marginBottom: "0.5rem" }}>Availability Setup Is Paused</p>
+          <p style={{ margin: 0, color: "var(--muted)", fontSize: "0.85rem" }}>
+            Weekly hours, overrides, and self-booking slots will appear here after the missing database migration is applied.
+          </p>
         </div>
-      </div>
+      )}
 
       <div className="grid two" style={{ alignItems: "start", marginBottom: "1.5rem" }}>
         <div className="card">
           <p style={{ fontWeight: 700, marginBottom: "1rem" }}>Next Open Slots</p>
-          {data.slotPreview.length === 0 ? (
+          {!data.availabilitySchemaReady ? (
+            <p style={{ color: "var(--muted)", fontSize: "0.85rem" }}>
+              Slot previews will appear here after the mentor-availability migration is applied.
+            </p>
+          ) : data.slotPreview.length === 0 ? (
             <p style={{ color: "var(--muted)", fontSize: "0.85rem" }}>
               Once you post recurring hours or one-off openings, your mentees will be able to self-book them.
             </p>
