@@ -14,12 +14,29 @@ import {
 
 export const metadata = { title: "Scheduling Hub" };
 
-async function safeCall<T>(callback: () => Promise<T>) {
+type SafeCallResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: unknown };
+
+async function safeCall<T>(callback: () => Promise<T>): Promise<SafeCallResult<T>> {
   try {
-    return await callback();
-  } catch {
-    return null;
+    return {
+      ok: true,
+      data: await callback(),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error,
+    };
   }
+}
+
+function isInterviewSchedulingAccessError(error: unknown) {
+  return (
+    error instanceof Error &&
+    error.message === "You do not have access to interview scheduling."
+  );
 }
 
 function formatDateTime(value: string | null) {
@@ -43,7 +60,7 @@ function HubCard({
 }: {
   title: string;
   subtitle: string;
-  href: string;
+  href: string | null;
   hrefLabel: string;
   accent: string;
   children: ReactNode;
@@ -55,9 +72,19 @@ function HubCard({
           <p style={{ margin: 0, fontWeight: 700 }}>{title}</p>
           <p style={{ margin: "0.25rem 0 0", fontSize: "0.82rem", color: "var(--muted)" }}>{subtitle}</p>
         </div>
-        <Link href={href} className="button ghost small" style={{ textDecoration: "none", whiteSpace: "nowrap" }}>
-          {hrefLabel}
-        </Link>
+        {href ? (
+          <Link href={href} className="button ghost small" style={{ textDecoration: "none", whiteSpace: "nowrap" }}>
+            {hrefLabel}
+          </Link>
+        ) : (
+          <span
+            aria-disabled="true"
+            className="button ghost small"
+            style={{ textDecoration: "none", whiteSpace: "nowrap", opacity: 0.55, cursor: "not-allowed", boxShadow: "none" }}
+          >
+            {hrefLabel}
+          </span>
+        )}
       </div>
       {children}
     </div>
@@ -71,13 +98,21 @@ export default async function SchedulingHubPage() {
   const roles = session.user.roles ?? [];
   const canMentorManage = roles.includes("MENTOR") || roles.includes("CHAPTER_PRESIDENT") || roles.includes("ADMIN");
 
-  const [interviewData, myMentorshipData, mentorData, collegeAdvisorData, advisorData] = await Promise.all([
+  const [interviewResult, myMentorshipResult, mentorResult, collegeAdvisorResult, advisorResult] = await Promise.all([
     safeCall(() => getInterviewScheduleData()),
     safeCall(() => getMyMentorshipScheduleData()),
-    canMentorManage ? safeCall(() => getMentorScheduleManagerData()) : Promise.resolve(null),
+    canMentorManage
+      ? safeCall(() => getMentorScheduleManagerData())
+      : Promise.resolve({ ok: false, error: null } as SafeCallResult<Awaited<ReturnType<typeof getMentorScheduleManagerData>>>),
     safeCall(() => getCollegeAdvisorScheduleData()),
     safeCall(() => getAdvisorScheduleManagerData()),
   ]);
+
+  const interviewData = interviewResult.ok ? interviewResult.data : null;
+  const myMentorshipData = myMentorshipResult.ok ? myMentorshipResult.data : null;
+  const mentorData = mentorResult.ok ? mentorResult.data : null;
+  const collegeAdvisorData = collegeAdvisorResult.ok ? collegeAdvisorResult.data : null;
+  const advisorData = advisorResult.ok ? advisorResult.data : null;
 
   const upcomingInterviewWorkflows =
     interviewData?.workflows
@@ -100,8 +135,8 @@ export default async function SchedulingHubPage() {
         <HubCard
           title="Interviews"
           subtitle="Hiring and readiness scheduling"
-          href="/interviews/schedule"
-          hrefLabel="Open Interview Scheduler"
+          href={interviewData ? "/interviews/schedule" : null}
+          hrefLabel={interviewData ? "Open Interview Scheduler" : "Unavailable"}
           accent="#2563eb"
         >
           {interviewData ? (
@@ -141,7 +176,9 @@ export default async function SchedulingHubPage() {
             </>
           ) : (
             <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--muted)" }}>
-              You do not have interview scheduling access right now.
+              {isInterviewSchedulingAccessError(interviewResult.ok ? null : interviewResult.error)
+                ? "This account does not have interview scheduling access right now."
+                : "The interview scheduler is not available from this workspace right now."}
             </p>
           )}
         </HubCard>
