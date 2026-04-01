@@ -108,24 +108,53 @@ export async function createUser(formData: FormData) {
     throw new Error("Could not create the authentication account. Please try again.");
   }
 
+  const userWriteData = {
+    name,
+    email,
+    phone: phone || null,
+    passwordHash,
+    primaryRole,
+    chapterId: chapterId || null,
+    emailVerified: new Date(),
+    supabaseAuthId: authData.user.id,
+  };
+
   let newUser;
 
   try {
-    newUser = await prisma.user.create({
-      data: {
-        name,
-        email,
-        phone: phone || null,
-        passwordHash,
-        primaryRole,
-        chapterId: chapterId || null,
-        emailVerified: new Date(),
-        supabaseAuthId: authData.user.id,
-        roles: {
-          create: roles.map((role) => ({ role }))
-        }
-      }
+    const existingAfterAuthCreate = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, supabaseAuthId: true },
     });
+
+    if (existingAfterAuthCreate) {
+      if (
+        existingAfterAuthCreate.supabaseAuthId &&
+        existingAfterAuthCreate.supabaseAuthId !== authData.user.id
+      ) {
+        throw new Error("User already exists");
+      }
+
+      newUser = await prisma.user.update({
+        where: { id: existingAfterAuthCreate.id },
+        data: {
+          ...userWriteData,
+          roles: {
+            deleteMany: {},
+            create: roles.map((role) => ({ role })),
+          },
+        },
+      });
+    } else {
+      newUser = await prisma.user.create({
+        data: {
+          ...userWriteData,
+          roles: {
+            create: roles.map((role) => ({ role })),
+          },
+        },
+      });
+    }
   } catch (error) {
     try {
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id);

@@ -92,6 +92,14 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardBadgeKey: "interview_queue",
     },
     {
+      href: "/scheduling",
+      label: "Scheduling Hub",
+      icon: "🗓",
+      roles: ["APPLICANT", "STUDENT", "INSTRUCTOR", "STAFF", "ADMIN", "CHAPTER_PRESIDENT", "MENTOR"] as NavRole[],
+      dashboardDescription: "See interviews, mentorship, and college-advisor scheduling work in one place.",
+      dashboardPriority: 8,
+    },
+    {
       href: "/announcements",
       label: "Updates",
       icon: "📢",

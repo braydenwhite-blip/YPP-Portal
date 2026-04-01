@@ -19,12 +19,34 @@ function getString(formData: FormData, key: string) {
   return value ? String(value).trim() : "";
 }
 
+function normalizeUrl(value: string | undefined) {
+  return value?.trim().replace(/\/+$/, "") || "";
+}
+
+function isLoopbackHost(value: string) {
+  try {
+    const url = new URL(value);
+    return ["localhost", "127.0.0.1", "0.0.0.0"].includes(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 function getHeaderValue(headerName: string) {
   const value = headers().get(headerName)?.split(",")[0]?.trim();
   return value || "";
 }
 
 function getBaseUrl() {
+  const publicAppUrl = normalizeUrl(process.env.NEXT_PUBLIC_APP_URL);
+  if (publicAppUrl) return publicAppUrl;
+
+  const publicSiteUrl = normalizeUrl(process.env.NEXT_PUBLIC_SITE_URL);
+  if (publicSiteUrl) return publicSiteUrl;
+
+  const siteUrl = normalizeUrl(process.env.SITE_URL);
+  if (siteUrl) return siteUrl;
+
   const forwardedHost = getHeaderValue("x-forwarded-host");
   const host = forwardedHost || getHeaderValue("host");
   const forwardedProto = getHeaderValue("x-forwarded-proto");
@@ -34,11 +56,20 @@ function getBaseUrl() {
     return `${protocol}://${host}`;
   }
 
-  const nextAuthUrl = process.env.NEXTAUTH_URL?.trim();
-  if (nextAuthUrl) return nextAuthUrl.replace(/\/$/, "");
+  const nextAuthUrl = normalizeUrl(process.env.NEXTAUTH_URL);
+  if (nextAuthUrl && !isLoopbackHost(nextAuthUrl)) return nextAuthUrl;
+
+  const vercelProductionUrl = normalizeUrl(process.env.VERCEL_PROJECT_PRODUCTION_URL);
+  if (vercelProductionUrl) {
+    return /^https?:\/\//i.test(vercelProductionUrl)
+      ? vercelProductionUrl
+      : `https://${vercelProductionUrl}`;
+  }
 
   const vercelUrl = process.env.VERCEL_URL?.trim();
   if (vercelUrl) return `https://${vercelUrl}`;
+
+  if (nextAuthUrl) return nextAuthUrl;
 
   return "http://localhost:3000";
 }
