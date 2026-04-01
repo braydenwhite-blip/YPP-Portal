@@ -88,6 +88,10 @@ type HiringWorkflowRecord = Prisma.ApplicationGetPayload<{
   };
 }>;
 
+function buildCalendarInviteInput(input: CalendarInviteInput) {
+  return input;
+}
+
 type ReadinessWorkflowRecord = Prisma.InstructorInterviewGateGetPayload<{
   include: {
     instructor: {
@@ -380,7 +384,11 @@ async function sendInterviewLifecycleEmails(params: {
       heading: `Your ${interviewLabel} is booked`,
       message: `${interviewer.name ?? "Your interviewer"} confirmed your time.`,
       calendar: calendarBase
-        ? { ...calendarBase, method: "REQUEST", filename: "interview-confirmed.ics" as const }
+        ? buildCalendarInviteInput({
+            ...calendarBase,
+            method: "REQUEST",
+            filename: "interview-confirmed.ics",
+          })
         : null,
     },
     RESCHEDULE_REQUESTED: {
@@ -394,7 +402,11 @@ async function sendInterviewLifecycleEmails(params: {
       heading: `Your ${interviewLabel} has a new time`,
       message: `${interviewer.name ?? "Your interviewer"} confirmed the new slot.`,
       calendar: calendarBase
-        ? { ...calendarBase, method: "REQUEST", filename: "interview-rescheduled.ics" as const }
+        ? buildCalendarInviteInput({
+            ...calendarBase,
+            method: "REQUEST",
+            filename: "interview-rescheduled.ics",
+          })
         : null,
     },
     CANCELLED: {
@@ -402,7 +414,12 @@ async function sendInterviewLifecycleEmails(params: {
       heading: `Your ${interviewLabel} was cancelled`,
       message: `Please return to the portal to choose a new time.`,
       calendar: calendarBase
-        ? { ...calendarBase, method: "CANCEL", status: "CANCELLED", filename: "interview-cancelled.ics" as const }
+        ? buildCalendarInviteInput({
+            ...calendarBase,
+            method: "CANCEL",
+            status: "CANCELLED",
+            filename: "interview-cancelled.ics",
+          })
         : null,
     },
     REMINDER_24H: {
@@ -425,7 +442,11 @@ async function sendInterviewLifecycleEmails(params: {
       heading: `A ${interviewLabel} was booked`,
       message: `${interviewee.name ?? "The interviewee"} now has a confirmed time with you.`,
       calendar: calendarBase
-        ? { ...calendarBase, method: "REQUEST", filename: "interview-confirmed.ics" as const }
+        ? buildCalendarInviteInput({
+            ...calendarBase,
+            method: "REQUEST",
+            filename: "interview-confirmed.ics",
+          })
         : null,
     },
     RESCHEDULE_REQUESTED: {
@@ -439,7 +460,11 @@ async function sendInterviewLifecycleEmails(params: {
       heading: `The ${interviewLabel} has a new time`,
       message: `${interviewee.name ?? "The interviewee"} now has a new confirmed slot.`,
       calendar: calendarBase
-        ? { ...calendarBase, method: "REQUEST", filename: "interview-rescheduled.ics" as const }
+        ? buildCalendarInviteInput({
+            ...calendarBase,
+            method: "REQUEST",
+            filename: "interview-rescheduled.ics",
+          })
         : null,
     },
     CANCELLED: {
@@ -447,7 +472,12 @@ async function sendInterviewLifecycleEmails(params: {
       heading: `A ${interviewLabel} was cancelled`,
       message: `${title} was removed from the calendar.`,
       calendar: calendarBase
-        ? { ...calendarBase, method: "CANCEL", status: "CANCELLED", filename: "interview-cancelled.ics" as const }
+        ? buildCalendarInviteInput({
+            ...calendarBase,
+            method: "CANCEL",
+            status: "CANCELLED",
+            filename: "interview-cancelled.ics",
+          })
         : null,
     },
     REMINDER_24H: {

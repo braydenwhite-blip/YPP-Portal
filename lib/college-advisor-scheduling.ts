@@ -58,6 +58,10 @@ function getOptionalDate(raw: string | null | undefined) {
   return Number.isNaN(value.getTime()) ? null : value;
 }
 
+function buildCalendarInviteInput(input: CalendarInviteInput) {
+  return input;
+}
+
 // ============================================
 // AUTH HELPERS
 // ============================================
@@ -255,7 +259,11 @@ async function sendCollegeAdvisorLifecycleEmails(params: {
         { label: "Length", value: formatDurationLabel(durationMinutes) },
       ],
       calendar: calendarBase
-        ? { ...calendarBase, method: "REQUEST", filename: "advisor-confirmed.ics" as const }
+        ? buildCalendarInviteInput({
+            ...calendarBase,
+            method: "REQUEST",
+            filename: "advisor-confirmed.ics",
+          })
         : null,
     },
     RESCHEDULED: {
@@ -268,7 +276,11 @@ async function sendCollegeAdvisorLifecycleEmails(params: {
         { label: "Length", value: formatDurationLabel(durationMinutes) },
       ],
       calendar: calendarBase
-        ? { ...calendarBase, method: "REQUEST", filename: "advisor-rescheduled.ics" as const }
+        ? buildCalendarInviteInput({
+            ...calendarBase,
+            method: "REQUEST",
+            filename: "advisor-rescheduled.ics",
+          })
         : null,
     },
     CANCELLED: {
@@ -277,7 +289,12 @@ async function sendCollegeAdvisorLifecycleEmails(params: {
       message: `${title} was removed from the calendar.`,
       details: [{ label: "Topic", value: title }],
       calendar: calendarBase
-        ? { ...calendarBase, method: "CANCEL", status: "CANCELLED", filename: "advisor-cancelled.ics" as const }
+        ? buildCalendarInviteInput({
+            ...calendarBase,
+            method: "CANCEL",
+            status: "CANCELLED",
+            filename: "advisor-cancelled.ics",
+          })
         : null,
     },
     REMINDER_24H: {
@@ -322,7 +339,11 @@ async function sendCollegeAdvisorLifecycleEmails(params: {
         { label: "Length", value: formatDurationLabel(durationMinutes) },
       ],
       calendar: calendarBase
-        ? { ...calendarBase, method: "REQUEST", filename: "advisor-confirmed.ics" as const }
+        ? buildCalendarInviteInput({
+            ...calendarBase,
+            method: "REQUEST",
+            filename: "advisor-confirmed.ics",
+          })
         : null,
     },
     RESCHEDULED: {
@@ -335,7 +356,11 @@ async function sendCollegeAdvisorLifecycleEmails(params: {
         { label: "Length", value: formatDurationLabel(durationMinutes) },
       ],
       calendar: calendarBase
-        ? { ...calendarBase, method: "REQUEST", filename: "advisor-rescheduled.ics" as const }
+        ? buildCalendarInviteInput({
+            ...calendarBase,
+            method: "REQUEST",
+            filename: "advisor-rescheduled.ics",
+          })
         : null,
     },
     CANCELLED: {
@@ -344,7 +369,12 @@ async function sendCollegeAdvisorLifecycleEmails(params: {
       message: "You can pick a new time in the portal whenever you are ready.",
       details: [{ label: "Topic", value: title }],
       calendar: calendarBase
-        ? { ...calendarBase, method: "CANCEL", status: "CANCELLED", filename: "advisor-cancelled.ics" as const }
+        ? buildCalendarInviteInput({
+            ...calendarBase,
+            method: "CANCEL",
+            status: "CANCELLED",
+            filename: "advisor-cancelled.ics",
+          })
         : null,
     },
     REMINDER_24H: {

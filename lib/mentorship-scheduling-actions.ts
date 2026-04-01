@@ -1,6 +1,6 @@
 "use server";
 
-import { MentorshipSessionType } from "@prisma/client";
+import { MentorshipSessionType, Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 import { getSession } from "@/lib/auth-supabase";
@@ -48,7 +48,7 @@ type MentorshipRequestRecord = {
   sessionType: MentorshipSessionType;
   title: string;
   notes: string | null;
-  preferredSlots: string[];
+  preferredSlots: Prisma.JsonValue;
   status: string;
   confirmedAt: Date | null;
   scheduledAt: Date | null;
@@ -80,6 +80,10 @@ function getOptionalDate(raw: string | null | undefined) {
   if (!raw) return null;
   const value = new Date(raw);
   return Number.isNaN(value.getTime()) ? null : value;
+}
+
+function buildCalendarInviteInput(input: CalendarInviteInput) {
+  return input;
 }
 
 function formatDurationLabel(duration: number) {
@@ -284,7 +288,11 @@ async function sendMentorshipLifecycleEmails(params: {
         { label: "Length", value: formatDurationLabel(durationMinutes) },
       ],
       calendar: calendarBase
-        ? { ...calendarBase, method: "REQUEST", filename: "mentorship-confirmed.ics" as const }
+        ? buildCalendarInviteInput({
+            ...calendarBase,
+            method: "REQUEST",
+            filename: "mentorship-confirmed.ics",
+          })
         : null,
     },
     RESCHEDULED: {
@@ -297,7 +305,11 @@ async function sendMentorshipLifecycleEmails(params: {
         { label: "Length", value: formatDurationLabel(durationMinutes) },
       ],
       calendar: calendarBase
-        ? { ...calendarBase, method: "REQUEST", filename: "mentorship-rescheduled.ics" as const }
+        ? buildCalendarInviteInput({
+            ...calendarBase,
+            method: "REQUEST",
+            filename: "mentorship-rescheduled.ics",
+          })
         : null,
     },
     CANCELLED: {
@@ -311,7 +323,12 @@ async function sendMentorshipLifecycleEmails(params: {
           ]
         : [{ label: "Meeting", value: title }],
       calendar: calendarBase
-        ? { ...calendarBase, method: "CANCEL", status: "CANCELLED", filename: "mentorship-cancelled.ics" as const }
+        ? buildCalendarInviteInput({
+            ...calendarBase,
+            method: "CANCEL",
+            status: "CANCELLED",
+            filename: "mentorship-cancelled.ics",
+          })
         : null,
     },
     REMINDER_24H: {
@@ -359,7 +376,11 @@ async function sendMentorshipLifecycleEmails(params: {
         { label: "Length", value: formatDurationLabel(durationMinutes) },
       ],
       calendar: calendarBase
-        ? { ...calendarBase, method: "REQUEST", filename: "mentorship-confirmed.ics" as const }
+        ? buildCalendarInviteInput({
+            ...calendarBase,
+            method: "REQUEST",
+            filename: "mentorship-confirmed.ics",
+          })
         : null,
     },
     RESCHEDULED: {
@@ -372,7 +393,11 @@ async function sendMentorshipLifecycleEmails(params: {
         { label: "Length", value: formatDurationLabel(durationMinutes) },
       ],
       calendar: calendarBase
-        ? { ...calendarBase, method: "REQUEST", filename: "mentorship-rescheduled.ics" as const }
+        ? buildCalendarInviteInput({
+            ...calendarBase,
+            method: "REQUEST",
+            filename: "mentorship-rescheduled.ics",
+          })
         : null,
     },
     CANCELLED: {
@@ -386,7 +411,12 @@ async function sendMentorshipLifecycleEmails(params: {
           ]
         : [{ label: "Meeting", value: title }],
       calendar: calendarBase
-        ? { ...calendarBase, method: "CANCEL", status: "CANCELLED", filename: "mentorship-cancelled.ics" as const }
+        ? buildCalendarInviteInput({
+            ...calendarBase,
+            method: "CANCEL",
+            status: "CANCELLED",
+            filename: "mentorship-cancelled.ics",
+          })
         : null,
     },
     REMINDER_24H: {
