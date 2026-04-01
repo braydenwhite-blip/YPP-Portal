@@ -7,7 +7,10 @@ import { getSession } from "@/lib/auth-supabase";
 import { createMentorshipNotification } from "@/lib/mentorship-program-actions";
 import { prisma } from "@/lib/prisma";
 import { toAbsoluteAppUrl } from "@/lib/public-app-url";
-import { getSchedulingEventUid } from "@/lib/scheduling/calendar";
+import {
+  getSchedulingEventUid,
+  type CalendarInviteInput,
+} from "@/lib/scheduling/calendar";
 import { sendSchedulingLifecycleEmail } from "@/lib/scheduling/email";
 import { getUserBusyIntervals } from "@/lib/scheduling/busy-intervals";
 import {
@@ -241,7 +244,7 @@ async function sendMentorshipLifecycleEmails(params: {
   const when = scheduledAt ? formatScheduleDateTime(scheduledAt) : "To be scheduled";
   const sessionLabel = formatSessionTypeLabel(sessionType);
   const uid = getSchedulingEventUid("mentorship", requestId);
-  const calendarBase =
+  const calendarBase: CalendarInviteInput | null =
     scheduledAt && event !== "REQUESTED"
       ? {
           uid,

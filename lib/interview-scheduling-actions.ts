@@ -26,7 +26,10 @@ import {
 } from "@/lib/interview-scheduling-shared";
 import { getEnabledFeatureKeysForUser } from "@/lib/feature-gates";
 import { toAbsoluteAppUrl } from "@/lib/public-app-url";
-import { getSchedulingEventUid } from "@/lib/scheduling/calendar";
+import {
+  getSchedulingEventUid,
+  type CalendarInviteInput,
+} from "@/lib/scheduling/calendar";
 import { sendSchedulingLifecycleEmail } from "@/lib/scheduling/email";
 
 const DEFAULT_WINDOW_DAYS = 21;
@@ -354,7 +357,7 @@ async function sendInterviewLifecycleEmails(params: {
   const interviewLabel = domain === "HIRING" ? "interview" : "readiness interview";
   const when = scheduledAt ? new Date(scheduledAt).toLocaleString() : "To be scheduled";
   const uid = getSchedulingEventUid("interview", requestId);
-  const calendarBase =
+  const calendarBase: CalendarInviteInput | null =
     scheduledAt && event !== "RESCHEDULE_REQUESTED"
       ? {
           uid,

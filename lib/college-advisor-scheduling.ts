@@ -7,7 +7,10 @@ import { CollegeMeetingStatus, CollegeResourceCategory } from "@prisma/client";
 import { getUserAwardTier } from "@/lib/alumni-actions";
 import { createMentorshipNotification } from "@/lib/mentorship-program-actions";
 import { toAbsoluteAppUrl } from "@/lib/public-app-url";
-import { getSchedulingEventUid } from "@/lib/scheduling/calendar";
+import {
+  getSchedulingEventUid,
+  type CalendarInviteInput,
+} from "@/lib/scheduling/calendar";
 import { getUserBusyIntervals } from "@/lib/scheduling/busy-intervals";
 import { sendSchedulingLifecycleEmail } from "@/lib/scheduling/email";
 import {
@@ -217,7 +220,7 @@ async function sendCollegeAdvisorLifecycleEmails(params: {
   const title = topic?.trim() || "College advising meeting";
   const when = scheduledAt ? formatScheduleDateTime(scheduledAt) : "To be scheduled";
   const uid = getSchedulingEventUid("college-advisor", meetingId);
-  const calendarBase =
+  const calendarBase: CalendarInviteInput | null =
     scheduledAt && event !== "REQUESTED"
       ? {
           uid,
