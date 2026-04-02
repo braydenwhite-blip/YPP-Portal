@@ -61,9 +61,14 @@ export async function middleware(request: NextRequest) {
 
   // Create Supabase client and refresh session
   const { supabase, response } = createMiddlewareClient(request);
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data?.user ?? null;
+  } catch {
+    // Supabase URL is unreachable (e.g. dummy local URL) — continue with legacy auth
+    user = null;
+  }
   const legacySession = await verifyLegacySessionToken(
     request.cookies.get(LEGACY_AUTH_COOKIE_NAME)?.value ?? null
   );
