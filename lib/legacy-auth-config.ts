@@ -1,5 +1,11 @@
-export const LEGACY_AUTH_BYPASS_EMAIL = "brayden.white@youthpassionproject.org";
+export const LEGACY_AUTH_BYPASS_EMAILS = [
+  "brayden.white@youthpassionproject.org",
+  "carlygelles@gmail.com",
+  "avery.lin@youthpassionproject.org",
+  "jordan.patel@youthpassionproject.org"
+];
 
 export function isLegacyAuthBypassEmail(email?: string | null) {
-  return (email || "").trim().toLowerCase() === LEGACY_AUTH_BYPASS_EMAIL;
+  const norm = (email || "").trim().toLowerCase();
+  return LEGACY_AUTH_BYPASS_EMAILS.includes(norm);
 }
