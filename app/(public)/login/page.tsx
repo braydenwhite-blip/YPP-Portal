@@ -207,38 +207,39 @@ function LoginPageContent() {
           </div>
           <p className="badge">Pathways Portal</p>
           <h1 className="page-title mt-8">
-            Build a full learning journey, not just a class.
+            Master your craft. Inspire a generation. Track every milestone.
           </h1>
           <p className="hero-subtitle mt-12">
-            The Pathways Portal connects curriculum, mentorship, events, and instructor training so every
-            chapter can guide students from their first class to a portfolio-ready project.
+            The Pathways Portal is the official digital backbone of the Youth Passion Project. From your very first
+            101 class to launching a portfolio-ready passion project, we connect learners, mentors, and families
+            in one unified ecosystem.
           </p>
           <div className="hero-grid">
             <div className="hero-card">
-              <h3>Curriculum Flow</h3>
-              <p>Track one-off classes, learner-fit pathways, and labs in one view.</p>
+              <h3>Students: Your Passion Journey</h3>
+              <p>Complete 101-401 levels, earn badges, and build a portfolio. Connect with mentors and alumni to launch your passion.</p>
             </div>
             <div className="hero-card">
-              <h3>Mentorship + Growth</h3>
-              <p>Pair instructors and students with check-ins that keep progress on track.</p>
+              <h3>Instructors: Teaching Excellence</h3>
+              <p>Finish Academy training, access lesson plans, and manage classes. Support growth with high-impact tracking and feedback.</p>
             </div>
             <div className="hero-card">
-              <h3>Training Readiness</h3>
-              <p>Approve instructors with clear readiness steps and per-offering review status.</p>
+              <h3>Parents: Visibility & Support</h3>
+              <p>Stay updated with real-time progress reports and certificates. See the impact of mentorship on your child&apos;s learning journey.</p>
             </div>
           </div>
           <div className="hero-metrics">
             <div>
-              <div className="kpi">Learner Fit</div>
-              <div className="kpi-label">Clear Starting Points</div>
+              <div className="kpi">101-401 Pathways</div>
+              <div className="kpi-label">Structured Progression</div>
             </div>
             <div>
-              <div className="kpi">Labs + Commons</div>
+              <div className="kpi">Passion Labs</div>
               <div className="kpi-label">Project-Based Growth</div>
             </div>
             <div>
-              <div className="kpi">Mentorship</div>
-              <div className="kpi-label">Monthly Check-Ins</div>
+              <div className="kpi">Certified Mentors</div>
+              <div className="kpi-label">Expert-Led Guidance</div>
             </div>
           </div>
         </section>
@@ -298,139 +299,139 @@ function LoginPageContent() {
           {/* Normal sign-in UI — hidden during MFA step */}
           {!mfaStep && <>
 
-          {/* Google sign-in */}
-          <button
-            type="button"
-            onClick={handleGoogleSignIn}
-            disabled={googleLoading}
-            className="button secondary"
-            style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12 }}
-          >
-            {googleLoading ? (
-              <>Redirecting&hellip;</>
-            ) : (
-              <>
-                <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-                  <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
-                  <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
-                  <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.039l3.007-2.332z"/>
-                  <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z"/>
-                </svg>
-                Sign in with Google
-              </>
-            )}
-          </button>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "4px 0 16px" }}>
-            <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-            <span style={{ fontSize: 12, color: "var(--muted)" }}>or sign in with</span>
-            <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-          </div>
-
-          {/* Login method toggle */}
-          <div style={{ display: "flex", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 3, gap: 3, marginBottom: 16 }}>
+            {/* Google sign-in */}
             <button
               type="button"
-              onClick={() => { setLoginMethod("password"); setError(null); setMagicSent(false); }}
-              style={{
-                ...tabBtnBase,
-                background: loginMethod === "password" ? "var(--card)" : "transparent",
-                color: loginMethod === "password" ? "var(--foreground)" : "var(--muted)",
-                boxShadow: loginMethod === "password" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
-              }}
+              onClick={handleGoogleSignIn}
+              disabled={googleLoading}
+              className="button secondary"
+              style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12 }}
             >
-              Password
-            </button>
-            <button
-              type="button"
-              onClick={() => { setLoginMethod("magic"); setError(null); setMagicSent(false); }}
-              style={{
-                ...tabBtnBase,
-                background: loginMethod === "magic" ? "var(--card)" : "transparent",
-                color: loginMethod === "magic" ? "var(--foreground)" : "var(--muted)",
-                boxShadow: loginMethod === "magic" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
-              }}
-            >
-              Magic Link
-            </button>
-          </div>
-
-          {/* Password login form */}
-          {loginMethod === "password" && (
-            <form onSubmit={handlePasswordSubmit}>
-              <label className="form-label" style={{ marginTop: 0 }}>
-                Email
-                <input
-                  className="input"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  required
-                />
-              </label>
-              <label className="form-label">
-                Password
-                <input
-                  className="input"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  required
-                />
-              </label>
-              <div style={{ textAlign: "right", marginTop: 8 }}>
-                <Link href="/forgot-password" style={{ fontSize: 13, color: "var(--ypp-purple)", fontWeight: 500 }}>
-                  Forgot password?
-                </Link>
-              </div>
-              {error && (
-                <div className="form-error">{error}</div>
-              )}
-              <button className="button" type="submit" disabled={loading}>
-                {loading ? "Signing in\u2026" : "Sign In"}
-              </button>
-            </form>
-          )}
-
-          {/* Magic link form */}
-          {loginMethod === "magic" && (
-            <form onSubmit={handleMagicLink}>
-              <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 14px", lineHeight: 1.5 }}>
-                Enter your email and we&apos;ll send a one-click sign-in link — no password needed.
-              </p>
-              <label className="form-label" style={{ marginTop: 0 }}>
-                Email
-                <input
-                  className="input"
-                  name="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  required
-                />
-              </label>
-              {error && (
-                <div className="form-error">{error}</div>
-              )}
-              {magicSent ? (
-                <div className="form-success">
-                  Check your email for a sign-in link. It may take a minute to arrive.
-                </div>
+              {googleLoading ? (
+                <>Redirecting&hellip;</>
               ) : (
-                <button className="button" type="submit" disabled={loading}>
-                  {loading ? "Sending\u2026" : "Send Magic Link"}
-                </button>
+                <>
+                  <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+                    <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" />
+                    <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" />
+                    <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.039l3.007-2.332z" />
+                    <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z" />
+                  </svg>
+                  Sign in with Google
+                </>
               )}
-            </form>
-          )}
+            </button>
 
-          <div className="login-help">
-            Need help signing in? Contact your chapter administrator.
-          </div>
-          <Link className="button secondary" style={{ display: "block", textAlign: "center" }} href="/signup">
-            Create Account
-          </Link>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "4px 0 16px" }}>
+              <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+              <span style={{ fontSize: 12, color: "var(--muted)" }}>or sign in with</span>
+              <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+            </div>
+
+            {/* Login method toggle */}
+            <div style={{ display: "flex", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 3, gap: 3, marginBottom: 16 }}>
+              <button
+                type="button"
+                onClick={() => { setLoginMethod("password"); setError(null); setMagicSent(false); }}
+                style={{
+                  ...tabBtnBase,
+                  background: loginMethod === "password" ? "var(--card)" : "transparent",
+                  color: loginMethod === "password" ? "var(--foreground)" : "var(--muted)",
+                  boxShadow: loginMethod === "password" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                }}
+              >
+                Password
+              </button>
+              <button
+                type="button"
+                onClick={() => { setLoginMethod("magic"); setError(null); setMagicSent(false); }}
+                style={{
+                  ...tabBtnBase,
+                  background: loginMethod === "magic" ? "var(--card)" : "transparent",
+                  color: loginMethod === "magic" ? "var(--foreground)" : "var(--muted)",
+                  boxShadow: loginMethod === "magic" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                }}
+              >
+                Magic Link
+              </button>
+            </div>
+
+            {/* Password login form */}
+            {loginMethod === "password" && (
+              <form onSubmit={handlePasswordSubmit}>
+                <label className="form-label" style={{ marginTop: 0 }}>
+                  Email
+                  <input
+                    className="input"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    required
+                  />
+                </label>
+                <label className="form-label">
+                  Password
+                  <input
+                    className="input"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    required
+                  />
+                </label>
+                <div style={{ textAlign: "right", marginTop: 8 }}>
+                  <Link href="/forgot-password" style={{ fontSize: 13, color: "var(--ypp-purple)", fontWeight: 500 }}>
+                    Forgot password?
+                  </Link>
+                </div>
+                {error && (
+                  <div className="form-error">{error}</div>
+                )}
+                <button className="button" type="submit" disabled={loading}>
+                  {loading ? "Signing in\u2026" : "Sign In"}
+                </button>
+              </form>
+            )}
+
+            {/* Magic link form */}
+            {loginMethod === "magic" && (
+              <form onSubmit={handleMagicLink}>
+                <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 14px", lineHeight: 1.5 }}>
+                  Enter your email and we&apos;ll send a one-click sign-in link — no password needed.
+                </p>
+                <label className="form-label" style={{ marginTop: 0 }}>
+                  Email
+                  <input
+                    className="input"
+                    name="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    required
+                  />
+                </label>
+                {error && (
+                  <div className="form-error">{error}</div>
+                )}
+                {magicSent ? (
+                  <div className="form-success">
+                    Check your email for a sign-in link. It may take a minute to arrive.
+                  </div>
+                ) : (
+                  <button className="button" type="submit" disabled={loading}>
+                    {loading ? "Sending\u2026" : "Send Magic Link"}
+                  </button>
+                )}
+              </form>
+            )}
+
+            <div className="login-help">
+              Need help? Contact your chapter administrator or support team.
+            </div>
+            <Link className="button secondary" style={{ display: "block", textAlign: "center" }} href="/signup">
+              Create Account
+            </Link>
           </>}
         </div>
       </div>
