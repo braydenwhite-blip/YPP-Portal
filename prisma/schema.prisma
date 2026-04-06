@@ -257,6 +257,7 @@ enum InstructorApplicationStatus {
   INTERVIEW_COMPLETED
   APPROVED
   REJECTED
+  ON_HOLD
 }
 
 enum ChapterPresidentApplicationStatus {
@@ -1354,6 +1355,8 @@ model InstructorApplication {
   scoreFit           Int?
 
   // --- Review workflow ---
+  decisionRecommendation String?
+  actionDueDate          DateTime?
   reviewerId           String?
   reviewer             User?                     @relation("InstructorApplicationReviews", fields: [reviewerId], references: [id])
   reviewerNotes        String?                   @db.Text

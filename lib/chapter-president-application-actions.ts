@@ -431,7 +431,7 @@ export async function reviewChapterPresidentApplication(
     }
 
     revalidatePath("/admin/chapter-president-applicants");
-    revalidatePath("/chapter-lead/instructor-applicants");
+    revalidatePath("/admin/instructor-applicants");
     revalidatePath("/application-status");
     return { status: "success", message: "Action completed." };
   } catch (error) {

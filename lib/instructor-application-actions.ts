@@ -120,7 +120,7 @@ export async function reviewInstructorApplication(
           data: { status: InstructorApplicationStatus.UNDER_REVIEW, reviewerId: session.user.id },
         });
         revalidatePath("/admin/instructor-applicants");
-        revalidatePath("/chapter-lead/instructor-applicants");
+        revalidatePath("/admin/instructor-applicants");
         revalidatePath("/application-status");
         return { status: "success", message: "Application marked as under review." };
 
@@ -157,6 +157,32 @@ export async function reviewInstructorApplication(
         const notes = getString(formData, "notes", false);
         await markInterviewCompleted(applicationId, session.user.id, notes || undefined);
         return { status: "success", message: "Interview marked as completed." };
+      }
+
+      case "put_on_hold": {
+        const notes = getString(formData, "notes", false);
+        await prisma.instructorApplication.update({
+          where: { id: applicationId },
+          data: {
+            status: InstructorApplicationStatus.ON_HOLD,
+            reviewerId: session.user.id,
+            reviewerNotes: notes || application.reviewerNotes,
+          },
+        });
+        revalidatePath("/admin/instructor-applicants");
+        return { status: "success", message: "Application placed on hold." };
+      }
+
+      case "resume_from_hold": {
+        await prisma.instructorApplication.update({
+          where: { id: applicationId },
+          data: {
+            status: InstructorApplicationStatus.UNDER_REVIEW,
+            reviewerId: session.user.id,
+          },
+        });
+        revalidatePath("/admin/instructor-applicants");
+        return { status: "success", message: "Application resumed from hold." };
       }
 
       default:
@@ -410,4 +436,146 @@ export async function submitInfoResponse(
  */
 export async function reviewInstructorApplicationAction(formData: FormData): Promise<void> {
   await reviewInstructorApplication({ status: "idle", message: "" }, formData);
+}
+
+/**
+ * Update application stage (used by Kanban drag-and-drop).
+ */
+export async function updateApplicationStage(
+  applicationId: string,
+  newStatus: InstructorApplicationStatus
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await requireAdminOrChapterLead();
+    const application = await prisma.instructorApplication.findUnique({
+      where: { id: applicationId },
+      include: { applicant: { select: { id: true, name: true, email: true } } },
+    });
+    if (!application) return { success: false, error: "Application not found." };
+    await assertReviewerCanManageApplicant(session.user.id, application.applicantId);
+
+    const data: Record<string, unknown> = {
+      status: newStatus,
+      reviewerId: session.user.id,
+    };
+    if (newStatus === "APPROVED") {
+      data.approvedAt = new Date();
+    }
+    if (newStatus === "REJECTED") {
+      data.rejectedAt = new Date();
+    }
+
+    if (newStatus === "APPROVED") {
+      await approveInstructorApplication(applicationId, session.user.id);
+    } else if (newStatus === "REJECTED") {
+      await prisma.instructorApplication.update({ where: { id: applicationId }, data });
+      revalidatePath("/admin/instructor-applicants");
+    } else {
+      await prisma.instructorApplication.update({ where: { id: applicationId }, data });
+      revalidatePath("/admin/instructor-applicants");
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("[updateApplicationStage]", error);
+    return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
+  }
+}
+
+/**
+ * Save structured decision recommendation.
+ */
+export async function saveDecisionRecommendation(
+  applicationId: string,
+  recommendation: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireAdminOrChapterLead();
+    await prisma.instructorApplication.update({
+      where: { id: applicationId },
+      data: { decisionRecommendation: recommendation },
+    });
+    revalidatePath("/admin/instructor-applicants");
+    return { success: true };
+  } catch (error) {
+    console.error("[saveDecisionRecommendation]", error);
+    return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
+  }
+}
+
+/**
+ * Assign a reviewer to an application.
+ */
+export async function assignReviewer(
+  applicationId: string,
+  reviewerId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireAdminOrChapterLead();
+    await prisma.instructorApplication.update({
+      where: { id: applicationId },
+      data: { reviewerId },
+    });
+    revalidatePath("/admin/instructor-applicants");
+    return { success: true };
+  } catch (error) {
+    console.error("[assignReviewer]", error);
+    return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
+  }
+}
+
+/**
+ * Set an action due date on an application.
+ */
+export async function setActionDueDate(
+  applicationId: string,
+  dueDate: string | null
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireAdminOrChapterLead();
+    await prisma.instructorApplication.update({
+      where: { id: applicationId },
+      data: { actionDueDate: dueDate ? new Date(dueDate) : null },
+    });
+    revalidatePath("/admin/instructor-applicants");
+    return { success: true };
+  } catch (error) {
+    console.error("[setActionDueDate]", error);
+    return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
+  }
+}
+
+/**
+ * Save scores and notes (used by detail panel).
+ */
+export async function saveScoresAndNotes(
+  applicationId: string,
+  data: {
+    scoreAcademic?: number | null;
+    scoreCommunication?: number | null;
+    scoreLeadership?: number | null;
+    scoreMotivation?: number | null;
+    scoreFit?: number | null;
+    reviewerNotes?: string;
+  }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireAdminOrChapterLead();
+    await prisma.instructorApplication.update({
+      where: { id: applicationId },
+      data: {
+        scoreAcademic: data.scoreAcademic,
+        scoreCommunication: data.scoreCommunication,
+        scoreLeadership: data.scoreLeadership,
+        scoreMotivation: data.scoreMotivation,
+        scoreFit: data.scoreFit,
+        reviewerNotes: data.reviewerNotes,
+      },
+    });
+    revalidatePath("/admin/instructor-applicants");
+    return { success: true };
+  } catch (error) {
+    console.error("[saveScoresAndNotes]", error);
+    return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
+  }
 }

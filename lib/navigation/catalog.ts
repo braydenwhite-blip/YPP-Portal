@@ -631,11 +631,11 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 15,
     },
     {
-      href: "/chapter-lead/instructor-applicants",
+      href: "/admin/instructor-applicants",
       label: "Instructor Applicants",
       icon: "📝",
       roles: CHAPTER_PRESIDENT_ONLY,
-      dashboardDescription: "Review and approve instructor applications for your chapter.",
+      dashboardDescription: "Review and manage instructor applications on the hiring board.",
       dashboardPriority: 6,
     },
     {
