@@ -168,7 +168,7 @@ export async function getMentorshipGoalReviews() {
     goalRatings: r.goalRatings.map((gr) => ({
       goalTitle: gr.goal.title,
       rating: gr.rating,
-      comment: gr.comment,
+      comment: gr.comments,
     })),
     updatedAt: r.updatedAt.toISOString(),
     createdAt: r.createdAt.toISOString(),

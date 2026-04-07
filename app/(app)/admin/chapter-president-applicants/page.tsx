@@ -43,7 +43,7 @@ export default async function AdminCPApplicantsPage() {
     interviewScheduledAt: app.interviewScheduledAt?.toISOString() ?? null,
     approvedAt: app.approvedAt?.toISOString() ?? null,
     rejectedAt: app.rejectedAt?.toISOString() ?? null,
-    actionDueDate: app.actionDueDate?.toISOString() ?? null,
+    actionDueDate: null,
   }));
 
   // KPI counts
