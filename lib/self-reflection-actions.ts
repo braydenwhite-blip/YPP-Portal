@@ -28,6 +28,17 @@ function getString(formData: FormData, key: string, required = true): string {
   return value ? String(value).trim() : "";
 }
 
+function getUniqueStringList(formData: FormData, key: string): string[] {
+  return Array.from(
+    new Set(
+      formData
+        .getAll(key)
+        .map((value) => String(value).trim())
+        .filter(Boolean)
+    )
+  );
+}
+
 // ============================================
 // FETCH: MENTEE PROGRAM DATA
 // ============================================
@@ -179,16 +190,22 @@ export async function getReflectionById(reflectionId: string) {
 export async function submitSelfReflection(formData: FormData) {
   const { userId, menteeRoleType } = await requireMentee();
 
-  // Find active mentorship
-  const mentorship = await prisma.mentorship.findFirst({
-    where: { menteeId: userId, status: "ACTIVE" },
-    include: {
-      selfReflections: {
-        orderBy: { cycleNumber: "desc" },
-        take: 1,
+  const [mentorship, activeGoals] = await Promise.all([
+    prisma.mentorship.findFirst({
+      where: { menteeId: userId, status: "ACTIVE" },
+      include: {
+        selfReflections: {
+          orderBy: { cycleNumber: "desc" },
+          take: 1,
+        },
       },
-    },
-  });
+    }),
+    prisma.mentorshipProgramGoal.findMany({
+      where: { roleType: menteeRoleType, isActive: true },
+      orderBy: { sortOrder: "asc" },
+      select: { id: true },
+    }),
+  ]);
 
   if (!mentorship) {
     throw new Error("You don't have an active program mentorship. Contact your administrator.");
@@ -227,17 +244,26 @@ export async function submitSelfReflection(formData: FormData) {
   // Parse Section 5
   const additionalReflections = getString(formData, "additionalReflections", false);
 
-  // Parse Section 4: per-goal responses
-  // Goals encoded as goalIds[] in formData
-  const goalIds = formData.getAll("goalIds").map(String);
+  // Parse Section 4: per-goal responses, but only for the goals that are truly active now.
+  const submittedGoalIds = getUniqueStringList(formData, "goalIds");
+  const activeGoalIds = new Set(activeGoals.map((goal) => goal.id));
+  const unexpectedGoalIds = submittedGoalIds.filter((goalId) => !activeGoalIds.has(goalId));
+  if (unexpectedGoalIds.length > 0) {
+    throw new Error("Your reflection form is out of date. Please refresh and try again.");
+  }
 
-  const goalResponses = goalIds.map((goalId) => ({
-    goalId,
-    progressMade: getString(formData, `goal_${goalId}_progressMade`),
-    objectiveAchieved: formData.get(`goal_${goalId}_objectiveAchieved`) === "true",
-    accomplishments: getString(formData, `goal_${goalId}_accomplishments`),
-    blockers: getString(formData, `goal_${goalId}_blockers`, false),
-    nextMonthPlans: getString(formData, `goal_${goalId}_nextMonthPlans`),
+  const hasMissingGoals = activeGoals.some((goal) => !submittedGoalIds.includes(goal.id));
+  if (hasMissingGoals) {
+    throw new Error("Your reflection form is missing one or more active goals. Please refresh and try again.");
+  }
+
+  const goalResponses = activeGoals.map((goal) => ({
+    goalId: goal.id,
+    progressMade: getString(formData, `goal_${goal.id}_progressMade`),
+    objectiveAchieved: formData.get(`goal_${goal.id}_objectiveAchieved`) === "true",
+    accomplishments: getString(formData, `goal_${goal.id}_accomplishments`),
+    blockers: getString(formData, `goal_${goal.id}_blockers`, false),
+    nextMonthPlans: getString(formData, `goal_${goal.id}_nextMonthPlans`),
   }));
 
   // Compute reflection streak: increment if last reflection was within 45 days

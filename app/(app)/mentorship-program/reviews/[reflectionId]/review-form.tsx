@@ -208,6 +208,23 @@ export default function ReviewForm({
         </div>
       )}
 
+      {goalResponses.length === 0 && (
+        <div
+          className="card"
+          style={{
+            marginBottom: "1.25rem",
+            background: "var(--surface-alt)",
+            border: "1px solid var(--border)",
+          }}
+        >
+          <p style={{ fontWeight: 700, marginBottom: "0.4rem" }}>No active goals for this cycle</p>
+          <p style={{ color: "var(--muted)", margin: 0 }}>
+            This mentee did not have any active role-specific goals during this reflection cycle. Complete the
+            review using the written reflection, your overall comments, and the plan of action below.
+          </p>
+        </div>
+      )}
+
       {/* Per-goal section */}
       {goalResponses.map((gr, idx) => {
         const ratingVal = goalRatings[gr.goal.id];
