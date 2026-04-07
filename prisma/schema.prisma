@@ -143,6 +143,8 @@ enum InterviewAvailabilityOverrideType {
 
 enum ConversationContextType {
   INTERVIEW
+  DIRECT
+  PARENT
 }
 
 enum MentorshipType {
@@ -972,6 +974,7 @@ model User {
 
   // Supabase Auth integration
   supabaseAuthId String? @unique @map("supabase_auth_id")
+  archivedAt     DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1074,6 +1077,10 @@ model UserProfile {
   school             String?
   parentEmail        String?
   parentPhone        String?
+  dateOfBirth        String?
+  city               String?
+  stateProvince      String?
+  usesParentPhone    Boolean  @default(false)
   mentorCapacity     Int?
   mentorAvailability String?
 
@@ -2940,8 +2947,10 @@ model ParentStudent {
   reviewedAt     DateTime?
   reviewedById   String?
   createdAt      DateTime         @default(now())
+  archivedAt     DateTime?
 
   @@unique([parentId, studentId])
+  @@index([parentId, archivedAt, approvalStatus])
 }
 
 model StudentIntakeCase {

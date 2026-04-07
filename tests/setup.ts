@@ -21,6 +21,12 @@ vi.mock("next/navigation", () => ({
   usePathname: vi.fn(() => "/"),
   useSearchParams: vi.fn(() => new URLSearchParams()),
   useParams: vi.fn(() => ({})),
+  redirect: vi.fn(),
+  notFound: vi.fn(),
+}));
+
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
 }));
 
 vi.mock("next/headers", () => ({
@@ -48,7 +54,9 @@ vi.mock("@/lib/supabase/server", () => ({
     auth: {
       admin: {
         createUser: vi.fn(),
+        updateUserById: vi.fn(),
         listUsers: vi.fn(),
+        generateLink: vi.fn(),
       },
     },
   })),
@@ -59,10 +67,34 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     user: {
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
       findMany: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
+    },
+    userRole: {
+      upsert: vi.fn(),
+    },
+    userProfile: {
+      upsert: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
+    parentStudent: {
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      upsert: vi.fn(),
+      updateMany: vi.fn(),
+      count: vi.fn(),
+      delete: vi.fn(),
+    },
+    chapter: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
     },
     course: {
       findUnique: vi.fn(),

@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
 
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getParentStudentIntakeCase, submitStudentIntakeCase } from "@/lib/student-intake-actions";
 import { getStudentIntakeStatusMeta } from "@/lib/student-intake-shared";
 
@@ -12,7 +11,7 @@ export default async function ParentStudentIntakeDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }

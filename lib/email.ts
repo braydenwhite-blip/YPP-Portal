@@ -228,6 +228,50 @@ export async function sendPasswordResetEmail({
   return sendEmail({ to, subject, html });
 }
 
+export async function sendAccountSetupEmail({
+  to,
+  name,
+  roleLabel,
+  setupUrl,
+}: {
+  to: string;
+  name: string;
+  roleLabel: string;
+  setupUrl: string;
+}): Promise<EmailResult> {
+  const subject = `Set Up Your ${roleLabel} Account - Youth Passion Project`;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1c1917; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #5a1da8 0%, #6b21c8 45%, #8b3fe8 100%); padding: 32px; border-radius: 16px 16px 0 0; text-align: center;">
+    <h1 style="color: white; margin: 0; font-size: 24px;">Youth Passion Project</h1>
+  </div>
+  <div style="background: #ffffff; padding: 32px; border: 1px solid #e7e5e4; border-top: none; border-radius: 0 0 16px 16px;">
+    <h2 style="margin: 0 0 16px; color: #1c1917;">Finish Setting Up Your Account</h2>
+    <p>Hi ${escapeHtml(name)},</p>
+    <p>A Youth Passion Project ${escapeHtml(roleLabel.toLowerCase())} account has been prepared for you.</p>
+    <p>Click the button below to choose your password and finish signing in for the first time.</p>
+    <div style="text-align: center; margin: 32px 0;">
+      <a href="${escapeHtml(setupUrl)}" style="display: inline-block; background: #6b21c8; color: white; padding: 14px 32px; border-radius: 9999px; text-decoration: none; font-weight: 600;">Set Up Account</a>
+    </div>
+    <p style="color: #78716c; font-size: 14px;">This link is single-use. If you did not expect this account, you can safely ignore this email.</p>
+    <hr style="border: none; border-top: 1px solid #e7e5e4; margin: 24px 0;">
+    <p style="color: #78716c; font-size: 12px; margin: 0;">If the button doesn't work, copy and paste this link into your browser:</p>
+    <p style="color: #6b21c8; font-size: 12px; word-break: break-all;">${escapeHtml(setupUrl)}</p>
+  </div>
+</body>
+</html>
+  `.trim();
+
+  return sendEmail({ to, subject, html });
+}
+
 export async function sendEmailVerificationEmail({
   to,
   name,
@@ -353,7 +397,7 @@ export async function sendNotificationEmail({
     <p>${escapeHtml(body)}</p>
     ${linkHtml}
     <hr style="border: none; border-top: 1px solid #e7e5e4; margin: 24px 0;">
-    <p style="color: #78716c; font-size: 12px; margin: 0;">This email was sent from the YPP Pathways Portal. You can manage your notification preferences in your profile settings.</p>
+    <p style="color: #78716c; font-size: 12px; margin: 0;">This email was sent from the YPP Pathways Portal. Notification delivery follows a fixed portal-wide policy.</p>
   </div>
 </body>
 </html>
@@ -498,7 +542,7 @@ export async function sendAnnouncementEmail({
       <a href="${escapeHtml(portalUrl)}" style="display: inline-block; background: #6b21c8; color: white; padding: 12px 28px; border-radius: 9999px; text-decoration: none; font-weight: 600;">View in Portal</a>
     </div>
     <hr style="border: none; border-top: 1px solid #e7e5e4; margin: 24px 0;">
-    <p style="color: #78716c; font-size: 12px; margin: 0;">You received this because you're a member of Youth Passion Project. Manage your notification preferences in your profile settings.</p>
+    <p style="color: #78716c; font-size: 12px; margin: 0;">You received this because you're a member of Youth Passion Project. Notification delivery follows a fixed portal-wide policy.</p>
   </div>
 </body>
 </html>

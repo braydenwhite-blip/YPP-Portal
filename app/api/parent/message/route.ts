@@ -46,5 +46,5 @@ export async function POST(request: Request) {
   // In production: Send notification to instructor
   // await createInstructorNotification(instructorId, message.id)
 
-  redirect("/parent/messages");
+  redirect("/messages?tab=parent");
 }

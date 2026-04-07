@@ -1,8 +1,17 @@
 "use server";
 
+import { RoleType } from "@prisma/client";
+import { redirect } from "next/navigation";
+
+import { ensureSupabaseAuthUser, updateSupabasePortalUser } from "@/lib/portal-auth-utils";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
+
+export type ManagedStudentFormState = {
+  status: "idle" | "error" | "success";
+  message: string;
+};
 
 // ============================================
 // AUTH HELPERS
@@ -33,6 +42,55 @@ function getString(formData: FormData, key: string, required = true) {
   return value ? String(value).trim() : "";
 }
 
+function getOptionalInt(formData: FormData, key: string) {
+  const value = getString(formData, key, false);
+  if (!value) return null;
+
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`Invalid ${key}`);
+  }
+
+  return parsed;
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return fallback;
+}
+
+async function getApprovedManagedStudentLink(parentId: string, studentId: string) {
+  return prisma.parentStudent.findFirst({
+    where: {
+      parentId,
+      studentId,
+      approvalStatus: "APPROVED",
+      archivedAt: null,
+      student: {
+        archivedAt: null,
+      },
+    },
+    include: {
+      parent: {
+        include: {
+          roles: true,
+        },
+      },
+      student: {
+        include: {
+          roles: true,
+          profile: true,
+          chapter: {
+            select: { id: true, name: true },
+          },
+        },
+      },
+    },
+  });
+}
+
 // ============================================
 // GET LINKED STUDENTS
 // ============================================
@@ -47,6 +105,10 @@ export async function getLinkedStudents() {
       // Only show APPROVED links to parents
       // Parents can request links, but can't access data until approved
       approvalStatus: "APPROVED",
+      archivedAt: null,
+      student: {
+        archivedAt: null,
+      },
     },
     include: {
       student: {
@@ -89,19 +151,28 @@ export async function getStudentProgress(studentId: string) {
 
   // Verify the parent has an APPROVED link to this student
   // Parents cannot access student data for PENDING or REJECTED links
-  const link = await prisma.parentStudent.findUnique({
+  const link = await prisma.parentStudent.findFirst({
     where: {
-      parentId_studentId: { parentId, studentId },
+      parentId,
+      studentId,
+      approvalStatus: "APPROVED",
+      archivedAt: null,
+      student: {
+        archivedAt: null,
+      },
     },
   });
 
-  if (!link || link.approvalStatus !== "APPROVED") {
+  if (!link) {
     throw new Error("You do not have access to this student's progress");
   }
 
   // Fetch the student with all progress-related data
-  const student = await prisma.user.findUnique({
-    where: { id: studentId },
+  const student = await prisma.user.findFirst({
+    where: {
+      id: studentId,
+      archivedAt: null,
+    },
     include: {
       chapter: true,
       enrollments: {
@@ -158,6 +229,7 @@ export async function getStudentProgress(studentId: string) {
           },
         },
       },
+      profile: true,
     },
   });
 
@@ -312,8 +384,19 @@ export async function getStudentProgress(studentId: string) {
       id: student.id,
       name: student.name,
       email: student.email,
+      phone: student.phone,
       primaryRole: student.primaryRole,
       chapter: student.chapter,
+      profile: {
+        grade: student.profile?.grade ?? null,
+        school: student.profile?.school ?? null,
+        parentEmail: student.profile?.parentEmail ?? null,
+        parentPhone: student.profile?.parentPhone ?? null,
+        dateOfBirth: student.profile?.dateOfBirth ?? null,
+        city: student.profile?.city ?? null,
+        stateProvince: student.profile?.stateProvince ?? null,
+        usesParentPhone: student.profile?.usesParentPhone ?? false,
+      },
     },
     enrollments: student.enrollments.map((e) => ({
       id: e.id,
@@ -375,8 +458,11 @@ export async function linkStudent(formData: FormData) {
   const relationship = getString(formData, "relationship", false) || "Parent";
 
   // Find the student user by email
-  const student = await prisma.user.findUnique({
-    where: { email },
+  const student = await prisma.user.findFirst({
+    where: {
+      email,
+      archivedAt: null,
+    },
     include: { roles: true },
   });
 
@@ -397,6 +483,23 @@ export async function linkStudent(formData: FormData) {
   });
 
   if (existing) {
+    if (existing.archivedAt) {
+      await prisma.parentStudent.update({
+        where: { id: existing.id },
+        data: {
+          relationship,
+          isPrimary: false,
+          approvalStatus: "PENDING",
+          archivedAt: null,
+          reviewedAt: null,
+          reviewedById: null,
+        },
+      });
+      revalidatePath("/parent");
+      revalidatePath("/parent/connect");
+      return;
+    }
+
     throw new Error("You are already linked to this student");
   }
 
@@ -437,6 +540,7 @@ export async function approveParentLink(formData: FormData) {
     data: {
       isPrimary: true,
       approvalStatus: "APPROVED",
+      archivedAt: null,
       reviewedAt: new Date(),
       reviewedById: session.user.id,
     },
@@ -478,6 +582,247 @@ export async function unlinkStudent(formData: FormData) {
 }
 
 // ============================================
+// UPDATE MANAGED STUDENT PROFILE
+// ============================================
+
+export async function updateManagedStudentProfile(
+  _prevState: ManagedStudentFormState,
+  formData: FormData
+): Promise<ManagedStudentFormState> {
+  try {
+    const session = await requireParent();
+    const parentId = session.user.id;
+    const parentEmail = session.user.email?.toLowerCase() ?? "";
+
+    const studentId = getString(formData, "studentId");
+    const studentName = getString(formData, "studentName");
+    const studentEmail = getString(formData, "studentEmail").toLowerCase();
+    const studentDateOfBirth = getString(formData, "studentDateOfBirth");
+    const studentGrade = getOptionalInt(formData, "studentGrade");
+    const chapterId = getString(formData, "chapterId");
+    const city = getString(formData, "city");
+    const stateProvince = getString(formData, "stateProvince");
+    const studentUsesParentPhone = formData.get("studentUsesParentPhone") === "on";
+    const studentPhoneInput = getString(formData, "studentPhone", false);
+
+    if (studentGrade === null || studentGrade < 1 || studentGrade > 16) {
+      throw new Error("Grade must be between 1 and 16.");
+    }
+
+    const managedLink = await getApprovedManagedStudentLink(parentId, studentId);
+    if (!managedLink) {
+      throw new Error("You do not have permission to update this student.");
+    }
+
+    if (studentEmail === parentEmail) {
+      throw new Error("Parent and student need different email addresses.");
+    }
+
+    const chapter = await prisma.chapter.findUnique({
+      where: { id: chapterId },
+      select: { id: true },
+    });
+
+    if (!chapter) {
+      throw new Error("Please choose a valid chapter.");
+    }
+
+    const existingByEmail = await prisma.user.findUnique({
+      where: { email: studentEmail },
+      select: { id: true },
+    });
+
+    if (existingByEmail && existingByEmail.id !== studentId) {
+      throw new Error("That email address is already in use by another account.");
+    }
+
+    const studentPhone = studentUsesParentPhone
+      ? managedLink.parent.phone
+      : studentPhoneInput || null;
+
+    const supabaseAuthId = await ensureSupabaseAuthUser({
+      email: studentEmail,
+      name: studentName,
+      existingSupabaseAuthId: managedLink.student.supabaseAuthId,
+      primaryRole: managedLink.student.primaryRole,
+      chapterId,
+      prismaUserId: managedLink.student.id,
+      roles: managedLink.student.roles.map((role) => role.role),
+      portalArchived: false,
+    });
+
+    await prisma.user.update({
+      where: { id: studentId },
+      data: {
+        name: studentName,
+        email: studentEmail,
+        phone: studentPhone,
+        chapterId,
+        supabaseAuthId,
+      },
+    });
+
+    await prisma.userProfile.upsert({
+      where: { userId: studentId },
+      update: {
+        grade: studentGrade,
+        parentEmail: managedLink.parent.email,
+        parentPhone: managedLink.parent.phone,
+        dateOfBirth: studentDateOfBirth,
+        city,
+        stateProvince,
+        usesParentPhone: studentUsesParentPhone,
+      },
+      create: {
+        userId: studentId,
+        interests: [],
+        grade: studentGrade,
+        parentEmail: managedLink.parent.email,
+        parentPhone: managedLink.parent.phone,
+        dateOfBirth: studentDateOfBirth,
+        city,
+        stateProvince,
+        usesParentPhone: studentUsesParentPhone,
+      },
+    });
+
+    await updateSupabasePortalUser({
+      supabaseAuthId,
+      email: studentEmail,
+      name: studentName,
+      primaryRole: managedLink.student.primaryRole,
+      chapterId,
+      prismaUserId: managedLink.student.id,
+      roles: managedLink.student.roles.map((role) => role.role),
+      portalArchived: false,
+    });
+
+    revalidatePath("/parent");
+    revalidatePath(`/parent/${studentId}`);
+    revalidatePath("/parent/connect");
+
+    return {
+      status: "success",
+      message: "Student info updated.",
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message: getErrorMessage(error, "Could not update the student info."),
+    };
+  }
+}
+
+// ============================================
+// ARCHIVE MANAGED STUDENT ACCOUNT
+// ============================================
+
+export async function archiveManagedStudentAccount(
+  _prevState: ManagedStudentFormState,
+  formData: FormData
+): Promise<ManagedStudentFormState> {
+  try {
+    const session = await requireParent();
+    const parentId = session.user.id;
+    const studentId = getString(formData, "studentId");
+    const confirmEmail = getString(formData, "confirmStudentEmail").toLowerCase();
+
+    const managedLink = await getApprovedManagedStudentLink(parentId, studentId);
+    if (!managedLink) {
+      throw new Error("You do not have permission to archive this student.");
+    }
+
+    if (confirmEmail !== managedLink.student.email.toLowerCase()) {
+      throw new Error("Enter the student's email address exactly to confirm archiving.");
+    }
+
+    const archivedAt = new Date();
+
+    await prisma.parentStudent.updateMany({
+      where: {
+        studentId,
+        archivedAt: null,
+      },
+      data: {
+        archivedAt,
+      },
+    });
+
+    await prisma.user.update({
+      where: { id: managedLink.student.id },
+      data: {
+        archivedAt,
+      },
+    });
+
+    if (managedLink.student.supabaseAuthId) {
+      await updateSupabasePortalUser({
+        supabaseAuthId: managedLink.student.supabaseAuthId,
+        email: managedLink.student.email,
+        name: managedLink.student.name,
+        primaryRole: managedLink.student.primaryRole,
+        chapterId: managedLink.student.chapterId,
+        prismaUserId: managedLink.student.id,
+        roles: managedLink.student.roles.map((role) => role.role),
+        portalArchived: true,
+      });
+    }
+
+    const remainingActiveChildren = await prisma.parentStudent.count({
+      where: {
+        parentId,
+        approvalStatus: "APPROVED",
+        archivedAt: null,
+        student: {
+          archivedAt: null,
+        },
+      },
+    });
+
+    const shouldArchiveParent =
+      remainingActiveChildren === 0 &&
+      managedLink.parent.roles.every((role) => role.role === RoleType.PARENT);
+
+    if (shouldArchiveParent) {
+      await prisma.user.update({
+        where: { id: managedLink.parent.id },
+        data: {
+          archivedAt,
+        },
+      });
+
+      if (managedLink.parent.supabaseAuthId) {
+        await updateSupabasePortalUser({
+          supabaseAuthId: managedLink.parent.supabaseAuthId,
+          email: managedLink.parent.email,
+          name: managedLink.parent.name,
+          primaryRole: managedLink.parent.primaryRole,
+          chapterId: managedLink.parent.chapterId,
+          prismaUserId: managedLink.parent.id,
+          roles: managedLink.parent.roles.map((role) => role.role),
+          portalArchived: true,
+        });
+      }
+    }
+
+    revalidatePath("/parent");
+    revalidatePath(`/parent/${studentId}`);
+    revalidatePath("/parent/connect");
+
+    if (shouldArchiveParent) {
+      redirect("/login?error=account_archived");
+    }
+
+    redirect("/parent");
+  } catch (error) {
+    return {
+      status: "error",
+      message: getErrorMessage(error, "Could not archive the student account."),
+    };
+  }
+}
+
+// ============================================
 // ENROLL CHILD IN COURSE
 // ============================================
 
@@ -489,13 +834,19 @@ export async function enrollChildInCourse(formData: FormData) {
   const courseId = getString(formData, "courseId");
 
   // Verify the parent has an approved link to this student
-  const link = await prisma.parentStudent.findUnique({
+  const activeLink = await prisma.parentStudent.findFirst({
     where: {
-      parentId_studentId: { parentId, studentId },
+      parentId,
+      studentId,
+      approvalStatus: "APPROVED",
+      archivedAt: null,
+      student: {
+        archivedAt: null,
+      },
     },
   });
 
-  if (!link || link.approvalStatus !== "APPROVED") {
+  if (!activeLink) {
     throw new Error("You do not have access to enroll this student");
   }
 
@@ -529,10 +880,18 @@ export async function getAvailableClassOfferings(studentId: string) {
   const parentId = session.user.id;
 
   // Verify approved link
-  const link = await prisma.parentStudent.findUnique({
-    where: { parentId_studentId: { parentId, studentId } },
+  const link = await prisma.parentStudent.findFirst({
+    where: {
+      parentId,
+      studentId,
+      approvalStatus: "APPROVED",
+      archivedAt: null,
+      student: {
+        archivedAt: null,
+      },
+    },
   });
-  if (!link || link.approvalStatus !== "APPROVED") {
+  if (!link) {
     throw new Error("Access denied");
   }
 
@@ -601,10 +960,18 @@ export async function enrollChildInClassOffering(formData: FormData) {
   if (!studentId || !offeringId) throw new Error("Missing required fields");
 
   // Verify approved link
-  const link = await prisma.parentStudent.findUnique({
-    where: { parentId_studentId: { parentId, studentId } },
+  const link = await prisma.parentStudent.findFirst({
+    where: {
+      parentId,
+      studentId,
+      approvalStatus: "APPROVED",
+      archivedAt: null,
+      student: {
+        archivedAt: null,
+      },
+    },
   });
-  if (!link || link.approvalStatus !== "APPROVED") {
+  if (!link) {
     throw new Error("You do not have access to enroll this student");
   }
 
@@ -652,7 +1019,14 @@ export async function submitParentFeedback(formData: FormData) {
 
   // Verify parent has a child enrolled in this course
   const parentLinks = await prisma.parentStudent.findMany({
-    where: { parentId },
+    where: {
+      parentId,
+      approvalStatus: "APPROVED",
+      archivedAt: null,
+      student: {
+        archivedAt: null,
+      },
+    },
     include: {
       student: {
         include: {

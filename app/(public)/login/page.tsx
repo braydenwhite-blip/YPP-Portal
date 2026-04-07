@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import BrandLockup from "@/components/brand-lockup";
@@ -20,6 +20,7 @@ function LoginPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
+  const archivedError = searchParams.get("error") === "account_archived";
 
   const [loginMethod, setLoginMethod] = useState<"password" | "magic">("password");
   const [email, setEmail] = useState("");
@@ -36,6 +37,12 @@ function LoginPageContent() {
   const [totpCode, setTotpCode] = useState("");
 
   const supabase = createBrowserClient();
+
+  useEffect(() => {
+    if (archivedError) {
+      setError("This account has been archived and can no longer sign in.");
+    }
+  }, [archivedError]);
 
   async function handlePasswordSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -71,6 +78,13 @@ function LoginPageContent() {
       } else {
         setError(signInError.message);
       }
+      setLoading(false);
+      return;
+    }
+
+    if (data.user?.user_metadata?.portalArchived === true) {
+      await supabase.auth.signOut();
+      setError("This account has been archived and can no longer sign in.");
       setLoading(false);
       return;
     }
@@ -430,8 +444,11 @@ function LoginPageContent() {
               Need help? Contact your chapter administrator or support team.
             </div>
             <Link className="button secondary" style={{ display: "block", textAlign: "center" }} href="/signup">
-              Create Account
+              Create Family Account
             </Link>
+            <div className="login-help" style={{ marginTop: 8 }}>
+              Applying to teach? <Link href="/signup/instructor">Start the instructor application</Link>
+            </div>
           </>}
         </div>
       </div>

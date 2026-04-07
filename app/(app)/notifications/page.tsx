@@ -2,13 +2,12 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import {
   getNotifications,
-  getNotificationPreferences,
   markAsRead,
   markAllAsRead,
   deleteNotification,
-  updateNotificationPreferences,
 } from "@/lib/notification-actions";
 import Link from "next/link";
+import { listNotificationPolicies } from "@/lib/notification-policy";
 
 function getTypeIcon(type: string): string {
   switch (type) {
@@ -91,7 +90,10 @@ export default async function NotificationsPage() {
   }
 
   const notifications = await getNotifications();
-  const preferences = await getNotificationPreferences();
+  const policies = listNotificationPolicies();
+  const portalOnlyPolicies = policies.filter((policy) => policy.bucket === "portal_only");
+  const emailOnlyPolicies = policies.filter((policy) => policy.bucket === "email_only");
+  const urgentPolicies = policies.filter((policy) => policy.bucket === "email_and_sms_later");
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   return (
@@ -268,53 +270,54 @@ export default async function NotificationsPage() {
       )}
 
       <div className="card" style={{ marginTop: 20 }}>
-        <h2 style={{ marginTop: 0 }}>Notification Preferences</h2>
+        <h2 style={{ marginTop: 0 }}>How Notifications Work</h2>
         <p style={{ color: "var(--muted, #6b7280)" }}>
-          Turn categories on or off so chapter event updates and reminders match the way you want to work.
+          Notification delivery now follows one fixed portal-wide policy. These rules are not customizable, and
+          every notification that creates a portal item stays visible here in your history.
         </p>
-        <form action={updateNotificationPreferences} style={{ display: "grid", gap: 12 }}>
-          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input type="checkbox" name="inAppEnabled" defaultChecked={preferences.inAppEnabled} />
-            In-app notifications
-          </label>
-          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input type="checkbox" name="emailEnabled" defaultChecked={preferences.emailEnabled} />
-            Email notifications
-          </label>
-          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input type="checkbox" name="announcements" defaultChecked={preferences.announcements} />
-            Announcements
-          </label>
-          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input type="checkbox" name="courseUpdates" defaultChecked={preferences.courseUpdates} />
-            Course and class updates
-          </label>
-          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input type="checkbox" name="eventUpdates" defaultChecked={preferences.eventUpdates} />
-            Chapter event updates
-          </label>
-          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input type="checkbox" name="eventReminders" defaultChecked={preferences.eventReminders} />
-            Chapter event reminders
-          </label>
-          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input type="checkbox" name="mentorUpdates" defaultChecked={preferences.mentorUpdates} />
-            Mentor updates
-          </label>
-          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input type="checkbox" name="goalReminders" defaultChecked={preferences.goalReminders} />
-            Goal reminders
-          </label>
-          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input type="checkbox" name="reflectionReminders" defaultChecked={preferences.reflectionReminders} />
-            Reflection reminders
-          </label>
+        <div style={{ display: "grid", gap: 16 }}>
           <div>
-            <button type="submit" className="btn btn-primary">
-              Save Notification Preferences
-            </button>
+            <h3 style={{ marginBottom: 8 }}>Portal only</h3>
+            <p style={{ color: "var(--muted, #6b7280)", marginTop: 0 }}>
+              These reminders stay inside the portal so they are tied to your regular workflow.
+            </p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {portalOnlyPolicies.map((policy) => (
+                <span key={policy.type} className="badge">
+                  {policy.label}
+                </span>
+              ))}
+            </div>
           </div>
-        </form>
+
+          <div>
+            <h3 style={{ marginBottom: 8 }}>Email delivery</h3>
+            <p style={{ color: "var(--muted, #6b7280)", marginTop: 0 }}>
+              These updates are sent by email and also remain visible here in your portal history.
+            </p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {emailOnlyPolicies.map((policy) => (
+                <span key={policy.type} className="badge">
+                  {policy.label}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h3 style={{ marginBottom: 8 }}>Urgent alerts</h3>
+            <p style={{ color: "var(--muted, #6b7280)", marginTop: 0 }}>
+              These alerts send by email now and are already marked for SMS delivery once text support is enabled.
+            </p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {urgentPolicies.map((policy) => (
+                <span key={policy.type} className="badge">
+                  {policy.label}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -71,14 +71,6 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardDescription: "Connect and manage student link requests.",
       dashboardPriority: 11,
     },
-    {
-      href: "/parent/messages",
-      label: "Messages",
-      icon: "✉",
-      roles: PARENT_ONLY,
-      dashboardDescription: "Message your child's instructors directly.",
-      dashboardPriority: 9,
-    },
   ]),
 
   ...groupLinks("Start Here", 200, [
@@ -118,10 +110,10 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/messages",
       label: "Messages",
       icon: "✉",
-      roles: ["STUDENT", "INSTRUCTOR", "ADMIN", "CHAPTER_PRESIDENT", "MENTOR", "STAFF", "APPLICANT"] as NavRole[],
+      roles: ["STUDENT", "INSTRUCTOR", "ADMIN", "CHAPTER_PRESIDENT", "MENTOR", "STAFF", "APPLICANT", "PARENT"] as NavRole[],
       badgeKey: "messages",
       dashboardBadgeKey: "unread_messages",
-      dashboardDescription: "Open direct messages and team conversations.",
+      dashboardDescription: "Open direct, parent, and interview conversations in one shared inbox.",
       dashboardPriority: 9,
     },
     { href: "/feedback/anonymous", label: "Anonymous Feedback", icon: "💬" },
@@ -510,14 +502,6 @@ export const NAV_CATALOG: NavLink[] = [
       roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT"] as NavRole[],
       dashboardDescription: "View parent feedback and communications for your classes.",
       dashboardPriority: 13,
-    },
-    {
-      href: "/instructor/parent-messages",
-      label: "Parent Messages",
-      icon: "✉",
-      roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT"] as NavRole[],
-      dashboardDescription: "Reply to direct messages from parents of your enrolled students.",
-      dashboardPriority: 14,
     },
   ]),
 

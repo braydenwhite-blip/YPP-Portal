@@ -66,7 +66,7 @@ export default async function ParentPortalPage() {
           <Link href="/parent/student-intake/new" className="button small">
             Start Student Journey
           </Link>
-          <Link href="/parent/messages" className="button small secondary">
+          <Link href="/messages?tab=parent" className="button small secondary">
             ✉ Messages
           </Link>
         </div>

@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
-import { getStudentProgress } from "@/lib/parent-actions";
+import {
+  getStudentProgress,
+} from "@/lib/parent-actions";
+import ParentStudentManagementPanel from "@/components/parent-student-management-panel";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
@@ -100,6 +103,11 @@ export default async function ParentStudentDetailPage({
     orderBy: { date: "asc" },
     take: 5,
   }).catch(() => []);
+
+  const chapters = await prisma.chapter.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
 
   // Compute derived stats
   const enrollmentCount = data.enrollments.length;
@@ -217,6 +225,24 @@ export default async function ParentStudentDetailPage({
             : "Attendance needs attention. Please reach out to the instructor."}
         </div>
       )}
+
+      <ParentStudentManagementPanel
+        chapters={chapters}
+        student={{
+          id: studentId,
+          name: data.student.name,
+          email: data.student.email,
+          phone: data.student.phone,
+          chapterId: data.student.chapter?.id ?? "",
+          profile: {
+            dateOfBirth: data.student.profile.dateOfBirth,
+            grade: data.student.profile.grade,
+            city: data.student.profile.city,
+            stateProvince: data.student.profile.stateProvince,
+            usesParentPhone: data.student.profile.usesParentPhone,
+          },
+        }}
+      />
 
       {/* Stats Row */}
       <div

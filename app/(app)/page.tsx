@@ -224,7 +224,12 @@ export default async function OverviewPage() {
       }),
       prisma.conversationParticipant
         .findMany({
-          where: { userId },
+          where: {
+            userId,
+            conversation: {
+              isGroup: false,
+            },
+          },
           include: {
             conversation: {
               include: {

@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { getConversation, sendMessage } from "@/lib/messaging-actions";
 import { MessageSubscriber, TypingIndicator } from "@/components/message-subscriber";
+import { buildMessageCenterBackHref, isParentConversation } from "@/lib/message-center";
 
 function formatMessageTime(date: Date): string {
   return new Date(date).toLocaleString("en-US", {
@@ -16,10 +17,13 @@ function formatMessageTime(date: Date): string {
 
 export default async function ConversationPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ conversationId: string }>;
+  searchParams?: Promise<{ tab?: string }>;
 }) {
   const { conversationId } = await params;
+  const pageSearchParams = searchParams ? await searchParams : undefined;
   const session = await getSession();
 
   if (!session?.user?.id) {
@@ -42,6 +46,10 @@ export default async function ConversationPage({
 
   const displayTitle =
     conversation.subject || otherParticipants || "Conversation";
+  const backHref = buildMessageCenterBackHref(
+    conversation.contextType,
+    pageSearchParams?.tab
+  );
 
   return (
     <div className="main-content">
@@ -51,7 +59,7 @@ export default async function ConversationPage({
       {/* Header */}
       <div className="page-header">
         <Link
-          href="/messages"
+          href={backHref}
           className="back-link"
           style={{
             display: "inline-flex",
@@ -66,6 +74,11 @@ export default async function ConversationPage({
           &larr; Back to Messages
         </Link>
         <h1 className="page-title">{displayTitle}</h1>
+        {isParentConversation(conversation.contextType) ? (
+          <p className="badge" style={{ marginTop: 8, width: "fit-content" }}>
+            Parent Conversation
+          </p>
+        ) : null}
         {conversation.subject && (
           <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--muted, #6b7280)" }}>
             {otherParticipants}
@@ -183,7 +196,7 @@ export default async function ConversationPage({
             <button type="submit" className="btn btn-primary">
               Send Reply
             </button>
-            <Link href="/messages" className="btn btn-secondary" style={{ textDecoration: "none" }}>
+            <Link href={backHref} className="btn btn-secondary" style={{ textDecoration: "none" }}>
               Cancel
             </Link>
           </div>
