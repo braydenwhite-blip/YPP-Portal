@@ -66,14 +66,14 @@ export default async function AdminInstructorApplicantsPage() {
     actionDueDate: app.actionDueDate?.toISOString() ?? null,
   }));
 
-  const pending = applications.filter((application) =>
-    ["SUBMITTED", "UNDER_REVIEW", "INFO_REQUESTED"].includes(application.status)
+  const newApplications = applications.filter((application) => application.status === "SUBMITTED").length;
+  const toReview = applications.filter((application) =>
+    ["UNDER_REVIEW", "INFO_REQUESTED", "ON_HOLD"].includes(application.status)
   ).length;
-  const interviewing = applications.filter((application) =>
-    ["INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED"].includes(application.status)
+  const toInterview = applications.filter((application) => application.status === "INTERVIEW_SCHEDULED").length;
+  const interviewedAwaitingDecision = applications.filter((application) =>
+    ["INTERVIEW_COMPLETED", "APPROVED", "REJECTED"].includes(application.status)
   ).length;
-  const onHold = applications.filter((application) => application.status === "ON_HOLD").length;
-  const accepted = applications.filter((application) => application.status === "APPROVED").length;
 
   return (
     <div className="page-shell">
@@ -82,7 +82,7 @@ export default async function AdminInstructorApplicantsPage() {
           <span className="badge">{isAdmin ? "Admin" : "Chapter President"}</span>
           <h1 className="page-title">Instructor Applicants</h1>
           <p className="page-subtitle">
-            Review candidates in a stage-based board with action dates, reviewer ownership, and clearer decision details.
+            Review candidates in the same four-step hiring board from the mockup: New Applications, To Review, To Interview, and Interviewed/Awaiting Chair Decision.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -91,27 +91,27 @@ export default async function AdminInstructorApplicantsPage() {
       </div>
 
       <PageHelp
-        purpose="This page is the shared hiring board for instructor applications from first review through final decision."
-        firstStep="Open the oldest cards first, check the deadline to action, and confirm the assigned reviewer before changing status."
-        nextStep="When a card moves stages, the shared workflow routing updates so the next owner sees it in their queue."
+        purpose="This page is the shared hiring board for instructor applications, organized into the exact four review lanes used by the approved mockup."
+        firstStep="Start in New Applications, assign ownership, then move each applicant forward only when the next action is clear."
+        nextStep="Cards move from review to interview to final decision, and the last lane keeps interviewed applicants visible until the decision is fully closed out."
       />
 
       <div className="grid four" style={{ marginTop: 20, marginBottom: 20 }}>
         <div className="card kpi">
-          <div className="kpi-value">{pending}</div>
-          <div className="kpi-label">Pending Review</div>
+          <div className="kpi-value">{newApplications}</div>
+          <div className="kpi-label">New Applications</div>
         </div>
         <div className="card kpi">
-          <div className="kpi-value">{interviewing}</div>
-          <div className="kpi-label">In Interview</div>
+          <div className="kpi-value">{toReview}</div>
+          <div className="kpi-label">To Review</div>
         </div>
         <div className="card kpi">
-          <div className="kpi-value">{onHold}</div>
-          <div className="kpi-label">On Hold</div>
+          <div className="kpi-value">{toInterview}</div>
+          <div className="kpi-label">To Interview</div>
         </div>
         <div className="card kpi">
-          <div className="kpi-value">{accepted}</div>
-          <div className="kpi-label">Accepted</div>
+          <div className="kpi-value">{interviewedAwaitingDecision}</div>
+          <div className="kpi-label">Interviewed / Decision</div>
         </div>
       </div>
 
