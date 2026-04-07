@@ -8,7 +8,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (session.user.primaryRole !== "ADMIN") {
+  if (!session.user.roles.includes("ADMIN")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -16,9 +16,12 @@ export async function POST(request: Request) {
   const format = formData.get("format") as string;
 
   // Build query based on format
-  const where = format === "students" ? { primaryRole: "STUDENT" as const } :
-                format === "instructors" ? { primaryRole: "INSTRUCTOR" as const } :
-                {};
+  const where =
+    format === "students"
+      ? { roles: { some: { role: "STUDENT" as const } } }
+      : format === "instructors"
+        ? { roles: { some: { role: "INSTRUCTOR" as const } } }
+        : {};
 
   const users = await prisma.user.findMany({
     where,

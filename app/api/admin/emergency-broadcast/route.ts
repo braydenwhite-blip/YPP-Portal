@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 export async function POST(request: Request) {
   const session = await getSession();
-  if (!session?.user?.id || session.user.primaryRole !== "ADMIN") {
+  if (!session?.user?.id || !session.user.roles.includes("ADMIN")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -15,7 +15,10 @@ export async function POST(request: Request) {
   const message = formData.get("message") as string;
 
   // Get target users based on audience
-  const where = audience === "ALL" ? {} : { primaryRole: audience as any };
+  const where =
+    audience === "ALL"
+      ? {}
+      : { roles: { some: { role: audience as any } } };
   
   const users = await prisma.user.findMany({
     where,

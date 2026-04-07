@@ -27,6 +27,7 @@ vi.mock("@/lib/mentorship-access", () => ({
 
 import { prisma } from "@/lib/prisma";
 import {
+  createMentorshipSession,
   createMentorshipActionItem,
   promoteMentorshipResponseToResource,
   respondToMentorshipRequest,
@@ -68,6 +69,11 @@ describe("mentorship-hub-actions", () => {
     (prisma as any).mentorshipActionItem = {
       create: vi.fn(),
     };
+    (prisma as any).mentorshipSession = {
+      create: vi.fn(),
+    };
+    (prisma as any).mentorship.findFirst = vi.fn();
+    (prisma as any).mentorship.update = vi.fn();
     vi.mocked(hasMentorshipMenteeAccess).mockResolvedValue(true);
   });
 
@@ -155,6 +161,49 @@ describe("mentorship-hub-actions", () => {
         title: "Send welcome note",
         createdById: "mentor-2",
       }),
+    });
+  });
+
+  it("syncs kickoff milestones when a completed kickoff session is logged", async () => {
+    (prisma as any).mentorship.findFirst.mockResolvedValue({
+      id: "mentorship-1",
+      menteeId: "student-1",
+      kickoffScheduledAt: null,
+      kickoffCompletedAt: null,
+      circleMembers: [
+        { userId: "mentor-2", role: "PRIMARY_MENTOR" },
+        { userId: "student-1", role: "PEER_SUPPORT" },
+      ],
+    });
+    (prisma as any).mentorshipSession.create.mockResolvedValue({
+      id: "session-1",
+    });
+    (prisma as any).mentorship.update.mockResolvedValue({
+      id: "mentorship-1",
+    });
+
+    const formData = new FormData();
+    formData.set("menteeId", "student-1");
+    formData.set("type", "KICKOFF");
+    formData.set("title", "Kickoff");
+    formData.set("scheduledAt", "2026-04-02T16:00:00.000Z");
+    formData.set("completedNow", "true");
+
+    await createMentorshipSession(formData);
+
+    expect((prisma as any).mentorshipSession.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        mentorshipId: "mentorship-1",
+        type: "KICKOFF",
+        completedAt: new Date("2026-04-02T16:00:00.000Z"),
+      }),
+    });
+    expect((prisma as any).mentorship.update).toHaveBeenCalledWith({
+      where: { id: "mentorship-1" },
+      data: {
+        kickoffScheduledAt: new Date("2026-04-02T16:00:00.000Z"),
+        kickoffCompletedAt: new Date("2026-04-02T16:00:00.000Z"),
+      },
     });
   });
 });

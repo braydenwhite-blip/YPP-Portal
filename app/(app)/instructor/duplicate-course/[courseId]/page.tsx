@@ -23,7 +23,7 @@ export default async function DuplicateCoursePage({ params }: { params: { course
 
   const isInstructor =
     course.leadInstructorId === session.user.id ||
-    session.user.primaryRole === "ADMIN";
+    session.user.roles.includes("ADMIN");
 
   if (!isInstructor) {
     redirect("/");

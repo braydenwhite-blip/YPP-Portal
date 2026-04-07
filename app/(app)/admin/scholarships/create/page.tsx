@@ -4,7 +4,7 @@ import Link from "next/link";
 
 export default async function CreateScholarshipPage() {
   const session = await getSession();
-  if (!session?.user?.id || session.user.primaryRole !== "ADMIN") {
+  if (!session?.user?.id || !session.user.roles.includes("ADMIN")) {
     redirect("/");
   }
 

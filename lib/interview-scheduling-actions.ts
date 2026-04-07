@@ -1536,8 +1536,7 @@ export async function getInterviewScheduleData(): Promise<InterviewSchedulePageD
     viewer.isReviewer ||
     viewer.isInstructor ||
     viewer.roles.includes("STUDENT") ||
-    viewer.roles.includes("APPLICANT") ||
-    viewer.primaryRole === "APPLICANT";
+    viewer.roles.includes("APPLICANT");
 
   if (!isInterviewParticipant) {
     throw new Error("You do not have access to interview scheduling.");
