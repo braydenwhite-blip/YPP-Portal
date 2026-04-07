@@ -16,6 +16,7 @@ import {
   getLegacyApplicationTransitionError,
   type LegacyApplicationReviewAction,
 } from "@/lib/legacy-application-review";
+import { syncInstructorApplicationWorkflow } from "@/lib/workflow";
 
 type FormState = {
   status: "idle" | "error" | "success";
@@ -120,6 +121,7 @@ export async function reviewInstructorApplication(
           where: { id: applicationId },
           data: { status: InstructorApplicationStatus.UNDER_REVIEW, reviewerId: session.user.id },
         });
+        await syncInstructorApplicationWorkflow(applicationId);
         revalidatePath("/admin/instructor-applicants");
         revalidatePath("/chapter-lead/instructor-applicants");
         revalidatePath("/application-status");
@@ -128,18 +130,21 @@ export async function reviewInstructorApplication(
       case "approve": {
         const notes = getString(formData, "notes", false);
         await approveInstructorApplication(applicationId, session.user.id, notes || undefined);
+        await syncInstructorApplicationWorkflow(applicationId);
         return { status: "success", message: "Application approved. Applicant is now an instructor." };
       }
 
       case "reject": {
         const reason = getString(formData, "reason");
         await rejectInstructorApplication(applicationId, session.user.id, reason);
+        await syncInstructorApplicationWorkflow(applicationId);
         return { status: "success", message: "Application rejected." };
       }
 
       case "request_info": {
         const message = getString(formData, "message");
         await requestMoreInfo(applicationId, session.user.id, message);
+        await syncInstructorApplicationWorkflow(applicationId);
         return { status: "success", message: "Information request sent to applicant." };
       }
 
@@ -151,12 +156,14 @@ export async function reviewInstructorApplication(
         }
         const notes = getString(formData, "notes", false);
         await scheduleInterview(applicationId, session.user.id, scheduledAt, notes || undefined);
+        await syncInstructorApplicationWorkflow(applicationId);
         return { status: "success", message: "Interview scheduled and applicant notified." };
       }
 
       case "mark_interview_complete": {
         const notes = getString(formData, "notes", false);
         await markInterviewCompleted(applicationId, session.user.id, notes || undefined);
+        await syncInstructorApplicationWorkflow(applicationId);
         return { status: "success", message: "Interview marked as completed." };
       }
 

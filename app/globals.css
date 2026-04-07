@@ -4,22 +4,22 @@
 
 :root {
   /* Brand palette */
-  --ypp-purple-900: #3b0764;
-  --ypp-purple-800: #4a1c7a;
-  --ypp-purple-700: #5b21b6;
-  --ypp-purple-600: #7c3aed;
-  --ypp-purple-500: #8b5cf6;
-  --ypp-purple-400: #a78bfa;
-  --ypp-purple-300: #c4b5fd;
-  --ypp-purple-200: #ddd6fe;
-  --ypp-purple-100: #ede9fe;
-  --ypp-purple-50: #f5f3ff;
+  --ypp-purple-900: #0f2740;
+  --ypp-purple-800: #173a63;
+  --ypp-purple-700: #1d4f91;
+  --ypp-purple-600: #2563eb;
+  --ypp-purple-500: #3b82f6;
+  --ypp-purple-400: #60a5fa;
+  --ypp-purple-300: #93c5fd;
+  --ypp-purple-200: #dbeafe;
+  --ypp-purple-100: #eff6ff;
+  --ypp-purple-50: #f8fbff;
 
-  --ypp-pink-600: #db2777;
-  --ypp-pink-500: #ec4899;
-  --ypp-pink-400: #f472b6;
-  --ypp-pink-100: #fce7f3;
-  --ypp-pink-50: #fdf2f8;
+  --ypp-pink-600: #0f766e;
+  --ypp-pink-500: #0d9488;
+  --ypp-pink-400: #2dd4bf;
+  --ypp-pink-100: #ccfbf1;
+  --ypp-pink-50: #f0fdfa;
 
   /* Semantic aliases */
   --ypp-purple: var(--ypp-purple-600);
@@ -48,11 +48,11 @@
   --gray-50: #fafaf9;
 
   /* Core semantic colors */
-  --bg: #faf8ff;
-  --bg-2: #f5f3ff;
+  --bg: #f6f8fc;
+  --bg-2: #eef4ff;
   --surface: #ffffff;
-  --surface-alt: #faf8ff;
-  --surface-hover: #f5f3ff;
+  --surface-alt: #f8fafc;
+  --surface-hover: #f1f5f9;
   --background: var(--surface);
   --text: #1c1917;
   --text-secondary: #44403c;
@@ -70,7 +70,7 @@
   --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
   --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
   --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
-  --shadow-purple: 0 4px 14px rgba(124, 58, 237, 0.12);
+  --shadow-purple: 0 4px 14px rgba(37, 99, 235, 0.12);
 
   /* Radii */
   --radius-xs: 6px;
@@ -661,6 +661,7 @@ main {
 .pill.pill-declined { background: #f5f5f4; color: #57534e; }
 .pill.pill-info { background: #dbeafe; color: #1e40af; }
 .pill.pill-purple { background: var(--ypp-purple-100); color: var(--ypp-purple-700); }
+.pill.pill-attention { background: #fee2e2; color: #991b1b; }
 
 /* Text color utilities */
 .text-danger { color: #ef4444; }
@@ -727,6 +728,72 @@ main {
   color: var(--muted);
   line-height: 1.6;
   font-size: 14px;
+}
+
+.page-help {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--ypp-purple-50) 0%, var(--ypp-pink-50) 100%);
+  overflow: hidden;
+}
+
+.page-help-summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 14px 16px;
+  font-weight: 700;
+}
+
+.page-help-summary::-webkit-details-marker {
+  display: none;
+}
+
+.page-help-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: white;
+  font-size: 13px;
+}
+
+.page-help-body {
+  display: grid;
+  gap: 14px;
+  padding: 0 16px 16px;
+}
+
+.page-help-body p {
+  margin: 0;
+}
+
+.page-help-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px !important;
+}
+
+.workflow-home-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  background: var(--surface);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.workflow-home-card:hover {
+  border-color: var(--ypp-purple-300);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
 }
 
 /* ============================================

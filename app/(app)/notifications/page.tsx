@@ -1,87 +1,31 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { redirect } from "next/navigation";
-import {
-  getNotifications,
-  getNotificationPreferences,
-  markAsRead,
-  markAllAsRead,
-  deleteNotification,
-  updateNotificationPreferences,
-} from "@/lib/notification-actions";
 import Link from "next/link";
+import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
+import { authOptions } from "@/lib/auth";
+import {
+  deleteNotification,
+  getNotifications,
+  markAllAsRead,
+  markAsRead,
+} from "@/lib/notification-actions";
+import {
+  NOTIFICATION_POLICY,
+  NOTIFICATION_POLICY_CHANNEL_LABELS,
+} from "@/lib/notification-policy";
+import PageHelp from "@/components/page-help";
 
-function getTypeIcon(type: string): string {
-  switch (type) {
-    case "ANNOUNCEMENT":
-      return "[!]";
-    case "MENTOR_FEEDBACK":
-      return "[M]";
-    case "GOAL_DEADLINE":
-      return "[G]";
-    case "COURSE_UPDATE":
-      return "[C]";
-    case "REFLECTION_REMINDER":
-      return "[R]";
-    case "ATTENDANCE":
-      return "[A]";
-    case "MESSAGE":
-      return "[>]";
-    case "EVENT_UPDATE":
-      return "[E]";
-    case "EVENT_REMINDER":
-      return "[!]";
-    case "SYSTEM":
-      return "[*]";
-    default:
-      return "[?]";
-  }
+function getTypeLabel(type: string) {
+  return type.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function getTypeLabel(type: string): string {
-  switch (type) {
-    case "ANNOUNCEMENT":
-      return "Announcement";
-    case "MENTOR_FEEDBACK":
-      return "Mentor Feedback";
-    case "GOAL_DEADLINE":
-      return "Goal Deadline";
-    case "COURSE_UPDATE":
-      return "Course Update";
-    case "REFLECTION_REMINDER":
-      return "Reflection Reminder";
-    case "ATTENDANCE":
-      return "Attendance";
-    case "MESSAGE":
-      return "Message";
-    case "EVENT_UPDATE":
-      return "Event Update";
-    case "EVENT_REMINDER":
-      return "Event Reminder";
-    case "SYSTEM":
-      return "System";
-    default:
-      return type;
-  }
-}
-
-function formatTimestamp(date: Date): string {
-  const now = new Date();
-  const diff = now.getTime() - new Date(date).getTime();
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
-
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  if (days < 7) return `${days}d ago`;
-
-  return new Date(date).toLocaleDateString("en-US", {
+function formatAbsoluteDate(date: Date) {
+  return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
-  });
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(date));
 }
 
 export default async function NotificationsPage() {
@@ -92,34 +36,68 @@ export default async function NotificationsPage() {
   }
 
   const notifications = await getNotifications();
-  const preferences = await getNotificationPreferences();
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const unreadCount = notifications.filter((notification) => !notification.isRead).length;
 
   return (
     <div className="main-content">
       <div className="page-header">
         <div>
           <h1 className="page-title">Notifications</h1>
-          {unreadCount > 0 && (
-            <p className="badge">{unreadCount} unread</p>
-          )}
+          <p style={{ marginTop: 4, fontSize: 13, color: "var(--text-secondary)" }}>
+            Important alerts stay fixed by policy so critical updates are not accidentally turned off.
+          </p>
         </div>
         <div className="header-actions">
-          {unreadCount > 0 && (
+          {unreadCount > 0 ? <span className="badge">{unreadCount} unread</span> : null}
+          {unreadCount > 0 ? (
             <form action={markAllAsRead}>
               <button type="submit" className="btn btn-secondary">
                 Mark All Read
               </button>
             </form>
-          )}
+          ) : null}
+        </div>
+      </div>
+
+      <PageHelp
+        purpose="This page keeps a dated record of your portal alerts and the delivery rules behind them."
+        firstStep="Read the unread items first, especially anything tied to hiring, reviews, or deadlines."
+        nextStep="After you clear an alert, the archive stays here while your home page returns to the next active item."
+      />
+
+      <div className="card" style={{ marginTop: 16, marginBottom: 20 }}>
+        <h2 style={{ marginTop: 0 }}>Notification Policy</h2>
+        <p style={{ color: "var(--muted)" }}>
+          These delivery rules are set by the system. Routine updates stay in the portal, while urgent items are pushed more directly.
+        </p>
+        <div style={{ display: "grid", gap: 12 }}>
+          {Object.entries(NOTIFICATION_POLICY).map(([key, entry]) => (
+            <div
+              key={key}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "minmax(180px, 220px) minmax(120px, 160px) 1fr",
+                gap: 12,
+                alignItems: "start",
+                border: "1px solid var(--border)",
+                borderRadius: 12,
+                padding: 14,
+              }}
+            >
+              <div style={{ fontWeight: 700 }}>{entry.label}</div>
+              <div>
+                <span className="pill pill-small">{NOTIFICATION_POLICY_CHANNEL_LABELS[entry.channel]}</span>
+              </div>
+              <div style={{ color: "var(--muted)" }}>{entry.description}</div>
+            </div>
+          ))}
         </div>
       </div>
 
       {notifications.length === 0 ? (
         <div className="card">
           <p className="empty">
-            You have no notifications. When you receive announcements, mentor
-            feedback, goal reminders, or other updates they will appear here.
+            You have no notifications right now.
           </p>
         </div>
       ) : (
@@ -131,32 +109,11 @@ export default async function NotificationsPage() {
               style={{
                 marginBottom: 12,
                 borderLeft: !notification.isRead
-                  ? "4px solid var(--primary, #6b21a8)"
+                  ? "4px solid var(--accent)"
                   : "4px solid transparent",
               }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  gap: 16,
-                  alignItems: "flex-start",
-                }}
-              >
-                {/* Icon */}
-                <div
-                  style={{
-                    fontFamily: "monospace",
-                    fontWeight: 700,
-                    fontSize: 14,
-                    color: "var(--primary, #6b21a8)",
-                    whiteSpace: "nowrap",
-                    paddingTop: 2,
-                  }}
-                >
-                  {getTypeIcon(notification.type)}
-                </div>
-
-                {/* Content */}
+              <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
                     style={{
@@ -164,7 +121,7 @@ export default async function NotificationsPage() {
                       alignItems: "center",
                       gap: 8,
                       flexWrap: "wrap",
-                      marginBottom: 4,
+                      marginBottom: 6,
                     }}
                   >
                     {notification.link ? (
@@ -179,34 +136,21 @@ export default async function NotificationsPage() {
                         {notification.title}
                       </Link>
                     ) : (
-                      <span
-                        style={{
-                          fontWeight: notification.isRead ? 500 : 700,
-                        }}
-                      >
+                      <span style={{ fontWeight: notification.isRead ? 500 : 700 }}>
                         {notification.title}
                       </span>
                     )}
-                    <span className="badge">{getTypeLabel(notification.type)}</span>
-                    {!notification.isRead && (
-                      <span
-                        style={{
-                          display: "inline-block",
-                          width: 8,
-                          height: 8,
-                          borderRadius: "50%",
-                          backgroundColor: "var(--primary, #6b21a8)",
-                          flexShrink: 0,
-                        }}
-                      />
-                    )}
+                    <span className="pill pill-small">{getTypeLabel(notification.type)}</span>
+                    {!notification.isRead ? (
+                      <span className="pill pill-small pill-attention">Unread</span>
+                    ) : null}
                   </div>
 
                   <p
                     style={{
-                      margin: "4px 0 8px",
+                      margin: "4px 0 10px",
                       fontSize: 14,
-                      color: "var(--muted, #6b7280)",
+                      color: "var(--muted)",
                       lineHeight: 1.5,
                     }}
                   >
@@ -221,40 +165,21 @@ export default async function NotificationsPage() {
                       flexWrap: "wrap",
                     }}
                   >
-                    <span
-                      style={{
-                        fontSize: 12,
-                        color: "var(--muted, #9ca3af)",
-                      }}
-                    >
-                      {formatTimestamp(notification.createdAt)}
+                    <span style={{ fontSize: 12, color: "var(--muted)" }}>
+                      {formatAbsoluteDate(notification.createdAt)}
                     </span>
 
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 8,
-                        marginLeft: "auto",
-                      }}
-                    >
-                      {!notification.isRead && (
+                    <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
+                      {!notification.isRead ? (
                         <form action={markAsRead}>
-                          <input
-                            type="hidden"
-                            name="id"
-                            value={notification.id}
-                          />
+                          <input type="hidden" name="id" value={notification.id} />
                           <button type="submit" className="btn btn-primary">
                             Mark Read
                           </button>
                         </form>
-                      )}
+                      ) : null}
                       <form action={deleteNotification}>
-                        <input
-                          type="hidden"
-                          name="id"
-                          value={notification.id}
-                        />
+                        <input type="hidden" name="id" value={notification.id} />
                         <button type="submit" className="btn btn-secondary">
                           Delete
                         </button>
@@ -267,56 +192,6 @@ export default async function NotificationsPage() {
           ))}
         </div>
       )}
-
-      <div className="card" style={{ marginTop: 20 }}>
-        <h2 style={{ marginTop: 0 }}>Notification Preferences</h2>
-        <p style={{ color: "var(--muted, #6b7280)" }}>
-          Turn categories on or off so chapter event updates and reminders match the way you want to work.
-        </p>
-        <form action={updateNotificationPreferences} style={{ display: "grid", gap: 12 }}>
-          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input type="checkbox" name="inAppEnabled" defaultChecked={preferences.inAppEnabled} />
-            In-app notifications
-          </label>
-          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input type="checkbox" name="emailEnabled" defaultChecked={preferences.emailEnabled} />
-            Email notifications
-          </label>
-          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input type="checkbox" name="announcements" defaultChecked={preferences.announcements} />
-            Announcements
-          </label>
-          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input type="checkbox" name="courseUpdates" defaultChecked={preferences.courseUpdates} />
-            Course and class updates
-          </label>
-          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input type="checkbox" name="eventUpdates" defaultChecked={preferences.eventUpdates} />
-            Chapter event updates
-          </label>
-          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input type="checkbox" name="eventReminders" defaultChecked={preferences.eventReminders} />
-            Chapter event reminders
-          </label>
-          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input type="checkbox" name="mentorUpdates" defaultChecked={preferences.mentorUpdates} />
-            Mentor updates
-          </label>
-          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input type="checkbox" name="goalReminders" defaultChecked={preferences.goalReminders} />
-            Goal reminders
-          </label>
-          <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input type="checkbox" name="reflectionReminders" defaultChecked={preferences.reflectionReminders} />
-            Reflection reminders
-          </label>
-          <div>
-            <button type="submit" className="btn btn-primary">
-              Save Notification Preferences
-            </button>
-          </div>
-        </form>
-      </div>
     </div>
   );
 }

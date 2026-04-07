@@ -2,11 +2,61 @@ import { CORE_NAV_LIMIT, CORE_NAV_MAP, PRIMARY_ROLE_FALLBACK_ORDER } from "@/lib
 import { NAV_CATALOG } from "@/lib/navigation/catalog";
 import { getVisibleNavGroups } from "@/lib/unlock-nav-groups";
 import type { NavGroup, NavLink, NavRole, NavViewModel } from "@/lib/navigation/types";
+import { normalizeAdminSubtypes } from "@/lib/admin-subtypes";
 
 const AWARD_TIERS = new Set(["BRONZE", "SILVER", "GOLD"]);
 const CRITICAL_CORE_LINKS = ["/messages", "/notifications"];
 
 type RoleGroupOrder = Record<NavRole, NavGroup[]>;
+
+const ALWAYS_HIDDEN_HREFS = new Set([
+  "/admin/portal-rollout",
+  "/chapter-lead/portal-rollout",
+  "/admin/rollout-comms",
+  "/admin/hiring-committee",
+]);
+
+const ADMIN_LINKS_BY_SUBTYPE = {
+  SUPER_ADMIN: [
+    "/admin",
+    "/admin/instructor-applicants",
+    "/admin/chapter-president-applicants",
+    "/admin/recruiting",
+    "/admin/curricula",
+    "/admin/announcements",
+    "/admin/audit-log",
+    "/admin/analytics",
+    "/admin/export",
+    "/chapter/student-intake",
+    "/mentorship-program",
+    "/mentorship-program/reviews",
+    "/mentorship-program/chair",
+    "/mentorship-program/awards",
+    "/admin/mentorship-program",
+  ],
+  HIRING_ADMIN: [
+    "/admin/instructor-applicants",
+    "/admin/chapter-president-applicants",
+    "/admin/recruiting",
+  ],
+  MENTORSHIP_ADMIN: [
+    "/mentorship-program",
+    "/mentorship-program/reviews",
+    "/mentorship-program/chair",
+    "/mentorship-program/awards",
+    "/admin/mentorship-program",
+  ],
+  INTAKE_ADMIN: [
+    "/chapter/student-intake",
+  ],
+  CONTENT_ADMIN: [
+    "/admin",
+    "/admin/curricula",
+  ],
+  COMMUNICATIONS_ADMIN: [
+    "/admin/announcements",
+  ],
+} as const;
 
 const GROUP_ORDER_BY_ROLE: RoleGroupOrder = {
   STUDENT: [
@@ -141,6 +191,7 @@ const GROUP_ORDER_BY_ROLE: RoleGroupOrder = {
 
 export interface ResolveNavInput {
   roles?: string[];
+  adminSubtypes?: string[];
   primaryRole?: string | null;
   awardTier?: string | null;
   pathname: string;
@@ -205,6 +256,35 @@ function hasFeatureAccess(item: NavLink, enabledFeatureKeys: Set<string> | undef
   return enabledFeatureKeys?.has(item.featureKey) ?? false;
 }
 
+function hasNonAdminRoleAccess(item: NavLink, roles: NavRole[]): boolean {
+  if (!item.roles || item.roles.length === 0) return false;
+  return item.roles.some((role) => role !== "ADMIN" && roles.includes(role));
+}
+
+function requiresAdminSubtypeFiltering(item: NavLink): boolean {
+  return (
+    item.href.startsWith("/admin") ||
+    item.href === "/chapter/student-intake" ||
+    item.href.startsWith("/mentorship-program")
+  );
+}
+
+function hasAdminSubtypeAccess(item: NavLink, roles: NavRole[], adminSubtypes: string[]): boolean {
+  if (!roles.includes("ADMIN")) return true;
+  if (hasNonAdminRoleAccess(item, roles)) return true;
+  if (!requiresAdminSubtypeFiltering(item)) return true;
+
+  const normalizedSubtypes = normalizeAdminSubtypes(adminSubtypes);
+  const allowedHrefs = new Set<string>();
+  for (const subtype of normalizedSubtypes) {
+    for (const href of ADMIN_LINKS_BY_SUBTYPE[subtype]) {
+      allowedHrefs.add(href);
+    }
+  }
+
+  return allowedHrefs.has(item.href);
+}
+
 function groupIndex(primaryRole: NavRole, group: NavGroup): number {
   const order = GROUP_ORDER_BY_ROLE[primaryRole];
   const index = order.indexOf(group);
@@ -258,6 +338,7 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
   const primaryRole = resolvePrimaryRole(input.primaryRole, roles);
   const hasAward = isAwardTier(input.awardTier);
   const limit = Math.min(input.maxCoreItems ?? CORE_NAV_LIMIT, CORE_NAV_LIMIT);
+  const adminSubtypes = input.adminSubtypes ?? [];
   const usesUnlockVisibility =
     primaryRole === "INSTRUCTOR" ||
     (input.unlockedSections && (primaryRole === "STUDENT" || primaryRole === "PARENT"));
@@ -278,9 +359,11 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
 
   const visible = sortLinksForRole(
     NAV_CATALOG.filter((item) => {
+      if (ALWAYS_HIDDEN_HREFS.has(item.href)) return false;
       if (!hasRoleAccess(item, roles)) return false;
       if (!hasAwardAccess(item, roles, hasAward)) return false;
       if (!hasFeatureAccess(item, input.enabledFeatureKeys, roles)) return false;
+      if (!hasAdminSubtypeAccess(item, roles, adminSubtypes)) return false;
 
       // If unlock filtering is active, only include items whose group is visible
       // or whose group is not in the locked set (i.e. groups not managed by the

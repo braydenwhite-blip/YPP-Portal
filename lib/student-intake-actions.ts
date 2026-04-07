@@ -11,6 +11,7 @@ import { authOptions } from "@/lib/auth";
 import { sendVerificationEmail } from "@/lib/email-verification-actions";
 import { createBulkSystemNotifications, createSystemNotification } from "@/lib/notification-actions";
 import { prisma } from "@/lib/prisma";
+import { syncStudentIntakeWorkflow } from "@/lib/workflow";
 
 function getString(formData: FormData, key: string, required = true) {
   const value = formData.get(key);
@@ -520,6 +521,7 @@ export async function createStudentIntakeCase(formData: FormData) {
     body: "Your student journey draft is ready for one last review before submission.",
     createdById: session.user.id,
   });
+  await syncStudentIntakeWorkflow(intakeCase.id);
 
   revalidatePath("/parent");
   revalidatePath("/parent/connect");
@@ -583,6 +585,7 @@ export async function submitStudentIntakeCase(formData: FormData) {
     `Your intake case for ${intakeCase.studentName} was submitted and is waiting for chapter review.`,
     `/parent/student-intake/${caseId}`
   );
+  await syncStudentIntakeWorkflow(caseId);
 
   revalidatePath("/parent");
   revalidatePath(`/parent/student-intake/${caseId}`);
@@ -634,6 +637,7 @@ export async function updateStudentIntakeCaseStatus(formData: FormData) {
       `/parent/student-intake/${caseId}`
     );
   }
+  await syncStudentIntakeWorkflow(caseId);
 
   revalidatePath("/chapter");
   revalidatePath("/chapter/student-intake");
@@ -653,6 +657,7 @@ export async function launchStudentIntakeMentorPlan(formData: FormData | string)
     intakeCaseId: caseId,
     reviewerId: reviewer.user.id,
   });
+  await syncStudentIntakeWorkflow(caseId);
 
   revalidatePath("/chapter");
   revalidatePath("/chapter/student-intake");
@@ -721,6 +726,7 @@ export async function approveStudentIntakeCase(formData: FormData) {
     `${intakeCase.studentName}'s intake was approved. The chapter has started the next support steps.`,
     `/parent/student-intake/${caseId}`
   );
+  await syncStudentIntakeWorkflow(caseId);
 
   revalidatePath("/parent");
   revalidatePath(`/parent/student-intake/${caseId}`);
@@ -773,6 +779,7 @@ export async function rejectStudentIntakeCase(formData: FormData) {
     `${intakeCase.chapter.name} updated ${intakeCase.studentName}'s intake case and added a follow-up step.`,
     `/parent/student-intake/${caseId}`
   );
+  await syncStudentIntakeWorkflow(caseId);
 
   revalidatePath("/parent");
   revalidatePath(`/parent/student-intake/${caseId}`);

@@ -1,39 +1,68 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import Link from "next/link";
+import {
+  CourseFormat,
+  EventType,
+  MentorshipType,
+  TrainingModuleType,
+} from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
-  addPathwayStep,
   createCourse,
   createEvent,
   createMentorship,
   createPathway,
   createTrainingModule,
-  updateEnrollmentStatus
 } from "@/lib/admin-actions";
-import {
-  CourseFormat,
-  EventType,
-  MentorshipType,
-  RoleType,
-  TrainingModuleType
-} from "@prisma/client";
+import { canAccessContentAdmin, normalizeAdminSubtypes } from "@/lib/admin-subtypes";
 import { CreateUserForm } from "@/components/create-user-form";
+import PageHelp from "@/components/page-help";
 
-export default async function AdminPage() {
+const CONTENT_TYPE_OPTIONS = [
+  { value: "course", label: "Course" },
+  { value: "pathway", label: "Pathway" },
+  { value: "training", label: "Training Module" },
+  { value: "event", label: "Event" },
+  { value: "mentorship", label: "Mentorship Pairing" },
+  { value: "user", label: "User Account" },
+] as const;
+
+type ContentType = (typeof CONTENT_TYPE_OPTIONS)[number]["value"];
+
+function isContentType(value: string | undefined): value is ContentType {
+  return CONTENT_TYPE_OPTIONS.some((option) => option.value === value);
+}
+
+function formatSubtypeList(subtypes: string[]) {
+  return subtypes
+    .map((subtype) => subtype.replace(/_/g, " ").toLowerCase())
+    .map((label) => label.replace(/\b\w/g, (char) => char.toUpperCase()))
+    .join(", ");
+}
+
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams?: { type?: string };
+}) {
   const session = await getServerSession(authOptions);
   const roles = session?.user?.roles ?? [];
-  if (!roles.includes("ADMIN")) {
+  const adminSubtypes = normalizeAdminSubtypes(
+    ((session?.user as { adminSubtypes?: string[] } | undefined)?.adminSubtypes ?? [])
+  );
+
+  if (!roles.includes("ADMIN") || !canAccessContentAdmin(adminSubtypes)) {
     redirect("/");
   }
 
-  const [chapters, users, pathways, courses, trainingModules] = await Promise.all([
+  const selectedType: ContentType = isContentType(searchParams?.type)
+    ? searchParams!.type
+    : "course";
+
+  const [chapters, users] = await Promise.all([
     prisma.chapter.findMany({ orderBy: { name: "asc" } }),
     prisma.user.findMany({ include: { roles: true }, orderBy: { name: "asc" } }),
-    prisma.pathway.findMany({ orderBy: { name: "asc" } }),
-    prisma.course.findMany({ orderBy: { title: "asc" } }),
-    prisma.trainingModule.findMany({ orderBy: { sortOrder: "asc" } })
   ]);
 
   const instructors = users.filter((user) => user.roles.some((role) => role.role === "INSTRUCTOR"));
@@ -41,101 +70,57 @@ export default async function AdminPage() {
   const instructorMentees = users.filter((user) => user.roles.some((role) => role.role === "INSTRUCTOR"));
   const studentMentees = users.filter((user) => user.roles.some((role) => role.role === "STUDENT"));
 
-  const pendingEnrollments = await prisma.enrollment.findMany({
-    where: { status: "PENDING" },
-    include: { user: true, course: true },
-    orderBy: { createdAt: "asc" }
-  });
-
-  const [pendingIncubatorApps, draftChallenges] = await Promise.all([
-    prisma.incubatorApplication.count({
-      where: { status: { in: ["SUBMITTED", "UNDER_REVIEW"] } },
-    }).catch(() => 0),
-    prisma.challenge.count({
-      where: { status: "DRAFT" },
-    }).catch(() => 0),
-  ]);
-
   return (
-    <div>
-      <div className="topbar">
+    <div className="page-shell">
+      <div className="page-header">
         <div>
-          <p className="badge">Admin Control</p>
-          <h1 className="page-title">Portal Admin Dashboard</h1>
+          <span className="badge">Create Content</span>
+          <h1 className="page-title">Create Content</h1>
+          <p className="page-subtitle">
+            Choose one content type, fill in the matching fields, and submit when it is ready.
+          </p>
         </div>
       </div>
 
-      <div className="grid three">
-        <div className="card">
-          <div className="kpi">{users.length}</div>
-          <div className="kpi-label">Users</div>
-        </div>
-        <div className="card">
-          <div className="kpi">{courses.length}</div>
-          <div className="kpi-label">Courses</div>
-        </div>
-        <div className="card">
-          <div className="kpi">{pathways.length}</div>
-          <div className="kpi-label">Pathways</div>
-        </div>
-      </div>
+      <PageHelp
+        purpose="This workspace is only for approved content and structured setup tasks that belong in the portal."
+        firstStep="Pick the content type you need from the dropdown so the page only shows the fields for that one task."
+        nextStep="After you submit, the new content is created and the matching portal area is revalidated automatically."
+      />
 
-      <div className="grid two" style={{ marginTop: 20 }}>
-        <div className="card">
-          <h3 style={{ marginTop: 0, marginBottom: 8 }}>Challenge Publishing</h3>
-          <div style={{ fontSize: 28, fontWeight: 700, color: "#d97706" }}>{draftChallenges}</div>
-          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 10 }}>
-            Draft challenge(s) waiting scheduling/publish decisions.
-          </div>
-          <Link href="/admin/challenges" className="button secondary small" style={{ textDecoration: "none" }}>
-            Open Challenge Manager
-          </Link>
-        </div>
-        <div className="card">
-          <h3 style={{ marginTop: 0, marginBottom: 8 }}>Incubator Review Queue</h3>
-          <div style={{ fontSize: 28, fontWeight: 700, color: "#3b82f6" }}>{pendingIncubatorApps}</div>
-          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 10 }}>
-            Application(s) waiting review decisions.
-          </div>
-          <Link href="/admin/incubator" className="button secondary small" style={{ textDecoration: "none" }}>
-            Open Incubator Manager
-          </Link>
-        </div>
-      </div>
-
-      <div className="card" style={{ marginTop: 20 }}>
-        <h3 style={{ marginTop: 0 }}>Recruiting Operations</h3>
-        <p style={{ marginTop: 0, color: "var(--muted)" }}>
-          Create chapter openings (including Chapter President roles) and manage interview pipelines.
+      <div className="card" style={{ marginTop: 16, marginBottom: 20 }}>
+        <p style={{ margin: 0, color: "var(--muted)" }}>
+          Your admin subtype access: <strong>{formatSubtypeList(adminSubtypes)}</strong>.
         </p>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Link href="/admin/recruiting" className="button small" style={{ textDecoration: "none" }}>
-            Open Recruiting Center
-          </Link>
-          <Link href="/admin/recruiting/positions/new" className="button small outline" style={{ textDecoration: "none" }}>
-            + New Opening
-          </Link>
-          <Link
-            href="/admin/applications?type=CHAPTER_PRESIDENT&chapterProposal=true"
-            className="button small outline"
-            style={{ textDecoration: "none" }}
-          >
-            Review Chapter Proposals
-          </Link>
-          <Link href="/positions?type=CHAPTER_PRESIDENT&status=open" className="button small ghost" style={{ textDecoration: "none" }}>
-            Chapter President Openings
-          </Link>
-        </div>
+        <p style={{ margin: "8px 0 0", color: "var(--muted)" }}>
+          Training modules and other structured backend content should still be created sparingly and only by approved owners.
+        </p>
       </div>
 
-      <div className="grid two" style={{ marginTop: 24 }}>
-        <div className="card">
-          <h3>Create User</h3>
-          <CreateUserForm chapters={chapters} />
-        </div>
+      <div className="card" style={{ marginBottom: 20 }}>
+        <form method="GET" style={{ display: "flex", gap: 12, alignItems: "end", flexWrap: "wrap" }}>
+          <label className="form-row" style={{ marginBottom: 0, minWidth: 280 }}>
+            Content Type
+            <select className="input" name="type" defaultValue={selectedType} style={{ marginBottom: 0 }}>
+              {CONTENT_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button className="button" type="submit">
+            Open Form
+          </button>
+        </form>
+      </div>
 
+      {selectedType === "course" && (
         <div className="card">
-          <h3>Create Course</h3>
+          <h2 style={{ marginTop: 0, marginBottom: 8 }}>Create Course</h2>
+          <p style={{ marginTop: 0, color: "var(--muted)" }}>
+            Use this for approved catalog-ready courses only.
+          </p>
           <form action={createCourse} className="form-grid">
             <label className="form-row">
               Title
@@ -150,7 +135,7 @@ export default async function AdminPage() {
               <select className="input" name="format" defaultValue={CourseFormat.ONE_OFF}>
                 {Object.values(CourseFormat).map((format) => (
                   <option key={format} value={format}>
-                    {format.replace("_", " ")}
+                    {format.replace(/_/g, " ")}
                   </option>
                 ))}
               </select>
@@ -161,8 +146,8 @@ export default async function AdminPage() {
                 <option value="">Flexible / mixed experience</option>
                 <option value="LEVEL_101">Best for first-time learners</option>
                 <option value="LEVEL_201">Great if you&apos;ve tried the basics</option>
-                <option value="LEVEL_301">Best if you can work more independently</option>
-                <option value="LEVEL_401">Best if you&apos;re ready for advanced project work</option>
+                <option value="LEVEL_301">Best if you&apos;re ready to work more independently</option>
+                <option value="LEVEL_401">Best for advanced project work</option>
               </select>
             </label>
             <label className="form-row">
@@ -200,11 +185,14 @@ export default async function AdminPage() {
             </button>
           </form>
         </div>
-      </div>
+      )}
 
-      <div className="grid two" style={{ marginTop: 24 }}>
+      {selectedType === "pathway" && (
         <div className="card">
-          <h3>Create Pathway</h3>
+          <h2 style={{ marginTop: 0, marginBottom: 8 }}>Create Pathway</h2>
+          <p style={{ marginTop: 0, color: "var(--muted)" }}>
+            Use pathways as recommended course sequences, not as an onboarding gate.
+          </p>
           <form action={createPathway} className="form-grid">
             <label className="form-row">
               Name
@@ -227,44 +215,14 @@ export default async function AdminPage() {
             </button>
           </form>
         </div>
+      )}
 
+      {selectedType === "training" && (
         <div className="card">
-          <h3>Add Pathway Step</h3>
-          <form action={addPathwayStep} className="form-grid">
-            <label className="form-row">
-              Pathway
-              <select className="input" name="pathwayId" required>
-                {pathways.map((pathway) => (
-                  <option key={pathway.id} value={pathway.id}>
-                    {pathway.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="form-row">
-              Course
-              <select className="input" name="courseId" required>
-                {courses.map((course) => (
-                  <option key={course.id} value={course.id}>
-                    {course.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="form-row">
-              Step Order
-              <input className="input" name="stepOrder" type="number" min={1} required />
-            </label>
-            <button className="button" type="submit">
-              Add Step
-            </button>
-          </form>
-        </div>
-      </div>
-
-      <div className="grid two" style={{ marginTop: 24 }}>
-        <div className="card">
-          <h3>Create Training Module</h3>
+          <h2 style={{ marginTop: 0, marginBottom: 8 }}>Create Training Module</h2>
+          <p style={{ marginTop: 0, color: "var(--muted)" }}>
+            Only use this when the training workflow has already been approved.
+          </p>
           <form action={createTrainingModule} className="form-grid">
             <label className="form-row">
               Title
@@ -275,11 +233,11 @@ export default async function AdminPage() {
               <textarea className="input" name="description" rows={3} required />
             </label>
             <label className="form-row">
-              Material Link (optional)
+              Material Link
               <input className="input" name="materialUrl" type="url" placeholder="https://..." />
             </label>
             <label className="form-row">
-              Material Notes (optional)
+              Material Notes
               <textarea className="input" name="materialNotes" rows={2} />
             </label>
             <label className="form-row">
@@ -287,7 +245,7 @@ export default async function AdminPage() {
               <select className="input" name="type" defaultValue={TrainingModuleType.WORKSHOP}>
                 {Object.values(TrainingModuleType).map((type) => (
                   <option key={type} value={type}>
-                    {type.replace("_", " ")}
+                    {type.replace(/_/g, " ")}
                   </option>
                 ))}
               </select>
@@ -301,13 +259,18 @@ export default async function AdminPage() {
               Required
             </label>
             <button className="button" type="submit">
-              Create Module
+              Create Training Module
             </button>
           </form>
         </div>
+      )}
 
+      {selectedType === "event" && (
         <div className="card">
-          <h3>Create Event</h3>
+          <h2 style={{ marginTop: 0, marginBottom: 8 }}>Create Event</h2>
+          <p style={{ marginTop: 0, color: "var(--muted)" }}>
+            Create the event record only after the timing and ownership are confirmed.
+          </p>
           <form action={createEvent} className="form-grid">
             <label className="form-row">
               Title
@@ -322,7 +285,7 @@ export default async function AdminPage() {
               <select className="input" name="eventType" defaultValue={EventType.FESTIVAL}>
                 {Object.values(EventType).map((event) => (
                   <option key={event} value={event}>
-                    {event.replace("_", " ")}
+                    {event.replace(/_/g, " ")}
                   </option>
                 ))}
               </select>
@@ -351,13 +314,22 @@ export default async function AdminPage() {
             </button>
           </form>
         </div>
-      </div>
+      )}
 
-      <div className="grid two" style={{ marginTop: 24 }}>
+      {selectedType === "mentorship" && (
         <div className="card">
-          <h3>Assign Instructor Mentor</h3>
+          <h2 style={{ marginTop: 0, marginBottom: 8 }}>Create Mentorship Pairing</h2>
+          <p style={{ marginTop: 0, color: "var(--muted)" }}>
+            Use this after the mentor committee has confirmed the pairing.
+          </p>
           <form action={createMentorship} className="form-grid">
-            <input type="hidden" name="type" value={MentorshipType.INSTRUCTOR} />
+            <label className="form-row">
+              Pairing Type
+              <select className="input" name="type" defaultValue={MentorshipType.INSTRUCTOR}>
+                <option value={MentorshipType.INSTRUCTOR}>Instructor pairing</option>
+                <option value={MentorshipType.STUDENT}>Student pairing</option>
+              </select>
+            </label>
             <label className="form-row">
               Mentor
               <select className="input" name="mentorId" required>
@@ -369,9 +341,9 @@ export default async function AdminPage() {
               </select>
             </label>
             <label className="form-row">
-              Instructor (Mentee)
+              Mentee
               <select className="input" name="menteeId" required>
-                {instructorMentees.map((mentee) => (
+                {[...instructorMentees, ...studentMentees].map((mentee) => (
                   <option key={mentee.id} value={mentee.id}>
                     {mentee.name}
                   </option>
@@ -383,121 +355,21 @@ export default async function AdminPage() {
               <textarea className="input" name="notes" rows={3} />
             </label>
             <button className="button" type="submit">
-              Assign Instructor Mentor
+              Create Mentorship Pairing
             </button>
           </form>
         </div>
+      )}
 
+      {selectedType === "user" && (
         <div className="card">
-          <h3>Assign Student Mentor</h3>
-          <form action={createMentorship} className="form-grid">
-            <input type="hidden" name="type" value={MentorshipType.STUDENT} />
-            <label className="form-row">
-              Mentor
-              <select className="input" name="mentorId" required>
-                {mentors.map((mentor) => (
-                  <option key={mentor.id} value={mentor.id}>
-                    {mentor.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="form-row">
-              Student (Mentee)
-              <select className="input" name="menteeId" required>
-                {studentMentees.map((mentee) => (
-                  <option key={mentee.id} value={mentee.id}>
-                    {mentee.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="form-row">
-              Notes
-              <textarea className="input" name="notes" rows={3} />
-            </label>
-            <button className="button" type="submit">
-              Assign Student Mentor
-            </button>
-          </form>
+          <h2 style={{ marginTop: 0, marginBottom: 8 }}>Create User Account</h2>
+          <p style={{ marginTop: 0, color: "var(--muted)" }}>
+            Use this for approved manual account setup only.
+          </p>
+          <CreateUserForm chapters={chapters} />
         </div>
-      </div>
-
-      <div className="grid two" style={{ marginTop: 24 }}>
-        <div className="card">
-          <h3>Enrollment Requests</h3>
-          {pendingEnrollments.length === 0 ? (
-            <p>No pending enrollment requests.</p>
-          ) : (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Student</th>
-                  <th>Course</th>
-                  <th>Requested</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingEnrollments.map((enrollment) => (
-                  <tr key={enrollment.id}>
-                    <td>{enrollment.user.name}</td>
-                    <td>{enrollment.course.title}</td>
-                    <td>{new Date(enrollment.createdAt).toLocaleDateString()}</td>
-                    <td>
-                      <form action={updateEnrollmentStatus} style={{ display: "inline-flex", gap: 8 }}>
-                        <input type="hidden" name="enrollmentId" value={enrollment.id} />
-                        <button className="button small" type="submit" name="status" value="ENROLLED">
-                          Approve
-                        </button>
-                        <button className="button small secondary" type="submit" name="status" value="DECLINED">
-                          Decline
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-
-        <div className="card">
-          <h3>Existing Training Modules</h3>
-          {trainingModules.length === 0 ? (
-            <p>No training modules yet.</p>
-          ) : (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Module</th>
-                  <th>Type</th>
-                  <th>Required</th>
-                  <th>Material</th>
-                </tr>
-              </thead>
-              <tbody>
-                {trainingModules.map((module) => (
-                  <tr key={module.id}>
-                    <td>{module.title}</td>
-                    <td>{module.type.replace("_", " ")}</td>
-                    <td>{module.required ? "Yes" : "No"}</td>
-                    <td>
-                      {module.materialUrl ? (
-                        <a className="link" href={module.materialUrl} target="_blank" rel="noreferrer">
-                          Open
-                        </a>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
+      )}
     </div>
   );
 }

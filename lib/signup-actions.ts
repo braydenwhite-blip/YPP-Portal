@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { RoleType } from "@prisma/client";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { syncInstructorApplicationWorkflow } from "@/lib/workflow";
 
 type FormState = {
   status: "idle" | "error" | "success";
@@ -117,7 +118,7 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
       // Demographics
       const ethnicity = getString(formData, "ethnicity", false);
 
-      await prisma.instructorApplication.create({
+      const application = await prisma.instructorApplication.create({
         data: {
           applicantId: newUser.id,
           motivation,
@@ -147,6 +148,7 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
           ethnicity: ethnicity || null,
         },
       });
+      await syncInstructorApplicationWorkflow(application.id);
     }
 
     // Send verification email (non-blocking — signup succeeds even if email fails)

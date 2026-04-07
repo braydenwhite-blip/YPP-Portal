@@ -60,6 +60,7 @@ function matchesSearch(item: NavLink, searchLower: string): boolean {
 
 export default function Nav({
   roles = [],
+  adminSubtypes,
   primaryRole,
   awardTier,
   badges,
@@ -70,6 +71,7 @@ export default function Nav({
   lockedGroups: lockedGroupsProp,
 }: {
   roles?: string[];
+  adminSubtypes?: string[];
   primaryRole?: string | null;
   awardTier?: string;
   badges?: NavBadges;
@@ -85,13 +87,14 @@ export default function Nav({
     () =>
       resolveNavModel({
         roles,
+        adminSubtypes,
         primaryRole,
         awardTier,
         pathname,
         enabledFeatureKeys,
         unlockedSections,
       }),
-    [awardTier, enabledFeatureKeys, pathname, primaryRole, roles, unlockedSections],
+    [adminSubtypes, awardTier, enabledFeatureKeys, pathname, primaryRole, roles, unlockedSections],
   );
 
   // Use locked groups from the model (computed from unlockedSections) or from explicit prop

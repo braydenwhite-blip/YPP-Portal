@@ -11,6 +11,7 @@ import {
   clearAccountLockout,
 } from "@/lib/rate-limit-redis";
 import { normalizeRoleValue, normalizeRoleValues } from "@/lib/role-utils";
+import { normalizeAdminSubtypes } from "@/lib/admin-subtypes";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -32,6 +33,12 @@ function normalizeAuthRolePayload(input: {
     roles: Array.from(new Set(roles)),
     primaryRole,
   };
+}
+
+function normalizeAuthAdminSubtypePayload(input: {
+  adminSubtypes?: string[] | null;
+}) {
+  return normalizeAdminSubtypes(input.adminSubtypes ?? []);
 }
 
 function buildProviders() {
@@ -71,6 +78,7 @@ function buildProviders() {
               email: true,
               primaryRole: true,
               roles: { select: { role: true } },
+              adminSubtypes: { select: { subtype: true } },
             },
           });
 
@@ -80,6 +88,9 @@ function buildProviders() {
             roles: user.roles.map((r) => r.role),
             primaryRole: user.primaryRole,
           });
+          const adminSubtypes = normalizeAuthAdminSubtypePayload({
+            adminSubtypes: user.adminSubtypes.map((entry) => entry.subtype),
+          });
 
           return {
             id: user.id,
@@ -87,6 +98,7 @@ function buildProviders() {
             email: user.email,
             roles: normalizedRoles.roles,
             primaryRole: normalizedRoles.primaryRole,
+            adminSubtypes,
           } as any;
         }
 
@@ -103,6 +115,7 @@ function buildProviders() {
                   email: true,
                   primaryRole: true,
                   roles: { select: { role: true } },
+                  adminSubtypes: { select: { subtype: true } },
                 },
               },
             },
@@ -121,6 +134,9 @@ function buildProviders() {
             roles: record.user.roles.map((r) => r.role),
             primaryRole: record.user.primaryRole,
           });
+          const adminSubtypes = normalizeAuthAdminSubtypePayload({
+            adminSubtypes: record.user.adminSubtypes.map((entry) => entry.subtype),
+          });
 
           return {
             id: record.user.id,
@@ -128,6 +144,7 @@ function buildProviders() {
             email: record.user.email,
             roles: normalizedRoles.roles,
             primaryRole: normalizedRoles.primaryRole,
+            adminSubtypes,
           } as any;
         }
 
@@ -161,7 +178,8 @@ function buildProviders() {
             primaryRole: true,
             emailVerified: true,
             twoFactorEnabled: true,
-            roles: { select: { role: true } }
+            roles: { select: { role: true } },
+            adminSubtypes: { select: { subtype: true } }
           }
         });
 
@@ -217,13 +235,17 @@ function buildProviders() {
           roles: user.roles.map((role) => role.role),
           primaryRole: user.primaryRole,
         });
+        const adminSubtypes = normalizeAuthAdminSubtypePayload({
+          adminSubtypes: user.adminSubtypes.map((entry) => entry.subtype),
+        });
 
         return {
           id: user.id,
           name: user.name,
           email: user.email,
           roles: normalizedRoles.roles,
-          primaryRole: normalizedRoles.primaryRole
+          primaryRole: normalizedRoles.primaryRole,
+          adminSubtypes,
         } as any;
       }
     })
@@ -274,7 +296,8 @@ export const authOptions: NextAuthOptions = {
               oauthId: true,
               emailVerified: true,
               image: true,
-              roles: { select: { role: true } }
+              roles: { select: { role: true } },
+              adminSubtypes: { select: { subtype: true } }
             }
           });
 
@@ -299,7 +322,8 @@ export const authOptions: NextAuthOptions = {
                 oauthId: true,
                 emailVerified: true,
                 image: true,
-                roles: { select: { role: true } }
+                roles: { select: { role: true } },
+                adminSubtypes: { select: { subtype: true } }
               }
             });
           } else {
@@ -350,8 +374,12 @@ export const authOptions: NextAuthOptions = {
             roles: dbUser.roles.map((r) => r.role),
             primaryRole: dbUser.primaryRole,
           });
+          const adminSubtypes = normalizeAuthAdminSubtypePayload({
+            adminSubtypes: dbUser.adminSubtypes.map((entry) => entry.subtype),
+          });
           (user as any).roles = normalizedRoles.roles;
           (user as any).primaryRole = normalizedRoles.primaryRole;
+          (user as any).adminSubtypes = adminSubtypes;
 
           return true;
         } catch (error) {
@@ -368,6 +396,7 @@ export const authOptions: NextAuthOptions = {
         token.id = (user as any).id;
         token.roles = (user as any).roles;
         token.primaryRole = (user as any).primaryRole;
+        token.adminSubtypes = (user as any).adminSubtypes;
         token.rolesRefreshedAt = Date.now();
       }
 
@@ -386,7 +415,8 @@ export const authOptions: NextAuthOptions = {
             where: { id: token.id as string },
             select: {
               primaryRole: true,
-              roles: { select: { role: true } }
+              roles: { select: { role: true } },
+              adminSubtypes: { select: { subtype: true } }
             }
           });
           if (dbUser) {
@@ -396,6 +426,9 @@ export const authOptions: NextAuthOptions = {
             });
             token.roles = normalizedRoles.roles;
             token.primaryRole = normalizedRoles.primaryRole;
+            token.adminSubtypes = normalizeAuthAdminSubtypePayload({
+              adminSubtypes: dbUser.adminSubtypes.map((entry) => entry.subtype),
+            });
           }
           token.rolesRefreshedAt = Date.now();
         } catch {
@@ -410,6 +443,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).id = token.id;
         (session.user as any).roles = token.roles;
         (session.user as any).primaryRole = token.primaryRole;
+        (session.user as any).adminSubtypes = token.adminSubtypes;
         (session.user as any).provider = token.provider;
       }
       return session;

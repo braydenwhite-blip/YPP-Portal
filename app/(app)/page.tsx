@@ -1,571 +1,264 @@
-import { getServerSession } from "next-auth";
 import Link from "next/link";
-import { Prisma } from "@prisma/client";
+import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
-import { getDashboardData } from "@/lib/dashboard/data";
-import { isUnifiedAllToolsDashboardEnabled } from "@/lib/dashboard/flags";
-import { getStudentProgressSnapshot } from "@/lib/student-progress-actions";
 import { prisma } from "@/lib/prisma";
-import RoleHero from "@/components/dashboard/role-hero";
-import KpiStrip from "@/components/dashboard/kpi-strip";
-import QueueBoard from "@/components/dashboard/queue-board";
-import NextActions from "@/components/dashboard/next-actions";
-import ToolExplorer from "@/components/dashboard/tool-explorer";
-import PathwayWidget from "@/components/dashboard/pathway-widget";
-import InstructorReadinessWidget from "@/components/dashboard/instructor-readiness-widget";
-import DailyChecklist from "@/components/dashboard/daily-checklist";
-import JourneyRoadmap from "@/components/dashboard/journey-roadmap";
-import NudgeStrip from "@/components/dashboard/nudge-strip";
-import AtRiskPanel from "@/components/dashboard/at-risk-panel";
-import { getAtRiskChapters } from "@/lib/governance/actions";
-import LegacyOverviewPage from "./legacy-overview-page";
+import { ADMIN_SUBTYPE_LABELS, normalizeAdminSubtypes } from "@/lib/admin-subtypes";
+import { listWorkflowHomeData } from "@/lib/workflow";
+import PageHelp from "@/components/page-help";
 
-function isMissingTableError(error: unknown) {
-  return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === "P2021"
-  );
+function formatAbsoluteDate(value: Date | null | undefined) {
+  if (!value) return "No date";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(value);
+}
+
+function formatStage(stage: string) {
+  return stage.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function notificationTag(type: string) {
+  return type.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 export default async function OverviewPage() {
   const session = await getServerSession(authOptions);
-
-  if (!isUnifiedAllToolsDashboardEnabled()) {
-    return <LegacyOverviewPage />;
-  }
-
   if (!session?.user?.id) {
-    return <LegacyOverviewPage />;
+    redirect("/login");
   }
 
-  const dashboard = await getDashboardData(
-    session.user.id,
-    session.user.primaryRole ?? null
+  const roles = session.user.roles ?? [];
+  const adminSubtypes = normalizeAdminSubtypes(
+    ((session.user as { adminSubtypes?: string[] }).adminSubtypes ?? [])
   );
-  const activeRoles = (session.user.roles ?? []).length
-    ? (session.user.roles ?? [])
-    : (session.user.primaryRole ? [session.user.primaryRole] : []);
+  const isAdmin = roles.includes("ADMIN");
+  const isSuperAdmin = adminSubtypes.includes("SUPER_ADMIN");
 
-  let launchBanner: {
-    title: string;
-    content: string;
-    createdAt: Date;
-    linkUrl: string | null;
-  } | null = null;
-
-  try {
-    const campaign = await prisma.rolloutCampaign.findFirst({
-      where: {
-        status: "SENT",
-        ...(activeRoles.length > 0
-          ? { targetRoles: { hasSome: activeRoles as any } }
-          : {}),
-      },
-      orderBy: [{ sentAt: "desc" }, { createdAt: "desc" }],
-      select: {
-        title: true,
-        content: true,
-        sentAt: true,
-        createdAt: true,
-        linkUrl: true,
-      },
-    });
-    if (campaign) {
-      launchBanner = {
-        title: campaign.title,
-        content: campaign.content,
-        createdAt: campaign.sentAt ?? campaign.createdAt,
-        linkUrl: campaign.linkUrl ?? null,
-      };
-    }
-  } catch (error) {
-    if (!isMissingTableError(error)) {
-      throw error;
-    }
-  }
-
-  if (!launchBanner) {
-    const announcement = await prisma.announcement.findFirst({
-      where: {
-        isActive: true,
-        title: { startsWith: "[Rollout]" },
-        ...(activeRoles.length > 0
-          ? { targetRoles: { hasSome: activeRoles as any } }
-          : {}),
-      },
+  const [workflowHome, notifications, unreadNotifications] = await Promise.all([
+    listWorkflowHomeData({
+      userId: session.user.id,
+      roles,
+      adminSubtypes,
+    }),
+    prisma.notification.findMany({
+      where: { userId: session.user.id },
       orderBy: { createdAt: "desc" },
-      select: {
-        title: true,
-        content: true,
-        createdAt: true,
-      },
-    });
-    if (announcement) {
-      launchBanner = {
-        title: announcement.title,
-        content: announcement.content,
-        createdAt: announcement.createdAt,
-        linkUrl: null,
-      };
-    }
-  }
-  const studentSnapshot = dashboard.role === "STUDENT"
-    ? await getStudentProgressSnapshot(session.user.id)
-    : null;
+      take: 6,
+    }),
+    prisma.notification.count({
+      where: { userId: session.user.id, isRead: false },
+    }),
+  ]);
 
-  const atRiskChapters = dashboard.role === "ADMIN"
-    ? await getAtRiskChapters().catch(() => [])
-    : [];
-
-  const roleFocus: Record<string, string[]> = {
-    ADMIN: [
-      "Clear high-risk operational queues daily.",
-      "Keep hiring, readiness, and waitlist motion visible.",
-    ],
-    CHAPTER_PRESIDENT: [
-      "Run chapter hiring and interviews without side spreadsheets.",
-      "Keep instructor readiness blockers near zero.",
-    ],
-    INSTRUCTOR: [
-      "Protect class quality while clearing readiness blockers fast.",
-      "Use one weekly next action to keep momentum.",
-    ],
-    STUDENT: [
-      "Finish one pathway step every week.",
-      "Translate exploration into classes and project progress.",
-    ],
-    MENTOR: [
-      "Keep mentee check-ins current and actionable.",
-      "Use one queue view to prevent silent drop-off.",
-    ],
-    PARENT: [
-      "Track student updates and communication in one flow.",
-      "Resolve pending links and alerts quickly.",
-    ],
-    STAFF: [
-      "Use dashboard queues to keep operations moving.",
-      "Prioritize highest-impact actions each day.",
-    ],
-  };
-
-  const portalGoals = [
-    "One clear next step for every user every week.",
-    "One trusted source of truth for training, progress, and readiness.",
-    "One connected flow from onboarding to outcomes with less admin overhead.",
-  ];
-
-  const passionWorldGoals = [
-    "Turn curiosity into action with clear island-based paths.",
-    "Make progress visible through challenges, badges, and milestones.",
-    "Connect exploration to real classes, projects, and mentorship opportunities.",
-  ];
-  const priorityTool = dashboard.sections[0]?.modules[0];
-  const queueTotal = dashboard.queues.reduce((sum, queue) => sum + queue.count, 0);
-  const roleFocusItems = roleFocus[dashboard.role] ?? roleFocus.STAFF;
-  const todayDateLabel = new Intl.DateTimeFormat("en-US", {
+  const todayLabel = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
   }).format(new Date());
 
-  const portalPillars = [
-    {
-      title: "Learn",
-      detail: "Find classes, pathways, and training in one place.",
-      href: "/curriculum",
-    },
-    {
-      title: "Build",
-      detail: "Turn ideas into real output through challenges and projects.",
-      href: "/activities",
-    },
-    {
-      title: "Show Progress",
-      detail: "See your momentum through KPIs, streaks, and role queues.",
-      href: "/world",
-    },
-  ];
-
-  const howToUsePortal = [
-    "Open your top Next Action first.",
-    "Complete one task and log your update.",
-    "Check your progress cards and repeat tomorrow.",
-  ];
-
-  const quickExperienceLinks =
-    dashboard.role === "INSTRUCTOR"
-      ? [
-          {
-            title: "My Workspace",
-            description: "Manage curricula, offerings, and your teaching pathway.",
-            href: "/instructor/workspace",
-            tag: "WRK",
-          },
-          {
-            title: "Training Academy",
-            description: "Complete required modules and track your readiness progress.",
-            href: "/instructor-training",
-            tag: "TRN",
-          },
-          {
-            title: "Curricula",
-            description: "Create and submit class templates for review.",
-            href: "/instructor/workspace?tab=curricula",
-            tag: "CUR",
-          },
-          {
-            title: "My Classes",
-            description: "Review active class offerings, schedules, and enrollment.",
-            href: "/instructor/class-settings",
-            tag: "CLS",
-          },
-        ]
-      : [
-          {
-            title: "My Chapter",
-            description: "See your local pathways, next class step, and partner fallback options in one place.",
-            href: "/my-chapter",
-            tag: "CHP",
-          },
-          {
-            title: "Challenges",
-            description: "Build streaks and consistency with daily, weekly, and seasonal prompts.",
-            href: "/challenges",
-            tag: "CHL",
-          },
-          {
-            title: "Incubator",
-            description: "Move from idea to showcase with phase-based project support.",
-            href: "/incubator",
-            tag: "INC",
-          },
-          {
-            title: "Passion World",
-            description: "See your growth islands update from real activity and progress.",
-            href: "/world",
-            tag: "PWR",
-          },
-        ];
-
-  const portalLoop = [
-    {
-      title: "1. Pick One Action",
-      detail: "Start with your top Next Action so you do the highest-impact task first.",
-    },
-    {
-      title: "2. Do The Work",
-      detail: "Finish one challenge, activity, message, or update in the linked tool.",
-    },
-    {
-      title: "3. Watch Everything Sync",
-      detail: "Your queues, KPIs, and Passion World signals update automatically.",
-    },
-  ];
-
   return (
-    <div>
-      <div className="topbar">
+    <div className="page-shell">
+      <div className="page-header">
         <div>
-          <h1 className="page-title">
-            Welcome back{session.user.name ? `, ${session.user.name}` : ""}
-          </h1>
+          <span className="badge">Home</span>
+          <h1 className="page-title">Your Portal Home</h1>
           <p className="page-subtitle">
-            Your classes, activities, challenges, and progress in one place.
+            {todayLabel}. Start with the next action at the top, then clear notifications that need attention.
           </p>
-        </div>
-        <div className="badge" style={{ background: "var(--ypp-purple-100)", color: "var(--ypp-purple-700)" }}>
-          {dashboard.roleLabel}
         </div>
       </div>
 
-      <div className="overview-hero card">
-        <div className="overview-hero-orb overview-hero-orb-left" aria-hidden />
-        <div className="overview-hero-orb overview-hero-orb-right" aria-hidden />
-        <div className="overview-hero-content">
-          <span className="overview-hero-kicker">Your Portal Guide</span>
-          <h2 className="overview-hero-title">
-            Everything important is connected here, so you always know what to do next.
-          </h2>
-          <p className="overview-hero-copy">
-            {dashboard.role === "INSTRUCTOR"
-              ? "This page brings your training status, class management, readiness gates, and teaching tools into one command center. Start with your top next action and your progress updates across the portal."
-              : "This page brings classes, challenges, incubator, communication, and progress into one simple command center. Start with one action, finish it, and your progress updates across the portal."}
-          </p>
-          <p className="overview-hero-note">
-            Today is {todayDateLabel}. If you only do one thing, finish your top Next Action.
-          </p>
-
-          <div className="overview-hero-stats">
-            <div className="overview-hero-stat">
-              <span className="overview-hero-stat-label">Next Actions</span>
-              <strong>{dashboard.nextActions.length}</strong>
-            </div>
-            <div className="overview-hero-stat">
-              <span className="overview-hero-stat-label">Live Queues</span>
-              <strong>{queueTotal}</strong>
-            </div>
-            <div className="overview-hero-stat">
-              <span className="overview-hero-stat-label">Focus</span>
-              <strong>{roleFocusItems[0]}</strong>
-            </div>
-          </div>
-
-          <div className="overview-pillar-grid">
-            {portalPillars.map((pillar) => (
-              <Link key={pillar.title} href={pillar.href} className="overview-pillar-card">
-                <span className="overview-pillar-title">{pillar.title}</span>
-                <span className="overview-pillar-detail">{pillar.detail}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="card overview-flow-card">
-        <div className="overview-flow-header">
-          <h3 style={{ margin: 0 }}>How Everything Connects</h3>
-          <p style={{ margin: 0 }}>
-            One completed action updates your dashboard cards, role queues, and Passion World signals.
-          </p>
-        </div>
-        <div className="overview-flow-grid">
-          {portalLoop.map((item) => (
-            <div key={item.title} className="overview-flow-item">
-              <h4>{item.title}</h4>
-              <p>{item.detail}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid two" style={{ marginBottom: 16 }}>
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>How To Use This Portal (3 Easy Steps)</h3>
-          <div className="overview-steps">
-            {howToUsePortal.map((step, index) => (
-              <div key={step} className="overview-step-item">
-                <span className="overview-step-number">{index + 1}</span>
-                <p>{step}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="card">
-          <h3 style={{ marginTop: 0 }}>Explore Key Areas</h3>
-          <div className="overview-link-list">
-            {quickExperienceLinks.map((item) => (
-              <Link key={item.title} href={item.href} className="overview-link-card">
-                <div>
-                  <p className="overview-link-title">
-                    <span className="overview-link-tag">{item.tag}</span> {item.title}
-                  </p>
-                  <p className="overview-link-description">{item.description}</p>
-                </div>
-                <span className="overview-link-arrow">→</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <RoleHero
-        role={dashboard.role}
-        title={dashboard.heroTitle}
-        subtitle={dashboard.heroSubtitle}
+      <PageHelp
+        purpose="This home page is your role-based command center for assigned work and recent alerts."
+        firstStep="Open the first next action with the nearest due date or the item that is already assigned to you."
+        nextStep="When you finish an action, the workflow record updates and the next owner or next stage appears automatically."
       />
 
-      {/* Daily Checklist — what to do today */}
-      {dashboard.checklist && dashboard.checklist.length > 0 && (
-        <DailyChecklist items={dashboard.checklist} />
-      )}
-
-      {/* Smart Nudges — contextual encouragement */}
-      {dashboard.nudges && dashboard.nudges.length > 0 && (
-        <NudgeStrip nudges={dashboard.nudges} />
-      )}
-
-      {/* Journey Roadmap — visual progress timeline */}
-      {dashboard.journeyMilestones && (
-        <JourneyRoadmap milestones={dashboard.journeyMilestones} />
-      )}
-
-      {launchBanner ? (
-        <div className="card" style={{ marginBottom: 16, borderLeft: "4px solid var(--ypp-purple)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <h3 style={{ margin: 0 }}>{launchBanner.title}</h3>
-            <span className="pill">{new Date(launchBanner.createdAt).toLocaleDateString()}</span>
-          </div>
-          <p style={{ marginTop: 8, color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>
-            {launchBanner.content}
+      {isAdmin && adminSubtypes.length === 0 ? (
+        <div className="card" style={{ marginTop: 16, marginBottom: 16 }}>
+          <h2 style={{ marginTop: 0, marginBottom: 8 }}>Waiting for Admin Subtype Assignment</h2>
+          <p style={{ margin: 0, color: "var(--muted)" }}>
+            Your account has the base admin role, but no admin subtype has been assigned yet. Until that happens, this page stays in a minimal queue mode.
           </p>
-          {launchBanner.linkUrl ? (
-            <div style={{ marginTop: 10 }}>
-              <Link href={launchBanner.linkUrl} className="link">
-                Open rollout resource
-              </Link>
+        </div>
+      ) : null}
+
+      {adminSubtypes.length > 0 ? (
+        <div className="card" style={{ marginTop: 16, marginBottom: 16 }}>
+          <p style={{ margin: 0, color: "var(--muted)" }}>
+            Active admin types:{" "}
+            <strong>
+              {adminSubtypes.map((subtype) => ADMIN_SUBTYPE_LABELS[subtype]).join(", ")}
+            </strong>
+          </p>
+        </div>
+      ) : null}
+
+      <div className="grid two" style={{ alignItems: "start" }}>
+        <section className="card">
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 16 }}>
+            <div>
+              <h2 style={{ margin: 0 }}>Next Actions</h2>
+              <p style={{ margin: "6px 0 0", color: "var(--muted)" }}>
+                Assigned work for your current role and workflow ownership.
+              </p>
             </div>
-          ) : null}
-        </div>
-      ) : null}
-
-      {priorityTool ? (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <h3 style={{ marginTop: 0, marginBottom: 6 }}>Start Here</h3>
-          <p style={{ margin: 0 }}>
-            One fast jump into your highest-priority tool for this role.
-          </p>
-          <div style={{ marginTop: 10 }}>
-            <Link href={priorityTool.href} className="link">
-              Open {priorityTool.label}
-            </Link>
+            <span className="badge">{workflowHome.items.length}</span>
           </div>
-        </div>
-      ) : null}
 
-      <NextActions actions={dashboard.nextActions} />
-      <QueueBoard queues={dashboard.queues} />
-      <KpiStrip kpis={dashboard.kpis} />
-
-      {/* Governance: At-Risk Chapters (Admin only) */}
-      {dashboard.role === "ADMIN" && atRiskChapters.length > 0 && (
-        <div style={{ marginTop: 16 }}>
-          <AtRiskPanel chapters={atRiskChapters} />
-        </div>
-      )}
-
-      {dashboard.role === "STUDENT" && studentSnapshot ? (
-        <div className="grid two" style={{ marginTop: 16 }}>
-          <div className="card">
-            <h3 style={{ marginTop: 0 }}>First Week Checklist</h3>
-            <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
-              {[
-                {
-                  done: studentSnapshot.checklist.profileCompleted,
-                  text: "Complete your profile",
-                  href: "/onboarding",
-                },
-                {
-                  done: studentSnapshot.checklist.joinedFirstClass,
-                  text: "Join your first class",
-                  href: "/curriculum",
-                },
-                {
-                  done: studentSnapshot.checklist.submittedFirstAssignment,
-                  text: "Submit your first assignment",
-                  href: "/my-classes",
-                },
-                {
-                  done: studentSnapshot.checklist.checkedInAtLeastOnce,
-                  text: "Complete one check-in",
-                  href: "/check-in",
-                },
-              ].map((item) => (
-                <Link key={item.text} href={item.href} style={{ textDecoration: "none", color: "inherit" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 10, border: "1px solid var(--border)", borderRadius: 10 }}>
-                    <span>{item.text}</span>
-                    <span className="pill" style={item.done ? { background: "#f0fdf4", color: "#166534" } : {}}>
-                      {item.done ? "Done" : "Pending"}
-                    </span>
+          {workflowHome.items.length === 0 ? (
+            <p style={{ margin: 0, color: "var(--muted)" }}>
+              You do not have any assigned workflow items right now.
+            </p>
+          ) : (
+            <div style={{ display: "grid", gap: 12 }}>
+              {workflowHome.items.map((item) => (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  className="workflow-home-card"
+                  style={{ display: "block", color: "inherit", textDecoration: "none" }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start" }}>
+                    <div>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+                        <span className="pill pill-small pill-info">{formatStage(item.stage)}</span>
+                        <span className="pill pill-small">{item.kind.replace(/_/g, " ")}</span>
+                      </div>
+                      <p style={{ margin: 0, fontWeight: 700 }}>{item.title}</p>
+                      {item.summary ? (
+                        <p style={{ margin: "6px 0 0", color: "var(--muted)", fontSize: 14 }}>{item.summary}</p>
+                      ) : null}
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--accent)" }}>Open</span>
+                  </div>
+                  <div style={{ marginTop: 12, fontSize: 12, color: "var(--muted)" }}>
+                    Deadline to action: {formatAbsoluteDate(item.dueAt)}
                   </div>
                 </Link>
               ))}
             </div>
+          )}
+        </section>
+
+        <section className="card">
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 16 }}>
+            <div>
+              <h2 style={{ margin: 0 }}>Notifications</h2>
+              <p style={{ margin: "6px 0 0", color: "var(--muted)" }}>
+                Recent portal alerts with exact dates.
+              </p>
+            </div>
+            <span className="badge">{unreadNotifications} unread</span>
           </div>
 
-          <div className="card">
-            <h3 style={{ marginTop: 0 }}>Due Soon (Next 7 Days)</h3>
-            <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Assignments due</span>
-                <strong>{studentSnapshot.dueAssignmentsNext7Days}</strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Upcoming sessions</span>
-                <strong>{studentSnapshot.upcomingSessionsNext7Days}</strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Training modules due</span>
-                <strong>{studentSnapshot.trainingDue}</strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Pathway next steps</span>
-                <strong>{studentSnapshot.nextPathwaySteps}</strong>
-              </div>
-            </div>
-            <div style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <Link href="/curriculum" className="button secondary" style={{ fontSize: 13 }}>
-                Open Curriculum
-              </Link>
-              <Link href="/my-chapter" className="button secondary" style={{ fontSize: 13 }}>
-                Open My Chapter
-              </Link>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {dashboard.role === "STUDENT" && dashboard.activePathways !== undefined && (
-        <div style={{ marginTop: 16 }}>
-          <PathwayWidget pathways={dashboard.activePathways} />
-        </div>
-      )}
-
-      {dashboard.role === "INSTRUCTOR" && dashboard.instructorReadiness && (
-        <div style={{ marginTop: 16 }}>
-          <InstructorReadinessWidget summary={dashboard.instructorReadiness} />
-        </div>
-      )}
-
-      <ToolExplorer
-        sections={dashboard.sections}
-        moduleBadgeByHref={dashboard.moduleBadgeByHref}
-      />
-
-      <div className="card" style={{ marginTop: 16 }}>
-        <details className="dashboard-about">
-          <summary>About this dashboard</summary>
-          <div className="dashboard-about-content">
-            <p style={{ marginTop: 0, color: "var(--muted)" }}>
-              Dashboard generated at {new Date(dashboard.generatedAt).toLocaleTimeString()}.
+          {notifications.length === 0 ? (
+            <p style={{ margin: 0, color: "var(--muted)" }}>
+              You do not have any notifications right now.
             </p>
-            <p style={{ marginBottom: 8 }}>
-              Use queue cards for urgent work first, then use the All Tools Explorer for everything else.
-            </p>
-            <p style={{ marginBottom: 0 }}>
-              Need full navigation? Open the sidebar and browse grouped tools in More.
-            </p>
-
-            <div className="portal-goal-grid">
-              <div className="portal-goal-block">
-                <h4>Portal Goals</h4>
-                <ul className="portal-goal-list">
-                  {portalGoals.map((goal) => (
-                    <li key={goal}>{goal}</li>
-                  ))}
-                </ul>
-              </div>
-              <div className="portal-goal-block">
-                <h4>Passion World Goals</h4>
-                <ul className="portal-goal-list">
-                  {passionWorldGoals.map((goal) => (
-                    <li key={goal}>{goal}</li>
-                  ))}
-                </ul>
-              </div>
+          ) : (
+            <div style={{ display: "grid", gap: 12 }}>
+              {notifications.map((notification) => (
+                <Link
+                  key={notification.id}
+                  href={notification.link || "/notifications"}
+                  className="workflow-home-card"
+                  style={{ display: "block", color: "inherit", textDecoration: "none" }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start" }}>
+                    <div>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+                        <span className="pill pill-small">{notificationTag(notification.type)}</span>
+                        {!notification.isRead ? (
+                          <span className="pill pill-small pill-attention">Unread</span>
+                        ) : null}
+                      </div>
+                      <p style={{ margin: 0, fontWeight: 700 }}>{notification.title}</p>
+                      <p style={{ margin: "6px 0 0", color: "var(--muted)", fontSize: 14 }}>{notification.body}</p>
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--accent)" }}>Open</span>
+                  </div>
+                  <div style={{ marginTop: 12, fontSize: 12, color: "var(--muted)" }}>
+                    Posted: {formatAbsoluteDate(notification.createdAt)}
+                  </div>
+                </Link>
+              ))}
             </div>
-
-            <div className="portal-role-focus">
-              <span className="portal-role-focus-label">This role should focus on:</span>
-              <ul className="portal-goal-list compact">
-                {roleFocusItems.map((goal) => (
-                  <li key={goal}>{goal}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </details>
+          )}
+        </section>
       </div>
+
+      {isSuperAdmin ? (
+        <section className="card" style={{ marginTop: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 16 }}>
+            <div>
+              <h2 style={{ margin: 0 }}>Master Dashboard</h2>
+              <p style={{ margin: "6px 0 0", color: "var(--muted)" }}>
+                Progress across everyone currently tracked in the shared workflow system.
+              </p>
+            </div>
+          </div>
+
+          {workflowHome.masterRows.length === 0 ? (
+            <p style={{ margin: 0, color: "var(--muted)" }}>
+              Workflow items will appear here once people are routed into the shared dashboard.
+            </p>
+          ) : (
+            <div style={{ display: "grid", gap: 12 }}>
+              {workflowHome.masterRows.map((row) => (
+                <div
+                  key={row.subjectUserId}
+                  style={{
+                    border: "1px solid var(--border)",
+                    borderRadius: 14,
+                    padding: 16,
+                    background: "var(--surface)",
+                  }}
+                >
+                  <div style={{ display: "grid", gridTemplateColumns: "minmax(180px, 1fr) minmax(160px, 220px) minmax(220px, 2fr)", gap: 16, alignItems: "start" }}>
+                    <div>
+                      <p style={{ margin: 0, fontWeight: 700 }}>{row.name}</p>
+                    </div>
+                    <div>
+                      <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--muted)", fontWeight: 700 }}>Progress</p>
+                      <div style={{ height: 10, borderRadius: 999, background: "var(--surface-hover)", overflow: "hidden" }}>
+                        <div
+                          style={{
+                            width: `${row.progressPercent}%`,
+                            height: "100%",
+                            background: "linear-gradient(90deg, var(--accent) 0%, #4f46e5 100%)",
+                          }}
+                        />
+                      </div>
+                      <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--muted)" }}>{row.progressPercent}% complete</p>
+                    </div>
+                    <div>
+                      <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--muted)", fontWeight: 700 }}>Remaining Tasks</p>
+                      {row.remainingTasks.length === 0 ? (
+                        <p style={{ margin: 0, color: "var(--muted)", fontSize: 14 }}>No remaining tasks.</p>
+                      ) : (
+                        <div style={{ display: "grid", gap: 8 }}>
+                          {row.remainingTasks.map((task) => (
+                            <div key={`${row.subjectUserId}-${task.title}`} style={{ fontSize: 14 }}>
+                              <strong>{task.title}</strong>
+                              <span style={{ color: "var(--muted)" }}>
+                                {" "}· {formatAbsoluteDate(task.dueAt)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
     </div>
   );
 }

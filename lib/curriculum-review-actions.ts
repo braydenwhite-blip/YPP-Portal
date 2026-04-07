@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getClassTemplateCapabilities } from "@/lib/class-template-compat";
+import { syncCurriculumApprovalWorkflow } from "@/lib/workflow";
 
 async function requireReviewer() {
   const session = await getServerSession(authOptions);
@@ -32,6 +33,8 @@ export async function approveCurriculum(formData: FormData) {
     select: { id: true },
   });
 
+  await syncCurriculumApprovalWorkflow(id);
+
   revalidatePath("/admin/curricula");
   revalidatePath("/instructor/curriculum-builder");
 }
@@ -56,6 +59,8 @@ export async function requestCurriculumRevision(formData: FormData) {
     },
     select: { id: true },
   });
+
+  await syncCurriculumApprovalWorkflow(id);
 
   revalidatePath("/admin/curricula");
   revalidatePath("/instructor/curriculum-builder");

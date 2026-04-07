@@ -15,6 +15,7 @@ import {
   normalizeCurriculumEngagementStrategy,
 } from "@/lib/instructor-builder-blueprints";
 import { getLegacyLearnerFitCopy } from "@/lib/learner-fit";
+import { syncCurriculumApprovalWorkflow } from "@/lib/workflow";
 
 type WeeklyTopic = {
   week?: number;
@@ -533,6 +534,8 @@ export async function submitCurriculumForReview(formData: FormData) {
     data: { submissionStatus: "SUBMITTED", submittedAt: new Date() },
     select: { id: true },
   });
+
+  await syncCurriculumApprovalWorkflow(id);
 
   revalidatePath("/instructor/curriculum-builder");
   revalidatePath("/instructor/workspace");

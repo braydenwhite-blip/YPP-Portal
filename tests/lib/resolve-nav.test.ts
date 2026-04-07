@@ -20,7 +20,7 @@ describe("resolveNavModel", () => {
     expect(visibleHrefs).toContain("/instructor-training");
     expect(visibleHrefs).toContain("/attendance");
     expect(visibleHrefs).toContain("/instructor/parent-feedback");
-    expect(visibleHrefs).toContain("/mentorship");
+    expect(visibleHrefs).toContain("/my-program");
     expect(visibleHrefs).toContain("/my-program/awards");
     expect(visibleHrefs).toContain("/messages");
     expect(visibleHrefs).toContain("/notifications");
@@ -62,7 +62,7 @@ describe("resolveNavModel", () => {
     const visibleHrefs = hrefs(model);
 
     expect(visibleHrefs).toContain("/pathways");
-    expect(visibleHrefs).toContain("/mentorship");
+    expect(visibleHrefs).toContain("/my-program");
     expect(visibleHrefs).toContain("/check-in");
     expect(visibleHrefs).not.toContain("/challenges");
     expect(visibleHrefs).not.toContain("/incubator");
@@ -91,5 +91,49 @@ describe("resolveNavModel", () => {
 
     expect(hrefs(hiddenModel)).not.toContain("/world");
     expect(hrefs(visibleModel)).toContain("/world");
+  });
+
+  it("keeps admin users without subtypes on the reduced navigation allowlist", () => {
+    const model = resolveNavModel({
+      roles: ["ADMIN"],
+      primaryRole: "ADMIN",
+      pathname: "/",
+      enabledFeatureKeys: new Set(),
+    });
+
+    const visibleHrefs = hrefs(model);
+    expect(visibleHrefs).toContain("/");
+    expect(visibleHrefs).toContain("/messages");
+    expect(visibleHrefs).toContain("/notifications");
+    expect(visibleHrefs).not.toContain("/admin");
+    expect(visibleHrefs).not.toContain("/admin/instructor-applicants");
+    expect(visibleHrefs).not.toContain("/admin/portal-rollout");
+  });
+
+  it("unlocks only the approved admin pages for content admins", () => {
+    const model = resolveNavModel({
+      roles: ["ADMIN"],
+      adminSubtypes: ["CONTENT_ADMIN"],
+      primaryRole: "ADMIN",
+      pathname: "/",
+      enabledFeatureKeys: new Set(),
+    });
+
+    const visibleHrefs = hrefs(model);
+    expect(visibleHrefs).toContain("/admin");
+    expect(visibleHrefs).toContain("/admin/curricula");
+    expect(visibleHrefs).not.toContain("/admin/recruiting");
+    expect(visibleHrefs).not.toContain("/admin/announcements");
+  });
+
+  it("preserves non-admin pathway access for multi-role users", () => {
+    const model = resolveNavModel({
+      roles: ["ADMIN", "MENTOR"],
+      primaryRole: "ADMIN",
+      pathname: "/",
+      enabledFeatureKeys: new Set(),
+    });
+
+    expect(hrefs(model)).toContain("/mentorship-program/reviews");
   });
 });

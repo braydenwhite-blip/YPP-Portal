@@ -30,12 +30,14 @@ describe("Authentication Integration", () => {
         email: "test@example.com",
         roles: ["STUDENT"],
         primaryRole: "STUDENT",
+        adminSubtypes: [],
       };
 
       // Verify user object structure
       expect(mockUser).toHaveProperty("id");
       expect(mockUser).toHaveProperty("email");
       expect(mockUser).toHaveProperty("roles");
+      expect(mockUser).toHaveProperty("adminSubtypes");
       expect(mockUser.roles).toBeInstanceOf(Array);
     });
 
