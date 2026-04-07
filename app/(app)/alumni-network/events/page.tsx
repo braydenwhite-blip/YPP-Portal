@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getPanelEvents } from "@/lib/alumni-network-actions";
 import Link from "next/link";
 import RsvpClient from "./rsvp-client";
@@ -8,7 +7,7 @@ import RsvpClient from "./rsvp-client";
 export const metadata = { title: "Alumni Panel Events — YPP" };
 
 export default async function AlumniEventsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const roles = session.user.roles ?? [];

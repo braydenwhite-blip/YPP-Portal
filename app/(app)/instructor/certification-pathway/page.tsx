@@ -1,11 +1,10 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getInstructorCertifications } from "@/lib/real-world-actions";
 import { StartCertForm, RequirementToggle, SubmitCertButton } from "./client";
 
 export default async function CertificationPathwayPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const certs = await getInstructorCertifications();
@@ -20,7 +19,7 @@ export default async function CertificationPathwayPage() {
       description: "Proven track record, curriculum creation, and mentoring new instructors",
     },
     Specialist: {
-      color: "#7c3aed",
+      color: "#6b21c8",
       description: "Expert-level mastery in a passion area with published curriculum",
     },
   };

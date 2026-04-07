@@ -4,23 +4,58 @@ import type {
   StudioUnderstandingChecks,
 } from "@/lib/curriculum-draft-progress";
 
-export type ActivityType =
-  | "WARM_UP"
-  | "INSTRUCTION"
-  | "PRACTICE"
-  | "DISCUSSION"
-  | "ASSESSMENT"
-  | "BREAK"
-  | "REFLECTION"
-  | "GROUP_WORK";
+export const LESSON_STUDIO_ACTIVITY_TYPES = [
+  "WARM_UP",
+  "INSTRUCTION",
+  "PRACTICE",
+  "DISCUSSION",
+  "ASSESSMENT",
+  "BREAK",
+  "REFLECTION",
+  "GROUP_WORK",
+] as const;
+
+export type ActivityType = (typeof LESSON_STUDIO_ACTIVITY_TYPES)[number];
 
 export type EnergyLevel = "HIGH" | "MEDIUM" | "LOW";
 
+export const LESSON_STUDIO_AT_HOME_ASSIGNMENT_TYPES = [
+  "REFLECTION_PROMPT",
+  "PRACTICE_TASK",
+  "QUIZ",
+  "PRE_READING",
+] as const;
+
 export type AtHomeAssignmentType =
-  | "REFLECTION_PROMPT"
-  | "PRACTICE_TASK"
-  | "QUIZ"
-  | "PRE_READING";
+  (typeof LESSON_STUDIO_AT_HOME_ASSIGNMENT_TYPES)[number];
+
+export function isActivityType(value: unknown): value is ActivityType {
+  return LESSON_STUDIO_ACTIVITY_TYPES.includes(
+    String(value ?? "").trim().toUpperCase() as ActivityType
+  );
+}
+
+export function normalizeActivityType(value: unknown): ActivityType {
+  return isActivityType(value)
+    ? (String(value).trim().toUpperCase() as ActivityType)
+    : "WARM_UP";
+}
+
+export function isAtHomeAssignmentType(
+  value: unknown
+): value is AtHomeAssignmentType {
+  return LESSON_STUDIO_AT_HOME_ASSIGNMENT_TYPES.includes(
+    String(value ?? "").trim().toUpperCase() as AtHomeAssignmentType
+  );
+}
+
+export function normalizeAtHomeAssignmentType(
+  value: unknown
+): AtHomeAssignmentType {
+  return isAtHomeAssignmentType(value)
+    ? (String(value).trim().toUpperCase() as AtHomeAssignmentType)
+    : "REFLECTION_PROMPT";
+}
 
 export interface AtHomeAssignment {
   type: AtHomeAssignmentType;

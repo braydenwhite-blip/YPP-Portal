@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Image from "next/image";
 import Nav, { type NavBadges } from "@/components/nav";
+import BrandLockup from "@/components/brand-lockup";
 import LogoutButton from "@/components/logout-button";
 import PageHelperFab from "@/components/page-helper-fab";
 import type { PageHelperRole } from "@/lib/page-helper/types";
@@ -18,6 +18,7 @@ export default function AppShell({
   enabledFeatureKeys,
   unlockedSections,
   recentlyUnlockedGroups,
+  studentFullPortalExplorer,
 }: {
   children: React.ReactNode;
   userName?: string | null;
@@ -29,6 +30,7 @@ export default function AppShell({
   enabledFeatureKeys?: string[];
   unlockedSections?: string[];
   recentlyUnlockedGroups?: string[];
+  studentFullPortalExplorer?: boolean;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const sidebarId = "portal-sidebar";
@@ -46,6 +48,16 @@ export default function AppShell({
     () => (enabledFeatureKeys ? new Set(enabledFeatureKeys) : undefined),
     [enabledFeatureKeys],
   );
+
+  const userInitials = useMemo(() => {
+    const raw = (userName ?? "U").trim();
+    if (!raw) return "U";
+    const parts = raw.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return raw.slice(0, 2).toUpperCase();
+  }, [userName]);
 
   return (
     <div className="app-shell">
@@ -80,17 +92,13 @@ export default function AppShell({
       <aside id={sidebarId} className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         {/* Header — fixed */}
         <div className="sidebar-header">
-          <div className="brand">
-            <Image
-              src="/logo-icon.svg"
-              alt="YPP Logo"
-              width={36}
-              height={36}
-              className="brand-logo"
+          <div className="sidebar-brand">
+            <BrandLockup
+              height={40}
+              className="brand-lockup"
+              href="/"
+              onClick={() => setSidebarOpen(false)}
             />
-            <span className="brand-text">
-              Youth Passion <span>Project</span>
-            </span>
           </div>
         </div>
 
@@ -106,21 +114,25 @@ export default function AppShell({
             onNavigate={() => setSidebarOpen(false)}
             unlockedSections={unlockedSectionsSet}
             recentlyUnlockedGroups={recentlyUnlockedGroupsSet}
+            studentFullPortalExplorer={studentFullPortalExplorer}
           />
         </div>
 
         {/* Footer — fixed */}
         <div className="sidebar-footer">
-          <div className="sidebar-card">
-            <div className="sidebar-card-row">
+          <div className="sidebar-footer-card sidebar-marble-panel">
+            <div className="sidebar-user-row">
+              <div className="sidebar-user-avatar" aria-hidden>
+                {userInitials}
+              </div>
               <div>
                 <p className="user-name">{userName ?? "Portal User"}</p>
                 <p className="user-role">
-                  {primaryRole ? primaryRole.replace("_", " ") : "Portal Access"}
+                  {primaryRole ? primaryRole.replace(/_/g, " ") : "Portal access"}
                 </p>
               </div>
-              <LogoutButton />
             </div>
+            <LogoutButton className="button small outline logout-button-sidebar" />
           </div>
         </div>
       </aside>

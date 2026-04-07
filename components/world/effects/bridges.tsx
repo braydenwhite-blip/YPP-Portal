@@ -11,7 +11,7 @@ interface BridgesProps {
 
 /**
  * Curved tube bridges between consecutive islands.
- * Uses brand purple (#7c3aed) with pink emissive (#ec4899) for portal integration.
+ * Uses brand purple (#6b21c8) with pink emissive (#ec4899) for portal integration.
  */
 export function Bridges({ islands, positions }: BridgesProps) {
   const bridges = useMemo(() => {
@@ -62,7 +62,7 @@ function BridgeTube({ curve }: { curve: THREE.CatmullRomCurve3 }) {
   return (
     <mesh geometry={geometry}>
       <meshStandardMaterial
-        color="#7c3aed"
+        color="#6b21c8"
         transparent
         opacity={0.35}
         emissive="#ec4899"

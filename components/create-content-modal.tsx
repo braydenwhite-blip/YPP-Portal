@@ -17,7 +17,7 @@ const OPTIONS: ContentOption[] = [
     description: "Build a curriculum and create class offerings for students.",
     href: "/instructor/curriculum-builder",
     icon: "📚",
-    color: "#7c3aed",
+    color: "#6b21c8",
   },
   {
     title: "Passion Lab",

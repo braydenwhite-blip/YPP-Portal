@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getCohortById, getAvailableMentors } from "@/lib/incubator-actions";
 import Link from "next/link";
 import { ReviewApplicationActions, AssignMentorForm, ApproveLaunchButton } from "./client";
@@ -10,16 +9,16 @@ const PHASE_LABELS: Record<string, string> = {
   FEEDBACK: "Feedback", POLISHING: "Polishing", SHOWCASE: "Showcase",
 };
 const PHASE_COLORS: Record<string, string> = {
-  IDEATION: "#8b5cf6", PLANNING: "#3b82f6", BUILDING: "#d97706",
+  IDEATION: "#8b3fe8", PLANNING: "#3b82f6", BUILDING: "#d97706",
   FEEDBACK: "#ec4899", POLISHING: "#06b6d4", SHOWCASE: "#16a34a",
 };
 const APP_STATUS_COLORS: Record<string, string> = {
   SUBMITTED: "#d97706", UNDER_REVIEW: "#3b82f6", ACCEPTED: "#16a34a",
-  WAITLISTED: "#8b5cf6", REJECTED: "#ef4444", WITHDRAWN: "#6b7280",
+  WAITLISTED: "#8b3fe8", REJECTED: "#ef4444", WITHDRAWN: "#6b7280",
 };
 
 export default async function CohortDetailPage({ params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const roles = (session.user as any).roles ?? [];
@@ -144,7 +143,7 @@ export default async function CohortDetailPage({ params }: { params: { id: strin
         {cohort.projects.length > 0 ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {cohort.projects.map((project) => {
-              const color = PHASE_COLORS[project.currentPhase] || "#7c3aed";
+              const color = PHASE_COLORS[project.currentPhase] || "#6b21c8";
               return (
                 <div key={project.id} className="card" style={{ borderLeft: `4px solid ${color}` }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>

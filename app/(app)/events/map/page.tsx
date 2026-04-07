@@ -1,11 +1,10 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getChapterEventsForMap } from "@/lib/real-world-actions";
 import Link from "next/link";
 
 export default async function ChapterEventsMapPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const chapters = await getChapterEventsForMap();
@@ -15,7 +14,7 @@ export default async function ChapterEventsMapPage() {
     Southeast: "#16a34a",
     Midwest: "#d97706",
     Southwest: "#ef4444",
-    West: "#7c3aed",
+    West: "#6b21c8",
     Northwest: "#06b6d4",
     International: "#ec4899",
   };

@@ -1,24 +1,48 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { DM_Sans, Playfair_Display, Nunito, Lora } from "next/font/google";
 
-const inter = Inter({
+const dmSans = DM_Sans({
+  variable: "--font-dm-sans",
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
   display: "swap",
-  variable: "--font-inter"
+});
+
+const playfair = Playfair_Display({
+  variable: "--font-playfair",
+  subsets: ["latin"],
+  weight: ["400", "700", "900"],
+  style: ["normal", "italic"],
+  display: "swap",
+});
+
+const nunito = Nunito({
+  variable: "--font-nunito",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800", "900"],
+  display: "swap",
+});
+
+const lora = Lora({
+  variable: "--font-lora",
+  subsets: ["latin"],
+  weight: ["400", "600", "700"],
+  style: ["normal", "italic"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
   title: "Youth Passion Project - Pathways Portal",
   description: "Portal for Youth Passion Project curriculum, training, mentorship, and chapter management.",
   icons: {
-    icon: "/favicon.svg",
-    apple: "/logo-icon.svg"
+    icon: "/favicon.ico",
+    apple: "/logo.png"
   }
 };
 
 export const viewport: Viewport = {
-  themeColor: "#7c3aed"
+  themeColor: "#6b21c8"
 };
 
 export default function RootLayout({
@@ -26,9 +50,11 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const fontVars = `${dmSans.variable} ${playfair.variable} ${nunito.variable} ${lora.variable}`;
+
   return (
-    <html lang="en" className={inter.variable}>
-      <body style={{ fontFamily: "var(--font-inter), system-ui, -apple-system, sans-serif" }}>
+    <html lang="en" className={fontVars}>
+      <body suppressHydrationWarning>
         {children}
       </body>
     </html>

@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getGRTemplateDetail } from "@/lib/gr-actions";
 import GRTemplateEditor from "@/components/gr/gr-template-editor";
 
@@ -12,7 +11,7 @@ interface Props {
 
 export default async function GRTemplateDetailPage({ params }: Props) {
   const { id } = await params;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.roles?.includes("ADMIN")) redirect("/");
 
   const template = await getGRTemplateDetail(id);

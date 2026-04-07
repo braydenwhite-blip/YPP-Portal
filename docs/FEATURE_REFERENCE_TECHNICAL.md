@@ -158,9 +158,10 @@ This document lists every feature in the portal — what it does, how it works t
 
 **How it works:**
 - `/forgot-password` form submits email
-- Token stored in `PasswordResetToken`, expires in 1 hour
-- Link sent to email: `/reset-password?token=...`
-- User sets new password, old token invalidated
+- Server asks Supabase Auth to generate a recovery link
+- App sends that recovery link through the configured email provider in `lib/email.ts`
+- Link lands on `/auth/callback`, then redirects to `/reset-password`
+- User sets a new password on `/reset-password`
 
 **How to test:**
 1. Go to `/forgot-password`, enter registered email

@@ -58,7 +58,7 @@ export default function ApplicationProgressStepper({ steps }: ApplicationProgres
                   background: step.complete
                     ? "#16a34a"
                     : step.active
-                      ? "#7c3aed"
+                      ? "#6b21c8"
                       : "var(--surface)",
                   color: step.complete || step.active ? "#fff" : "var(--muted)",
                   border: step.complete || step.active
@@ -86,7 +86,7 @@ export default function ApplicationProgressStepper({ steps }: ApplicationProgres
                     color: step.complete
                       ? "#166534"
                       : step.active
-                        ? "#7c3aed"
+                        ? "#6b21c8"
                         : "var(--text)",
                   }}
                 >

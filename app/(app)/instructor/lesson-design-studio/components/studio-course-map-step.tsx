@@ -157,7 +157,7 @@ export function StudioCourseMapStep({
 
             <div className="lds-stack">
               {safeOutcomes.map((outcome, index) => (
-                <div key={`outcome-${index}`} className="lds-inline-edit-row">
+                <div key={`outcome-${index}-${outcome.substring(0, 20)}`} className="lds-inline-edit-row">
                   <input
                     value={outcome}
                     readOnly={isReadOnly}

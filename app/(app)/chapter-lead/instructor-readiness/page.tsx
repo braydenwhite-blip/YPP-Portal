@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   approveOfferingApproval,
@@ -28,7 +27,7 @@ function getDraftIdFromEvidenceUrl(fileUrl: string) {
 }
 
 export default async function ChapterLeadInstructorReadinessPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }
@@ -226,13 +225,8 @@ export default async function ChapterLeadInstructorReadinessPage() {
   }
 
   const trainingComplete = instructors.filter((instructor) => {
-    const completedIds = new Set(
-      instructor.trainings
-        .filter((assignment) => assignment.status === "COMPLETE")
-        .map((assignment) => assignment.moduleId)
-    );
-
-    return requiredModules.every((module) => completedIds.has(module.id));
+    const readiness = readinessByInstructor.get(instructor.id);
+    return readiness?.trainingComplete ?? false;
   }).length;
 
   return (
@@ -252,7 +246,7 @@ export default async function ChapterLeadInstructorReadinessPage() {
         </div>
         <div className="card">
           <div className="kpi">{trainingComplete}</div>
-          <div className="kpi-label">Training Complete</div>
+          <div className="kpi-label">Training + LDS capstone complete</div>
         </div>
         <div className="card">
           <div className="kpi">{interviewQueue.length}</div>

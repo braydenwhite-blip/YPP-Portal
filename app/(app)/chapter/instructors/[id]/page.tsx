@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getInstructorDetail } from "@/lib/chapter-actions";
 import Link from "next/link";
 import { ProgressBar } from "@/components/progress-bar";
@@ -10,7 +9,7 @@ export default async function InstructorDetailPage({
 }: {
   params: { id: string };
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session) redirect("/login");
 
   const instructor = await getInstructorDetail(params.id);

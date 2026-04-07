@@ -1,7 +1,6 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 
-import { authOptions } from "@/lib/auth";
 import { ProgressBar, GoalProgressDisplay } from "@/components/progress-bar";
 import { PROGRESS_STATUS_META } from "@/lib/mentorship-review-helpers";
 import { prisma } from "@/lib/prisma";
@@ -15,7 +14,7 @@ const TONE_STYLES = {
 } as const;
 
 export default async function GoalsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const userId = session?.user?.id;
 
   if (!userId) {

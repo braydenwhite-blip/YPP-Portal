@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 
 const PLANNED_FEATURES = [
@@ -38,15 +37,15 @@ const PLANNED_FEATURES = [
 
 const PLANNED_WORKFLOW = [
   { step: "1", label: "Admin creates scholarship", color: "#6366f1" },
-  { step: "2", label: "Students apply", color: "#8b5cf6" },
-  { step: "3", label: "Committee reviews & scores", color: "#a78bfa" },
+  { step: "2", label: "Students apply", color: "#8b3fe8" },
+  { step: "3", label: "Committee reviews & scores", color: "#b47fff" },
   { step: "4", label: "Committee votes", color: "#c4b5fd" },
   { step: "5", label: "Award granted", color: "#10b981" },
   { step: "6", label: "Disbursement tracked", color: "#059669" },
 ];
 
 export default async function ScholarshipManagementPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id || session.user.primaryRole !== "ADMIN") {
     redirect("/");
   }

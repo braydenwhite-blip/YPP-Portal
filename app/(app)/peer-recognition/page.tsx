@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getKudosFeed, getKudosRecipients } from "@/lib/peer-recognition-actions";
 import KudosFeedClient from "./kudos-feed-client";
 
@@ -8,7 +7,7 @@ export const metadata = { title: "Peer Recognition — YPP" };
 
 const CATEGORY_CONFIG: Record<string, { label: string; emoji: string; color: string }> = {
   HELPFULNESS: { label: "Helpfulness", emoji: "🤝", color: "#0ea5e9" },
-  LEADERSHIP: { label: "Leadership", emoji: "🌟", color: "#7c3aed" },
+  LEADERSHIP: { label: "Leadership", emoji: "🌟", color: "#6b21c8" },
   CREATIVITY: { label: "Creativity", emoji: "🎨", color: "#ec4899" },
   ABOVE_AND_BEYOND: { label: "Above & Beyond", emoji: "🚀", color: "#f59e0b" },
   TEAMWORK: { label: "Teamwork", emoji: "👥", color: "#10b981" },
@@ -16,7 +15,7 @@ const CATEGORY_CONFIG: Record<string, { label: string; emoji: string; color: str
 };
 
 export default async function PeerRecognitionPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const [feed, recipients] = await Promise.all([getKudosFeed(), getKudosRecipients()]);

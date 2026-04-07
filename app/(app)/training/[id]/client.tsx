@@ -379,7 +379,7 @@ export default function TrainingModuleClient({
         >
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start", flexWrap: "wrap" }}>
             <div>
-              <p className="badge" style={{ background: "#ede9fe", color: "#6d28d9" }}>
+              <p className="badge" style={{ background: "#f0e6ff", color: "#5a1da8" }}>
                 Capstone Studio
               </p>
               <h3 style={{ margin: "6px 0 6px" }}>Lesson Design Studio readiness</h3>

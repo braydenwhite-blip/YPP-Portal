@@ -1,11 +1,10 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getMyRewards, getMyMysteryBoxes, checkRandomReward } from "@/lib/engagement-actions";
 import { RedeemRewardButton, OpenMysteryBoxButton, RandomRewardBanner } from "./client";
 
 export default async function RewardsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const [rewards, mysteryBoxes, randomDrop] = await Promise.all([
@@ -25,7 +24,7 @@ export default async function RewardsPage() {
   };
 
   const rewardTypeColors: Record<string, string> = {
-    BONUS_XP: "#d97706", STREAK_SHIELD: "#3b82f6", DOUBLE_XP: "#7c3aed",
+    BONUS_XP: "#d97706", STREAK_SHIELD: "#3b82f6", DOUBLE_XP: "#6b21c8",
     XP_BOOST: "#d97706", RARE_BADGE: "#ec4899", TITLE: "#16a34a", THEME_UNLOCK: "#06b6d4",
   };
 
@@ -46,7 +45,7 @@ export default async function RewardsPage() {
       {/* Stats Row */}
       <div className="grid three" style={{ marginBottom: 28 }}>
         <div className="card" style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 28, fontWeight: 700, color: "#7c3aed" }}>{unopenedBoxes.length}</div>
+          <div style={{ fontSize: 28, fontWeight: 700, color: "#6b21c8" }}>{unopenedBoxes.length}</div>
           <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>Unopened Boxes</div>
         </div>
         <div className="card" style={{ textAlign: "center" }}>
@@ -72,8 +71,8 @@ export default async function RewardsPage() {
                 className="card"
                 style={{
                   textAlign: "center",
-                  border: "2px dashed #7c3aed",
-                  background: "linear-gradient(135deg, #faf5ff 0%, #ede9fe 100%)",
+                  border: "2px dashed #6b21c8",
+                  background: "linear-gradient(135deg, #faf5ff 0%, #f0e6ff 100%)",
                 }}
               >
                 <div style={{ fontSize: 40, marginBottom: 8 }}>?</div>
@@ -99,7 +98,7 @@ export default async function RewardsPage() {
           <h2 style={{ fontSize: 18, marginBottom: 12 }}>Pending Rewards</h2>
           <div className="grid two">
             {unredeemedRewards.map((reward: any) => (
-              <div key={reward.id} className="card" style={{ borderLeft: `4px solid ${rewardTypeColors[reward.rewardType] || "#7c3aed"}` }}>
+              <div key={reward.id} className="card" style={{ borderLeft: `4px solid ${rewardTypeColors[reward.rewardType] || "#6b21c8"}` }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>

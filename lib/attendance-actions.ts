@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { AttendanceStatus, Prisma } from "@prisma/client";
 import { requireAttendanceAccess, requireOwnershipOrRole } from "@/lib/authorization-helpers";
@@ -12,7 +11,7 @@ import { requireAttendanceAccess, requireOwnershipOrRole } from "@/lib/authoriza
 // ============================================
 
 async function requireAuth() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
@@ -20,7 +19,7 @@ async function requireAuth() {
 }
 
 async function requireStaffRole() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (
     !session?.user?.id ||

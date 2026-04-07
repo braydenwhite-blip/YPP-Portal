@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { getActivityFeedForUser } from "@/lib/activity-hub/actions";
 import type { ActivitySourceType } from "@/lib/activity-hub/types";
@@ -15,7 +14,7 @@ const SOURCE_LABELS: Record<ActivitySourceType, string> = {
 };
 
 const SOURCE_COLORS: Record<ActivitySourceType, string> = {
-  PORTAL_CHALLENGE: "#7c3aed",
+  PORTAL_CHALLENGE: "#6b21c8",
   TALENT_CHALLENGE: "#0ea5e9",
   TRY_IT_SESSION: "#16a34a",
   INCUBATOR_PROJECT: "#d97706",
@@ -39,7 +38,7 @@ export default async function ActivitiesPage({
 }: {
   searchParams?: { source?: string; passion?: string };
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
   const featureEnabled = await isFeatureEnabledForUser("ACTIVITY_HUB", {
     userId: session.user.id,
@@ -97,7 +96,7 @@ export default async function ActivitiesPage({
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Link href="/challenges" className="button secondary">Challenges</Link>
           <Link href="/incubator" className="button secondary">Incubator</Link>
-          <Link href="/world" className="button secondary">Passion World</Link>
+          <Link href="/pathways" className="button secondary">Pathways</Link>
         </div>
       </div>
 

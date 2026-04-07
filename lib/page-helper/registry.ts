@@ -3012,6 +3012,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/scheduling",
+    title: "Scheduling Hub",
+    content: {
+      purpose: "This hub brings your interview, mentorship, and college-advisor scheduling work into one place.",
+      firstStep: "Start with the card that shows the most urgent scheduling work, blocked availability, or next booked session.",
+      nextStep: "Open the matching scheduler to book, review, or follow up, then come back here to move to the next track."
+    }
+  },
+  {
     pattern: "/settings/personalization",
     title: "Personalization",
     content: {
@@ -3081,6 +3090,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
       purpose: "This page helps a parent or guardian create the right account connection for family access in the portal.",
       firstStep: "Enter the family details carefully so the portal can connect the right student and parent records.",
       nextStep: "After you submit, the portal saves the parent signup and guides you to the next verification step."
+    }
+  },
+  {
+    pattern: "/signup/instructor",
+    title: "Instructor Application Signup",
+    content: {
+      purpose: "This page is the public application form for people who want to become YPP instructors.",
+      firstStep: "Complete the account fields first, then work through the teaching application sections from top to bottom.",
+      nextStep: "After you submit, your account is created, the application goes to review, and you can sign in later to track status."
     }
   },
   {

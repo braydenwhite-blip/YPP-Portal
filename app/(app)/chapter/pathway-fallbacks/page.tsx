@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { FallbackReviewButtons } from "./fallback-review-buttons";
@@ -63,7 +62,7 @@ function statusTone(status: string) {
 }
 
 export default async function ChapterPathwayFallbacksPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const roles = new Set(session.user.roles ?? []);

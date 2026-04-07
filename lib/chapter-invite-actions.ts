@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import crypto from "crypto";
 
@@ -22,7 +21,7 @@ function generateInviteCode(): string {
  * Create a new invite link for a chapter (lead/admin only).
  */
 export async function createChapterInvite(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -63,7 +62,7 @@ export async function createChapterInvite(formData: FormData) {
  * Get all invites for the current user's chapter.
  */
 export async function getChapterInvites() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -103,7 +102,7 @@ export async function getChapterInvites() {
  * Deactivate an invite link.
  */
 export async function deactivateInvite(inviteId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -171,7 +170,7 @@ export async function getInviteByCode(code: string) {
  * Accept an invite and join the chapter.
  */
 export async function acceptInvite(code: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Please sign in to accept this invite");
 
   const user = await prisma.user.findUnique({
@@ -227,7 +226,7 @@ export async function acceptInvite(code: string) {
  * Get chapter growth leaderboard data for the network.
  */
 export async function getGrowthLeaderboard() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const chapters = await prisma.chapter.findMany({
@@ -324,7 +323,7 @@ export async function getGrowthLeaderboard() {
  * Get referral stats for the current chapter.
  */
 export async function getChapterReferralStats() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({

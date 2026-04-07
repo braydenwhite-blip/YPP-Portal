@@ -1,10 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 
 export default async function EventsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const user = session?.user?.id
     ? await prisma.user.findUnique({
         where: { id: session.user.id },

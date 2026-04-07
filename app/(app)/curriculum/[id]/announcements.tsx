@@ -136,8 +136,8 @@ export function AnnouncementsPanel({ offeringId, announcements, isInstructor }: 
               style={{
                 padding: 12,
                 borderRadius: 8,
-                background: a.isPinned ? "var(--ypp-purple-100, #ede9fe)" : "var(--surface, #f9fafb)",
-                border: `1px solid ${a.isPinned ? "var(--ypp-purple, #7c3aed)" : "var(--border)"}`,
+                background: a.isPinned ? "var(--ypp-purple-100, #f0e6ff)" : "var(--surface, #f9fafb)",
+                border: `1px solid ${a.isPinned ? "var(--ypp-purple, #6b21c8)" : "var(--border)"}`,
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>

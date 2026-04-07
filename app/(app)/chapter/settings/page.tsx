@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { getChapterSettings } from "@/lib/chapter-settings-actions";
 import { getJoinRequests } from "@/lib/chapter-join-actions";
@@ -8,7 +7,7 @@ import { ChapterSettingsForm } from "./chapter-settings-form";
 import { JoinRequestsPanel } from "./join-requests-panel";
 
 export default async function ChapterSettingsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session) redirect("/login");
 
   const [settings, joinRequests] = await Promise.all([

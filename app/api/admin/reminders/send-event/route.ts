@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { deliverBulkNotifications } from "@/lib/notification-delivery";
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id || session.user.primaryRole !== "ADMIN") {
     return NextResponse.redirect(new URL("/", request.url));
   }

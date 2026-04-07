@@ -1,12 +1,11 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getPublicChapters } from "@/lib/chapter-join-actions";
 import { slugifyChapterName } from "@/lib/chapter-calendar";
 import { ChapterDirectoryClient } from "./chapter-directory-client";
 
 export default async function ChaptersPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const chapters = await getPublicChapters();
 
   // Extract unique locations for filter

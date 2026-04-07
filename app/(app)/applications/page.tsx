@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { withdrawApplication } from "@/lib/application-actions";
@@ -29,7 +28,7 @@ export default async function MyApplicationsPage({
   searchParams: Promise<{ status?: string }>;
 }) {
   const params = await searchParams;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   if (!session?.user?.id) {
     redirect("/login");
@@ -134,10 +133,10 @@ export default async function MyApplicationsPage({
                     padding: "4px 12px",
                     fontSize: 12,
                     fontWeight: isActive ? 600 : 400,
-                    border: `1px solid ${isActive ? "#7c3aed" : "var(--border)"}`,
+                    border: `1px solid ${isActive ? "#6b21c8" : "var(--border)"}`,
                     borderRadius: 16,
                     background: isActive ? "#f5f3ff" : "transparent",
-                    color: isActive ? "#7c3aed" : "var(--muted)",
+                    color: isActive ? "#6b21c8" : "var(--muted)",
                     textDecoration: "none",
                     transition: "all 0.15s",
                   }}
@@ -180,7 +179,7 @@ export default async function MyApplicationsPage({
                         <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
                           <span className="pill">{application.position.type.replace("_", " ")}</span>
                           {application.position.chapter && (
-                            <span className="pill" style={{ background: "#f3e8ff", color: "#7c3aed" }}>
+                            <span className="pill" style={{ background: "#f3e8ff", color: "#6b21c8" }}>
                               {application.position.chapter.name}
                             </span>
                           )}
@@ -201,7 +200,7 @@ export default async function MyApplicationsPage({
                       {!hasApprovedDecision && !["WITHDRAWN"].includes(application.status) && (
                         <span style={{
                           fontSize: 12,
-                          color: "#7c3aed",
+                          color: "#6b21c8",
                           fontWeight: 500,
                         }}>
                           {hasPendingDecision

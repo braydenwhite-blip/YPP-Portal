@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { notFound, redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { withPrismaFallback } from "@/lib/prisma-guard";
 import { getPreferredCurriculumDraftForStudioSurface } from "@/lib/curriculum-draft-actions";
@@ -13,7 +12,7 @@ export default async function TrainingModulePage({
 }) {
   const { id } = await params;
 
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }

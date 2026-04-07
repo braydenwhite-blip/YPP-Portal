@@ -31,7 +31,7 @@ export const PROGRESS_STATUS_META: Record<
     position: 2,
   },
   ABOVE_AND_BEYOND: {
-    color: "#7c3aed",
+    color: "#6b21c8",
     label: "Above & Beyond",
     description:
       "Exceeds goals in both quantity and quality.",

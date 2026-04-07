@@ -41,7 +41,7 @@ export default function NudgeBanner({ nudge, onDismiss }: NudgeBannerProps) {
         gap: 12,
         padding: "10px 14px",
         marginBottom: 12,
-        background: "linear-gradient(135deg, var(--ypp-purple-light, #ede9fe) 0%, var(--pink-50, #fdf2f8) 100%)",
+        background: "linear-gradient(135deg, var(--ypp-purple-light, #f0e6ff) 0%, var(--pink-50, #fdf2f8) 100%)",
         borderRadius: 10,
         border: "1px solid var(--ypp-purple-border, #ddd6fe)",
         fontSize: 14,
@@ -66,7 +66,7 @@ export default function NudgeBanner({ nudge, onDismiss }: NudgeBannerProps) {
             style={{
               fontSize: 13,
               fontWeight: 600,
-              color: "var(--ypp-purple, #7c3aed)",
+              color: "var(--ypp-purple, #6b21c8)",
               textDecoration: "none",
               whiteSpace: "nowrap",
             }}

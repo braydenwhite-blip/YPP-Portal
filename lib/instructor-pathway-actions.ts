@@ -1,13 +1,12 @@
 "use server";
 
-import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { hasInstructorPathwaySpecTable } from "@/lib/instructor-pathway-spec-compat";
 
 export async function toggleInstructorPathwaySpec(pathwayId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const roles = session.user.roles ?? [];

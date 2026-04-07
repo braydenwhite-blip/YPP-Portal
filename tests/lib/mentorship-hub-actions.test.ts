@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getServerSession } from "next-auth";
+
+import { getSession } from "@/lib/auth-supabase";
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
@@ -36,7 +37,7 @@ import { hasMentorshipMenteeAccess } from "@/lib/mentorship-access";
 describe("mentorship-hub-actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getServerSession).mockResolvedValue({
+    vi.mocked(getSession).mockResolvedValue({
       user: {
         id: "mentor-2",
         roles: ["MENTOR"],

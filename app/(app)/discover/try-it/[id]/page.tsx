@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { getTryItSessionById } from "@/lib/discovery-actions";
 
@@ -23,7 +22,7 @@ export default async function TryItSessionDetailPage({
 }: {
   params: { id: string };
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }
@@ -64,8 +63,8 @@ export default async function TryItSessionDetailPage({
             {tryIt.passionName} · {tryIt.duration} minutes
           </p>
         </div>
-        <Link href="/world" className="button secondary">
-          Passion World
+        <Link href="/pathways" className="button secondary">
+          Pathways
         </Link>
       </div>
 

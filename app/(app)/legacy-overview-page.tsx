@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import AnnouncementBanner from "@/components/announcement-banner";
 import XpDisplay from "@/components/xp-display";
 import PathwayProgressMap from "@/components/pathway-progress-map";
@@ -10,7 +9,7 @@ import { getNextRequiredAction } from "@/lib/instructor-readiness";
 import { getLearnerFitSummary } from "@/lib/learner-fit";
 
 export default async function OverviewPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const userId = session?.user?.id;
 
   const user = userId
@@ -333,7 +332,7 @@ export default async function OverviewPage() {
     );
   } else if (isStudent) {
     quickActions.push(
-      { href: "/world", label: "Passion World", description: "Explore your islands", accent: "#0ea5e9" },
+      { href: "/pathways/progress", label: "Pathway progress", description: "See your next steps", accent: "#0ea5e9" },
       { href: "/my-classes", label: "My Classes", description: "Continue learning", accent: "var(--ypp-purple-600)" },
       { href: "/pathways", label: "Pathways", description: "Explore pathways", accent: "#3b82f6" },
       { href: "/challenges", label: "Challenges", description: "Earn rewards", accent: "#f59e0b" },
@@ -362,12 +361,6 @@ export default async function OverviewPage() {
     "One connected flow from onboarding to outcomes with less admin overhead.",
   ];
 
-  const passionWorldGoals = [
-    "Turn curiosity into action with clear island-based paths.",
-    "Make progress visible through challenges, badges, and milestones.",
-    "Connect exploration to real classes, projects, and mentorship opportunities.",
-  ];
-
   const roleFocus = isAdmin
     ? [
         "Keep chapter hiring and instructor readiness visible in one operating view.",
@@ -386,7 +379,7 @@ export default async function OverviewPage() {
       : isStudent
         ? [
             "Stay on your pathway by completing one concrete step each week.",
-            "Use Passion World exploration to pick classes and challenges with purpose.",
+            "Use pathways and curriculum to pick classes and challenges with purpose.",
           ]
         : isMentor
           ? [
@@ -524,14 +517,6 @@ export default async function OverviewPage() {
               <h4>YPP Portal Goals</h4>
               <ul className="portal-goal-list">
                 {portalGoals.map((goal) => (
-                  <li key={goal}>{goal}</li>
-                ))}
-              </ul>
-            </div>
-            <div className="portal-goal-block">
-              <h4>Passion World Goals</h4>
-              <ul className="portal-goal-list">
-                {passionWorldGoals.map((goal) => (
                   <li key={goal}>{goal}</li>
                 ))}
               </ul>

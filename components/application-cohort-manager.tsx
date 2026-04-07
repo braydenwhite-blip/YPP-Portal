@@ -86,11 +86,11 @@ export default function ApplicationCohortManager({
       fontWeight: 600,
       backgroundColor:
         roleType === "CHAPTER_PRESIDENT"
-          ? "#ede9fe"
+          ? "#f0e6ff"
           : "#dcfce7",
       color:
         roleType === "CHAPTER_PRESIDENT"
-          ? "#5b21b6"
+          ? "#5a1da8"
           : "#166534",
     };
   }

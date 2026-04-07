@@ -1,11 +1,10 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getInstructorReadiness } from "@/lib/instructor-readiness";
 import { prisma } from "@/lib/prisma";
 
 export default async function InstructorCertificationsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }
@@ -59,7 +58,7 @@ export default async function InstructorCertificationsPage() {
       detail: readiness.canRequestOfferingApproval
         ? "You can request offering approval from class settings."
         : readiness.nextAction.detail,
-      color: "#8b5cf6",
+      color: "#8b3fe8",
       icon: "✅",
     },
   ];

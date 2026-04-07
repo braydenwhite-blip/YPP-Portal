@@ -1,12 +1,11 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getBadgesWithRarity } from "@/lib/challenge-gamification-actions";
 import Link from "next/link";
 import { PinBadgeButton } from "./client";
 
 export default async function AchievementBadgesPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const { badges, rarityMap } = await getBadgesWithRarity();
@@ -15,14 +14,14 @@ export default async function AchievementBadgesPage() {
     COMMON: "#6b7280",
     UNCOMMON: "#16a34a",
     RARE: "#3b82f6",
-    EPIC: "#7c3aed",
+    EPIC: "#6b21c8",
     LEGENDARY: "#d97706",
     MYTHIC: "#ef4444",
   };
 
   const rarityGlow: Record<string, string> = {
     RARE: "0 0 8px rgba(59,130,246,0.3)",
-    EPIC: "0 0 12px rgba(124,58,237,0.3)",
+    EPIC: "0 0 12px rgba(107,33,200,0.3)",
     LEGENDARY: "0 0 16px rgba(217,119,6,0.4)",
     MYTHIC: "0 0 20px rgba(239,68,68,0.4)",
   };

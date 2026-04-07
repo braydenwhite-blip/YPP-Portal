@@ -1,12 +1,11 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getMyRankings } from "@/lib/engagement-actions";
 import Link from "next/link";
 import { LeaderboardTabs } from "./client";
 
 export default async function LeaderboardsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const myRankings = await getMyRankings();
@@ -15,7 +14,7 @@ export default async function LeaderboardsPage() {
     XP: "Total XP", STREAKS: "Longest Streak", CHALLENGES: "Challenges Won", PRACTICE_HOURS: "Practice Hours",
   };
   const categoryColors: Record<string, string> = {
-    XP: "#7c3aed", STREAKS: "#d97706", CHALLENGES: "#3b82f6", PRACTICE_HOURS: "#16a34a",
+    XP: "#6b21c8", STREAKS: "#d97706", CHALLENGES: "#3b82f6", PRACTICE_HOURS: "#16a34a",
   };
 
   // Group my rankings by category for the summary

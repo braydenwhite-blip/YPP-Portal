@@ -67,120 +67,135 @@ export function StudioExampleSpotlight({
         curriculum.weeks[0]
       : curriculum.weeks[0];
   const weekAnnotations = EXAMPLE_WEEK_ANNOTATIONS[curriculum.id]?.[targetWeek.weekNumber];
+  const title =
+    mode === "course-map"
+      ? "See how a strong course promise sounds"
+      : mode === "session"
+        ? "Study a model session arc while you build"
+        : "Use the reviewer lens before you launch";
 
   return (
-    <aside className="lds-example-spotlight">
-      <div className="lds-example-spotlight-header">
-        <p className="lds-section-eyebrow">Inline example</p>
-        <h3 className="lds-section-title">
-          {mode === "course-map"
-            ? "See how a strong course promise sounds"
-            : mode === "session"
-              ? "Study a model session arc while you build"
-              : "Use the reviewer lens before you launch"}
-        </h3>
-        <p className="lds-section-copy">
-          Recommended example: <strong>{curriculum.title}</strong> in{" "}
-          {curriculum.interestArea}.
-        </p>
-      </div>
+    <details className="lds-example-spotlight" open>
+      <summary className="lds-example-spotlight-summary">
+        <div className="lds-example-spotlight-header">
+          <div>
+            <p className="lds-section-eyebrow">Reference panel</p>
+            <h3 className="lds-section-title">{title}</h3>
+            <p className="lds-section-copy">
+              Recommended example: <strong>{curriculum.title}</strong> in{" "}
+              {curriculum.interestArea}.
+            </p>
+          </div>
+          <span className="lds-example-spotlight-toggle">Examples</span>
+        </div>
+      </summary>
 
-      {mode === "course-map" ? (
-        <>
-          <div className="lds-example-callout">
-            <strong>{curriculum.title}</strong>
-            <p>{curriculum.description}</p>
-          </div>
-          <div className="lds-example-list-card">
-            <h4>What makes this course promise work</h4>
-            <ul>
-              {annotations.whyThisCurriculumWorks.slice(0, 3).map((note) => (
-                <li key={note}>{note}</li>
-              ))}
-            </ul>
-          </div>
-          <div className="lds-example-list-card">
-            <h4>Outcome moves to borrow</h4>
-            <ul>
-              {curriculum.outcomes.slice(0, 4).map((outcome) => (
-                <li key={outcome}>{outcome}</li>
-              ))}
-            </ul>
-          </div>
-        </>
-      ) : null}
-
-      {mode === "session" ? (
-        <>
-          <div className="lds-example-callout">
-            <strong>
-              {selectedSessionLabel ?? `Week ${targetWeek.weekNumber}`} example
-            </strong>
-            <p>{targetWeek.title}</p>
-          </div>
-          <div className="lds-example-list-card">
-            <h4>Why this session works</h4>
-            <ul>
-              <li>{weekAnnotations?.whyThisWeekWorks ?? "The session has a clear arc from entry to application and reflection."}</li>
-              <li>{weekAnnotations?.adaptIt ?? "Borrow the move, then change the language, examples, and pacing to fit your own students."}</li>
-            </ul>
-          </div>
-          <div className="lds-example-list-card">
-            <h4>Session moves to notice</h4>
-            <ul>
-              {targetWeek.activities.slice(0, 4).map((activity) => (
-                <li key={`${targetWeek.weekNumber}-${activity.title}`}>
-                  {activity.title} ({activity.durationMin} min)
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="lds-inline-actions">
-            {onImportWeek ? (
-              <button
-                type="button"
-                className="button"
-                onClick={() => onImportWeek(targetWeek)}
-              >
-                Import this example week
-              </button>
-            ) : null}
-            {onOpenLibrary ? (
-              <button type="button" className="button secondary" onClick={onOpenLibrary}>
-                Open full examples library
-              </button>
-            ) : null}
-          </div>
-        </>
-      ) : null}
-
-      {mode === "launch" ? (
-        <>
-          <div className="lds-example-list-card">
-            <h4>Reviewer lens</h4>
-            <ul>
-              {annotations.reviewerLens.slice(0, 3).map((note) => (
-                <li key={note}>{note}</li>
-              ))}
-            </ul>
-          </div>
-          <div className="lds-example-list-card">
-            <h4>Student experience highlights</h4>
-            <ul>
-              {annotations.studentExperienceHighlights.slice(0, 3).map((note) => (
-                <li key={note}>{note}</li>
-              ))}
-            </ul>
-          </div>
-          {onOpenLibrary ? (
-            <div className="lds-inline-actions">
-              <button type="button" className="button secondary" onClick={onOpenLibrary}>
-                Review full examples library
-              </button>
+      <div className="lds-example-spotlight-body">
+        {mode === "course-map" ? (
+          <>
+            <div className="lds-example-callout">
+              <strong>{curriculum.title}</strong>
+              <p>{curriculum.description}</p>
             </div>
-          ) : null}
-        </>
-      ) : null}
-    </aside>
+            <div className="lds-example-list-card">
+              <h4>What makes this course promise work</h4>
+              <ul>
+                {annotations.whyThisCurriculumWorks.slice(0, 3).map((note) => (
+                  <li key={note}>{note}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="lds-example-list-card">
+              <h4>Outcome moves to borrow</h4>
+              <ul>
+                {curriculum.outcomes.slice(0, 4).map((outcome) => (
+                  <li key={outcome}>{outcome}</li>
+                ))}
+              </ul>
+            </div>
+          </>
+        ) : null}
+
+        {mode === "session" ? (
+          <>
+            <div className="lds-example-callout">
+              <strong>
+                {selectedSessionLabel ?? `Week ${targetWeek.weekNumber}`} example
+              </strong>
+              <p>{targetWeek.title}</p>
+            </div>
+            <div className="lds-example-list-card">
+              <h4>Why this session works</h4>
+              <ul>
+                <li>{weekAnnotations?.whyThisWeekWorks ?? "The session has a clear arc from entry to application and reflection."}</li>
+                <li>{weekAnnotations?.adaptIt ?? "Borrow the move, then change the language, examples, and pacing to fit your own students."}</li>
+              </ul>
+            </div>
+            <div className="lds-example-list-card">
+              <h4>Session moves to notice</h4>
+              <ul>
+                {targetWeek.activities.slice(0, 4).map((activity) => (
+                  <li key={`${targetWeek.weekNumber}-${activity.title}`}>
+                    {activity.title} ({activity.durationMin} min)
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="lds-inline-actions">
+              {onImportWeek ? (
+                <button
+                  type="button"
+                  className="button"
+                  onClick={() => onImportWeek(targetWeek)}
+                >
+                  Import this example week
+                </button>
+              ) : null}
+              {onOpenLibrary ? (
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={onOpenLibrary}
+                >
+                  Open full examples library
+                </button>
+              ) : null}
+            </div>
+          </>
+        ) : null}
+
+        {mode === "launch" ? (
+          <>
+            <div className="lds-example-list-card">
+              <h4>Reviewer lens</h4>
+              <ul>
+                {annotations.reviewerLens.slice(0, 3).map((note) => (
+                  <li key={note}>{note}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="lds-example-list-card">
+              <h4>Student experience highlights</h4>
+              <ul>
+                {annotations.studentExperienceHighlights.slice(0, 3).map((note) => (
+                  <li key={note}>{note}</li>
+                ))}
+              </ul>
+            </div>
+            {onOpenLibrary ? (
+              <div className="lds-inline-actions">
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={onOpenLibrary}
+                >
+                  Review full examples library
+                </button>
+              </div>
+            ) : null}
+          </>
+        ) : null}
+      </div>
+    </details>
   );
 }

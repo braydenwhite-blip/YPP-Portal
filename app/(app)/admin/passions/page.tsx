@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
 import { PassionCategory } from "@prisma/client";
 import {
@@ -19,7 +18,7 @@ async function togglePassionAction(formData: FormData) {
 }
 
 export default async function AdminPassionsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const roles = (session.user as any).roles ?? [];
@@ -31,7 +30,7 @@ export default async function AdminPassionsPage() {
     primaryRole === "ADMIN" ||
     primaryRole === "INSTRUCTOR" ||
     primaryRole === "CHAPTER_PRESIDENT";
-  if (!canManage) redirect("/world");
+  if (!canManage) redirect("/");
 
   const passions = await getPassionAreasForAdmin();
 
@@ -41,10 +40,10 @@ export default async function AdminPassionsPage() {
         <div>
           <h1 className="page-title">Passion Taxonomy</h1>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
-            Define the canonical passion areas used by activities, incubator, and Passion World.
+            Define the canonical passion areas used by activities, incubator, and pathways.
           </p>
         </div>
-        <Link href="/world" className="button secondary">Open Passion World</Link>
+        <Link href="/pathways" className="button secondary">Open Pathways</Link>
       </div>
 
       <div className="grid three" style={{ marginBottom: 20 }}>

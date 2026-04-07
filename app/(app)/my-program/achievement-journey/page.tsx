@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getAchievementJourneyData } from "@/lib/achievement-journey-actions";
 import { TIER_THRESHOLDS } from "@/lib/achievement-journey-config";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
@@ -12,14 +11,14 @@ const TIER_CONFIG: Record<string, { label: string; color: string; bg: string; em
   BRONZE: { label: "Bronze", color: "#cd7f32", bg: "#fdf6ec", emoji: "🥉" },
   SILVER: { label: "Silver", color: "#a8a9ad", bg: "#f5f5f5", emoji: "🥈" },
   GOLD: { label: "Gold", color: "#d4af37", bg: "#fffbeb", emoji: "🥇" },
-  LIFETIME: { label: "Lifetime", color: "#7c3aed", bg: "#faf5ff", emoji: "👑" },
+  LIFETIME: { label: "Lifetime", color: "#6b21c8", bg: "#faf5ff", emoji: "👑" },
 };
 
 const RATING_CONFIG: Record<string, { label: string; color: string }> = {
   BEHIND_SCHEDULE: { label: "Behind Schedule", color: "#ef4444" },
   GETTING_STARTED: { label: "Getting Started", color: "#d97706" },
   ACHIEVED: { label: "Achieved", color: "#16a34a" },
-  ABOVE_AND_BEYOND: { label: "Above & Beyond", color: "#7c3aed" },
+  ABOVE_AND_BEYOND: { label: "Above & Beyond", color: "#6b21c8" },
 };
 
 const TIER_BENEFITS: Record<string, string[]> = {
@@ -54,7 +53,7 @@ const TIER_BENEFITS: Record<string, string[]> = {
 };
 
 export default async function AchievementJourneyPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const primaryRole = session.user.primaryRole ?? "";

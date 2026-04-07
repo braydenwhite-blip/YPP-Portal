@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
 import { getMyFeedbackRequests } from "@/lib/feedback-actions";
@@ -38,7 +37,7 @@ const FEEDBACK_PORTAL_GUIDE_ITEMS = [
 ] as const;
 
 export default async function MentorFeedbackPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const userId = session.user.id;

@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { RoleType } from "@prisma/client";
 import { parseRoleTypes } from "@/lib/authorization";
@@ -33,7 +32,7 @@ async function ensureUniqueChapterSlug(baseSlug: string, chapterId?: string) {
 // ============================================
 
 export async function getChapterDashboard() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -135,7 +134,7 @@ export async function getChapterDashboard() {
 // ============================================
 
 export async function getChapterInstructors() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -190,7 +189,7 @@ export async function getChapterInstructors() {
 }
 
 export async function getInstructorDetail(instructorId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const currentUser = await prisma.user.findUnique({
@@ -285,7 +284,7 @@ export async function getInstructorDetail(instructorId: string) {
 // ============================================
 
 export async function getChapterStudents() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -335,7 +334,7 @@ export async function getChapterStudents() {
 // ============================================
 
 export async function getChapterUpdates() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -359,7 +358,7 @@ export async function getChapterUpdates() {
 }
 
 export async function createChapterUpdate(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -401,7 +400,7 @@ export async function createChapterUpdate(formData: FormData) {
 }
 
 export async function deleteChapterUpdate(updateId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -439,7 +438,7 @@ export async function deleteChapterUpdate(updateId: string) {
 // ============================================
 
 export async function getChapterMarketing() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -472,7 +471,7 @@ export async function getChapterMarketing() {
 }
 
 export async function addMarketingStats(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -522,7 +521,7 @@ export async function addMarketingStats(formData: FormData) {
 }
 
 export async function addMarketingGoal(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -563,7 +562,7 @@ export async function addMarketingGoal(formData: FormData) {
 // ============================================
 
 export async function getChapterApplicants() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -607,7 +606,7 @@ export async function getChapterApplicants() {
 // ============================================
 
 async function requireAdmin() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!roles.includes("ADMIN")) {
     throw new Error("Unauthorized - Admin only");

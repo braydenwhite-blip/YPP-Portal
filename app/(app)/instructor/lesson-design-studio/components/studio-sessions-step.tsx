@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import {
   MIN_ACTIVITIES_PER_SESSION,
   buildSessionLabel,
@@ -412,29 +412,40 @@ export function StudioSessionsStep({
                       className={`lds-activity-card${
                         selectedActivityId === activity.id ? " active" : ""
                       }`}
+                      style={
+                        {
+                          "--lds-activity-accent": config.color,
+                        } as CSSProperties
+                      }
                     >
                       <button
                         type="button"
                         className="lds-activity-primary"
                         onClick={() => setSelectedActivityId(activity.id)}
                       >
-                        <span
-                          className="lds-activity-type"
-                          style={{
-                            borderColor: `${config.color}55`,
-                            color: config.color,
-                            background: `${config.color}12`,
-                          }}
-                        >
-                          {config.icon} {config.label}
+                        <span className="lds-activity-handle" aria-hidden="true">
+                          ⋮⋮
                         </span>
-                        <strong>{activity.title || "Untitled activity"}</strong>
-                        <small>{activity.durationMin} min</small>
+                        <div className="lds-activity-copy">
+                          <div className="lds-activity-meta">
+                            <span className="lds-activity-type">
+                              {config.icon} {config.label}
+                            </span>
+                            <span className="lds-activity-duration-badge">
+                              {activity.durationMin} min
+                            </span>
+                          </div>
+                          <strong>{activity.title || "Untitled activity"}</strong>
+                          <p className="lds-activity-description">
+                            {(activity.description ?? "").trim() ||
+                              "Add the exact prompt, student action, or teacher move this activity should create."}
+                          </p>
+                        </div>
                       </button>
                       <div className="lds-activity-actions">
                         <button
                           type="button"
-                          className="button ghost"
+                          className="button small ghost"
                           disabled={index === 0 || isReadOnly}
                           onClick={() => moveActivity(activity.id, "up")}
                         >
@@ -442,7 +453,7 @@ export function StudioSessionsStep({
                         </button>
                         <button
                           type="button"
-                          className="button ghost"
+                          className="button small ghost"
                           disabled={index === sortedActivities.length - 1 || isReadOnly}
                           onClick={() => moveActivity(activity.id, "down")}
                         >
@@ -450,14 +461,14 @@ export function StudioSessionsStep({
                         </button>
                         <button
                           type="button"
-                          className="button ghost"
+                          className="button small ghost"
                           onClick={() => setSelectedActivityId(activity.id)}
                         >
                           Edit
                         </button>
                         <button
                           type="button"
-                          className="button ghost danger"
+                          className="button small ghost danger"
                           disabled={isReadOnly}
                           onClick={() => onRemoveActivity(selectedWeek.id, activity.id)}
                         >

@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import PageHelperFab from "@/components/page-helper-fab";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import type { PageHelperRole } from "@/lib/page-helper/types";
 
 export default async function OnboardingLayout({
@@ -8,7 +7,7 @@ export default async function OnboardingLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   return (
     <>

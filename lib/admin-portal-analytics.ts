@@ -1,7 +1,6 @@
-import { getServerSession } from "next-auth";
 
-import { authOptions } from "@/lib/auth";
 import { mentorshipRequiresMonthlyReflection } from "@/lib/mentorship-canonical";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import {
   isInterviewGateEnforced,
@@ -197,7 +196,7 @@ export function summarizeApplicationAnalytics(
 }
 
 async function requireAdmin() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!roles.includes("ADMIN")) {
     throw new Error("Unauthorized - Admin access required");
@@ -446,6 +445,7 @@ export async function getAdminPortalAnalytics(rawFilters: RawAnalyticsFilters) {
     }),
     prisma.curriculumDraft.findMany({
       select: {
+        authorId: true,
         status: true,
         interestArea: true,
         createdAt: true,
@@ -655,10 +655,11 @@ export async function getAdminPortalAnalytics(rawFilters: RawAnalyticsFilters) {
   const readinessSnapshot = filteredInstructors.map((instructor) => {
     const completedRequiredModules =
       completedRequiredModuleCounts.get(instructor.id) ?? 0;
-    const trainingComplete =
+    const academyModulesComplete =
       eligibleRequiredModuleIds.size === 0
         ? true
         : completedRequiredModules >= eligibleRequiredModuleIds.size;
+    const trainingComplete = academyModulesComplete;
     const interviewStatus =
       interviewGateStatusByInstructor.get(instructor.id) ?? "REQUIRED";
     const interviewPassed =

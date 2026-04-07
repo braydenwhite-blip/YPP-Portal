@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { getStudentChapterJourneyData } from "@/lib/chapter-pathway-journey";
 import { getMyChapterHomeData } from "@/lib/chapter-member-actions";
@@ -21,7 +20,7 @@ function statusTone(status: string | null | undefined) {
     case "COMPLETED":
       return { background: "#dcfce7", color: "#166534" };
     case "ENROLLED":
-      return { background: "#ede9fe", color: "#6d28d9" };
+      return { background: "#f0e6ff", color: "#5a1da8" };
     case "WAITLISTED":
       return { background: "#fef3c7", color: "#92400e" };
     case "PENDING":
@@ -41,7 +40,7 @@ function formatEventDate(date: Date) {
 }
 
 const ROLE_COLORS: Record<string, string> = {
-  CHAPTER_PRESIDENT: "#6d28d9",
+  CHAPTER_PRESIDENT: "#5a1da8",
   ADMIN: "#dc2626",
   INSTRUCTOR: "#0369a1",
   MENTOR: "#ca8a04",
@@ -50,7 +49,7 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export default async function MyChapterPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   // Load chapter home data, pathway journey, and gamification in parallel

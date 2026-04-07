@@ -1,10 +1,9 @@
 "use server";
 
 import { MentorshipType, type Prisma, SupportRole } from "@prisma/client";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 
-import { authOptions } from "@/lib/auth";
 import {
   scoreSupportMatch,
 } from "@/lib/mentorship-hub";
@@ -24,7 +23,7 @@ import {
 import { prisma } from "@/lib/prisma";
 
 async function requireAdmin() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!roles.includes("ADMIN")) {
     throw new Error("Unauthorized");

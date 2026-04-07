@@ -1,77 +1,131 @@
-export type NotificationDeliveryChannel =
-  | "EMAIL_AND_TEXT"
-  | "EMAIL_ONLY"
-  | "TEXT_ONLY"
-  | "IN_APP_ONLY";
+import { NotificationType } from "@prisma/client";
 
-export type NotificationPolicyKey =
-  | "APPLICATION_DECISIONS"
-  | "INTERVIEW_UPDATES"
-  | "MENTORSHIP_REVIEWS"
-  | "GOAL_DEADLINES"
-  | "MESSAGES"
-  | "COURSE_AND_CLASS_UPDATES"
-  | "EVENT_UPDATES"
-  | "ANNOUNCEMENTS"
-  | "SYSTEM_ALERTS";
+export type NotificationDeliveryBucket =
+  | "portal_only"
+  | "email_only"
+  | "email_and_sms_later";
 
-export type NotificationPolicyEntry = {
+export type NotificationPolicy = {
+  type: NotificationType;
   label: string;
-  channel: NotificationDeliveryChannel;
   description: string;
+  bucket: NotificationDeliveryBucket;
+  portalHistory: boolean;
+  email: boolean;
+  smsPlanned: boolean;
 };
 
-export const NOTIFICATION_POLICY: Record<NotificationPolicyKey, NotificationPolicyEntry> = {
-  APPLICATION_DECISIONS: {
-    label: "Application decisions",
-    channel: "EMAIL_AND_TEXT",
-    description: "Hiring decisions and requests for more information are delivered urgently.",
-  },
-  INTERVIEW_UPDATES: {
-    label: "Interview updates",
-    channel: "EMAIL_AND_TEXT",
-    description: "Interview scheduling and follow-up changes are sent by email and text.",
-  },
-  MENTORSHIP_REVIEWS: {
-    label: "Mentorship reviews",
-    channel: "EMAIL_ONLY",
-    description: "Monthly review submissions, approvals, and change requests are sent by email.",
-  },
-  GOAL_DEADLINES: {
-    label: "Goal deadlines",
-    channel: "EMAIL_ONLY",
-    description: "Reflection and review deadlines stay on email so people do not miss them.",
-  },
-  MESSAGES: {
-    label: "Direct messages",
-    channel: "IN_APP_ONLY",
-    description: "Messages live in the portal inbox and home next actions.",
-  },
-  COURSE_AND_CLASS_UPDATES: {
-    label: "Course and class updates",
-    channel: "EMAIL_ONLY",
-    description: "Schedule or class workflow changes are delivered by email.",
-  },
-  EVENT_UPDATES: {
-    label: "Event updates",
-    channel: "IN_APP_ONLY",
-    description: "Routine event announcements and updates stay in the portal feed.",
-  },
-  ANNOUNCEMENTS: {
+const POLICY_BY_TYPE: Record<NotificationType, Omit<NotificationPolicy, "type">> = {
+  ANNOUNCEMENT: {
     label: "Announcements",
-    channel: "IN_APP_ONLY",
-    description: "General updates stay in-app unless they are elevated into a system alert.",
+    description: "Chapter-wide and platform updates arrive by email and stay visible in your portal history.",
+    bucket: "email_only",
+    portalHistory: true,
+    email: true,
+    smsPlanned: false,
   },
-  SYSTEM_ALERTS: {
-    label: "System alerts",
-    channel: "EMAIL_AND_TEXT",
-    description: "Critical platform issues or urgent account notices go to both email and text.",
+  MENTOR_FEEDBACK: {
+    label: "Mentor Feedback",
+    description: "Mentor feedback summaries arrive by email and stay visible in your portal history.",
+    bucket: "email_only",
+    portalHistory: true,
+    email: true,
+    smsPlanned: false,
+  },
+  GOAL_DEADLINE: {
+    label: "Goal Deadlines",
+    description: "Goal reminders stay inside the portal so they are available when you review your progress.",
+    bucket: "portal_only",
+    portalHistory: true,
+    email: false,
+    smsPlanned: false,
+  },
+  COURSE_UPDATE: {
+    label: "Course Updates",
+    description: "Course and class changes arrive by email and stay visible in your portal history.",
+    bucket: "email_only",
+    portalHistory: true,
+    email: true,
+    smsPlanned: false,
+  },
+  REFLECTION_REMINDER: {
+    label: "Reflection Reminders",
+    description: "Reflection reminders stay inside the portal so they are tied to your regular dashboard flow.",
+    bucket: "portal_only",
+    portalHistory: true,
+    email: false,
+    smsPlanned: false,
+  },
+  ATTENDANCE: {
+    label: "Attendance Alerts",
+    description: "Attendance alerts send by email now and are marked for SMS delivery once text support is enabled.",
+    bucket: "email_and_sms_later",
+    portalHistory: true,
+    email: true,
+    smsPlanned: true,
+  },
+  MESSAGE: {
+    label: "Messages",
+    description: "New message alerts send by email now and are marked for SMS delivery once text support is enabled.",
+    bucket: "email_and_sms_later",
+    portalHistory: true,
+    email: true,
+    smsPlanned: true,
+  },
+  SYSTEM: {
+    label: "System Alerts",
+    description: "Operational alerts for approvals, interviews, intake, and other critical follow-ups send by email now and are marked for SMS delivery once text support is enabled.",
+    bucket: "email_and_sms_later",
+    portalHistory: true,
+    email: true,
+    smsPlanned: true,
+  },
+  CLASS_REMINDER: {
+    label: "Class Reminders",
+    description: "Class reminders send by email now and are marked for SMS delivery once text support is enabled.",
+    bucket: "email_and_sms_later",
+    portalHistory: true,
+    email: true,
+    smsPlanned: true,
+  },
+  EVENT_UPDATE: {
+    label: "Event Updates",
+    description: "Chapter event changes arrive by email and stay visible in your portal history.",
+    bucket: "email_only",
+    portalHistory: true,
+    email: true,
+    smsPlanned: false,
+  },
+  EVENT_REMINDER: {
+    label: "Event Reminders",
+    description: "Event reminders arrive by email and stay visible in your portal history.",
+    bucket: "email_only",
+    portalHistory: true,
+    email: true,
+    smsPlanned: false,
   },
 };
 
-export const NOTIFICATION_POLICY_CHANNEL_LABELS: Record<NotificationDeliveryChannel, string> = {
-  EMAIL_AND_TEXT: "Email + text",
-  EMAIL_ONLY: "Email only",
-  TEXT_ONLY: "Text only",
-  IN_APP_ONLY: "Portal only",
-};
+export function getNotificationPolicy(type: NotificationType): NotificationPolicy {
+  return {
+    type,
+    ...POLICY_BY_TYPE[type],
+  };
+}
+
+export function listNotificationPolicies(): NotificationPolicy[] {
+  return (Object.keys(POLICY_BY_TYPE) as NotificationType[]).map((type) =>
+    getNotificationPolicy(type)
+  );
+}
+
+export function shouldCreatePortalNotification(type: NotificationType): boolean {
+  return getNotificationPolicy(type).portalHistory;
+}
+
+export function shouldSendPolicyEmail(
+  type: NotificationType,
+  allowEmailOverride = true
+): boolean {
+  return getNotificationPolicy(type).email && allowEmailOverride;
+}

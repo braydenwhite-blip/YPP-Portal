@@ -1,12 +1,12 @@
 import Link from "next/link";
 
 // ═══════════════════════════════════════════════════════════════
-// World Preview Card — Shows passion islands on the dashboard
+// Interest snapshot — passion areas / XP (links surface pathways, not the retired /world nav)
 // ═══════════════════════════════════════════════════════════════
 
 const THEME: Record<string, { gradient: string; emoji: string }> = {
   ARTS: { gradient: "linear-gradient(135deg, #f472b6, #ec4899)", emoji: "\u{1F3A8}" },
-  MUSIC: { gradient: "linear-gradient(135deg, #a78bfa, #8b5cf6)", emoji: "\u{1F3B5}" },
+  MUSIC: { gradient: "linear-gradient(135deg, #b47fff, #8b3fe8)", emoji: "\u{1F3B5}" },
   SPORTS: { gradient: "linear-gradient(135deg, #34d399, #10b981)", emoji: "\u26BD" },
   STEM: { gradient: "linear-gradient(135deg, #60a5fa, #3b82f6)", emoji: "\u{1F52C}" },
   BUSINESS: { gradient: "linear-gradient(135deg, #fbbf24, #f59e0b)", emoji: "\u{1F4BC}" },
@@ -40,16 +40,16 @@ export function WorldPreviewCard({
     return (
       <div className="card" style={{ borderTop: "3px solid #0ea5e9" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h3 style={{ margin: 0 }}>{"\u{1F30D}"} Passion World</h3>
-          <Link href="/world" className="button small outline">
-            Explore
+          <h3 style={{ margin: 0 }}>{"\u{1F30D}"} Your interests</h3>
+          <Link href="/pathways" className="button small outline">
+            Pathways
           </Link>
         </div>
         <p style={{ margin: "12px 0 0", fontSize: 14, color: "var(--muted)" }}>
-          Discover your passions and grow your own islands. Take the quiz to get started!
+          Connect interests to pathways. Take the discovery quiz to get started!
         </p>
         <Link
-          href="/world"
+          href="/discover/quiz"
           style={{
             display: "inline-block",
             marginTop: 12,
@@ -73,9 +73,9 @@ export function WorldPreviewCard({
   return (
     <div className="card" style={{ borderTop: "3px solid #0ea5e9" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h3 style={{ margin: 0 }}>{"\u{1F30D}"} Passion World</h3>
-        <Link href="/world" className="button small outline">
-          Open World
+        <h3 style={{ margin: 0 }}>{"\u{1F30D}"} Your interests</h3>
+        <Link href="/pathways/progress" className="button small outline">
+          Progress
         </Link>
       </div>
 
@@ -102,7 +102,7 @@ export function WorldPreviewCard({
           return (
             <Link
               key={island.id}
-              href="/world"
+              href="/pathways/progress"
               style={{
                 display: "inline-flex",
                 alignItems: "center",

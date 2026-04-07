@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getClassCatalog } from "@/lib/class-management-actions";
 import { getLegacyLearnerFitCopy, getLearnerFitSummary } from "@/lib/learner-fit";
 import { prisma } from "@/lib/prisma";
@@ -26,7 +25,7 @@ export default async function CurriculumPage({
     notice?: string;
   }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const params = await searchParams;
@@ -412,8 +411,8 @@ export default async function CurriculumPage({
                       onClick={(e) => e.stopPropagation()}
                       className="pill"
                       style={{
-                        background: "var(--ypp-purple-100, #ede9fe)",
-                        color: "var(--ypp-purple, #7c3aed)",
+                        background: "var(--ypp-purple-100, #f0e6ff)",
+                        color: "var(--ypp-purple, #6b21c8)",
                         fontWeight: 600,
                         textDecoration: "none",
                         fontSize: 11,
@@ -429,8 +428,8 @@ export default async function CurriculumPage({
                         onClick={(e) => e.stopPropagation()}
                         className="pill"
                         style={{
-                          background: "var(--ypp-purple-100, #ede9fe)",
-                          color: "var(--ypp-purple, #7c3aed)",
+                          background: "var(--ypp-purple-100, #f0e6ff)",
+                          color: "var(--ypp-purple, #6b21c8)",
                           fontWeight: 600,
                           textDecoration: "none",
                           fontSize: 11,

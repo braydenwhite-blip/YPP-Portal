@@ -1,12 +1,11 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getChapterXpLeaderboard } from "@/lib/chapter-gamification-actions";
 import { LEVELS } from "@/lib/xp-config";
 import Link from "next/link";
 
 const ROLE_COLORS: Record<string, string> = {
-  CHAPTER_PRESIDENT: "#6d28d9",
+  CHAPTER_PRESIDENT: "#5a1da8",
   ADMIN: "#dc2626",
   INSTRUCTOR: "#0369a1",
   MENTOR: "#ca8a04",
@@ -15,7 +14,7 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export default async function ChapterLeaderboardPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session) redirect("/login");
 
   const members = await getChapterXpLeaderboard();

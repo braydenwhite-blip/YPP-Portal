@@ -62,6 +62,49 @@ describe("curriculum draft progress", () => {
     expect(synced[3].title).toBe("");
   });
 
+  it("recomputes week and session numbering when sessions per week changes", () => {
+    const synced = syncSessionPlansToCourseConfig(
+      [buildSession(1, 1), buildSession(2, 1)],
+      {
+        ...courseConfig,
+        durationWeeks: 2,
+        sessionsPerWeek: 2,
+      }
+    );
+
+    expect(synced).toHaveLength(4);
+    expect(synced[0]).toMatchObject({ weekNumber: 1, sessionNumber: 1 });
+    expect(synced[1]).toMatchObject({ weekNumber: 1, sessionNumber: 2 });
+    expect(synced[2]).toMatchObject({ weekNumber: 2, sessionNumber: 1 });
+    expect(synced[3]).toMatchObject({ weekNumber: 2, sessionNumber: 2 });
+  });
+
+  it("normalizes invalid activity and at-home assignment types to safe defaults", () => {
+    const synced = syncSessionPlansToCourseConfig(
+      [
+        {
+          ...buildSession(1, 1),
+          activities: [
+            {
+              title: "Mystery block",
+              type: "NOT_A_REAL_ACTIVITY",
+              durationMin: 12,
+            },
+          ],
+          atHomeAssignment: {
+            type: "NOT_A_REAL_ASSIGNMENT",
+            title: "Try it",
+            description: "Complete the practice.",
+          },
+        },
+      ],
+      courseConfig
+    );
+
+    expect(synced[0].activities[0]?.type).toBe("WARM_UP");
+    expect(synced[0].atHomeAssignment?.type).toBe("REFLECTION_PROMPT");
+  });
+
   it("passes the understanding check when the correct answers are selected", () => {
     const checks = buildPassingUnderstandingChecks();
 

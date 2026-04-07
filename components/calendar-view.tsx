@@ -27,7 +27,7 @@ const MONTHS = [
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const EVENT_TYPE_COLORS: Record<string, string> = {
-  SHOWCASE: "#8b5cf6",
+  SHOWCASE: "#8b3fe8",
   FESTIVAL: "#ec4899",
   COMPETITION: "#f59e0b",
   WORKSHOP: "#3b82f6",
@@ -213,7 +213,7 @@ export default function CalendarView({ initialEvents = [] }: CalendarViewProps) 
                         key={event.id}
                         className="calendar-event-dot"
                         style={{
-                          backgroundColor: EVENT_TYPE_COLORS[event.eventType] || "#8b5cf6",
+                          backgroundColor: EVENT_TYPE_COLORS[event.eventType] || "#8b3fe8",
                         }}
                         title={event.title}
                       >
@@ -248,7 +248,7 @@ export default function CalendarView({ initialEvents = [] }: CalendarViewProps) 
                       <div
                         className="calendar-event-stripe"
                         style={{
-                          backgroundColor: EVENT_TYPE_COLORS[event.eventType] || "#8b5cf6",
+                          backgroundColor: EVENT_TYPE_COLORS[event.eventType] || "#8b3fe8",
                         }}
                       />
                       <div className="calendar-event-info">
@@ -309,7 +309,7 @@ export default function CalendarView({ initialEvents = [] }: CalendarViewProps) 
                     <div
                       className="calendar-event-stripe"
                       style={{
-                        backgroundColor: EVENT_TYPE_COLORS[event.eventType] || "#8b5cf6",
+                        backgroundColor: EVENT_TYPE_COLORS[event.eventType] || "#8b3fe8",
                       }}
                     />
                     <div className="calendar-list-date">

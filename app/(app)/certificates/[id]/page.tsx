@@ -1,13 +1,12 @@
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { renderCertificateHtml } from "@/lib/certificate-actions";
 
 export default async function CertificateDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
 
   const certificate = await prisma.certificate.findUnique({

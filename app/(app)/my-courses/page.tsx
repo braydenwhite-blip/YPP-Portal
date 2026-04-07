@@ -1,11 +1,10 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getMyCourses } from "@/lib/student-actions";
 import Link from "next/link";
 
 export default async function MyCoursesPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session) redirect("/login");
 
   const { current, completed, dropped } = await getMyCourses();

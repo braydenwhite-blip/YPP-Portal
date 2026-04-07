@@ -26,7 +26,7 @@ export default function InterviewNextAction({ task }: InterviewNextActionProps) 
         background: "linear-gradient(180deg, #faf5ff 0%, #ffffff 100%)",
       }}
     >
-      <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: "#6d28d9" }}>
+      <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: "#5a1da8" }}>
         NEXT BEST ACTION
       </p>
       <h3 style={{ margin: "0 0 4px" }}>{task.title}</h3>

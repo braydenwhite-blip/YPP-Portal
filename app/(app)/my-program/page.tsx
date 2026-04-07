@@ -1,9 +1,8 @@
-import { getServerSession } from "next-auth";
 import Link from "next/link";
+import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
 
 import ContextTrail from "@/components/context-trail";
-import { authOptions } from "@/lib/auth";
 import { buildContextTrail } from "@/lib/context-trail";
 import { formatEnum } from "@/lib/format-utils";
 import { updateMentorshipActionItemStatus } from "@/lib/mentorship-hub-actions";
@@ -43,7 +42,7 @@ export default async function MyProgramPage({
 }: {
   searchParams: Promise<{ notice?: string }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }

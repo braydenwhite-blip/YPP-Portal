@@ -18,13 +18,13 @@ export const MentorPanel = memo(function MentorPanel({ data, onClose }: MentorPa
   const hasMentor = data.hasMentor;
 
   return (
-    <div className={styles.panel} style={{ borderColor: "#7c3aed" }}>
+    <div className={styles.panel} style={{ borderColor: "#6b21c8" }}>
       <button className={styles.panelClose} onClick={onClose}>
         &times;
       </button>
       <div
         className={styles.panelHeader}
-        style={{ background: "linear-gradient(135deg, #7c3aed, #5b21b6)" }}
+        style={{ background: "linear-gradient(135deg, #6b21c8, #5a1da8)" }}
       >
         <span className={styles.panelEmoji}>{"\u{1F9D9}"}</span>
         <div>

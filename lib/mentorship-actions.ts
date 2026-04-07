@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { ProgressStatus } from "@prisma/client";
 
@@ -11,7 +10,7 @@ import { ProgressStatus } from "@prisma/client";
 // ============================================
 
 export async function getMyMentees() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -72,7 +71,7 @@ export async function getMyMentees() {
 }
 
 export async function getMenteeDetail(menteeId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -160,7 +159,7 @@ export async function getMenteeDetail(menteeId: string) {
 // ============================================
 
 export async function submitProgressFeedback(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -211,7 +210,7 @@ export async function submitProgressFeedback(formData: FormData) {
 // ============================================
 
 export async function addMentorshipCheckIn(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const mentorshipId = formData.get("mentorshipId") as string;
@@ -252,7 +251,7 @@ export async function addMentorshipCheckIn(formData: FormData) {
 }
 
 export async function getMentorshipCheckIns(menteeId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const mentorship = await prisma.mentorship.findFirst({
@@ -297,7 +296,7 @@ export async function getMentorshipCheckIns(menteeId: string) {
 // ============================================
 
 export async function getMyMentor() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const mentorship = await prisma.mentorship.findFirst({
@@ -332,7 +331,7 @@ export async function getMyMentor() {
 // ============================================
 
 export async function getMentorshipStats() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({

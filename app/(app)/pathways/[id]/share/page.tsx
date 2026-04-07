@@ -1,12 +1,11 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { getSingleStudentPathwayJourney } from "@/lib/chapter-pathway-journey";
 
 export default async function PathwaySharePage({ params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const userId = session.user.id;
@@ -52,7 +51,7 @@ export default async function PathwaySharePage({ params }: { params: { id: strin
         <div
           id="share-card"
           style={{
-            background: "linear-gradient(135deg, var(--ypp-purple) 0%, #7c3aed 100%)",
+            background: "linear-gradient(135deg, var(--ypp-purple) 0%, #6b21c8 100%)",
             borderRadius: 20,
             padding: "36px 40px",
             color: "white",

@@ -144,7 +144,7 @@ function GenericErrorFallback({ error }: { error: Error | null }) {
         style={{
           marginTop: "24px",
           padding: "12px 24px",
-          background: "#7c3aed",
+          background: "#6b21c8",
           color: "white",
           border: "none",
           borderRadius: "9999px",
@@ -204,7 +204,7 @@ export function NetworkErrorFallback({ retry }: { retry?: () => void }) {
           onClick={retry}
           style={{
             padding: "12px 24px",
-            background: "#7c3aed",
+            background: "#6b21c8",
             color: "white",
             border: "none",
             borderRadius: "9999px",
@@ -265,7 +265,7 @@ export function PermissionDeniedFallback({ message }: { message?: string }) {
         style={{
           display: "inline-block",
           padding: "12px 24px",
-          background: "#7c3aed",
+          background: "#6b21c8",
           color: "white",
           textDecoration: "none",
           borderRadius: "9999px",
@@ -326,7 +326,7 @@ export function NotFoundFallback({ resourceType }: { resourceType?: string }) {
         style={{
           display: "inline-block",
           padding: "12px 24px",
-          background: "#7c3aed",
+          background: "#6b21c8",
           color: "white",
           textDecoration: "none",
           borderRadius: "9999px",
@@ -391,7 +391,7 @@ export function LoadingErrorFallback({
           onClick={retry}
           style={{
             padding: "12px 24px",
-            background: "#7c3aed",
+            background: "#6b21c8",
             color: "white",
             border: "none",
             borderRadius: "9999px",

@@ -79,8 +79,8 @@ export default function DailyChecklist({ items }: DailyChecklistProps) {
                 style={{
                   fontSize: 11,
                   fontWeight: 600,
-                  color: "var(--ypp-purple, #7c3aed)",
-                  background: "var(--ypp-purple-light, #ede9fe)",
+                  color: "var(--ypp-purple, #6b21c8)",
+                  background: "var(--ypp-purple-light, #f0e6ff)",
                   padding: "2px 8px",
                   borderRadius: 12,
                   flexShrink: 0,

@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
 import { normalizeRoleSet } from "@/lib/authorization";
 import { prisma } from "@/lib/prisma";
@@ -48,7 +47,7 @@ async function archiveChallengeAction(formData: FormData) {
 }
 
 export default async function AdminChallengesPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const roleSet = normalizeRoleSet(

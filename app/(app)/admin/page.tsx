@@ -1,4 +1,3 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import {
   CourseFormat,
@@ -6,7 +5,7 @@ import {
   MentorshipType,
   TrainingModuleType,
 } from "@prisma/client";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import {
   createCourse,
@@ -15,7 +14,10 @@ import {
   createPathway,
   createTrainingModule,
 } from "@/lib/admin-actions";
-import { canAccessContentAdmin, normalizeAdminSubtypes } from "@/lib/admin-subtypes";
+import {
+  canAccessContentAdmin,
+  normalizeAdminSubtypes,
+} from "@/lib/admin-subtypes";
 import { CreateUserForm } from "@/components/create-user-form";
 
 const CONTENT_TYPE_OPTIONS = [
@@ -45,7 +47,7 @@ export default async function AdminPage({
 }: {
   searchParams?: { type?: string };
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   const adminSubtypes = normalizeAdminSubtypes(
     ((session?.user as { adminSubtypes?: string[] } | undefined)?.adminSubtypes ?? [])
@@ -56,7 +58,7 @@ export default async function AdminPage({
   }
 
   const selectedType: ContentType = isContentType(searchParams?.type)
-    ? searchParams!.type
+    ? searchParams.type
     : "course";
 
   const [chapters, users] = await Promise.all([
@@ -66,8 +68,7 @@ export default async function AdminPage({
 
   const instructors = users.filter((user) => user.roles.some((role) => role.role === "INSTRUCTOR"));
   const mentors = users.filter((user) => user.roles.some((role) => role.role === "MENTOR"));
-  const instructorMentees = users.filter((user) => user.roles.some((role) => role.role === "INSTRUCTOR"));
-  const studentMentees = users.filter((user) => user.roles.some((role) => role.role === "STUDENT"));
+  const students = users.filter((user) => user.roles.some((role) => role.role === "STUDENT"));
 
   return (
     <div className="page-shell">
@@ -86,7 +87,7 @@ export default async function AdminPage({
           Your admin subtype access: <strong>{formatSubtypeList(adminSubtypes)}</strong>.
         </p>
         <p style={{ margin: "8px 0 0", color: "var(--muted)" }}>
-          Training modules and other structured backend content should still be created sparingly and only by approved owners.
+          Trainings and other structured backend content should still be created carefully and only by approved owners.
         </p>
       </div>
 
@@ -108,7 +109,7 @@ export default async function AdminPage({
         </form>
       </div>
 
-      {selectedType === "course" && (
+      {selectedType === "course" ? (
         <div className="card">
           <h2 style={{ marginTop: 0, marginBottom: 8 }}>Create Course</h2>
           <p style={{ marginTop: 0, color: "var(--muted)" }}>
@@ -178,9 +179,9 @@ export default async function AdminPage({
             </button>
           </form>
         </div>
-      )}
+      ) : null}
 
-      {selectedType === "pathway" && (
+      {selectedType === "pathway" ? (
         <div className="card">
           <h2 style={{ marginTop: 0, marginBottom: 8 }}>Create Pathway</h2>
           <p style={{ marginTop: 0, color: "var(--muted)" }}>
@@ -208,9 +209,9 @@ export default async function AdminPage({
             </button>
           </form>
         </div>
-      )}
+      ) : null}
 
-      {selectedType === "training" && (
+      {selectedType === "training" ? (
         <div className="card">
           <h2 style={{ marginTop: 0, marginBottom: 8 }}>Create Training Module</h2>
           <p style={{ marginTop: 0, color: "var(--muted)" }}>
@@ -256,9 +257,9 @@ export default async function AdminPage({
             </button>
           </form>
         </div>
-      )}
+      ) : null}
 
-      {selectedType === "event" && (
+      {selectedType === "event" ? (
         <div className="card">
           <h2 style={{ marginTop: 0, marginBottom: 8 }}>Create Event</h2>
           <p style={{ marginTop: 0, color: "var(--muted)" }}>
@@ -275,26 +276,26 @@ export default async function AdminPage({
             </label>
             <label className="form-row">
               Event Type
-              <select className="input" name="eventType" defaultValue={EventType.FESTIVAL}>
-                {Object.values(EventType).map((event) => (
-                  <option key={event} value={event}>
-                    {event.replace(/_/g, " ")}
+              <select className="input" name="eventType" defaultValue={EventType.WORKSHOP}>
+                {Object.values(EventType).map((type) => (
+                  <option key={type} value={type}>
+                    {type.replace(/_/g, " ")}
                   </option>
                 ))}
               </select>
             </label>
             <label className="form-row">
-              Start
+              Start Date
               <input className="input" name="startDate" type="datetime-local" required />
             </label>
             <label className="form-row">
-              End
+              End Date
               <input className="input" name="endDate" type="datetime-local" required />
             </label>
             <label className="form-row">
               Chapter
               <select className="input" name="chapterId" defaultValue="">
-                <option value="">No chapter</option>
+                <option value="">Global event</option>
                 {chapters.map((chapter) => (
                   <option key={chapter.id} value={chapter.id}>
                     {chapter.name}
@@ -307,25 +308,21 @@ export default async function AdminPage({
             </button>
           </form>
         </div>
-      )}
+      ) : null}
 
-      {selectedType === "mentorship" && (
+      {selectedType === "mentorship" ? (
         <div className="card">
           <h2 style={{ marginTop: 0, marginBottom: 8 }}>Create Mentorship Pairing</h2>
           <p style={{ marginTop: 0, color: "var(--muted)" }}>
-            Use this after the mentor committee has confirmed the pairing.
+            Use this only after mentor ownership and mentee fit have been reviewed.
           </p>
           <form action={createMentorship} className="form-grid">
             <label className="form-row">
-              Pairing Type
-              <select className="input" name="type" defaultValue={MentorshipType.INSTRUCTOR}>
-                <option value={MentorshipType.INSTRUCTOR}>Instructor pairing</option>
-                <option value={MentorshipType.STUDENT}>Student pairing</option>
-              </select>
-            </label>
-            <label className="form-row">
               Mentor
-              <select className="input" name="mentorId" required>
+              <select className="input" name="mentorId" defaultValue="" required>
+                <option value="" disabled>
+                  Select a mentor
+                </option>
                 {mentors.map((mentor) => (
                   <option key={mentor.id} value={mentor.id}>
                     {mentor.name}
@@ -335,10 +332,23 @@ export default async function AdminPage({
             </label>
             <label className="form-row">
               Mentee
-              <select className="input" name="menteeId" required>
-                {[...instructorMentees, ...studentMentees].map((mentee) => (
-                  <option key={mentee.id} value={mentee.id}>
-                    {mentee.name}
+              <select className="input" name="menteeId" defaultValue="" required>
+                <option value="" disabled>
+                  Select a mentee
+                </option>
+                {students.map((student) => (
+                  <option key={student.id} value={student.id}>
+                    {student.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="form-row">
+              Mentorship Type
+              <select className="input" name="type" defaultValue={MentorshipType.STUDENT}>
+                {Object.values(MentorshipType).map((type) => (
+                  <option key={type} value={type}>
+                    {type.replace(/_/g, " ")}
                   </option>
                 ))}
               </select>
@@ -352,17 +362,17 @@ export default async function AdminPage({
             </button>
           </form>
         </div>
-      )}
+      ) : null}
 
-      {selectedType === "user" && (
+      {selectedType === "user" ? (
         <div className="card">
           <h2 style={{ marginTop: 0, marginBottom: 8 }}>Create User Account</h2>
           <p style={{ marginTop: 0, color: "var(--muted)" }}>
-            Use this for approved manual account setup only.
+            Create portal accounts only when they belong to an approved onboarding process.
           </p>
           <CreateUserForm chapters={chapters} />
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
