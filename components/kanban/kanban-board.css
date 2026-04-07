@@ -1,4 +1,4 @@
-/* ── Kanban Board ───────────────────────────────────── */
+/* ── Kanban Board (shared/reusable) ─────────────────── */
 
 .kanban-wrapper {
   overflow-x: auto;
@@ -62,7 +62,7 @@
 }
 
 .kanban-column-body:empty::after {
-  content: "No applicants";
+  content: attr(data-empty-label);
   display: block;
   text-align: center;
   font-size: 12px;
@@ -75,7 +75,7 @@
   background: #f0e6ff;
 }
 
-/* ── Applicant Card ─────────────────────────────────── */
+/* ── Card (base) ───────────────────────────────────── */
 
 .kanban-card {
   background: #fff;
@@ -159,60 +159,7 @@
   margin-top: 6px;
 }
 
-.kanban-card-score {
-  display: flex;
-  gap: 2px;
-  align-items: center;
-}
-
-.kanban-card-score-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-  border: 1px solid var(--border, #ddd);
-}
-
-.kanban-card-score-dot.filled {
-  background: #6b21c8;
-  border-color: #6b21c8;
-}
-
-.kanban-card-score-dot.empty {
-  background: var(--surface-2, #f0f0f2);
-}
-
-.kanban-card-score-dot.no-info {
-  background: #d4d4d8;
-  border-color: #d4d4d8;
-}
-
-.kanban-card-recommendation {
-  font-size: 10px;
-  font-weight: 600;
-  padding: 1px 6px;
-  border-radius: 3px;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-
-.kanban-card-recommendation.strong-yes {
-  background: #dcfce7;
-  color: #15803d;
-}
-.kanban-card-recommendation.yes {
-  background: #d1fae5;
-  color: #047857;
-}
-.kanban-card-recommendation.maybe {
-  background: #fef3c7;
-  color: #92400e;
-}
-.kanban-card-recommendation.no {
-  background: #fee2e2;
-  color: #b91c1c;
-}
-
-/* ── Slide-over Panel ─────────────────────────────── */
+/* ── Slide-over Panel (shared) ────────────────────── */
 
 .slideout-backdrop {
   position: fixed;
@@ -312,7 +259,127 @@
   line-height: 1.5;
 }
 
-/* ── Score Bar (detail panel) ──────────────────────── */
+/* ── Status Pill (shared) ─────────────────────────── */
+
+.status-pill {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.status-pill.submitted { background: #f3e8ff; color: #6b21c8; }
+.status-pill.under-review { background: #dbeafe; color: #2563eb; }
+.status-pill.info-requested { background: #fef3c7; color: #d97706; }
+.status-pill.interview-scheduled { background: #e0e7ff; color: #4338ca; }
+.status-pill.interview-completed { background: #c7d2fe; color: #3730a3; }
+.status-pill.approved { background: #dcfce7; color: #16a34a; }
+.status-pill.rejected { background: #fee2e2; color: #dc2626; }
+.status-pill.on-hold { background: #f4f4f5; color: #71717a; }
+.status-pill.withdrawn { background: #f5f5f4; color: #57534e; }
+.status-pill.accepted { background: #dcfce7; color: #16a34a; }
+.status-pill.draft { background: #f4f4f5; color: #71717a; }
+.status-pill.pending-chair-approval { background: #fef3c7; color: #d97706; }
+.status-pill.changes-requested { background: #fee2e2; color: #dc2626; }
+.status-pill.returned { background: #fee2e2; color: #dc2626; }
+.status-pill.open { background: #dbeafe; color: #2563eb; }
+.status-pill.in-progress { background: #e0e7ff; color: #4338ca; }
+.status-pill.blocked { background: #fee2e2; color: #dc2626; }
+.status-pill.complete { background: #dcfce7; color: #16a34a; }
+.status-pill.pending-review { background: #fef3c7; color: #d97706; }
+.status-pill.revision-requested { background: #fee2e2; color: #dc2626; }
+.status-pill.requested { background: #f3e8ff; color: #6b21c8; }
+.status-pill.passed { background: #dcfce7; color: #16a34a; }
+.status-pill.failed { background: #fee2e2; color: #dc2626; }
+.status-pill.waived { background: #f4f4f5; color: #71717a; }
+.status-pill.required { background: #f3e8ff; color: #6b21c8; }
+.status-pill.scheduled { background: #e0e7ff; color: #4338ca; }
+.status-pill.completed { background: #c7d2fe; color: #3730a3; }
+.status-pill.hold { background: #f4f4f5; color: #71717a; }
+
+/* ── Info block (shared) ──────────────────────────── */
+
+.info-block {
+  background: var(--surface-2, #f8f8fa);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+}
+
+.info-block-label {
+  font-size: 11px;
+  color: var(--muted, #888);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 4px;
+}
+
+.info-block-value {
+  font-size: 13px;
+  color: var(--text, #1a1a1a);
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+/* ── Score system (shared) ────────────────────────── */
+
+.kanban-card-score {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.kanban-card-score-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  border: 1px solid var(--border, #ddd);
+}
+
+.kanban-card-score-dot.filled {
+  background: #6b21c8;
+  border-color: #6b21c8;
+}
+
+.kanban-card-score-dot.empty {
+  background: var(--surface-2, #f0f0f2);
+}
+
+.kanban-card-score-dot.no-info {
+  background: #d4d4d8;
+  border-color: #d4d4d8;
+}
+
+.kanban-card-recommendation {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.kanban-card-recommendation.strong-yes {
+  background: #dcfce7;
+  color: #15803d;
+}
+.kanban-card-recommendation.yes {
+  background: #d1fae5;
+  color: #047857;
+}
+.kanban-card-recommendation.maybe {
+  background: #fef3c7;
+  color: #92400e;
+}
+.kanban-card-recommendation.no {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* ── Score Bar (detail panel, shared) ─────────────── */
 
 .score-bar-row {
   display: flex;
@@ -366,7 +433,7 @@
   font-style: italic;
 }
 
-/* ── Recommendation Selector ──────────────────────── */
+/* ── Recommendation Selector (shared) ─────────────── */
 
 .recommendation-options {
   display: flex;
@@ -396,7 +463,7 @@
   font-weight: 600;
 }
 
-/* ── Action Buttons (detail panel) ─────────────────── */
+/* ── Action Bar (shared) ──────────────────────────── */
 
 .action-bar {
   display: flex;
@@ -410,47 +477,65 @@
   font-size: 12px;
 }
 
-/* ── Status Pill Colors ────────────────────────────── */
+/* ── View Toggle ──────────────────────────────────── */
 
-.status-pill {
+.view-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.view-toggle-btn {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 14px;
+  background: #fff;
+  border: none;
+  cursor: pointer;
+  color: var(--muted, #888);
+  transition: all 0.12s;
+}
+
+.view-toggle-btn:not(:last-child) {
+  border-right: 1px solid var(--border, #e5e5e5);
+}
+
+.view-toggle-btn.active {
+  background: var(--ypp-purple-100, #f3e8ff);
+  color: var(--ypp-purple-700, #6b21c8);
+  font-weight: 600;
+}
+
+.view-toggle-btn:hover:not(.active) {
+  background: var(--surface-2, #f8f8fa);
+}
+
+/* ── Rating color dots (mentorship) ───────────────── */
+
+.rating-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.rating-dot.behind-schedule { background: #ef4444; }
+.rating-dot.getting-started { background: #f59e0b; }
+.rating-dot.achieved { background: #22c55e; }
+.rating-dot.above-and-beyond { background: #8b5cf6; }
+
+/* ── Role badge (mentorship) ──────────────────────── */
+
+.role-badge {
   font-size: 10px;
   font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 1px 6px;
+  border-radius: 3px;
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
 
-.status-pill.submitted { background: #f3e8ff; color: #6b21c8; }
-.status-pill.under-review { background: #dbeafe; color: #2563eb; }
-.status-pill.info-requested { background: #fef3c7; color: #d97706; }
-.status-pill.interview-scheduled { background: #e0e7ff; color: #4338ca; }
-.status-pill.interview-completed { background: #c7d2fe; color: #3730a3; }
-.status-pill.approved { background: #dcfce7; color: #16a34a; }
-.status-pill.rejected { background: #fee2e2; color: #dc2626; }
-.status-pill.on-hold { background: #f4f4f5; color: #71717a; }
-
-/* ── Info block (notes, requests, responses) ────────── */
-
-.info-block {
-  background: var(--surface-2, #f8f8fa);
-  border-radius: 8px;
-  padding: 10px 14px;
-  margin-bottom: 10px;
-}
-
-.info-block-label {
-  font-size: 11px;
-  color: var(--muted, #888);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  margin-bottom: 4px;
-}
-
-.info-block-value {
-  font-size: 13px;
-  color: var(--text, #1a1a1a);
-  white-space: pre-wrap;
-  line-height: 1.5;
-}
+.role-badge.instructor { background: #e0e7ff; color: #3730a3; }
+.role-badge.chapter-president { background: #f3e8ff; color: #6b21c8; }
+.role-badge.global-leadership { background: #fef3c7; color: #92400e; }

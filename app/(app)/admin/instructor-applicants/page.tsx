@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { RoleType } from "@prisma/client";
-import KanbanBoard from "./kanban-board";
+import InstructorKanbanBoard from "./kanban-board";
 import InstructorApplicantsClient from "./client";
 
 export default async function AdminInstructorApplicantsPage() {
@@ -112,7 +112,7 @@ export default async function AdminInstructorApplicantsPage() {
       </div>
 
       {/* Kanban board */}
-      <KanbanBoard
+      <InstructorKanbanBoard
         applications={serialized as any}
         reviewers={reviewerUsers}
       />

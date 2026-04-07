@@ -6,12 +6,14 @@ import {
   formatDeadline,
   recommendationInfo,
 } from "@/components/kanban/kanban-utils";
-import { updateApplicationStage } from "@/lib/instructor-application-actions";
-import ApplicantDetailPanel from "./applicant-detail-panel";
+// Note: CP model lacks decisionRecommendation and actionDueDate fields
+// (those exist only on InstructorApplication). We handle them as optional.
+import { updateCPApplicationStage } from "@/lib/cp-application-kanban-actions";
+import CPDetailPanel from "./cp-detail-panel";
 
 /* ── Types ─────────────────────────────────────────── */
 
-export type InstructorApp = {
+export type CPApp = {
   id: string;
   status: string;
   legalName: string | null;
@@ -23,23 +25,29 @@ export type InstructorApp = {
     email: string;
     chapter: { name: string } | null;
   };
+  chapter: { name: string } | null;
   reviewer: { name: string } | null;
   reviewerId: string | null;
-  scoreAcademic: number | null;
-  scoreCommunication: number | null;
   scoreLeadership: number | null;
-  scoreMotivation: number | null;
+  scoreVision: number | null;
+  scoreOrganization: number | null;
+  scoreCommitment: number | null;
   scoreFit: number | null;
-  decisionRecommendation: string | null;
-  actionDueDate: string | null;
+  decisionRecommendation?: string | null;
+  actionDueDate?: string | null;
   createdAt: string;
   updatedAt: string;
   interviewScheduledAt: string | null;
   approvedAt: string | null;
   rejectedAt: string | null;
-  motivation: string | null;
-  motivationVideoUrl: string | null;
-  teachingExperience: string;
+  whyChapterPresident: string | null;
+  leadershipExperience: string;
+  chapterVision: string;
+  recruitmentPlan: string | null;
+  launchPlan: string | null;
+  priorOrganizing: string | null;
+  extracurriculars: string | null;
+  specialSkills: string | null;
   availability: string;
   phoneNumber: string | null;
   city: string | null;
@@ -50,17 +58,21 @@ export type InstructorApp = {
   gpa: string | null;
   classRank: string | null;
   hoursPerWeek: number | null;
-  whyYPP: string | null;
-  extracurriculars: string | null;
-  priorLeadership: string | null;
-  specialSkills: string | null;
-  subjectsOfInterest: string | null;
   preferredStartDate: string | null;
   referralEmails: string | null;
   reviewerNotes: string | null;
   infoRequest: string | null;
   applicantResponse: string | null;
   rejectionReason: string | null;
+  partnerSchool: string | null;
+  hearAboutYPP: string | null;
+  ethnicity: string | null;
+  customResponses: {
+    id: string;
+    value: string;
+    fileUrl: string | null;
+    field: { label: string; fieldType: string };
+  }[];
 };
 
 export type Reviewer = {
@@ -76,13 +88,12 @@ const COLUMNS: KanbanColumnDef[] = [
   { id: "interview", title: "Interview", statuses: ["INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED"], color: "#4338ca" },
   { id: "accepted", title: "Accepted", statuses: ["APPROVED"], color: "#16a34a" },
   { id: "rejected", title: "Rejected", statuses: ["REJECTED"], color: "#dc2626" },
-  { id: "on_hold", title: "On Hold", statuses: ["ON_HOLD"], color: "#71717a" },
 ];
 
-/* ── Instructor-specific deadline formatting ────────── */
+/* ── CP-specific deadline formatting ────────────────── */
 
-function formatInstructorDeadline(app: InstructorApp): { text: string; className: string } | null {
-  const base = formatDeadline(app.actionDueDate);
+function formatCPDeadline(app: CPApp): { text: string; className: string } | null {
+  const base = formatDeadline(app.actionDueDate ?? null);
   if (base) return base;
   if (app.status === "INTERVIEW_SCHEDULED" && app.interviewScheduledAt) {
     const d = new Date(app.interviewScheduledAt);
@@ -96,25 +107,26 @@ function formatInstructorDeadline(app: InstructorApp): { text: string; className
 
 /* ── Card ─────────────────────────────────────────── */
 
-function ApplicantCard({
+function CPApplicantCard({
   app,
   onClick,
   isDragging,
 }: {
-  app: InstructorApp;
+  app: CPApp;
   onClick: () => void;
   isDragging?: boolean;
 }) {
   const comp = compositeScore([
-    app.scoreAcademic,
-    app.scoreCommunication,
     app.scoreLeadership,
-    app.scoreMotivation,
+    app.scoreVision,
+    app.scoreOrganization,
+    app.scoreCommitment,
     app.scoreFit,
   ]);
-  const deadline = formatInstructorDeadline(app);
-  const rec = recommendationInfo(app.decisionRecommendation);
+  const deadline = formatCPDeadline(app);
+  const rec = recommendationInfo(app.decisionRecommendation ?? null);
   const displayName = app.legalName || app.applicant.name;
+  const chapterName = app.chapter?.name || app.applicant.chapter?.name;
 
   return (
     <div
@@ -126,8 +138,12 @@ function ApplicantCard({
     >
       <div className="kanban-card-name">{displayName}</div>
       <div className="kanban-card-meta">
-        {app.applicant.chapter && (
-          <span className="kanban-card-chapter">{app.applicant.chapter.name}</span>
+        {chapterName ? (
+          <span className="kanban-card-chapter">{chapterName}</span>
+        ) : (
+          <span className="kanban-card-chapter" style={{ background: "#fef3c7", color: "#d97706" }}>
+            New Chapter
+          </span>
         )}
         <span className={`kanban-card-reviewer${app.reviewer ? "" : " unassigned"}`}>
           {app.reviewer ? app.reviewer.name : "Unassigned"}
@@ -164,14 +180,16 @@ function ApplicantCard({
 
 /* ── Drag Overlay Card ─────────────────────────────── */
 
-function DragOverlayCard({ app }: { app: InstructorApp }) {
+function DragOverlayCard({ app }: { app: CPApp }) {
   const displayName = app.legalName || app.applicant.name;
   return (
     <div className="kanban-card" style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.15)", width: 264 }}>
       <div className="kanban-card-name">{displayName}</div>
       <div className="kanban-card-meta">
-        {app.applicant.chapter && (
-          <span className="kanban-card-chapter">{app.applicant.chapter.name}</span>
+        {(app.chapter?.name || app.applicant.chapter?.name) && (
+          <span className="kanban-card-chapter">
+            {app.chapter?.name || app.applicant.chapter?.name}
+          </span>
         )}
       </div>
     </div>
@@ -180,15 +198,15 @@ function DragOverlayCard({ app }: { app: InstructorApp }) {
 
 /* ── Main export ──────────────────────────────────── */
 
-export default function InstructorKanbanBoard({
+export default function CPKanbanBoard({
   applications,
   reviewers,
 }: {
-  applications: InstructorApp[];
+  applications: CPApp[];
   reviewers: Reviewer[];
 }) {
   return (
-    <KanbanBoard<InstructorApp>
+    <KanbanBoard<CPApp>
       items={applications}
       columns={COLUMNS}
       dragEnabled
@@ -199,6 +217,7 @@ export default function InstructorKanbanBoard({
           app.legalName,
           app.applicant.name,
           app.applicant.email,
+          app.chapter?.name,
           app.applicant.chapter?.name,
           app.schoolName,
         ]
@@ -206,15 +225,15 @@ export default function InstructorKanbanBoard({
           .join(" ")
       }
       onStatusChange={async (itemId, newStatus) => {
-        const result = await updateApplicationStage(itemId, newStatus as any);
+        const result = await updateCPApplicationStage(itemId, newStatus);
         return { success: result.success, error: result.error };
       }}
       renderCard={(app, { onClick, isDragging }) => (
-        <ApplicantCard app={app} onClick={onClick} isDragging={isDragging} />
+        <CPApplicantCard app={app} onClick={onClick} isDragging={isDragging} />
       )}
       renderDragOverlay={(app) => <DragOverlayCard app={app} />}
       renderDetailPanel={(app, { onClose, onUpdate }) => (
-        <ApplicantDetailPanel
+        <CPDetailPanel
           app={app}
           reviewers={reviewers}
           onClose={onClose}
