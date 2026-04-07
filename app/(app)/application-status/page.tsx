@@ -19,8 +19,13 @@ function instructorStatusLabel(status: InstructorApplicationStatus): string {
     case "INFO_REQUESTED": return "More Info Requested";
     case "INTERVIEW_SCHEDULED": return "Interview Scheduled";
     case "INTERVIEW_COMPLETED": return "Interview Completed";
+    case "ON_HOLD": return "On Hold";
     case "APPROVED": return "Approved";
     case "REJECTED": return "Not Accepted";
+    default: {
+      const exhaustiveCheck: never = status;
+      return exhaustiveCheck;
+    }
   }
 }
 
@@ -33,6 +38,10 @@ function cpStatusLabel(status: ChapterPresidentApplicationStatus): string {
     case "INTERVIEW_COMPLETED": return "Interview Completed";
     case "APPROVED": return "Approved";
     case "REJECTED": return "Not Accepted";
+    default: {
+      const exhaustiveCheck: never = status;
+      return exhaustiveCheck;
+    }
   }
 }
 
@@ -40,6 +49,7 @@ function statusColor(status: string): string {
   if (status === "APPROVED") return "#16a34a";
   if (status === "REJECTED") return "#dc2626";
   if (status === "INFO_REQUESTED") return "#d97706";
+  if (status === "ON_HOLD") return "#71717a";
   return "#6b21c8";
 }
 
@@ -52,7 +62,7 @@ const STAGES = [
 
 function currentStageIndex(status: string): number {
   if (status === "SUBMITTED") return 0;
-  if (status === "UNDER_REVIEW" || status === "INFO_REQUESTED") return 1;
+  if (status === "UNDER_REVIEW" || status === "INFO_REQUESTED" || status === "ON_HOLD") return 1;
   if (status === "INTERVIEW_SCHEDULED" || status === "INTERVIEW_COMPLETED") return 2;
   return 3;
 }
@@ -234,6 +244,14 @@ export default async function ApplicationStatusPage() {
               <>
                 <h3 className="section-title">Interview Completed</h3>
                 <p style={{ color: "var(--muted)", fontSize: 14 }}>A final decision is pending.</p>
+              </>
+            )}
+            {instructorApp.status === "ON_HOLD" && (
+              <>
+                <h3 className="section-title">Application On Hold</h3>
+                <p style={{ color: "var(--muted)", fontSize: 14 }}>
+                  Your application is paused while the review team completes follow-up steps. We&apos;ll reach out if we need anything else from you.
+                </p>
               </>
             )}
             {instructorApp.status === "APPROVED" && (
