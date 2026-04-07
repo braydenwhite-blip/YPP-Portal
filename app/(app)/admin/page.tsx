@@ -17,7 +17,6 @@ import {
 } from "@/lib/admin-actions";
 import { canAccessContentAdmin, normalizeAdminSubtypes } from "@/lib/admin-subtypes";
 import { CreateUserForm } from "@/components/create-user-form";
-import PageHelp from "@/components/page-help";
 
 const CONTENT_TYPE_OPTIONS = [
   { value: "course", label: "Course" },
@@ -81,12 +80,6 @@ export default async function AdminPage({
           </p>
         </div>
       </div>
-
-      <PageHelp
-        purpose="This workspace is only for approved content and structured setup tasks that belong in the portal."
-        firstStep="Pick the content type you need from the dropdown so the page only shows the fields for that one task."
-        nextStep="After you submit, the new content is created and the matching portal area is revalidated automatically."
-      />
 
       <div className="card" style={{ marginTop: 16, marginBottom: 20 }}>
         <p style={{ margin: 0, color: "var(--muted)" }}>

@@ -12,7 +12,6 @@ import {
   NOTIFICATION_POLICY,
   NOTIFICATION_POLICY_CHANNEL_LABELS,
 } from "@/lib/notification-policy";
-import PageHelp from "@/components/page-help";
 
 function getTypeLabel(type: string) {
   return type.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
@@ -58,12 +57,6 @@ export default async function NotificationsPage() {
           ) : null}
         </div>
       </div>
-
-      <PageHelp
-        purpose="This page keeps a dated record of your portal alerts and the delivery rules behind them."
-        firstStep="Read the unread items first, especially anything tied to hiring, reviews, or deadlines."
-        nextStep="After you clear an alert, the archive stays here while your home page returns to the next active item."
-      />
 
       <div className="card" style={{ marginTop: 16, marginBottom: 20 }}>
         <h2 style={{ marginTop: 0 }}>Notification Policy</h2>

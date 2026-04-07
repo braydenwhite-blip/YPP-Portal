@@ -2,6 +2,7 @@ export type LegacyApplicationStatus =
   | "SUBMITTED"
   | "UNDER_REVIEW"
   | "INFO_REQUESTED"
+  | "ON_HOLD"
   | "INTERVIEW_SCHEDULED"
   | "INTERVIEW_COMPLETED"
   | "APPROVED"

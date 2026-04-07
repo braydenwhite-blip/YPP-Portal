@@ -19,10 +19,12 @@ function statusLabel(status: InstructorApplicationStatus): string {
     case "SUBMITTED": return "Submitted";
     case "UNDER_REVIEW": return "Under Review";
     case "INFO_REQUESTED": return "Info Requested";
+    case "ON_HOLD": return "On Hold";
     case "INTERVIEW_SCHEDULED": return "Interview Scheduled";
     case "INTERVIEW_COMPLETED": return "Interview Completed";
     case "APPROVED": return "Approved";
     case "REJECTED": return "Rejected";
+    default: return status;
   }
 }
 

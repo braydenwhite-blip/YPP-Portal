@@ -7,7 +7,6 @@ import {
   startConversation,
   getMessageableUsers,
 } from "@/lib/messaging-actions";
-import PageHelp from "@/components/page-help";
 
 function formatTimestamp(date: Date): string {
   const now = new Date();
@@ -55,12 +54,6 @@ export default async function MessagesPage() {
           </p>
         </div>
       </div>
-
-      <PageHelp
-        purpose="This page is your direct-message inbox for one-to-one and small-group conversations."
-        firstStep="Open an unread conversation or start a new message to the specific person who needs the update."
-        nextStep="Replies stay in the inbox and urgent message tasks also appear back on your home page."
-      />
 
       {/* New Conversation Section */}
       <div className="card" style={{ marginBottom: 24 }}>

@@ -7,7 +7,6 @@ import { reviewInstructorApplicationAction } from "@/lib/instructor-application-
 import { saveApplicationScores } from "@/lib/export-actions";
 import { InstructorApplicationStatus } from "@prisma/client";
 import InstructorApplicantsClient from "./client";
-import PageHelp from "@/components/page-help";
 
 function statusColor(status: InstructorApplicationStatus): string {
   if (status === "APPROVED") return "#16a34a";
@@ -25,6 +24,8 @@ function statusLabel(status: InstructorApplicationStatus): string {
       return "Under Review";
     case "INFO_REQUESTED":
       return "Info Requested";
+    case "ON_HOLD":
+      return "On Hold";
     case "INTERVIEW_SCHEDULED":
       return "Interview Scheduled";
     case "INTERVIEW_COMPLETED":
@@ -33,6 +34,8 @@ function statusLabel(status: InstructorApplicationStatus): string {
       return "Approved";
     case "REJECTED":
       return "Rejected";
+    default:
+      return status;
   }
 }
 
@@ -516,12 +519,6 @@ export default async function AdminInstructorApplicantsPage({
           <InstructorApplicantsClient applications={applications} />
         </div>
       </div>
-
-      <PageHelp
-        purpose="This page is the shared hiring board for instructor applications from first review through final decision."
-        firstStep="Open the left-most cards first, check the deadline to action, and confirm the reviewer and current notes before changing status."
-        nextStep="When you score or move a card forward, the shared workflow record updates and the action moves to the next stage owner automatically."
-      />
 
       <div className="grid three" style={{ marginTop: 20, marginBottom: 24 }}>
         <div className="card kpi">

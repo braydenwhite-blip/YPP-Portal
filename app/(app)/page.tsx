@@ -5,7 +5,6 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ADMIN_SUBTYPE_LABELS, normalizeAdminSubtypes } from "@/lib/admin-subtypes";
 import { listWorkflowHomeData } from "@/lib/workflow";
-import PageHelp from "@/components/page-help";
 
 function formatAbsoluteDate(value: Date | null | undefined) {
   if (!value) return "No date";
@@ -70,12 +69,6 @@ export default async function OverviewPage() {
           </p>
         </div>
       </div>
-
-      <PageHelp
-        purpose="This home page is your role-based command center for assigned work and recent alerts."
-        firstStep="Open the first next action with the nearest due date or the item that is already assigned to you."
-        nextStep="When you finish an action, the workflow record updates and the next owner or next stage appears automatically."
-      />
 
       {isAdmin && adminSubtypes.length === 0 ? (
         <div className="card" style={{ marginTop: 16, marginBottom: 16 }}>
