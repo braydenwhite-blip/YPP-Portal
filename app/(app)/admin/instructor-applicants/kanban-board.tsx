@@ -71,12 +71,25 @@ export type Reviewer = {
 /* ── Column definitions ────────────────────────────── */
 
 const COLUMNS: KanbanColumnDef[] = [
-  { id: "applied", title: "Applied", statuses: ["SUBMITTED"], color: "#6b21c8" },
-  { id: "review", title: "Under Review", statuses: ["UNDER_REVIEW", "INFO_REQUESTED"], color: "#2563eb" },
-  { id: "interview", title: "Interview", statuses: ["INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED"], color: "#4338ca" },
-  { id: "accepted", title: "Accepted", statuses: ["APPROVED"], color: "#16a34a" },
-  { id: "rejected", title: "Rejected", statuses: ["REJECTED"], color: "#dc2626" },
-  { id: "on_hold", title: "On Hold", statuses: ["ON_HOLD"], color: "#71717a" },
+  { id: "new_applications", title: "New Applications", statuses: ["SUBMITTED"], color: "#4f46e5" },
+  {
+    id: "to_review",
+    title: "To Review",
+    statuses: ["UNDER_REVIEW", "INFO_REQUESTED", "ON_HOLD"],
+    color: "#2563eb",
+  },
+  {
+    id: "to_interview",
+    title: "To Interview",
+    statuses: ["INTERVIEW_SCHEDULED"],
+    color: "#0f766e",
+  },
+  {
+    id: "awaiting_chair_decision",
+    title: "Interviewed/Awaiting Chair Decision",
+    statuses: ["INTERVIEW_COMPLETED", "APPROVED", "REJECTED"],
+    color: "#7c3aed",
+  },
 ];
 
 /* ── Instructor-specific deadline formatting ────────── */
