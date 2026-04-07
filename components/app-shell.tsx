@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import Nav, { type NavBadges } from "@/components/nav";
 import BrandLockup from "@/components/brand-lockup";
 import LogoutButton from "@/components/logout-button";
+import PageHelperFab from "@/components/page-helper-fab";
+import type { PageHelperRole } from "@/lib/page-helper/types";
 
 export default function AppShell({
   children,
@@ -136,6 +138,10 @@ export default function AppShell({
       </aside>
 
       <main>{children}</main>
+      <PageHelperFab
+        primaryRole={(primaryRole as PageHelperRole | null | undefined) ?? undefined}
+        roles={roles}
+      />
     </div>
   );
 }

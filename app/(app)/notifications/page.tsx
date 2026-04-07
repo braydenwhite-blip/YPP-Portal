@@ -8,7 +8,6 @@ import {
   markAsRead,
 } from "@/lib/notification-actions";
 import { listNotificationPolicies } from "@/lib/notification-policy";
-import PageHelp from "@/components/page-help";
 
 function getTypeIcon(type: string): string {
   switch (type) {
@@ -117,12 +116,6 @@ export default async function NotificationsPage() {
           ) : null}
         </div>
       </div>
-
-      <PageHelp
-        purpose="This page keeps a dated record of your portal alerts and the fixed delivery rules behind them."
-        firstStep="Read the unread items first, especially anything tied to interviews, approvals, reviews, or deadlines."
-        nextStep="When you clear an alert here, the system keeps the history but stops showing it as active work."
-      />
 
       {notifications.length === 0 ? (
         <div className="card" style={{ marginTop: 16 }}>

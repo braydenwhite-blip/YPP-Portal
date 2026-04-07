@@ -551,6 +551,7 @@ function nextInstructorApplicationStage(status: InstructorApplicationStatus): Wo
       return "CHAPTER_REVIEW";
     case "UNDER_REVIEW":
     case "INFO_REQUESTED":
+    case "ON_HOLD":
       return "REVIEW";
     case "INTERVIEW_SCHEDULED":
     case "INTERVIEW_COMPLETED":

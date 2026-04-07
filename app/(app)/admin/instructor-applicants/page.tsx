@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { RoleType } from "@prisma/client";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
-import PageHelp from "@/components/page-help";
 import InstructorApplicantsClient from "./client";
 import InstructorKanbanBoard from "./kanban-board";
 
@@ -89,12 +88,6 @@ export default async function AdminInstructorApplicantsPage() {
           <InstructorApplicantsClient applications={serialized as any} />
         </div>
       </div>
-
-      <PageHelp
-        purpose="This page is the shared hiring board for instructor applications, organized into the exact four review lanes used by the approved mockup."
-        firstStep="Start in New Applications, assign ownership, then move each applicant forward only when the next action is clear."
-        nextStep="Cards move from review to interview to final decision, and the last lane keeps interviewed applicants visible until the decision is fully closed out."
-      />
 
       <div className="grid four" style={{ marginTop: 20, marginBottom: 20 }}>
         <div className="card kpi">

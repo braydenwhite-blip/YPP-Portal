@@ -2,11 +2,11 @@ export type LegacyApplicationStatus =
   | "SUBMITTED"
   | "UNDER_REVIEW"
   | "INFO_REQUESTED"
+  | "ON_HOLD"
   | "INTERVIEW_SCHEDULED"
   | "INTERVIEW_COMPLETED"
   | "APPROVED"
-  | "REJECTED"
-  | "ON_HOLD";
+  | "REJECTED";
 
 export type LegacyApplicationReviewAction =
   | "mark_under_review"
@@ -48,8 +48,9 @@ export function getLegacyApplicationTransitionError(input: {
         ? null
         : "Only scheduled interviews can be marked complete.";
     case "approve":
-      // Relaxed: allow approval from any non-terminal status
-      return null;
+      return status === "INTERVIEW_COMPLETED"
+        ? null
+        : "Complete the interview before approving this application.";
     case "reject":
       return null;
     case "put_on_hold":
