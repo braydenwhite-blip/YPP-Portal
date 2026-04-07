@@ -3,10 +3,10 @@ import { getSession } from "@/lib/auth-supabase";
 import { NextResponse } from "next/server";
 import { redirect } from "next/navigation";
 import { RoleType } from "@prisma/client";
-
-function isValidRole(role: string): role is RoleType {
-  return role in RoleType;
-}
+import {
+  buildUserRoleRecords,
+  resolveUserAccessSelection,
+} from "@/lib/admin-user-access";
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -21,12 +21,24 @@ export async function POST(request: Request) {
 
   const formData = await request.formData();
   const emailsText = String(formData.get("emails") || "");
-  const newRoleRaw = String(formData.get("newRole") || "").toUpperCase();
+  const primaryRoleRaw = String(
+    formData.get("primaryRole") || formData.get("newRole") || ""
+  ).toUpperCase();
   const chapterId = String(formData.get("chapterId") || "").trim();
   const mode = String(formData.get("mode") || "apply");
 
-  if (!isValidRole(newRoleRaw)) {
-    redirect(`/admin/bulk-users?updated=0&failed=0&error=${encodeURIComponent("Invalid role selected")}`);
+  let access: ReturnType<typeof resolveUserAccessSelection>;
+  try {
+    access = resolveUserAccessSelection({
+      primaryRoleRaw,
+      roleValues: formData.getAll("roles").map(String),
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Invalid role selection";
+    redirect(
+      `/admin/bulk-users?updated=0&failed=0&error=${encodeURIComponent(message)}`
+    );
   }
 
   if (chapterId) {
@@ -60,27 +72,28 @@ export async function POST(request: Request) {
       continue;
     }
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        primaryRole: newRoleRaw,
-        ...(chapterId ? { chapterId } : {}),
-      },
-    });
-
-    await prisma.userRole.upsert({
-      where: {
-        userId_role: {
-          userId: user.id,
-          role: newRoleRaw,
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: user.id },
+        data: {
+          primaryRole: access.primaryRole,
+          ...(chapterId ? { chapterId } : {}),
         },
-      },
-      update: {},
-      create: {
-        userId: user.id,
-        role: newRoleRaw,
-      },
-    });
+      }),
+      prisma.userRole.deleteMany({
+        where: { userId: user.id },
+      }),
+      prisma.userRole.createMany({
+        data: buildUserRoleRecords(user.id, access.roles),
+      }),
+      ...(access.roles.includes(RoleType.ADMIN)
+        ? []
+        : [
+            prisma.userAdminSubtype.deleteMany({
+              where: { userId: user.id },
+            }),
+          ]),
+    ]);
 
     updated++;
   }

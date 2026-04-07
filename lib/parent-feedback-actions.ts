@@ -10,12 +10,7 @@ export async function submitChapterFeedback(formData: FormData) {
     throw new Error("Not authenticated");
   }
 
-  // Verify user has PARENT role
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-  });
-
-  if (!user || user.primaryRole !== "PARENT") {
+  if (!session.user.roles.includes("PARENT")) {
     throw new Error("Only parents can submit feedback");
   }
 

@@ -4,7 +4,13 @@ import Link from "next/link";
 
 export default async function NewProposalPage() {
   const session = await getSession();
-  if (!session?.user?.id || (session.user.primaryRole !== "INSTRUCTOR" && session.user.primaryRole !== "ADMIN")) {
+  if (
+    !session?.user?.id ||
+    (
+      !session.user.roles.includes("INSTRUCTOR") &&
+      !session.user.roles.includes("ADMIN")
+    )
+  ) {
     redirect("/courses");
   }
 

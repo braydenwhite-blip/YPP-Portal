@@ -9,9 +9,10 @@ export default async function MenteeHealthPage() {
     redirect("/login");
   }
 
-  const isInstructor = session.user.primaryRole === "INSTRUCTOR" ||
-                       session.user.primaryRole === "MENTOR" ||
-                       session.user.primaryRole === "ADMIN";
+  const isInstructor =
+    session.user.roles.includes("INSTRUCTOR") ||
+    session.user.roles.includes("MENTOR") ||
+    session.user.roles.includes("ADMIN");
 
   if (!isInstructor) {
     redirect("/");

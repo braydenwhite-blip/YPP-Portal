@@ -15,7 +15,11 @@ export async function POST(request: Request) {
   }
 
   // Only instructors and admins can generate check-in codes
-  if (session.user.primaryRole !== "INSTRUCTOR" && session.user.primaryRole !== "ADMIN") {
+  const isInstructor =
+    session.user.roles.includes("INSTRUCTOR") ||
+    session.user.roles.includes("ADMIN");
+
+  if (!isInstructor) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
@@ -45,7 +49,7 @@ export async function POST(request: Request) {
     if (
       attendanceSession.course &&
       attendanceSession.course.leadInstructorId !== session.user.id &&
-      session.user.primaryRole !== "ADMIN"
+      !session.user.roles.includes("ADMIN")
     ) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }

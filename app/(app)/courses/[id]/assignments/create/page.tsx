@@ -18,7 +18,9 @@ export default async function CreateAssignmentPage({ params }: { params: { id: s
     redirect("/courses");
   }
 
-  const isInstructor = course.leadInstructorId === session.user.id || session.user.primaryRole === "ADMIN";
+  const isInstructor =
+    course.leadInstructorId === session.user.id ||
+    session.user.roles.includes("ADMIN");
 
   if (!isInstructor) {
     redirect(`/courses/${params.id}`);

@@ -23,7 +23,9 @@ export default async function CoInstructorsPage({ params }: { params: { id: stri
     redirect("/courses");
   }
 
-  const isLead = course.leadInstructorId === session.user.id || session.user.primaryRole === "ADMIN";
+  const isLead =
+    course.leadInstructorId === session.user.id ||
+    session.user.roles.includes("ADMIN");
 
   if (!isLead) {
     redirect(`/courses/${params.id}`);
@@ -32,7 +34,7 @@ export default async function CoInstructorsPage({ params }: { params: { id: stri
   // Get potential co-instructors (other instructors)
   const potentialCoInstructors = await prisma.user.findMany({
     where: {
-      primaryRole: "INSTRUCTOR",
+      roles: { some: { role: "INSTRUCTOR" } },
       id: {
         not: session.user.id,
         notIn: course.coInstructors.map(ci => ci.instructorId)

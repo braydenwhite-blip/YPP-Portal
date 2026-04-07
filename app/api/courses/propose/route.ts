@@ -9,7 +9,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (session.user.primaryRole !== "INSTRUCTOR" && session.user.primaryRole !== "ADMIN") {
+  const isInstructor =
+    session.user.roles.includes("INSTRUCTOR") ||
+    session.user.roles.includes("ADMIN");
+
+  if (!isInstructor) {
     return NextResponse.json({ error: "Only instructors can propose courses" }, { status: 403 });
   }
 

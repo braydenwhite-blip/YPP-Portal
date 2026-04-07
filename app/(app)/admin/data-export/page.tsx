@@ -3,7 +3,7 @@ import { getSession } from "@/lib/auth-supabase";
 
 export default async function DataExportPage() {
   const session = await getSession();
-  if (!session?.user?.id || session.user.primaryRole !== "ADMIN") {
+  if (!session?.user?.id || !session.user.roles.includes("ADMIN")) {
     redirect("/");
   }
 

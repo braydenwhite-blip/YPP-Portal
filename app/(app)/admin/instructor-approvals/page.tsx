@@ -5,14 +5,14 @@ import { getLegacyLearnerFitCopy } from "@/lib/learner-fit";
 
 export default async function InstructorApprovalsPage() {
   const session = await getSession();
-  if (!session?.user?.id || session.user.primaryRole !== "ADMIN") {
+  if (!session?.user?.id || !session.user.roles.includes("ADMIN")) {
     redirect("/");
   }
 
   // Get pending instructor approvals
   const pendingApprovals = await prisma.user.findMany({
     where: {
-      primaryRole: "INSTRUCTOR",
+      roles: { some: { role: "INSTRUCTOR" } },
       NOT: {
         approvals: {
           some: {}

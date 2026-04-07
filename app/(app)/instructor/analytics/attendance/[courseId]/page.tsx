@@ -34,7 +34,7 @@ export default async function AttendanceAnalyticsPage({ params }: { params: { co
 
   const isInstructor =
     course.leadInstructorId === session.user.id ||
-    session.user.primaryRole === "ADMIN";
+    session.user.roles.includes("ADMIN");
 
   if (!isInstructor) {
     redirect(`/courses/${params.courseId}`);

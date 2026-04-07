@@ -155,6 +155,77 @@ describe("admin-actions createUser", () => {
             { role: RoleType.MENTOR },
           ],
         },
+        adminSubtypes: {
+          deleteMany: {},
+        },
+      },
+    });
+  });
+
+  it("adds the admin role automatically when admin subtypes are selected", async () => {
+    const createSupabaseUser = vi.fn().mockResolvedValue({
+      data: {
+        user: {
+          id: "auth-user-2",
+        },
+      },
+      error: null,
+    });
+
+    vi.mocked(createServiceClient).mockReturnValue({
+      auth: {
+        admin: {
+          createUser: createSupabaseUser,
+          deleteUser: vi.fn(),
+        },
+      },
+    } as any);
+    vi.mocked(prisma.user.findUnique)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    vi.mocked(prisma.user.create).mockResolvedValue({
+      id: "portal-user-2",
+      email: "adminuser@example.com",
+    } as any);
+
+    const formData = new FormData();
+    formData.set("name", "Admin User");
+    formData.set("email", "adminuser@example.com");
+    formData.set("password", "Passw0rd123");
+    formData.set("primaryRole", RoleType.STAFF);
+    formData.append("roles", RoleType.STAFF);
+    formData.append("adminSubtypes", "CONTENT_ADMIN");
+    formData.set("defaultOwnerSubtype", "CONTENT_ADMIN");
+
+    await createUser(formData);
+
+    expect(createSupabaseUser).toHaveBeenCalledWith({
+      email: "adminuser@example.com",
+      password_hash: expect.any(String),
+      email_confirm: true,
+      user_metadata: {
+        name: "Admin User",
+        primaryRole: RoleType.STAFF,
+        chapterId: null,
+        roles: [RoleType.STAFF, RoleType.ADMIN],
+      },
+    });
+    expect(vi.mocked(prisma.user.create)).toHaveBeenCalledWith({
+      data: {
+        name: "Admin User",
+        email: "adminuser@example.com",
+        phone: null,
+        passwordHash: expect.any(String),
+        primaryRole: RoleType.STAFF,
+        chapterId: null,
+        emailVerified: expect.any(Date),
+        supabaseAuthId: "auth-user-2",
+        roles: {
+          create: [{ role: RoleType.STAFF }, { role: RoleType.ADMIN }],
+        },
+        adminSubtypes: {
+          create: [{ subtype: "CONTENT_ADMIN", isDefaultOwner: true }],
+        },
       },
     });
   });

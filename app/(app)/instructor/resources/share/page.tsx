@@ -8,7 +8,9 @@ export default async function ShareResourcePage() {
     redirect("/login");
   }
 
-  const isInstructor = session.user.primaryRole === "INSTRUCTOR" || session.user.primaryRole === "ADMIN";
+  const isInstructor =
+    session.user.roles.includes("INSTRUCTOR") ||
+    session.user.roles.includes("ADMIN");
 
   if (!isInstructor) {
     redirect("/");

@@ -7,7 +7,7 @@ import { getChapterRunStatusMeta, formatOwnerLabel } from "./pathway-run-metadat
 
 export default async function AdminPathwaysPage() {
   const session = await getSession();
-  if (!session?.user?.id || session.user.primaryRole !== "ADMIN") {
+  if (!session?.user?.id || !session.user.roles.includes("ADMIN")) {
     redirect("/");
   }
 

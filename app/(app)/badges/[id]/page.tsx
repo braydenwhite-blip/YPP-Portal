@@ -28,8 +28,8 @@ export default async function BadgeDetailPage({ params }: { params: { id: string
   // Only allow viewing own badges or if admin/instructor
   const canView =
     badge.userId === session.user.id ||
-    session.user.primaryRole === "ADMIN" ||
-    session.user.primaryRole === "INSTRUCTOR";
+    session.user.roles.includes("ADMIN") ||
+    session.user.roles.includes("INSTRUCTOR");
 
   if (!canView) {
     redirect("/badges");

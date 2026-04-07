@@ -1,0 +1,22 @@
+import { describe, expect, it } from "vitest";
+
+import { hasAnyRole, normalizeRoleSet } from "@/lib/authorization";
+
+describe("authorization role helpers", () => {
+  it("builds a unified role set from the primary role and role entries", () => {
+    expect(
+      Array.from(
+        normalizeRoleSet(
+          ["INSTRUCTOR", { role: "ADMIN" }, "INSTRUCTOR"],
+          "MENTOR"
+        )
+      )
+    ).toEqual(["MENTOR", "INSTRUCTOR", "ADMIN"]);
+  });
+
+  it("treats the primary role as a valid role when checking access", () => {
+    expect(hasAnyRole([], ["ADMIN"], "ADMIN")).toBe(true);
+    expect(hasAnyRole([{ role: "MENTOR" }], ["ADMIN", "MENTOR"])).toBe(true);
+    expect(hasAnyRole([], ["ADMIN"], "STUDENT")).toBe(false);
+  });
+});

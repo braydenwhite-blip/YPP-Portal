@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { hasInstructorPathwaySpecTable } from "@/lib/instructor-pathway-spec-compat";
+import { RoleType } from "@prisma/client";
+import { whereUserHasRole } from "@/lib/user-role-where";
 
 /**
  * Returns ranked instructors for a given pathway and student user.
@@ -44,9 +46,9 @@ export async function getSuggestedMentorsForPathway(
   const chapterInstructors = user?.chapterId
     ? await prisma.user.findMany({
         where: {
-          primaryRole: "INSTRUCTOR",
           chapterId: user.chapterId,
           id: { notIn: [...specialistIds] },
+          ...whereUserHasRole(RoleType.INSTRUCTOR),
         },
         select: {
           id: true,
@@ -61,10 +63,10 @@ export async function getSuggestedMentorsForPathway(
   const chapterInstructorIds = new Set(chapterInstructors.map((instructor: any) => instructor.id));
   const otherInstructors = await prisma.user.findMany({
     where: {
-      primaryRole: "INSTRUCTOR",
       id: {
         notIn: [...specialistIds, ...chapterInstructorIds],
       },
+      ...whereUserHasRole(RoleType.INSTRUCTOR),
     },
     select: {
       id: true,

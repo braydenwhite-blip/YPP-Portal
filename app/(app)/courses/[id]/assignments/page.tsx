@@ -31,7 +31,9 @@ export default async function CourseAssignmentsPage({ params }: { params: { id: 
     redirect("/courses");
   }
 
-  const isInstructor = course.leadInstructorId === session.user.id || session.user.primaryRole === "ADMIN";
+  const isInstructor =
+    course.leadInstructorId === session.user.id ||
+    session.user.roles.includes("ADMIN");
 
   // Get enrollment
   const enrollment = await prisma.enrollment.findFirst({
