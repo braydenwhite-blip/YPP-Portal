@@ -1,6 +1,11 @@
 import { NotificationType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isEmailConfigured, sendNotificationEmail } from "@/lib/email";
+import {
+  getNotificationPolicy,
+  shouldCreatePortalNotification,
+  shouldSendPolicyEmail,
+} from "@/lib/notification-policy";
 
 type DeliveryInput = {
   userId: string;
@@ -11,53 +16,10 @@ type DeliveryInput = {
   sendEmail?: boolean;
 };
 
-type PreferenceRecord = {
-  emailEnabled: boolean;
-  inAppEnabled: boolean;
-  announcements: boolean;
-  mentorUpdates: boolean;
-  goalReminders: boolean;
-  courseUpdates: boolean;
-  reflectionReminders: boolean;
-  eventUpdates: boolean;
-  eventReminders: boolean;
-};
-
-function preferenceKeyForType(type: NotificationType): keyof PreferenceRecord | null {
-  switch (type) {
-    case "ANNOUNCEMENT":
-      return "announcements";
-    case "MENTOR_FEEDBACK":
-      return "mentorUpdates";
-    case "GOAL_DEADLINE":
-      return "goalReminders";
-    case "COURSE_UPDATE":
-    case "CLASS_REMINDER":
-      return "courseUpdates";
-    case "REFLECTION_REMINDER":
-      return "reflectionReminders";
-    case "EVENT_UPDATE":
-      return "eventUpdates";
-    case "EVENT_REMINDER":
-      return "eventReminders";
-    default:
-      return null;
-  }
-}
-
 function getBaseUrl() {
   if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
   return "http://localhost:3000";
-}
-
-function isTypeEnabled(
-  preferences: PreferenceRecord | null | undefined,
-  type: NotificationType
-) {
-  const key = preferenceKeyForType(type);
-  if (!key) return true;
-  return preferences?.[key] ?? true;
 }
 
 export async function deliverNotification(input: DeliveryInput) {
@@ -67,31 +29,15 @@ export async function deliverNotification(input: DeliveryInput) {
       id: true,
       email: true,
       name: true,
-      notificationPreference: {
-        select: {
-          emailEnabled: true,
-          inAppEnabled: true,
-          announcements: true,
-          mentorUpdates: true,
-          goalReminders: true,
-          courseUpdates: true,
-          reflectionReminders: true,
-          eventUpdates: true,
-          eventReminders: true,
-        },
-      },
     },
   });
 
   if (!user) return null;
 
-  const preferences = user.notificationPreference;
-  const typeEnabled = isTypeEnabled(preferences, input.type);
-  const shouldCreateInApp = (preferences?.inAppEnabled ?? true) && typeEnabled;
+  const policy = getNotificationPolicy(input.type);
+  const shouldCreateInApp = shouldCreatePortalNotification(input.type);
   const shouldSendEmail =
-    input.sendEmail !== false &&
-    (preferences?.emailEnabled ?? true) &&
-    typeEnabled &&
+    shouldSendPolicyEmail(input.type, input.sendEmail !== false) &&
     isEmailConfigured();
 
   let notification = null;
@@ -122,6 +68,12 @@ export async function deliverNotification(input: DeliveryInput) {
     }).catch((error) => {
       console.error("[NotificationDelivery] Failed to send email:", error);
     });
+  }
+
+  if (policy.smsPlanned) {
+    console.info(
+      `[NotificationDelivery] SMS is planned but not implemented yet for ${input.type}.`
+    );
   }
 
   return notification;

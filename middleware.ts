@@ -69,15 +69,19 @@ export async function middleware(request: NextRequest) {
     // Supabase URL is unreachable (e.g. dummy local URL) — continue with legacy auth
     user = null;
   }
+  const isArchivedPortalUser = user?.user_metadata?.portalArchived === true;
   const legacySession = await verifyLegacySessionToken(
     request.cookies.get(LEGACY_AUTH_COOKIE_NAME)?.value ?? null
   );
-  const isAuthenticated = !!user || !!legacySession;
+  const isAuthenticated = (!!user && !isArchivedPortalUser) || !!legacySession;
 
   // Unauthenticated users may access public routes only.
   if (!isAuthenticated && !isPublic) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
+    if (isArchivedPortalUser) {
+      loginUrl.searchParams.set("error", "account_archived");
+    }
     return NextResponse.redirect(loginUrl);
   }
 

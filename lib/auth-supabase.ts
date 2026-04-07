@@ -21,7 +21,10 @@ export type SessionUser = {
 export async function getSessionUser(): Promise<SessionUser | null> {
   async function resolvePrismaUser(where: { supabaseAuthId?: string; id?: string; email?: string }) {
     return prisma.user.findFirst({
-      where,
+      where: {
+        ...where,
+        archivedAt: null,
+      },
       select: {
         id: true,
         name: true,

@@ -59,7 +59,7 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/calendar",
     "/parent/connect",
     "/goals",
-    "/parent/messages",
+    "/messages",
   ],
   CHAPTER_PRESIDENT: [
     "/",

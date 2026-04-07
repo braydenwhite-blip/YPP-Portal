@@ -27,10 +27,12 @@ vi.mock("@/lib/mentorship-access", () => ({
 
 import { prisma } from "@/lib/prisma";
 import {
+  createMentorshipActionItem,
   promoteMentorshipResponseToResource,
   respondToMentorshipRequest,
 } from "@/lib/mentorship-hub-actions";
 import { getMentorshipRoleFlags } from "@/lib/mentorship-hub";
+import { hasMentorshipMenteeAccess } from "@/lib/mentorship-access";
 
 describe("mentorship-hub-actions", () => {
   beforeEach(() => {
@@ -60,6 +62,13 @@ describe("mentorship-hub-actions", () => {
     (prisma as any).mentorshipResource = {
       create: vi.fn(),
     };
+    (prisma as any).studentIntakeCase = {
+      findFirst: vi.fn(),
+    };
+    (prisma as any).mentorshipActionItem = {
+      create: vi.fn(),
+    };
+    vi.mocked(hasMentorshipMenteeAccess).mockResolvedValue(true);
   });
 
   it("allows unrelated support-role users to answer public mentorship questions", async () => {
@@ -117,5 +126,35 @@ describe("mentorship-hub-actions", () => {
       "Only public mentorship answers can be promoted into shared resources."
     );
     expect((prisma as any).mentorshipResource.create).not.toHaveBeenCalled();
+  });
+
+  it("allows action items when a parent-led intake plan has launched before mentor assignment", async () => {
+    (prisma as any).mentorship.findFirst = vi.fn().mockResolvedValue(null);
+    (prisma as any).studentIntakeCase.findFirst.mockResolvedValue({
+      id: "intake-1",
+      reviewOwnerId: "lead-1",
+    });
+    (prisma as any).mentorshipActionItem.create.mockResolvedValue({
+      id: "item-1",
+      mentorshipId: null,
+      menteeId: "student-1",
+      title: "Send welcome note",
+    });
+
+    const formData = new FormData();
+    formData.set("menteeId", "student-1");
+    formData.set("title", "Send welcome note");
+    formData.set("details", "Share the first next step with the family.");
+
+    await createMentorshipActionItem(formData);
+
+    expect((prisma as any).mentorshipActionItem.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        mentorshipId: null,
+        menteeId: "student-1",
+        title: "Send welcome note",
+        createdById: "mentor-2",
+      }),
+    });
   });
 });

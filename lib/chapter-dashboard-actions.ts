@@ -17,6 +17,7 @@ type OpsCard = {
   queue:
     | "stale_interview_scheduling"
     | "today_next_interviews"
+    | "student_intake_cases"
     | "join_requests"
     | "new_applications"
     | "inactive_members"
@@ -124,6 +125,7 @@ export async function getCommandCenterData() {
   const [
     pendingJoinRequests,
     pendingApplications,
+    pendingStudentIntakeCases,
     recentEnrollments,
     activeGoals,
     kpiSnapshots,
@@ -172,6 +174,19 @@ export async function getCommandCenterData() {
         },
       },
       orderBy: { submittedAt: "asc" },
+      take: 12,
+    }),
+    prisma.studentIntakeCase.findMany({
+      where: {
+        chapterId: { in: scopeChapterIds.length ? scopeChapterIds : ["__none__"] },
+        status: { in: ["SUBMITTED", "UNDER_REVIEW"] },
+      },
+      include: {
+        parent: { select: { id: true, name: true, email: true } },
+        chapter: { select: { id: true, name: true } },
+        reviewOwner: { select: { id: true, name: true } },
+      },
+      orderBy: [{ submittedAt: "asc" }, { createdAt: "asc" }],
       take: 12,
     }),
     prisma.enrollment.findMany({
@@ -579,6 +594,27 @@ export async function getCommandCenterData() {
     scheduledAt: null,
   }));
 
+  const studentIntakeCards: OpsCard[] = pendingStudentIntakeCases.map((intakeCase) => ({
+    id: `student-intake:${intakeCase.id}`,
+    queue: "student_intake_cases",
+    title: `${intakeCase.studentName} student journey`,
+    subtitle: `${intakeCase.parent.name} · ${intakeCase.studentEmail}`,
+    href: `/chapter/student-intake#case-${intakeCase.id}`,
+    chapterName: intakeCase.chapter.name,
+    ownerName: intakeCase.reviewOwner?.name ?? "Needs owner",
+    ageHours: ageHoursFrom(intakeCase.submittedAt ?? intakeCase.createdAt, now),
+    status: intakeCase.status === "UNDER_REVIEW" ? "In review" : "Submitted",
+    nextAction:
+      intakeCase.nextAction ??
+      (intakeCase.status === "UNDER_REVIEW" ? "Continue review" : "Open intake case"),
+    escalationState: intakeCase.blockerNote
+      ? "Blocked"
+      : intakeCase.reviewOwner
+      ? "Owned"
+      : "Needs owner",
+    scheduledAt: null,
+  }));
+
   const applicationCards: OpsCard[] = pendingApplications.map((application) => ({
     id: `application-new:${application.id}`,
     queue: "new_applications",
@@ -665,32 +701,39 @@ export async function getCommandCenterData() {
       priority: 2,
     },
     {
+      type: "student_intake_cases",
+      label: "Student intake cases",
+      count: studentIntakeCards.length,
+      href: "/chapter/student-intake",
+      priority: 3,
+    },
+    {
       type: "join_requests",
       label: "Join requests",
       count: joinRequestCards.length,
       href: "/chapter/settings",
-      priority: 3,
+      priority: 4,
     },
     {
       type: "new_applications",
       label: "New applications",
       count: applicationCards.length,
       href: "/chapter/recruiting",
-      priority: 4,
+      priority: 5,
     },
     {
       type: "inactive_members",
       label: "Inactive members",
       count: inactiveMemberCards.length,
       href: "/chapter/students",
-      priority: 5,
+      priority: 6,
     },
     {
       type: "upcoming_deadlines",
       label: "Upcoming deadlines and events",
       count: deadlineCards.length,
       href: "/chapter/calendar",
-      priority: 6,
+      priority: 7,
     },
   ].filter((item) => item.count > 0);
 
@@ -716,6 +759,7 @@ export async function getCommandCenterData() {
       inactiveMemberCount: inactiveMembers.length,
       staleInterviewScheduling: staleInterviewScheduling.length,
       nextInterviewBookings: todayNextInterviewBookings.length,
+      pendingStudentIntakeCases: studentIntakeCards.length,
     },
     actionItems,
     pendingJoinRequests,
@@ -729,6 +773,7 @@ export async function getCommandCenterData() {
     opsQueues: {
       staleInterviewScheduling,
       todayNextInterviewBookings,
+      studentIntakeCases: studentIntakeCards,
       joinRequests: joinRequestCards,
       newApplications: applicationCards,
       inactiveMembers: inactiveMemberCards,

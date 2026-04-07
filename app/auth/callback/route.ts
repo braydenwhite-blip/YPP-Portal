@@ -33,19 +33,26 @@ export async function GET(request: NextRequest) {
   }
 
   const authUser = data.user;
+  if (authUser.user_metadata?.portalArchived === true) {
+    return NextResponse.redirect(new URL("/login?error=account_archived", origin));
+  }
 
   // Check if this Supabase user already has a linked Prisma user
   let prismaUser = await prisma.user.findUnique({
     where: { supabaseAuthId: authUser.id },
-    select: { id: true },
+    select: { id: true, archivedAt: true },
   });
 
   if (!prismaUser) {
     // Check if there's an existing Prisma user with the same email (e.g. pre-migration)
     prismaUser = await prisma.user.findUnique({
       where: { email: authUser.email! },
-      select: { id: true, supabaseAuthId: true },
+      select: { id: true, supabaseAuthId: true, archivedAt: true },
     });
+
+    if (prismaUser?.archivedAt) {
+      return NextResponse.redirect(new URL("/login?error=account_archived", origin));
+    }
 
     if (prismaUser && !(prismaUser as any).supabaseAuthId) {
       // Link existing Prisma user to this Supabase auth user
@@ -79,9 +86,13 @@ export async function GET(request: NextRequest) {
             create: [{ role: primaryRole as any }],
           },
         },
-        select: { id: true },
+        select: { id: true, archivedAt: true },
       });
     }
+  }
+
+  if (prismaUser?.archivedAt) {
+    return NextResponse.redirect(new URL("/login?error=account_archived", origin));
   }
 
   // If the next URL is the reset-password page, redirect there

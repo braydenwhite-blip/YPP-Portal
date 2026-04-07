@@ -48,6 +48,14 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 3,
     },
     {
+      href: "/parent/student-intake/new",
+      label: "Start Student Journey",
+      icon: "🧭",
+      roles: PARENT_ONLY,
+      dashboardDescription: "Begin a new parent-led student intake journey.",
+      dashboardPriority: 4,
+    },
+    {
       href: "/parent/resources",
       label: "Resources",
       icon: "📚",
@@ -62,14 +70,6 @@ export const NAV_CATALOG: NavLink[] = [
       roles: PARENT_ONLY,
       dashboardDescription: "Connect and manage student link requests.",
       dashboardPriority: 11,
-    },
-    {
-      href: "/parent/messages",
-      label: "Messages",
-      icon: "✉",
-      roles: PARENT_ONLY,
-      dashboardDescription: "Message your child's instructors directly.",
-      dashboardPriority: 9,
     },
   ]),
 
@@ -110,10 +110,10 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/messages",
       label: "Messages",
       icon: "✉",
-      roles: ["STUDENT", "INSTRUCTOR", "ADMIN", "CHAPTER_PRESIDENT", "MENTOR", "STAFF", "APPLICANT"] as NavRole[],
+      roles: ["STUDENT", "INSTRUCTOR", "ADMIN", "CHAPTER_PRESIDENT", "MENTOR", "STAFF", "APPLICANT", "PARENT"] as NavRole[],
       badgeKey: "messages",
       dashboardBadgeKey: "unread_messages",
-      dashboardDescription: "Open direct messages and team conversations.",
+      dashboardDescription: "Open direct, parent, and interview conversations in one shared inbox.",
       dashboardPriority: 9,
     },
     { href: "/feedback/anonymous", label: "Anonymous Feedback", icon: "💬" },
@@ -503,14 +503,6 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardDescription: "View parent feedback and communications for your classes.",
       dashboardPriority: 13,
     },
-    {
-      href: "/instructor/parent-messages",
-      label: "Parent Messages",
-      icon: "✉",
-      roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT"] as NavRole[],
-      dashboardDescription: "Reply to direct messages from parents of your enrolled students.",
-      dashboardPriority: 14,
-    },
   ]),
 
   ...groupLinks("Chapters", 900, [
@@ -555,6 +547,14 @@ export const NAV_CATALOG: NavLink[] = [
       roles: CHAPTER_PRESIDENT_ONLY,
       dashboardDescription: "Create chapter events, recurring series, and public calendar items.",
       dashboardPriority: 4,
+    },
+    {
+      href: "/chapter/student-intake",
+      label: "Student Intake",
+      icon: "🧭",
+      roles: ["CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
+      dashboardDescription: "Review parent-led student journeys and launch early support plans.",
+      dashboardPriority: 5,
     },
     {
       href: "/chapter/onboarding",

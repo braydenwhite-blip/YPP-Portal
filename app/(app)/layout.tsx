@@ -72,7 +72,12 @@ export default async function AppLayout({
         // Unread messages: conversations where latest message is after user's lastReadAt
         prisma.conversationParticipant
           .findMany({
-            where: { userId },
+            where: {
+              userId,
+              conversation: {
+                isGroup: false,
+              },
+            },
             include: {
               conversation: {
                 include: { messages: { orderBy: { createdAt: "desc" }, take: 1 } },

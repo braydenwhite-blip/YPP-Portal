@@ -14,7 +14,14 @@ export default async function ParentReportsPage() {
 
   // Get linked students (approved only)
   const links = await prisma.parentStudent.findMany({
-    where: { parentId: userId, approvalStatus: "APPROVED" },
+    where: {
+      parentId: userId,
+      approvalStatus: "APPROVED",
+      archivedAt: null,
+      student: {
+        archivedAt: null,
+      },
+    },
     select: { studentId: true, student: { select: { name: true } } },
   });
 

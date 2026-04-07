@@ -72,7 +72,8 @@ export default async function MenteeDetailPage({
   }
 
   const isSelfWorkspace = session.user.id === workspace.mentee.id;
-  const canRunSupportActions = Boolean(workspace.mentorship) && !isSelfWorkspace;
+  const canManageActionPlan = Boolean(workspace.mentorship || workspace.intakePlanLaunch) && !isSelfWorkspace;
+  const canScheduleSessions = Boolean(workspace.mentorship) && !isSelfWorkspace;
   const upcomingSessions = workspace.sessions.filter(
     (item) => !item.completedAt && item.scheduledAt.getTime() >= Date.now()
   );
@@ -95,7 +96,7 @@ export default async function MenteeDetailPage({
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {canRunSupportActions && (
+          {canScheduleSessions && (
             <Link href={`/mentorship/reviews/${workspace.mentee.id}`} className="button primary small">
               Open Monthly Review
             </Link>
@@ -112,11 +113,20 @@ export default async function MenteeDetailPage({
         items={WORKSPACE_GUIDE_ITEMS}
       />
 
-      {!workspace.mentorship ? (
+      {!workspace.mentorship && !workspace.intakePlanLaunch ? (
         <section className="card" style={{ marginBottom: 24, borderLeft: "4px solid var(--gray-300, #d1d5db)" }}>
           <strong>No active mentorship yet</strong>
           <p style={{ margin: "8px 0 0", color: "var(--muted)" }}>
             You can still review this student&apos;s history, requests, and progress signals below. Session logging, action items, and monthly reviews stay disabled until an active mentor or support circle is assigned.
+          </p>
+        </section>
+      ) : null}
+
+      {!workspace.mentorship && workspace.intakePlanLaunch ? (
+        <section className="card" style={{ marginBottom: 24, borderLeft: "4px solid #0f766e" }}>
+          <strong>Pre-assignment intake plan is live</strong>
+          <p style={{ margin: "8px 0 0", color: "var(--muted)" }}>
+            The chapter launched an early support plan before assigning a long-term mentor. Action items are active now, while session logging stays locked until the formal mentorship record exists.
           </p>
         </section>
       ) : null}
@@ -256,54 +266,57 @@ export default async function MenteeDetailPage({
 
       <section className="card" style={{ marginBottom: 24 }}>
         <div className="section-title" style={{ marginBottom: 14 }}>Support Circle Roster</div>
-        <div className="grid two">
-          {workspace.circleMembers.map((member) => (
-            <div
-              key={member.id}
-              style={{
-                border: "1px solid var(--border)",
-                borderRadius: 14,
-                padding: 16,
-                background: "var(--surface-alt)",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                <div>
-                  <div style={{ fontWeight: 700 }}>{member.user.name}</div>
-                  <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                    {member.user.primaryRole.replace(/_/g, " ")}
+        {workspace.circleMembers.length === 0 ? (
+          <p style={{ color: "var(--muted)", margin: 0 }}>
+            No mentor or support-circle members are assigned yet. The action plan can still move while the chapter decides who should step in first.
+          </p>
+        ) : (
+          <div className="grid two">
+            {workspace.circleMembers.map((member) => (
+              <div
+                key={member.id}
+                style={{
+                  border: "1px solid var(--border)",
+                  borderRadius: 14,
+                  padding: 16,
+                  background: "var(--surface-alt)",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{member.user.name}</div>
+                    <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                      {member.user.primaryRole.replace(/_/g, " ")}
+                    </div>
                   </div>
+                  <span
+                    className="pill"
+                    style={{
+                      background: `${SUPPORT_ROLE_META[member.role].tone}15`,
+                      color: SUPPORT_ROLE_META[member.role].tone,
+                    }}
+                  >
+                    {SUPPORT_ROLE_META[member.role].label}
+                  </span>
                 </div>
-                <span
-                  className="pill"
-                  style={{
-                    background: `${SUPPORT_ROLE_META[member.role].tone}15`,
-                    color: SUPPORT_ROLE_META[member.role].tone,
-                  }}
-                >
-                  {SUPPORT_ROLE_META[member.role].label}
-                </span>
+                <p style={{ margin: "10px 0 0", fontSize: 13, color: "var(--muted)" }}>
+                  {SUPPORT_ROLE_META[member.role].description}
+                </p>
+                <div style={{ marginTop: 10, fontSize: 13 }}>
+                  <a href={`mailto:${member.user.email}`} className="link">
+                    {member.user.email}
+                  </a>
+                </div>
               </div>
-              <p style={{ margin: "10px 0 0", fontSize: 13, color: "var(--muted)" }}>
-                {SUPPORT_ROLE_META[member.role].description}
-              </p>
-              <div style={{ marginTop: 10, fontSize: 13 }}>
-                <a href={`mailto:${member.user.email}`} className="link">
-                  {member.user.email}
-                </a>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <div className="grid two" style={{ marginBottom: 24 }}>
         <section className="card">
-          <div className="section-title">Manual Session Override or Session Log</div>
-          <p style={{ marginTop: 0, color: "var(--muted)", fontSize: 13 }}>
-            Use this only when you need to record a session outside the normal self-serve scheduling flow, or when you are logging a meeting that already happened.
-          </p>
-          {canRunSupportActions ? (
+          <div className="section-title">Schedule or Log a Session</div>
+          {canScheduleSessions ? (
             <form action={createMentorshipSession} className="form-grid">
               <input type="hidden" name="menteeId" value={workspace.mentee.id} />
               <div className="form-row">
@@ -442,7 +455,7 @@ export default async function MenteeDetailPage({
 
         <section className="card">
           <div className="section-title">Create an Action Item</div>
-          {canRunSupportActions ? (
+          {canManageActionPlan ? (
             <form action={createMentorshipActionItem} className="form-grid">
               <input type="hidden" name="menteeId" value={workspace.mentee.id} />
               <div className="form-row">
@@ -507,9 +520,9 @@ export default async function MenteeDetailPage({
             </form>
           ) : (
             <p style={{ color: "var(--muted)", margin: 0 }}>
-              {workspace.mentorship
-                ? "Only mentors and support-circle members can create action items from this workspace."
-                : "Assign an active mentor before action items can be created here."}
+              {workspace.mentorship || workspace.intakePlanLaunch
+                ? "Only mentors, chapter leaders, and support-circle members can create action items from this workspace."
+                : "Launch an intake plan or assign an active mentor before action items can be created here."}
             </p>
           )}
         </section>

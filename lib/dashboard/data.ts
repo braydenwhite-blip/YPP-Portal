@@ -40,7 +40,12 @@ function roleLabel(role: DashboardRole): string {
 
 async function getUnreadMessageCount(userId: string): Promise<number> {
   const participations = await prisma.conversationParticipant.findMany({
-    where: { userId },
+    where: {
+      userId,
+      conversation: {
+        isGroup: false,
+      },
+    },
     include: {
       conversation: {
         include: {
@@ -63,6 +68,26 @@ async function getUnreadMessageCount(userId: string): Promise<number> {
     if (latest.senderId === userId) return false;
     return latest.createdAt > entry.lastReadAt;
   }).length;
+}
+
+function buildMessagesNextAction(unreadMessages: number): DashboardNextAction {
+  return {
+    id: "shared-messages",
+    title: unreadMessages > 0 ? "Review your unread messages" : "Open your message hub",
+    detail:
+      unreadMessages > 0
+        ? `${unreadMessages} conversation${unreadMessages === 1 ? "" : "s"} need your attention.`
+        : "Keep direct, parent, and interview conversations easy to find in one inbox.",
+    href: "/messages",
+  };
+}
+
+function ensureMessagesNextAction(
+  nextActions: DashboardNextAction[],
+  unreadMessages: number
+): DashboardNextAction[] {
+  const filtered = nextActions.filter((action) => action.href !== "/messages");
+  return [buildMessagesNextAction(unreadMessages), ...filtered];
 }
 
 async function buildDashboardData(userId: string, requestedPrimaryRole: string | null): Promise<DashboardData> {
@@ -1252,6 +1277,8 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     moduleBadgeByHref["interview_queue"] = moduleBadgeByHref["/interviews"];
   }
 
+  nextActions = ensureMessagesNextAction(nextActions, unreadMessages);
+
   // Fetch interconnection data (best-effort — don't block dashboard)
   const [checklist, nudges, journeyMilestones] = await Promise.all([
     buildChecklist(userId, role, nextActions).catch(() => [] as ChecklistItemData[]),
@@ -1306,7 +1333,12 @@ async function buildChecklist(
     const [unreadMessages, activeGoals] = await Promise.all([
       prisma.conversationParticipant
         .findMany({
-          where: { userId },
+          where: {
+            userId,
+            conversation: {
+              isGroup: false,
+            },
+          },
           include: {
             conversation: {
               include: {
