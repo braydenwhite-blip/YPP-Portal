@@ -1,11 +1,10 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getFormTemplates, createFormTemplate } from "@/lib/form-template-actions";
 import { FormTemplateBuilder } from "@/components/form-template-builder";
 
 export default async function AdminFormTemplatesPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!roles.includes("ADMIN")) redirect("/");
 

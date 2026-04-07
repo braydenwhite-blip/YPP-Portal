@@ -1,11 +1,19 @@
 import { CORE_NAV_LIMIT, CORE_NAV_MAP, PRIMARY_ROLE_FALLBACK_ORDER } from "@/lib/navigation/core-map";
 import { NAV_CATALOG } from "@/lib/navigation/catalog";
 import { getVisibleNavGroups } from "@/lib/unlock-nav-groups";
+import {
+  STUDENT_V1_ALLOWED_HREFS,
+  shouldApplyStudentV1NavFilter,
+} from "@/lib/navigation/student-v1-allowlist";
+import {
+  applyStudentMinimalSidebarLayout,
+  studentMinimalLinkOrderIndex,
+} from "@/lib/navigation/student-v1-nav-layout";
 import type { NavGroup, NavLink, NavRole, NavViewModel } from "@/lib/navigation/types";
 import { normalizeAdminSubtypes } from "@/lib/admin-subtypes";
 
 const AWARD_TIERS = new Set(["BRONZE", "SILVER", "GOLD"]);
-const CRITICAL_CORE_LINKS = ["/messages", "/notifications"];
+const CRITICAL_CORE_LINKS = ["/messages"];
 
 type RoleGroupOrder = Record<NavRole, NavGroup[]>;
 
@@ -60,12 +68,15 @@ const ADMIN_LINKS_BY_SUBTYPE = {
 
 const GROUP_ORDER_BY_ROLE: RoleGroupOrder = {
   STUDENT: [
-    "Start Here",
     "Learning",
     "Progress",
+    "Schedule",
+    "Community",
+    "Profile",
+    "Start Here",
+    "People & Support",
     "Challenges",
     "Projects",
-    "People & Support",
     "Opportunities",
     "Chapters",
     "Profile & Settings",
@@ -198,6 +209,8 @@ export interface ResolveNavInput {
   maxCoreItems?: number;
   unlockedSections?: Set<string>;
   enabledFeatureKeys?: Set<string>;
+  /** When true, students see the full nav catalog. Omit/false uses env `STUDENT_FULL_PORTAL_EXPLORER`. */
+  studentFullPortalExplorer?: boolean;
 }
 
 function toNavRole(value: string | null | undefined): NavRole | null {
@@ -357,7 +370,7 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
     unlockLockedGroups = lockedGroups;
   }
 
-  const visible = sortLinksForRole(
+  let visible = sortLinksForRole(
     NAV_CATALOG.filter((item) => {
       if (ALWAYS_HIDDEN_HREFS.has(item.href)) return false;
       if (!hasRoleAccess(item, roles)) return false;
@@ -385,19 +398,35 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
     primaryRole,
   );
 
+  if (shouldApplyStudentV1NavFilter(primaryRole, input.studentFullPortalExplorer)) {
+    visible = visible.filter((item) => STUDENT_V1_ALLOWED_HREFS.has(item.href));
+  }
+
+  const studentMinimalSidebar =
+    primaryRole === "STUDENT" && shouldApplyStudentV1NavFilter(primaryRole, input.studentFullPortalExplorer);
+
+  if (studentMinimalSidebar) {
+    visible = visible.map(applyStudentMinimalSidebarLayout);
+  }
+
   const visibleByHref = new Map(visible.map((item) => [item.href, item]));
 
+  const coreHrefList =
+    studentMinimalSidebar && primaryRole === "STUDENT" ? ["/"] : CORE_NAV_MAP[primaryRole];
+
   const core: NavLink[] = [];
-  for (const href of CORE_NAV_MAP[primaryRole]) {
+  for (const href of coreHrefList) {
     const item = visibleByHref.get(href);
     if (!item || !item.coreEligible) continue;
     addOrReplaceCoreItem(core, item, limit);
   }
 
-  for (const criticalHref of CRITICAL_CORE_LINKS) {
-    const item = visibleByHref.get(criticalHref);
-    if (!item || !item.coreEligible) continue;
-    addOrReplaceCoreItem(core, item, limit);
+  if (!studentMinimalSidebar || primaryRole !== "STUDENT") {
+    for (const criticalHref of CRITICAL_CORE_LINKS) {
+      const item = visibleByHref.get(criticalHref);
+      if (!item || !item.coreEligible) continue;
+      addOrReplaceCoreItem(core, item, limit);
+    }
   }
 
   const coreHrefs = new Set(core.map((item) => item.href));
@@ -414,10 +443,14 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
   }
 
   const groupLabels = orderGroups(primaryRole, Array.from(grouped.keys()));
-  const more = groupLabels.map((label) => ({
-    label,
-    items: grouped.get(label) ?? [],
-  }));
+  const more = groupLabels.map((label) => {
+    const items = grouped.get(label) ?? [];
+    const sorted =
+      studentMinimalSidebar && primaryRole === "STUDENT"
+        ? [...items].sort((a, b) => studentMinimalLinkOrderIndex(a.href) - studentMinimalLinkOrderIndex(b.href))
+        : items;
+    return { label, items: sorted };
+  });
 
   return {
     primaryRole,

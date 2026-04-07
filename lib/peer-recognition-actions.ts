@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { KudosCategory } from "@prisma/client";
 
@@ -15,7 +14,7 @@ import { KudosCategory } from "@prisma/client";
  * Optionally filter by receiverId to show a single user's kudos wall.
  */
 export async function getKudosFeed(options?: { receiverId?: string; limit?: number }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const limit = options?.limit ?? 50;
@@ -48,7 +47,7 @@ export async function getKudosFeed(options?: { receiverId?: string; limit?: numb
  * Get kudos summary for a user (count by category, total received).
  */
 export async function getKudosSummary(userId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const kudos = await prisma.peerKudos.findMany({
@@ -71,7 +70,7 @@ export async function getKudosSummary(userId: string) {
  * Get all mentees visible to a mentor/admin for the kudos "send to" dropdown.
  */
 export async function getKudosRecipients() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return [];
 
   const userId = session.user.id as string;
@@ -156,7 +155,7 @@ export async function getKudosRecipients() {
  * Send peer kudos to another user.
  */
 export async function sendKudos(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const giverId = session.user.id as string;
@@ -197,7 +196,7 @@ export async function sendKudos(formData: FormData) {
  * Delete a kudos entry (only the sender or an admin can delete).
  */
 export async function deleteKudos(kudosId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const userId = session.user.id as string;
@@ -218,7 +217,7 @@ export async function deleteKudos(kudosId: string) {
  * (kudos received by the mentee in the last 45 days).
  */
 export async function getKudosForReview(menteeId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return [];
 
   const cutoff = new Date();

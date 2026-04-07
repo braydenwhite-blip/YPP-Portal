@@ -1,12 +1,11 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getStudentLearningPaths } from "@/lib/ai-personalization-actions";
 import Link from "next/link";
 import { PathGeneratorClient } from "./client";
 
 export default async function LearningPathGeneratorPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const paths = await getStudentLearningPaths(session.user.id);
@@ -27,7 +26,7 @@ export default async function LearningPathGeneratorPage() {
       </div>
 
       {/* Intro */}
-      <div className="card" style={{ marginBottom: 24, background: "linear-gradient(135deg, var(--ypp-purple-50), #ede9fe)", borderLeft: "4px solid var(--ypp-purple)" }}>
+      <div className="card" style={{ marginBottom: 24, background: "linear-gradient(135deg, var(--ypp-purple-50), #f0e6ff)", borderLeft: "4px solid var(--ypp-purple)" }}>
         <h3 style={{ color: "var(--ypp-purple)" }}>Your Personalized Roadmap</h3>
         <p style={{ marginTop: 4, fontSize: 14, color: "var(--text-secondary)" }}>
           Tell us your goals and available time, and we&apos;ll create a custom learning path

@@ -12,7 +12,7 @@ describe("assertReadinessAllowsPublish", () => {
     expect(() =>
       assertReadinessAllowsPublish({ baseReadinessComplete: false })
     ).toThrow(
-      "Publishing blocked. Complete required training modules and pass interview readiness first."
+      "Publishing blocked. Complete academy modules, Lesson Design Studio capstone, and interview readiness first."
     );
   });
 });

@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import {
   getOnboardingStatus,
   completeOnboardingStep,
@@ -34,7 +33,7 @@ const STEPS = [
 ] as const;
 
 export default async function ChapterOnboardingPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user) {
     redirect("/auth/signin");
   }

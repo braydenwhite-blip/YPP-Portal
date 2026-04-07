@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getActiveChallenges, getMyChallengeProgress } from "@/lib/challenge-gamification-actions";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
@@ -10,7 +9,7 @@ import { buildContextTrail } from "@/lib/context-trail";
 import ContextTrail from "@/components/context-trail";
 
 export default async function ChallengesPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
   const featureEnabled = await isFeatureEnabledForUser("CHALLENGES", {
     userId: session.user.id,
@@ -35,7 +34,7 @@ export default async function ChallengesPage() {
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <Link href="/activities" className="button secondary">Activity Hub</Link>
             <Link href="/curriculum" className="button secondary">Curriculum</Link>
-            <Link href="/world" className="button secondary">Passion World</Link>
+            <Link href="/pathways" className="button secondary">Pathways</Link>
           </div>
         </div>
       </div>
@@ -77,7 +76,7 @@ export default async function ChallengesPage() {
   const typeColors: Record<string, string> = {
     DAILY: "#3b82f6",
     WEEKLY: "#d97706",
-    THIRTY_DAY: "#7c3aed",
+    THIRTY_DAY: "#6b21c8",
     SEASONAL: "#16a34a",
   };
 
@@ -135,7 +134,7 @@ export default async function ChallengesPage() {
                 href={`/challenges/${p.challenge.id}`}
                 style={{ textDecoration: "none", color: "inherit" }}
               >
-                <div className="card" style={{ borderLeft: `4px solid ${typeColors[p.challenge.type] || "#7c3aed"}` }}>
+                <div className="card" style={{ borderLeft: `4px solid ${typeColors[p.challenge.type] || "#6b21c8"}` }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>

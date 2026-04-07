@@ -1,34 +1,23 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import {
-  approveOfferingApproval,
-  requestOfferingApprovalRevision,
-} from "@/lib/offering-approval-actions";
-import { reviewTrainingEvidence } from "@/lib/training-actions";
 import {
   buildFallbackInstructorReadiness,
   getInstructorReadiness,
 } from "@/lib/instructor-readiness";
 import { withPrismaFallback } from "@/lib/prisma-guard";
+import EvidenceBoard from "./evidence-board";
+import OfferingBoard from "./offering-board";
+import InterviewBoard from "./interview-board";
 
 function formatDate(value: Date | string | null | undefined) {
   if (!value) return "-";
   return new Date(value).toLocaleString();
 }
 
-function getDraftIdFromEvidenceUrl(fileUrl: string) {
-  try {
-    return new URL(fileUrl, "https://studio.local").searchParams.get("draftId");
-  } catch {
-    return null;
-  }
-}
-
 export default async function InstructorReadinessPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!roles.includes("ADMIN")) {
     redirect("/");
@@ -81,15 +70,13 @@ export default async function InstructorReadinessPage() {
         "admin-readiness:evidence-queue",
         () =>
           prisma.trainingEvidenceSubmission.findMany({
-            where: {
-              status: { in: ["PENDING_REVIEW", "REVISION_REQUESTED"] },
-            },
             orderBy: { createdAt: "asc" },
             select: {
               id: true,
               status: true,
               notes: true,
               createdAt: true,
+              reviewNotes: true,
               user: { select: { id: true, name: true, email: true } },
               module: { select: { id: true, title: true } },
               fileUrl: true,
@@ -102,10 +89,11 @@ export default async function InstructorReadinessPage() {
         () =>
           prisma.classOfferingApproval.findMany({
             where: {
-              status: { in: ["REQUESTED", "UNDER_REVIEW", "CHANGES_REQUESTED"] },
+              status: { not: "NOT_REQUESTED" },
             },
             orderBy: { requestedAt: "asc" },
             select: {
+              id: true,
               offeringId: true,
               status: true,
               requestNotes: true,
@@ -137,9 +125,6 @@ export default async function InstructorReadinessPage() {
         "admin-readiness:interview-queue",
         () =>
           prisma.instructorInterviewGate.findMany({
-            where: {
-              status: { in: ["REQUIRED", "SCHEDULED", "COMPLETED", "HOLD", "FAILED"] },
-            },
             orderBy: { updatedAt: "desc" },
             include: {
               instructor: {
@@ -188,13 +173,8 @@ export default async function InstructorReadinessPage() {
 
   const totalInstructors = instructors.length;
   const trainingComplete = instructors.filter((instructor) => {
-    const completedIds = new Set(
-      instructor.trainings
-        .filter((assignment) => assignment.status === "COMPLETE")
-        .map((assignment) => assignment.moduleId)
-    );
-
-    return requiredModules.every((module) => completedIds.has(module.id));
+    const readiness = readinessByInstructor.get(instructor.id);
+    return readiness?.trainingComplete ?? false;
   }).length;
 
   const interviewPassed = instructors.filter((instructor) => {
@@ -206,6 +186,39 @@ export default async function InstructorReadinessPage() {
     const readiness = readinessByInstructor.get(instructor.id);
     return readiness?.canRequestOfferingApproval;
   }).length;
+
+  // Serialize dates for client components
+  const serializedEvidence = evidenceQueue.map((item) => ({
+    ...item,
+    createdAt: item.createdAt.toISOString(),
+  }));
+
+  const serializedApprovals = approvalQueue.map((item) => ({
+    ...item,
+    requestedAt: item.requestedAt?.toISOString() ?? null,
+  }));
+
+  const serializedInterviews = interviewQueue.map((gate) => ({
+    ...gate,
+    scheduledAt: gate.scheduledAt?.toISOString() ?? null,
+    completedAt: gate.completedAt?.toISOString() ?? null,
+    reviewedAt: (gate as any).reviewedAt?.toISOString?.() ?? null,
+    updatedAt: gate.updatedAt.toISOString(),
+    createdAt: gate.createdAt.toISOString(),
+    slots: gate.slots.map((slot) => ({
+      ...slot,
+      scheduledAt: slot.scheduledAt.toISOString(),
+      confirmedAt: slot.confirmedAt?.toISOString() ?? null,
+      completedAt: slot.completedAt?.toISOString() ?? null,
+      createdAt: slot.createdAt.toISOString(),
+      updatedAt: slot.updatedAt.toISOString(),
+    })),
+    availabilityRequests: gate.availabilityRequests.map((req) => ({
+      id: req.id,
+      status: req.status,
+      createdAt: req.createdAt.toISOString(),
+    })),
+  }));
 
   return (
     <div>
@@ -226,7 +239,7 @@ export default async function InstructorReadinessPage() {
         </div>
         <div className="card">
           <div className="kpi">{trainingComplete}</div>
-          <div className="kpi-label">Training Complete</div>
+          <div className="kpi-label">Training + LDS capstone complete</div>
         </div>
         <div className="card">
           <div className="kpi">{interviewPassed}</div>
@@ -238,192 +251,14 @@ export default async function InstructorReadinessPage() {
         </div>
       </div>
 
-      <div className="grid two" style={{ marginBottom: 20 }}>
-        <div className="card">
-          <h3>Training Evidence Queue</h3>
-          {evidenceQueue.length === 0 ? (
-            <p className="empty">No evidence submissions waiting for review.</p>
-          ) : (
-            <div style={{ display: "grid", gap: 10 }}>
-              {evidenceQueue.map((submission) => (
-                (() => {
-                  const draftId = getDraftIdFromEvidenceUrl(submission.fileUrl);
-                  return (
-                    <div key={submission.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
-                      <p style={{ margin: 0, fontWeight: 600 }}>{submission.user.name} - {submission.module.title}</p>
-                      <p style={{ margin: "6px 0", fontSize: 13, color: "var(--muted)" }}>
-                        {submission.status.replace(/_/g, " ")} • {formatDate(submission.createdAt)}
-                      </p>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "0 0 10px" }}>
-                        <a href={submission.fileUrl} target="_blank" rel="noreferrer" className="link">
-                          Open evidence file
-                        </a>
-                        {draftId ? (
-                          <>
-                            <a
-                              href={`/instructor/lesson-design-studio/print?draftId=${draftId}&type=student`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="link"
-                            >
-                              Student preview
-                            </a>
-                            <a
-                              href={`/instructor/lesson-design-studio/print?draftId=${draftId}&type=instructor`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="link"
-                            >
-                              Instructor preview
-                            </a>
-                          </>
-                        ) : null}
-                      </div>
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3>Training Evidence Queue</h3>
+        <EvidenceBoard items={serializedEvidence} dragEnabled />
+      </div>
 
-                      <form action={reviewTrainingEvidence} className="form-grid">
-                        <input type="hidden" name="submissionId" value={submission.id} />
-                        <div className="grid two">
-                          <label className="form-row">
-                            Decision
-                            <select name="status" className="input" defaultValue="APPROVED">
-                              <option value="APPROVED">Approve</option>
-                              <option value="REVISION_REQUESTED">Request revision</option>
-                              <option value="REJECTED">Reject</option>
-                            </select>
-                          </label>
-                          <label className="form-row">
-                            Review notes
-                            <input name="reviewNotes" className="input" placeholder="Short reviewer note" />
-                          </label>
-                        </div>
-
-                        {draftId ? (
-                          <>
-                            <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--muted)" }}>
-                              Score guide: `0` missing, `1` emerging, `2` partly working, `3` strong, `4` launch-ready.
-                            </p>
-                            <div className="grid four">
-                              <label className="form-row">
-                                Clarity
-                                <select name="rubricClarity" className="input" defaultValue="3">
-                                  {[0, 1, 2, 3, 4].map((score) => (
-                                    <option key={score} value={score}>{score}</option>
-                                  ))}
-                                </select>
-                              </label>
-                              <label className="form-row">
-                                Sequencing
-                                <select name="rubricSequencing" className="input" defaultValue="3">
-                                  {[0, 1, 2, 3, 4].map((score) => (
-                                    <option key={score} value={score}>{score}</option>
-                                  ))}
-                                </select>
-                              </label>
-                              <label className="form-row">
-                                Student Experience
-                                <select name="rubricStudentExperience" className="input" defaultValue="3">
-                                  {[0, 1, 2, 3, 4].map((score) => (
-                                    <option key={score} value={score}>{score}</option>
-                                  ))}
-                                </select>
-                              </label>
-                              <label className="form-row">
-                                Launch Readiness
-                                <select name="rubricLaunchReadiness" className="input" defaultValue="3">
-                                  {[0, 1, 2, 3, 4].map((score) => (
-                                    <option key={score} value={score}>{score}</option>
-                                  ))}
-                                </select>
-                              </label>
-                            </div>
-                            <div className="grid two">
-                              <label className="form-row">
-                                Overview note
-                                <textarea name="rubricOverviewNote" className="input" rows={2} placeholder="How clear is the course purpose and promise?" />
-                              </label>
-                              <label className="form-row">
-                                Course structure note
-                                <textarea name="rubricCourseStructureNote" className="input" rows={2} placeholder="Comment on weeks, pacing, session count, or class shape." />
-                              </label>
-                            </div>
-                            <div className="grid two">
-                              <label className="form-row">
-                                Session plans note
-                                <textarea name="rubricSessionPlansNote" className="input" rows={2} placeholder="Comment on objectives, activity sequence, and pacing." />
-                              </label>
-                              <label className="form-row">
-                                Student assignments note
-                                <textarea name="rubricStudentAssignmentsNote" className="input" rows={2} placeholder="Comment on at-home assignments and reinforcement." />
-                              </label>
-                            </div>
-                            <label className="form-row">
-                              Rubric summary
-                              <textarea name="rubricSummary" className="input" rows={2} placeholder="What should the instructor keep, fix, or do next?" />
-                            </label>
-                          </>
-                        ) : null}
-
-                        <button type="submit" className="button small">Submit evidence review</button>
-                      </form>
-                    </div>
-                  );
-                })()
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="card">
-          <h3>Offering Approval Queue</h3>
-          {approvalQueue.length === 0 ? (
-            <p className="empty">No offering approvals are waiting for review.</p>
-          ) : (
-            <div style={{ display: "grid", gap: 10 }}>
-              {approvalQueue.map((request) => (
-                <div key={request.offeringId} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
-                  <p style={{ margin: 0, fontWeight: 600 }}>{request.offering.title}</p>
-                  <p style={{ margin: "6px 0", fontSize: 13, color: "var(--muted)" }}>
-                    {request.status.replace(/_/g, " ")} • {request.offering.instructor.name} • {request.offering.chapter?.name || "No chapter"} • {formatDate(request.requestedAt)}
-                  </p>
-                  <p style={{ marginTop: 0, marginBottom: 6, fontSize: 13, color: "var(--muted)" }}>
-                    Learner fit: {request.offering.template.learnerFitLabel || "Learner fit coming soon"}
-                  </p>
-                  {request.requestNotes ? <p style={{ marginTop: 0 }}>{request.requestNotes}</p> : null}
-                  {request.reviewNotes ? <p style={{ marginTop: 0, fontSize: 13 }}>{request.reviewNotes}</p> : null}
-
-                  <form action={approveOfferingApproval} className="form-grid" style={{ marginBottom: 8 }}>
-                    <input type="hidden" name="offeringId" value={request.offeringId} />
-                    <div className="grid one">
-                      <label className="form-row">
-                        Approval note
-                        <input name="reviewNotes" className="input" placeholder="Optional note" />
-                      </label>
-                    </div>
-                    <button type="submit" className="button small">Approve offering</button>
-                  </form>
-
-                  <form action={requestOfferingApprovalRevision} className="form-grid">
-                    <input type="hidden" name="offeringId" value={request.offeringId} />
-                    <div className="grid two">
-                      <label className="form-row">
-                        Approval status
-                        <select name="status" className="input" defaultValue="CHANGES_REQUESTED">
-                          <option value="CHANGES_REQUESTED">Changes requested</option>
-                          <option value="REJECTED">Reject offering</option>
-                        </select>
-                      </label>
-                      <label className="form-row">
-                        Reviewer note
-                        <input name="reviewNotes" className="input" placeholder="Explain what is missing" />
-                      </label>
-                    </div>
-                    <button type="submit" className="button small outline">Send update</button>
-                  </form>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3>Offering Approval Queue</h3>
+        <OfferingBoard items={serializedApprovals} dragEnabled />
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
@@ -448,61 +283,7 @@ export default async function InstructorReadinessPage() {
             Open Interview Command Center
           </Link>
         </div>
-        {interviewQueue.length === 0 ? (
-          <p className="empty">No interview gate items are currently blocked.</p>
-        ) : (
-          <div style={{ display: "grid", gap: 12 }}>
-            {interviewQueue.map((gate) => {
-              const confirmedSlot = gate.slots.find((slot) => slot.status === "CONFIRMED");
-              const completedSlot = gate.slots.find((slot) => slot.status === "COMPLETED");
-
-              return (
-                <div key={gate.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
-                  <p style={{ margin: 0, fontWeight: 600 }}>{gate.instructor.name}</p>
-                  <p style={{ margin: "6px 0", fontSize: 13, color: "var(--muted)" }}>
-                    {gate.status.replace(/_/g, " ")} • {gate.instructor.chapter?.name || "No chapter"}
-                  </p>
-
-                  {confirmedSlot ? (
-                    <p style={{ margin: "0 0 8px", fontSize: 13 }}>
-                      Confirmed slot: {formatDate(confirmedSlot.scheduledAt)} ({confirmedSlot.duration} min)
-                    </p>
-                  ) : null}
-
-                  {completedSlot ? (
-                    <p style={{ margin: "0 0 8px", fontSize: 13 }}>
-                      Completed slot: {formatDate(completedSlot.completedAt)}
-                    </p>
-                  ) : null}
-
-                  {gate.availabilityRequests.length > 0 ? (
-                    <div style={{ marginBottom: 10 }}>
-                      <p style={{ marginBottom: 6, fontSize: 13, color: "var(--muted)" }}>
-                        Pending availability requests: {gate.availabilityRequests.length}
-                      </p>
-                    </div>
-                  ) : null}
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <Link
-                      href="/interviews?scope=readiness&view=team&state=needs_action"
-                      className="button small"
-                      style={{ textDecoration: "none" }}
-                    >
-                      Work in Command Center
-                    </Link>
-                    <Link
-                      href={`/interviews?scope=readiness&view=team&state=scheduled`}
-                      className="button small outline"
-                      style={{ textDecoration: "none" }}
-                    >
-                      View Scheduled
-                    </Link>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <InterviewBoard items={serializedInterviews} dragEnabled />
       </div>
 
       <div className="card">

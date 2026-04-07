@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getClassOfferingDetail } from "@/lib/class-management-actions";
 import { getLearnerFitSummary } from "@/lib/learner-fit";
 import Link from "next/link";
@@ -104,7 +103,7 @@ export default async function ClassDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const { id } = await params;
@@ -221,8 +220,8 @@ export default async function ClassDetailPage({
                   href={`/pathways/${offering.pathwayStep.pathway.id}`}
                   className="pill"
                   style={{
-                    background: "var(--ypp-purple-100, #ede9fe)",
-                    color: "var(--ypp-purple, #7c3aed)",
+                    background: "var(--ypp-purple-100, #f0e6ff)",
+                    color: "var(--ypp-purple, #6b21c8)",
                     fontWeight: 600,
                     textDecoration: "none",
                     fontSize: 11,
@@ -498,8 +497,8 @@ export default async function ClassDetailPage({
                     width: 32,
                     height: 32,
                     borderRadius: "50%",
-                    background: "var(--ypp-purple-100, #ede9fe)",
-                    color: "var(--ypp-purple, #7c3aed)",
+                    background: "var(--ypp-purple-100, #f0e6ff)",
+                    color: "var(--ypp-purple, #6b21c8)",
                     fontWeight: 700,
                     fontSize: 13,
                     display: "flex",

@@ -25,7 +25,7 @@ export const SUPPORT_ROLE_META: Record<
   CHAIR: {
     label: "Committee chair",
     description: "Approves reviews and handles escalation decisions.",
-    tone: "#7c3aed",
+    tone: "#6b21c8",
   },
   SPECIALIST_MENTOR: {
     label: "Specialist mentor",

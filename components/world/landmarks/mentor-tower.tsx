@@ -76,23 +76,23 @@ export function MentorTower3D({
       {/* Tower body — tapered cylinder */}
       <mesh position={[0, 2, 0]}>
         <cylinderGeometry args={[0.6, 0.8, 4, 8]} />
-        <meshStandardMaterial color="#7c3aed" transparent opacity={0.9} />
+        <meshStandardMaterial color="#6b21c8" transparent opacity={0.9} />
       </mesh>
 
       {/* Stone band detail */}
       <mesh position={[0, 0.5, 0]}>
         <cylinderGeometry args={[0.82, 0.82, 0.15, 8]} />
-        <meshStandardMaterial color="#5b21b6" />
+        <meshStandardMaterial color="#5a1da8" />
       </mesh>
       <mesh position={[0, 3, 0]}>
         <cylinderGeometry args={[0.62, 0.62, 0.1, 8]} />
-        <meshStandardMaterial color="#5b21b6" />
+        <meshStandardMaterial color="#5a1da8" />
       </mesh>
 
       {/* Cone roof */}
       <mesh position={[0, 4.3, 0]}>
         <coneGeometry args={[1, 1.2, 8]} />
-        <meshStandardMaterial color="#5b21b6" />
+        <meshStandardMaterial color="#5a1da8" />
       </mesh>
 
       {/* Windows with candle glow */}
@@ -173,8 +173,8 @@ export function MentorTower3D({
       <mesh ref={ringRef} position={[0, 0.15, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={0}>
         <torusGeometry args={[2, 0.06, 8, 32]} />
         <meshStandardMaterial
-          color="#7c3aed"
-          emissive="#7c3aed"
+          color="#6b21c8"
+          emissive="#6b21c8"
           emissiveIntensity={0.6}
           transparent
           opacity={0.7}
@@ -188,14 +188,14 @@ export function MentorTower3D({
       </mesh>
 
       {/* Label */}
-      <Label3D position={[0, 6.2, 0]} color="#7c3aed" fontSize={14} bold outline>
+      <Label3D position={[0, 6.2, 0]} color="#6b21c8" fontSize={14} bold outline>
         Mentor Tower
         {mentorName && (
-          <><br /><span style={{ fontSize: "11px", color: "#a78bfa" }}>{mentorName}</span></>
+          <><br /><span style={{ fontSize: "11px", color: "#b47fff" }}>{mentorName}</span></>
         )}
       </Label3D>
 
-      <LandmarkMarker position={[1, 6.4, 0]} count={hasMentor ? 0 : 1} color="#7c3aed" />
+      <LandmarkMarker position={[1, 6.4, 0]} count={hasMentor ? 0 : 1} color="#6b21c8" />
     </group>
   );
 }

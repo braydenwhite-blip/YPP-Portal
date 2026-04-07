@@ -1,11 +1,10 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { createSuccessStory, toggleStoryFeatured } from "@/lib/showcase-actions";
 
 export default async function AdminStoriesPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles: string[] = (session?.user as any)?.roles ?? [];
   if (!roles.includes("ADMIN")) {
     redirect("/");

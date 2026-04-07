@@ -1,11 +1,10 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { giveFeedback, updateCycleStatus } from "@/lib/feedback-actions";
 
 export default async function AdminFeedbackPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles: string[] = (session?.user as any)?.roles ?? [];
   if (!roles.includes("ADMIN") && !roles.includes("INSTRUCTOR")) {
     redirect("/");

@@ -57,14 +57,14 @@ export default function JourneyRoadmap({ milestones }: JourneyRoadmapProps) {
       >
         <h3 style={{ margin: 0, fontSize: 16 }}>Your Journey</h3>
         <Link
-          href="/world"
+          href="/my-chapter"
           style={{
             fontSize: 12,
-            color: "var(--ypp-purple, #7c3aed)",
+            color: "var(--ypp-purple, #6b21c8)",
             textDecoration: "none",
           }}
         >
-          Explore in 3D →
+          Open chapter hub →
         </Link>
       </div>
 
@@ -107,12 +107,12 @@ export default function JourneyRoadmap({ milestones }: JourneyRoadmapProps) {
                     height: isCurrentStep ? 28 : 24,
                     borderRadius: "50%",
                     background: item.reached
-                      ? "var(--ypp-purple, #7c3aed)"
+                      ? "var(--ypp-purple, #6b21c8)"
                       : isCurrentStep
                         ? "white"
                         : "var(--gray-200, #e2e8f0)",
                     border: isCurrentStep
-                      ? "3px solid var(--ypp-purple, #7c3aed)"
+                      ? "3px solid var(--ypp-purple, #6b21c8)"
                       : "2px solid transparent",
                     display: "flex",
                     alignItems: "center",
@@ -122,7 +122,7 @@ export default function JourneyRoadmap({ milestones }: JourneyRoadmapProps) {
                     fontWeight: 700,
                     transition: "all 0.2s",
                     boxShadow: isCurrentStep
-                      ? "0 0 0 4px var(--ypp-purple-light, #ede9fe)"
+                      ? "0 0 0 4px var(--ypp-purple-light, #f0e6ff)"
                       : "none",
                   }}
                 >
@@ -137,7 +137,7 @@ export default function JourneyRoadmap({ milestones }: JourneyRoadmapProps) {
                       fontSize: 11,
                       textAlign: "center",
                       color: item.reached
-                        ? "var(--ypp-purple, #7c3aed)"
+                        ? "var(--ypp-purple, #6b21c8)"
                         : isCurrentStep
                           ? "var(--gray-700, #2d3748)"
                           : "var(--gray-400, #a0aec0)",
@@ -155,7 +155,7 @@ export default function JourneyRoadmap({ milestones }: JourneyRoadmapProps) {
                       fontSize: 11,
                       textAlign: "center",
                       color: item.reached
-                        ? "var(--ypp-purple, #7c3aed)"
+                        ? "var(--ypp-purple, #6b21c8)"
                         : isCurrentStep
                           ? "var(--gray-700, #2d3748)"
                           : "var(--gray-400, #a0aec0)",
@@ -177,7 +177,7 @@ export default function JourneyRoadmap({ milestones }: JourneyRoadmapProps) {
                     height: 2,
                     background:
                       i < lastReachedIdx
-                        ? "var(--ypp-purple, #7c3aed)"
+                        ? "var(--ypp-purple, #6b21c8)"
                         : "var(--gray-200, #e2e8f0)",
                     marginTop: -20,
                     flexShrink: 0,

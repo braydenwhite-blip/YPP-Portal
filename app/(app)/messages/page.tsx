@@ -1,12 +1,16 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { redirect } from "next/navigation";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import {
   getConversations,
-  startConversation,
   getMessageableUsers,
+  startConversation,
 } from "@/lib/messaging-actions";
+import {
+  isParentConversation,
+  matchesMessageCenterTab,
+  normalizeMessageCenterTab,
+} from "@/lib/message-center";
 import PageHelp from "@/components/page-help";
 
 function formatTimestamp(date: Date): string {
@@ -33,17 +37,45 @@ function truncate(text: string, maxLength: number): string {
   return text.slice(0, maxLength).trimEnd() + "...";
 }
 
-export default async function MessagesPage() {
-  const session = await getServerSession(authOptions);
+function tabHref(tab: "all" | "direct" | "parent") {
+  return tab === "all" ? "/messages" : `/messages?tab=${tab}`;
+}
+
+export default async function MessagesPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ tab?: string; to?: string }>;
+}) {
+  const params = searchParams ? await searchParams : undefined;
+  const session = await getSession();
 
   if (!session?.user?.id) {
     redirect("/login");
   }
 
-  const [conversations, messageableUsers] = await Promise.all([
+  const roles = session.user.roles ?? [];
+  const isParentOnly = roles.includes("PARENT") && roles.every((role) => role === "PARENT");
+  const activeTab = normalizeMessageCenterTab(params?.tab);
+  const selectedRecipientId = params?.to ?? "";
+
+  const [allConversations, messageableUsers] = await Promise.all([
     getConversations(),
-    getMessageableUsers(),
+    isParentOnly ? Promise.resolve([]) : getMessageableUsers(),
   ]);
+
+  const visibleConversations = allConversations.filter((conversation) =>
+    matchesMessageCenterTab(conversation.contextType, activeTab)
+  );
+
+  const tabCounts = {
+    all: allConversations.length,
+    direct: allConversations.filter(
+      (conversation) => !isParentConversation(conversation.contextType)
+    ).length,
+    parent: allConversations.filter((conversation) =>
+      isParentConversation(conversation.contextType)
+    ).length,
+  };
 
   return (
     <div className="main-content">
@@ -51,128 +83,201 @@ export default async function MessagesPage() {
         <div>
           <h1 className="page-title">Messages</h1>
           <p style={{ marginTop: 4, fontSize: 13, color: "var(--text-secondary)" }}>
-            Direct messages also surface through your home page next actions when they need attention.
+            Direct and parent conversations now live in one shared inbox, and urgent message work can surface back on home next actions.
           </p>
         </div>
       </div>
 
       <PageHelp
-        purpose="This page is your direct-message inbox for one-to-one and small-group conversations."
-        firstStep="Open an unread conversation or start a new message to the specific person who needs the update."
-        nextStep="Replies stay in the inbox and urgent message tasks also appear back on your home page."
+        purpose="This page is the shared inbox for direct and parent conversation threads."
+        firstStep="Use the tabs to narrow to the conversation type you need, then open the newest unread thread first."
+        nextStep="Replies stay tied to the same shared thread so people can find the full history in one place."
       />
 
-      {/* New Conversation Section */}
-      <div className="card" style={{ marginBottom: 24 }}>
-        <h3 style={{ margin: "0 0 16px" }}>New Conversation</h3>
-        {messageableUsers.length === 0 ? (
-          <p className="empty">
-            There are no users available to message at this time.
-          </p>
-        ) : (
-          <form action={startConversation}>
-            <div className="form-group">
-              <label htmlFor="recipientId" style={{ fontWeight: 600, fontSize: 14, marginBottom: 6, display: "block" }}>
-                Recipient
-              </label>
-              <select
-                id="recipientId"
-                name="recipientId"
-                required
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  borderRadius: "var(--radius-sm, 6px)",
-                  border: "1px solid var(--border, #d1d5db)",
-                  fontSize: 14,
-                  backgroundColor: "var(--surface, #fff)",
-                }}
-              >
-                <option value="">Select a recipient...</option>
-                {messageableUsers.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name} ({user.primaryRole.replace(/_/g, " ")})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-group" style={{ marginTop: 12 }}>
-              <label htmlFor="subject" style={{ fontWeight: 600, fontSize: 14, marginBottom: 6, display: "block" }}>
-                Subject (optional)
-              </label>
-              <input
-                id="subject"
-                name="subject"
-                type="text"
-                placeholder="Enter a subject..."
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  borderRadius: "var(--radius-sm, 6px)",
-                  border: "1px solid var(--border, #d1d5db)",
-                  fontSize: 14,
-                  boxSizing: "border-box",
-                }}
-              />
-            </div>
-
-            <div className="form-group" style={{ marginTop: 12 }}>
-              <label htmlFor="message" style={{ fontWeight: 600, fontSize: 14, marginBottom: 6, display: "block" }}>
-                Message
-              </label>
-              <textarea
-                id="message"
-                name="message"
-                required
-                rows={3}
-                placeholder="Write your message..."
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  borderRadius: "var(--radius-sm, 6px)",
-                  border: "1px solid var(--border, #d1d5db)",
-                  fontSize: 14,
-                  resize: "vertical",
-                  boxSizing: "border-box",
-                }}
-              />
-            </div>
-
-            <div style={{ marginTop: 16 }}>
-              <button type="submit" className="btn btn-primary">
-                Send Message
-              </button>
-            </div>
-          </form>
-        )}
+      <div
+        className="card"
+        style={{
+          marginBottom: 24,
+          marginTop: 16,
+          display: "flex",
+          gap: 10,
+          flexWrap: "wrap",
+          alignItems: "center",
+        }}
+      >
+        {([
+          { key: "all", label: "All" },
+          { key: "direct", label: "Direct" },
+          { key: "parent", label: "Parent" },
+        ] as const).map((tab) => {
+          const isActive = activeTab === tab.key;
+          const count = tabCounts[tab.key];
+          return (
+            <Link
+              key={tab.key}
+              href={tabHref(tab.key)}
+              style={{
+                textDecoration: "none",
+                color: "inherit",
+                padding: "10px 14px",
+                borderRadius: 999,
+                border: "1px solid var(--border, #d1d5db)",
+                background: isActive ? "var(--surface-alt, #f3f4f6)" : "transparent",
+                fontWeight: isActive ? 700 : 500,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <span>{tab.label}</span>
+              <span className="badge">{count}</span>
+            </Link>
+          );
+        })}
       </div>
 
-      {/* Conversations List */}
-      <h3 style={{ margin: "0 0 16px" }}>Conversations</h3>
+      {isParentOnly ? (
+        <div className="card" style={{ marginBottom: 24 }}>
+          <h3 style={{ margin: "0 0 8px" }}>Start a parent thread</h3>
+          <p style={{ margin: 0, color: "var(--text-secondary)", fontSize: 14 }}>
+            Open a student detail page and choose <strong>Message Instructor</strong>. That keeps
+            each parent conversation tied to the right student.
+          </p>
+        </div>
+      ) : (
+        <div className="card" style={{ marginBottom: 24 }}>
+          <h3 style={{ margin: "0 0 16px" }}>Start a Direct Conversation</h3>
+          {messageableUsers.length === 0 ? (
+            <p className="empty">
+              There are no users available to message at this time.
+            </p>
+          ) : (
+            <form action={startConversation}>
+              <div className="form-group">
+                <label
+                  htmlFor="recipientId"
+                  style={{ fontWeight: 600, fontSize: 14, marginBottom: 6, display: "block" }}
+                >
+                  Recipient
+                </label>
+                <select
+                  id="recipientId"
+                  name="recipientId"
+                  required
+                  defaultValue={selectedRecipientId}
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    borderRadius: "var(--radius-sm, 6px)",
+                    border: "1px solid var(--border, #d1d5db)",
+                    fontSize: 14,
+                    backgroundColor: "var(--surface, #fff)",
+                  }}
+                >
+                  <option value="">Select a recipient...</option>
+                  {messageableUsers.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name} ({user.primaryRole.replace(/_/g, " ")})
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-      {conversations.length === 0 ? (
+              <div className="form-group" style={{ marginTop: 12 }}>
+                <label
+                  htmlFor="subject"
+                  style={{ fontWeight: 600, fontSize: 14, marginBottom: 6, display: "block" }}
+                >
+                  Subject (optional)
+                </label>
+                <input
+                  id="subject"
+                  name="subject"
+                  type="text"
+                  placeholder="Enter a subject..."
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    borderRadius: "var(--radius-sm, 6px)",
+                    border: "1px solid var(--border, #d1d5db)",
+                    fontSize: 14,
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginTop: 12 }}>
+                <label
+                  htmlFor="message"
+                  style={{ fontWeight: 600, fontSize: 14, marginBottom: 6, display: "block" }}
+                >
+                  Message
+                </label>
+                <textarea
+                  id="message"
+                  name="message"
+                  required
+                  rows={3}
+                  placeholder="Write your message..."
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    borderRadius: "var(--radius-sm, 6px)",
+                    border: "1px solid var(--border, #d1d5db)",
+                    fontSize: 14,
+                    resize: "vertical",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+
+              <div style={{ marginTop: 16 }}>
+                <button type="submit" className="btn btn-primary">
+                  Send Message
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      )}
+
+      <h3 style={{ margin: "0 0 16px" }}>
+        {activeTab === "all"
+          ? "All Conversations"
+          : activeTab === "parent"
+            ? "Parent Conversations"
+            : "Direct Conversations"}
+      </h3>
+
+      {visibleConversations.length === 0 ? (
         <div className="card">
           <p className="empty">
-            You have no conversations yet. Start a new conversation above to
-            begin messaging.
+            {activeTab === "parent"
+              ? "No parent conversations yet."
+              : activeTab === "direct"
+                ? "No direct conversations yet."
+                : "You have no conversations yet."}
           </p>
         </div>
       ) : (
         <div>
-          {conversations.map((conversation) => {
+          {visibleConversations.map((conversation) => {
             const otherParticipants = conversation.participants
-              .filter((p) => p.id !== session.user.id)
-              .map((p) => p.name)
+              .filter((participant) => participant.id !== session.user.id)
+              .map((participant) => participant.name)
               .join(", ");
 
-            const displayTitle =
-              conversation.subject || otherParticipants || "Conversation";
+            const displayTitle = conversation.subject || otherParticipants || "Conversation";
+            const isParentThread = isParentConversation(conversation.contextType);
 
             return (
               <Link
                 key={conversation.id}
-                href={`/messages/${conversation.id}`}
+                href={
+                  isParentThread
+                    ? `/messages/${conversation.id}?tab=parent`
+                    : `/messages/${conversation.id}`
+                }
                 style={{ textDecoration: "none", color: "inherit" }}
               >
                 <div
@@ -210,26 +315,16 @@ export default async function MessagesPage() {
                         >
                           {displayTitle}
                         </strong>
-                        {conversation.unreadCount > 0 && (
-                          <span className="badge">
-                            {conversation.unreadCount} new
-                          </span>
-                        )}
-                        {conversation.isGroup && (
-                          <span
-                            style={{
-                              fontSize: 11,
-                              color: "var(--muted, #6b7280)",
-                              fontWeight: 500,
-                            }}
-                          >
-                            Group
-                          </span>
-                        )}
+                        {conversation.unreadCount > 0 ? (
+                          <span className="badge">{conversation.unreadCount} new</span>
+                        ) : null}
+                        {isParentThread ? <span className="badge">Parent</span> : null}
+                        {conversation.contextType === "INTERVIEW" ? (
+                          <span className="badge">Interview</span>
+                        ) : null}
                       </div>
 
-                      {/* Show participant names below title when subject is used */}
-                      {conversation.subject && (
+                      {conversation.subject ? (
                         <p
                           style={{
                             margin: "4px 0 0",
@@ -239,7 +334,7 @@ export default async function MessagesPage() {
                         >
                           {otherParticipants}
                         </p>
-                      )}
+                      ) : null}
 
                       {conversation.lastMessage ? (
                         <p
@@ -269,22 +364,17 @@ export default async function MessagesPage() {
                       )}
                     </div>
 
-                    <div
+                    <span
                       style={{
-                        textAlign: "right",
-                        flexShrink: 0,
+                        fontSize: 12,
+                        color: "var(--muted, #9ca3af)",
+                        whiteSpace: "nowrap",
                       }}
                     >
-                      <span
-                        style={{
-                          fontSize: 12,
-                          color: "var(--muted, #9ca3af)",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {formatTimestamp(conversation.updatedAt)}
-                      </span>
-                    </div>
+                      {conversation.lastMessage
+                        ? formatTimestamp(conversation.lastMessage.createdAt)
+                        : formatTimestamp(conversation.updatedAt)}
+                    </span>
                   </div>
                 </div>
               </Link>

@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { submitInfoResponse } from "@/lib/instructor-application-actions";
 import {
@@ -11,6 +10,7 @@ import {
 import InfoResponseForm from "./info-response-form";
 import CPInfoResponseForm from "./cp-info-response-form";
 import Link from "next/link";
+import InstructorApplicationMotivationResponse from "@/components/instructor-application-motivation-response";
 
 function instructorStatusLabel(status: InstructorApplicationStatus): string {
   switch (status) {
@@ -19,8 +19,13 @@ function instructorStatusLabel(status: InstructorApplicationStatus): string {
     case "INFO_REQUESTED": return "More Info Requested";
     case "INTERVIEW_SCHEDULED": return "Interview Scheduled";
     case "INTERVIEW_COMPLETED": return "Interview Completed";
+    case "ON_HOLD": return "On Hold";
     case "APPROVED": return "Approved";
     case "REJECTED": return "Not Accepted";
+    default: {
+      const exhaustiveCheck: never = status;
+      return exhaustiveCheck;
+    }
   }
 }
 
@@ -33,6 +38,10 @@ function cpStatusLabel(status: ChapterPresidentApplicationStatus): string {
     case "INTERVIEW_COMPLETED": return "Interview Completed";
     case "APPROVED": return "Approved";
     case "REJECTED": return "Not Accepted";
+    default: {
+      const exhaustiveCheck: never = status;
+      return exhaustiveCheck;
+    }
   }
 }
 
@@ -40,7 +49,8 @@ function statusColor(status: string): string {
   if (status === "APPROVED") return "#16a34a";
   if (status === "REJECTED") return "#dc2626";
   if (status === "INFO_REQUESTED") return "#d97706";
-  return "#7c3aed";
+  if (status === "ON_HOLD") return "#71717a";
+  return "#6b21c8";
 }
 
 const STAGES = [
@@ -52,7 +62,7 @@ const STAGES = [
 
 function currentStageIndex(status: string): number {
   if (status === "SUBMITTED") return 0;
-  if (status === "UNDER_REVIEW" || status === "INFO_REQUESTED") return 1;
+  if (status === "UNDER_REVIEW" || status === "INFO_REQUESTED" || status === "ON_HOLD") return 1;
   if (status === "INTERVIEW_SCHEDULED" || status === "INTERVIEW_COMPLETED") return 2;
   return 3;
 }
@@ -67,18 +77,18 @@ function ProgressStepper({ status }: { status: string }) {
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 80 }}>
               <div style={{
                 width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-                background: i <= stageIdx ? "#7c3aed" : "var(--border)",
+                background: i <= stageIdx ? "#6b21c8" : "var(--border)",
                 color: i <= stageIdx ? "white" : "var(--muted)",
                 fontWeight: 700, fontSize: 14,
               }}>
                 {i < stageIdx ? "\u2713" : i + 1}
               </div>
-              <span style={{ fontSize: 11, color: i <= stageIdx ? "#7c3aed" : "var(--muted)", marginTop: 4, textAlign: "center" }}>
+              <span style={{ fontSize: 11, color: i <= stageIdx ? "#6b21c8" : "var(--muted)", marginTop: 4, textAlign: "center" }}>
                 {stage.label}
               </span>
             </div>
             {i < STAGES.length - 1 && (
-              <div style={{ flex: 1, height: 2, background: i < stageIdx ? "#7c3aed" : "var(--border)", margin: "0 4px", marginBottom: 20 }} />
+              <div style={{ flex: 1, height: 2, background: i < stageIdx ? "#6b21c8" : "var(--border)", margin: "0 4px", marginBottom: 20 }} />
             )}
           </div>
         ))}
@@ -88,7 +98,7 @@ function ProgressStepper({ status }: { status: string }) {
 }
 
 export default async function ApplicationStatusPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const roles = session.user.roles ?? [];
@@ -236,6 +246,14 @@ export default async function ApplicationStatusPage() {
                 <p style={{ color: "var(--muted)", fontSize: 14 }}>A final decision is pending.</p>
               </>
             )}
+            {instructorApp.status === "ON_HOLD" && (
+              <>
+                <h3 className="section-title">Application On Hold</h3>
+                <p style={{ color: "var(--muted)", fontSize: 14 }}>
+                  Your application is paused while the review team completes follow-up steps. We&apos;ll reach out if we need anything else from you.
+                </p>
+              </>
+            )}
             {instructorApp.status === "APPROVED" && (
               <>
                 <h3 className="section-title" style={{ color: "#16a34a" }}>Approved!</h3>
@@ -275,8 +293,11 @@ export default async function ApplicationStatusPage() {
             </summary>
             <div style={{ marginTop: 16 }}>
               <div style={{ marginBottom: 16 }}>
-                <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Why you want to teach:</strong></p>
-                <p style={{ fontSize: 14, margin: 0, whiteSpace: "pre-wrap" }}>{instructorApp.motivation}</p>
+                <InstructorApplicationMotivationResponse
+                  motivation={instructorApp.motivation}
+                  motivationVideoUrl={instructorApp.motivationVideoUrl}
+                  label="Teaching approach video"
+                />
               </div>
               <div style={{ marginBottom: 16 }}>
                 <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Teaching experience:</strong></p>

@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { NotificationType } from "@prisma/client";
+import { deliverNotification } from "@/lib/notification-delivery";
 
 /**
  * Creates a notification for a user
@@ -17,27 +19,13 @@ export async function createNotification({
   link?: string;
 }) {
   try {
-    // Check user's notification preferences
-    const preferences = await prisma.notificationPreference.findUnique({
-      where: { userId }
+    return await deliverNotification({
+      userId,
+      type: type as NotificationType,
+      title,
+      body,
+      link: link ?? null,
     });
-
-    // If user has disabled this type of notification, skip
-    if (preferences && !preferences.inAppEnabled) {
-      return null;
-    }
-
-    const notification = await prisma.notification.create({
-      data: {
-        userId,
-        type: type as any,
-        title,
-        body,
-        link
-      }
-    });
-
-    return notification;
   } catch (error) {
     console.error("Error creating notification:", error);
     return null;

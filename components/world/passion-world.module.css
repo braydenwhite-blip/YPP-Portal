@@ -37,7 +37,7 @@
   background: rgba(15, 23, 42, 0.85);
   backdrop-filter: blur(12px);
   border-radius: 12px;
-  border: 1px solid rgba(124, 58, 237, 0.2);
+  border: 1px solid rgba(107, 33, 200, 0.2);
   color: white;
 }
 
@@ -51,7 +51,7 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  background: linear-gradient(135deg, #8b3fe8, #6366f1);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -92,7 +92,7 @@
 
 .hudXpFill {
   height: 100%;
-  background: linear-gradient(90deg, #7c3aed, #ec4899);
+  background: linear-gradient(90deg, #6b21c8, #ec4899);
   border-radius: 3px;
   transition: width 0.6s ease;
 }
@@ -426,7 +426,7 @@
 .loadingBarFill {
   width: 40%;
   height: 100%;
-  background: linear-gradient(90deg, #7c3aed, #ec4899);
+  background: linear-gradient(90deg, #6b21c8, #ec4899);
   border-radius: 2px;
   animation: loadingSlide 1.5s ease-in-out infinite;
 }
@@ -562,16 +562,16 @@
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background: rgba(124, 58, 237, 0.12);
+  background: rgba(107, 33, 200, 0.12);
   border-radius: 10px;
-  border: 1px solid rgba(124, 58, 237, 0.2);
+  border: 1px solid rgba(107, 33, 200, 0.2);
 }
 
 .mentorAvatar {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #7c3aed, #5b21b6);
+  background: linear-gradient(135deg, #6b21c8, #5a1da8);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -594,7 +594,7 @@
 
 .mentorStatus {
   font-size: 11px;
-  color: #a78bfa;
+  color: #b47fff;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -620,14 +620,14 @@
 
 .connectionFill {
   height: 100%;
-  background: linear-gradient(90deg, #7c3aed, #a855f7);
+  background: linear-gradient(90deg, #6b21c8, #a855f7);
   border-radius: 3px;
   transition: width 0.6s ease;
 }
 
 .connectionLabel {
   font-size: 10px;
-  color: #a78bfa;
+  color: #b47fff;
   margin-top: 4px;
 }
 
@@ -658,7 +658,7 @@
 
 .mentorEmptyHint {
   font-size: 10px;
-  color: #7c3aed;
+  color: #6b21c8;
   font-style: italic;
 }
 
@@ -1792,7 +1792,7 @@
   align-items: center;
   gap: 6px;
   padding: 8px 14px;
-  background: linear-gradient(135deg, #a855f7, #7c3aed);
+  background: linear-gradient(135deg, #a855f7, #6b21c8);
   color: white;
   border: none;
   border-radius: 20px;
@@ -1953,7 +1953,7 @@
   width: 100%;
   margin-top: 14px;
   padding: 10px;
-  background: linear-gradient(135deg, #a855f7, #7c3aed);
+  background: linear-gradient(135deg, #a855f7, #6b21c8);
   border: none;
   border-radius: 8px;
   color: white;
@@ -2155,7 +2155,7 @@
   align-items: center;
   gap: 8px;
   padding: 12px 24px;
-  background: linear-gradient(135deg, #a855f7, #7c3aed);
+  background: linear-gradient(135deg, #a855f7, #6b21c8);
   color: white;
   border: none;
   border-radius: 12px;
@@ -2483,8 +2483,8 @@
 }
 
 .zoomBtn:hover {
-  background: rgba(124, 58, 237, 0.4);
-  border-color: rgba(124, 58, 237, 0.5);
+  background: rgba(107, 33, 200, 0.4);
+  border-color: rgba(107, 33, 200, 0.5);
 }
 
 /* ── Minimap ── */
@@ -2542,7 +2542,7 @@
 }
 
 .contextMenuItem:hover {
-  background: rgba(124, 58, 237, 0.25);
+  background: rgba(107, 33, 200, 0.25);
 }
 
 /* ── Small phone breakpoint ── */

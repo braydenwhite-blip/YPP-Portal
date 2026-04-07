@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
 
-import { authOptions } from "@/lib/auth";
 import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
 import { mentorshipRequiresMonthlyReflection } from "@/lib/mentorship-canonical";
 import { ProgressBar } from "@/components/progress-bar";
@@ -53,7 +52,7 @@ const MENTEES_GUIDE_ITEMS = [
 ] as const;
 
 export default async function MenteesPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const userId = session?.user?.id;
   const roles = session?.user?.roles ?? [];
 
@@ -282,7 +281,7 @@ export default async function MenteesPage() {
                       {mentee.chapter && (
                         <span
                           className="pill"
-                          style={{ background: "#f3e8ff", color: "#7c3aed" }}
+                          style={{ background: "#f3e8ff", color: "#6b21c8" }}
                         >
                           {mentee.chapter.name}
                         </span>

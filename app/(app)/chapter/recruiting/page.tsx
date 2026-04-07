@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   chapterMakeDecision,
@@ -34,7 +33,7 @@ export default async function ChapterRecruitingPage({
   const tabQuery = Array.isArray(searchParams?.tab) ? searchParams?.tab[0] : searchParams?.tab;
   const activeTab = resolveRecruitingTab(tabQuery);
 
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }

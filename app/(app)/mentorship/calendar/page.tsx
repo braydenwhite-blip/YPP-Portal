@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
@@ -28,7 +27,7 @@ const EVENT_TYPE_CONFIG: Record<
   },
   QUARTERLY_WINDOW: {
     label: "Quarterly Review",
-    color: "#7c3aed",
+    color: "#6b21c8",
     bg: "#faf5ff",
     icon: "🔄",
   },
@@ -215,7 +214,7 @@ async function getMentorshipCalendarData(userId: string, roles: string[]) {
 // ============================================
 
 export default async function MentorshipCalendarPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const userId = session.user.id as string;

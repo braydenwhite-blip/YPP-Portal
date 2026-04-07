@@ -1,11 +1,14 @@
 "use client";
 
-import { useFormState } from "react-dom";
+import { useFormState, useFormStatus } from "react-dom";
 import Link from "next/link";
-import Image from "next/image";
-import { requestPasswordReset, ActionResult } from "@/lib/password-reset-actions";
+import BrandLockup from "@/components/brand-lockup";
+import {
+  requestPasswordReset,
+  type PasswordResetFormState,
+} from "@/lib/password-reset-actions";
 
-const initialState: ActionResult = { status: "idle", message: "" };
+const initialState: PasswordResetFormState = { status: "idle", message: "" };
 
 export default function ForgotPasswordPage() {
   const [state, formAction] = useFormState(requestPasswordReset, initialState);
@@ -13,13 +16,8 @@ export default function ForgotPasswordPage() {
   return (
     <div className="login-shell">
       <div className="login-card" style={{ justifySelf: "center" }}>
-        <div className="login-card-header">
-          <Image
-            src="/logo-icon.svg"
-            alt="YPP"
-            width={44}
-            height={44}
-          />
+        <div className="login-card-header login-card-header--stacked">
+          <BrandLockup height={36} className="brand-lockup" reloadOnClick />
           <div>
             <h1 className="page-title" style={{ fontSize: 20 }}>
               Reset Your Password
@@ -57,9 +55,7 @@ export default function ForgotPasswordPage() {
             {state.status === "error" && (
               <div className="form-error">{state.message}</div>
             )}
-            <button className="button" type="submit">
-              Send Reset Link
-            </button>
+            <SubmitButton />
           </form>
         )}
 
@@ -68,5 +64,15 @@ export default function ForgotPasswordPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button className="button" type="submit" disabled={pending}>
+      {pending ? "Sending\u2026" : "Send Reset Link"}
+    </button>
   );
 }

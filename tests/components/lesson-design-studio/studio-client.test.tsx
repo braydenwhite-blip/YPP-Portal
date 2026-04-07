@@ -415,7 +415,7 @@ describe("StudioClient", () => {
       expect(actionMocks.markLessonDesignStudioTourComplete).toHaveBeenCalledWith(
         "draft-1"
       );
-      expect(actionMocks.saveCurriculumDraft).toHaveBeenCalledTimes(1);
+      expect(actionMocks.saveCurriculumDraft).toHaveBeenCalledTimes(0);
     });
 
     firstRender.unmount();

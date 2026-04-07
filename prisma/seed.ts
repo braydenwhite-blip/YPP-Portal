@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { PrismaClient, CourseFormat, CourseLevel, TrainingModuleType, RoleType, MentorshipType, EventType, FeedbackSource, TrainingStatus, ApprovalStatus, VideoProvider, PassionCategory } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
@@ -26,12 +27,15 @@ async function main() {
     }
   });
 
+  const verifiedAt = new Date();
+
   const admin = await prisma.user.create({
     data: {
       name: "Brayden White",
       email: "brayden.white@youthpassionproject.org",
       phone: "(917)-538-6197",
       passwordHash,
+      emailVerified: verifiedAt,
       primaryRole: RoleType.ADMIN,
       chapterId: frisch.id,
       roles: {
@@ -46,6 +50,7 @@ async function main() {
       email: "carlygelles@gmail.com",
       phone: "(914)-907-1779",
       passwordHash,
+      emailVerified: verifiedAt,
       primaryRole: RoleType.MENTOR,
       chapterId: boston.id,
       roles: {
@@ -60,6 +65,7 @@ async function main() {
       email: "avery.lin@youthpassionproject.org",
       phone: "(646)-555-0127",
       passwordHash,
+      emailVerified: verifiedAt,
       primaryRole: RoleType.INSTRUCTOR,
       chapterId: frisch.id,
       roles: {
@@ -74,6 +80,7 @@ async function main() {
       email: "jordan.patel@youthpassionproject.org",
       phone: "(347)-555-3391",
       passwordHash,
+      emailVerified: verifiedAt,
       primaryRole: RoleType.STUDENT,
       chapterId: frisch.id,
       roles: {
@@ -292,13 +299,16 @@ async function main() {
 
   const module3 = await prisma.trainingModule.create({
     data: {
-      title: "Curriculum Review Capstone",
-      description: "Align lesson plans with YPP standards and submit a capstone artifact.",
-      type: TrainingModuleType.CURRICULUM_REVIEW,
+      title: "From Plan to Practice",
+      description: "Short video on turning outlines into teachable sessions. Then complete Lesson Design Studio as your capstone (separate step below).",
+      type: TrainingModuleType.WORKSHOP,
       required: true,
       sortOrder: 3,
-      requiresQuiz: false,
-      requiresEvidence: true,
+      videoUrl: "https://www.youtube.com/watch?v=ysz5S6PUM-U",
+      videoProvider: VideoProvider.YOUTUBE,
+      videoDuration: 600,
+      requiresQuiz: true,
+      requiresEvidence: false,
       passScorePct: 80,
     },
   });
@@ -307,17 +317,27 @@ async function main() {
     data: [
       {
         moduleId: module3.id,
-        title: "Draft a standards-aligned class outline",
-        description: "Prepare one full lesson outline aligned to YPP outcomes.",
+        title: "Note one change you will make to your next session plan",
+        description: "After the video, capture one concrete improvement you will apply.",
         sortOrder: 1,
         required: true,
       },
+    ],
+  });
+
+  await prisma.trainingQuizQuestion.createMany({
+    data: [
       {
         moduleId: module3.id,
-        title: "Complete capstone self-review",
-        description: "Run your outline through the quality rubric before submission.",
-        sortOrder: 2,
-        required: true,
+        question: "After the three modules, where do you build and submit your full class plan?",
+        options: [
+          "Lesson Design Studio",
+          "Only by email to admin",
+          "It is optional",
+          "Only during live onboarding",
+        ],
+        correctAnswer: "Lesson Design Studio",
+        sortOrder: 1,
       },
     ],
   });

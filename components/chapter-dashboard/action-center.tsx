@@ -66,7 +66,7 @@ const QUEUE_META: Record<
     title: "Join Requests",
     background: "rgba(250, 245, 255, 0.96)",
     border: "rgba(168, 85, 247, 0.18)",
-    text: "#7c3aed",
+    text: "#6b21c8",
   },
   new_applications: {
     icon: "Apply",

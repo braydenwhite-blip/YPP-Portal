@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { getStudentProgressSnapshot } from "@/lib/student-progress-actions";
 import { getStudentChapterJourneyData } from "@/lib/chapter-pathway-journey";
@@ -10,7 +9,7 @@ function getStepPillStyle(status: "COMPLETED" | "ENROLLED" | "WAITLISTED" | "NOT
     case "COMPLETED":
       return { background: "#dcfce7", color: "#166534" };
     case "ENROLLED":
-      return { background: "#ede9fe", color: "var(--ypp-purple)" };
+      return { background: "#f0e6ff", color: "var(--ypp-purple)" };
     case "WAITLISTED":
       return { background: "#fef3c7", color: "#92400e" };
     default:
@@ -19,7 +18,7 @@ function getStepPillStyle(status: "COMPLETED" | "ENROLLED" | "WAITLISTED" | "NOT
 }
 
 export default async function PathwayProgressPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }

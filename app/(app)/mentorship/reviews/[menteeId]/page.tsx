@@ -1,8 +1,7 @@
-import { getServerSession } from "next-auth";
 import Link from "next/link";
+import { getSession } from "@/lib/auth-supabase";
 import { notFound, redirect } from "next/navigation";
 
-import { authOptions } from "@/lib/auth";
 import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
 import { ReviewNotesBanner } from "@/components/review-notes-banner";
 import { mentorshipRequiresChairApproval } from "@/lib/mentorship-canonical";
@@ -47,7 +46,7 @@ export default async function MonthlyReviewEditorPage({
   params: Promise<{ menteeId: string }>;
 }) {
   const { menteeId } = await params;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const userId = session?.user?.id;
   const roles = session?.user?.roles ?? [];
 

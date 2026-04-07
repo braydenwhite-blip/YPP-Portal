@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getInstructorReadiness } from "@/lib/instructor-readiness";
 import { toggleInstructorPathwaySpec } from "@/lib/instructor-pathway-actions";
@@ -44,7 +43,7 @@ export default async function InstructorWorkspacePage({
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const roles = session.user.roles ?? [];
@@ -355,18 +354,18 @@ export default async function InstructorWorkspacePage({
                   </div>
                   {isPublished && (
                     <details style={{ marginTop: 14 }}>
-                      <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--ypp-purple, #7c3aed)" }}>
+                      <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--ypp-purple, #6b21c8)" }}>
                         Enroll Students via Cohort
                       </summary>
                       <div style={{ marginTop: 10 }}>
                         {/* CohortManager is a client component — embed via dynamic import not needed; it renders client-side */}
                         <p style={{ fontSize: 12, color: "var(--muted)" }}>
                           Visit{" "}
-                          <a href={`/curriculum/${offering.id}`} style={{ color: "var(--ypp-purple, #7c3aed)" }}>
+                          <a href={`/curriculum/${offering.id}`} style={{ color: "var(--ypp-purple, #6b21c8)" }}>
                             the offering page
                           </a>{" "}
                           to manage cohort enrollment, or use the{" "}
-                          <a href={`/instructor/sequence-builder`} style={{ color: "var(--ypp-purple, #7c3aed)" }}>
+                          <a href={`/instructor/sequence-builder`} style={{ color: "var(--ypp-purple, #6b21c8)" }}>
                             Sequence Builder
                           </a>
                           .
@@ -476,10 +475,10 @@ export default async function InstructorWorkspacePage({
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600, fontSize: 15 }}>Complete Training Academy</div>
                     <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
-                      Finish required modules so your readiness foundation is complete.
+                      Finish three video modules, submit Lesson Design Studio, then continue to interview.
                     </div>
                   </div>
-                  <span className="pill" style={readiness.trainingComplete ? { background: "#dcfce7", color: "#166534" } : { background: "#ede9fe", color: "#5b21b6" }}>
+                  <span className="pill" style={readiness.trainingComplete ? { background: "#dcfce7", color: "#166534" } : { background: "#f0e6ff", color: "#5a1da8" }}>
                     {readiness.trainingComplete ? "Complete" : "In Progress"}
                   </span>
                 </div>
@@ -524,7 +523,7 @@ export default async function InstructorWorkspacePage({
                       Each new non-legacy offering needs its own approval from an admin or chapter president before you publish it.
                     </div>
                   </div>
-                  <span className="pill" style={approvedOfferingCount > 0 ? { background: "#dcfce7", color: "#166534" } : readiness.baseReadinessComplete ? { background: "#ede9fe", color: "#5b21b6" } : {}}>
+                  <span className="pill" style={approvedOfferingCount > 0 ? { background: "#dcfce7", color: "#166534" } : readiness.baseReadinessComplete ? { background: "#f0e6ff", color: "#5a1da8" } : {}}>
                     {approvedOfferingCount > 0 ? `${approvedOfferingCount} approved` : readiness.baseReadinessComplete ? "Ready to request" : "Blocked"}
                   </span>
                 </div>
@@ -536,19 +535,21 @@ export default async function InstructorWorkspacePage({
                 <div>
                   <h3 style={{ margin: 0 }}>Step 1 — Complete Training Academy</h3>
                   <p style={{ marginTop: 6, marginBottom: 0, color: "var(--text-secondary)", fontSize: 14 }}>
-                    Finish all required modules to unlock your interview gate and offering approval requests.
+                    Finish video modules and the Lesson Design Studio capstone to unlock your interview gate and offering approval requests.
                   </p>
                 </div>
                 <span
                   className="pill"
-                  style={readiness.trainingComplete ? { background: "#dcfce7", color: "#166534" } : { background: "#ede9fe", color: "#5b21b6" }}
+                  style={readiness.trainingComplete ? { background: "#dcfce7", color: "#166534" } : { background: "#f0e6ff", color: "#5a1da8" }}
                 >
                   {readiness.trainingComplete ? "Complete" : "In Progress"}
                 </span>
               </div>
               <div style={{ marginTop: 14 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--text-secondary)", marginBottom: 6 }}>
-                  <span>{readiness.completedRequiredModules} of {readiness.requiredModulesCount} required modules complete</span>
+                  <span>
+                    {readiness.completedRequiredModules} of {readiness.requiredModulesCount} modules
+                  </span>
                   <span style={{ fontWeight: 700, color: "var(--ypp-purple)" }}>{trainingPct}%</span>
                 </div>
                 <div style={{ height: 10, background: "var(--gray-200)", borderRadius: 6, overflow: "hidden" }}>
@@ -621,7 +622,7 @@ export default async function InstructorWorkspacePage({
                   }).length;
                   if (approvedCount > 0) return <span className="pill" style={{ background: "#dcfce7", color: "#166534" }}>{approvedCount} Approved</span>;
                   if (submittedCount > 0) return <span className="pill" style={{ background: "#fef9c3", color: "#854d0e" }}>{submittedCount} Under Review</span>;
-                  if (draftCount > 0) return <span className="pill" style={{ background: "#ede9fe", color: "#5b21b6" }}>{draftCount} Draft</span>;
+                  if (draftCount > 0) return <span className="pill" style={{ background: "#f0e6ff", color: "#5a1da8" }}>{draftCount} Draft</span>;
                   return <span className="pill">Not Started</span>;
                 })()}
               </div>
@@ -653,7 +654,7 @@ export default async function InstructorWorkspacePage({
                     When readiness is complete and your curriculum is ready, request approval for each draft offering in class settings.
                   </p>
                 </div>
-                <span className="pill" style={approvedOfferingCount > 0 ? { background: "#dcfce7", color: "#166534" } : pendingOfferingApprovalCount > 0 ? { background: "#fef9c3", color: "#854d0e" } : readiness.baseReadinessComplete ? { background: "#ede9fe", color: "#5b21b6" } : {}}>
+                <span className="pill" style={approvedOfferingCount > 0 ? { background: "#dcfce7", color: "#166534" } : pendingOfferingApprovalCount > 0 ? { background: "#fef9c3", color: "#854d0e" } : readiness.baseReadinessComplete ? { background: "#f0e6ff", color: "#5a1da8" } : {}}>
                   {approvedOfferingCount > 0 ? `${approvedOfferingCount} approved` : pendingOfferingApprovalCount > 0 ? `${pendingOfferingApprovalCount} pending` : readiness.baseReadinessComplete ? "Ready to request" : "Blocked"}
                 </span>
               </div>
@@ -789,7 +790,7 @@ export default async function InstructorWorkspacePage({
                           Started {new Date(offering.startDate).toLocaleDateString()}
                         </div>
                       </div>
-                      <span className="pill" style={{ background: "#ede9fe", color: "#5b21b6", whiteSpace: "nowrap" }}>
+                      <span className="pill" style={{ background: "#f0e6ff", color: "#5a1da8", whiteSpace: "nowrap" }}>
                         {offering._count.enrollments} enrolled
                       </span>
                     </Link>

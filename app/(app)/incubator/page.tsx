@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import {
   getActiveCohort,
   getMyIncubatorProjects,
@@ -33,7 +32,7 @@ function phaseLabelFor(phase: string | null | undefined) {
 }
 
 export default async function IncubatorPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const featureEnabled = await isFeatureEnabledForUser("INCUBATOR", {
@@ -59,7 +58,7 @@ export default async function IncubatorPage() {
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <Link href="/activities" className="button secondary">Activity Hub</Link>
             <Link href="/projects/tracker" className="button secondary">Project Tracker</Link>
-            <Link href="/world" className="button secondary">Passion World</Link>
+            <Link href="/pathways" className="button secondary">Pathways</Link>
           </div>
         </div>
       </div>

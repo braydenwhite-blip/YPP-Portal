@@ -21,6 +21,12 @@ vi.mock("next/navigation", () => ({
   usePathname: vi.fn(() => "/"),
   useSearchParams: vi.fn(() => new URLSearchParams()),
   useParams: vi.fn(() => ({})),
+  redirect: vi.fn(),
+  notFound: vi.fn(),
+}));
+
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
 }));
 
 vi.mock("next/headers", () => ({
@@ -32,16 +38,28 @@ vi.mock("next/headers", () => ({
   headers: vi.fn(() => new Headers()),
 }));
 
-// Mock NextAuth
-vi.mock("next-auth", () => ({
-  getServerSession: vi.fn(),
+// Mock Supabase Auth
+vi.mock("@/lib/auth-supabase", () => ({
+  getSession: vi.fn(() => null),
+  getSessionUser: vi.fn(() => null),
 }));
 
-vi.mock("next-auth/react", () => ({
-  useSession: vi.fn(() => ({ data: null, status: "unauthenticated" })),
-  signIn: vi.fn(),
-  signOut: vi.fn(),
-  SessionProvider: ({ children }: { children: React.ReactNode }) => children,
+vi.mock("@/lib/supabase/server", () => ({
+  createServerClient: vi.fn(() => ({
+    auth: {
+      getUser: vi.fn(() => ({ data: { user: null }, error: null })),
+    },
+  })),
+  createServiceClient: vi.fn(() => ({
+    auth: {
+      admin: {
+        createUser: vi.fn(),
+        updateUserById: vi.fn(),
+        listUsers: vi.fn(),
+        generateLink: vi.fn(),
+      },
+    },
+  })),
 }));
 
 // Mock Prisma
@@ -49,10 +67,34 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     user: {
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
       findMany: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
+    },
+    userRole: {
+      upsert: vi.fn(),
+    },
+    userProfile: {
+      upsert: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
+    parentStudent: {
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      upsert: vi.fn(),
+      updateMany: vi.fn(),
+      count: vi.fn(),
+      delete: vi.fn(),
+    },
+    chapter: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
     },
     course: {
       findUnique: vi.fn(),
@@ -77,4 +119,6 @@ vi.mock("@/lib/prisma", () => ({
 process.env.NODE_ENV = "test";
 process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test";
 process.env.DIRECT_URL = "postgresql://test:test@localhost:5432/test";
-process.env.NEXTAUTH_SECRET = "test-secret-at-least-32-characters-long";
+process.env.NEXT_PUBLIC_SUPABASE_URL = "https://test-project.supabase.co";
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "test-anon-key";
+process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";

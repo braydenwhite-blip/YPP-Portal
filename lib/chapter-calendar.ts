@@ -99,7 +99,7 @@ function addMonths(base: Date, months: number) {
 function eventColorForType(type: string) {
   switch (type) {
     case "SHOWCASE":
-      return "#8b5cf6";
+      return "#8b3fe8";
     case "FESTIVAL":
       return "#ec4899";
     case "COMPETITION":

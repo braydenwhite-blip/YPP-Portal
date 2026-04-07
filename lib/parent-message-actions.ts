@@ -1,12 +1,12 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
+import { ConversationContextType } from "@prisma/client";
 
 async function requireAuth() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   return session;
 }
@@ -81,7 +81,12 @@ export async function getOrCreateParentConversation(studentId: string) {
   // We store studentId in the subject as a marker; find by participants
   const existing = await prisma.conversation.findFirst({
     where: {
+      isGroup: false,
       subject,
+      OR: [
+        { contextType: ConversationContextType.PARENT },
+        { contextType: null },
+      ],
       participants: {
         some: { userId: parentId },
       },
@@ -97,7 +102,36 @@ export async function getOrCreateParentConversation(studentId: string) {
     },
   });
 
-  if (existing) return existing;
+  if (existing) {
+    if (instructorId) {
+      await prisma.conversationParticipant.upsert({
+        where: {
+          conversationId_userId: {
+            conversationId: existing.id,
+            userId: instructorId,
+          },
+        },
+        update: {},
+        create: {
+          conversationId: existing.id,
+          userId: instructorId,
+        },
+      });
+    }
+
+    return prisma.conversation.findUniqueOrThrow({
+      where: { id: existing.id },
+      include: {
+        messages: {
+          include: { sender: { select: { id: true, name: true } } },
+          orderBy: { createdAt: "asc" },
+        },
+        participants: {
+          include: { user: { select: { id: true, name: true } } },
+        },
+      },
+    });
+  }
 
   // Create a new conversation
   const participantData: { userId: string }[] = [{ userId: parentId }];
@@ -107,6 +141,7 @@ export async function getOrCreateParentConversation(studentId: string) {
     data: {
       subject,
       isGroup: false,
+      contextType: ConversationContextType.PARENT,
       participants: {
         create: participantData,
       },
@@ -167,8 +202,8 @@ export async function sendParentMessage(formData: FormData) {
   });
 
   revalidatePath(`/parent/${studentId}/messages`);
-  revalidatePath(`/parent/messages`);
-  revalidatePath(`/instructor/parent-messages`);
+  revalidatePath("/messages");
+  revalidatePath("/messages?tab=parent");
 }
 
 // ============================================
@@ -180,7 +215,13 @@ export async function getParentConversations() {
   const parentId = session.user.id;
 
   const participations = await prisma.conversationParticipant.findMany({
-    where: { userId: parentId },
+    where: {
+      userId: parentId,
+      conversation: {
+        isGroup: false,
+        contextType: ConversationContextType.PARENT,
+      },
+    },
     include: {
       conversation: {
         include: {
@@ -220,7 +261,13 @@ export async function getInstructorParentConversations() {
   const instructorId = session.user.id;
 
   const participations = await prisma.conversationParticipant.findMany({
-    where: { userId: instructorId },
+    where: {
+      userId: instructorId,
+      conversation: {
+        isGroup: false,
+        contextType: ConversationContextType.PARENT,
+      },
+    },
     include: {
       conversation: {
         include: {

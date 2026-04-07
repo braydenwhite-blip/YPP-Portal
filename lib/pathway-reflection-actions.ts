@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getMentorshipRoleFlags } from "@/lib/mentorship-hub";
 import { hasMentorshipMenteeAccess } from "@/lib/mentorship-access";
 
@@ -14,7 +13,7 @@ interface SaveReflectionInput {
 }
 
 export async function savePathwayReflection(input: SaveReflectionInput) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return { error: "Not authenticated" };
 
   const content = input.content.trim();
@@ -77,7 +76,7 @@ export async function savePathwayReflection(input: SaveReflectionInput) {
 }
 
 export async function getPathwayReflectionsForMentee(menteeId: string, pathwayId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return [];
 
   const roles = session.user.roles ?? [];

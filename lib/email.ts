@@ -7,6 +7,15 @@ let smtpTransporter: nodemailer.Transporter | null = null;
 
 type EmailProvider = "auto" | "smtp" | "resend";
 
+export interface EmailAttachment {
+  filename: string;
+  content: string;
+  contentType?: string;
+  encoding?: string;
+  contentId?: string;
+  disposition?: "attachment" | "inline";
+}
+
 function getEmailProvider(): EmailProvider {
   const raw = (process.env.EMAIL_PROVIDER || "auto").toLowerCase().trim();
   if (raw === "smtp" || raw === "resend" || raw === "auto") return raw;
@@ -26,6 +35,18 @@ function getResendClient(): Resend | null {
 function parseBool(v: string | undefined): boolean {
   if (!v) return false;
   return ["1", "true", "yes", "y", "on"].includes(v.toLowerCase().trim());
+}
+
+function extractEmailAddress(raw: string) {
+  const match = raw.match(/<([^>]+)>/);
+  return (match?.[1] || raw).trim().toLowerCase();
+}
+
+function withResendSenderHint(message: string, from: string) {
+  const address = extractEmailAddress(from);
+  if (!address.endsWith("@resend.dev")) return message;
+
+  return `${message} EMAIL_FROM is still using Resend's test sender. Verify your domain in Resend and change EMAIL_FROM to a verified address like noreply@yourdomain.com.`;
 }
 
 function getDefaultFrom(): string {
@@ -80,17 +101,27 @@ export async function sendEmail({
   to,
   subject,
   html,
-  text
+  text,
+  attachments
 }: {
   to: string | string[];
   subject: string;
   html: string;
   text?: string;
+  attachments?: EmailAttachment[];
 }): Promise<EmailResult> {
   const provider = getEmailProvider();
   const from = getDefaultFrom();
   const toList = Array.isArray(to) ? to.join(", ") : to;
   const textBody = text || stripHtml(html);
+  const normalizedAttachments = attachments?.map((attachment) => ({
+    filename: attachment.filename,
+    content: attachment.content,
+    contentType: attachment.contentType,
+    encoding: attachment.encoding,
+    cid: attachment.contentId,
+    contentDisposition: attachment.disposition ?? "attachment",
+  }));
 
   // Provider order:
   // - If EMAIL_PROVIDER is set, honor it.
@@ -110,7 +141,8 @@ export async function sendEmail({
         to: toList,
         subject,
         html,
-        text: textBody
+        text: textBody,
+        attachments: normalizedAttachments,
       });
       return { success: true, messageId: info.messageId };
     } catch (error) {
@@ -132,18 +164,20 @@ export async function sendEmail({
         to: Array.isArray(to) ? to : [to],
         subject,
         html,
-        text: textBody
+        text: textBody,
+        attachments: normalizedAttachments as any,
       });
 
       if (result.error) {
         console.error("[Email] Failed to send via Resend:", result.error);
-        return { success: false, error: result.error.message };
+        return { success: false, error: withResendSenderHint(result.error.message, from) };
       }
 
       return { success: true, messageId: result.data?.id };
     } catch (error) {
       console.error("[Email] Error sending email via Resend:", error);
-      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return { success: false, error: withResendSenderHint(message, from) };
     }
   }
 
@@ -172,7 +206,7 @@ export async function sendPasswordResetEmail({
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1c1917; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #4a1c7a 0%, #7c3aed 50%, #ec4899 100%); padding: 32px; border-radius: 16px 16px 0 0; text-align: center;">
+  <div style="background: linear-gradient(135deg, #5a1da8 0%, #6b21c8 45%, #8b3fe8 100%); padding: 32px; border-radius: 16px 16px 0 0; text-align: center;">
     <h1 style="color: white; margin: 0; font-size: 24px;">Youth Passion Project</h1>
   </div>
   <div style="background: #ffffff; padding: 32px; border: 1px solid #e7e5e4; border-top: none; border-radius: 0 0 16px 16px;">
@@ -180,12 +214,56 @@ export async function sendPasswordResetEmail({
     <p>Hi ${escapeHtml(name)},</p>
     <p>We received a request to reset your password. Click the button below to create a new password:</p>
     <div style="text-align: center; margin: 32px 0;">
-      <a href="${escapeHtml(resetUrl)}" style="display: inline-block; background: #7c3aed; color: white; padding: 14px 32px; border-radius: 9999px; text-decoration: none; font-weight: 600;">Reset Password</a>
+      <a href="${escapeHtml(resetUrl)}" style="display: inline-block; background: #6b21c8; color: white; padding: 14px 32px; border-radius: 9999px; text-decoration: none; font-weight: 600;">Reset Password</a>
     </div>
     <p style="color: #78716c; font-size: 14px;">This link will expire in 1 hour. If you didn't request a password reset, you can safely ignore this email.</p>
     <hr style="border: none; border-top: 1px solid #e7e5e4; margin: 24px 0;">
     <p style="color: #78716c; font-size: 12px; margin: 0;">If the button doesn't work, copy and paste this link into your browser:</p>
-    <p style="color: #7c3aed; font-size: 12px; word-break: break-all;">${escapeHtml(resetUrl)}</p>
+    <p style="color: #6b21c8; font-size: 12px; word-break: break-all;">${escapeHtml(resetUrl)}</p>
+  </div>
+</body>
+</html>
+  `.trim();
+
+  return sendEmail({ to, subject, html });
+}
+
+export async function sendAccountSetupEmail({
+  to,
+  name,
+  roleLabel,
+  setupUrl,
+}: {
+  to: string;
+  name: string;
+  roleLabel: string;
+  setupUrl: string;
+}): Promise<EmailResult> {
+  const subject = `Set Up Your ${roleLabel} Account - Youth Passion Project`;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1c1917; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #5a1da8 0%, #6b21c8 45%, #8b3fe8 100%); padding: 32px; border-radius: 16px 16px 0 0; text-align: center;">
+    <h1 style="color: white; margin: 0; font-size: 24px;">Youth Passion Project</h1>
+  </div>
+  <div style="background: #ffffff; padding: 32px; border: 1px solid #e7e5e4; border-top: none; border-radius: 0 0 16px 16px;">
+    <h2 style="margin: 0 0 16px; color: #1c1917;">Finish Setting Up Your Account</h2>
+    <p>Hi ${escapeHtml(name)},</p>
+    <p>A Youth Passion Project ${escapeHtml(roleLabel.toLowerCase())} account has been prepared for you.</p>
+    <p>Click the button below to choose your password and finish signing in for the first time.</p>
+    <div style="text-align: center; margin: 32px 0;">
+      <a href="${escapeHtml(setupUrl)}" style="display: inline-block; background: #6b21c8; color: white; padding: 14px 32px; border-radius: 9999px; text-decoration: none; font-weight: 600;">Set Up Account</a>
+    </div>
+    <p style="color: #78716c; font-size: 14px;">This link is single-use. If you did not expect this account, you can safely ignore this email.</p>
+    <hr style="border: none; border-top: 1px solid #e7e5e4; margin: 24px 0;">
+    <p style="color: #78716c; font-size: 12px; margin: 0;">If the button doesn't work, copy and paste this link into your browser:</p>
+    <p style="color: #6b21c8; font-size: 12px; word-break: break-all;">${escapeHtml(setupUrl)}</p>
   </div>
 </body>
 </html>
@@ -213,7 +291,7 @@ export async function sendEmailVerificationEmail({
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1c1917; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #4a1c7a 0%, #7c3aed 50%, #ec4899 100%); padding: 32px; border-radius: 16px 16px 0 0; text-align: center;">
+  <div style="background: linear-gradient(135deg, #5a1da8 0%, #6b21c8 45%, #8b3fe8 100%); padding: 32px; border-radius: 16px 16px 0 0; text-align: center;">
     <h1 style="color: white; margin: 0; font-size: 24px;">Youth Passion Project</h1>
   </div>
   <div style="background: #ffffff; padding: 32px; border: 1px solid #e7e5e4; border-top: none; border-radius: 0 0 16px 16px;">
@@ -221,12 +299,12 @@ export async function sendEmailVerificationEmail({
     <p>Hi ${escapeHtml(name)},</p>
     <p>Thanks for signing up! Click the button below to verify your email and activate your account:</p>
     <div style="text-align: center; margin: 32px 0;">
-      <a href="${escapeHtml(verifyUrl)}" style="display: inline-block; background: #7c3aed; color: white; padding: 14px 32px; border-radius: 9999px; text-decoration: none; font-weight: 600;">Verify Email Address</a>
+      <a href="${escapeHtml(verifyUrl)}" style="display: inline-block; background: #6b21c8; color: white; padding: 14px 32px; border-radius: 9999px; text-decoration: none; font-weight: 600;">Verify Email Address</a>
     </div>
     <p style="color: #78716c; font-size: 14px;">This link will expire in 24 hours. If you didn't create an account, you can safely ignore this email.</p>
     <hr style="border: none; border-top: 1px solid #e7e5e4; margin: 24px 0;">
     <p style="color: #78716c; font-size: 12px; margin: 0;">If the button doesn't work, copy and paste this link into your browser:</p>
-    <p style="color: #7c3aed; font-size: 12px; word-break: break-all;">${escapeHtml(verifyUrl)}</p>
+    <p style="color: #6b21c8; font-size: 12px; word-break: break-all;">${escapeHtml(verifyUrl)}</p>
   </div>
 </body>
 </html>
@@ -254,7 +332,7 @@ export async function sendMagicLinkEmail({
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1c1917; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #4a1c7a 0%, #7c3aed 50%, #ec4899 100%); padding: 32px; border-radius: 16px 16px 0 0; text-align: center;">
+  <div style="background: linear-gradient(135deg, #5a1da8 0%, #6b21c8 45%, #8b3fe8 100%); padding: 32px; border-radius: 16px 16px 0 0; text-align: center;">
     <h1 style="color: white; margin: 0; font-size: 24px;">Youth Passion Project</h1>
   </div>
   <div style="background: #ffffff; padding: 32px; border: 1px solid #e7e5e4; border-top: none; border-radius: 0 0 16px 16px;">
@@ -262,12 +340,12 @@ export async function sendMagicLinkEmail({
     <p>Hi ${escapeHtml(name)},</p>
     <p>Click the button below to sign in instantly — no password needed. This link is single-use and expires in 15 minutes.</p>
     <div style="text-align: center; margin: 32px 0;">
-      <a href="${escapeHtml(magicUrl)}" style="display: inline-block; background: #7c3aed; color: white; padding: 14px 32px; border-radius: 9999px; text-decoration: none; font-weight: 600;">Sign In Now</a>
+      <a href="${escapeHtml(magicUrl)}" style="display: inline-block; background: #6b21c8; color: white; padding: 14px 32px; border-radius: 9999px; text-decoration: none; font-weight: 600;">Sign In Now</a>
     </div>
     <p style="color: #78716c; font-size: 14px;">If you didn't request this link, you can safely ignore this email.</p>
     <hr style="border: none; border-top: 1px solid #e7e5e4; margin: 24px 0;">
     <p style="color: #78716c; font-size: 12px; margin: 0;">If the button doesn't work, copy and paste this link into your browser:</p>
-    <p style="color: #7c3aed; font-size: 12px; word-break: break-all;">${escapeHtml(magicUrl)}</p>
+    <p style="color: #6b21c8; font-size: 12px; word-break: break-all;">${escapeHtml(magicUrl)}</p>
   </div>
 </body>
 </html>
@@ -298,7 +376,7 @@ export async function sendNotificationEmail({
 
   const linkHtml = link
     ? `<div style="text-align: center; margin: 24px 0;">
-        <a href="${escapeHtml(link)}" style="display: inline-block; background: #7c3aed; color: white; padding: 12px 28px; border-radius: 9999px; text-decoration: none; font-weight: 600;">${escapeHtml(linkText)}</a>
+        <a href="${escapeHtml(link)}" style="display: inline-block; background: #6b21c8; color: white; padding: 12px 28px; border-radius: 9999px; text-decoration: none; font-weight: 600;">${escapeHtml(linkText)}</a>
       </div>`
     : "";
 
@@ -310,7 +388,7 @@ export async function sendNotificationEmail({
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1c1917; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #4a1c7a 0%, #7c3aed 50%, #ec4899 100%); padding: 32px; border-radius: 16px 16px 0 0; text-align: center;">
+  <div style="background: linear-gradient(135deg, #5a1da8 0%, #6b21c8 45%, #8b3fe8 100%); padding: 32px; border-radius: 16px 16px 0 0; text-align: center;">
     <h1 style="color: white; margin: 0; font-size: 24px;">Youth Passion Project</h1>
   </div>
   <div style="background: #ffffff; padding: 32px; border: 1px solid #e7e5e4; border-top: none; border-radius: 0 0 16px 16px;">
@@ -319,7 +397,7 @@ export async function sendNotificationEmail({
     <p>${escapeHtml(body)}</p>
     ${linkHtml}
     <hr style="border: none; border-top: 1px solid #e7e5e4; margin: 24px 0;">
-    <p style="color: #78716c; font-size: 12px; margin: 0;">This email was sent from the YPP Pathways Portal. You can manage your notification preferences in your profile settings.</p>
+    <p style="color: #78716c; font-size: 12px; margin: 0;">This email was sent from the YPP Pathways Portal. Notification delivery follows a fixed portal-wide policy.</p>
   </div>
 </body>
 </html>
@@ -451,7 +529,7 @@ export async function sendAnnouncementEmail({
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1c1917; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #4a1c7a 0%, #7c3aed 50%, #ec4899 100%); padding: 32px; border-radius: 16px 16px 0 0; text-align: center;">
+  <div style="background: linear-gradient(135deg, #5a1da8 0%, #6b21c8 45%, #8b3fe8 100%); padding: 32px; border-radius: 16px 16px 0 0; text-align: center;">
     <h1 style="color: white; margin: 0; font-size: 24px;">Youth Passion Project</h1>
     <p style="color: rgba(255,255,255,0.85); margin: 8px 0 0; font-size: 14px;">New Announcement</p>
   </div>
@@ -461,10 +539,10 @@ export async function sendAnnouncementEmail({
     <p style="white-space: pre-wrap;">${escapeHtml(announcementContent)}</p>
     <p style="color: #78716c; font-size: 13px; margin-top: 24px;">— ${escapeHtml(authorName)}</p>
     <div style="text-align: center; margin: 24px 0;">
-      <a href="${escapeHtml(portalUrl)}" style="display: inline-block; background: #7c3aed; color: white; padding: 12px 28px; border-radius: 9999px; text-decoration: none; font-weight: 600;">View in Portal</a>
+      <a href="${escapeHtml(portalUrl)}" style="display: inline-block; background: #6b21c8; color: white; padding: 12px 28px; border-radius: 9999px; text-decoration: none; font-weight: 600;">View in Portal</a>
     </div>
     <hr style="border: none; border-top: 1px solid #e7e5e4; margin: 24px 0;">
-    <p style="color: #78716c; font-size: 12px; margin: 0;">You received this because you're a member of Youth Passion Project. Manage your notification preferences in your profile settings.</p>
+    <p style="color: #78716c; font-size: 12px; margin: 0;">You received this because you're a member of Youth Passion Project. Notification delivery follows a fixed portal-wide policy.</p>
   </div>
 </body>
 </html>
@@ -499,7 +577,7 @@ const emailShell = (body: string) => `
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1c1917; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #4a1c7a 0%, #7c3aed 50%, #ec4899 100%); padding: 32px; border-radius: 16px 16px 0 0; text-align: center;">
+  <div style="background: linear-gradient(135deg, #5a1da8 0%, #6b21c8 45%, #8b3fe8 100%); padding: 32px; border-radius: 16px 16px 0 0; text-align: center;">
     <h1 style="color: white; margin: 0; font-size: 24px;">Youth Passion Project</h1>
   </div>
   <div style="background: #ffffff; padding: 32px; border: 1px solid #e7e5e4; border-top: none; border-radius: 0 0 16px 16px;">
@@ -527,7 +605,7 @@ export async function sendNewApplicationNotification({
     <p><strong>${applicantName}</strong> has submitted an application to become an instructor at Youth Passion Project.</p>
     <p>Please log in to review their application, check their motivation and experience, and take appropriate action.</p>
     <div style="text-align: center; margin: 28px 0;">
-      <a href="${reviewUrl}" style="background: #7c3aed; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Review Application</a>
+      <a href="${reviewUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Review Application</a>
     </div>
     <p style="color: #78716c; font-size: 13px;">You are receiving this because you are an admin or chapter president.</p>
   `);
@@ -551,7 +629,7 @@ export async function sendApplicationApprovedEmail({
     <p>We are thrilled to let you know that your application to become an instructor at Youth Passion Project has been <strong>approved</strong>.</p>
     <p>You can now log in to the portal and begin your instructor training. Once you complete training and your interview, you will be fully certified to teach.</p>
     <div style="text-align: center; margin: 28px 0;">
-      <a href="${baseUrl}/instructor-training" style="background: #7c3aed; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Start Instructor Training</a>
+      <a href="${baseUrl}/instructor-training" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Start Instructor Training</a>
     </div>
     <p style="color: #78716c; font-size: 13px;">Welcome to the team! We look forward to working with you.</p>
   `);
@@ -606,7 +684,7 @@ export async function sendInfoRequestEmail({
     </div>
     <p>Please log in to your application status page to submit your response.</p>
     <div style="text-align: center; margin: 28px 0;">
-      <a href="${statusUrl}" style="background: #7c3aed; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Respond to Request</a>
+      <a href="${statusUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Respond to Request</a>
     </div>
   `);
   return sendEmail({ to, subject, html });
@@ -644,7 +722,7 @@ export async function sendInterviewScheduledEmail({
     </div>
     <p>You can view your full application status and any additional details in the portal.</p>
     <div style="text-align: center; margin: 28px 0;">
-      <a href="${statusUrl}" style="background: #7c3aed; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Application Status</a>
+      <a href="${statusUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Application Status</a>
     </div>
     <p style="color: #78716c; font-size: 13px;">If you have questions, please reach out to your chapter president or admin.</p>
   `);

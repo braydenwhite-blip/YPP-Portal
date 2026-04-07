@@ -45,7 +45,7 @@ const RATING_OPTIONS = [
   { value: "BEHIND_SCHEDULE", label: "Behind Schedule", color: "#ef4444", bg: "#fef2f2", description: "Behind timetable with no catch-up possible" },
   { value: "GETTING_STARTED", label: "Getting Started", color: "#d97706", bg: "#fffbeb", description: "Behind but catch-up is possible" },
   { value: "ACHIEVED", label: "Achieved", color: "#16a34a", bg: "#f0fdf4", description: "Completed in line with schedule" },
-  { value: "ABOVE_AND_BEYOND", label: "Above & Beyond", color: "#7c3aed", bg: "#faf5ff", description: "Exceeds goals in quantity & quality" },
+  { value: "ABOVE_AND_BEYOND", label: "Above & Beyond", color: "#6b21c8", bg: "#faf5ff", description: "Exceeds goals in quantity & quality" },
 ] as const;
 
 type RatingValue = (typeof RATING_OPTIONS)[number]["value"];

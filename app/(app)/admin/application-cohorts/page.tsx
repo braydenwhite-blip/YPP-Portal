@@ -1,11 +1,10 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import ApplicationCohortManager from "@/components/application-cohort-manager";
 
 export default async function ApplicationCohortsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   const roles = session?.user?.roles ?? [];
   if (!roles.includes("ADMIN")) {

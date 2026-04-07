@@ -1,14 +1,9 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
-import { authOptions } from "@/lib/auth";
-import {
-  isHiringDecisionApproved,
-  isHiringDecisionPending,
-  isHiringDecisionReturned,
-} from "@/lib/hiring-decision-utils";
 import { prisma } from "@/lib/prisma";
 import { PositionType } from "@prisma/client";
+import ApplicationsView from "./applications-view";
 
 type ApplicationFilters = {
   type?: string;
@@ -23,25 +18,6 @@ const POSITION_TYPES: PositionType[] = [
   "GLOBAL_ADMIN",
 ];
 
-function formatStatus(status: string) {
-  return status.replace(/_/g, " ");
-}
-
-function statusPillClass(status: string) {
-  switch (status) {
-    case "ACCEPTED":
-      return "pill-success";
-    case "REJECTED":
-    case "WITHDRAWN":
-      return "pill-declined";
-    case "INTERVIEW_SCHEDULED":
-    case "INTERVIEW_COMPLETED":
-      return "pill-pathway";
-    default:
-      return "";
-  }
-}
-
 function normalizeType(value: string | undefined): PositionType | null {
   if (!value) return null;
   return POSITION_TYPES.includes(value as PositionType) ? (value as PositionType) : null;
@@ -53,7 +29,7 @@ export default async function AdminApplicationsPage({
   searchParams: Promise<ApplicationFilters>;
 }) {
   const params = await searchParams;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
 
   if (!roles.includes("ADMIN")) {
@@ -106,6 +82,26 @@ export default async function AdminApplicationsPage({
     accepted: applications.filter((a) => a.status === "ACCEPTED").length,
     rejected: applications.filter((a) => a.status === "REJECTED").length,
   };
+
+  // Serialize dates for client components
+  const serialized = applications.map((app) => ({
+    ...app,
+    submittedAt: app.submittedAt.toISOString(),
+    updatedAt: app.updatedAt.toISOString(),
+    interviewSlots: app.interviewSlots.map((slot) => ({
+      ...slot,
+      scheduledAt: slot.scheduledAt.toISOString(),
+      confirmedAt: slot.confirmedAt?.toISOString() ?? null,
+      completedAt: slot.completedAt?.toISOString() ?? null,
+      createdAt: slot.createdAt.toISOString(),
+    })),
+    decision: app.decision
+      ? {
+          ...app.decision,
+          decidedAt: app.decision.decidedAt.toISOString(),
+        }
+      : null,
+  }));
 
   return (
     <div>
@@ -192,87 +188,8 @@ export default async function AdminApplicationsPage({
         </div>
       </div>
 
-      <div className="card" style={{ marginTop: 24 }}>
-        <div className="section-title">All Applications</div>
-        {applications.length === 0 ? (
-          <p style={{ color: "var(--muted)" }}>No applications submitted yet.</p>
-        ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Applicant</th>
-                <th>Position</th>
-                <th>Chapter</th>
-                <th>Status</th>
-                <th>Submitted</th>
-                <th>Next Interview</th>
-                <th>Decision</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {applications.map((application) => {
-                const nextSlot = application.interviewSlots.find(
-                  (slot) => new Date(slot.scheduledAt) >= new Date(),
-                );
-
-                return (
-                  <tr key={application.id}>
-                    <td>
-                      <strong>{application.applicant.name}</strong>
-                      <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                        {application.applicant.email}
-                      </div>
-                    </td>
-                    <td>{application.position.title}</td>
-                    <td>{application.position.chapter?.name || "Global"}</td>
-                    <td>
-                      <span className={`pill ${statusPillClass(application.status)}`}>
-                        {formatStatus(application.status)}
-                      </span>
-                    </td>
-                    <td>{new Date(application.submittedAt).toLocaleDateString()}</td>
-                    <td>
-                      {nextSlot
-                        ? new Date(nextSlot.scheduledAt).toLocaleString()
-                        : "Not scheduled"}
-                    </td>
-                    <td>
-                      {application.decision ? (
-                        isHiringDecisionApproved(application.decision) ? (
-                          <span
-                            className={`pill ${
-                              application.decision.accepted ? "pill-success" : "pill-declined"
-                            }`}
-                          >
-                            {application.decision.accepted ? "Accepted" : "Rejected"}
-                          </span>
-                        ) : isHiringDecisionPending(application.decision) ? (
-                          <span className="pill pill-pathway">Chair Review</span>
-                        ) : isHiringDecisionReturned(application.decision) ? (
-                          <span className="pill pill-pending">Returned</span>
-                        ) : (
-                          <span style={{ color: "var(--muted)", fontSize: 13 }}>Pending</span>
-                        )
-                      ) : (
-                        <span style={{ color: "var(--muted)", fontSize: 13 }}>Pending</span>
-                      )}
-                    </td>
-                    <td>
-                      <Link
-                        href={`/applications/${application.id}`}
-                        className="button small"
-                        style={{ textDecoration: "none" }}
-                      >
-                        Open
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
+      <div style={{ marginTop: 24 }}>
+        <ApplicationsView applications={serialized as any} />
       </div>
     </div>
   );

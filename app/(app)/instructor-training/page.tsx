@@ -1,12 +1,10 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   cancelInterviewAvailabilityRequest,
   confirmPostedInterviewSlot,
-  submitInterviewAvailabilityRequest,
 } from "@/lib/instructor-interview-actions";
 import {
   buildFallbackInstructorReadiness,
@@ -22,16 +20,11 @@ function formatDateTime(value: Date | string | null | undefined) {
   return new Date(value).toLocaleString();
 }
 
-function dateTimeLocalValue(value: Date) {
-  const copy = new Date(value);
-  copy.setMinutes(copy.getMinutes() - copy.getTimezoneOffset());
-  return copy.toISOString().slice(0, 16);
-}
-
 const TRACKABLE_REQUIRED_VIDEO_PROVIDERS = new Set(["YOUTUBE", "VIMEO", "CUSTOM"]);
+const LESSON_DESIGN_STUDIO_MODULE_KEY = "academy_lesson_studio_004";
 
 export default async function InstructorTrainingPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }
@@ -311,12 +304,6 @@ export default async function InstructorTrainingPage() {
       })),
     };
   });
-  const lessonDesignStudioCard = moduleCards.find(
-    (card) =>
-      card.module.contentKey === "academy_lesson_studio_006" ||
-      card.module.type === "CURRICULUM_REVIEW"
-  );
-
   const postedSlots = interviewGate.slots.filter((slot) => slot.status === "POSTED");
   const confirmedSlot = interviewGate.slots.find((slot) => slot.status === "CONFIRMED");
   const completedSlot = interviewGate.slots.find((slot) => slot.status === "COMPLETED");
@@ -324,11 +311,15 @@ export default async function InstructorTrainingPage() {
     (request) => request.status === "PENDING"
   );
 
-  const defaultAvailabilityStart = dateTimeLocalValue(new Date(Date.now() + 24 * 60 * 60 * 1000));
-
+  const moduleWeight = readiness.requiredModulesCount;
+  const doneModuleWeight = readiness.academyModulesComplete
+    ? moduleWeight
+    : readiness.completedRequiredModules;
+  const totalTrainingWeight = moduleWeight + 1;
+  const doneTrainingWeight = doneModuleWeight + (readiness.studioCapstoneComplete ? 1 : 0);
   const trainingPct =
-    readiness.requiredModulesCount > 0
-      ? Math.round((readiness.completedRequiredModules / readiness.requiredModulesCount) * 100)
+    totalTrainingWeight > 0
+      ? Math.round((doneTrainingWeight / totalTrainingWeight) * 100)
       : 0;
 
   return (
@@ -353,7 +344,7 @@ export default async function InstructorTrainingPage() {
           <div>
             <div style={{ fontWeight: 600, fontSize: 15 }}>Training Progress</div>
             <div style={{ marginTop: 4, color: "var(--text-secondary)", fontSize: 13 }}>
-              {readiness.completedRequiredModules} of {readiness.requiredModulesCount} required modules complete
+              {readiness.completedRequiredModules} of {readiness.requiredModulesCount} modules complete
             </div>
           </div>
           <div style={{ fontSize: 22, fontWeight: 700, color: readiness.trainingComplete ? "#16a34a" : "var(--ypp-purple)" }}>
@@ -385,63 +376,6 @@ export default async function InstructorTrainingPage() {
           <p style={{ marginTop: 8, fontSize: 12, color: "var(--muted)" }}>{readiness.nextAction.detail}</p>
         </div>
       </div>
-
-      {lessonDesignStudioCard ? (
-        <div
-          className="card"
-          style={{
-            marginBottom: 20,
-            background: "linear-gradient(135deg, #1e1030 0%, #13111c 100%)",
-            border: "1px solid rgba(124,58,237,0.35)",
-            color: "#f2f2f7",
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 12,
-                  background: "linear-gradient(135deg, #7c3aed, #4f46e5)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 22,
-                  flexShrink: 0,
-                  boxShadow: "0 0 20px rgba(124,58,237,0.4)",
-                }}
-              >
-                🎨
-              </div>
-              <div>
-                <h3 style={{ margin: 0, color: "#f2f2f7", fontSize: 15 }}>{lessonDesignStudioCard.module.title}</h3>
-                <p style={{ margin: "4px 0 0", color: "rgba(242,242,247,0.6)", fontSize: 13 }}>
-                  This capstone module now leads straight into the studio so applicants can study examples, build a full curriculum, and submit that same curriculum for review.
-                </p>
-                <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  <span className="pill pill-small" style={{ background: "rgba(255,255,255,0.12)", color: "#f2f2f7" }}>
-                    {lessonDesignStudioCard.assignment?.status?.replace(/_/g, " ") ?? "NOT STARTED"}
-                  </span>
-                  <span className="pill pill-small" style={{ background: "rgba(255,255,255,0.12)", color: "#f2f2f7" }}>
-                    Checkpoints {lessonDesignStudioCard.completedRequiredCheckpoints}/{lessonDesignStudioCard.requiredCheckpointCount}
-                  </span>
-                  <span className="pill pill-small" style={{ background: "rgba(255,255,255,0.12)", color: "#f2f2f7" }}>
-                    Evidence {lessonDesignStudioCard.evidenceReady ? "Approved" : "Pending"}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <Link
-              href={`/training/${lessonDesignStudioCard.module.id}`}
-              className="button primary"
-              style={{ fontSize: 13, flexShrink: 0, background: "#7c3aed", borderColor: "#7c3aed" }}
-            >
-              Open Final Module →
-            </Link>
-          </div>
-        </div>
-      ) : null}
 
       <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start" }}>
@@ -506,32 +440,14 @@ export default async function InstructorTrainingPage() {
 
         <div style={{ marginTop: 18 }}>
           <h4 style={{ marginBottom: 8 }}>Request Preferred Times</h4>
-          <form action={submitInterviewAvailabilityRequest} className="form-grid">
-            <div className="grid three">
-              <label className="form-row">
-                Preferred Slot 1
-                <input className="input" type="datetime-local" name="preferredStart1" defaultValue={defaultAvailabilityStart} required />
-              </label>
-              <label className="form-row">
-                Preferred Slot 2
-                <input className="input" type="datetime-local" name="preferredStart2" />
-              </label>
-              <label className="form-row">
-                Preferred Slot 3
-                <input className="input" type="datetime-local" name="preferredStart3" />
-              </label>
-            </div>
-            <label className="form-row">
-              Notes (optional)
-              <textarea
-                className="input"
-                name="note"
-                rows={2}
-                placeholder="Include timezone, constraints, or preferred interviewer notes"
-              />
-            </label>
-            <button type="submit" className="button small">Submit availability request</button>
-          </form>
+          <div className="card" style={{ background: "var(--surface-alt)", padding: 16 }}>
+            <p style={{ marginTop: 0, fontSize: 13, color: "var(--muted)" }}>
+              Use the shared interview scheduler to request times, confirm slots, and keep your reminder emails in one place.
+            </p>
+            <Link href="/interviews/schedule" className="button small" style={{ textDecoration: "none" }}>
+              Open Interview Scheduler
+            </Link>
+          </div>
 
           {pendingAvailabilityRequests.length > 0 ? (
             <div style={{ marginTop: 12 }}>
@@ -730,8 +646,18 @@ export default async function InstructorTrainingPage() {
               ) : null}
 
               <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <Link href={`/training/${card.module.id}`} className="button small" style={{ textDecoration: "none" }}>
-                  Open module
+                <Link
+                  href={
+                    card.module.contentKey === LESSON_DESIGN_STUDIO_MODULE_KEY
+                      ? "/instructor/lesson-design-studio?entry=training"
+                      : `/training/${card.module.id}`
+                  }
+                  className="button small"
+                  style={{ textDecoration: "none" }}
+                >
+                  {card.module.contentKey === LESSON_DESIGN_STUDIO_MODULE_KEY
+                    ? "Open Lesson Design Studio"
+                    : "Open module"}
                 </Link>
                 <Link
                   href={`/training/${card.module.id}#section-checkpoints`}

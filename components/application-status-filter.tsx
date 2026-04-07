@@ -67,10 +67,10 @@ export default function ApplicationStatusFilter({
                 padding: "4px 12px",
                 fontSize: 12,
                 fontWeight: isActive ? 600 : 400,
-                border: `1px solid ${isActive ? "#7c3aed" : "var(--border)"}`,
+                border: `1px solid ${isActive ? "#6b21c8" : "var(--border)"}`,
                 borderRadius: 16,
                 background: isActive ? "#f5f3ff" : "transparent",
-                color: isActive ? "#7c3aed" : "var(--muted)",
+                color: isActive ? "#6b21c8" : "var(--muted)",
                 cursor: "pointer",
                 transition: "all 0.15s",
               }}

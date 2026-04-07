@@ -1,13 +1,12 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getChallengeDetail } from "@/lib/challenge-gamification-actions";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { CheckInForm, DropButton } from "../client";
 
 export default async function ChallengeDetailPage({ params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const { challenge, myParticipation } = await getChallengeDetail(params.id);
@@ -31,10 +30,10 @@ export default async function ChallengeDetailPage({ params }: { params: { id: st
   const typeColors: Record<string, string> = {
     DAILY: "#3b82f6",
     WEEKLY: "#d97706",
-    THIRTY_DAY: "#7c3aed",
+    THIRTY_DAY: "#6b21c8",
     SEASONAL: "#16a34a",
   };
-  const color = typeColors[challenge.type] || "#7c3aed";
+  const color = typeColors[challenge.type] || "#6b21c8";
 
   return (
     <div>

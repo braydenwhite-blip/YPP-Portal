@@ -23,10 +23,10 @@ export default function ContextTrail({ items }: ContextTrailProps) {
         borderRadius: 8,
         fontSize: 13,
         color: "var(--muted, #666)",
-        borderLeft: "3px solid var(--ypp-purple, #7c3aed)",
+        borderLeft: "3px solid var(--ypp-purple, #6b21c8)",
       }}
     >
-      <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--ypp-purple, #7c3aed)" }}>
+      <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--ypp-purple, #6b21c8)" }}>
         Your journey
       </span>
       <span style={{ color: "var(--gray-300, #cbd5e0)" }}>|</span>
@@ -41,7 +41,7 @@ export default function ContextTrail({ items }: ContextTrailProps) {
           <Link
             href={item.href}
             style={{
-              color: "var(--ypp-purple, #7c3aed)",
+              color: "var(--ypp-purple, #6b21c8)",
               textDecoration: "none",
               fontWeight: 500,
             }}

@@ -52,7 +52,7 @@ function getBorderColor(
   allSteps: DAGStep[],
   isSelected: boolean
 ): string {
-  if (isSelected) return "var(--ypp-purple, #7c3aed)";
+  if (isSelected) return "var(--ypp-purple, #6b21c8)";
 
   const isEntry = step.prerequisites.length === 0;
   const hasDependents = allSteps.some((s) => s.prerequisites.includes(step.id));
@@ -222,7 +222,7 @@ export default function SequenceDAGEditor({
             alignItems: "center",
             gap: 8,
             padding: "6px 12px",
-            background: "var(--ypp-purple, #7c3aed)",
+            background: "var(--ypp-purple, #6b21c8)",
             color: "#fff",
             borderRadius: "var(--radius-md, 8px)",
             fontSize: 12,
@@ -430,7 +430,7 @@ export default function SequenceDAGEditor({
                   width: 12,
                   height: 12,
                   borderRadius: "50%",
-                  background: "var(--ypp-purple, #7c3aed)",
+                  background: "var(--ypp-purple, #6b21c8)",
                   border: "2px solid #fff",
                   cursor: "pointer",
                   zIndex: 11,

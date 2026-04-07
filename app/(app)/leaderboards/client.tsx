@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { getLeaderboard } from "@/lib/engagement-actions";
 
 const CATEGORIES = [
-  { value: "XP", label: "Total XP", color: "#7c3aed" },
+  { value: "XP", label: "Total XP", color: "#6b21c8" },
   { value: "STREAKS", label: "Longest Streak", color: "#d97706" },
   { value: "CHALLENGES", label: "Challenges", color: "#3b82f6" },
   { value: "PRACTICE_HOURS", label: "Practice Hours", color: "#16a34a" },

@@ -1,9 +1,8 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 
 export default async function CertificationsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }
@@ -94,7 +93,7 @@ export default async function CertificationsPage() {
     switch (level) {
       case "BEGINNER": return "#10b981";
       case "INTERMEDIATE": return "#f59e0b";
-      case "ADVANCED": return "#8b5cf6";
+      case "ADVANCED": return "#8b3fe8";
       case "EXPERT": return "#ef4444";
       default: return "var(--primary-color)";
     }

@@ -36,8 +36,26 @@ export const DEFAULT_COURSE_CONFIG: StudioCourseConfig = {
   estimatedHours: 8,
 };
 
+export const STUDIO_ACTIVITY_TYPES = [
+  "WARM_UP",
+  "INSTRUCTION",
+  "PRACTICE",
+  "DISCUSSION",
+  "ASSESSMENT",
+  "BREAK",
+  "REFLECTION",
+  "GROUP_WORK",
+] as const;
+
+export const STUDIO_AT_HOME_ASSIGNMENT_TYPES = [
+  "REFLECTION_PROMPT",
+  "PRACTICE_TASK",
+  "QUIZ",
+  "PRE_READING",
+] as const;
+
 export type StudioAtHomeAssignment = {
-  type: "REFLECTION_PROMPT" | "PRACTICE_TASK" | "QUIZ" | "PRE_READING";
+  type: (typeof STUDIO_AT_HOME_ASSIGNMENT_TYPES)[number];
   title: string;
   description: string;
 };
@@ -45,7 +63,7 @@ export type StudioAtHomeAssignment = {
 export type StudioActivity = {
   id?: string;
   title?: string;
-  type?: string;
+  type?: (typeof STUDIO_ACTIVITY_TYPES)[number];
   durationMin?: number;
   description?: string | null;
   resources?: string | null;
@@ -256,6 +274,46 @@ function normalizeStringList(value: unknown) {
     : [];
 }
 
+export function getWeeklyPlansInput(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+export function isStudioActivityType(
+  value: unknown
+): value is (typeof STUDIO_ACTIVITY_TYPES)[number] {
+  return STUDIO_ACTIVITY_TYPES.includes(
+    String(value ?? "").trim().toUpperCase() as (typeof STUDIO_ACTIVITY_TYPES)[number]
+  );
+}
+
+export function normalizeStudioActivityType(
+  value: unknown
+): (typeof STUDIO_ACTIVITY_TYPES)[number] {
+  return isStudioActivityType(value)
+    ? (String(value).trim().toUpperCase() as (typeof STUDIO_ACTIVITY_TYPES)[number])
+    : "WARM_UP";
+}
+
+export function isStudioAtHomeAssignmentType(
+  value: unknown
+): value is (typeof STUDIO_AT_HOME_ASSIGNMENT_TYPES)[number] {
+  return STUDIO_AT_HOME_ASSIGNMENT_TYPES.includes(
+    String(value ?? "")
+      .trim()
+      .toUpperCase() as (typeof STUDIO_AT_HOME_ASSIGNMENT_TYPES)[number]
+  );
+}
+
+export function normalizeStudioAtHomeAssignmentType(
+  value: unknown
+): (typeof STUDIO_AT_HOME_ASSIGNMENT_TYPES)[number] {
+  return isStudioAtHomeAssignmentType(value)
+    ? (String(value)
+        .trim()
+        .toUpperCase() as (typeof STUDIO_AT_HOME_ASSIGNMENT_TYPES)[number])
+    : "REFLECTION_PROMPT";
+}
+
 function normalizeDeliveryModes(value: unknown): StudioDeliveryMode[] {
   const allowed: StudioDeliveryMode[] = ["VIRTUAL", "IN_PERSON", "HYBRID"];
   const modes = normalizeStringList(value).filter((mode): mode is StudioDeliveryMode =>
@@ -289,7 +347,7 @@ function normalizeAtHomeAssignment(value: unknown): StudioAtHomeAssignment | nul
   }
 
   return {
-    type: assignment.type as StudioAtHomeAssignment["type"],
+    type: normalizeStudioAtHomeAssignmentType(assignment.type),
     title: assignment.title,
     description: assignment.description,
   };
@@ -301,7 +359,7 @@ function normalizeActivity(value: unknown, index: number): StudioActivity {
   return {
     id: isNonEmptyString(activity.id) ? activity.id : `activity_${index + 1}`,
     title: isNonEmptyString(activity.title) ? activity.title : "",
-    type: isNonEmptyString(activity.type) ? activity.type : "WARM_UP",
+    type: normalizeStudioActivityType(activity.type),
     durationMin: clampPositiveInteger(activity.durationMin, 10),
     description: isNonEmptyString(activity.description) ? activity.description : null,
     resources: isNonEmptyString(activity.resources) ? activity.resources : null,
@@ -427,7 +485,7 @@ export function syncSessionPlansToCourseConfig(
   rawCourseConfig: unknown
 ) {
   const courseConfig = normalizeCourseConfig(rawCourseConfig);
-  const plans = Array.isArray(rawPlans) ? rawPlans : [];
+  const plans = getWeeklyPlansInput(rawPlans);
   const totalSessions = getTotalSessionCount(courseConfig);
 
   return Array.from({ length: totalSessions }, (_, index) =>
@@ -639,14 +697,14 @@ export function getCurriculumDraftProgress(input: {
   ).length;
   const sessionsWithinTimeBudget = sessionPlans.filter((plan) => {
     const totalMinutes = plan.activities.reduce(
-      (sum, activity) => sum + clampPositiveInteger(activity.durationMin, 0),
+      (sum, activity) => sum + clampPositiveInteger(activity.durationMin, 10),
       0
     );
     return totalMinutes > 0 && totalMinutes <= plan.classDurationMin;
   }).length;
   const fullyBuiltSessions = sessionPlans.filter((plan) => {
     const totalMinutes = plan.activities.reduce(
-      (sum, activity) => sum + clampPositiveInteger(activity.durationMin, 0),
+      (sum, activity) => sum + clampPositiveInteger(activity.durationMin, 10),
       0
     );
     return (

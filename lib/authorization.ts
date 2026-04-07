@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSessionUser as getSupabaseSessionUser } from "@/lib/auth-supabase";
 import { z } from "zod";
 import { normalizeRoleValue, normalizeRoleValues } from "@/lib/role-utils";
 import {
@@ -113,20 +112,16 @@ export function hasAnyAdminSubtype(
 }
 
 export async function requireSessionUser(): Promise<SessionUser> {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const user = await getSupabaseSessionUser();
+  if (!user) {
     throw new Error("Unauthorized");
   }
 
-  const roleSet = normalizeRoleSet(session.user.roles as SessionRoleEntry[], session.user.primaryRole ?? null);
-  const roles = Array.from(roleSet);
-  const primaryRole = normalizeRoleValue(session.user.primaryRole ?? null) ?? roles[0] ?? "STUDENT";
-
   return {
-    id: session.user.id,
-    roles,
-    primaryRole,
-    adminSubtypes: normalizeAdminSubtypes((session.user as any).adminSubtypes ?? []),
+    id: user.id,
+    roles: user.roles,
+    primaryRole: user.primaryRole,
+    adminSubtypes: normalizeAdminSubtypes(user.adminSubtypes ?? []),
   };
 }
 

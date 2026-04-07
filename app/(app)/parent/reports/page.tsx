@@ -1,11 +1,10 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
 export default async function ParentReportsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const roles = session.user.roles ?? [];
@@ -15,7 +14,14 @@ export default async function ParentReportsPage() {
 
   // Get linked students (approved only)
   const links = await prisma.parentStudent.findMany({
-    where: { parentId: userId, approvalStatus: "APPROVED" },
+    where: {
+      parentId: userId,
+      approvalStatus: "APPROVED",
+      archivedAt: null,
+      student: {
+        archivedAt: null,
+      },
+    },
     select: { studentId: true, student: { select: { name: true } } },
   });
 

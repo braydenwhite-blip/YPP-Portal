@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import {
   getChapterUpdates,
   createChapterUpdate,
@@ -10,7 +9,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
 export default async function ChapterUpdatesPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session) redirect("/login");
 
   const user = await prisma.user.findUnique({

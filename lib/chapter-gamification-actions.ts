@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getLevelForXp } from "@/lib/xp-config";
 import { revalidatePath } from "next/cache";
 
@@ -18,7 +17,7 @@ const db = prisma as any;
  * Get the chapter member XP leaderboard.
  */
 export async function getChapterXpLeaderboard() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -78,7 +77,7 @@ const DEFAULT_MILESTONES = [
  * Get chapter milestones with current progress.
  */
 export async function getChapterMilestones() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -174,7 +173,7 @@ export async function getChapterMilestones() {
  * Get a compact gamification summary for the chapter home page.
  */
 export async function getChapterGamificationSummary() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -242,7 +241,7 @@ export async function getChapterGamificationSummary() {
  * Create a custom milestone (chapter president only).
  */
 export async function createCustomMilestone(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({

@@ -255,7 +255,7 @@ export default function SequenceStudentView({
             borderColor = "#22c55e";
           } else if (status === "unlocked") {
             background = "#fff";
-            borderColor = "var(--ypp-purple, #7c3aed)";
+            borderColor = "var(--ypp-purple, #6b21c8)";
           } else {
             background = "#f9fafb";
             borderColor = "var(--border, #e5e7eb)";
@@ -349,7 +349,7 @@ export default function SequenceStudentView({
                       padding: "4px 12px",
                       fontSize: 11,
                       fontWeight: 600,
-                      background: "var(--ypp-purple, #7c3aed)",
+                      background: "var(--ypp-purple, #6b21c8)",
                       color: "#fff",
                       border: "none",
                       borderRadius: 6,

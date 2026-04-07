@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/rate-limit";
 
@@ -22,7 +21,7 @@ function toCSV(headers: string[], rows: Record<string, unknown>[]): string {
 }
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const userId = (session?.user as { id?: string })?.id;
   const roles = (session?.user as { roles?: string[] })?.roles ?? [];
   if (!userId || !roles.includes("ADMIN")) {

@@ -1,7 +1,6 @@
-import { getServerSession } from "next-auth";
 import { redirect, notFound } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   getSingleStudentPathwayJourney,
@@ -50,7 +49,7 @@ function getStepStatusStyle(step: JourneyStepSummary) {
     case "COMPLETED":
       return { background: "#dcfce7", color: "#166534" };
     case "ENROLLED":
-      return { background: "#ede9fe", color: "#6d28d9" };
+      return { background: "#f0e6ff", color: "#5a1da8" };
     case "WAITLISTED":
       return { background: "#fef3c7", color: "#92400e" };
     default:
@@ -193,7 +192,7 @@ function OfferingOptionCard({
 }
 
 export default async function PathwayDetailPage({ params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const [pathway, viewer] = await Promise.all([

@@ -168,7 +168,7 @@ export const DiscoveryQuizPanel = memo(function DiscoveryQuizPanel({ onClose, on
       </button>
       <div
         className={styles.panelHeader}
-        style={{ background: "linear-gradient(135deg, #a855f7, #7c3aed)" }}
+        style={{ background: "linear-gradient(135deg, #a855f7, #6b21c8)" }}
       >
         <span className={styles.panelEmoji}>{"\u{1FA84}"}</span>
         <div>

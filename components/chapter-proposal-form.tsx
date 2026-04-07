@@ -130,14 +130,14 @@ function StepIndicator({
               flex: 1,
               padding: "8px 4px",
               border: "none",
-              borderBottom: `3px solid ${isActive ? "#7c3aed" : isComplete ? "#10b981" : "var(--border)"}`,
+              borderBottom: `3px solid ${isActive ? "#6b21c8" : isComplete ? "#10b981" : "var(--border)"}`,
               background: isActive ? "#f5f3ff" : "transparent",
               cursor: "pointer",
               borderRadius: "4px 4px 0 0",
               transition: "all 0.15s",
             }}
           >
-            <div style={{ fontSize: 11, fontWeight: 600, color: isActive ? "#7c3aed" : isComplete ? "#10b981" : "var(--muted)" }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: isActive ? "#6b21c8" : isComplete ? "#10b981" : "var(--muted)" }}>
               {isComplete ? "\u2713" : index + 1}
             </div>
             <div style={{ fontSize: 11, color: isActive ? "#1f2937" : "var(--muted)", marginTop: 2 }}>
@@ -311,7 +311,7 @@ export default function ChapterProposalForm({
             {completionPct}% complete
           </div>
           <div style={{ width: 80, height: 6, background: "var(--border)", borderRadius: 3, overflow: "hidden" }}>
-            <div style={{ width: `${completionPct}%`, height: "100%", background: completionPct === 100 ? "#10b981" : "#7c3aed", transition: "width 0.3s", borderRadius: 3 }} />
+            <div style={{ width: `${completionPct}%`, height: "100%", background: completionPct === 100 ? "#10b981" : "#6b21c8", transition: "width 0.3s", borderRadius: 3 }} />
           </div>
           {hasDraft && (
             <button

@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { isRecoverablePrismaError, withPrismaFallback } from "@/lib/prisma-guard";
 
@@ -213,7 +212,7 @@ export async function getChapterBySlug(slug: string) {
  * Join a chapter directly (OPEN policy) or submit a join request (APPROVAL policy).
  */
 export async function joinChapter(chapterId: string, message?: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Please sign in to join a chapter");
 
   const user = await prisma.user.findUnique({
@@ -308,7 +307,7 @@ export async function joinChapter(chapterId: string, message?: string) {
  * Leave current chapter.
  */
 export async function leaveChapter() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   await prisma.user.update({
@@ -325,7 +324,7 @@ export async function leaveChapter() {
  * Get pending join requests for a chapter (chapter president only).
  */
 export async function getJoinRequests() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -367,7 +366,7 @@ export async function getJoinRequests() {
  * Approve or reject a join request (chapter president only).
  */
 export async function reviewJoinRequest(requestId: string, decision: "APPROVED" | "REJECTED") {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -416,7 +415,7 @@ export async function reviewJoinRequest(requestId: string, decision: "APPROVED" 
  * Get current user's join request status for a chapter.
  */
 export async function getMyJoinRequestStatus(chapterId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const request = await withPrismaFallback(

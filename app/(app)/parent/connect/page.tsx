@@ -1,12 +1,11 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { linkStudent, unlinkStudent } from "@/lib/parent-actions";
 
 export default async function ParentConnectPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const roles = session.user.roles ?? [];
@@ -16,7 +15,13 @@ export default async function ParentConnectPage() {
 
   // Get all parent-student links (including pending/rejected)
   const links = await prisma.parentStudent.findMany({
-    where: { parentId: userId },
+    where: {
+      parentId: userId,
+      archivedAt: null,
+      student: {
+        archivedAt: null,
+      },
+    },
     include: {
       student: {
         select: {
@@ -51,7 +56,7 @@ export default async function ParentConnectPage() {
           </Link>
           <h1 className="page-title">Manage Connections</h1>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 2 }}>
-            Link student accounts and manage your notification preferences
+            Link student accounts and review how parent updates are delivered
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -253,52 +258,21 @@ export default async function ParentConnectPage() {
         </div>
       )}
 
-      {/* Notification Preferences */}
+      {/* Notification Delivery */}
       <div className="card" style={{ marginTop: 24 }}>
-        <div className="section-title">Notification Preferences</div>
+        <div className="section-title">Notification Delivery</div>
+        <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 0 }}>
+          Parent notifications now follow one fixed portal policy. Important parent messages, attendance alerts,
+          and intake updates send by email now and are marked for SMS delivery once text support is enabled.
+          Progress reminders stay available in the portal history.
+        </p>
         {parentProfile?.settings ? (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 24px" }}>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>Email Notifications</div>
-              <div style={{ fontSize: 13, color: "var(--muted)" }}>
-                {parentProfile.settings.emailNotifications ? "Enabled" : "Disabled"}
-              </div>
-            </div>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>SMS Notifications</div>
-              <div style={{ fontSize: 13, color: "var(--muted)" }}>
-                {parentProfile.settings.smsNotifications ? "Enabled" : "Disabled"}
-              </div>
-            </div>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>Weekly Digest</div>
-              <div style={{ fontSize: 13, color: "var(--muted)" }}>
-                {parentProfile.settings.weeklyDigest ? "Enabled" : "Disabled"}
-              </div>
-            </div>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>Achievement Alerts</div>
-              <div style={{ fontSize: 13, color: "var(--muted)" }}>
-                {parentProfile.settings.achievementAlerts ? "Enabled" : "Disabled"}
-              </div>
-            </div>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>Attendance Alerts</div>
-              <div style={{ fontSize: 13, color: "var(--muted)" }}>
-                {parentProfile.settings.attendanceAlerts ? "Enabled" : "Disabled"}
-              </div>
-            </div>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>Report Frequency</div>
-              <div style={{ fontSize: 13, color: "var(--muted)" }}>
-                {parentProfile.settings.reportFrequency}
-              </div>
-            </div>
-          </div>
+          <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 0 }}>
+            Current report cadence: {parentProfile.settings.reportFrequency.toLowerCase()} summary reports.
+          </p>
         ) : (
-          <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-            Notification preferences will be available after your first student connection is approved.
-            Default settings: weekly email digest, achievement and attendance alerts enabled.
+          <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 0 }}>
+            Summary-report cadence will appear here after your first student connection is approved.
           </p>
         )}
       </div>

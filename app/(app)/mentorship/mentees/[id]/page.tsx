@@ -1,8 +1,7 @@
-import { getServerSession } from "next-auth";
 import Link from "next/link";
+import { getSession } from "@/lib/auth-supabase";
 import { notFound, redirect } from "next/navigation";
 
-import { authOptions } from "@/lib/auth";
 import { FieldLabel } from "@/components/field-help";
 import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
 import { formatEnum } from "@/lib/format-utils";
@@ -54,7 +53,7 @@ export default async function MenteeDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id: menteeId } = await params;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }
@@ -364,6 +363,18 @@ export default async function MenteeDetailPage({
               </div>
               <div className="form-row">
                 <FieldLabel
+                  label="Meeting link (optional)"
+                  help={{
+                    title: "Meeting Link",
+                    guidance:
+                      "If this session used Zoom, Google Meet, or another online room, put the link here so the session record matches reality.",
+                    example: "https://meet.google.com/abc-defg-hij",
+                  }}
+                />
+                <input type="url" name="meetingLink" className="input" placeholder="https://meet.google.com/..." />
+              </div>
+              <div className="form-row">
+                <FieldLabel
                   label="Length (minutes)"
                   help={{
                     title: "Session Length",
@@ -373,6 +384,22 @@ export default async function MenteeDetailPage({
                   }}
                 />
                 <input type="number" name="durationMinutes" className="input" min="15" step="15" defaultValue="30" />
+              </div>
+              <div className="form-row">
+                <FieldLabel
+                  label="Why manual override?"
+                  help={{
+                    title: "Manual Override Reason",
+                    guidance:
+                      "Write why you are creating this session here instead of using the normal scheduling page. This keeps the audit trail clear for everyone.",
+                    example: "Family emergency required a special one-off time",
+                  }}
+                />
+                <input
+                  name="schedulingOverrideReason"
+                  className="input"
+                  placeholder="Explain why this was booked or logged manually"
+                />
               </div>
               <div className="form-row">
                 <FieldLabel

@@ -1,12 +1,11 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { Prisma } from "@prisma/client";
 
 async function requireAdmin() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!roles.includes("ADMIN")) {
     throw new Error("Unauthorized - Admin access required");
@@ -22,7 +21,7 @@ export async function trackEvent(
   eventType: string,
   eventData?: Prisma.InputJsonValue
 ) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return;
 
   await prisma.analyticsEvent.create({
@@ -35,7 +34,7 @@ export async function trackEvent(
 }
 
 export async function trackPageView(path: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return;
 
   await prisma.analyticsEvent.create({
@@ -52,7 +51,7 @@ export async function trackVideoWatch(
   watchedSeconds: number,
   completed: boolean
 ) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return;
 
   await prisma.analyticsEvent.create({

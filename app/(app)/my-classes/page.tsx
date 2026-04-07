@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { getLearnerFitSummary } from "@/lib/learner-fit";
 import { getMyClassesHubData } from "@/lib/student-class-portal";
@@ -21,7 +20,7 @@ export default async function MyClassesPage({
     notice?: string;
   }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const params = (await searchParams) ?? {};

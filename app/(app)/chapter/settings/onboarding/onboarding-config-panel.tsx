@@ -139,8 +139,8 @@ export function OnboardingConfigPanel({ steps }: { steps: Step[] }) {
                   padding: "3px 8px",
                   borderRadius: 4,
                   border: "1px solid var(--border)",
-                  background: step.isRequired ? "#ede9fe" : "var(--bg)",
-                  color: step.isRequired ? "#6d28d9" : "var(--muted)",
+                  background: step.isRequired ? "#f0e6ff" : "var(--bg)",
+                  color: step.isRequired ? "#5a1da8" : "var(--muted)",
                   cursor: "pointer",
                   flexShrink: 0,
                 }}

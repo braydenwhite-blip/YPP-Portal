@@ -7,6 +7,9 @@ export const STUDENT_ALWAYS_VISIBLE_GROUPS: NavGroup[] = [
   "Start Here",
   "Learning",
   "Progress",
+  "Schedule",
+  "Community",
+  "Profile",
   "People & Support",
   "Profile & Settings",
 ];

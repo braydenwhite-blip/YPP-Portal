@@ -1,12 +1,11 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getStudentAnalytics } from "@/lib/ai-personalization-actions";
 import { LEVELS } from "@/lib/xp-config";
 import Link from "next/link";
 
 export default async function PredictionsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const { snapshot, predictions } = await getStudentAnalytics(session.user.id);
@@ -22,7 +21,7 @@ export default async function PredictionsPage() {
   };
 
   const typeColors: Record<string, string> = {
-    LEVEL_UP: "#7c3aed",
+    LEVEL_UP: "#6b21c8",
     SKILL_MASTERY: "#3b82f6",
     COURSE_COMPLETION: "#16a34a",
     STREAK_MILESTONE: "#d97706",

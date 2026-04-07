@@ -42,7 +42,7 @@ export const ACTIVITY_TYPE_CONFIG: ActivityTypeConfig[] = [
   { value: "WARM_UP", label: "Warm Up", color: "#f59e0b", icon: "☀", defaultDuration: 8 },
   { value: "INSTRUCTION", label: "Instruction", color: "#3b82f6", icon: "📚", defaultDuration: 15 },
   { value: "PRACTICE", label: "Practice", color: "#22c55e", icon: "✍", defaultDuration: 12 },
-  { value: "DISCUSSION", label: "Discussion", color: "#8b5cf6", icon: "💬", defaultDuration: 10 },
+  { value: "DISCUSSION", label: "Discussion", color: "#8b3fe8", icon: "💬", defaultDuration: 10 },
   { value: "ASSESSMENT", label: "Assessment", color: "#ef4444", icon: "📋", defaultDuration: 8 },
   { value: "BREAK", label: "Break", color: "#6b7280", icon: "☕", defaultDuration: 5 },
   { value: "REFLECTION", label: "Reflection", color: "#ec4899", icon: "💭", defaultDuration: 6 },

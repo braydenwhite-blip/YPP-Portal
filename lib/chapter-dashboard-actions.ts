@@ -1,8 +1,7 @@
 "use server";
 
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth-supabase";
 import { isRecoverablePrismaError, withPrismaFallback } from "@/lib/prisma-guard";
 import {
   ACTIVE_INTERVIEW_REQUEST_STATUSES,
@@ -40,7 +39,7 @@ function ageHoursFrom(date: Date, now: Date) {
 }
 
 async function requireChapterOperator() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({

@@ -558,6 +558,8 @@ function nextInstructorApplicationStage(status: InstructorApplicationStatus): Wo
     case "APPROVED":
     case "REJECTED":
       return "COMPLETE";
+    default:
+      return "REVIEW";
   }
 }
 

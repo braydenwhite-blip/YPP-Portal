@@ -14,12 +14,7 @@ export default function PersonalizationPage() {
     // Content
     autoPlayVideos: false,
     videoQuality: "auto",
-    
-    // Notifications
-    dailyReminders: true,
-    reminderTime: "18:00",
-    weeklyDigest: true,
-    
+
     // Privacy
     showProfilePublicly: true,
     showProgressToClassmates: true,
@@ -151,54 +146,13 @@ export default function PersonalizationPage() {
       {/* Notification Settings */}
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 style={{ marginBottom: 20 }}>Notifications</h3>
-        
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", marginBottom: 16 }}>
-            <input
-              type="checkbox"
-              checked={settings.dailyReminders}
-              onChange={(e) => handleChange("dailyReminders", e.target.checked)}
-              style={{ width: 18, height: 18 }}
-            />
-            <div>
-              <div style={{ fontWeight: 600 }}>Daily practice reminders</div>
-              <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                Get a daily reminder to log your practice
-              </div>
-            </div>
-          </label>
-
-          {settings.dailyReminders && (
-            <div style={{ marginLeft: 30 }}>
-              <label style={{ display: "block", marginBottom: 8, fontSize: 14 }}>
-                Reminder Time
-              </label>
-              <input
-                type="time"
-                value={settings.reminderTime}
-                onChange={(e) => handleChange("reminderTime", e.target.value)}
-                style={{ padding: "8px 12px", border: "1px solid var(--border-color)", borderRadius: 6 }}
-              />
-            </div>
-          )}
-        </div>
-
-        <div>
-          <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}>
-            <input
-              type="checkbox"
-              checked={settings.weeklyDigest}
-              onChange={(e) => handleChange("weeklyDigest", e.target.checked)}
-              style={{ width: 18, height: 18 }}
-            />
-            <div>
-              <div style={{ fontWeight: 600 }}>Weekly progress digest</div>
-              <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                Receive a weekly summary of your progress every Sunday
-              </div>
-            </div>
-          </label>
-        </div>
+        <p style={{ margin: "0 0 10px", color: "var(--text-secondary)", fontSize: 14 }}>
+          Notification delivery now follows one fixed portal-wide policy instead of individual per-user toggles.
+        </p>
+        <p style={{ margin: 0, color: "var(--text-secondary)", fontSize: 13 }}>
+          Portal reminders stay inside the app, email updates are sent automatically, and urgent alerts are already
+          marked for SMS delivery once text support is enabled.
+        </p>
       </div>
 
       {/* Privacy Settings */}
@@ -294,7 +248,7 @@ export default function PersonalizationPage() {
           </label>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             {[
-              "#6366f1", "#ec4899", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#84cc16"
+              "#6366f1", "#ec4899", "#10b981", "#f59e0b", "#ef4444", "#8b3fe8", "#06b6d4", "#84cc16"
             ].map((color) => (
               <div
                 key={color}

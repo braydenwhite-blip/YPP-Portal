@@ -1,13 +1,12 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getGRResourceLibrary } from "@/lib/gr-actions";
 import GRResourceLibraryPanel from "@/components/gr/gr-resource-library-panel";
 
 export const metadata = { title: "G&R Resources — Admin" };
 
 export default async function GRResourcesPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.roles?.includes("ADMIN")) redirect("/");
 
   const resources = await getGRResourceLibrary();

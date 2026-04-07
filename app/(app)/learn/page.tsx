@@ -1,12 +1,11 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { getMyPracticeStats } from "@/lib/practice-actions";
 import { getPublishedModules, getMyModuleProgress } from "@/lib/module-actions";
 
 export default async function LearnIndexPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }
@@ -65,7 +64,7 @@ export default async function LearnIndexPage() {
               justifyContent: "center",
               height: 72,
               borderRadius: "var(--radius-md)",
-              background: "linear-gradient(135deg, #8b5cf620, #6366f120)",
+              background: "linear-gradient(135deg, #8b3fe820, #6366f120)",
               marginBottom: 16,
               fontSize: 32,
             }}

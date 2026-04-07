@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { ProgramType } from "@prisma/client";
 
@@ -53,7 +52,7 @@ export async function getPrograms(filters?: {
 }
 
 export async function getProgramById(programId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const userId = session?.user?.id;
 
   const program = await prisma.specialProgram.findUnique({
@@ -88,7 +87,7 @@ export async function getProgramById(programId: string) {
 // ============================================
 
 export async function getMyPrograms() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const enrollments = await prisma.specialProgramEnrollment.findMany({
@@ -117,7 +116,7 @@ export async function getMyPrograms() {
 }
 
 export async function enrollInProgram(programId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   // Check if already enrolled
@@ -155,7 +154,7 @@ export async function enrollStudentInProgram(
   studentId: string,
   programId: string
 ): Promise<{ success: boolean; skipped: boolean }> {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (
     !session?.user?.id ||
@@ -181,7 +180,7 @@ export async function enrollStudentInProgram(
 }
 
 export async function withdrawFromProgram(programId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   await prisma.specialProgramEnrollment.delete({
@@ -203,7 +202,7 @@ export async function withdrawFromProgram(programId: string) {
 // ============================================
 
 export async function createProgram(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -239,7 +238,7 @@ export async function createProgram(formData: FormData) {
 }
 
 export async function updateProgram(programId: string, formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -279,7 +278,7 @@ export async function updateProgram(programId: string, formData: FormData) {
 }
 
 export async function addProgramSession(programId: string, formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -314,7 +313,7 @@ export async function addProgramSession(programId: string, formData: FormData) {
 }
 
 export async function deleteProgramSession(sessionId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -335,7 +334,7 @@ export async function deleteProgramSession(sessionId: string) {
 }
 
 export async function getAllProgramsAdmin() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({

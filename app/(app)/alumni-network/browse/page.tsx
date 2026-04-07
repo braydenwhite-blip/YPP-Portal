@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getAlumniDirectory, getMyIntroRequests } from "@/lib/alumni-network-actions";
 import Link from "next/link";
 import IntroRequestClient from "./intro-request-client";
@@ -16,7 +15,7 @@ const TIER_INTRO_LIMITS: Record<string, number> = {
 };
 
 export default async function BrowseAlumniPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const userId = session.user.id as string;

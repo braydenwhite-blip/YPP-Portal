@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isStoredFileUrl } from "@/lib/applicant-video-upload";
 
 // ============================================
 // JOB APPLICATION SCHEMA
@@ -166,8 +167,15 @@ export const instructorApplicationSchema = z.object({
   // Core essays
   motivation: z
     .string()
-    .min(100, "Please share at least 100 characters about your motivation to teach.")
-    .max(5000, "Motivation should be under 5,000 characters."),
+    .max(5000, "Motivation should be under 5,000 characters.")
+    .optional()
+    .or(z.literal("")),
+  motivationVideoUrl: z
+    .string()
+    .min(1, "Please upload your teaching approach video.")
+    .refine((value) => isStoredFileUrl(value), {
+      message: "Please upload your teaching approach video before submitting.",
+    }),
   whyYPP: z
     .string()
     .min(100, "Please share at least 100 characters about why you want to join YPP.")

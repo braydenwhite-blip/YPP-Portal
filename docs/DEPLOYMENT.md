@@ -61,7 +61,7 @@ This guide covers deploying the YPP-Portal to production (Vercel + Supabase/Neon
 
    # Email (Optional but recommended)
    RESEND_API_KEY="re_..."  # From resend.com
-   EMAIL_FROM="YPP Portal <noreply@yourdomain.com>"
+   EMAIL_FROM="YPP Portal <noreply@your-verified-domain.com>"  # Must use a verified Resend domain
    ```
 
 4. **Add Integrations** (via Vercel Dashboard → Integrations)
@@ -262,7 +262,7 @@ npm install <missing-package>
    - Resend: Verify `RESEND_API_KEY`
    - SMTP: Verify all `SMTP_*` variables
 
-2. **Check `EMAIL_FROM`**: Must be verified domain in Resend
+2. **Check `EMAIL_FROM`**: Must use a verified Resend domain, or `onboarding@resend.dev` for testing only
 
 3. **Check logs**: Look for email errors in Vercel logs
 

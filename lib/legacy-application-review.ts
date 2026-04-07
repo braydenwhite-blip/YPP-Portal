@@ -5,7 +5,8 @@ export type LegacyApplicationStatus =
   | "INTERVIEW_SCHEDULED"
   | "INTERVIEW_COMPLETED"
   | "APPROVED"
-  | "REJECTED";
+  | "REJECTED"
+  | "ON_HOLD";
 
 export type LegacyApplicationReviewAction =
   | "mark_under_review"
@@ -13,7 +14,9 @@ export type LegacyApplicationReviewAction =
   | "schedule_interview"
   | "mark_interview_complete"
   | "approve"
-  | "reject";
+  | "reject"
+  | "put_on_hold"
+  | "resume_from_hold";
 
 function isFinalStatus(status: LegacyApplicationStatus) {
   return status === "APPROVED" || status === "REJECTED";
@@ -31,25 +34,32 @@ export function getLegacyApplicationTransitionError(input: {
 
   switch (action) {
     case "mark_under_review":
-      return status === "SUBMITTED"
+      return status === "SUBMITTED" || status === "ON_HOLD"
         ? null
-        : "Only newly submitted applications can move into review.";
+        : "Only newly submitted or on-hold applications can move into review.";
     case "request_info":
       return null;
     case "schedule_interview":
       return status === "INTERVIEW_COMPLETED"
-        ? "Completed interviews cannot be rescheduled from this legacy flow."
+        ? "Completed interviews cannot be rescheduled from this flow."
         : null;
     case "mark_interview_complete":
       return status === "INTERVIEW_SCHEDULED"
         ? null
         : "Only scheduled interviews can be marked complete.";
     case "approve":
-      return status === "INTERVIEW_COMPLETED"
-        ? null
-        : "Complete the interview before approving this application.";
+      // Relaxed: allow approval from any non-terminal status
+      return null;
     case "reject":
       return null;
+    case "put_on_hold":
+      return status === "ON_HOLD"
+        ? "Application is already on hold."
+        : null;
+    case "resume_from_hold":
+      return status === "ON_HOLD"
+        ? null
+        : "Only on-hold applications can be resumed.";
     default:
       return "Unknown review action.";
   }
