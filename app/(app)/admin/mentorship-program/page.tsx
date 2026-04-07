@@ -22,6 +22,13 @@ import { getAdminMentorshipCommandCenterData } from "@/lib/admin-mentorship-comm
 import ChairsPanel from "./chairs-panel";
 import GoalsPanel from "./goals-panel";
 import MatchingPanel from "./matching-panel";
+import GoalReviewsBoard from "./goal-reviews-board";
+import ReviewApprovalsBoard from "./review-approvals-board";
+import MenteeMatchingBoard from "./mentee-matching-board";
+import {
+  getMentorshipGoalReviews,
+  getMentorshipMonthlyReviews,
+} from "@/lib/mentorship-kanban-actions";
 
 export const metadata = { title: "Mentorship Command Center — Admin" };
 
@@ -90,7 +97,11 @@ export default async function MentorshipProgramAdminPage({
   const lane = parseAdminMentorshipLane(searchParams.lane);
   const focus = parseFocus(searchParams.focus);
   const supportRole = parseSupportRole(searchParams.supportRole);
-  const data = await getAdminMentorshipCommandCenterData();
+  const [data, goalReviews, monthlyReviews] = await Promise.all([
+    getAdminMentorshipCommandCenterData(),
+    getMentorshipGoalReviews(),
+    getMentorshipMonthlyReviews(),
+  ]);
 
   const laneMeta = ADMIN_MENTORSHIP_LANE_META[lane];
   const selectedSummary =
@@ -476,6 +487,65 @@ export default async function MentorshipProgramAdminPage({
             </div>
           )}
         </div>
+      </section>
+
+      {/* ── Mentee Matching Kanban Board ────────────────── */}
+      <section className="card" style={{ marginBottom: 24 }}>
+        <div className="section-title" style={{ marginBottom: 8 }}>
+          Mentee Overview
+        </div>
+        <p style={{ margin: "0 0 16px", color: "var(--muted)", fontSize: 13 }}>
+          Visual overview of who needs a primary mentor and who already has one
+          in the {laneMeta.label.toLowerCase()} lane.
+        </p>
+        <MenteeMatchingBoard
+          unassigned={laneUnassigned.map((m) => ({
+            id: m.id,
+            status: "UNASSIGNED",
+            name: m.name,
+            email: m.email,
+            primaryRole: m.primaryRole,
+            lane: lane,
+            chapterName: m.chapterName,
+          }))}
+          matched={laneCircles.map((c) => ({
+            id: c.menteeId,
+            status: "HAS_MENTOR",
+            name: c.menteeName,
+            email: "",
+            primaryRole: c.menteeRole,
+            lane: lane,
+            chapterName: null,
+            mentorName: c.mentorName,
+            mentorshipId: c.mentorshipId,
+            circleGaps: c.missingRoles,
+          }))}
+          lane={toLaneQueryValue(lane)}
+        />
+      </section>
+
+      {/* ── Goal Reviews Kanban Board ─────────────────── */}
+      <section className="card" style={{ marginBottom: 24 }}>
+        <div className="section-title" style={{ marginBottom: 8 }}>
+          Goal Reviews Board
+        </div>
+        <p style={{ margin: "0 0 16px", color: "var(--muted)", fontSize: 13 }}>
+          Drag goal reviews through the approval pipeline. Chair reviewers can
+          move reviews to Approved or Changes Requested.
+        </p>
+        <GoalReviewsBoard reviews={goalReviews} />
+      </section>
+
+      {/* ── Monthly Review Approvals Kanban Board ──────── */}
+      <section className="card" style={{ marginBottom: 24 }}>
+        <div className="section-title" style={{ marginBottom: 8 }}>
+          Monthly Review Approvals
+        </div>
+        <p style={{ margin: "0 0 16px", color: "var(--muted)", fontSize: 13 }}>
+          Track monthly mentorship reviews from draft through chair approval.
+          Drag to approve or return reviews.
+        </p>
+        <ReviewApprovalsBoard reviews={monthlyReviews} />
       </section>
 
       <section
