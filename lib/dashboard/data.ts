@@ -34,6 +34,12 @@ function queueStatus(count: number, overdueThreshold = 10): DashboardQueueStatus
   return "needs_action";
 }
 
+function urgencyFromQueueStatus(status: DashboardQueueStatus): "high" | "medium" | "low" {
+  if (status === "overdue") return "high";
+  if (status === "needs_action") return "medium";
+  return "low";
+}
+
 function roleLabel(role: DashboardRole): string {
   return role.replace(/_/g, " ");
 }
@@ -321,20 +327,23 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     nextActions = queues
       .filter((queue) => queue.count > 0)
       .sort((a, b) => b.count - a.count)
-      .slice(0, 3)
+      .slice(0, 5)
       .map((queue) => ({
         id: `action-${queue.id}`,
-        title: `Work ${queue.title}`,
-        detail: `${queue.count} item(s) waiting action.`,
+        title: queue.title,
+        detail: `${queue.count} pending — review now`,
         href: queue.href,
+        urgency: urgencyFromQueueStatus(queue.status),
+        ctaLabel: "Review",
       }));
 
     if (nextActions.length === 0) {
       nextActions.push({
         id: "admin-steady-state",
-        title: "Queues are healthy",
-        detail: "No urgent admin blockers right now.",
+        title: "All queues are clear",
+        detail: "No urgent admin actions right now.",
         href: "/admin/analytics",
+        urgency: "low" as const,
       });
     }
 
@@ -530,20 +539,23 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
       nextActions = queues
         .filter((queue) => queue.count > 0)
         .sort((a, b) => b.count - a.count)
-        .slice(0, 3)
+        .slice(0, 4)
         .map((queue) => ({
           id: `action-${queue.id}`,
-          title: `Work ${queue.title}`,
-          detail: `${queue.count} item(s) currently waiting action.`,
+          title: queue.title,
+          detail: `${queue.count} pending — review now`,
           href: queue.href,
+          urgency: urgencyFromQueueStatus(queue.status),
+          ctaLabel: "Review",
         }));
 
       if (nextActions.length === 0) {
         nextActions.push({
           id: "chapter-steady-state",
-          title: "No urgent chapter blockers",
-          detail: "Chapter recruiting and readiness queues are healthy.",
+          title: "All chapter queues are clear",
+          detail: "Recruiting and readiness queues are healthy.",
           href: "/chapter/recruiting",
+          urgency: "low" as const,
         });
       }
 
@@ -623,28 +635,36 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
       title: readiness.nextAction.title,
       detail: readiness.nextAction.detail,
       href: readiness.nextAction.href,
+      urgency: readiness.baseReadinessComplete ? ("low" as const) : ("high" as const),
+      ctaLabel: readiness.baseReadinessComplete ? "Open" : "Complete",
     });
     if (readiness.trainingComplete && !readiness.interviewPassed) {
       nextActions.push({
         id: "instructor-interview",
         title: "Schedule your readiness interview",
-        detail: "Training complete. Book your interview to unlock class publishing.",
+        detail: "Training complete — book your interview to unlock publishing",
         href: "/interviews?scope=readiness&view=mine&state=needs_action",
+        urgency: "high" as const,
+        ctaLabel: "Schedule",
       });
     }
     if (classCount > 0) {
       nextActions.push({
         id: "instructor-classes",
         title: "Review class settings",
-        detail: `${classCount} class${classCount === 1 ? "" : "es"} — confirm schedule, capacity, and publish status.`,
+        detail: `${classCount} class${classCount === 1 ? "" : "es"} — confirm schedule, capacity, and publish status`,
         href: "/instructor/class-settings",
+        urgency: "medium" as const,
+        ctaLabel: "Review",
       });
     }
     nextActions.push({
       id: "instructor-pathway",
       title: "View my publish workflow",
-      detail: "See readiness blockers, offering approval guidance, and teaching specialties.",
+      detail: "Readiness blockers, offering approval, and teaching specialties",
       href: "/instructor/workspace?tab=my-pathway",
+      urgency: "low" as const,
+      ctaLabel: "Open",
     });
 
     moduleBadgeByHref["/instructor-training"] = trainingIncomplete + (interviewBlocked ? 1 : 0);
@@ -884,63 +904,77 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
     if (studentTrainingDue > 0) {
       nextActions.push({
         id: "student-training",
-        title: "Complete training academy modules",
-        detail: `${studentTrainingDue} training module(s) are waiting completion.`,
+        title: "Complete training modules",
+        detail: `${studentTrainingDue} module${studentTrainingDue === 1 ? "" : "s"} waiting completion`,
         href: "/student-training",
+        urgency: "high" as const,
+        ctaLabel: "Continue",
       });
     }
 
     if (nextPathwaySteps > 0) {
       nextActions.push({
         id: "student-pathway",
-        title: "Complete your next pathway step",
-        detail: `${nextPathwaySteps} pathway step(s) are available now.`,
+        title: "Continue your pathway",
+        detail: `${nextPathwaySteps} step${nextPathwaySteps === 1 ? "" : "s"} available now`,
         href: "/my-chapter",
+        urgency: "medium" as const,
+        ctaLabel: "View",
       });
     }
 
     if (activeApplications > 0) {
       nextActions.push({
         id: "student-applications",
-        title: "Check application updates",
-        detail: `${activeApplications} active application(s) in progress.`,
+        title: "Check application status",
+        detail: `${activeApplications} active application${activeApplications === 1 ? "" : "s"} in progress`,
         href: "/applications",
+        urgency: "medium" as const,
+        ctaLabel: "Check",
       });
     }
 
     if (studentFullExplorer && activeChallengeCount > 0) {
       nextActions.push({
         id: "student-challenge",
-        title: "Complete today's challenge check-in",
-        detail: `${activeChallengeCount} challenge(s) currently active.`,
+        title: "Complete today's challenge",
+        detail: `${activeChallengeCount} active challenge${activeChallengeCount === 1 ? "" : "s"} — keep your streak going`,
         href: "/challenges",
+        urgency: "medium" as const,
+        ctaLabel: "Check In",
       });
     }
 
     if (studentFullExplorer && activeIncubatorProject) {
       nextActions.push({
         id: "student-incubator",
-        title: "Post an incubator project update",
-        detail: `${activeIncubatorProject.title} is in ${incubatorPhaseLabel}.`,
+        title: "Post a project update",
+        detail: `${activeIncubatorProject.title} · ${incubatorPhaseLabel}`,
         href: `/incubator/project/${activeIncubatorProject.id}`,
+        urgency: "low" as const,
+        ctaLabel: "Update",
       });
     }
 
     if (studentFullExplorer && recommendedActivities.length > 0) {
       nextActions.push({
         id: "student-activities",
-        title: "Open your recommended activities",
-        detail: `${recommendedActivities.length} activity recommendation(s) available.`,
+        title: "Explore recommended activities",
+        detail: `${recommendedActivities.length} recommendation${recommendedActivities.length === 1 ? "" : "s"} waiting`,
         href: "/activities",
+        urgency: "low" as const,
+        ctaLabel: "Explore",
       });
     }
 
-    if (activeApplications === 0) {
+    if (activeApplications === 0 && nextActions.length < 3) {
       nextActions.push({
         id: "student-positions",
         title: "Browse open positions",
-        detail: "Explore leadership, instructor, and mentor roles you can apply for.",
+        detail: "Explore leadership, instructor, and mentor roles",
         href: "/positions",
+        urgency: "low" as const,
+        ctaLabel: "Browse",
       });
     }
 
@@ -948,8 +982,10 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
       nextActions.push({
         id: "student-explore",
         title: "Explore a new class",
-        detail: "Browse classes and pick your next challenge.",
+        detail: "Browse classes and pick your next challenge",
         href: "/curriculum",
+        urgency: "low" as const,
+        ctaLabel: "Browse",
       });
     }
 

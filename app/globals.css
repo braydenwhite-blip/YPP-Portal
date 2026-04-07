@@ -1795,6 +1795,17 @@ a.portal-brand.portal-brand--link:active {
   color: #b91c1c;
 }
 
+.dashboard-action-pill.pill-warning {
+  background: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+}
+
+.dashboard-action-pill.pill-cta {
+  background: rgba(107, 33, 200, 0.1);
+  color: var(--ypp-purple);
+  font-weight: 600;
+}
+
 .dashboard-action-chevron {
   flex-shrink: 0;
   align-self: center;

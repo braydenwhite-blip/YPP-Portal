@@ -3,14 +3,11 @@ import type { DashboardNextAction } from "@/lib/dashboard/types";
 
 type ActionTone = "urgent" | "warning" | "info" | "accent";
 
-function inferTone(action: DashboardNextAction, index: number): ActionTone {
-  const t = `${action.title} ${action.detail}`.toLowerCase();
-  if (t.includes("urgent") || t.includes("overdue") || t.includes("blocker")) return "urgent";
-  if (t.includes("healthy") || t.includes("steady")) return "accent";
-  if (t.includes("waiting") || t.includes("pending") || t.includes("review")) return "warning";
-  if (t.includes("interview") || t.includes("train") || t.includes("message")) return "info";
-  const cycle: ActionTone[] = ["urgent", "warning", "info", "accent"];
-  return cycle[index % cycle.length];
+function toneFromUrgency(urgency: DashboardNextAction["urgency"]): ActionTone {
+  if (urgency === "high") return "urgent";
+  if (urgency === "medium") return "warning";
+  if (urgency === "low") return "accent";
+  return "info";
 }
 
 function inferIcon(action: DashboardNextAction, index: number): string {
@@ -19,7 +16,11 @@ function inferIcon(action: DashboardNextAction, index: number): string {
   if (t.includes("hire") || t.includes("interview") || t.includes("application")) return "📋";
   if (t.includes("parent") || t.includes("approv")) return "💜";
   if (t.includes("waitlist") || t.includes("queue")) return "⏱️";
-  if (t.includes("health")) return "✨";
+  if (t.includes("pathway") || t.includes("step")) return "🗺️";
+  if (t.includes("challenge") || t.includes("streak")) return "🏆";
+  if (t.includes("class") || t.includes("enroll") || t.includes("curriculum")) return "📚";
+  if (t.includes("incubator") || t.includes("project")) return "🛠️";
+  if (t.includes("health") || t.includes("clear") || t.includes("healthy")) return "✨";
   const fallbacks = ["📌", "📋", "💼", "🎯"];
   return fallbacks[index % fallbacks.length];
 }
@@ -37,13 +38,10 @@ export default function NextActions({
         <h3 className="dashboard-section-kicker" style={{ margin: 0 }}>
           Next actions
         </h3>
-        <Link href={actions[0]?.href ?? "#"} className="dashboard-section-link">
-          View all →
-        </Link>
       </div>
       <div className="dashboard-next-actions">
         {actions.map((action, index) => {
-          const tone = inferTone(action, index);
+          const tone = toneFromUrgency(action.urgency);
           return (
             <Link key={action.id} href={action.href} className="dashboard-action-link">
               <span className={`dashboard-action-stripe tone-${tone}`} aria-hidden />
@@ -55,10 +53,15 @@ export default function NextActions({
                   <p className="dashboard-action-title">{action.title}</p>
                   <p className="dashboard-action-detail">{action.detail}</p>
                   <div className="dashboard-action-meta">
-                    {tone === "urgent" ? (
-                      <span className="dashboard-action-pill pill-urgent">Needs attention</span>
-                    ) : null}
-                    <span className="dashboard-action-pill pill-muted">Dashboard</span>
+                    {tone === "urgent" && (
+                      <span className="dashboard-action-pill pill-urgent">High priority</span>
+                    )}
+                    {tone === "warning" && (
+                      <span className="dashboard-action-pill pill-warning">Needs attention</span>
+                    )}
+                    {action.ctaLabel && (
+                      <span className="dashboard-action-pill pill-cta">{action.ctaLabel}</span>
+                    )}
                   </div>
                 </div>
                 <span className="dashboard-action-chevron" aria-hidden>

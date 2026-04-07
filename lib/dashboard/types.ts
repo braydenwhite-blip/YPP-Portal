@@ -42,6 +42,8 @@ export interface DashboardNextAction {
   title: string;
   detail: string;
   href: string;
+  urgency?: "high" | "medium" | "low";
+  ctaLabel?: string;
 }
 
 export interface ActivePathwaySummary {
