@@ -124,34 +124,40 @@ export default async function ReflectionViewPage({ params }: { params: Promise<{
 
       {/* Section 4: Goal Progress */}
       <SectionCard title="Section 4 — Goal Progress">
-        {reflection.goalResponses.map((resp, idx) => (
-          <div
-            key={resp.id}
-            style={{
-              padding: "1rem",
-              background: "var(--surface-alt)",
-              borderRadius: "var(--radius-md)",
-              border: "1px solid var(--border)",
-              marginBottom: idx < reflection.goalResponses.length - 1 ? "0.75rem" : 0,
-            }}
-          >
-            <p style={{ fontWeight: 700, marginBottom: "0.75rem" }}>
-              Goal {idx + 1}: {resp.goal.title}
-            </p>
-            <Field label="Progress Made" value={resp.progressMade} />
-            <div style={{ marginBottom: "0.75rem" }}>
-              <span
-                className={`pill ${resp.objectiveAchieved ? "pill-success" : "pill-pending"}`}
-                style={{ fontSize: "0.8rem" }}
-              >
-                {resp.objectiveAchieved ? "Objective achieved" : "Objective not yet achieved"}
-              </span>
+        {reflection.goalResponses.length === 0 ? (
+          <p style={{ color: "var(--muted)", margin: 0 }}>
+            No role-specific goals were active for this cycle, so this section was skipped.
+          </p>
+        ) : (
+          reflection.goalResponses.map((resp, idx) => (
+            <div
+              key={resp.id}
+              style={{
+                padding: "1rem",
+                background: "var(--surface-alt)",
+                borderRadius: "var(--radius-md)",
+                border: "1px solid var(--border)",
+                marginBottom: idx < reflection.goalResponses.length - 1 ? "0.75rem" : 0,
+              }}
+            >
+              <p style={{ fontWeight: 700, marginBottom: "0.75rem" }}>
+                Goal {idx + 1}: {resp.goal.title}
+              </p>
+              <Field label="Progress Made" value={resp.progressMade} />
+              <div style={{ marginBottom: "0.75rem" }}>
+                <span
+                  className={`pill ${resp.objectiveAchieved ? "pill-success" : "pill-pending"}`}
+                  style={{ fontSize: "0.8rem" }}
+                >
+                  {resp.objectiveAchieved ? "Objective achieved" : "Objective not yet achieved"}
+                </span>
+              </div>
+              <Field label="Accomplishments" value={resp.accomplishments} />
+              <Field label="Blockers" value={resp.blockers} />
+              <Field label="Next Month's Plans" value={resp.nextMonthPlans} />
             </div>
-            <Field label="Accomplishments" value={resp.accomplishments} />
-            <Field label="Blockers" value={resp.blockers} />
-            <Field label="Next Month's Plans" value={resp.nextMonthPlans} />
-          </div>
-        ))}
+          ))
+        )}
       </SectionCard>
 
       {/* Section 5 */}

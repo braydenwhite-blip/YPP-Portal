@@ -319,7 +319,20 @@ export default function ReflectionForm({ goals, cycleNumber, isQuarterly }: Prop
         {step === 3 && (
           <div style={{ display: "flex", flexDirection: "column", gap: "1.75rem" }}>
             {goals.length === 0 ? (
-              <p style={{ color: "var(--muted)" }}>No goals configured for your role yet. Contact your administrator.</p>
+              <div
+                style={{
+                  padding: "1rem",
+                  background: "var(--surface-alt)",
+                  borderRadius: "var(--radius-md)",
+                  border: "1px solid var(--border)",
+                }}
+              >
+                <p style={{ fontWeight: 700, margin: "0 0 0.4rem" }}>No active goals for this cycle</p>
+                <p style={{ color: "var(--muted)", margin: 0 }}>
+                  Your role does not have any active program goals right now, so this section is skipped automatically.
+                  You can move to the final step and submit your reflection normally.
+                </p>
+              </div>
             ) : (
               goals.map((goal, idx) => {
                 const s = goalStates[goal.id];
@@ -446,7 +459,11 @@ export default function ReflectionForm({ goals, cycleNumber, isQuarterly }: Prop
                 <li>Section 1 — Overall Reflection: {overallReflection.length > 0 ? "✓" : "⚠ missing"}</li>
                 <li>Section 2 — Engagement: {engagementOverall && workingWell && supportNeeded && mentorHelpfulness ? "✓" : "⚠ missing"}</li>
                 <li>Section 3 — Team Collaboration: {collaborationAssessment ? "✓" : "⚠ missing"}</li>
-                <li>Section 4 — Goal Progress: {goals.length} goal{goals.length !== 1 ? "s" : ""} covered</li>
+                <li>
+                  Section 4 — Goal Progress: {goals.length === 0
+                    ? "No active goals this cycle — skipped automatically"
+                    : `${goals.length} goal${goals.length !== 1 ? "s" : ""} covered`}
+                </li>
                 <li>Section 5 — Additional Notes: {additionalReflections ? "✓ included" : "skipped (optional)"}</li>
               </ul>
             </div>
