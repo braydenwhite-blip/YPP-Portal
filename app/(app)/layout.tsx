@@ -163,6 +163,7 @@ export default async function AppLayout({
     <AppShell
       userName={session?.user?.name}
       roles={roles}
+      adminSubtypes={(session?.user as { adminSubtypes?: string[] } | undefined)?.adminSubtypes}
       primaryRole={primaryRole}
       awardTier={awardTier}
       badges={badges}

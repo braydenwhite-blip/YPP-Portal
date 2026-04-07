@@ -1,6 +1,10 @@
 import { getSessionUser as getSupabaseSessionUser } from "@/lib/auth-supabase";
 import { z } from "zod";
 import { normalizeRoleValue, normalizeRoleValues } from "@/lib/role-utils";
+import {
+  normalizeAdminSubtypes,
+  type AdminSubtypeValue,
+} from "@/lib/admin-subtypes";
 
 // Zod schema for validating user-supplied RoleType values before DB writes.
 export const RoleTypeSchema = z.enum([
@@ -31,6 +35,7 @@ export type SessionUser = {
   id: string;
   roles: string[];
   primaryRole: string;
+  adminSubtypes: AdminSubtypeValue[];
 };
 
 export function normalizeRoleSet(
@@ -91,6 +96,21 @@ export function hasAnyRole(
   return requiredRoles.some((role) => roleSet.has(role));
 }
 
+export function hasAdminSubtype(
+  adminSubtypes: Array<string | null | undefined> | undefined | null,
+  expectedSubtype: AdminSubtypeValue
+): boolean {
+  return normalizeAdminSubtypes(adminSubtypes ?? []).includes(expectedSubtype);
+}
+
+export function hasAnyAdminSubtype(
+  adminSubtypes: Array<string | null | undefined> | undefined | null,
+  requiredSubtypes: readonly AdminSubtypeValue[]
+): boolean {
+  const subtypeSet = new Set(normalizeAdminSubtypes(adminSubtypes ?? []));
+  return requiredSubtypes.some((subtype) => subtypeSet.has(subtype));
+}
+
 export async function requireSessionUser(): Promise<SessionUser> {
   const user = await getSupabaseSessionUser();
   if (!user) {
@@ -101,12 +121,23 @@ export async function requireSessionUser(): Promise<SessionUser> {
     id: user.id,
     roles: user.roles,
     primaryRole: user.primaryRole,
+    adminSubtypes: normalizeAdminSubtypes(user.adminSubtypes ?? []),
   };
 }
 
 export async function requireAnyRole(requiredRoles: string[]): Promise<SessionUser> {
   const sessionUser = await requireSessionUser();
   if (!hasAnyRole(sessionUser.roles, requiredRoles)) {
+    throw new Error("Unauthorized");
+  }
+  return sessionUser;
+}
+
+export async function requireAnyAdminSubtype(
+  requiredSubtypes: readonly AdminSubtypeValue[]
+): Promise<SessionUser> {
+  const sessionUser = await requireSessionUser();
+  if (!hasAnyAdminSubtype(sessionUser.adminSubtypes, requiredSubtypes)) {
     throw new Error("Unauthorized");
   }
   return sessionUser;

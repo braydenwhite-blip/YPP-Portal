@@ -1,12 +1,17 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
-import { getConversations, getMessageableUsers, startConversation } from "@/lib/messaging-actions";
+import {
+  getConversations,
+  getMessageableUsers,
+  startConversation,
+} from "@/lib/messaging-actions";
 import {
   isParentConversation,
   matchesMessageCenterTab,
   normalizeMessageCenterTab,
 } from "@/lib/message-center";
+import PageHelp from "@/components/page-help";
 
 function formatTimestamp(date: Date): string {
   const now = new Date();
@@ -78,15 +83,22 @@ export default async function MessagesPage({
         <div>
           <h1 className="page-title">Messages</h1>
           <p style={{ marginTop: 4, fontSize: 13, color: "var(--text-secondary)" }}>
-            Direct and parent conversations now live in one shared inbox.
+            Direct and parent conversations now live in one shared inbox, and urgent message work can surface back on home next actions.
           </p>
         </div>
       </div>
+
+      <PageHelp
+        purpose="This page is the shared inbox for direct and parent conversation threads."
+        firstStep="Use the tabs to narrow to the conversation type you need, then open the newest unread thread first."
+        nextStep="Replies stay tied to the same shared thread so people can find the full history in one place."
+      />
 
       <div
         className="card"
         style={{
           marginBottom: 24,
+          marginTop: 16,
           display: "flex",
           gap: 10,
           flexWrap: "wrap",

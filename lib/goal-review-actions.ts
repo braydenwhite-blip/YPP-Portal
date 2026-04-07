@@ -12,6 +12,7 @@ import {
 import { logAuditEvent } from "@/lib/audit-log-actions";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import { createMentorshipNotification } from "@/lib/mentorship-program-actions";
+import { syncMentorGoalReviewWorkflow } from "@/lib/workflow";
 
 // ============================================
 // POINT TABLE
@@ -247,7 +248,9 @@ export async function saveGoalReview(formData: FormData) {
     newLongestReviewStreak = Math.max(newReviewStreak, newLongestReviewStreak);
   }
 
-  await prisma.$transaction(async (tx) => {
+  const reviewId = await prisma.$transaction(async (tx) => {
+    let persistedReviewId = reflection.goalReview?.id ?? "";
+
     if (reflection.goalReview) {
       // Update existing draft
       await tx.mentorGoalReview.update({
@@ -273,9 +276,10 @@ export async function saveGoalReview(formData: FormData) {
           comments: gr.comments,
         })),
       });
+      persistedReviewId = reflection.goalReview.id;
     } else {
       // Create new review
-      await tx.mentorGoalReview.create({
+      const review = await tx.mentorGoalReview.create({
         data: {
           mentorId: session.user.id,
           menteeId: reflection.mentorship.menteeId,
@@ -306,7 +310,9 @@ export async function saveGoalReview(formData: FormData) {
           },
         },
       });
+      persistedReviewId = review.id;
     }
+
     // Update review streak on submission
     if (submitForApproval) {
       await tx.mentorship.update({
@@ -314,7 +320,11 @@ export async function saveGoalReview(formData: FormData) {
         data: { reviewStreak: newReviewStreak, longestReviewStreak: newLongestReviewStreak },
       });
     }
+
+    return persistedReviewId;
   });
+
+  await syncMentorGoalReviewWorkflow(reviewId);
 
   // Notify chair when review is submitted for approval
   if (submitForApproval && reflection.mentorship.chairId) {
@@ -534,6 +544,8 @@ export async function approveGoalReview(formData: FormData) {
       },
     });
   });
+
+  await syncMentorGoalReviewWorkflow(reviewId);
 
   await logAuditEvent({
     action: "MENTORSHIP_UPDATED",
@@ -836,6 +848,8 @@ export async function requestReviewChanges(formData: FormData) {
       chairComments,
     },
   });
+
+  await syncMentorGoalReviewWorkflow(reviewId);
 
   await logAuditEvent({
     action: "MENTORSHIP_UPDATED",

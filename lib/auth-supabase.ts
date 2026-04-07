@@ -2,6 +2,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { normalizeRoleValues, normalizeRoleValue } from "@/lib/role-utils";
 import { getLegacySessionFromCookies } from "@/lib/legacy-auth-server";
+import { normalizeAdminSubtypes, type AdminSubtypeValue } from "@/lib/admin-subtypes";
 
 export type SessionUser = {
   id: string;
@@ -10,6 +11,7 @@ export type SessionUser = {
   roles: string[];
   primaryRole: string;
   chapterId?: string | null;
+  adminSubtypes: AdminSubtypeValue[];
 };
 
 /**
@@ -32,6 +34,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
         primaryRole: true,
         chapterId: true,
         roles: { select: { role: true } },
+        adminSubtypes: { select: { subtype: true } },
       },
     });
   }
@@ -55,6 +58,9 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   const roles = normalizeRoleValues(resolvedUser.roles.map((r) => r.role));
   const primaryRole =
     normalizeRoleValue(resolvedUser.primaryRole) ?? roles[0] ?? "STUDENT";
+  const adminSubtypes = normalizeAdminSubtypes(
+    resolvedUser.adminSubtypes.map((entry) => entry.subtype)
+  );
 
   if (!roles.includes(primaryRole)) {
     roles.unshift(primaryRole);
@@ -67,6 +73,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     roles: Array.from(new Set(roles)),
     primaryRole,
     chapterId: resolvedUser.chapterId,
+    adminSubtypes,
   };
 }
 

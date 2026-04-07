@@ -4,12 +4,12 @@ import { useMemo, useState } from "react";
 import Nav, { type NavBadges } from "@/components/nav";
 import BrandLockup from "@/components/brand-lockup";
 import LogoutButton from "@/components/logout-button";
-import AdminQuickActions from "@/components/admin-quick-actions";
 
 export default function AppShell({
   children,
   userName,
   roles,
+  adminSubtypes,
   primaryRole,
   awardTier,
   badges,
@@ -21,6 +21,7 @@ export default function AppShell({
   children: React.ReactNode;
   userName?: string | null;
   roles?: string[];
+  adminSubtypes?: string[];
   primaryRole?: string | null;
   awardTier?: string;
   badges?: NavBadges;
@@ -103,6 +104,7 @@ export default function AppShell({
         <div className="sidebar-nav">
           <Nav
             roles={roles}
+            adminSubtypes={adminSubtypes}
             primaryRole={primaryRole}
             awardTier={awardTier}
             badges={badges}
@@ -134,9 +136,6 @@ export default function AppShell({
       </aside>
 
       <main>{children}</main>
-
-      {/* Admin Quick Actions Floating Bar */}
-      {roles?.includes("ADMIN") && <AdminQuickActions />}
     </div>
   );
 }

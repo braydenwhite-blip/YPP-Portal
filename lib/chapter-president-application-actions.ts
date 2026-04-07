@@ -15,6 +15,7 @@ import {
   getLegacyApplicationTransitionError,
   type LegacyApplicationReviewAction,
 } from "@/lib/legacy-application-review";
+import { syncChapterPresidentApplicationWorkflow } from "@/lib/workflow";
 
 type FormState = {
   status: "idle" | "error" | "success";
@@ -174,6 +175,7 @@ export async function submitChapterPresidentApplication(
       }
     }
 
+    let createdApplicationId = "";
     await prisma.$transaction(async (tx) => {
       const application = await tx.chapterPresidentApplication.create({
         data: {
@@ -208,6 +210,7 @@ export async function submitChapterPresidentApplication(
           ethnicity: ethnicity || null,
         },
       });
+      createdApplicationId = application.id;
 
       // Save custom form responses
       if (customFields.length > 0) {
@@ -221,6 +224,9 @@ export async function submitChapterPresidentApplication(
         });
       }
     });
+    if (createdApplicationId) {
+      await syncChapterPresidentApplicationWorkflow(createdApplicationId);
+    }
 
     // Notify reviewers
     try {
@@ -271,6 +277,7 @@ export async function reviewChapterPresidentApplication(
           where: { id: applicationId },
           data: { status: ChapterPresidentApplicationStatus.UNDER_REVIEW, reviewerId: session.user.id },
         });
+        await syncChapterPresidentApplicationWorkflow(applicationId);
         break;
 
       case "approve": {
@@ -333,6 +340,7 @@ export async function reviewChapterPresidentApplication(
 
         revalidatePath("/admin/chapter-president-applicants");
         revalidatePath("/application-status");
+        await syncChapterPresidentApplicationWorkflow(applicationId);
         return { status: "success", message: "Application approved. Applicant is now a Chapter President." };
       }
 
@@ -356,6 +364,7 @@ export async function reviewChapterPresidentApplication(
         } catch (e) {
           console.error("[rejectCPApplication] email failed:", e);
         }
+        await syncChapterPresidentApplicationWorkflow(applicationId);
         break;
       }
 
@@ -380,6 +389,7 @@ export async function reviewChapterPresidentApplication(
         } catch (e) {
           console.error("[requestCPInfo] email failed:", e);
         }
+        await syncChapterPresidentApplicationWorkflow(applicationId);
         break;
       }
 
@@ -410,6 +420,7 @@ export async function reviewChapterPresidentApplication(
         } catch (e) {
           console.error("[scheduleCPInterview] email failed:", e);
         }
+        await syncChapterPresidentApplicationWorkflow(applicationId);
         break;
       }
 
@@ -423,6 +434,7 @@ export async function reviewChapterPresidentApplication(
             reviewerNotes: notes || null,
           },
         });
+        await syncChapterPresidentApplicationWorkflow(applicationId);
         break;
       }
 
@@ -478,6 +490,7 @@ export async function submitCPInfoResponse(
         status: ChapterPresidentApplicationStatus.SUBMITTED,
       },
     });
+    await syncChapterPresidentApplicationWorkflow(application.id);
 
     try {
       await notifyChapterPresidentApplicationReviewers(session.user.id);

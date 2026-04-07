@@ -45,11 +45,11 @@
   --ypp-purple-100: #f0e6ff;
   --ypp-purple-50: #f3ecff;
 
-  --ypp-pink-600: #db2777;
-  --ypp-pink-500: #ec4899;
-  --ypp-pink-400: #f472b6;
-  --ypp-pink-100: #fce7f3;
-  --ypp-pink-50: #fdf2f8;
+  --ypp-pink-600: #0f766e;
+  --ypp-pink-500: #0d9488;
+  --ypp-pink-400: #2dd4bf;
+  --ypp-pink-100: #ccfbf1;
+  --ypp-pink-50: #f0fdfa;
 
   --ypp-purple: var(--ypp-purple-600);
   --ypp-purple-dark: var(--ypp-purple-800);
@@ -1097,6 +1097,7 @@ a.portal-brand.portal-brand--link:active {
 .pill.pill-declined { background: #f5f5f4; color: #57534e; }
 .pill.pill-info { background: #dbeafe; color: #1e40af; }
 .pill.pill-purple { background: var(--ypp-purple-100); color: var(--ypp-purple-700); }
+.pill.pill-attention { background: #fee2e2; color: #991b1b; }
 
 /* Text color utilities */
 .text-danger { color: #ef4444; }
@@ -1163,6 +1164,72 @@ a.portal-brand.portal-brand--link:active {
   color: var(--muted);
   line-height: 1.6;
   font-size: 14px;
+}
+
+.page-help {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--ypp-purple-50) 0%, var(--ypp-pink-50) 100%);
+  overflow: hidden;
+}
+
+.page-help-summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 14px 16px;
+  font-weight: 700;
+}
+
+.page-help-summary::-webkit-details-marker {
+  display: none;
+}
+
+.page-help-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: white;
+  font-size: 13px;
+}
+
+.page-help-body {
+  display: grid;
+  gap: 14px;
+  padding: 0 16px 16px;
+}
+
+.page-help-body p {
+  margin: 0;
+}
+
+.page-help-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px !important;
+}
+
+.workflow-home-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  background: var(--surface);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.workflow-home-card:hover {
+  border-color: var(--ypp-purple-300);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
 }
 
 /* ============================================

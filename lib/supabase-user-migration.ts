@@ -108,7 +108,9 @@ export async function migrateUsersToSupabaseAuth(options?: {
       if (error) {
         if (error.message?.includes("already been registered")) {
           const { data: listData } = await supabase.auth.admin.listUsers();
-          const existing = listData?.users?.find((candidate) => candidate.email === email);
+          const existing = listData?.users?.find(
+            (candidate: { email?: string | null; id: string }) => candidate.email === email
+          );
 
           if (existing) {
             await prisma.user.update({

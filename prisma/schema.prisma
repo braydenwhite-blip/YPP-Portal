@@ -29,6 +29,64 @@ enum RoleType {
   APPLICANT
 }
 
+enum AdminSubtype {
+  SUPER_ADMIN
+  HIRING_ADMIN
+  MENTORSHIP_ADMIN
+  INTAKE_ADMIN
+  CONTENT_ADMIN
+  COMMUNICATIONS_ADMIN
+}
+
+enum WorkflowKind {
+  INSTRUCTOR_APPLICATION
+  CHAPTER_PRESIDENT_APPLICATION
+  INTERVIEW_DECISION
+  MENTORSHIP_REVIEW
+  MENTORSHIP_CHAIR_APPROVAL
+  MENTORSHIP_AWARD
+  STUDENT_INTAKE
+  CONTENT_APPROVAL
+  NOTIFICATION_ROUTING
+  MESSAGE_ROUTING
+}
+
+enum WorkflowStage {
+  INBOX
+  CHAPTER_REVIEW
+  REVIEW
+  INTERVIEW
+  DECISION
+  CHAIR_REVIEW
+  FINAL_APPROVAL
+  LAUNCH
+  DELIVERY
+  COMPLETE
+  ARCHIVED
+}
+
+enum WorkflowStatus {
+  OPEN
+  IN_PROGRESS
+  BLOCKED
+  COMPLETE
+  CANCELLED
+}
+
+enum WorkflowCommentKind {
+  COMMENT
+  SYSTEM_ASSIGNMENT
+  SYSTEM_STAGE_CHANGE
+  MANUAL_OVERRIDE
+}
+
+enum WorkflowAssignmentTargetType {
+  USER
+  ADMIN_SUBTYPE
+  ROLE
+  SUPER_ADMIN_QUEUE
+}
+
 enum CourseFormat {
   ONE_OFF
   LEVELED
@@ -535,6 +593,8 @@ model Chapter {
   parentChapterFeedbacks       ParentChapterFeedback[]
   parentSurveys                ParentSurvey[]
   studentIntakeCases           StudentIntakeCase[]
+  workflowItems                WorkflowItem[]
+  workflowAssignmentRules      WorkflowAssignmentRule[]
 
   // Governance & Risk
   kpiSnapshots      ChapterKpiSnapshot[]
@@ -676,6 +736,18 @@ model User {
   notificationPreference     NotificationPreference?
   conversationParticipations ConversationParticipant[]
   messagesSent               Message[]                 @relation("MessagesSent")
+  adminSubtypes              UserAdminSubtype[]
+  workflowItemsAssigned      WorkflowItem[]            @relation("WorkflowItemsAssigned")
+  workflowItemsSubject       WorkflowItem[]            @relation("WorkflowItemsSubject")
+  workflowItemsCreated       WorkflowItem[]            @relation("WorkflowItemsCreatedBy")
+  workflowItemsUpdated       WorkflowItem[]            @relation("WorkflowItemsUpdatedBy")
+  workflowItemsOverridden    WorkflowItem[]            @relation("WorkflowItemsManualOverrideBy")
+  workflowCommentsAuthored   WorkflowComment[]         @relation("WorkflowCommentsAuthored")
+  workflowActionItemsOwned   WorkflowActionItem[]      @relation("WorkflowActionItemsOwned")
+  workflowActionItemsCreated WorkflowActionItem[]      @relation("WorkflowActionItemsCreatedBy")
+  workflowAssignmentRuleAssignees WorkflowAssignmentRule[] @relation("WorkflowAssignmentRulesAssigneeUser")
+  workflowAssignmentRulesCreated WorkflowAssignmentRule[]  @relation("WorkflowAssignmentRulesCreatedBy")
+  workflowAssignmentRulesUpdated WorkflowAssignmentRule[]  @relation("WorkflowAssignmentRulesUpdatedBy")
   attendanceRecords          AttendanceRecord[]
   attendanceSessionsCreated  AttendanceSession[]       @relation("AttendanceSessionsCreated")
   resourcesUploaded          Resource[]                @relation("ResourcesUploaded")
@@ -999,6 +1071,117 @@ model UserRole {
   user   User     @relation(fields: [userId], references: [id])
 
   @@id([userId, role])
+}
+
+model UserAdminSubtype {
+  userId          String
+  subtype         AdminSubtype
+  isDefaultOwner  Boolean     @default(false)
+  createdAt       DateTime    @default(now())
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, subtype])
+  @@index([subtype, isDefaultOwner])
+}
+
+model WorkflowItem {
+  id                   String                       @id @default(cuid())
+  kind                 WorkflowKind
+  stage                WorkflowStage                @default(INBOX)
+  status               WorkflowStatus               @default(OPEN)
+  title                String
+  summary              String?
+  href                 String
+  sourceId             String
+  sourceType           String
+  chapterId            String?
+  chapter              Chapter?                     @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  subjectUserId        String?
+  subjectUser          User?                        @relation("WorkflowItemsSubject", fields: [subjectUserId], references: [id], onDelete: SetNull)
+  dueAt                DateTime?
+  assigneeUserId       String?
+  assigneeUser         User?                        @relation("WorkflowItemsAssigned", fields: [assigneeUserId], references: [id], onDelete: SetNull)
+  assigneeSubtype      AdminSubtype?
+  assignmentTargetType WorkflowAssignmentTargetType?
+  allowedAssigneeRole  RoleType?
+  allowedAdminSubtype  AdminSubtype?
+  assignmentReason     String?
+  manualOverrideById   String?
+  manualOverrideBy     User?                        @relation("WorkflowItemsManualOverrideBy", fields: [manualOverrideById], references: [id], onDelete: SetNull)
+  manualOverrideAt     DateTime?
+  lastRoutedAt         DateTime?
+  completedAt          DateTime?
+  createdById          String?
+  createdBy            User?                        @relation("WorkflowItemsCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById          String?
+  updatedBy            User?                        @relation("WorkflowItemsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  comments             WorkflowComment[]
+  actionItems          WorkflowActionItem[]
+  createdAt            DateTime                     @default(now())
+  updatedAt            DateTime                     @updatedAt
+
+  @@unique([sourceType, sourceId, kind])
+  @@index([kind, stage, status])
+  @@index([chapterId, kind, stage, status])
+  @@index([assigneeUserId, status, dueAt])
+  @@index([subjectUserId, status, dueAt])
+}
+
+model WorkflowComment {
+  id             String              @id @default(cuid())
+  workflowItemId String
+  workflowItem   WorkflowItem        @relation(fields: [workflowItemId], references: [id], onDelete: Cascade)
+  authorId       String?
+  author         User?               @relation("WorkflowCommentsAuthored", fields: [authorId], references: [id], onDelete: SetNull)
+  kind           WorkflowCommentKind @default(COMMENT)
+  body           String
+  createdAt      DateTime            @default(now())
+
+  @@index([workflowItemId, createdAt])
+}
+
+model WorkflowActionItem {
+  id             String         @id @default(cuid())
+  workflowItemId String
+  workflowItem   WorkflowItem   @relation(fields: [workflowItemId], references: [id], onDelete: Cascade)
+  title          String
+  details        String?
+  status         WorkflowStatus @default(OPEN)
+  dueAt          DateTime?
+  ownerId        String?
+  owner          User?          @relation("WorkflowActionItemsOwned", fields: [ownerId], references: [id], onDelete: SetNull)
+  createdById    String?
+  createdBy      User?          @relation("WorkflowActionItemsCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  completedAt    DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([workflowItemId, status])
+  @@index([ownerId, status, dueAt])
+}
+
+model WorkflowAssignmentRule {
+  id              String                        @id @default(cuid())
+  kind            WorkflowKind
+  stage           WorkflowStage
+  chapterId       String?
+  chapter         Chapter?                      @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  priority        Int                           @default(0)
+  isActive        Boolean                       @default(true)
+  assigneeUserId  String?
+  assigneeUser    User?                         @relation("WorkflowAssignmentRulesAssigneeUser", fields: [assigneeUserId], references: [id], onDelete: SetNull)
+  assigneeSubtype AdminSubtype?
+  assigneeRole    RoleType?
+  note            String?
+  createdById     String?
+  createdBy       User?                         @relation("WorkflowAssignmentRulesCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById     String?
+  updatedBy       User?                         @relation("WorkflowAssignmentRulesUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt       DateTime                      @default(now())
+  updatedAt       DateTime                      @updatedAt
+
+  @@index([kind, stage, chapterId, isActive, priority])
+  @@index([assigneeSubtype, isActive])
 }
 
 model PasswordResetToken {

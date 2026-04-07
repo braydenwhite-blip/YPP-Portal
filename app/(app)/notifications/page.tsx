@@ -1,13 +1,14 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import {
-  getNotifications,
-  markAsRead,
-  markAllAsRead,
   deleteNotification,
+  getNotifications,
+  markAllAsRead,
+  markAsRead,
 } from "@/lib/notification-actions";
-import Link from "next/link";
 import { listNotificationPolicies } from "@/lib/notification-policy";
+import PageHelp from "@/components/page-help";
 
 function getTypeIcon(type: string): string {
   switch (type) {
@@ -101,30 +102,37 @@ export default async function NotificationsPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Notifications</h1>
-          {unreadCount > 0 && (
-            <p className="badge">{unreadCount} unread</p>
-          )}
+          <p style={{ marginTop: 4, fontSize: 13, color: "var(--text-secondary)" }}>
+            Important alerts stay fixed by policy so critical updates are not accidentally turned off.
+          </p>
         </div>
         <div className="header-actions">
-          {unreadCount > 0 && (
+          {unreadCount > 0 ? <span className="badge">{unreadCount} unread</span> : null}
+          {unreadCount > 0 ? (
             <form action={markAllAsRead}>
               <button type="submit" className="btn btn-secondary">
                 Mark All Read
               </button>
             </form>
-          )}
+          ) : null}
         </div>
       </div>
 
+      <PageHelp
+        purpose="This page keeps a dated record of your portal alerts and the fixed delivery rules behind them."
+        firstStep="Read the unread items first, especially anything tied to interviews, approvals, reviews, or deadlines."
+        nextStep="When you clear an alert here, the system keeps the history but stops showing it as active work."
+      />
+
       {notifications.length === 0 ? (
-        <div className="card">
+        <div className="card" style={{ marginTop: 16 }}>
           <p className="empty">
             You have no notifications. When you receive announcements, mentor
             feedback, goal reminders, or other updates they will appear here.
           </p>
         </div>
       ) : (
-        <div className="notification-list">
+        <div className="notification-list" style={{ marginTop: 16 }}>
           {notifications.map((notification) => (
             <div
               key={notification.id}
@@ -143,7 +151,6 @@ export default async function NotificationsPage() {
                   alignItems: "flex-start",
                 }}
               >
-                {/* Icon */}
                 <div
                   style={{
                     fontFamily: "monospace",
@@ -157,7 +164,6 @@ export default async function NotificationsPage() {
                   {getTypeIcon(notification.type)}
                 </div>
 
-                {/* Content */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
                     style={{
@@ -189,7 +195,7 @@ export default async function NotificationsPage() {
                       </span>
                     )}
                     <span className="badge">{getTypeLabel(notification.type)}</span>
-                    {!notification.isRead && (
+                    {!notification.isRead ? (
                       <span
                         style={{
                           display: "inline-block",
@@ -200,7 +206,7 @@ export default async function NotificationsPage() {
                           flexShrink: 0,
                         }}
                       />
-                    )}
+                    ) : null}
                   </div>
 
                   <p
@@ -238,24 +244,16 @@ export default async function NotificationsPage() {
                         marginLeft: "auto",
                       }}
                     >
-                      {!notification.isRead && (
+                      {!notification.isRead ? (
                         <form action={markAsRead}>
-                          <input
-                            type="hidden"
-                            name="id"
-                            value={notification.id}
-                          />
+                          <input type="hidden" name="id" value={notification.id} />
                           <button type="submit" className="btn btn-primary">
                             Mark Read
                           </button>
                         </form>
-                      )}
+                      ) : null}
                       <form action={deleteNotification}>
-                        <input
-                          type="hidden"
-                          name="id"
-                          value={notification.id}
-                        />
+                        <input type="hidden" name="id" value={notification.id} />
                         <button type="submit" className="btn btn-secondary">
                           Delete
                         </button>

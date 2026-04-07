@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-
 import { getSession } from "@/lib/auth-supabase";
 import { getParentStudentIntakeCase, submitStudentIntakeCase } from "@/lib/student-intake-actions";
 import { getStudentIntakeStatusMeta } from "@/lib/student-intake-shared";

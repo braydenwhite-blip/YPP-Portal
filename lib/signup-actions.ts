@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createServiceClient } from "@/lib/supabase/server";
 import { RoleType } from "@prisma/client";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { syncInstructorApplicationWorkflow } from "@/lib/workflow";
 import { instructorApplicationSchema, type InstructorApplicationInput } from "@/lib/application-schemas";
 
 type FormState = {
@@ -183,7 +184,7 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
 
     // If applicant, create the InstructorApplication record with all fields
     if (primaryRole === RoleType.APPLICANT && instructorApplicationInput) {
-      await prisma.instructorApplication.create({
+      const application = await prisma.instructorApplication.create({
         data: {
           applicantId: newUser.id,
           motivation: instructorApplicationInput.motivation || null,
@@ -217,6 +218,7 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
           ethnicity: instructorApplicationInput.ethnicity || null,
         },
       });
+      await syncInstructorApplicationWorkflow(application.id);
     }
 
     // Notify reviewers of new applicant (non-blocking)

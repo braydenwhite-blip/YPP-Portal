@@ -24,7 +24,8 @@ export default function SecuritySettingsPage() {
   useEffect(() => {
     async function checkMfaStatus() {
       const { data } = await supabase.auth.mfa.listFactors();
-      const activeTotpFactors = data?.totp?.filter((f) => f.status === "verified") ?? [];
+      const activeTotpFactors =
+        data?.totp?.filter((factor: { status?: string; id: string }) => factor.status === "verified") ?? [];
       setHas2FA(activeTotpFactors.length > 0);
       if (activeTotpFactors.length > 0) {
         setFactorId(activeTotpFactors[0].id);

@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
+import { RoleType } from "@prisma/client";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
-import { RoleType } from "@prisma/client";
-import InstructorKanbanBoard from "./kanban-board";
+import PageHelp from "@/components/page-help";
 import InstructorApplicantsClient from "./client";
+import InstructorKanbanBoard from "./kanban-board";
 
 export default async function AdminInstructorApplicantsPage() {
   const session = await getSession();
@@ -11,9 +12,10 @@ export default async function AdminInstructorApplicantsPage() {
   const isAdmin = roles.includes("ADMIN");
   const isChapterPresident = roles.includes("CHAPTER_PRESIDENT");
 
-  if (!isAdmin && !isChapterPresident) redirect("/");
+  if (!isAdmin && !isChapterPresident) {
+    redirect("/");
+  }
 
-  // For chapter presidents, scope to their chapter
   let chapterFilter: Record<string, unknown> | undefined;
   if (isChapterPresident && !isAdmin) {
     const currentUser = await prisma.user.findUnique({
@@ -25,7 +27,6 @@ export default async function AdminInstructorApplicantsPage() {
     }
   }
 
-  // Fetch all applications and reviewers in parallel
   const [applications, reviewerUsers] = await Promise.all([
     prisma.instructorApplication.findMany({
       where: chapterFilter ?? {},
@@ -55,7 +56,6 @@ export default async function AdminInstructorApplicantsPage() {
     }),
   ]);
 
-  // Serialize dates for client component
   const serialized = applications.map((app) => ({
     ...app,
     createdAt: app.createdAt.toISOString(),
@@ -66,15 +66,14 @@ export default async function AdminInstructorApplicantsPage() {
     actionDueDate: app.actionDueDate?.toISOString() ?? null,
   }));
 
-  // KPI counts
-  const pending = applications.filter((a) =>
-    ["SUBMITTED", "UNDER_REVIEW", "INFO_REQUESTED"].includes(a.status)
+  const pending = applications.filter((application) =>
+    ["SUBMITTED", "UNDER_REVIEW", "INFO_REQUESTED"].includes(application.status)
   ).length;
-  const interviewing = applications.filter((a) =>
-    ["INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED"].includes(a.status)
+  const interviewing = applications.filter((application) =>
+    ["INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED"].includes(application.status)
   ).length;
-  const onHold = applications.filter((a) => a.status === "ON_HOLD").length;
-  const accepted = applications.filter((a) => a.status === "APPROVED").length;
+  const onHold = applications.filter((application) => application.status === "ON_HOLD").length;
+  const accepted = applications.filter((application) => application.status === "APPROVED").length;
 
   return (
     <div className="page-shell">
@@ -83,7 +82,7 @@ export default async function AdminInstructorApplicantsPage() {
           <span className="badge">{isAdmin ? "Admin" : "Chapter President"}</span>
           <h1 className="page-title">Instructor Applicants</h1>
           <p className="page-subtitle">
-            Review, evaluate, and manage instructor applications.
+            Review candidates in a stage-based board with action dates, reviewer ownership, and clearer decision details.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -91,8 +90,13 @@ export default async function AdminInstructorApplicantsPage() {
         </div>
       </div>
 
-      {/* KPI cards */}
-      <div className="grid four" style={{ marginBottom: 20 }}>
+      <PageHelp
+        purpose="This page is the shared hiring board for instructor applications from first review through final decision."
+        firstStep="Open the oldest cards first, check the deadline to action, and confirm the assigned reviewer before changing status."
+        nextStep="When a card moves stages, the shared workflow routing updates so the next owner sees it in their queue."
+      />
+
+      <div className="grid four" style={{ marginTop: 20, marginBottom: 20 }}>
         <div className="card kpi">
           <div className="kpi-value">{pending}</div>
           <div className="kpi-label">Pending Review</div>
@@ -111,11 +115,7 @@ export default async function AdminInstructorApplicantsPage() {
         </div>
       </div>
 
-      {/* Kanban board */}
-      <InstructorKanbanBoard
-        applications={serialized as any}
-        reviewers={reviewerUsers}
-      />
+      <InstructorKanbanBoard applications={serialized as any} reviewers={reviewerUsers} />
     </div>
   );
 }

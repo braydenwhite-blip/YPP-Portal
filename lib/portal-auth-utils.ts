@@ -127,7 +127,8 @@ export async function ensureSupabaseAuthUser(params: EnsureSupabaseAuthUserParam
     }
 
     const existingAuthUser = listData?.users?.find(
-      (candidate) => candidate.email?.toLowerCase() === params.email.toLowerCase()
+      (candidate: { email?: string | null; id: string }) =>
+        candidate.email?.toLowerCase() === params.email.toLowerCase()
     );
 
     if (existingAuthUser) {

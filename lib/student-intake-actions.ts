@@ -10,6 +10,7 @@ import { getSession } from "@/lib/auth-supabase";
 import { createBulkSystemNotifications, createSystemNotification } from "@/lib/notification-actions";
 import { prisma } from "@/lib/prisma";
 import { createServiceClient } from "@/lib/supabase/server";
+import { syncStudentIntakeWorkflow } from "@/lib/workflow";
 
 function getString(formData: FormData, key: string, required = true) {
   const value = formData.get(key);
@@ -215,7 +216,7 @@ async function ensureStudentUserFromIntake(params: {
 
   let studentUserId = existingUser?.id ?? null;
 
-  async function ensureSupabaseAuthUser(params: {
+  async function ensureSupabaseAuthUser(input: {
     prismaUserId?: string | null;
     name: string;
     chapterId: string;
@@ -234,11 +235,11 @@ async function ensureStudentUserFromIntake(params: {
       password_hash: passwordHash,
       email_confirm: true,
       user_metadata: {
-        name: params.name,
+        name: input.name,
         primaryRole: RoleType.STUDENT,
-        chapterId: params.chapterId,
+        chapterId: input.chapterId,
         roles: [RoleType.STUDENT],
-        prismaUserId: params.prismaUserId ?? null,
+        prismaUserId: input.prismaUserId ?? null,
       },
     });
 
@@ -255,7 +256,8 @@ async function ensureStudentUserFromIntake(params: {
       }
 
       const existingAuthUser = listData.users.find(
-        (candidate) => candidate.email?.trim().toLowerCase() === normalizedEmail
+        (candidate: { email?: string | null; id: string }) =>
+          candidate.email?.trim().toLowerCase() === normalizedEmail
       );
 
       if (!existingAuthUser) {
@@ -601,6 +603,7 @@ export async function createStudentIntakeCase(formData: FormData) {
     body: "Your student journey draft is ready for one last review before submission.",
     createdById: session.user.id,
   });
+  await syncStudentIntakeWorkflow(intakeCase.id);
 
   revalidatePath("/parent");
   revalidatePath("/parent/connect");
@@ -664,6 +667,7 @@ export async function submitStudentIntakeCase(formData: FormData) {
     `Your intake case for ${intakeCase.studentName} was submitted and is waiting for chapter review.`,
     `/parent/student-intake/${caseId}`
   );
+  await syncStudentIntakeWorkflow(caseId);
 
   revalidatePath("/parent");
   revalidatePath(`/parent/student-intake/${caseId}`);
@@ -715,6 +719,7 @@ export async function updateStudentIntakeCaseStatus(formData: FormData) {
       `/parent/student-intake/${caseId}`
     );
   }
+  await syncStudentIntakeWorkflow(caseId);
 
   revalidatePath("/chapter");
   revalidatePath("/chapter/student-intake");
@@ -734,6 +739,7 @@ export async function launchStudentIntakeMentorPlan(formData: FormData | string)
     intakeCaseId: caseId,
     reviewerId: reviewer.user.id,
   });
+  await syncStudentIntakeWorkflow(caseId);
 
   revalidatePath("/chapter");
   revalidatePath("/chapter/student-intake");
@@ -798,6 +804,7 @@ export async function approveStudentIntakeCase(formData: FormData) {
     `${intakeCase.studentName}'s intake was approved. The chapter has started the next support steps.`,
     `/parent/student-intake/${caseId}`
   );
+  await syncStudentIntakeWorkflow(caseId);
 
   revalidatePath("/parent");
   revalidatePath(`/parent/student-intake/${caseId}`);
@@ -850,6 +857,7 @@ export async function rejectStudentIntakeCase(formData: FormData) {
     `${intakeCase.chapter.name} updated ${intakeCase.studentName}'s intake case and added a follow-up step.`,
     `/parent/student-intake/${caseId}`
   );
+  await syncStudentIntakeWorkflow(caseId);
 
   revalidatePath("/parent");
   revalidatePath(`/parent/student-intake/${caseId}`);

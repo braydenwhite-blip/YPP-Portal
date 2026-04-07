@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { getClassTemplateCapabilities } from "@/lib/class-template-compat";
+import { syncCurriculumApprovalWorkflow } from "@/lib/workflow";
 import { createOrUpdateStudioLaunchPackage } from "@/lib/curriculum-draft-launch-actions";
 import {
   emptyReviewRubric,
@@ -234,6 +235,8 @@ export async function approveCurriculum(formData: FormData) {
     reviewRubric,
   });
 
+  await syncCurriculumApprovalWorkflow(id);
+
   revalidateCurriculumReviewSurfaces();
 }
 
@@ -277,6 +280,8 @@ export async function requestCurriculumRevision(formData: FormData) {
     reviewNotes,
     reviewRubric,
   });
+
+  await syncCurriculumApprovalWorkflow(id);
 
   revalidateCurriculumReviewSurfaces();
 }
