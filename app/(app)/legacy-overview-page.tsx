@@ -7,6 +7,9 @@ import { WorldPreviewCard } from "@/components/world-preview-card";
 import Link from "next/link";
 import { getNextRequiredAction } from "@/lib/instructor-readiness";
 import { getLearnerFitSummary } from "@/lib/learner-fit";
+import { normalizeRoleSet } from "@/lib/authorization";
+import { RoleType } from "@prisma/client";
+import { whereUserHasRole } from "@/lib/user-role-where";
 
 export default async function OverviewPage() {
   const session = await getSession();
@@ -28,7 +31,9 @@ export default async function OverviewPage() {
       })
     : null;
 
-  const roles = user?.roles.map((role) => role.role) ?? [];
+  const roles = user
+    ? Array.from(normalizeRoleSet(user.roles, user.primaryRole))
+    : [];
   const isAdmin = roles.includes("ADMIN") || roles.includes("STAFF");
   const isInstructor = roles.includes("INSTRUCTOR");
   const isStudent = roles.includes("STUDENT");
@@ -56,8 +61,8 @@ export default async function OverviewPage() {
   const globalStats = isAdmin
     ? await Promise.all([
         prisma.user.count(),
-        prisma.user.count({ where: { primaryRole: "INSTRUCTOR" } }),
-        prisma.user.count({ where: { primaryRole: "STUDENT" } }),
+        prisma.user.count({ where: whereUserHasRole(RoleType.INSTRUCTOR) }),
+        prisma.user.count({ where: whereUserHasRole(RoleType.STUDENT) }),
         prisma.pathway.count(),
         prisma.course.count(),
         prisma.enrollment.count(),
