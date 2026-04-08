@@ -6,6 +6,15 @@ import { sendAccountSetupEmail } from "@/lib/email";
 import { ensureSupabaseAuthUser, generateSupabaseRecoveryLink } from "@/lib/portal-auth-utils";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/rate-limit";
+import {
+  parseOptionalPhone,
+  parseRequiredDateOfBirth,
+  parseRequiredEmail,
+  parseRequiredHumanName,
+  parseRequiredPhone,
+  parseRequiredSchool,
+  parseRequiredStudentGrade,
+} from "@/lib/student-profile";
 
 type FormState = {
   status: "idle" | "error" | "success";
@@ -25,18 +34,6 @@ function getString(formData: FormData, key: string, required = true) {
     throw new Error(`Missing ${key}`);
   }
   return value ? String(value).trim() : "";
-}
-
-function getOptionalInt(formData: FormData, key: string) {
-  const value = getString(formData, key, false);
-  if (!value) return null;
-
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed)) {
-    throw new Error(`Invalid ${key}`);
-  }
-
-  return parsed;
 }
 
 function hasRole(user: PortalUser, role: RoleType) {
@@ -147,6 +144,7 @@ async function syncStudentUser(params: {
   parentEmail: string;
   parentPhone: string;
   phone: string | null;
+  school: string;
   stateProvince: string;
   studentUsesParentPhone: boolean;
   supabaseAuthId: string;
@@ -195,6 +193,7 @@ async function syncStudentUser(params: {
     where: { userId: user.id },
     update: {
       grade: params.grade,
+      school: params.school,
       parentEmail: params.parentEmail,
       parentPhone: params.parentPhone,
       dateOfBirth: params.dateOfBirth,
@@ -206,6 +205,7 @@ async function syncStudentUser(params: {
       userId: user.id,
       interests: [],
       grade: params.grade,
+      school: params.school,
       parentEmail: params.parentEmail,
       parentPhone: params.parentPhone,
       dateOfBirth: params.dateOfBirth,
@@ -226,13 +226,14 @@ export async function signUpFamily(
   formData: FormData
 ): Promise<FormState> {
   try {
-    const parentName = getString(formData, "parentName");
-    const parentEmail = getString(formData, "parentEmail").toLowerCase();
-    const parentPhone = getString(formData, "parentPhone");
-    const studentName = getString(formData, "studentName");
-    const studentEmail = getString(formData, "studentEmail").toLowerCase();
-    const studentDateOfBirth = getString(formData, "studentDateOfBirth");
-    const studentGrade = getOptionalInt(formData, "studentGrade");
+    const parentName = parseRequiredHumanName(getString(formData, "parentName", false), "Parent full name");
+    const parentEmail = parseRequiredEmail(getString(formData, "parentEmail", false), "parent email");
+    const parentPhone = parseRequiredPhone(getString(formData, "parentPhone", false), "parent phone");
+    const studentName = parseRequiredHumanName(getString(formData, "studentName", false), "Student full name");
+    const studentEmail = parseRequiredEmail(getString(formData, "studentEmail", false), "student email");
+    const studentDateOfBirth = parseRequiredDateOfBirth(getString(formData, "studentDateOfBirth", false), "student date of birth");
+    const studentGrade = parseRequiredStudentGrade(getString(formData, "studentGrade", false));
+    const studentSchool = parseRequiredSchool(getString(formData, "studentSchool", false));
     const chapterId = getString(formData, "chapterId");
     const city = getString(formData, "city");
     const stateProvince = getString(formData, "stateProvince");
@@ -240,14 +241,7 @@ export async function signUpFamily(
     const studentPhoneInput = getString(formData, "studentPhone", false);
     const studentPhone = studentUsesParentPhone
       ? parentPhone
-      : studentPhoneInput || null;
-
-    if (studentGrade === null || studentGrade < 1 || studentGrade > 16) {
-      return {
-        status: "error",
-        message: "Please enter a grade between 1 and 16.",
-      };
-    }
+      : parseOptionalPhone(studentPhoneInput, "student phone");
 
     if (parentEmail === studentEmail) {
       return {
@@ -367,6 +361,7 @@ export async function signUpFamily(
       chapterId,
       supabaseAuthId: studentSupabaseAuthId,
       grade: studentGrade,
+      school: studentSchool,
       dateOfBirth: studentDateOfBirth,
       city,
       stateProvince,
@@ -442,6 +437,13 @@ export async function signUpFamily(
       message: "FAMILY_SETUP_SENT",
     };
   } catch (error) {
+    if (error instanceof Error && error.message) {
+      return {
+        status: "error",
+        message: error.message,
+      };
+    }
+
     console.error("[FamilySignup] Unexpected error:", error);
     return {
       status: "error",

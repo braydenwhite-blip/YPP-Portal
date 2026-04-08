@@ -4,6 +4,12 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { updateProfile, updateBasicInfo } from "@/lib/profile-actions";
 import FileUpload from "@/components/file-upload";
+import {
+  STUDENT_GRADE_OPTIONS,
+  STUDENT_INTEREST_OPTIONS,
+  STUDENT_LEARNING_STYLE_OPTIONS,
+  STUDENT_PRIMARY_GOAL_OPTIONS,
+} from "@/lib/student-profile";
 
 export default async function ProfilePage() {
   const session = await getSession();
@@ -41,18 +47,12 @@ export default async function ProfilePage() {
   const isInstructor = roles.includes("INSTRUCTOR");
   const isStudent = roles.includes("STUDENT");
 
-  const interestAreas = [
-    "Psychology",
-    "Business",
-    "Technology",
-    "Arts",
-    "Sciences",
-    "Medicine",
-    "Law",
-    "Education",
-    "Engineering",
-    "Other"
-  ];
+  const interestAreas = Array.from(
+    new Set([
+      ...STUDENT_INTEREST_OPTIONS.map((option) => option.value),
+      ...(user.profile?.interests ?? []),
+    ])
+  );
 
   return (
     <div>
@@ -168,7 +168,7 @@ export default async function ProfilePage() {
                   <label>Grade Level</label>
                   <select name="grade" className="input" defaultValue={user.profile?.grade || ""}>
                     <option value="">Select grade...</option>
-                    {[6, 7, 8, 9, 10, 11, 12].map(g => (
+                    {STUDENT_GRADE_OPTIONS.map(g => (
                       <option key={g} value={g}>
                         Grade {g}
                       </option>
@@ -184,6 +184,28 @@ export default async function ProfilePage() {
                     defaultValue={user.profile?.school || ""}
                     placeholder="Your school name"
                   />
+                </div>
+                <div className="form-row">
+                  <label>How you learn best</label>
+                  <select name="learningStyle" className="input" defaultValue={user.profile?.learningStyle || ""}>
+                    <option value="">Select one...</option>
+                    {STUDENT_LEARNING_STYLE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-row">
+                  <label>Main goal right now</label>
+                  <select name="primaryGoal" className="input" defaultValue={user.profile?.primaryGoal || ""}>
+                    <option value="">Select one...</option>
+                    {STUDENT_PRIMARY_GOAL_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="form-row">
                   <label>Parent/Guardian Email</label>
@@ -209,9 +231,9 @@ export default async function ProfilePage() {
             )}
 
             <div className="form-row">
-              <label>Interests</label>
-              <div className="checkbox-grid">
-                {interestAreas.map(area => (
+                  <label>Interests</label>
+                  <div className="checkbox-grid">
+                    {interestAreas.map(area => (
                   <label key={area} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <input
                       type="checkbox"

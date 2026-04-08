@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
+import { normalizeRoleList } from "@/lib/authorization";
 
 export async function getChapterCalendarActor() {
   const session = await getSession();
@@ -19,7 +20,7 @@ export async function getChapterCalendarActor() {
     throw new Error("User not found");
   }
 
-  const roles = new Set(user.roles.map((role) => role.role));
+  const roles = new Set(normalizeRoleList(user.roles, user.primaryRole));
   const isAdmin = roles.has("ADMIN");
   const isChapterLead = roles.has("CHAPTER_PRESIDENT");
 

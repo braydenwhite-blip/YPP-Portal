@@ -23,6 +23,7 @@ import ApplicationProgressStepper from "@/components/application-progress-steppe
 import AddToCalendarButton from "@/components/add-to-calendar-button";
 import ReviewerInterviewNoteForm from "@/components/reviewer-interview-note-form";
 import ReviewerDecisionForm from "@/components/reviewer-decision-form";
+import { normalizeRoleList } from "@/lib/authorization";
 
 function formatStatus(status: string) {
   return status.replace(/_/g, " ");
@@ -108,6 +109,7 @@ export default async function ApplicationWorkspacePage({
     select: {
       id: true,
       chapterId: true,
+      primaryRole: true,
       roles: { select: { role: true } },
     },
   });
@@ -165,7 +167,7 @@ export default async function ApplicationWorkspacePage({
     notFound();
   }
 
-  const roles = currentUser.roles.map((role) => role.role);
+  const roles = normalizeRoleList(currentUser.roles, currentUser.primaryRole);
   const isAdmin = roles.includes("ADMIN");
   const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
   const enabledFeatureKeys = await getEnabledFeatureKeysForUser({

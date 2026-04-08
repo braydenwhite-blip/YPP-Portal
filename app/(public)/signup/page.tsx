@@ -150,10 +150,15 @@ export default function FamilySignupPage() {
                 <input className="input" name="studentDateOfBirth" type="date" required />
               </label>
               <label className="form-label">
-                Grade
-                <input className="input" name="studentGrade" type="number" min={1} max={16} placeholder="e.g. 9" required />
+                Grade for current academic year
+                <input className="input" name="studentGrade" type="number" min={1} max={12} placeholder="e.g. 9" required />
               </label>
             </div>
+
+            <label className="form-label">
+              Student school
+              <input className="input" name="studentSchool" placeholder="e.g. Lincoln High School" required />
+            </label>
 
             <label className="form-label">
               Student phone

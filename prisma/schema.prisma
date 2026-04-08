@@ -1257,6 +1257,8 @@ model UserProfile {
   avatarUrl          String?
   curriculumUrl      String?
   interests          String[]
+  learningStyle      String?
+  primaryGoal        String?
   grade              Int?
   school             String?
   parentEmail        String?

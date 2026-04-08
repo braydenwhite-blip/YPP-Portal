@@ -8,6 +8,7 @@ import {
   setUserFeatureGateRule,
 } from "@/lib/feature-gates";
 import { FEATURE_KEYS, FEATURE_KEY_DEFAULTS } from "@/lib/feature-gate-constants";
+import { normalizeRoleList } from "@/lib/authorization";
 
 type FeatureAccessSearchParams = {
   q?: string;
@@ -84,7 +85,7 @@ export default async function AdminFeatureGatesPage({
           await getEnabledFeatureKeysForUser({
             userId: user.id,
             chapterId: user.chapterId,
-            roles: user.roles.map((role) => role.role),
+            roles: normalizeRoleList(user.roles, user.primaryRole),
             primaryRole: user.primaryRole,
           })
         ),
