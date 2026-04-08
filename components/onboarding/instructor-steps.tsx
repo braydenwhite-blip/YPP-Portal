@@ -18,6 +18,7 @@ interface InstructorStepsProps {
     detail: string;
     href: string;
   } | null;
+  formError?: string | null;
   onNext: () => void;
   onBack: () => void;
   onProfileSave: (formData: FormData) => void;
@@ -31,6 +32,7 @@ export default function InstructorSteps({
   chapterName,
   profileData,
   nextReadinessAction,
+  formError,
   onNext,
   onBack,
   onProfileSave,
@@ -168,6 +170,8 @@ export default function InstructorSteps({
               defaultValue={profileData?.curriculumUrl ?? ""}
             />
           </div>
+
+          {formError ? <div className="form-error">{formError}</div> : null}
 
           <div className="onboarding-actions">
             <button type="submit" className="button" disabled={isPending}>

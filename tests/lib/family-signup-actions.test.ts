@@ -27,6 +27,7 @@ function buildFamilyFormData() {
   formData.set("studentEmail", "student@example.com");
   formData.set("studentDateOfBirth", "2010-04-01");
   formData.set("studentGrade", "9");
+  formData.set("studentSchool", "Lincoln High School");
   formData.set("chapterId", "chapter-1");
   formData.set("city", "Phoenix");
   formData.set("stateProvince", "Arizona");
@@ -104,6 +105,7 @@ describe("signUpFamily", () => {
     expect((prisma as any).userProfile.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         update: expect.objectContaining({
+          school: "Lincoln High School",
           dateOfBirth: "2010-04-01",
           city: "Phoenix",
           stateProvince: "Arizona",
@@ -195,6 +197,30 @@ describe("signUpFamily", () => {
     expect(result).toEqual({
       status: "error",
       message: "That student email already belongs to a non-student account. Please use a different student email address.",
+    });
+  });
+
+  it("requires the student school during family signup", async () => {
+    const formData = buildFamilyFormData();
+    formData.delete("studentSchool");
+
+    const result = await signUpFamily(initialState(), formData);
+
+    expect(result).toEqual({
+      status: "error",
+      message: "Please enter the student's school.",
+    });
+  });
+
+  it("rejects names that do not look real", async () => {
+    const formData = buildFamilyFormData();
+    formData.set("studentName", "12345");
+
+    const result = await signUpFamily(initialState(), formData);
+
+    expect(result).toEqual({
+      status: "error",
+      message: "Student full name should look like a real name.",
     });
   });
 });

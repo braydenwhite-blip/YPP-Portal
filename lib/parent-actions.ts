@@ -7,6 +7,14 @@ import { ensureSupabaseAuthUser, updateSupabasePortalUser } from "@/lib/portal-a
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
+import {
+  parseOptionalPhone,
+  parseRequiredDateOfBirth,
+  parseRequiredEmail,
+  parseRequiredHumanName,
+  parseRequiredSchool,
+  parseRequiredStudentGrade,
+} from "@/lib/student-profile";
 
 export type ManagedStudentFormState = {
   status: "idle" | "error" | "success";
@@ -40,18 +48,6 @@ function getString(formData: FormData, key: string, required = true) {
     throw new Error(`Missing ${key}`);
   }
   return value ? String(value).trim() : "";
-}
-
-function getOptionalInt(formData: FormData, key: string) {
-  const value = getString(formData, key, false);
-  if (!value) return null;
-
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed)) {
-    throw new Error(`Invalid ${key}`);
-  }
-
-  return parsed;
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -595,19 +591,16 @@ export async function updateManagedStudentProfile(
     const parentEmail = session.user.email?.toLowerCase() ?? "";
 
     const studentId = getString(formData, "studentId");
-    const studentName = getString(formData, "studentName");
-    const studentEmail = getString(formData, "studentEmail").toLowerCase();
-    const studentDateOfBirth = getString(formData, "studentDateOfBirth");
-    const studentGrade = getOptionalInt(formData, "studentGrade");
+    const studentName = parseRequiredHumanName(getString(formData, "studentName", false), "Student full name");
+    const studentEmail = parseRequiredEmail(getString(formData, "studentEmail", false), "student email");
+    const studentDateOfBirth = parseRequiredDateOfBirth(getString(formData, "studentDateOfBirth", false), "student date of birth");
+    const studentGrade = parseRequiredStudentGrade(getString(formData, "studentGrade", false));
+    const studentSchool = parseRequiredSchool(getString(formData, "studentSchool", false));
     const chapterId = getString(formData, "chapterId");
     const city = getString(formData, "city");
     const stateProvince = getString(formData, "stateProvince");
     const studentUsesParentPhone = formData.get("studentUsesParentPhone") === "on";
     const studentPhoneInput = getString(formData, "studentPhone", false);
-
-    if (studentGrade === null || studentGrade < 1 || studentGrade > 16) {
-      throw new Error("Grade must be between 1 and 16.");
-    }
 
     const managedLink = await getApprovedManagedStudentLink(parentId, studentId);
     if (!managedLink) {
@@ -638,7 +631,7 @@ export async function updateManagedStudentProfile(
 
     const studentPhone = studentUsesParentPhone
       ? managedLink.parent.phone
-      : studentPhoneInput || null;
+      : parseOptionalPhone(studentPhoneInput, "student phone");
 
     const supabaseAuthId = await ensureSupabaseAuthUser({
       email: studentEmail,
@@ -666,6 +659,7 @@ export async function updateManagedStudentProfile(
       where: { userId: studentId },
       update: {
         grade: studentGrade,
+        school: studentSchool,
         parentEmail: managedLink.parent.email,
         parentPhone: managedLink.parent.phone,
         dateOfBirth: studentDateOfBirth,
@@ -677,6 +671,7 @@ export async function updateManagedStudentProfile(
         userId: studentId,
         interests: [],
         grade: studentGrade,
+        school: studentSchool,
         parentEmail: managedLink.parent.email,
         parentPhone: managedLink.parent.phone,
         dateOfBirth: studentDateOfBirth,

@@ -26,6 +26,7 @@ type ParentStudentManagementPanelProps = {
       city: string | null;
       dateOfBirth: string | null;
       grade: number | null;
+      school: string | null;
       stateProvince: string | null;
       usesParentPhone: boolean;
     };
@@ -79,12 +80,23 @@ export default function ParentStudentManagementPanel({
                 name="studentGrade"
                 type="number"
                 min={1}
-                max={16}
+                max={12}
                 defaultValue={student.profile.grade ?? ""}
                 required
               />
             </label>
           </div>
+
+          <label className="form-label">
+            Student school
+            <input
+              className="input"
+              name="studentSchool"
+              defaultValue={student.profile.school ?? ""}
+              placeholder="e.g. Lincoln High School"
+              required
+            />
+          </label>
 
           <label className="form-label">
             Student phone

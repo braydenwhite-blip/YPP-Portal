@@ -237,6 +237,7 @@ export default async function ParentStudentDetailPage({
           profile: {
             dateOfBirth: data.student.profile.dateOfBirth,
             grade: data.student.profile.grade,
+            school: data.student.profile.school,
             city: data.student.profile.city,
             stateProvince: data.student.profile.stateProvince,
             usesParentPhone: data.student.profile.usesParentPhone,

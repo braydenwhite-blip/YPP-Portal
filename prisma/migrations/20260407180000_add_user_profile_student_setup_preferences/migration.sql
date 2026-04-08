@@ -1,0 +1,5 @@
+ALTER TABLE "UserProfile"
+ADD COLUMN IF NOT EXISTS "learningStyle" TEXT;
+
+ALTER TABLE "UserProfile"
+ADD COLUMN IF NOT EXISTS "primaryGoal" TEXT;

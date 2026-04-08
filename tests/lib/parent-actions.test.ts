@@ -26,6 +26,7 @@ function buildUpdateFormData() {
   formData.set("studentEmail", "student@example.com");
   formData.set("studentDateOfBirth", "2010-04-01");
   formData.set("studentGrade", "9");
+  formData.set("studentSchool", "Lincoln High School");
   formData.set("chapterId", "chapter-1");
   formData.set("city", "Phoenix");
   formData.set("stateProvince", "Arizona");
@@ -120,6 +121,7 @@ describe("parent managed student actions", () => {
     expect((prisma as any).userProfile.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         update: expect.objectContaining({
+          school: "Lincoln High School",
           dateOfBirth: "2010-04-01",
           city: "Phoenix",
           stateProvince: "Arizona",
@@ -137,6 +139,20 @@ describe("parent managed student actions", () => {
     expect(result).toEqual({
       status: "error",
       message: "You do not have permission to update this student.",
+    });
+  });
+
+  it("rejects out-of-range grades for managed students", async () => {
+    (prisma as any).parentStudent.findFirst.mockResolvedValue(buildManagedLink());
+
+    const formData = buildUpdateFormData();
+    formData.set("studentGrade", "13");
+
+    const result = await updateManagedStudentProfile(initialState, formData);
+
+    expect(result).toEqual({
+      status: "error",
+      message: "Please choose a grade between 1 and 12.",
     });
   });
 
