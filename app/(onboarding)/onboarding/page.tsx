@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import OnboardingWizard from "@/components/onboarding/onboarding-wizard";
 import { getNextRequiredAction } from "@/lib/instructor-readiness";
+import { normalizeRoleList } from "@/lib/authorization";
 
 export default async function OnboardingPage() {
   const session = await getSession();
@@ -55,7 +56,7 @@ export default async function OnboardingPage() {
     redirect("/");
   }
 
-  const roles = user.roles.map((r) => r.role);
+  const roles = normalizeRoleList(user.roles, user.primaryRole);
   const isInstructor = roles.includes("INSTRUCTOR") || roles.includes("ADMIN");
   const instructorNextAction = isInstructor
     ? await getNextRequiredAction(user.id)

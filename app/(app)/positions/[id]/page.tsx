@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth-supabase";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import ApplicationForm from "@/components/application-form";
+import { normalizeRoleList } from "@/lib/authorization";
 
 function formatDate(value: Date | null) {
   if (!value) return "-";
@@ -37,6 +38,7 @@ export default async function PositionDetailPage({
           select: {
             id: true,
             chapterId: true,
+            primaryRole: true,
             roles: { select: { role: true } },
           },
         })
@@ -47,7 +49,9 @@ export default async function PositionDetailPage({
     notFound();
   }
 
-  const roles = currentUser?.roles.map((role) => role.role) ?? [];
+  const roles = currentUser
+    ? normalizeRoleList(currentUser.roles, currentUser.primaryRole)
+    : [];
   const isPrivileged = roles.some((role) => ["ADMIN", "CHAPTER_PRESIDENT", "STAFF"].includes(role));
 
   const canView =

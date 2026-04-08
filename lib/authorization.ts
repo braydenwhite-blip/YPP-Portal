@@ -78,6 +78,13 @@ export function normalizeRoleSet(
   return roleSet;
 }
 
+export function normalizeRoleList(
+  roles: SessionRoleEntry[] | undefined | null,
+  primaryRole?: string | null
+): string[] {
+  return Array.from(normalizeRoleSet(roles, primaryRole));
+}
+
 export function hasRole(
   roles: SessionRoleEntry[] | undefined | null,
   role: string,

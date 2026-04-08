@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
 import { createGoalTemplate, assignGoalsToUserByRole } from "@/lib/goals-actions";
+import { hasRole } from "@/lib/authorization";
 
 export default async function AdminGoalsPage() {
   const session = await getSession();
@@ -33,8 +34,12 @@ export default async function AdminGoalsPage() {
     })
   ]);
 
-  const instructors = users.filter((u) => u.roles.some((r) => r.role === "INSTRUCTOR"));
-  const chapterLeads = users.filter((u) => u.roles.some((r) => r.role === "CHAPTER_PRESIDENT"));
+  const instructors = users.filter((u) =>
+    hasRole(u.roles, "INSTRUCTOR", u.primaryRole)
+  );
+  const chapterLeads = users.filter((u) =>
+    hasRole(u.roles, "CHAPTER_PRESIDENT", u.primaryRole)
+  );
 
   const roleTypes = ["INSTRUCTOR", "CHAPTER_PRESIDENT", "MENTOR", "STAFF"];
 

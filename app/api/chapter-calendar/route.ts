@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { getChapterByPublicSlug, getChapterCalendarEntries } from "@/lib/chapter-calendar";
+import { normalizeRoleList } from "@/lib/authorization";
 
 function addDays(base: Date, days: number) {
   const next = new Date(base);
@@ -20,7 +21,7 @@ async function getSessionViewer() {
 
   if (!user) return null;
 
-  const roles = new Set(user.roles.map((role) => role.role));
+  const roles = new Set(normalizeRoleList(user.roles, user.primaryRole));
   return {
     user,
     isAdmin: roles.has("ADMIN"),
