@@ -8,6 +8,10 @@ import {
 
 import { prisma } from "@/lib/prisma";
 import {
+  getClassTemplateCapabilities,
+  getTemplateSubmissionStatus,
+} from "@/lib/class-template-compat";
+import {
   INSTRUCTOR_GROWTH_BADGES,
   INSTRUCTOR_GROWTH_CLAIM_TEMPLATES,
   INSTRUCTOR_GROWTH_RULES,
@@ -35,9 +39,34 @@ type GrowthBreakdown = Record<
   { label: string; value: number }
 >;
 
-type LiveOfferingSummary = Awaited<
-  ReturnType<typeof getLiveOfferingSummaries>
->[number];
+type GrowthTemplateSummary = {
+  id: string;
+  title: string;
+  isPublished: boolean;
+  submissionStatus: string;
+  submittedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type LiveOfferingSummary = {
+  id: string;
+  title: string;
+  semester: string | null;
+  startDate: Date;
+  endDate: Date;
+  status: string;
+  sessions: Array<{
+    id: string;
+    date: Date;
+    sessionNumber: number;
+    attendance: Array<{ status: string; studentId: string }>;
+  }>;
+  enrollments: Array<{ studentId: string; status: string }>;
+  template: {
+    submissionStatus: string;
+  };
+};
 
 type BadgeCriterionContext = {
   approvedEvents: Array<{
@@ -292,6 +321,53 @@ async function getStrongParentFeedbackSummaryBySemester(instructorId: string) {
   return { bySemester, feedback };
 }
 
+async function getInstructorGrowthTemplateSummaries(
+  instructorId: string
+): Promise<GrowthTemplateSummary[]> {
+  const capabilities = await getClassTemplateCapabilities();
+  const templates = await prisma.classTemplate.findMany({
+    where: { createdById: instructorId },
+    select: capabilities.hasReviewWorkflow
+      ? {
+          id: true,
+          title: true,
+          isPublished: true,
+          submittedAt: true,
+          submissionStatus: true,
+          createdAt: true,
+          updatedAt: true,
+        }
+      : {
+          id: true,
+          title: true,
+          isPublished: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return templates.map((template) => {
+    const submittedAt =
+      capabilities.hasReviewWorkflow && "submittedAt" in template
+        ? (template.submittedAt as Date | null)
+        : null;
+
+    return {
+      id: template.id,
+      title: template.title,
+      isPublished: template.isPublished,
+      submissionStatus: getTemplateSubmissionStatus(
+        template,
+        capabilities.hasReviewWorkflow
+      ),
+      submittedAt,
+      createdAt: template.createdAt,
+      updatedAt: template.updatedAt,
+    };
+  });
+}
+
 async function getInstructorGrowthRelatedUserOptions(
   instructorId: string,
   chapterId?: string | null
@@ -399,19 +475,34 @@ async function awardAutoGrowthEvent(input: {
 }
 
 async function getLiveOfferingSummaries(instructorId: string) {
-  return prisma.classOffering.findMany({
+  const capabilities = await getClassTemplateCapabilities();
+  const offerings = await prisma.classOffering.findMany({
     where: {
       instructorId,
       status: { in: ["PUBLISHED", "IN_PROGRESS", "COMPLETED"] },
     },
-    include: {
+    select: {
+      id: true,
+      title: true,
+      semester: true,
+      startDate: true,
+      endDate: true,
+      status: true,
       template: {
-        select: {
-          submissionStatus: true,
-        },
+        select: capabilities.hasReviewWorkflow
+          ? {
+              isPublished: true,
+              submissionStatus: true,
+            }
+          : {
+              isPublished: true,
+            },
       },
       sessions: {
-        include: {
+        select: {
+          id: true,
+          date: true,
+          sessionNumber: true,
           attendance: {
             select: {
               status: true,
@@ -432,9 +523,19 @@ async function getLiveOfferingSummaries(instructorId: string) {
     },
     orderBy: { startDate: "asc" },
   });
+
+  return offerings.map((offering) => ({
+    ...offering,
+    template: {
+      submissionStatus: getTemplateSubmissionStatus(
+        offering.template,
+        capabilities.hasReviewWorkflow
+      ),
+    },
+  }));
 }
 
-function buildAttendanceRate(offering: Awaited<ReturnType<typeof getLiveOfferingSummaries>>[number]) {
+function buildAttendanceRate(offering: LiveOfferingSummary) {
   let presentish = 0;
   let total = 0;
 
@@ -454,7 +555,7 @@ function buildAttendanceRate(offering: Awaited<ReturnType<typeof getLiveOffering
   return presentish / total;
 }
 
-function buildRetentionRate(offering: Awaited<ReturnType<typeof getLiveOfferingSummaries>>[number]) {
+function buildRetentionRate(offering: LiveOfferingSummary) {
   const counted = offering.enrollments.filter((enrollment) => enrollment.status !== "WAITLISTED");
   if (counted.length === 0) {
     return 0;
@@ -508,18 +609,7 @@ async function syncTeachingSignals(instructorId: string) {
         },
         orderBy: { grantedAt: "asc" },
       }),
-      prisma.classTemplate.findMany({
-        where: { createdById: instructorId },
-        select: {
-          id: true,
-          title: true,
-          submittedAt: true,
-          submissionStatus: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-        orderBy: { createdAt: "asc" },
-      }),
+      getInstructorGrowthTemplateSummaries(instructorId),
       getLiveOfferingSummaries(instructorId),
     ]);
 
@@ -561,7 +651,8 @@ async function syncTeachingSignals(instructorId: string) {
 
   for (const template of templates) {
     if (
-      (template.submissionStatus === "SUBMITTED" || template.submissionStatus === "APPROVED") &&
+      (template.submissionStatus === "SUBMITTED" ||
+        template.submissionStatus === "APPROVED") &&
       template.submittedAt
     ) {
       await awardAutoGrowthEvent({
