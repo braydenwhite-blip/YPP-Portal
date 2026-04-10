@@ -17,6 +17,7 @@ import {
   normalizeReviewRubric,
 } from "@/lib/curriculum-draft-progress";
 import { createOrUpdateStudioLaunchPackage } from "@/lib/curriculum-draft-launch-actions";
+import { syncInstructorGrowthSignalsForInstructor } from "@/lib/instructor-growth-service";
 
 async function requireAuth() {
   const session = await getSession();
@@ -42,6 +43,10 @@ async function requireAdminOrChapterLead() {
     throw new Error("Unauthorized - Admin or Chapter President access required");
   }
   return session;
+}
+
+async function syncTrainingGrowth(userId: string) {
+  await syncInstructorGrowthSignalsForInstructor(userId).catch(() => null);
 }
 
 async function requireTrainingLearner() {
@@ -378,6 +383,7 @@ async function syncAssignmentFromArtifacts(userId: string, moduleId: string) {
 
   if (isComplete) {
     await checkAndIssueTrainingCompletion(userId);
+    await syncTrainingGrowth(userId);
     onProgressEvent({ type: "TRAINING_MODULE_COMPLETED", userId, metadata: { moduleId } }).catch(() => {});
   }
 
@@ -1307,6 +1313,7 @@ export async function updateTrainingStatus(formData: FormData) {
 
     if (status === "COMPLETE") {
       await checkAndIssueTrainingCompletion(assignment.userId);
+      await syncTrainingGrowth(assignment.userId);
     }
   }
 
@@ -1512,6 +1519,7 @@ export async function markTrainingComplete(formData: FormData) {
   });
 
   await checkAndIssueTrainingCompletion(updated.userId);
+  await syncTrainingGrowth(updated.userId);
 
   revalidatePath("/admin/training");
   revalidatePath("/instructor-training");
