@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import type { StudioPhase } from "@/lib/lesson-design-studio";
 import type { StudioUnderstandingChecks, StudioCourseConfig } from "../types";
 import {
@@ -38,6 +39,12 @@ export function StudioCourseMapStep({
   onAnswerUnderstandingCheck,
   onOpenExamplesLibrary,
 }: StudioCourseMapStepProps) {
+  const titleId = useId();
+  const titleHintId = useId();
+  const interestAreaId = useId();
+  const interestAreaHintId = useId();
+  const descriptionId = useId();
+  const descriptionHintId = useId();
   const safeOutcomes = outcomes.length > 0 ? outcomes : [""];
 
   function updateOutcome(index: number, value: string) {
@@ -71,8 +78,8 @@ export function StudioCourseMapStep({
               <p className="lds-section-eyebrow">Step 1</p>
               <h2 className="lds-section-title">Shape the course promise</h2>
               <p className="lds-section-copy">
-                This is the big picture. Give the course a name, a purpose, and outcomes
-                that make the rest of the curriculum feel connected.
+                Define the promise of the course before you perfect the details of the
+                lessons inside it.
               </p>
             </div>
             <div className="lds-inline-actions">
@@ -104,38 +111,80 @@ export function StudioCourseMapStep({
             </div>
           ) : null}
 
+          <div className="lds-course-map-summary">
+            <div className="lds-stat-card">
+              <span className="lds-stat-label">Course arc</span>
+              <strong className="lds-stat-value">
+                {courseConfig.durationWeeks} week{courseConfig.durationWeeks === 1 ? "" : "s"}
+              </strong>
+            </div>
+            <div className="lds-stat-card">
+              <span className="lds-stat-label">Session rhythm</span>
+              <strong className="lds-stat-value">
+                {courseConfig.sessionsPerWeek} per week
+              </strong>
+            </div>
+            <div className="lds-stat-card">
+              <span className="lds-stat-label">Time budget</span>
+              <strong className="lds-stat-value">
+                {courseConfig.classDurationMin} min
+              </strong>
+            </div>
+          </div>
+
           <div className="lds-form-grid">
-            <label className="lds-form-field">
-              <span>Curriculum title</span>
+            <div className="lds-form-field">
+              <label className="lds-form-label" htmlFor={titleId}>
+                Curriculum title
+              </label>
               <input
+                id={titleId}
+                aria-describedby={titleHintId}
                 value={title}
                 readOnly={isReadOnly}
                 onChange={(event) => onUpdate("title", event.target.value)}
                 placeholder="Example: Money Moves for Real Life"
               />
-            </label>
+              <small id={titleHintId} className="lds-form-field-hint">
+                Make it feel confident, specific, and easy to picture on a class page.
+              </small>
+            </div>
 
-            <label className="lds-form-field">
-              <span>Interest area</span>
+            <div className="lds-form-field">
+              <label className="lds-form-label" htmlFor={interestAreaId}>
+                Interest area
+              </label>
               <input
+                id={interestAreaId}
+                aria-describedby={interestAreaHintId}
                 value={interestArea}
                 readOnly={isReadOnly}
                 onChange={(event) => onUpdate("interestArea", event.target.value)}
                 placeholder="Example: Finance, Coding, Music, Cooking"
               />
-            </label>
+              <small id={interestAreaHintId} className="lds-form-field-hint">
+                This keeps examples and coaching aligned with the kind of course you are building.
+              </small>
+            </div>
           </div>
 
-          <label className="lds-form-field">
-            <span>Why this course matters</span>
+          <div className="lds-form-field">
+            <label className="lds-form-label" htmlFor={descriptionId}>
+              Why this course matters
+            </label>
             <textarea
+              id={descriptionId}
+              aria-describedby={descriptionHintId}
               rows={4}
               value={description}
               readOnly={isReadOnly}
               onChange={(event) => onUpdate("description", event.target.value)}
               placeholder="What will students learn, and why is this worth teaching?"
             />
-          </label>
+            <small id={descriptionHintId} className="lds-form-field-hint">
+              Write the short, human explanation that makes the course feel worth showing up for.
+            </small>
+          </div>
 
           <section className="lds-subsection-card">
             <div className="lds-subsection-header">
@@ -157,7 +206,13 @@ export function StudioCourseMapStep({
 
             <div className="lds-stack">
               {safeOutcomes.map((outcome, index) => (
-                <div key={`outcome-${index}-${outcome.substring(0, 20)}`} className="lds-inline-edit-row">
+                <div
+                  key={`outcome-${index}-${outcome.substring(0, 20)}`}
+                  className="lds-inline-edit-row lds-outcome-row"
+                >
+                  <span className="lds-outcome-index" aria-hidden="true">
+                    {index + 1}
+                  </span>
                   <input
                     value={outcome}
                     readOnly={isReadOnly}
@@ -181,7 +236,7 @@ export function StudioCourseMapStep({
             <div className="lds-subsection-header">
               <div>
                 <h3>Teaching container</h3>
-                <p>Decide the basic shape of the learning experience before polishing lessons.</p>
+                <p>Set the outer shape of the course before you refine the lesson-by-lesson craft.</p>
               </div>
             </div>
 
@@ -352,6 +407,11 @@ export function StudioCourseMapStep({
                 </div>
               </div>
             </div>
+
+            <p className="lds-container-note">
+              Keep this container realistic. A believable course shape makes the later
+              session planning feel much easier and much stronger.
+            </p>
           </section>
         </section>
 

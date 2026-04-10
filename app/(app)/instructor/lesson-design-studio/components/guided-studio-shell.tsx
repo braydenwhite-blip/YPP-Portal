@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type {
   GuidedStudioJourney,
   GuidedStudioStep,
@@ -76,7 +76,7 @@ function getSaveIndicator(saveStatus: GuidedStudioShellProps["saveStatus"]) {
   }
 }
 
-function StepPill({
+function StepRailItem({
   step,
   isActive,
   onClick,
@@ -88,12 +88,17 @@ function StepPill({
   return (
     <button
       type="button"
-      className={`lds-journey-pill ${step.status}${isActive ? " active" : ""}`}
+      className={`lds-rail-step ${step.status}${isActive ? " active" : ""}`}
       onClick={onClick}
       aria-current={isActive ? "step" : undefined}
     >
-      <span className={`lds-journey-pill-status ${step.status}`}>{step.status === "complete" ? "✓" : step.shortLabel}</span>
-      <span className="lds-journey-pill-copy">
+      <span className="lds-rail-step-ornament" aria-hidden="true">
+        <span className={`lds-rail-step-dot ${step.status}`}>
+          {step.status === "complete" ? "✓" : ""}
+        </span>
+        <span className={`lds-rail-step-line ${step.status}`} />
+      </span>
+      <span className="lds-rail-step-copy">
         <strong>{step.label}</strong>
         <small>{step.recommendedAction}</small>
       </span>
@@ -125,6 +130,17 @@ export function GuidedStudioShell({
   const activeStep =
     journey.steps.find((step) => step.id === journey.activePhase) ?? journey.steps[0];
   const saveIndicator = getSaveIndicator(saveStatus);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    function handleScroll() {
+      setIsScrolled(window.scrollY > 12);
+    }
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
     <div className="cbs-studio lds-shell lds-guided-shell">
@@ -137,35 +153,57 @@ export function GuidedStudioShell({
         </section>
       ) : null}
 
-      <section className="card lds-studio-toolbar">
+      <section className={`lds-studio-toolbar${isScrolled ? " scrolled" : ""}`}>
         <div className="lds-studio-toolbar-main">
-          <div className="lds-studio-toolbar-copy">
-            <span className="badge">Lesson Design Studio</span>
+          <div className="lds-toolbar-region lds-toolbar-region-left">
+            <div className="lds-toolbar-brand">
+              <span className="lds-toolbar-brand-mark" aria-hidden="true" />
+              <div className="lds-toolbar-brand-copy">
+                <span className="lds-toolbar-label">Lesson Design Studio</span>
+                <strong>{eyebrow}</strong>
+              </div>
+            </div>
+
             <nav
               className="lds-toolbar-breadcrumbs"
               aria-label="Lesson design studio steps"
             >
-              {journey.steps.map((step) => (
-                <span
-                  key={step.id}
-                  className={`lds-toolbar-breadcrumb ${
-                    step.id === journey.activePhase
-                      ? "current"
-                      : step.status === "complete"
-                        ? "complete"
-                        : ""
-                  }`}
-                >
-                  {step.label}
+              <span className="lds-toolbar-breadcrumb-root">Studio</span>
+              <span className="lds-toolbar-breadcrumb-divider" aria-hidden="true">
+                /
+              </span>
+              <span className="lds-toolbar-breadcrumb current">
+                {activeStep.label}
+              </span>
+            </nav>
+          </div>
+
+          <div className="lds-toolbar-region lds-toolbar-region-center">
+            <nav className="lds-toolbar-phase-path" aria-label="Studio progress">
+              {journey.steps.map((step, index) => (
+                <span key={step.id} className="lds-toolbar-phase-item">
+                  <span
+                    className={`lds-toolbar-phase-button ${
+                      step.id === journey.activePhase
+                        ? "current"
+                        : step.status === "complete"
+                          ? "complete"
+                          : ""
+                    }`}
+                    aria-current={step.id === journey.activePhase ? "step" : undefined}
+                  >
+                    <span className="lds-toolbar-phase-dot" aria-hidden="true" />
+                    <span>{step.label}</span>
+                  </span>
+                  {index < journey.steps.length - 1 ? (
+                    <span className="lds-toolbar-phase-divider" aria-hidden="true" />
+                  ) : null}
                 </span>
               ))}
             </nav>
-            <p className="lds-hero-eyebrow">{eyebrow}</p>
-            <h1 className="lds-hero-title">{title}</h1>
-            <p className="lds-hero-copy">{body}</p>
           </div>
 
-          <div className="lds-studio-toolbar-meta">
+          <div className="lds-toolbar-region lds-toolbar-region-right">
             <div className={`lds-save-indicator ${saveIndicator.tone}`} role="status" aria-live="polite">
               <span className="lds-save-indicator-dot" aria-hidden="true" />
               <div>
@@ -180,19 +218,19 @@ export function GuidedStudioShell({
       </section>
 
       <div className="lds-guided-workbench">
-        <aside className="card lds-guided-rail">
+        <aside className="lds-guided-rail">
           <div className="lds-guided-rail-copy">
             <p className="lds-section-eyebrow">Workspace map</p>
-            <h2 className="lds-section-title">Move step by step</h2>
+            <h2 className="lds-section-title">Move with clarity</h2>
             <p className="lds-section-copy">
-              Use the left rail to jump between phases while keeping your current
-              focus, blockers, and draft health in view.
+              Keep the whole build visible while you work on one thoughtful move at
+              a time.
             </p>
           </div>
 
           <nav className="lds-guided-pill-row" aria-label="Studio steps">
             {journey.steps.map((step) => (
-              <StepPill
+              <StepRailItem
                 key={step.id}
                 step={step}
                 isActive={step.id === journey.activePhase}
@@ -203,11 +241,11 @@ export function GuidedStudioShell({
 
           <div className="lds-guided-rail-summary">
             <div className="lds-stat-card">
-              <span className="lds-stat-label">Current step</span>
+              <span className="lds-stat-label">Current phase</span>
               <strong className="lds-stat-value">{currentPhaseLabel}</strong>
             </div>
             <div className="lds-stat-card">
-              <span className="lds-stat-label">Sessions built</span>
+              <span className="lds-stat-label">Session build</span>
               <strong className="lds-stat-value">{sessionsBuiltLabel}</strong>
             </div>
             <div className="lds-stat-card">
@@ -215,7 +253,7 @@ export function GuidedStudioShell({
               <strong className="lds-stat-value">{understandingLabel}</strong>
             </div>
             <div className="lds-stat-card">
-              <span className="lds-stat-label">Current blockers</span>
+              <span className="lds-stat-label">Open blockers</span>
               <strong className="lds-stat-value">{blockerLabel}</strong>
             </div>
           </div>
@@ -224,12 +262,12 @@ export function GuidedStudioShell({
         </aside>
 
         <div className="lds-guided-main">
-          <section className="card lds-guided-hero">
+          <section className="lds-guided-hero">
             <div className="lds-guided-hero-top">
               <div className="lds-guided-hero-copy">
                 <p className="lds-section-eyebrow">Current focus</p>
-                <h2 className="lds-section-title">{activeStep.headline}</h2>
-                <p className="lds-section-copy">{activeStep.whyItMatters}</p>
+                <h1 className="lds-hero-title">{title}</h1>
+                <p className="lds-hero-copy">{body}</p>
               </div>
 
               <div className="lds-guided-status-stack">
@@ -241,17 +279,17 @@ export function GuidedStudioShell({
             <div className="lds-guided-hero-grid">
               <div className="lds-guided-focus-card accent">
                 <p className="lds-section-eyebrow">Recommended next move</p>
-                <h3 className="lds-section-title">{journey.recommendedAction}</h3>
+                <h2 className="lds-section-title">{journey.recommendedAction}</h2>
                 <p className="lds-section-copy">
                   {journey.blockers.length > 0
                     ? journey.blockers[0]
-                    : "You have cleared the blockers for this step. Keep building with the same momentum."}
+                    : "You have cleared the blockers for this phase. Keep the same calm momentum."}
                 </p>
               </div>
               <div className="lds-guided-focus-card">
-                <p className="lds-section-eyebrow">Step status</p>
-                <h3 className="lds-section-title">{activeStep.label}</h3>
-                <p className="lds-section-copy">{activeStep.recommendedAction}</p>
+                <p className="lds-section-eyebrow">Why this matters now</p>
+                <h2 className="lds-section-title">{activeStep.headline}</h2>
+                <p className="lds-section-copy">{activeStep.whyItMatters}</p>
               </div>
             </div>
           </section>
@@ -270,7 +308,11 @@ export function GuidedStudioShell({
             </section>
           ) : null}
 
-          <div className="lds-guided-editor">{children}</div>
+          <div className="lds-guided-editor">
+            <div key={journey.activePhase} className="lds-guided-editor-stage">
+              {children}
+            </div>
+          </div>
         </div>
       </div>
     </div>

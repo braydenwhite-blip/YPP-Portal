@@ -60,6 +60,14 @@ export function ExamplesLibrary({
               These examples are here to help you see pacing, arc, and student
               experience choices that make a session teachable.
             </p>
+            <div className="lds-library-meta">
+              <span className="lds-library-chip">Curated exemplars</span>
+              {interestArea ? (
+                <span className="lds-library-chip subtle">
+                  Interest area: {interestArea}
+                </span>
+              ) : null}
+            </div>
             {targetLabel ? (
               <p className="lds-library-target">
                 Import target: <strong>{targetLabel}</strong>

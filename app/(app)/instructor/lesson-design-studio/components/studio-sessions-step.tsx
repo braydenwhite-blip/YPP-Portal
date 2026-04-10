@@ -237,8 +237,8 @@ export function StudioSessionsStep({
               <p className="lds-section-eyebrow">Step 2</p>
               <h2 className="lds-section-title">{buildSessionLabel(selectedWeek, courseConfig)}</h2>
               <p className="lds-section-copy">
-                Build a realistic lesson arc. Keep the objective, activity flow, pacing,
-                and at-home work tied together.
+                Shape a lesson arc that feels teachable, paced, and confident from opening
+                move to closing reflection.
               </p>
             </div>
             <div className="lds-inline-actions">
@@ -281,6 +281,33 @@ export function StudioSessionsStep({
               This session has the core pieces in place. Now you can tighten the details.
             </div>
           )}
+
+          <div className="lds-session-balance">
+            <div className="lds-session-balance-copy">
+              <span className="lds-session-balance-label">Pacing balance</span>
+              <strong>
+                {totalMinutes} of {selectedWeek.classDurationMin} planned minutes
+              </strong>
+            </div>
+            <div className="lds-session-balance-track" aria-hidden="true">
+              <span
+                className={`lds-session-balance-fill${
+                  totalMinutes > selectedWeek.classDurationMin ? " over" : ""
+                }`}
+                style={
+                  {
+                    width: `${Math.min(
+                      100,
+                      Math.max(
+                        6,
+                        (totalMinutes / Math.max(selectedWeek.classDurationMin, 1)) * 100
+                      )
+                    )}%`,
+                  } as CSSProperties
+                }
+              />
+            </div>
+          </div>
 
           <div className="lds-form-grid">
             <label className="lds-form-field">
@@ -346,7 +373,7 @@ export function StudioSessionsStep({
             <div className="lds-subsection-header">
               <div>
                 <h3>Activity arc</h3>
-                <p>Add the moments that make this lesson flow from entry to application to closure.</p>
+                <p>Arrange the moments that make the session feel intentional from entry to closure.</p>
               </div>
               <div className="lds-inline-actions">
                 <button
@@ -366,6 +393,11 @@ export function StudioSessionsStep({
                   Import example
                 </button>
               </div>
+            </div>
+
+            <div className="lds-subsection-note">
+              Quick starts for common teaching moves. Insert one, then refine the tone,
+              pacing, and detail until it feels unmistakably yours.
             </div>
 
             <div className="lds-template-suggestions">
@@ -423,6 +455,9 @@ export function StudioSessionsStep({
                         className="lds-activity-primary"
                         onClick={() => setSelectedActivityId(activity.id)}
                       >
+                        <span className="lds-activity-order" aria-hidden="true">
+                          {index + 1}
+                        </span>
                         <span className="lds-activity-handle" aria-hidden="true">
                           ⋮⋮
                         </span>

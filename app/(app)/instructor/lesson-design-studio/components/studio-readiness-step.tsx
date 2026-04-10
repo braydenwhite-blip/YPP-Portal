@@ -82,8 +82,8 @@ export function StudioReadinessStep({
               <p className="lds-section-eyebrow">Step 3</p>
               <h2 className="lds-section-title">Tighten the last teaching moves</h2>
               <p className="lds-section-copy">
-                This step makes sure the curriculum feels teachable, paced, and ready
-                for a reviewer to believe in it.
+                This is the quality pass where the curriculum starts to feel truly ready
+                for another educator to trust.
               </p>
             </div>
             <div className="lds-inline-actions">
@@ -101,6 +101,27 @@ export function StudioReadinessStep({
               >
                 Open review hub
               </button>
+            </div>
+          </div>
+
+          <div className="lds-readiness-snapshot">
+            <div className="lds-stat-card">
+              <span className="lds-stat-label">Built sessions</span>
+              <strong className="lds-stat-value">
+                {progress.fullyBuiltSessions}/{progress.totalSessionsExpected}
+              </strong>
+            </div>
+            <div className="lds-stat-card">
+              <span className="lds-stat-label">Understanding score</span>
+              <strong className="lds-stat-value">
+                {understandingChecks.lastScorePct ?? 0}%
+              </strong>
+            </div>
+            <div className="lds-stat-card">
+              <span className="lds-stat-label">Submission state</span>
+              <strong className="lds-stat-value">
+                {progress.readyForSubmission ? "Ready" : "Still tightening"}
+              </strong>
             </div>
           </div>
 
@@ -146,7 +167,7 @@ export function StudioReadinessStep({
 
         <StudioMicroChecks
           title="Final readiness checks"
-          description="Finish the remaining teaching checks here so your readiness score reflects the thinking behind the curriculum."
+          description="Finish the remaining teaching checks here so the readiness score matches the quality of the curriculum you are about to send forward."
           questionIds={["course_outcomes", "capstone_goal"]}
           understandingChecks={understandingChecks}
           onAnswer={onAnswerUnderstandingCheck}
