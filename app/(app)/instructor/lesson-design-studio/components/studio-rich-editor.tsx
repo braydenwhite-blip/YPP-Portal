@@ -10,7 +10,8 @@ import {
   type ReactNode,
 } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
-import { Node, mergeAttributes } from "@tiptap/core";
+import { Node, mergeAttributes, type JSONContent } from "@tiptap/core";
+import type { DOMOutputSpec } from "@tiptap/pm/model";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
@@ -26,10 +27,10 @@ import {
 
 const lowlight = createLowlight(all);
 
-const EMPTY_DOCUMENT = {
+const EMPTY_DOCUMENT: JSONContent = {
   type: "doc",
   content: [{ type: "paragraph" }],
-} as const;
+};
 
 const StudioImageNode = Node.create({
   name: STUDIO_RICH_NODE_TYPES.image,
@@ -49,32 +50,40 @@ const StudioImageNode = Node.create({
     return [{ tag: "figure[data-studio-image]" }];
   },
 
-  renderHTML({ HTMLAttributes }) {
-    const figure: any[] = [
+  renderHTML({ HTMLAttributes }): DOMOutputSpec {
+    const imageSpec = [
+      "img",
+      {
+        src: HTMLAttributes.url || "",
+        alt: HTMLAttributes.alt || HTMLAttributes.caption || "",
+        loading: "lazy",
+      },
+    ] as const satisfies DOMOutputSpec;
+
+    if (HTMLAttributes.caption) {
+      return [
+        "figure",
+        mergeAttributes({
+          "data-studio-image": "true",
+          class: "lds-rich-node-figure lds-rich-node-figure-image",
+        }),
+        imageSpec,
+        [
+          "figcaption",
+          { class: "lds-rich-node-caption" },
+          HTMLAttributes.caption,
+        ],
+      ] satisfies DOMOutputSpec;
+    }
+
+    return [
       "figure",
       mergeAttributes({
         "data-studio-image": "true",
         class: "lds-rich-node-figure lds-rich-node-figure-image",
       }),
-      [
-        "img",
-        {
-          src: HTMLAttributes.url || "",
-          alt: HTMLAttributes.alt || HTMLAttributes.caption || "",
-          loading: "lazy",
-        },
-      ],
-    ];
-
-    if (HTMLAttributes.caption) {
-      figure.push([
-        "figcaption",
-        { class: "lds-rich-node-caption" },
-        HTMLAttributes.caption,
-      ]);
-    }
-
-    return figure;
+      imageSpec,
+    ] satisfies DOMOutputSpec;
   },
 });
 
@@ -97,7 +106,7 @@ const StudioEmbedNode = Node.create({
     return [{ tag: "figure[data-studio-embed]" }];
   },
 
-  renderHTML({ HTMLAttributes }) {
+  renderHTML({ HTMLAttributes }): DOMOutputSpec {
     const title = HTMLAttributes.title || "Embedded video";
 
     return [
@@ -123,7 +132,7 @@ const StudioEmbedNode = Node.create({
         ],
       ],
       ["figcaption", { class: "lds-rich-node-caption" }, title],
-    ];
+    ] satisfies DOMOutputSpec;
   },
 });
 
@@ -146,7 +155,7 @@ const StudioFileNode = Node.create({
     return [{ tag: "div[data-studio-file]" }];
   },
 
-  renderHTML({ HTMLAttributes }) {
+  renderHTML({ HTMLAttributes }): DOMOutputSpec {
     const sizeLabel = formatLessonDesignStudioUploadSize(
       typeof HTMLAttributes.size === "number" ? HTMLAttributes.size : null
     );
@@ -172,7 +181,7 @@ const StudioFileNode = Node.create({
           [HTMLAttributes.mimeType || "File", sizeLabel].filter(Boolean).join(" • "),
         ],
       ],
-    ];
+    ] satisfies DOMOutputSpec;
   },
 });
 
@@ -195,16 +204,42 @@ const StudioQuizNode = Node.create({
     return [{ tag: "figure[data-studio-quiz]" }];
   },
 
-  renderHTML({ HTMLAttributes }) {
+  renderHTML({ HTMLAttributes }): DOMOutputSpec {
     const options = Array.isArray(HTMLAttributes.options)
       ? HTMLAttributes.options.filter((option): option is string => typeof option === "string")
       : [];
-    const listSpec: any[] = ["ol", { class: "lds-rich-node-quiz-options" }];
-    options.forEach((option) => {
-      listSpec.push(["li", {}, option]);
-    });
+    const listItems = options.map(
+      (option) => ["li", {}, option] as const satisfies DOMOutputSpec
+    );
+    const listSpec = [
+      "ol",
+      { class: "lds-rich-node-quiz-options" },
+      ...listItems,
+    ] as const satisfies DOMOutputSpec;
 
-    const figure: any[] = [
+    if (HTMLAttributes.explanation) {
+      return [
+        "figure",
+        mergeAttributes({
+          "data-studio-quiz": "true",
+          class: "lds-rich-node-figure lds-rich-node-figure-quiz",
+        }),
+        ["figcaption", { class: "lds-rich-node-quiz-label" }, "Quiz block"],
+        [
+          "div",
+          { class: "lds-rich-node-quiz-question" },
+          HTMLAttributes.question || "Quiz question",
+        ],
+        listSpec,
+        [
+          "p",
+          { class: "lds-rich-node-quiz-explanation" },
+          HTMLAttributes.explanation,
+        ],
+      ] satisfies DOMOutputSpec;
+    }
+
+    return [
       "figure",
       mergeAttributes({
         "data-studio-quiz": "true",
@@ -217,17 +252,7 @@ const StudioQuizNode = Node.create({
         HTMLAttributes.question || "Quiz question",
       ],
       listSpec,
-    ];
-
-    if (HTMLAttributes.explanation) {
-      figure.push([
-        "p",
-        { class: "lds-rich-node-quiz-explanation" },
-        HTMLAttributes.explanation,
-      ]);
-    }
-
-    return figure;
+    ] satisfies DOMOutputSpec;
   },
 });
 
@@ -240,7 +265,7 @@ interface StudioRichEditorProps {
   placeholder?: string;
 }
 
-function getInitialDocument(value: string | null) {
+function getInitialDocument(value: string | null): JSONContent {
   return parseLessonDesignStudioRichDocument(value) ?? EMPTY_DOCUMENT;
 }
 
@@ -861,7 +886,7 @@ function applyMarksToText(text: string, marks: StudioRichMark[], key: string) {
   }, <Fragment key={key}>{text}</Fragment>);
 }
 
-function extractCodeBlockText(node: StudioRichNode) {
+function extractCodeBlockText(node: StudioRichNode): string {
   if (node.type === "text") {
     return node.text ?? "";
   }

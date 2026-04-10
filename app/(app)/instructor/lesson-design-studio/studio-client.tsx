@@ -38,6 +38,7 @@ import { StudioReadinessStep } from "./components/studio-readiness-step";
 import { StudioReviewLaunchStep } from "./components/studio-review-launch-step";
 import { StudioSessionsStep } from "./components/studio-sessions-step";
 import { StudioStartStep } from "./components/studio-start-step";
+import { QuickStartWizard } from "./components/quick-start-wizard";
 import { StudentPreviewPanel } from "./components/student-preview-panel";
 import { SEED_CURRICULA, type SeedCurriculum } from "./curriculum-seeds";
 import type { ExampleWeek } from "./examples-data";
@@ -316,6 +317,7 @@ export function StudioClient({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showQuickStartWizard, setShowQuickStartWizard] = useState(false);
   const [showStudentPreview, setShowStudentPreview] = useState(false);
   const [templatesWeekId, setTemplatesWeekId] = useState<string | null>(null);
   const [showExamplesLibrary, setShowExamplesLibrary] = useState(false);
@@ -1093,6 +1095,18 @@ export function StudioClient({
     [buildSnapshot, courseConfig, isDraftEditable, pushToHistory, triggerAutoSave]
   );
 
+  const handleGenerateQuickStart = useCallback(
+    (seed: SeedCurriculum) => {
+      setShowQuickStartWizard(false);
+      handleApplyStarterScaffold(seed);
+      showToast(
+        "success",
+        `${seed.label} starter generated. Now tune the course promise before you refine sessions.`
+      );
+    },
+    [handleApplyStarterScaffold, showToast]
+  );
+
   const handleExportPdf = useCallback(
     async (type: "student" | "instructor") => {
       if (isExporting || isSubmitting || isFlushing) return false;
@@ -1567,6 +1581,7 @@ export function StudioClient({
         onApplyStarterScaffold={handleApplyStarterScaffold}
         onMoveForward={() => setActivePhase("COURSE_MAP")}
         onOpenStarterTour={restartOnboardingTour}
+        onOpenQuickStartWizard={() => setShowQuickStartWizard(true)}
       />
     ) : activePhase === "COURSE_MAP" ? (
       <StudioCourseMapStep
@@ -1696,6 +1711,15 @@ export function StudioClient({
             rubric: null,
           });
         }}
+      />
+
+      <QuickStartWizard
+        open={showQuickStartWizard}
+        seeds={SEED_CURRICULA}
+        recommendedSeedId={recommendedSeed.id}
+        readOnly={isDraftReadOnly}
+        onClose={() => setShowQuickStartWizard(false)}
+        onGenerate={(seed) => handleGenerateQuickStart(seed)}
       />
 
       <StudentPreviewPanel

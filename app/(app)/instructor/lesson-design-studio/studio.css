@@ -5873,6 +5873,70 @@
   letter-spacing: -0.04em;
 }
 
+.lds-start-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.lds-start-hero-panel,
+.lds-start-gallery-header,
+.lds-wizard-review-card,
+.lds-wizard-recommendation {
+  border-radius: 28px;
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  background: rgba(255, 255, 255, 0.58);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.lds-start-hero-panel {
+  display: grid;
+  gap: 16px;
+  padding: 22px 24px;
+  background:
+    linear-gradient(145deg, rgba(248, 246, 255, 0.86), rgba(255, 255, 255, 0.76)),
+    rgba(255, 255, 255, 0.58);
+}
+
+.lds-start-hero-kicker {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.08);
+  color: var(--cbs-accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.lds-start-hero-panel-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.lds-start-hero-panel-copy strong {
+  color: var(--cbs-ink);
+  font-size: 1.12rem;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+
+.lds-start-hero-panel-copy p,
+.lds-start-gallery-header p {
+  margin: 0;
+  color: var(--cbs-ink-soft);
+}
+
+.lds-start-gallery-header {
+  margin-bottom: 18px;
+  padding: 20px 22px;
+}
+
 .lds-start-card p {
   color: var(--cbs-ink-soft);
 }
@@ -5923,10 +5987,16 @@
 }
 
 .lds-start-preview-fill {
-  display: block;
+  display: flex;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, rgba(79, 70, 229, 0.42), rgba(79, 70, 229, 0.9));
+  overflow: hidden;
+}
+
+.lds-start-preview-segment {
+  display: block;
+  height: 100%;
+  background: var(--lds-start-preview-accent);
 }
 
 .lds-start-preview-title {
@@ -5962,6 +6032,425 @@
   color: var(--cbs-accent);
   font-size: 0.8rem;
   line-height: 1.55;
+}
+
+.lds-start-card-reveal {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0 0 16px;
+  padding: 14px 15px;
+  border-radius: 22px;
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  background: rgba(255, 255, 255, 0.56);
+  transition:
+    transform 180ms var(--cbs-ease),
+    background 180ms var(--cbs-ease),
+    box-shadow 180ms var(--cbs-ease);
+}
+
+.lds-start-card:hover .lds-start-card-reveal,
+.lds-start-card:focus-within .lds-start-card-reveal {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: var(--cbs-shadow-1);
+}
+
+.lds-start-reveal-label {
+  display: inline-flex;
+  margin-bottom: 8px;
+  color: var(--cbs-ink-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.lds-start-reveal-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  color: var(--cbs-ink-soft);
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.lds-start-reveal-list.compact {
+  padding-left: 16px;
+}
+
+.lds-start-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.lds-wizard-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(244, 245, 251, 0.52);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.lds-wizard-card {
+  width: min(1080px, 100%);
+  max-height: min(88vh, 980px);
+  overflow: hidden;
+  border-radius: 34px;
+  border: 1px solid rgba(122, 128, 160, 0.14);
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: var(--cbs-shadow-4);
+  backdrop-filter: blur(28px) saturate(155%);
+  -webkit-backdrop-filter: blur(28px) saturate(155%);
+}
+
+.lds-wizard-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 26px 28px 18px;
+  border-bottom: 1px solid rgba(122, 128, 160, 0.08);
+}
+
+.lds-wizard-title {
+  margin: 4px 0 8px;
+  color: var(--cbs-ink);
+  font-size: clamp(1.4rem, 1.18rem + 0.8vw, 2rem);
+  font-weight: 600;
+  line-height: 1.04;
+  letter-spacing: -0.05em;
+}
+
+.lds-wizard-copy {
+  margin: 0;
+  color: var(--cbs-ink-soft);
+  max-width: 48rem;
+}
+
+.lds-wizard-progress {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 18px 28px 0;
+}
+
+.lds-wizard-progress-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 0;
+}
+
+.lds-wizard-progress-dot {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(122, 128, 160, 0.18);
+  background: rgba(255, 255, 255, 0.74);
+  color: var(--cbs-ink-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.lds-wizard-progress-step.active .lds-wizard-progress-dot,
+.lds-wizard-progress-step.complete .lds-wizard-progress-dot {
+  border-color: rgba(79, 70, 229, 0.16);
+  background: rgba(79, 70, 229, 0.1);
+  color: var(--cbs-accent);
+}
+
+.lds-wizard-progress-label {
+  color: var(--cbs-ink-soft);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.lds-wizard-progress-line {
+  flex: 1 1 auto;
+  height: 1px;
+  margin-inline: 6px 0;
+  background: linear-gradient(90deg, rgba(79, 70, 229, 0.25), rgba(122, 128, 160, 0.1));
+}
+
+.lds-wizard-body {
+  max-height: calc(88vh - 188px);
+  overflow: auto;
+  padding: 18px 28px 12px;
+}
+
+.lds-wizard-stage {
+  display: grid;
+  gap: 18px;
+}
+
+.lds-wizard-stage-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.lds-wizard-topic-grid,
+.lds-wizard-style-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.lds-wizard-topic-card,
+.lds-wizard-style-card {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 26px;
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  background: rgba(255, 255, 255, 0.6);
+  text-align: left;
+  transition:
+    transform 180ms var(--cbs-ease),
+    box-shadow 180ms var(--cbs-ease),
+    border-color 180ms var(--cbs-ease),
+    background 180ms var(--cbs-ease);
+}
+
+.lds-wizard-topic-card:hover,
+.lds-wizard-style-card:hover,
+.lds-wizard-topic-card.active,
+.lds-wizard-style-card.active {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.84);
+  border-color: rgba(79, 70, 229, 0.16);
+  box-shadow: var(--cbs-shadow-1);
+}
+
+.lds-wizard-topic-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.lds-wizard-topic-copy {
+  display: grid;
+  gap: 4px;
+  flex: 1 1 auto;
+}
+
+.lds-wizard-topic-copy strong,
+.lds-wizard-style-card strong,
+.lds-wizard-review-card h4 {
+  color: var(--cbs-ink);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.lds-wizard-topic-copy span,
+.lds-wizard-style-card p,
+.lds-wizard-topic-card p,
+.lds-wizard-review-card p {
+  color: var(--cbs-ink-soft);
+}
+
+.lds-wizard-topic-preview {
+  display: grid;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(122, 128, 160, 0.1);
+}
+
+.lds-wizard-topic-preview-row,
+.lds-wizard-review-row {
+  display: grid;
+  grid-template-columns: auto minmax(80px, 108px) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.lds-wizard-topic-preview-label {
+  color: var(--cbs-ink-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.lds-wizard-topic-preview-track,
+.lds-wizard-review-row-track {
+  display: flex;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(16, 17, 20, 0.06);
+}
+
+.lds-wizard-topic-preview-segment,
+.lds-wizard-review-row-segment {
+  display: block;
+  height: 100%;
+  background: var(--lds-wizard-preview-accent);
+}
+
+.lds-wizard-topic-preview-title {
+  color: var(--cbs-ink-soft);
+  font-size: 0.78rem;
+}
+
+.lds-wizard-style-label,
+.lds-wizard-style-emphasis {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.08);
+  color: var(--cbs-accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.lds-wizard-review-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.lds-wizard-review-card {
+  padding: 18px;
+}
+
+.lds-wizard-review-card.emphasis {
+  background:
+    linear-gradient(145deg, rgba(244, 241, 255, 0.92), rgba(255, 255, 255, 0.78)),
+    rgba(255, 255, 255, 0.58);
+}
+
+.lds-wizard-review-card.wide {
+  grid-column: 1 / -1;
+}
+
+.lds-wizard-review-preview {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.lds-wizard-review-row > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.lds-wizard-review-row > div:first-child strong {
+  color: var(--cbs-ink);
+  font-size: 0.82rem;
+}
+
+.lds-wizard-review-row > div:first-child span,
+.lds-wizard-review-row small {
+  color: var(--cbs-ink-soft);
+  font-size: 0.78rem;
+}
+
+.lds-wizard-recommendation {
+  display: grid;
+  gap: 8px;
+  padding: 18px 20px;
+  margin-top: 4px;
+}
+
+.lds-wizard-recommendation strong {
+  color: var(--cbs-ink);
+  letter-spacing: -0.02em;
+}
+
+.lds-wizard-recommendation p {
+  margin: 0;
+  color: var(--cbs-ink-soft);
+}
+
+.lds-wizard-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 28px 26px;
+  border-top: 1px solid rgba(122, 128, 160, 0.08);
+}
+
+@media (max-width: 1024px) {
+  .lds-start-hero,
+  .lds-wizard-topic-grid,
+  .lds-wizard-style-grid,
+  .lds-wizard-review-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lds-start-card-reveal {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .lds-wizard-overlay {
+    padding: 14px;
+  }
+
+  .lds-wizard-card {
+    max-height: 92vh;
+  }
+
+  .lds-wizard-header,
+  .lds-wizard-body,
+  .lds-wizard-actions {
+    padding-inline: 20px;
+  }
+
+  .lds-wizard-progress {
+    flex-direction: column;
+    align-items: stretch;
+    padding-inline: 20px;
+    gap: 10px;
+  }
+
+  .lds-wizard-progress-line {
+    display: none;
+  }
+
+  .lds-wizard-topic-preview-row,
+  .lds-wizard-review-row {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .lds-start-card-actions,
+  .lds-wizard-actions {
+    flex-direction: column;
+  }
+
+  .lds-start-card-actions .button,
+  .lds-wizard-actions .button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .lds-start-hero-panel,
+  .lds-start-gallery-header,
+  .lds-start-card-reveal,
+  .lds-wizard-review-card {
+    padding: 16px;
+  }
 }
 
 .lds-library-overlay,

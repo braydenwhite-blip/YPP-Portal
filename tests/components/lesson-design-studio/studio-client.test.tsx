@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { StudioClient } from "@/app/(app)/instructor/lesson-design-studio/studio-client";
@@ -271,12 +271,45 @@ describe("StudioClient", () => {
 
     expect(screen.getByText("Recommended next move")).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Pick a starter scaffold" })
-    ).toBeInTheDocument();
+      screen.getAllByRole("heading", { name: "Pick a starter scaffold" }).length
+    ).toBeGreaterThan(0);
 
     await user.click(screen.getByRole("button", { name: /Course Map/i }));
 
     expect(screen.getByRole("heading", { name: "Shape the course promise" })).toBeInTheDocument();
+  });
+
+  it("generates a starter curriculum from the quick-start wizard", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <StudioClient
+        userId="user-1"
+        userName="Instructor"
+        draft={buildDraft()}
+        currentPhase="START"
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: "Open quick-start wizard" }));
+
+    const wizard = screen.getByRole("dialog", { name: "Quick-start wizard" });
+    await user.click(
+      within(wizard).getByRole("button", { name: /Technology & Coding/i })
+    );
+    await user.click(within(wizard).getByRole("button", { name: "Continue" }));
+    await user.click(
+      within(wizard).getByRole("button", { name: /Build with active practice/i })
+    );
+    await user.click(within(wizard).getByRole("button", { name: "Continue" }));
+    await user.click(
+      within(wizard).getByRole("button", { name: "Generate starter curriculum" })
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Shape the course promise" })
+    ).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Code Your Future")).toBeInTheDocument();
   });
 
   it("flushes the latest draft before exporting", async () => {
