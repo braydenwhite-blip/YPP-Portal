@@ -6986,6 +6986,616 @@
   }
 }
 
+.lds-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lds-rich-upload-input {
+  display: none;
+}
+
+.lds-rich-editor {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+}
+
+.lds-rich-editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(193, 197, 220, 0.7);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(246, 244, 255, 0.72));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.78),
+    0 22px 42px rgba(154, 152, 190, 0.14);
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+}
+
+.lds-rich-editor-toolbar-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lds-rich-toolbar-divider {
+  width: 1px;
+  height: 24px;
+  background: linear-gradient(180deg, rgba(200, 201, 221, 0), rgba(200, 201, 221, 0.9), rgba(200, 201, 221, 0));
+}
+
+.lds-rich-editor-toolbar-spacer {
+  flex: 1 1 auto;
+}
+
+.lds-rich-toolbar-button {
+  appearance: none;
+  border: 1px solid rgba(190, 195, 217, 0.8);
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--cbs-ink);
+  border-radius: 999px;
+  min-height: 34px;
+  padding: 0 13px;
+  font: inherit;
+  font-size: 0.83rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition:
+    transform 180ms var(--cbs-ease),
+    box-shadow 180ms var(--cbs-ease),
+    background 180ms var(--cbs-ease),
+    border-color 180ms var(--cbs-ease);
+  box-shadow: 0 10px 20px rgba(163, 159, 193, 0.08);
+}
+
+.lds-rich-toolbar-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(170, 176, 209, 0.95);
+}
+
+.lds-rich-toolbar-button.active {
+  background: rgba(109, 111, 205, 0.1);
+  color: #4c4ec2;
+  border-color: rgba(109, 111, 205, 0.25);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.62),
+    0 16px 30px rgba(109, 111, 205, 0.12);
+}
+
+.lds-rich-toolbar-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.lds-rich-editor-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lds-rich-editor-note,
+.lds-rich-editor-status {
+  margin: 0;
+  color: var(--cbs-ink-soft);
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+.lds-rich-editor-status {
+  white-space: nowrap;
+}
+
+.lds-rich-editor-surface {
+  min-height: 240px;
+  border-radius: 24px;
+  border: 1px solid rgba(194, 199, 220, 0.72);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(248, 246, 255, 0.74));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.84),
+    0 28px 48px rgba(155, 149, 188, 0.14);
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  padding: 18px 20px;
+}
+
+.lds-rich-editor-surface.preview {
+  min-height: 220px;
+}
+
+.lds-rich-editor-content {
+  min-height: 200px;
+  color: var(--cbs-ink);
+  cursor: text;
+  font-size: 0.98rem;
+  line-height: 1.78;
+}
+
+.lds-rich-editor-content:focus {
+  outline: none;
+}
+
+.lds-rich-editor-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--cbs-ink-muted);
+  pointer-events: none;
+  height: 0;
+}
+
+.lds-rich-editor-content p,
+.lds-rich-content p {
+  margin: 0 0 12px;
+}
+
+.lds-rich-editor-content h2,
+.lds-rich-content h2 {
+  margin: 0 0 12px;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--cbs-ink);
+}
+
+.lds-rich-editor-content h3,
+.lds-rich-content h3 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--cbs-ink);
+}
+
+.lds-rich-editor-content ul,
+.lds-rich-editor-content ol,
+.lds-rich-content ul,
+.lds-rich-content ol {
+  margin: 0 0 14px;
+  padding-left: 1.35rem;
+}
+
+.lds-rich-editor-content li,
+.lds-rich-content li {
+  margin-bottom: 6px;
+}
+
+.lds-rich-editor-content a,
+.lds-rich-content a {
+  color: #4d57cf;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.lds-rich-editor-content code,
+.lds-rich-content code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.92em;
+  border-radius: 10px;
+  padding: 0.12rem 0.4rem;
+  background: rgba(49, 54, 86, 0.08);
+}
+
+.lds-rich-editor-content .lds-rich-node-figure,
+.lds-rich-content-figure {
+  margin: 18px 0;
+  padding: 14px;
+  border-radius: 22px;
+  border: 1px solid rgba(194, 199, 220, 0.7);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.88),
+    0 18px 36px rgba(152, 145, 183, 0.12);
+}
+
+.lds-rich-editor-content .lds-rich-node-figure img,
+.lds-rich-content-image {
+  width: 100%;
+  display: block;
+  border-radius: 16px;
+  object-fit: cover;
+}
+
+.lds-rich-editor-content .lds-rich-node-caption,
+.lds-rich-content figcaption {
+  margin-top: 10px;
+  color: var(--cbs-ink-soft);
+  font-size: 0.84rem;
+}
+
+.lds-rich-editor-content .lds-rich-node-embed-frame,
+.lds-rich-content-embed-frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  padding-top: 56.25%;
+  background: rgba(22, 26, 44, 0.9);
+}
+
+.lds-rich-editor-content .lds-rich-node-embed-frame iframe,
+.lds-rich-content-embed-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.lds-rich-editor-content .lds-rich-node-file-link,
+.lds-rich-content-file {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 16px 0;
+  padding: 15px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(190, 196, 219, 0.78);
+  background: rgba(252, 252, 255, 0.88);
+  color: var(--cbs-ink);
+  text-decoration: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.76),
+    0 16px 28px rgba(154, 149, 186, 0.1);
+}
+
+.lds-rich-node-file-title,
+.lds-rich-content-file-title {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.lds-rich-node-file-meta,
+.lds-rich-content-file-meta {
+  color: var(--cbs-ink-soft);
+  font-size: 0.82rem;
+}
+
+.lds-rich-content-code-block {
+  position: relative;
+  margin: 16px 0;
+  padding: 18px 18px 40px;
+  overflow-x: auto;
+  border-radius: 20px;
+  background: rgba(23, 27, 43, 0.96);
+  color: rgba(247, 248, 255, 0.94);
+  box-shadow: 0 24px 44px rgba(16, 18, 31, 0.24);
+}
+
+.lds-rich-content-code-block code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+.lds-rich-content-code-language {
+  position: absolute;
+  right: 14px;
+  bottom: 12px;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.lds-rich-quiz-card {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(196, 202, 224, 0.75);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(247, 244, 255, 0.78));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.84),
+    0 22px 38px rgba(154, 149, 188, 0.13);
+}
+
+.lds-rich-quiz-label {
+  display: inline-flex;
+  width: fit-content;
+  padding: 0.35rem 0.72rem;
+  border-radius: 999px;
+  background: rgba(88, 96, 202, 0.1);
+  color: #4d58c8;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.lds-rich-quiz-options {
+  display: grid;
+  gap: 10px;
+}
+
+.lds-rich-quiz-options.static {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.lds-rich-quiz-option {
+  text-align: left;
+  border: 1px solid rgba(188, 194, 220, 0.82);
+  background: rgba(255, 255, 255, 0.86);
+  border-radius: 16px;
+  padding: 12px 14px;
+  font: inherit;
+  color: var(--cbs-ink);
+  transition:
+    transform 180ms var(--cbs-ease),
+    border-color 180ms var(--cbs-ease),
+    background 180ms var(--cbs-ease);
+}
+
+.lds-rich-quiz-option:hover {
+  transform: translateY(-1px);
+  border-color: rgba(120, 129, 214, 0.6);
+}
+
+.lds-rich-quiz-option.selected {
+  border-color: rgba(104, 114, 210, 0.9);
+  background: rgba(104, 114, 210, 0.08);
+}
+
+.lds-rich-quiz-option.correct {
+  border-color: rgba(46, 164, 109, 0.72);
+  background: rgba(46, 164, 109, 0.1);
+}
+
+.lds-rich-quiz-option.incorrect {
+  border-color: rgba(209, 88, 88, 0.7);
+  background: rgba(209, 88, 88, 0.08);
+}
+
+.lds-rich-quiz-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.lds-rich-quiz-feedback {
+  margin: 0;
+  color: var(--cbs-ink-soft);
+}
+
+.lds-rich-quiz-feedback.success {
+  color: #268a5f;
+}
+
+.lds-rich-quiz-feedback.error {
+  color: #b35555;
+}
+
+.lds-rich-content-empty {
+  margin: 0;
+  color: var(--cbs-ink-muted);
+}
+
+.cbs-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 28px;
+  background: rgba(236, 237, 247, 0.42);
+  backdrop-filter: blur(18px) saturate(120%);
+  -webkit-backdrop-filter: blur(18px) saturate(120%);
+}
+
+.cbs-preview-panel {
+  width: min(980px, 100%);
+  max-height: min(88vh, 980px);
+  overflow: hidden;
+  border-radius: 32px;
+  border: 1px solid rgba(198, 203, 224, 0.76);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(247, 244, 255, 0.82));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.86),
+    0 42px 84px rgba(142, 137, 175, 0.24);
+}
+
+.cbs-preview-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 28px 30px 20px;
+  border-bottom: 1px solid rgba(196, 201, 223, 0.72);
+}
+
+.cbs-preview-eyebrow {
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cbs-ink-soft);
+}
+
+.cbs-preview-title {
+  margin: 0;
+  font-size: clamp(1.5rem, 2vw, 2rem);
+  letter-spacing: -0.05em;
+  color: var(--cbs-ink);
+}
+
+.cbs-preview-copy {
+  max-width: 44rem;
+  margin: 10px 0 0;
+  color: var(--cbs-ink-soft);
+  line-height: 1.7;
+}
+
+.cbs-preview-body {
+  display: grid;
+  gap: 20px;
+  max-height: calc(88vh - 132px);
+  overflow: auto;
+  padding: 24px 30px 30px;
+}
+
+.cbs-preview-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.cbs-preview-summary-card,
+.cbs-preview-section,
+.cbs-preview-activity-card {
+  border-radius: 24px;
+  border: 1px solid rgba(194, 199, 220, 0.7);
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.84),
+    0 22px 38px rgba(152, 145, 183, 0.12);
+}
+
+.cbs-preview-summary-card {
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+}
+
+.cbs-preview-summary-card span {
+  color: var(--cbs-ink-soft);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.cbs-preview-summary-card strong {
+  font-size: 1.04rem;
+  letter-spacing: -0.02em;
+  color: var(--cbs-ink);
+}
+
+.cbs-preview-section {
+  padding: 22px 24px;
+}
+
+.cbs-preview-section.intro h3,
+.cbs-preview-section h3 {
+  margin: 8px 0 0;
+  font-size: 1.16rem;
+  letter-spacing: -0.03em;
+}
+
+.cbs-preview-section p {
+  margin: 10px 0 0;
+  color: var(--cbs-ink-soft);
+  line-height: 1.7;
+}
+
+.cbs-preview-section-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cbs-ink-soft);
+}
+
+.cbs-preview-activity-list {
+  display: grid;
+  gap: 16px;
+}
+
+.cbs-preview-activity-card {
+  padding: 22px 24px;
+}
+
+.cbs-preview-activity-top,
+.cbs-preview-activity-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cbs-preview-activity-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.48rem 0.88rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cbs-preview-accent) 12%, white);
+  color: var(--cbs-preview-accent);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.cbs-preview-activity-time,
+.cbs-preview-activity-duration {
+  color: var(--cbs-ink-soft);
+  font-size: 0.83rem;
+}
+
+.cbs-preview-activity-title {
+  margin: 14px 0 10px;
+  font-size: 1.12rem;
+  letter-spacing: -0.03em;
+}
+
+@media (max-width: 900px) {
+  .lds-toolbar-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .lds-rich-editor-status-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .cbs-preview-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .lds-rich-editor-toolbar {
+    padding: 12px;
+  }
+
+  .lds-rich-toolbar-divider,
+  .lds-rich-editor-toolbar-spacer {
+    display: none;
+  }
+
+  .cbs-preview-overlay {
+    padding: 14px;
+  }
+
+  .cbs-preview-panel {
+    max-height: 92vh;
+    border-radius: 28px;
+  }
+
+  .cbs-preview-header,
+  .cbs-preview-body {
+    padding-inline: 20px;
+  }
+
+  .cbs-preview-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cbs-studio *,
   .cbs-studio *::before,
@@ -7014,7 +7624,8 @@
   .cbs-studio::after,
   .lds-studio-toolbar,
   .lds-guided-rail-actions,
-  .lds-studio-toast {
+  .lds-studio-toast,
+  .cbs-preview-overlay {
     display: none !important;
   }
 

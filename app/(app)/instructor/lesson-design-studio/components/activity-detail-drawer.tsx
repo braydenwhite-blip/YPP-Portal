@@ -9,6 +9,7 @@ import {
   getActivityTypeConfig,
   ACTIVITY_TYPE_CONFIG,
 } from "./activity-template-data";
+import { StudioRichEditor } from "./studio-rich-editor";
 
 interface ActivityDetailDrawerProps {
   activity: WeekActivity | null;
@@ -171,17 +172,16 @@ export function ActivityDetailDrawer({
               </div>
             </div>
 
-            <label className="cbs-drawer-field">
+            <div className="cbs-drawer-field">
               <span className="cbs-drawer-label">Description</span>
-              <textarea
-                className="cbs-drawer-textarea"
-                rows={4}
-                value={activity.description ?? ""}
+              <StudioRichEditor
+                value={activity.description}
                 readOnly={readOnly}
-                onChange={(e) => handleChange("description", e.target.value)}
-                placeholder="What will students do in this activity?"
+                uploadEntityId={activity.id}
+                onChange={(nextValue) => handleChange("description", nextValue)}
+                placeholder="Describe what students experience here, then drop in media, a quiz, or a code sample if the activity needs it."
               />
-            </label>
+            </div>
           </section>
 
           <section className="cbs-drawer-section">

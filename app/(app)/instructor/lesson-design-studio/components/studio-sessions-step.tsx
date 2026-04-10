@@ -5,6 +5,7 @@ import {
   MIN_ACTIVITIES_PER_SESSION,
   buildSessionLabel,
 } from "@/lib/curriculum-draft-progress";
+import { getLessonDesignStudioRichPreview } from "@/lib/lesson-design-studio-rich-content";
 import type { StudioPhase } from "@/lib/lesson-design-studio";
 import type { ExampleWeek } from "../examples-data";
 import type {
@@ -66,13 +67,13 @@ const QUICK_TEMPLATES = ACTIVITY_TEMPLATE_CATEGORIES.flatMap(
   (category) => category.templates
 ).filter((template) => QUICK_TEMPLATE_TITLES.includes(template.title));
 
-const QUICK_ADD_ACTIVITY_VALUES = [
+const QUICK_ADD_ACTIVITY_VALUES: WeekActivity["type"][] = [
   "WARM_UP",
   "INSTRUCTION",
   "PRACTICE",
   "DISCUSSION",
   "REFLECTION",
-] as const;
+];
 
 const QUICK_ADD_ACTIVITY_TYPES = ACTIVITY_TYPE_CONFIG.filter((type) =>
   QUICK_ADD_ACTIVITY_VALUES.includes(type.value)
@@ -551,8 +552,10 @@ export function StudioSessionsStep({
                           </div>
                           <strong>{activity.title || "Untitled activity"}</strong>
                           <p className="lds-activity-description">
-                            {(activity.description ?? "").trim() ||
-                              "Add the exact prompt, student action, or teacher move this activity should create."}
+                            {getLessonDesignStudioRichPreview(activity.description, {
+                              fallback:
+                                "Add the exact prompt, student action, or teacher move this activity should create.",
+                            })}
                           </p>
                         </div>
                       </button>

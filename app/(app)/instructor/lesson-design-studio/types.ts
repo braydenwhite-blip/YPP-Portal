@@ -68,6 +68,7 @@ export interface WeekActivity {
   title: string;
   type: ActivityType;
   durationMin: number;
+  // Stored as plain text for legacy content or a stringified Tiptap JSON document for rich content.
   description: string | null;
   resources: string | null;
   notes: string | null;

@@ -38,6 +38,7 @@ import { StudioReadinessStep } from "./components/studio-readiness-step";
 import { StudioReviewLaunchStep } from "./components/studio-review-launch-step";
 import { StudioSessionsStep } from "./components/studio-sessions-step";
 import { StudioStartStep } from "./components/studio-start-step";
+import { StudentPreviewPanel } from "./components/student-preview-panel";
 import { SEED_CURRICULA, type SeedCurriculum } from "./curriculum-seeds";
 import type { ExampleWeek } from "./examples-data";
 import {
@@ -315,6 +316,7 @@ export function StudioClient({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showStudentPreview, setShowStudentPreview] = useState(false);
   const [templatesWeekId, setTemplatesWeekId] = useState<string | null>(null);
   const [showExamplesLibrary, setShowExamplesLibrary] = useState(false);
   const [examplesLibraryError, setExamplesLibraryError] = useState<string | null>(
@@ -1424,6 +1426,22 @@ export function StudioClient({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showHistory]);
 
+  const selectedWeek =
+    weeklyPlans.find((plan) => plan.id === selectedWeekId) ?? weeklyPlans[0] ?? null;
+
+  useEffect(() => {
+    if (activePhase !== "SESSIONS") {
+      setShowStudentPreview(false);
+    }
+  }, [activePhase]);
+
+  useEffect(() => {
+    if (!showStudentPreview) return;
+    if (!selectedWeek) {
+      setShowStudentPreview(false);
+    }
+  }, [selectedWeek, showStudentPreview]);
+
   const nonEmptyOutcomes = outcomes.filter((outcome) => outcome.trim().length > 0);
   const isDraftBlank =
     title.trim().length === 0 &&
@@ -1528,6 +1546,17 @@ export function StudioClient({
     </>
   );
 
+  const toolbarActions =
+    activePhase === "SESSIONS" && selectedWeek ? (
+      <button
+        type="button"
+        className="button secondary"
+        onClick={() => setShowStudentPreview(true)}
+      >
+        Preview session
+      </button>
+    ) : null;
+
   const stepContent =
     activePhase === "START" ? (
       <StudioStartStep
@@ -1626,6 +1655,7 @@ export function StudioClient({
       toast={toast}
       journey={journey}
       onPhaseChange={setActivePhase}
+      toolbarActions={toolbarActions}
       heroActions={heroActions}
     >
       {stepContent}
@@ -1666,6 +1696,13 @@ export function StudioClient({
             rubric: null,
           });
         }}
+      />
+
+      <StudentPreviewPanel
+        open={showStudentPreview}
+        week={selectedWeek}
+        courseConfig={courseConfig}
+        onClose={() => setShowStudentPreview(false)}
       />
 
       {shouldRenderOnboardingTour ? (

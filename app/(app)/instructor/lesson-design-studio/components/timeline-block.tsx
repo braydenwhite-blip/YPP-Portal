@@ -10,6 +10,7 @@ import {
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { WeekActivity } from "../types";
+import { getLessonDesignStudioRichPreview } from "@/lib/lesson-design-studio-rich-content";
 import { getActivityTypeConfig } from "./activity-template-data";
 
 interface TimelineBlockBaseProps {
@@ -61,8 +62,7 @@ function TimelineBlockContent({
         </strong>
         {!tight ? (
           <p className="lds-timeline-block-copy">
-            {(activity.description ?? "").trim() ||
-              "Add the student move, prompt, or facilitation beat for this block."}
+            {getLessonDesignStudioRichPreview(activity.description)}
           </p>
         ) : null}
       </div>
