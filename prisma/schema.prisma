@@ -356,6 +356,36 @@ enum ParentFeedbackType {
   PROGRAM_FEEDBACK
 }
 
+enum InstructorGrowthTier {
+  SPARK
+  PRACTITIONER
+  CATALYST
+  PATHMAKER
+  LEADER
+  LUMINARY
+  FELLOW
+}
+
+enum InstructorGrowthCategory {
+  TEACHING
+  GROWTH
+  COMMUNITY
+  IMPACT
+}
+
+enum InstructorGrowthSourceMethod {
+  AUTO
+  CLAIM
+  MANUAL
+}
+
+enum InstructorGrowthStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REVOKED
+}
+
 enum SurveyStatus {
   DRAFT
   ACTIVE
@@ -1041,6 +1071,17 @@ model User {
   grGoalChangesProposed      GRGoalChange[]      @relation("GRGoalChangesProposed")
   grGoalChangesReviewed      GRGoalChange[]      @relation("GRGoalChangesReviewed")
   grDocumentVersionsCreated  GRDocumentVersion[] @relation("GRDocumentVersionsCreated")
+
+  // Instructor Growth System
+  instructorGrowthProfile         InstructorGrowthProfile?
+  instructorGrowthEvents          InstructorGrowthEvent[]        @relation("InstructorGrowthEvents")
+  instructorGrowthClaimsSubmitted InstructorGrowthEvent[]        @relation("InstructorGrowthEventsSubmittedBy")
+  instructorGrowthMentorRoutes    InstructorGrowthEvent[]        @relation("InstructorGrowthEventsMentor")
+  instructorGrowthEventsReviewed  InstructorGrowthEvent[]        @relation("InstructorGrowthEventsReviewedBy")
+  instructorGrowthEventsRevoked   InstructorGrowthEvent[]        @relation("InstructorGrowthEventsRevokedBy")
+  instructorGrowthEventsRelated   InstructorGrowthEvent[]        @relation("InstructorGrowthEventsRelatedUser")
+  instructorGrowthBadgeAwards     InstructorGrowthBadgeAward[]   @relation("InstructorGrowthBadgeAwards")
+  instructorGrowthSemesterStats   InstructorGrowthSemesterStat[] @relation("InstructorGrowthSemesterStats")
 
   // Governance & Risk
   opsRulesCreated OpsRule[] @relation("OpsRulesCreated")
@@ -3443,6 +3484,129 @@ model XpTransaction {
   @@index([createdAt])
 }
 
+model InstructorGrowthProfile {
+  id                   String               @id @default(cuid())
+  instructorId         String               @unique
+  instructor           User                 @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+  currentTier          InstructorGrowthTier @default(SPARK)
+  lifetimeXp           Int                  @default(0)
+  currentSemesterLabel String?
+  currentSemesterXp    Int                  @default(0)
+  approvedEventCount   Int                  @default(0)
+  pendingEventCount    Int                  @default(0)
+  badgeCount           Int                  @default(0)
+  lastEvaluatedAt      DateTime?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  @@index([currentTier])
+  @@index([lifetimeXp])
+}
+
+model InstructorGrowthEvent {
+  id               String                       @id @default(cuid())
+  instructorId     String
+  instructor       User                         @relation("InstructorGrowthEvents", fields: [instructorId], references: [id], onDelete: Cascade)
+  category         InstructorGrowthCategory
+  sourceMethod     InstructorGrowthSourceMethod
+  status           InstructorGrowthStatus       @default(PENDING)
+  eventKey         String
+  title            String
+  description      String?
+  xpAmount         Int
+  semesterLabel    String?
+  occurredAt       DateTime                     @default(now())
+  sourceType       String?
+  sourceId         String?
+  dedupeKey        String?
+  relatedUserId    String?
+  relatedUser      User?                        @relation("InstructorGrowthEventsRelatedUser", fields: [relatedUserId], references: [id], onDelete: SetNull)
+  submittedById    String?
+  submittedBy      User?                        @relation("InstructorGrowthEventsSubmittedBy", fields: [submittedById], references: [id], onDelete: SetNull)
+  assignedMentorId String?
+  assignedMentor   User?                        @relation("InstructorGrowthEventsMentor", fields: [assignedMentorId], references: [id], onDelete: SetNull)
+  reviewerId       String?
+  reviewer         User?                        @relation("InstructorGrowthEventsReviewedBy", fields: [reviewerId], references: [id], onDelete: SetNull)
+  reviewedAt       DateTime?
+  reviewNotes      String?
+  revokedById      String?
+  revokedBy        User?                        @relation("InstructorGrowthEventsRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
+  revokedAt        DateTime?
+  revokedReason    String?
+  claimContext     String?
+  evidenceUrl      String?
+  metadata         Json?
+  badgeAwards      InstructorGrowthBadgeAward[]
+  createdAt        DateTime                     @default(now())
+  updatedAt        DateTime                     @updatedAt
+
+  @@unique([instructorId, dedupeKey])
+  @@index([instructorId, status, createdAt])
+  @@index([assignedMentorId, status, createdAt])
+  @@index([reviewerId, status, createdAt])
+  @@index([semesterLabel])
+  @@index([eventKey])
+  @@index([sourceType, sourceId])
+}
+
+model InstructorGrowthBadgeDefinition {
+  id          String                        @id @default(cuid())
+  slug        String                        @unique
+  name        String
+  description String
+  flavorText  String?
+  icon        String
+  accentColor String
+  perkText    String?
+  criteria    Json
+  order       Int                           @default(0)
+  isActive    Boolean                       @default(true)
+  awards      InstructorGrowthBadgeAward[]
+  createdAt   DateTime                      @default(now())
+  updatedAt   DateTime                      @updatedAt
+
+  @@index([order])
+}
+
+model InstructorGrowthBadgeAward {
+  id            String                          @id @default(cuid())
+  instructorId  String
+  instructor    User                            @relation("InstructorGrowthBadgeAwards", fields: [instructorId], references: [id], onDelete: Cascade)
+  badgeId       String
+  badge         InstructorGrowthBadgeDefinition @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  sourceEventId String?
+  sourceEvent   InstructorGrowthEvent?          @relation(fields: [sourceEventId], references: [id], onDelete: SetNull)
+  semesterLabel String?
+  metadata      Json?
+  awardedAt     DateTime                        @default(now())
+  createdAt     DateTime                        @default(now())
+
+  @@unique([instructorId, badgeId])
+  @@index([instructorId, awardedAt])
+  @@index([semesterLabel])
+}
+
+model InstructorGrowthSemesterStat {
+  id                 String   @id @default(cuid())
+  instructorId       String
+  instructor         User     @relation("InstructorGrowthSemesterStats", fields: [instructorId], references: [id], onDelete: Cascade)
+  semesterLabel      String
+  totalXp            Int      @default(0)
+  teachingXp         Int      @default(0)
+  growthXp           Int      @default(0)
+  communityXp        Int      @default(0)
+  impactXp           Int      @default(0)
+  approvedEventCount Int      @default(0)
+  pendingEventCount  Int      @default(0)
+  badgeCount         Int      @default(0)
+  lastEventAt        DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([instructorId, semesterLabel])
+  @@index([semesterLabel])
+}
+
 enum ResourceType {
   DOCUMENT
   SLIDE
@@ -3590,6 +3754,10 @@ enum AuditAction {
   GR_GOAL_CHANGE_PROPOSED
   GR_GOAL_CHANGE_REVIEWED
   GR_BULK_UPDATE
+  INSTRUCTOR_GROWTH_CLAIM_SUBMITTED
+  INSTRUCTOR_GROWTH_CLAIM_APPROVED
+  INSTRUCTOR_GROWTH_CLAIM_REJECTED
+  INSTRUCTOR_GROWTH_EVENT_REVOKED
 }
 
 model AuditLog {

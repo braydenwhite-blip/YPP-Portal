@@ -424,6 +424,22 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardDescription: "Visualize your tier progress, earning velocity, and point history.",
     },
     {
+      href: "/instructor-growth",
+      label: "Instructor Growth",
+      icon: "📈",
+      roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
+      dashboardDescription: "Track private instructor XP, tiers, badges, and semester momentum.",
+      dashboardPriority: 7,
+    },
+    {
+      href: "/instructor-growth/review",
+      label: "Growth Review Board",
+      icon: "🗂️",
+      roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
+      dashboardDescription: "Review pending instructor growth claims in mentor and leadership lanes.",
+      dashboardPriority: 7,
+    },
+    {
       href: "/my-program/schedule",
       label: "Schedule Meeting",
       icon: "📅",

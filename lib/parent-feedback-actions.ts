@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
+import { syncInstructorGrowthSignalsForInstructor } from "@/lib/instructor-growth-service";
 
 export async function submitChapterFeedback(formData: FormData) {
   const session = await getSession();
@@ -42,6 +43,10 @@ export async function submitChapterFeedback(formData: FormData) {
       isAnonymous,
     },
   });
+
+  if (type === "INSTRUCTOR_FEEDBACK" && targetUserId) {
+    await syncInstructorGrowthSignalsForInstructor(targetUserId).catch(() => null);
+  }
 
   revalidatePath("/parent/feedback");
   revalidatePath("/admin/parent-feedback");

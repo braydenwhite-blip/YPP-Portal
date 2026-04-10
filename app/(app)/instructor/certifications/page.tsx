@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { getInstructorReadiness } from "@/lib/instructor-readiness";
 import { prisma } from "@/lib/prisma";
+import Link from "next/link";
 
 export default async function InstructorCertificationsPage() {
   const session = await getSession();
@@ -79,6 +80,11 @@ export default async function InstructorCertificationsPage() {
         <p>
           Track your current instructor readiness and keep legacy approval history in one place.
         </p>
+        <div style={{ marginTop: 14 }}>
+          <Link href="/instructor-growth" className="button secondary">
+            Open Instructor Growth
+          </Link>
+        </div>
       </div>
 
       {/* Readiness badges */}
