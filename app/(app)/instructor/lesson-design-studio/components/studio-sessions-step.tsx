@@ -16,10 +16,12 @@ import type {
 } from "../types";
 import { ActivityDetailDrawer } from "./activity-detail-drawer";
 import {
+  ACTIVITY_TYPE_CONFIG,
   ACTIVITY_TEMPLATE_CATEGORIES,
   AT_HOME_TYPE_CONFIG,
   getActivityTypeConfig,
 } from "./activity-template-data";
+import { SessionTimeline } from "./session-timeline";
 import { StudioExampleSpotlight } from "./studio-example-spotlight";
 import { StudioMicroChecks } from "./studio-micro-checks";
 
@@ -63,6 +65,63 @@ const QUICK_TEMPLATE_TITLES = [
 const QUICK_TEMPLATES = ACTIVITY_TEMPLATE_CATEGORIES.flatMap(
   (category) => category.templates
 ).filter((template) => QUICK_TEMPLATE_TITLES.includes(template.title));
+
+const QUICK_ADD_ACTIVITY_VALUES = [
+  "WARM_UP",
+  "INSTRUCTION",
+  "PRACTICE",
+  "DISCUSSION",
+  "REFLECTION",
+] as const;
+
+const QUICK_ADD_ACTIVITY_TYPES = ACTIVITY_TYPE_CONFIG.filter((type) =>
+  QUICK_ADD_ACTIVITY_VALUES.includes(type.value)
+);
+
+function buildActivitySeed(
+  activity:
+    | {
+        title: string;
+        type: WeekActivity["type"];
+        durationMin: number;
+        description: string | null;
+      }
+    | {
+        label: string;
+        value: WeekActivity["type"];
+        defaultDuration: number;
+      }
+): Omit<WeekActivity, "id" | "sortOrder"> {
+  if ("label" in activity) {
+    return {
+      title: activity.label,
+      type: activity.value,
+      durationMin: activity.defaultDuration,
+      description: null,
+      resources: null,
+      notes: null,
+      materials: null,
+      differentiationTips: null,
+      energyLevel: null,
+      standardsTags: [],
+      rubric: null,
+    };
+  }
+
+  return {
+    title: activity.title,
+    type: activity.type,
+    durationMin: activity.durationMin,
+    description: activity.description,
+    resources: null,
+    notes: null,
+    materials: null,
+    differentiationTips: null,
+    energyLevel: null,
+    standardsTags: [],
+    rubric: null,
+  };
+}
 
 function buildSessionCoaching(week: WeekPlan) {
   const totalMinutes = week.activities.reduce(
@@ -148,16 +207,13 @@ export function StudioSessionsStep({
 
   useEffect(() => {
     if (!selectedWeek) return;
-    if (selectedActivityId) {
-      const activityStillExists = selectedWeek.activities.some(
-        (activity) => activity.id === selectedActivityId
-      );
-      if (activityStillExists) {
-        return;
-      }
+    if (!selectedActivityId) return;
+    const activityStillExists = selectedWeek.activities.some(
+      (activity) => activity.id === selectedActivityId
+    );
+    if (!activityStillExists) {
+      setSelectedActivityId(null);
     }
-
-    setSelectedActivityId(selectedWeek.activities[0]?.id ?? null);
   }, [selectedActivityId, selectedWeek]);
 
   if (!selectedWeek) {
@@ -396,8 +452,45 @@ export function StudioSessionsStep({
             </div>
 
             <div className="lds-subsection-note">
-              Quick starts for common teaching moves. Insert one, then refine the tone,
-              pacing, and detail until it feels unmistakably yours.
+              Quick starts for common teaching moves. Build the timeline with common
+              activity types first, then drop in richer templates once the pacing
+              feels right.
+            </div>
+
+            <SessionTimeline
+              activities={sortedActivities}
+              classDurationMin={selectedWeek.classDurationMin}
+              readOnly={isReadOnly}
+              selectedActivityId={selectedActivityId}
+              onSelectActivity={setSelectedActivityId}
+              onReorderActivity={(activeId, overId) =>
+                onReorderActivities(selectedWeek.id, activeId, overId)
+              }
+              onResizeActivity={(activityId, durationMin) =>
+                onUpdateActivity(selectedWeek.id, activityId, { durationMin })
+              }
+            />
+
+            <div className="lds-quick-add-row" aria-label="Quick add activity types">
+              {QUICK_ADD_ACTIVITY_TYPES.map((type) => (
+                <button
+                  key={type.value}
+                  type="button"
+                  className="lds-quick-add-chip"
+                  disabled={isReadOnly}
+                  onClick={() =>
+                    onAddActivity(selectedWeek.id, buildActivitySeed(type))
+                  }
+                >
+                  <span className="lds-quick-add-icon" aria-hidden="true">
+                    {type.icon}
+                  </span>
+                  <span className="lds-quick-add-copy">
+                    <strong>{type.label}</strong>
+                    <small>{type.defaultDuration} min default</small>
+                  </span>
+                </button>
+              ))}
             </div>
 
             <div className="lds-template-suggestions">
@@ -407,21 +500,7 @@ export function StudioSessionsStep({
                   type="button"
                   className="lds-template-suggestion"
                   disabled={isReadOnly}
-                  onClick={() =>
-                    onAddActivity(selectedWeek.id, {
-                      title: template.title,
-                      type: template.type,
-                      durationMin: template.durationMin,
-                      description: template.description,
-                      resources: null,
-                      notes: null,
-                      materials: null,
-                      differentiationTips: null,
-                      energyLevel: null,
-                      standardsTags: [],
-                      rubric: null,
-                    })
-                  }
+                  onClick={() => onAddActivity(selectedWeek.id, buildActivitySeed(template))}
                 >
                   <strong>{template.title}</strong>
                   <span>{template.durationMin} min</span>
@@ -429,7 +508,7 @@ export function StudioSessionsStep({
               ))}
             </div>
 
-            <div className="lds-activity-stack">
+            <div className="lds-activity-stack lds-session-mobile-stack">
               {sortedActivities.length === 0 ? (
                 <div className="lds-empty-state">
                   Add your first activity to turn this session from an outline into a lesson arc.
