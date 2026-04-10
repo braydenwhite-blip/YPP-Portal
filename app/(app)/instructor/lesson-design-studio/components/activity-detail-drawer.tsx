@@ -1,7 +1,11 @@
 "use client";
 
 import { useState, type CSSProperties } from "react";
-import type { WeekActivity } from "../types";
+import type {
+  CurriculumCommentAnchor,
+  CurriculumCommentRecord,
+  WeekActivity,
+} from "../types";
 import {
   ENERGY_LEVEL_CONFIG,
   FINANCIAL_TAGS,
@@ -9,20 +13,50 @@ import {
   getActivityTypeConfig,
   ACTIVITY_TYPE_CONFIG,
 } from "./activity-template-data";
+import { CommentIndicator } from "./comment-indicator";
+import { CommentThread } from "./comment-thread";
 import { StudioRichEditor } from "./studio-rich-editor";
 
 interface ActivityDetailDrawerProps {
   activity: WeekActivity | null;
+  currentUserId: string;
+  canComment: boolean;
+  canResolveComments: boolean;
   readOnly?: boolean;
+  getCommentStats: (anchor: {
+    anchorType: string;
+    anchorId?: string | null;
+    anchorField?: string | null;
+  }) => {
+    comments: CurriculumCommentRecord[];
+    count: number;
+    unresolvedCount: number;
+  };
   onUpdate: (id: string, fields: Partial<WeekActivity>) => void;
   onClose: () => void;
+  onOpenComments: (anchor: CurriculumCommentAnchor) => void;
+  onCreateComment: (
+    anchor: CurriculumCommentAnchor,
+    body: string,
+    parentId?: string | null
+  ) => Promise<void> | void;
+  onResolveComment: (commentId: string, resolved: boolean) => Promise<void> | void;
+  onDeleteComment: (commentId: string) => Promise<void> | void;
 }
 
 export function ActivityDetailDrawer({
   activity,
+  currentUserId,
+  canComment,
+  canResolveComments,
   readOnly = false,
+  getCommentStats,
   onUpdate,
   onClose,
+  onOpenComments,
+  onCreateComment,
+  onResolveComment,
+  onDeleteComment,
 }: ActivityDetailDrawerProps) {
   const [customTagInput, setCustomTagInput] = useState("");
   const currentType = activity ? getActivityTypeConfig(activity.type) : null;
@@ -67,6 +101,44 @@ export function ActivityDetailDrawer({
 
   if (!activity) return null;
 
+  const titleAnchor: CurriculumCommentAnchor = {
+    anchorType: "ACTIVITY",
+    anchorId: activity.id,
+    anchorField: "title",
+    label: `Activity: ${activity.title || "Untitled activity"}`,
+  };
+  const descriptionAnchor: CurriculumCommentAnchor = {
+    anchorType: "ACTIVITY",
+    anchorId: activity.id,
+    anchorField: "description",
+    label: `Activity description: ${activity.title || "Untitled activity"}`,
+  };
+  const titleCommentStats = getCommentStats(titleAnchor);
+  const descriptionCommentStats = getCommentStats(descriptionAnchor);
+
+  function renderCommentThread(
+    anchor: CurriculumCommentAnchor,
+    title: string,
+    comments: CurriculumCommentRecord[]
+  ) {
+    if (comments.length === 0) {
+      return null;
+    }
+
+    return (
+      <CommentThread
+        title={title}
+        comments={comments}
+        currentUserId={currentUserId}
+        canComment={canComment}
+        canResolveComments={canResolveComments}
+        onCreateComment={(body, parentId) => onCreateComment(anchor, body, parentId)}
+        onResolveComment={onResolveComment}
+        onDeleteComment={onDeleteComment}
+      />
+    );
+  }
+
   return (
     <>
       <div className="cbs-drawer-backdrop" onClick={onClose} aria-hidden="true" />
@@ -110,8 +182,18 @@ export function ActivityDetailDrawer({
               </div>
             </div>
 
-            <label className="cbs-drawer-field">
-              <span className="cbs-drawer-label">Title</span>
+            <div className="cbs-drawer-field">
+              <span className="cbs-drawer-label-row">
+                <span className="cbs-drawer-label">Title</span>
+                {canComment || titleCommentStats.count > 0 ? (
+                  <CommentIndicator
+                    count={titleCommentStats.count}
+                    unresolvedCount={titleCommentStats.unresolvedCount}
+                    label="Activity title comments"
+                    onClick={() => onOpenComments(titleAnchor)}
+                  />
+                ) : null}
+              </span>
               <input
                 className="cbs-drawer-input"
                 type="text"
@@ -119,7 +201,12 @@ export function ActivityDetailDrawer({
                 readOnly={readOnly}
                 onChange={(e) => handleChange("title", e.target.value)}
               />
-            </label>
+              {renderCommentThread(
+                titleAnchor,
+                "Activity title feedback",
+                titleCommentStats.comments
+              )}
+            </div>
 
             <div className="cbs-drawer-field-grid">
               <label className="cbs-drawer-field">
@@ -173,7 +260,17 @@ export function ActivityDetailDrawer({
             </div>
 
             <div className="cbs-drawer-field">
-              <span className="cbs-drawer-label">Description</span>
+              <div className="cbs-drawer-label-row">
+                <span className="cbs-drawer-label">Description</span>
+                {canComment || descriptionCommentStats.count > 0 ? (
+                  <CommentIndicator
+                    count={descriptionCommentStats.count}
+                    unresolvedCount={descriptionCommentStats.unresolvedCount}
+                    label="Activity description comments"
+                    onClick={() => onOpenComments(descriptionAnchor)}
+                  />
+                ) : null}
+              </div>
               <StudioRichEditor
                 value={activity.description}
                 readOnly={readOnly}
@@ -181,6 +278,11 @@ export function ActivityDetailDrawer({
                 onChange={(nextValue) => handleChange("description", nextValue)}
                 placeholder="Describe what students experience here, then drop in media, a quiz, or a code sample if the activity needs it."
               />
+              {renderCommentThread(
+                descriptionAnchor,
+                "Activity description feedback",
+                descriptionCommentStats.comments
+              )}
             </div>
           </section>
 

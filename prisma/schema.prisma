@@ -1061,6 +1061,8 @@ model User {
 
   // Curriculum Builder Studio
   curriculumDrafts CurriculumDraft[]
+  curriculumCommentsAuthored CurriculumComment[] @relation("CurriculumCommentsAuthored")
+  curriculumCommentsResolved CurriculumComment[] @relation("CurriculumCommentsResolved")
 
   // Goals & Responsibilities (G&R) System
   grDocuments                GRDocument[]        @relation("GRDocuments")
@@ -8992,10 +8994,37 @@ model CurriculumDraft {
   completedAt         DateTime?
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
+  comments            CurriculumComment[]
 
   @@index([authorId])
   @@index([status])
   @@index([generatedTemplateId])
+}
+
+model CurriculumComment {
+  id          String              @id @default(cuid())
+  draftId      String
+  draft        CurriculumDraft    @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  authorId     String
+  author       User               @relation("CurriculumCommentsAuthored", fields: [authorId], references: [id])
+  parentId     String?
+  parent       CurriculumComment? @relation("CurriculumCommentReplies", fields: [parentId], references: [id])
+  replies      CurriculumComment[] @relation("CurriculumCommentReplies")
+  anchorType   String
+  anchorId     String?
+  anchorField  String?
+  body         String              @db.Text
+  resolved     Boolean             @default(false)
+  resolvedById String?
+  resolvedBy   User?               @relation("CurriculumCommentsResolved", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedAt   DateTime?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([draftId])
+  @@index([parentId])
+  @@index([anchorType, anchorId, anchorField])
+  @@index([draftId, resolved, createdAt])
 }
 
 // GOALS & RESPONSIBILITIES (G&R) SYSTEM

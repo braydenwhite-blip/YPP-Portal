@@ -10,6 +10,13 @@ const actionMocks = vi.hoisted(() => ({
   createWorkingCopyFromCurriculumDraft: vi.fn(),
 }));
 
+const commentActionMocks = vi.hoisted(() => ({
+  listComments: vi.fn(),
+  createComment: vi.fn(),
+  resolveComment: vi.fn(),
+  deleteComment: vi.fn(),
+}));
+
 const routerMocks = vi.hoisted(() => ({
   push: vi.fn(),
   refresh: vi.fn(),
@@ -48,6 +55,7 @@ const libraryExampleWeek = {
 } as const;
 
 vi.mock("@/lib/curriculum-draft-actions", () => actionMocks);
+vi.mock("@/lib/curriculum-comment-actions", () => commentActionMocks);
 vi.mock("next/navigation", () => ({
   useRouter: () => routerMocks,
 }));
@@ -242,6 +250,17 @@ function buildReadyDraft(overrides: Partial<any> = {}) {
 
 const COMPLETE_UNDERSTANDING_CHECKS = buildReadyDraft().understandingChecks;
 
+function buildViewerAccess(overrides: Partial<any> = {}) {
+  return {
+    canView: true,
+    canEdit: true,
+    canComment: true,
+    canResolveComments: false,
+    viewerKind: "AUTHOR",
+    ...overrides,
+  };
+}
+
 describe("StudioClient", () => {
   beforeEach(() => {
     actionMocks.saveCurriculumDraft.mockReset().mockResolvedValue({ success: true });
@@ -252,6 +271,29 @@ describe("StudioClient", () => {
     actionMocks.createWorkingCopyFromCurriculumDraft
       .mockReset()
       .mockResolvedValue({ draftId: "draft-2", reusedExisting: false });
+    commentActionMocks.listComments.mockReset().mockResolvedValue([]);
+    commentActionMocks.createComment.mockReset().mockResolvedValue({
+      id: "comment-1",
+      draftId: "draft-1",
+      authorId: "user-1",
+      parentId: null,
+      anchorType: "COURSE",
+      anchorId: null,
+      anchorField: "title",
+      body: "Please sharpen the title.",
+      resolved: false,
+      resolvedById: null,
+      resolvedAt: null,
+      createdAt: "2026-04-10T12:00:00.000Z",
+      updatedAt: "2026-04-10T12:00:00.000Z",
+      author: {
+        id: "user-1",
+        name: "Instructor",
+      },
+      resolvedBy: null,
+    });
+    commentActionMocks.resolveComment.mockReset().mockResolvedValue({ success: true });
+    commentActionMocks.deleteComment.mockReset().mockResolvedValue({ success: true });
     routerMocks.push.mockReset();
     routerMocks.refresh.mockReset();
     localStorage.clear();
@@ -265,6 +307,7 @@ describe("StudioClient", () => {
         userId="user-1"
         userName="Instructor"
         draft={buildDraft()}
+        viewerAccess={buildViewerAccess()}
         currentPhase="START"
       />
     );
@@ -287,6 +330,7 @@ describe("StudioClient", () => {
         userId="user-1"
         userName="Instructor"
         draft={buildDraft()}
+        viewerAccess={buildViewerAccess()}
         currentPhase="START"
       />
     );
@@ -325,6 +369,7 @@ describe("StudioClient", () => {
         userId="user-1"
         userName="Instructor"
         draft={buildReadyDraft()}
+        viewerAccess={buildViewerAccess()}
         currentPhase="COURSE_MAP"
       />
     );
@@ -363,6 +408,7 @@ describe("StudioClient", () => {
         userId="user-1"
         userName="Instructor"
         draft={buildReadyDraft()}
+        viewerAccess={buildViewerAccess()}
         currentPhase="COURSE_MAP"
       />
     );
@@ -407,6 +453,7 @@ describe("StudioClient", () => {
         userId="user-1"
         userName="Instructor"
         draft={buildDraft()}
+        viewerAccess={buildViewerAccess()}
         currentPhase="COURSE_MAP"
       />
     );
@@ -430,6 +477,7 @@ describe("StudioClient", () => {
         userId="user-1"
         userName="Instructor"
         draft={buildDraft()}
+        viewerAccess={buildViewerAccess()}
         currentPhase="START"
       />
     );
@@ -458,6 +506,9 @@ describe("StudioClient", () => {
         userId="user-1"
         userName="Instructor"
         draft={buildReadyDraft({ status: "SUBMITTED" })}
+        viewerAccess={buildViewerAccess({
+          canEdit: false,
+        })}
         currentPhase="REVIEW_LAUNCH"
       />
     );
@@ -476,6 +527,7 @@ describe("StudioClient", () => {
         userId="user-1"
         userName="Instructor"
         draft={buildReadyDraft()}
+        viewerAccess={buildViewerAccess()}
         currentPhase="SESSIONS"
       />
     );
@@ -495,6 +547,7 @@ describe("StudioClient", () => {
         userId="user-1"
         userName="Instructor"
         draft={buildDraft({ interestArea: "Finance", outcomes: ["One", "Two", "Three"] })}
+        viewerAccess={buildViewerAccess()}
         currentPhase="SESSIONS"
       />
     );
@@ -512,6 +565,9 @@ describe("StudioClient", () => {
         userId="user-1"
         userName="Instructor"
         draft={buildReadyDraft({ status: "SUBMITTED" })}
+        viewerAccess={buildViewerAccess({
+          canEdit: false,
+        })}
         currentPhase="REVIEW_LAUNCH"
       />
     );
@@ -562,9 +618,14 @@ describe("StudioClient", () => {
             },
           ],
         })}
+        viewerAccess={buildViewerAccess()}
         currentPhase="SESSIONS"
       />
     );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Session title")).toHaveValue("Week 1");
+    });
 
     await user.click(screen.getByRole("button", { name: "Duplicate this session" }));
 
@@ -588,6 +649,9 @@ describe("StudioClient", () => {
         userId="user-1"
         userName="Instructor"
         draft={buildReadyDraft({ status: "SUBMITTED" })}
+        viewerAccess={buildViewerAccess({
+          canEdit: false,
+        })}
         currentPhase="COURSE_MAP"
       />
     );
@@ -597,5 +661,29 @@ describe("StudioClient", () => {
     });
 
     expect(actionMocks.saveCurriculumDraft).not.toHaveBeenCalled();
+  });
+
+  it("keeps reviewers read-only while still showing comment access", async () => {
+    render(
+      <StudioClient
+        userId="reviewer-1"
+        userName="Reviewer"
+        draft={buildReadyDraft({ status: "SUBMITTED" })}
+        viewerAccess={buildViewerAccess({
+          canEdit: false,
+          canResolveComments: true,
+          viewerKind: "REVIEWER",
+        })}
+        currentPhase="COURSE_MAP"
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: /Comments/ })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Use as starting point" })
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Review mode is on.")).toBeInTheDocument();
   });
 });

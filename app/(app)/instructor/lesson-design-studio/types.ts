@@ -19,6 +19,55 @@ export type ActivityType = (typeof LESSON_STUDIO_ACTIVITY_TYPES)[number];
 
 export type EnergyLevel = "HIGH" | "MEDIUM" | "LOW";
 
+export const CURRICULUM_COMMENT_ANCHOR_TYPES = [
+  "ACTIVITY",
+  "SESSION",
+  "COURSE",
+  "OUTCOME",
+] as const;
+
+export type CurriculumCommentAnchorType =
+  (typeof CURRICULUM_COMMENT_ANCHOR_TYPES)[number];
+
+export interface CurriculumCommentAuthor {
+  id: string;
+  name: string | null;
+}
+
+export interface CurriculumCommentRecord {
+  id: string;
+  draftId: string;
+  authorId: string;
+  parentId: string | null;
+  anchorType: CurriculumCommentAnchorType;
+  anchorId: string | null;
+  anchorField: string | null;
+  body: string;
+  resolved: boolean;
+  resolvedById: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  author: CurriculumCommentAuthor;
+  resolvedBy: CurriculumCommentAuthor | null;
+}
+
+export interface CurriculumCommentAnchor {
+  anchorType: CurriculumCommentAnchorType;
+  anchorId?: string | null;
+  anchorField?: string | null;
+  label: string;
+  detail?: string | null;
+}
+
+export interface StudioViewerAccess {
+  canView: boolean;
+  canEdit: boolean;
+  canComment: boolean;
+  canResolveComments: boolean;
+  viewerKind: "AUTHOR" | "REVIEWER";
+}
+
 export const LESSON_STUDIO_AT_HOME_ASSIGNMENT_TYPES = [
   "REFLECTION_PROMPT",
   "PRACTICE_TASK",
