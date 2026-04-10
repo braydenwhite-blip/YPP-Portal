@@ -28,6 +28,7 @@ import {
 } from "@/lib/curriculum-draft-lifecycle";
 import { syncTrainingAssignmentFromArtifacts } from "@/lib/training-actions";
 import { canAccessCurriculumDraftForPrint } from "@/lib/curriculum-draft-access";
+import { getCurriculumDraftStudioRecord } from "@/lib/curriculum-draft-studio-access";
 
 const LESSON_DESIGN_STUDIO_MODULE_KEY = "academy_lesson_studio_004";
 const LESSON_DESIGN_STUDIO_TOUR_KEY = "studio_onboarding_tour";
@@ -366,8 +367,7 @@ export async function getPreferredCurriculumDraftForStudioSurface() {
 }
 
 export async function getCurriculumDraftForStudio(draftId: string) {
-  const session = await requireStudioAccess();
-  return getOwnedCurriculumDraftForStudio(session.user.id, draftId);
+  return getCurriculumDraftStudioRecord(draftId);
 }
 
 export async function createBlankCurriculumDraft() {

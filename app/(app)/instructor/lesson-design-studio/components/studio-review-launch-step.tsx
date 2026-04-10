@@ -19,6 +19,7 @@ interface StudioReviewLaunchStepProps {
   isApproved: boolean;
   needsRevision: boolean;
   isActionPending: boolean;
+  canCreateWorkingCopy?: boolean;
   interestArea: string;
   onPhaseChange: (phase: StudioPhase) => void;
   onExportPdf: (type: "student" | "instructor") => Promise<boolean>;
@@ -70,6 +71,7 @@ export function StudioReviewLaunchStep({
   isApproved,
   needsRevision,
   isActionPending,
+  canCreateWorkingCopy = true,
   interestArea,
   onPhaseChange,
   onExportPdf,
@@ -116,7 +118,7 @@ export function StudioReviewLaunchStep({
                 >
                   Submit curriculum for review
                 </button>
-              ) : (
+              ) : canCreateWorkingCopy ? (
                 <button
                   type="button"
                   className="button"
@@ -125,7 +127,7 @@ export function StudioReviewLaunchStep({
                 >
                   Use as starting point
                 </button>
-              )}
+              ) : null}
             </div>
           </div>
 

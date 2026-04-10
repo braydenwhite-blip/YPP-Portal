@@ -8040,6 +8040,357 @@
   letter-spacing: -0.03em;
 }
 
+.lds-form-label-row,
+.cbs-drawer-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.lds-outcome-thread-group {
+  display: grid;
+  gap: 12px;
+}
+
+.lds-comment-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0.42rem 0.74rem;
+  border: 1px solid rgba(168, 176, 201, 0.44);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--cbs-ink-soft);
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.84),
+    0 10px 24px rgba(132, 138, 168, 0.12);
+  transition:
+    transform 180ms var(--cbs-ease),
+    box-shadow 180ms var(--cbs-ease),
+    border-color 180ms var(--cbs-ease),
+    color 180ms var(--cbs-ease);
+}
+
+.lds-comment-indicator:hover {
+  transform: translateY(-1px);
+  border-color: rgba(136, 146, 176, 0.58);
+  color: var(--cbs-ink);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 14px 28px rgba(132, 138, 168, 0.16);
+}
+
+.lds-comment-indicator.has-comments {
+  color: var(--cbs-ink);
+}
+
+.lds-comment-indicator.unresolved {
+  border-color: rgba(109, 130, 200, 0.38);
+}
+
+.lds-comment-indicator-icon {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.1) 55%),
+    linear-gradient(135deg, rgba(109, 130, 200, 0.9), rgba(156, 142, 206, 0.82));
+  box-shadow:
+    0 0 0 4px rgba(109, 130, 200, 0.08),
+    0 6px 14px rgba(109, 130, 200, 0.2);
+}
+
+.lds-comment-indicator-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(109, 130, 200, 0.14);
+  color: rgb(68, 82, 130);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.lds-comment-thread {
+  display: grid;
+  gap: 16px;
+  margin-top: 14px;
+  padding: 18px 18px 20px;
+  border-radius: 24px;
+  border: 1px solid rgba(182, 189, 213, 0.52);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(246, 246, 252, 0.72));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 18px 36px rgba(148, 150, 178, 0.12);
+}
+
+.lds-comment-thread-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lds-comment-thread-label {
+  margin: 0 0 6px;
+  color: var(--cbs-ink-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.lds-comment-thread-title {
+  margin: 0;
+  color: var(--cbs-ink);
+  font-size: 0.98rem;
+  letter-spacing: -0.02em;
+}
+
+.lds-comment-empty {
+  margin: 0;
+  color: var(--cbs-ink-soft);
+  font-size: 0.88rem;
+  line-height: 1.7;
+}
+
+.lds-comment-thread-list,
+.lds-comment-replies {
+  display: grid;
+  gap: 12px;
+}
+
+.lds-comment-card,
+.lds-comment-reply-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px 15px;
+  border-radius: 18px;
+  border: 1px solid rgba(184, 191, 214, 0.5);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.lds-comment-card.resolved {
+  background: rgba(247, 248, 251, 0.74);
+  opacity: 0.88;
+}
+
+.lds-comment-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lds-comment-card-top > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.lds-comment-card-top strong {
+  color: var(--cbs-ink);
+  font-size: 0.88rem;
+}
+
+.lds-comment-card-top span {
+  color: var(--cbs-ink-muted);
+  font-size: 0.76rem;
+}
+
+.lds-comment-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lds-comment-body {
+  margin: 0;
+  color: var(--cbs-ink-soft);
+  font-size: 0.9rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.lds-comment-replies {
+  padding-left: 18px;
+}
+
+.lds-comment-reply-box {
+  display: grid;
+  gap: 12px;
+}
+
+.lds-comment-composer {
+  display: grid;
+  gap: 10px;
+}
+
+.lds-comment-composer.root {
+  padding-top: 2px;
+}
+
+.lds-comment-composer textarea {
+  width: 100%;
+  min-height: 88px;
+  resize: vertical;
+  padding: 14px 15px;
+  border-radius: 18px;
+  border: 1px solid rgba(171, 179, 203, 0.56);
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--cbs-ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.88);
+}
+
+.lds-comment-composer textarea::placeholder {
+  color: var(--cbs-ink-muted);
+}
+
+.lds-comment-composer textarea:focus {
+  outline: none;
+  border-color: rgba(116, 132, 201, 0.62);
+  box-shadow:
+    0 0 0 4px rgba(116, 132, 201, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.lds-comment-composer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.lds-comment-sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 84;
+  background: rgba(242, 244, 250, 0.48);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.lds-comment-sidebar {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  bottom: 20px;
+  z-index: 85;
+  width: min(460px, calc(100vw - 40px));
+  display: grid;
+  grid-template-rows: auto auto auto auto minmax(0, 1fr);
+  gap: 18px;
+  padding: 24px;
+  border-radius: 32px;
+  border: 1px solid rgba(188, 194, 217, 0.68);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(246, 244, 251, 0.82));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 34px 68px rgba(137, 141, 171, 0.24);
+  overflow: hidden;
+}
+
+.lds-comment-sidebar-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.lds-comment-sidebar-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.lds-comment-sidebar-stat {
+  display: grid;
+  gap: 6px;
+  padding: 14px 15px;
+  border-radius: 20px;
+  border: 1px solid rgba(184, 191, 214, 0.54);
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.lds-comment-sidebar-stat span {
+  color: var(--cbs-ink-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.lds-comment-sidebar-stat strong {
+  color: var(--cbs-ink);
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+}
+
+.lds-comment-sidebar-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.lds-comment-filter {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(171, 179, 203, 0.54);
+  background: rgba(255, 255, 255, 0.68);
+  color: var(--cbs-ink-soft);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.lds-comment-filter.active {
+  border-color: rgba(116, 132, 201, 0.52);
+  background: rgba(116, 132, 201, 0.12);
+  color: rgb(62, 76, 118);
+}
+
+.lds-comment-anchor-focus {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 15px;
+  border-radius: 20px;
+  border: 1px solid rgba(184, 191, 214, 0.54);
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.lds-comment-anchor-focus strong {
+  color: var(--cbs-ink-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.lds-comment-anchor-focus p {
+  margin: 6px 0 0;
+  color: var(--cbs-ink);
+  font-size: 0.92rem;
+}
+
+.lds-comment-sidebar-body {
+  display: grid;
+  gap: 16px;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
+}
+
 @media (max-width: 900px) {
   .lds-toolbar-actions {
     width: 100%;
@@ -8049,6 +8400,13 @@
   .lds-rich-editor-status-row {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .lds-comment-sidebar {
+    top: 14px;
+    right: 14px;
+    bottom: 14px;
+    width: min(420px, calc(100vw - 28px));
   }
 
   .cbs-preview-summary {
@@ -8078,6 +8436,29 @@
   .cbs-preview-header,
   .cbs-preview-body {
     padding-inline: 20px;
+  }
+
+  .lds-comment-sidebar {
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    border-radius: 28px 28px 0 0;
+    padding: 20px 18px;
+  }
+
+  .lds-comment-sidebar-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .lds-comment-anchor-focus {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .lds-comment-replies {
+    padding-left: 10px;
   }
 
   .cbs-preview-summary {
@@ -8114,7 +8495,11 @@
   .lds-studio-toolbar,
   .lds-guided-rail-actions,
   .lds-studio-toast,
-  .cbs-preview-overlay {
+  .cbs-preview-overlay,
+  .lds-comment-sidebar-backdrop,
+  .lds-comment-sidebar,
+  .lds-comment-thread,
+  .lds-comment-indicator {
     display: none !important;
   }
 

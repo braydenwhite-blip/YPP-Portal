@@ -10,6 +10,8 @@ import type { StudioPhase } from "@/lib/lesson-design-studio";
 import type { ExampleWeek } from "../examples-data";
 import type {
   AtHomeAssignment,
+  CurriculumCommentAnchor,
+  CurriculumCommentRecord,
   StudioCourseConfig,
   StudioUnderstandingChecks,
   WeekActivity,
@@ -30,10 +32,22 @@ interface StudioSessionsStepProps {
   interestArea: string;
   courseConfig: StudioCourseConfig;
   weeklyPlans: WeekPlan[];
+  currentUserId: string;
+  canComment: boolean;
+  canResolveComments: boolean;
   blockers: string[];
   understandingChecks: StudioUnderstandingChecks;
   selectedWeekId: string | null;
   isReadOnly: boolean;
+  getCommentStats: (anchor: {
+    anchorType: string;
+    anchorId?: string | null;
+    anchorField?: string | null;
+  }) => {
+    comments: CurriculumCommentRecord[];
+    count: number;
+    unresolvedCount: number;
+  };
   onSelectWeek: (weekId: string) => void;
   onUpdateWeek: (weekId: string, field: string, value: unknown) => void;
   onDuplicateWeek: (weekId: string) => void;
@@ -54,6 +68,14 @@ interface StudioSessionsStepProps {
   onImportExampleWeek: (week: ExampleWeek, targetPlanId?: string | null) => boolean;
   onPhaseChange: (phase: StudioPhase) => void;
   onAnswerUnderstandingCheck: (questionId: string, answer: string) => void;
+  onOpenComments: (anchor: CurriculumCommentAnchor) => void;
+  onCreateComment: (
+    anchor: CurriculumCommentAnchor,
+    body: string,
+    parentId?: string | null
+  ) => Promise<void> | void;
+  onResolveComment: (commentId: string, resolved: boolean) => Promise<void> | void;
+  onDeleteComment: (commentId: string) => Promise<void> | void;
 }
 
 const QUICK_TEMPLATE_TITLES = [
@@ -170,10 +192,14 @@ export function StudioSessionsStep({
   interestArea,
   courseConfig,
   weeklyPlans,
+  currentUserId,
+  canComment,
+  canResolveComments,
   blockers,
   understandingChecks,
   selectedWeekId,
   isReadOnly,
+  getCommentStats,
   onSelectWeek,
   onUpdateWeek,
   onDuplicateWeek,
@@ -187,6 +213,10 @@ export function StudioSessionsStep({
   onImportExampleWeek,
   onPhaseChange,
   onAnswerUnderstandingCheck,
+  onOpenComments,
+  onCreateComment,
+  onResolveComment,
+  onDeleteComment,
 }: StudioSessionsStepProps) {
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null);
   const selectedWeek =
@@ -758,11 +788,19 @@ export function StudioSessionsStep({
 
       <ActivityDetailDrawer
         activity={selectedActivity}
+        currentUserId={currentUserId}
+        canComment={canComment}
+        canResolveComments={canResolveComments}
         readOnly={isReadOnly}
+        getCommentStats={getCommentStats}
         onClose={() => setSelectedActivityId(null)}
         onUpdate={(activityId, fields) =>
           onUpdateActivity(selectedWeek.id, activityId, fields)
         }
+        onOpenComments={onOpenComments}
+        onCreateComment={onCreateComment}
+        onResolveComment={onResolveComment}
+        onDeleteComment={onDeleteComment}
       />
     </section>
   );
