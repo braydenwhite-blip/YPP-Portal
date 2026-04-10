@@ -13,6 +13,7 @@ import {
   normalizeCourseConfig,
   syncSessionPlansToCourseConfig,
 } from "@/lib/curriculum-draft-progress";
+import { extractLessonDesignStudioRichText } from "@/lib/lesson-design-studio-rich-content";
 
 function combineTextParts(parts: Array<string | null | undefined>) {
   return parts
@@ -191,7 +192,8 @@ export async function createOrUpdateStudioLaunchPackage(input: {
           activities: {
             create: sessionPlan.activities.map((activity, index) => ({
               title: activity.title?.trim() || `Activity ${index + 1}`,
-              description: activity.description || null,
+              description:
+                extractLessonDesignStudioRichText(activity.description) || null,
               type: (activity.type as
                 | "WARM_UP"
                 | "INSTRUCTION"

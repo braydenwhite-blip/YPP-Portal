@@ -30,6 +30,7 @@ interface GuidedStudioShellProps {
     | null;
   journey: GuidedStudioJourney;
   onPhaseChange: (phase: StudioPhase) => void;
+  toolbarActions?: ReactNode;
   heroActions?: ReactNode;
   children: ReactNode;
 }
@@ -124,6 +125,7 @@ export function GuidedStudioShell({
   toast,
   journey,
   onPhaseChange,
+  toolbarActions,
   heroActions,
   children,
 }: GuidedStudioShellProps) {
@@ -204,6 +206,9 @@ export function GuidedStudioShell({
           </div>
 
           <div className="lds-toolbar-region lds-toolbar-region-right">
+            {toolbarActions ? (
+              <div className="lds-toolbar-actions">{toolbarActions}</div>
+            ) : null}
             <div className={`lds-save-indicator ${saveIndicator.tone}`} role="status" aria-live="polite">
               <span className="lds-save-indicator-dot" aria-hidden="true" />
               <div>
