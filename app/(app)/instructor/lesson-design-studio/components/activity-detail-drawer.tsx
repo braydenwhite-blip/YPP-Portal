@@ -77,6 +77,7 @@ export function ActivityDetailDrawer({
       >
         <div className="cbs-drawer-header">
           <div className="cbs-drawer-header-stack">
+            <p className="cbs-drawer-header-eyebrow">Activity details</p>
             <div className="cbs-drawer-header-title">
               <span className="cbs-drawer-header-icon">{currentType?.icon ?? "📝"}</span>
               <span>{activity.title || "Edit Activity"}</span>
@@ -87,6 +88,9 @@ export function ActivityDetailDrawer({
               </span>
               <span className="cbs-drawer-chip subtle">{activity.durationMin} min</span>
             </div>
+            <p className="cbs-drawer-header-copy">
+              Shape the experience, pacing, and teaching notes so this block is ready to run in a real classroom.
+            </p>
           </div>
           <button className="cbs-drawer-close" onClick={onClose} aria-label="Close drawer">
             ×
@@ -99,6 +103,9 @@ export function ActivityDetailDrawer({
               <div>
                 <p className="cbs-drawer-section-eyebrow">Basics</p>
                 <h3 className="cbs-drawer-section-title">Core setup</h3>
+                <p className="cbs-drawer-section-copy">
+                  Give this activity a clear purpose and a concise teaching frame.
+                </p>
               </div>
             </div>
 
@@ -182,6 +189,9 @@ export function ActivityDetailDrawer({
               <div>
                 <p className="cbs-drawer-section-eyebrow">Student Experience</p>
                 <h3 className="cbs-drawer-section-title">Energy and support</h3>
+                <p className="cbs-drawer-section-copy">
+                  Tune the energy, pacing, and scaffolds students will feel in the room.
+                </p>
               </div>
             </div>
 
@@ -234,6 +244,9 @@ export function ActivityDetailDrawer({
               <div>
                 <p className="cbs-drawer-section-eyebrow">Planning Notes</p>
                 <h3 className="cbs-drawer-section-title">Materials and resources</h3>
+                <p className="cbs-drawer-section-copy">
+                  Capture what the instructor needs before the session starts.
+                </p>
               </div>
             </div>
 
@@ -279,6 +292,9 @@ export function ActivityDetailDrawer({
               <div>
                 <p className="cbs-drawer-section-eyebrow">Curriculum Signals</p>
                 <h3 className="cbs-drawer-section-title">Tags and alignment</h3>
+                <p className="cbs-drawer-section-copy">
+                  Tag the move so it is easier to scan for standards, SEL, and pacing balance.
+                </p>
               </div>
             </div>
 
@@ -354,6 +370,9 @@ export function ActivityDetailDrawer({
                 <div>
                   <p className="cbs-drawer-section-eyebrow">Assessment</p>
                   <h3 className="cbs-drawer-section-title">Rubric notes</h3>
+                  <p className="cbs-drawer-section-copy">
+                    Define how students will be evaluated when this activity measures learning.
+                  </p>
                 </div>
               </div>
 

@@ -129,6 +129,27 @@ export function StudioReviewLaunchStep({
             </div>
           </div>
 
+          <div className="lds-review-summary">
+            <div className="lds-stat-card">
+              <span className="lds-stat-label">Review state</span>
+              <strong className="lds-stat-value">
+                {reviewStatus.replace(/_/g, " ")}
+              </strong>
+            </div>
+            <div className="lds-stat-card">
+              <span className="lds-stat-label">Readiness</span>
+              <strong className="lds-stat-value">
+                {progress.readyForSubmission ? "Cleared" : "Needs work"}
+              </strong>
+            </div>
+            <div className="lds-stat-card">
+              <span className="lds-stat-label">Launch package</span>
+              <strong className="lds-stat-value">
+                {generatedTemplateId ? "Available" : "Not yet created"}
+              </strong>
+            </div>
+          </div>
+
           <div className="lds-launch-grid">
             <article className="lds-subsection-card">
               <h3>Submission status</h3>
