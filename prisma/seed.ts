@@ -1,8 +1,50 @@
 import "dotenv/config";
-import { PrismaClient, CourseFormat, CourseLevel, TrainingModuleType, RoleType, MentorshipType, EventType, FeedbackSource, TrainingStatus, ApprovalStatus, VideoProvider, PassionCategory } from "@prisma/client";
+import {
+  PrismaClient,
+  AdminSubtype,
+  CourseFormat,
+  CourseLevel,
+  TrainingModuleType,
+  RoleType,
+  MentorshipType,
+  EventType,
+  FeedbackSource,
+  TrainingStatus,
+  ApprovalStatus,
+  VideoProvider,
+  PassionCategory,
+} from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
+
+const SEED_PATHWAY_NAME = "Psychology Pathway";
+
+async function findOrCreateChapter(input: { name: string; city: string; region: string }) {
+  const existing = await prisma.chapter.findFirst({ where: { name: input.name } });
+  if (existing) return existing;
+  return prisma.chapter.create({ data: input });
+}
+
+const SEATTLE_DEMO_EVENT_TITLE = "Seattle Chapter Community Night";
+
+async function ensureSeattleChapterDemoEvent(chapterId: string) {
+  const existing = await prisma.event.findFirst({
+    where: { chapterId, title: SEATTLE_DEMO_EVENT_TITLE },
+    select: { id: true },
+  });
+  if (existing) return;
+  await prisma.event.create({
+    data: {
+      title: SEATTLE_DEMO_EVENT_TITLE,
+      description: "Regional meetup for Seattle families, mentors, and chapter partners.",
+      eventType: EventType.WORKSHOP,
+      startDate: new Date("2026-04-18T23:00:00.000Z"),
+      endDate: new Date("2026-04-19T01:00:00.000Z"),
+      chapterId,
+    },
+  });
+}
 
 async function main() {
   const seedPassword = process.env.SEED_PASSWORD;
@@ -11,26 +53,38 @@ async function main() {
   }
   const passwordHash = await bcrypt.hash(seedPassword, 10);
 
-  const frisch = await prisma.chapter.create({
-    data: {
-      name: "The Frisch School",
-      city: "New York",
-      region: "Northeast"
-    }
+  const frisch = await findOrCreateChapter({
+    name: "The Frisch School",
+    city: "New York",
+    region: "Northeast",
   });
 
-  const boston = await prisma.chapter.create({
-    data: {
-      name: "Boston Chapter",
-      city: "Boston",
-      region: "Northeast"
-    }
+  const boston = await findOrCreateChapter({
+    name: "Boston Chapter",
+    city: "Boston",
+    region: "Northeast",
+  });
+
+  const seattle = await findOrCreateChapter({
+    name: "Seattle Chapter",
+    city: "Seattle",
+    region: "Pacific Northwest",
   });
 
   const verifiedAt = new Date();
 
-  const admin = await prisma.user.create({
-    data: {
+  const adminSubtypeSeeds = [
+    { subtype: AdminSubtype.SUPER_ADMIN, isDefaultOwner: true },
+    { subtype: AdminSubtype.HIRING_ADMIN, isDefaultOwner: false },
+    { subtype: AdminSubtype.MENTORSHIP_ADMIN, isDefaultOwner: false },
+    { subtype: AdminSubtype.INTAKE_ADMIN, isDefaultOwner: false },
+    { subtype: AdminSubtype.CONTENT_ADMIN, isDefaultOwner: false },
+    { subtype: AdminSubtype.COMMUNICATIONS_ADMIN, isDefaultOwner: false },
+  ] as const;
+
+  await prisma.user.upsert({
+    where: { email: "brayden.white@youthpassionproject.org" },
+    create: {
       name: "Brayden White",
       email: "brayden.white@youthpassionproject.org",
       phone: "(917)-538-6197",
@@ -39,13 +93,59 @@ async function main() {
       primaryRole: RoleType.ADMIN,
       chapterId: frisch.id,
       roles: {
-        create: [{ role: RoleType.ADMIN }, { role: RoleType.INSTRUCTOR }]
-      }
-    }
+        create: [{ role: RoleType.ADMIN }, { role: RoleType.INSTRUCTOR }],
+      },
+    },
+    update: {
+      name: "Brayden White",
+      phone: "(917)-538-6197",
+      passwordHash,
+      emailVerified: verifiedAt,
+      primaryRole: RoleType.ADMIN,
+      chapterId: frisch.id,
+      roles: {
+        deleteMany: {},
+        create: [{ role: RoleType.ADMIN }, { role: RoleType.INSTRUCTOR }],
+      },
+    },
   });
 
-  const mentor = await prisma.user.create({
-    data: {
+  await prisma.user.upsert({
+    where: { email: "anthea.zamir@youthpassionproject.org" },
+    create: {
+      name: "Anthea Zamir",
+      email: "anthea.zamir@youthpassionproject.org",
+      passwordHash,
+      emailVerified: verifiedAt,
+      primaryRole: RoleType.ADMIN,
+      chapterId: seattle.id,
+      roles: {
+        create: [{ role: RoleType.ADMIN }],
+      },
+      adminSubtypes: {
+        create: [...adminSubtypeSeeds],
+      },
+    },
+    update: {
+      name: "Anthea Zamir",
+      passwordHash,
+      emailVerified: verifiedAt,
+      primaryRole: RoleType.ADMIN,
+      chapterId: seattle.id,
+      roles: {
+        deleteMany: {},
+        create: [{ role: RoleType.ADMIN }],
+      },
+      adminSubtypes: {
+        deleteMany: {},
+        create: [...adminSubtypeSeeds],
+      },
+    },
+  });
+
+  const mentor = await prisma.user.upsert({
+    where: { email: "carlygelles@gmail.com" },
+    create: {
       name: "Carly Gelles",
       email: "carlygelles@gmail.com",
       phone: "(914)-907-1779",
@@ -54,13 +154,26 @@ async function main() {
       primaryRole: RoleType.MENTOR,
       chapterId: boston.id,
       roles: {
-        create: [{ role: RoleType.MENTOR }, { role: RoleType.STAFF }]
-      }
-    }
+        create: [{ role: RoleType.MENTOR }, { role: RoleType.STAFF }],
+      },
+    },
+    update: {
+      name: "Carly Gelles",
+      phone: "(914)-907-1779",
+      passwordHash,
+      emailVerified: verifiedAt,
+      primaryRole: RoleType.MENTOR,
+      chapterId: boston.id,
+      roles: {
+        deleteMany: {},
+        create: [{ role: RoleType.MENTOR }, { role: RoleType.STAFF }],
+      },
+    },
   });
 
-  const instructor = await prisma.user.create({
-    data: {
+  const instructor = await prisma.user.upsert({
+    where: { email: "avery.lin@youthpassionproject.org" },
+    create: {
       name: "Avery Lin",
       email: "avery.lin@youthpassionproject.org",
       phone: "(646)-555-0127",
@@ -69,13 +182,26 @@ async function main() {
       primaryRole: RoleType.INSTRUCTOR,
       chapterId: frisch.id,
       roles: {
-        create: [{ role: RoleType.INSTRUCTOR }]
-      }
-    }
+        create: [{ role: RoleType.INSTRUCTOR }],
+      },
+    },
+    update: {
+      name: "Avery Lin",
+      phone: "(646)-555-0127",
+      passwordHash,
+      emailVerified: verifiedAt,
+      primaryRole: RoleType.INSTRUCTOR,
+      chapterId: frisch.id,
+      roles: {
+        deleteMany: {},
+        create: [{ role: RoleType.INSTRUCTOR }],
+      },
+    },
   });
 
-  const student = await prisma.user.create({
-    data: {
+  const student = await prisma.user.upsert({
+    where: { email: "jordan.patel@youthpassionproject.org" },
+    create: {
       name: "Jordan Patel",
       email: "jordan.patel@youthpassionproject.org",
       phone: "(347)-555-3391",
@@ -84,10 +210,36 @@ async function main() {
       primaryRole: RoleType.STUDENT,
       chapterId: frisch.id,
       roles: {
-        create: [{ role: RoleType.STUDENT }]
-      }
-    }
+        create: [{ role: RoleType.STUDENT }],
+      },
+    },
+    update: {
+      name: "Jordan Patel",
+      phone: "(347)-555-3391",
+      passwordHash,
+      emailVerified: verifiedAt,
+      primaryRole: RoleType.STUDENT,
+      chapterId: frisch.id,
+      roles: {
+        deleteMany: {},
+        create: [{ role: RoleType.STUDENT }],
+      },
+    },
   });
+
+  await ensureSeattleChapterDemoEvent(seattle.id);
+
+  const seedAlreadyPresent = await prisma.pathway.findFirst({
+    where: { name: SEED_PATHWAY_NAME },
+    select: { id: true },
+  });
+
+  if (seedAlreadyPresent) {
+    console.log(
+      `Seed dataset already present ("${SEED_PATHWAY_NAME}" exists). Updated seed users; ensured Seattle Chapter + demo event.`
+    );
+    return;
+  }
 
   const oneOff = await prisma.course.create({
     data: {
