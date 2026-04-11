@@ -28,7 +28,6 @@ const ALWAYS_HIDDEN_HREFS = new Set([
 
 const ADMIN_LINKS_BY_SUBTYPE = {
   SUPER_ADMIN: [
-    "/admin",
     "/admin/instructor-applicants",
     "/admin/chapter-president-applicants",
     "/admin/recruiting",
@@ -60,7 +59,6 @@ const ADMIN_LINKS_BY_SUBTYPE = {
     "/chapter/student-intake",
   ],
   CONTENT_ADMIN: [
-    "/admin",
     "/admin/curricula",
   ],
   COMMUNICATIONS_ADMIN: [

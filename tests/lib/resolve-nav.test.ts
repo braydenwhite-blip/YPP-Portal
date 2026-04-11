@@ -176,7 +176,6 @@ describe("resolveNavModel", () => {
     });
 
     const visibleHrefs = hrefs(model);
-    expect(visibleHrefs).toContain("/admin");
     expect(visibleHrefs).toContain("/admin/curricula");
     expect(visibleHrefs).not.toContain("/admin/recruiting");
     expect(visibleHrefs).not.toContain("/admin/announcements");

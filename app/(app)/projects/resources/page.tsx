@@ -23,7 +23,7 @@ export default async function ResourceRequestsPage() {
         description="This page will let you request materials, equipment, or tools for your passion projects. Chapter leaders review and fulfill requests based on availability."
         addedBy="students (requests) and chapter presidents (approvals)"
         actionLabel="Go to Admin Panel"
-        actionHref="/admin"
+        actionHref="/admin/chapters"
       />
     );
   }

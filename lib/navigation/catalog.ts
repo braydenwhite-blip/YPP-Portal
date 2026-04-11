@@ -715,14 +715,6 @@ export const NAV_CATALOG: NavLink[] = [
   ]),
 
   ...groupLinks("Admin People", 1100, [
-    {
-      href: "/admin",
-      label: "Admin Home",
-      icon: "📊",
-      roles: ADMIN_ONLY,
-      dashboardDescription: "Operate platform-wide admin queues and controls.",
-      dashboardPriority: 2,
-    },
     { href: "/admin/students", label: "All Students", icon: "👨‍🎓", roles: ADMIN_ONLY },
     {
       href: "/admin/instructors",
