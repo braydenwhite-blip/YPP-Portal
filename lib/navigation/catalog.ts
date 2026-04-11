@@ -647,7 +647,7 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 15,
     },
     {
-      href: "/admin/instructor-applicants",
+      href: "/chapter-lead/instructor-applicants",
       label: "Instructor Applicants",
       icon: "📝",
       roles: CHAPTER_PRESIDENT_ONLY,
@@ -677,7 +677,7 @@ export const NAV_CATALOG: NavLink[] = [
     { href: "/certificates", label: "My Certificates", icon: "📜" },
     {
       href: "/alumni",
-      label: "Alumni Network",
+      label: "Alumni Directory",
       icon: "🎓",
       requiresAward: true,
     },

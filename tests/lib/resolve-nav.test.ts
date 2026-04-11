@@ -1,10 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { resolveNavModel } from "@/lib/navigation/resolve-nav";
+import { resolveNavActiveHref, resolveNavModel } from "@/lib/navigation/resolve-nav";
 import { STUDENT_V1_ALLOWED_HREFS } from "@/lib/navigation/student-v1-allowlist";
 
 function hrefs(model: ReturnType<typeof resolveNavModel>) {
   return model.visible.map((item) => item.href);
 }
+
+describe("resolveNavActiveHref", () => {
+  it("maps /profile to personalization when /profile is not in the nav", () => {
+    const candidates = ["/settings/personalization", "/profile/timeline"];
+    expect(resolveNavActiveHref("/profile", candidates)).toBe("/settings/personalization");
+    expect(resolveNavActiveHref("/profile/edit", candidates)).toBe("/settings/personalization");
+  });
+
+  it("does not steal Journey: /profile/timeline stays on Journey", () => {
+    const candidates = ["/settings/personalization", "/profile/timeline"];
+    expect(resolveNavActiveHref("/profile/timeline", candidates)).toBe("/profile/timeline");
+    expect(resolveNavActiveHref("/profile/timeline/step", candidates)).toBe("/profile/timeline");
+  });
+
+  it("keeps /profile as its own active link when it appears in the nav", () => {
+    const candidates = ["/profile", "/settings/personalization", "/profile/timeline"];
+    expect(resolveNavActiveHref("/profile", candidates)).toBe("/profile");
+  });
+});
 
 describe("resolveNavModel", () => {
   it("shows only the focused default instructor navigation", () => {
@@ -86,6 +105,29 @@ describe("resolveNavModel", () => {
     expect(hrefs(model)).not.toContain("/interviews");
   });
 
+  it("hides Join a chapter when the user is already assigned to a chapter", () => {
+    const withJoin = resolveNavModel({
+      roles: ["STUDENT"],
+      primaryRole: "STUDENT",
+      pathname: "/",
+      unlockedSections: new Set(),
+      enabledFeatureKeys: new Set(),
+      studentFullPortalExplorer: true,
+    });
+    expect(hrefs(withJoin)).toContain("/join-chapter");
+
+    const withoutJoin = resolveNavModel({
+      roles: ["STUDENT"],
+      primaryRole: "STUDENT",
+      pathname: "/",
+      unlockedSections: new Set(),
+      enabledFeatureKeys: new Set(),
+      studentFullPortalExplorer: true,
+      studentHasChapter: true,
+    });
+    expect(hrefs(withoutJoin)).not.toContain("/join-chapter");
+  });
+
   it("restricts students to the v1 allowlist when full portal explorer is off", () => {
     const model = resolveNavModel({
       roles: ["STUDENT"],
@@ -99,6 +141,8 @@ describe("resolveNavModel", () => {
     for (const href of hrefs(model)) {
       expect(STUDENT_V1_ALLOWED_HREFS.has(href)).toBe(true);
     }
+    expect(hrefs(model)).not.toContain("/profile");
+    expect(hrefs(model)).toContain("/settings/personalization");
     expect(hrefs(model)).toContain("/my-program");
     expect(hrefs(model)).not.toContain("/world");
     expect(hrefs(model)).not.toContain("/challenges");

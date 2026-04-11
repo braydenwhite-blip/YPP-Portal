@@ -22,6 +22,8 @@ const ALWAYS_HIDDEN_HREFS = new Set([
   "/chapter-lead/portal-rollout",
   "/admin/rollout-comms",
   "/admin/hiring-committee",
+  /** Hidden until product is ready; page remains reachable by URL. */
+  "/instructor/mentee-health",
 ]);
 
 const ADMIN_LINKS_BY_SUBTYPE = {
@@ -211,6 +213,8 @@ export interface ResolveNavInput {
   enabledFeatureKeys?: Set<string>;
   /** When true, students see the full nav catalog. Omit/false uses env `STUDENT_FULL_PORTAL_EXPLORER`. */
   studentFullPortalExplorer?: boolean;
+  /** When set, hides "Join a chapter" — not needed if the user is already assigned to a chapter. */
+  studentHasChapter?: boolean;
 }
 
 function toNavRole(value: string | null | undefined): NavRole | null {
@@ -313,9 +317,55 @@ function sortLinksForRole(links: NavLink[], primaryRole: NavRole): NavLink[] {
   });
 }
 
-export function isNavHrefActive(href: string, pathname: string): boolean {
+function pathMatchesHref(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function profileMergedIntoPersonalizationActive(
+  pathname: string,
+  candidateHrefs: readonly string[],
+): boolean {
+  if (candidateHrefs.includes("/profile")) return false;
+  if (pathname === "/profile") return true;
+  return pathname.startsWith("/profile/") && !pathname.startsWith("/profile/timeline");
+}
+
+function navHrefMatchesPathnameForActive(
+  pathname: string,
+  href: string,
+  candidateHrefs: readonly string[],
+): boolean {
+  if (pathMatchesHref(pathname, href)) return true;
+  if (
+    href === "/settings/personalization" &&
+    profileMergedIntoPersonalizationActive(pathname, candidateHrefs)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Among all visible nav links, returns the single best-matching href for the current pathname
+ * (longest prefix / most specific). Prevents both `/profile` and `/profile/timeline` from
+ * highlighting when only one page is open.
+ *
+ * When `/profile` is not in the nav (student minimal IA), `/profile` and nested profile routes
+ * except Journey (`/profile/timeline`) count as active for `/settings/personalization`.
+ */
+export function resolveNavActiveHref(pathname: string, candidateHrefs: readonly string[]): string | null {
+  const uniq = Array.from(
+    new Set(candidateHrefs.filter((h): h is string => typeof h === "string" && h.length > 0 && h !== "#")),
+  );
+  const matches = uniq.filter((href) => navHrefMatchesPathnameForActive(pathname, href, candidateHrefs));
+  if (matches.length === 0) return null;
+  return matches.reduce((best, h) => (h.length > best.length ? h : best));
+}
+
+/** True if pathname is this route or a nested segment under it (used for legacy checks). */
+export function isNavHrefActive(href: string, pathname: string): boolean {
+  return pathMatchesHref(pathname, href);
 }
 
 function addOrReplaceCoreItem(core: NavLink[], item: NavLink, limit: number): void {
@@ -373,6 +423,7 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
   let visible = sortLinksForRole(
     NAV_CATALOG.filter((item) => {
       if (ALWAYS_HIDDEN_HREFS.has(item.href)) return false;
+      if (input.studentHasChapter && item.href === "/join-chapter") return false;
       if (!hasRoleAccess(item, roles)) return false;
       if (!hasAwardAccess(item, roles, hasAward)) return false;
       if (!hasFeatureAccess(item, input.enabledFeatureKeys, roles)) return false;

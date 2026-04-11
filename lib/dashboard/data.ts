@@ -28,6 +28,14 @@ import {
 
 const FINAL_APPLICATION_STATUSES = ["ACCEPTED", "REJECTED", "WITHDRAWN"] as const;
 
+function formatStudentActionDateLabel(date: Date): string {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  }).format(date);
+}
+
 function queueStatus(count: number, overdueThreshold = 10): DashboardQueueStatus {
   if (count <= 0) return "healthy";
   if (count >= overdueThreshold) return "overdue";
@@ -992,17 +1000,6 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
       });
     }
 
-    if (activeApplications === 0 && nextActions.length < 3) {
-      nextActions.push({
-        id: "student-positions",
-        title: "Browse open positions",
-        detail: "Explore leadership, instructor, and mentor roles",
-        href: "/positions",
-        urgency: "low" as const,
-        ctaLabel: "Browse",
-      });
-    }
-
     if (nextActions.length === 0) {
       nextActions.push({
         id: "student-explore",
@@ -1314,6 +1311,14 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
   }
 
   nextActions = ensureMessagesNextAction(nextActions, unreadMessages);
+
+  if (role === "STUDENT") {
+    const todayLabel = formatStudentActionDateLabel(new Date());
+    nextActions = nextActions.slice(0, 8).map((action) => ({
+      ...action,
+      dateLabel: action.dateLabel ?? todayLabel,
+    }));
+  }
 
   // Fetch interconnection data (best-effort — don't block dashboard)
   const [checklist, nudges, journeyMilestones] = await Promise.all([

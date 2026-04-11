@@ -158,6 +158,7 @@ export default async function AppLayout({
   }
 
   const studentFullPortalExplorer = process.env.STUDENT_FULL_PORTAL_EXPLORER === "true";
+  const studentHasChapter = Boolean(session?.user?.chapterId);
 
   return (
     <AppShell
@@ -171,6 +172,7 @@ export default async function AppLayout({
       unlockedSections={unlockedSectionsArray}
       recentlyUnlockedGroups={recentlyUnlockedGroupsArray}
       studentFullPortalExplorer={studentFullPortalExplorer}
+      studentHasChapter={studentHasChapter}
     >
       {children}
     </AppShell>

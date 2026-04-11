@@ -65,7 +65,7 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/",
     "/chapter-lead/dashboard",
     "/chapter-lead/portal-rollout",
-    "/admin/instructor-applicants",
+    "/chapter-lead/instructor-applicants",
     "/chapter-lead/instructor-readiness",
     "/chapter",
     "/attendance",
