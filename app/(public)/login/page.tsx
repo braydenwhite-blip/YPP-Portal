@@ -8,14 +8,6 @@ import { createBrowserClient } from "@/lib/supabase/client";
 import { isLegacyAuthBypassEmail } from "@/lib/legacy-auth-config";
 import { signInLegacyBypass } from "@/lib/legacy-auth-actions";
 
-function getGoogleOAuthErrorMessage(message?: string) {
-  if (message?.toLowerCase().includes("provider is not enabled")) {
-    return "Google sign-in is not enabled for this Supabase project yet. Turn it on in Supabase Dashboard -> Authentication -> Providers -> Google, then try again.";
-  }
-
-  return "Could not start Google sign-in. Please try again.";
-}
-
 function LoginPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -27,7 +19,6 @@ function LoginPageContent() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [magicSent, setMagicSent] = useState(false);
 
   // MFA challenge state
@@ -153,32 +144,6 @@ function LoginPageContent() {
     router.push(callbackUrl.startsWith("/") ? callbackUrl : "/");
   }
 
-  async function handleGoogleSignIn() {
-    setError(null);
-    setGoogleLoading(true);
-    const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(callbackUrl)}`,
-        skipBrowserRedirect: true,
-      },
-    });
-
-    if (oauthError) {
-      setError(getGoogleOAuthErrorMessage(oauthError.message));
-      setGoogleLoading(false);
-      return;
-    }
-
-    if (!data?.url) {
-      setError("Could not start Google sign-in. Please try again.");
-      setGoogleLoading(false);
-      return;
-    }
-
-    window.location.assign(data.url);
-  }
-
   async function handleMagicLink(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
@@ -258,16 +223,12 @@ function LoginPageContent() {
           </div>
         </section>
 
-        <div className="login-card">
+        <div className="login-card login-card--brand">
           <div className="login-card-header login-card-header--stacked">
-            <BrandLockup height={36} className="brand-lockup" reloadOnClick />
+            <BrandLockup height={52} className="brand-lockup" reloadOnClick />
             <div>
-              <h2 className="page-title" style={{ fontSize: 20 }}>
-                Welcome Back
-              </h2>
-              <p className="page-subtitle mt-0" style={{ fontSize: 13 }}>
-                Sign in to your Pathways Portal
-              </p>
+              <h2 className="login-card-welcome-title">Welcome Back</h2>
+              <p className="login-card-welcome-subtitle">Sign in to your Pathways Portal</p>
             </div>
           </div>
 
@@ -312,35 +273,6 @@ function LoginPageContent() {
 
           {/* Normal sign-in UI — hidden during MFA step */}
           {!mfaStep && <>
-
-            {/* Google sign-in */}
-            <button
-              type="button"
-              onClick={handleGoogleSignIn}
-              disabled={googleLoading}
-              className="button secondary"
-              style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12 }}
-            >
-              {googleLoading ? (
-                <>Redirecting&hellip;</>
-              ) : (
-                <>
-                  <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-                    <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" />
-                    <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" />
-                    <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.039l3.007-2.332z" />
-                    <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z" />
-                  </svg>
-                  Sign in with Google
-                </>
-              )}
-            </button>
-
-            <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "4px 0 16px" }}>
-              <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-              <span style={{ fontSize: 12, color: "var(--muted)" }}>or sign in with</span>
-              <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-            </div>
 
             {/* Login method toggle */}
             <div style={{ display: "flex", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 3, gap: 3, marginBottom: 16 }}>
@@ -443,7 +375,11 @@ function LoginPageContent() {
             <div className="login-help">
               Need help? Contact your chapter administrator or support team.
             </div>
-            <Link className="button secondary" style={{ display: "block", textAlign: "center" }} href="/signup">
+            <Link
+              className="button secondary login-card-signup-cta"
+              style={{ display: "block", textAlign: "center" }}
+              href="/signup"
+            >
               Create Family Account
             </Link>
             <div className="login-help" style={{ marginTop: 8 }}>
@@ -462,8 +398,8 @@ export default function LoginPage() {
     <Suspense
       fallback={
         <div className="login-shell">
-          <div className="login-card" style={{ justifySelf: "center", textAlign: "center", padding: "48px 32px" }}>
-            <BrandLockup height={40} className="brand-lockup" reloadOnClick />
+          <div className="login-card login-card--brand" style={{ justifySelf: "center", textAlign: "center", padding: "48px 32px" }}>
+            <BrandLockup height={52} className="brand-lockup" reloadOnClick />
           </div>
         </div>
       }

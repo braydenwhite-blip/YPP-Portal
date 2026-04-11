@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 type StudentJourneyVisualProps = {
   age: number | null;
   chapterName?: string | null;
@@ -12,67 +14,62 @@ type StudentJourneyVisualProps = {
 type JourneyMilestone = {
   id: string;
   title: string;
-  subtitle: string;
+  subtitle?: string;
   body: string;
   icon: "class" | "xp" | "events" | "passion" | "instructor" | "leader";
   top: string;
   left: string;
 };
 
+/** Order and copy aligned to the “Your Journey with YPP” roadmap artwork. */
 const JOURNEY_MILESTONES: JourneyMilestone[] = [
   {
     id: "first-class",
-    title: "Take your first class",
-    subtitle: "Start simple",
-    body: "Join one class, try something new, and get your feet under you.",
+    title: "Take Your First Class",
+    body: "Get started by joining your first class and earn XP!",
     icon: "class",
     top: "74%",
     left: "12%",
   },
   {
-    id: "earn-xp",
-    title: "Earn XP",
-    subtitle: "Build momentum",
-    body: "Every class, challenge, and action adds progress you can actually see.",
-    icon: "xp",
-    top: "57%",
-    left: "65%",
-  },
-  {
-    id: "events",
-    title: "Join YPP events",
-    subtitle: "Meet your people",
-    body: "Show up for events, workshops, and community moments outside class.",
-    icon: "events",
-    top: "45%",
-    left: "16%",
+    id: "instructor",
+    title: "Become an Instructor",
+    body: "Share your knowledge by teaching your own classes!",
+    icon: "instructor",
+    top: "62%",
+    left: "68%",
   },
   {
     id: "passion",
-    title: "Find your passion area",
-    subtitle: "Notice what clicks",
-    body: "Use your classes and experiences to see what keeps pulling you back in.",
+    title: "Find Your Passion Area",
+    body: "Explore different topics to find what excites you the most!",
     icon: "passion",
-    top: "32%",
-    left: "58%",
+    top: "48%",
+    left: "14%",
   },
   {
-    id: "instructor",
-    title: "Become an instructor",
-    subtitle: "Share what you know",
-    body: "As you grow, you can teach, mentor, and help other students get started.",
-    icon: "instructor",
-    top: "18%",
-    left: "18%",
+    id: "events",
+    title: "Join YPP Events",
+    body: "Attend special events to meet other students and mentors!",
+    icon: "events",
+    top: "38%",
+    left: "62%",
+  },
+  {
+    id: "earn-xp",
+    title: "Earn XP",
+    body: "Level up and gain XP by taking classes and getting involved.",
+    icon: "xp",
+    top: "24%",
+    left: "20%",
   },
   {
     id: "leader",
-    title: "Become a leader",
-    subtitle: "Lift others with you",
-    body: "Leadership grows from showing up, helping others, and taking real ownership.",
+    title: "Become a Leader",
+    body: "Take on more responsibility and help guide others!",
     icon: "leader",
-    top: "6%",
-    left: "66%",
+    top: "10%",
+    left: "58%",
   },
 ] as const;
 
@@ -138,6 +135,10 @@ export default function StudentJourneyVisual({
   primaryGoal,
   school,
 }: StudentJourneyVisualProps) {
+  const journeyFilterId = useId();
+  const journeyGlowId = `journeyGlow-${journeyFilterId.replace(/:/g, "")}`;
+  const journeyStrokeId = `journeyStroke-${journeyFilterId.replace(/:/g, "")}`;
+
   const profileHighlights = [
     school ? `${school}` : null,
     grade ? `Grade ${grade}` : null,
@@ -171,21 +172,24 @@ export default function StudentJourneyVisual({
         </div>
       ) : null}
 
-      <div className="student-journey-visual" aria-label={`${firstName}'s YPP journey map`}>
+      <div
+        className="student-journey-visual"
+        aria-label={`${firstName}'s YPP journey map: Your Journey with YPP`}
+      >
         <div className="student-journey-stars" aria-hidden="true" />
         <div className="student-journey-planet" aria-hidden="true" />
         <div className="student-journey-atmosphere" aria-hidden="true" />
 
         <svg className="student-journey-path" viewBox="0 0 1000 1400" preserveAspectRatio="none" aria-hidden="true">
           <defs>
-            <filter id="journeyGlow">
+            <filter id={journeyGlowId}>
               <feGaussianBlur stdDeviation="8" result="coloredBlur" />
               <feMerge>
                 <feMergeNode in="coloredBlur" />
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
-            <linearGradient id="journeyStroke" x1="0%" y1="100%" x2="100%" y2="0%">
+            <linearGradient id={journeyStrokeId} x1="0%" y1="100%" x2="100%" y2="0%">
               <stop offset="0%" stopColor="rgba(255, 213, 255, 0.72)" />
               <stop offset="50%" stopColor="rgba(248, 202, 255, 0.98)" />
               <stop offset="100%" stopColor="rgba(255, 241, 253, 0.85)" />
@@ -194,12 +198,21 @@ export default function StudentJourneyVisual({
           <path
             d="M120 1210C280 1110 490 1140 655 1050C790 980 820 900 675 845C515 785 250 815 175 705C100 596 415 610 610 525C785 450 835 360 675 285C540 220 420 255 345 212"
             className="student-journey-path-glow"
-            filter="url(#journeyGlow)"
+            filter={`url(#${journeyGlowId})`}
           />
           <path
             d="M120 1210C280 1110 490 1140 655 1050C790 980 820 900 675 845C515 785 250 815 175 705C100 596 415 610 610 525C785 450 835 360 675 285C540 220 420 255 345 212"
             className="student-journey-path-core"
+            stroke={`url(#${journeyStrokeId})`}
           />
+          <g className="student-journey-path-flag" transform="translate(325 198)">
+            <line x1="20" y1="8" x2="20" y2="52" stroke="rgba(255,255,255,0.9)" strokeWidth="3.5" strokeLinecap="round" />
+            <path
+              d="M20 12h22l-3 9 3 9H20V12z"
+              fill="rgba(255,255,255,0.97)"
+              style={{ filter: "drop-shadow(0 0 10px rgba(255, 230, 255, 0.9))" }}
+            />
+          </g>
         </svg>
 
         <div className="student-journey-node-grid" aria-hidden="true">
@@ -213,7 +226,7 @@ export default function StudentJourneyVisual({
                 <JourneyIcon icon={milestone.icon} />
               </div>
               <div className="student-journey-node-copy">
-                <p>{milestone.subtitle}</p>
+                {milestone.subtitle ? <p>{milestone.subtitle}</p> : null}
                 <h3>{milestone.title}</h3>
                 <span>{milestone.body}</span>
               </div>
@@ -221,12 +234,20 @@ export default function StudentJourneyVisual({
           ))}
         </div>
 
+        <ol className="sr-only">
+          {JOURNEY_MILESTONES.map((milestone, index) => (
+            <li key={milestone.id}>
+              Step {index + 1}: {milestone.title}. {milestone.body}
+            </li>
+          ))}
+        </ol>
+
         <ol className="student-journey-mobile-list">
           {JOURNEY_MILESTONES.map((milestone, index) => (
             <li key={milestone.id} className="student-journey-mobile-item">
               <div className="student-journey-mobile-step">{index + 1}</div>
               <div className="student-journey-mobile-copy">
-                <p>{milestone.subtitle}</p>
+                {milestone.subtitle ? <p>{milestone.subtitle}</p> : null}
                 <h3>{milestone.title}</h3>
                 <span>{milestone.body}</span>
               </div>
