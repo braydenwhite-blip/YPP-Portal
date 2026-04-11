@@ -1,6 +1,9 @@
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { getEnabledFeatureKeysForUser } from "@/lib/feature-gates";
+import {
+  getEnabledFeatureKeysForUserCached,
+  rolesToSortedCsv,
+} from "@/lib/feature-gates-request-cache";
 import { getDashboardModulesForRole } from "@/lib/dashboard/catalog";
 import { resolveDashboardRole } from "@/lib/dashboard/resolve-dashboard";
 import type {
@@ -16,7 +19,11 @@ import type {
   NudgeItemData,
 } from "@/lib/dashboard/types";
 import { getActiveNudges, generateContextualNudges } from "@/lib/nudge-engine";
-import { checkAndAutoUnlock, getUnlockedSections } from "@/lib/unlock-manager";
+import {
+  getUnreadDirectMessageCountCached,
+  getUnreadNotificationCountCached,
+} from "@/lib/server-request-cache";
+import { ensureAutoUnlockAndGetSections } from "@/lib/unlock-request-cache";
 import { getInstructorReadiness, buildFallbackInstructorReadiness, isInterviewGateEnforced } from "@/lib/instructor-readiness";
 import { getRecommendedActivitiesForUser } from "@/lib/activity-hub/actions";
 import { getStudentChapterJourneyData } from "@/lib/chapter-pathway-journey";
@@ -50,38 +57,6 @@ function urgencyFromQueueStatus(status: DashboardQueueStatus): "high" | "medium"
 
 function roleLabel(role: DashboardRole): string {
   return role.replace(/_/g, " ");
-}
-
-async function getUnreadMessageCount(userId: string): Promise<number> {
-  const participations = await prisma.conversationParticipant.findMany({
-    where: {
-      userId,
-      conversation: {
-        isGroup: false,
-      },
-    },
-    include: {
-      conversation: {
-        include: {
-          messages: {
-            orderBy: { createdAt: "desc" },
-            take: 1,
-            select: {
-              createdAt: true,
-              senderId: true,
-            },
-          },
-        },
-      },
-    },
-  });
-
-  return participations.filter((entry) => {
-    const latest = entry.conversation.messages[0];
-    if (!latest) return false;
-    if (latest.senderId === userId) return false;
-    return latest.createdAt > entry.lastReadAt;
-  }).length;
 }
 
 function buildMessagesNextAction(unreadMessages: number): DashboardNextAction {
@@ -138,18 +113,16 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
   const hasAward = user.awards.length > 0;
   const needsUnlockedSections = role === "STUDENT" || role === "PARENT";
 
-  if (needsUnlockedSections) {
-    await checkAndAutoUnlock(userId).catch(() => {});
-  }
-
   const [enabledFeatureKeys, unlockedSections] = await Promise.all([
-    getEnabledFeatureKeysForUser({
+    getEnabledFeatureKeysForUserCached(
       userId,
-      chapterId: user.chapterId,
-      roles: roleTypes,
-      primaryRole: role,
-    }).catch(() => []),
-    needsUnlockedSections ? getUnlockedSections(userId).catch(() => undefined) : Promise.resolve(undefined),
+      user.chapterId,
+      rolesToSortedCsv(roleTypes),
+      role,
+    ).catch(() => []),
+    needsUnlockedSections
+      ? ensureAutoUnlockAndGetSections(userId).catch(() => undefined)
+      : Promise.resolve(undefined),
   ]);
 
   const [{ modules, sections }, unreadNotifications, unreadMessages, myOpenChapterProposals] = await Promise.all([
@@ -161,8 +134,8 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
         studentFullPortalExplorer: isStudentFullPortalExplorerEnabled(),
       })
     ),
-    prisma.notification.count({ where: { userId, isRead: false } }),
-    getUnreadMessageCount(userId),
+    getUnreadNotificationCountCached(userId),
+    getUnreadDirectMessageCountCached(userId),
     prisma.application.count({
       where: {
         applicantId: userId,

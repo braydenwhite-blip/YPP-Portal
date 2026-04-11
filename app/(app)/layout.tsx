@@ -1,9 +1,16 @@
 import { redirect } from "next/navigation";
 import AppShell from "@/components/app-shell";
 import { getSession } from "@/lib/auth-supabase";
-import { getEnabledFeatureKeysForUser } from "@/lib/feature-gates";
+import {
+  getEnabledFeatureKeysForUserCached,
+  rolesToSortedCsv,
+} from "@/lib/feature-gates-request-cache";
 import { prisma } from "@/lib/prisma";
-import { getUnlockedSections, checkAndAutoUnlock } from "@/lib/unlock-manager";
+import {
+  getUnreadDirectMessageCountCached,
+  getUnreadNotificationCountCached,
+} from "@/lib/server-request-cache";
+import { ensureAutoUnlockAndGetSections } from "@/lib/unlock-request-cache";
 import { getVisibleNavGroups } from "@/lib/unlock-nav-groups";
 import { withPrismaFallback } from "@/lib/prisma-guard";
 
@@ -28,82 +35,58 @@ export default async function AppLayout({
   const session = await getSession();
   const roles = session?.user?.roles ?? [];
   const primaryRole = session?.user?.primaryRole ?? null;
+  const userId = session?.user?.id;
+  const shouldCheckOnboarding = Boolean(userId && primaryRole !== "APPLICANT");
 
-  // Redirect to onboarding if not completed yet (skip for APPLICANT users)
-  if (session?.user?.id && primaryRole !== "APPLICANT") {
-    try {
-      const onboarding = await prisma.onboardingProgress.findUnique({
-        where: { userId: session.user.id },
-        select: { completedAt: true },
-      });
+  const onboardingPromise: Promise<{ completedAt: Date | null } | null> = shouldCheckOnboarding
+    ? prisma.onboardingProgress
+        .findUnique({
+          where: { userId: userId! },
+          select: { completedAt: true },
+        })
+        .catch((e: unknown) => {
+          const isPrismaError = e !== null && typeof e === "object" && "code" in e;
+          if (isPrismaError && (e as { code: string }).code === "P2021") {
+            return null;
+          }
+          throw e;
+        })
+    : Promise.resolve({ completedAt: new Date() });
 
-      if (!onboarding?.completedAt) {
-        redirect("/onboarding");
-      }
-    } catch (e: unknown) {
-      // If the OnboardingProgress table doesn't exist yet (P2021),
-      // redirect to onboarding so users still see it.
-      const isPrismaError = e !== null && typeof e === "object" && "code" in e;
-      if (isPrismaError && (e as { code: string }).code === "P2021") {
-        redirect("/onboarding");
-      }
-      throw e;
+  const badgePromise: Promise<[number, number, number, string[]]> = userId
+    ? Promise.all([
+        getUnreadNotificationCountCached(userId),
+        getUnreadDirectMessageCountCached(userId),
+        Promise.resolve(0),
+        getEnabledFeatureKeysForUserCached(
+          userId,
+          session.user.chapterId ?? null,
+          rolesToSortedCsv(roles),
+          primaryRole,
+        ).catch(() => []),
+      ])
+    : Promise.resolve([0, 0, 0, []]);
+
+  const [onboardingRow, badgeTuple] = await Promise.all([onboardingPromise, badgePromise]);
+
+  if (shouldCheckOnboarding) {
+    if (onboardingRow === null) {
+      redirect("/onboarding");
+    }
+    if (!onboardingRow.completedAt) {
+      redirect("/onboarding");
     }
   }
 
-  // Get user's highest award tier + badge counts for navigation
-  let awardTier: string | undefined;
+  // Award tier comes from session (see getSessionUser) — avoids an extra user query here.
+  const awardTier = getHighestAwardTier(session?.user?.awards ?? []);
+
   let badges: { notifications?: number; messages?: number; approvals?: number } = {};
   let enabledFeatureKeysArray: string[] | undefined;
   let unlockedSectionsArray: string[] | undefined;
   let recentlyUnlockedGroupsArray: string[] | undefined;
-  if (session?.user?.id) {
-    const userId = session.user.id;
-    const [userWithAwards, unreadNotifications, unreadMessages, pendingApprovals, enabledFeatureKeys] =
-      await Promise.all([
-        prisma.user.findUnique({
-          where: { id: userId },
-          select: { awards: { select: { type: true } } },
-        }),
-        // Unread notification count
-        prisma.notification.count({
-          where: { userId, isRead: false },
-        }).catch(() => 0),
-        // Unread messages: conversations where latest message is after user's lastReadAt
-        prisma.conversationParticipant
-          .findMany({
-            where: {
-              userId,
-              conversation: {
-                isGroup: false,
-              },
-            },
-            include: {
-              conversation: {
-                include: { messages: { orderBy: { createdAt: "desc" }, take: 1 } },
-              },
-            },
-          })
-          .then((parts: Array<{ lastReadAt: Date; conversation: { messages: Array<{ createdAt: Date; senderId: string }> } }>) =>
-            parts.filter(
-              (p) =>
-                p.conversation.messages.length > 0 &&
-                p.conversation.messages[0].createdAt > p.lastReadAt &&
-                p.conversation.messages[0].senderId !== userId,
-            ).length,
-          )
-          .catch(() => 0),
-        // Pending approvals placeholder (future: parent approvals, instructor readiness, etc.)
-        Promise.resolve(0),
-        getEnabledFeatureKeysForUser({
-          userId,
-          chapterId: session.user.chapterId ?? null,
-          roles,
-          primaryRole,
-        }).catch(() => []),
-      ]);
-
-    awardTier = getHighestAwardTier(userWithAwards?.awards ?? []);
+  if (userId) {
+    const [unreadNotifications, unreadMessages, pendingApprovals, enabledFeatureKeys] = badgeTuple;
     badges = {
       notifications: unreadNotifications || undefined,
       messages: unreadMessages || undefined,
@@ -114,30 +97,26 @@ export default async function AppLayout({
     // Fetch unlock data for progressive nav reveal (STUDENT and PARENT roles)
     if (primaryRole === "STUDENT" || primaryRole === "PARENT") {
       try {
-        // Auto-unlock any sections the user has earned
-        await checkAndAutoUnlock(userId);
-
-        // Fetch current unlocked sections
-        const unlockedSections = await getUnlockedSections(userId);
+        const [unlockedSections, recentlyUnlockedSections] = await Promise.all([
+          ensureAutoUnlockAndGetSections(userId),
+          withPrismaFallback(
+            "recentUnlocks",
+            async () => {
+              const sevenDaysAgo = new Date();
+              sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+              const recent = await prisma.portalUnlock.findMany({
+                where: {
+                  userId,
+                  unlockedAt: { gte: sevenDaysAgo },
+                },
+                select: { sectionKey: true },
+              });
+              return recent.map((r) => r.sectionKey);
+            },
+            () => [] as string[],
+          ),
+        ]);
         unlockedSectionsArray = Array.from(unlockedSections);
-
-        // Find recently unlocked groups (last 7 days) for "New!" badges
-        const recentlyUnlockedSections = await withPrismaFallback(
-          "recentUnlocks",
-          async () => {
-            const sevenDaysAgo = new Date();
-            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-            const recent = await prisma.portalUnlock.findMany({
-              where: {
-                userId,
-                unlockedAt: { gte: sevenDaysAgo },
-              },
-              select: { sectionKey: true },
-            });
-            return recent.map((r) => r.sectionKey);
-          },
-          () => [] as string[],
-        );
 
         // Map section keys to nav group names for the "New!" badge
         if (recentlyUnlockedSections.length > 0) {

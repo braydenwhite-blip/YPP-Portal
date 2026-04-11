@@ -425,6 +425,7 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
       if (ALWAYS_HIDDEN_HREFS.has(item.href)) return false;
       if (input.studentHasChapter && item.href === "/join-chapter") return false;
       if (!hasRoleAccess(item, roles)) return false;
+      if (item.hideForPrimaryRoles?.includes(primaryRole)) return false;
       if (!hasAwardAccess(item, roles, hasAward)) return false;
       if (!hasFeatureAccess(item, input.enabledFeatureKeys, roles)) return false;
       if (!hasAdminSubtypeAccess(item, roles, adminSubtypes)) return false;

@@ -9,7 +9,14 @@ import {
 } from "@/lib/student-profile";
 import type { ProfilePageUser } from "@/lib/profile-page-data";
 
-export default function ProfileMain({ user }: { user: ProfilePageUser }) {
+export default function ProfileMain({
+  user,
+  layoutVariant = "default",
+}: {
+  user: ProfilePageUser;
+  /** Refined spacing when embedded on Profile & Settings. */
+  layoutVariant?: "default" | "settings";
+}) {
   const roles = user.roles.map((r) => r.role);
   const isInstructor = roles.includes("INSTRUCTOR");
   const isStudent = roles.includes("STUDENT");
@@ -22,7 +29,7 @@ export default function ProfileMain({ user }: { user: ProfilePageUser }) {
   );
 
   return (
-    <div id="profile">
+    <div id="profile" data-profile-layout={layoutVariant === "settings" ? "settings" : undefined}>
       <div className="grid two">
         <div className="card">
           <div className="section-title">Basic Information</div>

@@ -693,11 +693,16 @@ export const NAV_CATALOG: NavLink[] = [
       icon: "📋",
       requiresAward: true,
     },
-    { href: "/profile", label: "My Profile", icon: "👤" },
+    {
+      href: "/profile",
+      label: "My Profile",
+      icon: "👤",
+      hideForPrimaryRoles: ["INSTRUCTOR"],
+    },
     { href: "/profile/timeline", label: "My Journey", icon: "🛤" },
     { href: "/profile/xp", label: "XP & Levels", icon: "⬆" },
     { href: "/profile/certifications", label: "Certifications", icon: "🏅" },
-    { href: "/settings/personalization", label: "Personalization", icon: "🎨" },
+    { href: "/settings/personalization", label: "Profile & Settings", icon: "👤" },
     {
       href: "/notifications",
       label: "Notifications",

@@ -10,6 +10,10 @@ export default async function ProfilePage() {
     redirect("/login");
   }
 
+  if (session.user.primaryRole === "INSTRUCTOR") {
+    redirect("/settings/personalization");
+  }
+
   const user = await getProfilePageData(session.user.id);
 
   if (!user) {
