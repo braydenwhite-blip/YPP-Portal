@@ -4,12 +4,9 @@ import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { VideoPlayer } from "@/components/video-player";
-import FileUpload from "@/components/file-upload";
 import { getCurriculumDraftProgress } from "@/lib/curriculum-draft-progress";
 import { deriveStudioPhase, STUDIO_PHASES } from "@/lib/lesson-design-studio";
 import {
-  setTrainingCheckpointCompletion,
-  submitTrainingEvidence,
   submitTrainingQuizAttempt,
   updateVideoProgress,
 } from "@/lib/training-actions";
@@ -87,11 +84,7 @@ type ModuleData = {
     id: string;
     title: string;
     description: string | null;
-    required: boolean;
     sortOrder: number;
-    completed: boolean;
-    completedAt: string | null;
-    notes: string | null;
   }>;
   quizQuestions: Array<{
     id: string;
@@ -182,31 +175,23 @@ export default function TrainingModuleClient({
   const [quizFeedback, setQuizFeedback] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const completedRequiredCheckpoints = useMemo(
-    () => module.checkpoints.filter((checkpoint) => checkpoint.required && checkpoint.completed).length,
-    [module.checkpoints]
-  );
-  const requiredCheckpointCount = useMemo(
-    () => module.checkpoints.filter((checkpoint) => checkpoint.required).length,
-    [module.checkpoints]
-  );
-
   const hasPassedQuiz = quizAttempts.some((attempt) => attempt.passed);
-  const hasApprovedEvidence = evidenceSubmissions.some(
-    (submission) => submission.status === "APPROVED"
-  );
 
-  const videoReady =
-    !module.videoUrl ||
-    videoProgress?.completed === true ||
-    (module.videoDuration
-      ? (videoProgress?.watchedSeconds ?? 0) >= Math.floor(module.videoDuration * 0.9)
-      : false);
-  const checkpointsReady =
-    requiredCheckpointCount === 0 || completedRequiredCheckpoints >= requiredCheckpointCount;
+  // Video completes when the player fires the "ended" event — no 90% threshold.
+  const videoReady = !module.videoUrl || videoProgress?.completed === true;
   const quizReady = !module.requiresQuiz || hasPassedQuiz;
-  const evidenceReady = !module.requiresEvidence || hasApprovedEvidence;
-  const moduleReady = videoReady && checkpointsReady && quizReady && evidenceReady;
+  const moduleReady = videoReady && quizReady;
+
+  // Progress bar percentage: use actual watch progress for visual feedback.
+  const primaryVideoDuration =
+    module.videos.find((v) => !v.isSupplementary)?.videoDuration ?? module.videoDuration ?? null;
+  const videoProgressPct = moduleReady
+    ? 100
+    : primaryVideoDuration && primaryVideoDuration > 0
+      ? Math.min(99, Math.round(((videoProgress?.watchedSeconds ?? 0) / primaryVideoDuration) * 100))
+      : (videoProgress?.watchedSeconds ?? 0) > 0
+        ? 30
+        : 0;
   const studioProgress = useMemo(
     () =>
       lessonDesignStudio
@@ -274,61 +259,53 @@ export default function TrainingModuleClient({
       formData.set("lastPosition", String(Math.floor(lastPosition)));
       formData.set("completed", completed ? "true" : "false");
       await updateVideoProgress(formData);
-    });
-  }
-
-  function submitCheckpointCompletion(
-    checkpointId: string,
-    completed: boolean,
-    notes?: string | null
-  ) {
-    startTransition(async () => {
-      const formData = new FormData();
-      formData.set("checkpointId", checkpointId);
-      formData.set("completed", completed ? "true" : "false");
-      if (notes && notes.trim().length > 0) {
-        formData.set("notes", notes.trim());
+      if (completed) {
+        router.refresh();
       }
-      await setTrainingCheckpointCompletion(formData);
-      router.refresh();
     });
   }
 
   return (
     <div>
       <div className="topbar">
-        <div>
+        <div style={{ flex: 1 }}>
           <p className="badge">Training Module</p>
           <h1 className="page-title">{module.title}</h1>
           <p className="page-subtitle">{module.description}</p>
+          <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ flex: 1, maxWidth: 320, height: 6, background: "var(--border)", borderRadius: 3 }}>
+              <div
+                style={{
+                  height: "100%",
+                  width: `${videoProgressPct}%`,
+                  background: moduleReady ? "#16a34a" : "#6366f1",
+                  borderRadius: 3,
+                  transition: "width 0.4s ease",
+                }}
+              />
+            </div>
+            <span className={`pill pill-small ${moduleReady ? "pill-success" : ""}`}>
+              {moduleReady
+                ? "Complete"
+                : assignment?.status === "IN_PROGRESS"
+                  ? "In Progress"
+                  : "Not Started"}
+            </span>
+          </div>
         </div>
-        <Link href={academyHref} className="button small outline" style={{ textDecoration: "none" }}>
+        <Link href={academyHref} className="button small outline" style={{ textDecoration: "none", alignSelf: "start" }}>
           {academyLabel}
         </Link>
-      </div>
-
-      <div className="grid four" style={{ marginBottom: 20 }}>
-        <div className="card">
-          <div className="kpi">{assignment?.status?.replace(/_/g, " ") ?? "NOT STARTED"}</div>
-          <div className="kpi-label">Assignment Status</div>
-        </div>
-        <div className="card">
-          <div className="kpi">{videoReady ? "Done" : "Pending"}</div>
-          <div className="kpi-label">Video</div>
-        </div>
-        <div className="card">
-          <div className="kpi">{checkpointsReady ? "Done" : `${completedRequiredCheckpoints}/${requiredCheckpointCount}`}</div>
-          <div className="kpi-label">Checkpoints</div>
-        </div>
-        <div className="card">
-          <div className="kpi">{moduleReady ? "Ready" : "In Progress"}</div>
-          <div className="kpi-label">Completion State</div>
-        </div>
       </div>
 
       <div className="card" style={{ marginBottom: 18 }}>
         <h3 style={{ marginBottom: 8 }}>Quick Links</h3>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {module.checkpoints.length > 0 ? (
+            <a href="#section-goals" className="button small outline" style={{ textDecoration: "none" }}>
+              Module Goals
+            </a>
+          ) : null}
           {module.videos.length > 0 ? (
             <a href="#section-videos" className="button small outline" style={{ textDecoration: "none" }}>
               Go to videos ({module.videos.length})
@@ -343,9 +320,6 @@ export default function TrainingModuleClient({
               Go to resources ({module.resources.length})
             </a>
           ) : null}
-          <a href="#section-checkpoints" className="button small outline" style={{ textDecoration: "none" }}>
-            Go to checkpoints
-          </a>
           {lessonDesignStudio ? (
             <Link
               href="/instructor/lesson-design-studio?entry=training"
@@ -358,11 +332,6 @@ export default function TrainingModuleClient({
           {module.requiresQuiz ? (
             <a href="#section-quiz" className="button small outline" style={{ textDecoration: "none" }}>
               Go to quiz
-            </a>
-          ) : null}
-          {module.requiresEvidence ? (
-            <a href="#section-evidence" className="button small outline" style={{ textDecoration: "none" }}>
-              Go to evidence
             </a>
           ) : null}
         </div>
@@ -436,6 +405,29 @@ export default function TrainingModuleClient({
               </p>
             )}
           </div>
+        </div>
+      ) : null}
+
+      {/* Module Goals — read-only list displayed above the video */}
+      {module.checkpoints.length > 0 ? (
+        <div id="section-goals" className="card" style={{ marginBottom: 18 }}>
+          <h3 style={{ marginBottom: 4 }}>Module Goals</h3>
+          <p style={{ marginTop: 0, marginBottom: 12, color: "var(--muted)", fontSize: 13 }}>
+            In this module, you will:
+          </p>
+          <ul style={{ margin: 0, paddingLeft: 20, display: "grid", gap: 8 }}>
+            {module.checkpoints.map((checkpoint) => (
+              <li key={checkpoint.id} style={{ fontSize: 14, lineHeight: 1.5 }}>
+                <span style={{ fontWeight: 500 }}>{checkpoint.title}</span>
+                {checkpoint.description ? (
+                  <span style={{ color: "var(--muted)", fontSize: 13 }}>
+                    {" — "}
+                    {renderTextWithLinks(checkpoint.description)}
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
 
@@ -513,11 +505,6 @@ export default function TrainingModuleClient({
             </div>
           ))}
 
-          {!videoProgress?.completed && module.videos.some((v) => !v.isSupplementary) ? (
-            <p style={{ marginTop: 10, fontSize: 13, color: "var(--muted)" }}>
-              Watch the primary training video to fulfill the video requirement (90% completion or marked complete).
-            </p>
-          ) : null}
         </div>
       ) : module.videoUrl && module.videoProvider ? (
         /* Legacy single-video (v1.0.0 content) */
@@ -532,9 +519,6 @@ export default function TrainingModuleClient({
             initialProgress={videoProgress ?? undefined}
             onProgress={saveVideoProgress}
           />
-          <p style={{ marginTop: 10, fontSize: 13, color: "var(--muted)" }}>
-            Video requirement: watch at least 90% or mark complete.
-          </p>
         </div>
       ) : null}
 
@@ -594,83 +578,6 @@ export default function TrainingModuleClient({
           </div>
         </div>
       ) : null}
-
-      <div id="section-checkpoints" className="card" style={{ marginBottom: 18 }}>
-        <h3>Checkpoints</h3>
-        {module.checkpoints.length === 0 ? (
-          <p style={{ color: "var(--muted)" }}>No checkpoints required for this module.</p>
-        ) : (
-          <div style={{ display: "grid", gap: 10 }}>
-            {module.checkpoints.map((checkpoint) => (
-              <details
-                key={checkpoint.id}
-                id={`checkpoint-${checkpoint.id}`}
-                open={!checkpoint.completed && checkpoint.required}
-                style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}
-              >
-                <summary style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", gap: 8 }}>
-                  <span style={{ fontWeight: 600 }}>{checkpoint.title}</span>
-                  <span className={`pill pill-small ${checkpoint.completed ? "pill-success" : ""}`}>
-                    {checkpoint.completed ? "Completed" : checkpoint.required ? "Required" : "Optional"}
-                  </span>
-                </summary>
-
-                <div style={{ marginTop: 10 }}>
-                  {checkpoint.description ? (
-                    <p style={{ margin: 0, fontSize: 13, color: "var(--muted)", lineHeight: 1.5 }}>
-                      {renderTextWithLinks(checkpoint.description)}
-                    </p>
-                  ) : (
-                    <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
-                      No extra instructions for this checkpoint.
-                    </p>
-                  )}
-
-                  <form
-                    action={async (formData: FormData) => {
-                      const notes = String(formData.get("notes") ?? "");
-                      submitCheckpointCompletion(checkpoint.id, true, notes);
-                    }}
-                    className="form-grid"
-                    style={{ marginTop: 10 }}
-                  >
-                    <label className="form-row">
-                      Notes (optional)
-                      <textarea
-                        className="input"
-                        name="notes"
-                        rows={2}
-                        defaultValue={checkpoint.notes ?? ""}
-                        placeholder="Add checkpoint evidence or notes"
-                      />
-                    </label>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <button type="submit" className="button small">
-                        {checkpoint.completed ? "Save notes" : "Mark checkpoint complete"}
-                      </button>
-                      {checkpoint.completed ? (
-                        <button
-                          type="button"
-                          className="button small outline"
-                          onClick={() => submitCheckpointCompletion(checkpoint.id, false)}
-                        >
-                          Mark checkpoint incomplete
-                        </button>
-                      ) : null}
-                    </div>
-                  </form>
-
-                  {checkpoint.completedAt ? (
-                    <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--muted)" }}>
-                      Completed on {new Date(checkpoint.completedAt).toLocaleString()}
-                    </p>
-                  ) : null}
-                </div>
-              </details>
-            ))}
-          </div>
-        )}
-      </div>
 
       {module.requiresQuiz ? (
         <div id="section-quiz" className="card" style={{ marginBottom: 18 }}>
@@ -741,92 +648,41 @@ export default function TrainingModuleClient({
         </div>
       ) : null}
 
-      {module.requiresEvidence ? (
-        <div id="section-evidence" className="card" style={{ marginBottom: 18 }}>
-          <h3>Evidence Submission</h3>
-          {lessonDesignStudio ? (
-            <>
-              <p style={{ marginTop: 0, color: "var(--muted)", fontSize: 13 }}>
-                For this capstone module, the curriculum you submit from the Lesson Design Studio becomes the review evidence automatically. There is no separate file upload step.
+      {/* Lesson Design Studio capstone: show current draft status */}
+      {lessonDesignStudio ? (
+        <div className="card" style={{ marginBottom: 18 }}>
+          <h3 style={{ marginBottom: 6 }}>Your Studio Draft</h3>
+          <div
+            style={{
+              border: "1px solid var(--border)",
+              borderRadius: 10,
+              padding: 12,
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+              alignItems: "start",
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <p style={{ margin: 0, fontWeight: 600 }}>
+                {lessonDesignStudio.draft.title || "Untitled curriculum"}
               </p>
-              <div
-                style={{
-                  border: "1px solid var(--border)",
-                  borderRadius: 10,
-                  padding: 12,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: 12,
-                  alignItems: "start",
-                  flexWrap: "wrap",
-                }}
-              >
-                <div>
-                  <p style={{ margin: 0, fontWeight: 600 }}>Current studio draft</p>
-                  <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--muted)" }}>
-                    {lessonDesignStudio.draft.title || "Untitled curriculum"} · {lessonDesignStudio.draft.status.replace(/_/g, " ")}
-                  </p>
-                  <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--muted)" }}>
-                    Last updated {new Date(lessonDesignStudio.draft.updatedAt).toLocaleString()}
-                  </p>
-                </div>
-                <Link
-                  href="/instructor/lesson-design-studio?entry=training"
-                  className="button small outline"
-                  style={{ textDecoration: "none" }}
-                >
-                  Jump to Studio
-                </Link>
-              </div>
-            </>
-          ) : (
-            <>
-              <p style={{ marginTop: 0, color: "var(--muted)", fontSize: 13 }}>
-                Upload required evidence for reviewer approval.
+              <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--muted)" }}>
+                {lessonDesignStudio.draft.status.replace(/_/g, " ")}
               </p>
-
-              <form action={submitTrainingEvidence} className="form-grid">
-                <input type="hidden" name="moduleId" value={module.id} />
-                <label className="form-row">
-                  Evidence file
-                  <FileUpload
-                    category="TRAINING_EVIDENCE"
-                    entityType="training_module"
-                    entityId={module.id}
-                    maxSizeMB={10}
-                    label="Upload evidence"
-                  />
-                </label>
-                <label className="form-row">
-                  Notes (optional)
-                  <textarea name="notes" className="input" rows={2} />
-                </label>
-                <button type="submit" className="button small">Submit evidence</button>
-              </form>
-            </>
-          )}
-
-          {evidenceSubmissions.length > 0 ? (
-            <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-              {evidenceSubmissions.map((submission) => (
-                <div key={submission.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 10 }}>
-                  <p style={{ margin: 0, fontWeight: 600 }}>
-                    {submission.status.replace(/_/g, " ")} - {new Date(submission.createdAt).toLocaleString()}
-                  </p>
-                  <p style={{ margin: "6px 0 0", fontSize: 13 }}>
-                    <a href={submission.fileUrl} target="_blank" rel="noreferrer" className="link">
-                      Open submitted file
-                    </a>
-                  </p>
-                  {submission.reviewNotes ? (
-                    <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--muted)" }}>
-                      Reviewer note: {submission.reviewNotes}
-                    </p>
-                  ) : null}
-                </div>
-              ))}
+              <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--muted)" }}>
+                Last updated {new Date(lessonDesignStudio.draft.updatedAt).toLocaleString()}
+              </p>
             </div>
-          ) : null}
+            <Link
+              href="/instructor/lesson-design-studio?entry=training"
+              className="button small outline"
+              style={{ textDecoration: "none" }}
+            >
+              Jump to Studio
+            </Link>
+          </div>
         </div>
       ) : null}
 

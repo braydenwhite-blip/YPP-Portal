@@ -271,14 +271,9 @@ async function syncAssignmentFromArtifacts(userId: string, moduleId: string) {
       required: true,
       videoUrl: true,
       videoProvider: true,
-      videoDuration: true,
       requiresQuiz: true,
       requiresEvidence: true,
       passScorePct: true,
-      checkpoints: {
-        where: { required: true },
-        select: { id: true },
-      },
       quizQuestions: {
         select: { id: true },
       },
@@ -289,7 +284,6 @@ async function syncAssignmentFromArtifacts(userId: string, moduleId: string) {
     throw new Error("Training module not found");
   }
 
-  const requiredCheckpointIds = module.checkpoints.map((checkpoint) => checkpoint.id);
   const quizQuestionCount = module.quizQuestions.length;
   const moduleConfigurationIssues = getModuleConfigurationIssues({
     required: module.required,
@@ -297,12 +291,12 @@ async function syncAssignmentFromArtifacts(userId: string, moduleId: string) {
     videoProvider: module.videoProvider,
     requiresQuiz: module.requiresQuiz,
     requiresEvidence: module.requiresEvidence,
-    requiredCheckpointCount: requiredCheckpointIds.length,
+    requiredCheckpointCount: 0,
     quizQuestionCount,
   });
   const configurationIssue = moduleConfigurationIssues[0] ?? null;
 
-  const [videoProgress, completedCheckpointCount, passedQuizAttempt, approvedEvidenceCount, quizAttemptCount, evidenceSubmissionCount] =
+  const [videoProgress, passedQuizAttempt, approvedEvidenceCount, quizAttemptCount] =
     await Promise.all([
       prisma.videoProgress.findUnique({
         where: {
@@ -313,14 +307,6 @@ async function syncAssignmentFromArtifacts(userId: string, moduleId: string) {
           completed: true,
         },
       }),
-      requiredCheckpointIds.length
-        ? prisma.trainingCheckpointCompletion.count({
-            where: {
-              userId,
-              checkpointId: { in: requiredCheckpointIds },
-            },
-          })
-        : Promise.resolve(0),
       prisma.trainingQuizAttempt.findFirst({
         where: {
           userId,
@@ -338,26 +324,20 @@ async function syncAssignmentFromArtifacts(userId: string, moduleId: string) {
         },
       }),
       prisma.trainingQuizAttempt.count({ where: { userId, moduleId } }),
-      prisma.trainingEvidenceSubmission.count({ where: { userId, moduleId } }),
     ]);
 
   const hasVideoProgress = (videoProgress?.watchedSeconds ?? 0) > 0;
-  const videoReady =
-    !module.videoUrl ||
-    videoProgress?.completed === true ||
-    (module.videoDuration !== null && module.videoDuration !== undefined
-      ? (videoProgress?.watchedSeconds ?? 0) >= Math.floor(module.videoDuration * 0.9)
-      : false);
+  // Video completes when the player fires the "ended" event (forceComplete=true).
+  // No 90% threshold — completion is driven entirely by watching to the end.
+  const videoReady = !module.videoUrl || videoProgress?.completed === true;
 
-  const checkpointsReady =
-    requiredCheckpointIds.length === 0 || completedCheckpointCount >= requiredCheckpointIds.length;
+  const checkpointsReady = true; // Goals are now purely informational — they no longer gate completion.
   const quizReady = !module.requiresQuiz || (quizQuestionCount > 0 && Boolean(passedQuizAttempt));
   const evidenceReady = !module.requiresEvidence || approvedEvidenceCount > 0;
 
   const isComplete =
     !configurationIssue && videoReady && checkpointsReady && quizReady && evidenceReady;
-  const hasAnyProgress =
-    hasVideoProgress || completedCheckpointCount > 0 || quizAttemptCount > 0 || evidenceSubmissionCount > 0;
+  const hasAnyProgress = hasVideoProgress || quizAttemptCount > 0;
 
   const nextStatus: TrainingStatus = isComplete
     ? "COMPLETE"
@@ -924,12 +904,10 @@ export async function updateVideoProgress(formData: FormData) {
     clampedLastPosition
   );
 
-  const autoCompleted =
-    maxDuration && maxDuration > 0
-      ? watchedSeconds >= Math.floor(maxDuration * 0.9)
-      : false;
+  // Completion is driven entirely by the client sending completed=true (on video end).
+  // No 90% fallback — only an explicit end event marks the video complete.
   const completed =
-    Boolean(existingProgress?.completed) || requestedCompleted || autoCompleted;
+    Boolean(existingProgress?.completed) || requestedCompleted;
 
   await prisma.videoProgress.upsert({
     where: {
