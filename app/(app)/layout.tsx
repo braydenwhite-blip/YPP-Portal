@@ -5,6 +5,8 @@ import {
   getEnabledFeatureKeysForUserCached,
   rolesToSortedCsv,
 } from "@/lib/feature-gates-request-cache";
+import { resolveNavModel } from "@/lib/navigation/resolve-nav";
+import type { NavGroup } from "@/lib/navigation/types";
 import { prisma } from "@/lib/prisma";
 import {
   getUnreadDirectMessageCountCached,
@@ -14,21 +16,18 @@ import { ensureAutoUnlockAndGetSections } from "@/lib/unlock-request-cache";
 import { getVisibleNavGroups } from "@/lib/unlock-nav-groups";
 import { withPrismaFallback } from "@/lib/prisma-guard";
 
-// Force runtime rendering so `next build` doesn't try to prerender pages that
-// require auth/database access (which can fail in build environments).
 export const dynamic = "force-dynamic";
 
-// Helper to determine highest award tier from awards
 function getHighestAwardTier(awards: { type: string | null }[]): string | undefined {
-  const tiers = awards.map(a => a.type).filter(Boolean);
-  if (tiers.some(t => t?.includes("GOLD"))) return "GOLD";
-  if (tiers.some(t => t?.includes("SILVER"))) return "SILVER";
-  if (tiers.some(t => t?.includes("BRONZE"))) return "BRONZE";
+  const tiers = awards.map((award) => award.type).filter(Boolean);
+  if (tiers.some((tier) => tier?.includes("GOLD"))) return "GOLD";
+  if (tiers.some((tier) => tier?.includes("SILVER"))) return "SILVER";
+  if (tiers.some((tier) => tier?.includes("BRONZE"))) return "BRONZE";
   return undefined;
 }
 
 export default async function AppLayout({
-  children
+  children,
 }: {
   children: React.ReactNode;
 }) {
@@ -44,12 +43,12 @@ export default async function AppLayout({
           where: { userId: userId! },
           select: { completedAt: true },
         })
-        .catch((e: unknown) => {
-          const isPrismaError = e !== null && typeof e === "object" && "code" in e;
-          if (isPrismaError && (e as { code: string }).code === "P2021") {
+        .catch((error: unknown) => {
+          const isPrismaError = error !== null && typeof error === "object" && "code" in error;
+          if (isPrismaError && (error as { code: string }).code === "P2021") {
             return null;
           }
-          throw e;
+          throw error;
         })
     : Promise.resolve({ completedAt: new Date() });
 
@@ -67,7 +66,10 @@ export default async function AppLayout({
       ])
     : Promise.resolve([0, 0, 0, []]);
 
-  const [onboardingRow, badgeTuple] = await Promise.all([onboardingPromise, badgePromise]);
+  const [onboardingRow, badgeTuple] = await Promise.all([
+    onboardingPromise,
+    badgePromise,
+  ]);
 
   if (shouldCheckOnboarding) {
     if (onboardingRow === null) {
@@ -78,15 +80,21 @@ export default async function AppLayout({
     }
   }
 
-  // Award tier comes from session (see getSessionUser) — avoids an extra user query here.
   const awardTier = getHighestAwardTier(session?.user?.awards ?? []);
 
   let badges: { notifications?: number; messages?: number; approvals?: number } = {};
   let enabledFeatureKeysArray: string[] | undefined;
   let unlockedSectionsArray: string[] | undefined;
-  let recentlyUnlockedGroupsArray: string[] | undefined;
+  let recentlyUnlockedGroupsArray: NavGroup[] | undefined;
+
   if (userId) {
-    const [unreadNotifications, unreadMessages, pendingApprovals, enabledFeatureKeys] = badgeTuple;
+    const [
+      unreadNotifications,
+      unreadMessages,
+      pendingApprovals,
+      enabledFeatureKeys,
+    ] = badgeTuple;
+
     badges = {
       notifications: unreadNotifications || undefined,
       messages: unreadMessages || undefined,
@@ -94,7 +102,6 @@ export default async function AppLayout({
     };
     enabledFeatureKeysArray = enabledFeatureKeys;
 
-    // Fetch unlock data for progressive nav reveal (STUDENT and PARENT roles)
     if (primaryRole === "STUDENT" || primaryRole === "PARENT") {
       try {
         const [unlockedSections, recentlyUnlockedSections] = await Promise.all([
@@ -111,25 +118,31 @@ export default async function AppLayout({
                 },
                 select: { sectionKey: true },
               });
-              return recent.map((r) => r.sectionKey);
+              return recent.map((row) => row.sectionKey);
             },
             () => [] as string[],
           ),
         ]);
+
         unlockedSectionsArray = Array.from(unlockedSections);
 
-        // Map section keys to nav group names for the "New!" badge
         if (recentlyUnlockedSections.length > 0) {
           const { visibleGroups } = getVisibleNavGroups(
             primaryRole,
             new Set(recentlyUnlockedSections),
           );
           recentlyUnlockedGroupsArray = Array.from(visibleGroups).filter(
-            (g) => !["Start Here", "Learning", "Progress", "Profile & Settings", "Family"].includes(g),
+            (group) =>
+              ![
+                "Start Here",
+                "Learning",
+                "Progress",
+                "Profile & Settings",
+                "Family",
+              ].includes(group),
           );
         }
       } catch {
-        // If unlock tables don't exist yet, continue with no unlock filtering
         unlockedSectionsArray = undefined;
         recentlyUnlockedGroupsArray = undefined;
       }
@@ -139,19 +152,39 @@ export default async function AppLayout({
   const studentFullPortalExplorer = process.env.STUDENT_FULL_PORTAL_EXPLORER === "true";
   const studentHasChapter = Boolean(session?.user?.chapterId);
 
+  const navModelWithLocks = resolveNavModel({
+    roles,
+    adminSubtypes: (session?.user as { adminSubtypes?: string[] } | undefined)?.adminSubtypes,
+    primaryRole,
+    awardTier,
+    pathname: "/",
+    enabledFeatureKeys: enabledFeatureKeysArray
+      ? new Set(enabledFeatureKeysArray)
+      : undefined,
+    unlockedSections: unlockedSectionsArray ? new Set(unlockedSectionsArray) : undefined,
+    studentFullPortalExplorer,
+    studentHasChapter,
+  });
+
   return (
     <AppShell
       userName={session?.user?.name}
       roles={roles}
-      adminSubtypes={(session?.user as { adminSubtypes?: string[] } | undefined)?.adminSubtypes}
       primaryRole={primaryRole}
-      awardTier={awardTier}
+      navModel={{
+        primaryRole: navModelWithLocks.primaryRole,
+        visible: navModelWithLocks.visible,
+        core: navModelWithLocks.core,
+        more: navModelWithLocks.more,
+      }}
       badges={badges}
-      enabledFeatureKeys={enabledFeatureKeysArray}
-      unlockedSections={unlockedSectionsArray}
+      lockedGroups={
+        navModelWithLocks.lockedGroups
+          ? Array.from(navModelWithLocks.lockedGroups.entries())
+          : undefined
+      }
       recentlyUnlockedGroups={recentlyUnlockedGroupsArray}
       studentFullPortalExplorer={studentFullPortalExplorer}
-      studentHasChapter={studentHasChapter}
     >
       {children}
     </AppShell>

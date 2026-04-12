@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { resolveNavActiveHref, resolveNavModel } from "@/lib/navigation/resolve-nav";
+import { isNavHrefActive, resolveNavActiveHref } from "@/lib/navigation/is-active";
 import { STUDENT_MINIMAL_GROUP_EMOJI } from "@/lib/navigation/student-v1-nav-layout";
-import type { NavGroup, NavLink } from "@/lib/navigation/types";
+import type { NavGroup, NavLink, NavViewModel } from "@/lib/navigation/types";
 
 /** Counts passed from the server layout for notification badges. */
 export interface NavBadges {
@@ -60,61 +60,21 @@ function matchesSearch(item: NavLink, searchLower: string): boolean {
 }
 
 export default function Nav({
-  roles = [],
-  adminSubtypes,
-  primaryRole,
-  awardTier,
+  model,
   badges,
-  enabledFeatureKeys,
   onNavigate,
-  unlockedSections,
   recentlyUnlockedGroups,
   lockedGroups: lockedGroupsProp,
   studentFullPortalExplorer,
-  studentHasChapter,
 }: {
-  roles?: string[];
-  adminSubtypes?: string[];
-  primaryRole?: string | null;
-  awardTier?: string;
+  model: NavViewModel;
   badges?: NavBadges;
-  enabledFeatureKeys?: Set<string>;
   onNavigate?: () => void;
-  unlockedSections?: Set<string>;
-  recentlyUnlockedGroups?: Set<string>;
-  lockedGroups?: Map<string, string>;
+  recentlyUnlockedGroups?: Set<NavGroup>;
+  lockedGroups?: Map<NavGroup, string>;
   studentFullPortalExplorer?: boolean;
-  /** When true, "Join a chapter" is hidden (user already has a chapter). */
-  studentHasChapter?: boolean;
 }) {
   const pathname = usePathname();
-
-  const model = useMemo(
-    () =>
-      resolveNavModel({
-        roles,
-        adminSubtypes,
-        primaryRole,
-        awardTier,
-        pathname,
-        enabledFeatureKeys,
-        unlockedSections,
-        studentFullPortalExplorer,
-        studentHasChapter,
-      }),
-    [
-      adminSubtypes,
-      awardTier,
-      enabledFeatureKeys,
-      pathname,
-      primaryRole,
-      roles,
-      unlockedSections,
-      studentFullPortalExplorer,
-      studentHasChapter,
-    ],
-  );
-
   const allNavHrefs = useMemo(() => {
     const hrefs: string[] = [];
     for (const item of model.core) {
@@ -132,9 +92,7 @@ export default function Nav({
     () => resolveNavActiveHref(pathname, allNavHrefs),
     [pathname, allNavHrefs],
   );
-
-  // Use locked groups from the model (computed from unlockedSections) or from explicit prop
-  const lockedGroups = model.lockedGroups ?? lockedGroupsProp;
+  const lockedGroups = lockedGroupsProp;
 
   const storageKey = useMemo(() => storageKeyForRole(model.primaryRole), [model.primaryRole]);
 
