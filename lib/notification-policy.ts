@@ -11,6 +11,7 @@ export type NotificationPolicyKey =
   | "GOAL_DEADLINES"
   | "MESSAGES"
   | "COURSE_AND_CLASS_UPDATES"
+  | "EVENT_REMINDERS_AND_CHANGES"
   | "EVENT_UPDATES"
   | "ANNOUNCEMENTS"
   | "SYSTEM_ALERTS";
@@ -52,6 +53,11 @@ export const NOTIFICATION_POLICY: Record<NotificationPolicyKey, NotificationPoli
     channel: "EMAIL_ONLY",
     description: "Schedule or class workflow changes are delivered by email.",
   },
+  EVENT_REMINDERS_AND_CHANGES: {
+    label: "Event reminders and changes",
+    channel: "EMAIL_AND_TEXT",
+    description: "RSVP reminders and urgent event changes are sent by email and text.",
+  },
   EVENT_UPDATES: {
     label: "Event updates",
     channel: "IN_APP_ONLY",
@@ -75,3 +81,30 @@ export const NOTIFICATION_POLICY_CHANNEL_LABELS: Record<NotificationDeliveryChan
   TEXT_ONLY: "Text only",
   IN_APP_ONLY: "Portal only",
 };
+
+export type NotificationChannelFlags = {
+  inApp: boolean;
+  email: boolean;
+  sms: boolean;
+};
+
+export function resolveNotificationPolicyChannels(
+  policyKey?: NotificationPolicyKey
+): NotificationChannelFlags {
+  if (!policyKey) {
+    return {
+      inApp: true,
+      email: true,
+      sms: false,
+    };
+  }
+
+  const channel = NOTIFICATION_POLICY[policyKey].channel;
+
+  return {
+    // The portal notification center remains the base history for every delivery policy.
+    inApp: true,
+    email: channel === "EMAIL_ONLY" || channel === "EMAIL_AND_TEXT",
+    sms: channel === "TEXT_ONLY" || channel === "EMAIL_AND_TEXT",
+  };
+}

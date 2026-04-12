@@ -557,7 +557,7 @@ export async function sendMessage(formData: FormData) {
           `New Message from ${session.user.name}`,
           message.content.substring(0, 100),
           `/messages/${conversationId}`,
-          false // Don't send email for every message
+          { sendEmail: false } // Don't send email for every message
         );
       }
     }

@@ -1,6 +1,11 @@
 import { NotificationType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isEmailConfigured, sendNotificationEmail } from "@/lib/email";
+import {
+  type NotificationPolicyKey,
+  resolveNotificationPolicyChannels,
+} from "@/lib/notification-policy";
+import { isSmsConfigured, sendSmsNotification } from "@/lib/sms";
 
 type DeliveryInput = {
   userId: string;
@@ -9,11 +14,14 @@ type DeliveryInput = {
   body: string;
   link?: string | null;
   sendEmail?: boolean;
+  policyKey?: NotificationPolicyKey;
 };
 
 type PreferenceRecord = {
   emailEnabled: boolean;
   inAppEnabled: boolean;
+  smsEnabled: boolean;
+  smsPhoneE164: string | null;
   announcements: boolean;
   mentorUpdates: boolean;
   goalReminders: boolean;
@@ -71,6 +79,8 @@ export async function deliverNotification(input: DeliveryInput) {
         select: {
           emailEnabled: true,
           inAppEnabled: true,
+          smsEnabled: true,
+          smsPhoneE164: true,
           announcements: true,
           mentorUpdates: true,
           goalReminders: true,
@@ -87,12 +97,23 @@ export async function deliverNotification(input: DeliveryInput) {
 
   const preferences = user.notificationPreference;
   const typeEnabled = isTypeEnabled(preferences, input.type);
-  const shouldCreateInApp = (preferences?.inAppEnabled ?? true) && typeEnabled;
+  const policyChannels = resolveNotificationPolicyChannels(input.policyKey);
+  const shouldCreateInApp =
+    policyChannels.inApp &&
+    (preferences?.inAppEnabled ?? true) &&
+    typeEnabled;
   const shouldSendEmail =
     input.sendEmail !== false &&
+    policyChannels.email &&
     (preferences?.emailEnabled ?? true) &&
     typeEnabled &&
     isEmailConfigured();
+  const shouldSendSms =
+    policyChannels.sms &&
+    (preferences?.smsEnabled ?? false) &&
+    Boolean(preferences?.smsPhoneE164) &&
+    typeEnabled &&
+    isSmsConfigured();
 
   let notification = null;
 
@@ -124,6 +145,17 @@ export async function deliverNotification(input: DeliveryInput) {
     });
   }
 
+  if (shouldSendSms && preferences?.smsPhoneE164) {
+    await sendSmsNotification({
+      to: preferences.smsPhoneE164,
+      title: input.title,
+      body: input.body,
+      link: input.link || null,
+    }).catch((error) => {
+      console.error("[NotificationDelivery] Failed to send SMS:", error);
+    });
+  }
+
   return notification;
 }
 
@@ -131,7 +163,10 @@ export async function deliverBulkNotifications(inputs: DeliveryInput[]) {
   const uniqueInputs = new Map<string, DeliveryInput>();
 
   for (const input of inputs) {
-    uniqueInputs.set(`${input.userId}:${input.type}:${input.title}:${input.link ?? ""}`, input);
+    uniqueInputs.set(
+      `${input.userId}:${input.type}:${input.title}:${input.link ?? ""}:${input.policyKey ?? ""}`,
+      input
+    );
   }
 
   for (const input of uniqueInputs.values()) {

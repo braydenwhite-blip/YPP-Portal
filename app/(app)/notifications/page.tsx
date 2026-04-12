@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import {
   deleteNotification,
   getNotifications,
+  getNotificationPreferences,
   markAllAsRead,
   markAsRead,
 } from "@/lib/notification-actions";
@@ -12,6 +13,7 @@ import {
   NOTIFICATION_POLICY,
   NOTIFICATION_POLICY_CHANNEL_LABELS,
 } from "@/lib/notification-policy";
+import SmsNotificationSettingsForm from "@/components/sms-notification-settings-form";
 
 function getTypeLabel(type: string) {
   return type.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
@@ -35,6 +37,7 @@ export default async function NotificationsPage() {
   }
 
   const notifications = await getNotifications();
+  const preferences = await getNotificationPreferences();
   const unreadCount = notifications.filter((notification) => !notification.isRead).length;
 
   return (
@@ -85,6 +88,19 @@ export default async function NotificationsPage() {
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 16, marginBottom: 20 }}>
+        <h2 style={{ marginTop: 0 }}>Text Message Notifications</h2>
+        <p style={{ color: "var(--muted)" }}>
+          Text messages are optional and only used for the most time-sensitive updates. The SMS categories are fixed by policy for version one:
+          application decisions, interview updates, RSVP reminders or urgent event changes, and system alerts.
+        </p>
+        <SmsNotificationSettingsForm
+          smsEnabled={preferences.smsEnabled}
+          smsPhoneE164={preferences.smsPhoneE164}
+          smsOptOutAt={preferences.smsOptOutAt?.toISOString() ?? null}
+        />
       </div>
 
       {notifications.length === 0 ? (

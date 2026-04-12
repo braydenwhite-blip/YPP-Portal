@@ -536,6 +536,7 @@ export async function notifyChapterSubscribers(params: {
       title: params.title,
       body: params.body,
       link: params.link || null,
+      policyKey: "EVENT_UPDATES" as const,
     }))
   );
 }
@@ -561,6 +562,7 @@ export async function notifyRsvpUsersAboutEventChange(params: {
       title: params.title,
       body: params.body,
       link: params.link || null,
+      policyKey: "EVENT_REMINDERS_AND_CHANGES" as const,
     }))
   );
 }

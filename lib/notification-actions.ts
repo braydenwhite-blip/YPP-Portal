@@ -6,6 +6,34 @@ import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 import { NotificationType } from "@prisma/client";
 import { deliverNotification, deliverBulkNotifications } from "@/lib/notification-delivery";
+import { type NotificationPolicyKey } from "@/lib/notification-policy";
+import { normalizePhoneNumberToE164 } from "@/lib/sms";
+
+export type NotificationDeliveryOptions = {
+  sendEmail?: boolean;
+  policyKey?: NotificationPolicyKey;
+};
+
+export type NotificationPreferencesFormState = {
+  status: "idle" | "success" | "error";
+  message: string;
+};
+
+const DEFAULT_NOTIFICATION_PREFERENCES = {
+  emailEnabled: true,
+  inAppEnabled: true,
+  smsEnabled: false,
+  smsPhoneE164: null,
+  smsConsentAt: null,
+  smsOptOutAt: null,
+  announcements: true,
+  mentorUpdates: true,
+  goalReminders: true,
+  courseUpdates: true,
+  reflectionReminders: true,
+  eventUpdates: true,
+  eventReminders: true,
+} as const;
 
 async function requireAuth() {
   const session = await getServerSession(authOptions);
@@ -21,6 +49,30 @@ function getString(formData: FormData, key: string, required = true) {
     throw new Error(`Missing ${key}`);
   }
   return value ? String(value).trim() : "";
+}
+
+async function ensureNotificationPreferences(userId: string) {
+  return prisma.notificationPreference.upsert({
+    where: { userId },
+    update: {},
+    create: {
+      userId,
+      ...DEFAULT_NOTIFICATION_PREFERENCES,
+    },
+  });
+}
+
+function readCheckbox(
+  formData: FormData,
+  key: string,
+  fallback: boolean,
+  preserveMissing = false
+) {
+  if (!formData.has(key)) {
+    return preserveMissing ? fallback : false;
+  }
+
+  return formData.get(key) === "on";
 }
 
 // ---------------------------------------------------------------------------
@@ -103,7 +155,8 @@ export async function createNotification(
   type: NotificationType,
   title: string,
   body: string,
-  link?: string
+  link?: string,
+  options: NotificationDeliveryOptions = {}
 ) {
   // Require admin when called as a server action
   const session = await requireAuth();
@@ -118,6 +171,8 @@ export async function createNotification(
     title,
     body,
     link: link || null,
+    sendEmail: options.sendEmail,
+    policyKey: options.policyKey,
   });
 
   revalidatePath("/notifications");
@@ -134,7 +189,8 @@ export async function createBulkNotifications(
   type: NotificationType,
   title: string,
   body: string,
-  link?: string
+  link?: string,
+  options: NotificationDeliveryOptions = {}
 ) {
   // Require admin when called as a server action
   const session = await requireAuth();
@@ -152,6 +208,8 @@ export async function createBulkNotifications(
       title,
       body,
       link: link || null,
+      sendEmail: options.sendEmail,
+      policyKey: options.policyKey,
     }))
   );
 
@@ -168,22 +226,7 @@ export async function getNotificationPreferences() {
   const session = await requireAuth();
   const userId = session.user.id;
 
-  const preferences = await prisma.notificationPreference.upsert({
-    where: { userId },
-    update: {},
-    create: {
-      userId,
-      emailEnabled: true,
-      inAppEnabled: true,
-      announcements: true,
-      mentorUpdates: true,
-      goalReminders: true,
-      courseUpdates: true,
-      reflectionReminders: true,
-      eventUpdates: true,
-      eventReminders: true,
-    },
-  });
+  const preferences = await ensureNotificationPreferences(userId);
 
   return preferences;
 }
@@ -194,23 +237,66 @@ export async function getNotificationPreferences() {
 export async function updateNotificationPreferences(formData: FormData) {
   const session = await requireAuth();
   const userId = session.user.id;
+  const current = await ensureNotificationPreferences(userId);
+  const formScope = getString(formData, "formScope", false);
+  const isSmsForm = formScope === "sms";
 
-  // Checkboxes: present in FormData only when checked ("on"), absent when off.
-  const emailEnabled = formData.get("emailEnabled") === "on";
-  const inAppEnabled = formData.get("inAppEnabled") === "on";
-  const announcements = formData.get("announcements") === "on";
-  const mentorUpdates = formData.get("mentorUpdates") === "on";
-  const goalReminders = formData.get("goalReminders") === "on";
-  const courseUpdates = formData.get("courseUpdates") === "on";
-  const reflectionReminders = formData.get("reflectionReminders") === "on";
-  const eventUpdates = formData.get("eventUpdates") === "on";
-  const eventReminders = formData.get("eventReminders") === "on";
+  const emailEnabled = readCheckbox(formData, "emailEnabled", current.emailEnabled, isSmsForm);
+  const inAppEnabled = readCheckbox(formData, "inAppEnabled", current.inAppEnabled, isSmsForm);
+  const announcements = readCheckbox(formData, "announcements", current.announcements, isSmsForm);
+  const mentorUpdates = readCheckbox(formData, "mentorUpdates", current.mentorUpdates, isSmsForm);
+  const goalReminders = readCheckbox(formData, "goalReminders", current.goalReminders, isSmsForm);
+  const courseUpdates = readCheckbox(formData, "courseUpdates", current.courseUpdates, isSmsForm);
+  const reflectionReminders = readCheckbox(
+    formData,
+    "reflectionReminders",
+    current.reflectionReminders,
+    isSmsForm
+  );
+  const eventUpdates = readCheckbox(formData, "eventUpdates", current.eventUpdates, isSmsForm);
+  const eventReminders = readCheckbox(
+    formData,
+    "eventReminders",
+    current.eventReminders,
+    isSmsForm
+  );
 
-  await prisma.notificationPreference.upsert({
+  let smsEnabled = current.smsEnabled;
+  let smsPhoneE164 = current.smsPhoneE164;
+  let smsConsentAt = current.smsConsentAt;
+  let smsOptOutAt = current.smsOptOutAt;
+
+  if (isSmsForm || formData.has("smsEnabled") || formData.has("smsPhone")) {
+    const smsPhoneRaw = getString(formData, "smsPhone", false);
+    const requestedSmsEnabled = formData.get("smsEnabled") === "on";
+
+    if (!smsPhoneRaw) {
+      if (requestedSmsEnabled) {
+        throw new Error("Add a mobile number before turning on text notifications.");
+      }
+
+      smsEnabled = false;
+      smsPhoneE164 = null;
+    } else {
+      smsPhoneE164 = normalizePhoneNumberToE164(smsPhoneRaw);
+      smsEnabled = requestedSmsEnabled;
+
+      if (smsEnabled) {
+        smsConsentAt = new Date();
+        smsOptOutAt = null;
+      }
+    }
+  }
+
+  const updatedPreferences = await prisma.notificationPreference.upsert({
     where: { userId },
     update: {
       emailEnabled,
       inAppEnabled,
+      smsEnabled,
+      smsPhoneE164,
+      smsConsentAt,
+      smsOptOutAt,
       announcements,
       mentorUpdates,
       goalReminders,
@@ -223,6 +309,10 @@ export async function updateNotificationPreferences(formData: FormData) {
       userId,
       emailEnabled,
       inAppEnabled,
+      smsEnabled,
+      smsPhoneE164,
+      smsConsentAt,
+      smsOptOutAt,
       announcements,
       mentorUpdates,
       goalReminders,
@@ -235,6 +325,30 @@ export async function updateNotificationPreferences(formData: FormData) {
 
   revalidatePath("/notifications");
   revalidatePath("/settings");
+
+  return updatedPreferences;
+}
+
+export async function updateNotificationPreferencesAction(
+  _prevState: NotificationPreferencesFormState,
+  formData: FormData
+): Promise<NotificationPreferencesFormState> {
+  try {
+    await updateNotificationPreferences(formData);
+
+    return {
+      status: "success",
+      message:
+        getString(formData, "formScope", false) === "sms"
+          ? "Text message settings saved."
+          : "Notification settings saved.",
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message: error instanceof Error ? error.message : "Could not save notification settings.",
+    };
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -273,7 +387,7 @@ export async function createSystemNotification(
   title: string,
   body: string,
   link?: string,
-  doSendEmail = true
+  options: NotificationDeliveryOptions = {}
 ) {
   // Require at least an authenticated session to prevent abuse
   const session = await getServerSession(authOptions);
@@ -287,7 +401,8 @@ export async function createSystemNotification(
     title,
     body,
     link: link || null,
-    sendEmail: doSendEmail,
+    sendEmail: options.sendEmail,
+    policyKey: options.policyKey,
   });
 }
 
@@ -300,7 +415,7 @@ export async function createBulkSystemNotifications(
   title: string,
   body: string,
   link?: string,
-  doSendEmail = true
+  options: NotificationDeliveryOptions = {}
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -316,7 +431,8 @@ export async function createBulkSystemNotifications(
       title,
       body,
       link: link || null,
-      sendEmail: doSendEmail,
+      sendEmail: options.sendEmail,
+      policyKey: options.policyKey,
     }))
   );
 }

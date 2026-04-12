@@ -104,6 +104,10 @@ Dedicated portal for YPP Pathways (curriculum structure, instructor training, me
 | `ENABLE_NATIVE_INSTRUCTOR_GATE` | Enable native readiness gate (`true`/`false`, defaults to enabled). |
 | `ENFORCE_PRE_OFFERING_INTERVIEW` | Enforce interview requirement before first publish (`true`/`false`, defaults to enabled). |
 | `ENABLE_UNIFIED_ALL_TOOLS_DASHBOARD` | Enable unified primary-role dashboard at `/` (`true`/`false`, defaults to enabled). |
+| `TWILIO_ACCOUNT_SID` | Twilio account SID for SMS delivery. |
+| `TWILIO_AUTH_TOKEN` | Twilio auth token for SMS delivery and webhook validation. |
+| `TWILIO_MESSAGING_SERVICE_SID` | Preferred Twilio Messaging Service SID for outbound SMS. |
+| `TWILIO_FROM_NUMBER` | Optional fallback sender number if no messaging service SID is used. |
 
 Both are required for production. If you are not using connection pooling, they can be the same URL.
 
@@ -167,6 +171,9 @@ This script is idempotent and safe to rerun.
    NEXTAUTH_SECRET=generate_with_openssl_rand_base64_32
    SEED_PASSWORD=a_strong_password_for_seeded_accounts
    ENABLE_UNIFIED_ALL_TOOLS_DASHBOARD=true
+   TWILIO_ACCOUNT_SID=AC...
+   TWILIO_AUTH_TOKEN=...
+   TWILIO_MESSAGING_SERVICE_SID=MG...
    ```
    Optional emergency fallback:
    ```
