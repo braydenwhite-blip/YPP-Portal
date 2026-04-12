@@ -1,9 +1,13 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import AppShell from "@/components/app-shell";
-import { authOptions } from "@/lib/auth";
 import { getEnabledFeatureKeysForUser } from "@/lib/feature-gates";
 import { prisma } from "@/lib/prisma";
+import {
+  getCachedServerSession,
+  getUnreadMessageCount,
+  getUnreadNotificationCount,
+  getUserAwardTypes,
+} from "@/lib/request-cache";
 import { getUnlockedSections, checkAndAutoUnlock } from "@/lib/unlock-manager";
 import { getVisibleNavGroups } from "@/lib/unlock-nav-groups";
 import { withPrismaFallback } from "@/lib/prisma-guard";
@@ -26,7 +30,7 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getCachedServerSession();
   const roles = session?.user?.roles ?? [];
   const primaryRole = session?.user?.primaryRole ?? null;
 
@@ -62,33 +66,9 @@ export default async function AppLayout({
     const userId = session.user.id;
     const [userWithAwards, unreadNotifications, unreadMessages, pendingApprovals, enabledFeatureKeys] =
       await Promise.all([
-        prisma.user.findUnique({
-          where: { id: userId },
-          select: { awards: { select: { type: true } } },
-        }),
-        // Unread notification count
-        prisma.notification.count({
-          where: { userId, isRead: false },
-        }).catch(() => 0),
-        // Unread messages: conversations where latest message is after user's lastReadAt
-        prisma.conversationParticipant
-          .findMany({
-            where: { userId },
-            include: {
-              conversation: {
-                include: { messages: { orderBy: { createdAt: "desc" }, take: 1 } },
-              },
-            },
-          })
-          .then((parts: Array<{ lastReadAt: Date; conversation: { messages: Array<{ createdAt: Date; senderId: string }> } }>) =>
-            parts.filter(
-              (p) =>
-                p.conversation.messages.length > 0 &&
-                p.conversation.messages[0].createdAt > p.lastReadAt &&
-                p.conversation.messages[0].senderId !== userId,
-            ).length,
-          )
-          .catch(() => 0),
+        getUserAwardTypes(userId),
+        getUnreadNotificationCount(userId).catch(() => 0),
+        getUnreadMessageCount(userId).catch(() => 0),
         // Pending approvals placeholder (future: parent approvals, instructor readiness, etc.)
         Promise.resolve(0),
         getEnabledFeatureKeysForUser({
