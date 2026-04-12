@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { deliverNotification } from "@/lib/notification-delivery";
 
 // POST /api/class-reminders
 // Cron endpoint to process and send class reminders
@@ -130,15 +131,14 @@ export async function POST(request: NextRequest) {
 
     for (const reminder of pendingReminders) {
       try {
-        // Create in-app notification
-        await prisma.notification.create({
-          data: {
-            userId: reminder.userId,
-            title: reminder.subject,
-            body: reminder.body,
-            type: "CLASS_REMINDER",
-            link: `/curriculum/${reminder.offeringId}`,
-          },
+        await deliverNotification({
+          userId: reminder.userId,
+          title: reminder.subject,
+          body: reminder.body,
+          type: "CLASS_REMINDER",
+          link: `/curriculum/${reminder.offeringId}`,
+          scenarioKey:
+            reminder.type === "ONE_HOUR" ? "STUDENT_CLASS_REMINDER_1H" : "LEGACY_GENERIC",
         });
 
         // Mark as sent

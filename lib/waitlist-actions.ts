@@ -131,7 +131,8 @@ export async function promoteFromWaitlist(formData: FormData) {
     "COURSE_UPDATE",
     "Spot Available!",
     `A spot has opened up in ${nextEntry.course.title}. You have 48 hours to confirm your enrollment.`,
-    `/curriculum`
+    `/curriculum`,
+    { scenarioKey: "STUDENT_WAITLIST_OFFER_AVAILABLE" }
   );
 
   await logAuditEvent({

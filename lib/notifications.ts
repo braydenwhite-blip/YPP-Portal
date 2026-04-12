@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { NotificationType } from "@prisma/client";
+import { NotificationScenarioKey, NotificationType } from "@prisma/client";
 import { deliverNotification } from "@/lib/notification-delivery";
 
 /**
@@ -10,13 +10,15 @@ export async function createNotification({
   type,
   title,
   body,
-  link
+  link,
+  scenarioKey,
 }: {
   userId: string;
   type: string;
   title: string;
   body: string;
   link?: string;
+  scenarioKey?: NotificationScenarioKey;
 }) {
   try {
     return await deliverNotification({
@@ -25,6 +27,7 @@ export async function createNotification({
       title,
       body,
       link: link ?? null,
+      scenarioKey,
     });
   } catch (error) {
     console.error("Error creating notification:", error);
@@ -78,7 +81,8 @@ export async function processWaitlist(courseId: string) {
         type: "COURSE_UPDATE",
         title: "Spot Available in Course!",
         body: `A spot has opened up in "${course.title}". You have 48 hours to enroll.`,
-        link: "/my-classes?notice=legacy-course-notification"
+        link: "/my-classes?notice=legacy-course-notification",
+        scenarioKey: "STUDENT_WAITLIST_OFFER_AVAILABLE",
       });
 
       return nextInLine;
@@ -116,7 +120,8 @@ export async function sendWaitlistExpiryReminders() {
         type: "COURSE_UPDATE",
         title: "Course Enrollment Expiring Soon",
         body: `Your spot in "${entry.course.title}" expires in a few hours. Enroll now or you'll lose your spot!`,
-        link: "/my-classes?notice=legacy-course-notification"
+        link: "/my-classes?notice=legacy-course-notification",
+        scenarioKey: "STUDENT_WAITLIST_OFFER_EXPIRING_6H",
       });
     }
 

@@ -4,6 +4,9 @@ const sendNotificationEmail = vi.fn();
 const isEmailConfigured = vi.fn();
 const sendSmsNotification = vi.fn();
 const isSmsConfigured = vi.fn();
+let mockUserRecord: any = null;
+let deliverySequence = 1;
+const deliveryStore = new Map<string, any>();
 
 vi.mock("@/lib/email", () => ({
   sendNotificationEmail,
@@ -23,6 +26,12 @@ vi.mock("@/lib/prisma", () => ({
     notification: {
       create: vi.fn(),
     },
+    notificationDelivery: {
+      create: vi.fn(),
+      findUnique: vi.fn(),
+      update: vi.fn(),
+      findMany: vi.fn(),
+    },
   },
 }));
 
@@ -33,13 +42,71 @@ describe("notification delivery", () => {
     isEmailConfigured.mockReset();
     sendSmsNotification.mockReset();
     isSmsConfigured.mockReset();
+    mockUserRecord = null;
+    deliverySequence = 1;
+    deliveryStore.clear();
   });
+
+  async function configureDeliveryMocks() {
+    const { prisma } = await import("@/lib/prisma");
+    const prismaMock = prisma as any;
+
+    prismaMock.user.findUnique.mockImplementation(async () => mockUserRecord);
+    prismaMock.notificationDelivery.create.mockImplementation(async ({ data }: any) => {
+      const id = `delivery-${deliverySequence++}`;
+      const record = { id, ...data };
+      deliveryStore.set(id, record);
+      return { id };
+    });
+    prismaMock.notificationDelivery.findUnique.mockImplementation(async ({ where, include, select }: any) => {
+      let record = null;
+
+      if (where?.id) {
+        record = deliveryStore.get(where.id) ?? null;
+      } else if (where?.providerMessageId) {
+        record =
+          Array.from(deliveryStore.values()).find(
+            (delivery) => delivery.providerMessageId === where.providerMessageId
+          ) ?? null;
+      }
+
+      if (!record) {
+        return null;
+      }
+
+      const enriched = {
+        ...record,
+        user: include?.user || select?.user
+          ? {
+              email: mockUserRecord?.email ?? null,
+              name: mockUserRecord?.name ?? null,
+            }
+          : undefined,
+        fallbackDeliveries: include?.fallbackDeliveries ? [] : undefined,
+      };
+
+      if (select) {
+        return Object.fromEntries(
+          Object.keys(select).map((key) => [key, enriched[key]])
+        );
+      }
+
+      return enriched;
+    });
+    prismaMock.notificationDelivery.update.mockImplementation(async ({ where, data }: any) => {
+      const existing = deliveryStore.get(where.id);
+      const updated = { ...existing, ...data };
+      deliveryStore.set(where.id, updated);
+      return updated;
+    });
+    prismaMock.notificationDelivery.findMany.mockResolvedValue([]);
+  }
 
   it("keeps legacy behavior when no policy key is passed", async () => {
     const { prisma } = await import("@/lib/prisma");
     const prismaMock = prisma as any;
 
-    prismaMock.user.findUnique.mockResolvedValue({
+    mockUserRecord = {
       id: "user-1",
       email: "user@example.com",
       name: "Jordan",
@@ -56,7 +123,8 @@ describe("notification delivery", () => {
         eventUpdates: true,
         eventReminders: true,
       },
-    });
+    };
+    await configureDeliveryMocks();
     prismaMock.notification.create.mockResolvedValue({ id: "notification-1" });
     isEmailConfigured.mockReturnValue(true);
     isSmsConfigured.mockReturnValue(true);
@@ -80,7 +148,7 @@ describe("notification delivery", () => {
     const { prisma } = await import("@/lib/prisma");
     const prismaMock = prisma as any;
 
-    prismaMock.user.findUnique.mockResolvedValue({
+    mockUserRecord = {
       id: "user-1",
       email: "user@example.com",
       name: "Jordan",
@@ -97,7 +165,8 @@ describe("notification delivery", () => {
         eventUpdates: true,
         eventReminders: true,
       },
-    });
+    };
+    await configureDeliveryMocks();
     prismaMock.notification.create.mockResolvedValue({ id: "notification-1" });
     isEmailConfigured.mockReturnValue(true);
     isSmsConfigured.mockReturnValue(true);
@@ -120,7 +189,7 @@ describe("notification delivery", () => {
     const { prisma } = await import("@/lib/prisma");
     const prismaMock = prisma as any;
 
-    prismaMock.user.findUnique.mockResolvedValue({
+    mockUserRecord = {
       id: "user-1",
       email: "user@example.com",
       name: "Jordan",
@@ -137,7 +206,8 @@ describe("notification delivery", () => {
         eventUpdates: true,
         eventReminders: true,
       },
-    });
+    };
+    await configureDeliveryMocks();
     prismaMock.notification.create.mockResolvedValue({ id: "notification-1" });
     isEmailConfigured.mockReturnValue(true);
     isSmsConfigured.mockReturnValue(true);
@@ -167,7 +237,7 @@ describe("notification delivery", () => {
     const { prisma } = await import("@/lib/prisma");
     const prismaMock = prisma as any;
 
-    prismaMock.user.findUnique.mockResolvedValue({
+    mockUserRecord = {
       id: "user-1",
       email: "user@example.com",
       name: "Jordan",
@@ -184,7 +254,8 @@ describe("notification delivery", () => {
         eventUpdates: true,
         eventReminders: true,
       },
-    });
+    };
+    await configureDeliveryMocks();
     prismaMock.notification.create.mockResolvedValue({ id: "notification-1" });
     isEmailConfigured.mockReturnValue(true);
     isSmsConfigured.mockReturnValue(true);

@@ -363,7 +363,8 @@ export async function sendNotificationEmail({
   title,
   body,
   link,
-  linkText = "View Details"
+  linkText = "View Details",
+  subjectPrefix = "",
 }: {
   to: string;
   name: string;
@@ -371,8 +372,9 @@ export async function sendNotificationEmail({
   body: string;
   link?: string;
   linkText?: string;
+  subjectPrefix?: string;
 }): Promise<EmailResult> {
-  const subject = `${title} - Youth Passion Project`;
+  const subject = `${subjectPrefix}${title} - Youth Passion Project`;
 
   const linkHtml = link
     ? `<div style="text-align: center; margin: 24px 0;">

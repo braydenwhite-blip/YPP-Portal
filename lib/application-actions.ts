@@ -612,7 +612,7 @@ async function submitDecisionForChairReview({
       "Hiring Decision Waiting on Chair Review",
       `${application.applicant.name} has a ${accepted ? "hire" : "reject"} recommendation waiting for Chair approval.`,
       "/admin/hiring-committee",
-      { policyKey: "APPLICATION_DECISIONS" }
+      { scenarioKey: "CHAPTER_PRESIDENT_HIRING_DECISION_PENDING_CHAIR" }
     );
   }
 
@@ -730,7 +730,7 @@ export async function approveHiringDecision(decisionId: string, chairId: string,
       ? `Your application for ${decision.application.position.title} was accepted.`
       : `Your application for ${decision.application.position.title} has been reviewed.`,
     `/applications/${decision.applicationId}`,
-    { policyKey: "APPLICATION_DECISIONS" }
+    { scenarioKey: "APPLICANT_DECISION_RELEASED" }
   );
 
   await createSystemNotification(
@@ -1209,7 +1209,7 @@ export async function submitApplication(formData: FormData) {
       "New Chapter Hiring Application",
       `A new application was submitted for ${position.title}.`,
       `/applications/${created.id}`,
-      { sendEmail: true }
+      { scenarioKey: "CHAPTER_LEAD_NEW_APPLICANT_IN_QUEUE" }
     );
   }
 
@@ -1360,7 +1360,7 @@ export async function submitChapterProposal(formData: FormData) {
         ? `${chapterName} chapter proposal was updated by the applicant.`
         : `${chapterName} was proposed as a new chapter with a Chapter President application.`,
       `/applications/${application.id}`,
-      { sendEmail: true }
+      { scenarioKey: "ADMIN_NEW_CHAPTER_PROPOSAL" }
     );
   }
 
@@ -1506,7 +1506,7 @@ export async function postApplicationInterviewSlot(formData: FormData) {
     "Interview Slot Posted",
     `A new interview slot was posted for ${application.position.title}.`,
     `/applications/${applicationId}`,
-    { policyKey: "INTERVIEW_UPDATES" }
+    { scenarioKey: "APPLICANT_INTERVIEW_SCHEDULED" }
   );
 
   // Email applicant: interview scheduled
@@ -1596,7 +1596,7 @@ export async function postApplicationInterviewSlotsBulk(formData: FormData) {
     "Interview Slots Posted",
     `${slotDates.length} interview slot${slotDates.length > 1 ? "s were" : " was"} posted for ${application.position.title}.`,
     `/interviews?scope=hiring&view=mine&state=needs_action`,
-    { policyKey: "INTERVIEW_UPDATES" }
+    { scenarioKey: "APPLICANT_INTERVIEW_SCHEDULED" }
   );
 
   if (application.applicant?.email) {

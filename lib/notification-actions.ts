@@ -3,14 +3,26 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
-import { NotificationType } from "@prisma/client";
-import { deliverNotification, deliverBulkNotifications } from "@/lib/notification-delivery";
+import {
+  NotificationScenarioKey,
+  NotificationType,
+  NotificationUrgency,
+} from "@prisma/client";
+import {
+  deliverBulkNotifications,
+  deliverNotification,
+  emitNotification,
+  processPendingNotificationDeliveries,
+  retryNotificationDelivery,
+} from "@/lib/notification-delivery";
 import { type NotificationPolicyKey } from "@/lib/notification-policy";
 import { normalizePhoneNumberToE164 } from "@/lib/sms";
 
 export type NotificationDeliveryOptions = {
   sendEmail?: boolean;
   policyKey?: NotificationPolicyKey;
+  scenarioKey?: NotificationScenarioKey;
+  urgency?: NotificationUrgency;
 };
 
 export type NotificationPreferencesFormState = {
@@ -25,6 +37,7 @@ const DEFAULT_NOTIFICATION_PREFERENCES = {
   smsPhoneE164: null,
   smsConsentAt: null,
   smsOptOutAt: null,
+  deliveryTimezone: "America/New_York",
   announcements: true,
   mentorUpdates: true,
   goalReminders: true,
@@ -172,6 +185,8 @@ export async function createNotification(
     link: link || null,
     sendEmail: options.sendEmail,
     policyKey: options.policyKey,
+    scenarioKey: options.scenarioKey,
+    urgency: options.urgency,
   });
 
   revalidatePath("/notifications");
@@ -209,6 +224,8 @@ export async function createBulkNotifications(
       link: link || null,
       sendEmail: options.sendEmail,
       policyKey: options.policyKey,
+      scenarioKey: options.scenarioKey,
+      urgency: options.urgency,
     }))
   );
 
@@ -264,6 +281,7 @@ export async function updateNotificationPreferences(formData: FormData) {
   let smsPhoneE164 = current.smsPhoneE164;
   let smsConsentAt = current.smsConsentAt;
   let smsOptOutAt = current.smsOptOutAt;
+  let deliveryTimezone = current.deliveryTimezone;
 
   if (isSmsForm || formData.has("smsEnabled") || formData.has("smsPhone")) {
     const smsPhoneRaw = getString(formData, "smsPhone", false);
@@ -285,6 +303,11 @@ export async function updateNotificationPreferences(formData: FormData) {
         smsOptOutAt = null;
       }
     }
+
+    const requestedTimezone = getString(formData, "deliveryTimezone", false);
+    if (requestedTimezone) {
+      deliveryTimezone = requestedTimezone;
+    }
   }
 
   const updatedPreferences = await prisma.notificationPreference.upsert({
@@ -296,6 +319,7 @@ export async function updateNotificationPreferences(formData: FormData) {
       smsPhoneE164,
       smsConsentAt,
       smsOptOutAt,
+      deliveryTimezone,
       announcements,
       mentorUpdates,
       goalReminders,
@@ -312,6 +336,7 @@ export async function updateNotificationPreferences(formData: FormData) {
       smsPhoneE164,
       smsConsentAt,
       smsOptOutAt,
+      deliveryTimezone,
       announcements,
       mentorUpdates,
       goalReminders,
@@ -402,6 +427,8 @@ export async function createSystemNotification(
     link: link || null,
     sendEmail: options.sendEmail,
     policyKey: options.policyKey,
+    scenarioKey: options.scenarioKey,
+    urgency: options.urgency,
   });
 }
 
@@ -432,6 +459,81 @@ export async function createBulkSystemNotifications(
       link: link || null,
       sendEmail: options.sendEmail,
       policyKey: options.policyKey,
+      scenarioKey: options.scenarioKey,
+      urgency: options.urgency,
     }))
   );
+}
+
+export async function sendNotificationTestSmsAction(
+  _prevState: NotificationPreferencesFormState,
+  _formData: FormData
+): Promise<NotificationPreferencesFormState> {
+  try {
+    const session = await requireAuth();
+
+    const result = await emitNotification({
+      userId: session.user.id,
+      type: "SYSTEM",
+      title: "YPP test SMS",
+      body: "This is a real notification test from your YPP Pathways notification settings.",
+      link: "/notifications",
+      scenarioKey: "SYSTEM_SMS_TEST",
+    });
+
+    if (result.deliveryIds.length === 0) {
+      throw new Error("No SMS delivery record was created.");
+    }
+
+    const delivery = await prisma.notificationDelivery.findUnique({
+      where: { id: result.deliveryIds[0] },
+      select: {
+        status: true,
+        errorMessage: true,
+      },
+    });
+
+    if (!delivery || delivery.status === "FAILED") {
+      throw new Error(delivery?.errorMessage || "The test SMS could not be sent.");
+    }
+
+    revalidatePath("/notifications");
+
+    return {
+      status: "success",
+      message:
+        delivery.status === "SENT" || delivery.status === "DELIVERED"
+          ? "Test SMS sent."
+          : "Test SMS queued. Check back in a moment for the final delivery result.",
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message: error instanceof Error ? error.message : "Could not send a test SMS.",
+    };
+  }
+}
+
+export async function processNotificationDeliveryQueueAction() {
+  const session = await requireAuth();
+  const roles = session.user.roles ?? [];
+  if (!roles.includes("ADMIN")) {
+    throw new Error("Unauthorized - Admin access required");
+  }
+
+  const result = await processPendingNotificationDeliveries();
+  revalidatePath("/admin/reminders");
+  return result;
+}
+
+export async function retryNotificationDeliveryAction(formData: FormData) {
+  const session = await requireAuth();
+  const roles = session.user.roles ?? [];
+  if (!roles.includes("ADMIN")) {
+    throw new Error("Unauthorized - Admin access required");
+  }
+
+  const deliveryId = getString(formData, "deliveryId");
+  await retryNotificationDelivery(deliveryId);
+  revalidatePath("/admin/reminders");
 }

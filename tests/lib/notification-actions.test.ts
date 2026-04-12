@@ -39,6 +39,7 @@ describe("notification actions", () => {
         smsPhoneE164: null,
         smsConsentAt: null,
         smsOptOutAt: null,
+        deliveryTimezone: "America/New_York",
         announcements: true,
         mentorUpdates: true,
         goalReminders: true,
@@ -54,6 +55,7 @@ describe("notification actions", () => {
     formData.set("formScope", "sms");
     formData.set("smsPhone", "(415) 555-2671");
     formData.set("smsEnabled", "on");
+    formData.set("deliveryTimezone", "America/Chicago");
 
     await updateNotificationPreferences(formData);
 
@@ -65,6 +67,7 @@ describe("notification actions", () => {
           smsPhoneE164: "+14155552671",
           smsConsentAt: expect.any(Date),
           smsOptOutAt: null,
+          deliveryTimezone: "America/Chicago",
         }),
       })
     );
@@ -82,6 +85,7 @@ describe("notification actions", () => {
       smsPhoneE164: null,
       smsConsentAt: null,
       smsOptOutAt: null,
+      deliveryTimezone: "America/New_York",
       announcements: true,
       mentorUpdates: true,
       goalReminders: true,
@@ -115,6 +119,7 @@ describe("notification actions", () => {
       smsPhoneE164: "+14155552671",
       smsConsentAt: new Date("2026-04-01T10:00:00.000Z"),
       smsOptOutAt: null,
+      deliveryTimezone: "America/New_York",
       announcements: true,
       mentorUpdates: true,
       goalReminders: true,

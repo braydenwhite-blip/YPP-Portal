@@ -763,6 +763,7 @@ model User {
 
   // Phase 15-20 relations
   notifications              Notification[]
+  notificationDeliveries     NotificationDelivery[]
   notificationPreference     NotificationPreference?
   conversationParticipations ConversationParticipant[]
   messagesSent               Message[]                 @relation("MessagesSent")
@@ -3327,19 +3328,94 @@ enum NotificationType {
   EVENT_REMINDER
 }
 
+enum NotificationUrgency {
+  P0
+  P1
+  P2
+  P3
+}
+
+enum NotificationScenarioKey {
+  LEGACY_GENERIC
+  SYSTEM_SMS_TEST
+  APPLICANT_STATUS_CHANGE_NEXT_STAGE
+  APPLICANT_INTERVIEW_SCHEDULED
+  APPLICANT_INTERVIEW_REMINDER_24H
+  APPLICANT_DECISION_RELEASED
+  STUDENT_ATTENDANCE_ALERT_UNEXCUSED_ABSENCE
+  STUDENT_CLASS_REMINDER_1H
+  STUDENT_FEEDBACK_GRADE_POSTED
+  STUDENT_WAITLIST_OFFER_AVAILABLE
+  STUDENT_WAITLIST_OFFER_EXPIRING_6H
+  STUDENT_NEW_BADGE_EARNED
+  STUDENT_PEER_KUDOS_RECEIVED
+  MENTOR_NEW_REFLECTION_SUBMITTED
+  MENTOR_GOAL_REVIEW_DUE_48H
+  MENTOR_GOAL_REVIEW_OVERDUE
+  MENTOR_CHANGES_REQUESTED_BY_CHAIR
+  MENTOR_NEW_MENTEE_ASSIGNED
+  MENTOR_MILESTONE_REACHED
+  MENTOR_SCHEDULED_CHECK
+  MENTOR_CHECK_SOON_24H
+  INSTRUCTOR_CLASS_SESSION_REMINDER_1H
+  INSTRUCTOR_ATTENDANCE_NOT_LOGGED_POST_SESSION
+  INSTRUCTOR_NEW_STUDENT_ENROLLMENT
+  INSTRUCTOR_TRAINING_MODULE_ASSIGNED
+  INSTRUCTOR_TRAINING_DUE_SOON
+  CHAPTER_PRESIDENT_HIRING_DECISION_PENDING_CHAIR
+  CHAPTER_PRESIDENT_GOAL_REVIEW_PENDING_APPROVAL
+  CHAPTER_PRESIDENT_NEW_CHAPTER_JOIN_REQUEST
+  CHAPTER_PRESIDENT_CHAPTER_ACHIEVEMENT_EARNED
+  CHAPTER_PRESIDENT_OPERATIONAL_RISK_ALERT
+  CHAPTER_LEAD_NEW_APPLICANT_IN_QUEUE
+  CHAPTER_LEAD_INTERVIEW_REQUEST_ACCEPTED
+  CHAPTER_LEAD_NEW_MEMBER_ONBOARDING_STATUS
+  CHAPTER_LEAD_CHAPTER_ANNOUNCEMENT_POSTED
+  ADMIN_SYSTEM_ERROR_API_FAILURE
+  ADMIN_ESCALATED_SUPPORT_REQUEST
+  ADMIN_NEW_CHAPTER_PROPOSAL
+  ADMIN_GLOBAL_ACHIEVEMENT_SUMMARY
+  PARENT_ATTENDANCE_ALERT_ABSENCE
+  PARENT_PROGRESS_REPORT_AVAILABLE
+  PARENT_NEW_DIRECT_MESSAGE_FROM_INSTRUCTOR
+  SYSTEM_PASSWORD_RESET_LOGIN_ALERT
+  SYSTEM_ROLE_CHANGE_CONFIRMATION
+  SYSTEM_NEW_MESSAGING_THREAD
+  SYSTEM_NEW_MESSAGE
+}
+
+enum NotificationDeliveryChannel {
+  EMAIL
+  SMS
+}
+
+enum NotificationDeliveryStatus {
+  QUEUED
+  PROCESSING
+  SENT
+  DELIVERED
+  FAILED
+  SKIPPED
+  CANCELED
+}
+
 model Notification {
-  id        String           @id @default(cuid())
-  userId    String
-  user      User             @relation(fields: [userId], references: [id])
-  type      NotificationType
-  title     String
-  body      String
-  link      String?
-  isRead    Boolean          @default(false)
-  createdAt DateTime         @default(now())
+  id          String                  @id @default(cuid())
+  userId      String
+  user        User                    @relation(fields: [userId], references: [id])
+  type        NotificationType
+  scenarioKey NotificationScenarioKey @default(LEGACY_GENERIC)
+  urgency     NotificationUrgency     @default(P2)
+  title       String
+  body        String
+  link        String?
+  isRead      Boolean                 @default(false)
+  createdAt   DateTime                @default(now())
+  deliveries  NotificationDelivery[]
 
   @@index([userId, isRead])
   @@index([createdAt])
+  @@index([scenarioKey, urgency])
 }
 
 model NotificationPreference {
@@ -3352,6 +3428,7 @@ model NotificationPreference {
   smsPhoneE164        String?
   smsConsentAt        DateTime?
   smsOptOutAt         DateTime?
+  deliveryTimezone    String   @default("America/New_York")
   announcements       Boolean  @default(true)
   mentorUpdates       Boolean  @default(true)
   goalReminders       Boolean  @default(true)
@@ -3363,6 +3440,43 @@ model NotificationPreference {
   updatedAt           DateTime @updatedAt
 
   @@index([smsPhoneE164])
+}
+
+model NotificationDelivery {
+  id                  String                      @id @default(cuid())
+  notificationId      String?
+  notification        Notification?               @relation(fields: [notificationId], references: [id], onDelete: SetNull)
+  userId              String
+  user                User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scenarioKey         NotificationScenarioKey
+  urgency             NotificationUrgency
+  channel             NotificationDeliveryChannel
+  title               String
+  body                String
+  link                String?
+  status              NotificationDeliveryStatus  @default(QUEUED)
+  target              String?
+  provider            String?
+  providerMessageId   String?
+  providerStatus      String?
+  scheduledFor        DateTime?
+  attemptedAt         DateTime?
+  sentAt              DateTime?
+  deliveredAt         DateTime?
+  failedAt            DateTime?
+  errorCode           String?
+  errorMessage        String?
+  isFallback          Boolean                     @default(false)
+  fallbackForDeliveryId String?
+  fallbackForDelivery NotificationDelivery?       @relation("NotificationDeliveryFallback", fields: [fallbackForDeliveryId], references: [id], onDelete: SetNull)
+  fallbackDeliveries  NotificationDelivery[]      @relation("NotificationDeliveryFallback")
+  createdAt           DateTime                    @default(now())
+  updatedAt           DateTime                    @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, scheduledFor, channel])
+  @@index([scenarioKey, urgency, channel])
+  @@unique([providerMessageId])
 }
 
 // ============================================
@@ -3404,6 +3518,7 @@ model Message {
   senderId       String
   sender         User         @relation("MessagesSent", fields: [senderId], references: [id])
   content        String
+  priority       MessagePriority @default(NORMAL)
   createdAt      DateTime     @default(now())
 
   @@index([conversationId, createdAt])

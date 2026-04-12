@@ -192,6 +192,32 @@ export default async function ConversationPage({
               }}
             />
           </div>
+          <div className="form-group" style={{ marginTop: 12 }}>
+            <label
+              htmlFor="priority"
+              style={{ fontWeight: 600, fontSize: 14, marginBottom: 6, display: "block" }}
+            >
+              Notification Urgency
+            </label>
+            <select
+              id="priority"
+              name="priority"
+              defaultValue="NORMAL"
+              style={{
+                width: "100%",
+                padding: "8px 12px",
+                borderRadius: "var(--radius-sm, 6px)",
+                border: "1px solid var(--border, #d1d5db)",
+                fontSize: 14,
+                backgroundColor: "var(--surface, #fff)",
+              }}
+            >
+              <option value="NORMAL">P2 Normal: email + portal</option>
+              <option value="HIGH">P1 High: email + portal</option>
+              <option value="URGENT">P0 Critical: text + email + portal</option>
+              <option value="LOW">P3 Low: portal only</option>
+            </select>
+          </div>
           <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
             <button type="submit" className="btn btn-primary">
               Send Reply

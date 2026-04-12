@@ -2,6 +2,7 @@
 
 import { useFormState, useFormStatus } from "react-dom";
 import {
+  sendNotificationTestSmsAction,
   updateNotificationPreferencesAction,
   type NotificationPreferencesFormState,
 } from "@/lib/notification-actions";
@@ -17,6 +18,16 @@ function SubmitButton() {
   return (
     <button type="submit" className="btn btn-primary" disabled={pending}>
       {pending ? "Saving..." : "Save Text Settings"}
+    </button>
+  );
+}
+
+function TestSmsButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button type="submit" className="btn btn-secondary" disabled={pending}>
+      {pending ? "Sending..." : "Send Test SMS"}
     </button>
   );
 }
@@ -37,62 +48,109 @@ export default function SmsNotificationSettingsForm({
   smsEnabled,
   smsPhoneE164,
   smsOptOutAt,
+  deliveryTimezone,
 }: {
   smsEnabled: boolean;
   smsPhoneE164: string | null;
   smsOptOutAt: string | null;
+  deliveryTimezone: string;
 }) {
   const [state, action] = useFormState(updateNotificationPreferencesAction, INITIAL_STATE);
+  const [testState, testAction] = useFormState(sendNotificationTestSmsAction, INITIAL_STATE);
   const formattedOptOutAt = formatOptOutDate(smsOptOutAt);
+  const timezones = [
+    "America/New_York",
+    "America/Chicago",
+    "America/Denver",
+    "America/Los_Angeles",
+    "America/Phoenix",
+    "America/Anchorage",
+    "Pacific/Honolulu",
+    "UTC",
+  ];
 
   return (
-    <form action={action} className="form-grid" style={{ gap: 14 }}>
-      <input type="hidden" name="formScope" value="sms" />
+    <div style={{ display: "grid", gap: 16 }}>
+      <form action={action} className="form-grid" style={{ gap: 14 }}>
+        <input type="hidden" name="formScope" value="sms" />
 
-      {state.status !== "idle" ? (
-        <div className={state.status === "error" ? "form-error" : "form-success"}>
-          {state.message}
-        </div>
-      ) : null}
+        {state.status !== "idle" ? (
+          <div className={state.status === "error" ? "form-error" : "form-success"}>
+            {state.message}
+          </div>
+        ) : null}
 
-      <div className="form-row">
-        <label>Mobile Number</label>
-        <input
-          type="tel"
-          name="smsPhone"
-          className="input"
-          defaultValue={smsPhoneE164 || ""}
-          placeholder="+1 555 123 4567"
-        />
-        <span style={{ fontSize: 12, color: "var(--muted)" }}>
-          We store the texting number separately from your general profile phone number.
-        </span>
-      </div>
-
-      <label style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-        <input
-          type="checkbox"
-          name="smsEnabled"
-          defaultChecked={smsEnabled}
-          style={{ marginTop: 3 }}
-        />
-        <span style={{ display: "grid", gap: 4 }}>
-          <span style={{ fontWeight: 700 }}>Turn on text message alerts</span>
-          <span style={{ fontSize: 13, color: "var(--muted)" }}>
-            By turning this on, you agree to receive one-way transactional texts for urgent portal updates.
-            Message and data rates may apply. Reply STOP in your messaging app to opt out.
+        <div className="form-row">
+          <label>Mobile Number</label>
+          <input
+            type="tel"
+            name="smsPhone"
+            className="input"
+            defaultValue={smsPhoneE164 || ""}
+            placeholder="+1 555 123 4567"
+          />
+          <span style={{ fontSize: 12, color: "var(--muted)" }}>
+            We store the texting number separately from your general profile phone number.
           </span>
-        </span>
-      </label>
+        </div>
 
-      {formattedOptOutAt ? (
-        <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
-          This number was previously opted out on {formattedOptOutAt}. Turn the toggle back on here
-          if you want to opt in again.
-        </p>
-      ) : null}
+        <div className="form-row">
+          <label>Quiet Hours Timezone</label>
+          <select
+            name="deliveryTimezone"
+            className="input"
+            defaultValue={deliveryTimezone}
+            style={{ minHeight: 42 }}
+          >
+            {timezones.map((timezone) => (
+              <option key={timezone} value={timezone}>
+                {timezone}
+              </option>
+            ))}
+          </select>
+          <span style={{ fontSize: 12, color: "var(--muted)" }}>
+            P2 and P3 email or text deliveries wait until 7:00 AM in this timezone when they land during quiet hours.
+          </span>
+        </div>
 
-      <SubmitButton />
-    </form>
+        <label style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <input
+            type="checkbox"
+            name="smsEnabled"
+            defaultChecked={smsEnabled}
+            style={{ marginTop: 3 }}
+          />
+          <span style={{ display: "grid", gap: 4 }}>
+            <span style={{ fontWeight: 700 }}>Turn on text message alerts</span>
+            <span style={{ fontSize: 13, color: "var(--muted)" }}>
+              By turning this on, you agree to receive one-way transactional texts for urgent portal updates.
+              Message and data rates may apply. Reply STOP in your messaging app to opt out.
+            </span>
+          </span>
+        </label>
+
+        {formattedOptOutAt ? (
+          <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
+            This number was previously opted out on {formattedOptOutAt}. Turn the toggle back on here
+            if you want to opt in again.
+          </p>
+        ) : null}
+
+        <SubmitButton />
+      </form>
+
+      <form action={testAction} style={{ display: "grid", gap: 8 }}>
+        {testState.status !== "idle" ? (
+          <div className={testState.status === "error" ? "form-error" : "form-success"}>
+            {testState.message}
+          </div>
+        ) : null}
+
+        <div style={{ fontSize: 13, color: "var(--muted)" }}>
+          Send a real test text to the saved number and record the result in the delivery log.
+        </div>
+        <TestSmsButton />
+      </form>
+    </div>
   );
 }

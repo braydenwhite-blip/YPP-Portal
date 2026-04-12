@@ -1,5 +1,9 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
+import {
+  processNotificationDeliveryQueueAction,
+  retryNotificationDeliveryAction,
+} from "@/lib/notification-actions";
 import { prisma } from "@/lib/prisma";
 
 export default async function AutomatedRemindersPage() {
@@ -23,6 +27,40 @@ export default async function AutomatedRemindersPage() {
     take: 10
   });
 
+  const [queuedCount, failedSmsCount, fallbackCount, quietHoursDeferredCount, recentFailures] =
+    await Promise.all([
+      prisma.notificationDelivery.count({
+        where: { status: "QUEUED" },
+      }),
+      prisma.notificationDelivery.count({
+        where: { channel: "SMS", status: "FAILED" },
+      }),
+      prisma.notificationDelivery.count({
+        where: { isFallback: true },
+      }),
+      prisma.notificationDelivery.count({
+        where: {
+          status: "QUEUED",
+          scheduledFor: { not: null },
+        },
+      }),
+      prisma.notificationDelivery.findMany({
+        where: {
+          status: "FAILED",
+        },
+        orderBy: { updatedAt: "desc" },
+        take: 12,
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+        },
+      }),
+    ]);
+
   return (
     <div>
       <div className="topbar">
@@ -33,8 +71,27 @@ export default async function AutomatedRemindersPage() {
       </div>
 
       <div className="card" style={{ marginBottom: 28 }}>
-        <h3>Reminder Automation System</h3>
-        <p>Configure automatic reminders for assignments, events, and other important dates.</p>
+        <h3>Notification Operations</h3>
+        <p>Watch the delivery queue, failed SMS attempts, quiet-hours deferrals, and manual reminder tools from one place.</p>
+        <form action={processNotificationDeliveryQueueAction} style={{ marginTop: 16 }}>
+          <button type="submit" className="button primary">
+            Process Delivery Queue Now
+          </button>
+        </form>
+      </div>
+
+      <div className="grid two" style={{ marginBottom: 28 }}>
+        {[
+          { label: "Queued Deliveries", value: queuedCount },
+          { label: "Failed SMS", value: failedSmsCount },
+          { label: "Fallback Emails", value: fallbackCount },
+          { label: "Quiet-Hours Deferred", value: quietHoursDeferredCount },
+        ].map((metric) => (
+          <div key={metric.label} className="card">
+            <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>{metric.label}</div>
+            <div style={{ fontSize: 32, fontWeight: 700, marginTop: 8 }}>{metric.value}</div>
+          </div>
+        ))}
       </div>
 
       <div className="grid two" style={{ marginBottom: 28 }}>
@@ -81,6 +138,49 @@ export default async function AutomatedRemindersPage() {
               Send Event Reminders
             </button>
           </form>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 28 }}>
+        <div className="section-title">Recent Failed Deliveries</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {recentFailures.length === 0 ? (
+            <p style={{ color: "var(--text-secondary)" }}>No failed deliveries right now.</p>
+          ) : (
+            recentFailures.map((delivery) => (
+              <div
+                key={delivery.id}
+                style={{
+                  border: "1px solid var(--border-color)",
+                  borderRadius: 8,
+                  padding: 12,
+                  display: "grid",
+                  gap: 8,
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                  <div style={{ fontWeight: 600 }}>
+                    {delivery.title}
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                    {delivery.channel} • {delivery.scenarioKey}
+                  </div>
+                </div>
+                <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                  {delivery.user.name || delivery.user.email || "Unknown recipient"}
+                </div>
+                <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                  {delivery.errorMessage || "No provider error was saved."}
+                </div>
+                <form action={retryNotificationDeliveryAction}>
+                  <input type="hidden" name="deliveryId" value={delivery.id} />
+                  <button type="submit" className="button secondary">
+                    Retry Delivery
+                  </button>
+                </form>
+              </div>
+            ))
+          )}
         </div>
       </div>
 

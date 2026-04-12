@@ -9,9 +9,12 @@ import {
   markAsRead,
 } from "@/lib/notification-actions";
 import {
-  NOTIFICATION_POLICY,
-  NOTIFICATION_POLICY_CHANNEL_LABELS,
-} from "@/lib/notification-policy";
+  getNotificationChannelsLabel,
+  getNotificationScenarioDefinition,
+  NOTIFICATION_MATRIX_SECTIONS,
+  NOTIFICATION_URGENCY_DESCRIPTIONS,
+  NOTIFICATION_URGENCY_LABELS,
+} from "@/lib/notification-matrix";
 import SmsNotificationSettingsForm from "@/components/sms-notification-settings-form";
 
 function getTypeIcon(type: string): string {
@@ -97,6 +100,20 @@ export default async function NotificationsPage() {
   const notifications = await getNotifications();
   const preferences = await getNotificationPreferences();
   const unreadCount = notifications.filter((notification) => !notification.isRead).length;
+  const roles = session.user.roles ?? [];
+
+  const visibleSections = NOTIFICATION_MATRIX_SECTIONS.filter((section) => {
+    if (section.audience === "ALL_SYSTEM") return true;
+    if (section.audience === "ADMIN_STAFF") {
+      return roles.includes("ADMIN") || roles.includes("STAFF");
+    }
+    return roles.includes(section.audience);
+  });
+
+  const sectionsToRender =
+    visibleSections.length > 1
+      ? visibleSections
+      : NOTIFICATION_MATRIX_SECTIONS.filter((section) => section.audience === "ALL_SYSTEM");
 
   return (
     <div className="main-content">
@@ -119,14 +136,14 @@ export default async function NotificationsPage() {
         </div>
       </div>
       <div className="card" style={{ marginTop: 16, marginBottom: 20 }}>
-        <h2 style={{ marginTop: 0 }}>Delivery Policy</h2>
+        <h2 style={{ marginTop: 0 }}>Urgency Matrix</h2>
         <p style={{ color: "var(--muted, #6b7280)" }}>
-          These are the fixed delivery rules for the most important notification categories in the portal.
+          The portal now uses one fixed notification matrix. Each scenario has a defined urgency, delivery path, and quiet-hours rule.
         </p>
-        <div style={{ display: "grid", gap: 12 }}>
-          {Object.entries(NOTIFICATION_POLICY).map(([key, entry]) => (
+        <div style={{ display: "grid", gap: 12, marginBottom: 18 }}>
+          {Object.entries(NOTIFICATION_URGENCY_LABELS).map(([urgency, label]) => (
             <div
-              key={key}
+              key={urgency}
               style={{
                 display: "grid",
                 gridTemplateColumns: "minmax(180px, 220px) minmax(120px, 160px) 1fr",
@@ -137,11 +154,55 @@ export default async function NotificationsPage() {
                 padding: 14,
               }}
             >
-              <div style={{ fontWeight: 700 }}>{entry.label}</div>
+              <div style={{ fontWeight: 700 }}>{label}</div>
               <div>
-                <span className="badge">{NOTIFICATION_POLICY_CHANNEL_LABELS[entry.channel]}</span>
+                <span className="badge">
+                  {urgency === "P0"
+                    ? "Text + Email + Portal"
+                    : urgency === "P3"
+                      ? "Portal Only"
+                      : "Email + Portal"}
+                </span>
               </div>
-              <div style={{ color: "var(--muted, #6b7280)" }}>{entry.description}</div>
+              <div style={{ color: "var(--muted, #6b7280)" }}>
+                {NOTIFICATION_URGENCY_DESCRIPTIONS[urgency as keyof typeof NOTIFICATION_URGENCY_DESCRIPTIONS]}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: "grid", gap: 16 }}>
+          {sectionsToRender.map((section) => (
+            <div key={section.audience} style={{ display: "grid", gap: 10 }}>
+              <div style={{ fontWeight: 700 }}>{section.label}</div>
+              {section.scenarios.map((scenarioKey) => {
+                const scenario = getNotificationScenarioDefinition(scenarioKey);
+                return (
+                  <div
+                    key={scenarioKey}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "minmax(220px, 1.2fr) minmax(90px, 120px) minmax(160px, 220px) 1fr",
+                      gap: 12,
+                      alignItems: "start",
+                      border: "1px solid var(--border)",
+                      borderRadius: 12,
+                      padding: 12,
+                    }}
+                  >
+                    <div style={{ fontWeight: 600 }}>{scenario.label}</div>
+                    <div>
+                      <span className="badge">{NOTIFICATION_URGENCY_LABELS[scenario.urgency]}</span>
+                    </div>
+                    <div style={{ color: "var(--muted, #6b7280)" }}>
+                      {getNotificationChannelsLabel(scenario.channels)}
+                    </div>
+                    <div style={{ color: "var(--muted, #6b7280)" }}>
+                      {scenario.notes || "Follows the default rules for this urgency tier."}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>
@@ -150,13 +211,15 @@ export default async function NotificationsPage() {
       <div className="card" style={{ marginTop: 16, marginBottom: 20 }}>
         <h2 style={{ marginTop: 0 }}>Text Message Notifications</h2>
         <p style={{ color: "var(--muted, #6b7280)" }}>
-          Text messages are optional and only used for the most time-sensitive updates. Version one limits texts to
-          application decisions, interview updates, RSVP reminders or urgent event changes, and system alerts.
+          Text messages are optional and are used only for scenarios in the matrix that include the Text channel.
+          If SMS cannot be sent for one of those scenarios, the system records the failure and sends an
+          <strong> [Action Required]</strong> email fallback instead.
         </p>
         <SmsNotificationSettingsForm
           smsEnabled={preferences.smsEnabled}
           smsPhoneE164={preferences.smsPhoneE164}
           smsOptOutAt={preferences.smsOptOutAt?.toISOString() ?? null}
+          deliveryTimezone={preferences.deliveryTimezone}
         />
       </div>
       {notifications.length === 0 ? (
@@ -229,6 +292,14 @@ export default async function NotificationsPage() {
                       </span>
                     )}
                     <span className="badge">{getTypeLabel(notification.type)}</span>
+                    {notification.scenarioKey !== "LEGACY_GENERIC" ? (
+                      <span className="badge">
+                        {getNotificationScenarioDefinition(
+                          notification.scenarioKey,
+                          notification.urgency
+                        ).label}
+                      </span>
+                    ) : null}
                     {!notification.isRead ? (
                       <span
                         style={{

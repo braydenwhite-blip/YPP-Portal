@@ -183,11 +183,11 @@ const POLICY_BY_TYPE: Record<NotificationType, Omit<NotificationPolicy, "type">>
   MESSAGE: {
     label: "Messages",
     description:
-      "Message alerts stay in the portal inbox. Email can be sent selectively, but text messages are not used for direct messages.",
-    bucket: "portal_only",
+      "Message alerts can escalate into email now and are marked for SMS delivery when the sender chooses a critical urgency.",
+    bucket: "email_and_sms_later",
     portalHistory: true,
-    email: false,
-    smsPlanned: false,
+    email: true,
+    smsPlanned: true,
   },
   SYSTEM: {
     label: "System Alerts",

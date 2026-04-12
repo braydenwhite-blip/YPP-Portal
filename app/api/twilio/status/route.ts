@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { handleTwilioStatusCallback } from "@/lib/notification-delivery";
 import { validateTwilioWebhookRequest } from "@/lib/sms";
 
 function toParams(formData: FormData) {
@@ -26,6 +27,8 @@ export async function POST(request: Request) {
     errorCode: params.ErrorCode || null,
     errorMessage: params.ErrorMessage || null,
   });
+
+  await handleTwilioStatusCallback(params);
 
   return NextResponse.json({ ok: true });
 }

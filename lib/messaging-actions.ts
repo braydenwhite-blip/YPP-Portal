@@ -6,8 +6,13 @@ import { revalidatePath } from "next/cache";
 import { requireCanMessage } from "@/lib/authorization-helpers";
 import { getPusherServer, isPusherConfigured } from "@/lib/pusher-server";
 import { createSystemNotification } from "@/lib/notification-actions";
-import { ConversationContextType, NotificationType } from "@prisma/client";
+import {
+  ConversationContextType,
+  MessagePriority,
+  NotificationType,
+} from "@prisma/client";
 import { normalizeConversationContextType } from "@/lib/message-center";
+import { messagePriorityToNotificationUrgency } from "@/lib/notification-matrix";
 
 // ============================================
 // HELPERS
@@ -27,6 +32,58 @@ function getString(formData: FormData, key: string, required = true) {
     throw new Error(`Missing ${key}`);
   }
   return value ? String(value).trim() : "";
+}
+
+function getMessagePriority(formData: FormData) {
+  const rawValue = getString(formData, "priority", false).toUpperCase();
+  return Object.values(MessagePriority).includes(rawValue as MessagePriority)
+    ? (rawValue as MessagePriority)
+    : MessagePriority.NORMAL;
+}
+
+async function notifyConversationParticipants(params: {
+  conversationId: string;
+  senderId: string;
+  senderName: string;
+  content: string;
+  priority: MessagePriority;
+  isNewThread: boolean;
+  recipientIds?: string[];
+}) {
+  try {
+    const participantIds =
+      params.recipientIds ??
+      (
+        await prisma.conversationParticipant.findMany({
+          where: { conversationId: params.conversationId },
+          select: { userId: true },
+        })
+      ).map((participant) => participant.userId);
+
+    const urgency = messagePriorityToNotificationUrgency(params.priority);
+    const scenarioKey =
+      params.isNewThread && urgency === "P1"
+        ? "SYSTEM_NEW_MESSAGING_THREAD"
+        : "SYSTEM_NEW_MESSAGE";
+
+    for (const userId of participantIds) {
+      if (userId === params.senderId) continue;
+
+      await createSystemNotification(
+        userId,
+        NotificationType.MESSAGE,
+        params.isNewThread ? `New Message Thread from ${params.senderName}` : `New Message from ${params.senderName}`,
+        params.content.substring(0, 100),
+        `/messages/${params.conversationId}`,
+        {
+          scenarioKey,
+          urgency,
+        }
+      );
+    }
+  } catch (error) {
+    console.error("[Notifications] Failed to create notification:", error);
+  }
 }
 
 export async function getConversations() {
@@ -204,6 +261,7 @@ export async function sendMessage(formData: FormData) {
 
   const conversationId = getString(formData, "conversationId");
   const content = getString(formData, "content");
+  const priority = getMessagePriority(formData);
 
   // Verify user is a participant
   const participation = await prisma.conversationParticipant.findUnique({
@@ -226,6 +284,7 @@ export async function sendMessage(formData: FormData) {
         conversationId,
         senderId: userId,
         content,
+        priority,
       },
     });
 
@@ -280,29 +339,14 @@ export async function sendMessage(formData: FormData) {
     }
   }
 
-  // Create system notifications for all participants (except sender)
-  try {
-    const participants = await prisma.conversationParticipant.findMany({
-      where: { conversationId },
-      select: { userId: true }
-    });
-
-    for (const participant of participants) {
-      if (participant.userId !== userId) {
-        await createSystemNotification(
-          participant.userId,
-          NotificationType.MESSAGE,
-          `New Message from ${session.user.name}`,
-          message.content.substring(0, 100),
-          `/messages/${conversationId}`,
-          { sendEmail: false } // Don't send email for every message
-        );
-      }
-    }
-  } catch (error) {
-    console.error('[Notifications] Failed to create notification:', error);
-    // Don't fail the message send if notifications fail
-  }
+  await notifyConversationParticipants({
+    conversationId,
+    senderId: userId,
+    senderName: session.user.name,
+    content: message.content,
+    priority,
+    isNewThread: false,
+  });
 
   revalidatePath("/messages");
   return message;
@@ -319,6 +363,7 @@ export async function startConversation(formData: FormData) {
   const recipientId = getString(formData, "recipientId");
   const subject = getString(formData, "subject", false) || null;
   const message = getString(formData, "message");
+  const priority = getMessagePriority(formData);
 
   // Verify user is allowed to message this recipient
   // This checks role-based messaging rules and prevents self-messaging
@@ -349,6 +394,7 @@ export async function startConversation(formData: FormData) {
             conversationId: existingConversation.id,
             senderId: userId,
             content: message,
+            priority,
           },
         });
 
@@ -356,6 +402,16 @@ export async function startConversation(formData: FormData) {
           where: { id: existingConversation.id },
           data: { updatedAt: new Date() },
         });
+      });
+
+      await notifyConversationParticipants({
+        conversationId: existingConversation.id,
+        senderId: userId,
+        senderName: session.user.name,
+        content: message,
+        priority,
+        isNewThread: false,
+        recipientIds: [recipientId],
       });
 
       revalidatePath("/messages");
@@ -380,12 +436,23 @@ export async function startConversation(formData: FormData) {
           create: {
             senderId: userId,
             content: message,
+            priority,
           },
         },
       },
     });
 
     return convo;
+  });
+
+  await notifyConversationParticipants({
+    conversationId: conversation.id,
+    senderId: userId,
+    senderName: session.user.name,
+    content: message,
+    priority,
+    isNewThread: true,
+    recipientIds: [recipientId],
   });
 
   revalidatePath("/messages");
