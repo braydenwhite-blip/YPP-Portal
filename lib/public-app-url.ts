@@ -11,14 +11,20 @@ function isLoopbackHost(value: string) {
   }
 }
 
+function pickPublicBaseUrl(value: string | undefined) {
+  const normalized = normalizeUrl(value);
+  if (!normalized || isLoopbackHost(normalized)) return "";
+  return normalized;
+}
+
 export function getPublicAppUrl() {
-  const publicAppUrl = normalizeUrl(process.env.NEXT_PUBLIC_APP_URL);
+  const publicAppUrl = pickPublicBaseUrl(process.env.NEXT_PUBLIC_APP_URL);
   if (publicAppUrl) return publicAppUrl;
 
-  const publicSiteUrl = normalizeUrl(process.env.NEXT_PUBLIC_SITE_URL);
+  const publicSiteUrl = pickPublicBaseUrl(process.env.NEXT_PUBLIC_SITE_URL);
   if (publicSiteUrl) return publicSiteUrl;
 
-  const siteUrl = normalizeUrl(process.env.SITE_URL);
+  const siteUrl = pickPublicBaseUrl(process.env.SITE_URL);
   if (siteUrl) return siteUrl;
 
   const nextAuthUrl = normalizeUrl(process.env.NEXTAUTH_URL);

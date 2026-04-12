@@ -17,8 +17,8 @@ function instructorStatusLabel(status: InstructorApplicationStatus): string {
     case "SUBMITTED": return "Submitted";
     case "UNDER_REVIEW": return "Under Review";
     case "INFO_REQUESTED": return "More Info Requested";
-    case "INTERVIEW_SCHEDULED": return "Interview Scheduled";
-    case "INTERVIEW_COMPLETED": return "Interview Completed";
+    case "INTERVIEW_SCHEDULED": return "Curriculum Overview Scheduled";
+    case "INTERVIEW_COMPLETED": return "Curriculum Overview Completed";
     case "ON_HOLD": return "On Hold";
     case "APPROVED": return "Approved";
     case "REJECTED": return "Not Accepted";
@@ -53,13 +53,6 @@ function statusColor(status: string): string {
   return "#6b21c8";
 }
 
-const STAGES = [
-  { key: "submitted", label: "Submitted" },
-  { key: "review", label: "Under Review" },
-  { key: "interview", label: "Interview" },
-  { key: "decision", label: "Decision" },
-] as const;
-
 function currentStageIndex(status: string): number {
   if (status === "SUBMITTED") return 0;
   if (status === "UNDER_REVIEW" || status === "INFO_REQUESTED" || status === "ON_HOLD") return 1;
@@ -67,13 +60,26 @@ function currentStageIndex(status: string): number {
   return 3;
 }
 
-function ProgressStepper({ status }: { status: string }) {
+function ProgressStepper({
+  status,
+  middleStageLabel = "Interview",
+}: {
+  status: string;
+  /** Instructor applications use "Curriculum overview"; chapter president flow keeps "Interview". */
+  middleStageLabel?: string;
+}) {
+  const stages = [
+    { key: "submitted", label: "Submitted" },
+    { key: "review", label: "Under Review" },
+    { key: "interview", label: middleStageLabel },
+    { key: "decision", label: "Decision" },
+  ] as const;
   const stageIdx = currentStageIndex(status);
   return (
     <div className="card" style={{ marginBottom: 24 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
-        {STAGES.map((stage, i) => (
-          <div key={stage.key} style={{ display: "flex", alignItems: "center", flex: i < STAGES.length - 1 ? 1 : "initial" }}>
+        {stages.map((stage, i) => (
+          <div key={stage.key} style={{ display: "flex", alignItems: "center", flex: i < stages.length - 1 ? 1 : "initial" }}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 80 }}>
               <div style={{
                 width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
@@ -87,7 +93,7 @@ function ProgressStepper({ status }: { status: string }) {
                 {stage.label}
               </span>
             </div>
-            {i < STAGES.length - 1 && (
+            {i < stages.length - 1 && (
               <div style={{ flex: 1, height: 2, background: i < stageIdx ? "#6b21c8" : "var(--border)", margin: "0 4px", marginBottom: 20 }} />
             )}
           </div>
@@ -153,7 +159,7 @@ export default async function ApplicationStatusPage() {
             </span>
           </div>
 
-          <ProgressStepper status={instructorApp.status} />
+          <ProgressStepper status={instructorApp.status} middleStageLabel="Curriculum overview" />
 
           <div className="card" style={{ marginBottom: 16 }}>
             {capstoneModule && instructorApp.status !== "REJECTED" ? (
@@ -193,7 +199,10 @@ export default async function ApplicationStatusPage() {
               <>
                 <h3 className="section-title">Application Received</h3>
                 <p style={{ color: "var(--muted)", fontSize: 14 }}>
-                  Your application is in the queue. A reviewer will reach out within a few business days.
+                  Your application is in the queue. We typically send a first update within <strong>3–5 business days</strong>. If you need anything sooner, contact your chapter.
+                </p>
+                <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 8 }}>
+                  Review is about understanding how you teach — not a scored exam. The curriculum overview later is the same: a conversation, not a test.
                 </p>
               </>
             )}
@@ -202,6 +211,9 @@ export default async function ApplicationStatusPage() {
                 <h3 className="section-title">Under Review</h3>
                 <p style={{ color: "var(--muted)", fontSize: 14 }}>
                   {instructorApp.reviewer ? `${instructorApp.reviewer.name} is` : "A reviewer is"} currently evaluating your application.
+                </p>
+                <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 8 }}>
+                  We are looking for fit and clarity, not perfection. The curriculum overview (when you reach that step) is a two-way discussion, not an audition.
                 </p>
               </>
             )}
@@ -227,7 +239,10 @@ export default async function ApplicationStatusPage() {
             )}
             {instructorApp.status === "INTERVIEW_SCHEDULED" && (
               <>
-                <h3 className="section-title">Interview Scheduled</h3>
+                <h3 className="section-title">Curriculum Overview Scheduled</h3>
+                <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
+                  You will discuss your teaching approach and how you plan to use YPP materials. If you need to reschedule, reply to your reviewer or chapter contact.
+                </p>
                 {instructorApp.interviewScheduledAt && (
                   <div style={{ background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px", marginBottom: 16, textAlign: "center" }}>
                     <p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
@@ -242,7 +257,7 @@ export default async function ApplicationStatusPage() {
             )}
             {instructorApp.status === "INTERVIEW_COMPLETED" && (
               <>
-                <h3 className="section-title">Interview Completed</h3>
+                <h3 className="section-title">Curriculum Overview Completed</h3>
                 <p style={{ color: "var(--muted)", fontSize: 14 }}>A final decision is pending.</p>
               </>
             )}
@@ -304,7 +319,7 @@ export default async function ApplicationStatusPage() {
                 <p style={{ fontSize: 14, margin: 0, whiteSpace: "pre-wrap" }}>{instructorApp.teachingExperience}</p>
               </div>
               <div>
-                <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Interview availability:</strong></p>
+                <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Curriculum overview availability:</strong></p>
                 <p style={{ fontSize: 14, margin: 0 }}>{instructorApp.availability}</p>
               </div>
             </div>

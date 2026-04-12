@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import BrandLockup from "@/components/brand-lockup";
 import { navigateToAuthDestination } from "@/lib/auth-client-navigation";
+import { requestMagicLink } from "@/lib/magic-link-actions";
 import { createBrowserClientOrNull } from "@/lib/supabase/client";
 import {
   canUseLocalPasswordFallback,
@@ -191,7 +192,7 @@ function LoginPageContent() {
 
   async function handleMagicLink(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!supabase) {
+    if (!hasSupabaseBrowserAuth) {
       setError(
         "Magic links are unavailable until Supabase public auth is configured."
       );
@@ -201,17 +202,12 @@ function LoginPageContent() {
     setError(null);
     setLoading(true);
     const formData = new FormData(e.currentTarget);
-    const magicEmail = String(formData.get("email") ?? "").trim();
+    formData.set("next", callbackUrl);
 
-    const { error: otpError } = await supabase.auth.signInWithOtp({
-      email: magicEmail,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(callbackUrl)}`,
-      },
-    });
+    const result = await requestMagicLink({ status: "idle", message: "" }, formData);
 
-    if (otpError) {
-      setError(otpError.message);
+    if (result.status === "error") {
+      setError(result.message);
     } else {
       setMagicSent(true);
     }

@@ -1572,12 +1572,6 @@ model InstructorApplication {
   classRank          String?
   subjectsOfInterest String?
 
-  // --- Essays & Background ---
-  whyYPP           String? @db.Text
-  extracurriculars String? @db.Text
-  priorLeadership  String? @db.Text
-  specialSkills    String? @db.Text
-
   // --- Referral ---
   referralEmails String? @db.Text
 
