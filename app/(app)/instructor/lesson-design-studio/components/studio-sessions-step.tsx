@@ -219,6 +219,9 @@ export function StudioSessionsStep({
   onDeleteComment,
 }: StudioSessionsStepProps) {
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [showMaterialsChecklist, setShowMaterialsChecklist] = useState(false);
+
   const selectedWeek =
     weeklyPlans.find((week) => week.id === selectedWeekId) ?? weeklyPlans[0] ?? null;
   const sortedActivities = selectedWeek ? sortActivities(selectedWeek.activities) : [];
@@ -282,13 +285,15 @@ export function StudioSessionsStep({
     });
   }
 
+  const materialsCount = selectedWeek.materialsChecklist.length;
+
   return (
     <section className="lds-step-layout wide">
       <div className="lds-session-roadmap-card">
         <div className="lds-step-card-header">
           <div>
             <p className="lds-section-eyebrow">Course roadmap</p>
-            <h2 className="lds-section-title">Focus on one session at a time</h2>
+            <h2 className="lds-section-title">Sessions</h2>
           </div>
         </div>
         <div className="lds-session-roadmap">
@@ -296,6 +301,7 @@ export function StudioSessionsStep({
             const isSelected = week.id === selectedWeek.id;
             const weekCoaching = buildSessionCoaching(week);
             const label = buildSessionLabel(week, courseConfig);
+            const isReady = weekCoaching.length === 0;
 
             return (
               <button
@@ -306,11 +312,11 @@ export function StudioSessionsStep({
               >
                 <span className="lds-session-roadmap-label">{label}</span>
                 <strong>{week.title || "Untitled session"}</strong>
-                <small>
-                  {weekCoaching.length === 0
-                    ? "Ready"
-                    : `${weekCoaching.length} coaching note${weekCoaching.length === 1 ? "" : "s"}`}
-                </small>
+                <span className={`lds-session-roadmap-status${isReady ? " ready" : " notes"}`}>
+                  {isReady
+                    ? "✓ Ready"
+                    : `${weekCoaching.length} note${weekCoaching.length === 1 ? "" : "s"}`}
+                </span>
               </button>
             );
           })}
@@ -348,7 +354,7 @@ export function StudioSessionsStep({
 
           {blockers.length > 0 ? (
             <div className="lds-blocker-card" role="alert">
-              <strong>Current session-building blockers</strong>
+              <strong>🚫 Current session-building blockers</strong>
               <ul className="lds-simple-list">
                 {blockers.slice(0, 5).map((blocker) => (
                   <li key={blocker}>{blocker}</li>
@@ -365,36 +371,9 @@ export function StudioSessionsStep({
             </div>
           ) : (
             <div className="lds-success-strip">
-              This session has the core pieces in place. Now you can tighten the details.
+              ✓ This session has the core pieces in place. Now you can tighten the details.
             </div>
           )}
-
-          <div className="lds-session-balance">
-            <div className="lds-session-balance-copy">
-              <span className="lds-session-balance-label">Pacing balance</span>
-              <strong>
-                {totalMinutes} of {selectedWeek.classDurationMin} planned minutes
-              </strong>
-            </div>
-            <div className="lds-session-balance-track" aria-hidden="true">
-              <span
-                className={`lds-session-balance-fill${
-                  totalMinutes > selectedWeek.classDurationMin ? " over" : ""
-                }`}
-                style={
-                  {
-                    width: `${Math.min(
-                      100,
-                      Math.max(
-                        6,
-                        (totalMinutes / Math.max(selectedWeek.classDurationMin, 1)) * 100
-                      )
-                    )}%`,
-                  } as CSSProperties
-                }
-              />
-            </div>
-          </div>
 
           <div className="lds-form-grid">
             <label className="lds-form-field">
@@ -426,6 +405,33 @@ export function StudioSessionsStep({
             </label>
           </div>
 
+          <div className="lds-session-balance">
+            <div className="lds-session-balance-copy">
+              <span className="lds-session-balance-label">Pacing balance</span>
+              <strong>
+                {totalMinutes} of {selectedWeek.classDurationMin} planned minutes
+              </strong>
+            </div>
+            <div className="lds-session-balance-track" aria-hidden="true">
+              <span
+                className={`lds-session-balance-fill${
+                  totalMinutes > selectedWeek.classDurationMin ? " over" : ""
+                }`}
+                style={
+                  {
+                    width: `${Math.min(
+                      100,
+                      Math.max(
+                        6,
+                        (totalMinutes / Math.max(selectedWeek.classDurationMin, 1)) * 100
+                      )
+                    )}%`,
+                  } as CSSProperties
+                }
+              />
+            </div>
+          </div>
+
           <label className="lds-form-field">
             <span>Session objective</span>
             <textarea
@@ -439,53 +445,12 @@ export function StudioSessionsStep({
             />
           </label>
 
-          <div className="lds-session-metrics">
-            <div>
-              <span>Pacing</span>
-              <strong>
-                {totalMinutes}/{selectedWeek.classDurationMin} min
-              </strong>
-            </div>
-            <div>
-              <span>Activities</span>
-              <strong>{sortedActivities.length}</strong>
-            </div>
-            <div>
-              <span>At-home work</span>
-              <strong>{selectedWeek.atHomeAssignment ? "Added" : "Missing"}</strong>
-            </div>
-          </div>
-
           <section className="lds-subsection-card">
             <div className="lds-subsection-header">
               <div>
                 <h3>Activity arc</h3>
                 <p>Arrange the moments that make the session feel intentional from entry to closure.</p>
               </div>
-              <div className="lds-inline-actions">
-                <button
-                  type="button"
-                  className="button secondary"
-                  disabled={isReadOnly}
-                  onClick={() => onOpenTemplates(selectedWeek.id)}
-                >
-                  Open template library
-                </button>
-                <button
-                  type="button"
-                  className="button ghost"
-                  disabled={isReadOnly}
-                  onClick={() => onOpenExamplesLibrary(selectedWeek.id)}
-                >
-                  Import example
-                </button>
-              </div>
-            </div>
-
-            <div className="lds-subsection-note">
-              Quick starts for common teaching moves. Build the timeline with common
-              activity types first, then drop in richer templates once the pacing
-              feels right.
             </div>
 
             <SessionTimeline
@@ -502,47 +467,94 @@ export function StudioSessionsStep({
               }
             />
 
-            <div className="lds-quick-add-row" aria-label="Quick add activity types">
-              {QUICK_ADD_ACTIVITY_TYPES.map((type) => (
+            <div className="lds-add-activity-area">
+              <div className="lds-quick-add-row" aria-label="Quick add activity types">
+                {QUICK_ADD_ACTIVITY_TYPES.map((type) => (
+                  <button
+                    key={type.value}
+                    type="button"
+                    className="lds-quick-add-chip"
+                    disabled={isReadOnly}
+                    onClick={() =>
+                      onAddActivity(selectedWeek.id, buildActivitySeed(type))
+                    }
+                  >
+                    <span className="lds-quick-add-icon" aria-hidden="true">
+                      {type.icon}
+                    </span>
+                    <span className="lds-quick-add-copy">
+                      <strong>{type.label}</strong>
+                      <small>{type.defaultDuration} min default</small>
+                    </span>
+                  </button>
+                ))}
                 <button
-                  key={type.value}
                   type="button"
-                  className="lds-quick-add-chip"
-                  disabled={isReadOnly}
-                  onClick={() =>
-                    onAddActivity(selectedWeek.id, buildActivitySeed(type))
-                  }
+                  className="lds-more-templates-toggle"
+                  onClick={() => setShowTemplates((prev) => !prev)}
                 >
-                  <span className="lds-quick-add-icon" aria-hidden="true">
-                    {type.icon}
-                  </span>
-                  <span className="lds-quick-add-copy">
-                    <strong>{type.label}</strong>
-                    <small>{type.defaultDuration} min default</small>
-                  </span>
+                  {showTemplates ? "− Less" : "+ More templates"}
                 </button>
-              ))}
-            </div>
+              </div>
 
-            <div className="lds-template-suggestions">
-              {QUICK_TEMPLATES.map((template) => (
+              {showTemplates ? (
+                <div className="lds-template-suggestions">
+                  {QUICK_TEMPLATES.map((template) => (
+                    <button
+                      key={template.title}
+                      type="button"
+                      className="lds-template-suggestion"
+                      disabled={isReadOnly}
+                      onClick={() => onAddActivity(selectedWeek.id, buildActivitySeed(template))}
+                    >
+                      <strong>{template.title}</strong>
+                      <span>{template.durationMin} min</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
+              <div className="lds-add-activity-secondary">
                 <button
-                  key={template.title}
                   type="button"
-                  className="lds-template-suggestion"
+                  className="button ghost small"
                   disabled={isReadOnly}
-                  onClick={() => onAddActivity(selectedWeek.id, buildActivitySeed(template))}
+                  onClick={() => onOpenTemplates(selectedWeek.id)}
                 >
-                  <strong>{template.title}</strong>
-                  <span>{template.durationMin} min</span>
+                  Open template library
                 </button>
-              ))}
+                <button
+                  type="button"
+                  className="button ghost small"
+                  disabled={isReadOnly}
+                  onClick={() => onOpenExamplesLibrary(selectedWeek.id)}
+                >
+                  Import example
+                </button>
+              </div>
             </div>
 
             <div className="lds-activity-stack lds-session-mobile-stack">
               {sortedActivities.length === 0 ? (
-                <div className="lds-empty-state">
-                  Add your first activity to turn this session from an outline into a lesson arc.
+                <div className="lds-empty-activities">
+                  <span className="lds-empty-activities-icon" aria-hidden="true">📋</span>
+                  <strong className="lds-empty-activities-heading">No activities yet</strong>
+                  <p className="lds-empty-activities-copy">
+                    Build the session arc by adding your first teaching move.
+                  </p>
+                  <button
+                    type="button"
+                    className="button secondary"
+                    disabled={isReadOnly}
+                    onClick={() =>
+                      onAddActivity(
+                        selectedWeek.id,
+                        buildActivitySeed(QUICK_ADD_ACTIVITY_TYPES[0])
+                      )
+                    }
+                  >
+                    Add your first activity
+                  </button>
                 </div>
               ) : (
                 sortedActivities.map((activity, index) => {
@@ -592,34 +604,38 @@ export function StudioSessionsStep({
                       <div className="lds-activity-actions">
                         <button
                           type="button"
-                          className="button small ghost"
+                          className="lds-icon-btn"
+                          aria-label="Move up"
                           disabled={index === 0 || isReadOnly}
                           onClick={() => moveActivity(activity.id, "up")}
                         >
-                          Up
+                          ↑
                         </button>
                         <button
                           type="button"
-                          className="button small ghost"
+                          className="lds-icon-btn"
+                          aria-label="Move down"
                           disabled={index === sortedActivities.length - 1 || isReadOnly}
                           onClick={() => moveActivity(activity.id, "down")}
                         >
-                          Down
+                          ↓
                         </button>
                         <button
                           type="button"
-                          className="button small ghost"
+                          className="lds-icon-btn"
+                          aria-label="Edit activity"
                           onClick={() => setSelectedActivityId(activity.id)}
                         >
-                          Edit
+                          ✎
                         </button>
                         <button
                           type="button"
-                          className="button small ghost danger"
+                          className="lds-icon-btn lds-icon-btn-danger"
+                          aria-label="Remove activity"
                           disabled={isReadOnly}
                           onClick={() => onRemoveActivity(selectedWeek.id, activity.id)}
                         >
-                          Remove
+                          ×
                         </button>
                       </div>
                     </article>
@@ -709,6 +725,39 @@ export function StudioSessionsStep({
             ) : null}
           </section>
 
+          <section className="lds-subsection-card">
+            <div className="lds-subsection-header">
+              <div>
+                <h3>Materials checklist</h3>
+                {materialsCount > 0 ? (
+                  <p>{materialsCount} material{materialsCount === 1 ? "" : "s"} added</p>
+                ) : (
+                  <p>List what you need to prepare before teaching this session.</p>
+                )}
+              </div>
+              <button
+                type="button"
+                className="button ghost small"
+                onClick={() => setShowMaterialsChecklist((prev) => !prev)}
+              >
+                {showMaterialsChecklist ? "Collapse" : "Edit checklist"}
+              </button>
+            </div>
+
+            {showMaterialsChecklist ? (
+              <label className="lds-form-field">
+                <span>Materials checklist</span>
+                <textarea
+                  rows={4}
+                  value={selectedWeek.materialsChecklist.join("\n")}
+                  readOnly={isReadOnly}
+                  onChange={(event) => updateChecklist(event.target.value)}
+                  placeholder="One material per line"
+                />
+              </label>
+            ) : null}
+          </section>
+
           <details className="lds-advanced-panel">
             <summary>Advanced planning details</summary>
             <div className="lds-stack">
@@ -722,16 +771,6 @@ export function StudioSessionsStep({
                     onUpdateWeek(selectedWeek.id, "teacherPrepNotes", event.target.value)
                   }
                   placeholder="What should the instructor prepare before teaching this session?"
-                />
-              </label>
-              <label className="lds-form-field">
-                <span>Materials checklist</span>
-                <textarea
-                  rows={4}
-                  value={selectedWeek.materialsChecklist.join("\n")}
-                  readOnly={isReadOnly}
-                  onChange={(event) => updateChecklist(event.target.value)}
-                  placeholder="One material per line"
                 />
               </label>
               <div className="lds-inline-actions">

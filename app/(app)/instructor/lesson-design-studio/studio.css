@@ -8511,3 +8511,424 @@
     color: #000 !important;
   }
 }
+
+/* ============================================================
+   UI Simplification Overrides
+   Tighter rail, compact phase strip, icon buttons, empty state
+   ============================================================ */
+
+/* ── Rail: remove verbose copy block spacing ─────────────── */
+
+.lds-guided-pill-row {
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+/* ── Rail step: numbered badge layout ───────────────────── */
+
+.lds-rail-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.lds-rail-step-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(122, 128, 160, 0.22);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--cbs-ink-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  transition:
+    background 180ms var(--cbs-ease),
+    border-color 180ms var(--cbs-ease),
+    color 180ms var(--cbs-ease);
+}
+
+.lds-rail-step-badge.complete {
+  border-color: rgba(28, 162, 101, 0.34);
+  background: rgba(28, 162, 101, 0.1);
+  color: var(--cbs-success);
+}
+
+.lds-rail-step-badge.active,
+.lds-rail-step.active .lds-rail-step-badge {
+  border-color: rgba(79, 70, 229, 0.38);
+  background: var(--cbs-accent);
+  color: #fff;
+}
+
+.lds-rail-step-label {
+  flex: 1;
+  min-width: 0;
+  color: var(--cbs-ink);
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lds-rail-step-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(16, 17, 20, 0.05);
+  color: var(--cbs-ink-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.lds-rail-step-chip.complete {
+  background: rgba(28, 162, 101, 0.1);
+  color: var(--cbs-success);
+}
+
+.lds-rail-step-chip.active,
+.lds-rail-step.active .lds-rail-step-chip {
+  background: rgba(79, 70, 229, 0.1);
+  color: var(--cbs-accent);
+}
+
+/* ── Progress cells (2-cell summary replacing 4 stat cards) ── */
+
+.lds-progress-cell {
+  position: relative;
+  padding: 14px 16px 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  background: rgba(255, 255, 255, 0.58);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.66);
+}
+
+/* ── Toolbar phase: numbered dot replacing plain dot ────── */
+
+.lds-toolbar-phase-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(16, 17, 20, 0.1);
+  color: var(--cbs-ink-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  transition: background 180ms var(--cbs-ease), color 180ms var(--cbs-ease);
+  flex-shrink: 0;
+}
+
+.lds-toolbar-phase-button.current .lds-toolbar-phase-num {
+  background: var(--cbs-accent);
+  color: #fff;
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+}
+
+.lds-toolbar-phase-button.complete .lds-toolbar-phase-num {
+  background: rgba(28, 162, 101, 0.14);
+  color: var(--cbs-success);
+}
+
+/* Phase steps in toolbar are now real buttons – keep consistent appearance */
+.lds-toolbar-phase-button[type="button"] {
+  cursor: pointer;
+}
+
+/* ── Phase context strip (replaces verbose hero section) ── */
+
+.lds-phase-context-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 14px 22px;
+  border-radius: var(--cbs-radius-panel);
+  overflow: hidden;
+}
+
+.cbs-studio .lds-phase-context-strip {
+  background: var(--cbs-panel);
+  border: 1px solid var(--cbs-panel-border);
+  box-shadow: var(--cbs-shadow-2);
+  backdrop-filter: blur(var(--cbs-blur-md)) saturate(145%);
+  -webkit-backdrop-filter: blur(var(--cbs-blur-md)) saturate(145%);
+}
+
+.lds-phase-context-label {
+  flex-shrink: 0;
+  color: var(--cbs-ink-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.lds-phase-context-sep {
+  color: var(--cbs-ink-muted);
+  opacity: 0.4;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.lds-phase-context-desc {
+  flex: 1;
+  min-width: 0;
+  color: var(--cbs-ink);
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Session roadmap: sticky left panel ─────────────────── */
+
+.lds-session-roadmap-card {
+  position: sticky;
+  top: 112px;
+  align-self: start;
+}
+
+/* Session roadmap status indicator */
+
+.lds-session-roadmap-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  width: fit-content;
+}
+
+.lds-session-roadmap-status.ready {
+  background: rgba(28, 162, 101, 0.1);
+  color: var(--cbs-success);
+}
+
+.lds-session-roadmap-status.notes {
+  background: rgba(217, 119, 6, 0.1);
+  color: #b45309;
+}
+
+/* ── Coaching strips: amber border + icons ──────────────── */
+
+.lds-coaching-strip::before {
+  background: linear-gradient(180deg, rgba(217, 119, 6, 0.88), rgba(217, 119, 6, 0.45));
+}
+
+.lds-coaching-strip span::before {
+  content: "⚠ ";
+}
+
+.lds-success-strip::before {
+  background: linear-gradient(180deg, rgba(28, 162, 101, 0.88), rgba(28, 162, 101, 0.45));
+}
+
+.lds-blocker-card::before {
+  background: linear-gradient(180deg, rgba(194, 90, 82, 0.88), rgba(194, 90, 82, 0.45));
+  width: 4px;
+}
+
+.lds-coaching-strip::before {
+  width: 4px;
+}
+
+.lds-success-strip::before {
+  width: 4px;
+}
+
+.lds-blocker-card strong {
+  font-weight: 700;
+}
+
+/* ── Activity card: stronger left accent + tint ────────── */
+
+.lds-activity-card {
+  border-left: 4px solid color-mix(in srgb, var(--lds-activity-accent) 60%, transparent 40%);
+  background: color-mix(in srgb, var(--lds-activity-accent) 3%, rgba(255, 255, 255, 0.58) 97%);
+}
+
+.lds-activity-card.active,
+.lds-activity-card:hover {
+  background: color-mix(in srgb, var(--lds-activity-accent) 5%, rgba(255, 255, 255, 0.82) 95%);
+}
+
+/* ── Icon-only action buttons ───────────────────────────── */
+
+.lds-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(122, 128, 160, 0.16);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--cbs-ink-soft);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition:
+    background 150ms var(--cbs-ease),
+    border-color 150ms var(--cbs-ease),
+    color 150ms var(--cbs-ease),
+    transform 150ms var(--cbs-ease);
+}
+
+.lds-icon-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(79, 70, 229, 0.24);
+  color: var(--cbs-ink);
+  transform: scale(1.08);
+}
+
+.lds-icon-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.lds-icon-btn-danger:hover:not(:disabled) {
+  border-color: rgba(194, 90, 82, 0.3);
+  color: var(--cbs-danger);
+}
+
+.lds-activity-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 18px 14px 82px;
+}
+
+/* ── Empty state: dashed container with icon + CTA ──────── */
+
+.lds-empty-activities {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 28px;
+  border-radius: 26px;
+  border: 2px dashed rgba(122, 128, 160, 0.2);
+  background: rgba(255, 255, 255, 0.44);
+  text-align: center;
+}
+
+.lds-empty-activities-icon {
+  font-size: 2rem;
+  line-height: 1;
+  opacity: 0.6;
+}
+
+.lds-empty-activities-heading {
+  color: var(--cbs-ink);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.lds-empty-activities-copy {
+  margin: 0;
+  max-width: 36ch;
+  color: var(--cbs-ink-soft);
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+
+/* ── Add-activity consolidated area ────────────────────── */
+
+.lds-add-activity-area {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.lds-more-templates-toggle {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px dashed rgba(122, 128, 160, 0.22);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cbs-ink-muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 150ms var(--cbs-ease),
+    border-color 150ms var(--cbs-ease),
+    color 150ms var(--cbs-ease);
+  flex-shrink: 0;
+}
+
+.lds-more-templates-toggle:hover {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(79, 70, 229, 0.24);
+  color: var(--cbs-accent);
+}
+
+.lds-add-activity-secondary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Small ghost button variant */
+.cbs-studio .button.ghost.small {
+  min-height: 32px;
+  padding: 0 14px;
+  font-size: 0.78rem;
+}
+
+/* ── Start card: persistent left border on recommended ── */
+
+.lds-start-card.recommended {
+  border-left: 4px solid rgba(79, 70, 229, 0.38);
+}
+
+.lds-start-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--cbs-shadow-3);
+}
+
+/* ── Start hero panel: stronger accent border CTA ──────── */
+
+.lds-start-hero-panel {
+  border: 1.5px solid rgba(79, 70, 229, 0.22);
+  background:
+    linear-gradient(145deg, rgba(248, 246, 255, 0.92), rgba(255, 255, 255, 0.84)),
+    rgba(255, 255, 255, 0.58);
+  box-shadow: var(--cbs-shadow-2);
+}
+
+/* ── Roadmap step card header: tighter ─────────────────── */
+
+.lds-session-roadmap-card .lds-step-card-header {
+  margin-bottom: 14px;
+}
+
+/* ── Print: hide new elements not relevant to print ──── */
+@media print {
+  .lds-phase-context-strip,
+  .lds-add-activity-secondary,
+  .lds-more-templates-toggle,
+  .lds-icon-btn {
+    display: none !important;
+  }
+}
