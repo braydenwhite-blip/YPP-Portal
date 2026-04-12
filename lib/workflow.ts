@@ -441,15 +441,22 @@ export async function overrideWorkflowAssignment(params: {
   });
 }
 
-export async function listWorkflowHomeData(input: WorkflowHomeInput) {
+function getWorkflowHomeAccess(input: WorkflowHomeInput) {
   const adminSubtypeSet = new Set(
     (input.adminSubtypes ?? [])
       .map((subtype) => normalizeAdminSubtype(subtype))
       .filter((subtype): subtype is AdminSubtypeValue => subtype !== null)
   );
-  const isSuperAdmin = adminSubtypeSet.has("SUPER_ADMIN");
+  return {
+    adminSubtypeSet,
+    isSuperAdmin: adminSubtypeSet.has("SUPER_ADMIN"),
+  };
+}
 
-  const items = await prisma.workflowItem.findMany({
+export async function listWorkflowHomeItems(input: WorkflowHomeInput) {
+  const { adminSubtypeSet, isSuperAdmin } = getWorkflowHomeAccess(input);
+
+  return prisma.workflowItem.findMany({
     where: {
       status: { in: ["OPEN", "IN_PROGRESS", "BLOCKED"] },
       OR: [
@@ -476,68 +483,85 @@ export async function listWorkflowHomeData(input: WorkflowHomeInput) {
     orderBy: [{ dueAt: "asc" }, { updatedAt: "desc" }],
     take: 8,
   });
+}
 
-  const groupedByUser = isSuperAdmin
-    ? await prisma.workflowItem.findMany({
-        where: {
-          status: { in: ["OPEN", "IN_PROGRESS", "BLOCKED", "COMPLETE"] },
-          subjectUserId: { not: null },
-        },
-        select: {
-          id: true,
-          status: true,
-          dueAt: true,
-          subjectUserId: true,
-          subjectUser: { select: { name: true } },
-          title: true,
-        },
-        orderBy: [{ dueAt: "asc" }, { updatedAt: "desc" }],
-      })
-    : [];
+function buildWorkflowMasterRows(
+  groupedByUser: Array<{
+    status: WorkflowStatus;
+    dueAt: Date | null;
+    subjectUserId: string | null;
+    subjectUser: { name: string } | null;
+    title: string;
+  }>
+) {
+  return Object.values(
+    groupedByUser.reduce<Record<string, {
+      subjectUserId: string;
+      name: string;
+      total: number;
+      complete: number;
+      remainingTasks: Array<{ title: string; dueAt: Date | null }>;
+    }>>((acc, item) => {
+      if (!item.subjectUserId || !item.subjectUser?.name) {
+        return acc;
+      }
+      const key = item.subjectUserId;
+      if (!acc[key]) {
+        acc[key] = {
+          subjectUserId: key,
+          name: item.subjectUser.name,
+          total: 0,
+          complete: 0,
+          remainingTasks: [],
+        };
+      }
+      acc[key].total += 1;
+      if (item.status === "COMPLETE") {
+        acc[key].complete += 1;
+      } else {
+        acc[key].remainingTasks.push({ title: item.title, dueAt: item.dueAt });
+      }
+      return acc;
+    }, {})
+  )
+    .map((row) => ({
+      ...row,
+      progressPercent:
+        row.total === 0 ? 0 : Math.round((row.complete / row.total) * 100),
+      remainingTasks: row.remainingTasks.slice(0, 5),
+    }))
+    .sort((a, b) => {
+      const aNext = a.remainingTasks[0]?.dueAt?.getTime() ?? Number.MAX_SAFE_INTEGER;
+      const bNext = b.remainingTasks[0]?.dueAt?.getTime() ?? Number.MAX_SAFE_INTEGER;
+      return aNext - bNext;
+    });
+}
 
-  const masterRows = isSuperAdmin
-    ? Object.values(
-        groupedByUser.reduce<Record<string, {
-          subjectUserId: string;
-          name: string;
-          total: number;
-          complete: number;
-          remainingTasks: Array<{ title: string; dueAt: Date | null }>;
-        }>>((acc, item) => {
-          if (!item.subjectUserId || !item.subjectUser?.name) {
-            return acc;
-          }
-          const key = item.subjectUserId;
-          if (!acc[key]) {
-            acc[key] = {
-              subjectUserId: key,
-              name: item.subjectUser.name,
-              total: 0,
-              complete: 0,
-              remainingTasks: [],
-            };
-          }
-          acc[key].total += 1;
-          if (item.status === "COMPLETE") {
-            acc[key].complete += 1;
-          } else {
-            acc[key].remainingTasks.push({ title: item.title, dueAt: item.dueAt });
-          }
-          return acc;
-        }, {})
-      )
-        .map((row) => ({
-          ...row,
-          progressPercent:
-            row.total === 0 ? 0 : Math.round((row.complete / row.total) * 100),
-          remainingTasks: row.remainingTasks.slice(0, 5),
-        }))
-        .sort((a, b) => {
-          const aNext = a.remainingTasks[0]?.dueAt?.getTime() ?? Number.MAX_SAFE_INTEGER;
-          const bNext = b.remainingTasks[0]?.dueAt?.getTime() ?? Number.MAX_SAFE_INTEGER;
-          return aNext - bNext;
-        })
-    : [];
+export async function listWorkflowMasterRows() {
+  const groupedByUser = await prisma.workflowItem.findMany({
+    where: {
+      status: { in: ["OPEN", "IN_PROGRESS", "BLOCKED", "COMPLETE"] },
+      subjectUserId: { not: null },
+    },
+    select: {
+      status: true,
+      dueAt: true,
+      subjectUserId: true,
+      subjectUser: { select: { name: true } },
+      title: true,
+    },
+    orderBy: [{ dueAt: "asc" }, { updatedAt: "desc" }],
+  });
+
+  return buildWorkflowMasterRows(groupedByUser);
+}
+
+export async function listWorkflowHomeData(input: WorkflowHomeInput) {
+  const { isSuperAdmin } = getWorkflowHomeAccess(input);
+  const [items, masterRows] = await Promise.all([
+    listWorkflowHomeItems(input),
+    isSuperAdmin ? listWorkflowMasterRows() : Promise.resolve([]),
+  ]);
 
   return {
     items,

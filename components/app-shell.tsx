@@ -1,11 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import Nav, { type NavBadges } from "@/components/nav";
 import BrandLockup from "@/components/brand-lockup";
 import LogoutButton from "@/components/logout-button";
-import PageHelperFab from "@/components/page-helper-fab";
 import type { PageHelperRole } from "@/lib/page-helper/types";
+
+const PageHelperFab = dynamic(() => import("@/components/page-helper-fab"), {
+  ssr: false,
+});
 
 export default function AppShell({
   children,
