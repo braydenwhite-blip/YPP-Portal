@@ -74,6 +74,8 @@ function statusPillClass(status: string): string {
 }
 
 function statusLabel(status: string): string {
+  if (status === "INTERVIEW_SCHEDULED") return "Curriculum overview scheduled";
+  if (status === "INTERVIEW_COMPLETED") return "Curriculum overview completed";
   return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
@@ -348,7 +350,7 @@ export default function ApplicantDetailPanel({
               </div>
               {app.interviewScheduledAt && (
                 <div className="slideout-field">
-                  <div className="slideout-field-label">Interview</div>
+                  <div className="slideout-field-label">Curriculum overview</div>
                   <div className="slideout-field-value">{formatDate(app.interviewScheduledAt)}</div>
                 </div>
               )}
@@ -358,12 +360,6 @@ export default function ApplicantDetailPanel({
           {/* Application Materials */}
           <div className="slideout-section">
             <div className="slideout-section-title">Application Materials</div>
-            {app.whyYPP && (
-              <div className="slideout-field">
-                <div className="slideout-field-label">Why YPP</div>
-                <div className="slideout-field-value">{app.whyYPP}</div>
-              </div>
-            )}
             <div className="slideout-field">
               <div className="slideout-field-label">Teaching Experience</div>
               <div className="slideout-field-value">{app.teachingExperience}</div>
@@ -384,24 +380,6 @@ export default function ApplicantDetailPanel({
                 <div className="slideout-field-value">{app.motivation}</div>
               </div>
             )}
-            {app.extracurriculars && (
-              <div className="slideout-field">
-                <div className="slideout-field-label">Extracurriculars</div>
-                <div className="slideout-field-value">{app.extracurriculars}</div>
-              </div>
-            )}
-            {app.priorLeadership && (
-              <div className="slideout-field">
-                <div className="slideout-field-label">Prior Leadership</div>
-                <div className="slideout-field-value">{app.priorLeadership}</div>
-              </div>
-            )}
-            {app.specialSkills && (
-              <div className="slideout-field">
-                <div className="slideout-field-label">Special Skills</div>
-                <div className="slideout-field-value">{app.specialSkills}</div>
-              </div>
-            )}
             {app.subjectsOfInterest && (
               <div className="slideout-field">
                 <div className="slideout-field-label">Subjects of Interest</div>
@@ -409,7 +387,7 @@ export default function ApplicantDetailPanel({
               </div>
             )}
             <div className="slideout-field">
-              <div className="slideout-field-label">Interview Availability</div>
+              <div className="slideout-field-label">Curriculum overview availability</div>
               <div className="slideout-field-value">{app.availability}</div>
             </div>
             {app.preferredStartDate && (
@@ -607,7 +585,12 @@ export default function ApplicantDetailPanel({
                   className="button"
                   onClick={() => {
                     if (app.status !== "INTERVIEW_COMPLETED") {
-                      if (!confirm("This applicant hasn't completed an interview yet. Approve anyway?")) return;
+                      if (
+                        !confirm(
+                          "This applicant has not completed a curriculum overview session yet. Approve anyway?"
+                        )
+                      )
+                        return;
                     }
                     handleAction("approve");
                   }}

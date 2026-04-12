@@ -164,7 +164,6 @@ export const instructorApplicationSchema = z.object({
   classRank: z.string().max(100, "Class rank should be under 100 characters.").optional(),
   subjectsOfInterest: z.string().max(500, "Subjects should be under 500 characters.").optional(),
 
-  // Core essays
   motivation: z
     .string()
     .max(5000, "Motivation should be under 5,000 characters.")
@@ -176,23 +175,10 @@ export const instructorApplicationSchema = z.object({
     .refine((value) => isStoredFileUrl(value), {
       message: "Please upload your teaching approach video before submitting.",
     }),
-  whyYPP: z
-    .string()
-    .min(100, "Please share at least 100 characters about why you want to join YPP.")
-    .max(5000, "Response should be under 5,000 characters."),
   teachingExperience: z
     .string()
     .min(50, "Please describe your teaching experience in at least 50 characters.")
     .max(5000, "Teaching experience should be under 5,000 characters."),
-  extracurriculars: z
-    .string()
-    .min(30, "Please describe your extracurricular activities in at least 30 characters.")
-    .max(3000, "Response should be under 3,000 characters."),
-  priorLeadership: z
-    .string()
-    .min(30, "Please describe your leadership experience in at least 30 characters.")
-    .max(3000, "Response should be under 3,000 characters."),
-  specialSkills: z.string().max(2000, "Special skills should be under 2,000 characters.").optional(),
 
   // Referral
   referralEmails: z.string().max(2000, "Referral emails should be under 2,000 characters.").optional(),
@@ -200,7 +186,7 @@ export const instructorApplicationSchema = z.object({
   // Availability
   availability: z
     .string()
-    .min(10, "Please describe your interview availability.")
+    .min(10, "Please describe when you are available for your curriculum overview session.")
     .max(1000, "Availability should be under 1,000 characters."),
   hoursPerWeek: z
     .number({ invalid_type_error: "Please enter how many hours per week you can commit." })
