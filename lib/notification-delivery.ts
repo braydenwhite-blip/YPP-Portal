@@ -1,6 +1,7 @@
 import { NotificationType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isEmailConfigured, sendNotificationEmail } from "@/lib/email";
+import { getBaseUrl } from "@/lib/portal-auth-utils";
 import {
   getNotificationPolicy,
   shouldCreatePortalNotification,
@@ -15,12 +16,6 @@ type DeliveryInput = {
   link?: string | null;
   sendEmail?: boolean;
 };
-
-function getBaseUrl() {
-  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return "http://localhost:3000";
-}
 
 export async function deliverNotification(input: DeliveryInput) {
   const user = await prisma.user.findUnique({

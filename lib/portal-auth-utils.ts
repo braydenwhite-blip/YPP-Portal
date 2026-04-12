@@ -16,19 +16,26 @@ function isLoopbackHost(value: string) {
   }
 }
 
+/** Use configured URL only when it is not a loopback host (avoids prod builds stuck on localhost). */
+function pickPublicBaseUrl(value: string | undefined) {
+  const normalized = normalizeUrl(value);
+  if (!normalized || isLoopbackHost(normalized)) return "";
+  return normalized;
+}
+
 function getHeaderValue(headerName: string) {
   const value = headers().get(headerName)?.split(",")[0]?.trim();
   return value || "";
 }
 
 export function getBaseUrl() {
-  const publicAppUrl = normalizeUrl(process.env.NEXT_PUBLIC_APP_URL);
+  const publicAppUrl = pickPublicBaseUrl(process.env.NEXT_PUBLIC_APP_URL);
   if (publicAppUrl) return publicAppUrl;
 
-  const publicSiteUrl = normalizeUrl(process.env.NEXT_PUBLIC_SITE_URL);
+  const publicSiteUrl = pickPublicBaseUrl(process.env.NEXT_PUBLIC_SITE_URL);
   if (publicSiteUrl) return publicSiteUrl;
 
-  const siteUrl = normalizeUrl(process.env.SITE_URL);
+  const siteUrl = pickPublicBaseUrl(process.env.SITE_URL);
   if (siteUrl) return siteUrl;
 
   const forwardedHost = getHeaderValue("x-forwarded-host");
@@ -58,8 +65,20 @@ export function getBaseUrl() {
   return "http://localhost:3000";
 }
 
+/**
+ * Restrict post-auth redirects to same-origin paths (used in `/auth/callback` as `next`).
+ */
+export function sanitizeAuthNextPath(raw: string | undefined | null): string {
+  const v = (raw ?? "/").trim();
+  if (!v || v === "/") return "/";
+  if (!v.startsWith("/") || v.startsWith("//") || v.includes("://") || v.includes("\\")) {
+    return "/";
+  }
+  return v;
+}
+
 export function buildAuthRedirectUrl(nextPath: string) {
-  return `${getBaseUrl()}/auth/callback?next=${encodeURIComponent(nextPath)}`;
+  return `${getBaseUrl()}/auth/callback?next=${encodeURIComponent(sanitizeAuthNextPath(nextPath))}`;
 }
 
 type PortalUserMetadataParams = {
