@@ -255,20 +255,7 @@ function LoginPageContent() {
               <p>Stay updated with real-time progress reports and certificates. See the impact of mentorship on your child&apos;s learning journey.</p>
             </div>
           </div>
-          <div className="hero-metrics">
-            <div>
-              <div className="kpi">101-401 Pathways</div>
-              <div className="kpi-label">Structured Progression</div>
-            </div>
-            <div>
-              <div className="kpi">Passion Labs</div>
-              <div className="kpi-label">Project-Based Growth</div>
-            </div>
-            <div>
-              <div className="kpi">Certified Mentors</div>
-              <div className="kpi-label">Expert-Led Guidance</div>
-            </div>
-          </div>
+
         </section>
 
         <div className="login-card login-card--brand">
