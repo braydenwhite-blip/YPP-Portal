@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { SEED_CURRICULA, type SeedCurriculum } from "../curriculum-seeds";
+import { useBodyScrollLock } from "./use-body-scroll-lock";
 
 // ═══════════════════════════════════════════════════════════════
 // Lesson Design Studio — Interactive onboarding tour
@@ -161,6 +162,8 @@ export function OnboardingTour({
 }: OnboardingTourProps) {
   const [currentStep, setCurrentStep] = useState<number | null>(null);
   const [selectedSeed, setSelectedSeed] = useState<SeedCurriculum | null>(null);
+
+  useBodyScrollLock(currentStep !== null);
 
   // Check if onboarding should show
   useEffect(() => {

@@ -22,6 +22,10 @@ const routerMocks = vi.hoisted(() => ({
   refresh: vi.fn(),
 }));
 
+const navigationMocks = vi.hoisted(() => ({
+  openLessonDesignStudio: vi.fn(),
+}));
+
 const libraryExampleWeek = {
   weekNumber: 1,
   title: "Imported Week",
@@ -58,6 +62,9 @@ vi.mock("@/lib/curriculum-draft-actions", () => actionMocks);
 vi.mock("@/lib/curriculum-comment-actions", () => commentActionMocks);
 vi.mock("next/navigation", () => ({
   useRouter: () => routerMocks,
+}));
+vi.mock("@/lib/lesson-design-studio-navigation", () => ({
+  openLessonDesignStudio: navigationMocks.openLessonDesignStudio,
 }));
 
 vi.mock(
@@ -296,6 +303,7 @@ describe("StudioClient", () => {
     commentActionMocks.deleteComment.mockReset().mockResolvedValue({ success: true });
     routerMocks.push.mockReset();
     routerMocks.refresh.mockReset();
+    navigationMocks.openLessonDesignStudio.mockReset();
     localStorage.clear();
   });
 
@@ -482,6 +490,10 @@ describe("StudioClient", () => {
       />
     );
 
+    await waitFor(() => {
+      expect(commentActionMocks.listComments).toHaveBeenCalledTimes(1);
+    });
+
     expect(screen.queryByTestId("tour")).not.toBeInTheDocument();
 
     await user.click(
@@ -512,6 +524,10 @@ describe("StudioClient", () => {
         currentPhase="REVIEW_LAUNCH"
       />
     );
+
+    await waitFor(() => {
+      expect(commentActionMocks.listComments).toHaveBeenCalledTimes(2);
+    });
 
     expect(screen.queryByTestId("tour")).not.toBeInTheDocument();
     expect(
@@ -578,8 +594,12 @@ describe("StudioClient", () => {
       expect(actionMocks.createWorkingCopyFromCurriculumDraft).toHaveBeenCalledWith(
         "draft-1"
       );
-      expect(routerMocks.push).toHaveBeenCalledWith(
-        "/instructor/lesson-design-studio?draftId=draft-2"
+      expect(navigationMocks.openLessonDesignStudio).toHaveBeenCalledWith(
+        {
+          entryContext: "DIRECT",
+          draftId: "draft-2",
+          notice: null,
+        }
       );
     });
   });
@@ -643,7 +663,7 @@ describe("StudioClient", () => {
     alertSpy.mockRestore();
   });
 
-  it("does not save when a read-only draft receives a forced edit event", () => {
+  it("does not save when a read-only draft receives a forced edit event", async () => {
     render(
       <StudioClient
         userId="user-1"
@@ -655,6 +675,10 @@ describe("StudioClient", () => {
         currentPhase="COURSE_MAP"
       />
     );
+
+    await waitFor(() => {
+      expect(commentActionMocks.listComments).toHaveBeenCalledTimes(1);
+    });
 
     fireEvent.change(screen.getByLabelText("Curriculum title"), {
       target: { value: "Changed" },
@@ -677,6 +701,10 @@ describe("StudioClient", () => {
         currentPhase="COURSE_MAP"
       />
     );
+
+    await waitFor(() => {
+      expect(commentActionMocks.listComments).toHaveBeenCalledTimes(1);
+    });
 
     expect(
       screen.getByRole("button", { name: /Comments/ })

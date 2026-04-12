@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import type {
   CurriculumCommentAnchor,
   CurriculumCommentRecord,
@@ -16,6 +16,7 @@ import {
 import { CommentIndicator } from "./comment-indicator";
 import { CommentThread } from "./comment-thread";
 import { StudioRichEditor } from "./studio-rich-editor";
+import { useBodyScrollLock } from "./use-body-scroll-lock";
 
 interface ActivityDetailDrawerProps {
   activity: WeekActivity | null;
@@ -58,8 +59,26 @@ export function ActivityDetailDrawer({
   onResolveComment,
   onDeleteComment,
 }: ActivityDetailDrawerProps) {
+  useBodyScrollLock(Boolean(activity));
+
   const [customTagInput, setCustomTagInput] = useState("");
   const currentType = activity ? getActivityTypeConfig(activity.type) : null;
+
+  useEffect(() => {
+    if (!activity) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activity, onClose]);
 
   function handleChange(
     field: keyof WeekActivity,

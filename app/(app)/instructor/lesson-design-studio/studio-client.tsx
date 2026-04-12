@@ -28,13 +28,13 @@ import {
 } from "@/lib/curriculum-draft-progress";
 import {
   buildGuidedStudioJourney,
-  buildLessonDesignStudioHref,
   deriveStudioPhase,
   getStudioPhaseIndex,
   getStudioPhaseMeta,
   type StudioEntryContext,
   type StudioPhase,
 } from "@/lib/lesson-design-studio";
+import { openLessonDesignStudio } from "@/lib/lesson-design-studio-navigation";
 import { ActivityTemplates } from "./components/activity-templates";
 import { ExamplesLibrary } from "./components/examples-library";
 import { GuidedStudioShell } from "./components/guided-studio-shell";
@@ -47,6 +47,7 @@ import { StudioSessionsStep } from "./components/studio-sessions-step";
 import { StudioStartStep } from "./components/studio-start-step";
 import { QuickStartWizard } from "./components/quick-start-wizard";
 import { StudentPreviewPanel } from "./components/student-preview-panel";
+import { useBodyScrollLock } from "./components/use-body-scroll-lock";
 import { SEED_CURRICULA, type SeedCurriculum } from "./curriculum-seeds";
 import type { ExampleWeek } from "./examples-data";
 import {
@@ -646,12 +647,10 @@ export function StudioClient({
             message.includes("Draft not found or unauthorized") ||
             message.includes("locked for review history")
           ) {
-            router.push(
-              buildLessonDesignStudioHref({
-                entryContext,
-                notice: "draft-unavailable",
-              })
-            );
+            openLessonDesignStudio({
+              entryContext,
+              notice: "draft-unavailable",
+            });
           }
           return false;
         } finally {
@@ -675,7 +674,6 @@ export function StudioClient({
       getSnapshotSignature,
       isDraftEditable,
       pushToHistory,
-      router,
       showToast,
     ]
   );
@@ -1407,13 +1405,11 @@ export function StudioClient({
 
     try {
       const result = await createWorkingCopyFromCurriculumDraft(draft.id);
-      router.push(
-        buildLessonDesignStudioHref({
-          entryContext,
-          draftId: result.draftId,
-          notice: result.reusedExisting ? "active-draft-reused" : null,
-        })
-      );
+      openLessonDesignStudio({
+        entryContext,
+        draftId: result.draftId,
+        notice: result.reusedExisting ? "active-draft-reused" : null,
+      });
     } catch (error) {
       alert(
         error instanceof Error
@@ -1421,7 +1417,7 @@ export function StudioClient({
           : "Failed to open a working copy."
       );
     }
-  }, [draft.id, entryContext, isWorkflowActionPending, router]);
+  }, [draft.id, entryContext, isWorkflowActionPending]);
 
   const resolveCommentAnchorLabel = useCallback(
     (
@@ -1735,6 +1731,8 @@ export function StudioClient({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showHistory]);
 
+  useBodyScrollLock(showHistory);
+
   const selectedWeek =
     weeklyPlans.find((plan) => plan.id === selectedWeekId) ?? weeklyPlans[0] ?? null;
 
@@ -1865,6 +1863,14 @@ export function StudioClient({
 
   const hasToolbarActions =
     viewerAccess.canComment || (activePhase === "SESSIONS" && selectedWeek);
+  const hasBlockingOverlay =
+    showExamplesLibrary ||
+    templatesWeekId !== null ||
+    showQuickStartWizard ||
+    showStudentPreview ||
+    showCommentSidebar ||
+    shouldRenderOnboardingTour ||
+    showHistory;
   const toolbarActions = hasToolbarActions ? (
     <>
       {viewerAccess.canComment ? (
@@ -2011,6 +2017,7 @@ export function StudioClient({
       workflowNotice={workflowNotice}
       readOnlyNotice={readOnlyNotice}
       readOnlyBody={readOnlyBody}
+      isModalOpen={hasBlockingOverlay}
       toast={toast}
       journey={journey}
       onPhaseChange={setActivePhase}
@@ -2103,6 +2110,9 @@ export function StudioClient({
           <div
             className="cbs-history-modal"
             onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Version history"
           >
             <div className="cbs-history-header">
               <h3 className="cbs-history-title">Version History</h3>

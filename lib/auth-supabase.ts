@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { createServerClient } from "@/lib/supabase/server";
+import { createServerClientOrNull } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { normalizeRoleValues, normalizeRoleValue } from "@/lib/role-utils";
 import { getLegacySessionFromCookies } from "@/lib/legacy-auth-server";
@@ -48,10 +48,10 @@ async function resolvePrismaUserForSession(where: {
  * One Supabase + Prisma resolution per RSC request (layout + page both call getSession).
  */
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
-  const supabase = await createServerClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
+  const supabase = await createServerClientOrNull();
+  const authUser = supabase
+    ? (await supabase.auth.getUser()).data.user
+    : null;
 
   const prismaUser = authUser
     ? await resolvePrismaUserForSession({ supabaseAuthId: authUser.id })

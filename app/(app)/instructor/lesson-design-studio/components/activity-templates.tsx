@@ -6,6 +6,7 @@ import {
   getActivityTypeConfig,
   type ActivityTemplateData,
 } from "./activity-template-data";
+import { useBodyScrollLock } from "./use-body-scroll-lock";
 
 interface ActivityTemplatesProps {
   open: boolean;
@@ -14,6 +15,8 @@ interface ActivityTemplatesProps {
 }
 
 export function ActivityTemplates({ open, onClose, onInsert }: ActivityTemplatesProps) {
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
 

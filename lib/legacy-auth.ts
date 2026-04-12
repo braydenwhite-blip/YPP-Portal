@@ -1,11 +1,14 @@
 import { isLegacyAuthBypassEmail } from "@/lib/legacy-auth-config";
+import { canUseLocalPasswordFallback } from "@/lib/supabase/config";
 
 export const LEGACY_AUTH_COOKIE_NAME = "ypp_legacy_session";
+export type LegacySessionMode = "BYPASS" | "LOCAL_PASSWORD_FALLBACK";
 
 export type LegacySessionPayload = {
   userId: string;
   email: string;
   exp: number;
+  mode?: LegacySessionMode;
 };
 
 function getLegacyAuthSecret() {
@@ -84,7 +87,13 @@ export async function verifyLegacySessionToken(token?: string | null): Promise<L
       return null;
     }
 
-    if (!isLegacyAuthBypassEmail(payload.email)) {
+    const mode = payload.mode ?? "BYPASS";
+    const isAllowedEmail =
+      mode === "LOCAL_PASSWORD_FALLBACK"
+        ? canUseLocalPasswordFallback()
+        : isLegacyAuthBypassEmail(payload.email);
+
+    if (!isAllowedEmail) {
       return null;
     }
 

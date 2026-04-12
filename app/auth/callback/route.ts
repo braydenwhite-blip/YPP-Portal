@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
+import { createServerClientOrNull } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -24,7 +24,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", origin));
   }
 
-  const supabase = await createServerClient();
+  const supabase = await createServerClientOrNull();
+  if (!supabase) {
+    return NextResponse.redirect(
+      new URL("/login?error=supabase_unavailable", origin)
+    );
+  }
+
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error || !data.user) {

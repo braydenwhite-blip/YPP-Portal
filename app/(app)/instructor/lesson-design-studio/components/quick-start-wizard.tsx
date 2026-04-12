@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import type { SeedCurriculum } from "../curriculum-seeds";
 import { getActivityTypeConfig } from "./activity-template-data";
+import { useBodyScrollLock } from "./use-body-scroll-lock";
 
 const QUICK_START_STYLES = [
   {
@@ -92,6 +93,8 @@ export function QuickStartWizard({
   onClose,
   onGenerate,
 }: QuickStartWizardProps) {
+  useBodyScrollLock(open);
+
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedSeedId, setSelectedSeedId] = useState<string>(recommendedSeedId);
   const [selectedStyleId, setSelectedStyleId] =
