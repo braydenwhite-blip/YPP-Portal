@@ -8923,6 +8923,62 @@
   margin-bottom: 14px;
 }
 
+/* ── Fix: roadmap card is now inline inside card, not a grid column ── */
+
+.lds-session-roadmap-card {
+  position: relative;
+  align-self: auto;
+}
+
+/* Inline horizontal roadmap scroll row inside sessions card */
+.lds-session-roadmap-inline {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 8px;
+  margin: 0 0 20px;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+
+.lds-session-roadmap-inline .lds-session-roadmap-item {
+  flex-shrink: 0;
+  min-width: 130px;
+  max-width: 180px;
+  padding: 12px 14px;
+}
+
+/* Fix phase context strip: hardcoded blur fallback for undefined --cbs-blur-md */
+.cbs-studio .lds-phase-context-strip {
+  backdrop-filter: blur(16px) saturate(145%);
+  -webkit-backdrop-filter: blur(16px) saturate(145%);
+}
+
+/* ── Home screen (start step) visual improvements ─────── */
+
+/* Card gallery: auto-fill at consistent min-width regardless of container */
+.lds-start-grid {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+/* Recommended card: subtle purple tint for instant scan-ability */
+.lds-start-card.recommended {
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.04), rgba(255, 255, 255, 0.62));
+}
+
+/* Quick-start wizard panel: stronger accent feel */
+.lds-start-hero-panel {
+  border-color: rgba(79, 70, 229, 0.28);
+  background:
+    linear-gradient(135deg, rgba(79, 70, 229, 0.07) 0%, rgba(255, 255, 255, 0.86) 60%),
+    rgba(255, 255, 255, 0.58);
+}
+
+/* Aside first card: accent top border as visual anchor */
+.lds-step-side > .lds-step-card:first-child {
+  border-top: 3px solid var(--cbs-accent);
+}
+
 /* ── Print: hide new elements not relevant to print ──── */
 @media print {
   .lds-phase-context-strip,
