@@ -55,7 +55,7 @@ export function StudioStartStep({
   onOpenQuickStartWizard,
 }: StudioStartStepProps) {
   return (
-    <section className="lds-step-layout wide">
+    <section className="lds-step-layout">
       <div className="lds-step-main">
         <section className="lds-step-card">
           <div className="lds-start-hero">
