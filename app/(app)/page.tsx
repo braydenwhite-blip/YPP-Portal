@@ -1,13 +1,18 @@
 import Link from "next/link";
 import { Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { getSession } from "@/lib/auth-supabase";
 import { ADMIN_SUBTYPE_LABELS, normalizeAdminSubtypes } from "@/lib/admin-subtypes";
 import { getDashboardData } from "@/lib/dashboard/data";
 import { isUnifiedAllToolsDashboardEnabled } from "@/lib/dashboard/flags";
 import { getStudentProgressSnapshot } from "@/lib/student-progress-actions";
 import { prisma } from "@/lib/prisma";
-import { listWorkflowHomeData } from "@/lib/workflow";
+import {
+  getUnreadDirectMessageCountCached,
+  getUnreadNotificationCountCached,
+} from "@/lib/server-request-cache";
+import { listWorkflowHomeItems, listWorkflowMasterRows } from "@/lib/workflow";
 import RoleHero from "@/components/dashboard/role-hero";
 import KpiStrip from "@/components/dashboard/kpi-strip";
 import QueueBoard from "@/components/dashboard/queue-board";
@@ -51,6 +56,79 @@ function firstNameFromDisplay(fullName: string): string {
   return trimmed.split(/\s+/)[0] ?? trimmed;
 }
 
+async function MasterWorkflowSection() {
+  const masterRows = await listWorkflowMasterRows();
+
+  return (
+    <section className="card" style={{ marginTop: 20 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 16 }}>
+        <div>
+          <h2 style={{ margin: 0 }}>Master Dashboard</h2>
+          <p style={{ margin: "6px 0 0", color: "var(--muted)" }}>
+            Progress across everyone currently tracked in the shared workflow system.
+          </p>
+        </div>
+      </div>
+
+      {masterRows.length === 0 ? (
+        <p style={{ margin: 0, color: "var(--muted)" }}>
+          Workflow items will appear here once people are routed into the shared dashboard.
+        </p>
+      ) : (
+        <div style={{ display: "grid", gap: 12 }}>
+          {masterRows.map((row) => (
+            <div
+              key={row.subjectUserId}
+              style={{
+                border: "1px solid var(--border)",
+                borderRadius: 14,
+                padding: 16,
+                background: "var(--surface)",
+              }}
+            >
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(180px, 1fr) minmax(160px, 220px) minmax(220px, 2fr)", gap: 16, alignItems: "start" }}>
+                <div>
+                  <p style={{ margin: 0, fontWeight: 700 }}>{row.name}</p>
+                </div>
+                <div>
+                  <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--muted)", fontWeight: 700 }}>Progress</p>
+                  <div style={{ height: 10, borderRadius: 999, background: "var(--surface-hover)", overflow: "hidden" }}>
+                    <div
+                      style={{
+                        width: `${row.progressPercent}%`,
+                        height: "100%",
+                        background: "linear-gradient(90deg, var(--accent) 0%, #4f46e5 100%)",
+                      }}
+                    />
+                  </div>
+                  <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--muted)" }}>{row.progressPercent}% complete</p>
+                </div>
+                <div>
+                  <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--muted)", fontWeight: 700 }}>Remaining Tasks</p>
+                  {row.remainingTasks.length === 0 ? (
+                    <p style={{ margin: 0, color: "var(--muted)", fontSize: 14 }}>No remaining tasks.</p>
+                  ) : (
+                    <div style={{ display: "grid", gap: 8 }}>
+                      {row.remainingTasks.map((task) => (
+                        <div key={`${row.subjectUserId}-${task.title}`} style={{ fontSize: 14 }}>
+                          <strong>{task.title}</strong>
+                          <span style={{ color: "var(--muted)" }}>
+                            {" "}· {formatAbsoluteDate(task.dueAt)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function formatDashboardRoleLabel(role: string): string {
   return role
     .replace(/_/g, " ")
@@ -65,8 +143,8 @@ async function renderAdminWorkflowHome(params: {
 }) {
   const isSuperAdmin = params.adminSubtypes.includes("SUPER_ADMIN");
 
-  const [workflowHome, notifications, unreadNotifications] = await Promise.all([
-    listWorkflowHomeData({
+  const [workflowItems, notifications, unreadNotifications] = await Promise.all([
+    listWorkflowHomeItems({
       userId: params.userId,
       roles: params.roles,
       adminSubtypes: params.adminSubtypes,
@@ -76,9 +154,7 @@ async function renderAdminWorkflowHome(params: {
       orderBy: { createdAt: "desc" },
       take: 6,
     }),
-    prisma.notification.count({
-      where: { userId: params.userId, isRead: false },
-    }),
+    getUnreadNotificationCountCached(params.userId),
   ]);
 
   const todayLabel = new Intl.DateTimeFormat("en-US", {
@@ -126,16 +202,16 @@ async function renderAdminWorkflowHome(params: {
                 Assigned work for your current role and workflow ownership.
               </p>
             </div>
-            <span className="badge">{workflowHome.items.length}</span>
+            <span className="badge">{workflowItems.length}</span>
           </div>
 
-          {workflowHome.items.length === 0 ? (
+          {workflowItems.length === 0 ? (
             <p style={{ margin: 0, color: "var(--muted)" }}>
               You do not have any assigned workflow items right now.
             </p>
           ) : (
             <div style={{ display: "grid", gap: 12 }}>
-              {workflowHome.items.map((item) => (
+              {workflowItems.map((item) => (
                 <Link
                   key={item.id}
                   href={item.href}
@@ -212,72 +288,25 @@ async function renderAdminWorkflowHome(params: {
       </div>
 
       {isSuperAdmin ? (
-        <section className="card" style={{ marginTop: 20 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 16 }}>
-            <div>
-              <h2 style={{ margin: 0 }}>Master Dashboard</h2>
-              <p style={{ margin: "6px 0 0", color: "var(--muted)" }}>
-                Progress across everyone currently tracked in the shared workflow system.
-              </p>
-            </div>
-          </div>
-
-          {workflowHome.masterRows.length === 0 ? (
-            <p style={{ margin: 0, color: "var(--muted)" }}>
-              Workflow items will appear here once people are routed into the shared dashboard.
-            </p>
-          ) : (
-            <div style={{ display: "grid", gap: 12 }}>
-              {workflowHome.masterRows.map((row) => (
-                <div
-                  key={row.subjectUserId}
-                  style={{
-                    border: "1px solid var(--border)",
-                    borderRadius: 14,
-                    padding: 16,
-                    background: "var(--surface)",
-                  }}
-                >
-                  <div style={{ display: "grid", gridTemplateColumns: "minmax(180px, 1fr) minmax(160px, 220px) minmax(220px, 2fr)", gap: 16, alignItems: "start" }}>
-                    <div>
-                      <p style={{ margin: 0, fontWeight: 700 }}>{row.name}</p>
-                    </div>
-                    <div>
-                      <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--muted)", fontWeight: 700 }}>Progress</p>
-                      <div style={{ height: 10, borderRadius: 999, background: "var(--surface-hover)", overflow: "hidden" }}>
-                        <div
-                          style={{
-                            width: `${row.progressPercent}%`,
-                            height: "100%",
-                            background: "linear-gradient(90deg, var(--accent) 0%, #4f46e5 100%)",
-                          }}
-                        />
-                      </div>
-                      <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--muted)" }}>{row.progressPercent}% complete</p>
-                    </div>
-                    <div>
-                      <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--muted)", fontWeight: 700 }}>Remaining Tasks</p>
-                      {row.remainingTasks.length === 0 ? (
-                        <p style={{ margin: 0, color: "var(--muted)", fontSize: 14 }}>No remaining tasks.</p>
-                      ) : (
-                        <div style={{ display: "grid", gap: 8 }}>
-                          {row.remainingTasks.map((task) => (
-                            <div key={`${row.subjectUserId}-${task.title}`} style={{ fontSize: 14 }}>
-                              <strong>{task.title}</strong>
-                              <span style={{ color: "var(--muted)" }}>
-                                {" "}· {formatAbsoluteDate(task.dueAt)}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
+        <Suspense
+          fallback={(
+            <section className="card" style={{ marginTop: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 16 }}>
+                <div>
+                  <h2 style={{ margin: 0 }}>Master Dashboard</h2>
+                  <p style={{ margin: "6px 0 0", color: "var(--muted)" }}>
+                    Progress across everyone currently tracked in the shared workflow system.
+                  </p>
                 </div>
-              ))}
-            </div>
+              </div>
+              <p style={{ margin: 0, color: "var(--muted)" }}>
+                Loading the shared workflow summary...
+              </p>
+            </section>
           )}
-        </section>
+        >
+          <MasterWorkflowSection />
+        </Suspense>
       ) : null}
     </div>
   );
@@ -398,35 +427,8 @@ export default async function OverviewPage() {
   let unreadMessages = 0;
   try {
     [unreadNotifications, unreadMessages] = await Promise.all([
-      prisma.notification.count({
-        where: { userId, isRead: false },
-      }),
-      prisma.conversationParticipant
-        .findMany({
-          where: {
-            userId,
-            conversation: {
-              isGroup: false,
-            },
-          },
-          include: {
-            conversation: {
-              include: {
-                messages: {
-                  orderBy: { createdAt: "desc" },
-                  take: 1,
-                  select: { createdAt: true, senderId: true },
-                },
-              },
-            },
-          },
-        })
-        .then((parts) =>
-          parts.filter((part) => {
-            const latest = part.conversation.messages[0];
-            return !!latest && latest.senderId !== userId && latest.createdAt > part.lastReadAt;
-          }).length
-        ),
+      getUnreadNotificationCountCached(userId),
+      getUnreadDirectMessageCountCached(userId),
     ]);
   } catch {
     unreadNotifications = 0;

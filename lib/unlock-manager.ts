@@ -101,12 +101,10 @@ const SECTION_UNLOCK_MAP: Record<string, SectionDef> = {
       type: "ACHIEVEMENT",
       requirement: SECTION_REQUIREMENTS.opportunities,
       check: async (userId: string) => {
-        // If they have more than 4 step unlocks, consider them ready for opportunities
-        const completedPathways = await prisma.pathwayStepUnlock.findMany({
+        const count = await prisma.pathwayStepUnlock.count({
           where: { userId },
-          select: { step: { select: { pathway: { select: { name: true } } } } },
         });
-        return completedPathways.length >= 4;
+        return count >= 4;
       },
     },
   },
@@ -165,17 +163,52 @@ export async function unlockSection(
 
 export async function checkAndAutoUnlock(userId: string): Promise<string[]> {
   const existing = await getUnlockedSections(userId);
-  const newlyUnlocked: string[] = [];
+  const pendingSections = Object.keys(SECTION_UNLOCK_MAP).filter(
+    (sectionKey) => !existing.has(sectionKey)
+  );
 
-  for (const [sectionKey, def] of Object.entries(SECTION_UNLOCK_MAP)) {
-    if (existing.has(sectionKey)) continue;
-
-    const met = await def.unlockCriteria.check(userId);
-    if (met) {
-      await unlockSection(userId, sectionKey, "ACHIEVEMENT");
-      newlyUnlocked.push(sectionKey);
-    }
+  if (pendingSections.length === 0) {
+    return [];
   }
+
+  const needsPathwayUnlockCount = pendingSections.some((sectionKey) =>
+    ["challenges", "opportunities", "people_support"].includes(sectionKey)
+  );
+  const needsBadgeCount = pendingSections.includes("projects");
+
+  const [pathwayStepUnlockCount, studentBadgeCount] = await Promise.all([
+    needsPathwayUnlockCount
+      ? prisma.pathwayStepUnlock.count({
+          where: { userId },
+        })
+      : Promise.resolve(0),
+    needsBadgeCount
+      ? prisma.studentBadge.count({
+          where: { studentId: userId },
+        })
+      : Promise.resolve(0),
+  ]);
+
+  const newlyUnlocked = pendingSections.filter((sectionKey) => {
+    switch (sectionKey) {
+      case "challenges":
+        return pathwayStepUnlockCount > 0;
+      case "projects":
+        return studentBadgeCount > 0;
+      case "opportunities":
+        return pathwayStepUnlockCount >= 4;
+      case "people_support":
+        return pathwayStepUnlockCount >= 2;
+      default:
+        return false;
+    }
+  });
+
+  await Promise.all(
+    newlyUnlocked.map((sectionKey) =>
+      unlockSection(userId, sectionKey, "ACHIEVEMENT")
+    )
+  );
 
   return newlyUnlocked;
 }
