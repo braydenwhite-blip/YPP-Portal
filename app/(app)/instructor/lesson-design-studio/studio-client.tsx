@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -35,16 +36,8 @@ import {
   type StudioPhase,
 } from "@/lib/lesson-design-studio";
 import { openLessonDesignStudio } from "@/lib/lesson-design-studio-navigation";
-import { ActivityTemplates } from "./components/activity-templates";
-import { ExamplesLibrary } from "./components/examples-library";
 import { GuidedStudioShell } from "./components/guided-studio-shell";
-import { OnboardingTour } from "./components/onboarding-tour";
 import { CommentSidebar } from "./components/comment-sidebar";
-import { StudioCourseMapStep } from "./components/studio-course-map-step";
-import { StudioReadinessStep } from "./components/studio-readiness-step";
-import { StudioReviewLaunchStep } from "./components/studio-review-launch-step";
-import { StudioSessionsStep } from "./components/studio-sessions-step";
-import { StudioStartStep } from "./components/studio-start-step";
 import { QuickStartWizard } from "./components/quick-start-wizard";
 import { StudentPreviewPanel } from "./components/student-preview-panel";
 import { useBodyScrollLock } from "./components/use-body-scroll-lock";
@@ -67,6 +60,77 @@ import type {
   WeekActivity,
   WeekPlan,
 } from "./types";
+
+const StudioStartStepEntry = dynamic(
+  () =>
+    import("./components/studio-start-step-entry").then(
+      (module) => module.StudioStartStepEntry
+    ),
+  {
+    loading: () => <div className="lds-step-card">Loading starter support...</div>,
+  }
+);
+
+const StudioCourseMapStep = dynamic(
+  () =>
+    import("./components/studio-course-map-step").then(
+      (module) => module.StudioCourseMapStep
+    ),
+  {
+    loading: () => <div className="lds-step-card">Loading course map...</div>,
+  }
+);
+
+const StudioSessionsStep = dynamic(
+  () =>
+    import("./components/studio-sessions-step").then(
+      (module) => module.StudioSessionsStep
+    ),
+  {
+    loading: () => <div className="lds-step-card">Loading session builder...</div>,
+  }
+);
+
+const StudioReadinessStep = dynamic(
+  () =>
+    import("./components/studio-readiness-step").then(
+      (module) => module.StudioReadinessStep
+    ),
+  {
+    loading: () => <div className="lds-step-card">Loading readiness checks...</div>,
+  }
+);
+
+const StudioReviewLaunchStep = dynamic(
+  () =>
+    import("./components/studio-review-launch-step").then(
+      (module) => module.StudioReviewLaunchStep
+    ),
+  {
+    loading: () => <div className="lds-step-card">Loading review and launch...</div>,
+  }
+);
+
+const ExamplesLibrary = dynamic(
+  () =>
+    import("./components/examples-library").then(
+      (module) => module.ExamplesLibrary
+    )
+);
+
+const ActivityTemplates = dynamic(
+  () =>
+    import("./components/activity-templates").then(
+      (module) => module.ActivityTemplates
+    )
+);
+
+const OnboardingTour = dynamic(
+  () =>
+    import("./components/onboarding-tour").then(
+      (module) => module.OnboardingTour
+    )
+);
 
 interface StudioClientProps {
   userId: string;
@@ -197,17 +261,6 @@ function normalizeTopic(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
-function isBlankWeekPlan(week: WeekPlan) {
-  return (
-    !week.title.trim() &&
-    week.activities.length === 0 &&
-    !(week.objective ?? "").trim() &&
-    !(week.teacherPrepNotes ?? "").trim() &&
-    week.materialsChecklist.length === 0 &&
-    week.atHomeAssignment === null
-  );
-}
-
 function scoreSeedMatch(seed: SeedCurriculum, topic: string) {
   const draft = normalizeTopic(topic);
   const seedTopic = normalizeTopic(seed.interestArea);
@@ -219,6 +272,17 @@ function scoreSeedMatch(seed: SeedCurriculum, topic: string) {
   return seedTopic
     .split(" ")
     .filter((word) => draftWords.has(word)).length * 20;
+}
+
+function isBlankWeekPlan(week: WeekPlan) {
+  return (
+    !week.title.trim() &&
+    week.activities.length === 0 &&
+    !(week.objective ?? "").trim() &&
+    !(week.teacherPrepNotes ?? "").trim() &&
+    week.materialsChecklist.length === 0 &&
+    week.atHomeAssignment === null
+  );
 }
 
 function getEntrySummary(
@@ -1906,9 +1970,8 @@ export function StudioClient({
 
   const stepContent =
     activePhase === "START" ? (
-      <StudioStartStep
-        starterScaffolds={SEED_CURRICULA}
-        recommendedScaffoldId={recommendedSeed.id}
+      <StudioStartStepEntry
+        interestArea={interestArea}
         isReadOnly={isDraftReadOnly}
         hasStartedDraft={hasStartedDraft}
         onApplyStarterScaffold={handleApplyStarterScaffold}
@@ -2026,43 +2089,47 @@ export function StudioClient({
     >
       {stepContent}
 
-      <ExamplesLibrary
-        open={showExamplesLibrary}
-        activeTab={activeExampleTab}
-        interestArea={interestArea}
-        targetLabel={targetPlanLabel}
-        errorMessage={examplesLibraryError}
-        autoRecommendEnabled={!hasManuallySelectedExampleTab}
-        onClose={() => {
-          setShowExamplesLibrary(false);
-          setLibraryTargetPlanId(null);
-          setExamplesLibraryError(null);
-        }}
-        onTabChange={handleExamplesTabChange}
-        onImportWeek={(week) => handleImportWeek(week, libraryTargetPlanId)}
-      />
+      {showExamplesLibrary ? (
+        <ExamplesLibrary
+          open={showExamplesLibrary}
+          activeTab={activeExampleTab}
+          interestArea={interestArea}
+          targetLabel={targetPlanLabel}
+          errorMessage={examplesLibraryError}
+          autoRecommendEnabled={!hasManuallySelectedExampleTab}
+          onClose={() => {
+            setShowExamplesLibrary(false);
+            setLibraryTargetPlanId(null);
+            setExamplesLibraryError(null);
+          }}
+          onTabChange={handleExamplesTabChange}
+          onImportWeek={(week) => handleImportWeek(week, libraryTargetPlanId)}
+        />
+      ) : null}
 
-      <ActivityTemplates
-        open={templatesWeekId !== null}
-        onClose={() => setTemplatesWeekId(null)}
-        onInsert={(template) => {
-          if (!templatesWeekId) return;
-          setTemplatesWeekId(null);
-          handleAddActivity(templatesWeekId, {
-            title: template.title,
-            type: template.type,
-            durationMin: template.durationMin,
-            description: template.description,
-            resources: null,
-            notes: null,
-            materials: null,
-            differentiationTips: null,
-            energyLevel: null,
-            standardsTags: [],
-            rubric: null,
-          });
-        }}
-      />
+      {templatesWeekId !== null ? (
+        <ActivityTemplates
+          open={templatesWeekId !== null}
+          onClose={() => setTemplatesWeekId(null)}
+          onInsert={(template) => {
+            if (!templatesWeekId) return;
+            setTemplatesWeekId(null);
+            handleAddActivity(templatesWeekId, {
+              title: template.title,
+              type: template.type,
+              durationMin: template.durationMin,
+              description: template.description,
+              resources: null,
+              notes: null,
+              materials: null,
+              differentiationTips: null,
+              energyLevel: null,
+              standardsTags: [],
+              rubric: null,
+            });
+          }}
+        />
+      ) : null}
 
       <QuickStartWizard
         open={showQuickStartWizard}
