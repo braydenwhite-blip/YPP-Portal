@@ -36,6 +36,17 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 1,
       coreEligible: true,
     },
+    {
+      href: "/instructor-training",
+      label: "Instructor Training",
+      icon: "🎓",
+      roles: INSTRUCTOR_AND_APPLICANT_ROLES,
+      dashboardDescription: "Complete all required academy modules to unlock offering approval.",
+      dashboardPriority: 2,
+      dashboardBadgeKey: "training_incomplete",
+      searchAliases: ["Training", "Academy"],
+      coreEligible: true,
+    },
   ]),
 
   ...groupLinks("Family", 100, [
@@ -197,15 +208,6 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Monthly Reflection",
       icon: "📝",
       roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT"],
-    },
-    {
-      href: "/instructor-training",
-      label: "Instructor Training",
-      icon: "🎓",
-      roles: INSTRUCTOR_AND_APPLICANT_ROLES,
-      dashboardDescription: "Complete all required academy modules to unlock offering approval.",
-      dashboardPriority: 4,
-      dashboardBadgeKey: "training_incomplete",
     },
     {
       href: "/instructor/lesson-design-studio",

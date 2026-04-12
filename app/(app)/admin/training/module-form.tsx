@@ -275,15 +275,6 @@ export default function ModuleForm({ module, onClose, nextSortOrder }: ModuleFor
             />
             Requires quiz
           </label>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, cursor: "pointer" }}>
-            <input
-              type="checkbox"
-              name="requiresEvidence"
-              defaultChecked={module?.requiresEvidence ?? false}
-              disabled={isPending}
-            />
-            Requires evidence
-          </label>
         </div>
       </div>
 

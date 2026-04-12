@@ -253,12 +253,7 @@ export function VideoPlayer({
 
       const previous = progressRef.current;
       const nextWatched = Math.max(previous.watchedSeconds, safePosition);
-      const activeDuration = durationRef.current;
-      const autoComplete =
-        activeDuration && activeDuration > 0
-          ? nextWatched >= Math.floor(activeDuration * 0.9)
-          : false;
-      const nextCompleted = previous.completed || forceComplete || autoComplete;
+      const nextCompleted = previous.completed || forceComplete;
 
       progressRef.current = {
         watchedSeconds: nextWatched,
