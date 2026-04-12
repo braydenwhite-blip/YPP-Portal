@@ -612,7 +612,7 @@ async function submitDecisionForChairReview({
       "Hiring Decision Waiting on Chair Review",
       `${application.applicant.name} has a ${accepted ? "hire" : "reject"} recommendation waiting for Chair approval.`,
       "/admin/hiring-committee",
-      true
+      { policyKey: "APPLICATION_DECISIONS" }
     );
   }
 
@@ -622,7 +622,7 @@ async function submitDecisionForChairReview({
     "Application Update",
     `A hiring recommendation was submitted for ${application.position.title}. A Chair is reviewing it now.`,
     `/applications/${applicationId}`,
-    true
+    { policyKey: "APPLICATION_DECISIONS" }
   );
 
   await createHiringAudit(decidedById, "chapter_hiring_decision_submitted", {
@@ -730,7 +730,7 @@ export async function approveHiringDecision(decisionId: string, chairId: string,
       ? `Your application for ${decision.application.position.title} was accepted.`
       : `Your application for ${decision.application.position.title} has been reviewed.`,
     `/applications/${decision.applicationId}`,
-    true
+    { policyKey: "APPLICATION_DECISIONS" }
   );
 
   await createSystemNotification(
@@ -739,7 +739,7 @@ export async function approveHiringDecision(decisionId: string, chairId: string,
     "Hiring Decision Approved",
     `Your recommendation for ${decision.application.applicant.name} was approved by the hiring Chair.`,
     `/applications/${decision.applicationId}`,
-    true
+    { policyKey: "APPLICATION_DECISIONS" }
   );
 
   if (decision.application.applicant?.email) {
@@ -818,7 +818,7 @@ export async function returnHiringDecision(decisionId: string, chairId: string, 
     "Hiring Decision Returned",
     `Your recommendation for ${decision.application.applicant.name} was returned by the hiring Chair: ${chairNote.trim()}`,
     `/applications/${decision.applicationId}`,
-    true
+    { policyKey: "APPLICATION_DECISIONS" }
   );
 
   await createHiringAudit(chairId, "chapter_hiring_decision_returned", {
@@ -1209,7 +1209,7 @@ export async function submitApplication(formData: FormData) {
       "New Chapter Hiring Application",
       `A new application was submitted for ${position.title}.`,
       `/applications/${created.id}`,
-      true
+      { sendEmail: true }
     );
   }
 
@@ -1360,7 +1360,7 @@ export async function submitChapterProposal(formData: FormData) {
         ? `${chapterName} chapter proposal was updated by the applicant.`
         : `${chapterName} was proposed as a new chapter with a Chapter President application.`,
       `/applications/${application.id}`,
-      true
+      { sendEmail: true }
     );
   }
 
@@ -1506,7 +1506,7 @@ export async function postApplicationInterviewSlot(formData: FormData) {
     "Interview Slot Posted",
     `A new interview slot was posted for ${application.position.title}.`,
     `/applications/${applicationId}`,
-    true
+    { policyKey: "INTERVIEW_UPDATES" }
   );
 
   // Email applicant: interview scheduled
@@ -1596,7 +1596,7 @@ export async function postApplicationInterviewSlotsBulk(formData: FormData) {
     "Interview Slots Posted",
     `${slotDates.length} interview slot${slotDates.length > 1 ? "s were" : " was"} posted for ${application.position.title}.`,
     `/interviews?scope=hiring&view=mine&state=needs_action`,
-    true
+    { policyKey: "INTERVIEW_UPDATES" }
   );
 
   if (application.applicant?.email) {
@@ -1699,7 +1699,7 @@ export async function confirmApplicationInterviewSlot(formData: FormData) {
       "Interview Slot Confirmed",
       `${slot.application.applicant.name} confirmed an interview slot for ${slot.application.position.title}.`,
       `/applications/${slot.applicationId}`,
-      true
+      { policyKey: "INTERVIEW_UPDATES" }
     );
   }
 
@@ -1780,7 +1780,7 @@ export async function cancelApplicationInterviewSlot(formData: FormData) {
     "Interview Slot Cancelled",
     `An interview slot for ${slot.application.position.title} was cancelled.`,
     `/applications/${slot.applicationId}`,
-    true
+    { policyKey: "INTERVIEW_UPDATES" }
   );
 
   await createHiringAudit(actor.id, "chapter_hiring_interview_slot_cancelled", {
@@ -1848,7 +1848,7 @@ export async function markApplicationInterviewCompleted(formData: FormData) {
     "Interview Completed",
     `Your interview for ${slot.application.position.title} was marked complete.`,
     `/applications/${slot.applicationId}`,
-    true
+    { policyKey: "INTERVIEW_UPDATES" }
   );
 
   // Email applicant: interview completed
@@ -1949,7 +1949,7 @@ export async function completeApplicationInterviewAndNote(formData: FormData) {
     "Interview Completed",
     `Your interview for ${application.position.title} was completed and reviewer notes were saved.`,
     `/interviews?scope=hiring&view=mine`,
-    true
+    { policyKey: "INTERVIEW_UPDATES" }
   );
 
   await createHiringAudit(actor.id, "chapter_hiring_interview_completed_with_note", {

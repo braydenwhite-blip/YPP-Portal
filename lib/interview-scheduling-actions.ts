@@ -919,10 +919,11 @@ function toSlotView(
   };
 }
 
-async function processInterviewAutomation() {
+export async function runInterviewAutomation() {
   const now = new Date();
   const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-  const [twentyFourHourReminders, staleChapterEscalations, staleAdminEscalations] =
+  const in2Hours = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+  const [twentyFourHourReminders, twoHourReminders, staleChapterEscalations, staleAdminEscalations] =
     await Promise.all([
       prisma.interviewSchedulingRequest.findMany({
         where: {
@@ -941,6 +942,20 @@ async function processInterviewAutomation() {
               position: { select: { title: true } },
             },
           },
+        },
+      }),
+      prisma.interviewSchedulingRequest.findMany({
+        where: {
+          status: "BOOKED",
+          scheduledAt: {
+            gt: now,
+            lte: in2Hours,
+          },
+          reminder2SentAt: null,
+        },
+        include: {
+          interviewee: { select: { id: true, name: true, email: true } },
+          interviewer: { select: { id: true, name: true, email: true } },
         },
       }),
       prisma.interviewSchedulingRequest.findMany({
@@ -989,7 +1004,7 @@ async function processInterviewAutomation() {
         "Interview coming up",
         `Your interview with ${request.interviewer.name} is scheduled for ${when}.`,
         `/interviews/schedule`,
-        false
+        { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
       ),
       createSystemNotification(
         request.interviewerId,
@@ -997,7 +1012,7 @@ async function processInterviewAutomation() {
         "Interview coming up",
         `Your interview with ${request.interviewee.name} is scheduled for ${when}.`,
         `/interviews/schedule`,
-        false
+        { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
       ),
       sendInterviewLifecycleEmails({
         event: "REMINDER_24H",
@@ -1020,6 +1035,36 @@ async function processInterviewAutomation() {
     ]);
   }
 
+  for (const request of twoHourReminders) {
+    if (!request.scheduledAt) continue;
+    const when = request.scheduledAt.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+
+    await Promise.all([
+      createSystemNotification(
+        request.intervieweeId,
+        "SYSTEM",
+        "Interview coming up",
+        `Your interview with ${request.interviewer.name} starts at ${when}.`,
+        `/interviews/schedule`,
+        { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
+      ),
+      createSystemNotification(
+        request.interviewerId,
+        "SYSTEM",
+        "Interview coming up",
+        `Your interview with ${request.interviewee.name} starts at ${when}.`,
+        `/interviews/schedule`,
+        { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
+      ),
+      prisma.interviewSchedulingRequest.update({
+        where: { id: request.id },
+        data: { reminder2SentAt: new Date() },
+      }),
+    ]);
+  }
   for (const request of staleChapterEscalations) {
     if (
       !isInterviewRequestAtRisk({
@@ -1039,7 +1084,8 @@ async function processInterviewAutomation() {
         "SYSTEM",
         "Interview scheduling is at risk",
         `${request.interviewee.name} and ${request.interviewer.name} need scheduling attention.`,
-        `/interviews/schedule`
+        `/interviews/schedule`,
+        { policyKey: "INTERVIEW_UPDATES" }
       );
     }
 
@@ -1064,7 +1110,8 @@ async function processInterviewAutomation() {
         "SYSTEM",
         "Admin escalation: interview scheduling stalled",
         `${request.interviewee.name} and ${request.interviewer.name} still need scheduling help.`,
-        `/interviews/schedule`
+        `/interviews/schedule`,
+        { policyKey: "INTERVIEW_UPDATES" }
       );
     }
 
@@ -1530,7 +1577,7 @@ async function buildWorkflowViewForReadiness({
 
 export async function getInterviewScheduleData(): Promise<InterviewSchedulePageData> {
   const viewer = await getViewerContext();
-  await processInterviewAutomation();
+  await runInterviewAutomation();
 
   const isInterviewParticipant =
     viewer.isReviewer ||
@@ -2358,7 +2405,7 @@ export async function bookInterviewWorkflowSlot(formData: FormData) {
         "Interview booked",
         `Your interview with ${interviewer.name} has been booked.`,
         `/interviews/schedule`,
-        false
+        { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
       ),
       createSystemNotification(
         interviewerId,
@@ -2366,7 +2413,7 @@ export async function bookInterviewWorkflowSlot(formData: FormData) {
         "Interview booked",
         `${application.applicant.name} booked an interview with you.`,
         `/interviews/schedule`,
-        false
+        { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
       ),
       sendInterviewLifecycleEmails({
         event: "CONFIRMED",
@@ -2493,7 +2540,7 @@ export async function bookInterviewWorkflowSlot(formData: FormData) {
         "Readiness interview booked",
         `Your readiness interview with ${interviewer.name} has been booked.`,
         `/interviews/schedule`,
-        false
+        { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
       ),
       createSystemNotification(
         interviewerId,
@@ -2501,7 +2548,7 @@ export async function bookInterviewWorkflowSlot(formData: FormData) {
         "Readiness interview booked",
         `${gate.instructor.name} booked a readiness interview with you.`,
         `/interviews/schedule`,
-        false
+        { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
       ),
       sendInterviewLifecycleEmails({
         event: "CONFIRMED",
@@ -2586,7 +2633,7 @@ export async function requestInterviewReschedule(formData: FormData) {
       "Interview reschedule requested",
       `${viewer.userName} requested a new interview time.`,
       `/interviews/schedule`,
-      false
+      { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
     );
   }
 
@@ -2732,7 +2779,7 @@ export async function confirmInterviewReschedule(formData: FormData) {
       "Interview rescheduled",
       `Your interview was moved to ${scheduledAt.toLocaleString()}.`,
       `/interviews/schedule`,
-      false
+      { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
     ),
     createSystemNotification(
       interviewerId,
@@ -2740,7 +2787,7 @@ export async function confirmInterviewReschedule(formData: FormData) {
       "Interview rescheduled",
       `${request.intervieweeId === viewer.userId ? "The interviewee" : viewer.userName} confirmed a new time.`,
       `/interviews/schedule`,
-      false
+      { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
     ),
     sendInterviewLifecycleEmails({
       event: "RESCHEDULED",
@@ -2766,7 +2813,7 @@ export async function confirmInterviewReschedule(formData: FormData) {
 }
 
 export async function runInterviewSchedulingAutomation() {
-  await processInterviewAutomation();
+  await runInterviewAutomation();
 }
 
 export async function cancelInterviewWorkflow(formData: FormData) {
@@ -2861,7 +2908,7 @@ export async function cancelInterviewWorkflow(formData: FormData) {
       "Interview cancelled",
       "An interview booking was cancelled. Please choose a new time.",
       `/interviews/schedule`,
-      false
+      { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
     ),
     createSystemNotification(
       request.interviewerId,
@@ -2869,7 +2916,7 @@ export async function cancelInterviewWorkflow(formData: FormData) {
       "Interview cancelled",
       "An interview booking was cancelled.",
       `/interviews/schedule`,
-      false
+      { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
     ),
     sendInterviewLifecycleEmails({
       event: "CANCELLED",
