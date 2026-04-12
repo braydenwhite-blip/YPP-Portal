@@ -6,6 +6,7 @@ import {
   getEnabledFeatureKeysForUser,
   setUserFeatureGateRule,
 } from "@/lib/feature-gates";
+import { normalizeRoleList } from "@/lib/authorization";
 
 export async function GET(request: Request) {
   const session = await getSession();
@@ -53,7 +54,7 @@ export async function GET(request: Request) {
       enabledFeatureKeys: await getEnabledFeatureKeysForUser({
         userId: user.id,
         chapterId: user.chapterId,
-        roles: user.roles.map((role) => role.role),
+        roles: normalizeRoleList(user.roles, user.primaryRole),
         primaryRole: user.primaryRole,
       }),
     }))

@@ -50,10 +50,6 @@ export type InstructorApp = {
   gpa: string | null;
   classRank: string | null;
   hoursPerWeek: number | null;
-  whyYPP: string | null;
-  extracurriculars: string | null;
-  priorLeadership: string | null;
-  specialSkills: string | null;
   subjectsOfInterest: string | null;
   preferredStartDate: string | null;
   referralEmails: string | null;
@@ -80,13 +76,13 @@ const COLUMNS: KanbanColumnDef[] = [
   },
   {
     id: "to_interview",
-    title: "To Interview",
+    title: "Curriculum Overview",
     statuses: ["INTERVIEW_SCHEDULED"],
     color: "#0f766e",
   },
   {
     id: "awaiting_chair_decision",
-    title: "Interviewed/Awaiting Chair Decision",
+    title: "Overview Done / Awaiting Decision",
     statuses: ["INTERVIEW_COMPLETED", "APPROVED", "REJECTED"],
     color: "#7c3aed",
   },
@@ -100,7 +96,7 @@ function formatInstructorDeadline(app: InstructorApp): { text: string; className
   if (app.status === "INTERVIEW_SCHEDULED" && app.interviewScheduledAt) {
     const d = new Date(app.interviewScheduledAt);
     return {
-      text: `Interview ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`,
+      text: `Overview ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`,
       className: "kanban-card-deadline normal",
     };
   }

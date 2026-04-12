@@ -8,7 +8,13 @@ import {
   saveCurriculumDraft,
   submitCurriculumDraft,
 } from "@/lib/curriculum-draft-actions";
-import { isEditableCurriculumDraftStatus, isReadOnlyCurriculumDraftStatus } from "@/lib/curriculum-draft-lifecycle";
+import {
+  createComment,
+  deleteComment,
+  listComments,
+  resolveComment,
+} from "@/lib/curriculum-comment-actions";
+import { isEditableCurriculumDraftStatus } from "@/lib/curriculum-draft-lifecycle";
 import {
   buildSessionLabel,
   getWeeklyPlansInput,
@@ -22,22 +28,26 @@ import {
 } from "@/lib/curriculum-draft-progress";
 import {
   buildGuidedStudioJourney,
-  buildLessonDesignStudioHref,
   deriveStudioPhase,
   getStudioPhaseIndex,
   getStudioPhaseMeta,
   type StudioEntryContext,
   type StudioPhase,
 } from "@/lib/lesson-design-studio";
+import { openLessonDesignStudio } from "@/lib/lesson-design-studio-navigation";
 import { ActivityTemplates } from "./components/activity-templates";
 import { ExamplesLibrary } from "./components/examples-library";
 import { GuidedStudioShell } from "./components/guided-studio-shell";
 import { OnboardingTour } from "./components/onboarding-tour";
+import { CommentSidebar } from "./components/comment-sidebar";
 import { StudioCourseMapStep } from "./components/studio-course-map-step";
 import { StudioReadinessStep } from "./components/studio-readiness-step";
 import { StudioReviewLaunchStep } from "./components/studio-review-launch-step";
 import { StudioSessionsStep } from "./components/studio-sessions-step";
 import { StudioStartStep } from "./components/studio-start-step";
+import { QuickStartWizard } from "./components/quick-start-wizard";
+import { StudentPreviewPanel } from "./components/student-preview-panel";
+import { useBodyScrollLock } from "./components/use-body-scroll-lock";
 import { SEED_CURRICULA, type SeedCurriculum } from "./curriculum-seeds";
 import type { ExampleWeek } from "./examples-data";
 import {
@@ -45,9 +55,12 @@ import {
   normalizeAtHomeAssignmentType,
 } from "./types";
 import type {
+  CurriculumCommentAnchor,
+  CurriculumCommentRecord,
   LessonDesignDraftData,
   LessonDesignHistoryVersion,
   LessonDesignSnapshot,
+  StudioViewerAccess,
   StudioCourseConfig,
   StudioReviewRubric,
   StudioUnderstandingChecks,
@@ -59,6 +72,7 @@ interface StudioClientProps {
   userId: string;
   userName: string;
   draft: LessonDesignDraftData;
+  viewerAccess: StudioViewerAccess;
   entryContext?: StudioEntryContext;
   notice?: string | null;
   currentPhase?: StudioPhase;
@@ -277,10 +291,26 @@ function getStatusPill(status: string) {
   }
 }
 
+function matchesCommentAnchor(
+  comment: CurriculumCommentRecord,
+  anchor: {
+    anchorType: string;
+    anchorId?: string | null;
+    anchorField?: string | null;
+  }
+) {
+  return (
+    comment.anchorType === anchor.anchorType &&
+    (comment.anchorId ?? null) === (anchor.anchorId ?? null) &&
+    (comment.anchorField ?? null) === (anchor.anchorField ?? null)
+  );
+}
+
 export function StudioClient({
   userId,
   userName,
   draft,
+  viewerAccess,
   entryContext = "DIRECT",
   notice = null,
   currentPhase,
@@ -315,8 +345,16 @@ export function StudioClient({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showQuickStartWizard, setShowQuickStartWizard] = useState(false);
+  const [showStudentPreview, setShowStudentPreview] = useState(false);
+  const [showCommentSidebar, setShowCommentSidebar] = useState(false);
   const [templatesWeekId, setTemplatesWeekId] = useState<string | null>(null);
   const [showExamplesLibrary, setShowExamplesLibrary] = useState(false);
+  const [comments, setComments] = useState<CurriculumCommentRecord[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentsError, setCommentsError] = useState<string | null>(null);
+  const [activeCommentAnchor, setActiveCommentAnchor] =
+    useState<CurriculumCommentAnchor | null>(null);
   const [examplesLibraryError, setExamplesLibraryError] = useState<string | null>(
     null
   );
@@ -377,8 +415,9 @@ export function StudioClient({
   );
   type DraftSnapshot = LessonDesignSnapshot;
   const reviewStatus = currentStatus;
-  const isDraftEditable = isEditableCurriculumDraftStatus(reviewStatus);
-  const isDraftReadOnly = isReadOnlyCurriculumDraftStatus(reviewStatus);
+  const isDraftEditable =
+    viewerAccess.canEdit && isEditableCurriculumDraftStatus(reviewStatus);
+  const isDraftReadOnly = !isDraftEditable;
   const isApproved = reviewStatus === "APPROVED";
   const needsRevision = reviewStatus === "NEEDS_REVISION";
   const isReviewControlledStatus =
@@ -541,7 +580,7 @@ export function StudioClient({
 
       const runSave = async () => {
         if (!isMountedRef.current) return false;
-        if (!isEditableCurriculumDraftStatus(currentStatus)) return true;
+        if (!isDraftEditable) return true;
 
         inFlightSaveSignatureRef.current = signature;
         setSaveStatus("saving");
@@ -608,12 +647,10 @@ export function StudioClient({
             message.includes("Draft not found or unauthorized") ||
             message.includes("locked for review history")
           ) {
-            router.push(
-              buildLessonDesignStudioHref({
-                entryContext,
-                notice: "draft-unavailable",
-              })
-            );
+            openLessonDesignStudio({
+              entryContext,
+              notice: "draft-unavailable",
+            });
           }
           return false;
         } finally {
@@ -631,13 +668,12 @@ export function StudioClient({
       return queuedSave;
     },
     [
-      currentStatus,
       draft.id,
       entryContext,
       getErrorMessage,
       getSnapshotSignature,
+      isDraftEditable,
       pushToHistory,
-      router,
       showToast,
     ]
   );
@@ -776,19 +812,29 @@ export function StudioClient({
   const handleDuplicateWeek = useCallback(
     (weekId: string) => {
       if (!isDraftEditable) return;
-      let duplicatedTargetWeekId: string | null = null;
-      setWeeklyPlans((prev) => {
-        const sourceIndex = prev.findIndex((week) => week.id === weekId);
-        if (sourceIndex === -1) return prev;
+      const sourceIndex = weeklyPlans.findIndex((week) => week.id === weekId);
+      if (sourceIndex === -1) {
+        return;
+      }
 
-        const source = prev[sourceIndex];
-        const targetIndex = prev.findIndex(
-          (plan, index) => index !== sourceIndex && isBlankWeekPlan(plan)
+      const source = weeklyPlans[sourceIndex];
+      const targetIndex = weeklyPlans.findIndex(
+        (plan, index) => index !== sourceIndex && isBlankWeekPlan(plan)
+      );
+
+      if (targetIndex === -1) {
+        alert(
+          "There is not an empty session available to duplicate into yet. Clear a session first, then duplicate the pattern forward."
         );
-        if (targetIndex === -1) {
-          return prev;
-        }
+        return;
+      }
 
+      const duplicatedTargetWeekId = weeklyPlans[targetIndex]?.id ?? null;
+      if (!duplicatedTargetWeekId) {
+        return;
+      }
+
+      setWeeklyPlans((prev) => {
         const next = prev.map((plan, index) =>
           index === targetIndex
             ? {
@@ -808,21 +854,13 @@ export function StudioClient({
             : plan
         );
 
-        duplicatedTargetWeekId = next[targetIndex]?.id ?? null;
         triggerAutoSave(buildSnapshot({ weeklyPlans: next }));
         return next;
       });
 
-      if (!duplicatedTargetWeekId) {
-        alert(
-          "There is not an empty session available to duplicate into yet. Clear a session first, then duplicate the pattern forward."
-        );
-        return;
-      }
-
       setSelectedWeekId(duplicatedTargetWeekId);
     },
-    [buildSnapshot, isDraftEditable, triggerAutoSave]
+    [buildSnapshot, isDraftEditable, triggerAutoSave, weeklyPlans]
   );
 
   const handleAddActivity = useCallback(
@@ -1091,6 +1129,18 @@ export function StudioClient({
     [buildSnapshot, courseConfig, isDraftEditable, pushToHistory, triggerAutoSave]
   );
 
+  const handleGenerateQuickStart = useCallback(
+    (seed: SeedCurriculum) => {
+      setShowQuickStartWizard(false);
+      handleApplyStarterScaffold(seed);
+      showToast(
+        "success",
+        `${seed.label} starter generated. Now tune the course promise before you refine sessions.`
+      );
+    },
+    [handleApplyStarterScaffold, showToast]
+  );
+
   const handleExportPdf = useCallback(
     async (type: "student" | "instructor") => {
       if (isExporting || isSubmitting || isFlushing) return false;
@@ -1104,7 +1154,7 @@ export function StudioClient({
       setIsExporting(true);
 
       try {
-        if (isEditableCurriculumDraftStatus(currentStatus)) {
+        if (isDraftEditable) {
           const didSave = await flushDraftNow();
           if (!didSave) {
             exportWindow.close();
@@ -1121,7 +1171,7 @@ export function StudioClient({
         }
       }
     },
-    [currentStatus, draft.id, flushDraftNow, isExporting, isFlushing, isSubmitting]
+    [draft.id, flushDraftNow, isDraftEditable, isExporting, isFlushing, isSubmitting]
   );
 
   const handleSubmit = useCallback(async () => {
@@ -1355,13 +1405,11 @@ export function StudioClient({
 
     try {
       const result = await createWorkingCopyFromCurriculumDraft(draft.id);
-      router.push(
-        buildLessonDesignStudioHref({
-          entryContext,
-          draftId: result.draftId,
-          notice: result.reusedExisting ? "active-draft-reused" : null,
-        })
-      );
+      openLessonDesignStudio({
+        entryContext,
+        draftId: result.draftId,
+        notice: result.reusedExisting ? "active-draft-reused" : null,
+      });
     } catch (error) {
       alert(
         error instanceof Error
@@ -1369,7 +1417,262 @@ export function StudioClient({
           : "Failed to open a working copy."
       );
     }
-  }, [draft.id, entryContext, isWorkflowActionPending, router]);
+  }, [draft.id, entryContext, isWorkflowActionPending]);
+
+  const resolveCommentAnchorLabel = useCallback(
+    (
+      anchorType: string,
+      anchorId: string | null,
+      anchorField: string | null
+    ): CurriculumCommentAnchor => {
+      switch (anchorType) {
+        case "ACTIVITY": {
+          for (const week of weeklyPlans) {
+            const activity = week.activities.find((item) => item.id === anchorId);
+            if (!activity) {
+              continue;
+            }
+
+            return {
+              anchorType: "ACTIVITY",
+              anchorId,
+              anchorField,
+              label: `Activity: ${activity.title || "Untitled activity"}`,
+              detail: buildSessionLabel(week, courseConfig),
+            };
+          }
+
+          return {
+            anchorType: "ACTIVITY",
+            anchorId,
+            anchorField,
+            label: "Activity feedback",
+            detail: null,
+          };
+        }
+        case "SESSION": {
+          const week = weeklyPlans.find((item) => item.id === anchorId);
+          const sessionLabel = week
+            ? buildSessionLabel(week, courseConfig)
+            : "Session";
+          const fieldLabel =
+            anchorField === "objective"
+              ? "Session objective"
+              : anchorField === "title"
+                ? "Session title"
+                : "Session";
+
+          return {
+            anchorType: "SESSION",
+            anchorId,
+            anchorField,
+            label: `${sessionLabel}: ${fieldLabel}`,
+            detail: week?.title || null,
+          };
+        }
+        case "OUTCOME": {
+          const index = Number(anchorId ?? -1);
+          const outcomeNumber = Number.isFinite(index) && index >= 0 ? index + 1 : null;
+          return {
+            anchorType: "OUTCOME",
+            anchorId,
+            anchorField,
+            label: outcomeNumber ? `Outcome ${outcomeNumber}` : "Learning outcome",
+            detail:
+              outcomeNumber && outcomes[index]
+                ? outcomes[index]
+                : "Review feedback for this learning outcome.",
+          };
+        }
+        case "COURSE":
+        default: {
+          const label =
+            anchorField === "title"
+              ? "Course title"
+              : anchorField === "interestArea"
+                ? "Interest area"
+                : anchorField === "description"
+                  ? "Why this course matters"
+                  : "Course overview";
+
+          return {
+            anchorType: "COURSE",
+            anchorId,
+            anchorField,
+            label,
+            detail: null,
+          };
+        }
+      }
+    },
+    [courseConfig, outcomes, weeklyPlans]
+  );
+
+  const openCommentsForAnchor = useCallback((anchor: CurriculumCommentAnchor) => {
+    setActiveCommentAnchor(anchor);
+    setShowCommentSidebar(true);
+  }, []);
+
+  const clearCommentAnchorFocus = useCallback(() => {
+    setActiveCommentAnchor(null);
+  }, []);
+
+  const getCommentStatsForAnchor = useCallback(
+    (anchor: {
+      anchorType: string;
+      anchorId?: string | null;
+      anchorField?: string | null;
+    }) => {
+      const matchingComments = comments.filter((comment) =>
+        matchesCommentAnchor(comment, anchor)
+      );
+
+      return {
+        comments: matchingComments,
+        count: matchingComments.length,
+        unresolvedCount: matchingComments.filter((comment) => !comment.resolved)
+          .length,
+      };
+    },
+    [comments]
+  );
+
+  const loadComments = useCallback(async () => {
+    if (!viewerAccess.canView) {
+      setComments([]);
+      setCommentsError(null);
+      setCommentsLoading(false);
+      return;
+    }
+
+    setCommentsLoading(true);
+    setCommentsError(null);
+
+    try {
+      const nextComments = await listComments(draft.id);
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      setComments(nextComments);
+    } catch (error) {
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      const message = getErrorMessage(
+        error,
+        "Comments could not be loaded for this draft."
+      );
+      setCommentsError(message);
+      showToast("error", message);
+    } finally {
+      if (isMountedRef.current) {
+        setCommentsLoading(false);
+      }
+    }
+  }, [draft.id, getErrorMessage, showToast, viewerAccess.canView]);
+
+  const handleCreateComment = useCallback(
+    async (
+      anchor: CurriculumCommentAnchor,
+      body: string,
+      parentId?: string | null
+    ) => {
+      try {
+        const createdComment = await createComment({
+          draftId: draft.id,
+          anchorType: anchor.anchorType,
+          anchorId: anchor.anchorId ?? null,
+          anchorField: anchor.anchorField ?? null,
+          body,
+          parentId: parentId ?? null,
+        });
+
+        if (!isMountedRef.current) {
+          return;
+        }
+
+        setComments((current) =>
+          [...current, createdComment].sort((left, right) =>
+            left.createdAt.localeCompare(right.createdAt)
+          )
+        );
+        setCommentsError(null);
+        setActiveCommentAnchor(anchor);
+        setShowCommentSidebar(true);
+      } catch (error) {
+        showToast(
+          "error",
+          getErrorMessage(error, "This comment could not be saved.")
+        );
+      }
+    },
+    [draft.id, getErrorMessage, showToast]
+  );
+
+  const handleResolveComment = useCallback(
+    async (commentId: string, resolved: boolean) => {
+      try {
+        await resolveComment(commentId, resolved);
+
+        if (!isMountedRef.current) {
+          return;
+        }
+
+        setComments((current) =>
+          current.map((comment) =>
+            comment.id === commentId || comment.parentId === commentId
+              ? {
+                  ...comment,
+                  resolved,
+                  resolvedById: resolved ? userId : null,
+                  resolvedAt: resolved ? new Date().toISOString() : null,
+                  resolvedBy: resolved
+                    ? {
+                        id: userId,
+                        name: userName,
+                      }
+                    : null,
+                }
+              : comment
+          )
+        );
+        setCommentsError(null);
+      } catch (error) {
+        showToast(
+          "error",
+          getErrorMessage(error, "This comment could not be updated.")
+        );
+      }
+    },
+    [getErrorMessage, showToast, userId, userName]
+  );
+
+  const handleDeleteComment = useCallback(
+    async (commentId: string) => {
+      try {
+        await deleteComment(commentId);
+
+        if (!isMountedRef.current) {
+          return;
+        }
+
+        setComments((current) =>
+          current.filter(
+            (comment) => comment.id !== commentId && comment.parentId !== commentId
+          )
+        );
+        setCommentsError(null);
+      } catch (error) {
+        showToast(
+          "error",
+          getErrorMessage(error, "This comment could not be removed.")
+        );
+      }
+    },
+    [getErrorMessage, showToast]
+  );
 
   const restartOnboardingTour = useCallback(() => {
     try {
@@ -1385,6 +1688,10 @@ export function StudioClient({
     setManuallyRequestedTour(true);
     setTourInstanceKey((current) => current + 1);
   }, [onboardingStorageKey, showToast]);
+
+  useEffect(() => {
+    void loadComments();
+  }, [loadComments]);
 
   useEffect(() => {
     const normalized = normalizePlansForConfig(weeklyPlans, courseConfig);
@@ -1423,6 +1730,24 @@ export function StudioClient({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showHistory]);
+
+  useBodyScrollLock(showHistory);
+
+  const selectedWeek =
+    weeklyPlans.find((plan) => plan.id === selectedWeekId) ?? weeklyPlans[0] ?? null;
+
+  useEffect(() => {
+    if (activePhase !== "SESSIONS") {
+      setShowStudentPreview(false);
+    }
+  }, [activePhase]);
+
+  useEffect(() => {
+    if (!showStudentPreview) return;
+    if (!selectedWeek) {
+      setShowStudentPreview(false);
+    }
+  }, [selectedWeek, showStudentPreview]);
 
   const nonEmptyOutcomes = outcomes.filter((outcome) => outcome.trim().length > 0);
   const isDraftBlank =
@@ -1470,15 +1795,23 @@ export function StudioClient({
           : null;
       })()
     : null;
+  const unresolvedCommentCount = comments.filter(
+    (comment) => !comment.resolved
+  ).length;
+  const isReviewerView = viewerAccess.viewerKind === "REVIEWER";
   const readOnlyNotice = isDraftReadOnly
-    ? reviewStatus === "SUBMITTED"
-      ? "This curriculum is under review."
-      : reviewStatus === "APPROVED"
-        ? "This curriculum is approved."
-        : "This curriculum is preserved as review history."
+    ? isReviewerView
+      ? "Review mode is on."
+      : reviewStatus === "SUBMITTED"
+        ? "This curriculum is under review."
+        : reviewStatus === "APPROVED"
+          ? "This curriculum is approved."
+          : "This curriculum is preserved as review history."
     : null;
   const readOnlyBody = isDraftReadOnly
-    ? "You can still review the course, move between steps, and export PDFs here. Start a working copy when you want to keep editing without changing the submitted history."
+    ? isReviewerView
+      ? "You can move through the studio, leave comments, and resolve feedback here. Curriculum fields stay read-only so the review process stays separate from the author’s edits."
+      : "You can still review the course, move between steps, and export PDFs here. Start a working copy when you want to keep editing without changing the submitted history."
     : null;
   const heroActions = (
     <>
@@ -1493,7 +1826,7 @@ export function StudioClient({
           Open examples library
         </button>
       ) : null}
-      {isDraftReadOnly ? (
+      {isDraftReadOnly && !isReviewerView ? (
         <button
           type="button"
           className="button"
@@ -1528,6 +1861,49 @@ export function StudioClient({
     </>
   );
 
+  const hasToolbarActions =
+    viewerAccess.canComment || (activePhase === "SESSIONS" && selectedWeek);
+  const hasBlockingOverlay =
+    showExamplesLibrary ||
+    templatesWeekId !== null ||
+    showQuickStartWizard ||
+    showStudentPreview ||
+    showCommentSidebar ||
+    shouldRenderOnboardingTour ||
+    showHistory;
+  const toolbarActions = hasToolbarActions ? (
+    <>
+      {viewerAccess.canComment ? (
+        <button
+          type="button"
+          className="button secondary"
+          title={commentsError ?? undefined}
+          onClick={() => {
+            setActiveCommentAnchor(null);
+            setShowCommentSidebar(true);
+          }}
+        >
+          {commentsLoading
+            ? "Comments..."
+            : unresolvedCommentCount > 0
+              ? `Comments (${unresolvedCommentCount} open)`
+              : comments.length > 0
+                ? `Comments (${comments.length})`
+                : "Comments"}
+        </button>
+      ) : null}
+      {activePhase === "SESSIONS" && selectedWeek ? (
+        <button
+          type="button"
+          className="button secondary"
+          onClick={() => setShowStudentPreview(true)}
+        >
+          Preview session
+        </button>
+      ) : null}
+    </>
+  ) : null;
+
   const stepContent =
     activePhase === "START" ? (
       <StudioStartStep
@@ -1538,6 +1914,7 @@ export function StudioClient({
         onApplyStarterScaffold={handleApplyStarterScaffold}
         onMoveForward={() => setActivePhase("COURSE_MAP")}
         onOpenStarterTour={restartOnboardingTour}
+        onOpenQuickStartWizard={() => setShowQuickStartWizard(true)}
       />
     ) : activePhase === "COURSE_MAP" ? (
       <StudioCourseMapStep
@@ -1546,6 +1923,10 @@ export function StudioClient({
         interestArea={interestArea}
         outcomes={outcomes}
         courseConfig={courseConfig}
+        currentUserId={userId}
+        canComment={viewerAccess.canComment}
+        canResolveComments={viewerAccess.canResolveComments}
+        getCommentStats={getCommentStatsForAnchor}
         blockers={journey.blockers}
         understandingChecks={understandingChecks}
         isReadOnly={isDraftReadOnly}
@@ -1553,12 +1934,20 @@ export function StudioClient({
         onPhaseChange={setActivePhase}
         onAnswerUnderstandingCheck={handleAnswerUnderstandingCheck}
         onOpenExamplesLibrary={() => openExamplesLibrary(null)}
+        onOpenComments={openCommentsForAnchor}
+        onCreateComment={handleCreateComment}
+        onResolveComment={handleResolveComment}
+        onDeleteComment={handleDeleteComment}
       />
     ) : activePhase === "SESSIONS" ? (
       <StudioSessionsStep
         interestArea={interestArea}
         courseConfig={courseConfig}
         weeklyPlans={weeklyPlans}
+        currentUserId={userId}
+        canComment={viewerAccess.canComment}
+        canResolveComments={viewerAccess.canResolveComments}
+        getCommentStats={getCommentStatsForAnchor}
         blockers={journey.blockers}
         understandingChecks={understandingChecks}
         selectedWeekId={selectedWeekId}
@@ -1576,6 +1965,10 @@ export function StudioClient({
         onImportExampleWeek={handleImportWeek}
         onPhaseChange={setActivePhase}
         onAnswerUnderstandingCheck={handleAnswerUnderstandingCheck}
+        onOpenComments={openCommentsForAnchor}
+        onCreateComment={handleCreateComment}
+        onResolveComment={handleResolveComment}
+        onDeleteComment={handleDeleteComment}
       />
     ) : activePhase === "READINESS" ? (
       <StudioReadinessStep
@@ -1598,6 +1991,7 @@ export function StudioClient({
         isApproved={isApproved}
         needsRevision={needsRevision}
         isActionPending={isWorkflowActionPending}
+        canCreateWorkingCopy={!isReviewerView}
         interestArea={interestArea}
         onPhaseChange={setActivePhase}
         onExportPdf={handleExportPdf}
@@ -1623,9 +2017,11 @@ export function StudioClient({
       workflowNotice={workflowNotice}
       readOnlyNotice={readOnlyNotice}
       readOnlyBody={readOnlyBody}
+      isModalOpen={hasBlockingOverlay}
       toast={toast}
       journey={journey}
       onPhaseChange={setActivePhase}
+      toolbarActions={toolbarActions}
       heroActions={heroActions}
     >
       {stepContent}
@@ -1668,6 +2064,37 @@ export function StudioClient({
         }}
       />
 
+      <QuickStartWizard
+        open={showQuickStartWizard}
+        seeds={SEED_CURRICULA}
+        recommendedSeedId={recommendedSeed.id}
+        readOnly={isDraftReadOnly}
+        onClose={() => setShowQuickStartWizard(false)}
+        onGenerate={(seed) => handleGenerateQuickStart(seed)}
+      />
+
+      <StudentPreviewPanel
+        open={showStudentPreview}
+        week={selectedWeek}
+        courseConfig={courseConfig}
+        onClose={() => setShowStudentPreview(false)}
+      />
+
+      <CommentSidebar
+        open={showCommentSidebar}
+        comments={comments}
+        currentUserId={userId}
+        canComment={viewerAccess.canComment}
+        canResolveComments={viewerAccess.canResolveComments}
+        activeAnchor={activeCommentAnchor}
+        onClose={() => setShowCommentSidebar(false)}
+        onClearAnchorFocus={clearCommentAnchorFocus}
+        onCreateComment={handleCreateComment}
+        onResolveComment={handleResolveComment}
+        onDeleteComment={handleDeleteComment}
+        resolveAnchorLabel={resolveCommentAnchorLabel}
+      />
+
       {shouldRenderOnboardingTour ? (
         <OnboardingTour
           key={`${onboardingStorageKey}_${tourInstanceKey}`}
@@ -1683,6 +2110,9 @@ export function StudioClient({
           <div
             className="cbs-history-modal"
             onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Version history"
           >
             <div className="cbs-history-header">
               <h3 className="cbs-history-title">Version History</h3>

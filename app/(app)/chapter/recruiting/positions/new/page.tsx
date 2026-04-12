@@ -3,6 +3,9 @@ import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { createChapterPosition } from "@/lib/application-actions";
+import { normalizeRoleList } from "@/lib/authorization";
+import { RoleType } from "@prisma/client";
+import { whereUserHasAnyRole } from "@/lib/user-role-where";
 
 export default async function NewChapterPositionPage() {
   const session = await getSession();
@@ -15,6 +18,7 @@ export default async function NewChapterPositionPage() {
     select: {
       id: true,
       chapterId: true,
+      primaryRole: true,
       chapter: {
         select: {
           id: true,
@@ -31,7 +35,7 @@ export default async function NewChapterPositionPage() {
     redirect("/login");
   }
 
-  const roles = user.roles.map((role) => role.role);
+  const roles = normalizeRoleList(user.roles, user.primaryRole);
   const isAdmin = roles.includes("ADMIN");
   const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
 
@@ -67,15 +71,11 @@ export default async function NewChapterPositionPage() {
 
   const chapterLeads = isAdmin
     ? await prisma.user.findMany({
-        where: {
-          roles: {
-            some: {
-              role: {
-                in: ["ADMIN", "CHAPTER_PRESIDENT", "STAFF"],
-              },
-            },
-          },
-        },
+        where: whereUserHasAnyRole([
+          RoleType.ADMIN,
+          RoleType.CHAPTER_PRESIDENT,
+          RoleType.STAFF,
+        ]),
         select: {
           id: true,
           name: true,

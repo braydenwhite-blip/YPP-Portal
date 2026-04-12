@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { RoleType } from "@prisma/client";
+import { whereUserHasRole } from "@/lib/user-role-where";
 
 // Cron job to recalculate badge rarity tiers
 // POST /api/badge-rarity (protected by CRON_SECRET)
@@ -11,7 +13,7 @@ export async function POST(request: Request) {
 
   try {
     const totalStudents = await prisma.user.count({
-      where: { primaryRole: "STUDENT" },
+      where: whereUserHasRole(RoleType.STUDENT),
     });
 
     if (totalStudents === 0) {

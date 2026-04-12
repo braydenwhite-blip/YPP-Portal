@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { createChapter, updateChapter, deleteChapter } from "@/lib/chapter-actions";
 import ChapterTable from "./chapter-table";
+import { hasRole } from "@/lib/authorization";
 
 export default async function AdminChaptersPage() {
   const session = await getSession();
@@ -26,13 +27,13 @@ export default async function AdminChaptersPage() {
 
   const chapterData = chapters.map((chapter) => {
     const instructors = chapter.users.filter((u) =>
-      u.roles.some((r) => r.role === "INSTRUCTOR")
+      hasRole(u.roles, "INSTRUCTOR", u.primaryRole)
     );
     const students = chapter.users.filter((u) =>
-      u.roles.some((r) => r.role === "STUDENT")
+      hasRole(u.roles, "STUDENT", u.primaryRole)
     );
     const leads = chapter.users.filter((u) =>
-      u.roles.some((r) => r.role === "CHAPTER_PRESIDENT")
+      hasRole(u.roles, "CHAPTER_PRESIDENT", u.primaryRole)
     );
 
     return {

@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { RoleType } from "@prisma/client";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
-import PageHelp from "@/components/page-help";
 import InstructorApplicantsClient from "./client";
 import InstructorKanbanBoard from "./kanban-board";
 
@@ -82,19 +81,13 @@ export default async function AdminInstructorApplicantsPage() {
           <span className="badge">{isAdmin ? "Admin" : "Chapter President"}</span>
           <h1 className="page-title">Instructor Applicants</h1>
           <p className="page-subtitle">
-            Review candidates in the same four-step hiring board from the mockup: New Applications, To Review, To Interview, and Interviewed/Awaiting Chair Decision.
+            Review candidates on a four-step board: New Applications, To Review, Curriculum Overview (scheduled session), then Overview Done / Awaiting Decision. Treat the overview as a collaborative walkthrough of their teaching approach — not a scored interview.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <InstructorApplicantsClient applications={serialized as any} />
         </div>
       </div>
-
-      <PageHelp
-        purpose="This page is the shared hiring board for instructor applications, organized into the exact four review lanes used by the approved mockup."
-        firstStep="Start in New Applications, assign ownership, then move each applicant forward only when the next action is clear."
-        nextStep="Cards move from review to interview to final decision, and the last lane keeps interviewed applicants visible until the decision is fully closed out."
-      />
 
       <div className="grid four" style={{ marginTop: 20, marginBottom: 20 }}>
         <div className="card kpi">
@@ -107,11 +100,11 @@ export default async function AdminInstructorApplicantsPage() {
         </div>
         <div className="card kpi">
           <div className="kpi-value">{toInterview}</div>
-          <div className="kpi-label">To Interview</div>
+          <div className="kpi-label">Curriculum overview</div>
         </div>
         <div className="card kpi">
           <div className="kpi-value">{interviewedAwaitingDecision}</div>
-          <div className="kpi-label">Interviewed / Decision</div>
+          <div className="kpi-label">Overview done / decision</div>
         </div>
       </div>
 

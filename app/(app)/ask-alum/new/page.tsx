@@ -4,7 +4,7 @@ import Link from "next/link";
 
 export default async function NewQuestionPage() {
   const session = await getSession();
-  if (!session?.user?.id || session.user.primaryRole !== "STUDENT") {
+  if (!session?.user?.id || !session.user.roles.includes("STUDENT")) {
     redirect("/ask-alum");
   }
 

@@ -2,7 +2,8 @@
 
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
-import { Prisma } from "@prisma/client";
+import { Prisma, RoleType } from "@prisma/client";
+import { whereUserHasRole } from "@/lib/user-role-where";
 
 async function requireAdmin() {
   const session = await getSession();
@@ -85,9 +86,9 @@ export async function getDashboardAnalytics() {
     totalCertificates
   ] = await Promise.all([
     prisma.user.count(),
-    prisma.user.count({ where: { primaryRole: "INSTRUCTOR" } }),
-    prisma.user.count({ where: { primaryRole: "STUDENT" } }),
-    prisma.user.count({ where: { primaryRole: "PARENT" } }),
+    prisma.user.count({ where: whereUserHasRole(RoleType.INSTRUCTOR) }),
+    prisma.user.count({ where: whereUserHasRole(RoleType.STUDENT) }),
+    prisma.user.count({ where: whereUserHasRole(RoleType.PARENT) }),
     prisma.course.count(),
     prisma.enrollment.count({ where: { status: "ENROLLED" } }),
     prisma.certificate.count()

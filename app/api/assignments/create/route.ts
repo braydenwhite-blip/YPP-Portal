@@ -37,7 +37,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Course not found" }, { status: 404 });
     }
 
-    if (course.leadInstructorId !== session.user.id && session.user.primaryRole !== "ADMIN") {
+    if (
+      course.leadInstructorId !== session.user.id &&
+      !session.user.roles.includes("ADMIN")
+    ) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 

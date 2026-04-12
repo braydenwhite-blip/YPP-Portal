@@ -6,6 +6,7 @@ import {
   getActivityTypeConfig,
   type ActivityTemplateData,
 } from "./activity-template-data";
+import { useBodyScrollLock } from "./use-body-scroll-lock";
 
 interface ActivityTemplatesProps {
   open: boolean;
@@ -14,6 +15,8 @@ interface ActivityTemplatesProps {
 }
 
 export function ActivityTemplates({ open, onClose, onInsert }: ActivityTemplatesProps) {
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
 
@@ -44,7 +47,6 @@ export function ActivityTemplates({ open, onClose, onInsert }: ActivityTemplates
         aria-modal="true"
         aria-label="Activity templates"
       >
-        {/* Header */}
         <div className="cbs-templates-header">
           <div>
             <p className="cbs-templates-eyebrow">Activity library</p>
@@ -52,6 +54,17 @@ export function ActivityTemplates({ open, onClose, onInsert }: ActivityTemplates
             <p className="cbs-templates-copy">
               Pick a template to insert the bones of an activity, then tune the details in the properties panel.
             </p>
+            <div className="cbs-templates-meta">
+              <span>{ACTIVITY_TEMPLATE_CATEGORIES.length} curated categories</span>
+              <span aria-hidden="true">•</span>
+              <span>
+                {ACTIVITY_TEMPLATE_CATEGORIES.reduce(
+                  (count, category) => count + category.templates.length,
+                  0
+                )}{" "}
+                starter activities
+              </span>
+            </div>
           </div>
           <button
             className="cbs-templates-close"
@@ -62,14 +75,18 @@ export function ActivityTemplates({ open, onClose, onInsert }: ActivityTemplates
           </button>
         </div>
 
-        {/* Body */}
         <div className="cbs-templates-body">
           {ACTIVITY_TEMPLATE_CATEGORIES.map((category) => (
             <section key={category.label} className="cbs-templates-category">
-              <h3 className="cbs-templates-category-header">
-                <span className="cbs-templates-category-icon">{category.icon}</span>
-                {category.label}
-              </h3>
+              <div className="cbs-templates-category-header">
+                <div className="cbs-templates-category-title-row">
+                  <span className="cbs-templates-category-icon">{category.icon}</span>
+                  <h3 className="cbs-templates-category-title">{category.label}</h3>
+                </div>
+                <p className="cbs-templates-category-copy">
+                  {category.templates.length} options to shape this part of the lesson arc.
+                </p>
+              </div>
 
               <div className="cbs-templates-grid">
                 {category.templates.map((template) => {

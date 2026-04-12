@@ -11,7 +11,6 @@ import {
   matchesMessageCenterTab,
   normalizeMessageCenterTab,
 } from "@/lib/message-center";
-import PageHelp from "@/components/page-help";
 
 function formatTimestamp(date: Date): string {
   const now = new Date();
@@ -87,12 +86,6 @@ export default async function MessagesPage({
           </p>
         </div>
       </div>
-
-      <PageHelp
-        purpose="This page is the shared inbox for direct and parent conversation threads."
-        firstStep="Use the tabs to narrow to the conversation type you need, then open the newest unread thread first."
-        nextStep="Replies stay tied to the same shared thread so people can find the full history in one place."
-      />
 
       <div
         className="card"

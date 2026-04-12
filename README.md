@@ -85,12 +85,15 @@ Dedicated portal for YPP Pathways (curriculum structure, instructor training, me
 ## Login Accounts (seeded)
 | Email | Role |
 |-------|------|
-| `brayden.white@youthpassionproject.org` | Admin + Instructor |
-| `carlygelles@gmail.com` | Mentor + Staff |
-| `avery.lin@youthpassionproject.org` | Instructor |
-| `jordan.patel@youthpassionproject.org` | Student |
+| `brayden.white@youthpassionproject.org` | Admin + Instructor (The Frisch School) |
+| `anthea.zamir@youthpassionproject.org` | Admin—full access (Super Admin + all admin subtypes; Seattle Chapter) |
+| `carlygelles@gmail.com` | Mentor + Staff (Boston Chapter) |
+| `avery.lin@youthpassionproject.org` | Instructor (The Frisch School) |
+| `jordan.patel@youthpassionproject.org` | Student (The Frisch School) |
 
 **Password for all seeded users:** Set via the `SEED_PASSWORD` environment variable before running `npm run db:seed`.
+
+**Local sign-in:** These emails use legacy password login against the database (see `lib/legacy-auth-config.ts`). Production setups may sync the same users to Supabase Auth instead.
 
 ## Database Deployment
 

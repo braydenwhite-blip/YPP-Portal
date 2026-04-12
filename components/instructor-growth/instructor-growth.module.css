@@ -1,0 +1,787 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.heroGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr);
+  gap: 16px;
+}
+
+.surfaceCard {
+  border: 1px solid #e7e2d9;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfaf7 100%);
+  box-shadow: 0 1px 0 rgba(30, 27, 24, 0.02);
+}
+
+.heroCard {
+  padding: 24px;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8a8277;
+}
+
+.heroTitleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.heroTitle {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 38px);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: #1f1c18;
+}
+
+.heroSubtext {
+  margin: 10px 0 0;
+  max-width: 58ch;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #6f675d;
+}
+
+.tierBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tierBadgeIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.progressWrap {
+  margin-top: 22px;
+}
+
+.progressHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: #6f675d;
+}
+
+.progressTrack {
+  height: 10px;
+  width: 100%;
+  border-radius: 999px;
+  background: #efebe2;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: inherit;
+  transition: width 160ms ease;
+}
+
+.progressFoot {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #6f675d;
+}
+
+.heroMetaGrid {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metaCell {
+  padding: 14px;
+  border-radius: 14px;
+  background: #f7f4ee;
+  border: 1px solid #ece6dc;
+}
+
+.metaValue {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #1f1c18;
+}
+
+.metaLabel {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #6f675d;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mentorCard {
+  padding: 20px;
+}
+
+.mentorName {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+  color: #1f1c18;
+}
+
+.mentorMeta {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: #6f675d;
+  line-height: 1.6;
+}
+
+.notice {
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid #eadfcf;
+  background: #fbf6ed;
+  color: #6b5331;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.alert {
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid #efcfca;
+  background: #fff5f3;
+  color: #8f2f2f;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 21px;
+  letter-spacing: -0.02em;
+  color: #1f1c18;
+}
+
+.sectionIntro {
+  margin: 6px 0 0;
+  max-width: 64ch;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #6f675d;
+}
+
+.sectionCard {
+  padding: 20px;
+}
+
+.tierRail {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.tierButton {
+  border: 1px solid #e7e2d9;
+  border-radius: 16px;
+  background: #fff;
+  padding: 14px 10px 12px;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.tierButtonActive {
+  border-width: 1.5px;
+  background: #fbfaf7;
+}
+
+.tierButtonDot {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 4px;
+  font-size: 14px;
+}
+
+.tierButtonName {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1f1c18;
+}
+
+.tierButtonXp {
+  font-size: 11px;
+  color: #8a8277;
+}
+
+.tierPanel {
+  border: 1px solid #ebe4d8;
+  border-radius: 18px;
+  padding: 18px;
+  background: #fbfaf7;
+}
+
+.tierPanelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.benefitGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.benefitCard {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid #e8e1d5;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #544d45;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.summaryCard {
+  padding: 18px;
+}
+
+.summaryValue {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #1f1c18;
+}
+
+.summaryLabel {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #6f675d;
+}
+
+.dualGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  gap: 16px;
+}
+
+.rulesGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ruleCard {
+  padding: 16px;
+}
+
+.ruleHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ruleCategory {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ruleDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.ruleList {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ruleRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee7dc;
+}
+
+.ruleRow:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.ruleTitle {
+  margin: 0;
+  font-size: 13px;
+  color: #29241f;
+}
+
+.ruleDescription {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #7b7267;
+}
+
+.xpChip {
+  align-self: flex-start;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.breakdownStack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.breakdownCard {
+  padding: 16px;
+}
+
+.breakdownRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid #eee7dc;
+}
+
+.breakdownRow:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.activityList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.activityCard {
+  padding: 16px;
+}
+
+.activityTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.activityTitle {
+  margin: 0;
+  font-size: 15px;
+  color: #1f1c18;
+}
+
+.activityMeta {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #7b7267;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.inlineLink {
+  color: #475467;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.badgeGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.badgeCard {
+  padding: 16px 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+.badgeLocked {
+  background: linear-gradient(180deg, #fbfaf8 0%, #f6f4ef 100%);
+  opacity: 0.8;
+}
+
+.badgeUnlockedGlow {
+  position: absolute;
+  inset: auto -12px -24px auto;
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+  opacity: 0.12;
+  pointer-events: none;
+}
+
+.badgeIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.badgeName {
+  margin: 0;
+  font-size: 14px;
+  color: #1f1c18;
+}
+
+.badgeDesc {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #6f675d;
+}
+
+.badgeFlavor {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #8a8277;
+  font-style: italic;
+}
+
+.claimShell {
+  padding: 18px;
+}
+
+.claimPanelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.claimPrompt {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: #6f675d;
+  line-height: 1.6;
+}
+
+.claimForm {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fieldFull {
+  grid-column: 1 / -1;
+}
+
+.fieldLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: #5f584f;
+}
+
+.input,
+.textarea,
+.select {
+  width: 100%;
+  border: 1px solid #dfd8cd;
+  border-radius: 12px;
+  background: #fff;
+  padding: 11px 12px;
+  font: inherit;
+  color: #1f1c18;
+}
+
+.textarea {
+  min-height: 140px;
+  resize: vertical;
+}
+
+.fieldHint {
+  font-size: 12px;
+  color: #8a8277;
+  line-height: 1.5;
+}
+
+.buttonRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 2px;
+}
+
+.primaryButton {
+  border: 0;
+  border-radius: 999px;
+  padding: 11px 16px;
+  background: #1f1c18;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.secondaryButton {
+  border: 1px solid #dfd8cd;
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: #fff;
+  color: #2d2924;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.emptyState {
+  padding: 24px;
+  text-align: center;
+  color: #7b7267;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.reviewGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.9fr);
+  gap: 16px;
+}
+
+.kanbanBoard {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(280px, 1fr));
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.kanbanLane {
+  min-width: 280px;
+  padding: 14px;
+  background: linear-gradient(180deg, #fbfaf7 0%, #f7f4ee 100%);
+}
+
+.kanbanLaneHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.kanbanLaneIntro {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #7b7267;
+}
+
+.kanbanCount {
+  min-width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ece7dc;
+  color: #5f584f;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.kanbanStack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.kanbanCard {
+  padding: 14px;
+}
+
+.reviewForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.reviewTextarea {
+  min-height: 90px;
+}
+
+.reviewButtonRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.flagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f5f1e8;
+  border: 1px solid #e8dfd0;
+  color: #6b5331;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.flagWarning {
+  background: #fff3e7;
+  border-color: #f2cf9c;
+  color: #9a6700;
+}
+
+.mutedBlock {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #f8f6f1;
+  border: 1px solid #ece6dc;
+  color: #6f675d;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+@media (max-width: 1180px) {
+  .heroGrid,
+  .dualGrid,
+  .reviewGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .summaryGrid,
+  .heroMetaGrid,
+  .rulesGrid,
+  .badgeGrid,
+  .claimForm,
+  .tierRail {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .heroCard,
+  .mentorCard,
+  .sectionCard,
+  .summaryCard,
+  .claimShell,
+  .activityCard,
+  .ruleCard,
+  .badgeCard {
+    padding: 16px;
+  }
+
+  .summaryGrid,
+  .heroMetaGrid,
+  .rulesGrid,
+  .badgeGrid,
+  .claimForm,
+  .tierRail,
+  .benefitGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .heroTitleRow,
+  .sectionHeader,
+  .claimPanelHeader,
+  .buttonRow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

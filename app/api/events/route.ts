@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
+import { normalizeRoleList } from "@/lib/authorization";
 
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -12,7 +13,8 @@ export async function GET(request: NextRequest) {
     where: { id: session.user.id },
     include: { roles: { select: { role: true } } },
   });
-  const isAdmin = user?.roles.some((role) => role.role === "ADMIN") ?? false;
+  const roles = user ? normalizeRoleList(user.roles, user.primaryRole) : [];
+  const isAdmin = roles.includes("ADMIN");
   const chapterId = user?.chapterId ?? null;
 
   const { searchParams } = new URL(request.url);

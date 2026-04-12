@@ -79,7 +79,7 @@ export default async function TrainingModulePage({
       ? await getPreferredCurriculumDraftForStudioSurface()
       : null;
 
-  const [assignment, videoProgress, checkpointCompletions, quizAttempts, evidenceSubmissions, nextModule] =
+  const [assignment, videoProgress, quizAttempts, evidenceSubmissions, nextModule] =
     await Promise.all([
       withPrismaFallback(
         "training-module:assignment",
@@ -106,24 +106,6 @@ export default async function TrainingModulePage({
             },
           }),
         null
-      ),
-      withPrismaFallback(
-        "training-module:checkpoint-completions",
-        () =>
-          prisma.trainingCheckpointCompletion.findMany({
-            where: {
-              userId: learnerId,
-              checkpoint: {
-                moduleId: trainingModule.id,
-              },
-            },
-            select: {
-              checkpointId: true,
-              completedAt: true,
-              notes: true,
-            },
-          }),
-        []
       ),
       withPrismaFallback(
         "training-module:quiz-attempts",
@@ -167,16 +149,6 @@ export default async function TrainingModulePage({
         null
       ),
     ]);
-
-  const checkpointCompletionMap = new Map(
-    checkpointCompletions.map((completion) => [
-      completion.checkpointId,
-      {
-        completedAt: completion.completedAt,
-        notes: completion.notes,
-      },
-    ])
-  );
 
   if (isStudentOnly && !assignment) {
     redirect("/student-training");
@@ -257,11 +229,7 @@ export default async function TrainingModulePage({
           id: checkpoint.id,
           title: checkpoint.title,
           description: checkpoint.description,
-          required: checkpoint.required,
           sortOrder: checkpoint.sortOrder,
-          completed: checkpointCompletionMap.has(checkpoint.id),
-          completedAt: checkpointCompletionMap.get(checkpoint.id)?.completedAt?.toISOString() ?? null,
-          notes: checkpointCompletionMap.get(checkpoint.id)?.notes ?? null,
         })),
         quizQuestions: normalizedQuizQuestions,
         videos: trainingModule.videos.map((video) => ({

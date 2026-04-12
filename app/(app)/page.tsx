@@ -20,7 +20,6 @@ import AtRiskPanel from "@/components/dashboard/at-risk-panel";
 import { getAtRiskChapters } from "@/lib/governance/actions";
 import LegacyOverviewPage from "./legacy-overview-page";
 import StudentHome from "@/components/dashboard/student-home";
-import PageHelp from "@/components/page-help";
 
 function isMissingTableError(error: unknown) {
   return (
@@ -99,12 +98,6 @@ async function renderAdminWorkflowHome(params: {
           </p>
         </div>
       </div>
-
-      <PageHelp
-        purpose="This home page is your role-based command center for assigned work and recent alerts."
-        firstStep="Open the first next action with the nearest due date or the item that is already assigned to you."
-        nextStep="When you finish an action, the workflow record updates and the next owner or next stage appears automatically."
-      />
 
       {params.adminSubtypes.length === 0 ? (
         <div className="card" style={{ marginTop: 16, marginBottom: 16 }}>
@@ -446,17 +439,48 @@ export default async function OverviewPage() {
   const isStudent = dashboard.role === "STUDENT";
 
   if (isStudent) {
+    let recentNotifications: {
+      id: string;
+      title: string;
+      body: string;
+      link: string | null;
+      isRead: boolean;
+      createdAt: string;
+      type: string;
+    }[] = [];
+
+    try {
+      const rows = await prisma.notification.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        take: 6,
+        select: {
+          id: true,
+          title: true,
+          body: true,
+          link: true,
+          isRead: true,
+          createdAt: true,
+          type: true,
+        },
+      });
+      recentNotifications = rows.map((n) => ({
+        ...n,
+        createdAt: n.createdAt.toISOString(),
+      }));
+    } catch {
+      recentNotifications = [];
+    }
+
     return (
       <StudentHome
         firstName={firstName}
+        roleLabel={formatDashboardRoleLabel("STUDENT")}
         todayDateLabel={todayDateLabel}
-        unreadMessages={unreadMessages}
         unreadNotifications={unreadNotifications}
         snapshot={studentSnapshot}
-        pathways={dashboard.activePathways ?? []}
-        kpis={dashboard.kpis}
         nextActions={dashboard.nextActions}
-        queues={dashboard.queues}
+        recentNotifications={recentNotifications}
       />
     );
   }

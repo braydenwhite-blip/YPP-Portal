@@ -322,14 +322,11 @@ function SortableModuleCard({
             <span className={`pill pill-small ${mod.videoUrl ? "pill-success" : "pill-pending"}`}>
               Video {mod.videoUrl ? "Configured" : "Not set"}
             </span>
-            <span className={`pill pill-small ${requiredCheckpointCount > 0 ? "pill-success" : "pill-pending"}`}>
-              Checkpoints: {requiredCheckpointCount} required
+            <span className={`pill pill-small ${mod.checkpoints.length > 0 ? "pill-success" : "pill-pending"}`}>
+              Goals: {mod.checkpoints.length}
             </span>
             <span className={`pill pill-small ${mod.requiresQuiz ? "pill-pathway" : "pill-pending"}`}>
               Quiz {mod.requiresQuiz ? `On (${mod.quizQuestions.length} Qs)` : "Off"}
-            </span>
-            <span className={`pill pill-small ${mod.requiresEvidence ? "pill-pathway" : "pill-pending"}`}>
-              Evidence {mod.requiresEvidence ? "Required" : "Optional"}
             </span>
             <span className="pill pill-small">Pass: {mod.passScorePct}%</span>
           </div>
@@ -369,9 +366,12 @@ function SortableModuleCard({
             </form>
           </div>
 
-          {/* Checkpoints */}
+          {/* Module Goals */}
           <div style={{ marginBottom: 16 }}>
-            <h4 style={{ marginBottom: 8 }}>Checkpoints</h4>
+            <h4 style={{ marginBottom: 8 }}>Module Goals</h4>
+            <p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--muted)" }}>
+              Goals are displayed above the video as read-only learning objectives. They are not required for module completion.
+            </p>
             {mod.checkpoints.length === 0 ? (
               <p className="empty" style={{ marginTop: 0 }}>No checkpoints yet.</p>
             ) : (
@@ -397,10 +397,6 @@ function SortableModuleCard({
                       <label className="form-row">
                         Description
                         <textarea className="input" name="description" rows={2} defaultValue={cp.description ?? ""} />
-                      </label>
-                      <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 14 }}>
-                        <input type="checkbox" name="required" defaultChecked={cp.required} />
-                        Required checkpoint
                       </label>
                       <div style={{ display: "flex", gap: 8 }}>
                         <button className="button small" type="submit">Save</button>
@@ -429,7 +425,7 @@ function SortableModuleCard({
                   <input className="input" name="contentKey" placeholder="foundations_cp_06" />
                 </label>
                 <label className="form-row">
-                  New checkpoint title
+                  New goal title
                   <input className="input" name="title" required />
                 </label>
                 <label className="form-row">
@@ -441,11 +437,7 @@ function SortableModuleCard({
                 Description
                 <textarea className="input" name="description" rows={2} />
               </label>
-              <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 14 }}>
-                <input type="checkbox" name="required" defaultChecked />
-                Required checkpoint
-              </label>
-              <button className="button small" type="submit">Add checkpoint</button>
+              <button className="button small" type="submit">Add goal</button>
             </form>
           </div>
 

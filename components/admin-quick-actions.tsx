@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 const QUICK_ACTIONS = [
-  { href: "/admin", label: "Dashboard", icon: "D" },
+  { href: "/admin/chapters", label: "Chapters", icon: "D" },
   { href: "/admin/audit-log", label: "Audit Log", icon: "A" },
   { href: "/admin/waitlist", label: "Waitlist", icon: "W" },
   { href: "/admin/instructor-readiness", label: "Instructor Readiness", icon: "I" },

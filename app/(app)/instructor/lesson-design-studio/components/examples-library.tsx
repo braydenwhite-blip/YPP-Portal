@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { ExampleCurriculumPanel } from "./example-curriculum-panel";
 import type { ExampleWeek } from "../examples-data";
+import { useBodyScrollLock } from "./use-body-scroll-lock";
 
 interface ExamplesLibraryProps {
   open: boolean;
@@ -27,6 +28,8 @@ export function ExamplesLibrary({
   onTabChange,
   onImportWeek,
 }: ExamplesLibraryProps) {
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
 
@@ -60,6 +63,14 @@ export function ExamplesLibrary({
               These examples are here to help you see pacing, arc, and student
               experience choices that make a session teachable.
             </p>
+            <div className="lds-library-meta">
+              <span className="lds-library-chip">Curated exemplars</span>
+              {interestArea ? (
+                <span className="lds-library-chip subtle">
+                  Interest area: {interestArea}
+                </span>
+              ) : null}
+            </div>
             {targetLabel ? (
               <p className="lds-library-target">
                 Import target: <strong>{targetLabel}</strong>

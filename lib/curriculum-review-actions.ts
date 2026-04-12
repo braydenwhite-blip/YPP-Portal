@@ -11,6 +11,7 @@ import {
   emptyReviewRubric,
   normalizeReviewRubric,
 } from "@/lib/curriculum-draft-progress";
+import { syncInstructorGrowthSignalsForInstructor } from "@/lib/instructor-growth-service";
 
 async function requireReviewer() {
   const session = await getSession();
@@ -217,14 +218,14 @@ export async function approveCurriculum(formData: FormData) {
     );
   }
 
-  await prisma.classTemplate.update({
+  const approvedTemplate = await prisma.classTemplate.update({
     where: { id },
     data: {
       submissionStatus: "APPROVED",
       reviewedById: session.user.id,
       reviewNotes,
     },
-    select: { id: true },
+    select: { id: true, createdById: true },
   });
 
   await syncDraftByTemplateReview({
@@ -236,6 +237,11 @@ export async function approveCurriculum(formData: FormData) {
   });
 
   await syncCurriculumApprovalWorkflow(id);
+  if (approvedTemplate?.createdById) {
+    await syncInstructorGrowthSignalsForInstructor(approvedTemplate.createdById).catch(
+      () => null
+    );
+  }
 
   revalidateCurriculumReviewSurfaces();
 }

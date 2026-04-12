@@ -3851,3 +3851,5084 @@
     width: 100vw;
   }
 }
+
+/* ============================================================
+   Premium Phase 1 overrides
+   Apple-esque studio art direction layered over the legacy file.
+   ============================================================ */
+
+.cbs-studio {
+  --cbs-canvas: #f7f7fb;
+  --cbs-canvas-warm: #fcfbff;
+  --cbs-panel: rgba(255, 255, 255, 0.78);
+  --cbs-panel-strong: rgba(255, 255, 255, 0.88);
+  --cbs-panel-border: rgba(130, 133, 165, 0.14);
+  --cbs-panel-border-bright: rgba(255, 255, 255, 0.72);
+  --cbs-panel-highlight: rgba(255, 255, 255, 0.92);
+  --cbs-ink: #101114;
+  --cbs-ink-soft: rgba(16, 17, 20, 0.74);
+  --cbs-ink-muted: rgba(16, 17, 20, 0.48);
+  --cbs-accent: #4f46e5;
+  --cbs-accent-soft: rgba(79, 70, 229, 0.12);
+  --cbs-success: #1e8e5a;
+  --cbs-warning: #b97117;
+  --cbs-danger: #c25a52;
+  --cbs-shadow-1: 0 2px 8px rgba(15, 23, 42, 0.03);
+  --cbs-shadow-2:
+    0 16px 38px rgba(34, 41, 69, 0.06),
+    0 2px 8px rgba(34, 41, 69, 0.03);
+  --cbs-shadow-3:
+    0 28px 68px rgba(34, 41, 69, 0.09),
+    0 10px 22px rgba(34, 41, 69, 0.04);
+  --cbs-shadow-4:
+    0 42px 100px rgba(34, 41, 69, 0.12),
+    0 18px 38px rgba(34, 41, 69, 0.06);
+  --cbs-blur-sm: 14px;
+  --cbs-blur-md: 20px;
+  --cbs-blur-lg: 28px;
+  --cbs-radius-control: 20px;
+  --cbs-radius-panel: 30px;
+  --cbs-radius-hero: 38px;
+  --cbs-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --cbs-ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --cbs-space-1: 8px;
+  --cbs-space-2: 12px;
+  --cbs-space-3: 16px;
+  --cbs-space-4: 20px;
+  --cbs-space-5: 24px;
+  --cbs-space-6: 32px;
+  --cbs-space-7: 40px;
+  --cbs-space-8: 52px;
+  --cbs-type-micro: clamp(0.68rem, 0.64rem + 0.12vw, 0.78rem);
+  --cbs-type-small: clamp(0.85rem, 0.8rem + 0.18vw, 0.96rem);
+  --cbs-type-body: clamp(0.97rem, 0.93rem + 0.2vw, 1.04rem);
+  --cbs-type-subtitle: clamp(1.14rem, 1rem + 0.6vw, 1.48rem);
+  --cbs-type-title: clamp(1.5rem, 1.2rem + 1vw, 2.24rem);
+  --cbs-type-hero: clamp(2.35rem, 1.6rem + 2.1vw, 3.9rem);
+
+  min-height: 100vh;
+  color: var(--cbs-ink);
+  background:
+    radial-gradient(circle at 18% 12%, rgba(226, 224, 255, 0.52), transparent 28%),
+    radial-gradient(circle at 82% 8%, rgba(241, 236, 255, 0.9), transparent 30%),
+    radial-gradient(circle at 56% -8%, rgba(255, 255, 255, 0.96), transparent 36%),
+    linear-gradient(180deg, var(--cbs-canvas-warm) 0%, var(--cbs-canvas) 56%, #f5f5fb 100%);
+  font-family: var(--font-dm-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: -0.018em;
+}
+
+.cbs-studio::before {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(244, 241, 255, 0.85), transparent 34%),
+    radial-gradient(circle at 100% 12%, rgba(233, 231, 255, 0.72), transparent 30%),
+    radial-gradient(circle at 55% 100%, rgba(255, 255, 255, 0.66), transparent 42%);
+  opacity: 1;
+}
+
+.cbs-studio::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.03) 0 1px,
+      transparent 1px 6px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(162, 165, 191, 0.018) 0 1px,
+      transparent 1px 7px
+    );
+  opacity: 0.28;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.cbs-studio > * {
+  position: relative;
+  z-index: 1;
+}
+
+.cbs-studio .card,
+.cbs-studio .lds-step-card,
+.cbs-studio .lds-session-roadmap-card,
+.cbs-studio .lds-subsection-card,
+.cbs-studio .lds-guided-hero,
+.cbs-studio .lds-guided-rail,
+.cbs-studio .cbs-history-modal,
+.cbs-studio .lds-library-modal,
+.cbs-studio .cbs-templates-modal,
+.cbs-studio .cbs-drawer {
+  background: var(--cbs-panel);
+  border: 1px solid var(--cbs-panel-border);
+  box-shadow: var(--cbs-shadow-2);
+  backdrop-filter: blur(var(--cbs-blur-md)) saturate(145%);
+  -webkit-backdrop-filter: blur(var(--cbs-blur-md)) saturate(145%);
+}
+
+.cbs-studio .card::before,
+.cbs-studio .lds-step-card::before,
+.cbs-studio .lds-session-roadmap-card::before,
+.cbs-studio .lds-subsection-card::before,
+.cbs-studio .lds-guided-hero::before,
+.cbs-studio .lds-guided-rail::before,
+.cbs-studio .cbs-history-modal::before,
+.cbs-studio .lds-library-modal::before,
+.cbs-studio .cbs-templates-modal::before,
+.cbs-studio .cbs-drawer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72), transparent 28%);
+}
+
+.cbs-studio .button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: linear-gradient(180deg, #1a1c22 0%, #121319 100%);
+  color: #fff;
+  font-size: var(--cbs-type-small);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 12px 24px rgba(15, 17, 24, 0.18);
+  transition:
+    transform 220ms var(--cbs-ease),
+    box-shadow 220ms var(--cbs-ease),
+    background 220ms var(--cbs-ease),
+    border-color 220ms var(--cbs-ease),
+    color 220ms var(--cbs-ease);
+}
+
+.cbs-studio .button:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 18px 32px rgba(15, 17, 24, 0.22);
+}
+
+.cbs-studio .button:active {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 8px 14px rgba(15, 17, 24, 0.16);
+}
+
+.cbs-studio .button.secondary,
+.cbs-studio .button.small.secondary {
+  border-color: var(--cbs-panel-border);
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--cbs-ink);
+  box-shadow: var(--cbs-shadow-1);
+}
+
+.cbs-studio .button.ghost,
+.cbs-studio .button.small.ghost {
+  border-color: rgba(16, 17, 20, 0.08);
+  background: rgba(255, 255, 255, 0.44);
+  color: var(--cbs-ink-soft);
+  box-shadow: none;
+}
+
+.cbs-studio .button.ghost:hover,
+.cbs-studio .button.secondary:hover {
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--cbs-ink);
+}
+
+.cbs-studio .button.danger {
+  color: var(--cbs-danger);
+}
+
+.cbs-studio .button.small {
+  min-height: 36px;
+  padding: 0 15px;
+  font-size: 0.8rem;
+}
+
+.cbs-studio .button:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.cbs-studio button:focus-visible,
+.cbs-studio input:focus-visible,
+.cbs-studio textarea:focus-visible,
+.cbs-studio select:focus-visible,
+.cbs-studio summary:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 1px rgba(79, 70, 229, 0.14),
+    0 0 0 5px rgba(79, 70, 229, 0.12);
+}
+
+.cbs-studio .pill {
+  border-radius: 999px;
+  border: 1px solid rgba(122, 128, 160, 0.16);
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--cbs-ink-soft);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  box-shadow: none;
+}
+
+.cbs-studio .pill-success {
+  background: rgba(28, 162, 101, 0.1);
+  color: var(--cbs-success);
+  border-color: rgba(28, 162, 101, 0.14);
+}
+
+.cbs-studio .pill-pending {
+  background: rgba(185, 113, 23, 0.08);
+  color: var(--cbs-warning);
+  border-color: rgba(185, 113, 23, 0.14);
+}
+
+.cbs-studio .pill-info,
+.cbs-studio .pill-purple {
+  background: rgba(79, 70, 229, 0.09);
+  color: var(--cbs-accent);
+  border-color: rgba(79, 70, 229, 0.14);
+}
+
+.lds-studio-toast {
+  position: fixed;
+  top: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  min-width: min(440px, calc(100vw - 28px));
+  padding: 15px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(79, 70, 229, 0.14);
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--cbs-ink);
+  box-shadow: var(--cbs-shadow-3);
+  backdrop-filter: blur(24px) saturate(155%);
+  -webkit-backdrop-filter: blur(24px) saturate(155%);
+  animation: ldsToastIn 220ms var(--cbs-ease-soft);
+}
+
+.lds-studio-toast.error {
+  border-color: rgba(194, 90, 82, 0.18);
+  color: var(--cbs-danger);
+}
+
+.lds-shell {
+  padding: 20px 24px 52px;
+}
+
+.lds-studio-toolbar {
+  position: sticky;
+  top: 18px;
+  z-index: 30;
+  width: min(1520px, 100%);
+  margin: 0 auto 24px;
+  padding: 14px 18px;
+  border-radius: 26px;
+  border: 1px solid var(--cbs-panel-border);
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: var(--cbs-shadow-2);
+  backdrop-filter: blur(var(--cbs-blur-lg)) saturate(165%);
+  -webkit-backdrop-filter: blur(var(--cbs-blur-lg)) saturate(165%);
+  transition:
+    background 220ms var(--cbs-ease),
+    box-shadow 220ms var(--cbs-ease),
+    transform 220ms var(--cbs-ease);
+}
+
+.lds-studio-toolbar.scrolled {
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: var(--cbs-shadow-3);
+}
+
+.lds-studio-toolbar.modal-open {
+  pointer-events: none;
+}
+
+.lds-studio-toolbar-main {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(320px, auto) minmax(240px, 1fr);
+  align-items: center;
+  gap: 18px;
+}
+
+.lds-toolbar-region {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.lds-toolbar-region-center {
+  justify-content: center;
+}
+
+.lds-toolbar-region-right {
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.lds-toolbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.lds-toolbar-brand-mark {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 30%, #fff 0%, rgba(255, 255, 255, 0.7) 16%, transparent 18%),
+    linear-gradient(145deg, #7c74ff 0%, #685df2 55%, #463cd6 100%);
+  box-shadow:
+    0 0 0 6px rgba(79, 70, 229, 0.08),
+    0 6px 18px rgba(79, 70, 229, 0.22);
+}
+
+.lds-toolbar-brand-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.lds-toolbar-label,
+.lds-section-eyebrow,
+.cbs-drawer-section-eyebrow,
+.lds-library-eyebrow,
+.cbs-templates-eyebrow,
+.lds-start-overline {
+  display: inline-block;
+  margin: 0;
+  color: var(--cbs-ink-muted);
+  font-size: var(--cbs-type-micro);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.lds-toolbar-brand-copy strong {
+  color: var(--cbs-ink);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lds-toolbar-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--cbs-ink-muted);
+  font-size: 0.76rem;
+  letter-spacing: -0.01em;
+}
+
+.lds-toolbar-breadcrumb.current,
+.lds-toolbar-breadcrumb-root {
+  color: var(--cbs-ink-soft);
+  font-weight: 600;
+}
+
+.lds-toolbar-breadcrumb-divider {
+  opacity: 0.4;
+}
+
+.lds-toolbar-phase-path {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lds-toolbar-phase-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lds-toolbar-phase-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cbs-ink-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  transition:
+    background 180ms var(--cbs-ease),
+    color 180ms var(--cbs-ease),
+    transform 180ms var(--cbs-ease);
+}
+
+.lds-toolbar-phase-button:hover {
+  background: rgba(255, 255, 255, 0.56);
+  color: var(--cbs-ink-soft);
+}
+
+.lds-toolbar-phase-button.current {
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--cbs-ink);
+  box-shadow: var(--cbs-shadow-1);
+}
+
+.lds-toolbar-phase-button.complete {
+  color: var(--cbs-ink-soft);
+}
+
+.lds-toolbar-phase-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(16, 17, 20, 0.18);
+  transition: background 180ms var(--cbs-ease), box-shadow 180ms var(--cbs-ease);
+}
+
+.lds-toolbar-phase-button.current .lds-toolbar-phase-dot,
+.lds-toolbar-phase-button.complete .lds-toolbar-phase-dot {
+  background: var(--cbs-accent);
+  box-shadow: 0 0 0 6px rgba(79, 70, 229, 0.08);
+}
+
+.lds-toolbar-phase-divider {
+  width: 20px;
+  height: 1px;
+  background: rgba(16, 17, 20, 0.08);
+}
+
+.lds-save-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(122, 128, 160, 0.14);
+  background: rgba(255, 255, 255, 0.66);
+  color: var(--cbs-ink-soft);
+  box-shadow: var(--cbs-shadow-1);
+}
+
+.lds-save-indicator strong {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--cbs-ink);
+}
+
+.lds-save-indicator small {
+  display: block;
+  color: var(--cbs-ink-muted);
+  font-size: 0.7rem;
+  line-height: 1.3;
+}
+
+.lds-save-indicator-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(16, 17, 20, 0.28);
+}
+
+.lds-save-indicator.saving .lds-save-indicator-dot {
+  background: var(--cbs-accent);
+  animation: ldsPulse 1.7s infinite;
+}
+
+.lds-save-indicator.saved .lds-save-indicator-dot {
+  background: var(--cbs-success);
+}
+
+.lds-save-indicator.error .lds-save-indicator-dot {
+  background: var(--cbs-danger);
+}
+
+.lds-updated-at {
+  color: var(--cbs-ink-muted);
+  font-size: 0.74rem;
+  margin-left: 0;
+}
+
+.lds-guided-workbench {
+  width: min(1520px, 100%);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(276px, 304px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.lds-guided-rail {
+  position: sticky;
+  top: 112px;
+  border-radius: var(--cbs-radius-panel);
+  padding: 26px 22px;
+  overflow: hidden;
+}
+
+.lds-guided-rail-copy,
+.lds-guided-hero-copy {
+  display: grid;
+  gap: 12px;
+}
+
+.lds-section-title {
+  margin: 0;
+  color: var(--cbs-ink);
+  font-size: var(--cbs-type-title);
+  font-weight: 600;
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+}
+
+.lds-section-copy,
+.lds-step-card p,
+.lds-subsection-card p,
+.lds-readonly-banner p,
+.lds-library-copy,
+.cbs-templates-copy,
+.cbs-drawer-section p {
+  color: var(--cbs-ink-soft);
+  font-size: var(--cbs-type-body);
+  line-height: 1.65;
+}
+
+.lds-guided-pill-row {
+  display: grid;
+  gap: 10px;
+  margin: 28px 0 24px;
+}
+
+.lds-rail-step {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 12px 12px 10px;
+  border: 0;
+  border-radius: 18px;
+  background: transparent;
+  text-align: left;
+  transition:
+    background 180ms var(--cbs-ease),
+    transform 180ms var(--cbs-ease),
+    box-shadow 180ms var(--cbs-ease);
+}
+
+.lds-rail-step:hover {
+  background: rgba(255, 255, 255, 0.5);
+  transform: translateY(-1px);
+}
+
+.lds-rail-step.active {
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: var(--cbs-shadow-1);
+}
+
+.lds-rail-step-ornament {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+
+.lds-rail-step-dot {
+  width: 12px;
+  height: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(16, 17, 20, 0.14);
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--cbs-accent);
+  font-size: 0.56rem;
+  font-weight: 700;
+}
+
+.lds-rail-step-dot.complete,
+.lds-rail-step.active .lds-rail-step-dot {
+  border-color: rgba(79, 70, 229, 0.16);
+  background: rgba(79, 70, 229, 0.08);
+}
+
+.lds-rail-step-line {
+  width: 1px;
+  min-height: 28px;
+  background: rgba(16, 17, 20, 0.08);
+}
+
+.lds-rail-step:last-child .lds-rail-step-line {
+  opacity: 0;
+}
+
+.lds-rail-step-copy {
+  display: grid;
+  gap: 3px;
+}
+
+.lds-rail-step-copy strong {
+  color: var(--cbs-ink);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.024em;
+}
+
+.lds-rail-step-copy small {
+  color: var(--cbs-ink-muted);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.lds-guided-rail-summary,
+.lds-course-map-summary,
+.lds-readiness-snapshot,
+.lds-review-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.lds-stat-card {
+  position: relative;
+  padding: 16px 16px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  background: rgba(255, 255, 255, 0.58);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.66);
+}
+
+.lds-stat-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--cbs-ink-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.lds-stat-value {
+  color: var(--cbs-ink);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.lds-guided-rail-actions {
+  margin-top: 20px;
+  display: grid;
+  gap: 10px;
+}
+
+.lds-guided-rail-actions .button {
+  width: 100%;
+}
+
+.lds-guided-main {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+
+.lds-guided-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--cbs-radius-hero);
+  padding: clamp(28px, 4vw, 44px);
+}
+
+.lds-guided-hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 28px;
+}
+
+.lds-hero-title {
+  margin: 0;
+  max-width: 11ch;
+  color: var(--cbs-ink);
+  font-size: var(--cbs-type-hero);
+  font-weight: 600;
+  line-height: 0.98;
+  letter-spacing: -0.06em;
+}
+
+.lds-hero-copy {
+  margin: 0;
+  max-width: 54ch;
+  color: var(--cbs-ink-soft);
+  font-size: clamp(1rem, 0.94rem + 0.24vw, 1.08rem);
+  line-height: 1.72;
+}
+
+.lds-guided-status-stack {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.lds-guided-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
+  gap: 16px;
+  margin-top: 30px;
+}
+
+.lds-guided-focus-card,
+.lds-subsection-card,
+.lds-step-card,
+.lds-session-roadmap-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--cbs-radius-panel);
+}
+
+.lds-guided-focus-card {
+  padding: 22px 22px 20px;
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  background: rgba(255, 255, 255, 0.52);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.lds-guided-focus-card.accent {
+  background:
+    linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(255, 255, 255, 0.72) 70%),
+    rgba(255, 255, 255, 0.6);
+}
+
+.lds-guided-editor {
+  min-width: 0;
+}
+
+.lds-guided-editor-stage {
+  animation: ldsStageIn 220ms var(--cbs-ease-soft);
+}
+
+.lds-readonly-banner {
+  padding: 18px 22px;
+  border-radius: 24px;
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.lds-readonly-banner strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--cbs-ink);
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.lds-step-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(300px, 0.88fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.lds-step-layout.wide {
+  grid-template-columns: minmax(252px, 304px) minmax(0, 1.35fr) minmax(280px, 0.7fr);
+}
+
+.lds-step-main,
+.lds-step-side {
+  display: grid;
+  gap: 20px;
+}
+
+.lds-step-card,
+.lds-session-roadmap-card,
+.lds-subsection-card {
+  padding: 26px;
+}
+
+.lds-step-card-header,
+.lds-subsection-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.lds-inline-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lds-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.lds-form-grid.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.lds-form-grid.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.lds-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.lds-form-field,
+.cbs-drawer-field {
+  display: grid;
+  gap: 10px;
+}
+
+.lds-form-field > span,
+.lds-form-label,
+.cbs-drawer-label {
+  color: var(--cbs-ink);
+  font-size: 0.86rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.lds-form-field-hint,
+.lds-container-note,
+.cbs-example-stats,
+.lds-subsection-note {
+  color: var(--cbs-ink-muted);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.cbs-studio .lds-form-field input,
+.cbs-studio .lds-form-field textarea,
+.cbs-studio .lds-form-field select,
+.cbs-studio .lds-inline-edit-row input,
+.cbs-studio .cbs-drawer-input,
+.cbs-studio .cbs-drawer-textarea,
+.cbs-studio .cbs-drawer-select,
+.cbs-studio .cbs-drawer-duration-input {
+  width: 100%;
+  min-height: 54px;
+  padding: 0 18px;
+  border-radius: var(--cbs-radius-control);
+  border: 1px solid rgba(122, 128, 160, 0.16);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--cbs-ink);
+  font: inherit;
+  line-height: 1.5;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.88),
+    0 2px 6px rgba(15, 23, 42, 0.02);
+  transition:
+    border-color 180ms var(--cbs-ease),
+    background 180ms var(--cbs-ease),
+    box-shadow 180ms var(--cbs-ease),
+    transform 180ms var(--cbs-ease);
+}
+
+.cbs-studio .lds-form-field textarea,
+.cbs-studio .cbs-drawer-textarea {
+  min-height: 132px;
+  padding-top: 16px;
+  padding-bottom: 16px;
+  resize: vertical;
+}
+
+.cbs-studio .lds-form-field input::placeholder,
+.cbs-studio .lds-form-field textarea::placeholder,
+.cbs-studio .cbs-drawer-input::placeholder,
+.cbs-studio .cbs-drawer-textarea::placeholder {
+  color: rgba(16, 17, 20, 0.34);
+}
+
+.cbs-studio .lds-form-field input:focus,
+.cbs-studio .lds-form-field textarea:focus,
+.cbs-studio .lds-form-field select:focus,
+.cbs-studio .lds-inline-edit-row input:focus,
+.cbs-studio .cbs-drawer-input:focus,
+.cbs-studio .cbs-drawer-textarea:focus,
+.cbs-studio .cbs-drawer-select:focus,
+.cbs-studio .cbs-drawer-duration-input:focus {
+  border-color: rgba(79, 70, 229, 0.2);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.cbs-studio .lds-form-field select,
+.cbs-studio .cbs-drawer-select {
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(16, 17, 20, 0.4) 50%),
+    linear-gradient(135deg, rgba(16, 17, 20, 0.4) 50%, transparent 50%);
+  background-position: calc(100% - 22px) calc(50% - 1px), calc(100% - 16px) calc(50% - 1px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+  padding-right: 34px;
+}
+
+.lds-simple-list {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--cbs-ink-soft);
+}
+
+.lds-blocker-card,
+.lds-coaching-strip,
+.lds-success-strip {
+  position: relative;
+  overflow: hidden;
+  border-radius: 22px;
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  padding: 16px 18px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.lds-blocker-card::before,
+.lds-coaching-strip::before,
+.lds-success-strip::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  border-radius: 999px;
+}
+
+.lds-blocker-card::before {
+  background: linear-gradient(180deg, rgba(194, 90, 82, 0.88), rgba(194, 90, 82, 0.45));
+}
+
+.lds-coaching-strip::before {
+  background: linear-gradient(180deg, rgba(79, 70, 229, 0.88), rgba(79, 70, 229, 0.45));
+}
+
+.lds-success-strip::before {
+  background: linear-gradient(180deg, rgba(30, 142, 90, 0.88), rgba(30, 142, 90, 0.4));
+}
+
+.lds-blocker-card strong,
+.lds-success-strip,
+.lds-coaching-strip span {
+  color: var(--cbs-ink);
+}
+
+.lds-coaching-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.lds-coaching-strip span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.08);
+  color: var(--cbs-accent);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.lds-session-roadmap {
+  display: grid;
+  gap: 10px;
+}
+
+.lds-session-roadmap-item {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 16px 18px;
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.56);
+  color: inherit;
+  text-align: left;
+  transition:
+    transform 180ms var(--cbs-ease),
+    background 180ms var(--cbs-ease),
+    box-shadow 180ms var(--cbs-ease),
+    border-color 180ms var(--cbs-ease);
+}
+
+.lds-session-roadmap-item:hover,
+.lds-session-roadmap-item.active {
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(79, 70, 229, 0.14);
+  box-shadow: var(--cbs-shadow-1);
+  transform: translateY(-1px);
+}
+
+.lds-session-roadmap-label {
+  color: var(--cbs-ink-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.lds-session-roadmap-item strong {
+  color: var(--cbs-ink);
+  font-size: 0.96rem;
+  font-weight: 600;
+  letter-spacing: -0.024em;
+}
+
+.lds-session-roadmap-item small {
+  color: var(--cbs-ink-muted);
+  font-size: 0.78rem;
+}
+
+.lds-session-balance {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 18px 18px 16px;
+  border-radius: 24px;
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.lds-session-balance-copy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.lds-session-balance-label {
+  color: var(--cbs-ink-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.lds-session-balance-copy strong {
+  color: var(--cbs-ink);
+  font-size: 0.94rem;
+  font-weight: 600;
+}
+
+.lds-session-balance-track {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(16, 17, 20, 0.05);
+  overflow: hidden;
+}
+
+.lds-session-balance-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(79, 70, 229, 0.54), rgba(79, 70, 229, 0.94));
+}
+
+.lds-session-balance-fill.over {
+  background: linear-gradient(90deg, rgba(194, 90, 82, 0.54), rgba(194, 90, 82, 0.96));
+}
+
+.lds-session-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0 22px;
+}
+
+.lds-session-metrics > div {
+  padding: 16px 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  background: rgba(255, 255, 255, 0.56);
+}
+
+.lds-session-metrics span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--cbs-ink-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.lds-session-metrics strong {
+  color: var(--cbs-ink);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.lds-template-suggestions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0 22px;
+}
+
+.lds-template-suggestion {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.56);
+  text-align: left;
+  transition:
+    background 180ms var(--cbs-ease),
+    transform 180ms var(--cbs-ease),
+    box-shadow 180ms var(--cbs-ease);
+}
+
+.lds-template-suggestion:hover {
+  background: rgba(255, 255, 255, 0.82);
+  transform: translateY(-1px);
+  box-shadow: var(--cbs-shadow-1);
+}
+
+.lds-template-suggestion strong {
+  color: var(--cbs-ink);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.lds-template-suggestion span {
+  color: var(--cbs-ink-muted);
+  font-size: 0.78rem;
+}
+
+.lds-activity-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.lds-activity-card {
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.58);
+  box-shadow: var(--cbs-shadow-1);
+  overflow: hidden;
+  transition:
+    background 180ms var(--cbs-ease),
+    border-color 180ms var(--cbs-ease),
+    transform 180ms var(--cbs-ease),
+    box-shadow 180ms var(--cbs-ease);
+}
+
+.lds-activity-card.active,
+.lds-activity-card:hover {
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(79, 70, 229, 0.16);
+  transform: translateY(-1px);
+  box-shadow: var(--cbs-shadow-2);
+}
+
+.lds-activity-primary {
+  display: grid;
+  grid-template-columns: auto auto auto minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
+  width: 100%;
+  padding: 18px 20px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.lds-activity-order {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(79, 70, 229, 0.08);
+  color: var(--cbs-accent);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.lds-activity-handle {
+  width: 18px;
+  color: rgba(16, 17, 20, 0.24);
+  letter-spacing: -0.08em;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.lds-activity-copy {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.lds-activity-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lds-activity-type,
+.lds-activity-duration-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--lds-activity-accent) 10%, white 90%);
+  color: color-mix(in srgb, var(--lds-activity-accent) 76%, #111 24%);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.lds-activity-duration-badge {
+  background: rgba(16, 17, 20, 0.05);
+  color: var(--cbs-ink-soft);
+}
+
+.lds-activity-copy strong {
+  color: var(--cbs-ink);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.lds-activity-description {
+  margin: 0;
+  color: var(--cbs-ink-soft);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.lds-activity-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 20px 18px 82px;
+}
+
+.lds-empty-state {
+  padding: 28px;
+  border-radius: 26px;
+  border: 1px dashed rgba(122, 128, 160, 0.22);
+  background: rgba(255, 255, 255, 0.44);
+  color: var(--cbs-ink-soft);
+  text-align: center;
+}
+
+.lds-timeline-shell {
+  display: grid;
+  gap: 16px;
+  margin: 18px 0 20px;
+}
+
+.lds-timeline-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.lds-timeline-title {
+  margin: 6px 0 8px;
+  color: var(--cbs-ink);
+  font-size: 1.22rem;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+
+.lds-timeline-copy {
+  margin: 0;
+  max-width: 56ch;
+  color: var(--cbs-ink-soft);
+  font-size: 0.88rem;
+  line-height: 1.65;
+}
+
+.lds-timeline-status {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.lds-timeline-status-pill,
+.lds-quick-add-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--cbs-ink-soft);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.lds-timeline-status-pill.subtle {
+  background: rgba(16, 17, 20, 0.04);
+  color: var(--cbs-ink-muted);
+}
+
+.lds-timeline-status-pill.success {
+  background: rgba(28, 162, 101, 0.1);
+  color: var(--cbs-success);
+  border-color: rgba(28, 162, 101, 0.12);
+}
+
+.lds-timeline-status-pill.warning {
+  background: rgba(194, 90, 82, 0.12);
+  color: var(--cbs-danger);
+  border-color: rgba(194, 90, 82, 0.14);
+}
+
+.lds-timeline-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.lds-timeline-legend span {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 12px 0 28px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.54);
+  color: var(--cbs-ink-soft);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.lds-timeline-legend span::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.lds-timeline-legend .low::before {
+  background: rgba(59, 130, 246, 0.92);
+}
+
+.lds-timeline-legend .medium::before {
+  background: rgba(245, 158, 11, 0.9);
+}
+
+.lds-timeline-legend .high::before {
+  background: rgba(239, 68, 68, 0.92);
+}
+
+.lds-timeline-scroller {
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.lds-timeline-scroller::-webkit-scrollbar {
+  height: 8px;
+}
+
+.lds-timeline-scroller::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(122, 128, 160, 0.22);
+}
+
+.lds-timeline-canvas {
+  min-width: 100%;
+}
+
+.lds-timeline-axis {
+  position: relative;
+  height: 44px;
+}
+
+.lds-timeline-marker {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 0;
+}
+
+.lds-timeline-marker-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translateX(-50%);
+  color: var(--cbs-ink-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.lds-timeline-marker.start .lds-timeline-marker-label {
+  transform: translateX(0);
+}
+
+.lds-timeline-marker.end .lds-timeline-marker-label {
+  transform: translateX(-100%);
+}
+
+.lds-timeline-marker-tick {
+  position: absolute;
+  top: 18px;
+  left: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(122, 128, 160, 0.2);
+}
+
+.lds-timeline-stage {
+  position: relative;
+  min-height: 216px;
+  border-radius: 30px;
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(250, 250, 255, 0.62) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86);
+  overflow: hidden;
+}
+
+.lds-timeline-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(79, 70, 229, 0.05) 0%, transparent 46%),
+    linear-gradient(90deg, rgba(122, 128, 160, 0.04), rgba(255, 255, 255, 0));
+  pointer-events: none;
+}
+
+.lds-timeline-overrun-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, rgba(194, 90, 82, 0.08), rgba(194, 90, 82, 0.16));
+  border-left: 1px solid rgba(194, 90, 82, 0.16);
+  pointer-events: none;
+}
+
+.lds-timeline-class-end,
+.lds-timeline-total-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.lds-timeline-class-end {
+  border-left: 1px dashed rgba(79, 70, 229, 0.24);
+}
+
+.lds-timeline-total-marker {
+  border-left: 1px solid rgba(79, 70, 229, 0.28);
+}
+
+.lds-timeline-total-marker.over {
+  border-left-color: rgba(194, 90, 82, 0.28);
+}
+
+.lds-timeline-class-end span,
+.lds-timeline-total-badge {
+  position: absolute;
+  left: 10px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.lds-timeline-class-end span {
+  top: 12px;
+  background: rgba(79, 70, 229, 0.1);
+  color: var(--cbs-accent);
+}
+
+.lds-timeline-total-badge {
+  bottom: 12px;
+  background: rgba(16, 17, 20, 0.74);
+  color: #fff;
+}
+
+.lds-timeline-total-marker.over .lds-timeline-total-badge {
+  background: rgba(194, 90, 82, 0.88);
+}
+
+.lds-energy-arc {
+  position: absolute;
+  top: 18px;
+  left: 0;
+  right: 0;
+  height: 74px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.lds-energy-arc-svg {
+  display: block;
+  overflow: visible;
+}
+
+.lds-energy-arc-guide {
+  stroke: rgba(122, 128, 160, 0.16);
+  stroke-width: 1;
+  stroke-dasharray: 4 6;
+}
+
+.lds-energy-arc-line {
+  filter: drop-shadow(0 6px 12px rgba(15, 23, 42, 0.08));
+}
+
+.lds-energy-arc-labels {
+  position: absolute;
+  inset: 0 auto 0 14px;
+  display: grid;
+  align-items: center;
+  color: var(--cbs-ink-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lds-timeline-block-row {
+  position: absolute;
+  left: 0;
+  bottom: 16px;
+  display: flex;
+  align-items: stretch;
+  height: 118px;
+  z-index: 2;
+}
+
+.lds-timeline-block {
+  position: relative;
+  flex: 0 0 auto;
+  min-height: 118px;
+}
+
+.lds-timeline-block-button {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  padding: 14px 18px 16px 18px;
+  border: 1px solid rgba(122, 128, 160, 0.14);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--lds-timeline-accent) 12%, white 88%) 0%, rgba(255, 255, 255, 0.92) 48%, rgba(255, 255, 255, 0.82) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.86),
+    0 12px 24px rgba(15, 23, 42, 0.07);
+  text-align: left;
+  overflow: hidden;
+  transition:
+    transform 180ms var(--cbs-ease),
+    box-shadow 180ms var(--cbs-ease),
+    border-color 180ms var(--cbs-ease),
+    background 180ms var(--cbs-ease);
+}
+
+.lds-timeline-block-button::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--lds-timeline-accent);
+}
+
+.lds-timeline-block:hover .lds-timeline-block-button,
+.lds-timeline-block.active .lds-timeline-block-button {
+  border-color: rgba(79, 70, 229, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 16px 28px rgba(15, 23, 42, 0.1);
+  transform: translateY(-1px);
+}
+
+.lds-timeline-block.dragging {
+  z-index: 5;
+}
+
+.lds-timeline-block.dragging .lds-timeline-block-button,
+.lds-timeline-block.overlay .lds-timeline-block-button {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 22px 36px rgba(15, 23, 42, 0.14);
+}
+
+.lds-timeline-block.overtime .lds-timeline-block-button {
+  border-color: rgba(194, 90, 82, 0.18);
+  background:
+    linear-gradient(180deg, rgba(194, 90, 82, 0.16) 0%, rgba(255, 255, 255, 0.92) 44%, rgba(255, 255, 255, 0.82) 100%);
+}
+
+.lds-timeline-block-top,
+.lds-timeline-block-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lds-timeline-block-body {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lds-timeline-block-badge,
+.lds-timeline-block-duration,
+.lds-timeline-block-range,
+.lds-timeline-block-state {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.lds-timeline-block-badge {
+  background: rgba(255, 255, 255, 0.76);
+  color: color-mix(in srgb, var(--lds-timeline-accent) 78%, #111 22%);
+}
+
+.lds-timeline-block-duration,
+.lds-timeline-block-range {
+  background: rgba(16, 17, 20, 0.05);
+  color: var(--cbs-ink-muted);
+}
+
+.lds-timeline-block-state {
+  background: rgba(79, 70, 229, 0.1);
+  color: var(--cbs-accent);
+}
+
+.lds-timeline-block-state.overtime {
+  background: rgba(194, 90, 82, 0.12);
+  color: var(--cbs-danger);
+}
+
+.lds-timeline-block-title {
+  color: var(--cbs-ink);
+  font-size: 0.96rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lds-timeline-block-copy {
+  margin: 0;
+  color: var(--cbs-ink-soft);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.lds-timeline-resize-handle {
+  position: absolute;
+  top: 14px;
+  right: -1px;
+  bottom: 14px;
+  width: 14px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(16, 17, 20, 0.08), rgba(16, 17, 20, 0.2));
+  cursor: ew-resize;
+  opacity: 0;
+  transition: opacity 180ms var(--cbs-ease), transform 180ms var(--cbs-ease);
+}
+
+.lds-timeline-block:hover .lds-timeline-resize-handle,
+.lds-timeline-block.active .lds-timeline-resize-handle {
+  opacity: 1;
+}
+
+.lds-timeline-empty {
+  position: absolute;
+  inset: 72px 18px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  border-radius: 24px;
+  border: 1px dashed rgba(122, 128, 160, 0.22);
+  background: rgba(255, 255, 255, 0.42);
+  color: var(--cbs-ink-soft);
+  text-align: center;
+  z-index: 2;
+}
+
+.lds-quick-add-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.lds-quick-add-chip {
+  gap: 12px;
+  justify-content: flex-start;
+  min-height: 62px;
+  padding: 12px 14px;
+  border-radius: 22px;
+  text-align: left;
+  transition:
+    transform 180ms var(--cbs-ease),
+    box-shadow 180ms var(--cbs-ease),
+    background 180ms var(--cbs-ease);
+}
+
+.lds-quick-add-chip:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: var(--cbs-shadow-1);
+}
+
+.lds-quick-add-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 14px;
+  background: rgba(79, 70, 229, 0.08);
+  font-size: 0.96rem;
+  flex-shrink: 0;
+}
+
+.lds-quick-add-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.lds-quick-add-copy strong {
+  color: var(--cbs-ink);
+  font-size: 0.84rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.lds-quick-add-copy small {
+  color: var(--cbs-ink-muted);
+  font-size: 0.72rem;
+}
+
+.lds-session-mobile-stack {
+  display: none;
+}
+
+.lds-advanced-panel {
+  margin-top: 16px;
+  border-radius: 26px;
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  background: rgba(255, 255, 255, 0.48);
+  overflow: hidden;
+}
+
+.lds-advanced-panel summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 18px 20px;
+  color: var(--cbs-ink);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.lds-advanced-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.lds-advanced-panel[open] summary {
+  border-bottom: 1px solid rgba(122, 128, 160, 0.1);
+}
+
+.lds-advanced-panel > div {
+  padding: 20px;
+}
+
+.lds-outcome-row {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.lds-inline-edit-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.lds-outcome-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(79, 70, 229, 0.08);
+  color: var(--cbs-accent);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.lds-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.lds-chip {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid rgba(122, 128, 160, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.56);
+  color: var(--cbs-ink-soft);
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition:
+    background 180ms var(--cbs-ease),
+    border-color 180ms var(--cbs-ease),
+    color 180ms var(--cbs-ease);
+}
+
+.lds-chip.selected,
+.lds-chip:hover {
+  background: rgba(79, 70, 229, 0.08);
+  border-color: rgba(79, 70, 229, 0.14);
+  color: var(--cbs-accent);
+}
+
+.lds-checklist-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.lds-checklist-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  background: rgba(255, 255, 255, 0.56);
+}
+
+.lds-checklist-item > span {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(16, 17, 20, 0.06);
+  color: var(--cbs-ink-muted);
+  font-weight: 700;
+}
+
+.lds-checklist-item.pass > span {
+  background: rgba(30, 142, 90, 0.1);
+  color: var(--cbs-success);
+}
+
+.lds-checklist-item strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--cbs-ink);
+  font-size: 0.94rem;
+  font-weight: 600;
+}
+
+.lds-checklist-item p {
+  margin: 0;
+  color: var(--cbs-ink-muted);
+  font-size: 0.82rem;
+}
+
+.lds-review-status-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.08);
+  color: var(--cbs-accent);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lds-launch-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.lds-start-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.lds-start-card {
+  padding: 24px;
+  border-radius: 30px;
+  border: 1px solid rgba(122, 128, 160, 0.14);
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: var(--cbs-shadow-1);
+  transition:
+    transform 220ms var(--cbs-ease),
+    background 220ms var(--cbs-ease),
+    border-color 220ms var(--cbs-ease),
+    box-shadow 220ms var(--cbs-ease);
+}
+
+.lds-start-card:hover,
+.lds-start-card.recommended {
+  background: rgba(255, 255, 255, 0.84);
+  border-color: rgba(79, 70, 229, 0.16);
+  box-shadow: var(--cbs-shadow-2);
+  transform: translateY(-2px);
+}
+
+.lds-start-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.lds-start-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 10px;
+  border-radius: 18px;
+  background: rgba(79, 70, 229, 0.08);
+  font-size: 1.1rem;
+}
+
+.lds-start-card h3 {
+  margin-top: 6px;
+  color: var(--cbs-ink);
+  font-size: 1.18rem;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+
+.lds-start-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.lds-start-hero-panel,
+.lds-start-gallery-header,
+.lds-wizard-review-card,
+.lds-wizard-recommendation {
+  border-radius: 28px;
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  background: rgba(255, 255, 255, 0.58);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.lds-start-hero-panel {
+  display: grid;
+  gap: 16px;
+  padding: 22px 24px;
+  background:
+    linear-gradient(145deg, rgba(248, 246, 255, 0.86), rgba(255, 255, 255, 0.76)),
+    rgba(255, 255, 255, 0.58);
+}
+
+.lds-start-hero-kicker {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.08);
+  color: var(--cbs-accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.lds-start-hero-panel-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.lds-start-hero-panel-copy strong {
+  color: var(--cbs-ink);
+  font-size: 1.12rem;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+
+.lds-start-hero-panel-copy p,
+.lds-start-gallery-header p {
+  margin: 0;
+  color: var(--cbs-ink-soft);
+}
+
+.lds-start-gallery-header {
+  margin-bottom: 18px;
+  padding: 20px 22px;
+}
+
+.lds-start-card p {
+  color: var(--cbs-ink-soft);
+}
+
+.lds-start-preview {
+  margin: 18px 0 16px;
+  padding: 16px;
+  border-radius: 22px;
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  background: rgba(255, 255, 255, 0.54);
+}
+
+.lds-start-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  color: var(--cbs-ink-soft);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.lds-start-preview-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.lds-start-preview-row {
+  display: grid;
+  grid-template-columns: auto minmax(90px, 110px) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.lds-start-preview-label {
+  color: var(--cbs-ink-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.lds-start-preview-track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(16, 17, 20, 0.06);
+  overflow: hidden;
+}
+
+.lds-start-preview-fill {
+  display: flex;
+  height: 100%;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+.lds-start-preview-segment {
+  display: block;
+  height: 100%;
+  background: var(--lds-start-preview-accent);
+}
+
+.lds-start-preview-title {
+  color: var(--cbs-ink-soft);
+  font-size: 0.78rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lds-start-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.lds-start-meta span,
+.cbs-example-week-duration {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: rgba(16, 17, 20, 0.05);
+  color: var(--cbs-ink-soft);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.lds-start-reason {
+  margin: 0 0 14px;
+  color: var(--cbs-accent);
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.lds-start-card-reveal {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0 0 16px;
+  padding: 14px 15px;
+  border-radius: 22px;
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  background: rgba(255, 255, 255, 0.56);
+  transition:
+    transform 180ms var(--cbs-ease),
+    background 180ms var(--cbs-ease),
+    box-shadow 180ms var(--cbs-ease);
+}
+
+.lds-start-card:hover .lds-start-card-reveal,
+.lds-start-card:focus-within .lds-start-card-reveal {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: var(--cbs-shadow-1);
+}
+
+.lds-start-reveal-label {
+  display: inline-flex;
+  margin-bottom: 8px;
+  color: var(--cbs-ink-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.lds-start-reveal-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  color: var(--cbs-ink-soft);
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.lds-start-reveal-list.compact {
+  padding-left: 16px;
+}
+
+.lds-start-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.lds-wizard-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(244, 245, 251, 0.52);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.lds-wizard-card {
+  width: min(1080px, 100%);
+  max-height: min(88vh, 980px);
+  overflow: hidden;
+  border-radius: 34px;
+  border: 1px solid rgba(122, 128, 160, 0.14);
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: var(--cbs-shadow-4);
+  backdrop-filter: blur(28px) saturate(155%);
+  -webkit-backdrop-filter: blur(28px) saturate(155%);
+}
+
+.lds-wizard-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 26px 28px 18px;
+  border-bottom: 1px solid rgba(122, 128, 160, 0.08);
+}
+
+.lds-wizard-title {
+  margin: 4px 0 8px;
+  color: var(--cbs-ink);
+  font-size: clamp(1.4rem, 1.18rem + 0.8vw, 2rem);
+  font-weight: 600;
+  line-height: 1.04;
+  letter-spacing: -0.05em;
+}
+
+.lds-wizard-copy {
+  margin: 0;
+  color: var(--cbs-ink-soft);
+  max-width: 48rem;
+}
+
+.lds-wizard-progress {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 18px 28px 0;
+}
+
+.lds-wizard-progress-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 0;
+}
+
+.lds-wizard-progress-dot {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(122, 128, 160, 0.18);
+  background: rgba(255, 255, 255, 0.74);
+  color: var(--cbs-ink-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.lds-wizard-progress-step.active .lds-wizard-progress-dot,
+.lds-wizard-progress-step.complete .lds-wizard-progress-dot {
+  border-color: rgba(79, 70, 229, 0.16);
+  background: rgba(79, 70, 229, 0.1);
+  color: var(--cbs-accent);
+}
+
+.lds-wizard-progress-label {
+  color: var(--cbs-ink-soft);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.lds-wizard-progress-line {
+  flex: 1 1 auto;
+  height: 1px;
+  margin-inline: 6px 0;
+  background: linear-gradient(90deg, rgba(79, 70, 229, 0.25), rgba(122, 128, 160, 0.1));
+}
+
+.lds-wizard-body {
+  max-height: calc(88vh - 188px);
+  overflow: auto;
+  padding: 18px 28px 12px;
+}
+
+.lds-wizard-stage {
+  display: grid;
+  gap: 18px;
+}
+
+.lds-wizard-stage-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.lds-wizard-topic-grid,
+.lds-wizard-style-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.lds-wizard-topic-card,
+.lds-wizard-style-card {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 26px;
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  background: rgba(255, 255, 255, 0.6);
+  text-align: left;
+  transition:
+    transform 180ms var(--cbs-ease),
+    box-shadow 180ms var(--cbs-ease),
+    border-color 180ms var(--cbs-ease),
+    background 180ms var(--cbs-ease);
+}
+
+.lds-wizard-topic-card:hover,
+.lds-wizard-style-card:hover,
+.lds-wizard-topic-card.active,
+.lds-wizard-style-card.active {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.84);
+  border-color: rgba(79, 70, 229, 0.16);
+  box-shadow: var(--cbs-shadow-1);
+}
+
+.lds-wizard-topic-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.lds-wizard-topic-copy {
+  display: grid;
+  gap: 4px;
+  flex: 1 1 auto;
+}
+
+.lds-wizard-topic-copy strong,
+.lds-wizard-style-card strong,
+.lds-wizard-review-card h4 {
+  color: var(--cbs-ink);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.lds-wizard-topic-copy span,
+.lds-wizard-style-card p,
+.lds-wizard-topic-card p,
+.lds-wizard-review-card p {
+  color: var(--cbs-ink-soft);
+}
+
+.lds-wizard-topic-preview {
+  display: grid;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(122, 128, 160, 0.1);
+}
+
+.lds-wizard-topic-preview-row,
+.lds-wizard-review-row {
+  display: grid;
+  grid-template-columns: auto minmax(80px, 108px) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.lds-wizard-topic-preview-label {
+  color: var(--cbs-ink-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.lds-wizard-topic-preview-track,
+.lds-wizard-review-row-track {
+  display: flex;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(16, 17, 20, 0.06);
+}
+
+.lds-wizard-topic-preview-segment,
+.lds-wizard-review-row-segment {
+  display: block;
+  height: 100%;
+  background: var(--lds-wizard-preview-accent);
+}
+
+.lds-wizard-topic-preview-title {
+  color: var(--cbs-ink-soft);
+  font-size: 0.78rem;
+}
+
+.lds-wizard-style-label,
+.lds-wizard-style-emphasis {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.08);
+  color: var(--cbs-accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.lds-wizard-review-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.lds-wizard-review-card {
+  padding: 18px;
+}
+
+.lds-wizard-review-card.emphasis {
+  background:
+    linear-gradient(145deg, rgba(244, 241, 255, 0.92), rgba(255, 255, 255, 0.78)),
+    rgba(255, 255, 255, 0.58);
+}
+
+.lds-wizard-review-card.wide {
+  grid-column: 1 / -1;
+}
+
+.lds-wizard-review-preview {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.lds-wizard-review-row > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.lds-wizard-review-row > div:first-child strong {
+  color: var(--cbs-ink);
+  font-size: 0.82rem;
+}
+
+.lds-wizard-review-row > div:first-child span,
+.lds-wizard-review-row small {
+  color: var(--cbs-ink-soft);
+  font-size: 0.78rem;
+}
+
+.lds-wizard-recommendation {
+  display: grid;
+  gap: 8px;
+  padding: 18px 20px;
+  margin-top: 4px;
+}
+
+.lds-wizard-recommendation strong {
+  color: var(--cbs-ink);
+  letter-spacing: -0.02em;
+}
+
+.lds-wizard-recommendation p {
+  margin: 0;
+  color: var(--cbs-ink-soft);
+}
+
+.lds-wizard-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 28px 26px;
+  border-top: 1px solid rgba(122, 128, 160, 0.08);
+}
+
+@media (max-width: 1024px) {
+  .lds-start-hero,
+  .lds-wizard-topic-grid,
+  .lds-wizard-style-grid,
+  .lds-wizard-review-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lds-start-card-reveal {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .lds-wizard-overlay {
+    padding: 14px;
+  }
+
+  .lds-wizard-card {
+    max-height: 92vh;
+  }
+
+  .lds-wizard-header,
+  .lds-wizard-body,
+  .lds-wizard-actions {
+    padding-inline: 20px;
+  }
+
+  .lds-wizard-progress {
+    flex-direction: column;
+    align-items: stretch;
+    padding-inline: 20px;
+    gap: 10px;
+  }
+
+  .lds-wizard-progress-line {
+    display: none;
+  }
+
+  .lds-wizard-topic-preview-row,
+  .lds-wizard-review-row {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .lds-start-card-actions,
+  .lds-wizard-actions {
+    flex-direction: column;
+  }
+
+  .lds-start-card-actions .button,
+  .lds-wizard-actions .button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .lds-start-hero-panel,
+  .lds-start-gallery-header,
+  .lds-start-card-reveal,
+  .lds-wizard-review-card {
+    padding: 16px;
+  }
+}
+
+.lds-library-overlay,
+.cbs-templates-overlay,
+.cbs-modal-overlay,
+.lds-tour-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(244, 245, 251, 0.5);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.lds-library-modal,
+.cbs-templates-modal,
+.cbs-history-modal,
+.lds-tour-card {
+  position: relative;
+  width: min(1180px, 100%);
+  max-height: min(88vh, 960px);
+  overflow: hidden;
+  border-radius: 34px;
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(122, 128, 160, 0.14);
+  box-shadow: var(--cbs-shadow-4);
+  backdrop-filter: blur(28px) saturate(155%);
+  -webkit-backdrop-filter: blur(28px) saturate(155%);
+}
+
+.lds-library-header,
+.cbs-templates-header,
+.cbs-history-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 26px 28px 20px;
+  border-bottom: 1px solid rgba(122, 128, 160, 0.08);
+}
+
+.lds-library-title,
+.cbs-templates-title,
+.cbs-history-title,
+.lds-tour-title {
+  margin: 4px 0 8px;
+  color: var(--cbs-ink);
+  font-size: clamp(1.4rem, 1.18rem + 0.8vw, 2rem);
+  font-weight: 600;
+  line-height: 1.04;
+  letter-spacing: -0.05em;
+}
+
+.lds-library-body,
+.cbs-templates-body,
+.cbs-history-body {
+  max-height: calc(88vh - 120px);
+  overflow: auto;
+  padding: 0 28px 28px;
+}
+
+.lds-library-close,
+.cbs-templates-close,
+.cbs-drawer-close {
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(122, 128, 160, 0.14);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.64);
+  color: var(--cbs-ink-soft);
+  font-size: 1.1rem;
+  box-shadow: var(--cbs-shadow-1);
+}
+
+.lds-library-target,
+.lds-library-error {
+  margin-top: 10px;
+  font-size: 0.84rem;
+  color: var(--cbs-ink-soft);
+}
+
+.lds-library-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.lds-library-chip,
+.cbs-templates-meta span:not([aria-hidden="true"]) {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  color: var(--cbs-ink-soft);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.lds-library-chip.subtle {
+  background: rgba(16, 17, 20, 0.04);
+  color: var(--cbs-ink-muted);
+}
+
+.lds-library-error {
+  color: var(--cbs-danger);
+}
+
+.cbs-example-panel {
+  padding: 0 0 6px;
+  gap: 18px;
+}
+
+.cbs-example-header h2,
+.cbs-example-title,
+.cbs-example-week-header h4,
+.cbs-drawer-section-title,
+.cbs-drawer-header-title span {
+  color: var(--cbs-ink);
+  letter-spacing: -0.04em;
+}
+
+.cbs-example-header h2 {
+  font-size: 1.45rem;
+  font-weight: 600;
+}
+
+.cbs-example-header p,
+.cbs-example-description,
+.cbs-example-week-goal,
+.cbs-example-activity-desc,
+.cbs-example-tips-text,
+.cbs-example-week-annotation-copy {
+  color: var(--cbs-ink-soft);
+}
+
+.cbs-example-tabs {
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cbs-example-tab {
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(122, 128, 160, 0.14);
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--cbs-ink-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.cbs-example-tab:hover,
+.cbs-example-tab-active {
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--cbs-ink);
+  border-color: rgba(79, 70, 229, 0.14);
+  box-shadow: var(--cbs-shadow-1);
+}
+
+.cbs-example-overview,
+.cbs-example-week {
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.56);
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  padding: 22px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.cbs-example-recommendation,
+.cbs-example-tips-label,
+.cbs-example-week-annotation-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.08);
+  color: var(--cbs-accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cbs-example-annotation-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.cbs-example-annotation-card,
+.cbs-example-week-annotation-card,
+.cbs-example-week-tips {
+  padding: 16px;
+  border-radius: 22px;
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.cbs-example-annotation-card.feature {
+  margin-top: 14px;
+}
+
+.cbs-example-annotation-card.emphasis {
+  background:
+    linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(255, 255, 255, 0.7) 100%),
+    rgba(255, 255, 255, 0.64);
+}
+
+.cbs-example-annotation-card h4 {
+  margin: 0 0 8px;
+  color: var(--cbs-ink);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.cbs-example-note-title {
+  margin: 0 0 8px;
+}
+
+.cbs-example-note-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  color: var(--cbs-ink-soft);
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.cbs-time-bar {
+  display: flex;
+  gap: 4px;
+  margin: 16px 0 18px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(16, 17, 20, 0.04);
+}
+
+.cbs-time-segment {
+  min-width: 6%;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.cbs-example-activity-list {
+  display: grid;
+  gap: 12px;
+}
+
+.cbs-example-activity {
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(122, 128, 160, 0.1);
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.cbs-example-activity-row {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.cbs-example-activity-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.cbs-example-activity-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.cbs-example-activity-title {
+  color: var(--cbs-ink);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.cbs-example-activity-duration {
+  color: var(--cbs-ink-muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.cbs-example-activity-desc {
+  margin: 10px 0 0;
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.cbs-example-footer-copy {
+  margin-top: 0;
+  margin-bottom: 12px;
+  color: var(--cbs-ink-muted);
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.cbs-drawer-backdrop {
+  background: rgba(244, 245, 251, 0.52);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.cbs-drawer {
+  width: min(520px, calc(100vw - 24px));
+  padding: 0;
+  border-radius: 34px 0 0 34px;
+  box-shadow: var(--cbs-shadow-4);
+}
+
+.cbs-drawer-header {
+  padding: 24px 24px 18px;
+  border-bottom: 1px solid rgba(122, 128, 160, 0.08);
+}
+
+.cbs-drawer-header-eyebrow {
+  margin: 0 0 8px;
+  color: var(--cbs-ink-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.cbs-drawer-header-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.cbs-drawer-header-copy,
+.cbs-drawer-section-copy,
+.cbs-templates-category-copy {
+  margin: 8px 0 0;
+  color: var(--cbs-ink-soft);
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+.cbs-drawer-chip {
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--cbs-ink-soft);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cbs-drawer-chip.subtle {
+  text-transform: none;
+  letter-spacing: -0.01em;
+}
+
+.cbs-drawer-body {
+  padding: 22px 24px 28px;
+}
+
+.cbs-drawer-section {
+  padding: 0;
+  margin-bottom: 24px;
+  background: transparent;
+  border: 0;
+}
+
+.cbs-drawer-field-grid,
+.cbs-drawer-energy-grid {
+  gap: 12px;
+}
+
+.cbs-drawer-duration {
+  gap: 8px;
+}
+
+.cbs-drawer-duration-btn,
+.cbs-drawer-energy-chip,
+.cbs-drawer-tag {
+  border-radius: 18px;
+  border-color: rgba(122, 128, 160, 0.14);
+  background: rgba(255, 255, 255, 0.58);
+  box-shadow: none;
+}
+
+.cbs-drawer-energy-chip.active,
+.cbs-drawer-tag.active,
+.cbs-drawer-tag.active.alt {
+  border-color: rgba(79, 70, 229, 0.16);
+  background: rgba(79, 70, 229, 0.08);
+}
+
+.cbs-drawer-custom-tag-row {
+  align-items: center;
+}
+
+.cbs-templates-modal {
+  width: min(1120px, 100%);
+}
+
+.cbs-templates-body {
+  display: grid;
+  gap: 22px;
+}
+
+.cbs-templates-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.cbs-templates-meta span[aria-hidden="true"] {
+  display: inline-flex;
+  align-items: center;
+  color: var(--cbs-ink-muted);
+  font-size: 0.8rem;
+}
+
+.cbs-templates-category-header {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 14px;
+}
+
+.cbs-templates-category-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cbs-templates-category-title {
+  margin: 0;
+  color: var(--cbs-ink);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.cbs-templates-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.cbs-templates-card {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  background: rgba(255, 255, 255, 0.6);
+  text-align: left;
+  transition:
+    background 180ms var(--cbs-ease),
+    transform 180ms var(--cbs-ease),
+    box-shadow 180ms var(--cbs-ease);
+}
+
+.cbs-templates-card:hover {
+  background: rgba(255, 255, 255, 0.84);
+  transform: translateY(-1px);
+  box-shadow: var(--cbs-shadow-1);
+}
+
+.cbs-templates-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cbs-templates-badge,
+.cbs-templates-duration {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.cbs-templates-duration {
+  background: rgba(16, 17, 20, 0.05);
+  color: var(--cbs-ink-muted);
+}
+
+.cbs-templates-card-title {
+  color: var(--cbs-ink);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.cbs-templates-card-desc {
+  color: var(--cbs-ink-soft);
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.cbs-history-modal {
+  width: min(660px, 100%);
+}
+
+.cbs-history-body {
+  display: grid;
+  gap: 10px;
+}
+
+.cbs-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 16px 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  background: rgba(255, 255, 255, 0.56);
+  text-align: left;
+  transition:
+    background 180ms var(--cbs-ease),
+    transform 180ms var(--cbs-ease),
+    box-shadow 180ms var(--cbs-ease);
+}
+
+.cbs-history-item:hover {
+  background: rgba(255, 255, 255, 0.84);
+  transform: translateY(-1px);
+  box-shadow: var(--cbs-shadow-1);
+}
+
+.cbs-history-item-title {
+  display: block;
+  color: var(--cbs-ink);
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: -0.024em;
+}
+
+.cbs-history-item-time,
+.cbs-history-item-meta,
+.cbs-history-empty {
+  color: var(--cbs-ink-muted);
+  font-size: 0.78rem;
+}
+
+.lds-tour-overlay {
+  padding: 24px;
+}
+
+.lds-tour-backdrop {
+  position: absolute;
+  inset: 0;
+}
+
+.lds-tour-card {
+  width: min(700px, 100%);
+  padding: 0;
+  text-align: center;
+  overflow: hidden;
+}
+
+.lds-tour-progress {
+  width: 100%;
+  height: 4px;
+  background: rgba(16, 17, 20, 0.06);
+}
+
+.lds-tour-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, rgba(79, 70, 229, 0.5), rgba(79, 70, 229, 0.95));
+  transition: width 240ms var(--cbs-ease-soft);
+}
+
+.lds-tour-card > :not(.lds-tour-progress) {
+  position: relative;
+  z-index: 1;
+}
+
+.lds-tour-step-eyebrow {
+  margin: 26px auto 0;
+  color: var(--cbs-ink-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.lds-tour-icon {
+  width: 72px;
+  height: 72px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 28px auto 14px;
+  border-radius: 24px;
+  background: rgba(79, 70, 229, 0.08);
+  font-size: 1.6rem;
+}
+
+.lds-tour-step-meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 auto 6px;
+  color: var(--cbs-ink-muted);
+  font-size: 0.78rem;
+}
+
+.lds-tour-body {
+  max-width: 50ch;
+  margin: 0 auto;
+  padding: 0 28px;
+  color: var(--cbs-ink-soft);
+  line-height: 1.72;
+}
+
+.lds-tour-week-progress,
+.lds-tour-picker,
+.lds-tour-actions {
+  padding: 18px 28px 0;
+}
+
+.lds-tour-week-bar {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.lds-tour-week-pip {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(16, 17, 20, 0.05);
+  color: var(--cbs-ink-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.lds-tour-week-pip-done {
+  background: rgba(79, 70, 229, 0.1);
+  color: var(--cbs-accent);
+}
+
+.lds-tour-week-label {
+  margin-top: 10px;
+  color: var(--cbs-ink-muted);
+  font-size: 0.78rem;
+}
+
+.lds-tour-picker {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.lds-tour-picker-btn {
+  display: grid;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  background: rgba(255, 255, 255, 0.58);
+  text-align: left;
+  transition:
+    background 180ms var(--cbs-ease),
+    transform 180ms var(--cbs-ease),
+    box-shadow 180ms var(--cbs-ease);
+}
+
+.lds-tour-picker-btn:hover {
+  background: rgba(255, 255, 255, 0.84);
+  transform: translateY(-1px);
+  box-shadow: var(--cbs-shadow-1);
+}
+
+.lds-tour-picker-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lds-tour-picker-icon {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: rgba(79, 70, 229, 0.08);
+  font-size: 1rem;
+}
+
+.lds-tour-picker-meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  color: var(--cbs-ink-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.lds-tour-picker-title {
+  color: var(--cbs-ink);
+  font-size: 0.94rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.lds-tour-picker-desc {
+  color: var(--cbs-ink-soft);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.lds-tour-picker-preview {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(122, 128, 160, 0.1);
+}
+
+.lds-tour-picker-preview-row {
+  display: grid;
+  grid-template-columns: auto 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.lds-tour-picker-preview-index {
+  color: var(--cbs-ink-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.lds-tour-picker-preview-line {
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(79, 70, 229, 0.28), rgba(122, 128, 160, 0.06));
+}
+
+.lds-tour-picker-preview-title {
+  color: var(--cbs-ink-soft);
+  font-size: 0.78rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lds-tour-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding-bottom: 28px;
+}
+
+@keyframes ldsPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.2);
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(79, 70, 229, 0.06);
+    opacity: 0.85;
+  }
+}
+
+@keyframes ldsStageIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes ldsToastIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (max-width: 1280px) {
+  .lds-studio-toolbar-main {
+    grid-template-columns: 1fr;
+    justify-items: stretch;
+  }
+
+  .lds-toolbar-region,
+  .lds-toolbar-region-center,
+  .lds-toolbar-region-right {
+    justify-content: space-between;
+  }
+
+  .lds-guided-workbench {
+    grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
+  }
+
+  .lds-step-layout.wide {
+    grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
+  }
+
+  .lds-step-side {
+    grid-column: 1 / -1;
+  }
+
+  .lds-template-suggestions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1024px) {
+  .lds-shell {
+    padding-inline: 18px;
+  }
+
+  .lds-guided-workbench,
+  .lds-step-layout,
+  .lds-step-layout.wide {
+    grid-template-columns: 1fr;
+  }
+
+  .lds-guided-rail {
+    position: static;
+    top: auto;
+  }
+
+  .lds-guided-hero-grid,
+  .lds-launch-grid,
+  .lds-checklist-grid,
+  .lds-start-grid,
+  .lds-form-grid,
+  .lds-form-grid.two,
+  .lds-form-grid.three,
+  .lds-guided-rail-summary,
+  .lds-course-map-summary,
+  .lds-readiness-snapshot,
+  .lds-review-summary,
+  .lds-quick-add-row,
+  .cbs-templates-grid,
+  .lds-tour-picker {
+    grid-template-columns: 1fr;
+  }
+
+  .lds-guided-hero-top,
+  .lds-step-card-header,
+  .lds-subsection-header,
+  .lds-start-card-top {
+    flex-direction: column;
+  }
+
+  .lds-guided-status-stack {
+    justify-items: start;
+  }
+}
+
+@media (max-width: 720px) {
+  .lds-studio-toolbar {
+    top: 12px;
+    padding: 14px;
+    border-radius: 22px;
+  }
+
+  .lds-toolbar-region {
+    flex-wrap: wrap;
+  }
+
+  .lds-toolbar-region-center {
+    justify-content: flex-start;
+  }
+
+  .lds-toolbar-phase-path {
+    justify-content: flex-start;
+  }
+
+  .lds-guided-hero,
+  .lds-step-card,
+  .lds-session-roadmap-card,
+  .lds-subsection-card,
+  .lds-guided-rail,
+  .lds-library-header,
+  .cbs-templates-header,
+  .cbs-history-header {
+    padding: 20px;
+  }
+
+  .lds-library-body,
+  .cbs-templates-body,
+  .cbs-history-body {
+    padding-inline: 20px;
+    padding-bottom: 20px;
+  }
+
+  .lds-hero-title {
+    max-width: none;
+  }
+
+  .lds-session-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .lds-timeline-header {
+    flex-direction: column;
+  }
+
+  .lds-timeline-status {
+    justify-content: flex-start;
+  }
+
+  .lds-template-suggestions {
+    grid-template-columns: 1fr;
+  }
+
+  .lds-activity-primary {
+    grid-template-columns: auto auto minmax(0, 1fr);
+  }
+
+  .lds-activity-order {
+    grid-row: span 2;
+  }
+
+  .lds-activity-actions {
+    padding-left: 20px;
+  }
+
+  .cbs-drawer {
+    border-radius: 28px 28px 0 0;
+  }
+
+  .lds-tour-picker-preview-row {
+    grid-template-columns: auto 28px minmax(0, 1fr);
+  }
+
+  .lds-timeline-shell {
+    display: none;
+  }
+
+  .lds-session-mobile-stack {
+    display: grid;
+  }
+}
+
+@media (max-width: 560px) {
+  .lds-shell {
+    padding-inline: 12px;
+  }
+
+  .lds-toolbar-breadcrumbs {
+    display: none;
+  }
+
+  .lds-guided-pill-row {
+    gap: 8px;
+  }
+
+  .lds-rail-step {
+    padding: 11px 10px;
+  }
+
+  .lds-start-preview-row,
+  .cbs-example-activity-row {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .lds-quick-add-chip {
+    min-height: 54px;
+  }
+
+  .lds-library-meta,
+  .cbs-templates-meta,
+  .lds-tour-step-meta,
+  .lds-tour-picker-top,
+  .lds-tour-picker-meta {
+    justify-content: flex-start;
+  }
+
+  .lds-tour-actions {
+    flex-direction: column;
+  }
+
+  .lds-tour-actions .button {
+    width: 100%;
+  }
+}
+
+.lds-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lds-rich-upload-input {
+  display: none;
+}
+
+.lds-rich-editor {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+}
+
+.lds-rich-editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(193, 197, 220, 0.7);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(246, 244, 255, 0.72));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.78),
+    0 22px 42px rgba(154, 152, 190, 0.14);
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+}
+
+.lds-rich-editor-toolbar-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lds-rich-toolbar-divider {
+  width: 1px;
+  height: 24px;
+  background: linear-gradient(180deg, rgba(200, 201, 221, 0), rgba(200, 201, 221, 0.9), rgba(200, 201, 221, 0));
+}
+
+.lds-rich-editor-toolbar-spacer {
+  flex: 1 1 auto;
+}
+
+.lds-rich-toolbar-button {
+  appearance: none;
+  border: 1px solid rgba(190, 195, 217, 0.8);
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--cbs-ink);
+  border-radius: 999px;
+  min-height: 34px;
+  padding: 0 13px;
+  font: inherit;
+  font-size: 0.83rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition:
+    transform 180ms var(--cbs-ease),
+    box-shadow 180ms var(--cbs-ease),
+    background 180ms var(--cbs-ease),
+    border-color 180ms var(--cbs-ease);
+  box-shadow: 0 10px 20px rgba(163, 159, 193, 0.08);
+}
+
+.lds-rich-toolbar-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(170, 176, 209, 0.95);
+}
+
+.lds-rich-toolbar-button.active {
+  background: rgba(109, 111, 205, 0.1);
+  color: #4c4ec2;
+  border-color: rgba(109, 111, 205, 0.25);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.62),
+    0 16px 30px rgba(109, 111, 205, 0.12);
+}
+
+.lds-rich-toolbar-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.lds-rich-editor-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lds-rich-editor-note,
+.lds-rich-editor-status {
+  margin: 0;
+  color: var(--cbs-ink-soft);
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+.lds-rich-editor-status {
+  white-space: nowrap;
+}
+
+.lds-rich-editor-surface {
+  min-height: 240px;
+  border-radius: 24px;
+  border: 1px solid rgba(194, 199, 220, 0.72);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(248, 246, 255, 0.74));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.84),
+    0 28px 48px rgba(155, 149, 188, 0.14);
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  padding: 18px 20px;
+}
+
+.lds-rich-editor-surface.preview {
+  min-height: 220px;
+}
+
+.lds-rich-editor-content {
+  min-height: 200px;
+  color: var(--cbs-ink);
+  cursor: text;
+  font-size: 0.98rem;
+  line-height: 1.78;
+}
+
+.lds-rich-editor-content:focus {
+  outline: none;
+}
+
+.lds-rich-editor-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--cbs-ink-muted);
+  pointer-events: none;
+  height: 0;
+}
+
+.lds-rich-editor-content p,
+.lds-rich-content p {
+  margin: 0 0 12px;
+}
+
+.lds-rich-editor-content h2,
+.lds-rich-content h2 {
+  margin: 0 0 12px;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--cbs-ink);
+}
+
+.lds-rich-editor-content h3,
+.lds-rich-content h3 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--cbs-ink);
+}
+
+.lds-rich-editor-content ul,
+.lds-rich-editor-content ol,
+.lds-rich-content ul,
+.lds-rich-content ol {
+  margin: 0 0 14px;
+  padding-left: 1.35rem;
+}
+
+.lds-rich-editor-content li,
+.lds-rich-content li {
+  margin-bottom: 6px;
+}
+
+.lds-rich-editor-content a,
+.lds-rich-content a {
+  color: #4d57cf;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.lds-rich-editor-content code,
+.lds-rich-content code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.92em;
+  border-radius: 10px;
+  padding: 0.12rem 0.4rem;
+  background: rgba(49, 54, 86, 0.08);
+}
+
+.lds-rich-editor-content .lds-rich-node-figure,
+.lds-rich-content-figure {
+  margin: 18px 0;
+  padding: 14px;
+  border-radius: 22px;
+  border: 1px solid rgba(194, 199, 220, 0.7);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.88),
+    0 18px 36px rgba(152, 145, 183, 0.12);
+}
+
+.lds-rich-editor-content .lds-rich-node-figure img,
+.lds-rich-content-image {
+  width: 100%;
+  display: block;
+  border-radius: 16px;
+  object-fit: cover;
+}
+
+.lds-rich-editor-content .lds-rich-node-caption,
+.lds-rich-content figcaption {
+  margin-top: 10px;
+  color: var(--cbs-ink-soft);
+  font-size: 0.84rem;
+}
+
+.lds-rich-editor-content .lds-rich-node-embed-frame,
+.lds-rich-content-embed-frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  padding-top: 56.25%;
+  background: rgba(22, 26, 44, 0.9);
+}
+
+.lds-rich-editor-content .lds-rich-node-embed-frame iframe,
+.lds-rich-content-embed-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.lds-rich-editor-content .lds-rich-node-file-link,
+.lds-rich-content-file {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 16px 0;
+  padding: 15px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(190, 196, 219, 0.78);
+  background: rgba(252, 252, 255, 0.88);
+  color: var(--cbs-ink);
+  text-decoration: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.76),
+    0 16px 28px rgba(154, 149, 186, 0.1);
+}
+
+.lds-rich-node-file-title,
+.lds-rich-content-file-title {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.lds-rich-node-file-meta,
+.lds-rich-content-file-meta {
+  color: var(--cbs-ink-soft);
+  font-size: 0.82rem;
+}
+
+.lds-rich-content-code-block {
+  position: relative;
+  margin: 16px 0;
+  padding: 18px 18px 40px;
+  overflow-x: auto;
+  border-radius: 20px;
+  background: rgba(23, 27, 43, 0.96);
+  color: rgba(247, 248, 255, 0.94);
+  box-shadow: 0 24px 44px rgba(16, 18, 31, 0.24);
+}
+
+.lds-rich-content-code-block code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+.lds-rich-content-code-language {
+  position: absolute;
+  right: 14px;
+  bottom: 12px;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.lds-rich-quiz-card {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(196, 202, 224, 0.75);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(247, 244, 255, 0.78));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.84),
+    0 22px 38px rgba(154, 149, 188, 0.13);
+}
+
+.lds-rich-quiz-label {
+  display: inline-flex;
+  width: fit-content;
+  padding: 0.35rem 0.72rem;
+  border-radius: 999px;
+  background: rgba(88, 96, 202, 0.1);
+  color: #4d58c8;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.lds-rich-quiz-options {
+  display: grid;
+  gap: 10px;
+}
+
+.lds-rich-quiz-options.static {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.lds-rich-quiz-option {
+  text-align: left;
+  border: 1px solid rgba(188, 194, 220, 0.82);
+  background: rgba(255, 255, 255, 0.86);
+  border-radius: 16px;
+  padding: 12px 14px;
+  font: inherit;
+  color: var(--cbs-ink);
+  transition:
+    transform 180ms var(--cbs-ease),
+    border-color 180ms var(--cbs-ease),
+    background 180ms var(--cbs-ease);
+}
+
+.lds-rich-quiz-option:hover {
+  transform: translateY(-1px);
+  border-color: rgba(120, 129, 214, 0.6);
+}
+
+.lds-rich-quiz-option.selected {
+  border-color: rgba(104, 114, 210, 0.9);
+  background: rgba(104, 114, 210, 0.08);
+}
+
+.lds-rich-quiz-option.correct {
+  border-color: rgba(46, 164, 109, 0.72);
+  background: rgba(46, 164, 109, 0.1);
+}
+
+.lds-rich-quiz-option.incorrect {
+  border-color: rgba(209, 88, 88, 0.7);
+  background: rgba(209, 88, 88, 0.08);
+}
+
+.lds-rich-quiz-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.lds-rich-quiz-feedback {
+  margin: 0;
+  color: var(--cbs-ink-soft);
+}
+
+.lds-rich-quiz-feedback.success {
+  color: #268a5f;
+}
+
+.lds-rich-quiz-feedback.error {
+  color: #b35555;
+}
+
+.lds-rich-content-empty {
+  margin: 0;
+  color: var(--cbs-ink-muted);
+}
+
+.cbs-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 126;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 28px;
+  background: rgba(236, 237, 247, 0.42);
+  backdrop-filter: blur(18px) saturate(120%);
+  -webkit-backdrop-filter: blur(18px) saturate(120%);
+}
+
+.cbs-preview-panel {
+  width: min(980px, 100%);
+  max-height: min(88vh, 980px);
+  overflow: hidden;
+  border-radius: 32px;
+  border: 1px solid rgba(198, 203, 224, 0.76);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(247, 244, 255, 0.82));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.86),
+    0 42px 84px rgba(142, 137, 175, 0.24);
+}
+
+.cbs-preview-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 28px 30px 20px;
+  border-bottom: 1px solid rgba(196, 201, 223, 0.72);
+}
+
+.cbs-preview-eyebrow {
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cbs-ink-soft);
+}
+
+.cbs-preview-title {
+  margin: 0;
+  font-size: clamp(1.5rem, 2vw, 2rem);
+  letter-spacing: -0.05em;
+  color: var(--cbs-ink);
+}
+
+.cbs-preview-copy {
+  max-width: 44rem;
+  margin: 10px 0 0;
+  color: var(--cbs-ink-soft);
+  line-height: 1.7;
+}
+
+.cbs-preview-body {
+  display: grid;
+  gap: 20px;
+  max-height: calc(88vh - 132px);
+  overflow: auto;
+  padding: 24px 30px 30px;
+}
+
+.cbs-preview-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.cbs-preview-summary-card,
+.cbs-preview-section,
+.cbs-preview-activity-card {
+  border-radius: 24px;
+  border: 1px solid rgba(194, 199, 220, 0.7);
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.84),
+    0 22px 38px rgba(152, 145, 183, 0.12);
+}
+
+.cbs-preview-summary-card {
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+}
+
+.cbs-preview-summary-card span {
+  color: var(--cbs-ink-soft);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.cbs-preview-summary-card strong {
+  font-size: 1.04rem;
+  letter-spacing: -0.02em;
+  color: var(--cbs-ink);
+}
+
+.cbs-preview-section {
+  padding: 22px 24px;
+}
+
+.cbs-preview-section.intro h3,
+.cbs-preview-section h3 {
+  margin: 8px 0 0;
+  font-size: 1.16rem;
+  letter-spacing: -0.03em;
+}
+
+.cbs-preview-section p {
+  margin: 10px 0 0;
+  color: var(--cbs-ink-soft);
+  line-height: 1.7;
+}
+
+.cbs-preview-section-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cbs-ink-soft);
+}
+
+.cbs-preview-activity-list {
+  display: grid;
+  gap: 16px;
+}
+
+.cbs-preview-activity-card {
+  padding: 22px 24px;
+}
+
+.cbs-preview-activity-top,
+.cbs-preview-activity-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cbs-preview-activity-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.48rem 0.88rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cbs-preview-accent) 12%, white);
+  color: var(--cbs-preview-accent);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.cbs-preview-activity-time,
+.cbs-preview-activity-duration {
+  color: var(--cbs-ink-soft);
+  font-size: 0.83rem;
+}
+
+.cbs-preview-activity-title {
+  margin: 14px 0 10px;
+  font-size: 1.12rem;
+  letter-spacing: -0.03em;
+}
+
+.lds-form-label-row,
+.cbs-drawer-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.lds-outcome-thread-group {
+  display: grid;
+  gap: 12px;
+}
+
+.lds-comment-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0.42rem 0.74rem;
+  border: 1px solid rgba(168, 176, 201, 0.44);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--cbs-ink-soft);
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.84),
+    0 10px 24px rgba(132, 138, 168, 0.12);
+  transition:
+    transform 180ms var(--cbs-ease),
+    box-shadow 180ms var(--cbs-ease),
+    border-color 180ms var(--cbs-ease),
+    color 180ms var(--cbs-ease);
+}
+
+.lds-comment-indicator:hover {
+  transform: translateY(-1px);
+  border-color: rgba(136, 146, 176, 0.58);
+  color: var(--cbs-ink);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 14px 28px rgba(132, 138, 168, 0.16);
+}
+
+.lds-comment-indicator.has-comments {
+  color: var(--cbs-ink);
+}
+
+.lds-comment-indicator.unresolved {
+  border-color: rgba(109, 130, 200, 0.38);
+}
+
+.lds-comment-indicator-icon {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.1) 55%),
+    linear-gradient(135deg, rgba(109, 130, 200, 0.9), rgba(156, 142, 206, 0.82));
+  box-shadow:
+    0 0 0 4px rgba(109, 130, 200, 0.08),
+    0 6px 14px rgba(109, 130, 200, 0.2);
+}
+
+.lds-comment-indicator-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(109, 130, 200, 0.14);
+  color: rgb(68, 82, 130);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.lds-comment-thread {
+  display: grid;
+  gap: 16px;
+  margin-top: 14px;
+  padding: 18px 18px 20px;
+  border-radius: 24px;
+  border: 1px solid rgba(182, 189, 213, 0.52);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(246, 246, 252, 0.72));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 18px 36px rgba(148, 150, 178, 0.12);
+}
+
+.lds-comment-thread-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lds-comment-thread-label {
+  margin: 0 0 6px;
+  color: var(--cbs-ink-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.lds-comment-thread-title {
+  margin: 0;
+  color: var(--cbs-ink);
+  font-size: 0.98rem;
+  letter-spacing: -0.02em;
+}
+
+.lds-comment-empty {
+  margin: 0;
+  color: var(--cbs-ink-soft);
+  font-size: 0.88rem;
+  line-height: 1.7;
+}
+
+.lds-comment-thread-list,
+.lds-comment-replies {
+  display: grid;
+  gap: 12px;
+}
+
+.lds-comment-card,
+.lds-comment-reply-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px 15px;
+  border-radius: 18px;
+  border: 1px solid rgba(184, 191, 214, 0.5);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.lds-comment-card.resolved {
+  background: rgba(247, 248, 251, 0.74);
+  opacity: 0.88;
+}
+
+.lds-comment-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lds-comment-card-top > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.lds-comment-card-top strong {
+  color: var(--cbs-ink);
+  font-size: 0.88rem;
+}
+
+.lds-comment-card-top span {
+  color: var(--cbs-ink-muted);
+  font-size: 0.76rem;
+}
+
+.lds-comment-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lds-comment-body {
+  margin: 0;
+  color: var(--cbs-ink-soft);
+  font-size: 0.9rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.lds-comment-replies {
+  padding-left: 18px;
+}
+
+.lds-comment-reply-box {
+  display: grid;
+  gap: 12px;
+}
+
+.lds-comment-composer {
+  display: grid;
+  gap: 10px;
+}
+
+.lds-comment-composer.root {
+  padding-top: 2px;
+}
+
+.lds-comment-composer textarea {
+  width: 100%;
+  min-height: 88px;
+  resize: vertical;
+  padding: 14px 15px;
+  border-radius: 18px;
+  border: 1px solid rgba(171, 179, 203, 0.56);
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--cbs-ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.88);
+}
+
+.lds-comment-composer textarea::placeholder {
+  color: var(--cbs-ink-muted);
+}
+
+.lds-comment-composer textarea:focus {
+  outline: none;
+  border-color: rgba(116, 132, 201, 0.62);
+  box-shadow:
+    0 0 0 4px rgba(116, 132, 201, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.lds-comment-composer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.lds-comment-sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 122;
+  background: rgba(242, 244, 250, 0.48);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.lds-comment-sidebar {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  bottom: 20px;
+  z-index: 123;
+  width: min(460px, calc(100vw - 40px));
+  display: grid;
+  grid-template-rows: auto auto auto auto minmax(0, 1fr);
+  gap: 18px;
+  padding: 24px;
+  border-radius: 32px;
+  border: 1px solid rgba(188, 194, 217, 0.68);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(246, 244, 251, 0.82));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 34px 68px rgba(137, 141, 171, 0.24);
+  overflow: hidden;
+}
+
+.lds-comment-sidebar-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.lds-comment-sidebar-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.lds-comment-sidebar-stat {
+  display: grid;
+  gap: 6px;
+  padding: 14px 15px;
+  border-radius: 20px;
+  border: 1px solid rgba(184, 191, 214, 0.54);
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.lds-comment-sidebar-stat span {
+  color: var(--cbs-ink-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.lds-comment-sidebar-stat strong {
+  color: var(--cbs-ink);
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+}
+
+.lds-comment-sidebar-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.lds-comment-filter {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(171, 179, 203, 0.54);
+  background: rgba(255, 255, 255, 0.68);
+  color: var(--cbs-ink-soft);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.lds-comment-filter.active {
+  border-color: rgba(116, 132, 201, 0.52);
+  background: rgba(116, 132, 201, 0.12);
+  color: rgb(62, 76, 118);
+}
+
+.lds-comment-anchor-focus {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 15px;
+  border-radius: 20px;
+  border: 1px solid rgba(184, 191, 214, 0.54);
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.lds-comment-anchor-focus strong {
+  color: var(--cbs-ink-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.lds-comment-anchor-focus p {
+  margin: 6px 0 0;
+  color: var(--cbs-ink);
+  font-size: 0.92rem;
+}
+
+.lds-comment-sidebar-body {
+  display: grid;
+  gap: 16px;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+@media (max-width: 900px) {
+  .lds-toolbar-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .lds-rich-editor-status-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .lds-comment-sidebar {
+    top: 14px;
+    right: 14px;
+    bottom: 14px;
+    width: min(420px, calc(100vw - 28px));
+  }
+
+  .cbs-preview-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .lds-rich-editor-toolbar {
+    padding: 12px;
+  }
+
+  .lds-rich-toolbar-divider,
+  .lds-rich-editor-toolbar-spacer {
+    display: none;
+  }
+
+  .cbs-preview-overlay {
+    padding: 14px;
+  }
+
+  .cbs-preview-panel {
+    max-height: 92vh;
+    border-radius: 28px;
+  }
+
+  .cbs-preview-header,
+  .cbs-preview-body {
+    padding-inline: 20px;
+  }
+
+  .lds-comment-sidebar {
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    border-radius: 28px 28px 0 0;
+    padding: 20px 18px;
+  }
+
+  .lds-comment-sidebar-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .lds-comment-anchor-focus {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .lds-comment-replies {
+    padding-left: 10px;
+  }
+
+  .cbs-preview-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cbs-studio *,
+  .cbs-studio *::before,
+  .cbs-studio *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media print {
+  .cbs-studio,
+  .cbs-studio .card,
+  .cbs-studio .lds-step-card,
+  .cbs-studio .lds-session-roadmap-card,
+  .cbs-studio .lds-subsection-card,
+  .cbs-studio .lds-guided-hero,
+  .cbs-studio .lds-guided-rail {
+    background: #fff !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .cbs-studio::before,
+  .cbs-studio::after,
+  .lds-studio-toolbar,
+  .lds-guided-rail-actions,
+  .lds-studio-toast,
+  .cbs-preview-overlay,
+  .lds-comment-sidebar-backdrop,
+  .lds-comment-sidebar,
+  .lds-comment-thread,
+  .lds-comment-indicator {
+    display: none !important;
+  }
+
+  .cbs-studio {
+    color: #000 !important;
+  }
+}
+
+/* ============================================================
+   UI Simplification Overrides
+   Tighter rail, compact phase strip, icon buttons, empty state
+   ============================================================ */
+
+/* ── Rail: remove verbose copy block spacing ─────────────── */
+
+.lds-guided-pill-row {
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+/* ── Rail step: numbered badge layout ───────────────────── */
+
+.lds-rail-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.lds-rail-step-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(122, 128, 160, 0.22);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--cbs-ink-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  transition:
+    background 180ms var(--cbs-ease),
+    border-color 180ms var(--cbs-ease),
+    color 180ms var(--cbs-ease);
+}
+
+.lds-rail-step-badge.complete {
+  border-color: rgba(28, 162, 101, 0.34);
+  background: rgba(28, 162, 101, 0.1);
+  color: var(--cbs-success);
+}
+
+.lds-rail-step-badge.active,
+.lds-rail-step.active .lds-rail-step-badge {
+  border-color: rgba(79, 70, 229, 0.38);
+  background: var(--cbs-accent);
+  color: #fff;
+}
+
+.lds-rail-step-label {
+  flex: 1;
+  min-width: 0;
+  color: var(--cbs-ink);
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lds-rail-step-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(16, 17, 20, 0.05);
+  color: var(--cbs-ink-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.lds-rail-step-chip.complete {
+  background: rgba(28, 162, 101, 0.1);
+  color: var(--cbs-success);
+}
+
+.lds-rail-step-chip.active,
+.lds-rail-step.active .lds-rail-step-chip {
+  background: rgba(79, 70, 229, 0.1);
+  color: var(--cbs-accent);
+}
+
+/* ── Progress cells (2-cell summary replacing 4 stat cards) ── */
+
+.lds-progress-cell {
+  position: relative;
+  padding: 14px 16px 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(122, 128, 160, 0.12);
+  background: rgba(255, 255, 255, 0.58);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.66);
+}
+
+/* ── Toolbar phase: numbered dot replacing plain dot ────── */
+
+.lds-toolbar-phase-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(16, 17, 20, 0.1);
+  color: var(--cbs-ink-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  transition: background 180ms var(--cbs-ease), color 180ms var(--cbs-ease);
+  flex-shrink: 0;
+}
+
+.lds-toolbar-phase-button.current .lds-toolbar-phase-num {
+  background: var(--cbs-accent);
+  color: #fff;
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+}
+
+.lds-toolbar-phase-button.complete .lds-toolbar-phase-num {
+  background: rgba(28, 162, 101, 0.14);
+  color: var(--cbs-success);
+}
+
+/* Phase steps in toolbar are now real buttons – keep consistent appearance */
+.lds-toolbar-phase-button[type="button"] {
+  cursor: pointer;
+}
+
+/* ── Phase context strip (replaces verbose hero section) ── */
+
+.lds-phase-context-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 14px 22px;
+  border-radius: var(--cbs-radius-panel);
+  overflow: hidden;
+}
+
+.cbs-studio .lds-phase-context-strip {
+  background: var(--cbs-panel);
+  border: 1px solid var(--cbs-panel-border);
+  box-shadow: var(--cbs-shadow-2);
+  backdrop-filter: blur(var(--cbs-blur-md)) saturate(145%);
+  -webkit-backdrop-filter: blur(var(--cbs-blur-md)) saturate(145%);
+}
+
+.lds-phase-context-label {
+  flex-shrink: 0;
+  color: var(--cbs-ink-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.lds-phase-context-sep {
+  color: var(--cbs-ink-muted);
+  opacity: 0.4;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.lds-phase-context-desc {
+  flex: 1;
+  min-width: 0;
+  color: var(--cbs-ink);
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Session roadmap: sticky left panel ─────────────────── */
+
+.lds-session-roadmap-card {
+  position: sticky;
+  top: 112px;
+  align-self: start;
+}
+
+/* Session roadmap status indicator */
+
+.lds-session-roadmap-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  width: fit-content;
+}
+
+.lds-session-roadmap-status.ready {
+  background: rgba(28, 162, 101, 0.1);
+  color: var(--cbs-success);
+}
+
+.lds-session-roadmap-status.notes {
+  background: rgba(217, 119, 6, 0.1);
+  color: #b45309;
+}
+
+/* ── Coaching strips: amber border + icons ──────────────── */
+
+.lds-coaching-strip::before {
+  background: linear-gradient(180deg, rgba(217, 119, 6, 0.88), rgba(217, 119, 6, 0.45));
+}
+
+.lds-coaching-strip span::before {
+  content: "⚠ ";
+}
+
+.lds-success-strip::before {
+  background: linear-gradient(180deg, rgba(28, 162, 101, 0.88), rgba(28, 162, 101, 0.45));
+}
+
+.lds-blocker-card::before {
+  background: linear-gradient(180deg, rgba(194, 90, 82, 0.88), rgba(194, 90, 82, 0.45));
+  width: 4px;
+}
+
+.lds-coaching-strip::before {
+  width: 4px;
+}
+
+.lds-success-strip::before {
+  width: 4px;
+}
+
+.lds-blocker-card strong {
+  font-weight: 700;
+}
+
+/* ── Activity card: stronger left accent + tint ────────── */
+
+.lds-activity-card {
+  border-left: 4px solid color-mix(in srgb, var(--lds-activity-accent) 60%, transparent 40%);
+  background: color-mix(in srgb, var(--lds-activity-accent) 3%, rgba(255, 255, 255, 0.58) 97%);
+}
+
+.lds-activity-card.active,
+.lds-activity-card:hover {
+  background: color-mix(in srgb, var(--lds-activity-accent) 5%, rgba(255, 255, 255, 0.82) 95%);
+}
+
+/* ── Icon-only action buttons ───────────────────────────── */
+
+.lds-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(122, 128, 160, 0.16);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--cbs-ink-soft);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition:
+    background 150ms var(--cbs-ease),
+    border-color 150ms var(--cbs-ease),
+    color 150ms var(--cbs-ease),
+    transform 150ms var(--cbs-ease);
+}
+
+.lds-icon-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(79, 70, 229, 0.24);
+  color: var(--cbs-ink);
+  transform: scale(1.08);
+}
+
+.lds-icon-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.lds-icon-btn-danger:hover:not(:disabled) {
+  border-color: rgba(194, 90, 82, 0.3);
+  color: var(--cbs-danger);
+}
+
+.lds-activity-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 18px 14px 82px;
+}
+
+/* ── Empty state: dashed container with icon + CTA ──────── */
+
+.lds-empty-activities {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 28px;
+  border-radius: 26px;
+  border: 2px dashed rgba(122, 128, 160, 0.2);
+  background: rgba(255, 255, 255, 0.44);
+  text-align: center;
+}
+
+.lds-empty-activities-icon {
+  font-size: 2rem;
+  line-height: 1;
+  opacity: 0.6;
+}
+
+.lds-empty-activities-heading {
+  color: var(--cbs-ink);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.lds-empty-activities-copy {
+  margin: 0;
+  max-width: 36ch;
+  color: var(--cbs-ink-soft);
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+
+/* ── Add-activity consolidated area ────────────────────── */
+
+.lds-add-activity-area {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.lds-more-templates-toggle {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px dashed rgba(122, 128, 160, 0.22);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cbs-ink-muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 150ms var(--cbs-ease),
+    border-color 150ms var(--cbs-ease),
+    color 150ms var(--cbs-ease);
+  flex-shrink: 0;
+}
+
+.lds-more-templates-toggle:hover {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(79, 70, 229, 0.24);
+  color: var(--cbs-accent);
+}
+
+.lds-add-activity-secondary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Small ghost button variant */
+.cbs-studio .button.ghost.small {
+  min-height: 32px;
+  padding: 0 14px;
+  font-size: 0.78rem;
+}
+
+/* ── Start card: persistent left border on recommended ── */
+
+.lds-start-card.recommended {
+  border-left: 4px solid rgba(79, 70, 229, 0.38);
+}
+
+.lds-start-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--cbs-shadow-3);
+}
+
+/* ── Start hero panel: stronger accent border CTA ──────── */
+
+.lds-start-hero-panel {
+  border: 1.5px solid rgba(79, 70, 229, 0.22);
+  background:
+    linear-gradient(145deg, rgba(248, 246, 255, 0.92), rgba(255, 255, 255, 0.84)),
+    rgba(255, 255, 255, 0.58);
+  box-shadow: var(--cbs-shadow-2);
+}
+
+/* ── Roadmap step card header: tighter ─────────────────── */
+
+.lds-session-roadmap-card .lds-step-card-header {
+  margin-bottom: 14px;
+}
+
+/* ── Print: hide new elements not relevant to print ──── */
+@media print {
+  .lds-phase-context-strip,
+  .lds-add-activity-secondary,
+  .lds-more-templates-toggle,
+  .lds-icon-btn {
+    display: none !important;
+  }
+}

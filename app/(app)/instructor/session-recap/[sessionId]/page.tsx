@@ -26,7 +26,7 @@ export default async function SessionRecapPage({ params }: { params: { sessionId
 
   const isInstructor =
     attendanceSession.course.leadInstructorId === session.user.id ||
-    session.user.primaryRole === "ADMIN";
+    session.user.roles.includes("ADMIN");
 
   if (!isInstructor) {
     redirect(`/courses/${attendanceSession.courseId}`);

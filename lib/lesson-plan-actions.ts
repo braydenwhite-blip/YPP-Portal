@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { ActivityType } from "@prisma/client";
+import { syncInstructorGrowthSignalsForInstructor } from "@/lib/instructor-growth-service";
 
 async function requireAuth() {
   const session = await getSession();
@@ -31,6 +32,10 @@ function revalidateLessonPlanSurfaces() {
   revalidatePath("/instructor/workspace");
   revalidatePath("/instructor/curriculum-builder");
   revalidatePath("/instructor/lesson-plans/templates");
+}
+
+async function syncLessonPlanGrowth(instructorId: string) {
+  await syncInstructorGrowthSignalsForInstructor(instructorId).catch(() => null);
 }
 
 async function resolveClassTemplateId(
@@ -115,6 +120,7 @@ export async function createLessonPlan(formData: FormData) {
     },
   });
 
+  await syncLessonPlanGrowth(session.user.id);
   revalidateLessonPlanSurfaces();
 }
 
@@ -190,6 +196,7 @@ export async function updateLessonPlan(formData: FormData) {
     },
   });
 
+  await syncLessonPlanGrowth(existing.authorId);
   revalidateLessonPlanSurfaces();
 }
 
@@ -252,5 +259,6 @@ export async function duplicateLessonPlan(formData: FormData) {
     },
   });
 
+  await syncLessonPlanGrowth(session.user.id);
   revalidateLessonPlanSurfaces();
 }

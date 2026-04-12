@@ -7,6 +7,7 @@ import {
 } from "@/lib/chapter-actions";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import { normalizeRoleList } from "@/lib/authorization";
 
 export default async function ChapterUpdatesPage() {
   const session = await getSession();
@@ -17,8 +18,9 @@ export default async function ChapterUpdatesPage() {
     include: { roles: true },
   });
 
-  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT");
-  const isAdmin = user?.roles.some((r) => r.role === "ADMIN");
+  const roles = user ? normalizeRoleList(user.roles, user.primaryRole) : [];
+  const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
+  const isAdmin = roles.includes("ADMIN");
   const canPost = isChapterLead || isAdmin;
 
   const updates = await getChapterUpdates();

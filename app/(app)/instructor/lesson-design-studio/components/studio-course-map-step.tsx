@@ -1,11 +1,19 @@
 "use client";
 
+import { useId } from "react";
 import type { StudioPhase } from "@/lib/lesson-design-studio";
-import type { StudioUnderstandingChecks, StudioCourseConfig } from "../types";
+import type {
+  CurriculumCommentAnchor,
+  CurriculumCommentRecord,
+  StudioUnderstandingChecks,
+  StudioCourseConfig,
+} from "../types";
 import {
   DELIVERY_MODE_OPTIONS,
   DIFFICULTY_LEVEL_OPTIONS,
 } from "./activity-template-data";
+import { CommentIndicator } from "./comment-indicator";
+import { CommentThread } from "./comment-thread";
 import { StudioExampleSpotlight } from "./studio-example-spotlight";
 import { StudioMicroChecks } from "./studio-micro-checks";
 
@@ -15,13 +23,33 @@ interface StudioCourseMapStepProps {
   interestArea: string;
   outcomes: string[];
   courseConfig: StudioCourseConfig;
+  currentUserId: string;
+  canComment: boolean;
+  canResolveComments: boolean;
   blockers: string[];
   understandingChecks: StudioUnderstandingChecks;
   isReadOnly: boolean;
+  getCommentStats: (anchor: {
+    anchorType: string;
+    anchorId?: string | null;
+    anchorField?: string | null;
+  }) => {
+    comments: CurriculumCommentRecord[];
+    count: number;
+    unresolvedCount: number;
+  };
   onUpdate: (field: string, value: unknown) => void;
   onPhaseChange: (phase: StudioPhase) => void;
   onAnswerUnderstandingCheck: (questionId: string, answer: string) => void;
   onOpenExamplesLibrary: () => void;
+  onOpenComments: (anchor: CurriculumCommentAnchor) => void;
+  onCreateComment: (
+    anchor: CurriculumCommentAnchor,
+    body: string,
+    parentId?: string | null
+  ) => Promise<void> | void;
+  onResolveComment: (commentId: string, resolved: boolean) => Promise<void> | void;
+  onDeleteComment: (commentId: string) => Promise<void> | void;
 }
 
 export function StudioCourseMapStep({
@@ -30,15 +58,47 @@ export function StudioCourseMapStep({
   interestArea,
   outcomes,
   courseConfig,
+  currentUserId,
+  canComment,
+  canResolveComments,
   blockers,
   understandingChecks,
   isReadOnly,
+  getCommentStats,
   onUpdate,
   onPhaseChange,
   onAnswerUnderstandingCheck,
   onOpenExamplesLibrary,
+  onOpenComments,
+  onCreateComment,
+  onResolveComment,
+  onDeleteComment,
 }: StudioCourseMapStepProps) {
+  const titleId = useId();
+  const titleHintId = useId();
+  const interestAreaId = useId();
+  const interestAreaHintId = useId();
+  const descriptionId = useId();
+  const descriptionHintId = useId();
   const safeOutcomes = outcomes.length > 0 ? outcomes : [""];
+  const titleAnchor: CurriculumCommentAnchor = {
+    anchorType: "COURSE",
+    anchorField: "title",
+    label: "Course title",
+  };
+  const interestAreaAnchor: CurriculumCommentAnchor = {
+    anchorType: "COURSE",
+    anchorField: "interestArea",
+    label: "Interest area",
+  };
+  const descriptionAnchor: CurriculumCommentAnchor = {
+    anchorType: "COURSE",
+    anchorField: "description",
+    label: "Why this course matters",
+  };
+  const titleCommentStats = getCommentStats(titleAnchor);
+  const interestAreaCommentStats = getCommentStats(interestAreaAnchor);
+  const descriptionCommentStats = getCommentStats(descriptionAnchor);
 
   function updateOutcome(index: number, value: string) {
     const next = [...safeOutcomes];
@@ -62,6 +122,29 @@ export function StudioCourseMapStep({
     });
   }
 
+  function renderCommentThread(
+    anchor: CurriculumCommentAnchor,
+    title: string,
+    comments: CurriculumCommentRecord[]
+  ) {
+    if (comments.length === 0) {
+      return null;
+    }
+
+    return (
+      <CommentThread
+        title={title}
+        comments={comments}
+        currentUserId={currentUserId}
+        canComment={canComment}
+        canResolveComments={canResolveComments}
+        onCreateComment={(body, parentId) => onCreateComment(anchor, body, parentId)}
+        onResolveComment={onResolveComment}
+        onDeleteComment={onDeleteComment}
+      />
+    );
+  }
+
   return (
     <section className="lds-step-layout">
       <div className="lds-step-main">
@@ -71,8 +154,8 @@ export function StudioCourseMapStep({
               <p className="lds-section-eyebrow">Step 1</p>
               <h2 className="lds-section-title">Shape the course promise</h2>
               <p className="lds-section-copy">
-                This is the big picture. Give the course a name, a purpose, and outcomes
-                that make the rest of the curriculum feel connected.
+                Define the promise of the course before you perfect the details of the
+                lessons inside it.
               </p>
             </div>
             <div className="lds-inline-actions">
@@ -104,38 +187,125 @@ export function StudioCourseMapStep({
             </div>
           ) : null}
 
+          <div className="lds-course-map-summary">
+            <div className="lds-stat-card">
+              <span className="lds-stat-label">Course arc</span>
+              <strong className="lds-stat-value">
+                {courseConfig.durationWeeks} week{courseConfig.durationWeeks === 1 ? "" : "s"}
+              </strong>
+            </div>
+            <div className="lds-stat-card">
+              <span className="lds-stat-label">Session rhythm</span>
+              <strong className="lds-stat-value">
+                {courseConfig.sessionsPerWeek} per week
+              </strong>
+            </div>
+            <div className="lds-stat-card">
+              <span className="lds-stat-label">Time budget</span>
+              <strong className="lds-stat-value">
+                {courseConfig.classDurationMin} min
+              </strong>
+            </div>
+          </div>
+
           <div className="lds-form-grid">
-            <label className="lds-form-field">
-              <span>Curriculum title</span>
+            <div className="lds-form-field">
+              <div className="lds-form-label-row">
+                <label className="lds-form-label" htmlFor={titleId}>
+                  Curriculum title
+                </label>
+                {canComment || titleCommentStats.count > 0 ? (
+                  <CommentIndicator
+                    count={titleCommentStats.count}
+                    unresolvedCount={titleCommentStats.unresolvedCount}
+                    label="Course title comments"
+                    onClick={() => onOpenComments(titleAnchor)}
+                  />
+                ) : null}
+              </div>
               <input
+                id={titleId}
+                aria-describedby={titleHintId}
                 value={title}
                 readOnly={isReadOnly}
                 onChange={(event) => onUpdate("title", event.target.value)}
                 placeholder="Example: Money Moves for Real Life"
               />
-            </label>
+              <small id={titleHintId} className="lds-form-field-hint">
+                Make it feel confident, specific, and easy to picture on a class page.
+              </small>
+              {renderCommentThread(
+                titleAnchor,
+                "Course title feedback",
+                titleCommentStats.comments
+              )}
+            </div>
 
-            <label className="lds-form-field">
-              <span>Interest area</span>
+            <div className="lds-form-field">
+              <div className="lds-form-label-row">
+                <label className="lds-form-label" htmlFor={interestAreaId}>
+                  Interest area
+                </label>
+                {canComment || interestAreaCommentStats.count > 0 ? (
+                  <CommentIndicator
+                    count={interestAreaCommentStats.count}
+                    unresolvedCount={interestAreaCommentStats.unresolvedCount}
+                    label="Interest area comments"
+                    onClick={() => onOpenComments(interestAreaAnchor)}
+                  />
+                ) : null}
+              </div>
               <input
+                id={interestAreaId}
+                aria-describedby={interestAreaHintId}
                 value={interestArea}
                 readOnly={isReadOnly}
                 onChange={(event) => onUpdate("interestArea", event.target.value)}
                 placeholder="Example: Finance, Coding, Music, Cooking"
               />
-            </label>
+              <small id={interestAreaHintId} className="lds-form-field-hint">
+                This keeps examples and coaching aligned with the kind of course you are building.
+              </small>
+              {renderCommentThread(
+                interestAreaAnchor,
+                "Interest area feedback",
+                interestAreaCommentStats.comments
+              )}
+            </div>
           </div>
 
-          <label className="lds-form-field">
-            <span>Why this course matters</span>
+          <div className="lds-form-field">
+            <div className="lds-form-label-row">
+              <label className="lds-form-label" htmlFor={descriptionId}>
+                Why this course matters
+              </label>
+              {canComment || descriptionCommentStats.count > 0 ? (
+                <CommentIndicator
+                  count={descriptionCommentStats.count}
+                  unresolvedCount={descriptionCommentStats.unresolvedCount}
+                  label="Course description comments"
+                  onClick={() => onOpenComments(descriptionAnchor)}
+                />
+              ) : null}
+            </div>
             <textarea
+              id={descriptionId}
+              aria-describedby={descriptionHintId}
               rows={4}
               value={description}
               readOnly={isReadOnly}
               onChange={(event) => onUpdate("description", event.target.value)}
               placeholder="What will students learn, and why is this worth teaching?"
             />
-          </label>
+            <small id={descriptionHintId} className="lds-form-field-hint">
+              Write the short, human explanation that makes the course feel worth showing up for.
+            </small>
+            {renderCommentThread(
+              descriptionAnchor,
+              "Course description feedback",
+              descriptionCommentStats.comments
+            )}
+          </div>
 
           <section className="lds-subsection-card">
             <div className="lds-subsection-header">
@@ -157,22 +327,56 @@ export function StudioCourseMapStep({
 
             <div className="lds-stack">
               {safeOutcomes.map((outcome, index) => (
-                <div key={`outcome-${index}-${outcome.substring(0, 20)}`} className="lds-inline-edit-row">
-                  <input
-                    value={outcome}
-                    readOnly={isReadOnly}
-                    onChange={(event) => updateOutcome(index, event.target.value)}
-                    placeholder={`Outcome ${index + 1}`}
-                  />
-                  <button
-                    type="button"
-                    className="button ghost"
-                    disabled={isReadOnly || safeOutcomes.length === 1}
-                    onClick={() => removeOutcome(index)}
-                  >
-                    Remove
-                  </button>
-                </div>
+                (() => {
+                  const outcomeAnchor: CurriculumCommentAnchor = {
+                    anchorType: "OUTCOME",
+                    anchorId: String(index),
+                    anchorField: "value",
+                    label: `Outcome ${index + 1}`,
+                    detail: outcome || null,
+                  };
+                  const outcomeCommentStats = getCommentStats(outcomeAnchor);
+
+                  return (
+                    <div
+                      key={`outcome-${index}-${outcome.substring(0, 20)}`}
+                      className="lds-outcome-thread-group"
+                    >
+                      <div className="lds-inline-edit-row lds-outcome-row">
+                        <span className="lds-outcome-index" aria-hidden="true">
+                          {index + 1}
+                        </span>
+                        <input
+                          value={outcome}
+                          readOnly={isReadOnly}
+                          onChange={(event) => updateOutcome(index, event.target.value)}
+                          placeholder={`Outcome ${index + 1}`}
+                        />
+                        {canComment || outcomeCommentStats.count > 0 ? (
+                          <CommentIndicator
+                            count={outcomeCommentStats.count}
+                            unresolvedCount={outcomeCommentStats.unresolvedCount}
+                            label={`Outcome ${index + 1} comments`}
+                            onClick={() => onOpenComments(outcomeAnchor)}
+                          />
+                        ) : null}
+                        <button
+                          type="button"
+                          className="button ghost"
+                          disabled={isReadOnly || safeOutcomes.length === 1}
+                          onClick={() => removeOutcome(index)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      {renderCommentThread(
+                        outcomeAnchor,
+                        `Outcome ${index + 1} feedback`,
+                        outcomeCommentStats.comments
+                      )}
+                    </div>
+                  );
+                })()
               ))}
             </div>
           </section>
@@ -181,7 +385,7 @@ export function StudioCourseMapStep({
             <div className="lds-subsection-header">
               <div>
                 <h3>Teaching container</h3>
-                <p>Decide the basic shape of the learning experience before polishing lessons.</p>
+                <p>Set the outer shape of the course before you refine the lesson-by-lesson craft.</p>
               </div>
             </div>
 
@@ -352,6 +556,11 @@ export function StudioCourseMapStep({
                 </div>
               </div>
             </div>
+
+            <p className="lds-container-note">
+              Keep this container realistic. A believable course shape makes the later
+              session planning feel much easier and much stronger.
+            </p>
           </section>
         </section>
 

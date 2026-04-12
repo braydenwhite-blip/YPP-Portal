@@ -604,6 +604,7 @@ export async function sendNewApplicationNotification({
     <h2 style="margin: 0 0 16px; color: #1c1917;">New Instructor Application</h2>
     <p><strong>${applicantName}</strong> has submitted an application to become an instructor at Youth Passion Project.</p>
     <p>Please log in to review their application, check their motivation and experience, and take appropriate action.</p>
+    <p style="color: #57534e; font-size: 14px;">When you schedule the curriculum overview, frame it as a collaborative conversation about their teaching approach — not a scored interview or exam.</p>
     <div style="text-align: center; margin: 28px 0;">
       <a href="${reviewUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Review Application</a>
     </div>
@@ -691,20 +692,26 @@ export async function sendInfoRequestEmail({
 }
 
 /**
- * Notify applicant that an interview has been scheduled
+ * Notify applicant that an interview (or instructor curriculum overview session) has been scheduled.
  */
 export async function sendInterviewScheduledEmail({
   to,
   applicantName,
   scheduledAt,
   statusUrl,
+  variant = "default",
 }: {
   to: string;
   applicantName: string;
   scheduledAt: Date;
   statusUrl: string;
+  /** Instructor applications use curriculum-overview wording; chapter president and other flows stay on "interview". */
+  variant?: "default" | "instructor_application";
 }): Promise<EmailResult> {
-  const subject = "Your YPP Instructor Interview Has Been Scheduled";
+  const isInstructorCurriculum = variant === "instructor_application";
+  const subject = isInstructorCurriculum
+    ? "Your YPP Curriculum Overview Session Has Been Scheduled"
+    : "Your YPP Interview Has Been Scheduled";
   const formattedDate = scheduledAt.toLocaleString("en-US", {
     weekday: "long",
     year: "numeric",
@@ -715,8 +722,14 @@ export async function sendInterviewScheduledEmail({
     timeZoneName: "short",
   });
   const html = emailShell(`
-    <h2 style="margin: 0 0 16px; color: #1c1917;">Interview Scheduled, ${applicantName}!</h2>
-    <p>Great news — your instructor interview has been scheduled.</p>
+    <h2 style="margin: 0 0 16px; color: #1c1917;">${
+      isInstructorCurriculum ? "Curriculum overview scheduled" : "Interview scheduled"
+    }, ${applicantName}!</h2>
+    <p>${
+      isInstructorCurriculum
+        ? "Great news — your curriculum overview session with the review team has been scheduled. This is a chance to walk through your teaching approach and how you would use YPP materials, not a test."
+        : "Great news — your interview has been scheduled."
+    }</p>
     <div style="background: #f5f5f4; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: center;">
       <p style="margin: 0; font-size: 16px; font-weight: 600; color: #1c1917;">${formattedDate}</p>
     </div>

@@ -19,6 +19,10 @@ import { logAuditEvent } from "@/lib/audit-log-actions";
 import { onProgressEvent } from "@/lib/progress-events";
 import { migrateUsersToSupabaseAuth } from "@/lib/supabase-user-migration";
 import { createServiceClient } from "@/lib/supabase/server";
+import {
+  buildUserAdminSubtypeRecords,
+  resolveUserAccessSelection,
+} from "@/lib/admin-user-access";
 
 export type AdminUserMigrationResult = {
   found: number;
@@ -76,13 +80,22 @@ export async function createUser(formData: FormData) {
   const email = getString(formData, "email").toLowerCase();
   const phone = getString(formData, "phone", false);
   const password = getString(formData, "password");
-  const primaryRole = validateEnum(RoleType, getString(formData, "primaryRole"), "primaryRole");
   const chapterId = getString(formData, "chapterId", false);
-  const selectedRoles = formData.getAll("roles").map((role) => validateEnum(RoleType, String(role), "role"));
-  const roles = selectedRoles.length ? selectedRoles : [primaryRole];
-  if (!roles.includes(primaryRole)) {
-    roles.push(primaryRole);
-  }
+  const access = resolveUserAccessSelection({
+    primaryRoleRaw: getString(formData, "primaryRole"),
+    roleValues: formData.getAll("roles").map(String),
+    adminSubtypeValues: formData.getAll("adminSubtypes").map(String),
+    defaultOwnerSubtypeRaw: getString(formData, "defaultOwnerSubtype", false),
+  });
+  const { primaryRole, roles, adminSubtypes, defaultOwnerSubtype } = access;
+  const adminSubtypeCreateData = buildUserAdminSubtypeRecords(
+    "user",
+    adminSubtypes,
+    defaultOwnerSubtype
+  ).map(({ subtype, isDefaultOwner }) => ({
+    subtype,
+    isDefaultOwner,
+  }));
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
@@ -143,6 +156,14 @@ export async function createUser(formData: FormData) {
             deleteMany: {},
             create: roles.map((role) => ({ role })),
           },
+          adminSubtypes: {
+            deleteMany: {},
+            ...(adminSubtypes.length > 0
+              ? {
+                  create: adminSubtypeCreateData,
+                }
+              : {}),
+          },
         },
       });
     } else {
@@ -152,6 +173,13 @@ export async function createUser(formData: FormData) {
           roles: {
             create: roles.map((role) => ({ role })),
           },
+          ...(adminSubtypes.length > 0
+            ? {
+                adminSubtypes: {
+                  create: adminSubtypeCreateData,
+                },
+              }
+            : {}),
         },
       });
     }
@@ -170,7 +198,7 @@ export async function createUser(formData: FormData) {
     targetType: "User",
     targetId: newUser.id,
     description: `Created user ${name} (${email}) with role ${primaryRole}`,
-    metadata: { roles, primaryRole },
+    metadata: { roles, primaryRole, adminSubtypes, defaultOwnerSubtype },
   });
 
   revalidatePath("/admin");

@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import Nav, { type NavBadges } from "@/components/nav";
 import BrandLockup from "@/components/brand-lockup";
 import LogoutButton from "@/components/logout-button";
+import PageHelperFab from "@/components/page-helper-fab";
+import type { PageHelperRole } from "@/lib/page-helper/types";
 
 export default function AppShell({
   children,
@@ -17,6 +19,7 @@ export default function AppShell({
   unlockedSections,
   recentlyUnlockedGroups,
   studentFullPortalExplorer,
+  studentHasChapter,
 }: {
   children: React.ReactNode;
   userName?: string | null;
@@ -29,6 +32,8 @@ export default function AppShell({
   unlockedSections?: string[];
   recentlyUnlockedGroups?: string[];
   studentFullPortalExplorer?: boolean;
+  /** User is assigned to a chapter; hide "Join a chapter" in the nav. */
+  studentHasChapter?: boolean;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const sidebarId = "portal-sidebar";
@@ -113,6 +118,7 @@ export default function AppShell({
             unlockedSections={unlockedSectionsSet}
             recentlyUnlockedGroups={recentlyUnlockedGroupsSet}
             studentFullPortalExplorer={studentFullPortalExplorer}
+            studentHasChapter={studentHasChapter}
           />
         </div>
 
@@ -136,6 +142,10 @@ export default function AppShell({
       </aside>
 
       <main>{children}</main>
+      <PageHelperFab
+        primaryRole={(primaryRole as PageHelperRole | null | undefined) ?? undefined}
+        roles={roles}
+      />
     </div>
   );
 }

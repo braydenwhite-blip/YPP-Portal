@@ -11,7 +11,8 @@ export default async function ManageOfficeHoursPage() {
   }
 
   const isInstructor =
-    session.user.primaryRole === "INSTRUCTOR" || session.user.primaryRole === "ADMIN";
+    session.user.roles.includes("INSTRUCTOR") ||
+    session.user.roles.includes("ADMIN");
   if (!isInstructor) {
     redirect("/");
   }

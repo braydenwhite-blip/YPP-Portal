@@ -9,7 +9,9 @@ export default async function OfficeHoursPage() {
     redirect("/login");
   }
 
-  const isInstructor = session.user.primaryRole === "INSTRUCTOR" || session.user.primaryRole === "ADMIN";
+  const isInstructor =
+    session.user.roles.includes("INSTRUCTOR") ||
+    session.user.roles.includes("ADMIN");
 
   // Get user's bookings (if student)
   const myBookings = !isInstructor ? await prisma.officeHoursBooking.findMany({

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 export default async function WaitlistAutomationPage() {
   const session = await getSession();
-  if (!session?.user?.id || session.user.primaryRole !== "ADMIN") {
+  if (!session?.user?.id || !session.user.roles.includes("ADMIN")) {
     redirect("/");
   }
 

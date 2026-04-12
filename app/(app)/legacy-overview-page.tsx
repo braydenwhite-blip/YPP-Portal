@@ -7,6 +7,9 @@ import { WorldPreviewCard } from "@/components/world-preview-card";
 import Link from "next/link";
 import { getNextRequiredAction } from "@/lib/instructor-readiness";
 import { getLearnerFitSummary } from "@/lib/learner-fit";
+import { normalizeRoleSet } from "@/lib/authorization";
+import { RoleType } from "@prisma/client";
+import { whereUserHasRole } from "@/lib/user-role-where";
 
 export default async function OverviewPage() {
   const session = await getSession();
@@ -28,7 +31,9 @@ export default async function OverviewPage() {
       })
     : null;
 
-  const roles = user?.roles.map((role) => role.role) ?? [];
+  const roles = user
+    ? Array.from(normalizeRoleSet(user.roles, user.primaryRole))
+    : [];
   const isAdmin = roles.includes("ADMIN") || roles.includes("STAFF");
   const isInstructor = roles.includes("INSTRUCTOR");
   const isStudent = roles.includes("STUDENT");
@@ -56,8 +61,8 @@ export default async function OverviewPage() {
   const globalStats = isAdmin
     ? await Promise.all([
         prisma.user.count(),
-        prisma.user.count({ where: { primaryRole: "INSTRUCTOR" } }),
-        prisma.user.count({ where: { primaryRole: "STUDENT" } }),
+        prisma.user.count({ where: whereUserHasRole(RoleType.INSTRUCTOR) }),
+        prisma.user.count({ where: whereUserHasRole(RoleType.STUDENT) }),
         prisma.pathway.count(),
         prisma.course.count(),
         prisma.enrollment.count(),
@@ -311,7 +316,7 @@ export default async function OverviewPage() {
   const quickActions: { href: string; label: string; description: string; accent: string }[] = [];
   if (isAdmin) {
     quickActions.push(
-      { href: "/admin", label: "Admin Panel", description: "Manage users & content", accent: "var(--ypp-purple-600)" },
+      { href: "/admin/chapters", label: "Admin Panel", description: "Manage chapters and programs", accent: "var(--ypp-purple-600)" },
       { href: "/admin/students", label: "Students", description: "View all students", accent: "var(--ypp-purple-500)" },
       { href: "/admin/instructors", label: "Instructors", description: "View all instructors", accent: "var(--ypp-pink-500)" },
       { href: "/admin/analytics", label: "Analytics", description: "Platform insights", accent: "#3b82f6" },

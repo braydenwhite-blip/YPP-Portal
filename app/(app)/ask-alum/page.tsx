@@ -9,7 +9,7 @@ export default async function AskAlumPage() {
     redirect("/login");
   }
 
-  const isStudent = session.user.primaryRole === "STUDENT";
+  const isStudent = session.user.roles.includes("STUDENT");
 
   const questions = await prisma.alumniQuestion.findMany({
     where: isStudent

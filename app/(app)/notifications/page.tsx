@@ -12,7 +12,6 @@ import {
   NOTIFICATION_POLICY,
   NOTIFICATION_POLICY_CHANNEL_LABELS,
 } from "@/lib/notification-policy";
-import PageHelp from "@/components/page-help";
 import SmsNotificationSettingsForm from "@/components/sms-notification-settings-form";
 
 function getTypeIcon(type: string): string {
@@ -119,13 +118,6 @@ export default async function NotificationsPage() {
           ) : null}
         </div>
       </div>
-
-      <PageHelp
-        purpose="This page keeps a dated record of your portal alerts and the fixed delivery rules behind them."
-        firstStep="Read the unread items first, especially anything tied to interviews, approvals, reviews, or deadlines."
-        nextStep="When you clear an alert here, the system keeps the history but stops showing it as active work."
-      />
-
       <div className="card" style={{ marginTop: 16, marginBottom: 20 }}>
         <h2 style={{ marginTop: 0 }}>Delivery Policy</h2>
         <p style={{ color: "var(--muted, #6b7280)" }}>
@@ -167,7 +159,6 @@ export default async function NotificationsPage() {
           smsOptOutAt={preferences.smsOptOutAt?.toISOString() ?? null}
         />
       </div>
-
       {notifications.length === 0 ? (
         <div className="card" style={{ marginTop: 16 }}>
           <p className="empty">

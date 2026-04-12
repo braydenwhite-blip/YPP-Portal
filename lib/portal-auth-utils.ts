@@ -1,65 +1,69 @@
 import crypto from "crypto";
 import { headers } from "next/headers";
 
+import { getPublicAppUrl } from "@/lib/public-app-url";
 import { createServiceClient } from "@/lib/supabase/server";
 
-function normalizeUrl(value: string | undefined) {
-  return value?.trim().replace(/\/+$/, "") || "";
-}
-
-function isLoopbackHost(value: string) {
-  try {
-    const url = new URL(value);
-    return ["localhost", "127.0.0.1", "0.0.0.0"].includes(url.hostname);
-  } catch {
-    return false;
-  }
-}
+const DEFAULT_LOCAL_FALLBACK = "http://localhost:3000";
 
 function getHeaderValue(headerName: string) {
   const value = headers().get(headerName)?.split(",")[0]?.trim();
   return value || "";
 }
 
+function hostHeaderLooksLoopback(host: string) {
+  const [name] = host.split(":");
+  return (
+    name === "localhost" ||
+    name === "127.0.0.1" ||
+    name === "0.0.0.0" ||
+    name.startsWith("127.")
+  );
+}
+
+/**
+ * Canonical origin for auth redirects and notification email links.
+ *
+ * Prefer env / Vercel-derived URLs from {@link getPublicAppUrl} so server jobs
+ * (cron, internal fetches) never pick `Host: localhost` over `VERCEL_URL`.
+ * Request headers are only used when the app URL is still the local default.
+ */
 export function getBaseUrl() {
-  const publicAppUrl = normalizeUrl(process.env.NEXT_PUBLIC_APP_URL);
-  if (publicAppUrl) return publicAppUrl;
-
-  const publicSiteUrl = normalizeUrl(process.env.NEXT_PUBLIC_SITE_URL);
-  if (publicSiteUrl) return publicSiteUrl;
-
-  const siteUrl = normalizeUrl(process.env.SITE_URL);
-  if (siteUrl) return siteUrl;
+  const canonical = getPublicAppUrl();
+  if (canonical !== DEFAULT_LOCAL_FALLBACK) {
+    return canonical;
+  }
 
   const forwardedHost = getHeaderValue("x-forwarded-host");
   const host = forwardedHost || getHeaderValue("host");
+  if (!host) {
+    return canonical;
+  }
+
+  const deployed = process.env.VERCEL === "1" || process.env.NODE_ENV === "production";
+  if (deployed && hostHeaderLooksLoopback(host)) {
+    return canonical;
+  }
+
   const forwardedProto = getHeaderValue("x-forwarded-proto");
+  const protocol = forwardedProto || (host.includes("localhost") ? "http" : "https");
+  return `${protocol}://${host}`;
+}
 
-  if (host) {
-    const protocol = forwardedProto || (host.includes("localhost") ? "http" : "https");
-    return `${protocol}://${host}`;
+/**
+ * Restrict post-auth redirects to same-origin paths (used in `/auth/callback` as `next`).
+ */
+export function sanitizeAuthNextPath(raw: string | undefined | null): string {
+  const v = (raw ?? "/").trim();
+  if (!v || v === "/") return "/";
+  if (!v.startsWith("/") || v.startsWith("//") || v.includes("://") || v.includes("\\")) {
+    return "/";
   }
-
-  const nextAuthUrl = normalizeUrl(process.env.NEXTAUTH_URL);
-  if (nextAuthUrl && !isLoopbackHost(nextAuthUrl)) return nextAuthUrl;
-
-  const vercelProductionUrl = normalizeUrl(process.env.VERCEL_PROJECT_PRODUCTION_URL);
-  if (vercelProductionUrl) {
-    return /^https?:\/\//i.test(vercelProductionUrl)
-      ? vercelProductionUrl
-      : `https://${vercelProductionUrl}`;
-  }
-
-  const vercelUrl = process.env.VERCEL_URL?.trim();
-  if (vercelUrl) return `https://${vercelUrl}`;
-
-  if (nextAuthUrl) return nextAuthUrl;
-
-  return "http://localhost:3000";
+  return v;
 }
 
 export function buildAuthRedirectUrl(nextPath: string) {
-  return `${getBaseUrl()}/auth/callback?next=${encodeURIComponent(nextPath)}`;
+  return `${getBaseUrl()}/auth/callback?next=${encodeURIComponent(sanitizeAuthNextPath(nextPath))}`;
 }
 
 type PortalUserMetadataParams = {

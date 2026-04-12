@@ -31,6 +31,32 @@ function generateNonce() {
   return btoa(binary);
 }
 
+function getConnectSrcDirectives(isDev: boolean) {
+  const connectSrc = [
+    "'self'",
+    "blob:",
+    "data:",
+    "https://*.pusher.com",
+    "wss://*.pusher.com",
+    "https://*.pusherapp.com",
+    "wss://*.pusherapp.com",
+    "https://*.supabase.co",
+  ];
+
+  if (isDev) {
+    connectSrc.push(
+      "http://localhost:*",
+      "ws://localhost:*",
+      "http://127.0.0.1:*",
+      "ws://127.0.0.1:*",
+      "http://0.0.0.0:*",
+      "ws://0.0.0.0:*"
+    );
+  }
+
+  return connectSrc.join(" ");
+}
+
 function buildCsp(nonce: string): string {
   const isDev = process.env.NODE_ENV !== "production";
   const scriptSrc = [
@@ -47,7 +73,7 @@ function buildCsp(nonce: string): string {
     "img-src 'self' data: blob: https:",
     "font-src 'self' data: blob:",
     "frame-src 'self' https://www.youtube.com https://player.vimeo.com https://www.loom.com",
-    "connect-src 'self' blob: data: https://*.pusher.com wss://*.pusher.com https://*.pusherapp.com wss://*.pusherapp.com https://*.supabase.co",
+    `connect-src ${getConnectSrcDirectives(isDev)}`,
     "worker-src 'self' blob:",
     "report-uri /api/csp-report",
   ].join("; ");
@@ -62,12 +88,14 @@ export async function middleware(request: NextRequest) {
   // Create Supabase client and refresh session
   const { supabase, response } = createMiddlewareClient(request);
   let user = null;
-  try {
-    const { data } = await supabase.auth.getUser();
-    user = data?.user ?? null;
-  } catch {
-    // Supabase URL is unreachable (e.g. dummy local URL) — continue with legacy auth
-    user = null;
+  if (supabase) {
+    try {
+      const { data } = await supabase.auth.getUser();
+      user = data?.user ?? null;
+    } catch {
+      // Supabase URL is unreachable (e.g. dummy local URL) — continue with legacy auth
+      user = null;
+    }
   }
   const isArchivedPortalUser = user?.user_metadata?.portalArchived === true;
   const legacySession = await verifyLegacySessionToken(

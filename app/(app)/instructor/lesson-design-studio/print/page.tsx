@@ -6,6 +6,7 @@ import {
   normalizeCourseConfig,
   syncSessionPlansToCourseConfig,
 } from "@/lib/curriculum-draft-progress";
+import { extractLessonDesignStudioRichText } from "@/lib/lesson-design-studio-rich-content";
 import { EXAMPLE_CURRICULA } from "../examples-data";
 import { PrintContent } from "./print-content";
 
@@ -169,7 +170,7 @@ export default async function PrintPage({
               title: a.title || "",
               type: ACTIVITY_LABELS[activityType] || activityType || "",
               durationMin: a.durationMin || 0,
-              description: a.description || null,
+              description: extractLessonDesignStudioRichText(a.description) || null,
               materials: a.materials || null,
               differentiationTips: a.differentiationTips || null,
               energyLevel: a.energyLevel || null,

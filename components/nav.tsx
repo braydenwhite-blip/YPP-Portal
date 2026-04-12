@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { isNavHrefActive, resolveNavModel } from "@/lib/navigation/resolve-nav";
+import { resolveNavActiveHref, resolveNavModel } from "@/lib/navigation/resolve-nav";
 import { STUDENT_MINIMAL_GROUP_EMOJI } from "@/lib/navigation/student-v1-nav-layout";
 import type { NavGroup, NavLink } from "@/lib/navigation/types";
 
@@ -71,6 +71,7 @@ export default function Nav({
   recentlyUnlockedGroups,
   lockedGroups: lockedGroupsProp,
   studentFullPortalExplorer,
+  studentHasChapter,
 }: {
   roles?: string[];
   adminSubtypes?: string[];
@@ -83,6 +84,8 @@ export default function Nav({
   recentlyUnlockedGroups?: Set<string>;
   lockedGroups?: Map<string, string>;
   studentFullPortalExplorer?: boolean;
+  /** When true, "Join a chapter" is hidden (user already has a chapter). */
+  studentHasChapter?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -97,6 +100,7 @@ export default function Nav({
         enabledFeatureKeys,
         unlockedSections,
         studentFullPortalExplorer,
+        studentHasChapter,
       }),
     [
       adminSubtypes,
@@ -107,7 +111,26 @@ export default function Nav({
       roles,
       unlockedSections,
       studentFullPortalExplorer,
+      studentHasChapter,
     ],
+  );
+
+  const allNavHrefs = useMemo(() => {
+    const hrefs: string[] = [];
+    for (const item of model.core) {
+      hrefs.push(item.href);
+    }
+    for (const group of model.more) {
+      for (const item of group.items) {
+        hrefs.push(item.href);
+      }
+    }
+    return hrefs;
+  }, [model.core, model.more]);
+
+  const activeNavHref = useMemo(
+    () => resolveNavActiveHref(pathname, allNavHrefs),
+    [pathname, allNavHrefs],
   );
 
   // Use locked groups from the model (computed from unlockedSections) or from explicit prop
@@ -125,10 +148,11 @@ export default function Nav({
   const defaultGroupState = useMemo(() => {
     const next: Record<string, boolean> = {};
     for (const group of model.more) {
-      next[group.label] = group.items.some((item) => isNavHrefActive(item.href, pathname));
+      next[group.label] =
+        activeNavHref !== null && group.items.some((item) => item.href === activeNavHref);
     }
     return next;
-  }, [model.more, pathname]);
+  }, [model.more, activeNavHref]);
 
   useEffect(() => {
     const saved = loadSavedState(storageKey);
@@ -148,7 +172,8 @@ export default function Nav({
 
       for (const group of model.more) {
         if (next[group.label] === undefined) {
-          next[group.label] = group.items.some((item) => isNavHrefActive(item.href, pathname));
+          next[group.label] =
+            activeNavHref !== null && group.items.some((item) => item.href === activeNavHref);
         }
       }
 
@@ -160,7 +185,7 @@ export default function Nav({
 
       return next;
     });
-  }, [model.more, pathname]);
+  }, [model.more, activeNavHref]);
 
   const isFirstPersist = useRef(true);
   useEffect(() => {
@@ -227,7 +252,7 @@ export default function Nav({
   const moreCountLabel = hasSearch ? totalMore : hiddenCount;
 
   const renderNavLink = (item: NavLink): JSX.Element => {
-    const isActive = isNavHrefActive(item.href, pathname);
+    const isActive = activeNavHref !== null && item.href === activeNavHref;
     const badgeCount = item.badgeKey && badges ? badges[item.badgeKey] : undefined;
 
     return (
@@ -284,7 +309,8 @@ export default function Nav({
             showStudentMinimalChrome ? (
               <section className="nav-student-flat-groups" aria-label="Navigation sections">
                 {filteredMore.map((group) => {
-                  const groupHasActive = group.items.some((item) => isNavHrefActive(item.href, pathname));
+                  const groupHasActive =
+                    activeNavHref !== null && group.items.some((item) => item.href === activeNavHref);
                   const groupOpen = hasSearch
                     ? true
                     : (openGroups[group.label] ?? false) || groupHasActive;
@@ -349,7 +375,8 @@ export default function Nav({
                 {effectiveMoreOpen ? (
                   <div className="nav-more-content">
                     {filteredMore.map((group) => {
-                      const groupHasActive = group.items.some((item) => isNavHrefActive(item.href, pathname));
+                      const groupHasActive =
+                        activeNavHref !== null && group.items.some((item) => item.href === activeNavHref);
                       const groupOpen = hasSearch
                         ? true
                         : (openGroups[group.label] ?? false) || groupHasActive;

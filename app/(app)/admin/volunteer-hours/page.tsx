@@ -5,7 +5,7 @@ import Link from "next/link";
 
 export default async function VolunteerHoursPage() {
   const session = await getSession();
-  if (!session?.user?.id || session.user.primaryRole !== "ADMIN") {
+  if (!session?.user?.id || !session.user.roles.includes("ADMIN")) {
     redirect("/");
   }
 

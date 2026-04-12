@@ -16,6 +16,7 @@ import {
 } from "@/lib/instructor-builder-blueprints";
 import { getLegacyLearnerFitCopy } from "@/lib/learner-fit";
 import { syncCurriculumApprovalWorkflow } from "@/lib/workflow";
+import { syncInstructorGrowthSignalsForInstructor } from "@/lib/instructor-growth-service";
 
 type WeeklyTopic = {
   week?: number;
@@ -33,6 +34,10 @@ const INTRO_VIDEO_PROVIDERS = new Set<IntroVideoProvider>([
   "LOOM",
   "CUSTOM",
 ]);
+
+async function syncInstructorGrowthSafe(instructorId: string) {
+  await syncInstructorGrowthSignalsForInstructor(instructorId).catch(() => null);
+}
 
 // ============================================
 // HELPERS
@@ -527,6 +532,7 @@ export async function submitCurriculumForReview(formData: FormData) {
   });
 
   await syncCurriculumApprovalWorkflow(id);
+  await syncInstructorGrowthSafe(session.user.id);
 
   revalidatePath("/instructor/curriculum-builder");
   revalidatePath("/instructor/workspace");
@@ -829,6 +835,7 @@ export async function createClassOffering(formData: FormData) {
     });
   }
 
+  await syncInstructorGrowthSafe(session.user.id);
   revalidatePath("/curriculum");
   revalidatePath("/instructor/curriculum-builder");
   revalidatePath("/my-chapter");
@@ -991,6 +998,7 @@ export async function updateClassOffering(formData: FormData) {
     });
   }
 
+  await syncInstructorGrowthSafe(existing.instructorId);
   revalidatePath("/curriculum");
   revalidatePath(`/curriculum/${id}`);
   revalidatePath("/my-chapter");
@@ -1036,6 +1044,7 @@ export async function publishClassOffering(id: string) {
     data: { status: "PUBLISHED", enrollmentOpen: true },
   });
 
+  await syncInstructorGrowthSafe(existing.instructorId);
   revalidatePath("/curriculum");
   revalidatePath(`/curriculum/${id}`);
   revalidatePath("/my-chapter");
@@ -1250,7 +1259,14 @@ export async function recordClassAttendance(formData: FormData) {
   // Update enrollment attendance count
   const classSession = await prisma.classSession.findUnique({
     where: { id: sessionId },
-    select: { offeringId: true },
+    select: {
+      offeringId: true,
+      offering: {
+        select: {
+          instructorId: true,
+        },
+      },
+    },
   });
 
   if (classSession && status === "PRESENT") {
@@ -1266,6 +1282,10 @@ export async function recordClassAttendance(formData: FormData) {
       where: { studentId, offeringId: classSession.offeringId },
       data: { sessionsAttended: attendedCount },
     });
+  }
+
+  if (classSession?.offering.instructorId) {
+    await syncInstructorGrowthSafe(classSession.offering.instructorId);
   }
 
   revalidatePath("/instructor/curriculum-builder");

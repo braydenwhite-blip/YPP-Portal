@@ -1,7 +1,7 @@
 import type { NavRole } from "@/lib/navigation/types";
 
 /** Bump when the href set changes so dashboard cache partitions stay correct. */
-export const STUDENT_V1_ALLOWLIST_VERSION = "3";
+export const STUDENT_V1_ALLOWLIST_VERSION = "4";
 
 export const STUDENT_V1_ALLOWED_HREFS: ReadonlySet<string> = new Set([
   "/",
@@ -24,7 +24,6 @@ export const STUDENT_V1_ALLOWED_HREFS: ReadonlySet<string> = new Set([
   "/notifications",
   "/messages",
   "/student-training",
-  "/profile",
   "/profile/timeline",
   "/settings/personalization",
 ]);

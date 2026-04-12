@@ -34,7 +34,8 @@ export default async function AssignmentDetailPage({
   }
 
   const isInstructor =
-    assignment.course.leadInstructorId === session.user.id || session.user.primaryRole === "ADMIN";
+    assignment.course.leadInstructorId === session.user.id ||
+    session.user.roles.includes("ADMIN");
 
   const userSubmission = assignment.submissions.find(s => s.studentId === session.user.id);
 

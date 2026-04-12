@@ -1,6 +1,6 @@
 "use server";
 
-import { MentorshipType, type Prisma, SupportRole } from "@prisma/client";
+import { MentorshipType, type Prisma, RoleType, SupportRole } from "@prisma/client";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 
@@ -21,6 +21,7 @@ import {
   assignSupportCircleMember,
 } from "@/lib/mentorship-hub-actions";
 import { prisma } from "@/lib/prisma";
+import { whereUserHasAnyRole, whereUserHasRole } from "@/lib/user-role-where";
 
 async function requireAdmin() {
   const session = await getSession();
@@ -370,23 +371,16 @@ export async function approveMentorMatch(formData: FormData) {
 
 function getLaneWhere(lane: AdminMentorshipLane): Prisma.UserWhereInput {
   if (lane === "STUDENTS") {
-    return {
-      OR: [{ roles: { some: { role: "STUDENT" } } }, { primaryRole: "STUDENT" }],
-    };
+    return whereUserHasRole(RoleType.STUDENT);
   }
 
   if (lane === "INSTRUCTORS") {
-    return {
-      OR: [
-        { roles: { some: { role: "INSTRUCTOR" } } },
-        { primaryRole: "INSTRUCTOR" },
-      ],
-    };
+    return whereUserHasRole(RoleType.INSTRUCTOR);
   }
 
-  return {
-    primaryRole: {
-      in: ["CHAPTER_PRESIDENT", "ADMIN", "STAFF"],
-    },
-  };
+  return whereUserHasAnyRole([
+    RoleType.CHAPTER_PRESIDENT,
+    RoleType.ADMIN,
+    RoleType.STAFF,
+  ]);
 }

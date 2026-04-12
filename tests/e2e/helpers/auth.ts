@@ -10,19 +10,40 @@ const USERS = {
   chapterLead:
     process.env.E2E_CHAPTER_PRESIDENT_EMAIL ??
     "e2e.chapter.lead.alpha@ypp.test",
+  blockedInstructor:
+    process.env.E2E_BLOCKED_INSTRUCTOR_EMAIL ??
+    "e2e.instructor.blocked.alpha@ypp.test",
   student: process.env.E2E_STUDENT_EMAIL ?? "e2e.student.alpha@ypp.test",
 } as const;
 
 export async function loginAs(
   page: Page,
-  role: keyof typeof USERS
+  role: keyof typeof USERS,
+  options?: {
+    callbackUrl?: string;
+  }
 ) {
-  await page.goto("/login");
+  const loginUrl = options?.callbackUrl
+    ? `/login?callbackUrl=${encodeURIComponent(options.callbackUrl)}`
+    : "/login";
+
+  await page.goto(loginUrl);
   await page.getByLabel("Email").fill(USERS[role]);
   await page.getByLabel("Password").fill(DEFAULT_PASSWORD);
   await page.getByRole("button", { name: "Sign In", exact: true }).click();
 
-  await expect(page).not.toHaveURL(/\/login/);
+  if (options?.callbackUrl) {
+    await expect(page).toHaveURL(
+      new RegExp(options.callbackUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+      {
+        timeout: 45_000,
+      }
+    );
+  } else {
+    await expect(page).not.toHaveURL(/\/login/, {
+      timeout: 45_000,
+    });
+  }
 
   const skipOnboardingButton = page.getByRole("button", {
     name: "Skip onboarding",

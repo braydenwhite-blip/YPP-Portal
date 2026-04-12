@@ -7,6 +7,7 @@ import {
   MentorshipRequestStatus,
   MentorshipRequestVisibility,
   MentorshipProgramGroup,
+  MentorshipSessionType,
   SupportRole,
 } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -491,6 +492,7 @@ export async function createMentorshipSession(formData: FormData) {
       ...activeMentorship.circleMembers.map((member) => member.userId),
     ])
   );
+  const completedAt = completedNow ? scheduledAt : null;
 
   await prisma.mentorshipSession.create({
     data: {
@@ -499,7 +501,7 @@ export async function createMentorshipSession(formData: FormData) {
       type,
       title,
       scheduledAt,
-      completedAt: completedNow ? scheduledAt : null,
+      completedAt,
       durationMinutes,
       agenda: agenda || null,
       notes: notes || null,
@@ -511,6 +513,31 @@ export async function createMentorshipSession(formData: FormData) {
       ledById: userId,
     },
   });
+
+  if (type === MentorshipSessionType.KICKOFF) {
+    const kickoffUpdate: {
+      kickoffScheduledAt?: Date;
+      kickoffCompletedAt?: Date;
+    } = {};
+
+    if (
+      !activeMentorship.kickoffScheduledAt ||
+      scheduledAt < activeMentorship.kickoffScheduledAt
+    ) {
+      kickoffUpdate.kickoffScheduledAt = scheduledAt;
+    }
+
+    if (completedAt && !activeMentorship.kickoffCompletedAt) {
+      kickoffUpdate.kickoffCompletedAt = completedAt;
+    }
+
+    if (Object.keys(kickoffUpdate).length > 0) {
+      await prisma.mentorship.update({
+        where: { id: activeMentorship.id },
+        data: kickoffUpdate,
+      });
+    }
+  }
 
   revalidatePath("/mentorship");
   revalidatePath(`/mentorship/mentees/${menteeId}`);

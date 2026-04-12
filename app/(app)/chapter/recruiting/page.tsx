@@ -8,6 +8,7 @@ import {
   reopenChapterPosition,
   updatePositionVisibility,
 } from "@/lib/application-actions";
+import { normalizeRoleList } from "@/lib/authorization";
 
 const RECRUITING_TABS = ["positions", "candidates", "interviews", "decisions"] as const;
 type RecruitingTab = (typeof RECRUITING_TABS)[number];
@@ -43,6 +44,7 @@ export default async function ChapterRecruitingPage({
     select: {
       id: true,
       chapterId: true,
+      primaryRole: true,
       chapter: { select: { id: true, name: true } },
       roles: { select: { role: true } },
     },
@@ -52,7 +54,7 @@ export default async function ChapterRecruitingPage({
     redirect("/login");
   }
 
-  const roles = user.roles.map((role) => role.role);
+  const roles = normalizeRoleList(user.roles, user.primaryRole);
   const canAccess = roles.includes("CHAPTER_PRESIDENT") || roles.includes("ADMIN");
 
   if (!canAccess) {

@@ -34,7 +34,7 @@ export async function POST(request: Request) {
 
   const isInstructor =
     attendanceSession.course.leadInstructorId === session.user.id ||
-    session.user.primaryRole === "ADMIN";
+    session.user.roles.includes("ADMIN");
 
   if (!isInstructor) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

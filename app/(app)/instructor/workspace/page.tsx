@@ -130,6 +130,30 @@ export default async function InstructorWorkspacePage({
         </div>
       </div>
 
+      <div
+        className="card"
+        style={{
+          marginBottom: 20,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 16,
+          flexWrap: "wrap",
+          border: "1px solid #e7e2d9",
+          background: "linear-gradient(180deg, #ffffff 0%, #fbfaf7 100%)",
+        }}
+      >
+        <div>
+          <div className="section-title">Instructor Growth</div>
+          <p style={{ margin: "6px 0 0", color: "var(--text-secondary)", fontSize: 14 }}>
+            Open your private growth record to see tier progress, approved XP, pending claims, and badge unlocks tied to real teaching work.
+          </p>
+        </div>
+        <Link href="/instructor-growth" className="button secondary">
+          Open Growth System
+        </Link>
+      </div>
+
       <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { SEED_CURRICULA, type SeedCurriculum } from "../curriculum-seeds";
+import { useBodyScrollLock } from "./use-body-scroll-lock";
 
 // ═══════════════════════════════════════════════════════════════
 // Lesson Design Studio — Interactive onboarding tour
@@ -162,6 +163,8 @@ export function OnboardingTour({
   const [currentStep, setCurrentStep] = useState<number | null>(null);
   const [selectedSeed, setSelectedSeed] = useState<SeedCurriculum | null>(null);
 
+  useBodyScrollLock(currentStep !== null);
+
   // Check if onboarding should show
   useEffect(() => {
     try {
@@ -286,7 +289,19 @@ export function OnboardingTour({
           />
         </div>
 
+        <div className="lds-tour-step-eyebrow">
+          {selectedSeed ? selectedSeed.label : "Studio onboarding"}
+        </div>
         <div className="lds-tour-icon" aria-hidden="true">{step.icon}</div>
+        <div className="lds-tour-step-meta">
+          <span>Step {currentStep + 1} of {STEPS.length}</span>
+          {selectedSeed ? (
+            <>
+              <span aria-hidden="true">•</span>
+              <span>{selectedSeed.classDurationMin} minute sessions</span>
+            </>
+          ) : null}
+        </div>
         <h3 className="lds-tour-title">{step.title}</h3>
         <p className="lds-tour-body">{step.body}</p>
 
@@ -319,8 +334,24 @@ export function OnboardingTour({
                 className="lds-tour-picker-btn"
                 onClick={() => handlePickArea(seed)}
               >
-                <span className="lds-tour-picker-icon">{seed.icon}</span>
-                <span className="lds-tour-picker-label">{seed.label}</span>
+                <div className="lds-tour-picker-top">
+                  <span className="lds-tour-picker-icon">{seed.icon}</span>
+                  <span className="lds-tour-picker-meta">
+                    <span>{seed.weeks.length} weeks</span>
+                    <span>{seed.classDurationMin} min</span>
+                  </span>
+                </div>
+                <span className="lds-tour-picker-title">{seed.label}</span>
+                <span className="lds-tour-picker-desc">{seed.description}</span>
+                <div className="lds-tour-picker-preview" aria-hidden="true">
+                  {seed.weeks.slice(0, 3).map((week, index) => (
+                    <span key={`${seed.id}-${week.title}`} className="lds-tour-picker-preview-row">
+                      <span className="lds-tour-picker-preview-index">W{index + 1}</span>
+                      <span className="lds-tour-picker-preview-line" />
+                      <span className="lds-tour-picker-preview-title">{week.title}</span>
+                    </span>
+                  ))}
+                </div>
               </button>
             ))}
           </div>

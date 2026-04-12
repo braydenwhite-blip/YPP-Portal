@@ -1,33 +1,31 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import BrandLockup from "@/components/brand-lockup";
-import { createBrowserClient } from "@/lib/supabase/client";
+import { navigateToAuthDestination } from "@/lib/auth-client-navigation";
+import { requestMagicLink } from "@/lib/magic-link-actions";
+import { createBrowserClientOrNull } from "@/lib/supabase/client";
+import {
+  canUseLocalPasswordFallback,
+  SUPABASE_PUBLIC_ENV_MISSING_MESSAGE,
+} from "@/lib/supabase/config";
 import { isLegacyAuthBypassEmail } from "@/lib/legacy-auth-config";
-import { signInLegacyBypass } from "@/lib/legacy-auth-actions";
-
-function getGoogleOAuthErrorMessage(message?: string) {
-  if (message?.toLowerCase().includes("provider is not enabled")) {
-    return "Google sign-in is not enabled for this Supabase project yet. Turn it on in Supabase Dashboard -> Authentication -> Providers -> Google, then try again.";
-  }
-
-  return "Could not start Google sign-in. Please try again.";
-}
 
 function LoginPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
   const archivedError = searchParams.get("error") === "account_archived";
+  const supabaseUnavailableError =
+    searchParams.get("error") === "supabase_unavailable";
 
   const [loginMethod, setLoginMethod] = useState<"password" | "magic">("password");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [magicSent, setMagicSent] = useState(false);
 
   // MFA challenge state
@@ -36,13 +34,27 @@ function LoginPageContent() {
   const [mfaChallengeId, setMfaChallengeId] = useState("");
   const [totpCode, setTotpCode] = useState("");
 
-  const supabase = createBrowserClient();
+  const supabase = createBrowserClientOrNull();
+  const hasSupabaseBrowserAuth = supabase !== null;
+  const localPasswordFallbackEnabled = canUseLocalPasswordFallback();
+  const authSetupMessage = localPasswordFallbackEnabled
+    ? "Supabase public auth is missing in this local environment, so password sign-in is using the local fallback. Magic links and email-link flows stay unavailable until NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are added."
+    : !hasSupabaseBrowserAuth
+      ? `${SUPABASE_PUBLIC_ENV_MISSING_MESSAGE} Magic links are unavailable until it is configured.`
+      : null;
 
   useEffect(() => {
     if (archivedError) {
       setError("This account has been archived and can no longer sign in.");
+      return;
     }
-  }, [archivedError]);
+
+    if (supabaseUnavailableError) {
+      setError(
+        "Email-link authentication is unavailable until Supabase public auth is configured."
+      );
+    }
+  }, [archivedError, supabaseUnavailableError]);
 
   async function handlePasswordSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -50,17 +62,37 @@ function LoginPageContent() {
     setLoading(true);
     const normalizedEmail = email.trim().toLowerCase();
 
-    if (isLegacyAuthBypassEmail(normalizedEmail)) {
-      const legacyResult = await signInLegacyBypass({
-        email: normalizedEmail,
-        password,
+    if (!hasSupabaseBrowserAuth || isLegacyAuthBypassEmail(normalizedEmail)) {
+      const legacyResponse = await fetch("/api/auth/local-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: normalizedEmail,
+          password,
+        }),
       });
+      const legacyResult = (await legacyResponse.json().catch(() => null)) as
+        | { success?: boolean; error?: string }
+        | null;
 
-      if (legacyResult.success) {
-        router.refresh();
-        router.push(callbackUrl.startsWith("/") ? callbackUrl : "/");
+      if (legacyResponse.ok && legacyResult?.success) {
+        navigateToAuthDestination(callbackUrl);
         return;
       }
+
+      if (!hasSupabaseBrowserAuth) {
+        setError(legacyResult?.error || "Invalid email or password.");
+        setLoading(false);
+        return;
+      }
+    }
+
+    if (!supabase) {
+      setError(SUPABASE_PUBLIC_ENV_MISSING_MESSAGE);
+      setLoading(false);
+      return;
     }
 
     const { data, error: signInError } = await supabase.auth.signInWithPassword({
@@ -126,6 +158,11 @@ function LoginPageContent() {
 
   async function handleTotpSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!supabase) {
+      setError(SUPABASE_PUBLIC_ENV_MISSING_MESSAGE);
+      return;
+    }
+
     setError(null);
     setLoading(true);
 
@@ -153,48 +190,24 @@ function LoginPageContent() {
     router.push(callbackUrl.startsWith("/") ? callbackUrl : "/");
   }
 
-  async function handleGoogleSignIn() {
-    setError(null);
-    setGoogleLoading(true);
-    const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(callbackUrl)}`,
-        skipBrowserRedirect: true,
-      },
-    });
-
-    if (oauthError) {
-      setError(getGoogleOAuthErrorMessage(oauthError.message));
-      setGoogleLoading(false);
-      return;
-    }
-
-    if (!data?.url) {
-      setError("Could not start Google sign-in. Please try again.");
-      setGoogleLoading(false);
-      return;
-    }
-
-    window.location.assign(data.url);
-  }
-
   async function handleMagicLink(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!hasSupabaseBrowserAuth) {
+      setError(
+        "Magic links are unavailable until Supabase public auth is configured."
+      );
+      return;
+    }
+
     setError(null);
     setLoading(true);
     const formData = new FormData(e.currentTarget);
-    const magicEmail = String(formData.get("email") ?? "").trim();
+    formData.set("next", callbackUrl);
 
-    const { error: otpError } = await supabase.auth.signInWithOtp({
-      email: magicEmail,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(callbackUrl)}`,
-      },
-    });
+    const result = await requestMagicLink({ status: "idle", message: "" }, formData);
 
-    if (otpError) {
-      setError(otpError.message);
+    if (result.status === "error") {
+      setError(result.message);
     } else {
       setMagicSent(true);
     }
@@ -242,34 +255,34 @@ function LoginPageContent() {
               <p>Stay updated with real-time progress reports and certificates. See the impact of mentorship on your child&apos;s learning journey.</p>
             </div>
           </div>
-          <div className="hero-metrics">
-            <div>
-              <div className="kpi">101-401 Pathways</div>
-              <div className="kpi-label">Structured Progression</div>
-            </div>
-            <div>
-              <div className="kpi">Passion Labs</div>
-              <div className="kpi-label">Project-Based Growth</div>
-            </div>
-            <div>
-              <div className="kpi">Certified Mentors</div>
-              <div className="kpi-label">Expert-Led Guidance</div>
-            </div>
-          </div>
+
         </section>
 
-        <div className="login-card">
+        <div className="login-card login-card--brand">
           <div className="login-card-header login-card-header--stacked">
-            <BrandLockup height={36} className="brand-lockup" reloadOnClick />
+            <BrandLockup height={52} className="brand-lockup" reloadOnClick />
             <div>
-              <h2 className="page-title" style={{ fontSize: 20 }}>
-                Welcome Back
-              </h2>
-              <p className="page-subtitle mt-0" style={{ fontSize: 13 }}>
-                Sign in to your Pathways Portal
-              </p>
+              <h2 className="login-card-welcome-title">Welcome Back</h2>
+              <p className="login-card-welcome-subtitle">Sign in to your Pathways Portal</p>
             </div>
           </div>
+
+          {authSetupMessage ? (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: "12px 14px",
+                borderRadius: 12,
+                border: "1px solid var(--border)",
+                background: "var(--surface)",
+                color: "var(--muted)",
+                fontSize: 13,
+                lineHeight: 1.55,
+              }}
+            >
+              {authSetupMessage}
+            </div>
+          ) : null}
 
           {/* MFA step — shown after password is verified */}
           {mfaStep && (
@@ -313,35 +326,6 @@ function LoginPageContent() {
           {/* Normal sign-in UI — hidden during MFA step */}
           {!mfaStep && <>
 
-            {/* Google sign-in */}
-            <button
-              type="button"
-              onClick={handleGoogleSignIn}
-              disabled={googleLoading}
-              className="button secondary"
-              style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12 }}
-            >
-              {googleLoading ? (
-                <>Redirecting&hellip;</>
-              ) : (
-                <>
-                  <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-                    <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" />
-                    <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" />
-                    <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.039l3.007-2.332z" />
-                    <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z" />
-                  </svg>
-                  Sign in with Google
-                </>
-              )}
-            </button>
-
-            <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "4px 0 16px" }}>
-              <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-              <span style={{ fontSize: 12, color: "var(--muted)" }}>or sign in with</span>
-              <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-            </div>
-
             {/* Login method toggle */}
             <div style={{ display: "flex", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 3, gap: 3, marginBottom: 16 }}>
               <button
@@ -359,11 +343,14 @@ function LoginPageContent() {
               <button
                 type="button"
                 onClick={() => { setLoginMethod("magic"); setError(null); setMagicSent(false); }}
+                disabled={!hasSupabaseBrowserAuth}
                 style={{
                   ...tabBtnBase,
                   background: loginMethod === "magic" ? "var(--card)" : "transparent",
                   color: loginMethod === "magic" ? "var(--foreground)" : "var(--muted)",
                   boxShadow: loginMethod === "magic" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                  opacity: hasSupabaseBrowserAuth ? 1 : 0.55,
+                  cursor: hasSupabaseBrowserAuth ? "pointer" : "not-allowed",
                 }}
               >
                 Magic Link
@@ -443,7 +430,11 @@ function LoginPageContent() {
             <div className="login-help">
               Need help? Contact your chapter administrator or support team.
             </div>
-            <Link className="button secondary" style={{ display: "block", textAlign: "center" }} href="/signup">
+            <Link
+              className="button secondary login-card-signup-cta"
+              style={{ display: "block", textAlign: "center" }}
+              href="/signup"
+            >
               Create Family Account
             </Link>
             <div className="login-help" style={{ marginTop: 8 }}>
@@ -462,8 +453,8 @@ export default function LoginPage() {
     <Suspense
       fallback={
         <div className="login-shell">
-          <div className="login-card" style={{ justifySelf: "center", textAlign: "center", padding: "48px 32px" }}>
-            <BrandLockup height={40} className="brand-lockup" reloadOnClick />
+          <div className="login-card login-card--brand" style={{ justifySelf: "center", textAlign: "center", padding: "48px 32px" }}>
+            <BrandLockup height={52} className="brand-lockup" reloadOnClick />
           </div>
         </div>
       }
