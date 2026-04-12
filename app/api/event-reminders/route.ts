@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
           title: reminder.subject,
           body: reminder.body,
           link: reminder.eventId ? `/my-chapter/calendar?eventId=${reminder.eventId}` : "/my-chapter/calendar",
+          policyKey: "EVENT_REMINDERS_AND_CHANGES",
         });
 
         await prisma.eventReminder.update({

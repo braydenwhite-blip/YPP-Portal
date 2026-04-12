@@ -2,10 +2,12 @@ import { NotificationType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isEmailConfigured, sendNotificationEmail } from "@/lib/email";
 import {
-  getNotificationPolicy,
+  type NotificationPolicyKey,
+  resolveNotificationPolicyChannels,
   shouldCreatePortalNotification,
   shouldSendPolicyEmail,
 } from "@/lib/notification-policy";
+import { isSmsConfigured, sendSmsNotification } from "@/lib/sms";
 
 type DeliveryInput = {
   userId: string;
@@ -14,7 +16,53 @@ type DeliveryInput = {
   body: string;
   link?: string | null;
   sendEmail?: boolean;
+  policyKey?: NotificationPolicyKey;
 };
+
+type PreferenceRecord = {
+  emailEnabled: boolean;
+  inAppEnabled: boolean;
+  smsEnabled: boolean;
+  smsPhoneE164: string | null;
+  announcements: boolean;
+  mentorUpdates: boolean;
+  goalReminders: boolean;
+  courseUpdates: boolean;
+  reflectionReminders: boolean;
+  eventUpdates: boolean;
+  eventReminders: boolean;
+};
+
+function preferenceKeyForType(type: NotificationType): keyof PreferenceRecord | null {
+  switch (type) {
+    case "ANNOUNCEMENT":
+      return "announcements";
+    case "MENTOR_FEEDBACK":
+      return "mentorUpdates";
+    case "GOAL_DEADLINE":
+      return "goalReminders";
+    case "COURSE_UPDATE":
+    case "CLASS_REMINDER":
+      return "courseUpdates";
+    case "REFLECTION_REMINDER":
+      return "reflectionReminders";
+    case "EVENT_UPDATE":
+      return "eventUpdates";
+    case "EVENT_REMINDER":
+      return "eventReminders";
+    default:
+      return null;
+  }
+}
+
+function isTypeEnabled(
+  preferences: PreferenceRecord | null | undefined,
+  type: NotificationType
+) {
+  const key = preferenceKeyForType(type);
+  if (!key) return true;
+  return preferences?.[key] ?? true;
+}
 
 function getBaseUrl() {
   if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
@@ -29,16 +77,48 @@ export async function deliverNotification(input: DeliveryInput) {
       id: true,
       email: true,
       name: true,
+      notificationPreference: {
+        select: {
+          emailEnabled: true,
+          inAppEnabled: true,
+          smsEnabled: true,
+          smsPhoneE164: true,
+          announcements: true,
+          mentorUpdates: true,
+          goalReminders: true,
+          courseUpdates: true,
+          reflectionReminders: true,
+          eventUpdates: true,
+          eventReminders: true,
+        },
+      },
     },
   });
 
   if (!user) return null;
 
-  const policy = getNotificationPolicy(input.type);
-  const shouldCreateInApp = shouldCreatePortalNotification(input.type);
+  const preferences = user.notificationPreference;
+  const typeEnabled = isTypeEnabled(preferences, input.type);
+  const policyChannels = input.policyKey
+    ? resolveNotificationPolicyChannels(input.policyKey)
+    : null;
+  const shouldCreateInApp =
+    (policyChannels?.inApp ?? shouldCreatePortalNotification(input.type)) &&
+    (preferences?.inAppEnabled ?? true) &&
+    typeEnabled;
   const shouldSendEmail =
-    shouldSendPolicyEmail(input.type, input.sendEmail !== false) &&
+    (policyChannels
+      ? input.sendEmail !== false && policyChannels.email
+      : shouldSendPolicyEmail(input.type, input.sendEmail !== false)) &&
+    (preferences?.emailEnabled ?? true) &&
+    typeEnabled &&
     isEmailConfigured();
+  const shouldSendSms =
+    Boolean(policyChannels?.sms) &&
+    (preferences?.smsEnabled ?? false) &&
+    Boolean(preferences?.smsPhoneE164) &&
+    typeEnabled &&
+    isSmsConfigured();
 
   let notification = null;
 
@@ -70,10 +150,15 @@ export async function deliverNotification(input: DeliveryInput) {
     });
   }
 
-  if (policy.smsPlanned) {
-    console.info(
-      `[NotificationDelivery] SMS is planned but not implemented yet for ${input.type}.`
-    );
+  if (shouldSendSms && preferences?.smsPhoneE164) {
+    await sendSmsNotification({
+      to: preferences.smsPhoneE164,
+      title: input.title,
+      body: input.body,
+      link: input.link || null,
+    }).catch((error) => {
+      console.error("[NotificationDelivery] Failed to send SMS:", error);
+    });
   }
 
   return notification;
@@ -83,7 +168,10 @@ export async function deliverBulkNotifications(inputs: DeliveryInput[]) {
   const uniqueInputs = new Map<string, DeliveryInput>();
 
   for (const input of inputs) {
-    uniqueInputs.set(`${input.userId}:${input.type}:${input.title}:${input.link ?? ""}`, input);
+    uniqueInputs.set(
+      `${input.userId}:${input.type}:${input.title}:${input.link ?? ""}:${input.policyKey ?? ""}`,
+      input
+    );
   }
 
   for (const input of uniqueInputs.values()) {

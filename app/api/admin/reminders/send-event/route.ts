@@ -44,6 +44,7 @@ export async function POST(request: Request) {
         minute: "2-digit",
       })}.`,
       link: `/my-chapter/calendar?eventId=${event.id}`,
+      policyKey: "EVENT_REMINDERS_AND_CHANGES" as const,
     }))
   );
 

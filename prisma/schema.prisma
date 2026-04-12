@@ -3309,6 +3309,10 @@ model NotificationPreference {
   user                User     @relation(fields: [userId], references: [id])
   emailEnabled        Boolean  @default(true)
   inAppEnabled        Boolean  @default(true)
+  smsEnabled          Boolean  @default(false)
+  smsPhoneE164        String?
+  smsConsentAt        DateTime?
+  smsOptOutAt         DateTime?
   announcements       Boolean  @default(true)
   mentorUpdates       Boolean  @default(true)
   goalReminders       Boolean  @default(true)
@@ -3318,6 +3322,8 @@ model NotificationPreference {
   eventReminders      Boolean  @default(true)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+
+  @@index([smsPhoneE164])
 }
 
 // ============================================

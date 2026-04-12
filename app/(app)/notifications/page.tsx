@@ -4,11 +4,16 @@ import { getSession } from "@/lib/auth-supabase";
 import {
   deleteNotification,
   getNotifications,
+  getNotificationPreferences,
   markAllAsRead,
   markAsRead,
 } from "@/lib/notification-actions";
-import { listNotificationPolicies } from "@/lib/notification-policy";
+import {
+  NOTIFICATION_POLICY,
+  NOTIFICATION_POLICY_CHANNEL_LABELS,
+} from "@/lib/notification-policy";
 import PageHelp from "@/components/page-help";
+import SmsNotificationSettingsForm from "@/components/sms-notification-settings-form";
 
 function getTypeIcon(type: string): string {
   switch (type) {
@@ -91,11 +96,8 @@ export default async function NotificationsPage() {
   }
 
   const notifications = await getNotifications();
-  const policies = listNotificationPolicies();
-  const portalOnlyPolicies = policies.filter((policy) => policy.bucket === "portal_only");
-  const emailOnlyPolicies = policies.filter((policy) => policy.bucket === "email_only");
-  const urgentPolicies = policies.filter((policy) => policy.bucket === "email_and_sms_later");
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const preferences = await getNotificationPreferences();
+  const unreadCount = notifications.filter((notification) => !notification.isRead).length;
 
   return (
     <div className="main-content">
@@ -124,11 +126,52 @@ export default async function NotificationsPage() {
         nextStep="When you clear an alert here, the system keeps the history but stops showing it as active work."
       />
 
+      <div className="card" style={{ marginTop: 16, marginBottom: 20 }}>
+        <h2 style={{ marginTop: 0 }}>Delivery Policy</h2>
+        <p style={{ color: "var(--muted, #6b7280)" }}>
+          These are the fixed delivery rules for the most important notification categories in the portal.
+        </p>
+        <div style={{ display: "grid", gap: 12 }}>
+          {Object.entries(NOTIFICATION_POLICY).map(([key, entry]) => (
+            <div
+              key={key}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "minmax(180px, 220px) minmax(120px, 160px) 1fr",
+                gap: 12,
+                alignItems: "start",
+                border: "1px solid var(--border)",
+                borderRadius: 12,
+                padding: 14,
+              }}
+            >
+              <div style={{ fontWeight: 700 }}>{entry.label}</div>
+              <div>
+                <span className="badge">{NOTIFICATION_POLICY_CHANNEL_LABELS[entry.channel]}</span>
+              </div>
+              <div style={{ color: "var(--muted, #6b7280)" }}>{entry.description}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 16, marginBottom: 20 }}>
+        <h2 style={{ marginTop: 0 }}>Text Message Notifications</h2>
+        <p style={{ color: "var(--muted, #6b7280)" }}>
+          Text messages are optional and only used for the most time-sensitive updates. Version one limits texts to
+          application decisions, interview updates, RSVP reminders or urgent event changes, and system alerts.
+        </p>
+        <SmsNotificationSettingsForm
+          smsEnabled={preferences.smsEnabled}
+          smsPhoneE164={preferences.smsPhoneE164}
+          smsOptOutAt={preferences.smsOptOutAt?.toISOString() ?? null}
+        />
+      </div>
+
       {notifications.length === 0 ? (
         <div className="card" style={{ marginTop: 16 }}>
           <p className="empty">
-            You have no notifications. When you receive announcements, mentor
-            feedback, goal reminders, or other updates they will appear here.
+            You have no notifications. When you receive announcements, mentor feedback, goal reminders, or other updates they will appear here.
           </p>
         </div>
       ) : (
@@ -266,57 +309,6 @@ export default async function NotificationsPage() {
           ))}
         </div>
       )}
-
-      <div className="card" style={{ marginTop: 20 }}>
-        <h2 style={{ marginTop: 0 }}>How Notifications Work</h2>
-        <p style={{ color: "var(--muted, #6b7280)" }}>
-          Notification delivery now follows one fixed portal-wide policy. These rules are not customizable, and
-          every notification that creates a portal item stays visible here in your history.
-        </p>
-        <div style={{ display: "grid", gap: 16 }}>
-          <div>
-            <h3 style={{ marginBottom: 8 }}>Portal only</h3>
-            <p style={{ color: "var(--muted, #6b7280)", marginTop: 0 }}>
-              These reminders stay inside the portal so they are tied to your regular workflow.
-            </p>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {portalOnlyPolicies.map((policy) => (
-                <span key={policy.type} className="badge">
-                  {policy.label}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <h3 style={{ marginBottom: 8 }}>Email delivery</h3>
-            <p style={{ color: "var(--muted, #6b7280)", marginTop: 0 }}>
-              These updates are sent by email and also remain visible here in your portal history.
-            </p>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {emailOnlyPolicies.map((policy) => (
-                <span key={policy.type} className="badge">
-                  {policy.label}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <h3 style={{ marginBottom: 8 }}>Urgent alerts</h3>
-            <p style={{ color: "var(--muted, #6b7280)", marginTop: 0 }}>
-              These alerts send by email now and are already marked for SMS delivery once text support is enabled.
-            </p>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {urgentPolicies.map((policy) => (
-                <span key={policy.type} className="badge">
-                  {policy.label}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
