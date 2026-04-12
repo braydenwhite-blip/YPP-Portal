@@ -25,7 +25,6 @@ function LoginPageContent() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [magicSent, setMagicSent] = useState(false);
 
   // MFA challenge state
@@ -38,9 +37,9 @@ function LoginPageContent() {
   const hasSupabaseBrowserAuth = supabase !== null;
   const localPasswordFallbackEnabled = canUseLocalPasswordFallback();
   const authSetupMessage = localPasswordFallbackEnabled
-    ? "Supabase public auth is missing in this local environment, so password sign-in is using the local fallback. Google sign-in, magic links, and email-link flows stay unavailable until NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are added."
+    ? "Supabase public auth is missing in this local environment, so password sign-in is using the local fallback. Magic links and email-link flows stay unavailable until NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are added."
     : !hasSupabaseBrowserAuth
-      ? `${SUPABASE_PUBLIC_ENV_MISSING_MESSAGE} Google sign-in and magic links are unavailable until it is configured.`
+      ? `${SUPABASE_PUBLIC_ENV_MISSING_MESSAGE} Magic links are unavailable until it is configured.`
       : null;
 
   useEffect(() => {
@@ -51,7 +50,7 @@ function LoginPageContent() {
 
     if (supabaseUnavailableError) {
       setError(
-        "Google sign-in and email-link authentication are unavailable until Supabase public auth is configured."
+        "Email-link authentication is unavailable until Supabase public auth is configured."
       );
     }
   }, [archivedError, supabaseUnavailableError]);
@@ -188,39 +187,6 @@ function LoginPageContent() {
 
     router.refresh();
     router.push(callbackUrl.startsWith("/") ? callbackUrl : "/");
-  }
-
-  async function handleGoogleSignIn() {
-    if (!supabase) {
-      setError(
-        "Google sign-in is unavailable until Supabase public auth is configured."
-      );
-      return;
-    }
-
-    setError(null);
-    setGoogleLoading(true);
-    const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(callbackUrl)}`,
-        skipBrowserRedirect: true,
-      },
-    });
-
-    if (oauthError) {
-      setError(getGoogleOAuthErrorMessage(oauthError.message));
-      setGoogleLoading(false);
-      return;
-    }
-
-    if (!data?.url) {
-      setError("Could not start Google sign-in. Please try again.");
-      setGoogleLoading(false);
-      return;
-    }
-
-    window.location.assign(data.url);
   }
 
   async function handleMagicLink(e: React.FormEvent<HTMLFormElement>) {
@@ -376,35 +342,6 @@ function LoginPageContent() {
 
           {/* Normal sign-in UI — hidden during MFA step */}
           {!mfaStep && <>
-
-            {/* Google sign-in */}
-            <button
-              type="button"
-              onClick={handleGoogleSignIn}
-              disabled={googleLoading || !hasSupabaseBrowserAuth}
-              className="button secondary"
-              style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12 }}
-            >
-              {googleLoading ? (
-                <>Redirecting&hellip;</>
-              ) : (
-                <>
-                  <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-                    <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" />
-                    <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" />
-                    <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.039l3.007-2.332z" />
-                    <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z" />
-                  </svg>
-                  Sign in with Google
-                </>
-              )}
-            </button>
-
-            <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "4px 0 16px" }}>
-              <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-              <span style={{ fontSize: 12, color: "var(--muted)" }}>or sign in with</span>
-              <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-            </div>
 
             {/* Login method toggle */}
             <div style={{ display: "flex", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 3, gap: 3, marginBottom: 16 }}>
