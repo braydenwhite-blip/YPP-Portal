@@ -1,4 +1,4 @@
-import { createServerClient } from "@/lib/supabase/server";
+import { createServerClientOrNull } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { normalizeRoleValues, normalizeRoleValue } from "@/lib/role-utils";
 import { getLegacySessionFromCookies } from "@/lib/legacy-auth-server";
@@ -39,10 +39,12 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     });
   }
 
-  const supabase = await createServerClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
+  const supabase = await createServerClientOrNull();
+  const authUser = supabase
+    ? (
+        await supabase.auth.getUser()
+      ).data.user
+    : null;
 
   const prismaUser = authUser
     ? await resolvePrismaUser({ supabaseAuthId: authUser.id })

@@ -1,18 +1,27 @@
 "use client";
 
 import { useState } from "react";
-import { createBrowserClient } from "@/lib/supabase/client";
+import { createBrowserClientOrNull } from "@/lib/supabase/client";
 
 export default function ResendVerificationForm({ initialEmail }: { initialEmail: string }) {
   const [status, setStatus] = useState<"" | "success" | "error">("");
   const [message, setMessage] = useState("");
+  const supabase = createBrowserClientOrNull();
+  const resendUnavailable = !supabase;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const email = String(formData.get("email") ?? "").trim();
 
-    const supabase = createBrowserClient();
+    if (!supabase) {
+      setStatus("error");
+      setMessage(
+        "Verification emails are unavailable until Supabase public auth is configured."
+      );
+      return;
+    }
+
     const { error } = await supabase.auth.resend({
       type: "signup",
       email,
@@ -38,6 +47,11 @@ export default function ResendVerificationForm({ initialEmail }: { initialEmail:
       {status === "error" && (
         <p className="form-error" style={{ margin: 0 }}>{message}</p>
       )}
+      {resendUnavailable ? (
+        <p className="form-error" style={{ margin: 0 }}>
+          Verification emails are unavailable until Supabase public auth is configured.
+        </p>
+      ) : null}
       <label className="form-row" style={{ margin: 0 }}>
         Email address
         <input
@@ -49,7 +63,7 @@ export default function ResendVerificationForm({ initialEmail }: { initialEmail:
           placeholder="your@email.com"
         />
       </label>
-      <button className="button secondary" type="submit">
+      <button className="button secondary" type="submit" disabled={resendUnavailable}>
         Resend Verification Email
       </button>
     </form>

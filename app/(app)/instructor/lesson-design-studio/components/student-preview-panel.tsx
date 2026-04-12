@@ -5,6 +5,7 @@ import { buildSessionLabel } from "@/lib/curriculum-draft-progress";
 import type { StudioCourseConfig, WeekPlan } from "../types";
 import { getActivityTypeConfig } from "./activity-template-data";
 import { StudioRichContent } from "./studio-rich-editor";
+import { useBodyScrollLock } from "./use-body-scroll-lock";
 
 interface StudentPreviewPanelProps {
   open: boolean;
@@ -19,6 +20,8 @@ export function StudentPreviewPanel({
   courseConfig,
   onClose,
 }: StudentPreviewPanelProps) {
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
 

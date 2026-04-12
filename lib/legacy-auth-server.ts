@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import {
   LEGACY_AUTH_COOKIE_NAME,
+  type LegacySessionMode,
   createLegacySessionToken,
   verifyLegacySessionToken,
 } from "@/lib/legacy-auth";
@@ -17,12 +18,17 @@ function getLegacySessionCookieOptions() {
   };
 }
 
-export async function establishLegacySession(input: { userId: string; email: string }) {
+export async function establishLegacySession(input: {
+  userId: string;
+  email: string;
+  mode?: LegacySessionMode;
+}) {
   const cookieStore = await cookies();
   const token = await createLegacySessionToken({
     userId: input.userId,
     email: input.email,
     exp: Date.now() + LEGACY_SESSION_MAX_AGE_SECONDS * 1000,
+    mode: input.mode,
   });
 
   cookieStore.set(LEGACY_AUTH_COOKIE_NAME, token, getLegacySessionCookieOptions());

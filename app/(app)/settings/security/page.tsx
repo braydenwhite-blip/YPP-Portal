@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createBrowserClient } from "@/lib/supabase/client";
+import Image from "next/image";
+import { createBrowserClientOrNull } from "@/lib/supabase/client";
 
 type SetupState = "idle" | "scanning" | "confirming" | "enabled";
 
@@ -19,11 +20,18 @@ export default function SecuritySettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const supabase = createBrowserClient();
+  const supabase = createBrowserClientOrNull();
 
   useEffect(() => {
+    if (!supabase) {
+      setCheckingStatus(false);
+      return;
+    }
+
+    const client = supabase;
+
     async function checkMfaStatus() {
-      const { data } = await supabase.auth.mfa.listFactors();
+      const { data } = await client.auth.mfa.listFactors();
       const activeTotpFactors =
         data?.totp?.filter((factor: { status?: string; id: string }) => factor.status === "verified") ?? [];
       setHas2FA(activeTotpFactors.length > 0);
@@ -33,9 +41,16 @@ export default function SecuritySettingsPage() {
       setCheckingStatus(false);
     }
     checkMfaStatus();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [supabase]);
 
   async function handleStartSetup() {
+    if (!supabase) {
+      setError(
+        "Two-factor authentication is unavailable until Supabase public auth is configured."
+      );
+      return;
+    }
+
     setError(null);
     setLoading(true);
     try {
@@ -58,6 +73,13 @@ export default function SecuritySettingsPage() {
   }
 
   async function handleEnable() {
+    if (!supabase) {
+      setError(
+        "Two-factor authentication is unavailable until Supabase public auth is configured."
+      );
+      return;
+    }
+
     setError(null);
     setLoading(true);
     try {
@@ -83,6 +105,13 @@ export default function SecuritySettingsPage() {
   }
 
   async function handleDisable() {
+    if (!supabase) {
+      setError(
+        "Two-factor authentication is unavailable until Supabase public auth is configured."
+      );
+      return;
+    }
+
     setError(null);
     setLoading(true);
     try {
@@ -119,6 +148,27 @@ export default function SecuritySettingsPage() {
     return (
       <div style={{ maxWidth: 560, margin: "40px auto", padding: "0 20px" }}>
         <p style={{ color: "var(--muted)" }}>Loading security settings...</p>
+      </div>
+    );
+  }
+
+  if (!supabase) {
+    return (
+      <div style={{ maxWidth: 560, margin: "40px auto", padding: "0 20px" }}>
+        <h1 className="page-title" style={{ fontSize: 22, marginBottom: 4 }}>
+          Security Settings
+        </h1>
+        <p className="page-subtitle" style={{ marginBottom: 32 }}>
+          Manage your account security and two-factor authentication.
+        </p>
+        <div className="card" style={{ padding: 24 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
+            Two-Factor Authentication
+          </h2>
+          <p style={{ fontSize: 13, color: "var(--muted)", margin: "8px 0 0", lineHeight: 1.6 }}>
+            Two-factor authentication is unavailable until Supabase public auth is configured in this environment.
+          </p>
+        </div>
       </div>
     );
   }
@@ -175,7 +225,19 @@ export default function SecuritySettingsPage() {
               Scan this QR code with your authenticator app, then click <strong>Next</strong>.
             </p>
             {qrCodeUri && (
-              <img src={qrCodeUri} alt="2FA QR code" style={{ display: "block", marginBottom: 12, borderRadius: 8, border: "1px solid var(--border)" }} width={180} height={180} />
+              <Image
+                src={qrCodeUri}
+                alt="2FA QR code"
+                width={180}
+                height={180}
+                unoptimized
+                style={{
+                  display: "block",
+                  marginBottom: 12,
+                  borderRadius: 8,
+                  border: "1px solid var(--border)",
+                }}
+              />
             )}
             <details style={{ marginBottom: 16 }}>
               <summary style={{ fontSize: 12, color: "var(--muted)", cursor: "pointer" }}>

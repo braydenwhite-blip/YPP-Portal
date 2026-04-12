@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   createBlankCurriculumDraft,
   createWorkingCopyFromCurriculumDraft,
@@ -11,6 +11,7 @@ import {
   buildLessonDesignStudioHref,
   type StudioEntryContext,
 } from "@/lib/lesson-design-studio";
+import { openLessonDesignStudio } from "@/lib/lesson-design-studio-navigation";
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
@@ -60,7 +61,6 @@ export function DraftChooser({
   drafts,
   notice,
 }: DraftChooserProps) {
-  const router = useRouter();
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -83,13 +83,11 @@ export function DraftChooser({
   const noticeCopy = getNoticeCopy(notice);
 
   function openDraft(draftId: string, nextNotice?: string | null) {
-    router.push(
-      buildLessonDesignStudioHref({
-        entryContext,
-        draftId,
-        notice: nextNotice,
-      })
-    );
+    openLessonDesignStudio({
+      entryContext,
+      draftId,
+      notice: nextNotice,
+    });
   }
 
   function runAction(actionKey: string, runner: () => Promise<{ draftId: string; reusedExisting: boolean }>) {
@@ -130,21 +128,28 @@ export function DraftChooser({
         </div>
 
         <div className="lds-chooser-actions">
-          <button
-            type="button"
-            className="button"
-            disabled={isPending}
-            onClick={() => {
-              if (primaryEditableDraft) {
-                openDraft(primaryEditableDraft.id);
-                return;
-              }
-
-              runAction("blank", () => createBlankCurriculumDraft());
-            }}
-          >
-            {primaryEditableDraft ? "Open current working draft" : "Start blank curriculum"}
-          </button>
+          {primaryEditableDraft ? (
+            <Link
+              className="button"
+              href={buildLessonDesignStudioHref({
+                entryContext,
+                draftId: primaryEditableDraft.id,
+              })}
+            >
+              Open current working draft
+            </Link>
+          ) : (
+            <button
+              type="button"
+              className="button"
+              disabled={isPending}
+              onClick={() => {
+                runAction("blank", () => createBlankCurriculumDraft());
+              }}
+            >
+              Start blank curriculum
+            </button>
+          )}
           {primaryEditableDraft ? (
             <p className="lds-chooser-meta">
               One editable curriculum stays active at a time so your working draft does not split into confusing branches.
@@ -194,13 +199,15 @@ export function DraftChooser({
               Last updated {formatDate(primaryEditableDraft.updatedAt)}
             </p>
             <div className="lds-draft-card-actions">
-              <button
-                type="button"
+              <Link
                 className="button"
-                onClick={() => openDraft(primaryEditableDraft.id)}
+                href={buildLessonDesignStudioHref({
+                  entryContext,
+                  draftId: primaryEditableDraft.id,
+                })}
               >
                 Open working draft
-              </button>
+              </Link>
             </div>
           </article>
         </section>
@@ -261,13 +268,15 @@ export function DraftChooser({
                   ) : null}
 
                   <div className="lds-draft-card-actions">
-                    <button
-                      type="button"
+                    <Link
                       className="button secondary"
-                      onClick={() => openDraft(draft.id)}
+                      href={buildLessonDesignStudioHref({
+                        entryContext,
+                        draftId: draft.id,
+                      })}
                     >
                       Open
-                    </button>
+                    </Link>
                     <button
                       type="button"
                       className="button"

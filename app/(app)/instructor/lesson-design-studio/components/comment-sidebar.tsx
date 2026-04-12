@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   CurriculumCommentAnchor,
   CurriculumCommentRecord,
 } from "../types";
 import { CommentThread } from "./comment-thread";
+import { useBodyScrollLock } from "./use-body-scroll-lock";
 
 interface CommentSidebarProps {
   open: boolean;
@@ -52,9 +53,27 @@ export function CommentSidebar({
   onDeleteComment,
   resolveAnchorLabel,
 }: CommentSidebarProps) {
+  useBodyScrollLock(open);
+
   const [filter, setFilter] = useState<"UNRESOLVED" | "ALL" | "RESOLVED">(
     "UNRESOLVED"
   );
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, open]);
 
   const groupedComments = useMemo(() => {
     const groups = new Map<string, CurriculumCommentRecord[]>();

@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import BrandLockup from "@/components/brand-lockup";
-import { createBrowserClient } from "@/lib/supabase/client";
+import { navigateToAuthDestination } from "@/lib/auth-client-navigation";
+import { createBrowserClientOrNull } from "@/lib/supabase/client";
+import {
+  canUseLocalPasswordFallback,
+  SUPABASE_PUBLIC_ENV_MISSING_MESSAGE,
+} from "@/lib/supabase/config";
 import { isLegacyAuthBypassEmail } from "@/lib/legacy-auth-config";
-import { signInLegacyBypass } from "@/lib/legacy-auth-actions";
 
 function getGoogleOAuthErrorMessage(message?: string) {
   if (message?.toLowerCase().includes("provider is not enabled")) {
@@ -21,6 +25,8 @@ function LoginPageContent() {
   const router = useRouter();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
   const archivedError = searchParams.get("error") === "account_archived";
+  const supabaseUnavailableError =
+    searchParams.get("error") === "supabase_unavailable";
 
   const [loginMethod, setLoginMethod] = useState<"password" | "magic">("password");
   const [email, setEmail] = useState("");
@@ -36,13 +42,27 @@ function LoginPageContent() {
   const [mfaChallengeId, setMfaChallengeId] = useState("");
   const [totpCode, setTotpCode] = useState("");
 
-  const supabase = createBrowserClient();
+  const supabase = createBrowserClientOrNull();
+  const hasSupabaseBrowserAuth = supabase !== null;
+  const localPasswordFallbackEnabled = canUseLocalPasswordFallback();
+  const authSetupMessage = localPasswordFallbackEnabled
+    ? "Supabase public auth is missing in this local environment, so password sign-in is using the local fallback. Google sign-in, magic links, and email-link flows stay unavailable until NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are added."
+    : !hasSupabaseBrowserAuth
+      ? `${SUPABASE_PUBLIC_ENV_MISSING_MESSAGE} Google sign-in and magic links are unavailable until it is configured.`
+      : null;
 
   useEffect(() => {
     if (archivedError) {
       setError("This account has been archived and can no longer sign in.");
+      return;
     }
-  }, [archivedError]);
+
+    if (supabaseUnavailableError) {
+      setError(
+        "Google sign-in and email-link authentication are unavailable until Supabase public auth is configured."
+      );
+    }
+  }, [archivedError, supabaseUnavailableError]);
 
   async function handlePasswordSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -50,17 +70,37 @@ function LoginPageContent() {
     setLoading(true);
     const normalizedEmail = email.trim().toLowerCase();
 
-    if (isLegacyAuthBypassEmail(normalizedEmail)) {
-      const legacyResult = await signInLegacyBypass({
-        email: normalizedEmail,
-        password,
+    if (!hasSupabaseBrowserAuth || isLegacyAuthBypassEmail(normalizedEmail)) {
+      const legacyResponse = await fetch("/api/auth/local-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: normalizedEmail,
+          password,
+        }),
       });
+      const legacyResult = (await legacyResponse.json().catch(() => null)) as
+        | { success?: boolean; error?: string }
+        | null;
 
-      if (legacyResult.success) {
-        router.refresh();
-        router.push(callbackUrl.startsWith("/") ? callbackUrl : "/");
+      if (legacyResponse.ok && legacyResult?.success) {
+        navigateToAuthDestination(callbackUrl);
         return;
       }
+
+      if (!hasSupabaseBrowserAuth) {
+        setError(legacyResult?.error || "Invalid email or password.");
+        setLoading(false);
+        return;
+      }
+    }
+
+    if (!supabase) {
+      setError(SUPABASE_PUBLIC_ENV_MISSING_MESSAGE);
+      setLoading(false);
+      return;
     }
 
     const { data, error: signInError } = await supabase.auth.signInWithPassword({
@@ -126,6 +166,11 @@ function LoginPageContent() {
 
   async function handleTotpSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!supabase) {
+      setError(SUPABASE_PUBLIC_ENV_MISSING_MESSAGE);
+      return;
+    }
+
     setError(null);
     setLoading(true);
 
@@ -154,6 +199,13 @@ function LoginPageContent() {
   }
 
   async function handleGoogleSignIn() {
+    if (!supabase) {
+      setError(
+        "Google sign-in is unavailable until Supabase public auth is configured."
+      );
+      return;
+    }
+
     setError(null);
     setGoogleLoading(true);
     const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
@@ -181,6 +233,13 @@ function LoginPageContent() {
 
   async function handleMagicLink(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!supabase) {
+      setError(
+        "Magic links are unavailable until Supabase public auth is configured."
+      );
+      return;
+    }
+
     setError(null);
     setLoading(true);
     const formData = new FormData(e.currentTarget);
@@ -271,6 +330,23 @@ function LoginPageContent() {
             </div>
           </div>
 
+          {authSetupMessage ? (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: "12px 14px",
+                borderRadius: 12,
+                border: "1px solid var(--border)",
+                background: "var(--surface)",
+                color: "var(--muted)",
+                fontSize: 13,
+                lineHeight: 1.55,
+              }}
+            >
+              {authSetupMessage}
+            </div>
+          ) : null}
+
           {/* MFA step — shown after password is verified */}
           {mfaStep && (
             <form onSubmit={handleTotpSubmit}>
@@ -317,7 +393,7 @@ function LoginPageContent() {
             <button
               type="button"
               onClick={handleGoogleSignIn}
-              disabled={googleLoading}
+              disabled={googleLoading || !hasSupabaseBrowserAuth}
               className="button secondary"
               style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12 }}
             >
@@ -359,11 +435,14 @@ function LoginPageContent() {
               <button
                 type="button"
                 onClick={() => { setLoginMethod("magic"); setError(null); setMagicSent(false); }}
+                disabled={!hasSupabaseBrowserAuth}
                 style={{
                   ...tabBtnBase,
                   background: loginMethod === "magic" ? "var(--card)" : "transparent",
                   color: loginMethod === "magic" ? "var(--foreground)" : "var(--muted)",
                   boxShadow: loginMethod === "magic" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                  opacity: hasSupabaseBrowserAuth ? 1 : 0.55,
+                  cursor: hasSupabaseBrowserAuth ? "pointer" : "not-allowed",
                 }}
               >
                 Magic Link

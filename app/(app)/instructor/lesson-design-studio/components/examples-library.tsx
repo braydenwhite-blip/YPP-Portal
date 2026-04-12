@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { ExampleCurriculumPanel } from "./example-curriculum-panel";
 import type { ExampleWeek } from "../examples-data";
+import { useBodyScrollLock } from "./use-body-scroll-lock";
 
 interface ExamplesLibraryProps {
   open: boolean;
@@ -27,6 +28,8 @@ export function ExamplesLibrary({
   onTabChange,
   onImportWeek,
 }: ExamplesLibraryProps) {
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
 

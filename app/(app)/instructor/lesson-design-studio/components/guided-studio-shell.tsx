@@ -22,6 +22,7 @@ interface GuidedStudioShellProps {
   workflowNotice?: string | null;
   readOnlyNotice?: string | null;
   readOnlyBody?: string | null;
+  isModalOpen?: boolean;
   toast?:
     | {
         kind: "error" | "success";
@@ -122,6 +123,7 @@ export function GuidedStudioShell({
   workflowNotice,
   readOnlyNotice,
   readOnlyBody,
+  isModalOpen = false,
   toast,
   journey,
   onPhaseChange,
@@ -155,7 +157,11 @@ export function GuidedStudioShell({
         </section>
       ) : null}
 
-      <section className={`lds-studio-toolbar${isScrolled ? " scrolled" : ""}`}>
+      <section
+        className={`lds-studio-toolbar${isScrolled ? " scrolled" : ""}${
+          isModalOpen ? " modal-open" : ""
+        }`}
+      >
         <div className="lds-studio-toolbar-main">
           <div className="lds-toolbar-region lds-toolbar-region-left">
             <div className="lds-toolbar-brand">

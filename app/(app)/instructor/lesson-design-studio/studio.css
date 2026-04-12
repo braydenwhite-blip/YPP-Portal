@@ -4157,6 +4157,10 @@
   box-shadow: var(--cbs-shadow-3);
 }
 
+.lds-studio-toolbar.modal-open {
+  pointer-events: none;
+}
+
 .lds-studio-toolbar-main {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) minmax(320px, auto) minmax(240px, 1fr);
@@ -6459,7 +6463,7 @@
 .lds-tour-overlay {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 120;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -7873,7 +7877,7 @@
 .cbs-preview-overlay {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: 126;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -8272,7 +8276,7 @@
 .lds-comment-sidebar-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 84;
+  z-index: 122;
   background: rgba(242, 244, 250, 0.48);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -8283,7 +8287,7 @@
   top: 20px;
   right: 20px;
   bottom: 20px;
-  z-index: 85;
+  z-index: 123;
   width: min(460px, calc(100vw - 40px));
   display: grid;
   grid-template-rows: auto auto auto auto minmax(0, 1fr);

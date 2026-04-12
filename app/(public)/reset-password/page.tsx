@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import BrandLockup from "@/components/brand-lockup";
-import { createBrowserClient } from "@/lib/supabase/client";
+import { createBrowserClientOrNull } from "@/lib/supabase/client";
 
 export default function ResetPasswordPage() {
   return (
@@ -17,6 +17,8 @@ function ResetPasswordPageContent() {
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const supabase = createBrowserClientOrNull();
+  const resetUnavailable = !supabase;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -48,7 +50,15 @@ function ResetPasswordPageContent() {
       return;
     }
 
-    const supabase = createBrowserClient();
+    if (!supabase) {
+      setStatus("error");
+      setMessage(
+        "Password reset links are unavailable until Supabase public auth is configured."
+      );
+      setLoading(false);
+      return;
+    }
+
     const { error } = await supabase.auth.updateUser({ password });
 
     if (error) {
@@ -97,6 +107,11 @@ function ResetPasswordPageContent() {
         </div>
 
         <form onSubmit={handleSubmit}>
+          {resetUnavailable ? (
+            <div className="form-error" style={{ marginBottom: 12 }}>
+              Password reset links are unavailable until Supabase public auth is configured.
+            </div>
+          ) : null}
           <label className="form-label" style={{ marginTop: 0 }}>
             New Password
             <input
@@ -125,7 +140,7 @@ function ResetPasswordPageContent() {
             <div className="form-error">{message}</div>
           )}
 
-          <button className="button" type="submit" disabled={loading}>
+          <button className="button" type="submit" disabled={loading || resetUnavailable}>
             {loading ? "Resetting\u2026" : "Reset Password"}
           </button>
         </form>
