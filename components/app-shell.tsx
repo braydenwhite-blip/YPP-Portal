@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import Nav, { type NavBadges } from "@/components/nav";
 import LogoutButton from "@/components/logout-button";
+import type { NavGroup, NavViewModel } from "@/lib/navigation/types";
 import type { PageHelperRole } from "@/lib/page-helper/types";
 
 const PageHelperFab = dynamic(() => import("@/components/page-helper-fab"), {
@@ -15,40 +16,31 @@ export default function AppShell({
   children,
   userName,
   roles,
-  adminSubtypes,
   primaryRole,
-  awardTier,
+  navModel,
   badges,
-  enabledFeatureKeys,
-  unlockedSections,
+  lockedGroups,
   recentlyUnlockedGroups,
 }: {
   children: React.ReactNode;
   userName?: string | null;
   roles?: string[];
-  adminSubtypes?: string[];
   primaryRole?: string | null;
-  awardTier?: string;
+  navModel: NavViewModel;
   badges?: NavBadges;
-  enabledFeatureKeys?: string[];
-  unlockedSections?: string[];
-  recentlyUnlockedGroups?: string[];
+  lockedGroups?: Array<[NavGroup, string]>;
+  recentlyUnlockedGroups?: NavGroup[];
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const sidebarId = "portal-sidebar";
 
-  // Convert serialized arrays back to Sets for the Nav component
-  const unlockedSectionsSet = useMemo(
-    () => (unlockedSections ? new Set(unlockedSections) : undefined),
-    [unlockedSections],
-  );
   const recentlyUnlockedGroupsSet = useMemo(
-    () => (recentlyUnlockedGroups ? new Set(recentlyUnlockedGroups) : undefined),
+    () => (recentlyUnlockedGroups ? new Set<NavGroup>(recentlyUnlockedGroups) : undefined),
     [recentlyUnlockedGroups],
   );
-  const enabledFeatureKeysSet = useMemo(
-    () => (enabledFeatureKeys ? new Set(enabledFeatureKeys) : undefined),
-    [enabledFeatureKeys],
+  const lockedGroupsMap = useMemo(
+    () => (lockedGroups ? new Map(lockedGroups) : undefined),
+    [lockedGroups],
   );
 
   return (
@@ -101,14 +93,10 @@ export default function AppShell({
         {/* Scrollable navigation */}
         <div className="sidebar-nav">
           <Nav
-            roles={roles}
-            adminSubtypes={adminSubtypes}
-            primaryRole={primaryRole}
-            awardTier={awardTier}
+            model={navModel}
             badges={badges}
-            enabledFeatureKeys={enabledFeatureKeysSet}
             onNavigate={() => setSidebarOpen(false)}
-            unlockedSections={unlockedSectionsSet}
+            lockedGroups={lockedGroupsMap}
             recentlyUnlockedGroups={recentlyUnlockedGroupsSet}
           />
         </div>

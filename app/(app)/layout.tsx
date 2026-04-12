@@ -8,6 +8,8 @@ import {
   getUnreadNotificationCount,
   getUserAwardTypes,
 } from "@/lib/request-cache";
+import { resolveNavModel } from "@/lib/navigation/resolve-nav";
+import type { NavGroup } from "@/lib/navigation/types";
 import { getUnlockedSections, checkAndAutoUnlock } from "@/lib/unlock-manager";
 import { getVisibleNavGroups } from "@/lib/unlock-nav-groups";
 import { withPrismaFallback } from "@/lib/prisma-guard";
@@ -61,7 +63,7 @@ export default async function AppLayout({
   let badges: { notifications?: number; messages?: number; approvals?: number } = {};
   let enabledFeatureKeysArray: string[] | undefined;
   let unlockedSectionsArray: string[] | undefined;
-  let recentlyUnlockedGroupsArray: string[] | undefined;
+  let recentlyUnlockedGroupsArray: NavGroup[] | undefined;
   if (session?.user?.id) {
     const userId = session.user.id;
     const [userWithAwards, unreadNotifications, unreadMessages, pendingApprovals, enabledFeatureKeys] =
@@ -133,16 +135,29 @@ export default async function AppLayout({
     }
   }
 
+  const navModelWithLocks = resolveNavModel({
+    roles,
+    adminSubtypes: (session?.user as { adminSubtypes?: string[] } | undefined)?.adminSubtypes,
+    primaryRole,
+    awardTier,
+    pathname: "/",
+    enabledFeatureKeys: enabledFeatureKeysArray ? new Set(enabledFeatureKeysArray) : undefined,
+    unlockedSections: unlockedSectionsArray ? new Set(unlockedSectionsArray) : undefined,
+  });
+
   return (
     <AppShell
       userName={session?.user?.name}
       roles={roles}
-      adminSubtypes={(session?.user as { adminSubtypes?: string[] } | undefined)?.adminSubtypes}
       primaryRole={primaryRole}
-      awardTier={awardTier}
+      navModel={{
+        primaryRole: navModelWithLocks.primaryRole,
+        visible: navModelWithLocks.visible,
+        core: navModelWithLocks.core,
+        more: navModelWithLocks.more,
+      }}
       badges={badges}
-      enabledFeatureKeys={enabledFeatureKeysArray}
-      unlockedSections={unlockedSectionsArray}
+      lockedGroups={navModelWithLocks.lockedGroups ? Array.from(navModelWithLocks.lockedGroups.entries()) : undefined}
       recentlyUnlockedGroups={recentlyUnlockedGroupsArray}
     >
       {children}

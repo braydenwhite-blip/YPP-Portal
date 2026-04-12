@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { isNavHrefActive, resolveNavModel } from "@/lib/navigation/resolve-nav";
-import type { NavLink } from "@/lib/navigation/types";
+import { isNavHrefActive } from "@/lib/navigation/is-active";
+import type { NavGroup, NavLink, NavViewModel } from "@/lib/navigation/types";
 
 /** Counts passed from the server layout for notification badges. */
 export interface NavBadges {
@@ -59,46 +59,20 @@ function matchesSearch(item: NavLink, searchLower: string): boolean {
 }
 
 export default function Nav({
-  roles = [],
-  adminSubtypes,
-  primaryRole,
-  awardTier,
+  model,
   badges,
-  enabledFeatureKeys,
   onNavigate,
-  unlockedSections,
   recentlyUnlockedGroups,
   lockedGroups: lockedGroupsProp,
 }: {
-  roles?: string[];
-  adminSubtypes?: string[];
-  primaryRole?: string | null;
-  awardTier?: string;
+  model: NavViewModel;
   badges?: NavBadges;
-  enabledFeatureKeys?: Set<string>;
   onNavigate?: () => void;
-  unlockedSections?: Set<string>;
-  recentlyUnlockedGroups?: Set<string>;
-  lockedGroups?: Map<string, string>;
+  recentlyUnlockedGroups?: Set<NavGroup>;
+  lockedGroups?: Map<NavGroup, string>;
 }) {
   const pathname = usePathname();
-
-  const model = useMemo(
-    () =>
-      resolveNavModel({
-        roles,
-        adminSubtypes,
-        primaryRole,
-        awardTier,
-        pathname,
-        enabledFeatureKeys,
-        unlockedSections,
-      }),
-    [adminSubtypes, awardTier, enabledFeatureKeys, pathname, primaryRole, roles, unlockedSections],
-  );
-
-  // Use locked groups from the model (computed from unlockedSections) or from explicit prop
-  const lockedGroups = model.lockedGroups ?? lockedGroupsProp;
+  const lockedGroups = lockedGroupsProp;
 
   const storageKey = useMemo(() => storageKeyForRole(model.primaryRole), [model.primaryRole]);
 

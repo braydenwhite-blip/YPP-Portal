@@ -300,11 +300,6 @@ function sortLinksForRole(links: NavLink[], primaryRole: NavRole): NavLink[] {
   });
 }
 
-export function isNavHrefActive(href: string, pathname: string): boolean {
-  if (href === "/") return pathname === "/";
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
 function addOrReplaceCoreItem(core: NavLink[], item: NavLink, limit: number): void {
   if (core.some((entry) => entry.href === item.href)) return;
   if (core.length < limit) {
