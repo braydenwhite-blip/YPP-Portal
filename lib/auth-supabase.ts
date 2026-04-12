@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createServerClientOrNull } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { normalizeRoleValues, normalizeRoleValue } from "@/lib/role-utils";
@@ -12,46 +13,52 @@ export type SessionUser = {
   primaryRole: string;
   chapterId?: string | null;
   adminSubtypes: AdminSubtypeValue[];
+  /** Small sample for nav award tier; avoids a separate layout query. */
+  awards?: { type: string | null }[];
 };
 
-/**
- * Get the current authenticated user from Supabase Auth,
- * resolved to the Prisma User record with roles.
- *
- * Returns null if not authenticated or user not found in DB.
- */
-export async function getSessionUser(): Promise<SessionUser | null> {
-  async function resolvePrismaUser(where: { supabaseAuthId?: string; id?: string; email?: string }) {
-    return prisma.user.findFirst({
-      where: {
-        ...where,
-        archivedAt: null,
+async function resolvePrismaUserForSession(where: {
+  supabaseAuthId?: string;
+  id?: string;
+  email?: string;
+}) {
+  return prisma.user.findFirst({
+    where: {
+      ...where,
+      archivedAt: null,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      primaryRole: true,
+      chapterId: true,
+      roles: { select: { role: true } },
+      adminSubtypes: { select: { subtype: true } },
+      awards: {
+        select: { type: true },
+        orderBy: { awardedAt: "desc" },
+        take: 24,
       },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        primaryRole: true,
-        chapterId: true,
-        roles: { select: { role: true } },
-        adminSubtypes: { select: { subtype: true } },
-      },
-    });
-  }
+    },
+  });
+}
 
+/**
+ * One Supabase + Prisma resolution per RSC request (layout + page both call getSession).
+ */
+export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const supabase = await createServerClientOrNull();
   const authUser = supabase
-    ? (
-        await supabase.auth.getUser()
-      ).data.user
+    ? (await supabase.auth.getUser()).data.user
     : null;
 
   const prismaUser = authUser
-    ? await resolvePrismaUser({ supabaseAuthId: authUser.id })
+    ? await resolvePrismaUserForSession({ supabaseAuthId: authUser.id })
     : await (async () => {
         const legacySession = await getLegacySessionFromCookies();
         if (!legacySession) return null;
-        return resolvePrismaUser({ id: legacySession.userId, email: legacySession.email });
+        return resolvePrismaUserForSession({ id: legacySession.userId, email: legacySession.email });
       })();
 
   if (!prismaUser) return null;
@@ -76,17 +83,18 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     primaryRole,
     chapterId: resolvedUser.chapterId,
     adminSubtypes,
+    awards: resolvedUser.awards,
   };
-}
+});
 
 /**
  * Returns a session-like object with `user` property so existing server code
  * can keep reading `session.user` while auth is powered by Supabase.
  */
-export async function getSession(): Promise<{
+export const getSession = cache(async (): Promise<{
   user: SessionUser & { image?: string | null };
-} | null> {
+} | null> => {
   const user = await getSessionUser();
   if (!user) return null;
   return { user: { ...user, image: null } };
-}
+});

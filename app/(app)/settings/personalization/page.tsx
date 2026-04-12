@@ -1,272 +1,65 @@
-"use client";
+import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
+import { getProfilePageData } from "@/lib/profile-page-data";
+import ProfileMain from "@/components/profile/profile-main";
+import PersonalizationSettingsClient from "./personalization-settings-client";
+import styles from "./personalization-page.module.css";
 
-import { useState } from "react";
+export default async function PersonalizationPage() {
+  const session = await getSession();
 
-export default function PersonalizationPage() {
-  const [settings, setSettings] = useState({
-    // Dashboard
-    dashboardLayout: "default",
-    showXPProgress: true,
-    showStreaks: true,
-    showUpcomingEvents: true,
-    showPeerActivity: true,
-    
-    // Content
-    autoPlayVideos: false,
-    videoQuality: "auto",
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
 
-    // Privacy
-    showProfilePublicly: true,
-    showProgressToClassmates: true,
-    allowPeerMessages: true,
-    
-    // Theme
-    theme: "light",
-    accentColor: "#6366f1"
-  });
+  const user = await getProfilePageData(session.user.id);
 
-  const handleChange = (field: string, value: any) => {
-    setSettings({ ...settings, [field]: value });
-  };
+  if (!user) {
+    redirect("/login");
+  }
+
+  const roles = user.roles.map((r) => r.role);
 
   return (
-    <div>
-      <div className="topbar">
-        <div>
+    <div className={styles.layout}>
+      <header className={styles.hero}>
+        <div className={styles.heroText}>
           <p className="badge">Settings</p>
-          <h1 className="page-title">Personalization</h1>
+          <h1 className="page-title">Profile &amp; Settings</h1>
+          <p className={styles.heroSub}>
+            Manage your account details, profile, and portal preferences in one place.
+          </p>
         </div>
-        <button className="button primary">
-          Save Changes
-        </button>
-      </div>
+        <div className={`dashboard-role-pill ${styles.rolePill}`}>{roles.join(" · ")}</div>
+      </header>
 
-      <div className="card" style={{ marginBottom: 28 }}>
-        <h3>⚙️ Customize Your Experience</h3>
-        <p>
-          Adjust these settings to make YPP Portal work best for you. Changes are saved automatically.
-        </p>
-      </div>
-
-      {/* Dashboard Settings */}
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 style={{ marginBottom: 20 }}>Dashboard Layout</h3>
-        
-        <div style={{ marginBottom: 24 }}>
-          <label style={{ display: "block", marginBottom: 12, fontWeight: 600 }}>
-            Layout Style
-          </label>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-            {[
-              { value: "default", label: "Default", desc: "Balanced view with all sections" },
-              { value: "minimal", label: "Minimal", desc: "Clean and simple" },
-              { value: "detailed", label: "Detailed", desc: "Show everything" }
-            ].map((layout) => (
-              <div
-                key={layout.value}
-                onClick={() => handleChange("dashboardLayout", layout.value)}
-                style={{
-                  padding: 16,
-                  border: "2px solid var(--border-color)",
-                  borderRadius: 8,
-                  cursor: "pointer",
-                  transition: "all 0.2s",
-                  backgroundColor: settings.dashboardLayout === layout.value ? "rgba(var(--primary-rgb), 0.1)" : "transparent",
-                  borderColor: settings.dashboardLayout === layout.value ? "var(--primary-color)" : "var(--border-color)"
-                }}
-              >
-                <div style={{ fontWeight: 600, marginBottom: 4 }}>{layout.label}</div>
-                <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>{layout.desc}</div>
-              </div>
-            ))}
-          </div>
+      <section className={styles.section} aria-labelledby="account-heading">
+        <div className={styles.sectionIntro}>
+          <span className={styles.sectionKicker}>Account</span>
+          <h2 id="account-heading" className={styles.sectionTitle}>
+            Profile &amp; identity
+          </h2>
+          <p className={styles.sectionDesc}>
+            Name, contact information, photo, bio, and role-specific fields. Save each section with its button when
+            you are done editing.
+          </p>
         </div>
+        <ProfileMain user={user} layoutVariant="settings" />
+      </section>
 
-        <div style={{ borderTop: "1px solid var(--border-color)", paddingTop: 20, marginTop: 20 }}>
-          <h4 style={{ marginBottom: 16 }}>Show on Dashboard</h4>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {[
-              { field: "showXPProgress", label: "XP and Level Progress" },
-              { field: "showStreaks", label: "Practice Streaks" },
-              { field: "showUpcomingEvents", label: "Upcoming Events" },
-              { field: "showPeerActivity", label: "Classmate Activity Feed" }
-            ].map((option) => (
-              <label key={option.field} style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={settings[option.field as keyof typeof settings] as boolean}
-                  onChange={(e) => handleChange(option.field, e.target.checked)}
-                  style={{ width: 18, height: 18 }}
-                />
-                <span>{option.label}</span>
-              </label>
-            ))}
-          </div>
+      <section className={styles.section} aria-labelledby="preferences-heading" id="portal-preferences">
+        <div className={styles.sectionIntro}>
+          <span className={styles.sectionKicker}>Experience</span>
+          <h2 id="preferences-heading" className={styles.sectionTitle}>
+            Portal preferences
+          </h2>
+          <p className={styles.sectionDesc}>
+            Tune dashboard layout, content, and privacy-style options. These controls are local to your session until
+            wired to persistent storage.
+          </p>
         </div>
-      </div>
-
-      {/* Content Preferences */}
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 style={{ marginBottom: 20 }}>Content Preferences</h3>
-        
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}>
-            <input
-              type="checkbox"
-              checked={settings.autoPlayVideos}
-              onChange={(e) => handleChange("autoPlayVideos", e.target.checked)}
-              style={{ width: 18, height: 18 }}
-            />
-            <div>
-              <div style={{ fontWeight: 600 }}>Auto-play videos</div>
-              <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                Videos start playing automatically when you open them
-              </div>
-            </div>
-          </label>
-        </div>
-
-        <div>
-          <label style={{ display: "block", marginBottom: 12, fontWeight: 600 }}>
-            Video Quality
-          </label>
-          <select
-            value={settings.videoQuality}
-            onChange={(e) => handleChange("videoQuality", e.target.value)}
-            style={{ width: "100%", maxWidth: 300, padding: "8px 12px", border: "1px solid var(--border-color)", borderRadius: 6 }}
-          >
-            <option value="auto">Auto (recommended)</option>
-            <option value="high">High (1080p)</option>
-            <option value="medium">Medium (720p)</option>
-            <option value="low">Low (480p)</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Notification Settings */}
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 style={{ marginBottom: 20 }}>Notifications</h3>
-        <p style={{ margin: "0 0 10px", color: "var(--text-secondary)", fontSize: 14 }}>
-          Notification delivery now follows one fixed portal-wide policy instead of individual per-user toggles.
-        </p>
-        <p style={{ margin: 0, color: "var(--text-secondary)", fontSize: 13 }}>
-          Portal reminders stay inside the app, email updates are sent automatically, and urgent alerts are already
-          marked for SMS delivery once text support is enabled.
-        </p>
-      </div>
-
-      {/* Privacy Settings */}
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 style={{ marginBottom: 20 }}>Privacy</h3>
-        
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}>
-            <input
-              type="checkbox"
-              checked={settings.showProfilePublicly}
-              onChange={(e) => handleChange("showProfilePublicly", e.target.checked)}
-              style={{ width: 18, height: 18 }}
-            />
-            <div>
-              <div style={{ fontWeight: 600 }}>Show profile publicly</div>
-              <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                Your profile and portfolio can be viewed by anyone with the link
-              </div>
-            </div>
-          </label>
-
-          <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}>
-            <input
-              type="checkbox"
-              checked={settings.showProgressToClassmates}
-              onChange={(e) => handleChange("showProgressToClassmates", e.target.checked)}
-              style={{ width: 18, height: 18 }}
-            />
-            <div>
-              <div style={{ fontWeight: 600 }}>Share progress with classmates</div>
-              <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                Other students in your classes can see your achievements and milestones
-              </div>
-            </div>
-          </label>
-
-          <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }}>
-            <input
-              type="checkbox"
-              checked={settings.allowPeerMessages}
-              onChange={(e) => handleChange("allowPeerMessages", e.target.checked)}
-              style={{ width: 18, height: 18 }}
-            />
-            <div>
-              <div style={{ fontWeight: 600 }}>Allow peer messages</div>
-              <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                Other students can send you direct messages
-              </div>
-            </div>
-          </label>
-        </div>
-      </div>
-
-      {/* Theme Settings */}
-      <div className="card">
-        <h3 style={{ marginBottom: 20 }}>Appearance</h3>
-        
-        <div style={{ marginBottom: 24 }}>
-          <label style={{ display: "block", marginBottom: 12, fontWeight: 600 }}>
-            Theme
-          </label>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 12 }}>
-            {[
-              { value: "light", label: "Light", icon: "☀️" },
-              { value: "dark", label: "Dark", icon: "🌙" },
-              { value: "auto", label: "Auto", icon: "🔄" }
-            ].map((theme) => (
-              <div
-                key={theme.value}
-                onClick={() => handleChange("theme", theme.value)}
-                style={{
-                  padding: 16,
-                  border: "2px solid var(--border-color)",
-                  borderRadius: 8,
-                  cursor: "pointer",
-                  textAlign: "center",
-                  transition: "all 0.2s",
-                  backgroundColor: settings.theme === theme.value ? "rgba(var(--primary-rgb), 0.1)" : "transparent",
-                  borderColor: settings.theme === theme.value ? "var(--primary-color)" : "var(--border-color)"
-                }}
-              >
-                <div style={{ fontSize: 32, marginBottom: 8 }}>{theme.icon}</div>
-                <div style={{ fontWeight: 600 }}>{theme.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <label style={{ display: "block", marginBottom: 12, fontWeight: 600 }}>
-            Accent Color
-          </label>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            {[
-              "#6366f1", "#ec4899", "#10b981", "#f59e0b", "#ef4444", "#8b3fe8", "#06b6d4", "#84cc16"
-            ].map((color) => (
-              <div
-                key={color}
-                onClick={() => handleChange("accentColor", color)}
-                style={{
-                  width: 48,
-                  height: 48,
-                  backgroundColor: color,
-                  borderRadius: 8,
-                  cursor: "pointer",
-                  border: settings.accentColor === color ? "3px solid #000" : "2px solid var(--border-color)",
-                  transition: "all 0.2s"
-                }}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
+        <PersonalizationSettingsClient />
+      </section>
     </div>
   );
 }

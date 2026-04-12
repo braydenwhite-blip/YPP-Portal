@@ -78,6 +78,15 @@ export default async function MyProgramPage({
   const openRequests = support?.requests.filter((request) => request.status === "OPEN") ?? [];
   const recentResources = support?.resources.slice(0, 3) ?? [];
 
+  const primaryIsAskMentor =
+    hub.primaryAction.href === "/mentor/ask" || hub.primaryAction.href.startsWith("/mentor/ask?");
+  const topbarMentorSecondary =
+    hub.flags.hasSupportCircle
+      ? { href: "/mentor/resources" as const, label: "Open Resources" as const }
+      : primaryIsAskMentor
+        ? { href: "/mentor/resources" as const, label: "Browse Resources" as const }
+        : { href: "/mentor/ask" as const, label: "Ask A Mentor" as const };
+
   return (
     <div>
       <div className="topbar">
@@ -92,11 +101,8 @@ export default async function MyProgramPage({
           <Link href={hub.primaryAction.href} className="button primary small">
             {hub.primaryAction.label}
           </Link>
-          <Link
-            href={hub.flags.hasSupportCircle ? "/mentor/resources" : "/mentor/ask"}
-            className="button secondary small"
-          >
-            {hub.flags.hasSupportCircle ? "Open Resources" : "Ask A Mentor"}
+          <Link href={topbarMentorSecondary.href} className="button secondary small">
+            {topbarMentorSecondary.label}
           </Link>
           <Link href="/rewards" className="button secondary small">
             Rewards

@@ -3022,7 +3022,7 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
   },
   {
     pattern: "/settings/personalization",
-    title: "Personalization",
+    title: "Profile & Settings",
     content: {
       purpose: "This page lets you review and update the personalization without leaving the portal.",
       firstStep: "Read the current settings carefully so you know what is already saved before you change anything.",

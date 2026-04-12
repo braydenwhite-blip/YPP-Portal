@@ -316,7 +316,7 @@ export default async function OverviewPage() {
   const quickActions: { href: string; label: string; description: string; accent: string }[] = [];
   if (isAdmin) {
     quickActions.push(
-      { href: "/admin", label: "Admin Panel", description: "Manage users & content", accent: "var(--ypp-purple-600)" },
+      { href: "/admin/chapters", label: "Admin Panel", description: "Manage chapters and programs", accent: "var(--ypp-purple-600)" },
       { href: "/admin/students", label: "Students", description: "View all students", accent: "var(--ypp-purple-500)" },
       { href: "/admin/instructors", label: "Instructors", description: "View all instructors", accent: "var(--ypp-pink-500)" },
       { href: "/admin/analytics", label: "Analytics", description: "Platform insights", accent: "#3b82f6" },

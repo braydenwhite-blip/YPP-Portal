@@ -439,17 +439,48 @@ export default async function OverviewPage() {
   const isStudent = dashboard.role === "STUDENT";
 
   if (isStudent) {
+    let recentNotifications: {
+      id: string;
+      title: string;
+      body: string;
+      link: string | null;
+      isRead: boolean;
+      createdAt: string;
+      type: string;
+    }[] = [];
+
+    try {
+      const rows = await prisma.notification.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        take: 6,
+        select: {
+          id: true,
+          title: true,
+          body: true,
+          link: true,
+          isRead: true,
+          createdAt: true,
+          type: true,
+        },
+      });
+      recentNotifications = rows.map((n) => ({
+        ...n,
+        createdAt: n.createdAt.toISOString(),
+      }));
+    } catch {
+      recentNotifications = [];
+    }
+
     return (
       <StudentHome
         firstName={firstName}
+        roleLabel={formatDashboardRoleLabel("STUDENT")}
         todayDateLabel={todayDateLabel}
-        unreadMessages={unreadMessages}
         unreadNotifications={unreadNotifications}
         snapshot={studentSnapshot}
-        pathways={dashboard.activePathways ?? []}
-        kpis={dashboard.kpis}
         nextActions={dashboard.nextActions}
-        queues={dashboard.queues}
+        recentNotifications={recentNotifications}
       />
     );
   }

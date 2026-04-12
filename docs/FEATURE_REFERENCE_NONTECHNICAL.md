@@ -42,12 +42,13 @@ These accounts are already set up so you can explore the portal from every angle
 
 | Who | Email | Role |
 |-----|-------|------|
-| Brayden White | `brayden.white@youthpassionproject.org` | Admin + Instructor |
-| Carly Gelles | `carlygelles@gmail.com` | Mentor + Staff |
-| Avery Lin | `avery.lin@youthpassionproject.org` | Instructor |
-| Jordan Patel | `jordan.patel@youthpassionproject.org` | Student |
+| Brayden White | `brayden.white@youthpassionproject.org` | Admin + Instructor (The Frisch School) |
+| Anthea Zamir | `anthea.zamir@youthpassionproject.org` | Admin with full access—every admin type, including Super Admin (Seattle Chapter) |
+| Carly Gelles | `carlygelles@gmail.com` | Mentor + Staff (Boston Chapter) |
+| Avery Lin | `avery.lin@youthpassionproject.org` | Instructor (The Frisch School) |
+| Jordan Patel | `jordan.patel@youthpassionproject.org` | Student (The Frisch School) |
 
-> Ask your tech contact for the password (`SEED_PASSWORD` in the setup file).
+> Ask your tech contact for the password (`SEED_PASSWORD` in the setup file). Anthea is the only pre-loaded account on the Seattle chapter; use her to exercise Seattle-specific views and full admin navigation.
 
 ---
 
@@ -359,11 +360,11 @@ Tools for managing a local YPP chapter — its instructors, students, hiring, an
 ### How to review it
 1. Log in as **Admin** → go to `/admin/chapters` → review The Frisch School chapter
 2. Log in as **Avery** (Instructor, Frisch chapter) → go to `/chapter`
-3. Verify the dashboard shows Frisch-specific data (not Boston's)
+3. Verify the dashboard shows Frisch-specific data (not another chapter’s, e.g. Boston or Seattle)
 4. Go to `/chapter/students` — verify Jordan is listed
 5. Go to `/chapter/recruiting` — create a new position for the chapter
 6. Go to `/chapter/updates` — send an update to chapter members
-7. Go to `/chapters` — verify both Frisch and Boston appear in the directory
+7. Go to `/chapters` — verify The Frisch School, Boston Chapter, and Seattle Chapter appear in the directory
 
 ---
 
@@ -575,7 +576,7 @@ A comprehensive control panel for managing every aspect of the portal.
 3. Go to `/admin/audit-log` → verify your admin actions are logged
 4. Go to `/admin/emergency-broadcast` → send a test broadcast → verify it's received
 5. Go to `/admin/analytics` → verify charts load with real data
-6. Go to `/admin/portal-rollout` → enable a feature for Frisch chapter only → verify it appears for Frisch users but not Boston users
+6. Go to `/admin/portal-rollout` → enable a feature for Frisch chapter only → verify it appears for Frisch users but not users whose home chapter is Boston or Seattle
 7. Go to `/admin/scholarships/create` → create a scholarship
 
 ---
@@ -635,7 +636,7 @@ Dashboards that show how the program is performing — for individual users, cha
 3. Log in as **Admin** → go to `/admin/analytics`
 4. Verify enrollment counts, completion rates, and engagement metrics load
 5. Go to `/admin/chapter-reports` → select **The Frisch School**
-6. Verify data is scoped only to Frisch (Boston data should not appear)
+6. Verify data is scoped only to Frisch (Boston and Seattle chapter data should not appear)
 
 ---
 

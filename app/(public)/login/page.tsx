@@ -12,14 +12,6 @@ import {
 } from "@/lib/supabase/config";
 import { isLegacyAuthBypassEmail } from "@/lib/legacy-auth-config";
 
-function getGoogleOAuthErrorMessage(message?: string) {
-  if (message?.toLowerCase().includes("provider is not enabled")) {
-    return "Google sign-in is not enabled for this Supabase project yet. Turn it on in Supabase Dashboard -> Authentication -> Providers -> Google, then try again.";
-  }
-
-  return "Could not start Google sign-in. Please try again.";
-}
-
 function LoginPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -317,16 +309,12 @@ function LoginPageContent() {
           </div>
         </section>
 
-        <div className="login-card">
+        <div className="login-card login-card--brand">
           <div className="login-card-header login-card-header--stacked">
-            <BrandLockup height={36} className="brand-lockup" reloadOnClick />
+            <BrandLockup height={52} className="brand-lockup" reloadOnClick />
             <div>
-              <h2 className="page-title" style={{ fontSize: 20 }}>
-                Welcome Back
-              </h2>
-              <p className="page-subtitle mt-0" style={{ fontSize: 13 }}>
-                Sign in to your Pathways Portal
-              </p>
+              <h2 className="login-card-welcome-title">Welcome Back</h2>
+              <p className="login-card-welcome-subtitle">Sign in to your Pathways Portal</p>
             </div>
           </div>
 
@@ -522,7 +510,11 @@ function LoginPageContent() {
             <div className="login-help">
               Need help? Contact your chapter administrator or support team.
             </div>
-            <Link className="button secondary" style={{ display: "block", textAlign: "center" }} href="/signup">
+            <Link
+              className="button secondary login-card-signup-cta"
+              style={{ display: "block", textAlign: "center" }}
+              href="/signup"
+            >
               Create Family Account
             </Link>
             <div className="login-help" style={{ marginTop: 8 }}>
@@ -541,8 +533,8 @@ export default function LoginPage() {
     <Suspense
       fallback={
         <div className="login-shell">
-          <div className="login-card" style={{ justifySelf: "center", textAlign: "center", padding: "48px 32px" }}>
-            <BrandLockup height={40} className="brand-lockup" reloadOnClick />
+          <div className="login-card login-card--brand" style={{ justifySelf: "center", textAlign: "center", padding: "48px 32px" }}>
+            <BrandLockup height={52} className="brand-lockup" reloadOnClick />
           </div>
         </div>
       }

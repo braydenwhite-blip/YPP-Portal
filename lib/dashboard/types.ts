@@ -44,6 +44,8 @@ export interface DashboardNextAction {
   href: string;
   urgency?: "high" | "medium" | "low";
   ctaLabel?: string;
+  /** Short date shown on home next-action rows (e.g. "Fri, Apr 10") */
+  dateLabel?: string;
 }
 
 export interface ActivePathwaySummary {

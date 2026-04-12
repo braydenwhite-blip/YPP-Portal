@@ -156,7 +156,7 @@ SELECT id, 'ADMIN' FROM "User" WHERE email = 'admin@yourorg.com';
 ```
 
 **Option B: Via Seed Script**
-Edit `prisma/seed.ts` to add your admin email, then run:
+The checked-in `prisma/seed.ts` already creates demo users (including **Anthea Zamir** as a full-admin Seattle Chapter account—see README *Login Accounts*). Edit that file to change emails or add admins, then run:
 ```bash
 npx prisma db seed
 ```

@@ -270,7 +270,7 @@ async headers() {
 ### M4. Hardcoded Demo Credentials in Source
 **Files:** `prisma/seed.ts:7`, `README.md`
 
-Password `ypp-demo-2026` is hardcoded and documented. If the database is seeded in production with these credentials, all 4 demo accounts (including admin) are compromised.
+Password `ypp-demo-2026` is hardcoded and documented. If the database is seeded in production with these credentials, all seeded demo accounts (including two admin-class users: Brayden and Anthea) are compromised.
 
 **Fix:** Use environment variable for seed password. Remove credentials from README.
 

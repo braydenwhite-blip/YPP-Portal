@@ -647,7 +647,7 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 15,
     },
     {
-      href: "/admin/instructor-applicants",
+      href: "/chapter-lead/instructor-applicants",
       label: "Instructor Applicants",
       icon: "📝",
       roles: CHAPTER_PRESIDENT_ONLY,
@@ -677,7 +677,7 @@ export const NAV_CATALOG: NavLink[] = [
     { href: "/certificates", label: "My Certificates", icon: "📜" },
     {
       href: "/alumni",
-      label: "Alumni Network",
+      label: "Alumni Directory",
       icon: "🎓",
       requiresAward: true,
     },
@@ -693,11 +693,16 @@ export const NAV_CATALOG: NavLink[] = [
       icon: "📋",
       requiresAward: true,
     },
-    { href: "/profile", label: "My Profile", icon: "👤" },
+    {
+      href: "/profile",
+      label: "My Profile",
+      icon: "👤",
+      hideForPrimaryRoles: ["INSTRUCTOR"],
+    },
     { href: "/profile/timeline", label: "My Journey", icon: "🛤" },
     { href: "/profile/xp", label: "XP & Levels", icon: "⬆" },
     { href: "/profile/certifications", label: "Certifications", icon: "🏅" },
-    { href: "/settings/personalization", label: "Personalization", icon: "🎨" },
+    { href: "/settings/personalization", label: "Profile & Settings", icon: "👤" },
     {
       href: "/notifications",
       label: "Notifications",
@@ -710,14 +715,6 @@ export const NAV_CATALOG: NavLink[] = [
   ]),
 
   ...groupLinks("Admin People", 1100, [
-    {
-      href: "/admin",
-      label: "Admin Home",
-      icon: "📊",
-      roles: ADMIN_ONLY,
-      dashboardDescription: "Operate platform-wide admin queues and controls.",
-      dashboardPriority: 2,
-    },
     { href: "/admin/students", label: "All Students", icon: "👨‍🎓", roles: ADMIN_ONLY },
     {
       href: "/admin/instructors",
