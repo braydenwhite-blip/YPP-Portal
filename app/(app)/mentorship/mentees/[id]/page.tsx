@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { FieldLabel } from "@/components/field-help";
 import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
+import { KickoffStatusRow } from "@/components/mentorship/kickoff-status-row";
 import { formatEnum } from "@/lib/format-utils";
 import {
   SUPPORT_ROLE_META,
@@ -112,6 +113,18 @@ export default async function MenteeDetailPage({
         intro="This workspace is the day-to-day operating area for one mentee. Work from top to bottom when you want the full picture."
         items={WORKSPACE_GUIDE_ITEMS}
       />
+
+      {workspace.mentorship && (
+        <KickoffStatusRow
+          mentorshipId={workspace.mentorship.id}
+          kickoffScheduledAt={workspace.mentorship.kickoffScheduledAt ?? null}
+          kickoffCompletedAt={workspace.mentorship.kickoffCompletedAt ?? null}
+          canMarkComplete={
+            workspace.mentorship.mentorId === session.user.id ||
+            (session.user.roles ?? []).includes("ADMIN")
+          }
+        />
+      )}
 
       {!workspace.mentorship && !workspace.intakePlanLaunch ? (
         <section className="card" style={{ marginBottom: 24, borderLeft: "4px solid var(--gray-300, #d1d5db)" }}>

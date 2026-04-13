@@ -4,8 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
-import { createMentorshipNotification } from "@/lib/mentorship-program-actions";
 import { logger } from "@/lib/logger";
+import { recomputeMentorshipCycleStage } from "@/lib/mentorship-cycle";
+import { emitReflectionSubmitted } from "@/lib/mentorship-notifications";
 
 async function requireMentee() {
   const session = await getSession();
@@ -348,21 +349,25 @@ export async function submitSelfReflection(formData: FormData) {
     "submitSelfReflection: reflection saved successfully — dispatching mentor notification"
   );
 
-  // Notify the assigned mentor that a new reflection was submitted.
-  // A notification failure must not fail the reflection submit.
+  // Recompute denormalized cycleStage so the Kanban column updates.
   try {
-    await createMentorshipNotification({
-      userId: mentorship.mentorId,
-      title: "New Self-Reflection Submitted",
-      body: `A mentee has submitted their Cycle ${cycleNumber} self-reflection and is ready for your review.`,
-      link: "/mentorship/reviews",
-    });
-  } catch (notifyErr) {
+    await recomputeMentorshipCycleStage(mentorship.id);
+  } catch (err) {
     logger.warn(
-      { err: notifyErr, userId, mentorId: mentorship.mentorId, cycleNumber, reflectionId: reflection.id },
-      "submitSelfReflection: mentor notification dispatch failed — reflection saved but mentor was not notified"
+      { err, mentorshipId: mentorship.id, cycleNumber },
+      "submitSelfReflection: cycleStage recompute failed — reflection saved"
     );
   }
+
+  // Notify the assigned mentor that a new reflection was submitted.
+  // Uses the Phase 0.9 cycle-milestone emitter (safeEmit + dedup).
+  const menteeName = (await prisma.user.findUnique({ where: { id: userId }, select: { name: true } }))?.name ?? "A mentee";
+  await emitReflectionSubmitted({
+    mentorId: mentorship.mentorId,
+    menteeName,
+    menteeId: userId,
+    ctx: { cycleNumber, cycleMonth },
+  });
 
   logger.info(
     { userId, mentorshipId: mentorship.id, cycleNumber, reflectionId: reflection.id },
