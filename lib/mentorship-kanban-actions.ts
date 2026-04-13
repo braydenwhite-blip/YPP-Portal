@@ -5,8 +5,12 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import {
   GoalReviewStatus,
+  MentorshipCycleStage,
   MentorshipReviewStatus,
 } from "@prisma/client";
+import { getMentorshipAccessibleMenteeIds } from "@/lib/mentorship-access";
+import { getCurrentCycleMonth, getReflectionSoftDeadline } from "@/lib/mentorship-cycle";
+import { getCycleStageCTA, stageLabel, type CycleCTA } from "@/lib/mentorship-cycle-cta";
 
 async function requireAdmin() {
   const session = await getSession();
@@ -217,4 +221,127 @@ export async function getMentorshipMonthlyReviews() {
     updatedAt: r.updatedAt.toISOString(),
     createdAt: r.createdAt.toISOString(),
   }));
+}
+
+/* ── Phase 0.9999 Mentor Kanban ────────────────────── */
+
+export type KanbanCard = {
+  mentorshipId: string;
+  menteeId: string;
+  menteeName: string;
+  menteeEmail: string;
+  menteePrimaryRole: string | null;
+  trackName: string | null;
+  cycleStage: MentorshipCycleStage;
+  stageLabel: string;
+  softDeadline: Date | null;
+  completedAt: Date | null;
+  cta: CycleCTA;
+  kickoffPending: boolean;
+};
+
+export type KanbanColumn = {
+  key: MentorshipCycleStage;
+  label: string;
+  cards: KanbanCard[];
+};
+
+const ACTIVE_STAGE_ORDER: MentorshipCycleStage[] = [
+  "KICKOFF_PENDING",
+  "REFLECTION_DUE",
+  "REFLECTION_SUBMITTED",
+  "CHANGES_REQUESTED",
+  "REVIEW_SUBMITTED",
+  "APPROVED",
+];
+const INACTIVE_STAGES: MentorshipCycleStage[] = ["PAUSED", "COMPLETE"];
+
+/**
+ * Server-only loader for the unified mentor Kanban.
+ * Columns keyed by MentorshipCycleStage; Inactive drawer groups PAUSED + COMPLETE.
+ */
+export async function getMentorKanbanData(): Promise<{
+  active: KanbanColumn[];
+  inactive: KanbanColumn;
+  total: number;
+  isAdmin: boolean;
+}> {
+  const session = await getSession();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+  const userId = session.user.id;
+  const roles = session.user.roles ?? [];
+  const isAdmin = roles.includes("ADMIN");
+
+  const accessibleMenteeIds = isAdmin
+    ? null
+    : (await getMentorshipAccessibleMenteeIds(userId, roles)) ?? [];
+
+  const where = accessibleMenteeIds === null
+    ? {}
+    : { menteeId: { in: accessibleMenteeIds.length > 0 ? accessibleMenteeIds : ["__none__"] } };
+
+  const mentorships = await prisma.mentorship.findMany({
+    where,
+    include: {
+      mentee: { select: { id: true, name: true, email: true, primaryRole: true } },
+      track: { select: { name: true } },
+      goalReviews: {
+        orderBy: { cycleNumber: "desc" },
+        take: 1,
+        select: { id: true, status: true, releasedToMenteeAt: true, cycleMonth: true },
+      },
+      selfReflections: {
+        orderBy: { cycleNumber: "desc" },
+        take: 1,
+        select: { cycleMonth: true, submittedAt: true },
+      },
+    },
+  });
+
+  const { cycleMonth } = getCurrentCycleMonth();
+  const softDeadline = getReflectionSoftDeadline(cycleMonth);
+
+  const cards: KanbanCard[] = mentorships.map((m) => {
+    const latestReview = m.goalReviews[0] ?? null;
+    const latestReflection = m.selfReflections[0] ?? null;
+    const completedAt =
+      m.cycleStage === "APPROVED"
+        ? latestReview?.releasedToMenteeAt ?? null
+        : m.cycleStage === "REFLECTION_SUBMITTED"
+          ? latestReflection?.submittedAt ?? null
+          : null;
+    return {
+      mentorshipId: m.id,
+      menteeId: m.mentee.id,
+      menteeName: m.mentee.name ?? m.mentee.email,
+      menteeEmail: m.mentee.email,
+      menteePrimaryRole: m.mentee.primaryRole,
+      trackName: m.track?.name ?? null,
+      cycleStage: m.cycleStage,
+      stageLabel: stageLabel(m.cycleStage),
+      softDeadline,
+      completedAt,
+      cta: getCycleStageCTA({
+        stage: m.cycleStage,
+        menteeId: m.mentee.id,
+        mentorshipId: m.id,
+        reviewId: latestReview?.id ?? null,
+      }),
+      kickoffPending: m.cycleStage === "KICKOFF_PENDING",
+    };
+  });
+
+  const active: KanbanColumn[] = ACTIVE_STAGE_ORDER.map((stage) => ({
+    key: stage,
+    label: stageLabel(stage),
+    cards: cards.filter((c) => c.cycleStage === stage).sort((a, b) => a.menteeName.localeCompare(b.menteeName)),
+  }));
+
+  const inactive: KanbanColumn = {
+    key: "PAUSED",
+    label: "Inactive",
+    cards: cards.filter((c) => INACTIVE_STAGES.includes(c.cycleStage)),
+  };
+
+  return { active, inactive, total: cards.length, isAdmin };
 }

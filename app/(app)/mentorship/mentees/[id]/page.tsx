@@ -6,6 +6,9 @@ import { FieldLabel } from "@/components/field-help";
 import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
 import { KickoffStatusRow } from "@/components/mentorship/kickoff-status-row";
 import { CycleStatusBlock } from "@/components/mentorship/cycle-status-block";
+import { ReviewSpine } from "@/components/mentorship/review-spine";
+import { getReviewSpineForMentee } from "@/lib/mentorship-cycle";
+import { requireReviewSpineAccess } from "@/lib/authorization-helpers";
 import { formatEnum } from "@/lib/format-utils";
 import { getCurrentCycleMonth, getReflectionSoftDeadline } from "@/lib/mentorship-cycle";
 import {
@@ -74,6 +77,12 @@ export default async function MenteeDetailPage({
     notFound();
   }
 
+  // Belt-and-suspenders authorization for the Review Spine; workspace auth
+  // already covers access, but the helper enforces the same rule at this layer
+  // in case this component grows additional branches.
+  await requireReviewSpineAccess(menteeId);
+  const reviewSpineCycles = await getReviewSpineForMentee(menteeId);
+
   const isSelfWorkspace = session.user.id === workspace.mentee.id;
   const canManageActionPlan = Boolean(workspace.mentorship || workspace.intakePlanLaunch) && !isSelfWorkspace;
   const canScheduleSessions = Boolean(workspace.mentorship) && !isSelfWorkspace;
@@ -135,6 +144,7 @@ export default async function MenteeDetailPage({
               (session.user.roles ?? []).includes("ADMIN")
             }
           />
+          <ReviewSpine cycles={reviewSpineCycles} title="Cycle timeline" />
         </>
       )}
 

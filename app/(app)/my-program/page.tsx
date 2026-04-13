@@ -8,6 +8,8 @@ import { formatEnum } from "@/lib/format-utils";
 import { updateMentorshipActionItemStatus } from "@/lib/mentorship-hub-actions";
 import { getMyProgramHubData } from "@/lib/my-program-portal";
 import { DeadlineChip } from "@/components/mentorship/deadline-chip";
+import { ReviewSpine } from "@/components/mentorship/review-spine";
+import { getReviewSpineForMentee } from "@/lib/mentorship-cycle";
 
 export const metadata = { title: "My Program" };
 
@@ -232,6 +234,13 @@ export default async function MyProgramPage({
 
         return null;
       })()}
+
+      {hub.flags.isProgramParticipant && (
+        <ReviewSpine
+          cycles={await getReviewSpineForMentee(session.user.id)}
+          title="Your cycle timeline"
+        />
+      )}
 
       <section className="card" style={{ marginBottom: 24 }}>
         <div
