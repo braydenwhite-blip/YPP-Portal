@@ -128,6 +128,7 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 9,
     },
     { href: "/feedback/anonymous", label: "Anonymous Feedback", icon: "💬" },
+    { href: "/help", label: "Need help?", icon: "❓" },
   ]),
 
   ...groupLinks("Learning", 300, [

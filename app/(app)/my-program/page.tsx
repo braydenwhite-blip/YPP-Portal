@@ -7,6 +7,7 @@ import { buildContextTrail } from "@/lib/context-trail";
 import { formatEnum } from "@/lib/format-utils";
 import { updateMentorshipActionItemStatus } from "@/lib/mentorship-hub-actions";
 import { getMyProgramHubData } from "@/lib/my-program-portal";
+import { DeadlineChip } from "@/components/mentorship/deadline-chip";
 
 export const metadata = { title: "My Program" };
 
@@ -153,8 +154,11 @@ export default async function MyProgramPage({
               }}
             >
               <div>
-                <div style={{ fontWeight: 700, marginBottom: 4 }}>
+                <div style={{ fontWeight: 700, marginBottom: 4, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   Your {currentMonthLabel} self-reflection is due
+                  <DeadlineChip
+                    softDeadline={new Date(now.getFullYear(), now.getMonth(), 21)}
+                  />
                 </div>
                 <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
                   Cycle {pr.nextCycle} &middot; Submit before the end of the month so your mentor can write your review on time.

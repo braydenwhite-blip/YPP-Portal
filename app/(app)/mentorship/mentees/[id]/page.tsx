@@ -5,7 +5,9 @@ import { notFound, redirect } from "next/navigation";
 import { FieldLabel } from "@/components/field-help";
 import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
 import { KickoffStatusRow } from "@/components/mentorship/kickoff-status-row";
+import { CycleStatusBlock } from "@/components/mentorship/cycle-status-block";
 import { formatEnum } from "@/lib/format-utils";
+import { getCurrentCycleMonth, getReflectionSoftDeadline } from "@/lib/mentorship-cycle";
 import {
   SUPPORT_ROLE_META,
   getSupportWorkspaceData,
@@ -115,15 +117,25 @@ export default async function MenteeDetailPage({
       />
 
       {workspace.mentorship && (
-        <KickoffStatusRow
-          mentorshipId={workspace.mentorship.id}
-          kickoffScheduledAt={workspace.mentorship.kickoffScheduledAt ?? null}
-          kickoffCompletedAt={workspace.mentorship.kickoffCompletedAt ?? null}
-          canMarkComplete={
-            workspace.mentorship.mentorId === session.user.id ||
-            (session.user.roles ?? []).includes("ADMIN")
-          }
-        />
+        <>
+          <CycleStatusBlock
+            menteeId={workspace.mentee.id}
+            mentorshipId={workspace.mentorship.id}
+            cycleStage={workspace.mentorship.cycleStage ?? "REFLECTION_DUE"}
+            trackName={workspace.mentorship.track?.name ?? null}
+            cycleLabel={getCurrentCycleMonth().cycleLabel}
+            softDeadline={getReflectionSoftDeadline(getCurrentCycleMonth().cycleMonth)}
+          />
+          <KickoffStatusRow
+            mentorshipId={workspace.mentorship.id}
+            kickoffScheduledAt={workspace.mentorship.kickoffScheduledAt ?? null}
+            kickoffCompletedAt={workspace.mentorship.kickoffCompletedAt ?? null}
+            canMarkComplete={
+              workspace.mentorship.mentorId === session.user.id ||
+              (session.user.roles ?? []).includes("ADMIN")
+            }
+          />
+        </>
       )}
 
       {!workspace.mentorship && !workspace.intakePlanLaunch ? (
