@@ -25,22 +25,24 @@ import { logger } from "@/lib/logger";
 // POINT TABLE
 // ============================================
 
-// Achievement point values per overall rating × role type (from YPP Mentorship Program PDF)
-const POINT_TABLE: Record<GoalRatingColor, Record<MenteeRoleType, number>> = {
+// Achievement point values per overall rating × role type (from YPP Mentorship Program PDF).
+// Exported so Phase 0.99999's lib/award-projection.ts can preview outcomes
+// without duplicating the authoritative table. Keep this as the single source.
+export const POINT_TABLE: Record<GoalRatingColor, Record<MenteeRoleType, number>> = {
   BEHIND_SCHEDULE: { INSTRUCTOR: 0, CHAPTER_PRESIDENT: 0, GLOBAL_LEADERSHIP: 0 },
   GETTING_STARTED: { INSTRUCTOR: 10, CHAPTER_PRESIDENT: 20, GLOBAL_LEADERSHIP: 25 },
   ACHIEVED: { INSTRUCTOR: 35, CHAPTER_PRESIDENT: 50, GLOBAL_LEADERSHIP: 60 },
   ABOVE_AND_BEYOND: { INSTRUCTOR: 75, CHAPTER_PRESIDENT: 85, GLOBAL_LEADERSHIP: 100 },
 };
 
-const TIER_THRESHOLDS: { tier: AchievementAwardTier; min: number }[] = [
+export const TIER_THRESHOLDS: { tier: AchievementAwardTier; min: number }[] = [
   { tier: "LIFETIME", min: 1800 },
   { tier: "GOLD", min: 700 },
   { tier: "SILVER", min: 350 },
   { tier: "BRONZE", min: 175 },
 ];
 
-function computeTier(totalPoints: number): AchievementAwardTier | null {
+export function computeTier(totalPoints: number): AchievementAwardTier | null {
   for (const { tier, min } of TIER_THRESHOLDS) {
     if (totalPoints >= min) return tier;
   }
