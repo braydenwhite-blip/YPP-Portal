@@ -386,7 +386,7 @@ export function FeedbackForm({
               help={{
                 title: "Collaboration & Communication Notes",
                 guidance:
-                  "This is for patterns the committee should know about when they review the mentee's readiness and consistency.",
+                  "This is for patterns the chair should know about when they review the mentee's readiness and consistency.",
                 example:
                   "Communicates well in sessions but still needs reminders to respond to follow-up messages on time.",
               }}
@@ -460,7 +460,7 @@ export function FeedbackForm({
             onChange={(event) => setMentorInternalNotes(event.target.value)}
             className="input"
             rows={4}
-            placeholder="Internal notes for chair and committee review only."
+            placeholder="Internal notes for chair review only."
             style={{ marginTop: 6 }}
           />
         </div>

@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import { createMentorshipNotification } from "@/lib/mentorship-program-actions";
+import { logger } from "@/lib/logger";
 
 async function requireMentee() {
   const session = await getSession();
@@ -189,6 +190,11 @@ export async function getReflectionById(reflectionId: string) {
 export async function submitSelfReflection(formData: FormData) {
   const { userId, menteeRoleType } = await requireMentee();
 
+  logger.info(
+    { userId, menteeRoleType, action: "submitSelfReflection" },
+    "submitSelfReflection: entry"
+  );
+
   const [mentorship, activeGoals] = await Promise.all([
     prisma.mentorship.findFirst({
       where: { menteeId: userId, status: "ACTIVE" },
@@ -207,6 +213,10 @@ export async function submitSelfReflection(formData: FormData) {
   ]);
 
   if (!mentorship) {
+    logger.warn(
+      { userId, menteeRoleType, action: "submitSelfReflection" },
+      "submitSelfReflection: no active mentorship found — user cannot submit reflection"
+    );
     throw new Error("You don't have an active program mentorship. Contact your administrator.");
   }
 
@@ -218,11 +228,27 @@ export async function submitSelfReflection(formData: FormData) {
   const now = new Date();
   const cycleMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
+  logger.debug(
+    {
+      userId,
+      mentorshipId: mentorship.id,
+      cycleNumber,
+      cycleMonth: cycleMonth.toISOString(),
+      activeGoalCount: activeGoals.length,
+      action: "submitSelfReflection",
+    },
+    "submitSelfReflection: validation pass — mentorship and cycle resolved"
+  );
+
   // Prevent duplicate for same cycleNumber
   const existing = await prisma.monthlySelfReflection.findUnique({
     where: { mentorshipId_cycleNumber: { mentorshipId: mentorship.id, cycleNumber } },
   });
   if (existing) {
+    logger.warn(
+      { userId, mentorshipId: mentorship.id, cycleNumber, existingReflectionId: existing.id },
+      "submitSelfReflection: duplicate submission blocked — reflection already exists for this cycle"
+    );
     throw new Error("You have already submitted a reflection for this cycle.");
   }
 
@@ -248,11 +274,19 @@ export async function submitSelfReflection(formData: FormData) {
   const activeGoalIds = new Set(activeGoals.map((goal) => goal.id));
   const unexpectedGoalIds = submittedGoalIds.filter((goalId) => !activeGoalIds.has(goalId));
   if (unexpectedGoalIds.length > 0) {
+    logger.warn(
+      { userId, mentorshipId: mentorship.id, cycleNumber, unexpectedGoalIds },
+      "submitSelfReflection: form stale — unexpected goal IDs in submission"
+    );
     throw new Error("Your reflection form is out of date. Please refresh and try again.");
   }
 
   const hasMissingGoals = activeGoals.some((goal) => !submittedGoalIds.includes(goal.id));
   if (hasMissingGoals) {
+    logger.warn(
+      { userId, mentorshipId: mentorship.id, cycleNumber, activeGoalCount: activeGoals.length, submittedGoalCount: submittedGoalIds.length },
+      "submitSelfReflection: form stale — missing active goal IDs in submission"
+    );
     throw new Error("Your reflection form is missing one or more active goals. Please refresh and try again.");
   }
 
@@ -273,6 +307,11 @@ export async function submitSelfReflection(formData: FormData) {
   const isOnTime = daysSinceLast === null || daysSinceLast <= 45;
   const newStreak = isOnTime ? (mentorship.reflectionStreak ?? 0) + 1 : 1;
   const newLongest = Math.max(newStreak, mentorship.longestReflectionStreak ?? 0);
+
+  logger.debug(
+    { userId, mentorshipId: mentorship.id, cycleNumber, newStreak, isOnTime },
+    "submitSelfReflection: saving reflection"
+  );
 
   // Create reflection + per-goal responses in a transaction
   const reflection = await prisma.$transaction(async (tx) => {
@@ -304,13 +343,31 @@ export async function submitSelfReflection(formData: FormData) {
     return r;
   });
 
-  // Notify the assigned mentor that a new reflection was submitted
-  await createMentorshipNotification({
-    userId: mentorship.mentorId,
-    title: "New Self-Reflection Submitted",
-    body: `A mentee has submitted their Cycle ${cycleNumber} self-reflection and is ready for your review.`,
-    link: "/mentorship-program/reviews",
-  });
+  logger.info(
+    { userId, mentorshipId: mentorship.id, cycleNumber, reflectionId: reflection.id },
+    "submitSelfReflection: reflection saved successfully — dispatching mentor notification"
+  );
+
+  // Notify the assigned mentor that a new reflection was submitted.
+  // A notification failure must not fail the reflection submit.
+  try {
+    await createMentorshipNotification({
+      userId: mentorship.mentorId,
+      title: "New Self-Reflection Submitted",
+      body: `A mentee has submitted their Cycle ${cycleNumber} self-reflection and is ready for your review.`,
+      link: "/mentorship/reviews",
+    });
+  } catch (notifyErr) {
+    logger.warn(
+      { err: notifyErr, userId, mentorId: mentorship.mentorId, cycleNumber, reflectionId: reflection.id },
+      "submitSelfReflection: mentor notification dispatch failed — reflection saved but mentor was not notified"
+    );
+  }
+
+  logger.info(
+    { userId, mentorshipId: mentorship.id, cycleNumber, reflectionId: reflection.id },
+    "submitSelfReflection: complete"
+  );
 
   revalidatePath("/my-program");
   return reflection.id;

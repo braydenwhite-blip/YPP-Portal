@@ -25,11 +25,11 @@ const MONTHLY_REVIEW_GUIDE_ITEMS = [
       "Choose the color that best matches the month as a whole after you finish the per-goal ratings.",
   },
   {
-    label: "Mentor Summary and Committee Notes",
+    label: "Mentor Summary and Chair Notes",
     meaning:
-      "These text areas explain the story behind the ratings for both the mentee and any chair or committee reviewer.",
+      "These text areas explain the story behind the ratings for both the mentee and any chair reviewer.",
     howToUse:
-      "Use the mentor summary to speak clearly to the student, and use committee-facing notes to capture internal decision-making context.",
+      "Use the mentor summary to speak clearly to the student, and use chair notes to capture internal decision-making context.",
   },
   {
     label: "Plan Of Action and Submission",

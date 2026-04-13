@@ -2548,6 +2548,7 @@ model Announcement {
 // GOALS & PROGRESS MODELS (Phase 5)
 // ============================================
 
+/// DEPRECATED: migrate to MentorshipProgramGoal + GoalReviewRating in Phase 1. Do not write new code against this model.
 model GoalTemplate {
   id                     String                  @id @default(cuid())
   title                  String
@@ -2563,6 +2564,7 @@ model GoalTemplate {
   updatedAt              DateTime                @updatedAt
 }
 
+/// DEPRECATED: migrate to MentorshipProgramGoal + GoalReviewRating in Phase 1. Do not write new code against this model.
 model Goal {
   id             String              @id @default(cuid())
   templateId     String
@@ -2577,6 +2579,7 @@ model Goal {
   updatedAt      DateTime            @updatedAt
 }
 
+/// DEPRECATED: no modern equivalent; progress updates are captured inside MonthlySelfReflection goal responses. Do not write new code against this model.
 model ProgressUpdate {
   id              String             @id @default(cuid())
   goalId          String
@@ -2598,6 +2601,7 @@ model ProgressUpdate {
 // REFLECTION FORM MODELS
 // ============================================
 
+/// DEPRECATED: migrate to MonthlySelfReflection in Phase 1. Do not write new code against this model.
 model ReflectionForm {
   id                     String                  @id @default(cuid())
   title                  String
@@ -2611,6 +2615,7 @@ model ReflectionForm {
   updatedAt              DateTime                @updatedAt
 }
 
+/// DEPRECATED: migrate to MonthlySelfReflection goal responses in Phase 1. Do not write new code against this model.
 model ReflectionQuestion {
   id           String               @id @default(cuid())
   formId       String
@@ -2627,6 +2632,7 @@ model ReflectionQuestion {
   updatedAt    DateTime             @updatedAt
 }
 
+/// DEPRECATED: migrate to MonthlySelfReflection in Phase 1. Do not write new code against this model.
 model ReflectionSubmission {
   id                 String               @id @default(cuid())
   userId             String
@@ -2639,6 +2645,7 @@ model ReflectionSubmission {
   submittedAt        DateTime             @default(now())
 }
 
+/// DEPRECATED: migrate to SelfReflectionGoalResponse in Phase 1. Do not write new code against this model.
 model ReflectionResponse {
   id           String               @id @default(cuid())
   submissionId String
@@ -2714,6 +2721,7 @@ model MentorCommitteeMember {
   @@index([userId])
 }
 
+/// DEPRECATED: migrate to MentorGoalReview in Phase 1. Do not write new code against this model.
 model MonthlyGoalReview {
   id                       String                          @id @default(cuid())
   mentorshipId             String
@@ -2760,6 +2768,7 @@ model MonthlyGoalReview {
   @@index([status, month])
 }
 
+/// DEPRECATED: migrate to GoalReviewRating in Phase 1. Do not write new code against this model.
 model MonthlyGoalRating {
   id        String            @id @default(cuid())
   reviewId  String
@@ -2775,6 +2784,7 @@ model MonthlyGoalRating {
   @@index([goalId])
 }
 
+/// DEPRECATED: migrate to AchievementPointLog in Phase 1. Do not write new code against this model.
 model AchievementPointLedger {
   id           String             @id @default(cuid())
   userId       String
@@ -2820,6 +2830,7 @@ model QuarterlyCommitteeReview {
   @@index([status])
 }
 
+/// DEPRECATED: migrate to AwardNomination in Phase 1. Do not write new code against this model.
 model MentorshipAwardRecommendation {
   id              String               @id @default(cuid())
   userId          String
