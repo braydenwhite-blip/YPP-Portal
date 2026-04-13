@@ -127,6 +127,28 @@ type AdvisorBookableSlotView = {
   warningLabels: string[];
 };
 
+export interface CollegeAdvisorScheduleHubData {
+  availableSlotCount: number;
+  upcomingMeetingCount: number;
+  upcomingMeetings: Array<{
+    id: string;
+    scheduledAt: string;
+    topic: string | null;
+  }>;
+}
+
+export interface AdvisorScheduleHubData {
+  availabilityRuleCount: number;
+  availabilityOverrideCount: number;
+  upcomingMeetingCount: number;
+  upcomingMeetings: Array<{
+    id: string;
+    adviseeName: string;
+    scheduledAt: string;
+    topic: string | null;
+  }>;
+}
+
 function formatDurationLabel(duration: number) {
   return `${duration} min`;
 }
@@ -194,7 +216,8 @@ async function getAdvisorBookableSlots(
   advisorUserId: string,
   advisorId: string,
   rangeStart = new Date(),
-  availabilityInput?: AdvisorAvailabilityData
+  availabilityInput?: AdvisorAvailabilityData,
+  windowDays = 21,
 ) {
   const availability = availabilityInput ?? (await getAdvisorAvailabilityData(advisorId));
   if (!availability.availabilitySchemaReady) {
@@ -209,7 +232,7 @@ async function getAdvisorBookableSlots(
     overrides: availability.overrides,
     busyIntervals,
     rangeStart,
-    days: 21,
+    days: windowDays,
   });
 }
 
@@ -1010,6 +1033,74 @@ export async function getCollegeAdvisorScheduleData() {
   };
 }
 
+export async function getCollegeAdvisorScheduleHubData(): Promise<CollegeAdvisorScheduleHubData | null> {
+  const session = await requireAuth();
+  const userId = session.user.id as string;
+
+  const advisorship = await prisma.collegeAdvisorship.findFirst({
+    where: { adviseeId: userId, endDate: null },
+    include: {
+      advisor: {
+        include: {
+          user: { select: { id: true } },
+        },
+      },
+    },
+  });
+
+  if (!advisorship) {
+    return null;
+  }
+
+  const [availability, upcomingMeetingCount, upcomingMeetings] = await Promise.all([
+    getAdvisorAvailabilityData(advisorship.advisor.id),
+    withPrismaFallback(
+      "college-advisor-scheduling:getCollegeAdvisorScheduleHubData:meetingCount",
+      () =>
+        prisma.collegeAdvisorMeeting.count({
+          where: {
+            advisorshipId: advisorship.id,
+            status: { in: ["REQUESTED", "CONFIRMED"] },
+            scheduledAt: { gte: new Date() },
+          },
+        }),
+      0,
+    ),
+    withPrismaFallback(
+      "college-advisor-scheduling:getCollegeAdvisorScheduleHubData:meetings",
+      () =>
+        prisma.collegeAdvisorMeeting.findMany({
+          where: {
+            advisorshipId: advisorship.id,
+            status: { in: ["REQUESTED", "CONFIRMED"] },
+            scheduledAt: { gte: new Date() },
+          },
+          orderBy: { scheduledAt: "asc" },
+          take: 3,
+        }),
+      [],
+    ),
+  ]);
+
+  const availableSlots = await getAdvisorBookableSlots(
+    advisorship.advisor.user.id,
+    advisorship.advisor.id,
+    new Date(),
+    availability,
+    7,
+  );
+
+  return {
+    availableSlotCount: availableSlots.length,
+    upcomingMeetingCount,
+    upcomingMeetings: upcomingMeetings.map((meeting) => ({
+      id: meeting.id,
+      scheduledAt: meeting.scheduledAt.toISOString(),
+      topic: meeting.topic,
+    })),
+  };
+}
+
 export async function getAdvisorScheduleManagerData() {
   const { advisor } = await requireAdvisor();
 
@@ -1061,6 +1152,59 @@ export async function getAdvisorScheduleManagerData() {
       topic: meeting.topic,
       meetingLink: meeting.meetingLink,
       schedulingOverrideReason: meeting.schedulingOverrideReason,
+    })),
+  };
+}
+
+export async function getAdvisorScheduleHubData(): Promise<AdvisorScheduleHubData> {
+  const { advisor } = await requireAdvisor();
+
+  const [availability, upcomingMeetingCount, upcomingMeetings] = await Promise.all([
+    getMyAvailabilitySlots(),
+    withPrismaFallback(
+      "college-advisor-scheduling:getAdvisorScheduleHubData:upcomingMeetingCount",
+      () =>
+        prisma.collegeAdvisorMeeting.count({
+          where: {
+            advisorship: { advisorId: advisor.id },
+            status: { in: ["REQUESTED", "CONFIRMED"] },
+            scheduledAt: { gte: new Date() },
+          },
+        }),
+      0,
+    ),
+    withPrismaFallback(
+      "college-advisor-scheduling:getAdvisorScheduleHubData:upcomingMeetings",
+      () =>
+        prisma.collegeAdvisorMeeting.findMany({
+          where: {
+            advisorship: { advisorId: advisor.id },
+            status: { in: ["REQUESTED", "CONFIRMED"] },
+            scheduledAt: { gte: new Date() },
+          },
+          include: {
+            advisorship: {
+              include: {
+                advisee: { select: { name: true } },
+              },
+            },
+          },
+          orderBy: { scheduledAt: "asc" },
+          take: 3,
+        }),
+      [],
+    ),
+  ]);
+
+  return {
+    availabilityRuleCount: availability.slots.length,
+    availabilityOverrideCount: availability.overrides.length,
+    upcomingMeetingCount,
+    upcomingMeetings: upcomingMeetings.map((meeting) => ({
+      id: meeting.id,
+      adviseeName: meeting.advisorship.advisee.name ?? "Student",
+      scheduledAt: meeting.scheduledAt.toISOString(),
+      topic: meeting.topic,
     })),
   };
 }

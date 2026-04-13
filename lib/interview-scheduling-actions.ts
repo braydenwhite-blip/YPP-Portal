@@ -226,6 +226,26 @@ export interface InterviewSchedulePageData {
   interviewerOptions: InterviewerOption[];
 }
 
+export interface InterviewScheduleHubWorkflow {
+  id: string;
+  title: string;
+  intervieweeName: string;
+  status: InterviewWorkflowView["status"];
+  statusLabel: string;
+  scheduledAt: string | null;
+}
+
+export interface InterviewScheduleHubData {
+  summary: {
+    total: number;
+    needsScheduling: number;
+    booked: number;
+    rescheduleRequested: number;
+    atRisk: number;
+  };
+  workflows: InterviewScheduleHubWorkflow[];
+}
+
 function getString(formData: FormData, key: string, required = true): string {
   const value = formData.get(key);
   if (required && (!value || String(value).trim() === "")) {
@@ -1285,6 +1305,321 @@ async function getActiveSchedulingRequest(
     },
     orderBy: [{ updatedAt: "desc" }],
   });
+}
+
+type HubRequestRecord = {
+  id: string;
+  domain: InterviewDomain;
+  applicationId: string | null;
+  gateId: string | null;
+  status: InterviewSchedulingRequestStatus;
+  createdAt: Date;
+  rescheduleRequestedAt: Date | null;
+  scheduledAt: Date | null;
+};
+
+function buildHubWorkflowForHiring(params: {
+  application: HiringWorkflowRecord;
+  activeRequest: HubRequestRecord | null;
+}): {
+  status: InterviewWorkflowView["status"];
+  isAtRisk: boolean;
+  item: InterviewScheduleHubWorkflow;
+} {
+  const { application, activeRequest } = params;
+  const confirmedSlot = application.interviewSlots.find((slot) => slot.status === "CONFIRMED");
+  const completedSlot = application.interviewSlots.find((slot) => slot.status === "COMPLETED");
+
+  const isAtRisk = activeRequest
+    ? isInterviewRequestAtRisk({
+        createdAt: activeRequest.createdAt,
+        rescheduleRequestedAt: activeRequest.rescheduleRequestedAt,
+        status: activeRequest.status,
+      })
+    : !confirmedSlot && Date.now() - application.submittedAt.getTime() >= 24 * 60 * 60 * 1000;
+
+  let status: InterviewWorkflowView["status"] = "UNSCHEDULED";
+  if (completedSlot) status = "COMPLETED";
+  else if (activeRequest?.status === "RESCHEDULE_REQUESTED") status = "RESCHEDULE_REQUESTED";
+  else if (activeRequest?.status === "REQUESTED") status = "AWAITING_RESPONSE";
+  else if (activeRequest?.status === "CANCELLED") status = "CANCELLED";
+  else if (confirmedSlot || activeRequest?.status === "BOOKED") status = "BOOKED";
+
+  if (
+    isAtRisk &&
+    (status === "UNSCHEDULED" ||
+      status === "AWAITING_RESPONSE" ||
+      status === "RESCHEDULE_REQUESTED")
+  ) {
+    status = "STALE";
+  }
+
+  return {
+    status,
+    isAtRisk,
+    item: {
+      id: `HIRING:${application.id}`,
+      title: application.position.title,
+      intervieweeName: application.applicant.name ?? "Applicant",
+      status,
+      statusLabel: describeWorkflowStatus(status),
+      scheduledAt:
+        activeRequest?.scheduledAt?.toISOString() ??
+        confirmedSlot?.scheduledAt.toISOString() ??
+        completedSlot?.scheduledAt.toISOString() ??
+        null,
+    },
+  };
+}
+
+function buildHubWorkflowForReadiness(params: {
+  gate: ReadinessWorkflowRecord;
+  activeRequest: HubRequestRecord | null;
+}): {
+  status: InterviewWorkflowView["status"];
+  isAtRisk: boolean;
+  item: InterviewScheduleHubWorkflow;
+} {
+  const { gate, activeRequest } = params;
+  const confirmedSlot = gate.slots.find((slot) => slot.status === "CONFIRMED");
+  const completedSlot = gate.slots.find((slot) => slot.status === "COMPLETED");
+
+  const isAtRisk = activeRequest
+    ? isInterviewRequestAtRisk({
+        createdAt: activeRequest.createdAt,
+        rescheduleRequestedAt: activeRequest.rescheduleRequestedAt,
+        status: activeRequest.status,
+      })
+    : !confirmedSlot && Date.now() - gate.createdAt.getTime() >= 24 * 60 * 60 * 1000;
+
+  let status: InterviewWorkflowView["status"] = "UNSCHEDULED";
+  if (
+    completedSlot ||
+    gate.status === "COMPLETED" ||
+    gate.status === "PASSED" ||
+    gate.status === "WAIVED"
+  ) {
+    status = "COMPLETED";
+  } else if (activeRequest?.status === "RESCHEDULE_REQUESTED") {
+    status = "RESCHEDULE_REQUESTED";
+  } else if (activeRequest?.status === "REQUESTED") {
+    status = "AWAITING_RESPONSE";
+  } else if (activeRequest?.status === "CANCELLED") {
+    status = "CANCELLED";
+  } else if (
+    confirmedSlot ||
+    activeRequest?.status === "BOOKED" ||
+    gate.status === "SCHEDULED"
+  ) {
+    status = "BOOKED";
+  }
+
+  if (
+    isAtRisk &&
+    (status === "UNSCHEDULED" ||
+      status === "AWAITING_RESPONSE" ||
+      status === "RESCHEDULE_REQUESTED")
+  ) {
+    status = "STALE";
+  }
+
+  return {
+    status,
+    isAtRisk,
+    item: {
+      id: `READINESS:${gate.id}`,
+      title: "Instructor readiness interview",
+      intervieweeName: gate.instructor.name ?? "Instructor",
+      status,
+      statusLabel: describeWorkflowStatus(status),
+      scheduledAt:
+        activeRequest?.scheduledAt?.toISOString() ??
+        confirmedSlot?.scheduledAt.toISOString() ??
+        completedSlot?.scheduledAt.toISOString() ??
+        gate.scheduledAt?.toISOString() ??
+        null,
+    },
+  };
+}
+
+export async function getInterviewScheduleHubData(): Promise<InterviewScheduleHubData> {
+  const viewer = await getViewerContext();
+
+  const isInterviewParticipant =
+    viewer.isReviewer ||
+    viewer.isInstructor ||
+    viewer.roles.includes("STUDENT") ||
+    viewer.roles.includes("APPLICANT");
+
+  if (!isInterviewParticipant) {
+    throw new Error("You do not have access to interview scheduling.");
+  }
+
+  const [applications, gates] = await Promise.all([
+    viewer.isReviewer
+      ? prisma.application.findMany({
+          where: {
+            position: viewer.isAdmin
+              ? { interviewRequired: true }
+              : { interviewRequired: true, chapterId: viewer.chapterId ?? "__none__" },
+            status: { notIn: [...FINAL_APPLICATION_STATUSES] },
+          },
+          include: {
+            applicant: {
+              select: { id: true, name: true, email: true },
+            },
+            position: {
+              select: {
+                title: true,
+                chapterId: true,
+                chapter: { select: { id: true, name: true } },
+              },
+            },
+            interviewSlots: {
+              orderBy: { scheduledAt: "asc" },
+            },
+          },
+          orderBy: { submittedAt: "asc" },
+        })
+      : prisma.application.findMany({
+          where: {
+            applicantId: viewer.userId,
+            status: { notIn: [...FINAL_APPLICATION_STATUSES] },
+            position: { interviewRequired: true },
+          },
+          include: {
+            applicant: {
+              select: { id: true, name: true, email: true },
+            },
+            position: {
+              select: {
+                title: true,
+                chapterId: true,
+                chapter: { select: { id: true, name: true } },
+              },
+            },
+            interviewSlots: {
+              orderBy: { scheduledAt: "asc" },
+            },
+          },
+          orderBy: { submittedAt: "asc" },
+        }),
+    viewer.isReviewer
+      ? prisma.instructorInterviewGate.findMany({
+          where: viewer.isAdmin
+            ? { status: { notIn: ["PASSED", "WAIVED"] } }
+            : {
+                instructor: { chapterId: viewer.chapterId ?? "__none__" },
+                status: { notIn: ["PASSED", "WAIVED"] },
+              },
+          include: {
+            instructor: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                chapterId: true,
+                chapter: { select: { id: true, name: true } },
+              },
+            },
+            slots: {
+              orderBy: { scheduledAt: "asc" },
+            },
+          },
+          orderBy: { createdAt: "asc" },
+        })
+      : viewer.isInstructor
+        ? prisma.instructorInterviewGate.findMany({
+            where: {
+              instructorId: viewer.userId,
+              status: { notIn: ["PASSED", "WAIVED"] },
+            },
+            include: {
+              instructor: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  chapterId: true,
+                  chapter: { select: { id: true, name: true } },
+                },
+              },
+              slots: {
+                orderBy: { scheduledAt: "asc" },
+              },
+            },
+            orderBy: { createdAt: "asc" },
+          })
+        : Promise.resolve([]),
+  ]);
+
+  const activeRequestsRaw = await prisma.interviewSchedulingRequest.findMany({
+    where: {
+      status: { in: ACTIVE_INTERVIEW_REQUEST_STATUSES },
+      OR: [
+        ...(applications.length > 0
+          ? [{ domain: "HIRING" as const, applicationId: { in: applications.map((application) => application.id) } }]
+          : []),
+        ...(gates.length > 0
+          ? [{ domain: "READINESS" as const, gateId: { in: gates.map((gate) => gate.id) } }]
+          : []),
+      ],
+    },
+    select: {
+      id: true,
+      domain: true,
+      applicationId: true,
+      gateId: true,
+      status: true,
+      createdAt: true,
+      rescheduleRequestedAt: true,
+      scheduledAt: true,
+    },
+    orderBy: [{ updatedAt: "desc" }],
+  });
+
+  const activeRequestByWorkflowId = new Map<string, HubRequestRecord>();
+  for (const request of activeRequestsRaw) {
+    const workflowId = request.domain === "HIRING" ? request.applicationId : request.gateId;
+    if (!workflowId || activeRequestByWorkflowId.has(workflowId)) continue;
+    activeRequestByWorkflowId.set(workflowId, request);
+  }
+
+  const workflowSummaries = [
+    ...applications.map((application) =>
+      buildHubWorkflowForHiring({
+        application,
+        activeRequest: activeRequestByWorkflowId.get(application.id) ?? null,
+      })
+    ),
+    ...gates.map((gate) =>
+      buildHubWorkflowForReadiness({
+        gate,
+        activeRequest: activeRequestByWorkflowId.get(gate.id) ?? null,
+      })
+    ),
+  ];
+
+  workflowSummaries.sort((left, right) => {
+    if (left.isAtRisk !== right.isAtRisk) return left.isAtRisk ? -1 : 1;
+    if (left.status === right.status) {
+      const leftTime = left.item.scheduledAt ? new Date(left.item.scheduledAt).getTime() : Number.MAX_SAFE_INTEGER;
+      const rightTime = right.item.scheduledAt ? new Date(right.item.scheduledAt).getTime() : Number.MAX_SAFE_INTEGER;
+      return leftTime - rightTime;
+    }
+    return left.status.localeCompare(right.status);
+  });
+
+  return {
+    summary: {
+      total: workflowSummaries.length,
+      needsScheduling: workflowSummaries.filter((workflow) => workflow.status === "UNSCHEDULED").length,
+      booked: workflowSummaries.filter((workflow) => workflow.status === "BOOKED").length,
+      rescheduleRequested: workflowSummaries.filter((workflow) => workflow.status === "RESCHEDULE_REQUESTED").length,
+      atRisk: workflowSummaries.filter((workflow) => workflow.isAtRisk).length,
+    },
+    workflows: workflowSummaries.map((workflow) => workflow.item),
+  };
 }
 
 async function buildWorkflowViewForHiring({

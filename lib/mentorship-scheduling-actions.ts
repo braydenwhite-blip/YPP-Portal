@@ -212,7 +212,8 @@ async function getMentorAvailabilityData(mentorId: string) {
 async function getMentorBookableSlots(
   mentorId: string,
   rangeStart = new Date(),
-  availabilityInput?: MentorAvailabilityData
+  availabilityInput?: MentorAvailabilityData,
+  windowDays = DEFAULT_SLOT_WINDOW_DAYS,
 ) {
   const availability = availabilityInput ?? (await getMentorAvailabilityData(mentorId));
   if (!availability.availabilitySchemaReady) {
@@ -227,7 +228,7 @@ async function getMentorBookableSlots(
     overrides: availability.overrides,
     busyIntervals,
     rangeStart,
-    days: DEFAULT_SLOT_WINDOW_DAYS,
+    days: windowDays,
   });
 }
 
@@ -681,6 +682,35 @@ export interface MentorScheduleManagerData {
   slotPreview: BookableSlotView[];
 }
 
+export interface MyMentorshipScheduleHubData {
+  mentorship: {
+    id: string;
+    mentorName: string;
+    mentorEmail: string;
+    status: string;
+  } | null;
+  availableSlotCount: number;
+  activeRequestCount: number;
+  upcomingSessionCount: number;
+  upcomingSessions: Array<{
+    id: string;
+    title: string;
+    scheduledAt: string;
+  }>;
+}
+
+export interface MentorScheduleHubData {
+  availabilityRuleCount: number;
+  pendingRequestCount: number;
+  upcomingSessionCount: number;
+  pendingRequests: Array<{
+    id: string;
+    menteeName: string;
+    title: string;
+    createdAt: string;
+  }>;
+}
+
 export async function getSchedulePageData(): Promise<SchedulePageData | null> {
   const session = await requireSession();
   const userId = session.user.id;
@@ -793,9 +823,167 @@ export async function getSchedulePageData(): Promise<SchedulePageData | null> {
   };
 }
 
+export async function getMyMentorshipScheduleHubData(): Promise<MyMentorshipScheduleHubData | null> {
+  const session = await requireSession();
+  const userId = session.user.id;
+
+  const mentorship = await prisma.mentorship.findFirst({
+    where: { menteeId: userId, status: "ACTIVE" },
+    include: {
+      mentor: { select: { id: true, name: true, email: true } },
+    },
+  });
+
+  if (!mentorship) {
+    return null;
+  }
+
+  const availability = await getMentorAvailabilityData(mentorship.mentor.id);
+  const [availableSlots, activeRequestCount, upcomingSessionCount, upcomingSessions] = await Promise.all([
+    getMentorBookableSlots(
+      mentorship.mentor.id,
+      new Date(),
+      availability,
+      7,
+    ),
+    withPrismaFallback(
+      "mentorship-scheduling:getMyMentorshipScheduleHubData:activeRequestCount",
+      () =>
+        prisma.mentorshipScheduleRequest.count({
+          where: {
+            mentorshipId: mentorship.id,
+            status: { in: ["PENDING", "CONFIRMED"] },
+          },
+      }),
+      0,
+    ),
+    withPrismaFallback(
+      "mentorship-scheduling:getMyMentorshipScheduleHubData:upcomingSessionCount",
+      () =>
+        prisma.mentorshipSession.count({
+          where: {
+            mentorshipId: mentorship.id,
+            scheduledAt: { gte: new Date() },
+            completedAt: null,
+            cancelledAt: null,
+          },
+        }),
+      0,
+    ),
+    withPrismaFallback(
+      "mentorship-scheduling:getMyMentorshipScheduleHubData:upcomingSessions",
+      () =>
+        prisma.mentorshipSession.findMany({
+          where: {
+            mentorshipId: mentorship.id,
+            scheduledAt: { gte: new Date() },
+            completedAt: null,
+            cancelledAt: null,
+          },
+          orderBy: { scheduledAt: "asc" },
+          take: 3,
+        }),
+      [],
+    ),
+  ]);
+
+  return {
+    mentorship: {
+      id: mentorship.id,
+      mentorName: mentorship.mentor.name ?? "Unknown",
+      mentorEmail: mentorship.mentor.email ?? "",
+      status: mentorship.status,
+    },
+    availableSlotCount: availableSlots.length,
+    activeRequestCount,
+    upcomingSessionCount,
+    upcomingSessions: upcomingSessions.map((sessionRecord) => ({
+      id: sessionRecord.id,
+      title: sessionRecord.title,
+      scheduledAt: sessionRecord.scheduledAt.toISOString(),
+    })),
+  };
+}
+
 export async function getMentorScheduleQueue(): Promise<MentorScheduleQueueItem[]> {
   const data = await getMentorScheduleManagerData();
   return data.pendingRequests;
+}
+
+export async function getMentorScheduleHubData(): Promise<MentorScheduleHubData> {
+  const { session, isAdmin } = await requireMentorOrAdmin();
+  const userId = session.user.id;
+
+  const availability = await getMentorAvailabilityData(userId);
+  const [pendingRequestCount, pendingRequests, upcomingSessionCount] = await Promise.all([
+    withPrismaFallback(
+      "mentorship-scheduling:getMentorScheduleHubData:pendingRequestCount",
+      () =>
+        prisma.mentorshipScheduleRequest.count({
+          where: {
+            mentorship: isAdmin
+              ? { status: "ACTIVE" }
+              : {
+                  mentorId: userId,
+                  status: "ACTIVE",
+                },
+            status: "PENDING",
+          },
+        }),
+      0,
+    ),
+    withPrismaFallback(
+      "mentorship-scheduling:getMentorScheduleHubData:pendingRequests",
+      () =>
+        prisma.mentorshipScheduleRequest.findMany({
+          where: {
+            mentorship: isAdmin
+              ? { status: "ACTIVE" }
+              : {
+                  mentorId: userId,
+                  status: "ACTIVE",
+                },
+            status: "PENDING",
+          },
+          include: {
+            requestedBy: { select: { name: true } },
+          },
+          orderBy: { createdAt: "asc" },
+          take: 3,
+        }),
+      [],
+    ),
+    withPrismaFallback(
+      "mentorship-scheduling:getMentorScheduleHubData:upcomingSessionCount",
+      () =>
+        prisma.mentorshipSession.count({
+          where: isAdmin
+            ? {
+                scheduledAt: { gte: new Date() },
+                cancelledAt: null,
+                mentorship: { status: "ACTIVE" },
+              }
+            : {
+                scheduledAt: { gte: new Date() },
+                cancelledAt: null,
+                mentorship: { mentorId: userId, status: "ACTIVE" },
+              },
+        }),
+      0,
+    ),
+  ]);
+
+  return {
+    availabilityRuleCount: availability.rules.length,
+    pendingRequestCount,
+    upcomingSessionCount,
+    pendingRequests: pendingRequests.map((request) => ({
+      id: request.id,
+      menteeName: request.requestedBy.name ?? "Unknown",
+      title: request.title,
+      createdAt: request.createdAt.toISOString(),
+    })),
+  };
 }
 
 export async function getMentorScheduleManagerData(): Promise<MentorScheduleManagerData> {
