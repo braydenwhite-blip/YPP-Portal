@@ -40,6 +40,10 @@ const PASSION_LAB_SPECIAL_PROGRAM_COLUMNS = [
   "chapterId",
   "createdById",
   "submissionStatus",
+  "isTemplate",
+  "templateCategory",
+  "reviewNotes",
+  "reviewedById",
   "createdAt",
   "updatedAt",
 ] as const;
