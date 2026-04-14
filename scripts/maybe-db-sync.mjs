@@ -55,28 +55,28 @@ function logSupabaseDirectUrlFix(rawUrl) {
   const ref = extractSupabaseProjectRef(rawUrl);
   const currentUser = url ? decodeURIComponent(url.username || "(missing)") : "(missing)";
 
-  console.error(
+  console.warn(
     `[db-sync] DIRECT_URL points to the Supabase session pooler (${target}).`
   );
-  console.error(
-    "[db-sync] Prisma migrations must use the direct database host, not the pooler."
+  console.warn(
+    "[db-sync] Supabase supports session mode on port 5432 for Prisma migrations in IPv4-only environments."
   );
-  console.error(
+  console.warn(
     `[db-sync] Current Supabase user looks like: ${currentUser}`
   );
 
   if (ref) {
-    console.error(
-      `[db-sync] Fix DIRECT_URL in Vercel to use host db.${ref}.supabase.co:5432 and user postgres.`
+    console.warn(
+      `[db-sync] Direct host db.${ref}.supabase.co:5432 is still preferred when your build environment can reach it.`
     );
   } else {
-    console.error(
-      "[db-sync] Fix DIRECT_URL in Vercel to use host db.<project-ref>.supabase.co:5432 and user postgres."
+    console.warn(
+      "[db-sync] A direct host db.<project-ref>.supabase.co:5432 is still preferred when your build environment can reach it."
     );
   }
 
-  console.error(
-    "[db-sync] Keep DATABASE_URL on the transaction pooler (usually port 6543)."
+  console.warn(
+    "[db-sync] Continuing with prisma migrate deploy using the session pooler. Keep DATABASE_URL on the transaction pooler (usually port 6543)."
   );
 }
 
@@ -127,15 +127,6 @@ const directUrl = process.env.DIRECT_URL?.trim();
 
 if (directUrl && isSupabaseSessionPoolerUrl(directUrl)) {
   logSupabaseDirectUrlFix(directUrl);
-
-  if (requireDbSync) {
-    console.error("[db-sync] REQUIRE_DB_SYNC=1 is set — failing the build.");
-    process.exit(1);
-  }
-
-  console.warn("[db-sync] ⚠️  Continuing the build WITHOUT applying migrations.");
-  console.warn("[db-sync] Set REQUIRE_DB_SYNC=1 to fail the build on migration errors.");
-  process.exit(0);
 }
 
 let status = 0;
