@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
-import { getReviewForChair, POINT_TABLE } from "@/lib/goal-review-actions";
+import { getReviewForChair } from "@/lib/goal-review-actions";
 import { projectAwardOutcome } from "@/lib/award-projection";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
+import { POINT_TABLE } from "@/lib/mentorship-point-table";
 import { AwardsSummaryPanel } from "@/components/mentorship/awards-summary-panel";
 import { formatEnum } from "@/lib/format-utils";
 import ChairActionsPanel from "./chair-actions-panel";

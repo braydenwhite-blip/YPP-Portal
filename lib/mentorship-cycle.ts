@@ -309,7 +309,7 @@ export async function getReviewSpineForMentee(menteeId: string): Promise<ReviewS
         id: true,
         cycleNumber: true,
         cycleMonth: true,
-        createdAt: true,
+        submittedAt: true,
       },
     }),
     prisma.mentorGoalReview.findMany({
@@ -375,7 +375,7 @@ export async function getReviewSpineForMentee(menteeId: string): Promise<ReviewS
           key: "REFLECTION",
           label: "Reflection",
           state: reflection ? "completed" : "pending",
-          timestamp: reflection?.createdAt ?? null,
+          timestamp: reflection?.submittedAt ?? null,
           href: reflection ? `/my-program/reflect?cycle=${cycleNumber}` : "/my-program/reflect",
           detail: null,
         },

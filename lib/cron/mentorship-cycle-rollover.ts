@@ -41,12 +41,16 @@ export type RolloverResult = {
 
 const NOTIFY_WINDOW_DAYS = 2;
 
+function isSameUtcMonth(a: Date, b: Date): boolean {
+  return a.getUTCFullYear() === b.getUTCFullYear() && a.getUTCMonth() === b.getUTCMonth();
+}
+
 export async function runMentorshipCycleRollover(
   opts: { dryRun?: boolean } = {}
 ): Promise<RolloverResult> {
   const dryRun = !!opts.dryRun;
   const ranAt = new Date();
-  const { cycleMonth, cycleNumber } = getCurrentCycleMonth(ranAt);
+  const { cycleMonth } = getCurrentCycleMonth(ranAt);
 
   const dayOfMonth = ranAt.getUTCDate();
   const withinOpenWindow = dayOfMonth <= NOTIFY_WINDOW_DAYS;
@@ -140,13 +144,17 @@ export async function runMentorshipCycleRollover(
 
       const latestReflection = m.selfReflections[0] ?? null;
       const alreadySubmitted =
-        latestReflection && latestReflection.cycleNumber >= cycleNumber;
+        latestReflection !== null && isSameUtcMonth(latestReflection.cycleMonth, cycleMonth);
       if (alreadySubmitted) {
         result.skippedReflectionAlreadySubmitted += 1;
         continue;
       }
 
       if (!withinOpenWindow) continue;
+
+      // cycleNumber is sequential per mentorship, so we derive the next one from
+      // the mentee's own latest submitted reflection rather than from the month helper.
+      const cycleNumber = (latestReflection?.cycleNumber ?? 0) + 1;
 
       logger.info(
         { mentorshipId: m.id, menteeId: m.menteeId, cycleNumber, dryRun },
