@@ -12,7 +12,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireSessionUser } from "@/lib/authorization";
 import { isSuperAdmin, hasAdminSubtype } from "@/lib/admin-subtypes";
-import type { MenteeRoleType, MentorGoalReview } from "@prisma/client";
+import { RoleType, type MenteeRoleType, type MentorGoalReview } from "@prisma/client";
 
 // ─── Type helpers ────────────────────────────────────────────────────────────
 
@@ -103,7 +103,9 @@ export async function getApprovableGoalReviewsForUser(
   const menteesInLanes = await prisma.user.findMany({
     where: {
       primaryRole: {
-        in: lanes.map((lane) => laneRoleTypeToRoleString(lane)).filter(Boolean) as string[],
+        in: lanes
+          .map((lane) => laneRoleTypeToRoleString(lane))
+          .filter((role): role is RoleType => role !== null),
       },
     },
     select: { id: true },
@@ -172,16 +174,16 @@ export async function requireChairForLane(laneRoleType: MenteeRoleType) {
 // ─── Utility ──────────────────────────────────────────────────────────────────
 
 /**
- * Maps a MenteeRoleType enum value to the corresponding RoleType string used
+ * Maps a MenteeRoleType enum value to the corresponding RoleType enum used
  * on User.primaryRole, so we can filter mentees by lane.
  */
-function laneRoleTypeToRoleString(lane: MenteeRoleType): string | null {
-  const map: Partial<Record<MenteeRoleType, string>> = {
-    INSTRUCTOR: "INSTRUCTOR",
-    CHAPTER_PRESIDENT: "CHAPTER_PRESIDENT",
-    GLOBAL_LEADERSHIP: "STAFF", // STAFF covers global leadership in the current schema
-    STAFF: "STAFF",
-    STUDENT: "STUDENT",
+function laneRoleTypeToRoleString(lane: MenteeRoleType): RoleType | null {
+  const map: Partial<Record<MenteeRoleType, RoleType>> = {
+    INSTRUCTOR: RoleType.INSTRUCTOR,
+    CHAPTER_PRESIDENT: RoleType.CHAPTER_PRESIDENT,
+    GLOBAL_LEADERSHIP: RoleType.STAFF, // STAFF covers global leadership in the current schema
+    STAFF: RoleType.STAFF,
+    STUDENT: RoleType.STUDENT,
   };
   return map[lane] ?? null;
 }
