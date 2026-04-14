@@ -1,9 +1,18 @@
 import { NextResponse } from "next/server";
+import { AuditAction } from "@prisma/client";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/rate-limit-redis";
+import { logAuditEvent } from "@/lib/audit-log-actions";
 import { generateMentorshipReviewDraft } from "@/lib/ai/generate-review-draft";
 import type { ReviewGoalInput, PriorReview } from "@/lib/ai/generate-review-draft";
+
+/** Extract the real client IP from proxy headers (same pattern as /api/upload/applicant-video). */
+function getClientIp(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0]?.trim() ?? "unknown";
+  return request.headers.get("x-real-ip") ?? "unknown";
+}
 
 export async function POST(request: Request) {
   // ── Auth ──────────────────────────────────────────────────────────────────
@@ -21,6 +30,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
+  // ── Extract IP early so it's available for rate-limit keys and audit log ──
+  const ip = getClientIp(request);
+
   // ── Rate limit: 20 drafts per hour per user ───────────────────────────────
   const rateResult = await checkRateLimit(
     `ai-review-draft:${session.user.id}`,
@@ -30,6 +42,32 @@ export async function POST(request: Request) {
   if (!rateResult.success) {
     return NextResponse.json(
       { error: "Rate limit exceeded. Please wait before generating another draft." },
+      { status: 429 }
+    );
+  }
+
+  // ── Rate limit: 50 drafts per hour per IP (multi-account abuse defense) ───
+  const ipRateResult = await checkRateLimit(
+    `ai-review-draft-ip:${ip}`,
+    50,
+    60 * 60 * 1000
+  );
+  if (!ipRateResult.success) {
+    return NextResponse.json(
+      { error: "Too many requests from this network. Please try again later." },
+      { status: 429 }
+    );
+  }
+
+  // ── Rate limit: 500 drafts per day globally (cost protection) ────────────
+  const globalRateResult = await checkRateLimit(
+    "ai-review-draft:global",
+    500,
+    24 * 60 * 60 * 1000
+  );
+  if (!globalRateResult.success) {
+    return NextResponse.json(
+      { error: "Daily AI draft limit reached. Please try again tomorrow." },
       { status: 429 }
     );
   }
@@ -44,6 +82,11 @@ export async function POST(request: Request) {
     reflectionId = body.reflectionId;
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  // ── Validate reflectionId is a CUID (c + 24 lowercase alphanumeric chars) ─
+  if (!/^c[a-z0-9]{24}$/.test(reflectionId)) {
+    return NextResponse.json({ error: "Invalid reflectionId format" }, { status: 400 });
   }
 
   // ── Fetch reflection (auth check included) ────────────────────────────────
@@ -119,6 +162,22 @@ export async function POST(request: Request) {
       cycleNumber: reflection.cycleNumber,
       goals,
       priorReviews,
+    });
+
+    // ── Audit log successful generation ──────────────────────────────────────
+    await logAuditEvent({
+      action: "AI_DRAFT_GENERATED" as AuditAction,
+      actorId: session.user.id,
+      targetType: "MonthlySelfReflection",
+      targetId: reflectionId,
+      description: `AI draft generated for ${reflection.mentee.name ?? "mentee"} (cycle ${reflection.cycleNumber})`,
+      metadata: {
+        menteeId: reflection.menteeId,
+        menteeName: reflection.mentee.name,
+        cycleNumber: reflection.cycleNumber,
+        userRemainingDrafts: rateResult.remaining,
+      },
+      ipAddress: ip,
     });
 
     return NextResponse.json(draft);
