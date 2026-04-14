@@ -433,7 +433,7 @@ export default function ReflectionForm({ goals, cycleNumber, isQuarterly }: Prop
         {/* Section 5: Additional Reflections */}
         {step === 4 && (
           <div>
-            <FieldLabel hint="Optional — anything else you'd like your mentor or the Mentor Committee to know.">
+            <FieldLabel hint="Optional — anything else you'd like your mentor or program chair to know.">
               Additional Reflections (optional)
             </FieldLabel>
             <textarea

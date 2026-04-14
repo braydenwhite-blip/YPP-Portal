@@ -106,6 +106,22 @@ vi.mock("@/lib/prisma", () => ({
     enrollment: {
       findFirst: vi.fn(),
     },
+    specialProgram: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
+    specialProgramEnrollment: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      delete: vi.fn(),
+    },
+    programSession: {
+      create: vi.fn(),
+      delete: vi.fn(),
+    },
     mentorship: {
       findFirst: vi.fn(),
     },

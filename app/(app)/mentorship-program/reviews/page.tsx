@@ -1,7 +1,8 @@
-import { redirect } from "next/navigation";
+import { permanentRedirect } from "next/navigation";
 
 export const metadata = { title: "Review Queue — Mentorship Program" };
 
-export default async function ReviewQueuePage() {
-  redirect("/mentorship/mentees");
+// Permanent redirect: canonical URL is /mentorship/reviews (Monthly Review Inbox).
+export default function ReviewQueuePage() {
+  permanentRedirect("/mentorship/reviews");
 }

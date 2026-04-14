@@ -2046,6 +2046,8 @@ model Mentorship {
   longestReflectionStreak Int                      @default(0)
   reviewStreak            Int                      @default(0)
   longestReviewStreak     Int                      @default(0)
+  /// Denormalized stage for fast Kanban queries. Recomputed on every state change.
+  cycleStage              MentorshipCycleStage     @default(REFLECTION_DUE)
   mentor                  User                     @relation("MentorLinks", fields: [mentorId], references: [id])
   mentee                  User                     @relation("MenteeLinks", fields: [menteeId], references: [id])
   chair                   User?                    @relation("MentorshipChairs", fields: [chairId], references: [id])
@@ -2067,6 +2069,7 @@ model Mentorship {
 
   @@index([trackId])
   @@index([chairId])
+  @@index([cycleStage, status])
 }
 
 model MentorshipCheckIn {
@@ -2548,6 +2551,7 @@ model Announcement {
 // GOALS & PROGRESS MODELS (Phase 5)
 // ============================================
 
+/// DEPRECATED: migrate to MentorshipProgramGoal + GoalReviewRating in Phase 1. Do not write new code against this model.
 model GoalTemplate {
   id                     String                  @id @default(cuid())
   title                  String
@@ -2563,6 +2567,7 @@ model GoalTemplate {
   updatedAt              DateTime                @updatedAt
 }
 
+/// DEPRECATED: migrate to MentorshipProgramGoal + GoalReviewRating in Phase 1. Do not write new code against this model.
 model Goal {
   id             String              @id @default(cuid())
   templateId     String
@@ -2577,6 +2582,7 @@ model Goal {
   updatedAt      DateTime            @updatedAt
 }
 
+/// DEPRECATED: no modern equivalent; progress updates are captured inside MonthlySelfReflection goal responses. Do not write new code against this model.
 model ProgressUpdate {
   id              String             @id @default(cuid())
   goalId          String
@@ -2598,6 +2604,7 @@ model ProgressUpdate {
 // REFLECTION FORM MODELS
 // ============================================
 
+/// DEPRECATED: migrate to MonthlySelfReflection in Phase 1. Do not write new code against this model.
 model ReflectionForm {
   id                     String                  @id @default(cuid())
   title                  String
@@ -2611,6 +2618,7 @@ model ReflectionForm {
   updatedAt              DateTime                @updatedAt
 }
 
+/// DEPRECATED: migrate to MonthlySelfReflection goal responses in Phase 1. Do not write new code against this model.
 model ReflectionQuestion {
   id           String               @id @default(cuid())
   formId       String
@@ -2627,6 +2635,7 @@ model ReflectionQuestion {
   updatedAt    DateTime             @updatedAt
 }
 
+/// DEPRECATED: migrate to MonthlySelfReflection in Phase 1. Do not write new code against this model.
 model ReflectionSubmission {
   id                 String               @id @default(cuid())
   userId             String
@@ -2639,6 +2648,7 @@ model ReflectionSubmission {
   submittedAt        DateTime             @default(now())
 }
 
+/// DEPRECATED: migrate to SelfReflectionGoalResponse in Phase 1. Do not write new code against this model.
 model ReflectionResponse {
   id           String               @id @default(cuid())
   submissionId String
@@ -2714,6 +2724,7 @@ model MentorCommitteeMember {
   @@index([userId])
 }
 
+/// DEPRECATED: migrate to MentorGoalReview in Phase 1. Do not write new code against this model.
 model MonthlyGoalReview {
   id                       String                          @id @default(cuid())
   mentorshipId             String
@@ -2760,6 +2771,7 @@ model MonthlyGoalReview {
   @@index([status, month])
 }
 
+/// DEPRECATED: migrate to GoalReviewRating in Phase 1. Do not write new code against this model.
 model MonthlyGoalRating {
   id        String            @id @default(cuid())
   reviewId  String
@@ -2775,6 +2787,7 @@ model MonthlyGoalRating {
   @@index([goalId])
 }
 
+/// DEPRECATED: migrate to AchievementPointLog in Phase 1. Do not write new code against this model.
 model AchievementPointLedger {
   id           String             @id @default(cuid())
   userId       String
@@ -2820,6 +2833,7 @@ model QuarterlyCommitteeReview {
   @@index([status])
 }
 
+/// DEPRECATED: migrate to AwardNomination in Phase 1. Do not write new code against this model.
 model MentorshipAwardRecommendation {
   id              String               @id @default(cuid())
   userId          String
@@ -3325,6 +3339,22 @@ enum NotificationType {
   CLASS_REMINDER
   EVENT_UPDATE
   EVENT_REMINDER
+  REFLECTION_WINDOW_OPENED
+  REFLECTION_SUBMITTED
+  REVIEW_SUBMITTED_FOR_APPROVAL
+  REVIEW_APPROVED_AND_RELEASED
+}
+
+/// Denormalized mentorship cycle stage; drives the Phase 0.9999 mentor Kanban.
+enum MentorshipCycleStage {
+  KICKOFF_PENDING
+  REFLECTION_DUE
+  REFLECTION_SUBMITTED
+  REVIEW_SUBMITTED
+  CHANGES_REQUESTED
+  APPROVED
+  PAUSED
+  COMPLETE
 }
 
 model Notification {

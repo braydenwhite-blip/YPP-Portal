@@ -411,3 +411,30 @@ export async function requireApplicationAccess(
 
   throw new Error("Unauthorized: You cannot access this application");
 }
+
+/**
+ * Require access to a mentee's Review Spine — timeline of their cycles.
+ * Access granted to:
+ *   - The mentee themselves
+ *   - The mentor or chair on any of their mentorships
+ *   - Users with ADMIN role (covers SUPER_ADMIN / MENTORSHIP_ADMIN via session role projection)
+ */
+export async function requireReviewSpineAccess(menteeId: string): Promise<SessionUser> {
+  const user = await requireSessionUser();
+
+  if (user.id === menteeId) return user;
+  if (user.roles.includes("ADMIN")) return user;
+
+  const mentorship = await prisma.mentorship.findFirst({
+    where: {
+      menteeId,
+      OR: [{ mentorId: user.id }, { chairId: user.id }],
+    },
+    select: { id: true },
+  });
+
+  if (mentorship) return user;
+
+  throw new Error("Unauthorized: You cannot view this mentee's review timeline");
+}
+

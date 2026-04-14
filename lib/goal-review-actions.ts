@@ -13,13 +13,22 @@ import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import { createMentorshipNotification } from "@/lib/mentorship-program-actions";
 import { syncMentorGoalReviewWorkflow } from "@/lib/workflow";
 import { computeTier } from "@/lib/achievement-tier-utils";
+import { recomputeMentorshipCycleStage } from "@/lib/mentorship-cycle";
+import {
+  emitReviewSubmittedForApproval,
+  emitReviewApprovedAndReleased,
+} from "@/lib/mentorship-notifications";
+import { ensureReviewGoalRatings } from "@/lib/mentorship-gr-binding";
+import { logger } from "@/lib/logger";
 
 // ============================================
 // POINT TABLE
 // ============================================
 
-// Achievement point values per overall rating × role type (from YPP Mentorship Program PDF)
-const POINT_TABLE: Record<GoalRatingColor, Record<MenteeRoleType, number>> = {
+// Achievement point values per overall rating × role type (from YPP Mentorship Program PDF).
+// Exported so Phase 0.99999's lib/award-projection.ts can preview outcomes
+// without duplicating the authoritative table. Keep this as the single source.
+export const POINT_TABLE: Record<GoalRatingColor, Record<MenteeRoleType, number>> = {
   BEHIND_SCHEDULE: { INSTRUCTOR: 0, CHAPTER_PRESIDENT: 0, GLOBAL_LEADERSHIP: 0 },
   GETTING_STARTED: { INSTRUCTOR: 10, CHAPTER_PRESIDENT: 20, GLOBAL_LEADERSHIP: 25 },
   ACHIEVED: { INSTRUCTOR: 35, CHAPTER_PRESIDENT: 50, GLOBAL_LEADERSHIP: 60 },
@@ -312,16 +321,54 @@ export async function saveGoalReview(formData: FormData) {
 
   await syncMentorGoalReviewWorkflow(reviewId);
 
-  // Notify chair when review is submitted for approval
-  if (submitForApproval && reflection.mentorship.chairId) {
-    await createMentorshipNotification({
-      userId: reflection.mentorship.chairId,
-      title: "Review Pending Your Approval",
-      body: `A mentor has submitted a goal review for ${reflection.mentee?.name ?? "a mentee"} and it needs your approval.`,
-      link: "/mentorship-program/chair",
+  // Backfill any missing GoalReviewRating rows (idempotent).
+  try {
+    await ensureReviewGoalRatings({
+      id: reviewId,
+      menteeId: reflection.mentorship.menteeId,
+      cycleNumber: reflection.cycleNumber,
     });
+  } catch (err) {
+    logger.warn({ err, reviewId }, "saveGoalReview: ensureReviewGoalRatings failed");
   }
 
+  // Recompute denormalized cycleStage for the Kanban.
+  try {
+    await recomputeMentorshipCycleStage(reflection.mentorshipId);
+  } catch (err) {
+    logger.warn({ err, mentorshipId: reflection.mentorshipId }, "saveGoalReview: cycleStage recompute failed");
+  }
+
+  if (submitForApproval) {
+    // Fan out to lane chairs (Phase 0.9 emitter — includes dedup + try/catch).
+    const mentee = await prisma.user.findUnique({
+      where: { id: reflection.mentorship.menteeId },
+      select: { name: true, primaryRole: true },
+    });
+    const mentor = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { name: true },
+    });
+    await emitReviewSubmittedForApproval({
+      reviewId,
+      mentorName: mentor?.name ?? "A mentor",
+      menteeName: mentee?.name ?? "a mentee",
+      menteePrimaryRole: mentee?.primaryRole ?? null,
+      ctx: { cycleNumber: reflection.cycleNumber, cycleMonth: reflection.cycleMonth },
+    });
+
+    // Legacy per-mentorship chair fallback (preserves in-flight explicit chair assignments).
+    if (reflection.mentorship.chairId) {
+      await createMentorshipNotification({
+        userId: reflection.mentorship.chairId,
+        title: "Review Pending Your Approval",
+        body: `A mentor has submitted a goal review for ${reflection.mentee?.name ?? "a mentee"} and it needs your approval.`,
+        link: "/mentorship-program/chair",
+      });
+    }
+  }
+
+  revalidatePath("/mentorship/reviews");
   revalidatePath("/mentorship-program/reviews");
 }
 
@@ -541,22 +588,28 @@ export async function approveGoalReview(formData: FormData) {
     description: `Goal review approved for ${review.mentee.name} — ${pointsAwarded} pts awarded (base: ${basePoints}, bonus: ${effectiveBonus})`,
   });
 
-  // Notify mentor that their review was approved
-  await createMentorshipNotification({
-    userId: review.mentor.id,
-    title: "Goal Review Approved",
-    body: `Your review for ${review.mentee.name} (Cycle ${review.cycleNumber}) has been approved. ${pointsAwarded} points awarded.`,
-    link: "/mentorship-program/reviews",
+  // Phase 0.9 cycle-milestone emitter (mentor + mentee, safeEmit + dedup).
+  await emitReviewApprovedAndReleased({
+    reviewId,
+    mentorId: review.mentor.id,
+    menteeId: review.menteeId,
+    menteeName: review.mentee.name ?? "your mentee",
+    pointsAwarded,
+    ctx: { cycleNumber: review.cycleNumber, cycleMonth: review.cycleMonth },
   });
 
-  // Notify mentee that their review is available
-  await createMentorshipNotification({
-    userId: review.menteeId,
-    title: "New Goal Review Available",
-    body: `Your Cycle ${review.cycleNumber} goal review has been completed and released. You earned ${pointsAwarded} achievement points!`,
-    link: "/my-program",
-  });
+  // Recompute denormalized cycleStage.
+  try {
+    const mentorshipRow = await prisma.mentorGoalReview.findUnique({
+      where: { id: reviewId },
+      select: { mentorshipId: true },
+    });
+    if (mentorshipRow) await recomputeMentorshipCycleStage(mentorshipRow.mentorshipId);
+  } catch (err) {
+    logger.warn({ err, reviewId }, "approveGoalReview: cycleStage recompute failed");
+  }
 
+  revalidatePath("/mentorship/reviews");
   revalidatePath("/mentorship-program/chair");
   revalidatePath("/my-program");
 }
@@ -826,16 +879,24 @@ export async function requestReviewChanges(formData: FormData) {
 
   if (review.status === "APPROVED") throw new Error("Cannot request changes on an approved review");
 
-  await prisma.mentorGoalReview.update({
+  const updated = await prisma.mentorGoalReview.update({
     where: { id: reviewId },
     data: {
       status: "CHANGES_REQUESTED",
       chairReviewerId: session.user.id,
       chairComments,
     },
+    select: { mentorshipId: true },
   });
 
   await syncMentorGoalReviewWorkflow(reviewId);
+
+  // Recompute denormalized cycleStage so the mentor Kanban shows CHANGES_REQUESTED.
+  try {
+    await recomputeMentorshipCycleStage(updated.mentorshipId);
+  } catch (err) {
+    logger.warn({ err, reviewId }, "requestReviewChanges: cycleStage recompute failed");
+  }
 
   await logAuditEvent({
     action: "MENTORSHIP_UPDATED",
