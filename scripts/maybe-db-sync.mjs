@@ -121,7 +121,9 @@ if (disableDbSync) {
 
 console.log("[db-sync] Vercel build detected. Running prisma migrate deploy...");
 console.log("[db-sync] NOTE: Using 'migrate deploy' (safe, applies pending migrations only).");
-console.log("[db-sync] This requires DIRECT_URL to point to a non-pooled database connection.");
+console.log(
+  "[db-sync] DIRECT_URL should prefer a direct database host, but Supabase session mode on port 5432 is allowed when direct IPv6 access is unavailable."
+);
 
 const directUrl = process.env.DIRECT_URL?.trim();
 
