@@ -10,7 +10,8 @@
  */
 import type { AchievementAwardTier, GoalRatingColor } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { POINT_TABLE, TIER_THRESHOLDS, computeTier } from "@/lib/goal-review-actions";
+import { POINT_TABLE } from "@/lib/goal-review-actions";
+import { TIER_THRESHOLDS, computeTier } from "@/lib/achievement-tier-utils";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 
 export type AwardProjection = {
