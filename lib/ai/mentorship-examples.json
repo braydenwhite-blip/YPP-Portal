@@ -1,0 +1,153 @@
+{
+  "examples": [
+    {
+      "label": "Instructor — ACHIEVED",
+      "menteeRole": "INSTRUCTOR",
+      "cycleNumber": 4,
+      "overallRating": "ACHIEVED",
+      "goals": [
+        {
+          "title": "Deliver 4 high-quality classes per month",
+          "description": "Complete and log at least 4 class sessions with student engagement tracked",
+          "progressMade": "I delivered all 4 scheduled classes this month. I tried a new interactive format for one of them using breakout discussions, which the students responded well to. I logged everything in the portal.",
+          "objectiveAchieved": true,
+          "accomplishments": "Delivered 4 classes, introduced a new breakout discussion format in week 3, and received positive informal feedback from students about the pace and clarity.",
+          "blockers": null,
+          "nextMonthPlans": "I want to refine the breakout discussion format and try it in 2 of my 4 classes next month. I also want to start collecting written feedback from students after each session."
+        },
+        {
+          "title": "Complete YPP curriculum alignment training",
+          "description": "Finish the online curriculum alignment modules and pass the competency check",
+          "progressMade": "I completed 3 of the 4 modules. The fourth module was longer than expected and I ran out of time. I expect to finish it in the first week of next month.",
+          "objectiveAchieved": false,
+          "accomplishments": "Completed modules 1–3, passed the quizzes for all three on the first attempt.",
+          "blockers": "Module 4 was released late and had about 2 hours of content. I didn't have a contiguous block of time to finish it before the deadline.",
+          "nextMonthPlans": "Finish module 4 in the first week and complete the final competency check."
+        }
+      ],
+      "priorReviews": [
+        {
+          "cycleNumber": 3,
+          "overallRating": "GETTING_STARTED",
+          "overallComments": "Jordan has been making progress but has struggled with consistency in class delivery. We discussed the importance of structured lesson plans.",
+          "goalRatings": [
+            { "title": "Deliver 4 high-quality classes per month", "rating": "GETTING_STARTED", "comments": "Only 3 classes completed this cycle." },
+            { "title": "Complete YPP curriculum alignment training", "rating": "GETTING_STARTED", "comments": "Modules 1–2 only." }
+          ]
+        }
+      ],
+      "idealReview": {
+        "overallComments": "Jordan showed meaningful growth this cycle — delivering all 4 classes and taking initiative on a new breakout discussion format demonstrates increasing confidence and creativity in the classroom. The near-miss on the curriculum training is understandable given the late module release, and the strong quiz performance shows genuine engagement with the material. This is a clear step up from last cycle's GETTING_STARTED rating and reflects Jordan settling into the instructor role.",
+        "planOfAction": "1. Complete module 4 of the curriculum alignment training in week 1 and pass the competency check. 2. Formalize the breakout discussion format into a reusable lesson plan template and apply it to at least 2 classes next month. 3. Begin collecting brief written feedback from students after each session — even a simple 2-question form will provide useful data. 4. Share one lesson plan with the mentor for feedback before month-end.",
+        "perGoalComments": {
+          "Deliver 4 high-quality classes per month": "All 4 classes completed — great job meeting the core commitment. The initiative to introduce a breakout discussion format is exactly the kind of deliberate improvement we want to see. For next month, focus on making this format repeatable and measurable rather than ad hoc.",
+          "Complete YPP curriculum alignment training": "Solid progress on modules 1–3 with first-attempt quiz passes. The late module 4 release was a real scheduling constraint, not an avoidance pattern. Make finishing it your first priority next cycle — the competency check completion will be tracked."
+        }
+      }
+    },
+    {
+      "label": "Instructor — GETTING_STARTED (with blockers)",
+      "menteeRole": "INSTRUCTOR",
+      "cycleNumber": 2,
+      "overallRating": "GETTING_STARTED",
+      "goals": [
+        {
+          "title": "Deliver 4 high-quality classes per month",
+          "description": "Complete and log at least 4 class sessions with student engagement tracked",
+          "progressMade": "I only managed to deliver 2 classes this month. I had some scheduling conflicts and one class got canceled because the room wasn't available.",
+          "objectiveAchieved": false,
+          "accomplishments": "The 2 classes I did deliver went well. Students were engaged and I got through all the planned material.",
+          "blockers": "Room booking issues canceled one class. A personal commitment took another week. I need to get better at scheduling further in advance.",
+          "nextMonthPlans": "Book all 4 class slots at the start of the month. Have a backup room option. Aim for the same time each week so students know when to expect me."
+        }
+      ],
+      "priorReviews": [],
+      "idealReview": {
+        "overallComments": "Alex is still finding their footing in cycle 2, which is normal for a new instructor. Two of four classes is below target, but the quality of the delivered sessions was solid and the self-reflection shows clear awareness of the root cause — advance scheduling and backup planning. The blockers were real but also addressable. Our focus for next cycle is purely operational: get all 4 classes booked on day 1 of the month.",
+        "planOfAction": "1. On the first day of next month, book all 4 class slots for the entire month — confirm room and add backups. 2. Add class dates to the YPP portal immediately after booking. 3. Set a phone reminder the week before each class to confirm logistics. 4. Send a brief message to students at the start of each week they have class. Review this checklist with mentor in the first week.",
+        "perGoalComments": {
+          "Deliver 4 high-quality classes per month": "2 of 4 classes delivered — below target, but the two that happened were high quality. The scheduling issues are fixable with a simple upfront planning habit. Your reflection demonstrates good self-awareness: booking all classes on day 1 of the month is the single most important action item for next cycle."
+        }
+      }
+    },
+    {
+      "label": "Chapter President — ABOVE_AND_BEYOND",
+      "menteeRole": "CHAPTER_PRESIDENT",
+      "cycleNumber": 9,
+      "overallRating": "ABOVE_AND_BEYOND",
+      "goals": [
+        {
+          "title": "Grow chapter membership by 10% this quarter",
+          "description": "Recruit new student members through outreach events and referrals; track in portal",
+          "progressMade": "We ran two recruitment events this month — a campus info booth and a panel with instructors. We added 14 new members, which puts us at 18% growth for the quarter so far with one month to go.",
+          "objectiveAchieved": true,
+          "accomplishments": "14 new members recruited. Info booth attracted 40+ conversations over two days. Instructor panel had 25 attendees, 12 of whom signed up. Developed a reusable recruitment event playbook shared with 3 other chapters.",
+          "blockers": null,
+          "nextMonthPlans": "Host a kick-off session for new members to build community. Push toward 20% growth for the quarter. Submit the recruitment playbook to the national office for consideration as a shared resource."
+        },
+        {
+          "title": "Host monthly chapter meeting with structured agenda",
+          "description": "Lead a chapter meeting each month using the standard YPP agenda template",
+          "progressMade": "Held the monthly meeting with 22 of 28 members attending (79%). Introduced a new icebreaker at the start that improved energy noticeably. The meeting ran 5 minutes over but covered all agenda items.",
+          "objectiveAchieved": true,
+          "accomplishments": "79% attendance, highest this year. New icebreaker format well received. All agenda items covered. Meeting notes distributed within 24 hours.",
+          "blockers": null,
+          "nextMonthPlans": "Onboard new members at the next meeting. Experiment with a more streamlined agenda to stay within the time window."
+        }
+      ],
+      "priorReviews": [
+        {
+          "cycleNumber": 8,
+          "overallRating": "ACHIEVED",
+          "overallComments": "Sam is performing consistently well and showing leadership in chapter operations. The recruitment goal was met last cycle; we've asked Sam to help document the approach for scalability.",
+          "goalRatings": [
+            { "title": "Grow chapter membership by 10% this quarter", "rating": "ACHIEVED", "comments": null },
+            { "title": "Host monthly chapter meeting with structured agenda", "rating": "ACHIEVED", "comments": null }
+          ]
+        }
+      ],
+      "idealReview": {
+        "overallComments": "Sam had an outstanding cycle — not just meeting targets but adding structural value to YPP beyond the chapter level. Eighteen percent membership growth heading into the final month, highest meeting attendance of the year at 79%, and proactively developing and sharing a recruitment playbook with peer chapters: this is exactly the kind of leadership we expect at the ABOVE_AND_BEYOND tier. Sam is consistently improving systems, not just executing them.",
+        "planOfAction": "1. Host a dedicated new-member kick-off session this month to integrate the 14 recruits and set expectations early. 2. Submit the recruitment playbook to the national office by [target date] — include metrics from both events. 3. Close out the quarter with a push toward 20% membership growth; track conversion from the kick-off session. 4. Streamline the monthly meeting agenda to hit the time window — draft the updated template and review with mentor. 5. Begin thinking about succession planning: who in the chapter could take on a leadership development role?",
+        "perGoalComments": {
+          "Grow chapter membership by 10% this quarter": "Eighteen percent growth with one month remaining — well above target. More importantly, the structured approach (info booth + instructor panel) and the playbook documentation show that Sam is building repeatable systems, not just getting lucky with numbers. Sharing that playbook with three other chapters is a model of YPP citizenship.",
+          "Host monthly chapter meeting with structured agenda": "Seventy-nine percent attendance is the chapter's highest this year — a direct result of intentional planning and the icebreaker addition. Meeting notes out within 24 hours sets a high bar. The 5-minute overrun is a minor issue; a tighter agenda structure will resolve it."
+        }
+      }
+    },
+    {
+      "label": "Instructor — BEHIND_SCHEDULE",
+      "menteeRole": "INSTRUCTOR",
+      "cycleNumber": 3,
+      "overallRating": "BEHIND_SCHEDULE",
+      "goals": [
+        {
+          "title": "Deliver 4 high-quality classes per month",
+          "description": "Complete and log at least 4 class sessions with student engagement tracked",
+          "progressMade": "I only taught 1 class this month. I've been going through some personal challenges and had trouble staying on schedule.",
+          "objectiveAchieved": false,
+          "accomplishments": "The one class I did teach was well prepared and went smoothly.",
+          "blockers": "Personal circumstances made it very hard to commit time. I also wasn't sure how to reschedule canceled classes and didn't reach out for help early enough.",
+          "nextMonthPlans": "Talk to my mentor about a realistic reduced schedule for next month. Commit to at least 2 classes and build back up."
+        }
+      ],
+      "priorReviews": [
+        {
+          "cycleNumber": 2,
+          "overallRating": "GETTING_STARTED",
+          "overallComments": "Taylor struggled with scheduling last cycle but showed willingness to improve. We set a clear expectation for cycle 3.",
+          "goalRatings": [
+            { "title": "Deliver 4 high-quality classes per month", "rating": "GETTING_STARTED", "comments": "2 of 4 classes completed." }
+          ]
+        }
+      ],
+      "idealReview": {
+        "overallComments": "This was a difficult cycle for Taylor. One class delivered out of four is below the threshold where catch-up is realistic without structural support. I want to acknowledge that Taylor identified the root causes clearly in their reflection and is already proposing a recovery plan — that honesty matters. Our immediate priority is a direct conversation about a realistic pace for next cycle, not maintaining the original target. Continued engagement is more important right now than hitting numbers.",
+        "planOfAction": "1. Schedule a 1:1 with mentor this week to discuss personal circumstances and set a realistic goal for next cycle (minimum 2 classes). 2. Establish a check-in cadence — a brief message to mentor at the start of each week to confirm class status. 3. Clarify the rescheduling process with the chapter coordinator so Taylor has a clear path when conflicts arise. 4. If 2 classes are delivered next month, we reassess the full 4-class target for cycle 5.",
+        "perGoalComments": {
+          "Deliver 4 high-quality classes per month": "One class this cycle. Given the context, the focus isn't on the gap but on building a sustainable foundation. The class that was delivered was high quality — that foundation is intact. The recovery plan starts with a realistic minimum for next cycle and a clear check-in process so issues surface earlier."
+        }
+      }
+    }
+  ]
+}

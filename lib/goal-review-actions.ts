@@ -174,6 +174,7 @@ export async function saveGoalReview(formData: FormData) {
   const projectedFuturePath = getString(formData, "projectedFuturePath", false);
   const promotionReadiness = getString(formData, "promotionReadiness", false);
   const submitForApproval = formData.get("submitForApproval") === "true";
+  const aiDraftUsed = formData.get("aiDraftUsed") === "true";
 
   // Character & Culture bonus points (0–25)
   const bonusPointsRaw = formData.get("bonusPoints");
@@ -259,6 +260,8 @@ export async function saveGoalReview(formData: FormData) {
           bonusPoints,
           bonusReason: bonusReason || null,
           status: newStatus,
+          // Only flip to true — once an AI draft was used, keep the flag
+          ...(aiDraftUsed ? { aiDraftUsed: true } : {}),
         },
       });
       // Replace goal ratings
@@ -296,6 +299,7 @@ export async function saveGoalReview(formData: FormData) {
           bonusPoints,
           bonusReason: bonusReason || null,
           status: newStatus,
+          aiDraftUsed,
           goalRatings: {
             create: goalRatings.map((gr) => ({
               goalId: gr.goalId,

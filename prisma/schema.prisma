@@ -8348,6 +8348,9 @@ model MentorGoalReview {
   pointLog         AchievementPointLog?
   feedbackRequests QuarterlyFeedbackRequest[] @relation("FeedbackRequests")
 
+  /// True if the mentor used an AI-generated draft as a starting point for any comment field.
+  aiDraftUsed Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
