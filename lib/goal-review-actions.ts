@@ -7,12 +7,12 @@ import {
   GoalRatingColor,
   GoalReviewStatus,
   MenteeRoleType,
-  AchievementAwardTier,
 } from "@prisma/client";
 import { logAuditEvent } from "@/lib/audit-log-actions";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import { createMentorshipNotification } from "@/lib/mentorship-program-actions";
 import { syncMentorGoalReviewWorkflow } from "@/lib/workflow";
+import { computeTier } from "@/lib/achievement-tier-utils";
 
 // ============================================
 // POINT TABLE
@@ -25,20 +25,6 @@ const POINT_TABLE: Record<GoalRatingColor, Record<MenteeRoleType, number>> = {
   ACHIEVED: { INSTRUCTOR: 35, CHAPTER_PRESIDENT: 50, GLOBAL_LEADERSHIP: 60 },
   ABOVE_AND_BEYOND: { INSTRUCTOR: 75, CHAPTER_PRESIDENT: 85, GLOBAL_LEADERSHIP: 100 },
 };
-
-const TIER_THRESHOLDS: { tier: AchievementAwardTier; min: number }[] = [
-  { tier: "LIFETIME", min: 1800 },
-  { tier: "GOLD", min: 700 },
-  { tier: "SILVER", min: 350 },
-  { tier: "BRONZE", min: 175 },
-];
-
-function computeTier(totalPoints: number): AchievementAwardTier | null {
-  for (const { tier, min } of TIER_THRESHOLDS) {
-    if (totalPoints >= min) return tier;
-  }
-  return null;
-}
 
 // ============================================
 // AUTH HELPERS
