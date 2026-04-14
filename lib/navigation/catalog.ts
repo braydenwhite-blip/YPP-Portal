@@ -128,6 +128,7 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 9,
     },
     { href: "/feedback/anonymous", label: "Anonymous Feedback", icon: "💬" },
+    { href: "/help", label: "Need help?", icon: "❓" },
   ]),
 
   ...groupLinks("Learning", 300, [
@@ -352,7 +353,7 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/mentorship/reviews",
-      label: "Chair Reviews",
+      label: "Monthly Review Inbox",
       icon: "✅",
       roles: MENTOR_ROLES,
       dashboardDescription: "Approve or return monthly goal reviews waiting on chair action.",
@@ -388,6 +389,7 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Program Overview",
       icon: "📋",
       roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
+      featureKey: "MENTORSHIP_LEGACY_UI",
       dashboardDescription: "View all active mentees, cycle status, and program-wide actions at a glance.",
     },
     {
@@ -395,6 +397,7 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Review Queue",
       icon: "📝",
       roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
+      featureKey: "MENTORSHIP_LEGACY_UI",
       dashboardDescription: "Write and submit monthly goal reviews for your assigned mentees.",
     },
     {
@@ -402,6 +405,7 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Chair Queue",
       icon: "✅",
       roles: ["ADMIN"] as NavRole[],
+      featureKey: "MENTORSHIP_LEGACY_UI",
       dashboardDescription: "Approve or request changes on mentor goal reviews before they are released.",
     },
     {
@@ -409,6 +413,7 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Awards",
       icon: "🏆",
       roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
+      featureKey: "MENTORSHIP_LEGACY_UI",
       dashboardDescription: "Nominate mentees for Bronze, Silver, Gold, and Lifetime achievement awards.",
     },
     {
@@ -453,6 +458,7 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Meeting Requests",
       icon: "📨",
       roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
+      featureKey: "MENTORSHIP_LEGACY_UI",
       dashboardDescription: "Review and confirm incoming meeting requests from your mentees.",
     },
     {

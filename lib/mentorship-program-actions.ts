@@ -1,3 +1,10 @@
+/**
+ * @deprecated LEGACY MODULE — do not add new server actions here.
+ * This module operates against the legacy MonthlyGoalReview / ReflectionForm /
+ * MentorshipAwardRecommendation models which are frozen pending Phase 1 migration.
+ * New code should use lib/goal-review-actions.ts and lib/self-reflection-actions.ts
+ * instead.
+ */
 "use server";
 
 import { getSession } from "@/lib/auth-supabase";

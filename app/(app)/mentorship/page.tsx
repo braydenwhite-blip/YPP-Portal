@@ -8,6 +8,7 @@ import { buildContextTrail } from "@/lib/context-trail";
 import { formatEnum } from "@/lib/format-utils";
 import { getMentorshipHubData } from "@/lib/mentorship-hub";
 import { shouldRouteStudentToMyProgram } from "@/lib/my-program-portal";
+import { prisma } from "@/lib/prisma";
 
 const HUB_GUIDE_ITEMS = [
   {
@@ -67,7 +68,27 @@ export default async function MentorshipPage() {
     trailItems = [];
   }
 
-  const hub = await getMentorshipHubData({ userId, roles });
+  const isMentorRole = roles.includes("MENTOR") || roles.includes("ADMIN") || roles.includes("CHAPTER_PRESIDENT");
+  const now = new Date();
+  const cycleMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const [hub, cycleSummary] = await Promise.all([
+    getMentorshipHubData({ userId, roles }),
+    isMentorRole
+      ? Promise.all([
+          prisma.monthlySelfReflection.count({
+            where: {
+              cycleMonth: { gte: cycleMonthStart },
+              mentorship: { status: "ACTIVE", mentorId: userId },
+              goalReview: null,
+            },
+          }),
+          prisma.mentorGoalReview.count({
+            where: { mentorId: userId, status: "PENDING_CHAIR_APPROVAL" },
+          }),
+        ]).then(([needsReview, awaitingChair]) => ({ needsReview, awaitingChair }))
+      : Promise.resolve(null),
+  ]);
   const studentCircle = hub.flags.isStudent ? hub.circles[0] ?? null : null;
 
   return (
@@ -119,6 +140,46 @@ export default async function MentorshipPage() {
         intro="This page is the front door to the mentorship system. Each block below answers a different question so you know where to look first."
         items={HUB_GUIDE_ITEMS}
       />
+
+      {cycleSummary && (cycleSummary.needsReview > 0 || cycleSummary.awaitingChair > 0) && (
+        <div
+          className="card"
+          style={{
+            marginBottom: 20,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+            flexWrap: "wrap",
+            borderLeft: "4px solid #6366f1",
+            background: "linear-gradient(135deg, #eef2ff 0%, #f8f9ff 100%)",
+          }}
+        >
+          <div>
+            {cycleSummary.needsReview > 0 && (
+              <div style={{ fontWeight: 700, marginBottom: cycleSummary.awaitingChair > 0 ? 4 : 0 }}>
+                {cycleSummary.needsReview} mentee{cycleSummary.needsReview === 1 ? "" : "s"} need
+                {cycleSummary.needsReview === 1 ? "s" : ""} your monthly review this cycle
+              </div>
+            )}
+            {cycleSummary.awaitingChair > 0 && (
+              <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
+                {cycleSummary.awaitingChair} review{cycleSummary.awaitingChair === 1 ? "" : "s"} you submitted{" "}
+                {cycleSummary.awaitingChair === 1 ? "is" : "are"} awaiting chair approval.
+              </p>
+            )}
+          </div>
+          {cycleSummary.needsReview > 0 && (
+            <Link
+              href="/mentorship/mentees"
+              className="button primary small"
+              style={{ whiteSpace: "nowrap" }}
+            >
+              View Mentees →
+            </Link>
+          )}
+        </div>
+      )}
 
       <div className="grid three" style={{ marginBottom: 24 }}>
         <div className="card">

@@ -4,6 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { ProgressStatus } from "@prisma/client";
+import { recomputeMentorshipCycleStage, getCurrentCycleMonth } from "@/lib/mentorship-cycle";
+import { emitReflectionWindowOpened } from "@/lib/mentorship-notifications";
+import { logger } from "@/lib/logger";
 
 // ============================================
 // MENTEE MANAGEMENT
@@ -366,4 +369,67 @@ export async function getMentorshipStats() {
     recentCheckIns,
     progressUpdates,
   };
+}
+
+// ============================================
+// KICKOFF (Phase 0.9)
+// ============================================
+
+/**
+ * Mark a mentorship's kickoff meeting complete. Only the assigned mentor or
+ * an admin may call this. Flips cycleStage to REFLECTION_DUE and fires the
+ * REFLECTION_WINDOW_OPENED notification to the mentee.
+ */
+export async function markKickoffComplete(formData: FormData) {
+  const session = await getSession();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+  const userId = session.user.id as string;
+  const roles = session.user.roles ?? [];
+  const isAdmin = roles.includes("ADMIN");
+
+  const mentorshipId = String(formData.get("mentorshipId") ?? "");
+  if (!mentorshipId) throw new Error("Missing mentorshipId");
+
+  const mentorship = await prisma.mentorship.findUnique({
+    where: { id: mentorshipId },
+    select: {
+      id: true,
+      mentorId: true,
+      menteeId: true,
+      kickoffCompletedAt: true,
+      status: true,
+    },
+  });
+  if (!mentorship) throw new Error("Mentorship not found");
+  if (mentorship.mentorId !== userId && !isAdmin) {
+    throw new Error("Only the assigned mentor or an admin may mark kickoff complete");
+  }
+  if (mentorship.kickoffCompletedAt) {
+    logger.info({ mentorshipId, userId }, "markKickoffComplete: already complete — no-op");
+    return;
+  }
+  if (mentorship.status !== "ACTIVE") {
+    throw new Error("Kickoff only applies to active mentorships");
+  }
+
+  await prisma.mentorship.update({
+    where: { id: mentorshipId },
+    data: { kickoffCompletedAt: new Date() },
+  });
+
+  try {
+    await recomputeMentorshipCycleStage(mentorshipId);
+  } catch (err) {
+    logger.warn({ err, mentorshipId }, "markKickoffComplete: cycleStage recompute failed");
+  }
+
+  const { cycleMonth } = getCurrentCycleMonth();
+  await emitReflectionWindowOpened({
+    menteeId: mentorship.menteeId,
+    ctx: { cycleNumber: 1, cycleMonth },
+  });
+
+  revalidatePath(`/mentorship/mentees/${mentorship.menteeId}`);
+  revalidatePath("/mentorship/mentees");
+  revalidatePath("/mentorship");
 }

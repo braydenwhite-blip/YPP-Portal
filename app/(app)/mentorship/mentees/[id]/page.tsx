@@ -4,7 +4,13 @@ import { notFound, redirect } from "next/navigation";
 
 import { FieldLabel } from "@/components/field-help";
 import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
+import { KickoffStatusRow } from "@/components/mentorship/kickoff-status-row";
+import { CycleStatusBlock } from "@/components/mentorship/cycle-status-block";
+import { ReviewSpine } from "@/components/mentorship/review-spine";
+import { getReviewSpineForMentee } from "@/lib/mentorship-cycle";
+import { requireReviewSpineAccess } from "@/lib/authorization-helpers";
 import { formatEnum } from "@/lib/format-utils";
+import { getCurrentCycleMonth, getReflectionSoftDeadline } from "@/lib/mentorship-cycle";
 import {
   SUPPORT_ROLE_META,
   getSupportWorkspaceData,
@@ -71,6 +77,12 @@ export default async function MenteeDetailPage({
     notFound();
   }
 
+  // Belt-and-suspenders authorization for the Review Spine; workspace auth
+  // already covers access, but the helper enforces the same rule at this layer
+  // in case this component grows additional branches.
+  await requireReviewSpineAccess(menteeId);
+  const reviewSpineCycles = await getReviewSpineForMentee(menteeId);
+
   const isSelfWorkspace = session.user.id === workspace.mentee.id;
   const canManageActionPlan = Boolean(workspace.mentorship || workspace.intakePlanLaunch) && !isSelfWorkspace;
   const canScheduleSessions = Boolean(workspace.mentorship) && !isSelfWorkspace;
@@ -112,6 +124,29 @@ export default async function MenteeDetailPage({
         intro="This workspace is the day-to-day operating area for one mentee. Work from top to bottom when you want the full picture."
         items={WORKSPACE_GUIDE_ITEMS}
       />
+
+      {workspace.mentorship && (
+        <>
+          <CycleStatusBlock
+            menteeId={workspace.mentee.id}
+            mentorshipId={workspace.mentorship.id}
+            cycleStage={workspace.mentorship.cycleStage ?? "REFLECTION_DUE"}
+            trackName={workspace.mentorship.track?.name ?? null}
+            cycleLabel={getCurrentCycleMonth().cycleLabel}
+            softDeadline={getReflectionSoftDeadline(getCurrentCycleMonth().cycleMonth)}
+          />
+          <KickoffStatusRow
+            mentorshipId={workspace.mentorship.id}
+            kickoffScheduledAt={workspace.mentorship.kickoffScheduledAt ?? null}
+            kickoffCompletedAt={workspace.mentorship.kickoffCompletedAt ?? null}
+            canMarkComplete={
+              workspace.mentorship.mentorId === session.user.id ||
+              (session.user.roles ?? []).includes("ADMIN")
+            }
+          />
+          <ReviewSpine cycles={reviewSpineCycles} title="Cycle timeline" />
+        </>
+      )}
 
       {!workspace.mentorship && !workspace.intakePlanLaunch ? (
         <section className="card" style={{ marginBottom: 24, borderLeft: "4px solid var(--gray-300, #d1d5db)" }}>
