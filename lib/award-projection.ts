@@ -5,14 +5,14 @@
  * Approve on a MentorGoalReview: points earned, running total, current tier,
  * projected tier, and whether a tier threshold will be crossed.
  *
- * Source of truth for point math is `POINT_TABLE` / `computeTier` in
- * `lib/goal-review-actions.ts`. Do not duplicate that logic here — import it.
+ * Source of truth for point math is `POINT_TABLE` / `computeTier`.
+ * Do not duplicate that logic here — import it.
  */
 import type { AchievementAwardTier, GoalRatingColor } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { POINT_TABLE } from "@/lib/goal-review-actions";
 import { TIER_THRESHOLDS, computeTier } from "@/lib/achievement-tier-utils";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
+import { POINT_TABLE } from "@/lib/mentorship-point-table";
 
 export type AwardProjection = {
   cyclePoints: number;

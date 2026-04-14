@@ -5,10 +5,10 @@ import { notFound, redirect } from "next/navigation";
 import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
 import { ReviewNotesBanner } from "@/components/review-notes-banner";
 import { GoalReviewForm } from "@/components/mentorship/goal-review-form";
-import { POINT_TABLE } from "@/lib/goal-review-actions";
 import { TIER_THRESHOLDS, computeTier } from "@/lib/achievement-tier-utils";
 import { getGoalsForMentee, ensureReviewGoalRatings } from "@/lib/mentorship-gr-binding";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
+import { POINT_TABLE } from "@/lib/mentorship-point-table";
 import { prisma } from "@/lib/prisma";
 
 const MONTHLY_REVIEW_GUIDE_ITEMS = [

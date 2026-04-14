@@ -225,6 +225,42 @@ const POLICY_BY_TYPE: Record<NotificationType, Omit<NotificationPolicy, "type">>
     email: true,
     smsPlanned: false,
   },
+  REFLECTION_WINDOW_OPENED: {
+    label: "Reflection Window Opened",
+    description:
+      "New monthly reflection openings stay in the portal so they appear alongside your current mentorship tasks.",
+    bucket: "portal_only",
+    portalHistory: true,
+    email: false,
+    smsPlanned: false,
+  },
+  REFLECTION_SUBMITTED: {
+    label: "Reflection Submitted",
+    description:
+      "Reflection submission handoffs stay in the portal so mentors can move directly into their monthly review workflow.",
+    bucket: "portal_only",
+    portalHistory: true,
+    email: false,
+    smsPlanned: false,
+  },
+  REVIEW_SUBMITTED_FOR_APPROVAL: {
+    label: "Review Submitted for Approval",
+    description:
+      "Chair approval requests stay in the portal so reviewers can open the exact mentorship review from their queue.",
+    bucket: "portal_only",
+    portalHistory: true,
+    email: false,
+    smsPlanned: false,
+  },
+  REVIEW_APPROVED_AND_RELEASED: {
+    label: "Review Approved and Released",
+    description:
+      "Review release updates stay in portal history so mentors and mentees can revisit the final result and awarded points.",
+    bucket: "portal_only",
+    portalHistory: true,
+    email: false,
+    smsPlanned: false,
+  },
 };
 
 export function getNotificationPolicy(type: NotificationType): NotificationPolicy {

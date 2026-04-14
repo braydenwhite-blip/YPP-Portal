@@ -103,9 +103,7 @@ export async function getApprovableGoalReviewsForUser(
   const menteesInLanes = await prisma.user.findMany({
     where: {
       primaryRole: {
-        in: lanes
-          .map((lane) => laneRoleTypeToRoleString(lane))
-          .filter((role): role is RoleType => role !== null),
+        in: lanes.map((lane) => laneRoleTypeToRoleString(lane)),
       },
     },
     select: { id: true },
@@ -177,13 +175,11 @@ export async function requireChairForLane(laneRoleType: MenteeRoleType) {
  * Maps a MenteeRoleType enum value to the corresponding RoleType enum used
  * on User.primaryRole, so we can filter mentees by lane.
  */
-function laneRoleTypeToRoleString(lane: MenteeRoleType): RoleType | null {
-  const map: Partial<Record<MenteeRoleType, RoleType>> = {
+function laneRoleTypeToRoleString(lane: MenteeRoleType): RoleType {
+  const map: Record<MenteeRoleType, RoleType> = {
     INSTRUCTOR: RoleType.INSTRUCTOR,
     CHAPTER_PRESIDENT: RoleType.CHAPTER_PRESIDENT,
     GLOBAL_LEADERSHIP: RoleType.STAFF, // STAFF covers global leadership in the current schema
-    STAFF: RoleType.STAFF,
-    STUDENT: RoleType.STUDENT,
   };
-  return map[lane] ?? null;
+  return map[lane];
 }
