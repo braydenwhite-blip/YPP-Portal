@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { withPrismaFallback } from "@/lib/prisma-guard";
 import type { BusyInterval } from "@/lib/scheduling/shared";
 
 export async function getUserBusyIntervals(userId: string, from = new Date()) {
@@ -25,30 +26,35 @@ export async function getUserBusyIntervals(userId: string, from = new Date()) {
         durationMinutes: true,
       },
     }),
-    prisma.collegeAdvisorMeeting.findMany({
-      where: {
-        scheduledAt: { gte: from },
-        status: { in: ["REQUESTED", "CONFIRMED"] },
-        OR: [
-          {
-            advisorship: {
-              adviseeId: userId,
-            },
-          },
-          {
-            advisorship: {
-              advisor: {
-                userId,
+    withPrismaFallback(
+      "scheduling:getUserBusyIntervals:collegeAdvisorMeetings",
+      () =>
+        prisma.collegeAdvisorMeeting.findMany({
+          where: {
+            scheduledAt: { gte: from },
+            status: { in: ["REQUESTED", "CONFIRMED"] },
+            OR: [
+              {
+                advisorship: {
+                  adviseeId: userId,
+                },
               },
-            },
+              {
+                advisorship: {
+                  advisor: {
+                    userId,
+                  },
+                },
+              },
+            ],
           },
-        ],
-      },
-      select: {
-        scheduledAt: true,
-        durationMinutes: true,
-      },
-    }),
+          select: {
+            scheduledAt: true,
+            durationMinutes: true,
+          },
+        }),
+      [],
+    ),
   ]);
 
   const intervals: BusyInterval[] = [];

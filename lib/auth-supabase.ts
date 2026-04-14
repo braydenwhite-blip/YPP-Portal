@@ -17,31 +17,54 @@ export type SessionUser = {
   awards?: { type: string | null }[];
 };
 
+const sessionUserSelect = {
+  id: true,
+  name: true,
+  email: true,
+  primaryRole: true,
+  chapterId: true,
+  archivedAt: true,
+  roles: { select: { role: true } },
+  adminSubtypes: { select: { subtype: true } },
+  awards: {
+    select: { type: true },
+    orderBy: { awardedAt: "desc" },
+    take: 24,
+  },
+} as const;
+
 async function resolvePrismaUserForSession(where: {
   supabaseAuthId?: string;
   id?: string;
   email?: string;
 }) {
-  return prisma.user.findFirst({
-    where: {
-      ...where,
-      archivedAt: null,
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      primaryRole: true,
-      chapterId: true,
-      roles: { select: { role: true } },
-      adminSubtypes: { select: { subtype: true } },
-      awards: {
-        select: { type: true },
-        orderBy: { awardedAt: "desc" },
-        take: 24,
+  if (where.supabaseAuthId) {
+    const user = await prisma.user.findUnique({
+      where: { supabaseAuthId: where.supabaseAuthId },
+      select: sessionUserSelect,
+    });
+    return user?.archivedAt ? null : user;
+  }
+
+  if (where.id) {
+    const user = await prisma.user.findUnique({
+      where: { id: where.id },
+      select: sessionUserSelect,
+    });
+    return user?.archivedAt ? null : user;
+  }
+
+  if (where.email) {
+    return prisma.user.findFirst({
+      where: {
+        email: where.email,
+        archivedAt: null,
       },
-    },
-  });
+      select: sessionUserSelect,
+    });
+  }
+
+  return null;
 }
 
 /**

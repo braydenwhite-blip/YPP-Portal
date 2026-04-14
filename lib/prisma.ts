@@ -1,14 +1,68 @@
 import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient | undefined };
+const globalForPrismaWarnings = global as unknown as {
+  prismaRuntimeUrlWarningShown?: boolean;
+};
 
-function isSupabasePoolerUrl(rawUrl: string): boolean {
+function parseUrl(rawUrl: string): URL | null {
   try {
-    const url = new URL(rawUrl);
-    const host = url.hostname.toLowerCase();
-    return host.includes("pooler.supabase.com") || url.port === "6543";
+    return new URL(rawUrl);
   } catch {
-    return false;
+    return null;
+  }
+}
+
+function isSupabaseTransactionPoolerUrl(rawUrl: string): boolean {
+  const url = parseUrl(rawUrl);
+  return Boolean(
+    url &&
+      url.hostname.toLowerCase().includes("pooler.supabase.com") &&
+      url.port === "6543"
+  );
+}
+
+function isSupabaseSessionPoolerUrl(rawUrl: string): boolean {
+  const url = parseUrl(rawUrl);
+  return Boolean(
+    url &&
+      url.hostname.toLowerCase().includes("pooler.supabase.com") &&
+      url.port === "5432"
+  );
+}
+
+function describeConnectionTarget(rawUrl: string): string {
+  const url = parseUrl(rawUrl);
+  if (!url) return "invalid URL";
+  return `${url.hostname}:${url.port || "(default)"}`;
+}
+
+function warnOnce(message: string) {
+  if (globalForPrismaWarnings.prismaRuntimeUrlWarningShown) return;
+  globalForPrismaWarnings.prismaRuntimeUrlWarningShown = true;
+  console.warn(message);
+}
+
+function warnIfDatabaseUrlsLookWrong(params: {
+  explicitRuntimeUrl?: string;
+  databaseUrl?: string;
+  directUrl?: string;
+}) {
+  const { explicitRuntimeUrl, databaseUrl, directUrl } = params;
+
+  if (!explicitRuntimeUrl && databaseUrl && isSupabaseSessionPoolerUrl(databaseUrl)) {
+    warnOnce(
+      `[prisma] DATABASE_URL points to Supabase session pooler ` +
+        `(${describeConnectionTarget(databaseUrl)}). Use the transaction pooler on port 6543 for runtime queries.`
+    );
+    return;
+  }
+
+  if (!explicitRuntimeUrl && directUrl && isSupabaseSessionPoolerUrl(directUrl)) {
+    warnOnce(
+      `[prisma] DIRECT_URL points to Supabase session pooler ` +
+        `(${describeConnectionTarget(directUrl)}). DIRECT_URL should use the direct database host for migrations.`
+    );
   }
 }
 
@@ -18,8 +72,7 @@ function normalizeDatabaseUrl(rawUrl: string): string {
     const host = url.hostname.toLowerCase();
     const isSupabaseHost =
       host.endsWith(".supabase.co") || host.endsWith(".pooler.supabase.com");
-    const isSupabasePooler =
-      host.includes("pooler.supabase.com") || url.port === "6543";
+    const isSupabaseTransactionPooler = isSupabaseTransactionPoolerUrl(rawUrl);
 
     // Supabase connections require SSL from serverless runtimes.
     if (isSupabaseHost && !url.searchParams.has("sslmode")) {
@@ -27,7 +80,7 @@ function normalizeDatabaseUrl(rawUrl: string): string {
     }
 
     // Transaction poolers (e.g. Supabase PgBouncer) need Prisma flags.
-    if (isSupabasePooler) {
+    if (isSupabaseTransactionPooler) {
       if (url.searchParams.get("pgbouncer") !== "true") {
         url.searchParams.set("pgbouncer", "true");
       }
@@ -47,16 +100,12 @@ function getRuntimeDatabaseUrl(): string | undefined {
   const explicitRuntimeUrl = process.env.PRISMA_RUNTIME_DATABASE_URL?.trim();
   const databaseUrl = process.env.DATABASE_URL?.trim();
   const directUrl = process.env.DIRECT_URL?.trim();
-  // If DATABASE_URL points to Supabase pooler and DIRECT_URL exists,
-  // prefer DIRECT_URL for runtime reliability.
-  const shouldPreferDirectUrl =
-    !explicitRuntimeUrl &&
-    Boolean(databaseUrl) &&
-    Boolean(directUrl) &&
-    isSupabasePoolerUrl(databaseUrl as string);
-  const selectedUrl = shouldPreferDirectUrl
-    ? directUrl
-    : explicitRuntimeUrl || databaseUrl || directUrl;
+
+  warnIfDatabaseUrlsLookWrong({ explicitRuntimeUrl, databaseUrl, directUrl });
+
+  // Runtime queries should prefer the pooled DATABASE_URL.
+  // DIRECT_URL is reserved for migrations and other non-serverless access.
+  const selectedUrl = explicitRuntimeUrl || databaseUrl || directUrl;
 
   if (!selectedUrl) return undefined;
   return normalizeDatabaseUrl(selectedUrl);

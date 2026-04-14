@@ -10,6 +10,7 @@ interface StudioStartStepEntryProps {
   onApplyStarterScaffold: (seed: SeedCurriculum) => void;
   onMoveForward: () => void;
   onOpenStarterTour: () => void;
+  onOpenQuickStartWizard: () => void;
 }
 
 function normalizeTopic(value: string) {
@@ -36,6 +37,7 @@ export function StudioStartStepEntry({
   onApplyStarterScaffold,
   onMoveForward,
   onOpenStarterTour,
+  onOpenQuickStartWizard,
 }: StudioStartStepEntryProps) {
   const recommendedScaffoldId =
     SEED_CURRICULA.reduce<{ seed: SeedCurriculum; score: number } | null>(
@@ -58,6 +60,7 @@ export function StudioStartStepEntry({
       onApplyStarterScaffold={onApplyStarterScaffold}
       onMoveForward={onMoveForward}
       onOpenStarterTour={onOpenStarterTour}
+      onOpenQuickStartWizard={onOpenQuickStartWizard}
     />
   );
 }

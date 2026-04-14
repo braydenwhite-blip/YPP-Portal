@@ -9,6 +9,77 @@ function envIsTrue(v) {
   return v === "1" || v === "true" || v === "yes";
 }
 
+function parseUrl(rawUrl) {
+  try {
+    return new URL(rawUrl);
+  } catch {
+    return null;
+  }
+}
+
+function isSupabaseSessionPoolerUrl(rawUrl) {
+  const url = parseUrl(rawUrl);
+  return Boolean(
+    url &&
+      url.hostname.toLowerCase().includes("pooler.supabase.com") &&
+      url.port === "5432"
+  );
+}
+
+function describeConnectionTarget(rawUrl) {
+  const url = parseUrl(rawUrl);
+  if (!url) return "invalid URL";
+  return `${url.hostname}:${url.port || "(default)"}`;
+}
+
+function extractSupabaseProjectRef(rawUrl) {
+  const url = parseUrl(rawUrl);
+  if (!url) return null;
+
+  const hostMatch = url.hostname.match(/^db\.([a-z0-9-]+)\.supabase\.co$/i);
+  if (hostMatch?.[1]) {
+    return hostMatch[1];
+  }
+
+  const usernameMatch = decodeURIComponent(url.username).match(/^postgres\.([a-z0-9-]+)$/i);
+  if (usernameMatch?.[1]) {
+    return usernameMatch[1];
+  }
+
+  return null;
+}
+
+function logSupabaseDirectUrlFix(rawUrl) {
+  const url = parseUrl(rawUrl);
+  const target = describeConnectionTarget(rawUrl);
+  const ref = extractSupabaseProjectRef(rawUrl);
+  const currentUser = url ? decodeURIComponent(url.username || "(missing)") : "(missing)";
+
+  console.error(
+    `[db-sync] DIRECT_URL points to the Supabase session pooler (${target}).`
+  );
+  console.error(
+    "[db-sync] Prisma migrations must use the direct database host, not the pooler."
+  );
+  console.error(
+    `[db-sync] Current Supabase user looks like: ${currentUser}`
+  );
+
+  if (ref) {
+    console.error(
+      `[db-sync] Fix DIRECT_URL in Vercel to use host db.${ref}.supabase.co:5432 and user postgres.`
+    );
+  } else {
+    console.error(
+      "[db-sync] Fix DIRECT_URL in Vercel to use host db.<project-ref>.supabase.co:5432 and user postgres."
+    );
+  }
+
+  console.error(
+    "[db-sync] Keep DATABASE_URL on the transaction pooler (usually port 6543)."
+  );
+}
+
 /** Run a command, streaming output live. Returns the exit code. */
 function run(cmd, args) {
   const res = spawnSync(cmd, args, { stdio: "inherit" });
@@ -51,6 +122,21 @@ if (disableDbSync) {
 console.log("[db-sync] Vercel build detected. Running prisma migrate deploy...");
 console.log("[db-sync] NOTE: Using 'migrate deploy' (safe, applies pending migrations only).");
 console.log("[db-sync] This requires DIRECT_URL to point to a non-pooled database connection.");
+
+const directUrl = process.env.DIRECT_URL?.trim();
+
+if (directUrl && isSupabaseSessionPoolerUrl(directUrl)) {
+  logSupabaseDirectUrlFix(directUrl);
+
+  if (requireDbSync) {
+    console.error("[db-sync] REQUIRE_DB_SYNC=1 is set — failing the build.");
+    process.exit(1);
+  }
+
+  console.warn("[db-sync] ⚠️  Continuing the build WITHOUT applying migrations.");
+  console.warn("[db-sync] Set REQUIRE_DB_SYNC=1 to fail the build on migration errors.");
+  process.exit(0);
+}
 
 let status = 0;
 let output = "";
