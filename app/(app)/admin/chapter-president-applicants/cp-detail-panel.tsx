@@ -77,9 +77,10 @@ export default function CPDetailPanel({
     scoreLeadership: app.scoreLeadership,
     scoreVision: app.scoreVision,
     scoreOrganization: app.scoreOrganization,
-    scoreCommitment: app.scoreCommitment,
+    scoreCommunication: app.scoreCommunication,
     scoreFit: app.scoreFit,
   });
+  const [interviewSummary, setInterviewSummary] = useState(app.interviewSummary || "");
   const [notes, setNotes] = useState(app.reviewerNotes || "");
   const [selectedReviewer, setSelectedReviewer] = useState(app.reviewerId || "");
   const [saving, setSaving] = useState(false);
@@ -92,19 +93,20 @@ export default function CPDetailPanel({
       scoreLeadership: app.scoreLeadership,
       scoreVision: app.scoreVision,
       scoreOrganization: app.scoreOrganization,
-      scoreCommitment: app.scoreCommitment,
+      scoreCommunication: app.scoreCommunication,
       scoreFit: app.scoreFit,
     });
+    setInterviewSummary(app.interviewSummary || "");
     setNotes(app.reviewerNotes || "");
     setSelectedReviewer(app.reviewerId || "");
-  }, [app.id, app.scoreLeadership, app.scoreVision, app.scoreOrganization, app.scoreCommitment, app.scoreFit, app.reviewerNotes, app.reviewerId]);
+  }, [app.id, app.scoreLeadership, app.scoreVision, app.scoreOrganization, app.scoreCommunication, app.scoreFit, app.interviewSummary, app.reviewerNotes, app.reviewerId]);
 
   // Save scores & notes
   async function handleSaveScores() {
     setSaving(true);
-    const result = await saveCPScoresAndNotes(app.id, { ...scores, reviewerNotes: notes });
+    const result = await saveCPScoresAndNotes(app.id, { ...scores, interviewSummary, reviewerNotes: notes });
     if (result.success) {
-      onUpdate({ id: app.id, ...scores, reviewerNotes: notes });
+      onUpdate({ id: app.id, ...scores, interviewSummary, reviewerNotes: notes });
       toast.show("Scores saved");
     } else {
       toast.show(result.error || "Failed to save");
@@ -142,6 +144,8 @@ export default function CPDetailPanel({
 
     const statusMap: Record<string, string> = {
       mark_under_review: "UNDER_REVIEW",
+      mark_interview_complete: "INTERVIEW_COMPLETED",
+      submit_recommendation: "RECOMMENDATION_SUBMITTED",
       approve: "APPROVED",
       reject: "REJECTED",
     };
@@ -420,44 +424,56 @@ export default function CPDetailPanel({
         </select>
       </div>
 
-      {/* Scoring Rubric */}
+      {/* Interview Evaluation — scored after the interview */}
       <div className="slideout-section">
         <div className="slideout-section-title">
-          Evaluation Scores
+          Interview Evaluation
           <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, marginLeft: 8, fontSize: 11 }}>
-            Click blocks to score, click again to mark &quot;Not Enough Info&quot;
+            Click blocks to score · click again to clear
           </span>
         </div>
         <ScoreBar
-          label="Leadership"
+          label="Communication & Presentation"
+          value={scores.scoreCommunication}
+          onChange={(v) => setScores((s) => ({ ...s, scoreCommunication: v }))}
+        />
+        <ScoreBar
+          label="Leadership Presence"
           value={scores.scoreLeadership}
           onChange={(v) => setScores((s) => ({ ...s, scoreLeadership: v }))}
         />
         <ScoreBar
-          label="Vision & Strategy"
-          value={scores.scoreVision}
-          onChange={(v) => setScores((s) => ({ ...s, scoreVision: v }))}
-        />
-        <ScoreBar
-          label="Organization"
+          label="Professionalism & Preparation"
           value={scores.scoreOrganization}
           onChange={(v) => setScores((s) => ({ ...s, scoreOrganization: v }))}
         />
         <ScoreBar
-          label="Commitment"
-          value={scores.scoreCommitment}
-          onChange={(v) => setScores((s) => ({ ...s, scoreCommitment: v }))}
+          label="Passion for YPP&apos;s Mission"
+          value={scores.scoreVision}
+          onChange={(v) => setScores((s) => ({ ...s, scoreVision: v }))}
         />
         <ScoreBar
           label="Cultural Fit"
           value={scores.scoreFit}
           onChange={(v) => setScores((s) => ({ ...s, scoreFit: v }))}
         />
+        <div style={{ marginTop: 12 }}>
+          <div className="slideout-field-label" style={{ marginBottom: 4 }}>Interview Summary</div>
+          <textarea
+            className="input"
+            value={interviewSummary}
+            onChange={(e) => setInterviewSummary(e.target.value)}
+            rows={3}
+            placeholder="Overall takeaway from the interview — key signals, standout moments..."
+            style={{ marginBottom: 0 }}
+            disabled={isFinal}
+          />
+        </div>
       </div>
 
       {/* Reviewer Notes */}
       <div className="slideout-section">
-        <div className="slideout-section-title">Reviewer Notes</div>
+        <div className="slideout-section-title">Internal Notes</div>
         <textarea
           className="input"
           value={notes}
@@ -492,31 +508,77 @@ export default function CPDetailPanel({
                 Begin Review
               </button>
             )}
-            <button
-              className="button"
-              onClick={() => {
-                if (app.status !== "INTERVIEW_COMPLETED") {
-                  if (!confirm("This applicant hasn't completed an interview yet. Approve anyway?")) return;
-                }
-                handleAction("approve");
-              }}
-              disabled={saving}
-              style={{ fontSize: 12, background: "#16a34a" }}
-            >
-              Approve
-            </button>
-            <button
-              className="button"
-              onClick={() => {
-                const reason = prompt("Rejection reason (required):");
-                if (!reason?.trim()) return;
-                handleAction("reject", { reason });
-              }}
-              disabled={saving}
-              style={{ fontSize: 12, background: "#dc2626" }}
-            >
-              Reject
-            </button>
+            {app.status === "INTERVIEW_SCHEDULED" && (
+              <button
+                className="button secondary"
+                onClick={() => handleAction("mark_interview_complete")}
+                disabled={saving}
+                style={{ fontSize: 12 }}
+              >
+                Mark Interview Complete
+              </button>
+            )}
+            {app.status === "INTERVIEW_COMPLETED" && (
+              <button
+                className="button"
+                onClick={() => handleAction("submit_recommendation")}
+                disabled={saving}
+                style={{ fontSize: 12, background: "#7c3aed" }}
+              >
+                Submit Recommendation
+              </button>
+            )}
+            {app.status === "RECOMMENDATION_SUBMITTED" && (
+              <>
+                <button
+                  className="button"
+                  onClick={() => handleAction("approve")}
+                  disabled={saving}
+                  style={{ fontSize: 12, background: "#16a34a" }}
+                >
+                  Approve (Final)
+                </button>
+                <button
+                  className="button"
+                  onClick={() => {
+                    const reason = prompt("Rejection reason (required):");
+                    if (!reason?.trim()) return;
+                    handleAction("reject", { reason });
+                  }}
+                  disabled={saving}
+                  style={{ fontSize: 12, background: "#dc2626" }}
+                >
+                  Reject (Final)
+                </button>
+              </>
+            )}
+            {!["SUBMITTED", "INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED", "RECOMMENDATION_SUBMITTED"].includes(app.status) && (
+              <>
+                <button
+                  className="button"
+                  onClick={() => {
+                    if (!confirm("Approve this application without completing the full interview flow?")) return;
+                    handleAction("approve");
+                  }}
+                  disabled={saving}
+                  style={{ fontSize: 12, background: "#16a34a" }}
+                >
+                  Approve
+                </button>
+                <button
+                  className="button"
+                  onClick={() => {
+                    const reason = prompt("Rejection reason (required):");
+                    if (!reason?.trim()) return;
+                    handleAction("reject", { reason });
+                  }}
+                  disabled={saving}
+                  style={{ fontSize: 12, background: "#dc2626" }}
+                >
+                  Reject
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

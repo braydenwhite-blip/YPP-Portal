@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { getHiringChairQueue } from "@/lib/application-actions";
 import ChairDecisionActions from "./chair-decision-actions";
+import RecommendationDistributionChart from "./recommendation-chart";
 
 export const metadata = { title: "Hiring Chair Queue | YPP" };
 
@@ -24,6 +25,16 @@ export default async function HiringCommitteePage() {
   const pendingHires = queue.filter((item) => item.accepted).length;
   const pendingRejections = queue.length - pendingHires;
 
+  // Build note recommendation distribution from all attached interview notes
+  const noteCounts = { STRONG_YES: 0, YES: 0, MAYBE: 0, NO: 0 };
+  for (const decision of queue) {
+    for (const note of decision.application.interviewNotes) {
+      if (note.recommendation && note.recommendation in noteCounts) {
+        noteCounts[note.recommendation as keyof typeof noteCounts]++;
+      }
+    }
+  }
+
   return (
     <div>
       <div className="topbar">
@@ -35,6 +46,12 @@ export default async function HiringCommitteePage() {
           </p>
         </div>
       </div>
+
+      <RecommendationDistributionChart
+        hireCount={pendingHires}
+        rejectCount={pendingRejections}
+        noteCounts={noteCounts}
+      />
 
       <div className="grid three" style={{ marginBottom: 20 }}>
         <div className="card">

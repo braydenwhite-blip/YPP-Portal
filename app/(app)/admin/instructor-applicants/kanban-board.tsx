@@ -30,6 +30,10 @@ export type InstructorApp = {
   scoreLeadership: number | null;
   scoreMotivation: number | null;
   scoreFit: number | null;
+  scoreSubjectKnowledge: number | null;
+  scoreTeachingMethodology: number | null;
+  scoreCurriculumAlignment: number | null;
+  curriculumReviewSummary: string | null;
   decisionRecommendation: string | null;
   actionDueDate: string | null;
   createdAt: string;
@@ -75,17 +79,19 @@ const COLUMNS: KanbanColumnDef[] = [
     color: "#2563eb",
   },
   {
-    id: "to_interview",
-    title: "Curriculum Overview",
+    id: "awaiting_curriculum_review",
+    title: "Awaiting Curriculum Review",
     statuses: ["INTERVIEW_SCHEDULED"],
     color: "#0f766e",
   },
   {
-    id: "awaiting_chair_decision",
-    title: "Overview Done / Awaiting Decision",
-    statuses: ["INTERVIEW_COMPLETED", "APPROVED", "REJECTED"],
+    id: "overview_complete",
+    title: "Overview Complete",
+    statuses: ["INTERVIEW_COMPLETED"],
     color: "#7c3aed",
   },
+  { id: "accepted", title: "Accepted", statuses: ["APPROVED"], color: "#16a34a" },
+  { id: "rejected", title: "Rejected", statuses: ["REJECTED"], color: "#dc2626" },
 ];
 
 /* ── Instructor-specific deadline formatting ────────── */
@@ -96,7 +102,7 @@ function formatInstructorDeadline(app: InstructorApp): { text: string; className
   if (app.status === "INTERVIEW_SCHEDULED" && app.interviewScheduledAt) {
     const d = new Date(app.interviewScheduledAt);
     return {
-      text: `Overview ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`,
+      text: `Curriculum review ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`,
       className: "kanban-card-deadline normal",
     };
   }
@@ -114,11 +120,12 @@ function ApplicantCard({
   onClick: () => void;
   isDragging?: boolean;
 }) {
+  // Prefer new curriculum-review scores; fall back to legacy scores if not yet set
   const comp = compositeScore([
-    app.scoreAcademic,
+    app.scoreSubjectKnowledge ?? app.scoreAcademic,
     app.scoreCommunication,
-    app.scoreLeadership,
-    app.scoreMotivation,
+    app.scoreTeachingMethodology ?? app.scoreLeadership,
+    app.scoreCurriculumAlignment ?? app.scoreMotivation,
     app.scoreFit,
   ]);
   const deadline = formatInstructorDeadline(app);

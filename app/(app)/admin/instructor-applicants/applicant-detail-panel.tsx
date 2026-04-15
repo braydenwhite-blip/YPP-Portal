@@ -123,12 +123,13 @@ export default function ApplicantDetailPanel({
 }) {
   // Local state for editable fields
   const [scores, setScores] = useState({
-    scoreAcademic: app.scoreAcademic,
+    scoreSubjectKnowledge: app.scoreSubjectKnowledge,
     scoreCommunication: app.scoreCommunication,
-    scoreLeadership: app.scoreLeadership,
-    scoreMotivation: app.scoreMotivation,
+    scoreTeachingMethodology: app.scoreTeachingMethodology,
+    scoreCurriculumAlignment: app.scoreCurriculumAlignment,
     scoreFit: app.scoreFit,
   });
+  const [curriculumReviewSummary, setCurriculumReviewSummary] = useState(app.curriculumReviewSummary || "");
   const [notes, setNotes] = useState(app.reviewerNotes || "");
   const [recommendation, setRecommendation] = useState(app.decisionRecommendation || "");
   const [dueDate, setDueDate] = useState(app.actionDueDate ? app.actionDueDate.slice(0, 10) : "");
@@ -140,18 +141,19 @@ export default function ApplicantDetailPanel({
   // Reset local state when app changes
   useEffect(() => {
     setScores({
-      scoreAcademic: app.scoreAcademic,
+      scoreSubjectKnowledge: app.scoreSubjectKnowledge,
       scoreCommunication: app.scoreCommunication,
-      scoreLeadership: app.scoreLeadership,
-      scoreMotivation: app.scoreMotivation,
+      scoreTeachingMethodology: app.scoreTeachingMethodology,
+      scoreCurriculumAlignment: app.scoreCurriculumAlignment,
       scoreFit: app.scoreFit,
     });
+    setCurriculumReviewSummary(app.curriculumReviewSummary || "");
     setNotes(app.reviewerNotes || "");
     setRecommendation(app.decisionRecommendation || "");
     setDueDate(app.actionDueDate ? app.actionDueDate.slice(0, 10) : "");
     setSelectedReviewer(app.reviewerId || "");
     setActionMessage(null);
-  }, [app.id, app.scoreAcademic, app.scoreCommunication, app.scoreLeadership, app.scoreMotivation, app.scoreFit, app.reviewerNotes, app.decisionRecommendation, app.actionDueDate, app.reviewerId]);
+  }, [app.id, app.scoreSubjectKnowledge, app.scoreCommunication, app.scoreTeachingMethodology, app.scoreCurriculumAlignment, app.scoreFit, app.curriculumReviewSummary, app.reviewerNotes, app.decisionRecommendation, app.actionDueDate, app.reviewerId]);
 
   // Close on Escape
   useEffect(() => {
@@ -170,9 +172,9 @@ export default function ApplicantDetailPanel({
   // Save scores & notes
   async function handleSaveScores() {
     setSaving(true);
-    const result = await saveScoresAndNotes(app.id, { ...scores, reviewerNotes: notes });
+    const result = await saveScoresAndNotes(app.id, { ...scores, curriculumReviewSummary, reviewerNotes: notes });
     if (result.success) {
-      onUpdate({ id: app.id, ...scores, reviewerNotes: notes });
+      onUpdate({ id: app.id, ...scores, curriculumReviewSummary, reviewerNotes: notes });
       showMessage("Scores saved");
     } else {
       showMessage(result.error || "Failed to save");
@@ -472,18 +474,28 @@ export default function ApplicantDetailPanel({
             )}
           </div>
 
-          {/* Scoring Rubric */}
+          {/* Curriculum Review Rubric */}
           <div className="slideout-section">
             <div className="slideout-section-title">
-              Evaluation Scores
+              Curriculum Review Scores
               <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, marginLeft: 8, fontSize: 11 }}>
-                Click blocks to score, click again to mark "Not Enough Info"
+                Click blocks to score · click again to clear
               </span>
             </div>
             <ScoreBar
-              label="Academic Standing"
-              value={scores.scoreAcademic}
-              onChange={(v) => setScores((s) => ({ ...s, scoreAcademic: v }))}
+              label="Subject Matter Knowledge"
+              value={scores.scoreSubjectKnowledge}
+              onChange={(v) => setScores((s) => ({ ...s, scoreSubjectKnowledge: v }))}
+            />
+            <ScoreBar
+              label="Teaching Methodology"
+              value={scores.scoreTeachingMethodology}
+              onChange={(v) => setScores((s) => ({ ...s, scoreTeachingMethodology: v }))}
+            />
+            <ScoreBar
+              label="Curriculum Alignment"
+              value={scores.scoreCurriculumAlignment}
+              onChange={(v) => setScores((s) => ({ ...s, scoreCurriculumAlignment: v }))}
             />
             <ScoreBar
               label="Communication"
@@ -491,20 +503,22 @@ export default function ApplicantDetailPanel({
               onChange={(v) => setScores((s) => ({ ...s, scoreCommunication: v }))}
             />
             <ScoreBar
-              label="Leadership"
-              value={scores.scoreLeadership}
-              onChange={(v) => setScores((s) => ({ ...s, scoreLeadership: v }))}
-            />
-            <ScoreBar
-              label="Motivation"
-              value={scores.scoreMotivation}
-              onChange={(v) => setScores((s) => ({ ...s, scoreMotivation: v }))}
-            />
-            <ScoreBar
               label="Cultural Fit"
               value={scores.scoreFit}
               onChange={(v) => setScores((s) => ({ ...s, scoreFit: v }))}
             />
+            <div style={{ marginTop: 12 }}>
+              <div className="slideout-field-label" style={{ marginBottom: 4 }}>Curriculum Review Summary</div>
+              <textarea
+                className="input"
+                value={curriculumReviewSummary}
+                onChange={(e) => setCurriculumReviewSummary(e.target.value)}
+                rows={3}
+                placeholder="Key takeaways from the curriculum review session — teaching approach, subject knowledge, alignment with YPP curriculum..."
+                style={{ marginBottom: 0 }}
+                disabled={isFinal}
+              />
+            </div>
           </div>
 
           {/* Reviewer Notes */}

@@ -9,6 +9,7 @@ import {
 } from "@prisma/client";
 import InfoResponseForm from "./info-response-form";
 import CPInfoResponseForm from "./cp-info-response-form";
+import AvailabilityForm from "./availability-form";
 import Link from "next/link";
 import InstructorApplicationMotivationResponse from "@/components/instructor-application-motivation-response";
 
@@ -36,6 +37,7 @@ function cpStatusLabel(status: ChapterPresidentApplicationStatus): string {
     case "INFO_REQUESTED": return "More Info Requested";
     case "INTERVIEW_SCHEDULED": return "Interview Scheduled";
     case "INTERVIEW_COMPLETED": return "Interview Completed";
+    case "RECOMMENDATION_SUBMITTED": return "Under Final Review";
     case "APPROVED": return "Approved";
     case "REJECTED": return "Not Accepted";
     default: {
@@ -114,13 +116,17 @@ export default async function ApplicationStatusPage() {
   const [instructorApp, cpApp, capstoneModule] = await Promise.all([
     prisma.instructorApplication.findUnique({
       where: { applicantId: session.user.id },
-      include: { reviewer: { select: { name: true } } },
+      include: {
+        reviewer: { select: { name: true } },
+        availabilityWindows: true,
+      },
     }),
     prisma.chapterPresidentApplication.findUnique({
       where: { applicantId: session.user.id },
       include: {
         reviewer: { select: { name: true } },
         chapter: { select: { name: true } },
+        availabilityWindows: true,
       },
     }),
     prisma.trainingModule.findFirst({
@@ -239,19 +245,28 @@ export default async function ApplicationStatusPage() {
             )}
             {instructorApp.status === "INTERVIEW_SCHEDULED" && (
               <>
-                <h3 className="section-title">Curriculum Overview Scheduled</h3>
-                <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
-                  You will discuss your teaching approach and how you plan to use YPP materials. If you need to reschedule, reply to your reviewer or chapter contact.
-                </p>
-                {instructorApp.interviewScheduledAt && (
-                  <div style={{ background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px", marginBottom: 16, textAlign: "center" }}>
-                    <p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
-                      {new Date(instructorApp.interviewScheduledAt).toLocaleString("en-US", {
-                        weekday: "long", year: "numeric", month: "long", day: "numeric",
-                        hour: "numeric", minute: "2-digit",
-                      })}
+                <h3 className="section-title">Curriculum Review Session</h3>
+                {instructorApp.interviewScheduledAt ? (
+                  <>
+                    <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
+                      Your curriculum review session has been confirmed. You will receive a calendar invite by email. If you need to reschedule, reach out to your reviewer.
                     </p>
-                  </div>
+                    <div style={{ background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px", marginBottom: 16, textAlign: "center" }}>
+                      <p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
+                        {new Date(instructorApp.interviewScheduledAt).toLocaleString("en-US", {
+                          weekday: "long", year: "numeric", month: "long", day: "numeric",
+                          hour: "numeric", minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <AvailabilityForm
+                    applicationId={instructorApp.id}
+                    variant="instructor"
+                    existingWindows={instructorApp.availabilityWindows}
+                    hadNoMatch={!!instructorApp.schedulingNoMatchAt}
+                  />
                 )}
               </>
             )}
@@ -384,17 +399,37 @@ export default async function ApplicationStatusPage() {
             )}
             {cpApp.status === "INTERVIEW_SCHEDULED" && (
               <>
-                <h3 className="section-title">Interview Scheduled</h3>
-                {cpApp.interviewScheduledAt && (
-                  <div style={{ background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px", marginBottom: 16, textAlign: "center" }}>
-                    <p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
-                      {new Date(cpApp.interviewScheduledAt).toLocaleString("en-US", {
-                        weekday: "long", year: "numeric", month: "long", day: "numeric",
-                        hour: "numeric", minute: "2-digit",
-                      })}
+                <h3 className="section-title">Interview</h3>
+                {cpApp.interviewScheduledAt ? (
+                  <>
+                    <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
+                      Your interview has been confirmed. You will receive a calendar invite by email. If you need to reschedule, reach out to your reviewer.
                     </p>
-                  </div>
+                    <div style={{ background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px", marginBottom: 16, textAlign: "center" }}>
+                      <p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
+                        {new Date(cpApp.interviewScheduledAt).toLocaleString("en-US", {
+                          weekday: "long", year: "numeric", month: "long", day: "numeric",
+                          hour: "numeric", minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <AvailabilityForm
+                    applicationId={cpApp.id}
+                    variant="cp"
+                    existingWindows={cpApp.availabilityWindows}
+                    hadNoMatch={!!cpApp.schedulingNoMatchAt}
+                  />
                 )}
+              </>
+            )}
+            {cpApp.status === "RECOMMENDATION_SUBMITTED" && (
+              <>
+                <h3 className="section-title">Under Final Review</h3>
+                <p style={{ color: "var(--muted)", fontSize: 14 }}>
+                  Your interview is complete and a recommendation has been submitted. The hiring committee is making the final decision.
+                </p>
               </>
             )}
             {cpApp.status === "INTERVIEW_COMPLETED" && (

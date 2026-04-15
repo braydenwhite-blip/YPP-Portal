@@ -326,6 +326,7 @@ enum ChapterPresidentApplicationStatus {
   INFO_REQUESTED
   INTERVIEW_SCHEDULED
   INTERVIEW_COMPLETED
+  RECOMMENDATION_SUBMITTED
   APPROVED
   REJECTED
 }
@@ -1590,6 +1591,12 @@ model InstructorApplication {
   scoreMotivation    Int?
   scoreFit           Int?
 
+  // --- Curriculum review scoring rubric (replaces generic scores for instructor eval) ---
+  scoreSubjectKnowledge    Int?
+  scoreTeachingMethodology Int?
+  scoreCurriculumAlignment Int?
+  curriculumReviewSummary  String? @db.Text
+
   // --- Review workflow ---
   decisionRecommendation String?
   actionDueDate          DateTime?
@@ -1605,6 +1612,11 @@ model InstructorApplication {
   customResponses      ApplicationFormResponse[] @relation("InstructorAppFormResponses")
   cohortId             String?
   cohort               ApplicationCohort?        @relation("InstructorAppCohort", fields: [cohortId], references: [id])
+
+  // --- Automated scheduling ---
+  availabilityWindows ApplicantAvailabilityWindow[] @relation("InstructorAvailabilityWindows")
+  schedulingNoMatchAt DateTime?
+
   createdAt            DateTime                  @default(now())
   updatedAt            DateTime                  @updatedAt
 
@@ -8652,6 +8664,10 @@ model ChapterPresidentApplication {
   scoreCommitment   Int?
   scoreFit          Int?
 
+  // --- Interview-specific scoring rubric ---
+  scoreCommunication Int?
+  interviewSummary   String? @db.Text
+
   // --- Review workflow ---
   reviewerId           String?
   reviewer             User?                     @relation("ChapterPresidentApplicationReviews", fields: [reviewerId], references: [id])
@@ -8665,6 +8681,11 @@ model ChapterPresidentApplication {
   customResponses      ApplicationFormResponse[] @relation("CPAppFormResponses")
   cohortId             String?
   cohort               ApplicationCohort?        @relation("CPAppCohort", fields: [cohortId], references: [id])
+
+  // --- Automated scheduling ---
+  availabilityWindows ApplicantAvailabilityWindow[] @relation("CPAvailabilityWindows")
+  schedulingNoMatchAt DateTime?
+
   createdAt            DateTime                  @default(now())
   updatedAt            DateTime                  @updatedAt
 
@@ -9930,4 +9951,28 @@ model AwardCertificate {
   issuedAt     DateTime @default(now())
 
   @@index([userId])
+}
+
+// ============================================
+// APPLICANT AVAILABILITY WINDOWS
+// ============================================
+
+model ApplicantAvailabilityWindow {
+  id                            String                       @id @default(cuid())
+  chapterPresidentApplicationId String?
+  chapterPresidentApplication   ChapterPresidentApplication? @relation("CPAvailabilityWindows", fields: [chapterPresidentApplicationId], references: [id])
+  instructorApplicationId       String?
+  instructorApplication         InstructorApplication?       @relation("InstructorAvailabilityWindows", fields: [instructorApplicationId], references: [id])
+  /// 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+  dayOfWeek                     Int
+  /// "HH:MM" 24-hour in the applicant's chosen timezone
+  startTime                     String
+  /// "HH:MM" 24-hour in the applicant's chosen timezone
+  endTime                       String
+  /// IANA timezone string e.g. "America/New_York"
+  timezone                      String
+  createdAt                     DateTime                     @default(now())
+
+  @@index([chapterPresidentApplicationId])
+  @@index([instructorApplicationId])
 }

@@ -742,6 +742,293 @@ export async function sendInterviewScheduledEmail({
   return sendEmail({ to, subject, html });
 }
 
+// ============================================
+// ICS CALENDAR HELPER
+// ============================================
+
+interface IcsParams {
+  uid: string;
+  title: string;
+  description: string;
+  startsAt: Date;
+  endsAt: Date;
+  meetingLink?: string | null;
+  organizerEmail?: string;
+  attendeeEmail?: string;
+}
+
+function formatIcsDate(d: Date): string {
+  return d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+}
+
+function icsEscape(s: string): string {
+  // RFC 5545: fold long lines and escape special chars
+  return s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
+}
+
+export function generateIcsContent(params: IcsParams): string {
+  const { uid, title, description, startsAt, endsAt, meetingLink, organizerEmail, attendeeEmail } = params;
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Youth Passion Project//YPP Portal//EN",
+    "CALSCALE:GREGORIAN",
+    "METHOD:REQUEST",
+    "BEGIN:VEVENT",
+    `UID:${uid}@ypp-portal`,
+    `DTSTART:${formatIcsDate(startsAt)}`,
+    `DTEND:${formatIcsDate(endsAt)}`,
+    `SUMMARY:${icsEscape(title)}`,
+    `DESCRIPTION:${icsEscape(description)}`,
+  ];
+  if (meetingLink) lines.push(`URL:${meetingLink}`, `LOCATION:${icsEscape(meetingLink)}`);
+  if (organizerEmail) lines.push(`ORGANIZER:MAILTO:${organizerEmail}`);
+  if (attendeeEmail) lines.push(`ATTENDEE;RSVP=TRUE:MAILTO:${attendeeEmail}`);
+  lines.push("END:VEVENT", "END:VCALENDAR");
+  return lines.join("\r\n");
+}
+
+// ============================================
+// BRANDED EMAIL SHELL (upgraded)
+// ============================================
+
+/**
+ * Bold, branded YPP email shell with deep purple gradient header and tagline.
+ */
+function brandedShell(opts: { tagline: string; body: string }): string {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1c1917; max-width: 600px; margin: 0 auto; padding: 20px; background: #f8f7ff;">
+  <div style="background: linear-gradient(135deg, #4c1d95 0%, #6b21c8 50%, #7c3aed 100%); padding: 40px 36px 32px; border-radius: 16px 16px 0 0; text-align: center;">
+    <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.15em; color: rgba(255,255,255,0.6); text-transform: uppercase; margin-bottom: 10px;">Youth Passion Project</div>
+    <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">YPP Pathways Portal</h1>
+    <p style="color: rgba(255,255,255,0.8); margin: 10px 0 0; font-size: 14px; font-style: italic;">${escapeHtml(opts.tagline)}</p>
+  </div>
+  <div style="background: #ffffff; padding: 36px; border: 1px solid #ede9fe; border-top: none; border-radius: 0 0 16px 16px;">
+    ${opts.body}
+  </div>
+  <p style="text-align: center; color: #a78bfa; font-size: 11px; margin-top: 20px; letter-spacing: 0.05em;">
+    Youth Passion Project &middot; Empowering youth through passion.<br>
+    <span style="color: #78716c;">This is an automated notification from the YPP Pathways Portal.</span>
+  </p>
+</body>
+</html>`;
+}
+
+// ============================================
+// AVAILABILITY REQUEST EMAIL
+// ============================================
+
+/**
+ * Sent when an admin moves an application to INTERVIEW_SCHEDULED.
+ * Prompts the applicant to submit their availability windows.
+ */
+export async function sendAvailabilityRequestEmail({
+  to,
+  applicantName,
+  statusUrl,
+  variant,
+}: {
+  to: string;
+  applicantName: string;
+  statusUrl: string;
+  variant: "cp" | "instructor";
+}): Promise<EmailResult> {
+  const isCp = variant === "cp";
+
+  const subject = isCp
+    ? "You've been selected for an interview — next steps inside"
+    : "Next step: schedule your curriculum review session";
+
+  const tagline = isCp
+    ? "Your chapter presidency journey just got real."
+    : "Your teaching journey with YPP is just getting started.";
+
+  const heading = isCp
+    ? `${escapeHtml(applicantName)}, you've been selected for an interview!`
+    : `${escapeHtml(applicantName)}, you've been invited for a curriculum review session!`;
+
+  const bodyText = isCp
+    ? `YPP chapters are built by people exactly like you — driven, visionary, ready to lead. We've reviewed your application and we want to meet you. The next step is to let us know when you're available so we can lock in a time that works for everyone.`
+    : `This isn't a test — it's a conversation. We want to hear how you think about teaching, explore how our curriculum aligns with your approach, and get to know you better. Share a few times that work for you and we'll take it from there.`;
+
+  const ctaLabel = isCp ? "Submit My Availability" : "Choose My Available Times";
+
+  const html = brandedShell({
+    tagline,
+    body: `
+      <h2 style="margin: 0 0 20px; color: #1c1917; font-size: 22px; font-weight: 800;">${heading}</h2>
+      <p style="margin: 0 0 20px; color: #44403c; font-size: 15px; line-height: 1.7;">${escapeHtml(bodyText)}</p>
+      <div style="background: #f5f3ff; border-left: 4px solid #7c3aed; border-radius: 8px; padding: 16px 20px; margin: 0 0 28px;">
+        <p style="margin: 0; font-size: 14px; color: #5b21b6; font-weight: 600;">What happens next?</p>
+        <p style="margin: 8px 0 0; font-size: 14px; color: #44403c;">Log in, add your available time windows, and we'll automatically match you with a slot — no back-and-forth needed.</p>
+      </div>
+      <div style="text-align: center; margin: 28px 0;">
+        <a href="${escapeHtml(statusUrl)}" style="display: inline-block; background: #6b21c8; color: white; padding: 14px 36px; border-radius: 9999px; text-decoration: none; font-weight: 700; font-size: 15px; letter-spacing: 0.02em;">${escapeHtml(ctaLabel)}</a>
+      </div>
+      <p style="margin: 0; font-size: 13px; color: #78716c; text-align: center;">Can't click the button? Copy this link into your browser:<br><span style="color: #7c3aed; word-break: break-all;">${escapeHtml(statusUrl)}</span></p>
+    `,
+  });
+
+  return sendEmail({ to, subject, html });
+}
+
+// ============================================
+// AUTO-ASSIGNED CONFIRMATION EMAIL (+ .ics)
+// ============================================
+
+/**
+ * Sent to both applicant and interviewer when auto-matching finds a slot.
+ * Includes an .ics calendar attachment.
+ */
+export async function sendInterviewAutoAssignedEmail({
+  to,
+  recipientName,
+  applicantName,
+  scheduledAt,
+  meetingLink,
+  icsContent,
+  variant,
+  role,
+}: {
+  to: string;
+  recipientName: string;
+  applicantName: string;
+  scheduledAt: Date;
+  meetingLink: string | null;
+  icsContent: string;
+  variant: "cp" | "instructor";
+  role: "applicant" | "interviewer";
+}): Promise<EmailResult> {
+  const isCp = variant === "cp";
+  const isApplicant = role === "applicant";
+
+  const sessionLabel = isCp ? "interview" : "curriculum review session";
+  const sessionLabelCap = isCp ? "Interview" : "Curriculum Review Session";
+
+  const formattedDate = scheduledAt.toLocaleString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
+
+  let subject: string;
+  let tagline: string;
+  let heading: string;
+  let bodyText: string;
+
+  if (isApplicant && isCp) {
+    subject = "Your YPP interview is confirmed — add it to your calendar";
+    tagline = "The conversation that could change everything.";
+    heading = `It's official, ${escapeHtml(recipientName)}! Your interview is booked.`;
+    bodyText = "Come ready to talk about your leadership philosophy, your vision for your chapter, and why you believe in YPP's mission. There are no trick questions — we just want to get to know the leader you already are.";
+  } else if (isApplicant && !isCp) {
+    subject = "Your curriculum review session is confirmed — see you soon";
+    tagline = "Great teaching starts with a great conversation.";
+    heading = `Looking forward to meeting you, ${escapeHtml(recipientName)}!`;
+    bodyText = "This is an open conversation about how you teach. We'll discuss your teaching approach, walk through some curriculum, and explore how YPP materials fit your style. Come as you are — curious and prepared to share.";
+  } else {
+    // Interviewer
+    subject = isCp
+      ? `Interview scheduled: ${escapeHtml(applicantName)}`
+      : `Curriculum review scheduled: ${escapeHtml(applicantName)}`;
+    tagline = "A new session has been auto-scheduled for you.";
+    heading = `A ${sessionLabel} has been auto-scheduled`;
+    bodyText = `Your availability matched with ${escapeHtml(applicantName)}'s submitted windows. The details are below — the calendar invite is attached.`;
+  }
+
+  const meetingLinkHtml = meetingLink
+    ? `<div style="text-align: center; margin: 20px 0 8px;">
+        <a href="${escapeHtml(meetingLink)}" style="display: inline-block; background: #6b21c8; color: white; padding: 12px 32px; border-radius: 9999px; text-decoration: none; font-weight: 700; font-size: 14px;">Join Your ${escapeHtml(sessionLabelCap)}</a>
+      </div>
+      <p style="text-align: center; font-size: 12px; color: #78716c; margin: 0 0 24px; word-break: break-all;">${escapeHtml(meetingLink)}</p>`
+    : "";
+
+  const icsFilename = isCp ? "interview-details.ics" : "curriculum-review.ics";
+
+  const html = brandedShell({
+    tagline,
+    body: `
+      <h2 style="margin: 0 0 20px; color: #1c1917; font-size: 22px; font-weight: 800;">${heading}</h2>
+      <p style="margin: 0 0 20px; color: #44403c; font-size: 15px; line-height: 1.7;">${escapeHtml(bodyText)}</p>
+      <div style="background: #f5f3ff; border-radius: 10px; padding: 20px; margin: 0 0 20px; text-align: center; border: 1px solid #ede9fe;">
+        <p style="margin: 0 0 4px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #7c3aed;">Your ${escapeHtml(sessionLabelCap)}</p>
+        <p style="margin: 0; font-size: 18px; font-weight: 700; color: #4c1d95;">${escapeHtml(formattedDate)}</p>
+      </div>
+      ${meetingLinkHtml}
+      <p style="margin: 0; font-size: 13px; color: #78716c; text-align: center;">The calendar invite (.ics file) is attached — open it to add this event to your calendar.</p>
+    `,
+  });
+
+  return sendEmail({
+    to,
+    subject,
+    html,
+    attachments: [
+      {
+        filename: icsFilename,
+        content: icsContent,
+        contentType: "text/calendar",
+        encoding: "utf-8",
+        disposition: "attachment",
+      },
+    ],
+  });
+}
+
+// ============================================
+// NO-MATCH ADMIN NOTIFICATION EMAIL
+// ============================================
+
+/**
+ * Sent to all admins when auto-matching fails to find an overlapping slot.
+ */
+export async function sendNoMatchFoundEmail({
+  to,
+  applicantName,
+  adminUrl,
+  variant,
+}: {
+  to: string | string[];
+  applicantName: string;
+  adminUrl: string;
+  variant: "cp" | "instructor";
+}): Promise<EmailResult> {
+  const sessionLabel = variant === "cp" ? "interview" : "curriculum review session";
+  const subject = `[Action needed] No matching slot found for ${applicantName}`;
+
+  const html = brandedShell({
+    tagline: "Scheduling needs your attention.",
+    body: `
+      <h2 style="margin: 0 0 16px; color: #1c1917; font-size: 20px; font-weight: 800;">Scheduling couldn't auto-complete for ${escapeHtml(applicantName)}</h2>
+      <p style="margin: 0 0 16px; color: #44403c; font-size: 15px; line-height: 1.7;">
+        ${escapeHtml(applicantName)} submitted their availability windows for a ${escapeHtml(sessionLabel)}, but no overlap was found with the assigned reviewer's schedule.
+      </p>
+      <div style="background: #fff7ed; border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px 20px; margin: 0 0 24px;">
+        <p style="margin: 0; font-size: 14px; color: #92400e; font-weight: 600;">What to do</p>
+        <ul style="margin: 8px 0 0; padding: 0 0 0 18px; font-size: 14px; color: #78350f; line-height: 1.8;">
+          <li>The applicant has been prompted to add more availability windows and will retry automatically.</li>
+          <li>You can also manually schedule the ${escapeHtml(sessionLabel)} from the admin panel.</li>
+          <li>Or ask the assigned reviewer to expand their availability rules.</li>
+        </ul>
+      </div>
+      <div style="text-align: center; margin: 28px 0;">
+        <a href="${escapeHtml(adminUrl)}" style="display: inline-block; background: #6b21c8; color: white; padding: 14px 36px; border-radius: 9999px; text-decoration: none; font-weight: 700; font-size: 15px;">View Application</a>
+      </div>
+    `,
+  });
+
+  return sendEmail({ to, subject, html });
+}
+
 /**
  * Check if email service is configured
  */

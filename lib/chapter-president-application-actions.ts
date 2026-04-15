@@ -452,6 +452,18 @@ export async function reviewChapterPresidentApplication(
         break;
       }
 
+      case "submit_recommendation": {
+        await prisma.chapterPresidentApplication.update({
+          where: { id: applicationId },
+          data: {
+            status: ChapterPresidentApplicationStatus.RECOMMENDATION_SUBMITTED,
+            reviewerId: session.user.id,
+          },
+        });
+        await syncChapterPresidentApplicationWorkflow(applicationId);
+        break;
+      }
+
       default:
         return { status: "error", message: "Unknown action." };
     }

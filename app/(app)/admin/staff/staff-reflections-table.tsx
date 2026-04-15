@@ -34,10 +34,32 @@ export default function StaffReflectionsTable({
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  const ROLE_LABELS: Record<string, string> = {
+    ADMIN: "Admin",
+    CHAPTER_PRESIDENT: "Chapter President",
+    INSTRUCTOR: "Instructor",
+    MENTOR: "Mentor",
+    STUDENT: "Student",
+    STAFF: "Staff",
+    PARENT: "Parent",
+  };
+
   const columns = [
     { key: "name", label: "Name" },
     { key: "email", label: "Email" },
-    { key: "roles", label: "Roles" },
+    {
+      key: "roles",
+      label: "Roles",
+      render: (item: StaffData) => (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+          {item.roles.split(", ").filter(Boolean).map((role) => (
+            <span key={role} className="pill pill-small">
+              {ROLE_LABELS[role] ?? role}
+            </span>
+          ))}
+        </div>
+      ),
+    },
     { key: "chapter", label: "Chapter" },
     {
       key: "totalReflections",

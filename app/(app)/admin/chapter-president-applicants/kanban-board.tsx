@@ -33,6 +33,8 @@ export type CPApp = {
   scoreOrganization: number | null;
   scoreCommitment: number | null;
   scoreFit: number | null;
+  scoreCommunication: number | null;
+  interviewSummary: string | null;
   decisionRecommendation?: string | null;
   actionDueDate?: string | null;
   createdAt: string;
@@ -87,9 +89,9 @@ export type Reviewer = {
 /* ── Column definitions ────────────────────────────── */
 
 const COLUMNS: KanbanColumnDef[] = [
-  { id: "applied", title: "Applied", statuses: ["SUBMITTED"], color: "#6b21c8" },
-  { id: "review", title: "Under Review", statuses: ["UNDER_REVIEW", "INFO_REQUESTED"], color: "#2563eb" },
-  { id: "interview", title: "Interview", statuses: ["INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED"], color: "#4338ca" },
+  { id: "applied", title: "Applied", statuses: ["SUBMITTED", "UNDER_REVIEW", "INFO_REQUESTED"], color: "#6b21c8" },
+  { id: "awaiting_interview", title: "Awaiting Interview", statuses: ["INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED"], color: "#4338ca" },
+  { id: "recommendation_submitted", title: "Recommendation Submitted", statuses: ["RECOMMENDATION_SUBMITTED"], color: "#7c3aed" },
   { id: "accepted", title: "Accepted", statuses: ["APPROVED"], color: "#16a34a" },
   { id: "rejected", title: "Rejected", statuses: ["REJECTED"], color: "#dc2626" },
 ];
@@ -99,7 +101,7 @@ const COLUMNS: KanbanColumnDef[] = [
 function formatCPDeadline(app: CPApp): { text: string; className: string } | null {
   const base = formatDeadline(app.actionDueDate ?? null);
   if (base) return base;
-  if (app.status === "INTERVIEW_SCHEDULED" && app.interviewScheduledAt) {
+  if ((app.status === "INTERVIEW_SCHEDULED" || app.status === "INTERVIEW_COMPLETED") && app.interviewScheduledAt) {
     const d = new Date(app.interviewScheduledAt);
     return {
       text: `Interview ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`,
@@ -124,7 +126,7 @@ function CPApplicantCard({
     app.scoreLeadership,
     app.scoreVision,
     app.scoreOrganization,
-    app.scoreCommitment,
+    app.scoreCommunication,
     app.scoreFit,
   ]);
   const deadline = formatCPDeadline(app);
