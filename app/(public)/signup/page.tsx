@@ -9,12 +9,23 @@ import { signUpFamily } from "@/lib/family-signup-actions";
 
 const initialState = { status: "idle" as const, message: "" };
 
+const HEAR_ABOUT_OPTIONS = [
+  "Word of mouth",
+  "TikTok",
+  "Instagram",
+  "A YPP staff member",
+  "A YPP student",
+  "Other",
+] as const;
+
 export default function FamilySignupPage() {
   const [state, formAction] = useFormState(signUpFamily, initialState);
   const [chapters, setChapters] = useState<Array<{ id: string; name: string }>>([]);
   const [studentUsesParentPhone, setStudentUsesParentPhone] = useState(true);
   const [submittedParentEmail, setSubmittedParentEmail] = useState("");
   const [submittedStudentEmail, setSubmittedStudentEmail] = useState("");
+  const [hearAbout, setHearAbout] = useState("");
+  const [hearAboutDetail, setHearAboutDetail] = useState("");
 
   useEffect(() => {
     async function loadChapters() {
@@ -197,6 +208,47 @@ export default function FamilySignupPage() {
                 <input className="input" name="stateProvince" placeholder="e.g. Arizona" required />
               </label>
             </div>
+
+            <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "16px 0 12px" }} />
+
+            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              How did you hear about us?
+            </div>
+
+            <label className="form-label">
+              How did you hear about YPP?
+              <select
+                className="input"
+                name="hearAboutYPPOption"
+                value={hearAbout}
+                onChange={(e) => {
+                  setHearAbout(e.target.value);
+                  setHearAboutDetail("");
+                }}
+              >
+                <option value="">Select one (optional)</option>
+                {HEAR_ABOUT_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+              {(hearAbout === "A YPP staff member" || hearAbout === "A YPP student" || hearAbout === "Other") && (
+                <input
+                  className="input"
+                  name="hearAboutYPPDetail"
+                  style={{ marginTop: 6 }}
+                  placeholder={hearAbout === "Other" ? "Please specify" : "Enter their name"}
+                  value={hearAboutDetail}
+                  onChange={(e) => setHearAboutDetail(e.target.value)}
+                />
+              )}
+              <input
+                type="hidden"
+                name="hearAboutYPP"
+                value={hearAboutDetail.trim() ? `${hearAbout}: ${hearAboutDetail.trim()}` : hearAbout}
+              />
+            </label>
+
+            <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "16px 0 12px" }} />
 
             <label className="form-label">
               Chapter

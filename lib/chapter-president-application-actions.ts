@@ -92,7 +92,9 @@ export async function submitChapterPresidentApplication(
     const preferredFirstName = getString(formData, "preferredFirstName", false);
     const phoneNumber = getString(formData, "phoneNumber", false);
     const dateOfBirth = getString(formData, "dateOfBirth", false);
-    const hearAboutYPP = getString(formData, "hearAboutYPP", false);
+    const hearAboutYPPRaw = getString(formData, "hearAboutYPP", false);
+    // hearAboutYPP already has the detail concatenated by the form (e.g. "A YPP staff member: Jane Doe")
+    const hearAboutYPP = hearAboutYPPRaw || null;
 
     // Location
     const city = getString(formData, "city", false);
@@ -116,6 +118,14 @@ export async function submitChapterPresidentApplication(
     const extracurriculars = getString(formData, "extracurriculars", false);
     const priorOrganizing = getString(formData, "priorOrganizing", false);
     const specialSkills = getString(formData, "specialSkills", false);
+
+    // Supporting document
+    const documentUrl = getString(formData, "documentUrl", false);
+
+    // Instructor information (optional)
+    const instructorApplicantPosition = getString(formData, "instructorApplicantPosition", false);
+    const classInMind = getString(formData, "classInMind", false);
+    const instructorTeachingDesc = getString(formData, "instructorTeachingDesc", false);
 
     // Referral & availability
     const referralEmails = getString(formData, "referralEmails", false);
@@ -205,6 +215,10 @@ export async function submitChapterPresidentApplication(
           priorOrganizing: priorOrganizing || null,
           specialSkills: specialSkills || null,
           referralEmails: referralEmails || null,
+          documentUrl: documentUrl || null,
+          instructorApplicantPosition: instructorApplicantPosition || null,
+          classInMind: classInMind || null,
+          instructorTeachingDesc: instructorTeachingDesc || null,
           hoursPerWeek: hoursPerWeek && !isNaN(hoursPerWeek) ? hoursPerWeek : null,
           preferredStartDate: preferredStartDate || null,
           ethnicity: ethnicity || null,

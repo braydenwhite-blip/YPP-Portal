@@ -314,7 +314,48 @@ export default function CPDetailPanel({
             <div className="slideout-field-value">{app.referralEmails}</div>
           </div>
         )}
+        {app.hearAboutYPP && (
+          <div className="slideout-field">
+            <div className="slideout-field-label">How They Heard About YPP</div>
+            <div className="slideout-field-value">{app.hearAboutYPP}</div>
+          </div>
+        )}
+        {app.documentUrl && (
+          <div className="slideout-field">
+            <div className="slideout-field-label">Supporting Document</div>
+            <div className="slideout-field-value">
+              <a href={app.documentUrl} target="_blank" rel="noopener noreferrer" className="link">
+                View uploaded document
+              </a>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Instructor Information */}
+      {(app.instructorApplicantPosition || app.classInMind || app.instructorTeachingDesc) && (
+        <div className="slideout-section">
+          <div className="slideout-section-title">Instructor Information</div>
+          {app.instructorApplicantPosition && (
+            <div className="slideout-field">
+              <div className="slideout-field-label">Application Position</div>
+              <div className="slideout-field-value">{app.instructorApplicantPosition}</div>
+            </div>
+          )}
+          {app.classInMind && (
+            <div className="slideout-field">
+              <div className="slideout-field-label">Class in Mind</div>
+              <div className="slideout-field-value">{app.classInMind}</div>
+            </div>
+          )}
+          {app.instructorTeachingDesc && (
+            <div className="slideout-field">
+              <div className="slideout-field-label">Teaching / Empowerment Experience</div>
+              <div className="slideout-field-value" style={{ whiteSpace: "pre-wrap" }}>{app.instructorTeachingDesc}</div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Custom form responses */}
       {app.customResponses && app.customResponses.length > 0 && (
