@@ -184,7 +184,7 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
         data: {
           applicantId: newUser.id,
           motivation: instructorApplicationInput.motivation || null,
-          motivationVideoUrl: instructorApplicationInput.motivationVideoUrl,
+          motivationVideoUrl: instructorApplicationInput.motivationVideoUrl || null,
           teachingExperience: instructorApplicationInput.teachingExperience,
           availability: instructorApplicationInput.availability,
           legalName: instructorApplicationInput.legalName,
