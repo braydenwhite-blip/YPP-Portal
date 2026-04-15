@@ -140,6 +140,7 @@ async function syncStudentUser(params: {
   email: string;
   existingUser: PortalUser;
   grade: number;
+  hearAboutYPP: string | null;
   name: string;
   parentEmail: string;
   parentPhone: string;
@@ -200,6 +201,7 @@ async function syncStudentUser(params: {
       city: params.city,
       stateProvince: params.stateProvince,
       usesParentPhone: params.studentUsesParentPhone,
+      ...(params.hearAboutYPP ? { hearAboutYPP: params.hearAboutYPP } : {}),
     },
     create: {
       userId: user.id,
@@ -212,6 +214,7 @@ async function syncStudentUser(params: {
       city: params.city,
       stateProvince: params.stateProvince,
       usesParentPhone: params.studentUsesParentPhone,
+      hearAboutYPP: params.hearAboutYPP ?? null,
     },
   });
 
@@ -237,6 +240,7 @@ export async function signUpFamily(
     const chapterId = getString(formData, "chapterId");
     const city = getString(formData, "city");
     const stateProvince = getString(formData, "stateProvince");
+    const hearAboutYPP = getString(formData, "hearAboutYPP", false) || null;
     const studentUsesParentPhone = formData.get("studentUsesParentPhone") === "on";
     const studentPhoneInput = getString(formData, "studentPhone", false);
     const studentPhone = studentUsesParentPhone
@@ -368,6 +372,7 @@ export async function signUpFamily(
       parentEmail,
       parentPhone,
       studentUsesParentPhone,
+      hearAboutYPP,
     });
 
     await prisma.parentStudent.upsert({

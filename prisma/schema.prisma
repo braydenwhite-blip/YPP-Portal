@@ -1312,6 +1312,7 @@ model UserProfile {
   usesParentPhone    Boolean  @default(false)
   mentorCapacity     Int?
   mentorAvailability String?
+  hearAboutYPP       String? // for family signup conversion tracking
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -8628,6 +8629,14 @@ model ChapterPresidentApplication {
 
   // --- Referral ---
   referralEmails String? @db.Text
+
+  // --- Supporting document ---
+  documentUrl String? // uploaded résumé / credentials / awards
+
+  // --- Instructor information (optional) ---
+  instructorApplicantPosition String? // "Chapter President Only" | "Instructor Only" | "Both"
+  classInMind                 String? // class they envision teaching (or N/A)
+  instructorTeachingDesc      String? @db.Text // 250-word teaching/empowerment description
 
   // --- Availability details ---
   hoursPerWeek       Int?

@@ -67,6 +67,10 @@ export type CPApp = {
   partnerSchool: string | null;
   hearAboutYPP: string | null;
   ethnicity: string | null;
+  documentUrl: string | null;
+  instructorApplicantPosition: string | null;
+  classInMind: string | null;
+  instructorTeachingDesc: string | null;
   customResponses: {
     id: string;
     value: string;
