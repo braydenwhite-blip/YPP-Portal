@@ -5,6 +5,7 @@ export type LegacyApplicationStatus =
   | "ON_HOLD"
   | "INTERVIEW_SCHEDULED"
   | "INTERVIEW_COMPLETED"
+  | "RECOMMENDATION_SUBMITTED"
   | "APPROVED"
   | "REJECTED";
 
@@ -13,6 +14,7 @@ export type LegacyApplicationReviewAction =
   | "request_info"
   | "schedule_interview"
   | "mark_interview_complete"
+  | "submit_recommendation"
   | "approve"
   | "reject"
   | "put_on_hold"
@@ -47,8 +49,12 @@ export function getLegacyApplicationTransitionError(input: {
       return status === "INTERVIEW_SCHEDULED"
         ? null
         : "Only scheduled interviews can be marked complete.";
-    case "approve":
+    case "submit_recommendation":
       return status === "INTERVIEW_COMPLETED"
+        ? null
+        : "Complete the interview before submitting a recommendation.";
+    case "approve":
+      return status === "INTERVIEW_COMPLETED" || status === "RECOMMENDATION_SUBMITTED"
         ? null
         : "Complete the interview before approving this application.";
     case "reject":

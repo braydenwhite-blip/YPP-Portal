@@ -51,7 +51,7 @@ export default async function AdminCPApplicantsPage() {
     ["SUBMITTED", "UNDER_REVIEW", "INFO_REQUESTED"].includes(a.status)
   ).length;
   const interviewing = applications.filter((a) =>
-    ["INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED"].includes(a.status)
+    ["INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED", "RECOMMENDATION_SUBMITTED"].includes(a.status)
   ).length;
   const thisMonth = applications.filter((a) => {
     if (a.status !== "APPROVED" || !a.approvedAt) return false;

@@ -72,6 +72,8 @@ export async function saveCPScoresAndNotes(
     scoreOrganization?: number | null;
     scoreCommitment?: number | null;
     scoreFit?: number | null;
+    scoreCommunication?: number | null;
+    interviewSummary?: string;
     reviewerNotes?: string;
   }
 ): Promise<{ success: boolean; error?: string }> {
@@ -85,6 +87,8 @@ export async function saveCPScoresAndNotes(
         scoreOrganization: data.scoreOrganization,
         scoreCommitment: data.scoreCommitment,
         scoreFit: data.scoreFit,
+        scoreCommunication: data.scoreCommunication,
+        interviewSummary: data.interviewSummary || null,
         reviewerNotes: data.reviewerNotes,
       },
     });

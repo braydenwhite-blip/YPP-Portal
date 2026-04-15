@@ -326,6 +326,7 @@ enum ChapterPresidentApplicationStatus {
   INFO_REQUESTED
   INTERVIEW_SCHEDULED
   INTERVIEW_COMPLETED
+  RECOMMENDATION_SUBMITTED
   APPROVED
   REJECTED
 }
@@ -1588,6 +1589,12 @@ model InstructorApplication {
   scoreLeadership    Int?
   scoreMotivation    Int?
   scoreFit           Int?
+
+  // --- Curriculum review scoring rubric (replaces generic scores for instructor eval) ---
+  scoreSubjectKnowledge    Int?
+  scoreTeachingMethodology Int?
+  scoreCurriculumAlignment Int?
+  curriculumReviewSummary  String? @db.Text
 
   // --- Review workflow ---
   decisionRecommendation String?
@@ -8642,6 +8649,10 @@ model ChapterPresidentApplication {
   scoreOrganization Int?
   scoreCommitment   Int?
   scoreFit          Int?
+
+  // --- Interview-specific scoring rubric ---
+  scoreCommunication Int?
+  interviewSummary   String? @db.Text
 
   // --- Review workflow ---
   reviewerId           String?
