@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { ChapterPresidentApplicationStatus } from "@prisma/client";
+import { sendAvailabilityRequestEmail } from "@/lib/email";
 
 export async function updateCPApplicationStage(
   applicationId: string,
@@ -38,10 +39,22 @@ export async function updateCPApplicationStage(
       data.rejectedAt = new Date();
     }
 
-    await prisma.chapterPresidentApplication.update({
+    const updated = await prisma.chapterPresidentApplication.update({
       where: { id: applicationId },
       data,
+      include: { applicant: { select: { name: true, email: true } } },
     });
+
+    // When moved to INTERVIEW_SCHEDULED, prompt applicant to submit availability windows
+    if (newStatus === "INTERVIEW_SCHEDULED") {
+      const baseUrl = process.env.NEXTAUTH_URL || "https://portal.youthpassionproject.org";
+      sendAvailabilityRequestEmail({
+        to: updated.applicant.email,
+        applicantName: updated.applicant.name,
+        statusUrl: `${baseUrl}/application-status`,
+        variant: "cp",
+      }).catch((e) => console.error("[updateCPApplicationStage] availability email failed:", e));
+    }
 
     revalidatePath("/admin/chapter-president-applicants");
     return { success: true };

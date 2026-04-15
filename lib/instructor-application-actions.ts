@@ -10,6 +10,7 @@ import {
   sendApplicationRejectedEmail,
   sendInfoRequestEmail,
   sendInterviewScheduledEmail,
+  sendAvailabilityRequestEmail,
 } from "@/lib/email";
 import {
   getLegacyApplicationTransitionError,
@@ -481,6 +482,17 @@ export async function updateApplicationStage(
     } else {
       await prisma.instructorApplication.update({ where: { id: applicationId }, data });
       revalidatePath("/admin/instructor-applicants");
+
+      // When moved to INTERVIEW_SCHEDULED via Kanban drag, prompt applicant to submit windows
+      if (newStatus === "INTERVIEW_SCHEDULED") {
+        const baseUrl = process.env.NEXTAUTH_URL || "https://portal.youthpassionproject.org";
+        sendAvailabilityRequestEmail({
+          to: application.applicant.email,
+          applicantName: application.applicant.name,
+          statusUrl: `${baseUrl}/application-status`,
+          variant: "instructor",
+        }).catch((e) => console.error("[updateApplicationStage] availability email failed:", e));
+      }
     }
 
     return { success: true };
