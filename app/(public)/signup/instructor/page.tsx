@@ -513,7 +513,7 @@ export default function InstructorSignupPage() {
               </label>
 
               <label className="form-label">
-                Teaching approach video
+                Teaching approach video <span style={{ fontWeight: 400, color: "var(--muted)" }}>(optional)</span>
                 <div style={{ marginTop: 8 }}>
                   <ApplicantVideoUpload
                     onUploadComplete={(file) => setMotivationVideoUrl(file.url)}
@@ -588,16 +588,10 @@ export default function InstructorSignupPage() {
             <button
               className="button"
               type="submit"
-              disabled={motivationVideoUploading || !motivationVideoUrl}
+              disabled={motivationVideoUploading}
             >
               {motivationVideoUploading ? "Uploading video..." : "Submit Application"}
             </button>
-
-            {!motivationVideoUrl && !motivationVideoUploading && (
-              <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
-                Upload the required teaching approach video to unlock submission.
-              </p>
-            )}
           </form>
 
           <div className="login-help">

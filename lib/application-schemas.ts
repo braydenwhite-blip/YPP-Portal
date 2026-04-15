@@ -171,10 +171,11 @@ export const instructorApplicationSchema = z.object({
     .or(z.literal("")),
   motivationVideoUrl: z
     .string()
-    .min(1, "Please upload your teaching approach video.")
-    .refine((value) => isStoredFileUrl(value), {
-      message: "Please upload your teaching approach video before submitting.",
-    }),
+    .refine((value) => !value || isStoredFileUrl(value), {
+      message: "Please upload a valid teaching approach video file.",
+    })
+    .optional()
+    .or(z.literal("")),
   teachingExperience: z
     .string()
     .min(50, "Please describe your teaching experience in at least 50 characters.")
