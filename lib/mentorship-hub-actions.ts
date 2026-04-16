@@ -9,6 +9,7 @@ import {
   MentorshipProgramGroup,
   MentorshipSessionType,
   SupportRole,
+  MentorTag,
 } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
@@ -949,5 +950,47 @@ export async function createMentorshipResource(formData: FormData) {
   });
 
   revalidatePath("/mentor/resources");
+  revalidatePath("/mentorship");
+}
+
+export async function markKickoffComplete(
+  mentorshipId: string,
+  notes?: string
+) {
+  const session = await requireAuth();
+  const roles = session.user.roles ?? [];
+  const flags = getMentorshipRoleFlags(roles);
+  if (!flags.canSupport) {
+    throw new Error("Unauthorized");
+  }
+
+  await prisma.mentorship.update({
+    where: { id: mentorshipId },
+    data: {
+      kickoffCompletedAt: new Date(),
+      kickoffNotes: notes ?? null,
+      cycleStage: "REFLECTION_DUE",
+    },
+  });
+
+  revalidatePath("/mentorship");
+}
+
+export async function setMentorTag(
+  mentorshipId: string,
+  tag: MentorTag | null
+) {
+  const session = await requireAuth();
+  const roles = session.user.roles ?? [];
+  const flags = getMentorshipRoleFlags(roles);
+  if (!flags.canSupport) {
+    throw new Error("Unauthorized");
+  }
+
+  await prisma.mentorship.update({
+    where: { id: mentorshipId },
+    data: { mentorTag: tag },
+  });
+
   revalidatePath("/mentorship");
 }
