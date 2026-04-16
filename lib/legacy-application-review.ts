@@ -1,13 +1,13 @@
+import type {
+  InstructorApplicationStatus,
+  ChapterPresidentApplicationStatus,
+} from "@prisma/client";
+
+// Derived from Prisma-generated enums so it stays in sync with the schema.
+// Any status value valid for either application type is accepted here.
 export type LegacyApplicationStatus =
-  | "SUBMITTED"
-  | "UNDER_REVIEW"
-  | "INFO_REQUESTED"
-  | "ON_HOLD"
-  | "INTERVIEW_SCHEDULED"
-  | "INTERVIEW_COMPLETED"
-  | "RECOMMENDATION_SUBMITTED"
-  | "APPROVED"
-  | "REJECTED";
+  | InstructorApplicationStatus
+  | ChapterPresidentApplicationStatus;
 
 export type LegacyApplicationReviewAction =
   | "mark_under_review"
