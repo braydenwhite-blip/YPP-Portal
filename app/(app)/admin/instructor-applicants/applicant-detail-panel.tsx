@@ -334,12 +334,6 @@ export default function ApplicantDetailPanel({
                   <div className="slideout-field-value">Class of {app.graduationYear}</div>
                 </div>
               )}
-              {app.gpa && (
-                <div className="slideout-field">
-                  <div className="slideout-field-label">GPA</div>
-                  <div className="slideout-field-value">{app.gpa}</div>
-                </div>
-              )}
               {app.hoursPerWeek && (
                 <div className="slideout-field">
                   <div className="slideout-field-label">Availability</div>
