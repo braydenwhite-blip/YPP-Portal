@@ -10,6 +10,8 @@ export default async function AdminInstructorApplicantsPage() {
   const roles = session?.user?.roles ?? [];
   const isAdmin = roles.includes("ADMIN");
   const isChapterPresident = roles.includes("CHAPTER_PRESIDENT");
+  // HIRING_ADMIN is checked as a role here to match preApproveApplication's auth check.
+  const canPreApprove = isAdmin || roles.includes("HIRING_ADMIN");
 
   if (!isAdmin && !isChapterPresident) {
     redirect("/");
@@ -108,7 +110,7 @@ export default async function AdminInstructorApplicantsPage() {
         </div>
       </div>
 
-      <InstructorKanbanBoard applications={serialized as any} reviewers={reviewerUsers} />
+      <InstructorKanbanBoard applications={serialized as any} reviewers={reviewerUsers} canPreApprove={canPreApprove} />
     </div>
   );
 }

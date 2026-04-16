@@ -205,9 +205,11 @@ function DragOverlayCard({ app }: { app: InstructorApp }) {
 export default function InstructorKanbanBoard({
   applications,
   reviewers,
+  canPreApprove,
 }: {
   applications: InstructorApp[];
   reviewers: Reviewer[];
+  canPreApprove: boolean;
 }) {
   return (
     <KanbanBoard<InstructorApp>
@@ -239,6 +241,7 @@ export default function InstructorKanbanBoard({
         <ApplicantDetailPanel
           app={app}
           reviewers={reviewers}
+          canPreApprove={canPreApprove}
           onClose={onClose}
           onUpdate={onUpdate}
         />
