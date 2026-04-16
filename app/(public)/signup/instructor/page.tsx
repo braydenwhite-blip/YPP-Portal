@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { signIn } from "next-auth/react";
 import { useFormState } from "react-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import ApplicantVideoUpload from "@/components/applicant-video-upload";
 import BrandLockup from "@/components/brand-lockup";
+import { navigateToAuthDestination } from "@/lib/auth-client-navigation";
+import { createBrowserClientOrNull } from "@/lib/supabase/client";
+import { canUseLocalPasswordFallback } from "@/lib/supabase/config";
 import {
   clearInstructorSignupDraft,
   loadInstructorSignupDraft,
@@ -57,6 +59,7 @@ export default function InstructorSignupPage() {
   const [appliedDraft, setAppliedDraft] = useState<InstructorSignupDraftV1 | null>(null);
   const [resumeBanner, setResumeBanner] = useState<InstructorSignupDraftV1 | null>(null);
   const [autoLoggingIn, setAutoLoggingIn] = useState(false);
+  const [autoLoginError, setAutoLoginError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -95,12 +98,39 @@ export default function InstructorSignupPage() {
     if (state.status === "success" && state.message === "APPLICATION_SUBMITTED") {
       clearInstructorSignupDraft();
       setAutoLoggingIn(true);
-      signIn("credentials", {
-        email: emailRef.current,
-        password: passwordRef.current,
-        callbackUrl: "/application-status",
-        redirect: true,
-      });
+
+      async function doSignIn() {
+        const email = emailRef.current;
+        const password = passwordRef.current;
+
+        // Primary: Supabase sign-in (account was just created there)
+        const supabaseClient = createBrowserClientOrNull();
+        if (supabaseClient) {
+          const { error: signInError } = await supabaseClient.auth.signInWithPassword({ email, password });
+          if (!signInError) {
+            navigateToAuthDestination("/application-status");
+            return;
+          }
+        }
+
+        // Fallback: local password (local dev without Supabase env vars)
+        if (canUseLocalPasswordFallback()) {
+          const response = await fetch("/api/auth/local-password", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+          });
+          if (response.ok) {
+            navigateToAuthDestination("/application-status");
+            return;
+          }
+        }
+
+        // Sign-in failed — surface a link to the login page
+        setAutoLoginError("Your application was submitted! Sign in below to view your status.");
+      }
+
+      doSignIn();
     }
   }, [state.status, state.message]);
 
@@ -143,7 +173,7 @@ export default function InstructorSignupPage() {
       ? `${hearAbout}: ${hearAboutDetail.trim()}`
       : hearAbout;
 
-  // Loading state while auto-login redirect fires
+  // Loading / post-submit state while auto-login fires (or if it fails)
   if (autoLoggingIn) {
     return (
       <div className="login-shell">
@@ -151,12 +181,28 @@ export default function InstructorSignupPage() {
           <div className="login-card-header login-card-header--stacked">
             <BrandLockup height={36} className="brand-lockup" reloadOnClick />
             <div>
-              <h1 className="page-title" style={{ fontSize: 20 }}>
-                Setting up your account…
-              </h1>
-              <p className="page-subtitle mt-0" style={{ fontSize: 13 }}>
-                Signing you in and taking you to your application status
-              </p>
+              {autoLoginError ? (
+                <>
+                  <h1 className="page-title" style={{ fontSize: 20 }}>
+                    Application submitted!
+                  </h1>
+                  <p className="page-subtitle mt-0" style={{ fontSize: 13 }}>
+                    {autoLoginError}
+                  </p>
+                  <Link href="/login?callbackUrl=/application-status" className="button" style={{ marginTop: 12, display: "inline-block" }}>
+                    Sign in
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <h1 className="page-title" style={{ fontSize: 20 }}>
+                    Setting up your account…
+                  </h1>
+                  <p className="page-subtitle mt-0" style={{ fontSize: 13 }}>
+                    Signing you in and taking you to your application status
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>
