@@ -345,3 +345,171 @@ export async function getMentorKanbanData(): Promise<{
 
   return { active, inactive, total: cards.length, isAdmin };
 }
+
+/* ── Simplified 5-Column Mentor Kanban (Phase Simplification) ──────── */
+
+export type SimplifiedKanbanCard = {
+  mentorshipId: string;
+  menteeId: string;
+  menteeName: string;
+  menteePrimaryRole: string | null;
+  cycleStage: MentorshipCycleStage;
+  mentorTag: string | null;
+  reflectionSubmitted: boolean;
+  kickoffPending: boolean;
+  latestRatings: string[]; // GoalRatingColor values
+  softDeadline: Date | null;
+  cta: CycleCTA;
+};
+
+export type SimplifiedKanbanColumn = {
+  key: string;
+  label: string;
+  accent: string; // CSS color token
+  cards: SimplifiedKanbanCard[];
+};
+
+const SIMPLIFIED_COLUMNS: Array<{
+  key: string;
+  label: string;
+  accent: string;
+  test: (card: SimplifiedKanbanCard) => boolean;
+}> = [
+  {
+    key: "REFLECTION_NOT_SUBMITTED",
+    label: "Reflection Not Submitted",
+    accent: "#f59e0b",
+    test: (c) =>
+      !c.mentorTag &&
+      (c.cycleStage === "KICKOFF_PENDING" || c.cycleStage === "REFLECTION_DUE"),
+  },
+  {
+    key: "READY_FOR_REVIEW",
+    label: "Ready for Review",
+    accent: "#3b82f6",
+    test: (c) =>
+      !c.mentorTag &&
+      (c.cycleStage === "REFLECTION_SUBMITTED" ||
+        c.cycleStage === "CHANGES_REQUESTED"),
+  },
+  {
+    key: "FEEDBACK_COMPLETED",
+    label: "Feedback Completed",
+    accent: "#22c55e",
+    test: (c) =>
+      !c.mentorTag &&
+      (c.cycleStage === "REVIEW_SUBMITTED" || c.cycleStage === "APPROVED"),
+  },
+  {
+    key: "FOLLOW_UP_NEEDED",
+    label: "Follow-Up Needed",
+    accent: "#ef4444",
+    test: (c) => c.mentorTag === "FOLLOW_UP_NEEDED",
+  },
+  {
+    key: "OUTSTANDING_PERFORMANCE",
+    label: "Outstanding Performance",
+    accent: "#a855f7",
+    test: (c) => c.mentorTag === "OUTSTANDING_PERFORMANCE",
+  },
+];
+
+export async function getSimplifiedMentorKanban(): Promise<{
+  columns: SimplifiedKanbanColumn[];
+  total: number;
+  inactive: SimplifiedKanbanCard[];
+}> {
+  const session = await getSession();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+  const userId = session.user.id;
+  const roles = session.user.roles ?? [];
+  const isAdmin = roles.includes("ADMIN");
+
+  const accessibleMenteeIds = isAdmin
+    ? null
+    : (await getMentorshipAccessibleMenteeIds(userId, roles)) ?? [];
+
+  const where =
+    accessibleMenteeIds === null
+      ? {}
+      : {
+          menteeId: {
+            in:
+              accessibleMenteeIds.length > 0
+                ? accessibleMenteeIds
+                : ["__none__"],
+          },
+        };
+
+  const { cycleMonth } = getCurrentCycleMonth();
+  const softDeadline = getReflectionSoftDeadline(cycleMonth);
+
+  const mentorships = await prisma.mentorship.findMany({
+    where,
+    include: {
+      mentee: { select: { id: true, name: true, email: true, primaryRole: true } },
+      track: { select: { name: true } },
+      goalReviews: {
+        orderBy: { cycleNumber: "desc" },
+        take: 1,
+        select: {
+          id: true,
+          status: true,
+          releasedToMenteeAt: true,
+          goalRatings: { select: { rating: true } },
+        },
+      },
+      selfReflections: {
+        orderBy: { cycleNumber: "desc" },
+        take: 1,
+        select: { submittedAt: true },
+      },
+    },
+  });
+
+  const activeStages: MentorshipCycleStage[] = [
+    "KICKOFF_PENDING",
+    "REFLECTION_DUE",
+    "REFLECTION_SUBMITTED",
+    "CHANGES_REQUESTED",
+    "REVIEW_SUBMITTED",
+    "APPROVED",
+  ];
+
+  const allCards: SimplifiedKanbanCard[] = mentorships.map((m) => {
+    const latestReview = m.goalReviews[0] ?? null;
+    const latestReflection = m.selfReflections[0] ?? null;
+    return {
+      mentorshipId: m.id,
+      menteeId: m.mentee.id,
+      menteeName: m.mentee.name ?? m.mentee.email,
+      menteePrimaryRole: m.mentee.primaryRole,
+      cycleStage: m.cycleStage,
+      mentorTag: m.mentorTag ?? null,
+      reflectionSubmitted: !!latestReflection?.submittedAt,
+      kickoffPending: m.cycleStage === "KICKOFF_PENDING",
+      latestRatings: latestReview?.goalRatings.map((gr) => gr.rating) ?? [],
+      softDeadline: activeStages.includes(m.cycleStage) ? softDeadline : null,
+      cta: getCycleStageCTA({
+        stage: m.cycleStage,
+        menteeId: m.mentee.id,
+        mentorshipId: m.id,
+        reviewId: latestReview?.id ?? null,
+      }),
+    };
+  });
+
+  const activeCards = allCards.filter((c) => activeStages.includes(c.cycleStage));
+  const inactive = allCards.filter((c) => !activeStages.includes(c.cycleStage));
+
+  const columns: SimplifiedKanbanColumn[] = SIMPLIFIED_COLUMNS.map((col) => ({
+    key: col.key,
+    label: col.label,
+    accent: col.accent,
+    cards: activeCards
+      .filter(col.test)
+      .sort((a, b) => a.menteeName.localeCompare(b.menteeName)),
+  }));
+
+  return { columns, total: allCards.length, inactive };
+}

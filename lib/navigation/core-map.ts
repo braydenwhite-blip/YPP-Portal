@@ -49,6 +49,7 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/admin/instructor-readiness",
     "/admin/waitlist",
     "/admin/students",
+    "/admin/mentorship",
     "/messages",
   ],
   PARENT: [
@@ -68,13 +69,12 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
     "/chapter-lead/instructor-readiness",
     "/chapter",
     "/attendance",
+    "/mentorship",
     "/messages",
   ],
   MENTOR: [
     "/",
     "/mentorship",
-    "/mentorship/mentees",
-    "/mentor/resources",
     "/office-hours",
     "/events",
     "/messages",
