@@ -1570,8 +1570,6 @@ model InstructorApplication {
   // --- Academic Background ---
   schoolName         String?
   graduationYear     Int?
-  gpa                String?
-  classRank          String?
   subjectsOfInterest String?
 
   // --- Referral ---
@@ -1580,9 +1578,6 @@ model InstructorApplication {
   // --- Availability details ---
   hoursPerWeek       Int?
   preferredStartDate String?
-
-  // --- Optional demographics ---
-  ethnicity String?
 
   // --- Reviewer scoring rubric ---
   scoreAcademic      Int?

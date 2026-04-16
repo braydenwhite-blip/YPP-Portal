@@ -515,29 +515,18 @@ export default function InstructorSignupPage() {
                 <input className="input" name="schoolName" placeholder="Your school" required defaultValue={field(d, "schoolName")} />
               </label>
 
-              <div className="grid two">
-                <label className="form-label">
-                  Graduation year
-                  <input
-                    className="input"
-                    name="graduationYear"
-                    type="number"
-                    min={2025}
-                    max={2030}
-                    placeholder="e.g. 2027"
-                    required
-                    defaultValue={field(d, "graduationYear")}
-                  />
-                </label>
-                <label className="form-label">
-                  GPA
-                  <input className="input" name="gpa" placeholder="Optional" defaultValue={field(d, "gpa")} />
-                </label>
-              </div>
-
               <label className="form-label">
-                Class rank
-                <input className="input" name="classRank" placeholder="Optional" defaultValue={field(d, "classRank")} />
+                Graduation year
+                <input
+                  className="input"
+                  name="graduationYear"
+                  type="number"
+                  min={2025}
+                  max={2030}
+                  placeholder="e.g. 2027"
+                  required
+                  defaultValue={field(d, "graduationYear")}
+                />
               </label>
 
               <label className="form-label">
@@ -617,11 +606,6 @@ export default function InstructorSignupPage() {
               <label className="form-label">
                 Referral emails
                 <textarea className="input" name="referralEmails" rows={3} defaultValue={field(d, "referralEmails")} />
-              </label>
-
-              <label className="form-label">
-                Race or ethnicity
-                <input className="input" name="ethnicity" placeholder="Optional" defaultValue={field(d, "ethnicity")} />
               </label>
             </div>
 
