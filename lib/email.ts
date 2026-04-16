@@ -614,6 +614,70 @@ export async function sendNewApplicationNotification({
 }
 
 /**
+ * Confirmation email sent to the instructor applicant immediately after they submit their application.
+ */
+export async function sendInstructorApplicationSubmittedEmail({
+  to,
+  applicantName,
+  statusUrl,
+}: {
+  to: string;
+  applicantName: string;
+  statusUrl: string;
+}): Promise<EmailResult> {
+  const firstName = applicantName.split(" ")[0] || applicantName;
+  const subject = "Your YPP Instructor Application Was Received";
+  const html = emailShell(`
+    <h2 style="margin: 0 0 16px; color: #1c1917;">Thanks for applying, ${escapeHtml(firstName)}!</h2>
+    <p>We received your Youth Passion Project instructor application and we're excited to learn more about you.</p>
+    <p>Here's what happens next:</p>
+    <ul style="color: #57534e; font-size: 14px; line-height: 1.8; padding-left: 20px;">
+      <li>Our review team typically reaches out within <strong>3–5 business days</strong>.</li>
+      <li>If we'd like to move forward, you'll be invited to a <strong>curriculum overview/interview</strong> — a relaxed conversation about your teaching approach, not a test or exam.</li>
+      <li>After that session, we'll make a final decision on your application.</li>
+    </ul>
+    <p>In the meantime you can check your application status in the portal at any time.</p>
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${statusUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Application Status</a>
+    </div>
+    <p style="color: #78716c; font-size: 13px;">Questions? Reach out to your chapter president or our team.</p>
+  `);
+  return sendEmail({ to, subject, html });
+}
+
+/**
+ * Email sent to the applicant when their application is pre-approved (training unlocked).
+ * Signals that reviewer + hiring chair have greenlit them; they can now start instructor training.
+ */
+export async function sendInstructorPreApprovedEmail({
+  to,
+  applicantName,
+  trainingUrl,
+}: {
+  to: string;
+  applicantName: string;
+  trainingUrl: string;
+}): Promise<EmailResult> {
+  const firstName = applicantName.split(" ")[0] || applicantName;
+  const subject = "Great News: Your YPP Application Has Been Pre-Approved";
+  const html = emailShell(`
+    <h2 style="margin: 0 0 16px; color: #1c1917;">You've been pre-approved, ${escapeHtml(firstName)}!</h2>
+    <p>We're excited to let you know that your instructor application has been reviewed and pre-approved by our team.</p>
+    <p><strong>What this means:</strong></p>
+    <ul style="color: #57534e; font-size: 14px; line-height: 1.8; padding-left: 20px;">
+      <li>You can now begin your <strong>instructor training</strong> in the portal.</li>
+      <li>Once you complete training, we'll schedule your <strong>curriculum overview/interview</strong> — a collaborative session where you'll walk through how you'd teach using YPP materials.</li>
+      <li>After that session, we'll finalize your application and onboard you as a YPP instructor.</li>
+    </ul>
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${trainingUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Start Instructor Training</a>
+    </div>
+    <p style="color: #78716c; font-size: 13px;">Welcome to the journey — we're looking forward to working with you!</p>
+  `);
+  return sendEmail({ to, subject, html });
+}
+
+/**
  * Notify applicant that their application has been approved
  */
 export async function sendApplicationApprovedEmail({
@@ -624,7 +688,8 @@ export async function sendApplicationApprovedEmail({
   applicantName: string;
 }): Promise<EmailResult> {
   const subject = "Your YPP Instructor Application Has Been Approved!";
-  const baseUrl = process.env.NEXTAUTH_URL || "https://portal.youthpassionproject.org";
+  const { getPublicAppUrl } = await import("@/lib/public-app-url");
+  const baseUrl = getPublicAppUrl();
   const html = emailShell(`
     <h2 style="margin: 0 0 16px; color: #1c1917;">Congratulations, ${applicantName}!</h2>
     <p>We are thrilled to let you know that your application to become an instructor at Youth Passion Project has been <strong>approved</strong>.</p>
@@ -740,6 +805,121 @@ export async function sendInterviewScheduledEmail({
     <p style="color: #78716c; font-size: 13px;">If you have questions, please reach out to your chapter president or admin.</p>
   `);
   return sendEmail({ to, subject, html });
+}
+
+/**
+ * Email to applicant: "A reviewer has proposed times — log in and pick one."
+ * Sent after the reviewer submits their offered slots via the admin panel.
+ */
+export async function sendPickYourTimeEmail({
+  to,
+  applicantName,
+  slots,
+  statusUrl,
+}: {
+  to: string;
+  applicantName: string;
+  slots: { scheduledAt: Date; durationMinutes: number }[];
+  statusUrl: string;
+}): Promise<EmailResult> {
+  const firstName = applicantName.split(" ")[0] || applicantName;
+  const subject = "Action Needed: Pick a Time for Your Curriculum Overview/Interview";
+  const slotRows = slots
+    .map((s) => {
+      const formatted = s.scheduledAt.toLocaleString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        timeZoneName: "short",
+      });
+      return `<li style="margin-bottom: 6px;">${escapeHtml(formatted)} (${s.durationMinutes} min)</li>`;
+    })
+    .join("");
+  const html = emailShell(`
+    <h2 style="margin: 0 0 16px; color: #1c1917;">Choose your time, ${escapeHtml(firstName)}!</h2>
+    <p>Great news — a reviewer would like to schedule your curriculum overview/interview session. This is a relaxed conversation about your teaching approach, not an exam.</p>
+    <p><strong>Proposed times:</strong></p>
+    <ul style="color: #57534e; font-size: 14px; line-height: 1.8; padding-left: 20px;">
+      ${slotRows}
+    </ul>
+    <p>Log in to the portal and pick the time that works best for you.</p>
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${statusUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Choose Your Time</a>
+    </div>
+    <p style="color: #78716c; font-size: 13px;">If none of these times work, please reach out to your chapter president or reviewer directly.</p>
+  `);
+  return sendEmail({ to, subject, html });
+}
+
+/**
+ * Confirmation email sent to the applicant and all reviewers once the applicant picks a slot.
+ * Includes an ICS calendar attachment.
+ */
+export async function sendInterviewConfirmedEmail({
+  to,
+  recipientName,
+  applicantName,
+  scheduledAt,
+  durationMinutes,
+  role,
+  detailUrl,
+  icsContent,
+}: {
+  to: string;
+  recipientName: string;
+  applicantName: string;
+  scheduledAt: Date;
+  durationMinutes: number;
+  role: "applicant" | "reviewer";
+  detailUrl: string;
+  icsContent: string;
+}): Promise<EmailResult> {
+  const firstName = recipientName.split(" ")[0] || recipientName;
+  const subject = "Confirmed: Curriculum Overview/Interview Scheduled";
+  const formattedDate = scheduledAt.toLocaleString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
+  const heading =
+    role === "applicant"
+      ? `It's confirmed, ${escapeHtml(firstName)}!`
+      : `${escapeHtml(applicantName)} has confirmed their time`;
+  const body =
+    role === "applicant"
+      ? "Your curriculum overview/interview is officially booked. This is a collaborative conversation — come prepared to talk about your teaching approach and how you'd use YPP materials."
+      : `${escapeHtml(applicantName)} has selected a time for their curriculum overview/interview. A calendar invite is attached.`;
+  const html = emailShell(`
+    <h2 style="margin: 0 0 16px; color: #1c1917;">${heading}</h2>
+    <p>${body}</p>
+    <div style="background: #f5f5f4; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: center;">
+      <p style="margin: 0; font-size: 16px; font-weight: 600; color: #1c1917;">${escapeHtml(formattedDate)}</p>
+      <p style="margin: 8px 0 0; font-size: 13px; color: #78716c;">Duration: ${durationMinutes} minutes</p>
+    </div>
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${detailUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Details</a>
+    </div>
+    <p style="color: #78716c; font-size: 13px;">A calendar invite (.ics) is attached to this email.</p>
+  `);
+  return sendEmail({
+    to,
+    subject,
+    html,
+    attachments: [
+      {
+        filename: "curriculum-overview.ics",
+        content: icsContent,
+        contentType: "text/calendar",
+      },
+    ],
+  });
 }
 
 // ============================================

@@ -313,6 +313,7 @@ enum InstructorApplicationStatus {
   SUBMITTED
   UNDER_REVIEW
   INFO_REQUESTED
+  PRE_APPROVED
   INTERVIEW_SCHEDULED
   INTERVIEW_COMPLETED
   APPROVED
@@ -1026,6 +1027,7 @@ model User {
   // Instructor Application Relations
   instructorApplication          InstructorApplication?  @relation("InstructorApplications")
   instructorApplicationsReviewed InstructorApplication[] @relation("InstructorApplicationReviews")
+  offeredInterviewSlots          OfferedInterviewSlot[]  @relation("OfferedInterviewSlots")
 
   // Chapter President Application Relations
   chapterPresidentApplication          ChapterPresidentApplication?  @relation("ChapterPresidentApplications")
@@ -1617,6 +1619,9 @@ model InstructorApplication {
   availabilityWindows ApplicantAvailabilityWindow[] @relation("InstructorAvailabilityWindows")
   schedulingNoMatchAt DateTime?
 
+  // --- Reviewer-offered interview slots (new scheduling flow) ---
+  offeredSlots        OfferedInterviewSlot[]
+
   createdAt            DateTime                  @default(now())
   updatedAt            DateTime                  @updatedAt
 
@@ -1625,6 +1630,22 @@ model InstructorApplication {
   @@index([cohortId])
   @@index([graduationYear])
   @@index([stateProvince])
+}
+
+model OfferedInterviewSlot {
+  id                      String                @id @default(cuid())
+  instructorApplicationId String
+  instructorApplication   InstructorApplication @relation(fields: [instructorApplicationId], references: [id], onDelete: Cascade)
+  scheduledAt             DateTime
+  durationMinutes         Int                   @default(60)
+  offeredByUserId         String
+  offeredBy               User                  @relation("OfferedInterviewSlots", fields: [offeredByUserId], references: [id], onDelete: Cascade)
+  confirmedAt             DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([instructorApplicationId])
+  @@index([offeredByUserId])
 }
 
 model TrainingCheckpoint {

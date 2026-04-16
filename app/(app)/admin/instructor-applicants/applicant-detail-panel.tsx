@@ -8,6 +8,8 @@ import {
   assignReviewer,
   setActionDueDate,
   saveScoresAndNotes,
+  preApproveApplication,
+  offerInterviewSlots,
 } from "@/lib/instructor-application-actions";
 
 /* ── Score Bar ─────────────────────────────────────── */
@@ -64,6 +66,7 @@ function statusPillClass(status: string): string {
     case "SUBMITTED": return "status-pill submitted";
     case "UNDER_REVIEW": return "status-pill under-review";
     case "INFO_REQUESTED": return "status-pill info-requested";
+    case "PRE_APPROVED": return "status-pill interview-scheduled";
     case "INTERVIEW_SCHEDULED": return "status-pill interview-scheduled";
     case "INTERVIEW_COMPLETED": return "status-pill interview-completed";
     case "APPROVED": return "status-pill approved";
@@ -74,6 +77,7 @@ function statusPillClass(status: string): string {
 }
 
 function statusLabel(status: string): string {
+  if (status === "PRE_APPROVED") return "Pre-Approved";
   if (status === "INTERVIEW_SCHEDULED") return "Curriculum overview scheduled";
   if (status === "INTERVIEW_COMPLETED") return "Curriculum overview completed";
   return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -137,6 +141,12 @@ export default function ApplicantDetailPanel({
   const [saving, setSaving] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // Offer slots state
+  type SlotDraft = { date: string; time: string; durationMinutes: number };
+  const emptySlot = (): SlotDraft => ({ date: "", time: "", durationMinutes: 60 });
+  const [offerSlots, setOfferSlots] = useState<SlotDraft[]>([emptySlot()]);
+  const [offerSending, setOfferSending] = useState(false);
 
   // Reset local state when app changes
   useEffect(() => {
@@ -250,6 +260,40 @@ export default function ApplicantDetailPanel({
     } else {
       showMessage("Action completed");
     }
+  }
+
+  async function handlePreApprove() {
+    if (!confirm(`Pre-approve ${app.legalName || app.applicant.name}? This will unlock instructor training for them and send a pre-approval email.`)) return;
+    setSaving(true);
+    const result = await preApproveApplication(app.id);
+    if (result.success) {
+      onUpdate({ id: app.id, status: "PRE_APPROVED" });
+      showMessage("Application pre-approved — training unlocked");
+    } else {
+      showMessage(result.error || "Failed to pre-approve");
+    }
+    setSaving(false);
+  }
+
+  async function handleOfferSlots() {
+    const validSlots = offerSlots.filter((s) => s.date && s.time);
+    if (validSlots.length === 0) {
+      showMessage("Add at least one complete time slot before sending.");
+      return;
+    }
+    const slots = validSlots.map((s) => ({
+      scheduledAt: new Date(`${s.date}T${s.time}`),
+      durationMinutes: s.durationMinutes,
+    }));
+    setOfferSending(true);
+    const result = await offerInterviewSlots(app.id, slots);
+    if (result.success) {
+      showMessage("Available times sent to applicant");
+      setOfferSlots([emptySlot()]);
+    } else {
+      showMessage(result.error || "Failed to send times");
+    }
+    setOfferSending(false);
   }
 
   const displayName = app.legalName || app.applicant.name;
@@ -560,6 +604,75 @@ export default function ApplicantDetailPanel({
             </div>
           </div>
 
+          {/* Offer Times (visible when INTERVIEW_SCHEDULED) */}
+          {app.status === "INTERVIEW_SCHEDULED" && (
+            <div className="slideout-section">
+              <div className="slideout-section-title">Propose Times for Curriculum Overview/Interview</div>
+              <p style={{ fontSize: 13, color: "var(--muted)", marginTop: 0, marginBottom: 10 }}>
+                Add 1–4 times for the coming week. The applicant will receive an email and pick the one that works for them.
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {offerSlots.map((slot, i) => (
+                  <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <input
+                      type="date"
+                      className="input"
+                      value={slot.date}
+                      onChange={(e) => setOfferSlots((prev) => prev.map((s, idx) => idx === i ? { ...s, date: e.target.value } : s))}
+                      style={{ maxWidth: 150, marginBottom: 0 }}
+                    />
+                    <input
+                      type="time"
+                      className="input"
+                      value={slot.time}
+                      onChange={(e) => setOfferSlots((prev) => prev.map((s, idx) => idx === i ? { ...s, time: e.target.value } : s))}
+                      style={{ maxWidth: 120, marginBottom: 0 }}
+                    />
+                    <select
+                      className="input"
+                      value={slot.durationMinutes}
+                      onChange={(e) => setOfferSlots((prev) => prev.map((s, idx) => idx === i ? { ...s, durationMinutes: Number(e.target.value) } : s))}
+                      style={{ maxWidth: 110, marginBottom: 0 }}
+                    >
+                      <option value={30}>30 min</option>
+                      <option value={45}>45 min</option>
+                      <option value={60}>60 min</option>
+                      <option value={90}>90 min</option>
+                    </select>
+                    {offerSlots.length > 1 && (
+                      <button
+                        className="button secondary"
+                        onClick={() => setOfferSlots((prev) => prev.filter((_, idx) => idx !== i))}
+                        style={{ fontSize: 11, padding: "4px 10px", marginBottom: 0 }}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                {offerSlots.length < 4 && (
+                  <button
+                    className="button secondary"
+                    onClick={() => setOfferSlots((prev) => [...prev, emptySlot()])}
+                    style={{ fontSize: 12 }}
+                  >
+                    + Add Time Slot
+                  </button>
+                )}
+                <button
+                  className="button"
+                  onClick={handleOfferSlots}
+                  disabled={offerSending}
+                  style={{ fontSize: 12 }}
+                >
+                  {offerSending ? "Sending..." : "Send Times to Applicant"}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Quick Actions */}
           {!isFinal && (
             <div className="slideout-section">
@@ -573,6 +686,16 @@ export default function ApplicantDetailPanel({
                     style={{ fontSize: 12 }}
                   >
                     Begin Review
+                  </button>
+                )}
+                {(app.status === "UNDER_REVIEW" || app.status === "INFO_REQUESTED") && (
+                  <button
+                    className="button secondary"
+                    onClick={handlePreApprove}
+                    disabled={saving}
+                    style={{ fontSize: 12, color: "#6b21c8", borderColor: "#6b21c8" }}
+                  >
+                    Pre-Approve
                   </button>
                 )}
                 {app.status === "ON_HOLD" && (

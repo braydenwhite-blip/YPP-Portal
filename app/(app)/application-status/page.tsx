@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
-import { submitInfoResponse } from "@/lib/instructor-application-actions";
 import {
   InstructorApplicationStatus,
   ChapterPresidentApplicationStatus,
@@ -10,6 +9,7 @@ import {
 import InfoResponseForm from "./info-response-form";
 import CPInfoResponseForm from "./cp-info-response-form";
 import AvailabilityForm from "./availability-form";
+import SlotPickerForm from "./slot-picker-form";
 import Link from "next/link";
 import InstructorApplicationMotivationResponse from "@/components/instructor-application-motivation-response";
 
@@ -18,6 +18,7 @@ function instructorStatusLabel(status: InstructorApplicationStatus): string {
     case "SUBMITTED": return "Submitted";
     case "UNDER_REVIEW": return "Under Review";
     case "INFO_REQUESTED": return "More Info Requested";
+    case "PRE_APPROVED": return "Pre-Approved";
     case "INTERVIEW_SCHEDULED": return "Curriculum Overview Scheduled";
     case "INTERVIEW_COMPLETED": return "Curriculum Overview Completed";
     case "ON_HOLD": return "On Hold";
@@ -52,13 +53,14 @@ function statusColor(status: string): string {
   if (status === "REJECTED") return "#dc2626";
   if (status === "INFO_REQUESTED") return "#d97706";
   if (status === "ON_HOLD") return "#71717a";
+  if (status === "PRE_APPROVED") return "#7c3aed";
   return "#6b21c8";
 }
 
 function currentStageIndex(status: string): number {
   if (status === "SUBMITTED") return 0;
   if (status === "UNDER_REVIEW" || status === "INFO_REQUESTED" || status === "ON_HOLD") return 1;
-  if (status === "INTERVIEW_SCHEDULED" || status === "INTERVIEW_COMPLETED") return 2;
+  if (status === "PRE_APPROVED" || status === "INTERVIEW_SCHEDULED" || status === "INTERVIEW_COMPLETED") return 2;
   return 3;
 }
 
@@ -119,6 +121,10 @@ export default async function ApplicationStatusPage() {
       include: {
         reviewer: { select: { name: true } },
         availabilityWindows: true,
+        offeredSlots: {
+          where: { confirmedAt: null },
+          orderBy: { scheduledAt: "asc" },
+        },
       },
     }),
     prisma.chapterPresidentApplication.findUnique({
@@ -168,7 +174,8 @@ export default async function ApplicationStatusPage() {
           <ProgressStepper status={instructorApp.status} middleStageLabel="Curriculum overview" />
 
           <div className="card" style={{ marginBottom: 16 }}>
-            {capstoneModule && instructorApp.status !== "REJECTED" ? (
+            {capstoneModule &&
+              ["PRE_APPROVED", "INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED", "APPROVED"].includes(instructorApp.status) ? (
               <div
                 style={{
                   marginBottom: 16,
@@ -243,13 +250,27 @@ export default async function ApplicationStatusPage() {
                 <InfoResponseForm />
               </>
             )}
+            {instructorApp.status === "PRE_APPROVED" && (
+              <>
+                <h3 className="section-title" style={{ color: "#6b21c8" }}>You&apos;ve Been Pre-Approved!</h3>
+                <p style={{ color: "var(--muted)", fontSize: 14 }}>
+                  Great news — you&apos;ve been pre-approved to move forward in the instructor pathway. You can now begin your instructor training in the portal.
+                </p>
+                <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 8 }}>
+                  Once you complete training, your reviewer will reach out with times for a <strong>curriculum overview/interview</strong> — a collaborative session where you&apos;ll walk through how you&apos;d teach using YPP materials.
+                </p>
+                <Link href="/instructor-training" className="button" style={{ display: "inline-block", textDecoration: "none", marginTop: 4 }}>
+                  Start Instructor Training
+                </Link>
+              </>
+            )}
             {instructorApp.status === "INTERVIEW_SCHEDULED" && (
               <>
-                <h3 className="section-title">Curriculum Review Session</h3>
+                <h3 className="section-title">Curriculum Overview/Interview</h3>
                 {instructorApp.interviewScheduledAt ? (
                   <>
                     <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
-                      Your curriculum review session has been confirmed. You will receive a calendar invite by email. If you need to reschedule, reach out to your reviewer.
+                      Your curriculum overview/interview has been confirmed. You will receive a calendar invite by email. If you need to reschedule, reach out to your reviewer.
                     </p>
                     <div style={{ background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px", marginBottom: 16, textAlign: "center" }}>
                       <p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
@@ -260,13 +281,17 @@ export default async function ApplicationStatusPage() {
                       </p>
                     </div>
                   </>
+                ) : instructorApp.offeredSlots && instructorApp.offeredSlots.length > 0 ? (
+                  <>
+                    <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
+                      A reviewer has proposed the following times for your curriculum overview/interview. Click the one that works best for you — you&apos;ll receive a calendar invite once confirmed.
+                    </p>
+                    <SlotPickerForm slots={instructorApp.offeredSlots} />
+                  </>
                 ) : (
-                  <AvailabilityForm
-                    applicationId={instructorApp.id}
-                    variant="instructor"
-                    existingWindows={instructorApp.availabilityWindows}
-                    hadNoMatch={!!instructorApp.schedulingNoMatchAt}
-                  />
+                  <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
+                    Your reviewer will propose a few available times shortly. Check back here to pick the time that works best for you.
+                  </p>
                 )}
               </>
             )}

@@ -213,13 +213,24 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
       await syncInstructorApplicationWorkflow(application.id);
     }
 
-    // Notify reviewers of new applicant (non-blocking)
+    // Notify reviewers + send welcome email to applicant (both non-blocking)
     if (primaryRole === RoleType.APPLICANT) {
       try {
         const { notifyReviewersOfNewApplication } = await import("@/lib/instructor-application-actions");
         await notifyReviewersOfNewApplication(newUser.id);
       } catch (notifyError) {
         console.error("[Signup] Failed to notify reviewers:", notifyError);
+      }
+      try {
+        const { sendInstructorApplicationSubmittedEmail } = await import("@/lib/email");
+        const { toAbsoluteAppUrl } = await import("@/lib/public-app-url");
+        await sendInstructorApplicationSubmittedEmail({
+          to: email,
+          applicantName: name,
+          statusUrl: toAbsoluteAppUrl("/application-status"),
+        });
+      } catch (emailError) {
+        console.error("[Signup] Failed to send applicant confirmation email:", emailError);
       }
       return {
         status: "success",

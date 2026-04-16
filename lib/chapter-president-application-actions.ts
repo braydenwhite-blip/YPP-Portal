@@ -59,7 +59,8 @@ async function notifyChapterPresidentApplicationReviewers(applicantId: string) {
     return;
   }
 
-  const baseUrl = process.env.NEXTAUTH_URL || "https://portal.youthpassionproject.org";
+  const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+  const baseUrl = getBaseUrl();
   await sendNewApplicationNotification({
     to: emails,
     applicantName: applicant?.name ?? "Unknown",
@@ -392,7 +393,8 @@ export async function reviewChapterPresidentApplication(
             infoRequest: message,
           },
         });
-        const baseUrl = process.env.NEXTAUTH_URL || "https://portal.youthpassionproject.org";
+        const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+  const baseUrl = getBaseUrl();
         try {
           await sendInfoRequestEmail({
             to: application.applicant.email,
@@ -423,7 +425,8 @@ export async function reviewChapterPresidentApplication(
             reviewerNotes: notes || null,
           },
         });
-        const baseUrl = process.env.NEXTAUTH_URL || "https://portal.youthpassionproject.org";
+        const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+  const baseUrl = getBaseUrl();
         try {
           await sendInterviewScheduledEmail({
             to: application.applicant.email,

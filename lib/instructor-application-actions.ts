@@ -11,6 +11,9 @@ import {
   sendInfoRequestEmail,
   sendInterviewScheduledEmail,
   sendAvailabilityRequestEmail,
+  sendPickYourTimeEmail,
+  sendInterviewConfirmedEmail,
+  sendInstructorPreApprovedEmail,
 } from "@/lib/email";
 import {
   getLegacyApplicationTransitionError,
@@ -68,21 +71,32 @@ export async function notifyReviewersOfNewApplication(applicantId: string) {
     select: { name: true, email: true, chapterId: true },
   });
   if (!applicant) return;
-  const reviewers = await prisma.user.findMany({
+
+  const emailSet = new Set<string>();
+
+  // 1. Chapter president(s) for the applicant's chapter
+  const chapterPresidents = await prisma.user.findMany({
     where: {
-      OR: [
-        { roles: { some: { role: RoleType.ADMIN } } },
-        {
-          roles: { some: { role: RoleType.CHAPTER_PRESIDENT } },
-          chapterId: applicant.chapterId ?? undefined,
-        },
-      ],
+      roles: { some: { role: RoleType.CHAPTER_PRESIDENT } },
+      ...(applicant.chapterId ? { chapterId: applicant.chapterId } : {}),
     },
     select: { email: true },
   });
-  const emails = reviewers.map((r) => r.email).filter(Boolean) as string[];
+  chapterPresidents.forEach((u) => u.email && emailSet.add(u.email));
+
+  // 2. Hiring chair (HIRING_ADMIN default owner)
+  const hiringChair = await prisma.userAdminSubtype.findFirst({
+    where: { subtype: "HIRING_ADMIN", isDefaultOwner: true },
+    include: { user: { select: { email: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+  if (hiringChair?.user?.email) emailSet.add(hiringChair.user.email);
+
+  const emails = Array.from(emailSet).filter(Boolean) as string[];
   if (!emails.length) return;
-  const baseUrl = process.env.NEXTAUTH_URL || "https://portal.youthpassionproject.org";
+
+  const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+  const baseUrl = getBaseUrl();
   await sendNewApplicationNotification({
     to: emails,
     applicantName: applicant.name,
@@ -318,7 +332,8 @@ async function requestMoreInfo(
     },
   });
 
-  const baseUrl = process.env.NEXTAUTH_URL || "https://portal.youthpassionproject.org";
+  const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+  const baseUrl = getBaseUrl();
   try {
     await sendInfoRequestEmail({
       to: application.applicant.email,
@@ -357,7 +372,8 @@ async function scheduleInterview(
     },
   });
 
-  const baseUrl = process.env.NEXTAUTH_URL || "https://portal.youthpassionproject.org";
+  const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+  const baseUrl = getBaseUrl();
   try {
     await sendInterviewScheduledEmail({
       to: application.applicant.email,
@@ -483,16 +499,8 @@ export async function updateApplicationStage(
       await prisma.instructorApplication.update({ where: { id: applicationId }, data });
       revalidatePath("/admin/instructor-applicants");
 
-      // When moved to INTERVIEW_SCHEDULED via Kanban drag, prompt applicant to submit windows
-      if (newStatus === "INTERVIEW_SCHEDULED") {
-        const baseUrl = process.env.NEXTAUTH_URL || "https://portal.youthpassionproject.org";
-        sendAvailabilityRequestEmail({
-          to: application.applicant.email,
-          applicantName: application.applicant.name,
-          statusUrl: `${baseUrl}/application-status`,
-          variant: "instructor",
-        }).catch((e) => console.error("[updateApplicationStage] availability email failed:", e));
-      }
+      // When moved to INTERVIEW_SCHEDULED, the reviewer will propose times via the detail panel.
+      // The applicant will receive a "pick your time" email once the reviewer offers slots.
     }
 
     return { success: true };
@@ -604,6 +612,194 @@ export async function saveScoresAndNotes(
     return { success: true };
   } catch (error) {
     console.error("[saveScoresAndNotes]", error);
+    return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Scheduling: Reviewer offers times → Applicant picks one
+// ─────────────────────────────────────────────────────────────────
+
+export async function preApproveApplication(
+  applicationId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+    const roles = session.user.roles ?? [];
+    if (!roles.includes("ADMIN") && !roles.includes("HIRING_ADMIN")) {
+      return { success: false, error: "Only admins or the hiring chair can pre-approve applications." };
+    }
+
+    const application = await prisma.instructorApplication.findUnique({
+      where: { id: applicationId },
+      include: { applicant: { select: { name: true, email: true } } },
+    });
+    if (!application) return { success: false, error: "Application not found." };
+
+    const preApprovableStatuses: InstructorApplicationStatus[] = [
+      InstructorApplicationStatus.UNDER_REVIEW,
+      InstructorApplicationStatus.INFO_REQUESTED,
+    ];
+    if (!preApprovableStatuses.includes(application.status)) {
+      return { success: false, error: "Only applications under review or awaiting info can be pre-approved." };
+    }
+
+    await prisma.instructorApplication.update({
+      where: { id: applicationId },
+      data: { status: InstructorApplicationStatus.PRE_APPROVED },
+    });
+
+    const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+    const baseUrl = getBaseUrl();
+    await sendInstructorPreApprovedEmail({
+      to: application.applicant.email,
+      applicantName: application.applicant.name,
+      trainingUrl: `${baseUrl}/instructor-training`,
+    }).catch((err) => console.error("[preApproveApplication] email failed:", err));
+
+    revalidatePath("/admin/instructor-applicants");
+    revalidatePath("/application-status");
+    return { success: true };
+  } catch (error) {
+    console.error("[preApproveApplication]", error);
+    return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
+  }
+}
+
+export async function offerInterviewSlots(
+  applicationId: string,
+  slots: { scheduledAt: Date; durationMinutes: number }[]
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await requireAdminOrChapterLead();
+
+    const application = await prisma.instructorApplication.findUnique({
+      where: { id: applicationId },
+      include: { applicant: { select: { name: true, email: true } } },
+    });
+    if (!application) return { success: false, error: "Application not found." };
+
+    if (slots.length < 1 || slots.length > 4) {
+      return { success: false, error: "Please provide between 1 and 4 time slots." };
+    }
+
+    // Replace any unconfirmed existing slots, then create the new ones
+    await prisma.offeredInterviewSlot.deleteMany({
+      where: { instructorApplicationId: applicationId, confirmedAt: null },
+    });
+    await prisma.offeredInterviewSlot.createMany({
+      data: slots.map((s) => ({
+        instructorApplicationId: applicationId,
+        scheduledAt: s.scheduledAt,
+        durationMinutes: s.durationMinutes,
+        offeredByUserId: session.user.id,
+      })),
+    });
+
+    // Send "pick your time" email to the applicant
+    const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+    const baseUrl = getBaseUrl();
+    await sendPickYourTimeEmail({
+      to: application.applicant.email,
+      applicantName: application.applicant.name,
+      slots,
+      statusUrl: `${baseUrl}/application-status`,
+    }).catch((err) => console.error("[offerInterviewSlots] email failed:", err));
+
+    revalidatePath("/admin/instructor-applicants");
+    return { success: true };
+  } catch (error) {
+    console.error("[offerInterviewSlots]", error);
+    return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
+  }
+}
+
+export async function selectInterviewSlot(
+  slotId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const slot = await prisma.offeredInterviewSlot.findUnique({
+      where: { id: slotId },
+      include: {
+        instructorApplication: {
+          include: { applicant: { select: { name: true, email: true } } },
+        },
+        offeredBy: { select: { name: true, email: true } },
+      },
+    });
+    if (!slot) return { success: false, error: "Slot not found." };
+    if (slot.confirmedAt) return { success: false, error: "This slot has already been confirmed." };
+    if (slot.instructorApplication.applicantId !== session.user.id) {
+      return { success: false, error: "Unauthorized." };
+    }
+
+    const now = new Date();
+    await prisma.$transaction([
+      prisma.offeredInterviewSlot.update({
+        where: { id: slotId },
+        data: { confirmedAt: now },
+      }),
+      prisma.instructorApplication.update({
+        where: { id: slot.instructorApplicationId },
+        data: { interviewScheduledAt: slot.scheduledAt },
+      }),
+    ]);
+
+    // Build ICS and send confirmation to applicant + all reviewers who offered slots
+    const { generateIcsContent } = await import("@/lib/email");
+    const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+    const baseUrl = getBaseUrl();
+    const endsAt = new Date(slot.scheduledAt.getTime() + slot.durationMinutes * 60_000);
+    const icsContent = generateIcsContent({
+      uid: `slot-${slotId}@youthpassionproject.org`,
+      title: `YPP Curriculum Overview/Interview — ${slot.instructorApplication.applicant.name}`,
+      description: "YPP instructor curriculum overview and interview session.",
+      startsAt: slot.scheduledAt,
+      endsAt,
+    });
+
+    const applicant = slot.instructorApplication.applicant;
+    await sendInterviewConfirmedEmail({
+      to: applicant.email,
+      recipientName: applicant.name,
+      applicantName: applicant.name,
+      scheduledAt: slot.scheduledAt,
+      durationMinutes: slot.durationMinutes,
+      role: "applicant",
+      detailUrl: `${baseUrl}/application-status`,
+      icsContent,
+    }).catch((err) => console.error("[selectInterviewSlot] applicant email failed:", err));
+
+    // Find all reviewers who offered slots for this application and notify them
+    const reviewerSlots = await prisma.offeredInterviewSlot.findMany({
+      where: { instructorApplicationId: slot.instructorApplicationId },
+      include: { offeredBy: { select: { name: true, email: true } } },
+    });
+    const reviewerEmails = new Set<string>();
+    for (const rs of reviewerSlots) {
+      if (rs.offeredBy.email && !reviewerEmails.has(rs.offeredBy.email)) {
+        reviewerEmails.add(rs.offeredBy.email);
+        await sendInterviewConfirmedEmail({
+          to: rs.offeredBy.email,
+          recipientName: rs.offeredBy.name,
+          applicantName: applicant.name,
+          scheduledAt: slot.scheduledAt,
+          durationMinutes: slot.durationMinutes,
+          role: "reviewer",
+          detailUrl: `${baseUrl}/admin/instructor-applicants`,
+          icsContent,
+        }).catch((err) => console.error("[selectInterviewSlot] reviewer email failed:", err));
+      }
+    }
+
+    revalidatePath("/application-status");
+    return { success: true };
+  } catch (error) {
+    console.error("[selectInterviewSlot]", error);
     return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
   }
 }
