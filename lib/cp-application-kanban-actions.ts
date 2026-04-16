@@ -47,7 +47,8 @@ export async function updateCPApplicationStage(
 
     // When moved to INTERVIEW_SCHEDULED, prompt applicant to submit availability windows
     if (newStatus === "INTERVIEW_SCHEDULED") {
-      const baseUrl = process.env.NEXTAUTH_URL || "https://portal.youthpassionproject.org";
+      const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+      const baseUrl = getBaseUrl();
       sendAvailabilityRequestEmail({
         to: updated.applicant.email,
         applicantName: updated.applicant.name,

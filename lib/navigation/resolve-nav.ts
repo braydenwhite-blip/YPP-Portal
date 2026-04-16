@@ -5,6 +5,7 @@ import {
   STUDENT_V1_ALLOWED_HREFS,
   shouldApplyStudentV1NavFilter,
 } from "@/lib/navigation/student-v1-allowlist";
+import { APPLICANT_ALLOWED_HREFS } from "@/lib/navigation/applicant-allowlist";
 import {
   applyStudentMinimalSidebarLayout,
   studentMinimalLinkOrderIndex,
@@ -403,6 +404,10 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
 
   if (shouldApplyStudentV1NavFilter(primaryRole, input.studentFullPortalExplorer)) {
     visible = visible.filter((item) => STUDENT_V1_ALLOWED_HREFS.has(item.href));
+  }
+
+  if (primaryRole === "APPLICANT") {
+    visible = visible.filter((item) => APPLICANT_ALLOWED_HREFS.has(item.href));
   }
 
   const studentMinimalSidebar =

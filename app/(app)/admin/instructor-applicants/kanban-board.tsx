@@ -79,6 +79,12 @@ const COLUMNS: KanbanColumnDef[] = [
     color: "#2563eb",
   },
   {
+    id: "pre_approved",
+    title: "Pre-Approved (Training)",
+    statuses: ["PRE_APPROVED"],
+    color: "#7c3aed",
+  },
+  {
     id: "awaiting_curriculum_review",
     title: "Awaiting Curriculum Review",
     statuses: ["INTERVIEW_SCHEDULED"],
