@@ -112,7 +112,7 @@ export default async function MonthlyReviewEditorPage({
       },
       goalReview: {
         include: {
-          goalRatings: { select: { goalId: true, rating: true, comments: true } },
+          goalRatings: { select: { goalId: true, grDocumentGoalId: true, rating: true, comments: true } },
         },
       },
     },
@@ -151,20 +151,60 @@ export default async function MonthlyReviewEditorPage({
   }
 
   const goals = await getGoalsForMentee(menteeId, latestReflection.cycleNumber);
-  const ratingByGoal = new Map(
-    (latestReflection.goalReview?.goalRatings ?? []).map((r) => [r.goalId, r])
+
+  // Build rating lookup by both legacy goalId and grDocumentGoalId
+  const existingRatings = latestReflection.goalReview?.goalRatings ?? [];
+  const ratingByGoalId = new Map(existingRatings.map((r) => [r.goalId, r]));
+  const ratingByGrGoalId = new Map(
+    existingRatings
+      .filter((r): r is typeof r & { grDocumentGoalId: string } => !!r.grDocumentGoalId)
+      .map((r) => [r.grDocumentGoalId, r])
   );
 
+  // Fetch G&R document data for enrichment + cap info
+  const grDoc = await prisma.gRDocument.findFirst({
+    where: { userId: menteeId, status: "ACTIVE" },
+    select: {
+      template: { select: { maxActiveMonthlyGoals: true } },
+      goals: {
+        where: { lifecycleStatus: "ACTIVE", timePhase: "MONTHLY" },
+        select: { id: true },
+      },
+    },
+  });
+
+  // Enrich goals with G&R fields when available
+  const grGoalDetails =
+    goals.some((g) => g.grDocumentGoalId)
+      ? await prisma.gRDocumentGoal.findMany({
+          where: { id: { in: goals.map((g) => g.grDocumentGoalId).filter(Boolean) as string[] } },
+          select: { id: true, timePhase: true, priority: true, progressState: true, lifecycleStatus: true, dueDate: true },
+        })
+      : [];
+  const grGoalDetailMap = new Map(grGoalDetails.map((g) => [g.id, g]));
+
   const goalRows = goals.map((g) => {
-    const existing = ratingByGoal.get(g.id);
+    const existing = g.grDocumentGoalId
+      ? ratingByGrGoalId.get(g.grDocumentGoalId)
+      : ratingByGoalId.get(g.legacyGoalId ?? "");
+    const grDetail = g.grDocumentGoalId ? grGoalDetailMap.get(g.grDocumentGoalId) : null;
     return {
       id: g.id,
       title: g.title,
       description: g.description ?? null,
       currentRating: existing?.rating ?? "GETTING_STARTED",
       currentComments: existing?.comments ?? null,
+      grDocumentGoalId: g.grDocumentGoalId ?? null,
+      timePhase: grDetail?.timePhase ?? null,
+      priority: grDetail?.priority ?? null,
+      currentProgressState: grDetail?.progressState ?? null,
+      currentLifecycleStatus: grDetail?.lifecycleStatus ?? null,
+      dueDate: grDetail?.dueDate?.toISOString() ?? null,
     };
   });
+
+  const maxActiveMonthlyGoals = grDoc?.template?.maxActiveMonthlyGoals ?? 5;
+  const currentActiveMonthlyCount = grDoc?.goals?.length ?? 0;
 
   const reflectionResponses = latestReflection.goalResponses.map((r) => ({
     goalId: r.goalId,
@@ -262,6 +302,8 @@ export default async function MonthlyReviewEditorPage({
           runningTotalPoints={runningTotalPoints}
           currentTier={currentTier}
           tierThresholds={TIER_THRESHOLDS as { tier: string; min: number }[]}
+          maxActiveMonthlyGoals={maxActiveMonthlyGoals}
+          currentActiveMonthlyCount={currentActiveMonthlyCount}
         />
       )}
     </div>

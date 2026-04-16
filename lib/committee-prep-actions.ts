@@ -232,7 +232,7 @@ export async function generateCommitteePrepPacket(mentorshipId: string): Promise
       promotionReadiness: r.promotionReadiness,
       chairComments: r.chairComments,
       goalRatings: r.goalRatings.map((gr) => ({
-        goalTitle: gr.goal.title,
+        goalTitle: gr.goal?.title ?? "",
         rating: gr.rating,
         comments: gr.comments,
       })),

@@ -11,6 +11,13 @@ type GoalRow = {
   description: string | null;
   currentRating: string;
   currentComments: string | null;
+  // G&R fields — present when sourced from GRDocumentGoal
+  grDocumentGoalId?: string | null;
+  timePhase?: string | null;
+  priority?: string | null;
+  currentProgressState?: string | null;
+  currentLifecycleStatus?: string | null;
+  dueDate?: string | null;
 };
 
 type ReflectionResponse = {
@@ -20,6 +27,13 @@ type ReflectionResponse = {
   blockers: string | null;
   nextMonthPlans: string;
   objectiveAchieved: boolean;
+};
+
+type NextMonthGoalDraft = {
+  title: string;
+  description: string;
+  priority: string;
+  dueDate: string;
 };
 
 type Props = {
@@ -42,6 +56,8 @@ type Props = {
   runningTotalPoints: number;
   currentTier: string | null;
   tierThresholds: { tier: string; min: number }[];
+  maxActiveMonthlyGoals?: number;
+  currentActiveMonthlyCount?: number;
 };
 
 const RATINGS: { value: string; label: string; color: string; description: string }[] = [
@@ -82,6 +98,8 @@ export function GoalReviewForm({
   runningTotalPoints,
   currentTier,
   tierThresholds,
+  maxActiveMonthlyGoals = 5,
+  currentActiveMonthlyCount = 0,
 }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -101,6 +119,24 @@ export function GoalReviewForm({
     });
     return init;
   });
+
+  // ── G&R-specific state ────────────────────────────────────────────────────
+  const [grProgressStates, setGrProgressStates] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    goals.forEach((g) => {
+      if (g.grDocumentGoalId) init[g.grDocumentGoalId] = g.currentProgressState ?? "NOT_STARTED";
+    });
+    return init;
+  });
+  const [grLifecycleStatuses, setGrLifecycleStatuses] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    goals.forEach((g) => {
+      if (g.grDocumentGoalId) init[g.grDocumentGoalId] = g.currentLifecycleStatus ?? "ACTIVE";
+    });
+    return init;
+  });
+  const [nextMonthDrafts, setNextMonthDrafts] = useState<NextMonthGoalDraft[]>([]);
+  const isOverCap = currentActiveMonthlyCount + nextMonthDrafts.length > maxActiveMonthlyGoals;
 
   // ── AI draft state ────────────────────────────────────────────────────────
   const [isGenerating, setIsGenerating] = useState(false);
@@ -178,11 +214,34 @@ export function GoalReviewForm({
     if (submitForApproval) fd.set("submitForApproval", "true");
     if (aiDraftUsed) fd.set("aiDraftUsed", "true");
     goals.forEach((g) => {
-      fd.append("goalIds", g.id);
-      fd.set(`goal_${g.id}_rating`, goalRatings[g.id]?.rating ?? "GETTING_STARTED");
-      fd.set(`goal_${g.id}_comments`, goalRatings[g.id]?.comments ?? "");
+      if (g.grDocumentGoalId) {
+        fd.append("grGoalIds", g.grDocumentGoalId);
+        fd.set(`goal_${g.grDocumentGoalId}_rating`, goalRatings[g.id]?.rating ?? "GETTING_STARTED");
+        fd.set(`goal_${g.grDocumentGoalId}_comments`, goalRatings[g.id]?.comments ?? "");
+        const ps = grProgressStates[g.grDocumentGoalId];
+        if (ps) fd.set(`goal_${g.grDocumentGoalId}_progressState`, ps);
+        const ls = grLifecycleStatuses[g.grDocumentGoalId];
+        if (ls) fd.set(`goal_${g.grDocumentGoalId}_lifecycleStatus`, ls);
+      } else {
+        fd.append("goalIds", g.id);
+        fd.set(`goal_${g.id}_rating`, goalRatings[g.id]?.rating ?? "GETTING_STARTED");
+        fd.set(`goal_${g.id}_comments`, goalRatings[g.id]?.comments ?? "");
+      }
     });
+    if (nextMonthDrafts.length > 0) {
+      fd.set("nextMonthGoalsJson", JSON.stringify(nextMonthDrafts));
+    }
     return fd;
+  }
+
+  function addNextMonthDraft() {
+    setNextMonthDrafts((prev) => [...prev, { title: "", description: "", priority: "NORMAL", dueDate: "" }]);
+  }
+  function removeNextMonthDraft(idx: number) {
+    setNextMonthDrafts((prev) => prev.filter((_, i) => i !== idx));
+  }
+  function updateNextMonthDraft(idx: number, patch: Partial<NextMonthGoalDraft>) {
+    setNextMonthDrafts((prev) => prev.map((d, i) => (i === idx ? { ...d, ...patch } : d)));
   }
 
   function handleSubmit(submitForApproval: boolean) {
@@ -191,7 +250,11 @@ export function GoalReviewForm({
       return;
     }
     if (submitForApproval && !planOfAction.trim()) {
-      setError("Please write a plan of action before submitting for approval.");
+      setError("Please write advice for next month before submitting for approval.");
+      return;
+    }
+    if (submitForApproval && isOverCap) {
+      setError(`You have ${currentActiveMonthlyCount + nextMonthDrafts.length} monthly goals queued but the cap is ${maxActiveMonthlyGoals}. Remove some next-month goals or mark existing ones as complete.`);
       return;
     }
     setError(null);
@@ -526,7 +589,7 @@ export function GoalReviewForm({
                 </div>
 
                 {/* Per-goal comment */}
-                <div>
+                <div style={{ marginBottom: g.grDocumentGoalId ? 10 : 0 }}>
                   <label style={{ fontSize: "0.76rem", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 0.4 }}>
                     Comment <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional)</span>
                   </label>
@@ -543,11 +606,120 @@ export function GoalReviewForm({
                     style={{ width: "100%", marginTop: 4, resize: "vertical", fontSize: "0.85rem" }}
                   />
                 </div>
+
+                {/* G&R inline status updates */}
+                {g.grDocumentGoalId && (
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    <div style={{ flex: 1, minWidth: 140 }}>
+                      <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 0.4 }}>
+                        Progress
+                      </label>
+                      <select
+                        value={grProgressStates[g.grDocumentGoalId] ?? "NOT_STARTED"}
+                        onChange={(e) => setGrProgressStates((prev) => ({ ...prev, [g.grDocumentGoalId!]: e.target.value }))}
+                        style={{ width: "100%", marginTop: 3, fontSize: "0.82rem" }}
+                      >
+                        <option value="NOT_STARTED">Not Started</option>
+                        <option value="IN_PROGRESS">In Progress</option>
+                        <option value="DONE">Done</option>
+                        <option value="BLOCKED">Blocked</option>
+                      </select>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 140 }}>
+                      <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 0.4 }}>
+                        Status
+                      </label>
+                      <select
+                        value={grLifecycleStatuses[g.grDocumentGoalId] ?? "ACTIVE"}
+                        onChange={(e) => setGrLifecycleStatuses((prev) => ({ ...prev, [g.grDocumentGoalId!]: e.target.value }))}
+                        style={{ width: "100%", marginTop: 3, fontSize: "0.82rem" }}
+                      >
+                        <option value="ACTIVE">Active</option>
+                        <option value="COMPLETED">Completed</option>
+                        <option value="ARCHIVED">Archived</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
       </section>
+
+      {/* Next-Month Goal Drafts */}
+      {goals.some((g) => g.grDocumentGoalId) && (
+        <section className="card">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+            <div>
+              <div className="section-title" style={{ marginBottom: 2 }}>Next-Month Goals</div>
+              <p className="muted" style={{ margin: 0, fontSize: "0.8rem" }}>
+                Propose new monthly goals for {menteeName}. Submitted drafts go through admin approval before becoming active.
+                {currentActiveMonthlyCount > 0 && ` (${currentActiveMonthlyCount} active monthly goal${currentActiveMonthlyCount > 1 ? "s" : ""} already)`}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={addNextMonthDraft}
+              style={{ padding: "0.3rem 0.75rem", fontSize: "0.82rem", borderRadius: 6, border: "1px solid var(--border)", background: "var(--surface)", cursor: "pointer", flexShrink: 0, marginLeft: 10 }}
+            >
+              + Add Goal
+            </button>
+          </div>
+
+          {isOverCap && (
+            <div style={{ padding: "0.5rem 0.75rem", background: "#fef9c3", border: "1px solid #fde68a", borderRadius: 6, fontSize: "0.82rem", color: "#854d0e", marginBottom: 10 }}>
+              Adding {nextMonthDrafts.length} goal{nextMonthDrafts.length > 1 ? "s" : ""} would bring the active monthly count to {currentActiveMonthlyCount + nextMonthDrafts.length}, exceeding the cap of {maxActiveMonthlyGoals}. Remove some drafts or mark existing goals as completed first.
+            </div>
+          )}
+
+          {nextMonthDrafts.length === 0 && (
+            <p style={{ fontSize: "0.82rem", color: "var(--muted)", margin: "6px 0 0" }}>
+              No next-month goals added. Use the button above to propose goals for the upcoming cycle.
+            </p>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: nextMonthDrafts.length > 0 ? 10 : 0 }}>
+            {nextMonthDrafts.map((draft, idx) => (
+              <div key={idx} style={{ padding: "0.75rem 0.9rem", border: "1px solid var(--border)", borderRadius: 6, display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--muted)" }}>Goal {idx + 1}</span>
+                  <button type="button" onClick={() => removeNextMonthDraft(idx)} style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", fontSize: "1rem", lineHeight: 1 }}>✕</button>
+                </div>
+                <input
+                  type="text"
+                  value={draft.title}
+                  onChange={(e) => updateNextMonthDraft(idx, { title: e.target.value })}
+                  placeholder="Goal title"
+                  style={{ width: "100%", fontSize: "0.88rem" }}
+                />
+                <textarea
+                  value={draft.description}
+                  onChange={(e) => updateNextMonthDraft(idx, { description: e.target.value })}
+                  placeholder="Description (optional)"
+                  rows={2}
+                  style={{ width: "100%", fontSize: "0.82rem", resize: "vertical" }}
+                />
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <div style={{ flex: 1, minWidth: 120 }}>
+                    <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--muted)" }}>Priority</label>
+                    <select value={draft.priority} onChange={(e) => updateNextMonthDraft(idx, { priority: e.target.value })} style={{ width: "100%", marginTop: 2, fontSize: "0.82rem" }}>
+                      <option value="LOW">Low</option>
+                      <option value="NORMAL">Normal</option>
+                      <option value="HIGH">High</option>
+                      <option value="CRITICAL">Critical</option>
+                    </select>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 140 }}>
+                    <label style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--muted)" }}>Due date (optional)</label>
+                    <input type="date" value={draft.dueDate} onChange={(e) => updateNextMonthDraft(idx, { dueDate: e.target.value })} style={{ width: "100%", marginTop: 2, fontSize: "0.82rem" }} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Overall rating + written sections */}
       <section className="card">
@@ -607,19 +779,19 @@ export function GoalReviewForm({
           />
         </div>
 
-        {/* Plan of action */}
+        {/* Advice for next month (planOfAction) */}
         <div style={{ marginBottom: isQuarterly ? 14 : 0 }}>
           <label style={{ fontSize: "0.83rem", fontWeight: 600 }}>
-            Plan of action for next month <span style={{ color: "#ef4444" }}>*</span>
+            Advice for next month <span style={{ color: "#ef4444" }}>*</span>
           </label>
           <p className="muted" style={{ margin: "3px 0 4px", fontSize: "0.78rem" }}>
-            The 2–4 most important priorities for {menteeName} next cycle. These become their marching orders.
+            Your narrative guidance for {menteeName} — strengths to build on, areas to focus, and cross-goal priorities.
           </p>
           <textarea
             value={planOfAction}
             onChange={(e) => setPlanOfAction(e.target.value)}
             rows={3}
-            placeholder="1. …&#10;2. …&#10;3. …"
+            placeholder="e.g. Focus on completing the onboarding checklist, reach out to one external collaborator this month…"
             style={{ width: "100%", resize: "vertical" }}
           />
         </div>

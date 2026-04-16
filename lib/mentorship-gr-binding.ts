@@ -1,13 +1,10 @@
 /**
- * G&R binding layer (Phase 0.9).
+ * G&R binding layer (Phase 1.0).
  *
- * Surfaces the correct MentorshipProgramGoal set for a mentee based on their
- * role, and keeps GoalReviewRating rows in sync with the active goals at the
- * time a review is opened for writing.
- *
- * The UI (current review form) stays unchanged; this module tightens the seams
- * so Phase 1.0's G&R-backed form can load a review with complete, well-formed
- * data every time.
+ * Sources the correct goals for a mentee's monthly review from their active
+ * GRDocument, falling back to MentorshipProgramGoal only when no active G&R
+ * document exists. Keeps GoalReviewRating rows in sync with the active goals
+ * at the time a review is opened for writing.
  */
 import { prisma } from "@/lib/prisma";
 import type {
@@ -20,16 +17,58 @@ import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import { logger } from "@/lib/logger";
 
 /**
- * Active goals for a mentee's role, ordered by sortOrder.
+ * Normalized goal representation for the review form.
+ * The `source` field indicates where the goal came from so that
+ * ensureReviewGoalRatings can write the correct FK.
+ */
+export type ReviewableGoal = {
+  id: string;
+  title: string;
+  description: string;
+  sortOrder: number;
+  grDocumentGoalId: string | null;
+  legacyGoalId: string | null;
+};
+
+/**
+ * Returns all active goals for a mentee's current review cycle.
  *
- * `cycleNumber` is accepted for future quarterly/track overrides but is not
- * yet used — Phase 1.0 can layer in track-specific overrides without changing
- * the call signature.
+ * Priority order:
+ *   1. GRDocumentGoal rows from the mentee's ACTIVE GRDocument (lifecycleStatus=ACTIVE)
+ *      Ordered: priority DESC, dueDate ASC NULLS LAST, sortOrder ASC
+ *   2. MentorshipProgramGoal fallback when no ACTIVE GRDocument exists.
  */
 export async function getGoalsForMentee(
   menteeId: string,
   _cycleNumber?: number
-): Promise<MentorshipProgramGoal[]> {
+): Promise<ReviewableGoal[]> {
+  // Try the G&R document first
+  const grDoc = await prisma.gRDocument.findFirst({
+    where: { userId: menteeId, status: "ACTIVE" },
+    include: {
+      goals: {
+        where: { lifecycleStatus: "ACTIVE" },
+        orderBy: [
+          { priority: "desc" },
+          { dueDate: "asc" },
+          { sortOrder: "asc" },
+        ],
+      },
+    },
+  });
+
+  if (grDoc && grDoc.goals.length > 0) {
+    return grDoc.goals.map((g) => ({
+      id: g.id,
+      title: g.title,
+      description: g.description,
+      sortOrder: g.sortOrder,
+      grDocumentGoalId: g.id,
+      legacyGoalId: null,
+    }));
+  }
+
+  // Fallback: legacy MentorshipProgramGoal list
   const mentee = await prisma.user.findUnique({
     where: { id: menteeId },
     select: { primaryRole: true },
@@ -39,41 +78,60 @@ export async function getGoalsForMentee(
   const roleType = toMenteeRoleType(mentee.primaryRole ?? "");
   if (!roleType) return [];
 
-  return prisma.mentorshipProgramGoal.findMany({
+  const legacyGoals = await prisma.mentorshipProgramGoal.findMany({
     where: { roleType, isActive: true },
     orderBy: { sortOrder: "asc" },
   });
+
+  return legacyGoals.map((g) => ({
+    id: g.id,
+    title: g.title,
+    description: g.description ?? "",
+    sortOrder: g.sortOrder,
+    grDocumentGoalId: null,
+    legacyGoalId: g.id,
+  }));
 }
 
 /**
  * Idempotently ensure GoalReviewRating rows exist for every active goal
  * applicable to this review's mentee. Existing ratings are preserved.
  *
- * New placeholder rows default to GETTING_STARTED so the form can render them
- * without null checks; the mentor overwrites these during review writing.
+ * Ratings now point at grDocumentGoalId (G&R path) or goalId (legacy path)
+ * depending on which source the goals came from.
  */
 export async function ensureReviewGoalRatings(
   review: Pick<MentorGoalReview, "id" | "menteeId" | "cycleNumber">
 ): Promise<void> {
-  const [goals, existing] = await Promise.all([
-    getGoalsForMentee(review.menteeId, review.cycleNumber),
-    prisma.goalReviewRating.findMany({
-      where: { reviewId: review.id },
-      select: { goalId: true },
-    }),
-  ]);
+  const goals = await getGoalsForMentee(review.menteeId, review.cycleNumber);
+  if (goals.length === 0) return;
 
-  const existingGoalIds = new Set(existing.map((r) => r.goalId));
-  const missing = goals.filter((g) => !existingGoalIds.has(g.id));
+  const existing = await prisma.goalReviewRating.findMany({
+    where: { reviewId: review.id },
+    select: { goalId: true, grDocumentGoalId: true },
+  });
 
-  if (missing.length === 0) return;
+  const existingGrIds = new Set(
+    existing.map((r) => r.grDocumentGoalId).filter(Boolean)
+  );
+  const existingLegacyIds = new Set(
+    existing.map((r) => r.goalId).filter(Boolean)
+  );
 
   const defaultRating: GoalRatingColor = "GETTING_STARTED";
 
+  const toCreate = goals.filter((g) => {
+    if (g.grDocumentGoalId) return !existingGrIds.has(g.grDocumentGoalId);
+    return !existingLegacyIds.has(g.legacyGoalId!);
+  });
+
+  if (toCreate.length === 0) return;
+
   await prisma.goalReviewRating.createMany({
-    data: missing.map((goal) => ({
+    data: toCreate.map((goal) => ({
       reviewId: review.id,
-      goalId: goal.id,
+      grDocumentGoalId: goal.grDocumentGoalId,
+      goalId: goal.legacyGoalId,
       rating: defaultRating,
       comments: null,
     })),
@@ -81,9 +139,26 @@ export async function ensureReviewGoalRatings(
   });
 
   logger.info(
-    { reviewId: review.id, addedRatings: missing.length },
+    { reviewId: review.id, addedRatings: toCreate.length },
     "ensureReviewGoalRatings: backfilled missing goal ratings"
   );
+}
+
+/** @deprecated Use getGoalsForMentee instead — kept for any callers that need the legacy type. */
+export async function getLegacyGoalsForMentee(
+  menteeId: string
+): Promise<MentorshipProgramGoal[]> {
+  const mentee = await prisma.user.findUnique({
+    where: { id: menteeId },
+    select: { primaryRole: true },
+  });
+  if (!mentee) return [];
+  const roleType = toMenteeRoleType(mentee.primaryRole ?? "");
+  if (!roleType) return [];
+  return prisma.mentorshipProgramGoal.findMany({
+    where: { roleType, isActive: true },
+    orderBy: { sortOrder: "asc" },
+  });
 }
 
 export function goalsByRoleType(
