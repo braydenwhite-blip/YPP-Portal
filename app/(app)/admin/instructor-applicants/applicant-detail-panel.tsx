@@ -117,11 +117,14 @@ const RECOMMENDATION_OPTIONS = [
 export default function ApplicantDetailPanel({
   app,
   reviewers,
+  canPreApprove,
   onClose,
   onUpdate,
 }: {
   app: InstructorApp;
   reviewers: Reviewer[];
+  /** True only for ADMIN and HIRING_ADMIN roles — mirrors server-side auth in preApproveApplication. */
+  canPreApprove: boolean;
   onClose: () => void;
   onUpdate: (updated: Partial<InstructorApp> & { id: string }) => void;
 }) {
@@ -279,6 +282,14 @@ export default function ApplicantDetailPanel({
     const validSlots = offerSlots.filter((s) => s.date && s.time);
     if (validSlots.length === 0) {
       showMessage("Add at least one complete time slot before sending.");
+      return;
+    }
+    // Client-side past-date guard — server will also validate, but this gives
+    // immediate feedback without a round trip.
+    const now = new Date();
+    const pastSlots = validSlots.filter((s) => new Date(`${s.date}T${s.time}`) <= now);
+    if (pastSlots.length > 0) {
+      showMessage("All proposed times must be in the future.");
       return;
     }
     const slots = validSlots.map((s) => ({
@@ -688,7 +699,7 @@ export default function ApplicantDetailPanel({
                     Begin Review
                   </button>
                 )}
-                {(app.status === "UNDER_REVIEW" || app.status === "INFO_REQUESTED") && (
+                {(app.status === "UNDER_REVIEW" || app.status === "INFO_REQUESTED") && canPreApprove && (
                   <button
                     className="button secondary"
                     onClick={handlePreApprove}

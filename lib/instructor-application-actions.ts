@@ -465,12 +465,23 @@ export async function reviewInstructorApplicationAction(formData: FormData): Pro
 
 /**
  * Update application stage (used by Kanban drag-and-drop).
+ * PRE_APPROVED is intentionally blocked here — use the "Pre-approve" button
+ * in the detail panel, which enforces the correct auth level and sends the email.
  */
 export async function updateApplicationStage(
   applicationId: string,
   newStatus: InstructorApplicationStatus
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // Block drag-to-PRE_APPROVED: the detail panel "Pre-approve" button is the only
+    // correct path because it enforces ADMIN/HIRING_ADMIN auth and sends the email.
+    if (newStatus === InstructorApplicationStatus.PRE_APPROVED) {
+      return {
+        success: false,
+        error: "Use the 'Pre-approve' button in the applicant panel — it sends the required email and enforces the correct permissions.",
+      };
+    }
+
     const session = await requireAdminOrChapterLead();
     const application = await prisma.instructorApplication.findUnique({
       where: { id: applicationId },
@@ -652,11 +663,17 @@ export async function preApproveApplication(
 
     const { getBaseUrl } = await import("@/lib/portal-auth-utils");
     const baseUrl = getBaseUrl();
-    await sendInstructorPreApprovedEmail({
-      to: application.applicant.email,
-      applicantName: application.applicant.name,
-      trainingUrl: `${baseUrl}/instructor-training`,
-    }).catch((err) => console.error("[preApproveApplication] email failed:", err));
+    if (application.applicant.email) {
+      await sendInstructorPreApprovedEmail({
+        to: application.applicant.email,
+        applicantName: application.applicant.name,
+        trainingUrl: `${baseUrl}/instructor-training`,
+      }).catch((err) => console.error("[preApproveApplication] email failed:", err));
+    } else {
+      console.error(
+        `[preApproveApplication] applicant ${applicationId} has no email — pre-approval email not sent. Follow up manually.`
+      );
+    }
 
     revalidatePath("/admin/instructor-applicants");
     revalidatePath("/application-status");
@@ -682,6 +699,13 @@ export async function offerInterviewSlots(
 
     if (slots.length < 1 || slots.length > 4) {
       return { success: false, error: "Please provide between 1 and 4 time slots." };
+    }
+
+    // Reject any slots that are already in the past — the applicant shouldn't
+    // see expired times in their "pick your time" email or on the status page.
+    const now = new Date();
+    if (slots.some((s) => s.scheduledAt <= now)) {
+      return { success: false, error: "All proposed times must be in the future." };
     }
 
     // Replace any unconfirmed existing slots, then create the new ones
@@ -738,16 +762,26 @@ export async function selectInterviewSlot(
     }
 
     const now = new Date();
-    await prisma.$transaction([
-      prisma.offeredInterviewSlot.update({
-        where: { id: slotId },
+    // Use updateMany with confirmedAt: null as an atomic guard against concurrent
+    // double-clicks or duplicate tab submissions. If count === 0, another request
+    // already confirmed this slot — bail out before sending duplicate emails.
+    const { count } = await prisma.$transaction(async (tx) => {
+      const result = await tx.offeredInterviewSlot.updateMany({
+        where: { id: slotId, confirmedAt: null },
         data: { confirmedAt: now },
-      }),
-      prisma.instructorApplication.update({
-        where: { id: slot.instructorApplicationId },
-        data: { interviewScheduledAt: slot.scheduledAt },
-      }),
-    ]);
+      });
+      if (result.count > 0) {
+        await tx.instructorApplication.update({
+          where: { id: slot.instructorApplicationId },
+          data: { interviewScheduledAt: slot.scheduledAt },
+        });
+      }
+      return result;
+    });
+
+    if (count === 0) {
+      return { success: false, error: "This time slot has already been confirmed. Please refresh to see the updated schedule." };
+    }
 
     // Build ICS and send confirmation to applicant + all reviewers who offered slots
     const { generateIcsContent } = await import("@/lib/email");
