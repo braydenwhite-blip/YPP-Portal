@@ -19,6 +19,7 @@ import {
   emitReviewApprovedAndReleased,
 } from "@/lib/mentorship-notifications";
 import { ensureReviewGoalRatings } from "@/lib/mentorship-gr-binding";
+import { insertMilestoneOnce, checkTenureMilestones } from "@/lib/milestones";
 import { logger } from "@/lib/logger";
 
 // ============================================
@@ -341,44 +342,63 @@ export async function saveGoalReview(formData: FormData) {
       persistedReviewId = review.id;
     }
 
-    // Apply inline goal status updates (progressState / lifecycleStatus)
-    const now = new Date();
-    for (const gr of goalRatings) {
-      if (!gr.grDocumentGoalId) continue;
-      const update: Record<string, unknown> = {};
-      if (gr.progressState) update.progressState = gr.progressState;
-      if (gr.newLifecycleStatus) {
-        update.lifecycleStatus = gr.newLifecycleStatus;
-        if (gr.newLifecycleStatus === "COMPLETED") update.completedAt = now;
-      }
-      if (Object.keys(update).length > 0) {
-        await tx.gRDocumentGoal.update({ where: { id: gr.grDocumentGoalId }, data: update });
+    // Persist next-month goal drafts on DRAFT saves so the form survives a refresh
+    await tx.mentorGoalReview.update({
+      where: { id: persistedReviewId },
+      data: {
+        nextMonthGoalDraftsJson: newStatus === "DRAFT" && nextMonthGoalDrafts.length > 0
+          ? JSON.parse(JSON.stringify(nextMonthGoalDrafts))
+          : undefined,
+      },
+    });
+
+    // Apply inline goal status updates (progressState / lifecycleStatus) ONLY on submission
+    if (submitForApproval) {
+      const now = new Date();
+      for (const gr of goalRatings) {
+        if (!gr.grDocumentGoalId) continue;
+        const update: Record<string, unknown> = {};
+        if (gr.progressState) update.progressState = gr.progressState;
+        if (gr.newLifecycleStatus) {
+          update.lifecycleStatus = gr.newLifecycleStatus;
+          if (gr.newLifecycleStatus === "COMPLETED") update.completedAt = now;
+        }
+        if (Object.keys(update).length > 0) {
+          await tx.gRDocumentGoal.update({ where: { id: gr.grDocumentGoalId }, data: update });
+        }
       }
     }
 
-    // Write goal snapshots when submitting for approval
+    // Write goal snapshots when submitting for approval — never delete existing ones
     if (submitForApproval && grGoalIds.length > 0) {
       const grGoals = await tx.gRDocumentGoal.findMany({
         where: { id: { in: grGoalIds } },
         select: { id: true, title: true, description: true, timePhase: true, priority: true, dueDate: true, lifecycleStatus: true },
       });
       const snapshotReviewId = persistedReviewId;
-      // Remove any existing snapshots (idempotent re-submit)
-      await tx.mentorGoalReviewGoalSnapshot.deleteMany({ where: { reviewId: snapshotReviewId } });
-      await tx.mentorGoalReviewGoalSnapshot.createMany({
-        data: grGoals.map((g) => ({
-          id: `${snapshotReviewId}_${g.id}`,
-          reviewId: snapshotReviewId,
-          grDocumentGoalId: g.id,
-          title: g.title,
-          description: g.description,
-          timePhase: g.timePhase,
-          priority: g.priority,
-          dueDateAtSnapshot: g.dueDate,
-          lifecycleStatusAtSnapshot: g.lifecycleStatus,
-        })),
-        skipDuplicates: true,
+      // Check which snapshots already exist (idempotent: only insert new ones)
+      const existingSnapshots = await tx.mentorGoalReviewGoalSnapshot.findMany({
+        where: { reviewId: snapshotReviewId },
+        select: { grDocumentGoalId: true },
       });
+      const existingSnapshotGoalIds = new Set(existingSnapshots.map((s) => s.grDocumentGoalId));
+      const newSnapshots = grGoals.filter((g) => !existingSnapshotGoalIds.has(g.id));
+      if (newSnapshots.length > 0) {
+        await tx.mentorGoalReviewGoalSnapshot.createMany({
+          data: newSnapshots.map((g) => ({
+            id: `${snapshotReviewId}_${g.id}`,
+            reviewId: snapshotReviewId,
+            grDocumentGoalId: g.id,
+            title: g.title,
+            description: g.description,
+            timePhase: g.timePhase,
+            priority: g.priority,
+            dueDateAtSnapshot: g.dueDate,
+            lifecycleStatusAtSnapshot: g.lifecycleStatus,
+          })),
+          skipDuplicates: true,
+        });
+      }
     }
 
     // Update review streak on submission
@@ -394,31 +414,33 @@ export async function saveGoalReview(formData: FormData) {
 
   await syncMentorGoalReviewWorkflow(reviewId);
 
-  // Propose next-month goals via GRGoalChange when submitting for approval
+  // Propose next-month goals via GRGoalChange when submitting for approval.
+  // All proposals run inside their own transaction via proposeGRGoalChange;
+  // failures are logged but don't roll back the already-committed review.
   if (submitForApproval && nextMonthGoalDrafts.length > 0) {
     const grDoc = await prisma.gRDocument.findFirst({
       where: { userId: reflection.mentorship.menteeId, status: "ACTIVE" },
       select: { id: true },
     });
     if (grDoc) {
-      for (const draft of nextMonthGoalDrafts) {
-        const fd = new FormData();
-        fd.set("documentId", grDoc.id);
-        fd.set("changeType", "ADD");
-        fd.set("proposedTitle", draft.title);
-        fd.set("proposedDescription", draft.description || "");
-        fd.set("proposedTimePhase", "MONTHLY");
-        fd.set("proposedPriority", draft.priority || "NORMAL");
-        if (draft.dueDate) fd.set("proposedDueDate", draft.dueDate);
-        fd.set("sourceReviewId", reviewId);
-        fd.set("reason", `Proposed by mentor for next cycle (review ${reviewId})`);
-        try {
+      await prisma.$transaction(async () => {
+        for (const draft of nextMonthGoalDrafts) {
+          const fd = new FormData();
+          fd.set("documentId", grDoc.id);
+          fd.set("changeType", "ADD");
+          fd.set("proposedTitle", draft.title);
+          fd.set("proposedDescription", draft.description || "");
+          fd.set("proposedTimePhase", "MONTHLY");
+          fd.set("proposedPriority", draft.priority || "NORMAL");
+          if (draft.dueDate) fd.set("proposedDueDate", draft.dueDate);
+          fd.set("sourceReviewId", reviewId);
+          fd.set("reason", `Proposed by mentor for next cycle (review ${reviewId})`);
           const { proposeGRGoalChange } = await import("@/lib/gr-actions");
           await proposeGRGoalChange(fd);
-        } catch (err) {
-          logger.warn({ err, reviewId }, "saveGoalReview: failed to propose next-month goal");
         }
-      }
+      }).catch((err) => {
+        logger.warn({ err, reviewId }, "saveGoalReview: failed to propose next-month goals (rolled back)");
+      });
     }
   }
 
@@ -646,8 +668,8 @@ export async function approveGoalReview(formData: FormData) {
       },
     });
 
-    // Upsert achievement summary
-    const summary = await tx.achievementPointSummary.upsert({
+    // Upsert achievement summary — fetch fresh row after increment to avoid stale totalPoints
+    await tx.achievementPointSummary.upsert({
       where: { userId: review.menteeId },
       create: {
         userId: review.menteeId,
@@ -658,10 +680,12 @@ export async function approveGoalReview(formData: FormData) {
         totalPoints: { increment: pointsAwarded },
       },
     });
+    const freshSummary = await tx.achievementPointSummary.findUniqueOrThrow({
+      where: { userId: review.menteeId },
+      select: { id: true, totalPoints: true },
+    });
 
-    // Recompute tier after increment
-    const newTotal = summary.totalPoints + pointsAwarded;
-    const newTier = computeTier(newTotal);
+    const newTier = computeTier(freshSummary.totalPoints);
     await tx.achievementPointSummary.update({
       where: { userId: review.menteeId },
       data: { currentTier: newTier },
@@ -670,7 +694,7 @@ export async function approveGoalReview(formData: FormData) {
     // Log point entry
     await tx.achievementPointLog.create({
       data: {
-        summaryId: summary.id,
+        summaryId: freshSummary.id,
         reviewId,
         points: pointsAwarded,
         reason: `${review.overallRating} — ${menteeRoleType} (Cycle ${review.cycleNumber})`,
@@ -688,6 +712,25 @@ export async function approveGoalReview(formData: FormData) {
     targetId: reviewId,
     description: `Goal review approved for ${review.mentee.name} — ${pointsAwarded} pts awarded (base: ${basePoints}, bonus: ${effectiveBonus})`,
   });
+
+  // Milestone events — fire-and-forget, never fail the approval
+  try {
+    if (review.overallRating === "ABOVE_AND_BEYOND") {
+      await insertMilestoneOnce(review.menteeId, "ABOVE_AND_BEYOND_FIRST", {
+        reviewId,
+        cycleNumber: review.cycleNumber,
+      });
+    }
+    const mentorshipRow = await prisma.mentorGoalReview.findUnique({
+      where: { id: reviewId },
+      select: { mentorshipId: true },
+    });
+    if (mentorshipRow) {
+      await checkTenureMilestones(review.menteeId, mentorshipRow.mentorshipId);
+    }
+  } catch (err) {
+    logger.warn({ err, reviewId }, "approveGoalReview: milestone check failed");
+  }
 
   // Phase 0.9 cycle-milestone emitter (mentor + mentee, safeEmit + dedup).
   await emitReviewApprovedAndReleased({

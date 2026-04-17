@@ -11,6 +11,7 @@ import {
   MenteeRoleType,
 } from "@prisma/client";
 import { logAuditEvent } from "@/lib/audit-log-actions";
+import { notifyMenteeReflectionDue } from "@/lib/mentorship-notifications";
 
 // ============================================
 // AUTH HELPERS
@@ -376,6 +377,10 @@ export async function assignGRDocument(formData: FormData) {
       roleMission: template.roleMission,
       roleStartDate,
       status: "DRAFT",
+      // Populate officerInfo when the template targets a specific officer position
+      ...(template.officerPosition
+        ? { officerInfo: { position: template.officerPosition } }
+        : {}),
       goals: {
         create: template.goals.map((g) => ({
           templateGoalId: g.id,
@@ -483,6 +488,23 @@ export async function proposeGRGoalChange(formData: FormData) {
   const goalId = getOptionalString(formData, "goalId");
   const reason = getOptionalString(formData, "reason");
   const sourceReviewId = getOptionalString(formData, "sourceReviewId");
+
+  // Ownership check: mentors may only propose changes to their own mentee's document
+  const roles = session.user.roles ?? [];
+  if (!roles.includes("ADMIN")) {
+    const doc = await prisma.gRDocument.findUnique({
+      where: { id: documentId },
+      select: { mentorshipId: true },
+    });
+    if (!doc) throw new Error("G&R document not found");
+    const mentorship = await prisma.mentorship.findUnique({
+      where: { id: doc.mentorshipId },
+      select: { mentorId: true },
+    });
+    if (mentorship?.mentorId !== session.user.id) {
+      throw new Error("You are not authorized to propose changes to this G&R document");
+    }
+  }
 
   const proposedData: Record<string, string> = {};
   const title = getOptionalString(formData, "proposedTitle");
@@ -742,7 +764,109 @@ export async function getMyGRDocument() {
     },
   });
 
-  return { ...doc, currentPriorities, goalsByLifecycle, latestReview, nextMonthGoals, pastReviews };
+  // Per-goal rating history for growth sparklines (last 6 cycles)
+  const goalRatingHistory = await prisma.goalReviewRating.findMany({
+    where: {
+      grDocumentGoal: { documentId: doc.id },
+      review: { mentorshipId: doc.mentorshipId, releasedToMenteeAt: { not: null } },
+    },
+    orderBy: { review: { cycleNumber: "asc" } },
+    include: { review: { select: { cycleNumber: true } } },
+    take: 200, // cap to avoid huge joins
+  });
+
+  // Group by grDocumentGoalId → cycleNumber → rating
+  const ratingHistoryByGoal: Record<string, Array<{ cycleNumber: number; rating: string }>> = {};
+  for (const r of goalRatingHistory) {
+    if (!r.grDocumentGoalId) continue;
+    (ratingHistoryByGoal[r.grDocumentGoalId] ??= []).push({
+      cycleNumber: r.review.cycleNumber,
+      rating: r.rating,
+    });
+  }
+
+  // Unseen milestone events
+  const { consumeUnseenMilestones } = await import("@/lib/milestones");
+  const unseenMilestones = await consumeUnseenMilestones(session.user.id);
+
+  // Latest review ack (if any)
+  const reviewAck = latestReview
+    ? await prisma.menteeReviewAck.findUnique({
+        where: { reviewId: latestReview.id },
+        select: { reaction: true, note: true },
+      })
+    : null;
+
+  return {
+    ...doc,
+    currentPriorities,
+    goalsByLifecycle,
+    latestReview,
+    nextMonthGoals,
+    pastReviews,
+    ratingHistoryByGoal,
+    unseenMilestones: unseenMilestones.map((m) => ({
+      id: m.id,
+      kind: m.kind,
+      payload: m.payload as Record<string, unknown>,
+    })),
+    reviewAck,
+  };
+}
+
+export async function submitReviewAck(formData: FormData) {
+  const session = await requireAuth();
+  const reviewId = getString(formData, "reviewId");
+  const reaction = getString(formData, "reaction");
+  const note = getOptionalString(formData, "note");
+
+  const validReactions = ["GRATEFUL", "MOTIVATED", "UNCLEAR", "UNSURE"];
+  if (!validReactions.includes(reaction)) throw new Error("Invalid reaction");
+
+  // Verify the mentee owns this review
+  const review = await prisma.mentorGoalReview.findUniqueOrThrow({
+    where: { id: reviewId },
+    select: { menteeId: true },
+  });
+  if (review.menteeId !== session.user.id) throw new Error("Unauthorized");
+
+  await prisma.menteeReviewAck.upsert({
+    where: { reviewId },
+    create: { reviewId, userId: session.user.id, reaction, note: note || null },
+    update: { reaction, note: note || null },
+  });
+
+  revalidatePath("/my-program/gr");
+}
+
+// B3: Mentor sends a "please submit your reflection" nudge
+export async function sendReflectionNudge(formData: FormData) {
+  const session = await requireMentorOrAdmin();
+  const reflectionId = getString(formData, "reflectionId");
+
+  const reflection = await prisma.monthlySelfReflection.findUniqueOrThrow({
+    where: { id: reflectionId },
+    select: {
+      menteeId: true,
+      cycleMonth: true,
+      mentorship: {
+        select: {
+          mentorId: true,
+        },
+      },
+    },
+  });
+
+  const roles = session.user.roles ?? [];
+  const isAdmin = roles.includes("ADMIN") || roles.includes("CHAPTER_PRESIDENT");
+  if (!isAdmin && reflection.mentorship.mentorId !== session.user.id) {
+    throw new Error("Unauthorized: not the mentor for this mentorship");
+  }
+
+  await notifyMenteeReflectionDue({
+    menteeId: reflection.menteeId,
+    cycleMonthIso: reflection.cycleMonth.toISOString(),
+  });
 }
 
 export async function getGRDocumentForUser(userId: string) {

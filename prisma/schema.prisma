@@ -8403,6 +8403,10 @@ model MentorGoalReview {
   // G&R integration
   goalSnapshots    MentorGoalReviewGoalSnapshot[]
   spawnedGRGoals   GRDocumentGoal[]               @relation("GRGoalsSpawnedByReview")
+  reviewAck        MenteeReviewAck?
+
+  /// Draft next-month goal proposals persisted between form saves. Cleared on submit.
+  nextMonthGoalDraftsJson Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -10058,6 +10062,40 @@ model AwardCertificate {
   nominationId String   @unique
   svgData      String   @db.Text
   issuedAt     DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ============================================
+// MILESTONE EVENTS (celebrations / achievements)
+// ============================================
+
+/// One-time achievement moments for a mentee (e.g. first ABOVE_AND_BEYOND, goal completed, tenure).
+/// seenAt is null until the mentee dismisses the celebration toast.
+model MilestoneEvent {
+  id        String    @id @default(cuid())
+  userId    String
+  kind      String    // ABOVE_AND_BEYOND_FIRST | GOAL_COMPLETED | TENURE_6_MONTHS | TENURE_12_MONTHS
+  payload   Json      @default("{}")
+  seenAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, seenAt])
+}
+
+// ============================================
+// MENTEE REVIEW ACKNOWLEDGEMENT
+// ============================================
+
+/// Mentee's reaction to a released mentor review — emoji + optional note.
+model MenteeReviewAck {
+  id       String           @id @default(cuid())
+  reviewId String           @unique
+  review   MentorGoalReview @relation(fields: [reviewId], references: [id])
+  userId   String
+  reaction String           // GRATEFUL | MOTIVATED | UNCLEAR | UNSURE
+  note     String?
+  createdAt DateTime        @default(now())
 
   @@index([userId])
 }

@@ -28,15 +28,23 @@ export const maxDuration = 60;
  * A `testDay` query param (admin-only) overrides the calendar day for local smoke-testing.
  */
 export async function GET(req: NextRequest) {
-  // Verify cron secret
+  // Verify cron secret — require it unconditionally; 503 if misconfigured
   const authHeader = req.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret) {
+    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 503 });
+  }
+  if (authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const today = new Date();
+  // testDay param only works outside production
   const testDayParam = req.nextUrl.searchParams.get("testDay");
+  if (testDayParam && process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "testDay not allowed in production" }, { status: 400 });
+  }
+
+  const today = new Date();
   const calDay = testDayParam ? parseInt(testDayParam, 10) : today.getUTCDate();
 
   // Current cycle month = first day of this UTC month
@@ -48,8 +56,11 @@ export async function GET(req: NextRequest) {
   try {
     // ── Day 25: mentee reflection-due reminders ─────────────────────────────
     if (calDay === 25) {
+      // Suppress for mentorships created after day 7 of the current cycle month —
+      // they haven't had enough time yet and would be spammed on first month.
+      const cutoff = new Date(cycleMonth.getTime() + 7 * 24 * 60 * 60 * 1000);
       const mentorships = await prisma.mentorship.findMany({
-        where: { status: "ACTIVE" },
+        where: { status: "ACTIVE", startDate: { lte: cutoff } },
         select: {
           menteeId: true,
           selfReflections: {
@@ -83,7 +94,10 @@ export async function GET(req: NextRequest) {
             where: { cycleMonth: { gte: cycleMonth } },
             orderBy: { submittedAt: "desc" },
             take: 1,
-            select: { id: true, goalReview: { select: { id: true } } },
+            select: {
+              id: true,
+              goalReview: { select: { id: true, status: true } },
+            },
           },
         },
       });
@@ -91,7 +105,8 @@ export async function GET(req: NextRequest) {
       let sent = 0;
       for (const m of mentorships) {
         const reflection = m.selfReflections[0];
-        if (reflection && !reflection.goalReview) {
+        // Fire reminder if no review exists OR if a DRAFT review exists (mentor started but didn't submit)
+        if (reflection && (!reflection.goalReview || reflection.goalReview.status === "DRAFT")) {
           await notifyMentorReviewDue({
             mentorId: m.mentorId,
             menteeId: m.menteeId,
@@ -142,6 +157,20 @@ export async function GET(req: NextRequest) {
         },
       });
       for (const review of recentlyReleased) {
+        // Skip if the emitReviewApprovedAndReleased path already sent this notification
+        const windowStart = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const alreadySent = await prisma.notification.findFirst({
+          where: {
+            dedupeKey: { in: [
+              `review-released-mentee:${review.id}`,
+              `gr:review-released:${review.menteeId}:${review.id}`,
+            ]},
+            createdAt: { gte: windowStart },
+          },
+          select: { id: true },
+        });
+        if (alreadySent) continue;
+
         await notifyMenteeReviewReleased({
           menteeId: review.menteeId,
           reviewId: review.id,
