@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition, useEffect, useCallback } from "react";
 import type { InstructorApp, Reviewer } from "./kanban-board";
 import {
@@ -310,6 +311,15 @@ export default function ApplicantDetailPanel({
   const displayName = app.legalName || app.applicant.name;
   const deadlineText = formatDeadlineDetail(app);
   const isFinal = app.status === "APPROVED" || app.status === "REJECTED";
+  const applicationWorkspaceHref = `/applications/instructor/${app.id}`;
+  const showInterviewWorkspaceLink = [
+    "INTERVIEW_SCHEDULED",
+    "INTERVIEW_COMPLETED",
+    "ON_HOLD",
+    "APPROVED",
+    "REJECTED",
+  ].includes(app.status);
+  const interviewWorkspaceHref = `${applicationWorkspaceHref}/interview`;
 
   return (
     <>
@@ -349,6 +359,23 @@ export default function ApplicantDetailPanel({
         )}
 
         <div className="slideout-body">
+          <div className="slideout-section">
+            <div className="slideout-section-title">Structured Workspace</div>
+            <p style={{ fontSize: 13, color: "var(--muted)", marginTop: 0, marginBottom: 10 }}>
+              Open the dedicated workspace for category-by-category review, lesson draft inspection, and the official next-step decision.
+            </p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <Link href={applicationWorkspaceHref} className="button secondary">
+                Open Application Review
+              </Link>
+              {showInterviewWorkspaceLink ? (
+                <Link href={interviewWorkspaceHref} className="button secondary">
+                  Open Interview Workspace
+                </Link>
+              ) : null}
+            </div>
+          </div>
+
           {/* Contact & Background */}
           <div className="slideout-section">
             <div className="slideout-section-title">Contact & Background</div>

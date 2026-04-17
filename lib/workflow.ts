@@ -588,6 +588,19 @@ function nextInstructorApplicationStage(status: InstructorApplicationStatus): Wo
   }
 }
 
+function instructorApplicationHref(status: InstructorApplicationStatus, applicationId: string) {
+  switch (status) {
+    case "INTERVIEW_SCHEDULED":
+    case "INTERVIEW_COMPLETED":
+    case "ON_HOLD":
+    case "APPROVED":
+    case "REJECTED":
+      return `/applications/instructor/${applicationId}/interview`;
+    default:
+      return `/applications/instructor/${applicationId}`;
+  }
+}
+
 function nextChapterPresidentApplicationStage(status: ChapterPresidentApplicationStatus): WorkflowStage {
   switch (status) {
     case "SUBMITTED":
@@ -647,7 +660,7 @@ export async function syncInstructorApplicationWorkflow(applicationId: string) {
     status: workflowStatusFromTerminalState(isComplete),
     title: `${application.applicant.name} instructor application`,
     summary: `Status: ${application.status.replace(/_/g, " ")}${application.reviewer ? ` · Reviewer: ${application.reviewer.id}` : ""}`,
-    href: `/admin/instructor-applicants#${application.id}`,
+    href: instructorApplicationHref(application.status, application.id),
     sourceType: "InstructorApplication",
     sourceId: application.id,
     chapterId: application.applicant.chapterId,

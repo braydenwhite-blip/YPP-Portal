@@ -3,6 +3,7 @@ import {
   type CountryCode,
 } from "libphonenumber-js";
 import twilio from "twilio";
+import { getPublicAppUrl } from "@/lib/public-app-url";
 
 let twilioClient: ReturnType<typeof twilio> | null = null;
 
@@ -20,7 +21,6 @@ type SendSmsNotificationInput = {
 };
 
 function getBaseUrl() {
-  const { getPublicAppUrl } = require("@/lib/public-app-url");
   return getPublicAppUrl();
 }
 

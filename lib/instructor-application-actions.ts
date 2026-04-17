@@ -131,34 +131,24 @@ export async function reviewInstructorApplication(
 
     switch (reviewAction) {
       case "mark_under_review":
-        await prisma.instructorApplication.update({
-          where: { id: applicationId },
-          data: { status: InstructorApplicationStatus.UNDER_REVIEW, reviewerId: session.user.id },
-        });
-        await syncInstructorApplicationWorkflow(applicationId);
-        revalidatePath("/admin/instructor-applicants");
-        revalidatePath("/admin/instructor-applicants");
-        revalidatePath("/application-status");
+        await markInstructorApplicationUnderReview(applicationId, session.user.id);
         return { status: "success", message: "Application marked as under review." };
 
       case "approve": {
         const notes = getString(formData, "notes", false);
         await approveInstructorApplication(applicationId, session.user.id, notes || undefined);
-        await syncInstructorApplicationWorkflow(applicationId);
         return { status: "success", message: "Application approved. Applicant is now an instructor." };
       }
 
       case "reject": {
         const reason = getString(formData, "reason");
         await rejectInstructorApplication(applicationId, session.user.id, reason);
-        await syncInstructorApplicationWorkflow(applicationId);
         return { status: "success", message: "Application rejected." };
       }
 
       case "request_info": {
         const message = getString(formData, "message");
         await requestMoreInfo(applicationId, session.user.id, message);
-        await syncInstructorApplicationWorkflow(applicationId);
         return { status: "success", message: "Information request sent to applicant." };
       }
 
@@ -170,40 +160,27 @@ export async function reviewInstructorApplication(
         }
         const notes = getString(formData, "notes", false);
         await scheduleInterview(applicationId, session.user.id, scheduledAt, notes || undefined);
-        await syncInstructorApplicationWorkflow(applicationId);
         return { status: "success", message: "Curriculum overview session scheduled and applicant notified." };
       }
 
       case "mark_interview_complete": {
         const notes = getString(formData, "notes", false);
         await markInterviewCompleted(applicationId, session.user.id, notes || undefined);
-        await syncInstructorApplicationWorkflow(applicationId);
         return { status: "success", message: "Curriculum overview session marked as completed." };
       }
 
       case "put_on_hold": {
         const notes = getString(formData, "notes", false);
-        await prisma.instructorApplication.update({
-          where: { id: applicationId },
-          data: {
-            status: InstructorApplicationStatus.ON_HOLD,
-            reviewerId: session.user.id,
-            reviewerNotes: notes || application.reviewerNotes,
-          },
-        });
-        revalidatePath("/admin/instructor-applicants");
+        await holdInstructorApplication(
+          applicationId,
+          session.user.id,
+          notes || application.reviewerNotes || undefined
+        );
         return { status: "success", message: "Application placed on hold." };
       }
 
       case "resume_from_hold": {
-        await prisma.instructorApplication.update({
-          where: { id: applicationId },
-          data: {
-            status: InstructorApplicationStatus.UNDER_REVIEW,
-            reviewerId: session.user.id,
-          },
-        });
-        revalidatePath("/admin/instructor-applicants");
+        await markInstructorApplicationUnderReview(applicationId, session.user.id);
         return { status: "success", message: "Application resumed from hold." };
       }
 
@@ -219,7 +196,66 @@ export async function reviewInstructorApplication(
   }
 }
 
-async function approveInstructorApplication(
+export async function markInstructorApplicationUnderReview(
+  applicationId: string,
+  reviewerId: string
+) {
+  await prisma.instructorApplication.update({
+    where: { id: applicationId },
+    data: {
+      status: InstructorApplicationStatus.UNDER_REVIEW,
+      reviewerId,
+    },
+  });
+
+  await syncInstructorApplicationWorkflow(applicationId);
+  revalidatePath("/admin/instructor-applicants");
+  revalidatePath("/chapter-lead/instructor-applicants");
+  revalidatePath("/application-status");
+}
+
+export async function moveInstructorApplicationToInterviewStage(
+  applicationId: string,
+  reviewerId: string,
+  notes?: string
+) {
+  await prisma.instructorApplication.update({
+    where: { id: applicationId },
+    data: {
+      status: InstructorApplicationStatus.INTERVIEW_SCHEDULED,
+      reviewerId,
+      reviewerNotes: notes ?? null,
+      interviewScheduledAt: null,
+    },
+  });
+
+  await syncInstructorApplicationWorkflow(applicationId);
+  revalidatePath("/admin/instructor-applicants");
+  revalidatePath("/chapter-lead/instructor-applicants");
+  revalidatePath("/application-status");
+}
+
+export async function holdInstructorApplication(
+  applicationId: string,
+  reviewerId: string,
+  notes?: string
+) {
+  await prisma.instructorApplication.update({
+    where: { id: applicationId },
+    data: {
+      status: InstructorApplicationStatus.ON_HOLD,
+      reviewerId,
+      reviewerNotes: notes ?? null,
+    },
+  });
+
+  await syncInstructorApplicationWorkflow(applicationId);
+  revalidatePath("/admin/instructor-applicants");
+  revalidatePath("/chapter-lead/instructor-applicants");
+  revalidatePath("/application-status");
+}
+
+export async function approveInstructorApplication(
   applicationId: string,
   reviewerId: string,
   notes?: string
@@ -271,12 +307,13 @@ async function approveInstructorApplication(
     console.error("[approveInstructorApplication] email failed:", e);
   }
 
+  await syncInstructorApplicationWorkflow(applicationId);
   revalidatePath("/admin/instructor-applicants");
   revalidatePath("/chapter-lead/instructor-applicants");
   revalidatePath("/application-status");
 }
 
-async function rejectInstructorApplication(
+async function rejectInstructorApplicationInternal(
   applicationId: string,
   reviewerId: string,
   reason: string
@@ -307,12 +344,21 @@ async function rejectInstructorApplication(
     console.error("[rejectInstructorApplication] email failed:", e);
   }
 
+  await syncInstructorApplicationWorkflow(applicationId);
   revalidatePath("/admin/instructor-applicants");
   revalidatePath("/chapter-lead/instructor-applicants");
   revalidatePath("/application-status");
 }
 
-async function requestMoreInfo(
+export async function rejectInstructorApplication(
+  applicationId: string,
+  reviewerId: string,
+  reason: string
+) {
+  return rejectInstructorApplicationInternal(applicationId, reviewerId, reason);
+}
+
+async function requestMoreInfoInternal(
   applicationId: string,
   reviewerId: string,
   message: string
@@ -345,12 +391,21 @@ async function requestMoreInfo(
     console.error("[requestMoreInfo] email failed:", e);
   }
 
+  await syncInstructorApplicationWorkflow(applicationId);
   revalidatePath("/admin/instructor-applicants");
   revalidatePath("/chapter-lead/instructor-applicants");
   revalidatePath("/application-status");
 }
 
-async function scheduleInterview(
+export async function requestMoreInfo(
+  applicationId: string,
+  reviewerId: string,
+  message: string
+) {
+  return requestMoreInfoInternal(applicationId, reviewerId, message);
+}
+
+export async function scheduleInterview(
   applicationId: string,
   reviewerId: string,
   scheduledAt: Date,
@@ -386,12 +441,13 @@ async function scheduleInterview(
     console.error("[scheduleInterview] email failed:", e);
   }
 
+  await syncInstructorApplicationWorkflow(applicationId);
   revalidatePath("/admin/instructor-applicants");
   revalidatePath("/chapter-lead/instructor-applicants");
   revalidatePath("/application-status");
 }
 
-async function markInterviewCompleted(
+export async function markInterviewCompleted(
   applicationId: string,
   reviewerId: string,
   notes?: string
@@ -405,6 +461,7 @@ async function markInterviewCompleted(
     },
   });
 
+  await syncInstructorApplicationWorkflow(applicationId);
   revalidatePath("/admin/instructor-applicants");
   revalidatePath("/chapter-lead/instructor-applicants");
   revalidatePath("/application-status");
@@ -505,9 +562,17 @@ export async function updateApplicationStage(
       await approveInstructorApplication(applicationId, session.user.id);
     } else if (newStatus === "REJECTED") {
       await prisma.instructorApplication.update({ where: { id: applicationId }, data });
+      await syncInstructorApplicationWorkflow(applicationId);
       revalidatePath("/admin/instructor-applicants");
+    } else if (newStatus === InstructorApplicationStatus.UNDER_REVIEW) {
+      await markInstructorApplicationUnderReview(applicationId, session.user.id);
+    } else if (newStatus === InstructorApplicationStatus.INTERVIEW_SCHEDULED) {
+      await moveInstructorApplicationToInterviewStage(applicationId, session.user.id);
+    } else if (newStatus === InstructorApplicationStatus.ON_HOLD) {
+      await holdInstructorApplication(applicationId, session.user.id);
     } else {
       await prisma.instructorApplication.update({ where: { id: applicationId }, data });
+      await syncInstructorApplicationWorkflow(applicationId);
       revalidatePath("/admin/instructor-applicants");
 
       // When moved to INTERVIEW_SCHEDULED, the reviewer will propose times via the detail panel.

@@ -321,6 +321,39 @@ enum InstructorApplicationStatus {
   ON_HOLD
 }
 
+enum StructuredReviewStatus {
+  DRAFT
+  SUBMITTED
+}
+
+enum InstructorReviewCategoryKey {
+  CURRICULUM_STRENGTH
+  RELATIONSHIP_BUILDING
+  ORGANIZATION_AND_COMMITMENT
+  COMMUNITY_FIT
+  LONG_TERM_POTENTIAL
+  PROFESSIONALISM_AND_FOLLOW_THROUGH
+}
+
+enum InstructorApplicationNextStep {
+  MOVE_TO_INTERVIEW
+  REQUEST_INFO
+  HOLD
+  REJECT
+}
+
+enum InstructorInterviewRecommendation {
+  ACCEPT
+  ACCEPT_WITH_REVISIONS
+  HOLD
+  REJECT
+}
+
+enum InterviewQuestionSource {
+  DEFAULT
+  CUSTOM
+}
+
 enum ChapterPresidentApplicationStatus {
   SUBMITTED
   UNDER_REVIEW
@@ -742,48 +775,48 @@ model User {
   profile                                UserProfile?
 
   // Video, Calendar, Parent, Certificate, Analytics relations
-  videoProgress                VideoProgress[]
-  eventRsvps                   EventRsvp[]
-  parentLinks                  ParentStudent[]               @relation("ParentLinks")
-  studentLinks                 ParentStudent[]               @relation("StudentLinks")
-  parentStudentIntakeCases     StudentIntakeCase[]          @relation("ParentStudentIntakeCases")
-  studentIntakeUserCases       StudentIntakeCase[]          @relation("StudentUserIntakeCases")
-  reviewOwnedStudentIntakeCases StudentIntakeCase[]         @relation("StudentIntakeCaseReviewOwners")
-  reviewedStudentIntakeCases   StudentIntakeCase[]          @relation("StudentIntakeCaseReviewers")
-  studentIntakeMilestonesAuthored StudentIntakeMilestone[]  @relation("StudentIntakeMilestonesAuthored")
-  certificates                 Certificate[]
-  analyticsEvents              AnalyticsEvent[]
-  chapterUpdates               ChapterUpdate[]               @relation("ChapterUpdatesAuthored")
-  createdEvents                Event[]                       @relation("EventsCreatedBy")
-  updatedEvents                Event[]                       @relation("EventsUpdatedBy")
-  createdEventSeries           EventSeries[]                 @relation("EventSeriesCreatedBy")
-  updatedEventSeries           EventSeries[]                 @relation("EventSeriesUpdatedBy")
-  chapterMilestonesCreated     ChapterMilestone[]            @relation("ChapterMilestonesCreatedBy")
-  chapterMilestonesUpdated     ChapterMilestone[]            @relation("ChapterMilestonesUpdatedBy")
-  chapterCalendarSubscriptions ChapterCalendarSubscription[]
-  eventReminders               EventReminder[]               @relation("EventRemindersReceived")
+  videoProgress                   VideoProgress[]
+  eventRsvps                      EventRsvp[]
+  parentLinks                     ParentStudent[]               @relation("ParentLinks")
+  studentLinks                    ParentStudent[]               @relation("StudentLinks")
+  parentStudentIntakeCases        StudentIntakeCase[]           @relation("ParentStudentIntakeCases")
+  studentIntakeUserCases          StudentIntakeCase[]           @relation("StudentUserIntakeCases")
+  reviewOwnedStudentIntakeCases   StudentIntakeCase[]           @relation("StudentIntakeCaseReviewOwners")
+  reviewedStudentIntakeCases      StudentIntakeCase[]           @relation("StudentIntakeCaseReviewers")
+  studentIntakeMilestonesAuthored StudentIntakeMilestone[]      @relation("StudentIntakeMilestonesAuthored")
+  certificates                    Certificate[]
+  analyticsEvents                 AnalyticsEvent[]
+  chapterUpdates                  ChapterUpdate[]               @relation("ChapterUpdatesAuthored")
+  createdEvents                   Event[]                       @relation("EventsCreatedBy")
+  updatedEvents                   Event[]                       @relation("EventsUpdatedBy")
+  createdEventSeries              EventSeries[]                 @relation("EventSeriesCreatedBy")
+  updatedEventSeries              EventSeries[]                 @relation("EventSeriesUpdatedBy")
+  chapterMilestonesCreated        ChapterMilestone[]            @relation("ChapterMilestonesCreatedBy")
+  chapterMilestonesUpdated        ChapterMilestone[]            @relation("ChapterMilestonesUpdatedBy")
+  chapterCalendarSubscriptions    ChapterCalendarSubscription[]
+  eventReminders                  EventReminder[]               @relation("EventRemindersReceived")
 
   // Phase 15-20 relations
-  notifications              Notification[]
-  notificationPreference     NotificationPreference?
-  conversationParticipations ConversationParticipant[]
-  messagesSent               Message[]                 @relation("MessagesSent")
-  adminSubtypes              UserAdminSubtype[]
-  workflowItemsAssigned      WorkflowItem[]            @relation("WorkflowItemsAssigned")
-  workflowItemsSubject       WorkflowItem[]            @relation("WorkflowItemsSubject")
-  workflowItemsCreated       WorkflowItem[]            @relation("WorkflowItemsCreatedBy")
-  workflowItemsUpdated       WorkflowItem[]            @relation("WorkflowItemsUpdatedBy")
-  workflowItemsOverridden    WorkflowItem[]            @relation("WorkflowItemsManualOverrideBy")
-  workflowCommentsAuthored   WorkflowComment[]         @relation("WorkflowCommentsAuthored")
-  workflowActionItemsOwned   WorkflowActionItem[]      @relation("WorkflowActionItemsOwned")
-  workflowActionItemsCreated WorkflowActionItem[]      @relation("WorkflowActionItemsCreatedBy")
-  workflowAssignmentRuleAssignees WorkflowAssignmentRule[] @relation("WorkflowAssignmentRulesAssigneeUser")
-  workflowAssignmentRulesCreated WorkflowAssignmentRule[]  @relation("WorkflowAssignmentRulesCreatedBy")
-  workflowAssignmentRulesUpdated WorkflowAssignmentRule[]  @relation("WorkflowAssignmentRulesUpdatedBy")
-  attendanceRecords          AttendanceRecord[]
-  attendanceSessionsCreated  AttendanceSession[]       @relation("AttendanceSessionsCreated")
-  resourcesUploaded          Resource[]                @relation("ResourcesUploaded")
-  passwordResetTokens        PasswordResetToken[]
+  notifications                   Notification[]
+  notificationPreference          NotificationPreference?
+  conversationParticipations      ConversationParticipant[]
+  messagesSent                    Message[]                 @relation("MessagesSent")
+  adminSubtypes                   UserAdminSubtype[]
+  workflowItemsAssigned           WorkflowItem[]            @relation("WorkflowItemsAssigned")
+  workflowItemsSubject            WorkflowItem[]            @relation("WorkflowItemsSubject")
+  workflowItemsCreated            WorkflowItem[]            @relation("WorkflowItemsCreatedBy")
+  workflowItemsUpdated            WorkflowItem[]            @relation("WorkflowItemsUpdatedBy")
+  workflowItemsOverridden         WorkflowItem[]            @relation("WorkflowItemsManualOverrideBy")
+  workflowCommentsAuthored        WorkflowComment[]         @relation("WorkflowCommentsAuthored")
+  workflowActionItemsOwned        WorkflowActionItem[]      @relation("WorkflowActionItemsOwned")
+  workflowActionItemsCreated      WorkflowActionItem[]      @relation("WorkflowActionItemsCreatedBy")
+  workflowAssignmentRuleAssignees WorkflowAssignmentRule[]  @relation("WorkflowAssignmentRulesAssigneeUser")
+  workflowAssignmentRulesCreated  WorkflowAssignmentRule[]  @relation("WorkflowAssignmentRulesCreatedBy")
+  workflowAssignmentRulesUpdated  WorkflowAssignmentRule[]  @relation("WorkflowAssignmentRulesUpdatedBy")
+  attendanceRecords               AttendanceRecord[]
+  attendanceSessionsCreated       AttendanceSession[]       @relation("AttendanceSessionsCreated")
+  resourcesUploaded               Resource[]                @relation("ResourcesUploaded")
+  passwordResetTokens             PasswordResetToken[]
 
   // File Uploads
   uploads FileUpload[]
@@ -1025,9 +1058,11 @@ model User {
   pathwayStepUnlocks          PathwayStepUnlock[]       @relation("PathwayStepUnlocks")
 
   // Instructor Application Relations
-  instructorApplication          InstructorApplication?  @relation("InstructorApplications")
-  instructorApplicationsReviewed InstructorApplication[] @relation("InstructorApplicationReviews")
-  offeredInterviewSlots          OfferedInterviewSlot[]  @relation("OfferedInterviewSlots")
+  instructorApplication          InstructorApplication?        @relation("InstructorApplications")
+  instructorApplicationsReviewed InstructorApplication[]       @relation("InstructorApplicationReviews")
+  instructorApplicationReviews   InstructorApplicationReview[] @relation("InstructorApplicationStructuredReviews")
+  instructorInterviewReviews     InstructorInterviewReview[]   @relation("InstructorInterviewStructuredReviews")
+  offeredInterviewSlots          OfferedInterviewSlot[]        @relation("OfferedInterviewSlots")
 
   // Chapter President Application Relations
   chapterPresidentApplication          ChapterPresidentApplication?  @relation("ChapterPresidentApplications")
@@ -1063,7 +1098,7 @@ model User {
   journeyMilestones       JourneyMilestone[]     @relation("JourneyMilestones")
 
   // Curriculum Builder Studio
-  curriculumDrafts CurriculumDraft[]
+  curriculumDrafts           CurriculumDraft[]
   curriculumCommentsAuthored CurriculumComment[] @relation("CurriculumCommentsAuthored")
   curriculumCommentsResolved CurriculumComment[] @relation("CurriculumCommentsResolved")
 
@@ -1092,7 +1127,7 @@ model User {
   opsRulesCreated OpsRule[] @relation("OpsRulesCreated")
 
   // Supabase Auth integration
-  supabaseAuthId String? @unique @map("supabase_auth_id")
+  supabaseAuthId String?   @unique @map("supabase_auth_id")
   archivedAt     DateTime?
 
   createdAt DateTime @default(now())
@@ -1120,51 +1155,51 @@ model UserRole {
 }
 
 model UserAdminSubtype {
-  userId          String
-  subtype         AdminSubtype
-  isDefaultOwner  Boolean     @default(false)
-  createdAt       DateTime    @default(now())
-  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  subtype        AdminSubtype
+  isDefaultOwner Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, subtype])
   @@index([subtype, isDefaultOwner])
 }
 
 model WorkflowItem {
-  id                   String                       @id @default(cuid())
+  id                   String                        @id @default(cuid())
   kind                 WorkflowKind
-  stage                WorkflowStage                @default(INBOX)
-  status               WorkflowStatus               @default(OPEN)
+  stage                WorkflowStage                 @default(INBOX)
+  status               WorkflowStatus                @default(OPEN)
   title                String
   summary              String?
   href                 String
   sourceId             String
   sourceType           String
   chapterId            String?
-  chapter              Chapter?                     @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  chapter              Chapter?                      @relation(fields: [chapterId], references: [id], onDelete: SetNull)
   subjectUserId        String?
-  subjectUser          User?                        @relation("WorkflowItemsSubject", fields: [subjectUserId], references: [id], onDelete: SetNull)
+  subjectUser          User?                         @relation("WorkflowItemsSubject", fields: [subjectUserId], references: [id], onDelete: SetNull)
   dueAt                DateTime?
   assigneeUserId       String?
-  assigneeUser         User?                        @relation("WorkflowItemsAssigned", fields: [assigneeUserId], references: [id], onDelete: SetNull)
+  assigneeUser         User?                         @relation("WorkflowItemsAssigned", fields: [assigneeUserId], references: [id], onDelete: SetNull)
   assigneeSubtype      AdminSubtype?
   assignmentTargetType WorkflowAssignmentTargetType?
   allowedAssigneeRole  RoleType?
   allowedAdminSubtype  AdminSubtype?
   assignmentReason     String?
   manualOverrideById   String?
-  manualOverrideBy     User?                        @relation("WorkflowItemsManualOverrideBy", fields: [manualOverrideById], references: [id], onDelete: SetNull)
+  manualOverrideBy     User?                         @relation("WorkflowItemsManualOverrideBy", fields: [manualOverrideById], references: [id], onDelete: SetNull)
   manualOverrideAt     DateTime?
   lastRoutedAt         DateTime?
   completedAt          DateTime?
   createdById          String?
-  createdBy            User?                        @relation("WorkflowItemsCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdBy            User?                         @relation("WorkflowItemsCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   updatedById          String?
-  updatedBy            User?                        @relation("WorkflowItemsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  updatedBy            User?                         @relation("WorkflowItemsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   comments             WorkflowComment[]
   actionItems          WorkflowActionItem[]
-  createdAt            DateTime                     @default(now())
-  updatedAt            DateTime                     @updatedAt
+  createdAt            DateTime                      @default(now())
+  updatedAt            DateTime                      @updatedAt
 
   @@unique([sourceType, sourceId, kind])
   @@index([kind, stage, status])
@@ -1207,24 +1242,24 @@ model WorkflowActionItem {
 }
 
 model WorkflowAssignmentRule {
-  id              String                        @id @default(cuid())
+  id              String        @id @default(cuid())
   kind            WorkflowKind
   stage           WorkflowStage
   chapterId       String?
-  chapter         Chapter?                      @relation(fields: [chapterId], references: [id], onDelete: SetNull)
-  priority        Int                           @default(0)
-  isActive        Boolean                       @default(true)
+  chapter         Chapter?      @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  priority        Int           @default(0)
+  isActive        Boolean       @default(true)
   assigneeUserId  String?
-  assigneeUser    User?                         @relation("WorkflowAssignmentRulesAssigneeUser", fields: [assigneeUserId], references: [id], onDelete: SetNull)
+  assigneeUser    User?         @relation("WorkflowAssignmentRulesAssigneeUser", fields: [assigneeUserId], references: [id], onDelete: SetNull)
   assigneeSubtype AdminSubtype?
   assigneeRole    RoleType?
   note            String?
   createdById     String?
-  createdBy       User?                         @relation("WorkflowAssignmentRulesCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdBy       User?         @relation("WorkflowAssignmentRulesCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   updatedById     String?
-  updatedBy       User?                         @relation("WorkflowAssignmentRulesUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
-  createdAt       DateTime                      @default(now())
-  updatedAt       DateTime                      @updatedAt
+  updatedBy       User?         @relation("WorkflowAssignmentRulesUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   @@index([kind, stage, chapterId, isActive, priority])
   @@index([assigneeSubtype, isActive])
@@ -1602,34 +1637,158 @@ model InstructorApplication {
   // --- Review workflow ---
   decisionRecommendation String?
   actionDueDate          DateTime?
-  reviewerId           String?
-  reviewer             User?                     @relation("InstructorApplicationReviews", fields: [reviewerId], references: [id])
-  reviewerNotes        String?                   @db.Text
-  infoRequest          String?                   @db.Text
-  applicantResponse    String?                   @db.Text
-  rejectionReason      String?                   @db.Text
-  interviewScheduledAt DateTime?
-  approvedAt           DateTime?
-  rejectedAt           DateTime?
-  customResponses      ApplicationFormResponse[] @relation("InstructorAppFormResponses")
-  cohortId             String?
-  cohort               ApplicationCohort?        @relation("InstructorAppCohort", fields: [cohortId], references: [id])
+  reviewerId             String?
+  reviewer               User?                         @relation("InstructorApplicationReviews", fields: [reviewerId], references: [id])
+  reviewerNotes          String?                       @db.Text
+  infoRequest            String?                       @db.Text
+  applicantResponse      String?                       @db.Text
+  rejectionReason        String?                       @db.Text
+  interviewScheduledAt   DateTime?
+  approvedAt             DateTime?
+  rejectedAt             DateTime?
+  customResponses        ApplicationFormResponse[]     @relation("InstructorAppFormResponses")
+  applicationReviews     InstructorApplicationReview[]
+  interviewReviews       InstructorInterviewReview[]
+  cohortId               String?
+  cohort                 ApplicationCohort?            @relation("InstructorAppCohort", fields: [cohortId], references: [id])
 
   // --- Automated scheduling ---
   availabilityWindows ApplicantAvailabilityWindow[] @relation("InstructorAvailabilityWindows")
   schedulingNoMatchAt DateTime?
 
   // --- Reviewer-offered interview slots (new scheduling flow) ---
-  offeredSlots        OfferedInterviewSlot[]
+  offeredSlots OfferedInterviewSlot[]
 
-  createdAt            DateTime                  @default(now())
-  updatedAt            DateTime                  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([reviewerId])
   @@index([cohortId])
   @@index([graduationYear])
   @@index([stateProvince])
+}
+
+model InstructorApplicationReview {
+  id                  String                                @id @default(cuid())
+  applicationId       String
+  application         InstructorApplication                 @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  reviewerId          String
+  reviewer            User                                  @relation("InstructorApplicationStructuredReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
+  curriculumDraftId   String?
+  curriculumDraft     CurriculumDraft?                      @relation("InstructorApplicationReviewDraft", fields: [curriculumDraftId], references: [id], onDelete: SetNull)
+  status              StructuredReviewStatus                @default(DRAFT)
+  isLeadReview        Boolean                               @default(false)
+  overallRating       ProgressStatus?
+  nextStep            InstructorApplicationNextStep?
+  summary             String?                               @db.Text
+  notes               String?                               @db.Text
+  concerns            String?                               @db.Text
+  applicantMessage    String?                               @db.Text
+  flagForLeadership   Boolean                               @default(false)
+  draftOverrideUsed   Boolean                               @default(false)
+  draftOverrideReason String?                               @db.Text
+  submittedAt         DateTime?
+  categories          InstructorApplicationReviewCategory[]
+  createdAt           DateTime                              @default(now())
+  updatedAt           DateTime                              @updatedAt
+
+  @@unique([applicationId, reviewerId])
+  @@index([applicationId, isLeadReview])
+  @@index([reviewerId, status])
+  @@index([curriculumDraftId])
+}
+
+model InstructorApplicationReviewCategory {
+  id        String                      @id @default(cuid())
+  reviewId  String
+  review    InstructorApplicationReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  category  InstructorReviewCategoryKey
+  rating    ProgressStatus?
+  notes     String?                     @db.Text
+  createdAt DateTime                    @default(now())
+  updatedAt DateTime                    @updatedAt
+
+  @@unique([reviewId, category])
+  @@index([category])
+}
+
+model InstructorInterviewQuestionBank {
+  id             String                                @id @default(cuid())
+  slug           String                                @unique
+  prompt         String                                @db.Text
+  helperText     String?                               @db.Text
+  followUpPrompt String?                               @db.Text
+  topic          String?
+  sortOrder      Int                                   @default(0)
+  isActive       Boolean                               @default(true)
+  responses      InstructorInterviewQuestionResponse[]
+  createdAt      DateTime                              @default(now())
+  updatedAt      DateTime                              @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
+model InstructorInterviewReview {
+  id                   String                                @id @default(cuid())
+  applicationId        String
+  application          InstructorApplication                 @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  reviewerId           String
+  reviewer             User                                  @relation("InstructorInterviewStructuredReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
+  curriculumDraftId    String?
+  curriculumDraft      CurriculumDraft?                      @relation("InstructorInterviewReviewDraft", fields: [curriculumDraftId], references: [id], onDelete: SetNull)
+  status               StructuredReviewStatus                @default(DRAFT)
+  isLeadReview         Boolean                               @default(false)
+  overallRating        ProgressStatus?
+  recommendation       InstructorInterviewRecommendation?
+  summary              String?                               @db.Text
+  overallNotes         String?                               @db.Text
+  curriculumFeedback   String?                               @db.Text
+  revisionRequirements String?                               @db.Text
+  applicantMessage     String?                               @db.Text
+  flagForLeadership    Boolean                               @default(false)
+  submittedAt          DateTime?
+  categories           InstructorInterviewReviewCategory[]
+  questionResponses    InstructorInterviewQuestionResponse[]
+  createdAt            DateTime                              @default(now())
+  updatedAt            DateTime                              @updatedAt
+
+  @@unique([applicationId, reviewerId])
+  @@index([applicationId, isLeadReview])
+  @@index([reviewerId, status])
+  @@index([curriculumDraftId])
+}
+
+model InstructorInterviewReviewCategory {
+  id        String                      @id @default(cuid())
+  reviewId  String
+  review    InstructorInterviewReview   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  category  InstructorReviewCategoryKey
+  rating    ProgressStatus?
+  notes     String?                     @db.Text
+  createdAt DateTime                    @default(now())
+  updatedAt DateTime                    @updatedAt
+
+  @@unique([reviewId, category])
+  @@index([category])
+}
+
+model InstructorInterviewQuestionResponse {
+  id             String                           @id @default(cuid())
+  reviewId       String
+  review         InstructorInterviewReview        @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  questionBankId String?
+  questionBank   InstructorInterviewQuestionBank? @relation(fields: [questionBankId], references: [id], onDelete: SetNull)
+  source         InterviewQuestionSource          @default(DEFAULT)
+  prompt         String                           @db.Text
+  followUpPrompt String?                          @db.Text
+  notes          String?                          @db.Text
+  sortOrder      Int                              @default(0)
+  createdAt      DateTime                         @default(now())
+  updatedAt      DateTime                         @updatedAt
+
+  @@index([reviewId, sortOrder])
+  @@index([questionBankId])
 }
 
 model OfferedInterviewSlot {
@@ -3229,36 +3388,36 @@ model ParentStudent {
 }
 
 model StudentIntakeCase {
-  id                   String                  @id @default(cuid())
+  id                   String                   @id @default(cuid())
   parentId             String
-  parent               User                    @relation("ParentStudentIntakeCases", fields: [parentId], references: [id], onDelete: Cascade)
+  parent               User                     @relation("ParentStudentIntakeCases", fields: [parentId], references: [id], onDelete: Cascade)
   studentUserId        String?
-  studentUser          User?                   @relation("StudentUserIntakeCases", fields: [studentUserId], references: [id], onDelete: SetNull)
+  studentUser          User?                    @relation("StudentUserIntakeCases", fields: [studentUserId], references: [id], onDelete: SetNull)
   chapterId            String
-  chapter              Chapter                 @relation(fields: [chapterId], references: [id])
-  status               StudentIntakeCaseStatus @default(DRAFT)
+  chapter              Chapter                  @relation(fields: [chapterId], references: [id])
+  status               StudentIntakeCaseStatus  @default(DRAFT)
   studentName          String
   studentEmail         String
   studentGrade         Int?
   studentSchool        String?
-  relationship         String                  @default("Parent")
-  interests            String[]                @default([])
-  goals                String[]                @default([])
+  relationship         String                   @default("Parent")
+  interests            String[]                 @default([])
+  goals                String[]                 @default([])
   supportNeeds         String?
   parentNotes          String?
   reviewerNote         String?
   blockerNote          String?
   nextAction           String?
   reviewOwnerId        String?
-  reviewOwner          User?                   @relation("StudentIntakeCaseReviewOwners", fields: [reviewOwnerId], references: [id], onDelete: SetNull)
+  reviewOwner          User?                    @relation("StudentIntakeCaseReviewOwners", fields: [reviewOwnerId], references: [id], onDelete: SetNull)
   reviewedById         String?
-  reviewedBy           User?                   @relation("StudentIntakeCaseReviewers", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedBy           User?                    @relation("StudentIntakeCaseReviewers", fields: [reviewedById], references: [id], onDelete: SetNull)
   submittedAt          DateTime?
   reviewedAt           DateTime?
   mentorPlanLaunchedAt DateTime?
   milestones           StudentIntakeMilestone[]
-  createdAt            DateTime                @default(now())
-  updatedAt            DateTime                @updatedAt
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
 
   @@index([parentId, status])
   @@index([chapterId, status])
@@ -3268,16 +3427,16 @@ model StudentIntakeCase {
 }
 
 model StudentIntakeMilestone {
-  id           String                  @id @default(cuid())
-  intakeCaseId String
-  intakeCase   StudentIntakeCase       @relation(fields: [intakeCaseId], references: [id], onDelete: Cascade)
-  status       StudentIntakeCaseStatus
-  title        String
-  body         String?
-  createdById  String?
-  createdBy    User?                   @relation("StudentIntakeMilestonesAuthored", fields: [createdById], references: [id], onDelete: SetNull)
-  visibleToParent Boolean              @default(true)
-  createdAt    DateTime                @default(now())
+  id              String                  @id @default(cuid())
+  intakeCaseId    String
+  intakeCase      StudentIntakeCase       @relation(fields: [intakeCaseId], references: [id], onDelete: Cascade)
+  status          StudentIntakeCaseStatus
+  title           String
+  body            String?
+  createdById     String?
+  createdBy       User?                   @relation("StudentIntakeMilestonesAuthored", fields: [createdById], references: [id], onDelete: SetNull)
+  visibleToParent Boolean                 @default(true)
+  createdAt       DateTime                @default(now())
 
   @@index([intakeCaseId, createdAt])
   @@index([status, createdAt])
@@ -3404,16 +3563,16 @@ enum MentorshipCycleStage {
 }
 
 model Notification {
-  id         String           @id @default(cuid())
-  userId     String
-  user       User             @relation(fields: [userId], references: [id])
-  type       NotificationType
-  title      String
-  body       String
-  link       String?
-  isRead     Boolean          @default(false)
-  dedupeKey  String?
-  createdAt  DateTime         @default(now())
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  type      NotificationType
+  title     String
+  body      String
+  link      String?
+  isRead    Boolean          @default(false)
+  dedupeKey String?
+  createdAt DateTime         @default(now())
 
   @@index([userId, isRead])
   @@index([createdAt])
@@ -3421,24 +3580,24 @@ model Notification {
 }
 
 model NotificationPreference {
-  id                  String   @id @default(cuid())
-  userId              String   @unique
-  user                User     @relation(fields: [userId], references: [id])
-  emailEnabled        Boolean  @default(true)
-  inAppEnabled        Boolean  @default(true)
-  smsEnabled          Boolean  @default(false)
+  id                  String    @id @default(cuid())
+  userId              String    @unique
+  user                User      @relation(fields: [userId], references: [id])
+  emailEnabled        Boolean   @default(true)
+  inAppEnabled        Boolean   @default(true)
+  smsEnabled          Boolean   @default(false)
   smsPhoneE164        String?
   smsConsentAt        DateTime?
   smsOptOutAt         DateTime?
-  announcements       Boolean  @default(true)
-  mentorUpdates       Boolean  @default(true)
-  goalReminders       Boolean  @default(true)
-  courseUpdates       Boolean  @default(true)
-  reflectionReminders Boolean  @default(true)
-  eventUpdates        Boolean  @default(true)
-  eventReminders      Boolean  @default(true)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  announcements       Boolean   @default(true)
+  mentorUpdates       Boolean   @default(true)
+  goalReminders       Boolean   @default(true)
+  courseUpdates       Boolean   @default(true)
+  reflectionReminders Boolean   @default(true)
+  eventUpdates        Boolean   @default(true)
+  eventReminders      Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   @@index([smsPhoneE164])
 }
@@ -3630,8 +3789,8 @@ model InstructorGrowthEvent {
 }
 
 model InstructorGrowthBadgeDefinition {
-  id          String                        @id @default(cuid())
-  slug        String                        @unique
+  id          String                       @id @default(cuid())
+  slug        String                       @unique
   name        String
   description String
   flavorText  String?
@@ -3639,11 +3798,11 @@ model InstructorGrowthBadgeDefinition {
   accentColor String
   perkText    String?
   criteria    Json
-  order       Int                           @default(0)
-  isActive    Boolean                       @default(true)
+  order       Int                          @default(0)
+  isActive    Boolean                      @default(true)
   awards      InstructorGrowthBadgeAward[]
-  createdAt   DateTime                      @default(now())
-  updatedAt   DateTime                      @updatedAt
+  createdAt   DateTime                     @default(now())
+  updatedAt   DateTime                     @updatedAt
 
   @@index([order])
 }
@@ -3667,21 +3826,21 @@ model InstructorGrowthBadgeAward {
 }
 
 model InstructorGrowthSemesterStat {
-  id                 String   @id @default(cuid())
+  id                 String    @id @default(cuid())
   instructorId       String
-  instructor         User     @relation("InstructorGrowthSemesterStats", fields: [instructorId], references: [id], onDelete: Cascade)
+  instructor         User      @relation("InstructorGrowthSemesterStats", fields: [instructorId], references: [id], onDelete: Cascade)
   semesterLabel      String
-  totalXp            Int      @default(0)
-  teachingXp         Int      @default(0)
-  growthXp           Int      @default(0)
-  communityXp        Int      @default(0)
-  impactXp           Int      @default(0)
-  approvedEventCount Int      @default(0)
-  pendingEventCount  Int      @default(0)
-  badgeCount         Int      @default(0)
+  totalXp            Int       @default(0)
+  teachingXp         Int       @default(0)
+  growthXp           Int       @default(0)
+  communityXp        Int       @default(0)
+  impactXp           Int       @default(0)
+  approvedEventCount Int       @default(0)
+  pendingEventCount  Int       @default(0)
+  badgeCount         Int       @default(0)
   lastEventAt        DateTime?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   @@unique([instructorId, semesterLabel])
   @@index([semesterLabel])
@@ -8401,9 +8560,9 @@ model MentorGoalReview {
   aiDraftUsed Boolean @default(false)
 
   // G&R integration
-  goalSnapshots    MentorGoalReviewGoalSnapshot[]
-  spawnedGRGoals   GRDocumentGoal[]               @relation("GRGoalsSpawnedByReview")
-  reviewAck        MenteeReviewAck?
+  goalSnapshots  MentorGoalReviewGoalSnapshot[]
+  spawnedGRGoals GRDocumentGoal[]               @relation("GRGoalsSpawnedByReview")
+  reviewAck      MenteeReviewAck?
 
   /// Draft next-month goal proposals persisted between form saves. Cleared on submit.
   nextMonthGoalDraftsJson Json?
@@ -8418,16 +8577,16 @@ model MentorGoalReview {
 
 /// Per-goal color rating within a mentor goal review.
 model GoalReviewRating {
-  id       String                 @id @default(cuid())
-  reviewId String
-  review   MentorGoalReview       @relation(fields: [reviewId], references: [id])
+  id               String                 @id @default(cuid())
+  reviewId         String
+  review           MentorGoalReview       @relation(fields: [reviewId], references: [id])
   /// Legacy: rating against the flat MentorshipProgramGoal list. Kept as fallback
   /// for reviews where the mentee had no active G&R document. Prefer grDocumentGoalId.
-  goalId            String?
-  goal              MentorshipProgramGoal? @relation(fields: [goalId], references: [id])
+  goalId           String?
+  goal             MentorshipProgramGoal? @relation(fields: [goalId], references: [id])
   /// Preferred: rating against the mentee's actual per-person G&R goal.
-  grDocumentGoalId  String?
-  grDocumentGoal    GRDocumentGoal?        @relation(fields: [grDocumentGoalId], references: [id])
+  grDocumentGoalId String?
+  grDocumentGoal   GRDocumentGoal?        @relation(fields: [grDocumentGoalId], references: [id])
 
   rating   GoalRatingColor
   comments String?
@@ -8735,8 +8894,8 @@ model ChapterPresidentApplication {
   availabilityWindows ApplicantAvailabilityWindow[] @relation("CPAvailabilityWindows")
   schedulingNoMatchAt DateTime?
 
-  createdAt            DateTime                  @default(now())
-  updatedAt            DateTime                  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([reviewerId])
@@ -9086,28 +9245,30 @@ model MentorshipScheduleRequest {
 }
 
 model CurriculumDraft {
-  id                  String                @id @default(cuid())
-  authorId            String
-  author              User                  @relation(fields: [authorId], references: [id])
-  title               String                @default("")
-  description         String?               @db.Text
-  interestArea        String                @default("")
-  outcomes            String[]
-  courseConfig        Json                  @default("{\"durationWeeks\":8,\"sessionsPerWeek\":1,\"classDurationMin\":60,\"targetAgeGroup\":\"\",\"deliveryModes\":[\"VIRTUAL\"],\"difficultyLevel\":\"LEVEL_101\",\"learnerFitLabel\":\"Best for first-time learners\",\"learnerFitDescription\":\"No prior experience needed.\",\"minStudents\":3,\"maxStudents\":25,\"idealSize\":12,\"estimatedHours\":8}")
-  weeklyPlans         Json                  @default("[]")
-  understandingChecks Json                  @default("{\"answers\":{},\"lastScorePct\":null,\"passed\":false,\"completedAt\":null}")
-  reviewRubric        Json?
-  reviewNotes         String?               @db.Text
-  reviewedById        String?
-  reviewedAt          DateTime?
-  submittedAt         DateTime?
-  approvedAt          DateTime?
-  generatedTemplateId String?
-  status              CurriculumDraftStatus @default(IN_PROGRESS)
-  completedAt         DateTime?
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
-  comments            CurriculumComment[]
+  id                           String                        @id @default(cuid())
+  authorId                     String
+  author                       User                          @relation(fields: [authorId], references: [id])
+  title                        String                        @default("")
+  description                  String?                       @db.Text
+  interestArea                 String                        @default("")
+  outcomes                     String[]
+  courseConfig                 Json                          @default("{\"durationWeeks\":8,\"sessionsPerWeek\":1,\"classDurationMin\":60,\"targetAgeGroup\":\"\",\"deliveryModes\":[\"VIRTUAL\"],\"difficultyLevel\":\"LEVEL_101\",\"learnerFitLabel\":\"Best for first-time learners\",\"learnerFitDescription\":\"No prior experience needed.\",\"minStudents\":3,\"maxStudents\":25,\"idealSize\":12,\"estimatedHours\":8}")
+  weeklyPlans                  Json                          @default("[]")
+  understandingChecks          Json                          @default("{\"answers\":{},\"lastScorePct\":null,\"passed\":false,\"completedAt\":null}")
+  reviewRubric                 Json?
+  reviewNotes                  String?                       @db.Text
+  reviewedById                 String?
+  reviewedAt                   DateTime?
+  submittedAt                  DateTime?
+  approvedAt                   DateTime?
+  generatedTemplateId          String?
+  status                       CurriculumDraftStatus         @default(IN_PROGRESS)
+  completedAt                  DateTime?
+  applicationReviewsReferenced InstructorApplicationReview[] @relation("InstructorApplicationReviewDraft")
+  interviewReviewsReferenced   InstructorInterviewReview[]   @relation("InstructorInterviewReviewDraft")
+  createdAt                    DateTime                      @default(now())
+  updatedAt                    DateTime                      @updatedAt
+  comments                     CurriculumComment[]
 
   @@index([authorId])
   @@index([status])
@@ -9115,13 +9276,13 @@ model CurriculumDraft {
 }
 
 model CurriculumComment {
-  id          String              @id @default(cuid())
+  id           String              @id @default(cuid())
   draftId      String
-  draft        CurriculumDraft    @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  draft        CurriculumDraft     @relation(fields: [draftId], references: [id], onDelete: Cascade)
   authorId     String
-  author       User               @relation("CurriculumCommentsAuthored", fields: [authorId], references: [id])
+  author       User                @relation("CurriculumCommentsAuthored", fields: [authorId], references: [id])
   parentId     String?
-  parent       CurriculumComment? @relation("CurriculumCommentReplies", fields: [parentId], references: [id])
+  parent       CurriculumComment?  @relation("CurriculumCommentReplies", fields: [parentId], references: [id])
   replies      CurriculumComment[] @relation("CurriculumCommentReplies")
   anchorType   String
   anchorId     String?
@@ -9146,7 +9307,7 @@ model CurriculumComment {
 enum GRTimePhase {
   FIRST_MONTH
   FIRST_QUARTER
-  FULL_YEAR  /// @deprecated use LONG_TERM; kept for data compatibility
+  FULL_YEAR /// @deprecated use LONG_TERM; kept for data compatibility
   LONG_TERM
   MONTHLY
 }
@@ -9336,16 +9497,16 @@ enum KPISourceType {
 
 /// Role-wide base template that admins author collaboratively
 model GRTemplate {
-  id              String           @id @default(cuid())
-  title           String
-  roleType        MenteeRoleType
-  officerPosition String?
-  roleMission     String           @db.Text
-  status          GRTemplateStatus @default(GR_DRAFT)
-  version         Int              @default(1)
-  publishedAt     DateTime?
-  isActive        Boolean          @default(true)
-  maxActiveMonthlyGoals Int        @default(5)
+  id                    String           @id @default(cuid())
+  title                 String
+  roleType              MenteeRoleType
+  officerPosition       String?
+  roleMission           String           @db.Text
+  status                GRTemplateStatus @default(GR_DRAFT)
+  version               Int              @default(1)
+  publishedAt           DateTime?
+  isActive              Boolean          @default(true)
+  maxActiveMonthlyGoals Int              @default(5)
 
   createdById    String
   createdBy      User    @relation("GRTemplatesCreated", fields: [createdById], references: [id])
@@ -9527,9 +9688,9 @@ model GRDocumentGoal {
   sourceReviewId String?
   sourceReview   MentorGoalReview? @relation("GRGoalsSpawnedByReview", fields: [sourceReviewId], references: [id])
 
-  kpiValues        GRKPIValue[]
-  reviewRatings    GoalReviewRating[]
-  reviewSnapshots  MentorGoalReviewGoalSnapshot[]
+  kpiValues       GRKPIValue[]
+  reviewRatings   GoalReviewRating[]
+  reviewSnapshots MentorGoalReviewGoalSnapshot[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -9633,11 +9794,11 @@ model MentorGoalReviewGoalSnapshot {
   grDocumentGoal   GRDocumentGoal? @relation(fields: [grDocumentGoalId], references: [id], onDelete: SetNull)
 
   // Captured values at snapshot time
-  title                   String
-  description             String              @db.Text
-  timePhase               GRTimePhase
-  priority                GoalPriority        @default(NORMAL)
-  dueDateAtSnapshot       DateTime?
+  title                     String
+  description               String              @db.Text
+  timePhase                 GRTimePhase
+  priority                  GoalPriority        @default(NORMAL)
+  dueDateAtSnapshot         DateTime?
   lifecycleStatusAtSnapshot GoalLifecycleStatus @default(ACTIVE)
 
   createdAt DateTime @default(now())
@@ -10075,7 +10236,7 @@ model AwardCertificate {
 model MilestoneEvent {
   id        String    @id @default(cuid())
   userId    String
-  kind      String    // ABOVE_AND_BEYOND_FIRST | GOAL_COMPLETED | TENURE_6_MONTHS | TENURE_12_MONTHS
+  kind      String // ABOVE_AND_BEYOND_FIRST | GOAL_COMPLETED | TENURE_6_MONTHS | TENURE_12_MONTHS
   payload   Json      @default("{}")
   seenAt    DateTime?
   createdAt DateTime  @default(now())
@@ -10089,13 +10250,13 @@ model MilestoneEvent {
 
 /// Mentee's reaction to a released mentor review — emoji + optional note.
 model MenteeReviewAck {
-  id       String           @id @default(cuid())
-  reviewId String           @unique
-  review   MentorGoalReview @relation(fields: [reviewId], references: [id])
-  userId   String
-  reaction String           // GRATEFUL | MOTIVATED | UNCLEAR | UNSURE
-  note     String?
-  createdAt DateTime        @default(now())
+  id        String           @id @default(cuid())
+  reviewId  String           @unique
+  review    MentorGoalReview @relation(fields: [reviewId], references: [id])
+  userId    String
+  reaction  String // GRATEFUL | MOTIVATED | UNCLEAR | UNSURE
+  note      String?
+  createdAt DateTime         @default(now())
 
   @@index([userId])
 }
