@@ -29,6 +29,7 @@ import {
 } from "@/lib/curriculum-draft-lifecycle";
 import { syncTrainingAssignmentFromArtifacts } from "@/lib/training-actions";
 import { canAccessCurriculumDraftForPrint } from "@/lib/curriculum-draft-access";
+import { getEnabledFeatureKeysForUser } from "@/lib/feature-gates";
 
 const LESSON_DESIGN_STUDIO_MODULE_KEY = "academy_lesson_studio_006";
 const LESSON_DESIGN_STUDIO_TOUR_KEY = "studio_onboarding_tour";
@@ -584,16 +585,21 @@ export async function markLessonDesignStudioTourComplete(draftId: string) {
  * Load a curriculum draft by ID (for the print page).
  */
 export async function getCurriculumDraftById(draftId: string) {
-  const session = await requireStudioAccess();
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    throw new Error("Unauthorized");
+  }
   const roles = session.user.roles ?? [];
-  const requesterChapterId = roles.includes("CHAPTER_PRESIDENT")
-    ? (
-        await prisma.user.findUnique({
-          where: { id: session.user.id },
-          select: { chapterId: true },
-        })
-      )?.chapterId ?? null
-    : null;
+  const requester = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { chapterId: true },
+  });
+  const enabledFeatureKeys = await getEnabledFeatureKeysForUser({
+    userId: session.user.id,
+    chapterId: requester?.chapterId ?? null,
+    roles,
+    primaryRole: session.user.primaryRole ?? null,
+  }).catch(() => []);
 
   const draft = await prisma.curriculumDraft.findUnique({
     where: { id: draftId },
@@ -608,7 +614,8 @@ export async function getCurriculumDraftById(draftId: string) {
     !canAccessCurriculumDraftForPrint({
       requesterId: session.user.id,
       requesterRoles: roles,
-      requesterChapterId,
+      requesterFeatureKeys: enabledFeatureKeys,
+      requesterChapterId: requester?.chapterId ?? null,
       authorId: draft.authorId,
       authorChapterId: draft.author.chapterId,
     })

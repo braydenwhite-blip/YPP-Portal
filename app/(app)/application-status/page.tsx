@@ -219,8 +219,10 @@ export default async function ApplicationStatusPage() {
             )}
             {instructorApp.status === "INTERVIEW_SCHEDULED" && (
               <>
-                <h3 className="section-title">Interview Scheduled</h3>
-                {instructorApp.interviewScheduledAt && (
+                <h3 className="section-title">
+                  {instructorApp.interviewScheduledAt ? "Interview Scheduled" : "Interview Stage"}
+                </h3>
+                {instructorApp.interviewScheduledAt ? (
                   <div style={{ background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px", marginBottom: 16, textAlign: "center" }}>
                     <p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
                       {new Date(instructorApp.interviewScheduledAt).toLocaleString("en-US", {
@@ -229,6 +231,10 @@ export default async function ApplicationStatusPage() {
                       })}
                     </p>
                   </div>
+                ) : (
+                  <p style={{ color: "var(--muted)", fontSize: 14 }}>
+                    Your application has moved into the interview stage. A reviewer will follow up with scheduling details.
+                  </p>
                 )}
               </>
             )}

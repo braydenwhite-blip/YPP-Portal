@@ -3,8 +3,6 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { reviewInstructorApplicationAction } from "@/lib/instructor-application-actions";
-import { saveApplicationScores } from "@/lib/export-actions";
 import { InstructorApplicationStatus } from "@prisma/client";
 import InstructorApplicantsClient from "./client";
 
@@ -64,7 +62,7 @@ const BOARD_COLUMNS: Array<{
     id: "review",
     title: "Review",
     subtitle: "Applications being scored or waiting on more information.",
-    statuses: ["UNDER_REVIEW", "INFO_REQUESTED"],
+    statuses: ["UNDER_REVIEW", "INFO_REQUESTED", "ON_HOLD"],
   },
   {
     id: "interview",
@@ -79,25 +77,6 @@ const BOARD_COLUMNS: Array<{
     statuses: ["APPROVED", "REJECTED"],
   },
 ];
-
-function compositeScore(app: {
-  scoreAcademic: number | null;
-  scoreCommunication: number | null;
-  scoreLeadership: number | null;
-  scoreMotivation: number | null;
-  scoreFit: number | null;
-}): number | null {
-  const scores = [
-    app.scoreAcademic,
-    app.scoreCommunication,
-    app.scoreLeadership,
-    app.scoreMotivation,
-    app.scoreFit,
-  ];
-  const valid = scores.filter((score): score is number => score != null);
-  if (valid.length === 0) return null;
-  return valid.reduce((sum, score) => sum + score, 0) / valid.length;
-}
 
 function actionDeadline(app: {
   status: InstructorApplicationStatus;
@@ -120,43 +99,6 @@ function actionDeadline(app: {
     return new Date(app.updatedAt.getTime() + 2 * 24 * 60 * 60 * 1000);
   }
   return app.approvedAt ?? app.rejectedAt ?? app.updatedAt;
-}
-
-function ScoreBar({ score, label }: { score: number | null; label: string }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-      <span style={{ fontSize: 12, color: "var(--muted)", width: 120, flexShrink: 0 }}>{label}</span>
-      <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
-        {[1, 2, 3, 4, 5].map((n) => (
-          <div
-            key={n}
-            style={{
-              width: 10,
-              height: 10,
-              borderRadius: 2,
-              background: score != null && n <= score ? "#2563eb" : "var(--surface-hover)",
-              border: "1px solid var(--border)",
-            }}
-          />
-        ))}
-        <div
-          title="Not Enough Info"
-          style={{
-            width: 18,
-            height: 10,
-            borderRadius: 2,
-            background: score == null ? "#cbd5e1" : "#e2e8f0",
-            border: "1px solid #cbd5e1",
-          }}
-        />
-      </div>
-      {score != null ? (
-        <span style={{ fontSize: 12, color: "var(--muted)" }}>{score}/5</span>
-      ) : (
-        <span style={{ fontSize: 12, color: "var(--muted)" }}>Not Enough Info</span>
-      )}
-    </div>
-  );
 }
 
 export default async function AdminInstructorApplicantsPage({
@@ -196,16 +138,46 @@ export default async function AdminInstructorApplicantsPage({
         select: { id: true, name: true, email: true, chapter: { select: { name: true } } },
       },
       reviewer: { select: { name: true } },
+      applicationReviews: {
+        where: { isLeadReview: true },
+        orderBy: [{ updatedAt: "desc" }],
+        take: 1,
+        select: {
+          overallRating: true,
+          nextStep: true,
+          updatedAt: true,
+        },
+      },
+      interviewReviews: {
+        where: { isLeadReview: true },
+        orderBy: [{ updatedAt: "desc" }],
+        take: 1,
+        select: {
+          overallRating: true,
+          recommendation: true,
+          updatedAt: true,
+        },
+      },
     },
     orderBy: [{ createdAt: "desc" }],
   });
+
+  const draftOwners = new Set(
+    (
+      await prisma.curriculumDraft.findMany({
+        where: { authorId: { in: applications.map((application) => application.applicantId) } },
+        select: { authorId: true },
+        distinct: ["authorId"],
+      })
+    ).map((draft) => draft.authorId)
+  );
 
   const allApplications = await prisma.instructorApplication.findMany({
     select: { status: true, approvedAt: true },
   });
 
   const pending = allApplications.filter((application) =>
-    ["SUBMITTED", "UNDER_REVIEW", "INFO_REQUESTED"].includes(application.status)
+    ["SUBMITTED", "UNDER_REVIEW", "INFO_REQUESTED", "ON_HOLD"].includes(application.status)
   );
   const interviewing = allApplications.filter((application) =>
     ["INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED"].includes(application.status)
@@ -223,8 +195,6 @@ export default async function AdminInstructorApplicantsPage({
     distinct: ["graduationYear"],
     orderBy: { graduationYear: "asc" },
   });
-
-  const saveScoresAction = saveApplicationScores.bind(null, { status: "idle", message: "" });
   const boardColumns = BOARD_COLUMNS.map((column) => ({
     ...column,
     applications: applications.filter((application) => column.statuses.includes(application.status)),
@@ -233,9 +203,19 @@ export default async function AdminInstructorApplicantsPage({
   type Application = (typeof applications)[number];
 
   function renderApplicationCard(app: Application) {
-    const score = compositeScore(app);
     const deadline = actionDeadline(app);
     const reviewerName = app.reviewer?.name ?? "Unassigned";
+    const leadApplicationReview = app.applicationReviews[0] ?? null;
+    const leadInterviewReview = app.interviewReviews[0] ?? null;
+    const hasDraft = draftOwners.has(app.applicantId);
+    const workspaceHref =
+      app.status === "INTERVIEW_SCHEDULED" ||
+      app.status === "INTERVIEW_COMPLETED" ||
+      app.status === "ON_HOLD" ||
+      app.status === "APPROVED" ||
+      app.status === "REJECTED"
+        ? `/applications/instructor/${app.id}/interview`
+        : `/applications/instructor/${app.id}`;
     const history = [
       app.infoRequest
         ? { label: "Info request", body: app.infoRequest, date: app.updatedAt }
@@ -281,16 +261,45 @@ export default async function AdminInstructorApplicantsPage({
               <span className="pill pill-small pill-info">Class of {app.graduationYear}</span>
             ) : null}
             <span className="pill pill-small pill-purple">Reviewer: {reviewerName}</span>
+            {hasDraft ? (
+              <span className="pill pill-small pill-success">Draft ready</span>
+            ) : (
+              <span className="pill pill-small pill-pending">Draft missing</span>
+            )}
           </div>
 
           <div style={{ display: "grid", gap: 4, fontSize: 12, color: "var(--muted)" }}>
             <div>Deadline to action: {formatDate(deadline)}</div>
             <div>Applied: {formatDate(app.createdAt)}</div>
-            {score != null ? <div>Current score: {score.toFixed(1)}/5</div> : null}
+            {leadApplicationReview?.overallRating ? (
+              <div>Application review: {leadApplicationReview.overallRating.replace(/_/g, " ")}</div>
+            ) : null}
+            {leadInterviewReview?.recommendation ? (
+              <div>Interview recommendation: {leadInterviewReview.recommendation.replace(/_/g, " ")}</div>
+            ) : null}
           </div>
         </summary>
 
         <div style={{ borderTop: "1px solid var(--border)", padding: 16 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+            <Link href={workspaceHref} className="button secondary" style={{ textDecoration: "none" }}>
+              {app.status === "INTERVIEW_SCHEDULED" ||
+              app.status === "INTERVIEW_COMPLETED" ||
+              app.status === "ON_HOLD" ||
+              app.status === "APPROVED" ||
+              app.status === "REJECTED"
+                ? "Open Interview Workspace"
+                : "Open Application Review"}
+            </Link>
+            <Link
+              href={`/applications/instructor/${app.id}`}
+              className="button small outline"
+              style={{ textDecoration: "none" }}
+            >
+              Full Review Page
+            </Link>
+          </div>
+
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 16, fontSize: 13 }}>
             {(app.city || app.stateProvince) ? (
               <span>Location: {[app.city, app.stateProvince, app.country].filter(Boolean).join(", ")}</span>
@@ -326,64 +335,6 @@ export default async function AdminInstructorApplicantsPage({
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <h3 style={{ marginTop: 0 }}>Reviewer Ratings</h3>
-            <div style={{ marginBottom: 10 }}>
-              <ScoreBar score={app.scoreAcademic} label="Academic Standing" />
-              <ScoreBar score={app.scoreCommunication} label="Communication" />
-              <ScoreBar score={app.scoreLeadership} label="Leadership" />
-              <ScoreBar score={app.scoreMotivation} label="Motivation" />
-              <ScoreBar score={app.scoreFit} label="Cultural Fit" />
-            </div>
-            <form action={saveScoresAction}>
-              <input type="hidden" name="applicationId" value={app.id} />
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-                {(["scoreAcademic", "scoreCommunication", "scoreLeadership", "scoreMotivation", "scoreFit"] as const).map((key) => {
-                  const labels: Record<typeof key, string> = {
-                    scoreAcademic: "Academic Standing (1-5)",
-                    scoreCommunication: "Communication Clarity (1-5)",
-                    scoreLeadership: "Leadership Potential (1-5)",
-                    scoreMotivation: "Teaching Motivation (1-5)",
-                    scoreFit: "Cultural Fit / Commitment (1-5)",
-                  };
-
-                  return (
-                    <label key={key} className="form-label" style={{ marginTop: 0, fontSize: 12 }}>
-                      {labels[key]}
-                      <select
-                        className="input"
-                        name={key}
-                        defaultValue={app[key] ?? ""}
-                        style={{ marginBottom: 0, fontSize: 13 }}
-                      >
-                        <option value="">Not enough info</option>
-                        {[1, 2, 3, 4, 5].map((n) => (
-                          <option key={n} value={n}>
-                            {n}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  );
-                })}
-              </div>
-              <label className="form-label" style={{ fontSize: 12, marginTop: 0 }}>
-                Reviewer Notes
-                <textarea
-                  className="input"
-                  name="reviewerNotes"
-                  defaultValue={app.reviewerNotes ?? ""}
-                  rows={2}
-                  placeholder="Internal notes about this applicant..."
-                  style={{ marginBottom: 4 }}
-                />
-              </label>
-              <button className="button secondary" type="submit" style={{ fontSize: 12 }}>
-                Save Scores and Notes
-              </button>
-            </form>
-          </div>
-
-          <div style={{ marginBottom: 16 }}>
             <h3 style={{ marginTop: 0 }}>Comment History</h3>
             {history.length === 0 ? (
               <p>No comments yet.</p>
@@ -410,94 +361,20 @@ export default async function AdminInstructorApplicantsPage({
           </div>
 
           {!["APPROVED", "REJECTED"].includes(app.status) ? (
-            <div style={{ display: "grid", gap: 12 }}>
-              {app.status === "SUBMITTED" ? (
-                <form action={reviewInstructorApplicationAction}>
-                  <input type="hidden" name="applicationId" value={app.id} />
-                  <input type="hidden" name="action" value="mark_under_review" />
-                  <button className="button secondary" type="submit" style={{ fontSize: 13 }}>
-                    Mark as Under Review
-                  </button>
-                </form>
-              ) : null}
-
-              <details style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px" }}>
-                <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Request More Info</summary>
-                <form action={reviewInstructorApplicationAction} style={{ marginTop: 10 }}>
-                  <input type="hidden" name="applicationId" value={app.id} />
-                  <input type="hidden" name="action" value="request_info" />
-                  <textarea className="input" name="message" required rows={3} placeholder="What additional information do you need?" style={{ marginBottom: 8 }} />
-                  <button className="button secondary" type="submit" style={{ fontSize: 13 }}>
-                    Send Request
-                  </button>
-                </form>
-              </details>
-
-              <details style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px" }}>
-                <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Schedule Interview</summary>
-                <form action={reviewInstructorApplicationAction} style={{ marginTop: 10 }}>
-                  <input type="hidden" name="applicationId" value={app.id} />
-                  <input type="hidden" name="action" value="schedule_interview" />
-                  <label className="form-label" style={{ marginTop: 0 }}>
-                    Interview Date and Time
-                    <input className="input" type="datetime-local" name="scheduledAt" required />
-                  </label>
-                  <label className="form-label">
-                    Notes
-                    <input className="input" name="notes" placeholder="Zoom link, agenda, or reminder..." />
-                  </label>
-                  <button className="button secondary" type="submit" style={{ fontSize: 13 }}>
-                    Schedule
-                  </button>
-                </form>
-              </details>
-
-              {app.status === "INTERVIEW_SCHEDULED" ? (
-                <details style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px" }}>
-                  <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Mark Interview Complete</summary>
-                  <form action={reviewInstructorApplicationAction} style={{ marginTop: 10 }}>
-                    <input type="hidden" name="applicationId" value={app.id} />
-                    <input type="hidden" name="action" value="mark_interview_complete" />
-                    <label className="form-label" style={{ marginTop: 0 }}>
-                      Notes
-                      <input className="input" name="notes" placeholder="Interview summary..." />
-                    </label>
-                    <button className="button secondary" type="submit" style={{ fontSize: 13 }}>
-                      Mark Complete
-                    </button>
-                  </form>
-                </details>
-              ) : null}
-
-              <details style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px" }}>
-                <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#16a34a" }}>Approve Application</summary>
-                <form action={reviewInstructorApplicationAction} style={{ marginTop: 10 }}>
-                  <input type="hidden" name="applicationId" value={app.id} />
-                  <input type="hidden" name="action" value="approve" />
-                  <label className="form-label" style={{ marginTop: 0 }}>
-                    Notes
-                    <textarea className="input" name="notes" rows={2} placeholder="Any notes for the new instructor..." />
-                  </label>
-                  <button className="button" type="submit" style={{ fontSize: 13, background: "#16a34a" }}>
-                    Approve and Convert to Instructor
-                  </button>
-                </form>
-              </details>
-
-              <details style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px" }}>
-                <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#dc2626" }}>Reject Application</summary>
-                <form action={reviewInstructorApplicationAction} style={{ marginTop: 10 }}>
-                  <input type="hidden" name="applicationId" value={app.id} />
-                  <input type="hidden" name="action" value="reject" />
-                  <label className="form-label" style={{ marginTop: 0 }}>
-                    Reason
-                    <textarea className="input" name="reason" required rows={3} placeholder="Explain why the application is being rejected..." />
-                  </label>
-                  <button className="button" type="submit" style={{ fontSize: 13, background: "#dc2626" }}>
-                    Reject Application
-                  </button>
-                </form>
-              </details>
+            <div
+              style={{
+                borderRadius: 12,
+                border: "1px solid var(--border)",
+                background: "var(--surface-alt)",
+                padding: 14,
+              }}
+            >
+              <p style={{ margin: "0 0 8px", fontSize: 14, color: "var(--muted)" }}>
+                This queue is now for triage and fast scanning. Open the structured workspace to review categories, inspect the Lesson Design Studio draft, and submit the official next step.
+              </p>
+              <Link href={workspaceHref} className="button secondary" style={{ textDecoration: "none" }}>
+                Continue in Workspace
+              </Link>
             </div>
           ) : null}
         </div>
@@ -553,6 +430,7 @@ export default async function AdminInstructorApplicantsPage({
             <option value="SUBMITTED">Submitted</option>
             <option value="UNDER_REVIEW">Under Review</option>
             <option value="INFO_REQUESTED">Info Requested</option>
+            <option value="ON_HOLD">On Hold</option>
             <option value="INTERVIEW_SCHEDULED">Interview Scheduled</option>
             <option value="INTERVIEW_COMPLETED">Interview Completed</option>
             <option value="APPROVED">Approved</option>

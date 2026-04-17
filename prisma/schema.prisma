@@ -311,10 +311,44 @@ enum InstructorApplicationStatus {
   SUBMITTED
   UNDER_REVIEW
   INFO_REQUESTED
+  ON_HOLD
   INTERVIEW_SCHEDULED
   INTERVIEW_COMPLETED
   APPROVED
   REJECTED
+}
+
+enum StructuredReviewStatus {
+  DRAFT
+  SUBMITTED
+}
+
+enum InstructorReviewCategoryKey {
+  CURRICULUM_STRENGTH
+  RELATIONSHIP_BUILDING
+  ORGANIZATION_AND_COMMITMENT
+  COMMUNITY_FIT
+  LONG_TERM_POTENTIAL
+  PROFESSIONALISM_AND_FOLLOW_THROUGH
+}
+
+enum InstructorApplicationNextStep {
+  MOVE_TO_INTERVIEW
+  REQUEST_INFO
+  HOLD
+  REJECT
+}
+
+enum InstructorInterviewRecommendation {
+  ACCEPT
+  ACCEPT_WITH_REVISIONS
+  HOLD
+  REJECT
+}
+
+enum InterviewQuestionSource {
+  DEFAULT
+  CUSTOM
 }
 
 enum ChapterPresidentApplicationStatus {
@@ -990,6 +1024,8 @@ model User {
   // Instructor Application Relations
   instructorApplication          InstructorApplication?  @relation("InstructorApplications")
   instructorApplicationsReviewed InstructorApplication[] @relation("InstructorApplicationReviews")
+  instructorApplicationReviews   InstructorApplicationReview[] @relation("InstructorApplicationStructuredReviews")
+  instructorInterviewReviews     InstructorInterviewReview[]   @relation("InstructorInterviewStructuredReviews")
 
   // Chapter President Application Relations
   chapterPresidentApplication          ChapterPresidentApplication?  @relation("ChapterPresidentApplications")
@@ -1547,6 +1583,8 @@ model InstructorApplication {
   approvedAt           DateTime?
   rejectedAt           DateTime?
   customResponses      ApplicationFormResponse[]   @relation("InstructorAppFormResponses")
+  applicationReviews   InstructorApplicationReview[]
+  interviewReviews     InstructorInterviewReview[]
   cohortId             String?
   cohort               ApplicationCohort?          @relation("InstructorAppCohort", fields: [cohortId], references: [id])
   createdAt            DateTime                    @default(now())
@@ -1557,6 +1595,128 @@ model InstructorApplication {
   @@index([cohortId])
   @@index([graduationYear])
   @@index([stateProvince])
+}
+
+model InstructorApplicationReview {
+  id                  String                    @id @default(cuid())
+  applicationId       String
+  application         InstructorApplication     @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  reviewerId          String
+  reviewer            User                      @relation("InstructorApplicationStructuredReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
+  curriculumDraftId   String?
+  curriculumDraft     CurriculumDraft?          @relation("InstructorApplicationReviewDraft", fields: [curriculumDraftId], references: [id], onDelete: SetNull)
+  status              StructuredReviewStatus    @default(DRAFT)
+  isLeadReview        Boolean                   @default(false)
+  overallRating       ProgressStatus?
+  nextStep            InstructorApplicationNextStep?
+  summary             String?                   @db.Text
+  notes               String?                   @db.Text
+  concerns            String?                   @db.Text
+  applicantMessage    String?                   @db.Text
+  flagForLeadership   Boolean                   @default(false)
+  draftOverrideUsed   Boolean                   @default(false)
+  draftOverrideReason String?                   @db.Text
+  submittedAt         DateTime?
+  categories          InstructorApplicationReviewCategory[]
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+
+  @@unique([applicationId, reviewerId])
+  @@index([applicationId, isLeadReview])
+  @@index([reviewerId, status])
+  @@index([curriculumDraftId])
+}
+
+model InstructorApplicationReviewCategory {
+  id         String                      @id @default(cuid())
+  reviewId   String
+  review     InstructorApplicationReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  category   InstructorReviewCategoryKey
+  rating     ProgressStatus?
+  notes      String?                     @db.Text
+  createdAt  DateTime                    @default(now())
+  updatedAt  DateTime                    @updatedAt
+
+  @@unique([reviewId, category])
+  @@index([category])
+}
+
+model InstructorInterviewQuestionBank {
+  id             String                            @id @default(cuid())
+  slug           String                            @unique
+  prompt         String                            @db.Text
+  helperText     String?                           @db.Text
+  followUpPrompt String?                           @db.Text
+  topic          String?
+  sortOrder      Int                               @default(0)
+  isActive       Boolean                           @default(true)
+  responses      InstructorInterviewQuestionResponse[]
+  createdAt      DateTime                          @default(now())
+  updatedAt      DateTime                          @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
+model InstructorInterviewReview {
+  id                  String                           @id @default(cuid())
+  applicationId       String
+  application         InstructorApplication            @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  reviewerId          String
+  reviewer            User                             @relation("InstructorInterviewStructuredReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
+  curriculumDraftId   String?
+  curriculumDraft     CurriculumDraft?                 @relation("InstructorInterviewReviewDraft", fields: [curriculumDraftId], references: [id], onDelete: SetNull)
+  status              StructuredReviewStatus           @default(DRAFT)
+  isLeadReview        Boolean                          @default(false)
+  overallRating       ProgressStatus?
+  recommendation      InstructorInterviewRecommendation?
+  summary             String?                          @db.Text
+  overallNotes        String?                          @db.Text
+  curriculumFeedback  String?                          @db.Text
+  revisionRequirements String?                         @db.Text
+  applicantMessage    String?                          @db.Text
+  flagForLeadership   Boolean                          @default(false)
+  submittedAt         DateTime?
+  categories          InstructorInterviewReviewCategory[]
+  questionResponses   InstructorInterviewQuestionResponse[]
+  createdAt           DateTime                         @default(now())
+  updatedAt           DateTime                         @updatedAt
+
+  @@unique([applicationId, reviewerId])
+  @@index([applicationId, isLeadReview])
+  @@index([reviewerId, status])
+  @@index([curriculumDraftId])
+}
+
+model InstructorInterviewReviewCategory {
+  id         String                    @id @default(cuid())
+  reviewId   String
+  review     InstructorInterviewReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  category   InstructorReviewCategoryKey
+  rating     ProgressStatus?
+  notes      String?                   @db.Text
+  createdAt  DateTime                  @default(now())
+  updatedAt  DateTime                  @updatedAt
+
+  @@unique([reviewId, category])
+  @@index([category])
+}
+
+model InstructorInterviewQuestionResponse {
+  id             String                       @id @default(cuid())
+  reviewId       String
+  review         InstructorInterviewReview    @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  questionBankId String?
+  questionBank   InstructorInterviewQuestionBank? @relation(fields: [questionBankId], references: [id], onDelete: SetNull)
+  source         InterviewQuestionSource      @default(DEFAULT)
+  prompt         String                       @db.Text
+  followUpPrompt String?                      @db.Text
+  notes          String?                      @db.Text
+  sortOrder      Int                          @default(0)
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
+
+  @@index([reviewId, sortOrder])
+  @@index([questionBankId])
 }
 
 model TrainingCheckpoint {
@@ -8719,6 +8879,8 @@ model CurriculumDraft {
   generatedTemplateId String?
   status              CurriculumDraftStatus @default(IN_PROGRESS)
   completedAt         DateTime?
+  applicationReviewsReferenced InstructorApplicationReview[] @relation("InstructorApplicationReviewDraft")
+  interviewReviewsReferenced   InstructorInterviewReview[]   @relation("InstructorInterviewReviewDraft")
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
 
