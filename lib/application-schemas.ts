@@ -160,8 +160,6 @@ export const instructorApplicationSchema = z.object({
     .int()
     .min(2025, "Please select a valid graduation year.")
     .max(2030, "Please select a valid graduation year."),
-  gpa: z.string().max(20, "GPA should be under 20 characters.").optional(),
-  classRank: z.string().max(100, "Class rank should be under 100 characters.").optional(),
   subjectsOfInterest: z.string().max(500, "Subjects should be under 500 characters.").optional(),
 
   motivation: z
@@ -196,8 +194,6 @@ export const instructorApplicationSchema = z.object({
     .max(40, "Please enter a realistic commitment (max 40 hours)."),
   preferredStartDate: z.string().optional(),
 
-  // Optional demographics
-  ethnicity: z.string().max(100).optional(),
 });
 
 export type InstructorApplicationInput = z.infer<typeof instructorApplicationSchema>;
