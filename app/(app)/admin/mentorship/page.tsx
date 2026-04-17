@@ -63,7 +63,7 @@ async function getPulseData() {
       select: {
         id: true,
         name: true,
-        mentorLinks: {
+        mentorPairs: {
           where: { status: "ACTIVE" },
           select: { id: true },
         },
@@ -82,7 +82,7 @@ async function getPulseData() {
     ((ratingMap["ABOVE_AND_BEYOND"] ?? 0) / total > 0.4 ||
       (ratingMap["BEHIND_SCHEDULE"] ?? 0) / total > 0.5);
 
-  const overCapacityMentors = mentorCapacityWarnings.filter((m) => m.mentorLinks.length > 3);
+  const overCapacityMentors = mentorCapacityWarnings.filter((m) => m.mentorPairs.length > 3);
 
   return {
     activeCount,
@@ -107,7 +107,7 @@ async function getPairingsData() {
       id: true,
       name: true,
       email: true,
-      mentorLinks: {
+      mentorPairs: {
         where: { status: "ACTIVE" },
         select: {
           id: true,
@@ -122,14 +122,14 @@ async function getPairingsData() {
   return mentors.map((m) => ({
     id: m.id,
     name: m.name ?? m.email,
-    menteeCount: m.mentorLinks.length,
-    mentees: m.mentorLinks.map((link) => ({
+    menteeCount: m.mentorPairs.length,
+    mentees: m.mentorPairs.map((link) => ({
       name: link.mentee.name ?? "",
       role: link.mentee.primaryRole ?? "",
       stage: link.cycleStage,
     })),
-    isAtCapacity: m.mentorLinks.length >= 3,
-    isOverCapacity: m.mentorLinks.length > 3,
+    isAtCapacity: m.mentorPairs.length >= 3,
+    isOverCapacity: m.mentorPairs.length > 3,
   }));
 }
 
@@ -318,7 +318,7 @@ export default async function AdminMentorshipPage({
                         fontWeight: 700,
                       }}
                     >
-                      {m.mentorLinks.length} mentees
+                      {m.mentorPairs.length} mentees
                     </span>
                   </div>
                 ))}

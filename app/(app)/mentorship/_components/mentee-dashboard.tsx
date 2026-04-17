@@ -221,7 +221,7 @@ export async function MenteeDashboard({ userId }: Props) {
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {goals.map((goal) => {
               const rating = latestApprovedReview?.goalRatings.find(
-                (gr) => gr.goal.title === goal.title
+                (gr) => gr.goal?.title === goal.title
               );
               return (
                 <div
