@@ -3379,6 +3379,10 @@ enum NotificationType {
   REFLECTION_SUBMITTED
   REVIEW_SUBMITTED_FOR_APPROVAL
   REVIEW_APPROVED_AND_RELEASED
+  GR_REFLECTION_DUE
+  GR_REVIEW_DUE
+  GR_CHAIR_APPROVAL_PENDING
+  GR_REVIEW_RELEASED
 }
 
 /// Mentor-applied tag for Kanban UX. Separate from cycleStage to avoid breaking rollover logic.
@@ -3400,18 +3404,20 @@ enum MentorshipCycleStage {
 }
 
 model Notification {
-  id        String           @id @default(cuid())
-  userId    String
-  user      User             @relation(fields: [userId], references: [id])
-  type      NotificationType
-  title     String
-  body      String
-  link      String?
-  isRead    Boolean          @default(false)
-  createdAt DateTime         @default(now())
+  id         String           @id @default(cuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id])
+  type       NotificationType
+  title      String
+  body       String
+  link       String?
+  isRead     Boolean          @default(false)
+  dedupeKey  String?
+  createdAt  DateTime         @default(now())
 
   @@index([userId, isRead])
   @@index([createdAt])
+  @@index([dedupeKey, createdAt])
 }
 
 model NotificationPreference {
@@ -8394,6 +8400,10 @@ model MentorGoalReview {
   /// True if the mentor used an AI-generated draft as a starting point for any comment field.
   aiDraftUsed Boolean @default(false)
 
+  // G&R integration
+  goalSnapshots    MentorGoalReviewGoalSnapshot[]
+  spawnedGRGoals   GRDocumentGoal[]               @relation("GRGoalsSpawnedByReview")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -8404,18 +8414,24 @@ model MentorGoalReview {
 
 /// Per-goal color rating within a mentor goal review.
 model GoalReviewRating {
-  id       String                @id @default(cuid())
+  id       String                 @id @default(cuid())
   reviewId String
-  review   MentorGoalReview      @relation(fields: [reviewId], references: [id])
-  goalId   String
-  goal     MentorshipProgramGoal @relation(fields: [goalId], references: [id])
+  review   MentorGoalReview       @relation(fields: [reviewId], references: [id])
+  /// Legacy: rating against the flat MentorshipProgramGoal list. Kept as fallback
+  /// for reviews where the mentee had no active G&R document. Prefer grDocumentGoalId.
+  goalId            String?
+  goal              MentorshipProgramGoal? @relation(fields: [goalId], references: [id])
+  /// Preferred: rating against the mentee's actual per-person G&R goal.
+  grDocumentGoalId  String?
+  grDocumentGoal    GRDocumentGoal?        @relation(fields: [grDocumentGoalId], references: [id])
 
   rating   GoalRatingColor
   comments String?
 
   createdAt DateTime @default(now())
 
-  @@unique([reviewId, goalId])
+  @@index([reviewId])
+  @@index([grDocumentGoalId])
 }
 
 /// Running achievement point total and current award tier per user.
@@ -9126,7 +9142,29 @@ model CurriculumComment {
 enum GRTimePhase {
   FIRST_MONTH
   FIRST_QUARTER
-  FULL_YEAR
+  FULL_YEAR  /// @deprecated use LONG_TERM; kept for data compatibility
+  LONG_TERM
+  MONTHLY
+}
+
+enum GoalLifecycleStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum GoalProgressState {
+  NOT_STARTED
+  IN_PROGRESS
+  DONE
+  BLOCKED
+}
+
+enum GoalPriority {
+  LOW
+  NORMAL
+  HIGH
+  CRITICAL
 }
 
 enum GRDocumentStatus {
@@ -9303,6 +9341,7 @@ model GRTemplate {
   version         Int              @default(1)
   publishedAt     DateTime?
   isActive        Boolean          @default(true)
+  maxActiveMonthlyGoals Int        @default(5)
 
   createdById    String
   createdBy      User    @relation("GRTemplatesCreated", fields: [createdById], references: [id])
@@ -9470,14 +9509,29 @@ model GRDocumentGoal {
   timePhase   GRTimePhase
   sortOrder   Int         @default(0)
   isCustom    Boolean     @default(false)
+  /// @deprecated use lifecycleStatus instead
   isActive    Boolean     @default(true)
 
-  kpiValues GRKPIValue[]
+  // Lifecycle & progress tracking
+  lifecycleStatus GoalLifecycleStatus @default(ACTIVE)
+  progressState   GoalProgressState   @default(NOT_STARTED)
+  priority        GoalPriority        @default(NORMAL)
+  dueDate         DateTime?
+  completedAt     DateTime?
+
+  // Which mentor review spawned this goal (for MONTHLY goals created via GRGoalChange)
+  sourceReviewId String?
+  sourceReview   MentorGoalReview? @relation("GRGoalsSpawnedByReview", fields: [sourceReviewId], references: [id])
+
+  kpiValues        GRKPIValue[]
+  reviewRatings    GoalReviewRating[]
+  reviewSnapshots  MentorGoalReviewGoalSnapshot[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([documentId, timePhase])
+  @@index([documentId, lifecycleStatus, dueDate])
 }
 
 /// Per-person success criteria (copied from template, customizable)
@@ -9560,6 +9614,32 @@ model GRDocumentVersion {
 
   @@unique([documentId, version])
   @@index([documentId])
+}
+
+/// Point-in-time snapshot of a G&R goal captured when a mentor review is submitted.
+/// Preserves historical accuracy so Past Updates display the original goal text
+/// even if the goal is later edited, completed, or archived.
+model MentorGoalReviewGoalSnapshot {
+  id       String           @id @default(cuid())
+  reviewId String
+  review   MentorGoalReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  /// Nullable — if the underlying goal is hard-deleted, snapshot is still preserved.
+  grDocumentGoalId String?
+  grDocumentGoal   GRDocumentGoal? @relation(fields: [grDocumentGoalId], references: [id], onDelete: SetNull)
+
+  // Captured values at snapshot time
+  title                   String
+  description             String              @db.Text
+  timePhase               GRTimePhase
+  priority                GoalPriority        @default(NORMAL)
+  dueDateAtSnapshot       DateTime?
+  lifecycleStatusAtSnapshot GoalLifecycleStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+
+  @@index([reviewId])
+  @@index([grDocumentGoalId])
 }
 
 /// KPI metric definitions attached to template goals

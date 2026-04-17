@@ -170,7 +170,7 @@ export async function getMentorshipGoalReviews() {
     chairComments: r.chairComments,
     chairApprovedAt: r.chairApprovedAt?.toISOString() ?? null,
     goalRatings: r.goalRatings.map((gr) => ({
-      goalTitle: gr.goal.title,
+      goalTitle: gr.goal?.title ?? "",
       rating: gr.rating,
       comment: gr.comments,
     })),

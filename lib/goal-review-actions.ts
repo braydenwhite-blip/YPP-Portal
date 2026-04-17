@@ -205,17 +205,59 @@ export async function saveGoalReview(formData: FormData) {
     ? "PENDING_CHAIR_APPROVAL"
     : "DRAFT";
 
-  // Parse per-goal ratings
-  const goalIds = formData.getAll("goalIds").map(String);
-  const goalRatings = goalIds.map((goalId) => {
-    const ratingRaw = getString(formData, `goal_${goalId}_rating`);
-    const rating = ratingRaw as GoalRatingColor;
-    if (!Object.values(GoalRatingColor).includes(rating)) {
-      throw new Error(`Invalid rating for goal ${goalId}`);
+  // Parse per-goal ratings — G&R goals (grGoalIds) take priority over legacy goalIds
+  const grGoalIds = formData.getAll("grGoalIds").map(String).filter(Boolean);
+  const legacyGoalIds = formData.getAll("goalIds").map(String).filter(Boolean);
+
+  type GoalRatingEntry = {
+    grDocumentGoalId: string | null;
+    legacyGoalId: string | null;
+    rating: GoalRatingColor;
+    comments: string | null;
+    progressState: string | null;
+    newLifecycleStatus: string | null;
+  };
+
+  const goalRatings: GoalRatingEntry[] = [
+    ...grGoalIds.map((goalId) => {
+      const ratingRaw = getString(formData, `goal_${goalId}_rating`);
+      const rating = ratingRaw as GoalRatingColor;
+      if (!Object.values(GoalRatingColor).includes(rating)) throw new Error(`Invalid rating for goal ${goalId}`);
+      return {
+        grDocumentGoalId: goalId,
+        legacyGoalId: null,
+        rating,
+        comments: getString(formData, `goal_${goalId}_comments`, false) || null,
+        progressState: getString(formData, `goal_${goalId}_progressState`, false) || null,
+        newLifecycleStatus: getString(formData, `goal_${goalId}_lifecycleStatus`, false) || null,
+      };
+    }),
+    ...legacyGoalIds.map((goalId) => {
+      const ratingRaw = getString(formData, `goal_${goalId}_rating`);
+      const rating = ratingRaw as GoalRatingColor;
+      if (!Object.values(GoalRatingColor).includes(rating)) throw new Error(`Invalid rating for goal ${goalId}`);
+      return {
+        grDocumentGoalId: null,
+        legacyGoalId: goalId,
+        rating,
+        comments: getString(formData, `goal_${goalId}_comments`, false) || null,
+        progressState: null,
+        newLifecycleStatus: null,
+      };
+    }),
+  ];
+
+  // Parse next-month goal drafts (structured goals to propose via GRGoalChange)
+  type NextMonthGoalDraft = { title: string; description: string; priority: string; dueDate: string | null };
+  let nextMonthGoalDrafts: NextMonthGoalDraft[] = [];
+  const nextMonthGoalsJson = formData.get("nextMonthGoalsJson");
+  if (nextMonthGoalsJson && typeof nextMonthGoalsJson === "string") {
+    try {
+      nextMonthGoalDrafts = JSON.parse(nextMonthGoalsJson) as NextMonthGoalDraft[];
+    } catch {
+      logger.warn("saveGoalReview: failed to parse nextMonthGoalsJson");
     }
-    const comments = getString(formData, `goal_${goalId}_comments`, false);
-    return { goalId, rating, comments: comments || null };
-  });
+  }
 
   const isQuarterly = reflection.cycleNumber % 3 === 0;
 
@@ -246,7 +288,6 @@ export async function saveGoalReview(formData: FormData) {
           bonusPoints,
           bonusReason: bonusReason || null,
           status: newStatus,
-          // Only flip to true — once an AI draft was used, keep the flag
           ...(aiDraftUsed ? { aiDraftUsed: true } : {}),
         },
       });
@@ -255,7 +296,8 @@ export async function saveGoalReview(formData: FormData) {
       await tx.goalReviewRating.createMany({
         data: goalRatings.map((gr) => ({
           reviewId: reflection.goalReview!.id,
-          goalId: gr.goalId,
+          grDocumentGoalId: gr.grDocumentGoalId,
+          goalId: gr.legacyGoalId,
           rating: gr.rating,
           comments: gr.comments,
         })),
@@ -288,7 +330,8 @@ export async function saveGoalReview(formData: FormData) {
           aiDraftUsed,
           goalRatings: {
             create: goalRatings.map((gr) => ({
-              goalId: gr.goalId,
+              grDocumentGoalId: gr.grDocumentGoalId,
+              goalId: gr.legacyGoalId,
               rating: gr.rating,
               comments: gr.comments,
             })),
@@ -296,6 +339,46 @@ export async function saveGoalReview(formData: FormData) {
         },
       });
       persistedReviewId = review.id;
+    }
+
+    // Apply inline goal status updates (progressState / lifecycleStatus)
+    const now = new Date();
+    for (const gr of goalRatings) {
+      if (!gr.grDocumentGoalId) continue;
+      const update: Record<string, unknown> = {};
+      if (gr.progressState) update.progressState = gr.progressState;
+      if (gr.newLifecycleStatus) {
+        update.lifecycleStatus = gr.newLifecycleStatus;
+        if (gr.newLifecycleStatus === "COMPLETED") update.completedAt = now;
+      }
+      if (Object.keys(update).length > 0) {
+        await tx.gRDocumentGoal.update({ where: { id: gr.grDocumentGoalId }, data: update });
+      }
+    }
+
+    // Write goal snapshots when submitting for approval
+    if (submitForApproval && grGoalIds.length > 0) {
+      const grGoals = await tx.gRDocumentGoal.findMany({
+        where: { id: { in: grGoalIds } },
+        select: { id: true, title: true, description: true, timePhase: true, priority: true, dueDate: true, lifecycleStatus: true },
+      });
+      const snapshotReviewId = persistedReviewId;
+      // Remove any existing snapshots (idempotent re-submit)
+      await tx.mentorGoalReviewGoalSnapshot.deleteMany({ where: { reviewId: snapshotReviewId } });
+      await tx.mentorGoalReviewGoalSnapshot.createMany({
+        data: grGoals.map((g) => ({
+          id: `${snapshotReviewId}_${g.id}`,
+          reviewId: snapshotReviewId,
+          grDocumentGoalId: g.id,
+          title: g.title,
+          description: g.description,
+          timePhase: g.timePhase,
+          priority: g.priority,
+          dueDateAtSnapshot: g.dueDate,
+          lifecycleStatusAtSnapshot: g.lifecycleStatus,
+        })),
+        skipDuplicates: true,
+      });
     }
 
     // Update review streak on submission
@@ -310,6 +393,34 @@ export async function saveGoalReview(formData: FormData) {
   });
 
   await syncMentorGoalReviewWorkflow(reviewId);
+
+  // Propose next-month goals via GRGoalChange when submitting for approval
+  if (submitForApproval && nextMonthGoalDrafts.length > 0) {
+    const grDoc = await prisma.gRDocument.findFirst({
+      where: { userId: reflection.mentorship.menteeId, status: "ACTIVE" },
+      select: { id: true },
+    });
+    if (grDoc) {
+      for (const draft of nextMonthGoalDrafts) {
+        const fd = new FormData();
+        fd.set("documentId", grDoc.id);
+        fd.set("changeType", "ADD");
+        fd.set("proposedTitle", draft.title);
+        fd.set("proposedDescription", draft.description || "");
+        fd.set("proposedTimePhase", "MONTHLY");
+        fd.set("proposedPriority", draft.priority || "NORMAL");
+        if (draft.dueDate) fd.set("proposedDueDate", draft.dueDate);
+        fd.set("sourceReviewId", reviewId);
+        fd.set("reason", `Proposed by mentor for next cycle (review ${reviewId})`);
+        try {
+          const { proposeGRGoalChange } = await import("@/lib/gr-actions");
+          await proposeGRGoalChange(fd);
+        } catch (err) {
+          logger.warn({ err, reviewId }, "saveGoalReview: failed to propose next-month goal");
+        }
+      }
+    }
+  }
 
   // Backfill any missing GoalReviewRating rows (idempotent).
   try {
@@ -812,7 +923,7 @@ export async function getQuarterlyReviewData(reviewId: string) {
     goalRatings: Array<{
       rating: GoalRatingColor;
       comments: string | null;
-      goal: { title: string };
+      goal: { title: string } | null;
     }>;
   };
 
@@ -831,7 +942,7 @@ export async function getQuarterlyReviewData(reviewId: string) {
     promotionReadiness: r.promotionReadiness,
     chairComments: r.chairComments,
     goalRatings: r.goalRatings.map((gr) => ({
-      goalTitle: gr.goal.title,
+      goalTitle: gr.goal?.title ?? "",
       rating: gr.rating,
       comments: gr.comments,
     })),
@@ -906,4 +1017,145 @@ export async function requestReviewChanges(formData: FormData) {
 
   revalidatePath("/mentorship-program/chair");
   revalidatePath("/mentorship-program/reviews");
+}
+
+// ============================================
+// BULK APPROVE (Chair / Admin)
+// ============================================
+
+/**
+ * Approve multiple reviews in a single action. Light guardrail: rejects if any
+ * review is not currently PENDING_CHAIR_APPROVAL. Each approved review is
+ * processed exactly like a single approveGoalReview call.
+ */
+export async function bulkApproveReviews(formData: FormData) {
+  const session = await requireAdmin();
+  const reviewIdsRaw = formData.getAll("reviewIds").map(String).filter(Boolean);
+  if (reviewIdsRaw.length === 0) throw new Error("No review IDs provided");
+  if (reviewIdsRaw.length > 20) throw new Error("Bulk approve is limited to 20 reviews at a time");
+
+  const reviews = await prisma.mentorGoalReview.findMany({
+    where: { id: { in: reviewIdsRaw } },
+    select: { id: true, status: true },
+  });
+
+  const notPending = reviews.filter((r) => r.status !== "PENDING_CHAIR_APPROVAL");
+  if (notPending.length > 0) {
+    throw new Error(
+      `${notPending.length} review(s) are not pending approval and cannot be bulk-approved`
+    );
+  }
+
+  const results: { id: string; ok: boolean; error?: string }[] = [];
+  for (const review of reviews) {
+    const fd = new FormData();
+    fd.set("reviewId", review.id);
+    fd.set("chairComments", "Approved via bulk action");
+    try {
+      await approveGoalReview(fd);
+      results.push({ id: review.id, ok: true });
+    } catch (err) {
+      results.push({ id: review.id, ok: false, error: err instanceof Error ? err.message : "Unknown error" });
+    }
+  }
+
+  await logAuditEvent({
+    action: "MENTORSHIP_UPDATED",
+    actorId: session.user.id,
+    targetType: "MentorGoalReview",
+    targetId: reviewIdsRaw.join(","),
+    description: `Bulk approved ${results.filter((r) => r.ok).length}/${reviewIdsRaw.length} reviews`,
+  });
+
+  revalidatePath("/mentorship-program/chair");
+  revalidatePath("/admin/mentorship-program");
+  return results;
+}
+
+// ============================================
+// CHAIR QUEUE DATA (for admin monitoring)
+// ============================================
+
+/**
+ * Returns pending reviews enriched with age-in-days and overdue flag (>5 business days).
+ */
+export async function getChairQueueEnriched() {
+  const session = await getSession();
+  if (!session?.user?.id) return null;
+
+  const reviews = await prisma.mentorGoalReview.findMany({
+    where: { status: "PENDING_CHAIR_APPROVAL" },
+    orderBy: { createdAt: "asc" },
+    include: {
+      mentee: { select: { id: true, name: true, primaryRole: true } },
+      mentor: { select: { id: true, name: true } },
+      goalRatings: { select: { rating: true } },
+    },
+  });
+
+  const now = new Date();
+  return reviews.map((r) => {
+    const ageDays = Math.floor((now.getTime() - r.createdAt.getTime()) / (1000 * 60 * 60 * 24));
+    // Rough business-day approximation: weekends don't count (subtract ≈28.5% of total days)
+    const businessDays = Math.floor(ageDays * 0.715);
+    return {
+      id: r.id,
+      mentee: r.mentee,
+      mentor: r.mentor,
+      cycleMonth: r.cycleMonth.toISOString(),
+      overallRating: r.overallRating,
+      isQuarterly: r.isQuarterly,
+      ageDays,
+      isOverdue: businessDays > 5,
+      createdAt: r.createdAt.toISOString(),
+      ratingDistribution: Object.fromEntries(
+        ["BEHIND_SCHEDULE", "GETTING_STARTED", "ACHIEVED", "ABOVE_AND_BEYOND"].map((c) => [
+          c,
+          r.goalRatings.filter((gr) => gr.rating === c).length,
+        ])
+      ),
+    };
+  });
+}
+
+/**
+ * Returns counts of active mentorships that have no review submitted for the current cycle month.
+ */
+export async function getReviewCompletionStatus() {
+  const session = await getSession();
+  if (!session?.user?.id) return null;
+
+  const cycleStart = new Date();
+  cycleStart.setDate(1);
+  cycleStart.setHours(0, 0, 0, 0);
+
+  const activeMentorships = await prisma.mentorship.findMany({
+    where: { status: "ACTIVE" },
+    select: {
+      id: true,
+      menteeId: true,
+      mentorId: true,
+      mentee: { select: { name: true, primaryRole: true } },
+      mentor: { select: { name: true } },
+      goalReviews: {
+        where: { cycleMonth: { gte: cycleStart } },
+        select: { id: true, status: true },
+        take: 1,
+      },
+    },
+  });
+
+  const missing = activeMentorships.filter((m) => m.goalReviews.length === 0);
+  const submitted = activeMentorships.filter((m) => m.goalReviews.length > 0);
+
+  return {
+    total: activeMentorships.length,
+    submitted: submitted.length,
+    missing: missing.map((m) => ({
+      mentorshipId: m.id,
+      menteeName: m.mentee.name,
+      menteeRole: m.mentee.primaryRole,
+      mentorName: m.mentor.name,
+    })),
+  };
 }

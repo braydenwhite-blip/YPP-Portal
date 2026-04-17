@@ -106,7 +106,7 @@ export default async function ChairReviewDetailPage({
               <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
                 {review.goalRatings.map((gr) => (
                   <div key={gr.id} style={{ padding: "0.6rem 0.75rem", background: "var(--surface-alt)", borderRadius: 6 }}>
-                    <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{gr.goal.title}</div>
+                    <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{gr.goal?.title ?? "(goal removed)"}</div>
                     <div className="muted" style={{ fontSize: "0.8rem" }}>{ratingLabel(gr.rating)}</div>
                     {gr.comments && (
                       <p style={{ margin: "4px 0 0", fontSize: "0.85rem", whiteSpace: "pre-wrap" }}>

@@ -261,6 +261,38 @@ const POLICY_BY_TYPE: Record<NotificationType, Omit<NotificationPolicy, "type">>
     email: false,
     smsPlanned: false,
   },
+  GR_REFLECTION_DUE: {
+    label: "G&R Reflection Due",
+    description: "Reminder that the monthly self-reflection hasn't been submitted yet.",
+    bucket: "portal_only",
+    portalHistory: true,
+    email: false,
+    smsPlanned: false,
+  },
+  GR_REVIEW_DUE: {
+    label: "G&R Review Due",
+    description: "Reminder that a mentee's reflection is waiting for a mentor review.",
+    bucket: "portal_only",
+    portalHistory: true,
+    email: false,
+    smsPlanned: false,
+  },
+  GR_CHAIR_APPROVAL_PENDING: {
+    label: "G&R Chair Approval Pending",
+    description: "Batched reminder that monthly reviews are waiting for chair sign-off.",
+    bucket: "portal_only",
+    portalHistory: true,
+    email: false,
+    smsPlanned: false,
+  },
+  GR_REVIEW_RELEASED: {
+    label: "G&R Review Released",
+    description: "Notification that the mentor's monthly review is now visible on the mentee's G&R page.",
+    bucket: "portal_only",
+    portalHistory: true,
+    email: false,
+    smsPlanned: false,
+  },
 };
 
 export function getNotificationPolicy(type: NotificationType): NotificationPolicy {

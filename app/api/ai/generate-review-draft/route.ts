@@ -148,7 +148,7 @@ export async function POST(request: Request) {
     overallRating: r.overallRating,
     overallComments: r.overallComments,
     goalRatings: r.goalRatings.map((gr) => ({
-      title: gr.goal.title,
+      title: gr.goal?.title ?? "",
       rating: gr.rating,
       comments: gr.comments,
     })),
