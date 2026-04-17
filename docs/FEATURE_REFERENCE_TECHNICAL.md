@@ -44,11 +44,12 @@ This document lists every feature in the portal — what it does, how it works t
 | Role | Email | Password |
 |------|-------|----------|
 | Admin + Instructor | `brayden.white@youthpassionproject.org` | `$SEED_PASSWORD` |
+| Admin (Super Admin + all admin subtypes; Seattle Chapter) | `anthea.zamir@youthpassionproject.org` | `$SEED_PASSWORD` |
 | Mentor + Staff | `carlygelles@gmail.com` | `$SEED_PASSWORD` |
 | Instructor | `avery.lin@youthpassionproject.org` | `$SEED_PASSWORD` |
 | Student | `jordan.patel@youthpassionproject.org` | `$SEED_PASSWORD` |
 
-> `$SEED_PASSWORD` is set in your `.env` file. All accounts belong to either "The Frisch School" or "Boston" chapter.
+> `$SEED_PASSWORD` is set in your `.env` file. Chapter assignment: **Brayden**, **Avery**, **Jordan** → The Frisch School; **Carly** → Boston Chapter; **Anthea** → Seattle Chapter (only seed user there). Seattle also has a sample chapter-scoped event for directory/calendar coverage. Local dev uses legacy password login for these emails (`lib/legacy-auth-config.ts`).
 
 ---
 
@@ -158,9 +159,10 @@ This document lists every feature in the portal — what it does, how it works t
 
 **How it works:**
 - `/forgot-password` form submits email
-- Token stored in `PasswordResetToken`, expires in 1 hour
-- Link sent to email: `/reset-password?token=...`
-- User sets new password, old token invalidated
+- Server asks Supabase Auth to generate a recovery link
+- App sends that recovery link through the configured email provider in `lib/email.ts`
+- Link lands on `/auth/callback`, then redirects to `/reset-password`
+- User sets a new password on `/reset-password`
 
 **How to test:**
 1. Go to `/forgot-password`, enter registered email
@@ -1102,7 +1104,7 @@ This document lists every feature in the portal — what it does, how it works t
 1. Log in as Admin → go to `/admin/portal-rollout`
 2. Enable a feature gate for "The Frisch School" chapter only
 3. Log in as Avery (Frisch member) → verify feature is visible
-4. Log in as a Boston chapter user → verify feature is NOT visible
+4. Log in as a user from another chapter (e.g. Boston or Seattle) → verify feature is NOT visible
 5. Enable the same gate globally → verify all users see it
 6. Disable the gate → verify feature disappears for all
 

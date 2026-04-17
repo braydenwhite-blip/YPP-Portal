@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { Suspense } from "react";
 import dynamic from "next/dynamic";
 import { getWorldData } from "@/lib/world-actions";
@@ -27,7 +26,7 @@ async function WorldContent() {
 }
 
 export default async function WorldPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
   const featureEnabled = await isFeatureEnabledForUser("PASSION_WORLD", {
     userId: session.user.id,

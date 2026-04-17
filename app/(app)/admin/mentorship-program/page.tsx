@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
 
-import { authOptions } from "@/lib/auth";
 import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
 import {
   addMentorCommitteeMember,
@@ -23,6 +22,16 @@ import { getAdminMentorshipCommandCenterData } from "@/lib/admin-mentorship-comm
 import ChairsPanel from "./chairs-panel";
 import GoalsPanel from "./goals-panel";
 import MatchingPanel from "./matching-panel";
+import GoalReviewsBoard from "./goal-reviews-board";
+import ReviewApprovalsBoard from "./review-approvals-board";
+import MenteeMatchingBoard from "./mentee-matching-board";
+import {
+  getMentorshipGoalReviews,
+  getMentorshipMonthlyReviews,
+} from "@/lib/mentorship-kanban-actions";
+import { getChairQueueEnriched, getReviewCompletionStatus } from "@/lib/goal-review-actions";
+import ChairApprovalQueue from "@/components/gr/chair-approval-queue";
+import ReviewCompletionPanel from "@/components/gr/review-completion-panel";
 
 export const metadata = { title: "Mentorship Command Center — Admin" };
 
@@ -81,7 +90,7 @@ export default async function MentorshipProgramAdminPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
 
   if (!roles.includes("ADMIN")) {
@@ -91,7 +100,13 @@ export default async function MentorshipProgramAdminPage({
   const lane = parseAdminMentorshipLane(searchParams.lane);
   const focus = parseFocus(searchParams.focus);
   const supportRole = parseSupportRole(searchParams.supportRole);
-  const data = await getAdminMentorshipCommandCenterData();
+  const [data, goalReviews, monthlyReviews, chairQueue, completionStatus] = await Promise.all([
+    getAdminMentorshipCommandCenterData(),
+    getMentorshipGoalReviews(),
+    getMentorshipMonthlyReviews(),
+    getChairQueueEnriched(),
+    getReviewCompletionStatus(),
+  ]);
 
   const laneMeta = ADMIN_MENTORSHIP_LANE_META[lane];
   const selectedSummary =
@@ -479,6 +494,65 @@ export default async function MentorshipProgramAdminPage({
         </div>
       </section>
 
+      {/* ── Mentee Matching Kanban Board ────────────────── */}
+      <section className="card" style={{ marginBottom: 24 }}>
+        <div className="section-title" style={{ marginBottom: 8 }}>
+          Mentee Overview
+        </div>
+        <p style={{ margin: "0 0 16px", color: "var(--muted)", fontSize: 13 }}>
+          Visual overview of who needs a primary mentor and who already has one
+          in the {laneMeta.label.toLowerCase()} lane.
+        </p>
+        <MenteeMatchingBoard
+          unassigned={laneUnassigned.map((m) => ({
+            id: m.id,
+            status: "UNASSIGNED",
+            name: m.name,
+            email: m.email,
+            primaryRole: m.primaryRole,
+            lane: lane,
+            chapterName: m.chapterName,
+          }))}
+          matched={laneCircles.map((c) => ({
+            id: c.menteeId,
+            status: "HAS_MENTOR",
+            name: c.menteeName,
+            email: "",
+            primaryRole: c.menteeRole,
+            lane: lane,
+            chapterName: null,
+            mentorName: c.mentorName,
+            mentorshipId: c.mentorshipId,
+            circleGaps: c.missingRoles,
+          }))}
+          lane={toLaneQueryValue(lane)}
+        />
+      </section>
+
+      {/* ── Goal Reviews Kanban Board ─────────────────── */}
+      <section className="card" style={{ marginBottom: 24 }}>
+        <div className="section-title" style={{ marginBottom: 8 }}>
+          Goal Reviews Board
+        </div>
+        <p style={{ margin: "0 0 16px", color: "var(--muted)", fontSize: 13 }}>
+          Drag goal reviews through the approval pipeline. Chair reviewers can
+          move reviews to Approved or Changes Requested.
+        </p>
+        <GoalReviewsBoard reviews={goalReviews} />
+      </section>
+
+      {/* ── Monthly Review Approvals Kanban Board ──────── */}
+      <section className="card" style={{ marginBottom: 24 }}>
+        <div className="section-title" style={{ marginBottom: 8 }}>
+          Monthly Review Approvals
+        </div>
+        <p style={{ margin: "0 0 16px", color: "var(--muted)", fontSize: 13 }}>
+          Track monthly mentorship reviews from draft through chair approval.
+          Drag to approve or return reviews.
+        </p>
+        <ReviewApprovalsBoard reviews={monthlyReviews} />
+      </section>
+
       <section
         id="matching"
         className="card"
@@ -697,6 +771,32 @@ export default async function MentorshipProgramAdminPage({
           </div>
         )}
       </section>
+
+      {/* ── G&R Chair Approval Queue ──────────────────── */}
+      {chairQueue && chairQueue.length > 0 && (
+        <section className="card" style={{ marginBottom: 24, borderLeft: "4px solid #f59e0b" }}>
+          <div className="section-title" style={{ marginBottom: 4 }}>G&amp;R Chair Approval Queue</div>
+          <p style={{ margin: "0 0 14px", color: "var(--muted)", fontSize: 13 }}>
+            Monthly reviews waiting for chair sign-off. Older reviews appear first.
+          </p>
+          <ChairApprovalQueue items={chairQueue} />
+        </section>
+      )}
+
+      {/* ── Review Completion Monitor ──────────────────── */}
+      {completionStatus && (
+        <section className="card" style={{ marginBottom: 24 }}>
+          <div className="section-title" style={{ marginBottom: 4 }}>Review Completion — Current Cycle</div>
+          <p style={{ margin: "0 0 14px", color: "var(--muted)", fontSize: 13 }}>
+            Mentorships that have not yet submitted a review for this month.
+          </p>
+          <ReviewCompletionPanel
+            total={completionStatus.total}
+            submitted={completionStatus.submitted}
+            missing={completionStatus.missing}
+          />
+        </section>
+      )}
 
       <section
         id="governance"

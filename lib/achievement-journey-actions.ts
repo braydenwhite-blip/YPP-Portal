@@ -1,14 +1,72 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { TIER_THRESHOLDS } from "@/lib/achievement-journey-config";
 import type { AchievementJourneyData } from "@/lib/achievement-journey-config";
 
+function isMissingMentorGoalReviewBonusColumn(error: unknown) {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2022" &&
+    typeof error.meta?.column === "string" &&
+    error.meta.column.includes("MentorGoalReview.bonusPoints")
+  );
+}
+
+async function getRecentReleasedReviews(userId: string) {
+  try {
+    return await prisma.mentorGoalReview.findMany({
+      where: {
+        menteeId: userId,
+        releasedToMenteeAt: { not: null },
+      },
+      orderBy: { cycleNumber: "desc" },
+      take: 3,
+      select: {
+        id: true,
+        cycleNumber: true,
+        cycleMonth: true,
+        overallRating: true,
+        pointsAwarded: true,
+        bonusPoints: true,
+        bonusReason: true,
+        releasedToMenteeAt: true,
+      },
+    });
+  } catch (error) {
+    if (!isMissingMentorGoalReviewBonusColumn(error)) {
+      throw error;
+    }
+
+    const fallbackReviews = await prisma.mentorGoalReview.findMany({
+      where: {
+        menteeId: userId,
+        releasedToMenteeAt: { not: null },
+      },
+      orderBy: { cycleNumber: "desc" },
+      take: 3,
+      select: {
+        id: true,
+        cycleNumber: true,
+        cycleMonth: true,
+        overallRating: true,
+        pointsAwarded: true,
+        releasedToMenteeAt: true,
+      },
+    });
+
+    return fallbackReviews.map((review) => ({
+      ...review,
+      bonusPoints: 0,
+      bonusReason: null,
+    }));
+  }
+}
 
 export async function getAchievementJourneyData(): Promise<AchievementJourneyData | null> {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const userId = session.user.id as string;
@@ -31,24 +89,7 @@ export async function getAchievementJourneyData(): Promise<AchievementJourneyDat
     },
   });
 
-  const recentReviews = await prisma.mentorGoalReview.findMany({
-    where: {
-      menteeId: userId,
-      releasedToMenteeAt: { not: null },
-    },
-    orderBy: { cycleNumber: "desc" },
-    take: 3,
-    select: {
-      id: true,
-      cycleNumber: true,
-      cycleMonth: true,
-      overallRating: true,
-      pointsAwarded: true,
-      bonusPoints: true,
-      bonusReason: true,
-      releasedToMenteeAt: true,
-    },
-  });
+  const recentReviews = await getRecentReleasedReviews(userId);
 
   const totalPoints = summary?.totalPoints ?? 0;
   const currentTier = summary?.currentTier ?? null;

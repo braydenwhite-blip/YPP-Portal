@@ -50,7 +50,7 @@ const ACTIVITY_TYPES: { value: ActivityType; label: string; color: string; icon:
   { value: "WARM_UP", label: "Warm Up", color: "#f59e0b", icon: "\u2600" },
   { value: "INSTRUCTION", label: "Instruction", color: "#3b82f6", icon: "\uD83D\uDCDA" },
   { value: "PRACTICE", label: "Practice", color: "#22c55e", icon: "\u270D" },
-  { value: "DISCUSSION", label: "Discussion", color: "#8b5cf6", icon: "\uD83D\uDCAC" },
+  { value: "DISCUSSION", label: "Discussion", color: "#8b3fe8", icon: "\uD83D\uDCAC" },
   { value: "ASSESSMENT", label: "Assessment", color: "#ef4444", icon: "\uD83D\uDCCB" },
   { value: "BREAK", label: "Break", color: "#6b7280", icon: "\u2615" },
   { value: "REFLECTION", label: "Reflection", color: "#ec4899", icon: "\uD83D\uDCAD" },

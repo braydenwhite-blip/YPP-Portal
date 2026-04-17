@@ -200,8 +200,8 @@ export default function PassionQuizPage() {
             <a href="/challenges" className="button secondary" style={{ textAlign: "center" }}>
               Explore Portal Challenges
             </a>
-            <a href="/world" className="button secondary" style={{ textAlign: "center" }}>
-              Open Passion World
+            <a href="/pathways/progress" className="button secondary" style={{ textAlign: "center" }}>
+              View pathway progress
             </a>
           </div>
         </div>

@@ -1,7 +1,6 @@
-import { getServerSession } from "next-auth";
 import { redirect, notFound } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
-import { authOptions } from "@/lib/auth";
 import { getEnabledFeatureKeysForUser } from "@/lib/feature-gates";
 import {
   getHiringChairStatus,
@@ -16,7 +15,6 @@ import {
   confirmInterviewSlot,
   makeDecision,
   markApplicationInterviewCompleted,
-  postApplicationInterviewSlotsBulk,
   saveStructuredInterviewNote,
   updateApplicationStatus,
 } from "@/lib/application-actions";
@@ -25,6 +23,7 @@ import ApplicationProgressStepper from "@/components/application-progress-steppe
 import AddToCalendarButton from "@/components/add-to-calendar-button";
 import ReviewerInterviewNoteForm from "@/components/reviewer-interview-note-form";
 import ReviewerDecisionForm from "@/components/reviewer-decision-form";
+import { normalizeRoleList } from "@/lib/authorization";
 
 function formatStatus(status: string) {
   return status.replace(/_/g, " ");
@@ -56,12 +55,6 @@ function interviewSlotPill(status: string) {
     default:
       return "";
   }
-}
-
-function toDateTimeLocal(value: Date) {
-  const local = new Date(value);
-  local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
-  return local.toISOString().slice(0, 16);
 }
 
 type ChapterProposalMetadata = {
@@ -105,7 +98,7 @@ export default async function ApplicationWorkspacePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   if (!session?.user?.id) {
     redirect("/login");
@@ -116,6 +109,7 @@ export default async function ApplicationWorkspacePage({
     select: {
       id: true,
       chapterId: true,
+      primaryRole: true,
       roles: { select: { role: true } },
     },
   });
@@ -173,7 +167,7 @@ export default async function ApplicationWorkspacePage({
     notFound();
   }
 
-  const roles = currentUser.roles.map((role) => role.role);
+  const roles = normalizeRoleList(currentUser.roles, currentUser.primaryRole);
   const isAdmin = roles.includes("ADMIN");
   const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
   const enabledFeatureKeys = await getEnabledFeatureKeysForUser({
@@ -253,10 +247,6 @@ export default async function ApplicationWorkspacePage({
         : "Pending";
 
   const chapterProposal = parseChapterProposalMetadata(application.additionalMaterials);
-
-  const defaultInterviewDate = toDateTimeLocal(new Date(Date.now() + 24 * 60 * 60 * 1000));
-  const defaultInterviewDate2 = toDateTimeLocal(new Date(Date.now() + 26 * 60 * 60 * 1000));
-  const defaultInterviewDate3 = toDateTimeLocal(new Date(Date.now() + 28 * 60 * 60 * 1000));
 
   // Build timeline steps - adapt based on whether interview is required
   const timelineSteps = interviewRequired
@@ -729,67 +719,22 @@ export default async function ApplicationWorkspacePage({
                       Interview is optional for this position, but you can still schedule one if needed.
                     </p>
                   )}
-                  <form action={postApplicationInterviewSlotsBulk} className="form-grid">
-                    <input type="hidden" name="applicationId" value={application.id} />
-                    <div className="grid three">
-                      <div className="form-row">
-                        <label>Interview Slot 1</label>
-                        <input
-                          type="datetime-local"
-                          name="scheduledAt1"
-                          className="input"
-                          defaultValue={defaultInterviewDate}
-                          required
-                          disabled={isClosedApplication || hasPendingDecision}
-                        />
-                      </div>
-                      <div className="form-row">
-                        <label>Interview Slot 2</label>
-                        <input
-                          type="datetime-local"
-                          name="scheduledAt2"
-                          className="input"
-                          defaultValue={defaultInterviewDate2}
-                          disabled={isClosedApplication || hasPendingDecision}
-                        />
-                      </div>
-                      <div className="form-row">
-                        <label>Interview Slot 3</label>
-                        <input
-                          type="datetime-local"
-                          name="scheduledAt3"
-                          className="input"
-                          defaultValue={defaultInterviewDate3}
-                          disabled={isClosedApplication || hasPendingDecision}
-                        />
-                      </div>
-                    </div>
-                    <div className="form-row">
-                      <label>Duration (minutes)</label>
-                      <input
-                        type="number"
-                        name="duration"
-                        className="input"
-                        defaultValue={30}
-                        min={15}
-                        max={180}
-                        disabled={isClosedApplication || hasPendingDecision}
-                      />
-                    </div>
-                    <div className="form-row">
-                      <label>Meeting Link (optional)</label>
-                      <input
-                        type="url"
-                        name="meetingLink"
-                        className="input"
-                        placeholder="https://zoom.us/..."
-                        disabled={isClosedApplication || hasPendingDecision}
-                      />
-                    </div>
-                    <button type="submit" className="button small" disabled={isClosedApplication || hasPendingDecision}>
-                      Post Interview Slots
-                    </button>
-                  </form>
+                  <div className="card" style={{ background: "var(--surface-alt)", padding: 16 }}>
+                    <p style={{ margin: "0 0 8px", fontSize: 13, color: "var(--muted)" }}>
+                      Interview scheduling now lives in the shared scheduler so reminders, reschedules, and calendar invites all stay in one place.
+                    </p>
+                    <Link
+                      href="/interviews/schedule"
+                      className="button small"
+                      style={{
+                        pointerEvents: isClosedApplication || hasPendingDecision ? "none" : "auto",
+                        opacity: isClosedApplication || hasPendingDecision ? 0.6 : 1,
+                        textDecoration: "none",
+                      }}
+                    >
+                      Open Interview Scheduler
+                    </Link>
+                  </div>
                 </div>
 
                 <ReviewerInterviewNoteForm

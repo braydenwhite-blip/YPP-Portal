@@ -382,7 +382,7 @@ export default function SequenceStepDetailPanel({
                 fontSize: 12,
                 fontWeight: 600,
                 background: addPrereqId
-                  ? "var(--ypp-purple, #7c3aed)"
+                  ? "var(--ypp-purple, #6b21c8)"
                   : "var(--surface, #f4f4f5)",
                 color: addPrereqId ? "#fff" : "var(--muted, #6b7280)",
                 border: "none",

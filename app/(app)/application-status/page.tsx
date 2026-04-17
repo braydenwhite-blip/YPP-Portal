@@ -1,8 +1,6 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
-import { submitInfoResponse } from "@/lib/instructor-application-actions";
 import {
   InstructorApplicationStatus,
   ChapterPresidentApplicationStatus,
@@ -10,19 +8,26 @@ import {
 } from "@prisma/client";
 import InfoResponseForm from "./info-response-form";
 import CPInfoResponseForm from "./cp-info-response-form";
+import AvailabilityForm from "./availability-form";
+import SlotPickerForm from "./slot-picker-form";
 import Link from "next/link";
+import InstructorApplicationMotivationResponse from "@/components/instructor-application-motivation-response";
 
 function instructorStatusLabel(status: InstructorApplicationStatus): string {
   switch (status) {
     case "SUBMITTED": return "Submitted";
     case "UNDER_REVIEW": return "Under Review";
     case "INFO_REQUESTED": return "More Info Requested";
+    case "PRE_APPROVED": return "Pre-Approved";
+    case "INTERVIEW_SCHEDULED": return "Curriculum Overview Scheduled";
+    case "INTERVIEW_COMPLETED": return "Curriculum Overview Completed";
     case "ON_HOLD": return "On Hold";
-    case "INTERVIEW_SCHEDULED": return "Interview Scheduled";
-    case "INTERVIEW_COMPLETED": return "Interview Completed";
     case "APPROVED": return "Approved";
     case "REJECTED": return "Not Accepted";
-    default: return status;
+    default: {
+      const exhaustiveCheck: never = status;
+      return exhaustiveCheck;
+    }
   }
 }
 
@@ -33,8 +38,13 @@ function cpStatusLabel(status: ChapterPresidentApplicationStatus): string {
     case "INFO_REQUESTED": return "More Info Requested";
     case "INTERVIEW_SCHEDULED": return "Interview Scheduled";
     case "INTERVIEW_COMPLETED": return "Interview Completed";
+    case "RECOMMENDATION_SUBMITTED": return "Under Final Review";
     case "APPROVED": return "Approved";
     case "REJECTED": return "Not Accepted";
+    default: {
+      const exhaustiveCheck: never = status;
+      return exhaustiveCheck;
+    }
   }
 }
 
@@ -42,45 +52,53 @@ function statusColor(status: string): string {
   if (status === "APPROVED") return "#16a34a";
   if (status === "REJECTED") return "#dc2626";
   if (status === "INFO_REQUESTED") return "#d97706";
-  return "#7c3aed";
+  if (status === "ON_HOLD") return "#71717a";
+  if (status === "PRE_APPROVED") return "#7c3aed";
+  return "#6b21c8";
 }
-
-const STAGES = [
-  { key: "submitted", label: "Submitted" },
-  { key: "review", label: "Under Review" },
-  { key: "interview", label: "Interview" },
-  { key: "decision", label: "Decision" },
-] as const;
 
 function currentStageIndex(status: string): number {
   if (status === "SUBMITTED") return 0;
-  if (status === "UNDER_REVIEW" || status === "INFO_REQUESTED") return 1;
-  if (status === "INTERVIEW_SCHEDULED" || status === "INTERVIEW_COMPLETED") return 2;
+  if (status === "UNDER_REVIEW" || status === "INFO_REQUESTED" || status === "ON_HOLD") return 1;
+  if (status === "PRE_APPROVED" || status === "INTERVIEW_SCHEDULED" || status === "INTERVIEW_COMPLETED") return 2;
   return 3;
 }
 
-function ProgressStepper({ status }: { status: string }) {
+function ProgressStepper({
+  status,
+  middleStageLabel = "Interview",
+}: {
+  status: string;
+  /** Instructor applications use "Curriculum overview"; chapter president flow keeps "Interview". */
+  middleStageLabel?: string;
+}) {
+  const stages = [
+    { key: "submitted", label: "Submitted" },
+    { key: "review", label: "Under Review" },
+    { key: "interview", label: middleStageLabel },
+    { key: "decision", label: "Decision" },
+  ] as const;
   const stageIdx = currentStageIndex(status);
   return (
     <div className="card" style={{ marginBottom: 24 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
-        {STAGES.map((stage, i) => (
-          <div key={stage.key} style={{ display: "flex", alignItems: "center", flex: i < STAGES.length - 1 ? 1 : "initial" }}>
+        {stages.map((stage, i) => (
+          <div key={stage.key} style={{ display: "flex", alignItems: "center", flex: i < stages.length - 1 ? 1 : "initial" }}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 80 }}>
               <div style={{
                 width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-                background: i <= stageIdx ? "#7c3aed" : "var(--border)",
+                background: i <= stageIdx ? "#6b21c8" : "var(--border)",
                 color: i <= stageIdx ? "white" : "var(--muted)",
                 fontWeight: 700, fontSize: 14,
               }}>
                 {i < stageIdx ? "\u2713" : i + 1}
               </div>
-              <span style={{ fontSize: 11, color: i <= stageIdx ? "#7c3aed" : "var(--muted)", marginTop: 4, textAlign: "center" }}>
+              <span style={{ fontSize: 11, color: i <= stageIdx ? "#6b21c8" : "var(--muted)", marginTop: 4, textAlign: "center" }}>
                 {stage.label}
               </span>
             </div>
-            {i < STAGES.length - 1 && (
-              <div style={{ flex: 1, height: 2, background: i < stageIdx ? "#7c3aed" : "var(--border)", margin: "0 4px", marginBottom: 20 }} />
+            {i < stages.length - 1 && (
+              <div style={{ flex: 1, height: 2, background: i < stageIdx ? "#6b21c8" : "var(--border)", margin: "0 4px", marginBottom: 20 }} />
             )}
           </div>
         ))}
@@ -90,7 +108,7 @@ function ProgressStepper({ status }: { status: string }) {
 }
 
 export default async function ApplicationStatusPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const roles = session.user.roles ?? [];
@@ -100,13 +118,21 @@ export default async function ApplicationStatusPage() {
   const [instructorApp, cpApp, capstoneModule] = await Promise.all([
     prisma.instructorApplication.findUnique({
       where: { applicantId: session.user.id },
-      include: { reviewer: { select: { name: true } } },
+      include: {
+        reviewer: { select: { name: true } },
+        availabilityWindows: true,
+        offeredSlots: {
+          where: { confirmedAt: null },
+          orderBy: { scheduledAt: "asc" },
+        },
+      },
     }),
     prisma.chapterPresidentApplication.findUnique({
       where: { applicantId: session.user.id },
       include: {
         reviewer: { select: { name: true } },
         chapter: { select: { name: true } },
+        availabilityWindows: true,
       },
     }),
     prisma.trainingModule.findFirst({
@@ -145,10 +171,11 @@ export default async function ApplicationStatusPage() {
             </span>
           </div>
 
-          <ProgressStepper status={instructorApp.status} />
+          <ProgressStepper status={instructorApp.status} middleStageLabel="Curriculum overview" />
 
           <div className="card" style={{ marginBottom: 16 }}>
-            {capstoneModule && instructorApp.status !== "REJECTED" ? (
+            {capstoneModule &&
+              ["PRE_APPROVED", "INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED", "APPROVED"].includes(instructorApp.status) ? (
               <div
                 style={{
                   marginBottom: 16,
@@ -185,7 +212,10 @@ export default async function ApplicationStatusPage() {
               <>
                 <h3 className="section-title">Application Received</h3>
                 <p style={{ color: "var(--muted)", fontSize: 14 }}>
-                  Your application is in the queue. A reviewer will reach out within a few business days.
+                  Your application is in the queue. We typically send a first update within <strong>3–5 business days</strong>. If you need anything sooner, contact your chapter.
+                </p>
+                <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 8 }}>
+                  Review is about understanding how you teach — not a scored exam. The curriculum overview later is the same: a conversation, not a test.
                 </p>
               </>
             )}
@@ -194,6 +224,9 @@ export default async function ApplicationStatusPage() {
                 <h3 className="section-title">Under Review</h3>
                 <p style={{ color: "var(--muted)", fontSize: 14 }}>
                   {instructorApp.reviewer ? `${instructorApp.reviewer.name} is` : "A reviewer is"} currently evaluating your application.
+                </p>
+                <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 8 }}>
+                  We are looking for fit and clarity, not perfection. The curriculum overview (when you reach that step) is a two-way discussion, not an audition.
                 </p>
               </>
             )}
@@ -217,31 +250,63 @@ export default async function ApplicationStatusPage() {
                 <InfoResponseForm />
               </>
             )}
+            {instructorApp.status === "PRE_APPROVED" && (
+              <>
+                <h3 className="section-title" style={{ color: "#6b21c8" }}>You&apos;ve Been Pre-Approved!</h3>
+                <p style={{ color: "var(--muted)", fontSize: 14 }}>
+                  Great news — you&apos;ve been pre-approved to move forward in the instructor pathway. You can now begin your instructor training in the portal.
+                </p>
+                <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 8 }}>
+                  Once you complete training, your reviewer will reach out with times for a <strong>curriculum overview/interview</strong> — a collaborative session where you&apos;ll walk through how you&apos;d teach using YPP materials.
+                </p>
+                <Link href="/instructor-training" className="button" style={{ display: "inline-block", textDecoration: "none", marginTop: 4 }}>
+                  Start Instructor Training
+                </Link>
+              </>
+            )}
             {instructorApp.status === "INTERVIEW_SCHEDULED" && (
               <>
-                <h3 className="section-title">
-                  {instructorApp.interviewScheduledAt ? "Interview Scheduled" : "Interview Stage"}
-                </h3>
+                <h3 className="section-title">Curriculum Overview/Interview</h3>
                 {instructorApp.interviewScheduledAt ? (
-                  <div style={{ background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px", marginBottom: 16, textAlign: "center" }}>
-                    <p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
-                      {new Date(instructorApp.interviewScheduledAt).toLocaleString("en-US", {
-                        weekday: "long", year: "numeric", month: "long", day: "numeric",
-                        hour: "numeric", minute: "2-digit",
-                      })}
+                  <>
+                    <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
+                      Your curriculum overview/interview has been confirmed. You will receive a calendar invite by email. If you need to reschedule, reach out to your reviewer.
                     </p>
-                  </div>
+                    <div style={{ background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px", marginBottom: 16, textAlign: "center" }}>
+                      <p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
+                        {new Date(instructorApp.interviewScheduledAt).toLocaleString("en-US", {
+                          weekday: "long", year: "numeric", month: "long", day: "numeric",
+                          hour: "numeric", minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
+                  </>
+                ) : instructorApp.offeredSlots && instructorApp.offeredSlots.length > 0 ? (
+                  <>
+                    <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
+                      A reviewer has proposed the following times for your curriculum overview/interview. Click the one that works best for you — you&apos;ll receive a calendar invite once confirmed.
+                    </p>
+                    <SlotPickerForm slots={instructorApp.offeredSlots} />
+                  </>
                 ) : (
-                  <p style={{ color: "var(--muted)", fontSize: 14 }}>
-                    Your application has moved into the interview stage. A reviewer will follow up with scheduling details.
+                  <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
+                    Your reviewer will propose a few available times shortly. Check back here to pick the time that works best for you.
                   </p>
                 )}
               </>
             )}
             {instructorApp.status === "INTERVIEW_COMPLETED" && (
               <>
-                <h3 className="section-title">Interview Completed</h3>
+                <h3 className="section-title">Curriculum Overview Completed</h3>
                 <p style={{ color: "var(--muted)", fontSize: 14 }}>A final decision is pending.</p>
+              </>
+            )}
+            {instructorApp.status === "ON_HOLD" && (
+              <>
+                <h3 className="section-title">Application On Hold</h3>
+                <p style={{ color: "var(--muted)", fontSize: 14 }}>
+                  Your application is paused while the review team completes follow-up steps. We&apos;ll reach out if we need anything else from you.
+                </p>
               </>
             )}
             {instructorApp.status === "APPROVED" && (
@@ -283,15 +348,18 @@ export default async function ApplicationStatusPage() {
             </summary>
             <div style={{ marginTop: 16 }}>
               <div style={{ marginBottom: 16 }}>
-                <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Why you want to teach:</strong></p>
-                <p style={{ fontSize: 14, margin: 0, whiteSpace: "pre-wrap" }}>{instructorApp.motivation}</p>
+                <InstructorApplicationMotivationResponse
+                  motivation={instructorApp.motivation}
+                  motivationVideoUrl={instructorApp.motivationVideoUrl}
+                  label="Teaching approach video"
+                />
               </div>
               <div style={{ marginBottom: 16 }}>
                 <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Teaching experience:</strong></p>
                 <p style={{ fontSize: 14, margin: 0, whiteSpace: "pre-wrap" }}>{instructorApp.teachingExperience}</p>
               </div>
               <div>
-                <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Interview availability:</strong></p>
+                <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Curriculum overview availability:</strong></p>
                 <p style={{ fontSize: 14, margin: 0 }}>{instructorApp.availability}</p>
               </div>
             </div>
@@ -356,17 +424,37 @@ export default async function ApplicationStatusPage() {
             )}
             {cpApp.status === "INTERVIEW_SCHEDULED" && (
               <>
-                <h3 className="section-title">Interview Scheduled</h3>
-                {cpApp.interviewScheduledAt && (
-                  <div style={{ background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px", marginBottom: 16, textAlign: "center" }}>
-                    <p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
-                      {new Date(cpApp.interviewScheduledAt).toLocaleString("en-US", {
-                        weekday: "long", year: "numeric", month: "long", day: "numeric",
-                        hour: "numeric", minute: "2-digit",
-                      })}
+                <h3 className="section-title">Interview</h3>
+                {cpApp.interviewScheduledAt ? (
+                  <>
+                    <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
+                      Your interview has been confirmed. You will receive a calendar invite by email. If you need to reschedule, reach out to your reviewer.
                     </p>
-                  </div>
+                    <div style={{ background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px", marginBottom: 16, textAlign: "center" }}>
+                      <p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
+                        {new Date(cpApp.interviewScheduledAt).toLocaleString("en-US", {
+                          weekday: "long", year: "numeric", month: "long", day: "numeric",
+                          hour: "numeric", minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <AvailabilityForm
+                    applicationId={cpApp.id}
+                    variant="cp"
+                    existingWindows={cpApp.availabilityWindows}
+                    hadNoMatch={!!cpApp.schedulingNoMatchAt}
+                  />
                 )}
+              </>
+            )}
+            {cpApp.status === "RECOMMENDATION_SUBMITTED" && (
+              <>
+                <h3 className="section-title">Under Final Review</h3>
+                <p style={{ color: "var(--muted)", fontSize: 14 }}>
+                  Your interview is complete and a recommendation has been submitted. The hiring committee is making the final decision.
+                </p>
               </>
             )}
             {cpApp.status === "INTERVIEW_COMPLETED" && (

@@ -1,11 +1,11 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getAllReflectionSubmissions } from "@/lib/reflection-actions";
 import { prisma } from "@/lib/prisma";
+import { normalizeRoleList } from "@/lib/authorization";
 
 export default async function AdminReflectionsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session) redirect("/login");
 
   const user = await prisma.user.findUnique({
@@ -13,9 +13,10 @@ export default async function AdminReflectionsPage() {
     include: { roles: true },
   });
 
-  const isAdmin = user?.roles.some((r) => r.role === "ADMIN");
-  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT");
-  const isMentor = user?.roles.some((r) => r.role === "MENTOR");
+  const roles = user ? normalizeRoleList(user.roles, user.primaryRole) : [];
+  const isAdmin = roles.includes("ADMIN");
+  const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
+  const isMentor = roles.includes("MENTOR");
 
   if (!isAdmin && !isChapterLead && !isMentor) {
     redirect("/");

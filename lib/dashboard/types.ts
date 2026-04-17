@@ -42,6 +42,10 @@ export interface DashboardNextAction {
   title: string;
   detail: string;
   href: string;
+  urgency?: "high" | "medium" | "low";
+  ctaLabel?: string;
+  /** Short date shown on home next-action rows (e.g. "Fri, Apr 10") */
+  dateLabel?: string;
 }
 
 export interface ActivePathwaySummary {
@@ -56,6 +60,8 @@ export interface ActivePathwaySummary {
 
 export interface InstructorReadinessSummary {
   trainingComplete: boolean;
+  academyModulesComplete: boolean;
+  studioCapstoneComplete: boolean;
   completedRequiredModules: number;
   requiredModulesCount: number;
   trainingPercent: number;

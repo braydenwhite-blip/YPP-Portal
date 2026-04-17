@@ -1,14 +1,13 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { ChapterPathwayToggle } from "./chapter-pathway-toggle";
 import { getChapterRunStatusMeta, formatOwnerLabel } from "./pathway-run-metadata";
 
 export default async function AdminPathwaysPage() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id || session.user.primaryRole !== "ADMIN") {
+  const session = await getSession();
+  if (!session?.user?.id || !session.user.roles.includes("ADMIN")) {
     redirect("/");
   }
 

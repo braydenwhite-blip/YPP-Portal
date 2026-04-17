@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import ReflectionForm from "./reflection-form";
@@ -9,7 +8,7 @@ import Link from "next/link";
 export const metadata = { title: "Submit Reflection — My Program" };
 
 export default async function ReflectPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const userId = session.user.id;
@@ -37,6 +36,7 @@ export default async function ReflectPage() {
   ]);
 
   if (!mentorship) {
+    const monthLabel = new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
     return (
       <div>
         <div className="topbar">
@@ -46,11 +46,13 @@ export default async function ReflectPage() {
           </div>
         </div>
         <div className="card" style={{ textAlign: "center", padding: "3rem" }}>
-          <p style={{ fontWeight: 600 }}>No active mentorship found.</p>
-          <p style={{ color: "var(--muted)", marginTop: "0.5rem" }}>
-            You need to be assigned a mentor before submitting reflections.
+          <p style={{ fontWeight: 600, fontSize: "1.1rem" }}>No active mentorship this cycle</p>
+          <p style={{ color: "var(--muted)", marginTop: "0.75rem", maxWidth: "26rem", margin: "0.75rem auto 0" }}>
+            No active {primaryRole.toLowerCase()} mentorship found for {monthLabel}.
+            Reflections open at the start of each month once you have been matched with a mentor.
+            If you believe this is an error, contact your program administrator.
           </p>
-          <Link href="/my-program" className="button ghost small" style={{ marginTop: "1rem", display: "inline-block" }}>
+          <Link href="/my-program" className="button ghost small" style={{ marginTop: "1.5rem", display: "inline-block" }}>
             ← Back to My Program
           </Link>
         </div>

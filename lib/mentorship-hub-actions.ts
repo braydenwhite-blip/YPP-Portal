@@ -1,17 +1,18 @@
 "use server";
 
+import { getSession } from "@/lib/auth-supabase";
 import {
   MentorshipActionItemStatus,
   MentorshipRequestKind,
   MentorshipRequestStatus,
   MentorshipRequestVisibility,
   MentorshipProgramGroup,
+  MentorshipSessionType,
   SupportRole,
+  MentorTag,
 } from "@prisma/client";
-import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 
-import { authOptions } from "@/lib/auth";
 import {
   ensureCanonicalTrack,
   enforceFullProgramMentorCapacity,
@@ -58,7 +59,7 @@ function summarizeRequest(details: string) {
 }
 
 async function requireAuth() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
@@ -477,6 +478,8 @@ export async function createMentorshipSession(formData: FormData) {
 
   const agenda = getString(formData, "agenda", false);
   const notes = getString(formData, "notes", false);
+  const meetingLink = getString(formData, "meetingLink", false);
+  const schedulingOverrideReason = getString(formData, "schedulingOverrideReason", false);
   const durationMinutes = getOptionalInt(formData.get("durationMinutes"));
   const completedNow = getString(formData, "completedNow", false) === "true";
 
@@ -490,6 +493,7 @@ export async function createMentorshipSession(formData: FormData) {
       ...activeMentorship.circleMembers.map((member) => member.userId),
     ])
   );
+  const completedAt = completedNow ? scheduledAt : null;
 
   await prisma.mentorshipSession.create({
     data: {
@@ -498,16 +502,43 @@ export async function createMentorshipSession(formData: FormData) {
       type,
       title,
       scheduledAt,
-      completedAt: completedNow ? scheduledAt : null,
+      completedAt,
       durationMinutes,
       agenda: agenda || null,
       notes: notes || null,
+      meetingLink: meetingLink || null,
+      schedulingOverrideReason: schedulingOverrideReason || null,
       participantIds,
       attendedIds: completedNow ? participantIds : [],
       createdById: userId,
       ledById: userId,
     },
   });
+
+  if (type === MentorshipSessionType.KICKOFF) {
+    const kickoffUpdate: {
+      kickoffScheduledAt?: Date;
+      kickoffCompletedAt?: Date;
+    } = {};
+
+    if (
+      !activeMentorship.kickoffScheduledAt ||
+      scheduledAt < activeMentorship.kickoffScheduledAt
+    ) {
+      kickoffUpdate.kickoffScheduledAt = scheduledAt;
+    }
+
+    if (completedAt && !activeMentorship.kickoffCompletedAt) {
+      kickoffUpdate.kickoffCompletedAt = completedAt;
+    }
+
+    if (Object.keys(kickoffUpdate).length > 0) {
+      await prisma.mentorship.update({
+        where: { id: activeMentorship.id },
+        data: kickoffUpdate,
+      });
+    }
+  }
 
   revalidatePath("/mentorship");
   revalidatePath(`/mentorship/mentees/${menteeId}`);
@@ -919,5 +950,47 @@ export async function createMentorshipResource(formData: FormData) {
   });
 
   revalidatePath("/mentor/resources");
+  revalidatePath("/mentorship");
+}
+
+export async function markKickoffComplete(
+  mentorshipId: string,
+  notes?: string
+) {
+  const session = await requireAuth();
+  const roles = session.user.roles ?? [];
+  const flags = getMentorshipRoleFlags(roles);
+  if (!flags.canSupport) {
+    throw new Error("Unauthorized");
+  }
+
+  await prisma.mentorship.update({
+    where: { id: mentorshipId },
+    data: {
+      kickoffCompletedAt: new Date(),
+      kickoffNotes: notes ?? null,
+      cycleStage: "REFLECTION_DUE",
+    },
+  });
+
+  revalidatePath("/mentorship");
+}
+
+export async function setMentorTag(
+  mentorshipId: string,
+  tag: MentorTag | null
+) {
+  const session = await requireAuth();
+  const roles = session.user.roles ?? [];
+  const flags = getMentorshipRoleFlags(roles);
+  if (!flags.canSupport) {
+    throw new Error("Unauthorized");
+  }
+
+  await prisma.mentorship.update({
+    where: { id: mentorshipId },
+    data: { mentorTag: tag },
+  });
+
   revalidatePath("/mentorship");
 }

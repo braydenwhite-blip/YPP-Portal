@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
 
-import { authOptions } from "@/lib/auth";
 import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
 import { mentorshipRequiresMonthlyReflection } from "@/lib/mentorship-canonical";
 import { ProgressBar } from "@/components/progress-bar";
@@ -13,6 +12,8 @@ import {
 import { getMentorshipAccessibleMenteeIds } from "@/lib/mentorship-access";
 import { prisma } from "@/lib/prisma";
 import { formatEnum } from "@/lib/format-utils";
+import { MentorKanban } from "@/components/mentorship/mentor-kanban";
+import { getMentorKanbanData } from "@/lib/mentorship-kanban-actions";
 
 const TONE_STYLES = {
   neutral: { background: "#e2e8f0", color: "#334155" },
@@ -23,37 +24,41 @@ const TONE_STYLES = {
 
 const MENTEES_GUIDE_ITEMS = [
   {
-    label: "Cycle Status",
+    label: "Kanban Columns",
     meaning:
-      "The status pill tells you where the mentee is in the current monthly cycle, such as waiting on reflection, waiting on review, or fully complete.",
+      "Each column represents a stage in the monthly cycle. A mentee's card moves left to right as kickoff, reflection, review, and chair approval each complete.",
     howToUse:
-      "Start with mentees showing warning or danger tones so you can unblock the next step in their cycle first.",
+      "Scan the left columns first — those hold cards waiting on you (kickoff or review writing). The right-hand columns are informational.",
   },
   {
-    label: "Current Month",
+    label: "Card CTA Buttons",
     meaning:
-      "This panel shows the two monthly checkpoints that matter most: whether the mentee submitted a reflection and whether their review has started.",
+      "Every card has a primary action whose label matches the mentee's current stage. Disabled labels mean it's someone else's turn to act.",
     howToUse:
-      "If either line is missing, reach out or open the monthly review so the month keeps moving forward.",
+      "Click the button to jump straight into the workflow for that mentee. Click the name to open their full workspace.",
   },
   {
-    label: "Overall Progress",
+    label: "Deadline Chips",
     meaning:
-      "The progress bar is the latest overall signal pulled from goal progress or the current monthly review.",
+      "Green means time is comfortable; yellow means a deadline is imminent; orange is past-deadline-but-still-in-grace; red is truly overdue.",
     howToUse:
-      "Use it as a quick read of momentum, then open the mentee details page when you need the full story behind that rating.",
+      "Prioritize red, then orange, then yellow cards — they're the ones that might drop out of the cycle.",
   },
   {
-    label: "View Details and Open Monthly Review",
+    label: "Prefer the old list?",
     meaning:
-      "These buttons are the two main actions on the page: one opens the full workspace and one opens the formal review flow.",
+      "While we soak the new Kanban for a cycle, the previous filtered list is still reachable.",
     howToUse:
-      "Choose View Details for day-to-day mentoring work and Open Monthly Review when you are ready to write or update the formal monthly review.",
+      "Append ?view=list to this page's URL to see the classic layout. Defaults back to Kanban on the next visit.",
   },
 ] as const;
 
-export default async function MenteesPage() {
-  const session = await getServerSession(authOptions);
+type PageProps = {
+  searchParams?: { view?: string };
+};
+
+export default async function MenteesPage({ searchParams }: PageProps) {
+  const session = await getSession();
   const userId = session?.user?.id;
   const roles = session?.user?.roles ?? [];
 
@@ -69,6 +74,47 @@ export default async function MenteesPage() {
     redirect("/");
   }
 
+  const listMode = searchParams?.view === "list";
+
+  if (!listMode) {
+    const { active, inactive, total } = await getMentorKanbanData();
+
+    return (
+      <div>
+        <div className="topbar">
+          <div>
+            <p className="badge">Mentorship</p>
+            <h1 className="page-title">My Mentees</h1>
+            <p className="page-subtitle">
+              Each card is a mentee; columns track the monthly cycle. Click a card to open their workspace.
+            </p>
+          </div>
+          <div
+            className="badge"
+            style={{ background: "#e0e7ff", color: "#3730a3" }}
+          >
+            {total} mentee{total !== 1 ? "s" : ""}
+          </div>
+        </div>
+
+        <MentorshipGuideCard
+          title="How To Read The Kanban"
+          intro="Columns are the monthly cycle, left to right. Focus on the leftmost columns that still have cards — those are waiting on you."
+          items={MENTEES_GUIDE_ITEMS}
+        />
+
+        <MentorKanban active={active} inactive={inactive} total={total} />
+
+        <p style={{ textAlign: "center", marginTop: 24, fontSize: "0.8rem" }}>
+          <Link href="/mentorship/mentees?view=list" className="muted">
+            Prefer the list view?
+          </Link>
+        </p>
+      </div>
+    );
+  }
+
+  // ── Legacy list view (retained as ?view=list escape hatch) ────────
   const currentMonth = new Date();
   const normalizedMonth = new Date(
     currentMonth.getFullYear(),
@@ -174,7 +220,7 @@ export default async function MenteesPage() {
       },
     });
 
-        mentees = mentorships.map((mentorship) => ({
+    mentees = mentorships.map((mentorship) => ({
       ...mentorship.mentee,
       menteePairs: [
         {
@@ -194,9 +240,9 @@ export default async function MenteesPage() {
       <div className="topbar">
         <div>
           <p className="badge">Mentorship</p>
-          <h1 className="page-title">My Mentees</h1>
+          <h1 className="page-title">My Mentees (list view)</h1>
           <p className="page-subtitle">
-            Members assigned to you for guidance — view their goals, reflections, and monthly cycle status.
+            Classic list layout. <Link href="/mentorship/mentees">Switch to Kanban →</Link>
           </p>
         </div>
         <div
@@ -206,12 +252,6 @@ export default async function MenteesPage() {
           {mentees.length} mentee{mentees.length !== 1 ? "s" : ""}
         </div>
       </div>
-
-      <MentorshipGuideCard
-        title="How To Read The Mentee List"
-        intro="This page helps mentors, chapter presidents, and admins quickly spot who needs support right now and where to click next."
-        items={MENTEES_GUIDE_ITEMS}
-      />
 
       {mentees.length === 0 ? (
         <div className="card" style={{ textAlign: "center", padding: 24 }}>
@@ -282,7 +322,7 @@ export default async function MenteesPage() {
                       {mentee.chapter && (
                         <span
                           className="pill"
-                          style={{ background: "#f3e8ff", color: "#7c3aed" }}
+                          style={{ background: "#f3e8ff", color: "#6b21c8" }}
                         >
                           {mentee.chapter.name}
                         </span>

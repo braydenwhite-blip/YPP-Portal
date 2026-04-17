@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getMyAwardsData } from "@/lib/award-nomination-actions";
 import { TIER_CONFIG } from "@/lib/award-tier-config";
 import Link from "next/link";
@@ -24,7 +23,7 @@ const RATING_LABELS: Record<string, string> = {
 };
 
 export default async function MyAwardsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const data = await getMyAwardsData();

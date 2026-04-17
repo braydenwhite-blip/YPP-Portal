@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { isRecoverablePrismaError, withPrismaFallback } from "@/lib/prisma-guard";
 
 type MyChapterHomeChapter = {
@@ -38,7 +37,7 @@ type MyChapterChannelSummary = {
  * Get all members of the current user's chapter with role and join info.
  */
 export async function getChapterMembers(search?: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -78,7 +77,7 @@ export async function getChapterMembers(search?: string) {
  * Get the member home data: chapter info, members preview, upcoming events, user's classes.
  */
 export async function getMyChapterHomeData() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({

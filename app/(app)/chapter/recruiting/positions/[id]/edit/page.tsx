@@ -1,9 +1,11 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { notFound, redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { updateChapterPosition } from "@/lib/application-actions";
+import { normalizeRoleList } from "@/lib/authorization";
+import { RoleType } from "@prisma/client";
+import { whereUserHasAnyRole } from "@/lib/user-role-where";
 
 function toDateInput(value: Date | null) {
   if (!value) return "";
@@ -17,7 +19,7 @@ export default async function EditChapterPositionPage({
 }) {
   const { id } = await params;
 
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }
@@ -28,6 +30,7 @@ export default async function EditChapterPositionPage({
       select: {
         id: true,
         chapterId: true,
+        primaryRole: true,
         roles: {
           select: { role: true },
         },
@@ -54,7 +57,7 @@ export default async function EditChapterPositionPage({
     redirect("/login");
   }
 
-  const roles = user.roles.map((role) => role.role);
+  const roles = normalizeRoleList(user.roles, user.primaryRole);
   const isAdmin = roles.includes("ADMIN");
   const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
 
@@ -75,15 +78,11 @@ export default async function EditChapterPositionPage({
 
   const hiringLeads = isAdmin
     ? await prisma.user.findMany({
-        where: {
-          roles: {
-            some: {
-              role: {
-                in: ["ADMIN", "CHAPTER_PRESIDENT", "STAFF"],
-              },
-            },
-          },
-        },
+        where: whereUserHasAnyRole([
+          RoleType.ADMIN,
+          RoleType.CHAPTER_PRESIDENT,
+          RoleType.STAFF,
+        ]),
         select: {
           id: true,
           name: true,

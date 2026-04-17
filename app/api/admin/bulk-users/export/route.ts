@@ -1,15 +1,14 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth-supabase";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (session.user.primaryRole !== "ADMIN") {
+  if (!session.user.roles.includes("ADMIN")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -17,9 +16,12 @@ export async function POST(request: Request) {
   const format = formData.get("format") as string;
 
   // Build query based on format
-  const where = format === "students" ? { primaryRole: "STUDENT" as const } :
-                format === "instructors" ? { primaryRole: "INSTRUCTOR" as const } :
-                {};
+  const where =
+    format === "students"
+      ? { roles: { some: { role: "STUDENT" as const } } }
+      : format === "instructors"
+        ? { roles: { some: { role: "INSTRUCTOR" as const } } }
+        : {};
 
   const users = await prisma.user.findMany({
     where,

@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getAssignmentDetail } from "@/lib/assignment-actions";
 import Link from "next/link";
 import { SubmissionClient } from "./submission-client";
@@ -18,7 +17,7 @@ export default async function AssignmentDetailPage({
 }: {
   params: Promise<{ id: string; assignmentId: string }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const { id: offeringId, assignmentId } = await params;

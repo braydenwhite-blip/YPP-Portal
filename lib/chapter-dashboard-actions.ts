@@ -1,8 +1,8 @@
 "use server";
 
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth-supabase";
+import { hasRole } from "@/lib/authorization";
 import { isRecoverablePrismaError, withPrismaFallback } from "@/lib/prisma-guard";
 import {
   ACTIVE_INTERVIEW_REQUEST_STATUSES,
@@ -40,7 +40,7 @@ function ageHoursFrom(date: Date, now: Date) {
 }
 
 async function requireChapterOperator() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -243,6 +243,7 @@ export async function getCommandCenterData() {
         name: true,
         email: true,
         primaryRole: true,
+        roles: { select: { role: true } },
         createdAt: true,
         updatedAt: true,
         chapter: { select: { name: true } },
@@ -443,9 +444,15 @@ export async function getCommandCenterData() {
     }),
   ]);
 
-  const instructors = allMembers.filter((member) => member.primaryRole === "INSTRUCTOR");
-  const students = allMembers.filter((member) => member.primaryRole === "STUDENT");
-  const mentors = allMembers.filter((member) => member.primaryRole === "MENTOR");
+  const instructors = allMembers.filter((member) =>
+    hasRole(member.roles, "INSTRUCTOR", member.primaryRole)
+  );
+  const students = allMembers.filter((member) =>
+    hasRole(member.roles, "STUDENT", member.primaryRole)
+  );
+  const mentors = allMembers.filter((member) =>
+    hasRole(member.roles, "MENTOR", member.primaryRole)
+  );
   const activeThisWeek = allMembers.filter((member) => new Date(member.updatedAt) >= sevenDaysAgo).length;
   const newMembers30d = allMembers.filter((member) => new Date(member.createdAt) >= thirtyDaysAgo).length;
   const inactiveMembers = allMembers

@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getMyActivities, generateCommonAppExport } from "@/lib/college-activity-actions";
 import { ACTIVITY_CATEGORY_CONFIG as CATEGORY_CONFIG } from "@/lib/college-activity-config";
 import ActivitiesClient from "./activities-client";
@@ -9,7 +8,7 @@ import Link from "next/link";
 export const metadata = { title: "Activities Builder — YPP" };
 
 export default async function ActivitiesPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const [activities, commonAppExport] = await Promise.all([
@@ -165,7 +164,7 @@ function ActivityCard({ activity: a }: { activity: Activity }) {
             <span>{cfg.emoji}</span>
             <p style={{ fontWeight: 700, fontSize: "0.9rem" }}>{a.name}</p>
             {a.isYppActivity && (
-              <span className="pill" style={{ fontSize: "0.62rem", background: "#ede9fe", color: "#7c3aed" }}>YPP</span>
+              <span className="pill" style={{ fontSize: "0.62rem", background: "#f0e6ff", color: "#6b21c8" }}>YPP</span>
             )}
           </div>
           {a.role && (

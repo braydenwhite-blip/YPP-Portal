@@ -610,10 +610,13 @@ function nextChapterPresidentApplicationStage(status: ChapterPresidentApplicatio
       return "REVIEW";
     case "INTERVIEW_SCHEDULED":
     case "INTERVIEW_COMPLETED":
+    case "RECOMMENDATION_SUBMITTED":
       return "INTERVIEW";
     case "APPROVED":
     case "REJECTED":
       return "COMPLETE";
+    default:
+      return "REVIEW";
   }
 }
 

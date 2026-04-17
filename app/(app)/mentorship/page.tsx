@@ -1,371 +1,122 @@
-import { getServerSession } from "next-auth";
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import Link from "next/link";
+import { getSession } from "@/lib/auth-supabase";
+import { canAccessMentorship } from "@/lib/mentorship-access";
+import { getSimplifiedMentorKanban } from "@/lib/mentorship-kanban-actions";
+import { MentorDashboard } from "./_components/mentor-dashboard";
+import { MenteeDashboard } from "./_components/mentee-dashboard";
 
-import ContextTrail from "@/components/context-trail";
-import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
-import { authOptions } from "@/lib/auth";
-import { buildContextTrail } from "@/lib/context-trail";
-import { formatEnum } from "@/lib/format-utils";
-import { getMentorshipHubData } from "@/lib/mentorship-hub";
-import { shouldRouteStudentToMyProgram } from "@/lib/my-program-portal";
+const MENTOR_ROLES = new Set(["MENTOR", "ADMIN", "CHAPTER_PRESIDENT", "STAFF"]);
 
-const HUB_GUIDE_ITEMS = [
-  {
-    label: "Relationship Health",
-    meaning:
-      "This score shows whether support circles are staying active with recent contact, upcoming sessions, and enough people involved.",
-    howToUse:
-      "If these numbers are high, open the relevant circle, schedule or log a session, and add coverage before a mentee gets stuck.",
-  },
-  {
-    label: "Mentee Momentum",
-    meaning:
-      "This is the work tracker for the mentorship system. It counts overdue action items, due reflections, and support requests that still need attention.",
-    howToUse:
-      "Use this area as your first triage step each time you visit the hub so urgent student work does not sit too long.",
-  },
-  {
-    label: "Program Outcomes",
-    meaning:
-      "This is the big-picture program view showing how many pairings are active, how many reviews are waiting on approval, and how much reusable knowledge has been published.",
-    howToUse:
-      "Admins and chairs can use this to spot bottlenecks, while mentors can use it to see whether work is flowing from support into published resources.",
-  },
-  {
-    label: "Support Circles",
-    meaning:
-      "Each support circle is the working space for one mentee and the people helping them.",
-    howToUse:
-      "Open a circle when you want to schedule sessions, create next steps, review requests, or look at the mentee's current momentum.",
-  },
-  {
-    label: "Shared Knowledge and Quick Routes",
-    meaning:
-      "These sections connect one-on-one mentoring work to reusable answers, shared playbooks, and the fastest routes into the rest of the system.",
-    howToUse:
-      "Go to the private queue for personal feedback, Ask a Mentor for reusable public questions, and the Resource Commons for polished references.",
-  },
-] as const;
+function isMentorView(roles: string[], primaryRole: string | null) {
+  return (
+    roles.some((r) => MENTOR_ROLES.has(r)) ||
+    (primaryRole && MENTOR_ROLES.has(primaryRole))
+  );
+}
 
 export default async function MentorshipPage() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    redirect("/login");
+  const session = await getSession();
+  if (!session?.user?.id) redirect("/login");
+
+  const { id: userId, primaryRole, roles = [] } = session.user;
+
+  if (!canAccessMentorship(primaryRole ?? "")) {
+    redirect("/my-program?notice=mentorship-not-available");
   }
 
-  const userId = session.user.id;
-  const roles = session.user.roles ?? [];
+  const showMentorView = isMentorView(roles, primaryRole ?? null);
 
-  if (shouldRouteStudentToMyProgram({ primaryRole: session.user.primaryRole ?? null, roles })) {
-    redirect("/my-program?notice=support-hub-moved");
+  if (showMentorView) {
+    const { columns, inactive, total } = await getSimplifiedMentorKanban();
+    const pendingReview = columns.find((c) => c.key === "READY_FOR_REVIEW")?.cards.length ?? 0;
+    const needsKickoff = columns
+      .flatMap((c) => c.cards)
+      .filter((c) => c.kickoffPending).length;
+
+    return (
+      <div>
+        <div className="topbar">
+          <div>
+            <p className="badge">Mentorship</p>
+            <h1 className="page-title">Mentor Dashboard</h1>
+            <p className="page-subtitle">
+              {total} mentee{total !== 1 ? "s" : ""} across all cycles
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {roles.includes("ADMIN") && (
+              <Link href="/admin/mentorship" className="button secondary small">
+                Admin Oversight →
+              </Link>
+            )}
+          </div>
+        </div>
+
+        {pendingReview > 0 && (
+          <div
+            className="card"
+            style={{
+              marginBottom: 20,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 16,
+              flexWrap: "wrap",
+              borderLeft: "4px solid #3b82f6",
+              background: "#eff6ff",
+            }}
+          >
+            <div>
+              <strong>
+                {pendingReview} mentee{pendingReview !== 1 ? "s" : ""} ready for your review
+              </strong>
+              <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--muted)" }}>
+                Their reflections have been submitted and are waiting on your feedback.
+              </p>
+            </div>
+            <span style={{ fontSize: 13, color: "var(--muted)" }}>See "Ready for Review" →</span>
+          </div>
+        )}
+
+        {needsKickoff > 0 && (
+          <div
+            className="card"
+            style={{
+              marginBottom: 20,
+              borderLeft: "4px solid #f59e0b",
+              background: "#fffbeb",
+            }}
+          >
+            <strong style={{ color: "#92400e" }}>
+              {needsKickoff} mentee{needsKickoff !== 1 ? "s" : ""} need a kickoff meeting
+            </strong>
+            <p style={{ margin: "4px 0 0", fontSize: 13, color: "#92400e" }}>
+              Schedule and mark the kickoff to unlock the monthly review cycle.
+            </p>
+          </div>
+        )}
+
+        <MentorDashboard columns={columns} inactive={inactive} total={total} />
+      </div>
+    );
   }
-
-  let trailItems: Awaited<ReturnType<typeof buildContextTrail>> = [];
-  try {
-    trailItems = await buildContextTrail({ route: "/mentorship", userId });
-  } catch {
-    trailItems = [];
-  }
-
-  const hub = await getMentorshipHubData({ userId, roles });
-  const studentCircle = hub.flags.isStudent ? hub.circles[0] ?? null : null;
 
   return (
     <div>
       <div className="topbar">
         <div>
-          <p className="badge">Support</p>
-          <h1 className="page-title">
-            {hub.flags.isStudent ? "My Support Hub" : "Support Hub"}
-          </h1>
-          <p className="page-subtitle">
-            One place for sessions, action items, support requests, reviews, and shared knowledge.
-          </p>
+          <p className="badge">Mentorship</p>
+          <h1 className="page-title">My Mentorship</h1>
+          <p className="page-subtitle">Your goals, reflections, feedback, and progress in one place.</p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {hub.flags.canSupport && (
-            <Link href="/mentorship/mentees" className="button primary small">
-              Support Circles
-            </Link>
-          )}
-          {hub.flags.canSupport && (
-            <Link href="/mentor/feedback" className="button small secondary">
-              Feedback Queue
-            </Link>
-          )}
-          <Link href="/mentor/ask" className="button small secondary">
-            Ask a Mentor
+          <Link href="/mentorship-program/reviews" className="button secondary small">
+            Reflections & Reviews
           </Link>
-          <Link href="/mentor/resources" className="button small secondary">
-            Resource Commons
-          </Link>
-          {hub.flags.isStudent && (
-            <Link href="/my-program" className="button small secondary">
-              My Program
-            </Link>
-          )}
-          {hub.flags.isAdmin && (
-            <Link href="/admin/mentorship-program" className="button small secondary">
-              Governance
-            </Link>
-          )}
         </div>
       </div>
-
-      <ContextTrail items={trailItems} />
-
-      <MentorshipGuideCard
-        title="How This Support Hub Works"
-        intro="This page is the front door to the mentorship system. Each block below answers a different question so you know where to look first."
-        items={HUB_GUIDE_ITEMS}
-      />
-
-      <div className="grid three" style={{ marginBottom: 24 }}>
-        <div className="card">
-          <div className="section-title">Relationship Health</div>
-          <p style={{ margin: "0 0 6px", fontSize: 26, fontWeight: 700 }}>
-            {hub.relationshipHealth.staleCircles}
-          </p>
-          <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
-            stale circle{hub.relationshipHealth.staleCircles === 1 ? "" : "s"} with no recent contact
-          </p>
-          <p style={{ margin: "10px 0 0", color: "var(--muted)", fontSize: 13 }}>
-            {hub.relationshipHealth.circlesWithNoUpcomingSession} without an upcoming session and{" "}
-            {hub.relationshipHealth.lowSupportCoverage} with thin support coverage.
-          </p>
-        </div>
-        <div className="card">
-          <div className="section-title">Mentee Momentum</div>
-          <p style={{ margin: "0 0 6px", fontSize: 26, fontWeight: 700 }}>
-            {hub.menteeMomentum.overdueActions}
-          </p>
-          <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
-            overdue action item{hub.menteeMomentum.overdueActions === 1 ? "" : "s"}
-          </p>
-          <p style={{ margin: "10px 0 0", color: "var(--muted)", fontSize: 13 }}>
-            {hub.menteeMomentum.dueReflections} due reflection
-            {hub.menteeMomentum.dueReflections === 1 ? "" : "s"} and {hub.menteeMomentum.openRequests} open
-            support request{hub.menteeMomentum.openRequests === 1 ? "" : "s"}.
-          </p>
-        </div>
-        <div className="card">
-          <div className="section-title">Program Outcomes</div>
-          <p style={{ margin: "0 0 6px", fontSize: 26, fontWeight: 700 }}>
-            {hub.programOutcomes.activePairings}
-          </p>
-          <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
-            active mentoring pairing{hub.programOutcomes.activePairings === 1 ? "" : "s"}
-          </p>
-          <p style={{ margin: "10px 0 0", color: "var(--muted)", fontSize: 13 }}>
-            {hub.programOutcomes.pendingApprovals} pending chair approval and{" "}
-            {hub.programOutcomes.publicKnowledgeCount} public answer resource
-            {hub.programOutcomes.publicKnowledgeCount === 1 ? "" : "s"}.
-          </p>
-        </div>
-      </div>
-
-      {studentCircle && (
-        <div className="grid two" style={{ marginBottom: 24 }}>
-          <div className="card">
-            <div className="section-title">My Circle This Month</div>
-            <p style={{ margin: "0 0 6px", fontSize: 18, fontWeight: 700 }}>
-              {studentCircle.mentorName}
-            </p>
-            <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
-              {studentCircle.trackName ?? "General mentorship track"} · {studentCircle.supportCount} supporter
-              {studentCircle.supportCount === 1 ? "" : "s"} in your circle
-            </p>
-            <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
-              <div>
-                <strong>Next session:</strong>{" "}
-                {studentCircle.nextSession
-                  ? new Date(studentCircle.nextSession.scheduledAt).toLocaleString()
-                  : "Not scheduled yet"}
-              </div>
-              <div>
-                <strong>Requests waiting:</strong> {studentCircle.pendingRequests}
-              </div>
-              <div>
-                <strong>Open action items:</strong> {studentCircle.openActionItems}
-              </div>
-            </div>
-          </div>
-          <div className="card">
-            <div className="section-title">What To Do Next</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <Link href="/reflection" className="button primary small" style={{ width: "fit-content" }}>
-                Submit Reflection
-              </Link>
-              <Link href="/mentor/feedback" className="button secondary small" style={{ width: "fit-content" }}>
-                Request Project Feedback
-              </Link>
-              <Link href="/mentor/ask" className="button secondary small" style={{ width: "fit-content" }}>
-                Ask the Mentor Commons
-              </Link>
-              <Link href="/mentor/resources" className="button secondary small" style={{ width: "fit-content" }}>
-                Browse Resources
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {hub.circles.length === 0 ? (
-        <div className="card" style={{ textAlign: "center", padding: "2.5rem 1.5rem" }}>
-          <h3 style={{ marginTop: 0 }}>No active support circles yet</h3>
-          <p style={{ color: "var(--muted)", maxWidth: 560, margin: "0 auto" }}>
-            The redesigned mentorship system is ready for sessions, action plans, requests, and shared resources.
-            The next step is creating or assigning a circle.
-          </p>
-          <div style={{ marginTop: 16, display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
-            {hub.flags.isAdmin && (
-              <Link href="/admin/mentorship-program?focus=matching" className="button primary small">
-                Open Mentorship Command Center
-              </Link>
-            )}
-            <Link href="/mentor/ask" className="button secondary small">
-              Open Mentor Commons
-            </Link>
-          </div>
-        </div>
-      ) : (
-        <div className="card" style={{ marginBottom: 24 }}>
-          <div className="section-title" style={{ marginBottom: 14 }}>
-            {hub.flags.isStudent ? "Support Circle Snapshot" : "Active Support Circles"}
-          </div>
-          <div style={{ display: "grid", gap: 14 }}>
-            {hub.circles.map((circle) => (
-              <div
-                key={circle.mentorshipId}
-                style={{
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-md)",
-                  padding: 16,
-                  background: "var(--surface-alt)",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                  <div>
-                    <strong style={{ fontSize: 16 }}>{circle.menteeName}</strong>
-                    <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 4 }}>
-                      {formatEnum(circle.menteeRole)}{circle.chapterName ? ` · ${circle.chapterName}` : ""} · Mentor:{" "}
-                      {circle.mentorName}
-                    </div>
-                    <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 4 }}>
-                      {circle.supportCount} supporter{circle.supportCount === 1 ? "" : "s"} ·{" "}
-                      {circle.trackName ?? "No track assigned"}
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-start" }}>
-                    {hub.flags.canSupport && (
-                      <Link href={`/mentorship/mentees/${circle.menteeId}`} className="button secondary small">
-                        Open Workspace
-                      </Link>
-                    )}
-                    {circle.reviewStatus && (
-                      <span className="pill">{circle.reviewStatus.replace(/_/g, " ")}</span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid three" style={{ marginTop: 14 }}>
-                  <div>
-                    <div style={{ fontSize: 12, color: "var(--muted)" }}>Next session</div>
-                    <div style={{ fontWeight: 600 }}>
-                      {circle.nextSession
-                        ? new Date(circle.nextSession.scheduledAt).toLocaleString()
-                        : "Not scheduled"}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 12, color: "var(--muted)" }}>Pending requests</div>
-                    <div style={{ fontWeight: 600 }}>{circle.pendingRequests}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 12, color: "var(--muted)" }}>Open action items</div>
-                    <div style={{ fontWeight: 600 }}>
-                      {circle.openActionItems}
-                      {circle.overdueActions > 0 ? ` (${circle.overdueActions} overdue)` : ""}
-                    </div>
-                  </div>
-                </div>
-
-                {circle.highlightedResources.length > 0 && (
-                  <div style={{ marginTop: 14 }}>
-                    <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>
-                      Recent resources
-                    </div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {circle.highlightedResources.map((resource) => (
-                        <span key={resource.id} className="pill pill-small">
-                          {resource.title}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="grid two">
-        <div className="card">
-          <div className="section-title">Shared Knowledge</div>
-          {hub.featuredResources.length === 0 ? (
-            <p style={{ color: "var(--muted)", margin: 0 }}>
-              No published resources yet. Promote strong answers or add mentor playbooks to start the commons.
-            </p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {hub.featuredResources.map((resource) => (
-                <div key={resource.id} style={{ borderBottom: "1px solid var(--border)", paddingBottom: 10 }}>
-                  <div style={{ fontWeight: 600 }}>{resource.title}</div>
-                  <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                    {resource.type.replace(/_/g, " ")} · Shared by {resource.createdBy.name}
-                  </div>
-                  {resource.url && (
-                    <a href={resource.url} target="_blank" rel="noreferrer" className="link">
-                      Open resource
-                    </a>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="card">
-          <div className="section-title">Quick Routes</div>
-          <div style={{ display: "grid", gap: 10 }}>
-            <Link href="/mentor/feedback" style={{ textDecoration: "none", color: "inherit" }}>
-              <div style={{ border: "1px solid var(--border)", borderRadius: 12, padding: 14 }}>
-                <strong>Feedback queue</strong>
-                <p style={{ margin: "6px 0 0", color: "var(--muted)", fontSize: 13 }}>
-                  Handle project feedback, escalations, and targeted support requests.
-                </p>
-              </div>
-            </Link>
-            <Link href="/mentor/ask" style={{ textDecoration: "none", color: "inherit" }}>
-              <div style={{ border: "1px solid var(--border)", borderRadius: 12, padding: 14 }}>
-                <strong>Ask a Mentor</strong>
-                <p style={{ margin: "6px 0 0", color: "var(--muted)", fontSize: 13 }}>
-                  Search public questions and contribute reusable answers.
-                </p>
-              </div>
-            </Link>
-            <Link href="/mentor/resources" style={{ textDecoration: "none", color: "inherit" }}>
-              <div style={{ border: "1px solid var(--border)", borderRadius: 12, padding: 14 }}>
-                <strong>Resource commons</strong>
-                <p style={{ margin: "6px 0 0", color: "var(--muted)", fontSize: 13 }}>
-                  Curated links, playbooks, templates, and promoted answers.
-                </p>
-              </div>
-            </Link>
-          </div>
-        </div>
-      </div>
+      <MenteeDashboard userId={userId} />
     </div>
   );
 }

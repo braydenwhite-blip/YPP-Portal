@@ -108,7 +108,7 @@ export default function RootError({
                 onClick={reset}
                 style={{
                   padding: "12px 24px",
-                  background: "#7c3aed",
+                  background: "#6b21c8",
                   color: "white",
                   border: "none",
                   borderRadius: "9999px",

@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { isNavHrefActive, resolveNavModel } from "@/lib/navigation/resolve-nav";
-import type { NavLink } from "@/lib/navigation/types";
+import { isNavHrefActive, resolveNavActiveHref } from "@/lib/navigation/is-active";
+import { STUDENT_MINIMAL_GROUP_EMOJI } from "@/lib/navigation/student-v1-nav-layout";
+import type { NavGroup, NavLink, NavViewModel } from "@/lib/navigation/types";
 
 /** Counts passed from the server layout for notification badges. */
 export interface NavBadges {
@@ -59,46 +60,39 @@ function matchesSearch(item: NavLink, searchLower: string): boolean {
 }
 
 export default function Nav({
-  roles = [],
-  adminSubtypes,
-  primaryRole,
-  awardTier,
+  model,
   badges,
-  enabledFeatureKeys,
   onNavigate,
-  unlockedSections,
   recentlyUnlockedGroups,
   lockedGroups: lockedGroupsProp,
+  studentFullPortalExplorer,
 }: {
-  roles?: string[];
-  adminSubtypes?: string[];
-  primaryRole?: string | null;
-  awardTier?: string;
+  model: NavViewModel;
   badges?: NavBadges;
-  enabledFeatureKeys?: Set<string>;
   onNavigate?: () => void;
-  unlockedSections?: Set<string>;
-  recentlyUnlockedGroups?: Set<string>;
-  lockedGroups?: Map<string, string>;
+  recentlyUnlockedGroups?: Set<NavGroup>;
+  lockedGroups?: Map<NavGroup, string>;
+  studentFullPortalExplorer?: boolean;
 }) {
   const pathname = usePathname();
+  const allNavHrefs = useMemo(() => {
+    const hrefs: string[] = [];
+    for (const item of model.core) {
+      hrefs.push(item.href);
+    }
+    for (const group of model.more) {
+      for (const item of group.items) {
+        hrefs.push(item.href);
+      }
+    }
+    return hrefs;
+  }, [model.core, model.more]);
 
-  const model = useMemo(
-    () =>
-      resolveNavModel({
-        roles,
-        adminSubtypes,
-        primaryRole,
-        awardTier,
-        pathname,
-        enabledFeatureKeys,
-        unlockedSections,
-      }),
-    [adminSubtypes, awardTier, enabledFeatureKeys, pathname, primaryRole, roles, unlockedSections],
+  const activeNavHref = useMemo(
+    () => resolveNavActiveHref(pathname, allNavHrefs),
+    [pathname, allNavHrefs],
   );
-
-  // Use locked groups from the model (computed from unlockedSections) or from explicit prop
-  const lockedGroups = model.lockedGroups ?? lockedGroupsProp;
+  const lockedGroups = lockedGroupsProp;
 
   const storageKey = useMemo(() => storageKeyForRole(model.primaryRole), [model.primaryRole]);
 
@@ -112,10 +106,11 @@ export default function Nav({
   const defaultGroupState = useMemo(() => {
     const next: Record<string, boolean> = {};
     for (const group of model.more) {
-      next[group.label] = group.items.some((item) => isNavHrefActive(item.href, pathname));
+      next[group.label] =
+        activeNavHref !== null && group.items.some((item) => item.href === activeNavHref);
     }
     return next;
-  }, [model.more, pathname]);
+  }, [model.more, activeNavHref]);
 
   useEffect(() => {
     const saved = loadSavedState(storageKey);
@@ -135,7 +130,8 @@ export default function Nav({
 
       for (const group of model.more) {
         if (next[group.label] === undefined) {
-          next[group.label] = group.items.some((item) => isNavHrefActive(item.href, pathname));
+          next[group.label] =
+            activeNavHref !== null && group.items.some((item) => item.href === activeNavHref);
         }
       }
 
@@ -147,7 +143,7 @@ export default function Nav({
 
       return next;
     });
-  }, [model.more, pathname]);
+  }, [model.more, activeNavHref]);
 
   const isFirstPersist = useRef(true);
   useEffect(() => {
@@ -201,13 +197,20 @@ export default function Nav({
   const totalMore = filteredMore.reduce((sum, group) => sum + group.items.length, 0);
   const totalResults = totalCore + totalMore;
 
+  const showStudentMinimalChrome =
+    model.primaryRole === "STUDENT" && studentFullPortalExplorer !== true;
+  const studentHomeOnlyCore =
+    showStudentMinimalChrome &&
+    filteredCore.length === 1 &&
+    filteredCore[0]?.href === "/";
+
   const hasSearch = searchLower.length > 0;
   const effectiveMoreOpen = hasSearch ? true : moreOpen;
   const hiddenCount = model.more.reduce((sum, group) => sum + group.items.length, 0);
   const moreCountLabel = hasSearch ? totalMore : hiddenCount;
 
   const renderNavLink = (item: NavLink): JSX.Element => {
-    const isActive = isNavHrefActive(item.href, pathname);
+    const isActive = activeNavHref !== null && item.href === activeNavHref;
     const badgeCount = item.badgeKey && badges ? badges[item.badgeKey] : undefined;
 
     return (
@@ -233,11 +236,12 @@ export default function Nav({
           ref={searchRef}
           type="text"
           className="nav-search"
-          placeholder="Search tools... (Ctrl/Cmd+K)"
+          placeholder="Search navigation..."
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           aria-label="Search navigation"
         />
+        {!search ? <span className="nav-search-kbd">⌘K</span> : null}
         {search && (
           <button
             type="button"
@@ -255,68 +259,123 @@ export default function Nav({
       ) : (
         <>
           <section className="nav-main-tools">
-            <p className="nav-block-title">Top Tools</p>
+            {studentHomeOnlyCore ? null : <p className="nav-block-title">Top Tools</p>}
             <div className="nav-main-items">{filteredCore.map(renderNavLink)}</div>
           </section>
 
           {filteredMore.length > 0 ? (
-            <section className="nav-more">
-              <button
-                type="button"
-                className="nav-more-toggle"
-                onClick={() => setMoreOpen((previous) => !previous)}
-                aria-expanded={effectiveMoreOpen}
-                aria-label={`${effectiveMoreOpen ? "Collapse" : "Expand"} more navigation links`}
-                disabled={hasSearch}
-              >
-                <span className="nav-more-label">More Tools ({moreCountLabel})</span>
-                <span className={`nav-more-chevron ${effectiveMoreOpen ? "open" : ""}`}>{"›"}</span>
-              </button>
+            showStudentMinimalChrome ? (
+              <section className="nav-student-flat-groups" aria-label="Navigation sections">
+                {filteredMore.map((group) => {
+                  const groupHasActive =
+                    activeNavHref !== null && group.items.some((item) => item.href === activeNavHref);
+                  const groupOpen = hasSearch
+                    ? true
+                    : (openGroups[group.label] ?? false) || groupHasActive;
+                  const isLocked = lockedGroups?.has(group.label);
+                  const lockReason = isLocked && lockedGroups ? lockedGroups.get(group.label) : undefined;
+                  const isRecentlyUnlocked = recentlyUnlockedGroups?.has(group.label);
+                  const heading = STUDENT_MINIMAL_GROUP_EMOJI[group.label as NavGroup]
+                    ? `${STUDENT_MINIMAL_GROUP_EMOJI[group.label as NavGroup]} ${group.label}`
+                    : group.label;
 
-              {effectiveMoreOpen ? (
-                <div className="nav-more-content">
-                  {filteredMore.map((group) => {
-                    const groupHasActive = group.items.some((item) => isNavHrefActive(item.href, pathname));
-                    const groupOpen = hasSearch
-                      ? true
-                      : (openGroups[group.label] ?? false) || groupHasActive;
+                  return (
+                    <div key={group.label} className="nav-student-group">
+                      <button
+                        type="button"
+                        className={`nav-more-group-toggle nav-student-flat-toggle ${groupHasActive ? "nav-section-active" : ""}${isLocked ? " nav-section-locked" : ""}`}
+                        onClick={() => !isLocked && toggleGroup(group.label)}
+                        aria-expanded={isLocked ? false : groupOpen}
+                        aria-label={
+                          isLocked
+                            ? `${group.label} — locked: ${lockReason}`
+                            : `${groupOpen ? "Collapse" : "Expand"} ${group.label}`
+                        }
+                        disabled={hasSearch || isLocked}
+                        title={isLocked ? `Locked: ${lockReason}` : undefined}
+                      >
+                        <span className="nav-section-label">
+                          {isLocked && <span className="nav-lock-icon" aria-hidden="true">{"🔒 "}</span>}
+                          {heading}
+                        </span>
+                        {isRecentlyUnlocked ? <span className="nav-new-badge">New!</span> : null}
+                        {!isLocked && (
+                          <span className={`nav-section-chevron ${groupOpen ? "open" : ""}`}>{"›"}</span>
+                        )}
+                      </button>
 
-                    const isLocked = lockedGroups?.has(group.label);
-                    const lockReason = isLocked && lockedGroups ? lockedGroups.get(group.label) : undefined;
-                    const isRecentlyUnlocked = recentlyUnlockedGroups?.has(group.label);
+                      {!isLocked && groupOpen ? (
+                        <div className="nav-more-group-items">{group.items.map(renderNavLink)}</div>
+                      ) : null}
+                      {isLocked ? (
+                        <p className="nav-student-locked-hint">
+                          {lockReason ?? "Complete earlier steps to unlock."}
+                        </p>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </section>
+            ) : (
+              <section className="nav-more">
+                <button
+                  type="button"
+                  className="nav-more-toggle"
+                  onClick={() => setMoreOpen((previous) => !previous)}
+                  aria-expanded={effectiveMoreOpen}
+                  aria-label={`${effectiveMoreOpen ? "Collapse" : "Expand"} more navigation links`}
+                  disabled={hasSearch}
+                >
+                  <span className="nav-more-label">More Tools ({moreCountLabel})</span>
+                  <span className={`nav-more-chevron ${effectiveMoreOpen ? "open" : ""}`}>{"›"}</span>
+                </button>
 
-                    return (
-                      <div key={group.label} className="nav-more-group">
-                        <button
-                          type="button"
-                          className={`nav-more-group-toggle ${groupHasActive ? "nav-section-active" : ""}${isLocked ? " nav-section-locked" : ""}`}
-                          onClick={() => !isLocked && toggleGroup(group.label)}
-                          aria-expanded={isLocked ? false : groupOpen}
-                          aria-label={`${isLocked ? `${group.label} — locked: ${lockReason}` : `${groupOpen ? "Collapse" : "Expand"} ${group.label}`}`}
-                          disabled={hasSearch || isLocked}
-                          title={isLocked ? `Locked: ${lockReason}` : undefined}
-                        >
-                          <span className="nav-section-label">
-                            {isLocked && <span className="nav-lock-icon" aria-hidden="true">{"🔒 "}</span>}
-                            {group.label}
-                          </span>
-                          {isRecentlyUnlocked && (
-                            <span className="nav-new-badge">New!</span>
-                          )}
-                          {!isLocked && (
-                            <span className={`nav-section-chevron ${groupOpen ? "open" : ""}`}>{"›"}</span>
-                          )}
-                        </button>
+                {effectiveMoreOpen ? (
+                  <div className="nav-more-content">
+                    {filteredMore.map((group) => {
+                      const groupHasActive =
+                        activeNavHref !== null && group.items.some((item) => item.href === activeNavHref);
+                      const groupOpen = hasSearch
+                        ? true
+                        : (openGroups[group.label] ?? false) || groupHasActive;
 
-                        {!isLocked && groupOpen ? (
-                          <div className="nav-more-group-items">{group.items.map(renderNavLink)}</div>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : null}
-            </section>
+                      const isLocked = lockedGroups?.has(group.label);
+                      const lockReason = isLocked && lockedGroups ? lockedGroups.get(group.label) : undefined;
+                      const isRecentlyUnlocked = recentlyUnlockedGroups?.has(group.label);
+
+                      return (
+                        <div key={group.label} className="nav-more-group">
+                          <button
+                            type="button"
+                            className={`nav-more-group-toggle ${groupHasActive ? "nav-section-active" : ""}${isLocked ? " nav-section-locked" : ""}`}
+                            onClick={() => !isLocked && toggleGroup(group.label)}
+                            aria-expanded={isLocked ? false : groupOpen}
+                            aria-label={`${isLocked ? `${group.label} — locked: ${lockReason}` : `${groupOpen ? "Collapse" : "Expand"} ${group.label}`}`}
+                            disabled={hasSearch || isLocked}
+                            title={isLocked ? `Locked: ${lockReason}` : undefined}
+                          >
+                            <span className="nav-section-label">
+                              {isLocked && <span className="nav-lock-icon" aria-hidden="true">{"🔒 "}</span>}
+                              {group.label}
+                            </span>
+                            {isRecentlyUnlocked && (
+                              <span className="nav-new-badge">New!</span>
+                            )}
+                            {!isLocked && (
+                              <span className={`nav-section-chevron ${groupOpen ? "open" : ""}`}>{"›"}</span>
+                            )}
+                          </button>
+
+                          {!isLocked && groupOpen ? (
+                            <div className="nav-more-group-items">{group.items.map(renderNavLink)}</div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </section>
+            )
           ) : null}
         </>
       )}

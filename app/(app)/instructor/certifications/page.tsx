@@ -1,16 +1,18 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getInstructorReadiness } from "@/lib/instructor-readiness";
 import { prisma } from "@/lib/prisma";
+import Link from "next/link";
 
 export default async function InstructorCertificationsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }
 
-  const isInstructor = session.user.primaryRole === "INSTRUCTOR" || session.user.primaryRole === "ADMIN";
+  const isInstructor =
+    session.user.roles.includes("INSTRUCTOR") ||
+    session.user.roles.includes("ADMIN");
 
   if (!isInstructor) {
     redirect("/");
@@ -59,7 +61,7 @@ export default async function InstructorCertificationsPage() {
       detail: readiness.canRequestOfferingApproval
         ? "You can request offering approval from class settings."
         : readiness.nextAction.detail,
-      color: "#8b5cf6",
+      color: "#8b3fe8",
       icon: "✅",
     },
   ];
@@ -78,6 +80,11 @@ export default async function InstructorCertificationsPage() {
         <p>
           Track your current instructor readiness and keep legacy approval history in one place.
         </p>
+        <div style={{ marginTop: 14 }}>
+          <Link href="/instructor-growth" className="button secondary">
+            Open Instructor Growth
+          </Link>
+        </div>
       </div>
 
       {/* Readiness badges */}

@@ -1,10 +1,118 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
-import { ProgramType } from "@prisma/client";
+import { Prisma, ProgramType } from "@prisma/client";
+
+function buildUpcomingSessionSelect(take?: number): Prisma.ProgramSessionFindManyArgs {
+  return {
+    where: { scheduledAt: { gte: new Date() } },
+    orderBy: { scheduledAt: "asc" },
+    ...(take ? { take } : {}),
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      scheduledAt: true,
+      duration: true,
+      meetingLink: true,
+    },
+  };
+}
+
+function buildAllSessionSelect(): Prisma.ProgramSessionFindManyArgs {
+  return {
+    orderBy: { scheduledAt: "asc" },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      scheduledAt: true,
+      duration: true,
+      meetingLink: true,
+    },
+  };
+}
+
+function buildProgramListSelect(): Prisma.SpecialProgramSelect {
+  return {
+    id: true,
+    name: true,
+    description: true,
+    interestArea: true,
+    type: true,
+    isVirtual: true,
+    isActive: true,
+    leader: {
+      select: { id: true, name: true },
+    },
+    sessions: buildUpcomingSessionSelect(3),
+    _count: {
+      select: { participants: true, sessions: true },
+    },
+  };
+}
+
+function buildProgramDetailSelect(userId?: string): Prisma.SpecialProgramSelect {
+  return {
+    id: true,
+    name: true,
+    description: true,
+    interestArea: true,
+    type: true,
+    isVirtual: true,
+    isActive: true,
+    leader: {
+      select: { id: true, name: true, email: true },
+    },
+    sessions: buildAllSessionSelect(),
+    participants: userId
+      ? {
+          where: { userId },
+          select: { id: true, userId: true },
+        }
+      : false,
+    _count: {
+      select: { participants: true },
+    },
+  };
+}
+
+function buildMyProgramSelect(): Prisma.SpecialProgramSelect {
+  return {
+    id: true,
+    name: true,
+    interestArea: true,
+    type: true,
+    isVirtual: true,
+    leader: {
+      select: { id: true, name: true },
+    },
+    sessions: buildUpcomingSessionSelect(3),
+    _count: {
+      select: { sessions: true },
+    },
+  };
+}
+
+function buildAdminProgramSelect(): Prisma.SpecialProgramSelect {
+  return {
+    id: true,
+    name: true,
+    interestArea: true,
+    type: true,
+    isVirtual: true,
+    isActive: true,
+    leader: {
+      select: { id: true, name: true },
+    },
+    sessions: buildAllSessionSelect(),
+    _count: {
+      select: { participants: true, sessions: true },
+    },
+  };
+}
 
 // ============================================
 // BROWSE PROGRAMS
@@ -15,7 +123,7 @@ export async function getPrograms(filters?: {
   interestArea?: string;
   isVirtual?: boolean;
 }) {
-  const where: any = {
+  const where: Prisma.SpecialProgramWhereInput = {
     isActive: true,
   };
 
@@ -33,19 +141,7 @@ export async function getPrograms(filters?: {
 
   const programs = await prisma.specialProgram.findMany({
     where,
-    include: {
-      leader: {
-        select: { id: true, name: true },
-      },
-      sessions: {
-        where: { scheduledAt: { gte: new Date() } },
-        orderBy: { scheduledAt: "asc" },
-        take: 3,
-      },
-      _count: {
-        select: { participants: true, sessions: true },
-      },
-    },
+    select: buildProgramListSelect(),
     orderBy: { name: "asc" },
   });
 
@@ -53,27 +149,12 @@ export async function getPrograms(filters?: {
 }
 
 export async function getProgramById(programId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const userId = session?.user?.id;
 
   const program = await prisma.specialProgram.findUnique({
     where: { id: programId },
-    include: {
-      leader: {
-        select: { id: true, name: true, email: true },
-      },
-      sessions: {
-        orderBy: { scheduledAt: "asc" },
-      },
-      participants: userId
-        ? {
-            where: { userId },
-          }
-        : false,
-      _count: {
-        select: { participants: true },
-      },
-    },
+    select: buildProgramDetailSelect(userId),
   });
 
   const isEnrolled = userId
@@ -88,26 +169,16 @@ export async function getProgramById(programId: string) {
 // ============================================
 
 export async function getMyPrograms() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const enrollments = await prisma.specialProgramEnrollment.findMany({
     where: { userId: session.user.id },
-    include: {
+    select: {
+      id: true,
+      enrolledAt: true,
       program: {
-        include: {
-          leader: {
-            select: { id: true, name: true },
-          },
-          sessions: {
-            where: { scheduledAt: { gte: new Date() } },
-            orderBy: { scheduledAt: "asc" },
-            take: 3,
-          },
-          _count: {
-            select: { sessions: true },
-          },
-        },
+        select: buildMyProgramSelect(),
       },
     },
     orderBy: { enrolledAt: "desc" },
@@ -117,7 +188,7 @@ export async function getMyPrograms() {
 }
 
 export async function enrollInProgram(programId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   // Check if already enrolled
@@ -155,7 +226,7 @@ export async function enrollStudentInProgram(
   studentId: string,
   programId: string
 ): Promise<{ success: boolean; skipped: boolean }> {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (
     !session?.user?.id ||
@@ -181,7 +252,7 @@ export async function enrollStudentInProgram(
 }
 
 export async function withdrawFromProgram(programId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   await prisma.specialProgramEnrollment.delete({
@@ -203,7 +274,7 @@ export async function withdrawFromProgram(programId: string) {
 // ============================================
 
 export async function createProgram(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -231,6 +302,7 @@ export async function createProgram(formData: FormData) {
       isVirtual,
       leaderId,
     },
+    select: { id: true, name: true },
   });
 
   revalidatePath("/admin/programs");
@@ -239,7 +311,7 @@ export async function createProgram(formData: FormData) {
 }
 
 export async function updateProgram(programId: string, formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -270,6 +342,7 @@ export async function updateProgram(programId: string, formData: FormData) {
       isActive,
       leaderId,
     },
+    select: { id: true, name: true },
   });
 
   revalidatePath("/admin/programs");
@@ -279,7 +352,7 @@ export async function updateProgram(programId: string, formData: FormData) {
 }
 
 export async function addProgramSession(programId: string, formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -314,7 +387,7 @@ export async function addProgramSession(programId: string, formData: FormData) {
 }
 
 export async function deleteProgramSession(sessionId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -335,7 +408,7 @@ export async function deleteProgramSession(sessionId: string) {
 }
 
 export async function getAllProgramsAdmin() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -348,17 +421,7 @@ export async function getAllProgramsAdmin() {
   }
 
   return prisma.specialProgram.findMany({
-    include: {
-      leader: {
-        select: { id: true, name: true },
-      },
-      sessions: {
-        orderBy: { scheduledAt: "asc" },
-      },
-      _count: {
-        select: { participants: true, sessions: true },
-      },
-    },
+    select: buildAdminProgramSelect(),
     orderBy: { createdAt: "desc" },
   });
 }

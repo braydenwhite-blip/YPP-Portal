@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { getPendingInstructorCompetitionDrafts, publishCompetitionDraft } from "@/lib/competition-draft-actions";
 import { hasCompetitionDraftOwnership } from "@/lib/schema-compat";
@@ -13,7 +12,7 @@ async function publishDraftAction(formData: FormData) {
 }
 
 export default async function AdminCompetitionsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const roles = session.user.roles ?? [];
@@ -165,7 +164,7 @@ export default async function AdminCompetitionsPage() {
                 UPCOMING: "#6b7280",
                 OPEN_FOR_SUBMISSIONS: "#16a34a",
                 JUDGING: "#2563eb",
-                VOTING: "#7c3aed",
+                VOTING: "#6b21c8",
                 COMPLETED: "#9ca3af",
               };
               const isDraft = c.status === "UPCOMING" && c.createdById;

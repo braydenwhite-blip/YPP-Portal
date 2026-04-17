@@ -9,7 +9,7 @@ const INSTRUCTOR_AND_APPLICANT_ROLES: NavRole[] = ["APPLICANT", "INSTRUCTOR", "A
 const MENTOR_ROLES: NavRole[] = ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"];
 const MY_PROGRAM_ROLES: NavRole[] = ["STUDENT", "INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"];
 const APPLICANT_ROLES: NavRole[] = ["APPLICANT", "STUDENT", "INSTRUCTOR", "STAFF", "ADMIN"];
-const INTERVIEW_ROLES: NavRole[] = ["STUDENT", "INSTRUCTOR", "STAFF", "ADMIN", "CHAPTER_PRESIDENT"];
+const INTERVIEW_ROLES: NavRole[] = ["INSTRUCTOR", "STAFF", "ADMIN", "CHAPTER_PRESIDENT"];
 const ADMIN_ONLY: NavRole[] = ["ADMIN"];
 const PARENT_ONLY: NavRole[] = ["PARENT"];
 const STUDENT_ONLY: NavRole[] = ["STUDENT"];
@@ -34,6 +34,17 @@ export const NAV_CATALOG: NavLink[] = [
       roles: INSTRUCTOR_APPLICANT_ONLY,
       dashboardDescription: "Track the status of your instructor application.",
       dashboardPriority: 1,
+      coreEligible: true,
+    },
+    {
+      href: "/instructor-training",
+      label: "Instructor Training",
+      icon: "🎓",
+      roles: INSTRUCTOR_AND_APPLICANT_ROLES,
+      dashboardDescription: "Complete all required academy modules to unlock offering approval.",
+      dashboardPriority: 2,
+      dashboardBadgeKey: "training_incomplete",
+      searchAliases: ["Training", "Academy"],
       coreEligible: true,
     },
   ]),
@@ -71,14 +82,6 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardDescription: "Connect and manage student link requests.",
       dashboardPriority: 11,
     },
-    {
-      href: "/parent/messages",
-      label: "Messages",
-      icon: "✉",
-      roles: PARENT_ONLY,
-      dashboardDescription: "Message your child's instructors directly.",
-      dashboardPriority: 9,
-    },
   ]),
 
   ...groupLinks("Start Here", 200, [
@@ -100,12 +103,12 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardBadgeKey: "interview_queue",
     },
     {
-      href: "/world",
-      label: "Passion World",
-      icon: "🌍",
-      featureKey: "PASSION_WORLD",
-      dashboardDescription: "Explore islands, progress, and passion-linked opportunities.",
-      dashboardPriority: 40,
+      href: "/scheduling",
+      label: "Scheduling Hub",
+      icon: "🗓",
+      roles: ["APPLICANT", "STUDENT", "INSTRUCTOR", "STAFF", "ADMIN", "CHAPTER_PRESIDENT", "MENTOR"] as NavRole[],
+      dashboardDescription: "See interviews, mentorship, and college-advisor scheduling work in one place.",
+      dashboardPriority: 8,
     },
     {
       href: "/announcements",
@@ -115,25 +118,17 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 25,
     },
     {
-      href: "/notifications",
-      label: "Notifications",
-      icon: "🔔",
-      badgeKey: "notifications",
-      dashboardBadgeKey: "unread_notifications",
-      dashboardDescription: "Review unread alerts and updates.",
-      dashboardPriority: 10,
-    },
-    {
       href: "/messages",
       label: "Messages",
       icon: "✉",
-      roles: ["STUDENT", "INSTRUCTOR", "ADMIN", "CHAPTER_PRESIDENT", "MENTOR", "STAFF", "APPLICANT"] as NavRole[],
+      roles: ["STUDENT", "INSTRUCTOR", "ADMIN", "CHAPTER_PRESIDENT", "MENTOR", "STAFF", "APPLICANT", "PARENT"] as NavRole[],
       badgeKey: "messages",
       dashboardBadgeKey: "unread_messages",
-      dashboardDescription: "Open direct messages and team conversations.",
+      dashboardDescription: "Open direct, parent, and interview conversations in one shared inbox.",
       dashboardPriority: 9,
     },
     { href: "/feedback/anonymous", label: "Anonymous Feedback", icon: "💬" },
+    { href: "/help", label: "Need help?", icon: "❓" },
   ]),
 
   ...groupLinks("Learning", 300, [
@@ -214,15 +209,6 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Monthly Reflection",
       icon: "📝",
       roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT"],
-    },
-    {
-      href: "/instructor-training",
-      label: "Instructor Training",
-      icon: "🎓",
-      roles: INSTRUCTOR_AND_APPLICANT_ROLES,
-      dashboardDescription: "Complete academy modules and finish with a fully built curriculum capstone.",
-      dashboardPriority: 4,
-      dashboardBadgeKey: "training_incomplete",
     },
     {
       href: "/instructor/lesson-design-studio",
@@ -351,33 +337,17 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/mentorship",
       label: "Mentorship",
       icon: "🤝",
-      roles: MENTOR_ROLES,
-      searchAliases: ["Support Hub", "Mentor Workspace"],
-      dashboardDescription: "Open the mentor and operator workspace for circles, queues, and support operations.",
+      roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN", "INSTRUCTOR", "STAFF"] as NavRole[],
+      searchAliases: ["My Mentor", "Support Hub", "Mentor Dashboard", "Monthly Reflection"],
+      dashboardDescription: "Your mentorship dashboard — Kanban for mentors, goals and feedback for mentees.",
       dashboardPriority: 16,
-    },
-    {
-      href: "/mentorship/mentees",
-      label: "My Mentees",
-      icon: "👥",
-      roles: MENTOR_ROLES,
-      dashboardDescription: "Review mentee progress and follow-up needs.",
-      dashboardPriority: 5,
-      dashboardBadgeKey: "active_mentees",
-    },
-    {
-      href: "/mentorship/reviews",
-      label: "Chair Reviews",
-      icon: "✅",
-      roles: MENTOR_ROLES,
-      dashboardDescription: "Approve or return monthly goal reviews waiting on chair action.",
-      dashboardPriority: 6,
     },
     {
       href: "/mentorship/unlock-sections",
       label: "Unlock Sections",
       icon: "🔓",
       roles: MENTOR_ROLES,
+      featureKey: "MENTORSHIP_LEGACY_UI",
       dashboardDescription: "Manage which portal sections your mentees can access.",
       dashboardPriority: 18,
     },
@@ -403,6 +373,7 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Program Overview",
       icon: "📋",
       roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
+      featureKey: "MENTORSHIP_LEGACY_UI",
       dashboardDescription: "View all active mentees, cycle status, and program-wide actions at a glance.",
     },
     {
@@ -410,6 +381,7 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Review Queue",
       icon: "📝",
       roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
+      featureKey: "MENTORSHIP_LEGACY_UI",
       dashboardDescription: "Write and submit monthly goal reviews for your assigned mentees.",
     },
     {
@@ -417,6 +389,7 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Chair Queue",
       icon: "✅",
       roles: ["ADMIN"] as NavRole[],
+      featureKey: "MENTORSHIP_LEGACY_UI",
       dashboardDescription: "Approve or request changes on mentor goal reviews before they are released.",
     },
     {
@@ -424,6 +397,7 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Awards",
       icon: "🏆",
       roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
+      featureKey: "MENTORSHIP_LEGACY_UI",
       dashboardDescription: "Nominate mentees for Bronze, Silver, Gold, and Lifetime achievement awards.",
     },
     {
@@ -441,6 +415,22 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardDescription: "Visualize your tier progress, earning velocity, and point history.",
     },
     {
+      href: "/instructor-growth",
+      label: "Instructor Growth",
+      icon: "📈",
+      roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
+      dashboardDescription: "Track private instructor XP, tiers, badges, and semester momentum.",
+      dashboardPriority: 7,
+    },
+    {
+      href: "/instructor-growth/review",
+      label: "Growth Review Board",
+      icon: "🗂️",
+      roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
+      dashboardDescription: "Review pending instructor growth claims in mentor and leadership lanes.",
+      dashboardPriority: 7,
+    },
+    {
       href: "/my-program/schedule",
       label: "Schedule Meeting",
       icon: "📅",
@@ -452,6 +442,7 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Meeting Requests",
       icon: "📨",
       roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
+      featureKey: "MENTORSHIP_LEGACY_UI",
       dashboardDescription: "Review and confirm incoming meeting requests from your mentees.",
     },
     {
@@ -519,14 +510,6 @@ export const NAV_CATALOG: NavLink[] = [
       roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT"] as NavRole[],
       dashboardDescription: "View parent feedback and communications for your classes.",
       dashboardPriority: 13,
-    },
-    {
-      href: "/instructor/parent-messages",
-      label: "Parent Messages",
-      icon: "✉",
-      roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT"] as NavRole[],
-      dashboardDescription: "Reply to direct messages from parents of your enrolled students.",
-      dashboardPriority: 14,
     },
   ]),
 
@@ -660,7 +643,7 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Instructor Applicants",
       icon: "📝",
       roles: CHAPTER_PRESIDENT_ONLY,
-      dashboardDescription: "Review and approve instructor applications for your chapter.",
+      dashboardDescription: "Review and manage instructor applications on the hiring board.",
       dashboardPriority: 6,
     },
     {
@@ -686,7 +669,7 @@ export const NAV_CATALOG: NavLink[] = [
     { href: "/certificates", label: "My Certificates", icon: "📜" },
     {
       href: "/alumni",
-      label: "Alumni Network",
+      label: "Alumni Directory",
       icon: "🎓",
       requiresAward: true,
     },
@@ -702,22 +685,28 @@ export const NAV_CATALOG: NavLink[] = [
       icon: "📋",
       requiresAward: true,
     },
-    { href: "/profile", label: "My Profile", icon: "👤" },
+    {
+      href: "/profile",
+      label: "My Profile",
+      icon: "👤",
+      hideForPrimaryRoles: ["INSTRUCTOR"],
+    },
     { href: "/profile/timeline", label: "My Journey", icon: "🛤" },
     { href: "/profile/xp", label: "XP & Levels", icon: "⬆" },
     { href: "/profile/certifications", label: "Certifications", icon: "🏅" },
-    { href: "/settings/personalization", label: "Personalization", icon: "🎨" },
+    { href: "/settings/personalization", label: "Profile & Settings", icon: "👤" },
+    {
+      href: "/notifications",
+      label: "Notifications",
+      icon: "🔔",
+      badgeKey: "notifications",
+      dashboardBadgeKey: "unread_notifications",
+      dashboardDescription: "Review unread alerts and updates.",
+      dashboardPriority: 10,
+    },
   ]),
 
   ...groupLinks("Admin People", 1100, [
-    {
-      href: "/admin",
-      label: "Admin Home",
-      icon: "📊",
-      roles: ADMIN_ONLY,
-      dashboardDescription: "Operate platform-wide admin queues and controls.",
-      dashboardPriority: 2,
-    },
     { href: "/admin/students", label: "All Students", icon: "👨‍🎓", roles: ADMIN_ONLY },
     {
       href: "/admin/instructors",
@@ -859,7 +848,7 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Feature Access",
       icon: "🔑",
       roles: ADMIN_ONLY,
-      dashboardDescription: "Grant or revoke per-user feature access (e.g., Passion World, Teaching Tools).",
+      dashboardDescription: "Grant or revoke per-user feature access (e.g., optional modules, Teaching Tools).",
     },
     {
       href: "/admin/hiring-committee",
@@ -885,7 +874,15 @@ export const NAV_CATALOG: NavLink[] = [
       icon: "🚨",
       roles: ADMIN_ONLY,
     },
-    { href: "/admin/mentorship-program", label: "Mentorship Command Center", icon: "🎯", roles: ADMIN_ONLY },
+    {
+      href: "/admin/mentorship",
+      label: "Mentorship Oversight",
+      icon: "🎯",
+      roles: ADMIN_ONLY,
+      dashboardDescription: "Program pulse, approval queues, pairings, goals, and committees.",
+      dashboardPriority: 4,
+    },
+    { href: "/admin/mentorship-program", label: "Mentorship Command Center", icon: "🎯", roles: ADMIN_ONLY, featureKey: "MENTORSHIP_LEGACY_UI" },
     {
       href: "/admin/mentorship-program/gr-templates",
       label: "G&R Templates",

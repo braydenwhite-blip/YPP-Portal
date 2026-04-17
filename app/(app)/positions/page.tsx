@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { PositionType, PositionVisibility } from "@prisma/client";
+import { normalizeRoleList } from "@/lib/authorization";
 
 const POSITION_TYPE_OPTIONS: PositionType[] = [
   "INSTRUCTOR",
@@ -49,7 +49,7 @@ export default async function PositionsPage({
   searchParams: Promise<PositionFilters>;
 }) {
   const params = await searchParams;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   const currentUser = session?.user?.id
     ? await prisma.user.findUnique({
@@ -57,12 +57,15 @@ export default async function PositionsPage({
         select: {
           id: true,
           chapterId: true,
+          primaryRole: true,
           roles: { select: { role: true } },
         },
       })
     : null;
 
-  const roles = currentUser?.roles.map((role) => role.role) ?? [];
+  const roles = currentUser
+    ? normalizeRoleList(currentUser.roles, currentUser.primaryRole)
+    : [];
   const isPrivileged = roles.some((role) => ["ADMIN", "CHAPTER_PRESIDENT", "STAFF"].includes(role));
 
   const selectedType = normalizeEnum(params.type, POSITION_TYPE_OPTIONS);

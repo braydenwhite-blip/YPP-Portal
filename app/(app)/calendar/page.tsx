@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth-supabase";
 import CalendarView from "@/components/calendar-view";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { normalizeRoleList } from "@/lib/authorization";
 
 export default async function CalendarPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const user = session?.user?.id
     ? await prisma.user.findUnique({
         where: { id: session.user.id },
@@ -12,7 +12,8 @@ export default async function CalendarPage() {
       })
     : null;
 
-  const isAdmin = user?.roles.some((role) => role.role === "ADMIN") ?? false;
+  const roles = user ? normalizeRoleList(user.roles, user.primaryRole) : [];
+  const isAdmin = roles.includes("ADMIN");
   const chapterId = user?.chapterId ?? null;
 
   // Pre-fetch current month's events for SSR

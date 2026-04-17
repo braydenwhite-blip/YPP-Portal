@@ -1,12 +1,12 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { RoleType } from "@prisma/client";
-import { parseRoleTypes } from "@/lib/authorization";
+import { hasRole, normalizeRoleSet, parseRoleTypes } from "@/lib/authorization";
 import { slugifyChapterName } from "@/lib/chapter-calendar";
+import { whereUserHasRole } from "@/lib/user-role-where";
 
 async function ensureUniqueChapterSlug(baseSlug: string, chapterId?: string) {
   const cleaned = slugifyChapterName(baseSlug);
@@ -33,7 +33,7 @@ async function ensureUniqueChapterSlug(baseSlug: string, chapterId?: string) {
 // ============================================
 
 export async function getChapterDashboard() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -61,6 +61,7 @@ export async function getChapterDashboard() {
           name: true,
           email: true,
           primaryRole: true,
+          roles: { select: { role: true } },
           createdAt: true,
         },
       },
@@ -95,10 +96,14 @@ export async function getChapterDashboard() {
 
   // Calculate stats
   const instructors = chapter?.users.filter(
-    (u) => u.primaryRole === "INSTRUCTOR"
+    (u) => hasRole(u.roles, "INSTRUCTOR", u.primaryRole)
   );
-  const students = chapter?.users.filter((u) => u.primaryRole === "STUDENT");
-  const mentors = chapter?.users.filter((u) => u.primaryRole === "MENTOR");
+  const students = chapter?.users.filter((u) =>
+    hasRole(u.roles, "STUDENT", u.primaryRole)
+  );
+  const mentors = chapter?.users.filter((u) =>
+    hasRole(u.roles, "MENTOR", u.primaryRole)
+  );
 
   // Get recent enrollments
   const recentEnrollments = await prisma.enrollment.findMany({
@@ -135,7 +140,7 @@ export async function getChapterDashboard() {
 // ============================================
 
 export async function getChapterInstructors() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -155,7 +160,7 @@ export async function getChapterInstructors() {
   return prisma.user.findMany({
     where: {
       chapterId: isAdmin ? undefined : chapterId,
-      primaryRole: "INSTRUCTOR",
+      ...whereUserHasRole(RoleType.INSTRUCTOR),
     },
     include: {
       profile: true,
@@ -190,7 +195,7 @@ export async function getChapterInstructors() {
 }
 
 export async function getInstructorDetail(instructorId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const currentUser = await prisma.user.findUnique({
@@ -285,7 +290,7 @@ export async function getInstructorDetail(instructorId: string) {
 // ============================================
 
 export async function getChapterStudents() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -305,7 +310,7 @@ export async function getChapterStudents() {
   return prisma.user.findMany({
     where: {
       chapterId: isAdmin ? undefined : chapterId,
-      primaryRole: "STUDENT",
+      ...whereUserHasRole(RoleType.STUDENT),
     },
     include: {
       profile: true,
@@ -335,19 +340,25 @@ export async function getChapterStudents() {
 // ============================================
 
 export async function getChapterUpdates() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
+    include: { roles: true },
   });
 
   if (!user?.chapterId) throw new Error("User is not assigned to a chapter");
 
+  const visibleRoles = Array.from(normalizeRoleSet(user?.roles, user?.primaryRole));
+
   return prisma.chapterUpdate.findMany({
     where: {
       chapterId: user.chapterId,
-      OR: [{ targetRoles: { isEmpty: true } }, { targetRoles: { has: user.primaryRole } }],
+      OR: [
+        { targetRoles: { isEmpty: true } },
+        ...(visibleRoles.length > 0 ? [{ targetRoles: { hasSome: visibleRoles as RoleType[] } }] : []),
+      ],
     },
     include: {
       author: {
@@ -359,7 +370,7 @@ export async function getChapterUpdates() {
 }
 
 export async function createChapterUpdate(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -401,7 +412,7 @@ export async function createChapterUpdate(formData: FormData) {
 }
 
 export async function deleteChapterUpdate(updateId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -439,7 +450,7 @@ export async function deleteChapterUpdate(updateId: string) {
 // ============================================
 
 export async function getChapterMarketing() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -472,7 +483,7 @@ export async function getChapterMarketing() {
 }
 
 export async function addMarketingStats(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -522,7 +533,7 @@ export async function addMarketingStats(formData: FormData) {
 }
 
 export async function addMarketingGoal(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -563,7 +574,7 @@ export async function addMarketingGoal(formData: FormData) {
 // ============================================
 
 export async function getChapterApplicants() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -607,7 +618,7 @@ export async function getChapterApplicants() {
 // ============================================
 
 async function requireAdmin() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!roles.includes("ADMIN")) {
     throw new Error("Unauthorized - Admin only");

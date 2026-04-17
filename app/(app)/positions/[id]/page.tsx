@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import ApplicationForm from "@/components/application-form";
+import { normalizeRoleList } from "@/lib/authorization";
 
 function formatDate(value: Date | null) {
   if (!value) return "-";
@@ -16,7 +16,7 @@ export default async function PositionDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   const [position, currentUser] = await Promise.all([
     prisma.position.findUnique({
@@ -38,6 +38,7 @@ export default async function PositionDetailPage({
           select: {
             id: true,
             chapterId: true,
+            primaryRole: true,
             roles: { select: { role: true } },
           },
         })
@@ -48,7 +49,9 @@ export default async function PositionDetailPage({
     notFound();
   }
 
-  const roles = currentUser?.roles.map((role) => role.role) ?? [];
+  const roles = currentUser
+    ? normalizeRoleList(currentUser.roles, currentUser.primaryRole)
+    : [];
   const isPrivileged = roles.some((role) => ["ADMIN", "CHAPTER_PRESIDENT", "STAFF"].includes(role));
 
   const canView =
@@ -182,8 +185,8 @@ export default async function PositionDetailPage({
                       width: 28,
                       height: 28,
                       borderRadius: "50%",
-                      background: "#ede9fe",
-                      color: "#7c3aed",
+                      background: "#f0e6ff",
+                      color: "#6b21c8",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",

@@ -1,13 +1,12 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth-supabase";
 import { NextResponse } from "next/server";
 import { redirect } from "next/navigation";
 import { EventScope, EventType, EventVisibility } from "@prisma/client";
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id || session.user.primaryRole !== "ADMIN") {
+  const session = await getSession();
+  if (!session?.user?.id || !session.user.roles.includes("ADMIN")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

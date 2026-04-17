@@ -1,15 +1,14 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 
 // ============================================
 // COMMITTEE MEETING PREP PACKET
 // ============================================
 
 async function requireAdminOrChair() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   const roles = session.user.roles ?? [];
   if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT")) {
@@ -233,7 +232,7 @@ export async function generateCommitteePrepPacket(mentorshipId: string): Promise
       promotionReadiness: r.promotionReadiness,
       chairComments: r.chairComments,
       goalRatings: r.goalRatings.map((gr) => ({
-        goalTitle: gr.goal.title,
+        goalTitle: gr.goal?.title ?? "",
         rating: gr.rating,
         comments: gr.comments,
       })),

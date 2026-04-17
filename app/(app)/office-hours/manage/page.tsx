@@ -1,18 +1,18 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export default async function ManageOfficeHoursPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }
 
   const isInstructor =
-    session.user.primaryRole === "INSTRUCTOR" || session.user.primaryRole === "ADMIN";
+    session.user.roles.includes("INSTRUCTOR") ||
+    session.user.roles.includes("ADMIN");
   if (!isInstructor) {
     redirect("/");
   }

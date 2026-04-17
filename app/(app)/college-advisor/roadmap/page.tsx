@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getMyRoadmapData } from "@/lib/college-roadmap-actions";
 import { STAGE_ORDER } from "@/lib/college-roadmap-config";
 import RoadmapClient from "./roadmap-client";
@@ -9,7 +8,7 @@ import Link from "next/link";
 export const metadata = { title: "College Readiness Roadmap — YPP" };
 
 export default async function CollegeRoadmapPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const data = await getMyRoadmapData();

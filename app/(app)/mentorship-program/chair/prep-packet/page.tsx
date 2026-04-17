@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { generateCommitteePrepPacket } from "@/lib/committee-prep-actions";
 import Link from "next/link";
 
@@ -10,7 +9,7 @@ const RATING_CONFIG: Record<string, { label: string; color: string }> = {
   BEHIND_SCHEDULE: { label: "Behind Schedule", color: "#ef4444" },
   GETTING_STARTED: { label: "Getting Started", color: "#d97706" },
   ACHIEVED: { label: "Achieved", color: "#16a34a" },
-  ABOVE_AND_BEYOND: { label: "Above & Beyond", color: "#7c3aed" },
+  ABOVE_AND_BEYOND: { label: "Above & Beyond", color: "#6b21c8" },
 };
 
 const TIER_LABELS: Record<string, string> = {
@@ -33,7 +32,7 @@ export default async function PrepPacketPage({
   searchParams: Promise<{ mentorshipId?: string }>;
 }) {
   const { mentorshipId } = await searchParams;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const roles = session.user.roles ?? [];

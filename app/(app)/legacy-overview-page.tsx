@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import AnnouncementBanner from "@/components/announcement-banner";
 import XpDisplay from "@/components/xp-display";
 import PathwayProgressMap from "@/components/pathway-progress-map";
@@ -8,9 +7,12 @@ import { WorldPreviewCard } from "@/components/world-preview-card";
 import Link from "next/link";
 import { getNextRequiredAction } from "@/lib/instructor-readiness";
 import { getLearnerFitSummary } from "@/lib/learner-fit";
+import { normalizeRoleSet } from "@/lib/authorization";
+import { RoleType } from "@prisma/client";
+import { whereUserHasRole } from "@/lib/user-role-where";
 
 export default async function OverviewPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const userId = session?.user?.id;
 
   const user = userId
@@ -29,7 +31,9 @@ export default async function OverviewPage() {
       })
     : null;
 
-  const roles = user?.roles.map((role) => role.role) ?? [];
+  const roles = user
+    ? Array.from(normalizeRoleSet(user.roles, user.primaryRole))
+    : [];
   const isAdmin = roles.includes("ADMIN") || roles.includes("STAFF");
   const isInstructor = roles.includes("INSTRUCTOR");
   const isStudent = roles.includes("STUDENT");
@@ -57,8 +61,8 @@ export default async function OverviewPage() {
   const globalStats = isAdmin
     ? await Promise.all([
         prisma.user.count(),
-        prisma.user.count({ where: { primaryRole: "INSTRUCTOR" } }),
-        prisma.user.count({ where: { primaryRole: "STUDENT" } }),
+        prisma.user.count({ where: whereUserHasRole(RoleType.INSTRUCTOR) }),
+        prisma.user.count({ where: whereUserHasRole(RoleType.STUDENT) }),
         prisma.pathway.count(),
         prisma.course.count(),
         prisma.enrollment.count(),
@@ -312,7 +316,7 @@ export default async function OverviewPage() {
   const quickActions: { href: string; label: string; description: string; accent: string }[] = [];
   if (isAdmin) {
     quickActions.push(
-      { href: "/admin", label: "Admin Panel", description: "Manage users & content", accent: "var(--ypp-purple-600)" },
+      { href: "/admin/chapters", label: "Admin Panel", description: "Manage chapters and programs", accent: "var(--ypp-purple-600)" },
       { href: "/admin/students", label: "Students", description: "View all students", accent: "var(--ypp-purple-500)" },
       { href: "/admin/instructors", label: "Instructors", description: "View all instructors", accent: "var(--ypp-pink-500)" },
       { href: "/admin/analytics", label: "Analytics", description: "Platform insights", accent: "#3b82f6" },
@@ -333,7 +337,7 @@ export default async function OverviewPage() {
     );
   } else if (isStudent) {
     quickActions.push(
-      { href: "/world", label: "Passion World", description: "Explore your islands", accent: "#0ea5e9" },
+      { href: "/pathways/progress", label: "Pathway progress", description: "See your next steps", accent: "#0ea5e9" },
       { href: "/my-classes", label: "My Classes", description: "Continue learning", accent: "var(--ypp-purple-600)" },
       { href: "/pathways", label: "Pathways", description: "Explore pathways", accent: "#3b82f6" },
       { href: "/challenges", label: "Challenges", description: "Earn rewards", accent: "#f59e0b" },
@@ -362,12 +366,6 @@ export default async function OverviewPage() {
     "One connected flow from onboarding to outcomes with less admin overhead.",
   ];
 
-  const passionWorldGoals = [
-    "Turn curiosity into action with clear island-based paths.",
-    "Make progress visible through challenges, badges, and milestones.",
-    "Connect exploration to real classes, projects, and mentorship opportunities.",
-  ];
-
   const roleFocus = isAdmin
     ? [
         "Keep chapter hiring and instructor readiness visible in one operating view.",
@@ -386,7 +384,7 @@ export default async function OverviewPage() {
       : isStudent
         ? [
             "Stay on your pathway by completing one concrete step each week.",
-            "Use Passion World exploration to pick classes and challenges with purpose.",
+            "Use pathways and curriculum to pick classes and challenges with purpose.",
           ]
         : isMentor
           ? [
@@ -524,14 +522,6 @@ export default async function OverviewPage() {
               <h4>YPP Portal Goals</h4>
               <ul className="portal-goal-list">
                 {portalGoals.map((goal) => (
-                  <li key={goal}>{goal}</li>
-                ))}
-              </ul>
-            </div>
-            <div className="portal-goal-block">
-              <h4>Passion World Goals</h4>
-              <ul className="portal-goal-list">
-                {passionWorldGoals.map((goal) => (
                   <li key={goal}>{goal}</li>
                 ))}
               </ul>

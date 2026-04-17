@@ -1,13 +1,12 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getGRAssignedDocuments, getGRGoalChangeQueue, getGRTemplates } from "@/lib/gr-actions";
 import GRAssignmentsPanel from "@/components/gr/gr-assignments-panel";
 
 export const metadata = { title: "G&R Assignments — Admin" };
 
 export default async function GRAssignmentsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.roles?.includes("ADMIN")) redirect("/");
 
   const [documents, goalChanges, templates] = await Promise.all([

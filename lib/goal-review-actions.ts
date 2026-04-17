@@ -1,52 +1,33 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import {
   GoalRatingColor,
   GoalReviewStatus,
-  MenteeRoleType,
-  AchievementAwardTier,
 } from "@prisma/client";
 import { logAuditEvent } from "@/lib/audit-log-actions";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import { createMentorshipNotification } from "@/lib/mentorship-program-actions";
 import { syncMentorGoalReviewWorkflow } from "@/lib/workflow";
-
-// ============================================
-// POINT TABLE
-// ============================================
-
-// Achievement point values per overall rating × role type (from YPP Mentorship Program PDF)
-const POINT_TABLE: Record<GoalRatingColor, Record<MenteeRoleType, number>> = {
-  BEHIND_SCHEDULE: { INSTRUCTOR: 0, CHAPTER_PRESIDENT: 0, GLOBAL_LEADERSHIP: 0 },
-  GETTING_STARTED: { INSTRUCTOR: 10, CHAPTER_PRESIDENT: 20, GLOBAL_LEADERSHIP: 25 },
-  ACHIEVED: { INSTRUCTOR: 35, CHAPTER_PRESIDENT: 50, GLOBAL_LEADERSHIP: 60 },
-  ABOVE_AND_BEYOND: { INSTRUCTOR: 75, CHAPTER_PRESIDENT: 85, GLOBAL_LEADERSHIP: 100 },
-};
-
-const TIER_THRESHOLDS: { tier: AchievementAwardTier; min: number }[] = [
-  { tier: "LIFETIME", min: 1800 },
-  { tier: "GOLD", min: 700 },
-  { tier: "SILVER", min: 350 },
-  { tier: "BRONZE", min: 175 },
-];
-
-function computeTier(totalPoints: number): AchievementAwardTier | null {
-  for (const { tier, min } of TIER_THRESHOLDS) {
-    if (totalPoints >= min) return tier;
-  }
-  return null;
-}
+import { computeTier } from "@/lib/achievement-tier-utils";
+import { recomputeMentorshipCycleStage } from "@/lib/mentorship-cycle";
+import { POINT_TABLE } from "@/lib/mentorship-point-table";
+import {
+  emitReviewSubmittedForApproval,
+  emitReviewApprovedAndReleased,
+} from "@/lib/mentorship-notifications";
+import { ensureReviewGoalRatings } from "@/lib/mentorship-gr-binding";
+import { insertMilestoneOnce, checkTenureMilestones } from "@/lib/milestones";
+import { logger } from "@/lib/logger";
 
 // ============================================
 // AUTH HELPERS
 // ============================================
 
 async function requireMentor() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   const roles = session.user.roles ?? [];
   if (!roles.includes("MENTOR") && !roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT")) {
@@ -56,7 +37,7 @@ async function requireMentor() {
 }
 
 async function requireAdmin() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   const roles = session.user.roles ?? [];
   if (!roles.includes("ADMIN")) throw new Error("Unauthorized");
@@ -78,7 +59,7 @@ function getString(formData: FormData, key: string, required = true): string {
  * Reflections without a review are "pending"; those with a DRAFT review are in-progress.
  */
 export async function getMyReviewQueue() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const userId = session.user.id as string;
@@ -131,7 +112,7 @@ export async function getMyReviewQueue() {
  * Fetch a single self-reflection with all data needed to write a review.
  */
 export async function getReflectionForReview(reflectionId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const userId = session.user.id as string;
@@ -180,6 +161,7 @@ export async function saveGoalReview(formData: FormData) {
   const projectedFuturePath = getString(formData, "projectedFuturePath", false);
   const promotionReadiness = getString(formData, "promotionReadiness", false);
   const submitForApproval = formData.get("submitForApproval") === "true";
+  const aiDraftUsed = formData.get("aiDraftUsed") === "true";
 
   // Character & Culture bonus points (0–25)
   const bonusPointsRaw = formData.get("bonusPoints");
@@ -224,17 +206,59 @@ export async function saveGoalReview(formData: FormData) {
     ? "PENDING_CHAIR_APPROVAL"
     : "DRAFT";
 
-  // Parse per-goal ratings
-  const goalIds = formData.getAll("goalIds").map(String);
-  const goalRatings = goalIds.map((goalId) => {
-    const ratingRaw = getString(formData, `goal_${goalId}_rating`);
-    const rating = ratingRaw as GoalRatingColor;
-    if (!Object.values(GoalRatingColor).includes(rating)) {
-      throw new Error(`Invalid rating for goal ${goalId}`);
+  // Parse per-goal ratings — G&R goals (grGoalIds) take priority over legacy goalIds
+  const grGoalIds = formData.getAll("grGoalIds").map(String).filter(Boolean);
+  const legacyGoalIds = formData.getAll("goalIds").map(String).filter(Boolean);
+
+  type GoalRatingEntry = {
+    grDocumentGoalId: string | null;
+    legacyGoalId: string | null;
+    rating: GoalRatingColor;
+    comments: string | null;
+    progressState: string | null;
+    newLifecycleStatus: string | null;
+  };
+
+  const goalRatings: GoalRatingEntry[] = [
+    ...grGoalIds.map((goalId) => {
+      const ratingRaw = getString(formData, `goal_${goalId}_rating`);
+      const rating = ratingRaw as GoalRatingColor;
+      if (!Object.values(GoalRatingColor).includes(rating)) throw new Error(`Invalid rating for goal ${goalId}`);
+      return {
+        grDocumentGoalId: goalId,
+        legacyGoalId: null,
+        rating,
+        comments: getString(formData, `goal_${goalId}_comments`, false) || null,
+        progressState: getString(formData, `goal_${goalId}_progressState`, false) || null,
+        newLifecycleStatus: getString(formData, `goal_${goalId}_lifecycleStatus`, false) || null,
+      };
+    }),
+    ...legacyGoalIds.map((goalId) => {
+      const ratingRaw = getString(formData, `goal_${goalId}_rating`);
+      const rating = ratingRaw as GoalRatingColor;
+      if (!Object.values(GoalRatingColor).includes(rating)) throw new Error(`Invalid rating for goal ${goalId}`);
+      return {
+        grDocumentGoalId: null,
+        legacyGoalId: goalId,
+        rating,
+        comments: getString(formData, `goal_${goalId}_comments`, false) || null,
+        progressState: null,
+        newLifecycleStatus: null,
+      };
+    }),
+  ];
+
+  // Parse next-month goal drafts (structured goals to propose via GRGoalChange)
+  type NextMonthGoalDraft = { title: string; description: string; priority: string; dueDate: string | null };
+  let nextMonthGoalDrafts: NextMonthGoalDraft[] = [];
+  const nextMonthGoalsJson = formData.get("nextMonthGoalsJson");
+  if (nextMonthGoalsJson && typeof nextMonthGoalsJson === "string") {
+    try {
+      nextMonthGoalDrafts = JSON.parse(nextMonthGoalsJson) as NextMonthGoalDraft[];
+    } catch {
+      logger.warn("saveGoalReview: failed to parse nextMonthGoalsJson");
     }
-    const comments = getString(formData, `goal_${goalId}_comments`, false);
-    return { goalId, rating, comments: comments || null };
-  });
+  }
 
   const isQuarterly = reflection.cycleNumber % 3 === 0;
 
@@ -265,6 +289,7 @@ export async function saveGoalReview(formData: FormData) {
           bonusPoints,
           bonusReason: bonusReason || null,
           status: newStatus,
+          ...(aiDraftUsed ? { aiDraftUsed: true } : {}),
         },
       });
       // Replace goal ratings
@@ -272,7 +297,8 @@ export async function saveGoalReview(formData: FormData) {
       await tx.goalReviewRating.createMany({
         data: goalRatings.map((gr) => ({
           reviewId: reflection.goalReview!.id,
-          goalId: gr.goalId,
+          grDocumentGoalId: gr.grDocumentGoalId,
+          goalId: gr.legacyGoalId,
           rating: gr.rating,
           comments: gr.comments,
         })),
@@ -302,9 +328,11 @@ export async function saveGoalReview(formData: FormData) {
           bonusPoints,
           bonusReason: bonusReason || null,
           status: newStatus,
+          aiDraftUsed,
           goalRatings: {
             create: goalRatings.map((gr) => ({
-              goalId: gr.goalId,
+              grDocumentGoalId: gr.grDocumentGoalId,
+              goalId: gr.legacyGoalId,
               rating: gr.rating,
               comments: gr.comments,
             })),
@@ -312,6 +340,65 @@ export async function saveGoalReview(formData: FormData) {
         },
       });
       persistedReviewId = review.id;
+    }
+
+    // Persist next-month goal drafts on DRAFT saves so the form survives a refresh
+    await tx.mentorGoalReview.update({
+      where: { id: persistedReviewId },
+      data: {
+        nextMonthGoalDraftsJson: newStatus === "DRAFT" && nextMonthGoalDrafts.length > 0
+          ? JSON.parse(JSON.stringify(nextMonthGoalDrafts))
+          : undefined,
+      },
+    });
+
+    // Apply inline goal status updates (progressState / lifecycleStatus) ONLY on submission
+    if (submitForApproval) {
+      const now = new Date();
+      for (const gr of goalRatings) {
+        if (!gr.grDocumentGoalId) continue;
+        const update: Record<string, unknown> = {};
+        if (gr.progressState) update.progressState = gr.progressState;
+        if (gr.newLifecycleStatus) {
+          update.lifecycleStatus = gr.newLifecycleStatus;
+          if (gr.newLifecycleStatus === "COMPLETED") update.completedAt = now;
+        }
+        if (Object.keys(update).length > 0) {
+          await tx.gRDocumentGoal.update({ where: { id: gr.grDocumentGoalId }, data: update });
+        }
+      }
+    }
+
+    // Write goal snapshots when submitting for approval — never delete existing ones
+    if (submitForApproval && grGoalIds.length > 0) {
+      const grGoals = await tx.gRDocumentGoal.findMany({
+        where: { id: { in: grGoalIds } },
+        select: { id: true, title: true, description: true, timePhase: true, priority: true, dueDate: true, lifecycleStatus: true },
+      });
+      const snapshotReviewId = persistedReviewId;
+      // Check which snapshots already exist (idempotent: only insert new ones)
+      const existingSnapshots = await tx.mentorGoalReviewGoalSnapshot.findMany({
+        where: { reviewId: snapshotReviewId },
+        select: { grDocumentGoalId: true },
+      });
+      const existingSnapshotGoalIds = new Set(existingSnapshots.map((s) => s.grDocumentGoalId));
+      const newSnapshots = grGoals.filter((g) => !existingSnapshotGoalIds.has(g.id));
+      if (newSnapshots.length > 0) {
+        await tx.mentorGoalReviewGoalSnapshot.createMany({
+          data: newSnapshots.map((g) => ({
+            id: `${snapshotReviewId}_${g.id}`,
+            reviewId: snapshotReviewId,
+            grDocumentGoalId: g.id,
+            title: g.title,
+            description: g.description,
+            timePhase: g.timePhase,
+            priority: g.priority,
+            dueDateAtSnapshot: g.dueDate,
+            lifecycleStatusAtSnapshot: g.lifecycleStatus,
+          })),
+          skipDuplicates: true,
+        });
+      }
     }
 
     // Update review streak on submission
@@ -327,16 +414,84 @@ export async function saveGoalReview(formData: FormData) {
 
   await syncMentorGoalReviewWorkflow(reviewId);
 
-  // Notify chair when review is submitted for approval
-  if (submitForApproval && reflection.mentorship.chairId) {
-    await createMentorshipNotification({
-      userId: reflection.mentorship.chairId,
-      title: "Review Pending Your Approval",
-      body: `A mentor has submitted a goal review for ${reflection.mentee?.name ?? "a mentee"} and it needs your approval.`,
-      link: "/mentorship-program/chair",
+  // Propose next-month goals via GRGoalChange when submitting for approval.
+  // All proposals run inside their own transaction via proposeGRGoalChange;
+  // failures are logged but don't roll back the already-committed review.
+  if (submitForApproval && nextMonthGoalDrafts.length > 0) {
+    const grDoc = await prisma.gRDocument.findFirst({
+      where: { userId: reflection.mentorship.menteeId, status: "ACTIVE" },
+      select: { id: true },
     });
+    if (grDoc) {
+      await prisma.$transaction(async () => {
+        for (const draft of nextMonthGoalDrafts) {
+          const fd = new FormData();
+          fd.set("documentId", grDoc.id);
+          fd.set("changeType", "ADD");
+          fd.set("proposedTitle", draft.title);
+          fd.set("proposedDescription", draft.description || "");
+          fd.set("proposedTimePhase", "MONTHLY");
+          fd.set("proposedPriority", draft.priority || "NORMAL");
+          if (draft.dueDate) fd.set("proposedDueDate", draft.dueDate);
+          fd.set("sourceReviewId", reviewId);
+          fd.set("reason", `Proposed by mentor for next cycle (review ${reviewId})`);
+          const { proposeGRGoalChange } = await import("@/lib/gr-actions");
+          await proposeGRGoalChange(fd);
+        }
+      }).catch((err) => {
+        logger.warn({ err, reviewId }, "saveGoalReview: failed to propose next-month goals (rolled back)");
+      });
+    }
   }
 
+  // Backfill any missing GoalReviewRating rows (idempotent).
+  try {
+    await ensureReviewGoalRatings({
+      id: reviewId,
+      menteeId: reflection.mentorship.menteeId,
+      cycleNumber: reflection.cycleNumber,
+    });
+  } catch (err) {
+    logger.warn({ err, reviewId }, "saveGoalReview: ensureReviewGoalRatings failed");
+  }
+
+  // Recompute denormalized cycleStage for the Kanban.
+  try {
+    await recomputeMentorshipCycleStage(reflection.mentorshipId);
+  } catch (err) {
+    logger.warn({ err, mentorshipId: reflection.mentorshipId }, "saveGoalReview: cycleStage recompute failed");
+  }
+
+  if (submitForApproval) {
+    // Fan out to lane chairs (Phase 0.9 emitter — includes dedup + try/catch).
+    const mentee = await prisma.user.findUnique({
+      where: { id: reflection.mentorship.menteeId },
+      select: { name: true, primaryRole: true },
+    });
+    const mentor = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { name: true },
+    });
+    await emitReviewSubmittedForApproval({
+      reviewId,
+      mentorName: mentor?.name ?? "A mentor",
+      menteeName: mentee?.name ?? "a mentee",
+      menteePrimaryRole: mentee?.primaryRole ?? null,
+      ctx: { cycleNumber: reflection.cycleNumber, cycleMonth: reflection.cycleMonth },
+    });
+
+    // Legacy per-mentorship chair fallback (preserves in-flight explicit chair assignments).
+    if (reflection.mentorship.chairId) {
+      await createMentorshipNotification({
+        userId: reflection.mentorship.chairId,
+        title: "Review Pending Your Approval",
+        body: `A mentor has submitted a goal review for ${reflection.mentee?.name ?? "a mentee"} and it needs your approval.`,
+        link: "/mentorship-program/chair",
+      });
+    }
+  }
+
+  revalidatePath("/mentorship/reviews");
   revalidatePath("/mentorship-program/reviews");
 }
 
@@ -349,7 +504,7 @@ export async function saveGoalReview(formData: FormData) {
  * Admins see all pending reviews.
  */
 export async function getChairQueue() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const userId = session.user.id as string;
@@ -419,7 +574,7 @@ export async function getChairQueue() {
  * Fetch a single review + full reflection for the chair approval detail page.
  */
 export async function getReviewForChair(reviewId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const userId = session.user.id as string;
@@ -513,8 +668,8 @@ export async function approveGoalReview(formData: FormData) {
       },
     });
 
-    // Upsert achievement summary
-    const summary = await tx.achievementPointSummary.upsert({
+    // Upsert achievement summary — fetch fresh row after increment to avoid stale totalPoints
+    await tx.achievementPointSummary.upsert({
       where: { userId: review.menteeId },
       create: {
         userId: review.menteeId,
@@ -525,10 +680,12 @@ export async function approveGoalReview(formData: FormData) {
         totalPoints: { increment: pointsAwarded },
       },
     });
+    const freshSummary = await tx.achievementPointSummary.findUniqueOrThrow({
+      where: { userId: review.menteeId },
+      select: { id: true, totalPoints: true },
+    });
 
-    // Recompute tier after increment
-    const newTotal = summary.totalPoints + pointsAwarded;
-    const newTier = computeTier(newTotal);
+    const newTier = computeTier(freshSummary.totalPoints);
     await tx.achievementPointSummary.update({
       where: { userId: review.menteeId },
       data: { currentTier: newTier },
@@ -537,7 +694,7 @@ export async function approveGoalReview(formData: FormData) {
     // Log point entry
     await tx.achievementPointLog.create({
       data: {
-        summaryId: summary.id,
+        summaryId: freshSummary.id,
         reviewId,
         points: pointsAwarded,
         reason: `${review.overallRating} — ${menteeRoleType} (Cycle ${review.cycleNumber})`,
@@ -556,22 +713,47 @@ export async function approveGoalReview(formData: FormData) {
     description: `Goal review approved for ${review.mentee.name} — ${pointsAwarded} pts awarded (base: ${basePoints}, bonus: ${effectiveBonus})`,
   });
 
-  // Notify mentor that their review was approved
-  await createMentorshipNotification({
-    userId: review.mentor.id,
-    title: "Goal Review Approved",
-    body: `Your review for ${review.mentee.name} (Cycle ${review.cycleNumber}) has been approved. ${pointsAwarded} points awarded.`,
-    link: "/mentorship-program/reviews",
+  // Milestone events — fire-and-forget, never fail the approval
+  try {
+    if (review.overallRating === "ABOVE_AND_BEYOND") {
+      await insertMilestoneOnce(review.menteeId, "ABOVE_AND_BEYOND_FIRST", {
+        reviewId,
+        cycleNumber: review.cycleNumber,
+      });
+    }
+    const mentorshipRow = await prisma.mentorGoalReview.findUnique({
+      where: { id: reviewId },
+      select: { mentorshipId: true },
+    });
+    if (mentorshipRow) {
+      await checkTenureMilestones(review.menteeId, mentorshipRow.mentorshipId);
+    }
+  } catch (err) {
+    logger.warn({ err, reviewId }, "approveGoalReview: milestone check failed");
+  }
+
+  // Phase 0.9 cycle-milestone emitter (mentor + mentee, safeEmit + dedup).
+  await emitReviewApprovedAndReleased({
+    reviewId,
+    mentorId: review.mentor.id,
+    menteeId: review.menteeId,
+    menteeName: review.mentee.name ?? "your mentee",
+    pointsAwarded,
+    ctx: { cycleNumber: review.cycleNumber, cycleMonth: review.cycleMonth },
   });
 
-  // Notify mentee that their review is available
-  await createMentorshipNotification({
-    userId: review.menteeId,
-    title: "New Goal Review Available",
-    body: `Your Cycle ${review.cycleNumber} goal review has been completed and released. You earned ${pointsAwarded} achievement points!`,
-    link: "/my-program",
-  });
+  // Recompute denormalized cycleStage.
+  try {
+    const mentorshipRow = await prisma.mentorGoalReview.findUnique({
+      where: { id: reviewId },
+      select: { mentorshipId: true },
+    });
+    if (mentorshipRow) await recomputeMentorshipCycleStage(mentorshipRow.mentorshipId);
+  } catch (err) {
+    logger.warn({ err, reviewId }, "approveGoalReview: cycleStage recompute failed");
+  }
 
+  revalidatePath("/mentorship/reviews");
   revalidatePath("/mentorship-program/chair");
   revalidatePath("/my-program");
 }
@@ -696,7 +878,7 @@ export async function getFeedbackSummary(token: string) {
  * Get quarterly review data (3 monthly reviews side-by-side) for the quarterly dashboard.
  */
 export async function getQuarterlyReviewData(reviewId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const userId = session.user.id as string;
@@ -784,7 +966,7 @@ export async function getQuarterlyReviewData(reviewId: string) {
     goalRatings: Array<{
       rating: GoalRatingColor;
       comments: string | null;
-      goal: { title: string };
+      goal: { title: string } | null;
     }>;
   };
 
@@ -803,7 +985,7 @@ export async function getQuarterlyReviewData(reviewId: string) {
     promotionReadiness: r.promotionReadiness,
     chairComments: r.chairComments,
     goalRatings: r.goalRatings.map((gr) => ({
-      goalTitle: gr.goal.title,
+      goalTitle: gr.goal?.title ?? "",
       rating: gr.rating,
       comments: gr.comments,
     })),
@@ -841,16 +1023,24 @@ export async function requestReviewChanges(formData: FormData) {
 
   if (review.status === "APPROVED") throw new Error("Cannot request changes on an approved review");
 
-  await prisma.mentorGoalReview.update({
+  const updated = await prisma.mentorGoalReview.update({
     where: { id: reviewId },
     data: {
       status: "CHANGES_REQUESTED",
       chairReviewerId: session.user.id,
       chairComments,
     },
+    select: { mentorshipId: true },
   });
 
   await syncMentorGoalReviewWorkflow(reviewId);
+
+  // Recompute denormalized cycleStage so the mentor Kanban shows CHANGES_REQUESTED.
+  try {
+    await recomputeMentorshipCycleStage(updated.mentorshipId);
+  } catch (err) {
+    logger.warn({ err, reviewId }, "requestReviewChanges: cycleStage recompute failed");
+  }
 
   await logAuditEvent({
     action: "MENTORSHIP_UPDATED",
@@ -870,4 +1060,145 @@ export async function requestReviewChanges(formData: FormData) {
 
   revalidatePath("/mentorship-program/chair");
   revalidatePath("/mentorship-program/reviews");
+}
+
+// ============================================
+// BULK APPROVE (Chair / Admin)
+// ============================================
+
+/**
+ * Approve multiple reviews in a single action. Light guardrail: rejects if any
+ * review is not currently PENDING_CHAIR_APPROVAL. Each approved review is
+ * processed exactly like a single approveGoalReview call.
+ */
+export async function bulkApproveReviews(formData: FormData) {
+  const session = await requireAdmin();
+  const reviewIdsRaw = formData.getAll("reviewIds").map(String).filter(Boolean);
+  if (reviewIdsRaw.length === 0) throw new Error("No review IDs provided");
+  if (reviewIdsRaw.length > 20) throw new Error("Bulk approve is limited to 20 reviews at a time");
+
+  const reviews = await prisma.mentorGoalReview.findMany({
+    where: { id: { in: reviewIdsRaw } },
+    select: { id: true, status: true },
+  });
+
+  const notPending = reviews.filter((r) => r.status !== "PENDING_CHAIR_APPROVAL");
+  if (notPending.length > 0) {
+    throw new Error(
+      `${notPending.length} review(s) are not pending approval and cannot be bulk-approved`
+    );
+  }
+
+  const results: { id: string; ok: boolean; error?: string }[] = [];
+  for (const review of reviews) {
+    const fd = new FormData();
+    fd.set("reviewId", review.id);
+    fd.set("chairComments", "Approved via bulk action");
+    try {
+      await approveGoalReview(fd);
+      results.push({ id: review.id, ok: true });
+    } catch (err) {
+      results.push({ id: review.id, ok: false, error: err instanceof Error ? err.message : "Unknown error" });
+    }
+  }
+
+  await logAuditEvent({
+    action: "MENTORSHIP_UPDATED",
+    actorId: session.user.id,
+    targetType: "MentorGoalReview",
+    targetId: reviewIdsRaw.join(","),
+    description: `Bulk approved ${results.filter((r) => r.ok).length}/${reviewIdsRaw.length} reviews`,
+  });
+
+  revalidatePath("/mentorship-program/chair");
+  revalidatePath("/admin/mentorship-program");
+  return results;
+}
+
+// ============================================
+// CHAIR QUEUE DATA (for admin monitoring)
+// ============================================
+
+/**
+ * Returns pending reviews enriched with age-in-days and overdue flag (>5 business days).
+ */
+export async function getChairQueueEnriched() {
+  const session = await getSession();
+  if (!session?.user?.id) return null;
+
+  const reviews = await prisma.mentorGoalReview.findMany({
+    where: { status: "PENDING_CHAIR_APPROVAL" },
+    orderBy: { createdAt: "asc" },
+    include: {
+      mentee: { select: { id: true, name: true, primaryRole: true } },
+      mentor: { select: { id: true, name: true } },
+      goalRatings: { select: { rating: true } },
+    },
+  });
+
+  const now = new Date();
+  return reviews.map((r) => {
+    const ageDays = Math.floor((now.getTime() - r.createdAt.getTime()) / (1000 * 60 * 60 * 24));
+    // Rough business-day approximation: weekends don't count (subtract ≈28.5% of total days)
+    const businessDays = Math.floor(ageDays * 0.715);
+    return {
+      id: r.id,
+      mentee: r.mentee,
+      mentor: r.mentor,
+      cycleMonth: r.cycleMonth.toISOString(),
+      overallRating: r.overallRating,
+      isQuarterly: r.isQuarterly,
+      ageDays,
+      isOverdue: businessDays > 5,
+      createdAt: r.createdAt.toISOString(),
+      ratingDistribution: Object.fromEntries(
+        ["BEHIND_SCHEDULE", "GETTING_STARTED", "ACHIEVED", "ABOVE_AND_BEYOND"].map((c) => [
+          c,
+          r.goalRatings.filter((gr) => gr.rating === c).length,
+        ])
+      ),
+    };
+  });
+}
+
+/**
+ * Returns counts of active mentorships that have no review submitted for the current cycle month.
+ */
+export async function getReviewCompletionStatus() {
+  const session = await getSession();
+  if (!session?.user?.id) return null;
+
+  const cycleStart = new Date();
+  cycleStart.setDate(1);
+  cycleStart.setHours(0, 0, 0, 0);
+
+  const activeMentorships = await prisma.mentorship.findMany({
+    where: { status: "ACTIVE" },
+    select: {
+      id: true,
+      menteeId: true,
+      mentorId: true,
+      mentee: { select: { name: true, primaryRole: true } },
+      mentor: { select: { name: true } },
+      goalReviews: {
+        where: { cycleMonth: { gte: cycleStart } },
+        select: { id: true, status: true },
+        take: 1,
+      },
+    },
+  });
+
+  const missing = activeMentorships.filter((m) => m.goalReviews.length === 0);
+  const submitted = activeMentorships.filter((m) => m.goalReviews.length > 0);
+
+  return {
+    total: activeMentorships.length,
+    submitted: submitted.length,
+    missing: missing.map((m) => ({
+      mentorshipId: m.id,
+      menteeName: m.mentee.name,
+      menteeRole: m.mentee.primaryRole,
+      mentorName: m.mentor.name,
+    })),
+  };
 }

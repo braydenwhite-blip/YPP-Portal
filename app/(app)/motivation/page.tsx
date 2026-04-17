@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 
 const CATEGORY_META: Record<string, { label: string; icon: string; description: string }> = {
@@ -32,7 +31,7 @@ const CATEGORY_META: Record<string, { label: string; icon: string; description: 
 };
 
 export default async function MotivationBoostPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }

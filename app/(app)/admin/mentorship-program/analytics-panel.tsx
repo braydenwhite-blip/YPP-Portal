@@ -7,14 +7,14 @@ const TIER_CONFIG: Record<string, { label: string; color: string; bg: string; em
   BRONZE: { label: "Bronze", color: "#cd7f32", bg: "#fdf6ec", emoji: "🥉" },
   SILVER: { label: "Silver", color: "#a8a9ad", bg: "#f5f5f5", emoji: "🥈" },
   GOLD: { label: "Gold", color: "#d4af37", bg: "#fffbeb", emoji: "🥇" },
-  LIFETIME: { label: "Lifetime", color: "#7c3aed", bg: "#faf5ff", emoji: "👑" },
+  LIFETIME: { label: "Lifetime", color: "#6b21c8", bg: "#faf5ff", emoji: "👑" },
 };
 
 const RATING_CONFIG: Record<string, { label: string; color: string }> = {
   BEHIND_SCHEDULE: { label: "Behind Schedule", color: "#ef4444" },
   GETTING_STARTED: { label: "Getting Started", color: "#d97706" },
   ACHIEVED: { label: "Achieved", color: "#16a34a" },
-  ABOVE_AND_BEYOND: { label: "Above & Beyond", color: "#7c3aed" },
+  ABOVE_AND_BEYOND: { label: "Above & Beyond", color: "#6b21c8" },
 };
 
 const ROLE_LABELS: Record<string, string> = {

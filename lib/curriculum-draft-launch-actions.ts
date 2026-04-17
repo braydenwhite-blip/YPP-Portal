@@ -4,11 +4,16 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import {
+  createCompatibleClassTemplate,
+  getClassTemplateCapabilities,
+} from "@/lib/class-template-compat";
+import {
   buildSessionLabel,
   buildWeeklyTopicsFromSessionPlans,
   normalizeCourseConfig,
   syncSessionPlansToCourseConfig,
 } from "@/lib/curriculum-draft-progress";
+import { extractLessonDesignStudioRichText } from "@/lib/lesson-design-studio-rich-content";
 
 function combineTextParts(parts: Array<string | null | undefined>) {
   return parts
@@ -45,6 +50,7 @@ export async function createOrUpdateStudioLaunchPackage(input: {
   draftId: string;
   reviewerId?: string | null;
 }) {
+  const capabilities = await getClassTemplateCapabilities();
   const draft = await prisma.curriculumDraft.findUnique({
     where: { id: input.draftId },
     select: {
@@ -107,15 +113,27 @@ export async function createOrUpdateStudioLaunchPackage(input: {
     idealSize: courseConfig.idealSize,
     sizeNotes: "Generated from the Lesson Design Studio first curriculum flow.",
     deliveryModes: courseConfig.deliveryModes,
-    targetAgeGroup: courseConfig.targetAgeGroup || null,
-    classDurationMin: courseConfig.classDurationMin,
-    submissionStatus: "APPROVED" as const,
-    submittedAt: draft.submittedAt ?? new Date(),
-    reviewedById: input.reviewerId || null,
-    reviewNotes: draft.reviewNotes || null,
     createdById: draft.authorId,
     chapterId: draft.author.chapterId ?? null,
     isPublished: false,
+  };
+
+  const templateUpdateData: Prisma.ClassTemplateUncheckedUpdateInput = {
+    ...templateData,
+    ...(capabilities.hasAdvancedCurriculumFields
+      ? {
+          targetAgeGroup: courseConfig.targetAgeGroup || null,
+          classDurationMin: courseConfig.classDurationMin,
+        }
+      : {}),
+    ...(capabilities.hasReviewWorkflow
+      ? {
+          submissionStatus: "APPROVED" as const,
+          submittedAt: draft.submittedAt ?? new Date(),
+          reviewedById: input.reviewerId || null,
+          reviewNotes: draft.reviewNotes || null,
+        }
+      : {}),
   };
 
   const templateId = await prisma.$transaction(async (tx) => {
@@ -124,7 +142,7 @@ export async function createOrUpdateStudioLaunchPackage(input: {
     if (resolvedTemplateId) {
       await tx.classTemplate.update({
         where: { id: resolvedTemplateId },
-        data: templateData,
+        data: templateUpdateData,
         select: { id: true },
       });
       await tx.lessonPlan.deleteMany({
@@ -134,9 +152,14 @@ export async function createOrUpdateStudioLaunchPackage(input: {
         },
       });
     } else {
-      const template = await tx.classTemplate.create({
-        data: templateData,
-        select: { id: true },
+      const template = await createCompatibleClassTemplate(tx, capabilities, {
+        ...templateData,
+        targetAgeGroup: courseConfig.targetAgeGroup || null,
+        classDurationMin: courseConfig.classDurationMin,
+        submissionStatus: "APPROVED",
+        submittedAt: draft.submittedAt ?? new Date(),
+        reviewedById: input.reviewerId || null,
+        reviewNotes: draft.reviewNotes || null,
       });
       resolvedTemplateId = template.id;
     }
@@ -169,7 +192,8 @@ export async function createOrUpdateStudioLaunchPackage(input: {
           activities: {
             create: sessionPlan.activities.map((activity, index) => ({
               title: activity.title?.trim() || `Activity ${index + 1}`,
-              description: activity.description || null,
+              description:
+                extractLessonDesignStudioRichText(activity.description) || null,
               type: (activity.type as
                 | "WARM_UP"
                 | "INSTRUCTION"

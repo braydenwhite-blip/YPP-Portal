@@ -1,12 +1,11 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
 
 import {
   getAdminPortalAnalytics,
   UNMAPPED_INTEREST_AREA,
 } from "@/lib/admin-portal-analytics";
-import { authOptions } from "@/lib/auth";
 
 function formatNumber(value: number) {
   return value.toLocaleString();
@@ -39,7 +38,7 @@ export default async function AnalyticsDashboardPage({
     interestArea?: string;
   }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
 
   if (!roles.includes("ADMIN")) {

@@ -1,8 +1,8 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { getLabProgress } from "@/lib/passion-lab-actions";
+import { hasPassionLabBuilderSchema } from "@/lib/schema-compat";
 import { PassionLabProgressClient } from "./client";
 
 type Props = {
@@ -10,7 +10,7 @@ type Props = {
 };
 
 export default async function PassionLabProgressPage({ searchParams }: Props) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const roles = session.user.roles ?? [];
@@ -20,6 +20,28 @@ export default async function PassionLabProgressPage({ searchParams }: Props) {
     !roles.includes("CHAPTER_PRESIDENT")
   ) {
     redirect("/dashboard");
+  }
+
+  const hasSupport = await hasPassionLabBuilderSchema();
+  if (!hasSupport) {
+    return (
+      <div style={{ display: "grid", gap: 20 }}>
+        <h1 className="page-title" style={{ marginBottom: 4 }}>
+          Student Progress
+        </h1>
+        <div
+          className="card"
+          style={{
+            background: "#fffbeb",
+            border: "1px solid #fcd34d",
+            color: "#92400e",
+            padding: 16,
+          }}
+        >
+          Passion Lab progress is waiting on the latest database migration for this deployment.
+        </div>
+      </div>
+    );
   }
 
   const programId = searchParams.programId;

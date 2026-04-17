@@ -1,18 +1,17 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { getChapterMembers } from "@/lib/chapter-member-actions";
 import { MemberSearch } from "./member-search";
 
 const ROLE_LABELS: Record<string, { label: string; color: string; bg: string }> = {
-  CHAPTER_PRESIDENT: { label: "Chapter President", color: "#6d28d9", bg: "#ede9fe" },
+  CHAPTER_PRESIDENT: { label: "Chapter President", color: "#5a1da8", bg: "#f0e6ff" },
   ADMIN: { label: "Admin", color: "#dc2626", bg: "#fee2e2" },
   INSTRUCTOR: { label: "Instructor", color: "#0369a1", bg: "#e0f2fe" },
   MENTOR: { label: "Mentor", color: "#ca8a04", bg: "#fef3c7" },
   STUDENT: { label: "Student", color: "#374151", bg: "#f3f4f6" },
   STAFF: { label: "Staff", color: "#059669", bg: "#dcfce7" },
-  PARENT: { label: "Parent", color: "#7c3aed", bg: "#f5f3ff" },
+  PARENT: { label: "Parent", color: "#6b21c8", bg: "#f5f3ff" },
 };
 
 export default async function ChapterMembersPage({
@@ -20,7 +19,7 @@ export default async function ChapterMembersPage({
 }: {
   searchParams: { q?: string };
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const members = await getChapterMembers(searchParams.q);

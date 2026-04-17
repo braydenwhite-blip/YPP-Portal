@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import {
@@ -18,9 +17,24 @@ import {
 import { validateEnum } from "@/lib/validate-enum";
 import { logAuditEvent } from "@/lib/audit-log-actions";
 import { onProgressEvent } from "@/lib/progress-events";
+import { migrateUsersToSupabaseAuth } from "@/lib/supabase-user-migration";
+import { createServiceClient } from "@/lib/supabase/server";
+import {
+  buildUserAdminSubtypeRecords,
+  resolveUserAccessSelection,
+} from "@/lib/admin-user-access";
+
+export type AdminUserMigrationResult = {
+  found: number;
+  migrated: number;
+  linked: number;
+  skipped: number;
+  failed: number;
+  highlights: Array<{ email: string; status: string; detail: string }>;
+};
 
 async function requireAdmin() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
@@ -39,19 +53,49 @@ function getString(formData: FormData, key: string, required = true) {
   return value ? String(value).trim() : "";
 }
 
+export async function migrateMissingUsers(): Promise<AdminUserMigrationResult> {
+  await requireAdmin();
+
+  const result = await migrateUsersToSupabaseAuth();
+
+  revalidatePath("/admin");
+
+  return {
+    found: result.found,
+    migrated: result.migrated,
+    linked: result.linked,
+    skipped: result.skipped,
+    failed: result.failed,
+    highlights: result.logs.slice(0, 5).map((entry) => ({
+      email: entry.email,
+      status: entry.status,
+      detail: entry.detail,
+    })),
+  };
+}
+
 export async function createUser(formData: FormData) {
   const session = await requireAdmin();
   const name = getString(formData, "name");
-  const email = getString(formData, "email");
+  const email = getString(formData, "email").toLowerCase();
   const phone = getString(formData, "phone", false);
   const password = getString(formData, "password");
-  const primaryRole = validateEnum(RoleType, getString(formData, "primaryRole"), "primaryRole");
   const chapterId = getString(formData, "chapterId", false);
-  const selectedRoles = formData.getAll("roles").map((role) => validateEnum(RoleType, String(role), "role"));
-  const roles = selectedRoles.length ? selectedRoles : [primaryRole];
-  if (!roles.includes(primaryRole)) {
-    roles.push(primaryRole);
-  }
+  const access = resolveUserAccessSelection({
+    primaryRoleRaw: getString(formData, "primaryRole"),
+    roleValues: formData.getAll("roles").map(String),
+    adminSubtypeValues: formData.getAll("adminSubtypes").map(String),
+    defaultOwnerSubtypeRaw: getString(formData, "defaultOwnerSubtype", false),
+  });
+  const { primaryRole, roles, adminSubtypes, defaultOwnerSubtype } = access;
+  const adminSubtypeCreateData = buildUserAdminSubtypeRecords(
+    "user",
+    adminSubtypes,
+    defaultOwnerSubtype
+  ).map(({ subtype, isDefaultOwner }) => ({
+    subtype,
+    isDefaultOwner,
+  }));
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
@@ -59,20 +103,94 @@ export async function createUser(formData: FormData) {
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
-
-  const newUser = await prisma.user.create({
-    data: {
+  const supabaseAdmin = createServiceClient();
+  const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    password_hash: passwordHash,
+    email_confirm: true,
+    user_metadata: {
       name,
-      email,
-      phone: phone || null,
-      passwordHash,
       primaryRole,
       chapterId: chapterId || null,
-      roles: {
-        create: roles.map((role) => ({ role }))
-      }
-    }
+      roles,
+    },
   });
+
+  if (authError || !authData.user?.id) {
+    console.error("[Admin] Failed to create Supabase auth user:", authError?.message || "No user returned.");
+    throw new Error("Could not create the authentication account. Please try again.");
+  }
+
+  const userWriteData = {
+    name,
+    email,
+    phone: phone || null,
+    passwordHash,
+    primaryRole,
+    chapterId: chapterId || null,
+    emailVerified: new Date(),
+    supabaseAuthId: authData.user.id,
+  };
+
+  let newUser;
+
+  try {
+    const existingAfterAuthCreate = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, supabaseAuthId: true },
+    });
+
+    if (existingAfterAuthCreate) {
+      if (
+        existingAfterAuthCreate.supabaseAuthId &&
+        existingAfterAuthCreate.supabaseAuthId !== authData.user.id
+      ) {
+        throw new Error("User already exists");
+      }
+
+      newUser = await prisma.user.update({
+        where: { id: existingAfterAuthCreate.id },
+        data: {
+          ...userWriteData,
+          roles: {
+            deleteMany: {},
+            create: roles.map((role) => ({ role })),
+          },
+          adminSubtypes: {
+            deleteMany: {},
+            ...(adminSubtypes.length > 0
+              ? {
+                  create: adminSubtypeCreateData,
+                }
+              : {}),
+          },
+        },
+      });
+    } else {
+      newUser = await prisma.user.create({
+        data: {
+          ...userWriteData,
+          roles: {
+            create: roles.map((role) => ({ role })),
+          },
+          ...(adminSubtypes.length > 0
+            ? {
+                adminSubtypes: {
+                  create: adminSubtypeCreateData,
+                },
+              }
+            : {}),
+        },
+      });
+    }
+  } catch (error) {
+    try {
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+    } catch (cleanupError) {
+      console.error("[Admin] Failed to clean up Supabase auth user after Prisma error:", cleanupError);
+    }
+    throw error;
+  }
 
   await logAuditEvent({
     action: "USER_CREATED",
@@ -80,7 +198,7 @@ export async function createUser(formData: FormData) {
     targetType: "User",
     targetId: newUser.id,
     description: `Created user ${name} (${email}) with role ${primaryRole}`,
-    metadata: { roles, primaryRole },
+    metadata: { roles, primaryRole, adminSubtypes, defaultOwnerSubtype },
   });
 
   revalidatePath("/admin");

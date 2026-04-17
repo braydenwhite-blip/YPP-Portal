@@ -3,14 +3,13 @@
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { RoleType, StudentIntakeCaseStatus } from "@prisma/client";
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
-import { authOptions } from "@/lib/auth";
-import { sendVerificationEmail } from "@/lib/email-verification-actions";
+import { getSession } from "@/lib/auth-supabase";
 import { createBulkSystemNotifications, createSystemNotification } from "@/lib/notification-actions";
 import { prisma } from "@/lib/prisma";
+import { createServiceClient } from "@/lib/supabase/server";
 import { syncStudentIntakeWorkflow } from "@/lib/workflow";
 
 function getString(formData: FormData, key: string, required = true) {
@@ -41,7 +40,7 @@ function splitList(value: string) {
 }
 
 async function requireParent() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
@@ -55,7 +54,7 @@ async function requireParent() {
 }
 
 async function requireChapterReviewer() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
@@ -201,6 +200,7 @@ async function ensureStudentUserFromIntake(params: {
 }) {
   const { intakeCase } = params;
   const normalizedEmail = intakeCase.studentEmail.trim().toLowerCase();
+  const supabaseAdmin = createServiceClient();
 
   const existingUser = await prisma.user.findUnique({
     where: { email: normalizedEmail },
@@ -214,20 +214,87 @@ async function ensureStudentUserFromIntake(params: {
     throw new Error("This email already belongs to a non-student account. Use a different email or update the existing account manually.");
   }
 
-  let createdNewStudent = false;
   let studentUserId = existingUser?.id ?? null;
 
-  if (!existingUser) {
+  async function ensureSupabaseAuthUser(input: {
+    prismaUserId?: string | null;
+    name: string;
+    chapterId: string;
+  }) {
+    if (existingUser?.supabaseAuthId) {
+      return {
+        supabaseAuthId: existingUser.supabaseAuthId,
+        passwordHash: existingUser.passwordHash,
+      };
+    }
+
     const randomPassword = crypto.randomBytes(24).toString("hex");
     const passwordHash = await bcrypt.hash(randomPassword, 10);
+    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+      email: normalizedEmail,
+      password_hash: passwordHash,
+      email_confirm: true,
+      user_metadata: {
+        name: input.name,
+        primaryRole: RoleType.STUDENT,
+        chapterId: input.chapterId,
+        roles: [RoleType.STUDENT],
+        prismaUserId: input.prismaUserId ?? null,
+      },
+    });
+
+    if (error) {
+      if (!error.message?.includes("already been registered")) {
+        console.error("[Student Intake] Failed to create Supabase auth user:", error.message);
+        throw new Error("Unable to prepare the student's sign-in account.");
+      }
+
+      const { data: listData, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+      if (listError) {
+        console.error("[Student Intake] Failed to look up existing Supabase auth user:", listError.message);
+        throw new Error("Unable to prepare the student's sign-in account.");
+      }
+
+      const existingAuthUser = listData.users.find(
+        (candidate: { email?: string | null; id: string }) =>
+          candidate.email?.trim().toLowerCase() === normalizedEmail
+      );
+
+      if (!existingAuthUser) {
+        throw new Error("Unable to prepare the student's sign-in account.");
+      }
+
+      return {
+        supabaseAuthId: existingAuthUser.id,
+        passwordHash,
+      };
+    }
+
+    if (!data.user?.id) {
+      throw new Error("Unable to prepare the student's sign-in account.");
+    }
+
+    return {
+      supabaseAuthId: data.user.id,
+      passwordHash,
+    };
+  }
+
+  if (!existingUser) {
+    const authUser = await ensureSupabaseAuthUser({
+      name: intakeCase.studentName,
+      chapterId: intakeCase.chapterId,
+    });
 
     const newStudent = await prisma.user.create({
       data: {
         name: intakeCase.studentName,
         email: normalizedEmail,
-        passwordHash,
+        passwordHash: authUser.passwordHash,
         primaryRole: RoleType.STUDENT,
         chapterId: intakeCase.chapterId,
+        emailVerified: new Date(),
+        supabaseAuthId: authUser.supabaseAuthId,
         roles: {
           create: [{ role: RoleType.STUDENT }],
         },
@@ -245,9 +312,25 @@ async function ensureStudentUserFromIntake(params: {
     });
 
     studentUserId = newStudent.id;
-    createdNewStudent = true;
   } else {
     studentUserId = existingUser.id;
+
+    if (!existingUser.supabaseAuthId) {
+      const authUser = await ensureSupabaseAuthUser({
+        prismaUserId: existingUser.id,
+        name: existingUser.name || intakeCase.studentName,
+        chapterId: existingUser.chapterId ?? intakeCase.chapterId,
+      });
+
+      await prisma.user.update({
+        where: { id: existingUser.id },
+        data: {
+          passwordHash: existingUser.passwordHash || authUser.passwordHash,
+          emailVerified: existingUser.emailVerified ?? new Date(),
+          supabaseAuthId: authUser.supabaseAuthId,
+        },
+      });
+    }
 
     if (!existingUser.profile) {
       await prisma.userProfile.create({
@@ -283,7 +366,6 @@ async function ensureStudentUserFromIntake(params: {
 
   return {
     studentUserId,
-    createdNewStudent,
   };
 }
 
@@ -679,7 +761,7 @@ export async function approveStudentIntakeCase(formData: FormData) {
     throw new Error("Only submitted or in-review cases can be approved.");
   }
 
-  const { studentUserId, createdNewStudent } = await ensureStudentUserFromIntake({
+  const { studentUserId } = await ensureStudentUserFromIntake({
     intakeCase,
   });
 
@@ -709,10 +791,6 @@ export async function approveStudentIntakeCase(formData: FormData) {
     body: `${intakeCase.studentName}'s journey was approved and the student record is now active.`,
     createdById: reviewer.user.id,
   });
-
-  if (createdNewStudent) {
-    await sendVerificationEmail(studentUserId);
-  }
 
   await launchStudentIntakeMentorPlanInternal({
     intakeCaseId: caseId,

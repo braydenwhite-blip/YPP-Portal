@@ -1,8 +1,7 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { Prisma } from "@prisma/client";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getInstructorReadiness } from "@/lib/instructor-readiness";
 
@@ -65,7 +64,7 @@ function buildChapterFallbackTasks({
 }
 
 export default async function ChapterLeadPortalRolloutPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!session?.user?.id || (!roles.includes("CHAPTER_PRESIDENT") && !roles.includes("ADMIN"))) {
     redirect("/");

@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 
 interface UpdateChapterPathwayConfigInput {
@@ -16,7 +15,7 @@ interface UpdateChapterPathwayConfigInput {
 }
 
 export async function updateChapterPathwayConfig(input: UpdateChapterPathwayConfigInput) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return { error: "Not authenticated" };
   if (!(session.user.roles ?? []).includes("ADMIN")) return { error: "Unauthorized" };
 

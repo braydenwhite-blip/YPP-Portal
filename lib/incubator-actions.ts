@@ -1,9 +1,8 @@
 "use server";
 
-import { Prisma, type IncubatorPhase } from "@prisma/client";
+import { Prisma, RoleType, type IncubatorPhase } from "@prisma/client";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { awardXp } from "@/lib/xp";
 import { createNotification } from "@/lib/notifications";
@@ -15,6 +14,7 @@ import {
   getPhaseProgress,
   INCUBATOR_PHASES,
 } from "@/lib/incubator-workflow";
+import { whereUserHasAnyRole } from "@/lib/user-role-where";
 
 type DbClient = Prisma.TransactionClient | typeof prisma;
 
@@ -41,7 +41,7 @@ const INCUBATOR_TABLES = new Set(
 );
 
 async function requireAuth() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   return session;
 }
@@ -1472,13 +1472,7 @@ export async function removeMentor(assignmentId: string) {
 export async function getAvailableMentors() {
   await requireAnyRole(["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"]);
   return prisma.user.findMany({
-    where: {
-      OR: [
-        { primaryRole: "INSTRUCTOR" },
-        { primaryRole: "MENTOR" },
-        { roles: { some: { role: { in: ["INSTRUCTOR", "MENTOR"] } } } },
-      ],
-    },
+    where: whereUserHasAnyRole([RoleType.INSTRUCTOR, RoleType.MENTOR]),
     select: {
       id: true,
       name: true,

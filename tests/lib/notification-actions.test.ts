@@ -1,14 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
+vi.mock("@/lib/auth-supabase", () => ({
+  getSession: vi.fn(),
+}));
+
 describe("notification actions", () => {
   beforeEach(async () => {
-    vi.resetModules();
-    vi.mocked(getServerSession).mockResolvedValue({
+    vi.clearAllMocks();
+    (getSession as any).mockResolvedValue({
       user: {
         id: "user-1",
         roles: ["STUDENT"],

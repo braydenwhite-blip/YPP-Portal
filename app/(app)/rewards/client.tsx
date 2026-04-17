@@ -43,7 +43,7 @@ export function OpenMysteryBoxButton({ boxId }: { boxId: string }) {
   if (result) {
     return (
       <div style={{ marginTop: 8 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "#7c3aed", marginBottom: 4 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#6b21c8", marginBottom: 4 }}>
           {(result as any).rewardTitle}!
         </div>
         {(result as any).xpAmount > 0 && (
@@ -58,7 +58,7 @@ export function OpenMysteryBoxButton({ boxId }: { boxId: string }) {
       onClick={handleOpen}
       disabled={loading}
       className="button primary"
-      style={{ background: "#7c3aed" }}
+      style={{ background: "#6b21c8" }}
     >
       {loading ? "Opening..." : "Open Box"}
     </button>

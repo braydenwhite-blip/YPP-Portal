@@ -1,0 +1,2 @@
+ALTER TYPE "ConversationContextType" ADD VALUE IF NOT EXISTS 'DIRECT';
+ALTER TYPE "ConversationContextType" ADD VALUE IF NOT EXISTS 'PARENT';

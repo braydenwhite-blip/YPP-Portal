@@ -1,37 +1,100 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   cancelInterviewAvailabilityRequest,
   confirmPostedInterviewSlot,
-  submitInterviewAvailabilityRequest,
 } from "@/lib/instructor-interview-actions";
 import {
   buildFallbackInstructorReadiness,
   getInstructorReadiness,
 } from "@/lib/instructor-readiness";
 import { withPrismaFallback } from "@/lib/prisma-guard";
-import {
-  setTrainingCheckpointCompletion,
-} from "@/lib/training-actions";
 
 function formatDateTime(value: Date | string | null | undefined) {
   if (!value) return "-";
   return new Date(value).toLocaleString();
 }
 
-function dateTimeLocalValue(value: Date) {
-  const copy = new Date(value);
-  copy.setMinutes(copy.getMinutes() - copy.getTimezoneOffset());
-  return copy.toISOString().slice(0, 16);
+const TRACKABLE_REQUIRED_VIDEO_PROVIDERS = new Set(["YOUTUBE", "VIMEO", "CUSTOM"]);
+const LESSON_DESIGN_STUDIO_MODULE_KEY = "academy_lesson_studio_004";
+
+type ModuleCard = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  module: any;
+  assignment: { status: string } | undefined;
+  latestQuiz: { scorePct: number; attemptedAt: Date } | undefined;
+  videoReady: boolean;
+  quizReady: boolean;
+  fullyComplete: boolean;
+  videoProgressPct: number;
+  configurationIssue: string | null;
+};
+
+function KanbanCard({ card }: { card: ModuleCard }) {
+  const isLDS = card.module.contentKey === LESSON_DESIGN_STUDIO_MODULE_KEY;
+  return (
+    <div
+      style={{
+        border: "1px solid var(--border)",
+        borderRadius: 10,
+        padding: 12,
+        background: card.fullyComplete ? "#f0fdf4" : "var(--surface)",
+      }}
+    >
+      <p style={{ margin: "0 0 4px", fontWeight: 600, fontSize: 14 }}>{card.module.title}</p>
+      <p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--muted)", lineHeight: 1.4 }}>
+        {card.module.description}
+      </p>
+
+      {/* Progress bar */}
+      {!isLDS ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+          <div style={{ flex: 1, height: 4, background: "var(--border)", borderRadius: 2 }}>
+            <div
+              style={{
+                height: "100%",
+                width: `${card.videoProgressPct}%`,
+                background: card.fullyComplete ? "#16a34a" : "#6366f1",
+                borderRadius: 2,
+                transition: "width 0.3s ease",
+              }}
+            />
+          </div>
+          <span style={{ fontSize: 11, color: "var(--muted)" }}>{card.videoProgressPct}%</span>
+        </div>
+      ) : null}
+
+      {card.module.requiresQuiz ? (
+        <span className={`pill pill-small ${card.quizReady ? "pill-success" : ""}`} style={{ marginBottom: 10, display: "inline-block" }}>
+          Quiz {card.quizReady ? "Passed" : "Required"}
+        </span>
+      ) : null}
+
+      {card.configurationIssue ? (
+        <p style={{ margin: "0 0 8px", fontSize: 11, color: "#b45309" }}>{card.configurationIssue}</p>
+      ) : null}
+
+      {card.latestQuiz ? (
+        <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--muted)" }}>
+          Quiz: {card.latestQuiz.scorePct}% · {formatDateTime(card.latestQuiz.attemptedAt)}
+        </p>
+      ) : null}
+
+      <Link
+        href={isLDS ? "/instructor/lesson-design-studio?entry=training" : `/training/${card.module.id}`}
+        className="button small"
+        style={{ textDecoration: "none", fontSize: 12 }}
+      >
+        {isLDS ? "Open Studio" : card.fullyComplete ? "Review" : "Open module"}
+      </Link>
+    </div>
+  );
 }
 
-const TRACKABLE_REQUIRED_VIDEO_PROVIDERS = new Set(["YOUTUBE", "VIMEO", "CUSTOM"]);
-
 export default async function InstructorTrainingPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }
@@ -88,9 +151,7 @@ export default async function InstructorTrainingPage() {
     modules,
     assignments,
     videoProgress,
-    checkpointCompletions,
     quizAttempts,
-    evidenceSubmissions,
     interviewGate,
     readiness,
     trainingCertificate,
@@ -101,11 +162,6 @@ export default async function InstructorTrainingPage() {
         prisma.trainingModule.findMany({
           orderBy: { sortOrder: "asc" },
           include: {
-            checkpoints: {
-              where: { required: true },
-              orderBy: { sortOrder: "asc" },
-              select: { id: true, title: true, sortOrder: true },
-            },
             quizQuestions: {
               select: { id: true },
             },
@@ -135,15 +191,6 @@ export default async function InstructorTrainingPage() {
       []
     ),
     withPrismaFallback(
-      "instructor-training:checkpoint-completions",
-      () =>
-        prisma.trainingCheckpointCompletion.findMany({
-          where: { userId: instructorId },
-          select: { checkpointId: true, completedAt: true, notes: true },
-        }),
-      []
-    ),
-    withPrismaFallback(
       "instructor-training:quiz-attempts",
       () =>
         prisma.trainingQuizAttempt.findMany({
@@ -154,21 +201,6 @@ export default async function InstructorTrainingPage() {
             passed: true,
             scorePct: true,
             attemptedAt: true,
-          },
-        }),
-      []
-    ),
-    withPrismaFallback(
-      "instructor-training:evidence-submissions",
-      () =>
-        prisma.trainingEvidenceSubmission.findMany({
-          where: { userId: instructorId },
-          orderBy: { createdAt: "desc" },
-          select: {
-            moduleId: true,
-            status: true,
-            createdAt: true,
-            reviewNotes: true,
           },
         }),
       []
@@ -203,18 +235,6 @@ export default async function InstructorTrainingPage() {
 
   const assignmentByModule = new Map(assignments.map((assignment) => [assignment.moduleId, assignment]));
   const videoByModule = new Map(videoProgress.map((progress) => [progress.moduleId, progress]));
-  const completedCheckpointIds = new Set(
-    checkpointCompletions.map((item) => item.checkpointId)
-  );
-  const checkpointCompletionById = new Map(
-    checkpointCompletions.map((item) => [
-      item.checkpointId,
-      {
-        completedAt: item.completedAt,
-        notes: item.notes,
-      },
-    ])
-  );
 
   const latestQuizByModule = new Map<string, (typeof quizAttempts)[number]>();
   const passedQuizModuleIds = new Set<string>();
@@ -227,38 +247,13 @@ export default async function InstructorTrainingPage() {
     }
   }
 
-  const latestEvidenceByModule = new Map<string, (typeof evidenceSubmissions)[number]>();
-  const approvedEvidenceModuleIds = new Set<string>();
-  for (const submission of evidenceSubmissions) {
-    if (!latestEvidenceByModule.has(submission.moduleId)) {
-      latestEvidenceByModule.set(submission.moduleId, submission);
-    }
-    if (submission.status === "APPROVED") {
-      approvedEvidenceModuleIds.add(submission.moduleId);
-    }
-  }
-
   const moduleCards = modules.map((module) => {
     const assignment = assignmentByModule.get(module.id);
     const progress = videoByModule.get(module.id);
     const latestQuiz = latestQuizByModule.get(module.id);
-    const latestEvidence = latestEvidenceByModule.get(module.id);
-
-    const requiredCheckpointCount = module.checkpoints.length;
-    const completedRequiredCheckpoints = module.checkpoints.filter((checkpoint) =>
-      completedCheckpointIds.has(checkpoint.id)
-    ).length;
-
-    const hasAnyActionablePath =
-      Boolean(module.videoUrl) ||
-      requiredCheckpointCount > 0 ||
-      module.requiresQuiz ||
-      module.requiresEvidence;
 
     let configurationIssue: string | null = null;
-    if (module.required && !hasAnyActionablePath) {
-      configurationIssue = "Module is required but not configured yet. Ask an admin to add video, checkpoints, quiz, or evidence requirements.";
-    } else if (module.requiresQuiz && module.quizQuestions.length === 0) {
+    if (module.requiresQuiz && module.quizQuestions.length === 0) {
       configurationIssue = "Quiz is required but no quiz questions are configured for this module.";
     } else if (
       module.required &&
@@ -269,54 +264,34 @@ export default async function InstructorTrainingPage() {
       configurationIssue = "Required module video provider must be YOUTUBE, VIMEO, or CUSTOM so watch tracking can count.";
     }
 
-    const videoReady =
-      !module.videoUrl ||
-      progress?.completed === true ||
-      (module.videoDuration
-        ? (progress?.watchedSeconds ?? 0) >= Math.floor(module.videoDuration * 0.9)
-        : false);
-
-    const checkpointsReady =
-      requiredCheckpointCount === 0 || completedRequiredCheckpoints >= requiredCheckpointCount;
-
+    // Video completes when the player fires the "ended" event.
+    const videoReady = !module.videoUrl || progress?.completed === true;
     const quizReady =
       !module.requiresQuiz ||
       (module.quizQuestions.length > 0 && passedQuizModuleIds.has(module.id));
-    const evidenceReady = !module.requiresEvidence || approvedEvidenceModuleIds.has(module.id);
+    const fullyComplete = !configurationIssue && videoReady && quizReady;
 
-    const fullyComplete =
-      !configurationIssue && videoReady && checkpointsReady && quizReady && evidenceReady;
+    // Progress bar: use actual watch percentage for in-progress feedback.
+    const videoDuration = module.videoDuration ?? null;
+    const videoProgressPct = fullyComplete
+      ? 100
+      : videoDuration && videoDuration > 0
+        ? Math.min(99, Math.round(((progress?.watchedSeconds ?? 0) / videoDuration) * 100))
+        : (progress?.watchedSeconds ?? 0) > 0
+          ? 30
+          : 0;
 
     return {
       module,
       assignment,
       latestQuiz,
-      latestEvidence,
       videoReady,
-      checkpointsReady,
       quizReady,
-      evidenceReady,
       fullyComplete,
-      completedRequiredCheckpoints,
-      requiredCheckpointCount,
+      videoProgressPct,
       configurationIssue,
-      checkpoints: module.checkpoints.map((checkpoint) => ({
-        id: checkpoint.id,
-        title: checkpoint.title,
-        sortOrder: checkpoint.sortOrder,
-        completed: completedCheckpointIds.has(checkpoint.id),
-        completedAt:
-          checkpointCompletionById.get(checkpoint.id)?.completedAt ?? null,
-        notes: checkpointCompletionById.get(checkpoint.id)?.notes ?? null,
-      })),
     };
   });
-  const lessonDesignStudioCard = moduleCards.find(
-    (card) =>
-      card.module.contentKey === "academy_lesson_studio_006" ||
-      card.module.type === "CURRICULUM_REVIEW"
-  );
-
   const postedSlots = interviewGate.slots.filter((slot) => slot.status === "POSTED");
   const confirmedSlot = interviewGate.slots.find((slot) => slot.status === "CONFIRMED");
   const completedSlot = interviewGate.slots.find((slot) => slot.status === "COMPLETED");
@@ -324,11 +299,15 @@ export default async function InstructorTrainingPage() {
     (request) => request.status === "PENDING"
   );
 
-  const defaultAvailabilityStart = dateTimeLocalValue(new Date(Date.now() + 24 * 60 * 60 * 1000));
-
+  const moduleWeight = readiness.requiredModulesCount;
+  const doneModuleWeight = readiness.academyModulesComplete
+    ? moduleWeight
+    : readiness.completedRequiredModules;
+  const totalTrainingWeight = moduleWeight + 1;
+  const doneTrainingWeight = doneModuleWeight + (readiness.studioCapstoneComplete ? 1 : 0);
   const trainingPct =
-    readiness.requiredModulesCount > 0
-      ? Math.round((readiness.completedRequiredModules / readiness.requiredModulesCount) * 100)
+    totalTrainingWeight > 0
+      ? Math.round((doneTrainingWeight / totalTrainingWeight) * 100)
       : 0;
 
   return (
@@ -353,7 +332,7 @@ export default async function InstructorTrainingPage() {
           <div>
             <div style={{ fontWeight: 600, fontSize: 15 }}>Training Progress</div>
             <div style={{ marginTop: 4, color: "var(--text-secondary)", fontSize: 13 }}>
-              {readiness.completedRequiredModules} of {readiness.requiredModulesCount} required modules complete
+              {readiness.completedRequiredModules} of {readiness.requiredModulesCount} modules complete
             </div>
           </div>
           <div style={{ fontSize: 22, fontWeight: 700, color: readiness.trainingComplete ? "#16a34a" : "var(--ypp-purple)" }}>
@@ -385,63 +364,6 @@ export default async function InstructorTrainingPage() {
           <p style={{ marginTop: 8, fontSize: 12, color: "var(--muted)" }}>{readiness.nextAction.detail}</p>
         </div>
       </div>
-
-      {lessonDesignStudioCard ? (
-        <div
-          className="card"
-          style={{
-            marginBottom: 20,
-            background: "linear-gradient(135deg, #1e1030 0%, #13111c 100%)",
-            border: "1px solid rgba(124,58,237,0.35)",
-            color: "#f2f2f7",
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 12,
-                  background: "linear-gradient(135deg, #7c3aed, #4f46e5)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 22,
-                  flexShrink: 0,
-                  boxShadow: "0 0 20px rgba(124,58,237,0.4)",
-                }}
-              >
-                🎨
-              </div>
-              <div>
-                <h3 style={{ margin: 0, color: "#f2f2f7", fontSize: 15 }}>{lessonDesignStudioCard.module.title}</h3>
-                <p style={{ margin: "4px 0 0", color: "rgba(242,242,247,0.6)", fontSize: 13 }}>
-                  This capstone module now leads straight into the studio so applicants can study examples, build a full curriculum, and submit that same curriculum for review.
-                </p>
-                <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  <span className="pill pill-small" style={{ background: "rgba(255,255,255,0.12)", color: "#f2f2f7" }}>
-                    {lessonDesignStudioCard.assignment?.status?.replace(/_/g, " ") ?? "NOT STARTED"}
-                  </span>
-                  <span className="pill pill-small" style={{ background: "rgba(255,255,255,0.12)", color: "#f2f2f7" }}>
-                    Checkpoints {lessonDesignStudioCard.completedRequiredCheckpoints}/{lessonDesignStudioCard.requiredCheckpointCount}
-                  </span>
-                  <span className="pill pill-small" style={{ background: "rgba(255,255,255,0.12)", color: "#f2f2f7" }}>
-                    Evidence {lessonDesignStudioCard.evidenceReady ? "Approved" : "Pending"}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <Link
-              href={`/training/${lessonDesignStudioCard.module.id}`}
-              className="button primary"
-              style={{ fontSize: 13, flexShrink: 0, background: "#7c3aed", borderColor: "#7c3aed" }}
-            >
-              Open Final Module →
-            </Link>
-          </div>
-        </div>
-      ) : null}
 
       <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start" }}>
@@ -506,32 +428,14 @@ export default async function InstructorTrainingPage() {
 
         <div style={{ marginTop: 18 }}>
           <h4 style={{ marginBottom: 8 }}>Request Preferred Times</h4>
-          <form action={submitInterviewAvailabilityRequest} className="form-grid">
-            <div className="grid three">
-              <label className="form-row">
-                Preferred Slot 1
-                <input className="input" type="datetime-local" name="preferredStart1" defaultValue={defaultAvailabilityStart} required />
-              </label>
-              <label className="form-row">
-                Preferred Slot 2
-                <input className="input" type="datetime-local" name="preferredStart2" />
-              </label>
-              <label className="form-row">
-                Preferred Slot 3
-                <input className="input" type="datetime-local" name="preferredStart3" />
-              </label>
-            </div>
-            <label className="form-row">
-              Notes (optional)
-              <textarea
-                className="input"
-                name="note"
-                rows={2}
-                placeholder="Include timezone, constraints, or preferred interviewer notes"
-              />
-            </label>
-            <button type="submit" className="button small">Submit availability request</button>
-          </form>
+          <div className="card" style={{ background: "var(--surface-alt)", padding: 16 }}>
+            <p style={{ marginTop: 0, fontSize: 13, color: "var(--muted)" }}>
+              Use the shared interview scheduler to request times, confirm slots, and keep your reminder emails in one place.
+            </p>
+            <Link href="/interviews/schedule" className="button small" style={{ textDecoration: "none" }}>
+              Open Interview Scheduler
+            </Link>
+          </div>
 
           {pendingAvailabilityRequests.length > 0 ? (
             <div style={{ marginTop: 12 }}>
@@ -599,159 +503,73 @@ export default async function InstructorTrainingPage() {
         </div>
       ) : null}
 
-      <div className="card">
-        <h3 style={{ marginBottom: 8 }}>Academy Modules</h3>
+      <div style={{ marginBottom: 24 }}>
+        <h3 style={{ marginBottom: 4 }}>Academy Modules</h3>
         <p style={{ marginTop: 0, color: "var(--muted)", fontSize: 14 }}>
-          Modules complete only when all required video, checkpoints, quiz, and evidence requirements are met.
+          Watch each module video to completion. Quiz-required modules also need a passing score.
         </p>
 
-        <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
-          {moduleCards.map((card) => (
-            <div key={card.module.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start" }}>
-                <div>
-                  <h4 style={{ margin: 0 }}>{card.module.title}</h4>
-                  <p style={{ marginTop: 6, marginBottom: 0, fontSize: 13, color: "var(--muted)" }}>
-                    {card.module.description}
-                  </p>
-                </div>
-                <span className={`pill ${card.fullyComplete ? "pill-success" : card.configurationIssue ? "pill-declined" : ""}`}>
-                  {card.configurationIssue
-                    ? "CONFIG ERROR"
-                    : card.assignment?.status?.replace(/_/g, " ") ?? "NOT STARTED"}
-                </span>
-              </div>
-
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
-                <span className={`pill pill-small ${card.videoReady ? "pill-success" : ""}`}>
-                  Video {card.module.videoUrl ? (card.videoReady ? "Done" : "Pending") : "N/A"}
-                </span>
-                <span className={`pill pill-small ${card.checkpointsReady ? "pill-success" : ""}`}>
-                  Checkpoints {card.completedRequiredCheckpoints}/{card.requiredCheckpointCount}
-                </span>
-                <span className={`pill pill-small ${card.quizReady ? "pill-success" : ""}`}>
-                  Quiz {card.module.requiresQuiz ? (card.quizReady ? "Passed" : "Required") : "N/A"}
-                </span>
-                <span className={`pill pill-small ${card.evidenceReady ? "pill-success" : ""}`}>
-                  Evidence {card.module.requiresEvidence ? (card.evidenceReady ? "Approved" : "Pending") : "N/A"}
-                </span>
-              </div>
-
-              {card.configurationIssue ? (
-                <p style={{ marginTop: 8, marginBottom: 0, fontSize: 12, color: "#b45309" }}>
-                  {card.configurationIssue}
-                </p>
-              ) : null}
-
-              {card.latestQuiz ? (
-                <p style={{ marginTop: 8, marginBottom: 0, fontSize: 12, color: "var(--muted)" }}>
-                  Latest quiz: {card.latestQuiz.scorePct}% on {formatDateTime(card.latestQuiz.attemptedAt)}
-                </p>
-              ) : null}
-
-              {card.latestEvidence ? (
-                <p style={{ marginTop: 6, marginBottom: 0, fontSize: 12, color: "var(--muted)" }}>
-                  Latest evidence: {card.latestEvidence.status.replace(/_/g, " ")} ({formatDateTime(card.latestEvidence.createdAt)})
-                </p>
-              ) : null}
-
-              {card.checkpoints.length > 0 ? (
-                <div style={{ marginTop: 8 }}>
-                  <p style={{ margin: 0, fontSize: 12, color: "var(--muted)" }}>
-                    Checkpoints
-                  </p>
-                  <div style={{ display: "grid", gap: 8, marginTop: 6 }}>
-                    {card.checkpoints.map((checkpoint) => (
-                      <div
-                        key={checkpoint.id}
-                        style={{
-                          border: "1px solid var(--border)",
-                          borderRadius: 8,
-                          padding: 8,
-                          display: "flex",
-                          justifyContent: "space-between",
-                          gap: 10,
-                          alignItems: "center",
-                        }}
-                      >
-                        <div>
-                          <p style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>
-                            {checkpoint.completed ? "Done" : "Pending"}:{" "}
-                            {checkpoint.title}
-                          </p>
-                          {checkpoint.completedAt ? (
-                            <p
-                              style={{
-                                margin: "4px 0 0",
-                                fontSize: 11,
-                                color: "var(--muted)",
-                              }}
-                            >
-                              Completed on{" "}
-                              {formatDateTime(checkpoint.completedAt)}
-                            </p>
-                          ) : null}
-                        </div>
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <form action={setTrainingCheckpointCompletion}>
-                            <input
-                              type="hidden"
-                              name="checkpointId"
-                              value={checkpoint.id}
-                            />
-                            <input
-                              type="hidden"
-                              name="completed"
-                              value={checkpoint.completed ? "false" : "true"}
-                            />
-                            <input
-                              type="hidden"
-                              name="notes"
-                              value={checkpoint.notes ?? ""}
-                            />
-                            <button type="submit" className="button small outline">
-                              {checkpoint.completed
-                                ? "Mark incomplete"
-                                : "Mark complete"}
-                            </button>
-                          </form>
-                          <Link
-                            href={`/training/${card.module.id}#checkpoint-${checkpoint.id}`}
-                            className="button small outline"
-                            style={{ textDecoration: "none" }}
-                          >
-                            Open details
-                          </Link>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <Link href={`/training/${card.module.id}`} className="button small" style={{ textDecoration: "none" }}>
-                  Open module
-                </Link>
-                <Link
-                  href={`/training/${card.module.id}#section-checkpoints`}
-                  className="button small outline"
-                  style={{ textDecoration: "none" }}
-                >
-                  Open checkpoints
-                </Link>
-                {card.module.requiresQuiz ? (
-                  <Link
-                    href={`/training/${card.module.id}#section-quiz`}
-                    className="button small outline"
-                    style={{ textDecoration: "none" }}
-                  >
-                    Open quiz
-                  </Link>
-                ) : null}
-              </div>
+        {/* Kanban columns */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginTop: 16 }}>
+          {/* Not Started */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--border)", display: "inline-block" }} />
+              <span style={{ fontWeight: 600, fontSize: 13 }}>
+                Not Started ({moduleCards.filter((c) => !c.fullyComplete && c.assignment?.status !== "IN_PROGRESS").length})
+              </span>
             </div>
-          ))}
+            <div style={{ display: "grid", gap: 10 }}>
+              {moduleCards
+                .filter((c) => !c.fullyComplete && c.assignment?.status !== "IN_PROGRESS")
+                .map((card) => (
+                  <KanbanCard key={card.module.id} card={card} />
+                ))}
+              {moduleCards.filter((c) => !c.fullyComplete && c.assignment?.status !== "IN_PROGRESS").length === 0 && (
+                <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>None</p>
+              )}
+            </div>
+          </div>
+
+          {/* In Progress */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#6366f1", display: "inline-block" }} />
+              <span style={{ fontWeight: 600, fontSize: 13 }}>
+                In Progress ({moduleCards.filter((c) => !c.fullyComplete && c.assignment?.status === "IN_PROGRESS").length})
+              </span>
+            </div>
+            <div style={{ display: "grid", gap: 10 }}>
+              {moduleCards
+                .filter((c) => !c.fullyComplete && c.assignment?.status === "IN_PROGRESS")
+                .map((card) => (
+                  <KanbanCard key={card.module.id} card={card} />
+                ))}
+              {moduleCards.filter((c) => !c.fullyComplete && c.assignment?.status === "IN_PROGRESS").length === 0 && (
+                <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>None yet</p>
+              )}
+            </div>
+          </div>
+
+          {/* Complete */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#16a34a", display: "inline-block" }} />
+              <span style={{ fontWeight: 600, fontSize: 13 }}>
+                Complete ({moduleCards.filter((c) => c.fullyComplete).length})
+              </span>
+            </div>
+            <div style={{ display: "grid", gap: 10 }}>
+              {moduleCards
+                .filter((c) => c.fullyComplete)
+                .map((card) => (
+                  <KanbanCard key={card.module.id} card={card} />
+                ))}
+              {moduleCards.filter((c) => c.fullyComplete).length === 0 && (
+                <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>None yet</p>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

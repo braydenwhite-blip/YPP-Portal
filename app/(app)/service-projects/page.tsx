@@ -1,12 +1,11 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getServiceProjects } from "@/lib/real-world-actions";
 import Link from "next/link";
 import { JoinProjectButton, CreateProjectForm } from "./client";
 
 export default async function ServiceProjectsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const { projects, myProjectIds } = await getServiceProjects();
@@ -18,7 +17,7 @@ export default async function ServiceProjectsPage() {
   const statusColors: Record<string, string> = {
     RECRUITING: "#16a34a",
     IN_PROGRESS: "#3b82f6",
-    COMPLETED: "#7c3aed",
+    COMPLETED: "#6b21c8",
     CANCELLED: "#6b7280",
   };
 

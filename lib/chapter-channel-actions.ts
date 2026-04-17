@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { withPrismaFallback } from "@/lib/prisma-guard";
 
@@ -11,7 +10,7 @@ import { withPrismaFallback } from "@/lib/prisma-guard";
 // ============================================
 
 async function requireChapterMember() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import {
   buildChapterCalendarIcs,
@@ -8,6 +7,7 @@ import {
   getChapterCalendarEntries,
   slugifyChapterName,
 } from "@/lib/chapter-calendar";
+import { normalizeRoleList } from "@/lib/authorization";
 
 function addDays(base: Date, days: number) {
   const next = new Date(base);
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
 
     userId = subscription.userId;
   } else {
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -80,7 +80,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const isAdmin = viewer.roles.some((role) => role.role === "ADMIN");
+    const viewerRoles = normalizeRoleList(viewer.roles, viewer.primaryRole);
+    const isAdmin = viewerRoles.includes("ADMIN");
     if (!isAdmin && viewer.chapterId !== chapter.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

@@ -1,10 +1,9 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 
 export default async function SessionRecapPage({ params }: { params: { sessionId: string } }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }
@@ -27,7 +26,7 @@ export default async function SessionRecapPage({ params }: { params: { sessionId
 
   const isInstructor =
     attendanceSession.course.leadInstructorId === session.user.id ||
-    session.user.primaryRole === "ADMIN";
+    session.user.roles.includes("ADMIN");
 
   if (!isInstructor) {
     redirect(`/courses/${attendanceSession.courseId}`);

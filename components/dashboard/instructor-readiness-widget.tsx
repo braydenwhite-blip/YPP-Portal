@@ -84,9 +84,9 @@ export default function InstructorReadinessWidget({
             marginBottom: 6,
           }}
         >
-          <span>Training Progress</span>
+          <span>Academy modules</span>
           <span style={{ fontWeight: 600 }}>
-            {summary.completedRequiredModules} / {summary.requiredModulesCount} modules
+            {summary.completedRequiredModules} / {summary.requiredModulesCount}
           </span>
         </div>
         {summary.trainingComplete ? (
@@ -109,7 +109,7 @@ export default function InstructorReadinessWidget({
               style={{
                 height: "100%",
                 width: `${summary.trainingPercent}%`,
-                background: "var(--ypp-purple, #7c3aed)",
+                background: "var(--ypp-purple, #6b21c8)",
                 borderRadius: 999,
               }}
             />

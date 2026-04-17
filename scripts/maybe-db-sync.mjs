@@ -9,6 +9,77 @@ function envIsTrue(v) {
   return v === "1" || v === "true" || v === "yes";
 }
 
+function parseUrl(rawUrl) {
+  try {
+    return new URL(rawUrl);
+  } catch {
+    return null;
+  }
+}
+
+function isSupabaseSessionPoolerUrl(rawUrl) {
+  const url = parseUrl(rawUrl);
+  return Boolean(
+    url &&
+      url.hostname.toLowerCase().includes("pooler.supabase.com") &&
+      url.port === "5432"
+  );
+}
+
+function describeConnectionTarget(rawUrl) {
+  const url = parseUrl(rawUrl);
+  if (!url) return "invalid URL";
+  return `${url.hostname}:${url.port || "(default)"}`;
+}
+
+function extractSupabaseProjectRef(rawUrl) {
+  const url = parseUrl(rawUrl);
+  if (!url) return null;
+
+  const hostMatch = url.hostname.match(/^db\.([a-z0-9-]+)\.supabase\.co$/i);
+  if (hostMatch?.[1]) {
+    return hostMatch[1];
+  }
+
+  const usernameMatch = decodeURIComponent(url.username).match(/^postgres\.([a-z0-9-]+)$/i);
+  if (usernameMatch?.[1]) {
+    return usernameMatch[1];
+  }
+
+  return null;
+}
+
+function logSupabaseDirectUrlFix(rawUrl) {
+  const url = parseUrl(rawUrl);
+  const target = describeConnectionTarget(rawUrl);
+  const ref = extractSupabaseProjectRef(rawUrl);
+  const currentUser = url ? decodeURIComponent(url.username || "(missing)") : "(missing)";
+
+  console.warn(
+    `[db-sync] DIRECT_URL points to the Supabase session pooler (${target}).`
+  );
+  console.warn(
+    "[db-sync] Supabase supports session mode on port 5432 for Prisma migrations in IPv4-only environments."
+  );
+  console.warn(
+    `[db-sync] Current Supabase user looks like: ${currentUser}`
+  );
+
+  if (ref) {
+    console.warn(
+      `[db-sync] Direct host db.${ref}.supabase.co:5432 is still preferred when your build environment can reach it.`
+    );
+  } else {
+    console.warn(
+      "[db-sync] A direct host db.<project-ref>.supabase.co:5432 is still preferred when your build environment can reach it."
+    );
+  }
+
+  console.warn(
+    "[db-sync] Continuing with prisma migrate deploy using the session pooler. Keep DATABASE_URL on the transaction pooler (usually port 6543)."
+  );
+}
+
 /** Run a command, streaming output live. Returns the exit code. */
 function run(cmd, args) {
   const res = spawnSync(cmd, args, { stdio: "inherit" });
@@ -50,7 +121,15 @@ if (disableDbSync) {
 
 console.log("[db-sync] Vercel build detected. Running prisma migrate deploy...");
 console.log("[db-sync] NOTE: Using 'migrate deploy' (safe, applies pending migrations only).");
-console.log("[db-sync] This requires DIRECT_URL to point to a non-pooled database connection.");
+console.log(
+  "[db-sync] DIRECT_URL should prefer a direct database host, but Supabase session mode on port 5432 is allowed when direct IPv6 access is unavailable."
+);
+
+const directUrl = process.env.DIRECT_URL?.trim();
+
+if (directUrl && isSupabaseSessionPoolerUrl(directUrl)) {
+  logSupabaseDirectUrlFix(directUrl);
+}
 
 let status = 0;
 let output = "";

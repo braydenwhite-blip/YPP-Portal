@@ -1,12 +1,21 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
+import {
+  parseOptionalEmail,
+  parseOptionalPhone,
+  parseOptionalSchool,
+  parseOptionalStudentGrade,
+  parseRequiredHumanName,
+  parseStudentInterests,
+  parseStudentLearningStyle,
+  parseStudentPrimaryGoal,
+} from "@/lib/student-profile";
 
 async function requireAuth() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
@@ -32,11 +41,13 @@ export async function updateProfile(formData: FormData) {
   const bio = getString(formData, "bio", false);
   const avatarUrl = getString(formData, "avatarUrl", false);
   const curriculumUrl = getString(formData, "curriculumUrl", false);
-  const interests = formData.getAll("interests").map(String).filter(Boolean);
-  const grade = getString(formData, "grade", false);
-  const school = getString(formData, "school", false);
-  const parentEmail = getString(formData, "parentEmail", false);
-  const parentPhone = getString(formData, "parentPhone", false);
+  const interests = parseStudentInterests(formData.getAll("interests").map(String));
+  const learningStyle = parseStudentLearningStyle(getString(formData, "learningStyle", false));
+  const primaryGoal = parseStudentPrimaryGoal(getString(formData, "primaryGoal", false));
+  const grade = parseOptionalStudentGrade(getString(formData, "grade", false));
+  const school = parseOptionalSchool(getString(formData, "school", false));
+  const parentEmail = parseOptionalEmail(getString(formData, "parentEmail", false), "parent email");
+  const parentPhone = parseOptionalPhone(getString(formData, "parentPhone", false), "parent phone");
 
   await prisma.userProfile.upsert({
     where: { userId },
@@ -46,20 +57,24 @@ export async function updateProfile(formData: FormData) {
       avatarUrl: avatarUrl || null,
       curriculumUrl: curriculumUrl || null,
       interests,
-      grade: grade ? Number(grade) : null,
-      school: school || null,
-      parentEmail: parentEmail || null,
-      parentPhone: parentPhone || null
+      learningStyle,
+      primaryGoal,
+      grade,
+      school,
+      parentEmail,
+      parentPhone,
     },
     update: {
       bio: bio || null,
       avatarUrl: avatarUrl || null,
       curriculumUrl: curriculumUrl || null,
       interests,
-      grade: grade ? Number(grade) : null,
-      school: school || null,
-      parentEmail: parentEmail || null,
-      parentPhone: parentPhone || null
+      learningStyle,
+      primaryGoal,
+      grade,
+      school,
+      parentEmail,
+      parentPhone,
     }
   });
 
@@ -71,8 +86,8 @@ export async function updateBasicInfo(formData: FormData) {
   const session = await requireAuth();
   const userId = session.user.id;
 
-  const name = getString(formData, "name");
-  const phone = getString(formData, "phone", false);
+  const name = parseRequiredHumanName(getString(formData, "name"), "Full name");
+  const phone = parseOptionalPhone(getString(formData, "phone", false), "phone");
 
   await prisma.user.update({
     where: { id: userId },
@@ -134,7 +149,7 @@ export async function submitCurriculum(formData: FormData) {
 // ============================================
 
 export async function getFullUserProfile(userId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   const currentUserId = session?.user?.id;
 

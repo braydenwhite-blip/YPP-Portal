@@ -1,15 +1,21 @@
+/**
+ * @deprecated LEGACY MODULE — do not add new server actions here.
+ * This module operates against the legacy Goal / GoalTemplate / ProgressUpdate models
+ * which are frozen pending Phase 1 migration. New code should use
+ * lib/goal-review-actions.ts (MentorGoalReview) and lib/self-reflection-actions.ts
+ * (MonthlySelfReflection) instead.
+ */
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { ProgressStatus, RoleType } from "@prisma/client";
 import { parseRoleType } from "@/lib/authorization";
 import { onProgressEvent } from "@/lib/progress-events";
 
 async function requireAuth() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }

@@ -1,10 +1,12 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { ClassSettingsClient } from "./client";
-import { getClassTemplateSelect } from "@/lib/class-template-compat";
+import {
+  getClassTemplateCapabilities,
+  getClassTemplateSelect,
+} from "@/lib/class-template-compat";
 import { getInstructorReadiness } from "@/lib/instructor-readiness";
 
 export default async function InstructorClassSettingsPage({
@@ -12,7 +14,7 @@ export default async function InstructorClassSettingsPage({
 }: {
   searchParams: Promise<{ template?: string; offering?: string }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const roles = session.user.roles ?? [];
@@ -21,6 +23,7 @@ export default async function InstructorClassSettingsPage({
   }
 
   const params = await searchParams;
+  const capabilities = await getClassTemplateCapabilities();
   const instructorProfile = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: {
@@ -41,8 +44,11 @@ export default async function InstructorClassSettingsPage({
           { createdById: session.user.id },
           { isPublished: true },
         ],
-    },
-    select: getClassTemplateSelect(),
+      },
+      select: getClassTemplateSelect({
+        includeLearnerFit: capabilities.hasLearnerFitFields,
+        includeWorkflow: capabilities.hasReviewWorkflow,
+      }),
       orderBy: { title: "asc" },
     }),
     prisma.chapter.findMany({
@@ -100,7 +106,10 @@ export default async function InstructorClassSettingsPage({
       where: { id: params.offering },
       include: {
         template: {
-          select: getClassTemplateSelect(),
+          select: getClassTemplateSelect({
+            includeLearnerFit: capabilities.hasLearnerFitFields,
+            includeWorkflow: capabilities.hasReviewWorkflow,
+          }),
         },
         approval: true,
         pathwayStep: {

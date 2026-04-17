@@ -1,20 +1,24 @@
+import type {
+  InstructorApplicationStatus,
+  ChapterPresidentApplicationStatus,
+} from "@prisma/client";
+
+// Derived from Prisma-generated enums so it stays in sync with the schema.
+// Any status value valid for either application type is accepted here.
 export type LegacyApplicationStatus =
-  | "SUBMITTED"
-  | "UNDER_REVIEW"
-  | "INFO_REQUESTED"
-  | "ON_HOLD"
-  | "INTERVIEW_SCHEDULED"
-  | "INTERVIEW_COMPLETED"
-  | "APPROVED"
-  | "REJECTED";
+  | InstructorApplicationStatus
+  | ChapterPresidentApplicationStatus;
 
 export type LegacyApplicationReviewAction =
   | "mark_under_review"
   | "request_info"
   | "schedule_interview"
   | "mark_interview_complete"
+  | "submit_recommendation"
   | "approve"
-  | "reject";
+  | "reject"
+  | "put_on_hold"
+  | "resume_from_hold";
 
 function isFinalStatus(status: LegacyApplicationStatus) {
   return status === "APPROVED" || status === "REJECTED";
@@ -32,25 +36,37 @@ export function getLegacyApplicationTransitionError(input: {
 
   switch (action) {
     case "mark_under_review":
-      return status === "SUBMITTED"
+      return status === "SUBMITTED" || status === "ON_HOLD"
         ? null
-        : "Only newly submitted applications can move into review.";
+        : "Only newly submitted or on-hold applications can move into review.";
     case "request_info":
       return null;
     case "schedule_interview":
       return status === "INTERVIEW_COMPLETED"
-        ? "Completed interviews cannot be rescheduled from this legacy flow."
+        ? "Completed interviews cannot be rescheduled from this flow."
         : null;
     case "mark_interview_complete":
       return status === "INTERVIEW_SCHEDULED"
         ? null
         : "Only scheduled interviews can be marked complete.";
-    case "approve":
+    case "submit_recommendation":
       return status === "INTERVIEW_COMPLETED"
+        ? null
+        : "Complete the interview before submitting a recommendation.";
+    case "approve":
+      return status === "INTERVIEW_COMPLETED" || status === "RECOMMENDATION_SUBMITTED"
         ? null
         : "Complete the interview before approving this application.";
     case "reject":
       return null;
+    case "put_on_hold":
+      return status === "ON_HOLD"
+        ? "Application is already on hold."
+        : null;
+    case "resume_from_hold":
+      return status === "ON_HOLD"
+        ? null
+        : "Only on-hold applications can be resumed.";
     default:
       return "Unknown review action.";
   }

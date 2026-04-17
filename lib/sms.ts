@@ -3,6 +3,7 @@ import {
   type CountryCode,
 } from "libphonenumber-js";
 import twilio from "twilio";
+import { getPublicAppUrl } from "@/lib/public-app-url";
 
 let twilioClient: ReturnType<typeof twilio> | null = null;
 
@@ -20,9 +21,7 @@ type SendSmsNotificationInput = {
 };
 
 function getBaseUrl() {
-  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return "http://localhost:3000";
+  return getPublicAppUrl();
 }
 
 function collapseWhitespace(value: string) {

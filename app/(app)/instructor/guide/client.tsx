@@ -29,7 +29,7 @@ function AnnotatedFieldDisplay({ field }: { field: AnnotatedField }) {
         style={{
           padding: "8px 14px",
           background: "var(--ypp-purple-50, #f3f0ff)",
-          borderLeft: "3px solid var(--ypp-purple, #7c3aed)",
+          borderLeft: "3px solid var(--ypp-purple, #6b21c8)",
           fontSize: 12,
           lineHeight: 1.5,
           color: "var(--muted)",
@@ -201,7 +201,7 @@ function PassionLabsGuide() {
                 style={{
                   padding: "6px 10px",
                   background: "var(--ypp-purple-50, #f3f0ff)",
-                  borderLeft: "3px solid var(--ypp-purple, #7c3aed)",
+                  borderLeft: "3px solid var(--ypp-purple, #6b21c8)",
                   fontSize: 12,
                   marginTop: 8,
                   borderRadius: "0 var(--radius-sm, 4px) var(--radius-sm, 4px) 0",
@@ -397,7 +397,7 @@ function SequencesGuide() {
                 style={{
                   padding: "6px 10px",
                   background: "var(--ypp-purple-50, #f3f0ff)",
-                  borderLeft: "3px solid var(--ypp-purple, #7c3aed)",
+                  borderLeft: "3px solid var(--ypp-purple, #6b21c8)",
                   fontSize: 12,
                   marginTop: 8,
                   borderRadius: "0 var(--radius-sm, 4px) var(--radius-sm, 4px) 0",
@@ -548,7 +548,7 @@ function CompetitionsGuide() {
                 style={{
                   padding: "6px 10px",
                   background: "var(--ypp-purple-50, #f3f0ff)",
-                  borderLeft: "3px solid var(--ypp-purple, #7c3aed)",
+                  borderLeft: "3px solid var(--ypp-purple, #6b21c8)",
                   fontSize: 12,
                   marginTop: 6,
                   borderRadius: "0 var(--radius-sm, 4px) var(--radius-sm, 4px) 0",
@@ -596,7 +596,7 @@ function CompetitionsGuide() {
                       style={{
                         padding: "4px 8px",
                         background: "var(--ypp-purple-50, #f3f0ff)",
-                        borderLeft: "3px solid var(--ypp-purple, #7c3aed)",
+                        borderLeft: "3px solid var(--ypp-purple, #6b21c8)",
                         fontSize: 11,
                         marginTop: 6,
                         borderRadius: "0 var(--radius-sm, 4px) var(--radius-sm, 4px) 0",

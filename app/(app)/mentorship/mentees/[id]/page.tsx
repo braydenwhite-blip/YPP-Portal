@@ -1,11 +1,16 @@
-import { getServerSession } from "next-auth";
 import Link from "next/link";
+import { getSession } from "@/lib/auth-supabase";
 import { notFound, redirect } from "next/navigation";
 
-import { authOptions } from "@/lib/auth";
 import { FieldLabel } from "@/components/field-help";
 import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
+import { KickoffStatusRow } from "@/components/mentorship/kickoff-status-row";
+import { CycleStatusBlock } from "@/components/mentorship/cycle-status-block";
+import { ReviewSpine } from "@/components/mentorship/review-spine";
+import { getReviewSpineForMentee } from "@/lib/mentorship-cycle";
+import { requireReviewSpineAccess } from "@/lib/authorization-helpers";
 import { formatEnum } from "@/lib/format-utils";
+import { getCurrentCycleMonth, getReflectionSoftDeadline } from "@/lib/mentorship-cycle";
 import {
   SUPPORT_ROLE_META,
   getSupportWorkspaceData,
@@ -54,7 +59,7 @@ export default async function MenteeDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id: menteeId } = await params;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }
@@ -71,6 +76,12 @@ export default async function MenteeDetailPage({
   if (!workspace) {
     notFound();
   }
+
+  // Belt-and-suspenders authorization for the Review Spine; workspace auth
+  // already covers access, but the helper enforces the same rule at this layer
+  // in case this component grows additional branches.
+  await requireReviewSpineAccess(menteeId);
+  const reviewSpineCycles = await getReviewSpineForMentee(menteeId);
 
   const isSelfWorkspace = session.user.id === workspace.mentee.id;
   const canManageActionPlan = Boolean(workspace.mentorship || workspace.intakePlanLaunch) && !isSelfWorkspace;
@@ -113,6 +124,29 @@ export default async function MenteeDetailPage({
         intro="This workspace is the day-to-day operating area for one mentee. Work from top to bottom when you want the full picture."
         items={WORKSPACE_GUIDE_ITEMS}
       />
+
+      {workspace.mentorship && (
+        <>
+          <CycleStatusBlock
+            menteeId={workspace.mentee.id}
+            mentorshipId={workspace.mentorship.id}
+            cycleStage={workspace.mentorship.cycleStage ?? "REFLECTION_DUE"}
+            trackName={workspace.mentorship.track?.name ?? null}
+            cycleLabel={getCurrentCycleMonth().cycleLabel}
+            softDeadline={getReflectionSoftDeadline(getCurrentCycleMonth().cycleMonth)}
+          />
+          <KickoffStatusRow
+            mentorshipId={workspace.mentorship.id}
+            kickoffScheduledAt={workspace.mentorship.kickoffScheduledAt ?? null}
+            kickoffCompletedAt={workspace.mentorship.kickoffCompletedAt ?? null}
+            canMarkComplete={
+              workspace.mentorship.mentorId === session.user.id ||
+              (session.user.roles ?? []).includes("ADMIN")
+            }
+          />
+          <ReviewSpine cycles={reviewSpineCycles} title="Cycle timeline" />
+        </>
+      )}
 
       {!workspace.mentorship && !workspace.intakePlanLaunch ? (
         <section className="card" style={{ marginBottom: 24, borderLeft: "4px solid var(--gray-300, #d1d5db)" }}>
@@ -364,6 +398,18 @@ export default async function MenteeDetailPage({
               </div>
               <div className="form-row">
                 <FieldLabel
+                  label="Meeting link (optional)"
+                  help={{
+                    title: "Meeting Link",
+                    guidance:
+                      "If this session used Zoom, Google Meet, or another online room, put the link here so the session record matches reality.",
+                    example: "https://meet.google.com/abc-defg-hij",
+                  }}
+                />
+                <input type="url" name="meetingLink" className="input" placeholder="https://meet.google.com/..." />
+              </div>
+              <div className="form-row">
+                <FieldLabel
                   label="Length (minutes)"
                   help={{
                     title: "Session Length",
@@ -373,6 +419,22 @@ export default async function MenteeDetailPage({
                   }}
                 />
                 <input type="number" name="durationMinutes" className="input" min="15" step="15" defaultValue="30" />
+              </div>
+              <div className="form-row">
+                <FieldLabel
+                  label="Why manual override?"
+                  help={{
+                    title: "Manual Override Reason",
+                    guidance:
+                      "Write why you are creating this session here instead of using the normal scheduling page. This keeps the audit trail clear for everyone.",
+                    example: "Family emergency required a special one-off time",
+                  }}
+                />
+                <input
+                  name="schedulingOverrideReason"
+                  className="input"
+                  placeholder="Explain why this was booked or logged manually"
+                />
               </div>
               <div className="form-row">
                 <FieldLabel

@@ -65,7 +65,7 @@ export default function PathwayProgressMap({
                       style={{
                         fontSize: 12,
                         fontWeight: 600,
-                        color: "var(--ypp-purple, #7c3aed)",
+                        color: "var(--ypp-purple, #6b21c8)",
                         textDecoration: "none",
                         whiteSpace: "nowrap",
                       }}

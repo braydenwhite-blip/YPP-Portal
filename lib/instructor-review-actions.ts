@@ -2,7 +2,6 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { getServerSession } from "next-auth";
 import {
   InstructorApplicationStatus,
   Prisma,
@@ -10,7 +9,7 @@ import {
   StructuredReviewStatus,
 } from "@prisma/client";
 
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { getHiringActor, isAdmin, isChapterLead, isDesignatedInterviewer } from "@/lib/chapter-hiring-permissions";
 import {
@@ -195,7 +194,7 @@ const INTERVIEW_RECOMMENDATION_VALUES = new Set(
 );
 
 async function requireReviewSession() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }

@@ -1,7 +1,9 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { getStudentProgress } from "@/lib/parent-actions";
+import { getSession } from "@/lib/auth-supabase";
+import {
+  getStudentProgress,
+} from "@/lib/parent-actions";
+import ParentStudentManagementPanel from "@/components/parent-student-management-panel";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
@@ -71,7 +73,7 @@ export default async function ParentStudentDetailPage({
   params: Promise<{ studentId: string }>;
 }) {
   const { studentId } = await params;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
 
   if (!session?.user?.id) {
@@ -101,6 +103,11 @@ export default async function ParentStudentDetailPage({
     orderBy: { date: "asc" },
     take: 5,
   }).catch(() => []);
+
+  const chapters = await prisma.chapter.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
 
   // Compute derived stats
   const enrollmentCount = data.enrollments.length;
@@ -218,6 +225,25 @@ export default async function ParentStudentDetailPage({
             : "Attendance needs attention. Please reach out to the instructor."}
         </div>
       )}
+
+      <ParentStudentManagementPanel
+        chapters={chapters}
+        student={{
+          id: studentId,
+          name: data.student.name,
+          email: data.student.email,
+          phone: data.student.phone,
+          chapterId: data.student.chapter?.id ?? "",
+          profile: {
+            dateOfBirth: data.student.profile.dateOfBirth,
+            grade: data.student.profile.grade,
+            school: data.student.profile.school,
+            city: data.student.profile.city,
+            stateProvince: data.student.profile.stateProvince,
+            usesParentPhone: data.student.profile.usesParentPhone,
+          },
+        }}
+      />
 
       {/* Stats Row */}
       <div
@@ -366,7 +392,7 @@ export default async function ParentStudentDetailPage({
           >
             {[
               { label: "On Track", color: "#16a34a" },
-              { label: "Above & Beyond", color: "#7c3aed" },
+              { label: "Above & Beyond", color: "#6b21c8" },
               { label: "Behind Schedule", color: "#d97706" },
               { label: "Needs Attention", color: "#dc2626" },
             ].map((item) => (
@@ -449,7 +475,7 @@ export default async function ParentStudentDetailPage({
                           h.status === "ON_TRACK"
                             ? "#16a34a"
                             : h.status === "ABOVE_AND_BEYOND"
-                            ? "#7c3aed"
+                            ? "#6b21c8"
                             : h.status === "BEHIND_SCHEDULE"
                             ? "#d97706"
                             : h.status === "GETTING_STARTED"

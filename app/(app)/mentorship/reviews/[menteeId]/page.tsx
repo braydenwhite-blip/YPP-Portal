@@ -1,43 +1,44 @@
-import { getServerSession } from "next-auth";
 import Link from "next/link";
+import { getSession } from "@/lib/auth-supabase";
 import { notFound, redirect } from "next/navigation";
 
-import { authOptions } from "@/lib/auth";
 import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
 import { ReviewNotesBanner } from "@/components/review-notes-banner";
-import { mentorshipRequiresChairApproval } from "@/lib/mentorship-canonical";
-import { submitMonthlyGoalReview } from "@/lib/mentorship-program-actions";
+import { GoalReviewForm } from "@/components/mentorship/goal-review-form";
+import { TIER_THRESHOLDS, computeTier } from "@/lib/achievement-tier-utils";
+import { getGoalsForMentee, ensureReviewGoalRatings } from "@/lib/mentorship-gr-binding";
+import { toMenteeRoleType } from "@/lib/mentee-role-utils";
+import { POINT_TABLE } from "@/lib/mentorship-point-table";
 import { prisma } from "@/lib/prisma";
-import { FeedbackForm } from "../../feedback/[menteeId]/feedback-form";
 
 const MONTHLY_REVIEW_GUIDE_ITEMS = [
   {
-    label: "Per-Goal Ratings",
+    label: "Per-Goal Ratings (G&R backbone)",
     meaning:
-      "This is where you score each goal one by one so the review is tied to actual goals instead of general impressions.",
+      "Each row is a program goal pulled from the mentee's role lane. Their self-reflection sits inline so you can ground your rating in their actual words.",
     howToUse:
-      "Read the goal title, choose the progress color that matches the month, and write short comments about wins, blockers, and next steps.",
+      "Read the reflection block, pick a rating chip, write a one-sentence why. Repeat for every goal.",
   },
   {
-    label: "Overall Progress",
+    label: "Live Award Preview",
     meaning:
-      "This is the single monthly summary bar for the whole review.",
+      "The orange panel at the top updates as you change the overall rating and bonus points — it shows exactly what the chair's approval will trigger.",
     howToUse:
-      "Choose the color that best matches the month as a whole after you finish the per-goal ratings.",
+      "Use it as a sanity check. If the projected tier seems wrong, your overall rating and bonus probably need a second look.",
   },
   {
-    label: "Mentor Summary and Committee Notes",
+    label: "Overall Rating + Plan of Action",
     meaning:
-      "These text areas explain the story behind the ratings for both the mentee and any chair or committee reviewer.",
+      "The headline rating for the whole month, plus the next-month plan that becomes the mentee's marching orders.",
     howToUse:
-      "Use the mentor summary to speak clearly to the student, and use committee-facing notes to capture internal decision-making context.",
+      "Choose the color that matches the month overall, then write 1-3 concrete priorities in the plan of action.",
   },
   {
-    label: "Plan Of Action and Submission",
+    label: "Save Draft vs Submit for Chair Approval",
     meaning:
-      "The last section turns the review into a concrete plan and sends it into the right workflow.",
+      "Drafts stay editable. Submitting routes the review to the chair for the lane and locks editing until they approve or request changes.",
     howToUse:
-      "Write the next month's priorities, then submit the review so it either publishes directly or moves into chair approval.",
+      "Save drafts liberally; submit only when overall summary and plan of action are written.",
   },
 ] as const;
 
@@ -47,7 +48,7 @@ export default async function MonthlyReviewEditorPage({
   params: Promise<{ menteeId: string }>;
 }) {
   const { menteeId } = await params;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const userId = session?.user?.id;
   const roles = session?.user?.roles ?? [];
 
@@ -58,216 +59,254 @@ export default async function MonthlyReviewEditorPage({
   const isMentor = roles.includes("MENTOR");
   const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
   const isAdmin = roles.includes("ADMIN");
-
   if (!isMentor && !isChapterLead && !isAdmin) {
     redirect("/");
   }
 
-  if (!isAdmin) {
-    const mentorship = await prisma.mentorship.findFirst({
-      where: {
-        mentorId: userId,
-        menteeId,
-        status: "ACTIVE",
-      },
-    });
-
-    if (!mentorship) {
-      redirect("/mentorship/mentees");
-    }
-  }
-
   const mentee = await prisma.user.findUnique({
     where: { id: menteeId },
+    select: { id: true, name: true, email: true, primaryRole: true },
+  });
+  if (!mentee) notFound();
+
+  const mentorship = await prisma.mentorship.findFirst({
+    where: { menteeId, status: "ACTIVE" },
+    select: { id: true, mentorId: true },
+  });
+  if (!mentorship) {
+    return (
+      <div>
+        <div className="topbar">
+          <h1 className="page-title">Write Monthly Review</h1>
+        </div>
+        <div className="card" style={{ padding: 24, textAlign: "center" }}>
+          <p style={{ marginTop: 0 }}>
+            {mentee.name} doesn&apos;t have an active mentorship yet, so there&apos;s no monthly review cycle to write.
+          </p>
+          <Link href={`/mentorship/mentees/${menteeId}`} className="button small">
+            Back to workspace
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin && mentorship.mentorId !== userId) {
+    redirect("/mentorship/mentees");
+  }
+
+  // Latest reflection that doesn't yet have a released review.
+  const latestReflection = await prisma.monthlySelfReflection.findFirst({
+    where: { mentorshipId: mentorship.id },
+    orderBy: { cycleNumber: "desc" },
     include: {
-      roles: true,
-      chapter: true,
-      goals: {
-        include: {
-          template: true,
-          progress: {
-            orderBy: { createdAt: "desc" },
-            take: 1,
-          },
+      goalResponses: {
+        select: {
+          goalId: true,
+          progressMade: true,
+          accomplishments: true,
+          blockers: true,
+          nextMonthPlans: true,
+          objectiveAchieved: true,
         },
-        orderBy: { template: { sortOrder: "asc" } },
       },
-      menteePairs: {
-        where: { status: "ACTIVE" },
-        take: 1,
+      goalReview: {
+        include: {
+          goalRatings: { select: { goalId: true, grDocumentGoalId: true, rating: true, comments: true } },
+        },
       },
     },
   });
 
-  if (!mentee) {
-    notFound();
+  if (!latestReflection) {
+    return (
+      <div>
+        <div className="topbar">
+          <h1 className="page-title">Write Monthly Review</h1>
+        </div>
+        <div className="card" style={{ padding: 24 }}>
+          <p style={{ marginTop: 0 }}>
+            <strong>{mentee.name}</strong> hasn&apos;t submitted this cycle&apos;s self-reflection yet.
+          </p>
+          <p className="muted">
+            The monthly review form opens once the mentee submits their reflection. The cycle status block on
+            their workspace shows where things stand.
+          </p>
+          <Link href={`/mentorship/mentees/${menteeId}`} className="button small" style={{ marginTop: 8 }}>
+            Back to workspace
+          </Link>
+        </div>
+      </div>
+    );
   }
 
-  const currentMonth = new Date();
-  const normalizedMonth = new Date(
-    currentMonth.getFullYear(),
-    currentMonth.getMonth(),
-    1
-  );
-  const existingReview = mentee.menteePairs[0]
-    ? await prisma.monthlyGoalReview.findFirst({
-        where: {
-          mentorshipId: mentee.menteePairs[0].id,
-          month: normalizedMonth,
-        },
-        include: {
-          goalRatings: true,
-          chair: {
-            select: {
-              name: true,
-            },
-          },
-        },
-      })
-    : null;
-  const activeMentorship = mentee.menteePairs[0] ?? null;
-  const requiresChairApproval = activeMentorship
-    ? mentorshipRequiresChairApproval({
-        programGroup: activeMentorship.programGroup,
-        governanceMode: activeMentorship.governanceMode,
-      })
-    : true;
+  // Make sure the underlying GoalReviewRating rows exist for every active G&R
+  // goal so the form can render without null gaps.
+  if (latestReflection.goalReview) {
+    await ensureReviewGoalRatings({
+      id: latestReflection.goalReview.id,
+      menteeId,
+      cycleNumber: latestReflection.cycleNumber,
+    });
+  }
 
-  const goalsData = mentee.goals.map((goal) => ({
-    id: goal.id,
-    title: goal.template.title,
-    description: goal.template.description,
-    timetable: goal.timetable,
-    currentStatus: goal.progress[0]?.status ?? null,
-    currentComments: goal.progress[0]?.comments ?? null,
+  const goals = await getGoalsForMentee(menteeId, latestReflection.cycleNumber);
+
+  // Build rating lookup by both legacy goalId and grDocumentGoalId
+  const existingRatings = latestReflection.goalReview?.goalRatings ?? [];
+  const ratingByGoalId = new Map(existingRatings.map((r) => [r.goalId, r]));
+  const ratingByGrGoalId = new Map(
+    existingRatings
+      .filter((r): r is typeof r & { grDocumentGoalId: string } => !!r.grDocumentGoalId)
+      .map((r) => [r.grDocumentGoalId, r])
+  );
+
+  // Fetch G&R document data for enrichment + cap info
+  const grDoc = await prisma.gRDocument.findFirst({
+    where: { userId: menteeId, status: "ACTIVE" },
+    select: {
+      template: { select: { maxActiveMonthlyGoals: true } },
+      goals: {
+        where: { lifecycleStatus: "ACTIVE", timePhase: "MONTHLY" },
+        select: { id: true },
+      },
+    },
+  });
+
+  // Enrich goals with G&R fields when available
+  const grGoalDetails =
+    goals.some((g) => g.grDocumentGoalId)
+      ? await prisma.gRDocumentGoal.findMany({
+          where: { id: { in: goals.map((g) => g.grDocumentGoalId).filter(Boolean) as string[] } },
+          select: { id: true, timePhase: true, priority: true, progressState: true, lifecycleStatus: true, dueDate: true },
+        })
+      : [];
+  const grGoalDetailMap = new Map(grGoalDetails.map((g) => [g.id, g]));
+
+  const goalRows = goals.map((g) => {
+    const existing = g.grDocumentGoalId
+      ? ratingByGrGoalId.get(g.grDocumentGoalId)
+      : ratingByGoalId.get(g.legacyGoalId ?? "");
+    const grDetail = g.grDocumentGoalId ? grGoalDetailMap.get(g.grDocumentGoalId) : null;
+    return {
+      id: g.id,
+      title: g.title,
+      description: g.description ?? null,
+      currentRating: existing?.rating ?? "GETTING_STARTED",
+      currentComments: existing?.comments ?? null,
+      grDocumentGoalId: g.grDocumentGoalId ?? null,
+      timePhase: grDetail?.timePhase ?? null,
+      priority: grDetail?.priority ?? null,
+      currentProgressState: grDetail?.progressState ?? null,
+      currentLifecycleStatus: grDetail?.lifecycleStatus ?? null,
+      dueDate: grDetail?.dueDate?.toISOString() ?? null,
+    };
+  });
+
+  const maxActiveMonthlyGoals = grDoc?.template?.maxActiveMonthlyGoals ?? 5;
+  const currentActiveMonthlyCount = grDoc?.goals?.length ?? 0;
+
+  const reflectionResponses = latestReflection.goalResponses.map((r) => ({
+    goalId: r.goalId,
+    progressMade: r.progressMade,
+    accomplishments: r.accomplishments,
+    blockers: r.blockers,
+    nextMonthPlans: r.nextMonthPlans,
+    objectiveAchieved: r.objectiveAchieved,
   }));
+
+  const review = latestReflection.goalReview;
+  const initialReview = review
+    ? {
+        overallRating: review.overallRating,
+        overallComments: review.overallComments ?? "",
+        planOfAction: review.planOfAction ?? "",
+        bonusPoints: review.bonusPoints ?? 0,
+        bonusReason: review.bonusReason ?? "",
+        status: review.status,
+      }
+    : null;
+
+  // Award projection inputs (computed once on the server, made interactive in
+  // the client form via pure recomputation).
+  const menteeRoleType = toMenteeRoleType(mentee.primaryRole);
+  const pointsByRating: Record<string, number> = {};
+  if (menteeRoleType) {
+    Object.entries(POINT_TABLE).forEach(([rating, byRole]) => {
+      pointsByRating[rating] = byRole[menteeRoleType] ?? 0;
+    });
+  } else {
+    Object.keys(POINT_TABLE).forEach((rating) => (pointsByRating[rating] = 0));
+  }
+
+  const summary = await prisma.achievementPointSummary.findUnique({
+    where: { userId: menteeId },
+    select: { totalPoints: true, currentTier: true },
+  });
+  const runningTotalPoints = summary?.totalPoints ?? 0;
+  const currentTier = summary?.currentTier ?? computeTier(runningTotalPoints);
+
+  const cycleMonthLabel = latestReflection.cycleMonth.toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+  const isLocked = review?.status === "APPROVED";
 
   return (
     <div>
       <div className="topbar">
         <div>
-          <Link
-            href={`/mentorship/mentees/${menteeId}`}
-            style={{ color: "var(--muted)", fontSize: 13 }}
-          >
+          <Link href={`/mentorship/mentees/${menteeId}`} style={{ color: "var(--muted)", fontSize: 13 }}>
             &larr; Back to {mentee.name}
           </Link>
+          <p className="badge">Monthly Review</p>
           <h1 className="page-title">Write Monthly Review</h1>
           <p className="page-subtitle">
-            Build the evidence, summary, and next-step plan that will move through approval and eventually be shown to the mentee.
+            {cycleMonthLabel} · Cycle {latestReflection.cycleNumber} · For {mentee.name}
           </p>
         </div>
       </div>
 
       <MentorshipGuideCard
         title="How To Complete A Monthly Goal Review"
-        intro="Work from top to bottom. The review should show what happened this month, what it means, and what the mentee should do next."
+        intro="The form is built around the program's G&R goals. The mentee's reflection sits inline so you can rate each goal in context. The orange panel previews exactly what chair approval will award."
         items={MONTHLY_REVIEW_GUIDE_ITEMS}
       />
 
-      <div className="card">
-        <div style={{ marginBottom: 24 }}>
-          <div className="section-title">Review For</div>
-          <h3 style={{ margin: 0 }}>{mentee.name}</h3>
-          <p style={{ margin: "4px 0 0", color: "var(--muted)", fontSize: 14 }}>
-            {mentee.email} · {mentee.primaryRole.replace("_", " ")}
-            {mentee.chapter && ` · ${mentee.chapter.name}`}
-          </p>
-          <p style={{ margin: "12px 0 0", color: "var(--muted)", fontSize: 13 }}>
-            Build the mentor review for{" "}
-            {normalizedMonth.toLocaleDateString("en-US", {
-              month: "long",
-              year: "numeric",
-            })}
-            .{" "}
-            {requiresChairApproval
-              ? "This will move into chair approval once submitted."
-              : "This will publish directly unless you intentionally escalate it to chair review."}
+      {review?.status === "CHANGES_REQUESTED" && review.chairComments && (
+        <ReviewNotesBanner
+          status="RETURNED"
+          reviewNotes={review.chairComments}
+          reviewerName={null}
+        />
+      )}
+
+      {isLocked ? (
+        <div className="card" style={{ padding: 24 }}>
+          <strong style={{ color: "#16a34a" }}>This review has been approved and released.</strong>
+          <p className="muted" style={{ marginTop: 6 }}>
+            Approved reviews are read-only. The mentee can see it on their /my-program timeline.
           </p>
         </div>
-
-        {existingReview?.status === "RETURNED" && existingReview.chairDecisionNotes && (
-          <ReviewNotesBanner
-            status={existingReview.status}
-            reviewNotes={existingReview.chairDecisionNotes}
-            reviewerName={existingReview.chair?.name ?? null}
-          />
-        )}
-
-        {mentee.goals.length === 0 ? (
-          <div
-            style={{
-              padding: 24,
-              textAlign: "center",
-              color: "var(--muted)",
-            }}
-          >
-            <p>This mentee has no goals assigned yet.</p>
-            {isAdmin && (
-              <Link
-                href="/admin/goals"
-                className="button small"
-                style={{ marginTop: 12, display: "inline-block" }}
-              >
-                Assign Goals
-              </Link>
-            )}
-          </div>
-        ) : !activeMentorship ? (
-          <div
-            style={{
-              padding: 24,
-              textAlign: "center",
-              color: "var(--muted)",
-            }}
-          >
-            <p style={{ marginTop: 0 }}>
-              This mentee does not have an active mentorship yet, so there is no monthly review cycle to submit.
-            </p>
-            <p style={{ margin: "8px 0 0" }}>
-              Assign a mentor or activate the support relationship first, then come back here to write the review.
-            </p>
-            <Link
-              href={`/mentorship/mentees/${menteeId}`}
-              className="button small"
-              style={{ marginTop: 12, display: "inline-block" }}
-            >
-              Back to Support Workspace
-            </Link>
-          </div>
-        ) : (
-          <FeedbackForm
-            menteeId={menteeId}
-            month={normalizedMonth.toISOString()}
-            goals={goalsData}
-            existingReview={
-              existingReview
-                ? {
-                    overallStatus: existingReview.overallStatus,
-                    overallComments: existingReview.overallComments,
-                    strengths: existingReview.strengths,
-                    focusAreas: existingReview.focusAreas,
-                    collaborationNotes: existingReview.collaborationNotes,
-                    promotionReadiness: existingReview.promotionReadiness,
-                    nextMonthPlan: existingReview.nextMonthPlan,
-                    mentorInternalNotes: existingReview.mentorInternalNotes,
-                    status: existingReview.status,
-                    characterCulturePoints:
-                      existingReview.characterCulturePoints,
-                    goalRatings: existingReview.goalRatings.map((rating) => ({
-                      goalId: rating.goalId,
-                      status: rating.status,
-                      comments: rating.comments,
-                    })),
-                  }
-                : null
-            }
-            requiresChairApproval={requiresChairApproval}
-            allowChairEscalation={!requiresChairApproval}
-            submitAction={submitMonthlyGoalReview}
-          />
-        )}
-      </div>
+      ) : (
+        <GoalReviewForm
+          reflectionId={latestReflection.id}
+          menteeName={mentee.name ?? "your mentee"}
+          cycleNumber={latestReflection.cycleNumber}
+          cycleMonthLabel={cycleMonthLabel}
+          goals={goalRows}
+          reflectionResponses={reflectionResponses}
+          hasReflection={latestReflection.goalResponses.length > 0}
+          initialReview={initialReview}
+          isQuarterly={latestReflection.cycleNumber % 3 === 0}
+          pointsByRating={pointsByRating}
+          runningTotalPoints={runningTotalPoints}
+          currentTier={currentTier}
+          tierThresholds={TIER_THRESHOLDS as { tier: string; min: number }[]}
+          maxActiveMonthlyGoals={maxActiveMonthlyGoals}
+          currentActiveMonthlyCount={currentActiveMonthlyCount}
+        />
+      )}
     </div>
   );
 }

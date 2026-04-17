@@ -1,12 +1,12 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
-import { Prisma } from "@prisma/client";
+import { getSession } from "@/lib/auth-supabase";
+import { Prisma, RoleType } from "@prisma/client";
+import { whereUserHasRole } from "@/lib/user-role-where";
 
 async function requireAdmin() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!roles.includes("ADMIN")) {
     throw new Error("Unauthorized - Admin access required");
@@ -22,7 +22,7 @@ export async function trackEvent(
   eventType: string,
   eventData?: Prisma.InputJsonValue
 ) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return;
 
   await prisma.analyticsEvent.create({
@@ -35,7 +35,7 @@ export async function trackEvent(
 }
 
 export async function trackPageView(path: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return;
 
   await prisma.analyticsEvent.create({
@@ -52,7 +52,7 @@ export async function trackVideoWatch(
   watchedSeconds: number,
   completed: boolean
 ) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return;
 
   await prisma.analyticsEvent.create({
@@ -86,9 +86,9 @@ export async function getDashboardAnalytics() {
     totalCertificates
   ] = await Promise.all([
     prisma.user.count(),
-    prisma.user.count({ where: { primaryRole: "INSTRUCTOR" } }),
-    prisma.user.count({ where: { primaryRole: "STUDENT" } }),
-    prisma.user.count({ where: { primaryRole: "PARENT" } }),
+    prisma.user.count({ where: whereUserHasRole(RoleType.INSTRUCTOR) }),
+    prisma.user.count({ where: whereUserHasRole(RoleType.STUDENT) }),
+    prisma.user.count({ where: whereUserHasRole(RoleType.PARENT) }),
     prisma.course.count(),
     prisma.enrollment.count({ where: { status: "ENROLLED" } }),
     prisma.certificate.count()

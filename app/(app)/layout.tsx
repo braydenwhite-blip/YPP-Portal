@@ -1,85 +1,100 @@
 import { redirect } from "next/navigation";
 import AppShell from "@/components/app-shell";
-import { getEnabledFeatureKeysForUser } from "@/lib/feature-gates";
+import { getSession } from "@/lib/auth-supabase";
+import {
+  getEnabledFeatureKeysForUserCached,
+  rolesToSortedCsv,
+} from "@/lib/feature-gates-request-cache";
+import { resolveNavModel } from "@/lib/navigation/resolve-nav";
+import type { NavGroup } from "@/lib/navigation/types";
 import { prisma } from "@/lib/prisma";
 import {
-  getCachedServerSession,
-  getUnreadMessageCount,
-  getUnreadNotificationCount,
-  getUserAwardTypes,
-} from "@/lib/request-cache";
-import { getUnlockedSections, checkAndAutoUnlock } from "@/lib/unlock-manager";
+  getUnreadDirectMessageCountCached,
+  getUnreadNotificationCountCached,
+} from "@/lib/server-request-cache";
+import { ensureAutoUnlockAndGetSections } from "@/lib/unlock-request-cache";
 import { getVisibleNavGroups } from "@/lib/unlock-nav-groups";
 import { withPrismaFallback } from "@/lib/prisma-guard";
 
-// Force runtime rendering so `next build` doesn't try to prerender pages that
-// require auth/database access (which can fail in build environments).
 export const dynamic = "force-dynamic";
 
-// Helper to determine highest award tier from awards
 function getHighestAwardTier(awards: { type: string | null }[]): string | undefined {
-  const tiers = awards.map(a => a.type).filter(Boolean);
-  if (tiers.some(t => t?.includes("GOLD"))) return "GOLD";
-  if (tiers.some(t => t?.includes("SILVER"))) return "SILVER";
-  if (tiers.some(t => t?.includes("BRONZE"))) return "BRONZE";
+  const tiers = awards.map((award) => award.type).filter(Boolean);
+  if (tiers.some((tier) => tier?.includes("GOLD"))) return "GOLD";
+  if (tiers.some((tier) => tier?.includes("SILVER"))) return "SILVER";
+  if (tiers.some((tier) => tier?.includes("BRONZE"))) return "BRONZE";
   return undefined;
 }
 
 export default async function AppLayout({
-  children
+  children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getCachedServerSession();
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   const primaryRole = session?.user?.primaryRole ?? null;
+  const userId = session?.user?.id;
+  const shouldCheckOnboarding = Boolean(userId && primaryRole !== "APPLICANT");
 
-  // Redirect to onboarding if not completed yet (skip for APPLICANT users)
-  if (session?.user?.id && primaryRole !== "APPLICANT") {
-    try {
-      const onboarding = await prisma.onboardingProgress.findUnique({
-        where: { userId: session.user.id },
-        select: { completedAt: true },
-      });
+  const onboardingPromise: Promise<{ completedAt: Date | null } | null> = shouldCheckOnboarding
+    ? prisma.onboardingProgress
+        .findUnique({
+          where: { userId: userId! },
+          select: { completedAt: true },
+        })
+        .catch((error: unknown) => {
+          const isPrismaError = error !== null && typeof error === "object" && "code" in error;
+          if (isPrismaError && (error as { code: string }).code === "P2021") {
+            return null;
+          }
+          throw error;
+        })
+    : Promise.resolve({ completedAt: new Date() });
 
-      if (!onboarding?.completedAt) {
-        redirect("/onboarding");
-      }
-    } catch (e: unknown) {
-      // If the OnboardingProgress table doesn't exist yet (P2021),
-      // redirect to onboarding so users still see it.
-      const isPrismaError = e !== null && typeof e === "object" && "code" in e;
-      if (isPrismaError && (e as { code: string }).code === "P2021") {
-        redirect("/onboarding");
-      }
-      throw e;
+  const badgePromise: Promise<[number, number, number, string[]]> = userId
+    ? Promise.all([
+        getUnreadNotificationCountCached(userId),
+        getUnreadDirectMessageCountCached(userId),
+        Promise.resolve(0),
+        getEnabledFeatureKeysForUserCached(
+          userId,
+          session.user.chapterId ?? null,
+          rolesToSortedCsv(roles),
+          primaryRole,
+        ).catch(() => []),
+      ])
+    : Promise.resolve([0, 0, 0, []]);
+
+  const [onboardingRow, badgeTuple] = await Promise.all([
+    onboardingPromise,
+    badgePromise,
+  ]);
+
+  if (shouldCheckOnboarding) {
+    if (onboardingRow === null) {
+      redirect("/onboarding");
+    }
+    if (!onboardingRow.completedAt) {
+      redirect("/onboarding");
     }
   }
 
-  // Get user's highest award tier + badge counts for navigation
-  let awardTier: string | undefined;
+  const awardTier = getHighestAwardTier(session?.user?.awards ?? []);
+
   let badges: { notifications?: number; messages?: number; approvals?: number } = {};
   let enabledFeatureKeysArray: string[] | undefined;
   let unlockedSectionsArray: string[] | undefined;
-  let recentlyUnlockedGroupsArray: string[] | undefined;
-  if (session?.user?.id) {
-    const userId = session.user.id;
-    const [userWithAwards, unreadNotifications, unreadMessages, pendingApprovals, enabledFeatureKeys] =
-      await Promise.all([
-        getUserAwardTypes(userId),
-        getUnreadNotificationCount(userId).catch(() => 0),
-        getUnreadMessageCount(userId).catch(() => 0),
-        // Pending approvals placeholder (future: parent approvals, instructor readiness, etc.)
-        Promise.resolve(0),
-        getEnabledFeatureKeysForUser({
-          userId,
-          chapterId: session.user.chapterId ?? null,
-          roles,
-          primaryRole,
-        }).catch(() => []),
-      ]);
+  let recentlyUnlockedGroupsArray: NavGroup[] | undefined;
 
-    awardTier = getHighestAwardTier(userWithAwards?.awards ?? []);
+  if (userId) {
+    const [
+      unreadNotifications,
+      unreadMessages,
+      pendingApprovals,
+      enabledFeatureKeys,
+    ] = badgeTuple;
+
     badges = {
       notifications: unreadNotifications || undefined,
       messages: unreadMessages || undefined,
@@ -87,63 +102,89 @@ export default async function AppLayout({
     };
     enabledFeatureKeysArray = enabledFeatureKeys;
 
-    // Fetch unlock data for progressive nav reveal (STUDENT and PARENT roles)
     if (primaryRole === "STUDENT" || primaryRole === "PARENT") {
       try {
-        // Auto-unlock any sections the user has earned
-        await checkAndAutoUnlock(userId);
+        const [unlockedSections, recentlyUnlockedSections] = await Promise.all([
+          ensureAutoUnlockAndGetSections(userId),
+          withPrismaFallback(
+            "recentUnlocks",
+            async () => {
+              const sevenDaysAgo = new Date();
+              sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+              const recent = await prisma.portalUnlock.findMany({
+                where: {
+                  userId,
+                  unlockedAt: { gte: sevenDaysAgo },
+                },
+                select: { sectionKey: true },
+              });
+              return recent.map((row) => row.sectionKey);
+            },
+            () => [] as string[],
+          ),
+        ]);
 
-        // Fetch current unlocked sections
-        const unlockedSections = await getUnlockedSections(userId);
         unlockedSectionsArray = Array.from(unlockedSections);
 
-        // Find recently unlocked groups (last 7 days) for "New!" badges
-        const recentlyUnlockedSections = await withPrismaFallback(
-          "recentUnlocks",
-          async () => {
-            const sevenDaysAgo = new Date();
-            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-            const recent = await prisma.portalUnlock.findMany({
-              where: {
-                userId,
-                unlockedAt: { gte: sevenDaysAgo },
-              },
-              select: { sectionKey: true },
-            });
-            return recent.map((r) => r.sectionKey);
-          },
-          () => [] as string[],
-        );
-
-        // Map section keys to nav group names for the "New!" badge
         if (recentlyUnlockedSections.length > 0) {
           const { visibleGroups } = getVisibleNavGroups(
             primaryRole,
             new Set(recentlyUnlockedSections),
           );
           recentlyUnlockedGroupsArray = Array.from(visibleGroups).filter(
-            (g) => !["Start Here", "Learning", "Progress", "Profile & Settings", "Family"].includes(g),
+            (group) =>
+              ![
+                "Start Here",
+                "Learning",
+                "Progress",
+                "Profile & Settings",
+                "Family",
+              ].includes(group),
           );
         }
       } catch {
-        // If unlock tables don't exist yet, continue with no unlock filtering
         unlockedSectionsArray = undefined;
         recentlyUnlockedGroupsArray = undefined;
       }
     }
   }
 
+  const studentFullPortalExplorer = process.env.STUDENT_FULL_PORTAL_EXPLORER === "true";
+  const studentHasChapter = Boolean(session?.user?.chapterId);
+
+  const navModelWithLocks = resolveNavModel({
+    roles,
+    adminSubtypes: (session?.user as { adminSubtypes?: string[] } | undefined)?.adminSubtypes,
+    primaryRole,
+    awardTier,
+    pathname: "/",
+    enabledFeatureKeys: enabledFeatureKeysArray
+      ? new Set(enabledFeatureKeysArray)
+      : undefined,
+    unlockedSections: unlockedSectionsArray ? new Set(unlockedSectionsArray) : undefined,
+    studentFullPortalExplorer,
+    studentHasChapter,
+  });
+
   return (
     <AppShell
       userName={session?.user?.name}
       roles={roles}
-      adminSubtypes={(session?.user as { adminSubtypes?: string[] } | undefined)?.adminSubtypes}
       primaryRole={primaryRole}
-      awardTier={awardTier}
+      navModel={{
+        primaryRole: navModelWithLocks.primaryRole,
+        visible: navModelWithLocks.visible,
+        core: navModelWithLocks.core,
+        more: navModelWithLocks.more,
+      }}
       badges={badges}
-      enabledFeatureKeys={enabledFeatureKeysArray}
-      unlockedSections={unlockedSectionsArray}
+      lockedGroups={
+        navModelWithLocks.lockedGroups
+          ? Array.from(navModelWithLocks.lockedGroups.entries())
+          : undefined
+      }
       recentlyUnlockedGroups={recentlyUnlockedGroupsArray}
+      studentFullPortalExplorer={studentFullPortalExplorer}
     >
       {children}
     </AppShell>

@@ -1,84 +1,33 @@
-import { verifyEmailToken, resendVerificationEmail } from "@/lib/email-verification-actions";
 import Link from "next/link";
-import Image from "next/image";
-import ResendVerificationForm from "./resend-form";
+import BrandLockup from "@/components/brand-lockup";
 
-export default async function VerifyEmailPage({
-  searchParams,
-}: {
-  searchParams: { token?: string };
-}) {
-  const token = searchParams.token ?? "";
-
-  if (!token) {
-    return (
-      <VerifyEmailLayout
-        title="Invalid Link"
-        message="This verification link is missing a token. Please request a new one from the sign-in page."
-        showResend
-        email=""
-      />
-    );
-  }
-
-  const result = await verifyEmailToken(token);
-
-  if (result.status === "success") {
-    return (
-      <VerifyEmailLayout
-        title="Email Verified!"
-        message={result.message}
-        showSignIn
-      />
-    );
-  }
-
-  return (
-    <VerifyEmailLayout
-      title="Verification Failed"
-      message={result.message}
-      showResend
-      email=""
-    />
-  );
-}
-
-function VerifyEmailLayout({
-  title,
-  message,
-  showSignIn,
-  showResend,
-  email,
-}: {
-  title: string;
-  message: string;
-  showSignIn?: boolean;
-  showResend?: boolean;
-  email?: string;
-}) {
+/**
+ * Legacy fallback page.
+ *
+ * Some auth flows may still send email links through Supabase, but accounts created
+ * through the portal signup form are confirmed immediately and do not need a
+ * separate verification email.
+ */
+export default async function VerifyEmailPage() {
   return (
     <div className="login-shell">
       <div className="login-card" style={{ justifySelf: "center" }}>
-        <div className="login-card-header">
-          <Image src="/logo-icon.svg" alt="YPP" width={44} height={44} />
+        <div className="login-card-header login-card-header--stacked">
+          <BrandLockup height={36} className="brand-lockup" reloadOnClick />
           <div>
-            <h2 className="page-title" style={{ fontSize: 20 }}>{title}</h2>
+            <h2 className="page-title" style={{ fontSize: 20 }}>Email Verification</h2>
           </div>
         </div>
 
         <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.6, margin: "0 0 20px" }}>
-          {message}
+          If you arrived here from an older email link, you can go back to sign in.
+          Accounts created through the portal signup form do not need a separate
+          verification step.
         </p>
 
-        {showSignIn && (
-          <Link href="/login" className="button" style={{ display: "inline-block", textDecoration: "none" }}>
-            Sign In
-          </Link>
-        )}
-
-        {showResend && (
-          <ResendVerificationForm initialEmail={email ?? ""} />
-        )}
+        <Link href="/login" className="button" style={{ display: "inline-block", textDecoration: "none" }}>
+          Sign In
+        </Link>
 
         <div style={{ marginTop: 16 }}>
           <Link href="/login" style={{ fontSize: 13, color: "var(--muted)" }}>

@@ -1,12 +1,11 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 
 export async function getOnboardingStatus() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Not authenticated");
   }
@@ -22,7 +21,7 @@ export async function getOnboardingStatus() {
 }
 
 export async function completeOnboardingStep(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Not authenticated");
   }
@@ -85,7 +84,7 @@ export async function completeOnboardingStep(formData: FormData) {
 }
 
 export async function markOnboardingComplete() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Not authenticated");
   }

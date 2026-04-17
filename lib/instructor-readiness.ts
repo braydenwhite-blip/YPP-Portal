@@ -19,6 +19,11 @@ export type InstructorReadiness = {
   featureEnabled: boolean;
   requiredModulesCount: number;
   completedRequiredModules: number;
+  /** All required academy modules marked complete (video/checkpoint/quiz/evidence). */
+  academyModulesComplete: boolean;
+  /** Lesson Design Studio package submitted or approved (v1 capstone after 3 video modules). */
+  studioCapstoneComplete: boolean;
+  /** Academy modules complete and studio capstone satisfied (full training lane). */
   trainingComplete: boolean;
   interviewStatus: string;
   interviewOutcome: string | null;
@@ -32,7 +37,22 @@ export type InstructorReadiness = {
 
 const INSTRUCTOR_TOOLS_HREF = "/instructor-training";
 const INSTRUCTOR_PUBLISH_HREF = "/instructor/class-settings";
+const LESSON_DESIGN_STUDIO_HREF = "/instructor/lesson-design-studio?entry=training";
 const TRACKABLE_REQUIRED_VIDEO_PROVIDERS = new Set(["YOUTUBE", "VIMEO", "CUSTOM"]);
+
+/** True if the author has submitted or had approved any Lesson Design Studio package (v1 training capstone). */
+export async function authorHasSubmittedOrApprovedStudioDraft(
+  authorId: string
+): Promise<boolean> {
+  const draft = await prisma.curriculumDraft.findFirst({
+    where: {
+      authorId,
+      status: { in: ["SUBMITTED", "APPROVED"] },
+    },
+    select: { id: true },
+  });
+  return Boolean(draft);
+}
 
 export function buildFallbackInstructorReadiness(
   instructorId: string
@@ -42,6 +62,8 @@ export function buildFallbackInstructorReadiness(
     featureEnabled: false,
     requiredModulesCount: 0,
     completedRequiredModules: 0,
+    academyModulesComplete: true,
+    studioCapstoneComplete: true,
     trainingComplete: true,
     interviewStatus: "UNAVAILABLE",
     interviewOutcome: null,
@@ -121,6 +143,12 @@ export async function getInstructorReadiness(instructorId: string): Promise<Inst
             grandfatheredTrainingExemption: true,
           },
         }),
+        prisma.curriculumDraft.findMany({
+          where: { authorId: instructorId },
+          orderBy: { updatedAt: "desc" },
+          take: 24,
+          select: { status: true },
+        }),
       ]),
     null
   );
@@ -129,7 +157,7 @@ export async function getInstructorReadiness(instructorId: string): Promise<Inst
     return buildFallbackInstructorReadiness(instructorId);
   }
 
-  const [requiredModules, assignments, interviewGate, offerings] = readinessData;
+  const [requiredModules, assignments, interviewGate, offerings, capstoneDrafts] = readinessData;
 
   const moduleConfigIssueById = new Map<string, string>();
   for (const trainingModule of requiredModules) {
@@ -188,11 +216,16 @@ export async function getInstructorReadiness(instructorId: string): Promise<Inst
       assignment.status === "COMPLETE" &&
       !moduleConfigIssueById.has(assignment.moduleId)
   ).length;
-  const trainingComplete =
+  const academyModulesComplete =
     requiredModules.length === 0
       ? true
       : moduleConfigIssueById.size === 0 &&
         completedRequiredModules >= requiredModules.length;
+
+  const studioCapstoneComplete = capstoneDrafts.some(
+    (draft) => draft.status === "SUBMITTED" || draft.status === "APPROVED"
+  );
+  const trainingComplete = academyModulesComplete;
 
   const interviewStatus = interviewGate?.status ?? "REQUIRED";
   const interviewOutcome = interviewGate?.outcome ?? null;
@@ -214,7 +247,7 @@ export async function getInstructorReadiness(instructorId: string): Promise<Inst
       href: INSTRUCTOR_TOOLS_HREF,
     });
   }
-  if (!trainingComplete) {
+  if (!academyModulesComplete) {
     missingRequirements.push({
       code: "TRAINING_INCOMPLETE",
       title: "Complete required training modules",
@@ -259,6 +292,8 @@ export async function getInstructorReadiness(instructorId: string): Promise<Inst
     featureEnabled,
     requiredModulesCount: requiredModules.length,
     completedRequiredModules,
+    academyModulesComplete,
+    studioCapstoneComplete,
     trainingComplete,
     interviewStatus,
     interviewOutcome,
@@ -276,7 +311,7 @@ export function assertReadinessAllowsPublish(
 ): void {
   if (!readiness.baseReadinessComplete) {
     throw new Error(
-      "Publishing blocked. Complete required training modules and pass interview readiness first."
+      "Publishing blocked. Complete academy modules and interview readiness first."
     );
   }
 }

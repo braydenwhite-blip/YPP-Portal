@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import {
   getPendingRecommendations,
   approveUnlockRecommendation,
@@ -16,7 +15,7 @@ const SECTION_LABELS: Record<string, string> = {
 };
 
 export default async function UnlockApprovalsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const roles = session.user.roles ?? [];
@@ -39,7 +38,7 @@ export default async function UnlockApprovalsPage() {
 
   async function handleApprove(formData: FormData) {
     "use server";
-    const sess = await getServerSession(authOptions);
+    const sess = await getSession();
     if (!sess?.user?.id) return;
 
     const id = formData.get("recommendationId") as string;
@@ -49,7 +48,7 @@ export default async function UnlockApprovalsPage() {
 
   async function handleDeny(formData: FormData) {
     "use server";
-    const sess = await getServerSession(authOptions);
+    const sess = await getSession();
     if (!sess?.user?.id) return;
 
     const id = formData.get("recommendationId") as string;

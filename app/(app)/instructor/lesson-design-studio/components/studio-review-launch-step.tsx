@@ -19,6 +19,7 @@ interface StudioReviewLaunchStepProps {
   isApproved: boolean;
   needsRevision: boolean;
   isActionPending: boolean;
+  canCreateWorkingCopy?: boolean;
   interestArea: string;
   onPhaseChange: (phase: StudioPhase) => void;
   onExportPdf: (type: "student" | "instructor") => Promise<boolean>;
@@ -70,6 +71,7 @@ export function StudioReviewLaunchStep({
   isApproved,
   needsRevision,
   isActionPending,
+  canCreateWorkingCopy = true,
   interestArea,
   onPhaseChange,
   onExportPdf,
@@ -116,7 +118,7 @@ export function StudioReviewLaunchStep({
                 >
                   Submit curriculum for review
                 </button>
-              ) : (
+              ) : canCreateWorkingCopy ? (
                 <button
                   type="button"
                   className="button"
@@ -125,7 +127,28 @@ export function StudioReviewLaunchStep({
                 >
                   Use as starting point
                 </button>
-              )}
+              ) : null}
+            </div>
+          </div>
+
+          <div className="lds-review-summary">
+            <div className="lds-stat-card">
+              <span className="lds-stat-label">Review state</span>
+              <strong className="lds-stat-value">
+                {reviewStatus.replace(/_/g, " ")}
+              </strong>
+            </div>
+            <div className="lds-stat-card">
+              <span className="lds-stat-label">Readiness</span>
+              <strong className="lds-stat-value">
+                {progress.readyForSubmission ? "Cleared" : "Needs work"}
+              </strong>
+            </div>
+            <div className="lds-stat-card">
+              <span className="lds-stat-label">Launch package</span>
+              <strong className="lds-stat-value">
+                {generatedTemplateId ? "Available" : "Not yet created"}
+              </strong>
             </div>
           </div>
 
@@ -197,8 +220,8 @@ export function StudioReviewLaunchStep({
             <section className="lds-subsection-card">
               <h3>Reviewer notes</h3>
               <ul className="lds-simple-list">
-                {reviewerNotes.map((note) => (
-                  <li key={note}>{note}</li>
+                {reviewerNotes.map((note, index) => (
+                  <li key={`reviewer-note-${index}`}>{note}</li>
                 ))}
               </ul>
             </section>

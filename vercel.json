@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/scheduling-reminders",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/mentorship-cycle-rollover",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/gr-monthly-reminders",
+      "schedule": "0 9 * * *"
+    }
+  ]
+}

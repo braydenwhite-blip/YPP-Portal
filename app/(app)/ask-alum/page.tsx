@@ -1,16 +1,15 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
 export default async function AskAlumPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }
 
-  const isStudent = session.user.primaryRole === "STUDENT";
+  const isStudent = session.user.roles.includes("STUDENT");
 
   const questions = await prisma.alumniQuestion.findMany({
     where: isStudent

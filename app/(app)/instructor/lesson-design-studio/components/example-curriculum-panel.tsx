@@ -13,7 +13,7 @@ const ACTIVITY_TYPES: { value: ActivityType; label: string; color: string; icon:
   { value: "WARM_UP",     label: "Warm Up",     color: "#f59e0b", icon: "☀" },
   { value: "INSTRUCTION", label: "Instruction", color: "#3b82f6", icon: "📚" },
   { value: "PRACTICE",    label: "Practice",    color: "#22c55e", icon: "✍" },
-  { value: "DISCUSSION",  label: "Discussion",  color: "#8b5cf6", icon: "💬" },
+  { value: "DISCUSSION",  label: "Discussion",  color: "#8b3fe8", icon: "💬" },
   { value: "ASSESSMENT",  label: "Assessment",  color: "#ef4444", icon: "📋" },
   { value: "BREAK",       label: "Break",       color: "#6b7280", icon: "☕" },
   { value: "REFLECTION",  label: "Reflection",  color: "#ec4899", icon: "💭" },
@@ -117,20 +117,7 @@ export function ExampleCurriculumPanel({
       {/* Overview */}
       <div className="cbs-example-overview">
         {isRecommended ? (
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "4px 10px",
-              borderRadius: 999,
-              background: "#dbeafe",
-              color: "#1d4ed8",
-              fontSize: 12,
-              fontWeight: 700,
-              marginBottom: 10,
-            }}
-          >
+          <div className="cbs-example-recommendation">
             Recommended for your interest area
           </div>
         ) : null}
@@ -150,72 +137,37 @@ export function ExampleCurriculumPanel({
           </ol>
         </div>
 
-        <div
-          style={{
-            marginTop: 14,
-            padding: 14,
-            borderRadius: 12,
-            border: "1px solid #cbd5e1",
-            background: "#f8fafc",
-          }}
-        >
-          <h4 style={{ margin: "0 0 8px" }}>Why this example works</h4>
-          <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 6 }}>
+        <div className="cbs-example-annotation-card feature">
+          <h4 className="cbs-example-note-title">Why this example works</h4>
+          <ul className="cbs-example-note-list">
             {curriculumAnnotations.whyThisCurriculumWorks.map((note) => (
               <li key={note}>{note}</li>
             ))}
           </ul>
         </div>
 
-        <div
-          style={{
-            marginTop: 12,
-            display: "grid",
-            gap: 12,
-          }}
-        >
-          <div
-            style={{
-              padding: 14,
-              borderRadius: 12,
-              border: "1px solid #cbd5e1",
-              background: "#fff",
-            }}
-          >
-            <h4 style={{ margin: "0 0 8px" }}>Student experience highlights</h4>
-            <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 6 }}>
+        <div className="cbs-example-annotation-grid">
+          <div className="cbs-example-annotation-card">
+            <h4 className="cbs-example-note-title">Student experience highlights</h4>
+            <ul className="cbs-example-note-list">
               {curriculumAnnotations.studentExperienceHighlights.map((note) => (
                 <li key={note}>{note}</li>
               ))}
             </ul>
           </div>
 
-          <div
-            style={{
-              padding: 14,
-              borderRadius: 12,
-              border: "1px solid #cbd5e1",
-              background: "#fff",
-            }}
-          >
-            <h4 style={{ margin: "0 0 8px" }}>How to adapt it without losing the arc</h4>
-            <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 6 }}>
+          <div className="cbs-example-annotation-card">
+            <h4 className="cbs-example-note-title">How to adapt it without losing the arc</h4>
+            <ul className="cbs-example-note-list">
               {curriculumAnnotations.adaptationMoves.map((note) => (
                 <li key={note}>{note}</li>
               ))}
             </ul>
           </div>
 
-          <div
-            style={{
-              padding: 14,
-              borderRadius: 12,
-              border: "1px solid #cbd5e1",
-              background: "#eff6ff",
-            }}
-          >
-            <h4 style={{ margin: "0 0 8px" }}>What a reviewer should look for</h4>
-            <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 6 }}>
+          <div className="cbs-example-annotation-card emphasis">
+            <h4 className="cbs-example-note-title">What a reviewer should look for</h4>
+            <ul className="cbs-example-note-list">
               {curriculumAnnotations.reviewerLens.map((note) => (
                 <li key={note}>{note}</li>
               ))}
@@ -231,11 +183,11 @@ export function ExampleCurriculumPanel({
           const weekAnnotations = EXAMPLE_WEEK_ANNOTATIONS[curriculum.id][week.weekNumber];
           return (
             <div key={week.weekNumber} className="cbs-example-week">
-              <div className="cbs-example-week-header">
-                <h4>Week {week.weekNumber}: {week.title}</h4>
-                <span className="cbs-example-week-duration">{totalMin}m</span>
-              </div>
-              <p className="cbs-example-week-goal">{week.goal}</p>
+                <div className="cbs-example-week-header">
+                  <h4>Week {week.weekNumber}: {week.title}</h4>
+                  <span className="cbs-example-week-duration">{totalMin}m</span>
+                </div>
+                <p className="cbs-example-week-goal">{week.goal}</p>
 
               {/* Time bar */}
               <div className="cbs-time-bar">
@@ -279,43 +231,33 @@ export function ExampleCurriculumPanel({
               {/* Teaching tips */}
               {week.teachingTips && (
                 <div className="cbs-example-week-tips">
-                  <span className="cbs-example-tips-label">💡 Teaching Tips</span>
+                  <span className="cbs-example-tips-label">Teaching Tips</span>
                   <p className="cbs-example-tips-text">{week.teachingTips}</p>
                 </div>
               )}
 
-              <div
-                style={{
-                  marginTop: 10,
-                  padding: "12px",
-                  borderRadius: 10,
-                  border: "1px solid #e2e8f0",
-                  background: "#fff",
-                  display: "grid",
-                  gap: 10,
-                }}
-              >
+              <div className="cbs-example-week-annotation-card">
                 <div>
-                  <span style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#0f172a", marginBottom: 4 }}>
+                  <span className="cbs-example-week-annotation-label">
                     Why this week works
                   </span>
-                  <p style={{ margin: 0, fontSize: 13, color: "#475569" }}>
+                  <p className="cbs-example-week-annotation-copy">
                     {weekAnnotations.whyThisWeekWorks}
                   </p>
                 </div>
                 <div>
-                  <span style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#0f172a", marginBottom: 4 }}>
+                  <span className="cbs-example-week-annotation-label">
                     Watch out for
                   </span>
-                  <p style={{ margin: 0, fontSize: 13, color: "#475569" }}>
+                  <p className="cbs-example-week-annotation-copy">
                     {weekAnnotations.watchOutFor}
                   </p>
                 </div>
                 <div>
-                  <span style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#0f172a", marginBottom: 4 }}>
+                  <span className="cbs-example-week-annotation-label">
                     Adapt it like this
                   </span>
-                  <p style={{ margin: 0, fontSize: 13, color: "#475569" }}>
+                  <p className="cbs-example-week-annotation-copy">
                     {weekAnnotations.adaptIt}
                   </p>
                 </div>
@@ -347,7 +289,7 @@ export function ExampleCurriculumPanel({
 
       {/* Footer */}
       <div className="cbs-example-footer">
-        <p style={{ marginTop: 0, marginBottom: 12, fontSize: 13, color: "#64748b" }}>
+        <p className="cbs-example-footer-copy">
           The goal is not to copy these word for word. The goal is to understand the moves, pacing, and student experience choices that make them teachable.
         </p>
         <button

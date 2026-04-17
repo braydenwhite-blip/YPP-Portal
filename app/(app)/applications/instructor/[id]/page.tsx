@@ -199,10 +199,6 @@ export default async function InstructorApplicationReviewPage({
               <DetailBlock label="Availability" value={application.availability} />
               <DetailBlock label="Why they want to teach" value={application.motivation} />
               <DetailBlock label="Teaching experience" value={application.teachingExperience} />
-              <DetailBlock label="Why YPP" value={application.whyYPP} />
-              <DetailBlock label="Prior leadership" value={application.priorLeadership} />
-              <DetailBlock label="Extracurricular load" value={application.extracurriculars} />
-              <DetailBlock label="Special skills" value={application.specialSkills} />
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>

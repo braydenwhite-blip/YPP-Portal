@@ -1,12 +1,12 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import OnboardingWizard from "@/components/onboarding/onboarding-wizard";
 import { getNextRequiredAction } from "@/lib/instructor-readiness";
+import { normalizeRoleList } from "@/lib/authorization";
 
 export default async function OnboardingPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }
@@ -30,6 +30,9 @@ export default async function OnboardingPage() {
           interests: true,
           parentEmail: true,
           parentPhone: true,
+          dateOfBirth: true,
+          learningStyle: true,
+          primaryGoal: true,
           curriculumUrl: true,
         },
       },
@@ -56,30 +59,11 @@ export default async function OnboardingPage() {
     redirect("/");
   }
 
-  const roles = user.roles.map((r) => r.role);
+  const roles = normalizeRoleList(user.roles, user.primaryRole);
   const isInstructor = roles.includes("INSTRUCTOR") || roles.includes("ADMIN");
   const instructorNextAction = isInstructor
     ? await getNextRequiredAction(user.id)
     : null;
-
-  // Fetch active pathways with their steps for the pathway selection
-  const pathways = await prisma.pathway.findMany({
-    where: { isActive: true },
-    include: {
-      steps: {
-        include: { course: true },
-        orderBy: { stepOrder: "asc" },
-      },
-    },
-    orderBy: { name: "asc" },
-  });
-
-  // Fetch user's existing enrollments to know which pathways they've already picked
-  const enrollments = await prisma.enrollment.findMany({
-    where: { userId: session.user.id },
-    select: { courseId: true },
-  });
-  const enrolledCourseIds = enrollments.map((e) => e.courseId);
 
   return (
     <OnboardingWizard
@@ -95,23 +79,11 @@ export default async function OnboardingPage() {
         interests: user.profile.interests,
         parentEmail: user.profile.parentEmail,
         parentPhone: user.profile.parentPhone,
+        dateOfBirth: user.profile.dateOfBirth,
+        learningStyle: user.profile.learningStyle,
+        primaryGoal: user.profile.primaryGoal,
         curriculumUrl: user.profile.curriculumUrl,
       } : null}
-      pathways={pathways.map((p) => ({
-        id: p.id,
-        name: p.name,
-        description: p.description,
-        interestArea: p.interestArea,
-        steps: p.steps.map((s) => ({
-          id: s.id,
-          courseId: s.courseId,
-          courseTitle: s.course?.title ?? s.title ?? "",
-          courseLevel: s.course?.level ?? null,
-          courseFormat: s.course?.format ?? "",
-          stepOrder: s.stepOrder,
-        })),
-      }))}
-      enrolledCourseIds={enrolledCourseIds}
       instructorNextAction={instructorNextAction}
     />
   );

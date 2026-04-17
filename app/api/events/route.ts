@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
+import { normalizeRoleList } from "@/lib/authorization";
 
 export async function GET(request: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -13,7 +13,8 @@ export async function GET(request: NextRequest) {
     where: { id: session.user.id },
     include: { roles: { select: { role: true } } },
   });
-  const isAdmin = user?.roles.some((role) => role.role === "ADMIN") ?? false;
+  const roles = user ? normalizeRoleList(user.roles, user.primaryRole) : [];
+  const isAdmin = roles.includes("ADMIN");
   const chapterId = user?.chapterId ?? null;
 
   const { searchParams } = new URL(request.url);

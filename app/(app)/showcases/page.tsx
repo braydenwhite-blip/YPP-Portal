@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getSeasonalEvents } from "@/lib/engagement-actions";
 import Link from "next/link";
 
@@ -16,7 +15,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default async function SeasonalEventsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const events = await getSeasonalEvents();
@@ -44,7 +43,7 @@ export default async function SeasonalEventsPage() {
           <h2 style={{ fontSize: 18, marginBottom: 12 }}>Active Now</h2>
           <div className="grid two">
             {activeEvents.map((event: any) => {
-              const color = SEASON_COLORS[event.season] || "#7c3aed";
+              const color = SEASON_COLORS[event.season] || "#6b21c8";
               const deadline = event.submissionDeadline
                 ? new Date(event.submissionDeadline)
                 : null;
@@ -107,7 +106,7 @@ export default async function SeasonalEventsPage() {
           <h2 style={{ fontSize: 18, marginBottom: 12 }}>Being Judged</h2>
           <div className="grid two">
             {judgingEvents.map((event: any) => {
-              const color = SEASON_COLORS[event.season] || "#7c3aed";
+              const color = SEASON_COLORS[event.season] || "#6b21c8";
               return (
                 <div key={event.id} className="card" style={{ borderLeft: `4px solid ${color}` }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
@@ -135,7 +134,7 @@ export default async function SeasonalEventsPage() {
           <h2 style={{ fontSize: 18, marginBottom: 12 }}>Coming Up</h2>
           <div className="grid two">
             {upcomingEvents.map((event: any) => {
-              const color = SEASON_COLORS[event.season] || "#7c3aed";
+              const color = SEASON_COLORS[event.season] || "#6b21c8";
               return (
                 <div key={event.id} className="card" style={{ opacity: 0.8, borderLeft: `4px solid ${color}` }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>

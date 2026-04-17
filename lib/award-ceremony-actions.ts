@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { createMentorshipNotification } from "@/lib/mentorship-program-actions";
 import { CERTIFICATE_TIER_CONFIG, generateCertificateSvg } from "@/lib/certificate-utils";
@@ -18,7 +17,7 @@ const TIER_CONFIG = CERTIFICATE_TIER_CONFIG;
  * Get or generate a certificate for the current user's current tier.
  */
 export async function getMyCertificate() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const userId = session.user.id as string;
@@ -64,7 +63,7 @@ export async function getMyCertificate() {
  * Generate and store a certificate for a user (admin/chair action on tier award).
  */
 export async function issueCertificate(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   const roles = session.user.roles ?? [];
   if (!roles.includes("ADMIN")) throw new Error("Unauthorized");
@@ -146,7 +145,7 @@ export async function issueCertificate(formData: FormData) {
  * Get a stored certificate by ID for display/download.
  */
 export async function getCertificate(certificateId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const userId = session.user.id as string;
@@ -176,7 +175,7 @@ export async function getCertificate(certificateId: string) {
  * Generate a volunteer hours verification letter for Silver+ tiers.
  */
 export async function generateVolunteerHoursLetter() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const userId = session.user.id as string;
@@ -258,7 +257,7 @@ Mentorship Achievement Program
  * Generate a recommendation letter template for Silver+ mentees.
  */
 export async function generateRecommendationTemplate(menteeId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const userId = session.user.id as string;

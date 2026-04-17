@@ -1,11 +1,10 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
 export default async function CourseAssignmentsPage({ params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }
@@ -32,7 +31,9 @@ export default async function CourseAssignmentsPage({ params }: { params: { id: 
     redirect("/courses");
   }
 
-  const isInstructor = course.leadInstructorId === session.user.id || session.user.primaryRole === "ADMIN";
+  const isInstructor =
+    course.leadInstructorId === session.user.id ||
+    session.user.roles.includes("ADMIN");
 
   // Get enrollment
   const enrollment = await prisma.enrollment.findFirst({

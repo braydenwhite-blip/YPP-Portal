@@ -1,12 +1,11 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getCourseBackedPathwayStepsThroughOrder } from "@/lib/pathway-logic";
 
 export async function registerForPathwayEvent(eventId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return { error: "Not authenticated" };
 
   const event = await prisma.pathwayEvent.findUnique({
@@ -92,7 +91,7 @@ export async function registerForPathwayEvent(eventId: string) {
 }
 
 export async function unregisterFromPathwayEvent(eventId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return { error: "Not authenticated" };
 
   await prisma.pathwayEventRegistration.deleteMany({
@@ -111,7 +110,7 @@ export async function createPathwayEvent(data: {
   maxAttendees?: number;
   requiredStepOrder?: number;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return { error: "Not authenticated" };
   if (!(session.user.roles ?? []).includes("ADMIN")) return { error: "Unauthorized" };
 

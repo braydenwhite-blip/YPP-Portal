@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const FINAL_APPLICATION_STATUSES = ["ACCEPTED", "REJECTED", "WITHDRAWN"] as const;
@@ -21,7 +20,7 @@ export default async function AdminRecruitingPage({
   searchParams: Promise<RecruitingFilters>;
 }) {
   const params = await searchParams;
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
 
   if (!session?.user?.id) {

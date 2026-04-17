@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { getChannelMessages } from "@/lib/chapter-channel-actions";
 import { ChannelMessageComposer } from "./channel-message-composer";
@@ -15,7 +14,7 @@ function formatTime(date: Date): string {
 }
 
 const ROLE_COLORS: Record<string, string> = {
-  CHAPTER_PRESIDENT: "#6d28d9",
+  CHAPTER_PRESIDENT: "#5a1da8",
   ADMIN: "#dc2626",
   INSTRUCTOR: "#0369a1",
   MENTOR: "#ca8a04",
@@ -28,7 +27,7 @@ export default async function ChannelPage({
 }: {
   params: { channelId: string };
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const { channel, messages } = await getChannelMessages(params.channelId);

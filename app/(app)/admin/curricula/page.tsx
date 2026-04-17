@@ -1,13 +1,12 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { approveCurriculum, requestCurriculumRevision } from "@/lib/curriculum-review-actions";
 import { getClassTemplateCapabilities } from "@/lib/class-template-compat";
 import { getLearnerFitSummary } from "@/lib/learner-fit";
 
 export default async function AdminCurriculaPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   const isAdmin = roles.includes("ADMIN");
   const isChapterLead = roles.includes("CHAPTER_PRESIDENT");

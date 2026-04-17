@@ -34,7 +34,7 @@ export const CERTIFICATE_TIER_CONFIG: Record<string, {
   },
   LIFETIME: {
     label: "Lifetime",
-    color: "#7c3aed",
+    color: "#6b21c8",
     accentColor: "#4c1d95",
     emoji: "👑",
     description: "Lifetime Achievement",

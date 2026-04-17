@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type {
   GuidedStudioJourney,
   GuidedStudioStep,
@@ -22,45 +22,67 @@ interface GuidedStudioShellProps {
   workflowNotice?: string | null;
   readOnlyNotice?: string | null;
   readOnlyBody?: string | null;
+  isModalOpen?: boolean;
+  toast?:
+    | {
+        kind: "error" | "success";
+        message: string;
+      }
+    | null;
   journey: GuidedStudioJourney;
   onPhaseChange: (phase: StudioPhase) => void;
+  toolbarActions?: ReactNode;
   heroActions?: ReactNode;
   children: ReactNode;
 }
 
-function getSavePill(saveStatus: GuidedStudioShellProps["saveStatus"]) {
+function getSaveIndicator(saveStatus: GuidedStudioShellProps["saveStatus"]) {
   switch (saveStatus) {
     case "saving":
-      return <span className="pill">Saving draft</span>;
+      return { tone: "saving", label: "Saving..." };
     case "saved":
-      return <span className="pill pill-success">Draft saved</span>;
+      return { tone: "saved", label: "Saved ✓" };
     case "error":
-      return <span className="pill pill-pending">Save needs attention</span>;
+      return { tone: "error", label: "Save error" };
     default:
-      return null;
+      return { tone: "idle", label: "Autosave on" };
   }
 }
 
-function StepPill({
+function StepRailItem({
   step,
+  index,
   isActive,
   onClick,
 }: {
   step: GuidedStudioStep;
+  index: number;
   isActive: boolean;
   onClick: () => void;
 }) {
+  const statusChip =
+    step.status === "complete"
+      ? "Complete"
+      : isActive
+        ? "In progress"
+        : "Upcoming";
+
   return (
     <button
       type="button"
-      className={`lds-journey-pill${isActive ? " active" : ""}`}
+      className={`lds-rail-step ${step.status}${isActive ? " active" : ""}`}
       onClick={onClick}
-      aria-pressed={isActive}
+      aria-current={isActive ? "step" : undefined}
     >
-      <span className={`lds-journey-pill-status ${step.status}`}>{step.status === "complete" ? "✓" : step.shortLabel}</span>
-      <span className="lds-journey-pill-copy">
-        <strong>{step.label}</strong>
-        <small>{step.recommendedAction}</small>
+      <span
+        className={`lds-rail-step-badge ${step.status}${isActive ? " active" : ""}`}
+        aria-hidden="true"
+      >
+        {step.status === "complete" ? "✓" : index + 1}
+      </span>
+      <span className="lds-rail-step-label">{step.label}</span>
+      <span className={`lds-rail-step-chip ${step.status}${isActive ? " active" : ""}`}>
+        {statusChip}
       </span>
     </button>
   );
@@ -81,107 +103,173 @@ export function GuidedStudioShell({
   workflowNotice,
   readOnlyNotice,
   readOnlyBody,
+  isModalOpen = false,
+  toast,
   journey,
   onPhaseChange,
+  toolbarActions,
   heroActions,
   children,
 }: GuidedStudioShellProps) {
   const activeStep =
     journey.steps.find((step) => step.id === journey.activePhase) ?? journey.steps[0];
+  const saveIndicator = getSaveIndicator(saveStatus);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    function handleScroll() {
+      setIsScrolled(window.scrollY > 12);
+    }
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
     <div className="cbs-studio lds-shell lds-guided-shell">
-      <section className="card lds-guided-hero">
-        <div className="lds-guided-hero-top">
-          <div className="lds-guided-hero-copy">
-            <span className="badge">Lesson Design Studio</span>
-            <p className="lds-hero-eyebrow">{eyebrow}</p>
-            <h1 className="lds-hero-title">{title}</h1>
-            <p className="lds-hero-copy">{body}</p>
+      {toast ? (
+        <section
+          className={`lds-studio-toast${toast.kind === "error" ? " error" : ""}`}
+          role="alert"
+        >
+          {toast.message}
+        </section>
+      ) : null}
+
+      <section
+        className={`lds-studio-toolbar${isScrolled ? " scrolled" : ""}${
+          isModalOpen ? " modal-open" : ""
+        }`}
+      >
+        <div className="lds-studio-toolbar-main">
+          <div className="lds-toolbar-region lds-toolbar-region-left">
+            <div className="lds-toolbar-brand">
+              <span className="lds-toolbar-brand-mark" aria-hidden="true" />
+              <div className="lds-toolbar-brand-copy">
+                <span className="lds-toolbar-label">Lesson Design Studio</span>
+                <strong>{eyebrow}</strong>
+              </div>
+            </div>
+
+            <nav
+              className="lds-toolbar-breadcrumbs"
+              aria-label="Lesson design studio steps"
+            >
+              <span className="lds-toolbar-breadcrumb-root">Studio</span>
+              <span className="lds-toolbar-breadcrumb-divider" aria-hidden="true">
+                /
+              </span>
+              <span className="lds-toolbar-breadcrumb current">
+                {activeStep.label}
+              </span>
+            </nav>
           </div>
 
-          <div className="lds-guided-status-stack">
+          <div className="lds-toolbar-region lds-toolbar-region-center">
+            <nav className="lds-toolbar-phase-path" aria-label="Studio progress">
+              {journey.steps.map((step, index) => (
+                <span key={step.id} className="lds-toolbar-phase-item">
+                  <button
+                    type="button"
+                    className={`lds-toolbar-phase-button ${
+                      step.id === journey.activePhase
+                        ? "current"
+                        : step.status === "complete"
+                          ? "complete"
+                          : ""
+                    }`}
+                    aria-current={step.id === journey.activePhase ? "step" : undefined}
+                    onClick={() => onPhaseChange(step.id)}
+                  >
+                    <span className="lds-toolbar-phase-num" aria-hidden="true">
+                      {step.status === "complete" ? "✓" : index + 1}
+                    </span>
+                    <span>{step.label}</span>
+                  </button>
+                  {index < journey.steps.length - 1 ? (
+                    <span className="lds-toolbar-phase-divider" aria-hidden="true" />
+                  ) : null}
+                </span>
+              ))}
+            </nav>
+          </div>
+
+          <div className="lds-toolbar-region lds-toolbar-region-right">
+            {toolbarActions ? (
+              <div className="lds-toolbar-actions">{toolbarActions}</div>
+            ) : null}
+            <div
+              className={`lds-save-indicator ${saveIndicator.tone}`}
+              role="status"
+              aria-live="polite"
+            >
+              <span className="lds-save-indicator-dot" aria-hidden="true" />
+              <strong>{saveIndicator.label}</strong>
+            </div>
             <span className={statusClassName}>{statusLabel}</span>
-            {getSavePill(saveStatus)}
           </div>
-        </div>
-
-        <div className="lds-guided-hero-grid">
-          <div className="lds-stat-card">
-            <span className="lds-stat-label">Current step</span>
-            <strong className="lds-stat-value">{currentPhaseLabel}</strong>
-          </div>
-          <div className="lds-stat-card">
-            <span className="lds-stat-label">Sessions built</span>
-            <strong className="lds-stat-value">{sessionsBuiltLabel}</strong>
-          </div>
-          <div className="lds-stat-card">
-            <span className="lds-stat-label">Teaching checks</span>
-            <strong className="lds-stat-value">{understandingLabel}</strong>
-          </div>
-          <div className="lds-stat-card">
-            <span className="lds-stat-label">Current blockers</span>
-            <strong className="lds-stat-value">{blockerLabel}</strong>
-          </div>
-        </div>
-
-        <div className="lds-guided-focus-row">
-          <div className="lds-guided-focus-card">
-            <p className="lds-section-eyebrow">Why this step matters</p>
-            <h2 className="lds-section-title">{activeStep.headline}</h2>
-            <p className="lds-section-copy">{activeStep.whyItMatters}</p>
-          </div>
-          <div className="lds-guided-focus-card accent">
-            <p className="lds-section-eyebrow">Recommended next move</p>
-            <h2 className="lds-section-title">{journey.recommendedAction}</h2>
-            <p className="lds-section-copy">
-              {journey.blockers.length > 0
-                ? journey.blockers[0]
-                : "You have cleared the blockers for this step. Keep moving with confidence."}
-            </p>
-          </div>
-        </div>
-
-        <div className="lds-guided-hero-actions">
-          <div className="lds-inline-actions">{heroActions}</div>
-          <span className="lds-updated-at">{updatedAtLabel}</span>
         </div>
       </section>
 
-      {workflowNotice ? (
-        <section className="card lds-readonly-banner" role="status">
-          <strong>Studio update</strong>
-          <p>{workflowNotice}</p>
-        </section>
-      ) : null}
+      <div className="lds-guided-workbench">
+        <aside className="lds-guided-rail">
+          <nav className="lds-guided-pill-row" aria-label="Studio steps">
+            {journey.steps.map((step, index) => (
+              <StepRailItem
+                key={step.id}
+                step={step}
+                index={index}
+                isActive={step.id === journey.activePhase}
+                onClick={() => onPhaseChange(step.id)}
+              />
+            ))}
+          </nav>
 
-      {readOnlyNotice && readOnlyBody ? (
-        <section className="card lds-readonly-banner">
-          <strong>{readOnlyNotice}</strong>
-          <p>{readOnlyBody}</p>
-        </section>
-      ) : null}
+          <div className="lds-guided-rail-summary">
+            <div className="lds-progress-cell">
+              <span className="lds-stat-label">Sessions built</span>
+              <strong className="lds-stat-value">{sessionsBuiltLabel}</strong>
+            </div>
+            <div className="lds-progress-cell">
+              <span className="lds-stat-label">Readiness</span>
+              <strong className="lds-stat-value">{understandingLabel}</strong>
+            </div>
+          </div>
 
-      <section className="card lds-guided-journey">
-        <div className="lds-guided-journey-header">
-          <div>
-            <p className="lds-section-eyebrow">Guided journey</p>
-            <h2 className="lds-section-title">Stay on the rails while keeping the whole path visible</h2>
+          {heroActions ? (
+            <div className="lds-guided-rail-actions">{heroActions}</div>
+          ) : null}
+        </aside>
+
+        <div className="lds-guided-main">
+          <div className="lds-phase-context-strip">
+            <span className="lds-phase-context-label">{eyebrow}</span>
+            <span className="lds-phase-context-sep" aria-hidden="true">·</span>
+            <span className="lds-phase-context-desc">{journey.recommendedAction}</span>
+          </div>
+
+          {workflowNotice ? (
+            <section className="card lds-readonly-banner" role="status">
+              <strong>Studio update</strong>
+              <p>{workflowNotice}</p>
+            </section>
+          ) : null}
+
+          {readOnlyNotice && readOnlyBody ? (
+            <section className="card lds-readonly-banner">
+              <strong>{readOnlyNotice}</strong>
+              <p>{readOnlyBody}</p>
+            </section>
+          ) : null}
+
+          <div className="lds-guided-editor">
+            <div key={journey.activePhase} className="lds-guided-editor-stage">
+              {children}
+            </div>
           </div>
         </div>
-        <div className="lds-guided-pill-row" role="tablist" aria-label="Studio steps">
-          {journey.steps.map((step) => (
-            <StepPill
-              key={step.id}
-              step={step}
-              isActive={step.id === journey.activePhase}
-              onClick={() => onPhaseChange(step.id)}
-            />
-          ))}
-        </div>
-      </section>
-
-      {children}
+      </div>
     </div>
   );
 }

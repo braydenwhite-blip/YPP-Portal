@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import {
   getAllProgramsAdmin,
   createProgram,
@@ -10,7 +9,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
 export default async function AdminProgramsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session) redirect("/login");
 
   const user = await prisma.user.findUnique({
@@ -34,7 +33,7 @@ export default async function AdminProgramsPage() {
   });
 
   const typeColors: Record<string, string> = {
-    PASSION_LAB: "#7c3aed",
+    PASSION_LAB: "#6b21c8",
     COMPETITION_PREP: "#dc2626",
     EXPERIENCE: "#16a34a",
     SEQUENCE: "#2563eb",

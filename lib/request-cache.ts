@@ -1,10 +1,9 @@
 import { cache } from "react";
-import { getServerSession } from "next-auth";
 import { Prisma } from "@prisma/client";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 
-export const getCachedServerSession = cache(() => getServerSession(authOptions));
+export const getCachedServerSession = cache(() => getSession());
 
 export const getUserAwardTypes = cache(async (userId: string) =>
   prisma.user.findUnique({

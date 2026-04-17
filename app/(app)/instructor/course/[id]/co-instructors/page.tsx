@@ -1,11 +1,10 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
 export default async function CoInstructorsPage({ params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }
@@ -24,7 +23,9 @@ export default async function CoInstructorsPage({ params }: { params: { id: stri
     redirect("/courses");
   }
 
-  const isLead = course.leadInstructorId === session.user.id || session.user.primaryRole === "ADMIN";
+  const isLead =
+    course.leadInstructorId === session.user.id ||
+    session.user.roles.includes("ADMIN");
 
   if (!isLead) {
     redirect(`/courses/${params.id}`);
@@ -33,7 +34,7 @@ export default async function CoInstructorsPage({ params }: { params: { id: stri
   // Get potential co-instructors (other instructors)
   const potentialCoInstructors = await prisma.user.findMany({
     where: {
-      primaryRole: "INSTRUCTOR",
+      roles: { some: { role: "INSTRUCTOR" } },
       id: {
         not: session.user.id,
         notIn: course.coInstructors.map(ci => ci.instructorId)

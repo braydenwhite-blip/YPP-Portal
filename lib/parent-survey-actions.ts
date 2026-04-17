@@ -1,12 +1,11 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 
 export async function createSurvey(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Not authenticated");
   }
@@ -33,7 +32,7 @@ export async function createSurvey(formData: FormData) {
 }
 
 export async function addSurveyQuestion(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Not authenticated");
   }
@@ -69,7 +68,7 @@ export async function addSurveyQuestion(formData: FormData) {
 }
 
 export async function removeSurveyQuestion(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Not authenticated");
   }
@@ -87,7 +86,7 @@ export async function removeSurveyQuestion(formData: FormData) {
 }
 
 export async function publishSurvey(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Not authenticated");
   }
@@ -107,7 +106,7 @@ export async function publishSurvey(formData: FormData) {
 }
 
 export async function closeSurvey(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Not authenticated");
   }
@@ -127,7 +126,7 @@ export async function closeSurvey(formData: FormData) {
 }
 
 export async function submitSurveyResponse(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Not authenticated");
   }

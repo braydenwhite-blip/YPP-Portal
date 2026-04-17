@@ -1,13 +1,12 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getPanelEvents, getAlumniDirectory } from "@/lib/alumni-network-actions";
 import Link from "next/link";
 
 export const metadata = { title: "Alumni Network — YPP" };
 
 export default async function AlumniNetworkPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const [upcomingEvents, directory] = await Promise.all([

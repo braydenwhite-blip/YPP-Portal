@@ -45,6 +45,19 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
   );
 }
 
+const HEAR_ABOUT_OPTIONS = [
+  "Word of mouth",
+  "TikTok",
+  "Instagram",
+  "A YPP staff member",
+  "A YPP student",
+  "Other",
+] as const;
+
+function wordCount(text: string) {
+  return text.trim() === "" ? 0 : text.trim().split(/\s+/).length;
+}
+
 export default function ChapterPresidentApplicationForm({
   chapters,
   customFields = [],
@@ -61,6 +74,27 @@ export default function ChapterPresidentApplicationForm({
   const [launchPlan, setLaunchPlan] = useState("");
   const [customValues, setCustomValues] = useState<Record<string, string>>({});
   const [country, setCountry] = useState("United States");
+
+  // How did you hear about us
+  const [hearAbout, setHearAbout] = useState("");
+  const [hearAboutDetail, setHearAboutDetail] = useState("");
+
+  // Document upload
+  const [documentUrl, setDocumentUrl] = useState("");
+
+  // Instructor information
+  const [instructorTeachingDesc, setInstructorTeachingDesc] = useState("");
+
+  const hearAboutNeedsName =
+    hearAbout === "A YPP staff member" || hearAbout === "A YPP student";
+  const hearAboutNeedsDetail = hearAbout === "Other";
+  const hearAboutCombined =
+    hearAboutDetail.trim()
+      ? `${hearAbout}: ${hearAboutDetail.trim()}`
+      : hearAbout;
+
+  const teachingWordCount = wordCount(instructorTeachingDesc);
+  const teachingOverLimit = teachingWordCount > 250;
 
   if (state.status === "success") {
     return (
@@ -115,15 +149,30 @@ export default function ChapterPresidentApplicationForm({
 
         <div className="form-row">
           <label>How did you hear about YPP? (optional)</label>
-          <select className="input" name="hearAboutYPP" defaultValue="">
+          <select
+            className="input"
+            name="hearAboutYPPOption"
+            value={hearAbout}
+            onChange={(e) => {
+              setHearAbout(e.target.value);
+              setHearAboutDetail("");
+            }}
+          >
             <option value="">Select one</option>
-            <option value="Social media">Social media</option>
-            <option value="Friend or classmate">Friend or classmate</option>
-            <option value="Teacher or counselor">Teacher or counselor</option>
-            <option value="School announcement">School announcement</option>
-            <option value="YPP website">YPP website</option>
-            <option value="Other">Other</option>
+            {HEAR_ABOUT_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
           </select>
+          {(hearAboutNeedsName || hearAboutNeedsDetail) && (
+            <input
+              className="input"
+              style={{ marginTop: 6 }}
+              placeholder={hearAboutNeedsName ? "Enter their name" : "Please specify"}
+              value={hearAboutDetail}
+              onChange={(e) => setHearAboutDetail(e.target.value)}
+            />
+          )}
+          <input type="hidden" name="hearAboutYPP" value={hearAboutCombined} />
         </div>
 
         {/* ── Section 2: Location ── */}
@@ -383,8 +432,76 @@ export default function ChapterPresidentApplicationForm({
           </p>
         </div>
 
-        {/* ── Section 9: Optional Demographics ── */}
-        <SectionHeader>Section 9 — Optional Demographics</SectionHeader>
+        {/* ── Section 9: Supporting Document ── */}
+        <SectionHeader>Section 9 — Supporting Document (Optional)</SectionHeader>
+
+        <div className="form-row">
+          <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 10px", lineHeight: 1.5 }}>
+            Upload one document to strengthen your application — a résumé, a list of current awards or credentials, or anything else that helps us get to know you better.
+          </p>
+          <FileUpload
+            category="APPLICATION_RESUME"
+            entityType="CHAPTER_PRESIDENT_APPLICATION"
+            accept=".pdf,.doc,.docx,image/jpeg,image/png,image/webp"
+            maxSizeMB={10}
+            label="Upload Document"
+            onUploadComplete={(file) => setDocumentUrl(file.url)}
+            currentFileUrl={documentUrl || null}
+          />
+          <input type="hidden" name="documentUrl" value={documentUrl} />
+        </div>
+
+        {/* ── Section 10: Instructor Information ── */}
+        <SectionHeader>Section 10 — Instructor Information (Optional)</SectionHeader>
+
+        <div className="form-row">
+          <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 12px", lineHeight: 1.5 }}>
+            If you are also interested in becoming a YPP instructor, please fill out this section. It is completely optional and will not affect your Chapter President application.
+          </p>
+        </div>
+
+        <div className="form-row">
+          <label>Please select which application position pertains to you? (optional)</label>
+          <select className="input" name="instructorApplicantPosition" defaultValue="">
+            <option value="">Select one</option>
+            <option value="Chapter President Only">Chapter President Only</option>
+            <option value="Instructor Only">Instructor Only</option>
+            <option value="Both Chapter President and Instructor">Both Chapter President and Instructor</option>
+          </select>
+        </div>
+
+        <div className="form-row">
+          <label>Do you have a class in mind that you would teach? (optional)</label>
+          <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
+            Please type N/A if not applicable yet.
+          </p>
+          <input
+            className="input"
+            name="classInMind"
+            placeholder="e.g. Introduction to Public Speaking, Creative Writing, N/A"
+          />
+        </div>
+
+        <div className="form-row">
+          <label>Describe your experience with teaching, tutoring, or youth empowerment (optional)</label>
+          <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 6px" }}>
+            Please include why YOU would be an applicant who should be hired to become an instructor at Youth Passion Project. Limit: 250 words.
+          </p>
+          <textarea
+            name="instructorTeachingDesc"
+            className="input"
+            rows={5}
+            placeholder="Share your teaching or mentoring experience and why you would make a great YPP instructor..."
+            value={instructorTeachingDesc}
+            onChange={(e) => setInstructorTeachingDesc(e.target.value)}
+          />
+          <span style={{ fontSize: 11, color: teachingOverLimit ? "#dc2626" : "var(--muted)", marginTop: 4, display: "block", textAlign: "right" }}>
+            {teachingWordCount} / 250 words{teachingOverLimit && " — over limit"}
+          </span>
+        </div>
+
+        {/* ── Section 11: Optional Demographics ── */}
+        <SectionHeader>Section 11 — Optional Demographics</SectionHeader>
 
         <div className="form-row">
           <label>Race/Ethnicity (optional — for program tracking only)</label>

@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import ParentFeedbackPanel from "@/components/parent-feedback-panel";
 import {
   listAllParentFeedback,
@@ -13,7 +12,7 @@ import { prisma } from "@/lib/prisma";
 export const metadata = { title: "Parent Feedback | YPP" };
 
 export default async function InstructorParentFeedbackPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }

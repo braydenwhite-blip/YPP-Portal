@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getCommandCenterData } from "@/lib/chapter-dashboard-actions";
 import Link from "next/link";
 import { ActionCenter } from "@/components/chapter-dashboard/action-center";
@@ -9,7 +8,7 @@ import { GrowthChart } from "@/components/chapter-dashboard/growth-chart";
 import { ChapterGoals } from "@/components/chapter-dashboard/chapter-goals";
 
 export default async function ChapterDashboardPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session) redirect("/login");
 
   const data = await getCommandCenterData();

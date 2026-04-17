@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { AchievementAwardTier, AwardNominationStatus } from "@prisma/client";
 import { logAuditEvent } from "@/lib/audit-log-actions";
@@ -17,7 +16,7 @@ const TIER_ORDER: AchievementAwardTier[] = ["BRONZE", "SILVER", "GOLD", "LIFETIM
 // ============================================
 
 async function requireAdmin() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   const roles = session.user.roles ?? [];
   if (!roles.includes("ADMIN")) throw new Error("Unauthorized");
@@ -25,7 +24,7 @@ async function requireAdmin() {
 }
 
 async function requireChairOrAdmin() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   const roles = session.user.roles ?? [];
   if (!roles.includes("ADMIN") && !roles.includes("MENTOR") && !roles.includes("CHAPTER_PRESIDENT")) {
@@ -49,7 +48,7 @@ function getString(formData: FormData, key: string, required = true): string {
  * have an approved or pending nomination for that tier.
  */
 export async function getEligibleMentees() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
   const roles = session.user.roles ?? [];
   if (!roles.includes("ADMIN") && !roles.includes("MENTOR") && !roles.includes("CHAPTER_PRESIDENT")) return null;
@@ -103,7 +102,7 @@ export async function getEligibleMentees() {
  * Returns all nominations filtered by status for the chair/admin queue.
  */
 export async function getNominationQueue() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
   const roles = session.user.roles ?? [];
   if (!roles.includes("ADMIN") && !roles.includes("MENTOR") && !roles.includes("CHAPTER_PRESIDENT")) return null;
@@ -142,7 +141,7 @@ export async function getNominationQueue() {
 // ============================================
 
 export async function getMyAwardsData() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) return null;
 
   const userId = session.user.id as string;

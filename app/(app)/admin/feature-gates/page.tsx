@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import {
   deleteFeatureGateRule,
@@ -9,6 +8,7 @@ import {
   setUserFeatureGateRule,
 } from "@/lib/feature-gates";
 import { FEATURE_KEYS, FEATURE_KEY_DEFAULTS } from "@/lib/feature-gate-constants";
+import { normalizeRoleList } from "@/lib/authorization";
 
 type FeatureAccessSearchParams = {
   q?: string;
@@ -24,7 +24,7 @@ export default async function AdminFeatureGatesPage({
   const params = await searchParams;
   const query = params.q?.trim() ?? "";
 
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }
@@ -85,7 +85,7 @@ export default async function AdminFeatureGatesPage({
           await getEnabledFeatureKeysForUser({
             userId: user.id,
             chapterId: user.chapterId,
-            roles: user.roles.map((role) => role.role),
+            roles: normalizeRoleList(user.roles, user.primaryRole),
             primaryRole: user.primaryRole,
           })
         ),

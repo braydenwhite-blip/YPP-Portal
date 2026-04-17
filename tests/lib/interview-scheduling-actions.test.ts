@@ -31,6 +31,7 @@ vi.mock("@/lib/feature-gates", () => ({
 }));
 
 vi.mock("@/lib/email", () => ({
+  sendEmail: vi.fn(),
   sendApplicationStatusEmail: vi.fn(),
   sendNotificationEmail: vi.fn(),
 }));
@@ -68,19 +69,19 @@ describe("interview scheduling notification policies", () => {
       1,
       "student-1",
       "SYSTEM",
-      "Interview tomorrow",
+      "Interview coming up",
       expect.stringContaining("Pat Reviewer"),
       "/interviews/schedule",
-      { policyKey: "INTERVIEW_UPDATES" }
+      { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
     );
     expect(createSystemNotification).toHaveBeenNthCalledWith(
       2,
       "reviewer-1",
       "SYSTEM",
-      "Interview tomorrow",
+      "Interview coming up",
       expect.stringContaining("Jordan Patel"),
       "/interviews/schedule",
-      { policyKey: "INTERVIEW_UPDATES" }
+      { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
     );
   });
 });

@@ -1,12 +1,12 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getCurriculumDraftById } from "@/lib/curriculum-draft-actions";
 import {
   buildSessionLabel,
   normalizeCourseConfig,
   syncSessionPlansToCourseConfig,
 } from "@/lib/curriculum-draft-progress";
+import { extractLessonDesignStudioRichText } from "@/lib/lesson-design-studio-rich-content";
 import { EXAMPLE_CURRICULA } from "../examples-data";
 import { PrintContent } from "./print-content";
 
@@ -75,7 +75,7 @@ export default async function PrintPage({
 }: {
   searchParams?: Promise<{ draftId?: string; example?: string; type?: string }>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const params = await searchParams;
@@ -170,7 +170,7 @@ export default async function PrintPage({
               title: a.title || "",
               type: ACTIVITY_LABELS[activityType] || activityType || "",
               durationMin: a.durationMin || 0,
-              description: a.description || null,
+              description: extractLessonDesignStudioRichText(a.description) || null,
               materials: a.materials || null,
               differentiationTips: a.differentiationTips || null,
               energyLevel: a.energyLevel || null,

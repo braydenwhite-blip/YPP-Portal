@@ -4,6 +4,10 @@ import { useFormStatus } from "react-dom";
 import { useState } from "react";
 import { RoleType } from "@prisma/client";
 import { createUser } from "@/lib/admin-actions";
+import {
+  ADMIN_SUBTYPE_LABELS,
+  ADMIN_SUBTYPE_VALUES,
+} from "@/lib/admin-subtypes";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -118,6 +122,31 @@ export function CreateUserForm({
           ))}
         </div>
       </div>
+      <div className="form-row">
+        Admin Subtypes
+        <p style={{ margin: "6px 0 10px", fontSize: 12, color: "var(--muted)" }}>
+          If you choose any admin subtype, the Admin role is added automatically.
+        </p>
+        <div className="checkbox-grid">
+          {ADMIN_SUBTYPE_VALUES.map((subtype) => (
+            <label key={subtype} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
+              <input type="checkbox" name="adminSubtypes" value={subtype} />
+              {ADMIN_SUBTYPE_LABELS[subtype]}
+            </label>
+          ))}
+        </div>
+      </div>
+      <label className="form-row">
+        Default Owner Subtype
+        <select className="input" name="defaultOwnerSubtype" defaultValue="">
+          <option value="">None</option>
+          {ADMIN_SUBTYPE_VALUES.map((subtype) => (
+            <option key={subtype} value={subtype}>
+              {ADMIN_SUBTYPE_LABELS[subtype]}
+            </option>
+          ))}
+        </select>
+      </label>
       <SubmitButton />
     </form>
   );

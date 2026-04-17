@@ -1,22 +1,17 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
+import { syncInstructorGrowthSignalsForInstructor } from "@/lib/instructor-growth-service";
 
 export async function submitChapterFeedback(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Not authenticated");
   }
 
-  // Verify user has PARENT role
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-  });
-
-  if (!user || user.primaryRole !== "PARENT") {
+  if (!session.user.roles.includes("PARENT")) {
     throw new Error("Only parents can submit feedback");
   }
 
@@ -48,6 +43,10 @@ export async function submitChapterFeedback(formData: FormData) {
       isAnonymous,
     },
   });
+
+  if (type === "INSTRUCTOR_FEEDBACK" && targetUserId) {
+    await syncInstructorGrowthSignalsForInstructor(targetUserId).catch(() => null);
+  }
 
   revalidatePath("/parent/feedback");
   revalidatePath("/admin/parent-feedback");

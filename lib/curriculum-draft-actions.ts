@@ -7,10 +7,9 @@
  */
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
-import { TrainingModuleType } from "@prisma/client";
+import { CurriculumDraftStatus, TrainingModuleType } from "@prisma/client";
 import {
   getCurriculumDraftProgress,
   normalizeCourseConfig,
@@ -30,12 +29,13 @@ import {
 import { syncTrainingAssignmentFromArtifacts } from "@/lib/training-actions";
 import { canAccessCurriculumDraftForPrint } from "@/lib/curriculum-draft-access";
 import { getEnabledFeatureKeysForUser } from "@/lib/feature-gates";
+import { getCurriculumDraftStudioRecord } from "@/lib/curriculum-draft-studio-access";
 
-const LESSON_DESIGN_STUDIO_MODULE_KEY = "academy_lesson_studio_006";
+const LESSON_DESIGN_STUDIO_MODULE_KEY = "academy_lesson_studio_004";
 const LESSON_DESIGN_STUDIO_TOUR_KEY = "studio_onboarding_tour";
 
 async function requireStudioAccess() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
   const roles = session.user.roles ?? [];
   const allowed =
@@ -56,6 +56,61 @@ function revalidateStudioAndTrainingSurfaces(moduleIds: string[] = []) {
   for (const moduleId of moduleIds) {
     revalidatePath(`/training/${moduleId}`);
   }
+}
+
+function normalizeSaveSnapshot(input: {
+  title: string;
+  description: string;
+  interestArea: string;
+  outcomes: string[];
+  courseConfig: unknown;
+  weeklyPlans: unknown;
+  understandingChecks: unknown;
+}) {
+  const normalizedCourseConfig = normalizeCourseConfig(input.courseConfig);
+  const normalizedUnderstandingChecks = normalizeUnderstandingChecks(
+    input.understandingChecks
+  );
+  const syncedWeeklyPlans = syncSessionPlansToCourseConfig(
+    input.weeklyPlans,
+    normalizedCourseConfig
+  );
+
+  return {
+    title: input.title,
+    description: input.description || null,
+    interestArea: input.interestArea,
+    outcomes: Array.isArray(input.outcomes)
+      ? input.outcomes.filter((outcome): outcome is string => typeof outcome === "string")
+      : [],
+    courseConfig: normalizedCourseConfig,
+    weeklyPlans: syncedWeeklyPlans,
+    understandingChecks: normalizedUnderstandingChecks,
+  };
+}
+
+function buildSaveSnapshotSignature(input: {
+  title: string;
+  description: string | null;
+  interestArea: string;
+  outcomes: string[];
+  courseConfig: unknown;
+  weeklyPlans: unknown;
+  understandingChecks: unknown;
+  status: string;
+  completedAt: Date | null;
+}) {
+  return JSON.stringify({
+    title: input.title,
+    description: input.description,
+    interestArea: input.interestArea,
+    outcomes: input.outcomes,
+    courseConfig: input.courseConfig,
+    weeklyPlans: input.weeklyPlans,
+    understandingChecks: input.understandingChecks,
+    status: input.status,
+    completedAt: input.completedAt ? "set" : null,
+  });
 }
 
 function buildDraftSummary(draft: {
@@ -112,10 +167,7 @@ async function getOwnedCurriculumDraftForStudio(userId: string, draftId: string)
 async function getLessonDesignStudioModules() {
   return prisma.trainingModule.findMany({
     where: {
-      OR: [
-        { contentKey: LESSON_DESIGN_STUDIO_MODULE_KEY },
-        { type: TrainingModuleType.CURRICULUM_REVIEW },
-      ],
+      contentKey: LESSON_DESIGN_STUDIO_MODULE_KEY,
     },
     select: {
       id: true,
@@ -316,8 +368,7 @@ export async function getPreferredCurriculumDraftForStudioSurface() {
 }
 
 export async function getCurriculumDraftForStudio(draftId: string) {
-  const session = await requireStudioAccess();
-  return getOwnedCurriculumDraftForStudio(session.user.id, draftId);
+  return getCurriculumDraftStudioRecord(draftId);
 }
 
 export async function createBlankCurriculumDraft() {
@@ -447,12 +498,26 @@ export async function saveCurriculumDraft(data: {
   courseConfig: unknown;
   weeklyPlans: unknown[];
   understandingChecks: unknown;
+  lastKnownUpdatedAt?: string | null;
 }) {
   const session = await requireStudioAccess();
 
   const existing = await prisma.curriculumDraft.findUnique({
     where: { id: data.draftId },
-    select: { authorId: true, status: true },
+    select: {
+      id: true,
+      authorId: true,
+      title: true,
+      description: true,
+      interestArea: true,
+      outcomes: true,
+      courseConfig: true,
+      weeklyPlans: true,
+      understandingChecks: true,
+      status: true,
+      completedAt: true,
+      updatedAt: true,
+    },
   });
 
   if (!existing || existing.authorId !== session.user.id) {
@@ -465,45 +530,151 @@ export async function saveCurriculumDraft(data: {
     );
   }
 
-  const normalizedCourseConfig = normalizeCourseConfig(data.courseConfig);
-  const normalizedUnderstandingChecks = normalizeUnderstandingChecks(
-    data.understandingChecks
-  );
-  const syncedWeeklyPlans = syncSessionPlansToCourseConfig(
-    data.weeklyPlans,
-    normalizedCourseConfig
-  );
+  const nextSnapshot = normalizeSaveSnapshot(data);
 
-  const nextStatus =
+  const nextStatus: CurriculumDraftStatus =
     existing.status === "NEEDS_REVISION"
       ? existing.status
-      : deriveEditableCurriculumDraftStatus({
-          title: data.title,
-          interestArea: data.interestArea,
-          outcomes: data.outcomes,
-          courseConfig: normalizedCourseConfig,
-          weeklyPlans: syncedWeeklyPlans,
-          understandingChecks: normalizedUnderstandingChecks,
-        });
+      : (deriveEditableCurriculumDraftStatus({
+          title: nextSnapshot.title,
+          interestArea: nextSnapshot.interestArea,
+          outcomes: nextSnapshot.outcomes,
+          courseConfig: nextSnapshot.courseConfig,
+          weeklyPlans: nextSnapshot.weeklyPlans,
+          understandingChecks: nextSnapshot.understandingChecks,
+        }) as CurriculumDraftStatus);
 
-  const draft = await prisma.curriculumDraft.update({
-    where: { id: data.draftId },
-    data: {
-      title: data.title,
-      description: data.description || null,
-      interestArea: data.interestArea,
-      outcomes: data.outcomes,
-      courseConfig: normalizedCourseConfig as any,
-      weeklyPlans: syncedWeeklyPlans as any,
-      understandingChecks: normalizedUnderstandingChecks as any,
-      status: nextStatus,
-      completedAt: nextStatus === "COMPLETED" ? new Date() : null,
-      updatedAt: new Date(),
-    },
+  const currentSnapshot = normalizeSaveSnapshot({
+    title: existing.title,
+    description: existing.description ?? "",
+    interestArea: existing.interestArea,
+    outcomes: existing.outcomes,
+    courseConfig: existing.courseConfig,
+    weeklyPlans: existing.weeklyPlans,
+    understandingChecks: existing.understandingChecks,
   });
 
+  const nextCompletedAt =
+    nextStatus === "COMPLETED" ? existing.completedAt ?? new Date() : null;
+
+  const currentSignature = buildSaveSnapshotSignature({
+    ...currentSnapshot,
+    status: existing.status,
+    completedAt: existing.completedAt,
+  });
+  const nextSignature = buildSaveSnapshotSignature({
+    ...nextSnapshot,
+    status: nextStatus,
+    completedAt: nextCompletedAt,
+  });
+
+  if (currentSignature === nextSignature) {
+    return {
+      success: true,
+      deduped: true,
+      updatedAt: existing.updatedAt.toISOString(),
+      status: existing.status,
+    };
+  }
+
+  const updateData = {
+    title: nextSnapshot.title,
+    description: nextSnapshot.description,
+    interestArea: nextSnapshot.interestArea,
+    outcomes: nextSnapshot.outcomes,
+    courseConfig: nextSnapshot.courseConfig as any,
+    weeklyPlans: nextSnapshot.weeklyPlans as any,
+    understandingChecks: nextSnapshot.understandingChecks as any,
+    status: nextStatus,
+    completedAt: nextCompletedAt,
+    updatedAt: new Date(),
+  };
+
+  let draft =
+    data.lastKnownUpdatedAt && Number.isFinite(Date.parse(data.lastKnownUpdatedAt))
+      ? null
+      : await prisma.curriculumDraft.update({
+          where: { id: data.draftId },
+          data: updateData,
+        });
+
+  if (!draft && data.lastKnownUpdatedAt) {
+    const guardedUpdatedAt = new Date(data.lastKnownUpdatedAt);
+    const updateResult = await prisma.curriculumDraft.updateMany({
+      where: {
+        id: data.draftId,
+        updatedAt: guardedUpdatedAt,
+      },
+      data: updateData,
+    });
+
+    if (updateResult.count === 0) {
+      const latest = await prisma.curriculumDraft.findUnique({
+        where: { id: data.draftId },
+        select: {
+          id: true,
+          authorId: true,
+          title: true,
+          description: true,
+          interestArea: true,
+          outcomes: true,
+          courseConfig: true,
+          weeklyPlans: true,
+          understandingChecks: true,
+          status: true,
+          completedAt: true,
+          updatedAt: true,
+        },
+      });
+
+      if (!latest || latest.authorId !== session.user.id) {
+        throw new Error("Draft not found or unauthorized");
+      }
+
+      const latestSignature = buildSaveSnapshotSignature({
+        ...normalizeSaveSnapshot({
+          title: latest.title,
+          description: latest.description ?? "",
+          interestArea: latest.interestArea,
+          outcomes: latest.outcomes,
+          courseConfig: latest.courseConfig,
+          weeklyPlans: latest.weeklyPlans,
+          understandingChecks: latest.understandingChecks,
+        }),
+        status: latest.status,
+        completedAt: latest.completedAt,
+      });
+
+      if (latestSignature === nextSignature) {
+        return {
+          success: true,
+          deduped: true,
+          updatedAt: latest.updatedAt.toISOString(),
+          status: latest.status,
+        };
+      }
+
+      throw new Error(
+        "This draft changed in another tab. Refresh the studio to keep editing the newest version."
+      );
+    }
+
+    draft = await prisma.curriculumDraft.findUnique({
+      where: { id: data.draftId },
+    });
+  }
+
+  if (!draft) {
+    throw new Error("Draft save failed unexpectedly.");
+  }
+
   await syncLessonDesignStudioTrainingArtifacts(session.user.id, draft);
-  return { success: true };
+  return {
+    success: true,
+    deduped: false,
+    updatedAt: draft.updatedAt.toISOString(),
+    status: draft.status,
+  };
 }
 
 /**
@@ -585,7 +756,7 @@ export async function markLessonDesignStudioTourComplete(draftId: string) {
  * Load a curriculum draft by ID (for the print page).
  */
 export async function getCurriculumDraftById(draftId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }

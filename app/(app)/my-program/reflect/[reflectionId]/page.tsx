@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { redirect, notFound } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getReflectionById } from "@/lib/self-reflection-actions";
 import Link from "next/link";
 
@@ -10,7 +9,7 @@ const RATING_CONFIG: Record<string, { label: string; color: string; bg: string }
   BEHIND_SCHEDULE: { label: "Behind Schedule", color: "#ef4444", bg: "#fef2f2" },
   GETTING_STARTED: { label: "Getting Started", color: "#d97706", bg: "#fffbeb" },
   ACHIEVED: { label: "Achieved", color: "#16a34a", bg: "#f0fdf4" },
-  ABOVE_AND_BEYOND: { label: "Above & Beyond", color: "#7c3aed", bg: "#faf5ff" },
+  ABOVE_AND_BEYOND: { label: "Above & Beyond", color: "#6b21c8", bg: "#faf5ff" },
 };
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
@@ -46,7 +45,7 @@ function Field({ label, value }: { label: string; value: string | null | undefin
 export default async function ReflectionViewPage({ params }: { params: Promise<{ reflectionId: string }> }) {
   const { reflectionId } = await params;
 
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const reflection = await getReflectionById(reflectionId);

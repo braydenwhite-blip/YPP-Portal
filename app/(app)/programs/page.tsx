@@ -1,11 +1,10 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getPrograms } from "@/lib/program-actions";
 import Link from "next/link";
 
 export default async function ProgramsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session) redirect("/login");
 
   const programs = await getPrograms();
@@ -70,7 +69,7 @@ export default async function ProgramsPage() {
           title="Passion Labs"
           description={programTypeDescriptions.PASSION_LAB}
           programs={passionLabs}
-          color="#7c3aed"
+          color="#6b21c8"
         />
       )}
 

@@ -23,6 +23,9 @@ export type NavGroup =
   | "People & Support"
   | "Chapters"
   | "Profile & Settings"
+  | "Schedule"
+  | "Community"
+  | "Profile"
   | "Admin People"
   | "Admin Content"
   | "Admin Reports"
@@ -34,6 +37,8 @@ export interface NavLink {
   icon: string;
   group: NavGroup;
   roles?: NavRole[];
+  /** When set, hide this link if the resolved primary nav role matches any entry. */
+  hideForPrimaryRoles?: NavRole[];
   priority: number;
   coreEligible: boolean;
   badgeKey?: NavBadgeKey;

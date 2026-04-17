@@ -1,5 +1,13 @@
+/**
+ * @deprecated LEGACY MODULE — do not add new server actions here.
+ * This module operates against the legacy MonthlyGoalReview / ReflectionForm /
+ * MentorshipAwardRecommendation models which are frozen pending Phase 1 migration.
+ * New code should use lib/goal-review-actions.ts and lib/self-reflection-actions.ts
+ * instead.
+ */
 "use server";
 
+import { getSession } from "@/lib/auth-supabase";
 import {
   AuditAction,
   MenteeRoleType,
@@ -16,10 +24,8 @@ import {
   ProgressStatus,
   RoleType,
 } from "@prisma/client";
-import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 
-import { authOptions } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit-log-actions";
 import {
   ensureCanonicalTrack,
@@ -77,7 +83,7 @@ function getBoolean(formData: FormData, key: string) {
 }
 
 async function requireSession() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
@@ -276,6 +282,11 @@ export async function assignProgramMentor(formData: FormData) {
     governanceMode,
   });
 
+  // Seed the mentorship record with the first kickoff target date so the
+  // governance view and review workflow stay aligned with the session plan.
+  const kickoffDate = new Date();
+  kickoffDate.setDate(kickoffDate.getDate() + 7); // Schedule 1 week out
+
   const mentorship = await prisma.mentorship.create({
     data: {
       mentorId: mentor.id,
@@ -286,6 +297,7 @@ export async function assignProgramMentor(formData: FormData) {
       status: MentorshipStatus.ACTIVE,
       trackId: track.id,
       chairId,
+      kickoffScheduledAt: kickoffDate,
       notes: notes || null,
     },
   });
@@ -301,8 +313,6 @@ export async function assignProgramMentor(formData: FormData) {
   await ensureMentorshipSupportCircle(mentorship.id);
 
   // Auto-create kickoff meeting session
-  const kickoffDate = new Date();
-  kickoffDate.setDate(kickoffDate.getDate() + 7); // Schedule 1 week out
   await prisma.mentorshipSession.create({
     data: {
       mentorshipId: mentorship.id,
@@ -523,6 +533,29 @@ async function getAccessibleMentorship(params: {
       },
     },
   });
+}
+
+async function getMentorshipKickoffCompletedAt(params: {
+  mentorshipId: string;
+  storedKickoffCompletedAt?: Date | null;
+}) {
+  const { mentorshipId, storedKickoffCompletedAt = null } = params;
+
+  if (storedKickoffCompletedAt) {
+    return storedKickoffCompletedAt;
+  }
+
+  const completedKickoffSession = await prisma.mentorshipSession.findFirst({
+    where: {
+      mentorshipId,
+      type: MentorshipSessionType.KICKOFF,
+      completedAt: { not: null },
+    },
+    orderBy: [{ completedAt: "desc" }, { scheduledAt: "desc" }],
+    select: { completedAt: true },
+  });
+
+  return completedKickoffSession?.completedAt ?? null;
 }
 
 async function canApproveReview(args: {
@@ -790,8 +823,14 @@ export async function submitMonthlyGoalReview(formData: FormData) {
     governanceMode,
     escalateToChair,
   });
+  const kickoffCompletedAt = requiresKickoff
+    ? await getMentorshipKickoffCompletedAt({
+        mentorshipId: mentorship.id,
+        storedKickoffCompletedAt: mentorship.kickoffCompletedAt,
+      })
+    : null;
 
-  if (requiresKickoff && !mentorship.kickoffCompletedAt) {
+  if (requiresKickoff && !kickoffCompletedAt) {
     throw new Error(
       "Complete the mentorship kickoff before submitting the monthly goal review."
     );
@@ -862,6 +901,13 @@ export async function submitMonthlyGoalReview(formData: FormData) {
   const publishedAt = requiresChairApproval ? null : submittedAt;
 
   const review = await prisma.$transaction(async (tx) => {
+    if (kickoffCompletedAt && !mentorship.kickoffCompletedAt) {
+      await tx.mentorship.update({
+        where: { id: mentorship.id },
+        data: { kickoffCompletedAt },
+      });
+    }
+
     const existingReview = await tx.monthlyGoalReview.findFirst({
       where: {
         mentorshipId: mentorship.id,

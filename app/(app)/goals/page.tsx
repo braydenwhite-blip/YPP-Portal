@@ -1,12 +1,12 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 
-import { authOptions } from "@/lib/auth";
 import { ProgressBar, GoalProgressDisplay } from "@/components/progress-bar";
 import { PROGRESS_STATUS_META } from "@/lib/mentorship-review-helpers";
 import { prisma } from "@/lib/prisma";
 import { buildContextTrail } from "@/lib/context-trail";
 import ContextTrail from "@/components/context-trail";
+import { normalizeRoleList } from "@/lib/authorization";
 
 const TONE_STYLES = {
   neutral: { background: "#e2e8f0", color: "#334155" },
@@ -15,7 +15,7 @@ const TONE_STYLES = {
 } as const;
 
 export default async function GoalsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const userId = session?.user?.id;
 
   if (!userId) {
@@ -167,7 +167,7 @@ export default async function GoalsPage() {
     trailItems = [];
   }
 
-  const roles = user.roles.map((role) => role.role);
+  const roles = normalizeRoleList(user.roles, user.primaryRole);
   const isInstructor = roles.includes("INSTRUCTOR");
   const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
   const mentor = user.menteePairs[0]?.mentor ?? null;

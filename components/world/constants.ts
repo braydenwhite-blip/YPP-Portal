@@ -12,7 +12,7 @@ export const CATEGORY_THEMES: Record<
   }
 > = {
   ARTS: { gradient: ["#f472b6", "#ec4899"], accent: "#be185d", terrain: "#fce7f3", emoji: "\u{1F3A8}" },
-  MUSIC: { gradient: ["#a78bfa", "#8b5cf6"], accent: "#6d28d9", terrain: "#ede9fe", emoji: "\u{1F3B5}" },
+  MUSIC: { gradient: ["#b47fff", "#8b3fe8"], accent: "#5a1da8", terrain: "#f0e6ff", emoji: "\u{1F3B5}" },
   SPORTS: { gradient: ["#34d399", "#10b981"], accent: "#047857", terrain: "#d1fae5", emoji: "\u26BD" },
   STEM: { gradient: ["#60a5fa", "#3b82f6"], accent: "#1d4ed8", terrain: "#dbeafe", emoji: "\u{1F52C}" },
   BUSINESS: { gradient: ["#fbbf24", "#f59e0b"], accent: "#b45309", terrain: "#fef3c7", emoji: "\u{1F4BC}" },

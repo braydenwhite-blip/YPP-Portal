@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import {
   deleteFeatureGateRule,
   getEnabledFeatureKeysForUser,
   setUserFeatureGateRule,
 } from "@/lib/feature-gates";
+import { normalizeRoleList } from "@/lib/authorization";
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -54,7 +54,7 @@ export async function GET(request: Request) {
       enabledFeatureKeys: await getEnabledFeatureKeysForUser({
         userId: user.id,
         chapterId: user.chapterId,
-        roles: user.roles.map((role) => role.role),
+        roles: normalizeRoleList(user.roles, user.primaryRole),
         primaryRole: user.primaryRole,
       }),
     }))
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

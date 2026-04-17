@@ -403,15 +403,15 @@ const MentorTowerLandmark = memo(function MentorTowerLandmark({
       <title>{mentorName ? `Mentor Tower — ${mentorName}` : "Mentor Tower — No mentor assigned"}</title>
       {/* Hit area */}
       <rect x={x - 15} y={y - 35} width={30} height={65} fill="transparent" />
-      <rect x={x - 8} y={y - 20} width={16} height={30} rx={2} fill="#7c3aed" opacity={0.8} />
-      <polygon points={`${x - 10},${y - 20} ${x},${y - 32} ${x + 10},${y - 20}`} fill="#5b21b6" />
+      <rect x={x - 8} y={y - 20} width={16} height={30} rx={2} fill="#6b21c8" opacity={0.8} />
+      <polygon points={`${x - 10},${y - 20} ${x},${y - 32} ${x + 10},${y - 20}`} fill="#5a1da8" />
       <rect x={x - 2} y={y - 8} width={4} height={6} rx={1} fill="#c4b5fd" />
       <circle cx={x} cy={y - 26} r={2} fill="#fbbf24" />
       <rect x={x - 3} y={y - 16} width={2.5} height={3} rx={0.5} fill="#c4b5fd" opacity={0.7} />
       <rect x={x + 1} y={y - 16} width={2.5} height={3} rx={0.5} fill="#c4b5fd" opacity={0.7} />
-      <text x={x} y={y + 18} textAnchor="middle" fontSize="8" fill="#5b21b6" fontWeight="600">Mentor Tower</text>
+      <text x={x} y={y + 18} textAnchor="middle" fontSize="8" fill="#5a1da8" fontWeight="600">Mentor Tower</text>
       {mentorName && (
-        <text x={x} y={y + 27} textAnchor="middle" fontSize="6" fill="#7c3aed" opacity={0.7}>{mentorName}</text>
+        <text x={x} y={y + 27} textAnchor="middle" fontSize="6" fill="#6b21c8" opacity={0.7}>{mentorName}</text>
       )}
     </g>
   );

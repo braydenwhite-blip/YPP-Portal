@@ -1,11 +1,10 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
 export default async function AttendanceAnalyticsPage({ params }: { params: { courseId: string } }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }
@@ -35,7 +34,7 @@ export default async function AttendanceAnalyticsPage({ params }: { params: { co
 
   const isInstructor =
     course.leadInstructorId === session.user.id ||
-    session.user.primaryRole === "ADMIN";
+    session.user.roles.includes("ADMIN");
 
   if (!isInstructor) {
     redirect(`/courses/${params.courseId}`);

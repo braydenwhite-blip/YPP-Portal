@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getMyMeetings } from "@/lib/college-advisor-scheduling";
 import Link from "next/link";
 
@@ -15,7 +14,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
 };
 
 export default async function MeetingHistoryPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session) redirect("/login");
 
   const data = await getMyMeetings();

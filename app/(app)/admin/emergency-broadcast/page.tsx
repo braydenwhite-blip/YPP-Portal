@@ -1,10 +1,9 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 
 export default async function EmergencyBroadcastPage() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id || session.user.primaryRole !== "ADMIN") {
+  const session = await getSession();
+  if (!session?.user?.id || !session.user.roles.includes("ADMIN")) {
     redirect("/");
   }
 

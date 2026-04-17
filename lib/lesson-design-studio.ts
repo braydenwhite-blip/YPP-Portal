@@ -205,6 +205,27 @@ export function getCanonicalStudioHref(searchParams: SearchParamsRecord) {
   });
 }
 
+function hasStartedStudioWork(input: {
+  title?: string;
+  interestArea?: string;
+  outcomes?: string[];
+  progress: CurriculumDraftProgress;
+}) {
+  const nonEmptyOutcomes = Array.isArray(input.outcomes)
+    ? input.outcomes.filter((outcome) => outcome.trim().length > 0)
+    : [];
+
+  return (
+    (input.title ?? "").trim().length > 0 ||
+    (input.interestArea ?? "").trim().length > 0 ||
+    nonEmptyOutcomes.length > 0 ||
+    input.progress.sessionsWithTitles > 0 ||
+    input.progress.sessionsWithObjectives > 0 ||
+    input.progress.sessionsWithThreeActivities > 0 ||
+    input.progress.sessionsWithAtHomeAssignments > 0
+  );
+}
+
 export function deriveStudioPhase(input: {
   status?: string | null;
   title?: string;
@@ -228,19 +249,14 @@ export function deriveStudioPhase(input: {
 
   const status = String(input.status ?? "").trim().toUpperCase();
   const nonEmptyOutcomes = Array.isArray(input.outcomes)
-    ? input.outcomes.filter((outcome) => outcome.trim().length > 0)
+    ? input.outcomes.filter((outcome) => typeof outcome === 'string' && outcome.trim().length > 0)
     : [];
-
-  const hasOverviewStarted =
-    (input.title ?? "").trim().length > 0 ||
-    (input.interestArea ?? "").trim().length > 0 ||
-    nonEmptyOutcomes.length > 0;
-
-  const hasBuiltAnySession =
-    progress.sessionsWithTitles > 0 ||
-    progress.sessionsWithObjectives > 0 ||
-    progress.sessionsWithThreeActivities > 0 ||
-    progress.sessionsWithAtHomeAssignments > 0;
+  const hasStartedDraft = hasStartedStudioWork({
+    title: input.title,
+    interestArea: input.interestArea,
+    outcomes: input.outcomes,
+    progress,
+  });
 
   const hasCourseMapReady =
     (input.title ?? "").trim().length > 0 &&
@@ -264,7 +280,7 @@ export function deriveStudioPhase(input: {
     return "REVIEW_LAUNCH";
   }
 
-  if (!hasOverviewStarted && !hasBuiltAnySession) {
+  if (!hasStartedDraft) {
     return "START";
   }
 
@@ -291,6 +307,17 @@ export function getStudioPhaseMeta(phase: StudioPhase): GuidedStudioStepMeta {
   return GUIDED_PHASE_META[phase];
 }
 
+function buildStartBlockers(input: {
+  title?: string;
+  interestArea?: string;
+  outcomes?: string[];
+  progress: CurriculumDraftProgress;
+}) {
+  return hasStartedStudioWork(input)
+    ? []
+    : ["Choose the level of starter support you want before you begin writing."];
+}
+
 function buildCourseMapBlockers(input: {
   title?: string;
   interestArea?: string;
@@ -299,7 +326,7 @@ function buildCourseMapBlockers(input: {
 }) {
   const blockers: string[] = [];
   const nonEmptyOutcomes = Array.isArray(input.outcomes)
-    ? input.outcomes.filter((outcome) => outcome.trim().length > 0)
+    ? input.outcomes.filter((outcome) => typeof outcome === 'string' && outcome.trim().length > 0)
     : [];
 
   if ((input.title ?? "").trim().length === 0) {
@@ -413,7 +440,9 @@ function getRecommendedActionForPhase(args: {
 
   switch (args.phase) {
     case "START":
-      return "Pick a starter scaffold";
+      return args.blockers.length === 0
+        ? "Move into the course map"
+        : "Pick a starter scaffold";
     case "COURSE_MAP":
       return args.blockers.length === 0
         ? "Move into session building"
@@ -460,7 +489,7 @@ function getBlockersForPhase(args: {
 }) {
   switch (args.phase) {
     case "START":
-      return ["Choose the level of starter support you want before you begin writing."];
+      return buildStartBlockers(args);
     case "COURSE_MAP":
       return buildCourseMapBlockers(args);
     case "SESSIONS":
@@ -532,10 +561,10 @@ export function buildGuidedStudioJourney(input: {
     const phaseIndex = getStudioPhaseIndex(phase.id);
     const completionIndex = getStudioPhaseIndex(derivedPhase);
     const status: GuidedStudioStepStatus =
-      phaseIndex < completionIndex
-        ? "complete"
-        : phase.id === activePhase
-          ? "current"
+      phase.id === activePhase
+        ? "current"
+        : phaseIndex < completionIndex
+          ? "complete"
           : "upcoming";
 
     return {

@@ -1,9 +1,12 @@
 import { NotificationType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isEmailConfigured, sendNotificationEmail } from "@/lib/email";
+import { getBaseUrl } from "@/lib/portal-auth-utils";
 import {
   type NotificationPolicyKey,
   resolveNotificationPolicyChannels,
+  shouldCreatePortalNotification,
+  shouldSendPolicyEmail,
 } from "@/lib/notification-policy";
 import { isSmsConfigured, sendSmsNotification } from "@/lib/sms";
 
@@ -53,12 +56,6 @@ function preferenceKeyForType(type: NotificationType): keyof PreferenceRecord | 
   }
 }
 
-function getBaseUrl() {
-  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return "http://localhost:3000";
-}
-
 function isTypeEnabled(
   preferences: PreferenceRecord | null | undefined,
   type: NotificationType
@@ -67,7 +64,6 @@ function isTypeEnabled(
   if (!key) return true;
   return preferences?.[key] ?? true;
 }
-
 export async function deliverNotification(input: DeliveryInput) {
   const user = await prisma.user.findUnique({
     where: { id: input.userId },
@@ -97,19 +93,22 @@ export async function deliverNotification(input: DeliveryInput) {
 
   const preferences = user.notificationPreference;
   const typeEnabled = isTypeEnabled(preferences, input.type);
-  const policyChannels = resolveNotificationPolicyChannels(input.policyKey);
+  const policyChannels = input.policyKey
+    ? resolveNotificationPolicyChannels(input.policyKey)
+    : null;
   const shouldCreateInApp =
-    policyChannels.inApp &&
+    (policyChannels?.inApp ?? shouldCreatePortalNotification(input.type)) &&
     (preferences?.inAppEnabled ?? true) &&
     typeEnabled;
   const shouldSendEmail =
-    input.sendEmail !== false &&
-    policyChannels.email &&
+    (policyChannels
+      ? input.sendEmail !== false && policyChannels.email
+      : shouldSendPolicyEmail(input.type, input.sendEmail !== false)) &&
     (preferences?.emailEnabled ?? true) &&
     typeEnabled &&
     isEmailConfigured();
   const shouldSendSms =
-    policyChannels.sms &&
+    Boolean(policyChannels?.sms) &&
     (preferences?.smsEnabled ?? false) &&
     Boolean(preferences?.smsPhoneE164) &&
     typeEnabled &&

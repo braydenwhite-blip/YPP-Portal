@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import {
   getGovernanceDashboardData,
   getOpsRules,
@@ -31,7 +30,7 @@ const SEVERITY_STYLE: Record<string, { color: string; bg: string }> = {
 };
 
 export default async function GovernancePage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session) redirect("/login");
   const roles = session.user.roles ?? [];
   if (!roles.includes("ADMIN")) redirect("/");

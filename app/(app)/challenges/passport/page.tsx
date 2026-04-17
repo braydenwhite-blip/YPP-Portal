@@ -1,12 +1,11 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { getPassionPassports } from "@/lib/challenge-gamification-actions";
 import Link from "next/link";
 import { CreatePassportForm, EarnStampForm } from "./client";
 
 export default async function PassionPassportPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const { passports, subAreas } = await getPassionPassports();
@@ -55,7 +54,7 @@ export default async function PassionPassportPage() {
             const passportColors: Record<string, string> = {
               Art: "#ef4444",
               Music: "#3b82f6",
-              Writing: "#8b5cf6",
+              Writing: "#8b3fe8",
               Dance: "#ec4899",
               Theater: "#f59e0b",
               Film: "#6366f1",

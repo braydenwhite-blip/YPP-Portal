@@ -1,12 +1,11 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { AuditAction } from "@prisma/client";
 
 async function requireAdmin() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const roles = session?.user?.roles ?? [];
   if (!roles.includes("ADMIN")) {
     throw new Error("Unauthorized");
@@ -25,6 +24,7 @@ export async function logAuditEvent({
   targetId,
   description,
   metadata,
+  ipAddress,
 }: {
   action: AuditAction;
   actorId: string;
@@ -32,6 +32,7 @@ export async function logAuditEvent({
   targetId?: string;
   description: string;
   metadata?: Record<string, unknown>;
+  ipAddress?: string;
 }) {
   try {
     await prisma.auditLog.create({
@@ -42,6 +43,7 @@ export async function logAuditEvent({
         targetId: targetId || null,
         description,
         metadata: metadata ? JSON.parse(JSON.stringify(metadata)) : undefined,
+        ipAddress: ipAddress || null,
       },
     });
   } catch (err: any) {

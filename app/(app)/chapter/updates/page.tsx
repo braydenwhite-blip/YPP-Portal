@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import {
   getChapterUpdates,
   createChapterUpdate,
@@ -8,9 +7,10 @@ import {
 } from "@/lib/chapter-actions";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import { normalizeRoleList } from "@/lib/authorization";
 
 export default async function ChapterUpdatesPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session) redirect("/login");
 
   const user = await prisma.user.findUnique({
@@ -18,8 +18,9 @@ export default async function ChapterUpdatesPage() {
     include: { roles: true },
   });
 
-  const isChapterLead = user?.roles.some((r) => r.role === "CHAPTER_PRESIDENT");
-  const isAdmin = user?.roles.some((r) => r.role === "ADMIN");
+  const roles = user ? normalizeRoleList(user.roles, user.primaryRole) : [];
+  const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
+  const isAdmin = roles.includes("ADMIN");
   const canPost = isChapterLead || isAdmin;
 
   const updates = await getChapterUpdates();

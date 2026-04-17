@@ -1,11 +1,10 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
 export default async function BadgeDetailPage({ params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }
@@ -29,8 +28,8 @@ export default async function BadgeDetailPage({ params }: { params: { id: string
   // Only allow viewing own badges or if admin/instructor
   const canView =
     badge.userId === session.user.id ||
-    session.user.primaryRole === "ADMIN" ||
-    session.user.primaryRole === "INSTRUCTOR";
+    session.user.roles.includes("ADMIN") ||
+    session.user.roles.includes("INSTRUCTOR");
 
   if (!canView) {
     redirect("/badges");

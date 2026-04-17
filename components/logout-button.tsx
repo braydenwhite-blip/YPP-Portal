@@ -1,14 +1,32 @@
 "use client";
 
-import { signOut } from "next-auth/react";
+import type { CSSProperties } from "react";
+import { useRouter } from "next/navigation";
+import { createBrowserClient } from "@/lib/supabase/client";
+import { signOutLegacyBypass } from "@/lib/legacy-auth-actions";
 
-export default function LogoutButton() {
+export default function LogoutButton({
+  className = "button small ghost",
+  style,
+}: {
+  className?: string;
+  style?: CSSProperties;
+}) {
+  const router = useRouter();
+
+  async function handleSignOut() {
+    const supabase = createBrowserClient();
+    await Promise.allSettled([supabase.auth.signOut(), signOutLegacyBypass()]);
+    router.push("/login");
+    router.refresh();
+  }
+
   return (
     <button
-      className="button small ghost"
+      className={className}
       type="button"
-      onClick={() => signOut({ callbackUrl: "/login" })}
-      style={{ width: "100%" }}
+      onClick={handleSignOut}
+      style={{ width: "100%", ...style }}
     >
       Sign Out
     </button>

@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { MentorshipProgramGroup, QuestionType, RoleType } from "@prisma/client";
 import { parseRoleType } from "@/lib/authorization";
@@ -13,7 +12,7 @@ import { getMentorshipProgramGroupForRole } from "@/lib/mentorship-canonical";
 // ============================================
 
 export async function getReflectionForms() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   return prisma.reflectionForm.findMany({
@@ -30,7 +29,7 @@ export async function getReflectionForms() {
 }
 
 export async function getReflectionFormById(formId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   return prisma.reflectionForm.findUnique({
@@ -44,7 +43,7 @@ export async function getReflectionFormById(formId: string) {
 }
 
 export async function createReflectionForm(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -87,7 +86,7 @@ export async function createReflectionForm(formData: FormData) {
 }
 
 export async function updateReflectionForm(formId: string, formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -135,7 +134,7 @@ export async function updateReflectionForm(formId: string, formData: FormData) {
 // ============================================
 
 export async function addReflectionQuestion(formId: string, formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -188,7 +187,7 @@ export async function updateReflectionQuestion(
   questionId: string,
   formData: FormData
 ) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -232,7 +231,7 @@ export async function updateReflectionQuestion(
 }
 
 export async function deleteReflectionQuestion(questionId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -256,7 +255,7 @@ export async function deleteReflectionQuestion(questionId: string) {
 // ============================================
 
 export async function getActiveReflectionForm() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const [user, activeMentorship] = await Promise.all([
@@ -303,7 +302,7 @@ export async function getActiveReflectionForm() {
 }
 
 export async function submitReflection(formData: FormData) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const formId = formData.get("formId") as string;
@@ -370,7 +369,7 @@ export async function submitReflection(formData: FormData) {
 }
 
 export async function getMyReflections() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   return prisma.reflectionSubmission.findMany({
@@ -388,7 +387,7 @@ export async function getMyReflections() {
 }
 
 export async function getReflectionById(submissionId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const submission = await prisma.reflectionSubmission.findUnique({
@@ -437,7 +436,7 @@ export async function getReflectionById(submissionId: string) {
 // ============================================
 
 export async function getMenteeReflections(menteeId?: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -494,7 +493,7 @@ export async function getAllReflectionSubmissions(filters?: {
   month?: Date;
   chapterId?: string;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({
@@ -576,7 +575,7 @@ export async function getAllReflectionSubmissions(filters?: {
 // ============================================
 
 export async function createDefaultReflectionForms() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const user = await prisma.user.findUnique({

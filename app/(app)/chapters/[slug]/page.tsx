@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { getChapterBySlug, getMyJoinRequestStatus } from "@/lib/chapter-join-actions";
 import { JoinChapterButton } from "./join-chapter-button";
@@ -19,7 +18,7 @@ export default async function ChapterProfilePage({
   const chapter = await getChapterBySlug(params.slug);
   if (!chapter) notFound();
 
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
 
   // Check if user is already a member or has a pending request
   let userChapterId: string | null = null;

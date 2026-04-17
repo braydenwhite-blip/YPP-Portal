@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildGuidedStudioJourney,
   buildLessonDesignStudioHref,
   deriveStudioPhase,
   getCanonicalStudioHref,
@@ -134,5 +135,29 @@ describe("lesson design studio helpers", () => {
         progress: buildProgress({ readyForSubmission: true }),
       })
     ).toBe("REVIEW_LAUNCH");
+  });
+
+  it("shows a started draft as current when the instructor revisits the first step", () => {
+    const journey = buildGuidedStudioJourney({
+      activePhase: "START",
+      title: "Money Moves",
+      interestArea: "Personal Finance",
+      outcomes: [
+        "Understand saving",
+        "Build a spending plan",
+        "Practice financial decision making",
+      ],
+      progress: buildProgress({
+        sessionsWithTitles: 1,
+      }),
+    });
+
+    expect(journey.steps.find((step) => step.id === "START")?.status).toBe(
+      "current"
+    );
+    expect(journey.steps.find((step) => step.id === "START")?.blockers).toEqual(
+      []
+    );
+    expect(journey.recommendedAction).toBe("Move into the course map");
   });
 });

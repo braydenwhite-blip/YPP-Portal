@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import {
   ConversationContextType,
@@ -26,13 +25,18 @@ import {
   type WarningInterval,
 } from "@/lib/interview-scheduling-shared";
 import { getEnabledFeatureKeysForUser } from "@/lib/feature-gates";
-import { sendApplicationStatusEmail, sendNotificationEmail } from "@/lib/email";
+import { toAbsoluteAppUrl } from "@/lib/public-app-url";
+import {
+  getSchedulingEventUid,
+  type CalendarInviteInput,
+} from "@/lib/scheduling/calendar";
+import { sendSchedulingLifecycleEmail } from "@/lib/scheduling/email";
 
 const DEFAULT_WINDOW_DAYS = 21;
 const FINAL_APPLICATION_STATUSES = ["ACCEPTED", "REJECTED", "WITHDRAWN"] as const;
 const ACTIVE_SLOT_STATUSES = ["POSTED", "CONFIRMED"] as const;
 
-type SessionUser = Awaited<ReturnType<typeof getServerSession>> & {
+type SessionUser = Awaited<ReturnType<typeof getSession>> & {
   user: {
     id: string;
     roles?: string[];
@@ -83,6 +87,10 @@ type HiringWorkflowRecord = Prisma.ApplicationGetPayload<{
     interviewSlots: true;
   };
 }>;
+
+function buildCalendarInviteInput(input: CalendarInviteInput) {
+  return input;
+}
 
 type ReadinessWorkflowRecord = Prisma.InstructorInterviewGateGetPayload<{
   include: {
@@ -218,6 +226,26 @@ export interface InterviewSchedulePageData {
   interviewerOptions: InterviewerOption[];
 }
 
+export interface InterviewScheduleHubWorkflow {
+  id: string;
+  title: string;
+  intervieweeName: string;
+  status: InterviewWorkflowView["status"];
+  statusLabel: string;
+  scheduledAt: string | null;
+}
+
+export interface InterviewScheduleHubData {
+  summary: {
+    total: number;
+    needsScheduling: number;
+    booked: number;
+    rescheduleRequested: number;
+    atRisk: number;
+  };
+  workflows: InterviewScheduleHubWorkflow[];
+}
+
 function getString(formData: FormData, key: string, required = true): string {
   const value = formData.get(key);
   if (required && (!value || String(value).trim() === "")) {
@@ -243,7 +271,7 @@ function getNumber(formData: FormData, key: string, fallback: number) {
 }
 
 async function requireSession(): Promise<SessionUser> {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
@@ -317,6 +345,212 @@ function describeWorkflowStatus(status: InterviewWorkflowView["status"]) {
     default:
       return status;
   }
+}
+
+async function sendInterviewLifecycleEmails(params: {
+  event:
+    | "CONFIRMED"
+    | "RESCHEDULE_REQUESTED"
+    | "RESCHEDULED"
+    | "CANCELLED"
+    | "REMINDER_24H"
+    | "REMINDER_2H";
+  requestId: string;
+  domain: InterviewDomain;
+  title: string;
+  interviewee: { name: string | null; email: string | null };
+  interviewer: { name: string | null; email: string | null };
+  scheduledAt?: Date | null;
+  duration?: number | null;
+  meetingLink?: string | null;
+}) {
+  const {
+    event,
+    requestId,
+    domain,
+    title,
+    interviewee,
+    interviewer,
+    scheduledAt = null,
+    duration = 30,
+    meetingLink = null,
+  } = params;
+
+  const label =
+    domain === "HIRING" ? "Interview Scheduling" : "Readiness Interview Scheduling";
+  const interviewLabel = domain === "HIRING" ? "interview" : "readiness interview";
+  const when = scheduledAt ? new Date(scheduledAt).toLocaleString() : "To be scheduled";
+  const uid = getSchedulingEventUid("interview", requestId);
+  const calendarBase: CalendarInviteInput | null =
+    scheduledAt && event !== "RESCHEDULE_REQUESTED"
+      ? {
+          uid,
+          title,
+          startsAt: scheduledAt,
+          durationMinutes: duration ?? 30,
+          descriptionLines: [
+            `${domain === "HIRING" ? "Hiring interview" : "Readiness interview"}`,
+            `Interviewee: ${interviewee.name ?? "Interviewee"}`,
+            `Interviewer: ${interviewer.name ?? "Interviewer"}`,
+            meetingLink ? `Meeting Link: ${meetingLink}` : "",
+          ].filter(Boolean),
+          location: meetingLink || "See YPP Portal for details",
+        }
+      : null;
+
+  const intervieweeTemplate = {
+    CONFIRMED: {
+      subject: `${domain === "HIRING" ? "Interview" : "Readiness interview"} confirmed`,
+      heading: `Your ${interviewLabel} is booked`,
+      message: `${interviewer.name ?? "Your interviewer"} confirmed your time.`,
+      calendar: calendarBase
+        ? buildCalendarInviteInput({
+            ...calendarBase,
+            method: "REQUEST",
+            filename: "interview-confirmed.ics",
+          })
+        : null,
+    },
+    RESCHEDULE_REQUESTED: {
+      subject: `${domain === "HIRING" ? "Interview" : "Readiness interview"} reschedule requested`,
+      heading: `A new ${interviewLabel} time is needed`,
+      message: `${interviewer.name ?? "Your interviewer"} requested a new time.`,
+      calendar: null,
+    },
+    RESCHEDULED: {
+      subject: `${domain === "HIRING" ? "Interview" : "Readiness interview"} moved`,
+      heading: `Your ${interviewLabel} has a new time`,
+      message: `${interviewer.name ?? "Your interviewer"} confirmed the new slot.`,
+      calendar: calendarBase
+        ? buildCalendarInviteInput({
+            ...calendarBase,
+            method: "REQUEST",
+            filename: "interview-rescheduled.ics",
+          })
+        : null,
+    },
+    CANCELLED: {
+      subject: `${domain === "HIRING" ? "Interview" : "Readiness interview"} cancelled`,
+      heading: `Your ${interviewLabel} was cancelled`,
+      message: `Please return to the portal to choose a new time.`,
+      calendar: calendarBase
+        ? buildCalendarInviteInput({
+            ...calendarBase,
+            method: "CANCEL",
+            status: "CANCELLED",
+            filename: "interview-cancelled.ics",
+          })
+        : null,
+    },
+    REMINDER_24H: {
+      subject: `Reminder: your ${interviewLabel} is within the next 24 hours`,
+      heading: `Your ${interviewLabel} is coming up soon`,
+      message: `${title} is coming up soon.`,
+      calendar: null,
+    },
+    REMINDER_2H: {
+      subject: `Reminder: your ${interviewLabel} starts soon`,
+      heading: `Your ${interviewLabel} starts soon`,
+      message: `${title} begins in about two hours.`,
+      calendar: null,
+    },
+  } as const;
+
+  const interviewerTemplate = {
+    CONFIRMED: {
+      subject: `New ${interviewLabel} booking`,
+      heading: `A ${interviewLabel} was booked`,
+      message: `${interviewee.name ?? "The interviewee"} now has a confirmed time with you.`,
+      calendar: calendarBase
+        ? buildCalendarInviteInput({
+            ...calendarBase,
+            method: "REQUEST",
+            filename: "interview-confirmed.ics",
+          })
+        : null,
+    },
+    RESCHEDULE_REQUESTED: {
+      subject: `${interviewLabel} reschedule requested`,
+      heading: `A participant asked for a new time`,
+      message: `Someone on this ${interviewLabel} asked for a new time.`,
+      calendar: null,
+    },
+    RESCHEDULED: {
+      subject: `${interviewLabel} moved`,
+      heading: `The ${interviewLabel} has a new time`,
+      message: `${interviewee.name ?? "The interviewee"} now has a new confirmed slot.`,
+      calendar: calendarBase
+        ? buildCalendarInviteInput({
+            ...calendarBase,
+            method: "REQUEST",
+            filename: "interview-rescheduled.ics",
+          })
+        : null,
+    },
+    CANCELLED: {
+      subject: `${interviewLabel} cancelled`,
+      heading: `A ${interviewLabel} was cancelled`,
+      message: `${title} was removed from the calendar.`,
+      calendar: calendarBase
+        ? buildCalendarInviteInput({
+            ...calendarBase,
+            method: "CANCEL",
+            status: "CANCELLED",
+            filename: "interview-cancelled.ics",
+          })
+        : null,
+    },
+    REMINDER_24H: {
+      subject: `Reminder: ${interviewLabel} within the next 24 hours`,
+      heading: `Your ${interviewLabel} is coming up soon`,
+      message: `${title} is coming up soon.`,
+      calendar: null,
+    },
+    REMINDER_2H: {
+      subject: `Reminder: ${interviewLabel} starts soon`,
+      heading: `Your ${interviewLabel} starts soon`,
+      message: `${title} begins in about two hours.`,
+      calendar: null,
+    },
+  } as const;
+
+  const details = [
+    { label: "When", value: when },
+    { label: "Length", value: `${duration ?? 30} min` },
+  ];
+
+  await Promise.all(
+    [
+      interviewee.email
+        ? sendSchedulingLifecycleEmail({
+            to: interviewee.email,
+            recipientName: interviewee.name,
+            eyebrow: label,
+            subject: intervieweeTemplate[event].subject,
+            heading: intervieweeTemplate[event].heading,
+            message: intervieweeTemplate[event].message,
+            details,
+            actionUrl: toAbsoluteAppUrl("/interviews/schedule"),
+            actionLabel: "Open Interview Scheduler",
+            calendar: intervieweeTemplate[event].calendar,
+          })
+        : null,
+      interviewer.email
+        ? sendSchedulingLifecycleEmail({
+            to: interviewer.email,
+            recipientName: interviewer.name,
+            eyebrow: label,
+            subject: interviewerTemplate[event].subject,
+            heading: interviewerTemplate[event].heading,
+            message: interviewerTemplate[event].message,
+            details,
+            actionUrl: toAbsoluteAppUrl("/interviews/schedule"),
+            actionLabel: "Open Interview Scheduler",
+            calendar: interviewerTemplate[event].calendar,
+          })
+        : null,
+    ].filter(Boolean)
+  );
 }
 
 async function getEligibleInterviewers(chapterId: string | null, includeAllAdmins = true) {
@@ -709,16 +943,13 @@ export async function runInterviewAutomation() {
   const now = new Date();
   const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   const in2Hours = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-  const before24Hours = new Date(now.getTime() + 23 * 60 * 60 * 1000);
-  const before2Hours = new Date(now.getTime() + 90 * 60 * 1000);
-
   const [twentyFourHourReminders, twoHourReminders, staleChapterEscalations, staleAdminEscalations] =
     await Promise.all([
       prisma.interviewSchedulingRequest.findMany({
         where: {
           status: "BOOKED",
           scheduledAt: {
-            gte: before24Hours,
+            gt: now,
             lte: in24Hours,
           },
           reminder24SentAt: null,
@@ -726,13 +957,18 @@ export async function runInterviewAutomation() {
         include: {
           interviewee: { select: { id: true, name: true, email: true } },
           interviewer: { select: { id: true, name: true, email: true } },
+          application: {
+            select: {
+              position: { select: { title: true } },
+            },
+          },
         },
       }),
       prisma.interviewSchedulingRequest.findMany({
         where: {
           status: "BOOKED",
           scheduledAt: {
-            gte: before2Hours,
+            gt: now,
             lte: in2Hours,
           },
           reminder2SentAt: null,
@@ -785,19 +1021,33 @@ export async function runInterviewAutomation() {
       createSystemNotification(
         request.intervieweeId,
         "SYSTEM",
-        "Interview tomorrow",
+        "Interview coming up",
         `Your interview with ${request.interviewer.name} is scheduled for ${when}.`,
         `/interviews/schedule`,
-        { policyKey: "INTERVIEW_UPDATES" }
+        { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
       ),
       createSystemNotification(
         request.interviewerId,
         "SYSTEM",
-        "Interview tomorrow",
+        "Interview coming up",
         `Your interview with ${request.interviewee.name} is scheduled for ${when}.`,
         `/interviews/schedule`,
-        { policyKey: "INTERVIEW_UPDATES" }
+        { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
       ),
+      sendInterviewLifecycleEmails({
+        event: "REMINDER_24H",
+        requestId: request.id,
+        domain: request.domain,
+        title:
+          request.domain === "HIRING"
+            ? `Interview: ${request.application?.position.title ?? "Application interview"}`
+            : "Instructor readiness interview",
+        interviewee: request.interviewee,
+        interviewer: request.interviewer,
+        scheduledAt: request.scheduledAt,
+        duration: request.duration,
+        meetingLink: request.meetingLink,
+      }),
       prisma.interviewSchedulingRequest.update({
         where: { id: request.id },
         data: { reminder24SentAt: new Date() },
@@ -819,7 +1069,7 @@ export async function runInterviewAutomation() {
         "Interview coming up",
         `Your interview with ${request.interviewer.name} starts at ${when}.`,
         `/interviews/schedule`,
-        { policyKey: "INTERVIEW_UPDATES" }
+        { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
       ),
       createSystemNotification(
         request.interviewerId,
@@ -827,7 +1077,7 @@ export async function runInterviewAutomation() {
         "Interview coming up",
         `Your interview with ${request.interviewee.name} starts at ${when}.`,
         `/interviews/schedule`,
-        { policyKey: "INTERVIEW_UPDATES" }
+        { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
       ),
       prisma.interviewSchedulingRequest.update({
         where: { id: request.id },
@@ -835,7 +1085,6 @@ export async function runInterviewAutomation() {
       }),
     ]);
   }
-
   for (const request of staleChapterEscalations) {
     if (
       !isInterviewRequestAtRisk({
@@ -1056,6 +1305,321 @@ async function getActiveSchedulingRequest(
     },
     orderBy: [{ updatedAt: "desc" }],
   });
+}
+
+type HubRequestRecord = {
+  id: string;
+  domain: InterviewDomain;
+  applicationId: string | null;
+  gateId: string | null;
+  status: InterviewSchedulingRequestStatus;
+  createdAt: Date;
+  rescheduleRequestedAt: Date | null;
+  scheduledAt: Date | null;
+};
+
+function buildHubWorkflowForHiring(params: {
+  application: HiringWorkflowRecord;
+  activeRequest: HubRequestRecord | null;
+}): {
+  status: InterviewWorkflowView["status"];
+  isAtRisk: boolean;
+  item: InterviewScheduleHubWorkflow;
+} {
+  const { application, activeRequest } = params;
+  const confirmedSlot = application.interviewSlots.find((slot) => slot.status === "CONFIRMED");
+  const completedSlot = application.interviewSlots.find((slot) => slot.status === "COMPLETED");
+
+  const isAtRisk = activeRequest
+    ? isInterviewRequestAtRisk({
+        createdAt: activeRequest.createdAt,
+        rescheduleRequestedAt: activeRequest.rescheduleRequestedAt,
+        status: activeRequest.status,
+      })
+    : !confirmedSlot && Date.now() - application.submittedAt.getTime() >= 24 * 60 * 60 * 1000;
+
+  let status: InterviewWorkflowView["status"] = "UNSCHEDULED";
+  if (completedSlot) status = "COMPLETED";
+  else if (activeRequest?.status === "RESCHEDULE_REQUESTED") status = "RESCHEDULE_REQUESTED";
+  else if (activeRequest?.status === "REQUESTED") status = "AWAITING_RESPONSE";
+  else if (activeRequest?.status === "CANCELLED") status = "CANCELLED";
+  else if (confirmedSlot || activeRequest?.status === "BOOKED") status = "BOOKED";
+
+  if (
+    isAtRisk &&
+    (status === "UNSCHEDULED" ||
+      status === "AWAITING_RESPONSE" ||
+      status === "RESCHEDULE_REQUESTED")
+  ) {
+    status = "STALE";
+  }
+
+  return {
+    status,
+    isAtRisk,
+    item: {
+      id: `HIRING:${application.id}`,
+      title: application.position.title,
+      intervieweeName: application.applicant.name ?? "Applicant",
+      status,
+      statusLabel: describeWorkflowStatus(status),
+      scheduledAt:
+        activeRequest?.scheduledAt?.toISOString() ??
+        confirmedSlot?.scheduledAt.toISOString() ??
+        completedSlot?.scheduledAt.toISOString() ??
+        null,
+    },
+  };
+}
+
+function buildHubWorkflowForReadiness(params: {
+  gate: ReadinessWorkflowRecord;
+  activeRequest: HubRequestRecord | null;
+}): {
+  status: InterviewWorkflowView["status"];
+  isAtRisk: boolean;
+  item: InterviewScheduleHubWorkflow;
+} {
+  const { gate, activeRequest } = params;
+  const confirmedSlot = gate.slots.find((slot) => slot.status === "CONFIRMED");
+  const completedSlot = gate.slots.find((slot) => slot.status === "COMPLETED");
+
+  const isAtRisk = activeRequest
+    ? isInterviewRequestAtRisk({
+        createdAt: activeRequest.createdAt,
+        rescheduleRequestedAt: activeRequest.rescheduleRequestedAt,
+        status: activeRequest.status,
+      })
+    : !confirmedSlot && Date.now() - gate.createdAt.getTime() >= 24 * 60 * 60 * 1000;
+
+  let status: InterviewWorkflowView["status"] = "UNSCHEDULED";
+  if (
+    completedSlot ||
+    gate.status === "COMPLETED" ||
+    gate.status === "PASSED" ||
+    gate.status === "WAIVED"
+  ) {
+    status = "COMPLETED";
+  } else if (activeRequest?.status === "RESCHEDULE_REQUESTED") {
+    status = "RESCHEDULE_REQUESTED";
+  } else if (activeRequest?.status === "REQUESTED") {
+    status = "AWAITING_RESPONSE";
+  } else if (activeRequest?.status === "CANCELLED") {
+    status = "CANCELLED";
+  } else if (
+    confirmedSlot ||
+    activeRequest?.status === "BOOKED" ||
+    gate.status === "SCHEDULED"
+  ) {
+    status = "BOOKED";
+  }
+
+  if (
+    isAtRisk &&
+    (status === "UNSCHEDULED" ||
+      status === "AWAITING_RESPONSE" ||
+      status === "RESCHEDULE_REQUESTED")
+  ) {
+    status = "STALE";
+  }
+
+  return {
+    status,
+    isAtRisk,
+    item: {
+      id: `READINESS:${gate.id}`,
+      title: "Instructor readiness interview",
+      intervieweeName: gate.instructor.name ?? "Instructor",
+      status,
+      statusLabel: describeWorkflowStatus(status),
+      scheduledAt:
+        activeRequest?.scheduledAt?.toISOString() ??
+        confirmedSlot?.scheduledAt.toISOString() ??
+        completedSlot?.scheduledAt.toISOString() ??
+        gate.scheduledAt?.toISOString() ??
+        null,
+    },
+  };
+}
+
+export async function getInterviewScheduleHubData(): Promise<InterviewScheduleHubData> {
+  const viewer = await getViewerContext();
+
+  const isInterviewParticipant =
+    viewer.isReviewer ||
+    viewer.isInstructor ||
+    viewer.roles.includes("STUDENT") ||
+    viewer.roles.includes("APPLICANT");
+
+  if (!isInterviewParticipant) {
+    throw new Error("You do not have access to interview scheduling.");
+  }
+
+  const [applications, gates] = await Promise.all([
+    viewer.isReviewer
+      ? prisma.application.findMany({
+          where: {
+            position: viewer.isAdmin
+              ? { interviewRequired: true }
+              : { interviewRequired: true, chapterId: viewer.chapterId ?? "__none__" },
+            status: { notIn: [...FINAL_APPLICATION_STATUSES] },
+          },
+          include: {
+            applicant: {
+              select: { id: true, name: true, email: true },
+            },
+            position: {
+              select: {
+                title: true,
+                chapterId: true,
+                chapter: { select: { id: true, name: true } },
+              },
+            },
+            interviewSlots: {
+              orderBy: { scheduledAt: "asc" },
+            },
+          },
+          orderBy: { submittedAt: "asc" },
+        })
+      : prisma.application.findMany({
+          where: {
+            applicantId: viewer.userId,
+            status: { notIn: [...FINAL_APPLICATION_STATUSES] },
+            position: { interviewRequired: true },
+          },
+          include: {
+            applicant: {
+              select: { id: true, name: true, email: true },
+            },
+            position: {
+              select: {
+                title: true,
+                chapterId: true,
+                chapter: { select: { id: true, name: true } },
+              },
+            },
+            interviewSlots: {
+              orderBy: { scheduledAt: "asc" },
+            },
+          },
+          orderBy: { submittedAt: "asc" },
+        }),
+    viewer.isReviewer
+      ? prisma.instructorInterviewGate.findMany({
+          where: viewer.isAdmin
+            ? { status: { notIn: ["PASSED", "WAIVED"] } }
+            : {
+                instructor: { chapterId: viewer.chapterId ?? "__none__" },
+                status: { notIn: ["PASSED", "WAIVED"] },
+              },
+          include: {
+            instructor: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                chapterId: true,
+                chapter: { select: { id: true, name: true } },
+              },
+            },
+            slots: {
+              orderBy: { scheduledAt: "asc" },
+            },
+          },
+          orderBy: { createdAt: "asc" },
+        })
+      : viewer.isInstructor
+        ? prisma.instructorInterviewGate.findMany({
+            where: {
+              instructorId: viewer.userId,
+              status: { notIn: ["PASSED", "WAIVED"] },
+            },
+            include: {
+              instructor: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  chapterId: true,
+                  chapter: { select: { id: true, name: true } },
+                },
+              },
+              slots: {
+                orderBy: { scheduledAt: "asc" },
+              },
+            },
+            orderBy: { createdAt: "asc" },
+          })
+        : Promise.resolve([]),
+  ]);
+
+  const activeRequestsRaw = await prisma.interviewSchedulingRequest.findMany({
+    where: {
+      status: { in: ACTIVE_INTERVIEW_REQUEST_STATUSES },
+      OR: [
+        ...(applications.length > 0
+          ? [{ domain: "HIRING" as const, applicationId: { in: applications.map((application) => application.id) } }]
+          : []),
+        ...(gates.length > 0
+          ? [{ domain: "READINESS" as const, gateId: { in: gates.map((gate) => gate.id) } }]
+          : []),
+      ],
+    },
+    select: {
+      id: true,
+      domain: true,
+      applicationId: true,
+      gateId: true,
+      status: true,
+      createdAt: true,
+      rescheduleRequestedAt: true,
+      scheduledAt: true,
+    },
+    orderBy: [{ updatedAt: "desc" }],
+  });
+
+  const activeRequestByWorkflowId = new Map<string, HubRequestRecord>();
+  for (const request of activeRequestsRaw) {
+    const workflowId = request.domain === "HIRING" ? request.applicationId : request.gateId;
+    if (!workflowId || activeRequestByWorkflowId.has(workflowId)) continue;
+    activeRequestByWorkflowId.set(workflowId, request);
+  }
+
+  const workflowSummaries = [
+    ...applications.map((application) =>
+      buildHubWorkflowForHiring({
+        application,
+        activeRequest: activeRequestByWorkflowId.get(application.id) ?? null,
+      })
+    ),
+    ...gates.map((gate) =>
+      buildHubWorkflowForReadiness({
+        gate,
+        activeRequest: activeRequestByWorkflowId.get(gate.id) ?? null,
+      })
+    ),
+  ];
+
+  workflowSummaries.sort((left, right) => {
+    if (left.isAtRisk !== right.isAtRisk) return left.isAtRisk ? -1 : 1;
+    if (left.status === right.status) {
+      const leftTime = left.item.scheduledAt ? new Date(left.item.scheduledAt).getTime() : Number.MAX_SAFE_INTEGER;
+      const rightTime = right.item.scheduledAt ? new Date(right.item.scheduledAt).getTime() : Number.MAX_SAFE_INTEGER;
+      return leftTime - rightTime;
+    }
+    return left.status.localeCompare(right.status);
+  });
+
+  return {
+    summary: {
+      total: workflowSummaries.length,
+      needsScheduling: workflowSummaries.filter((workflow) => workflow.status === "UNSCHEDULED").length,
+      booked: workflowSummaries.filter((workflow) => workflow.status === "BOOKED").length,
+      rescheduleRequested: workflowSummaries.filter((workflow) => workflow.status === "RESCHEDULE_REQUESTED").length,
+      atRisk: workflowSummaries.filter((workflow) => workflow.isAtRisk).length,
+    },
+    workflows: workflowSummaries.map((workflow) => workflow.item),
+  };
 }
 
 async function buildWorkflowViewForHiring({
@@ -1354,8 +1918,7 @@ export async function getInterviewScheduleData(): Promise<InterviewSchedulePageD
     viewer.isReviewer ||
     viewer.isInstructor ||
     viewer.roles.includes("STUDENT") ||
-    viewer.roles.includes("APPLICANT") ||
-    viewer.primaryRole === "APPLICANT";
+    viewer.roles.includes("APPLICANT");
 
   if (!isInterviewParticipant) {
     throw new Error("You do not have access to interview scheduling.");
@@ -2177,7 +2740,7 @@ export async function bookInterviewWorkflowSlot(formData: FormData) {
         "Interview booked",
         `Your interview with ${interviewer.name} has been booked.`,
         `/interviews/schedule`,
-        { policyKey: "INTERVIEW_UPDATES" }
+        { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
       ),
       createSystemNotification(
         interviewerId,
@@ -2185,33 +2748,20 @@ export async function bookInterviewWorkflowSlot(formData: FormData) {
         "Interview booked",
         `${application.applicant.name} booked an interview with you.`,
         `/interviews/schedule`,
-        { policyKey: "INTERVIEW_UPDATES" }
+        { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
       ),
+      sendInterviewLifecycleEmails({
+        event: "CONFIRMED",
+        requestId: request.id,
+        domain,
+        title: `Interview: ${application.position.title}`,
+        interviewee: application.applicant,
+        interviewer,
+        scheduledAt,
+        duration: slotContext.duration,
+        meetingLink: slotContext.meetingLink,
+      }),
     ]);
-
-    if (application.applicant.email) {
-      const baseUrl = process.env.NEXTAUTH_URL || "";
-      sendApplicationStatusEmail({
-        to: application.applicant.email,
-        applicantName: application.applicant.name ?? "Applicant",
-        positionTitle: application.position.title,
-        status: "INTERVIEW_SCHEDULED",
-        message: `Your interview has been booked for ${scheduledAt.toLocaleString()}.`,
-        portalUrl: `${baseUrl}/interviews/schedule`,
-      }).catch(() => {});
-    }
-
-    if (interviewer.email) {
-      const baseUrl = process.env.NEXTAUTH_URL || "";
-      sendNotificationEmail({
-        to: interviewer.email,
-        name: interviewer.name,
-        title: "New Interview Booking",
-        body: `${application.applicant.name} booked an interview with you for ${scheduledAt.toLocaleString()}.`,
-        link: `${baseUrl}/interviews/schedule`,
-        linkText: "Open Interview Calendar",
-      }).catch(() => {});
-    }
   } else {
     const gate = await prisma.instructorInterviewGate.findUnique({
       where: { id: workflowId },
@@ -2325,7 +2875,7 @@ export async function bookInterviewWorkflowSlot(formData: FormData) {
         "Readiness interview booked",
         `Your readiness interview with ${interviewer.name} has been booked.`,
         `/interviews/schedule`,
-        { policyKey: "INTERVIEW_UPDATES" }
+        { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
       ),
       createSystemNotification(
         interviewerId,
@@ -2333,33 +2883,20 @@ export async function bookInterviewWorkflowSlot(formData: FormData) {
         "Readiness interview booked",
         `${gate.instructor.name} booked a readiness interview with you.`,
         `/interviews/schedule`,
-        { policyKey: "INTERVIEW_UPDATES" }
+        { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
       ),
+      sendInterviewLifecycleEmails({
+        event: "CONFIRMED",
+        requestId: request.id,
+        domain,
+        title: "Instructor readiness interview",
+        interviewee: gate.instructor,
+        interviewer,
+        scheduledAt,
+        duration: slotContext.duration,
+        meetingLink: slotContext.meetingLink,
+      }),
     ]);
-
-    if (gate.instructor.email) {
-      const baseUrl = process.env.NEXTAUTH_URL || "";
-      sendNotificationEmail({
-        to: gate.instructor.email,
-        name: gate.instructor.name ?? "Instructor",
-        title: "Your readiness interview is booked",
-        body: `Your readiness interview has been scheduled for ${scheduledAt.toLocaleString()}.`,
-        link: `${baseUrl}/interviews/schedule`,
-        linkText: "Open Interview Calendar",
-      }).catch(() => {});
-    }
-
-    if (interviewer.email) {
-      const baseUrl = process.env.NEXTAUTH_URL || "";
-      sendNotificationEmail({
-        to: interviewer.email,
-        name: interviewer.name,
-        title: "New readiness interview booking",
-        body: `${gate.instructor.name} booked a readiness interview with you for ${scheduledAt.toLocaleString()}.`,
-        link: `${baseUrl}/interviews/schedule`,
-        linkText: "Open Interview Calendar",
-      }).catch(() => {});
-    }
   }
 
   revalidatePath("/interviews/schedule");
@@ -2381,8 +2918,16 @@ export async function requestInterviewReschedule(formData: FormData) {
       conversationId: true,
       intervieweeId: true,
       interviewerId: true,
-      interviewee: { select: { name: true } },
-      interviewer: { select: { name: true } },
+      scheduledAt: true,
+      duration: true,
+      meetingLink: true,
+      interviewee: { select: { name: true, email: true } },
+      interviewer: { select: { name: true, email: true } },
+      application: {
+        select: {
+          position: { select: { title: true } },
+        },
+      },
     },
   });
   if (!request) throw new Error("Interview request not found.");
@@ -2423,9 +2968,24 @@ export async function requestInterviewReschedule(formData: FormData) {
       "Interview reschedule requested",
       `${viewer.userName} requested a new interview time.`,
       `/interviews/schedule`,
-      { policyKey: "INTERVIEW_UPDATES" }
+      { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
     );
   }
+
+  await sendInterviewLifecycleEmails({
+    event: "RESCHEDULE_REQUESTED",
+    requestId: request.id,
+    domain: request.domain,
+    title:
+      request.domain === "HIRING"
+        ? `Interview: ${request.application?.position.title ?? "Application interview"}`
+        : "Instructor readiness interview",
+    interviewee: request.interviewee,
+    interviewer: request.interviewer,
+    scheduledAt: request.scheduledAt,
+    duration: request.duration,
+    meetingLink: request.meetingLink,
+  });
 
   revalidatePath("/interviews/schedule");
   revalidatePath("/chapter");
@@ -2529,6 +3089,14 @@ export async function confirmInterviewReschedule(formData: FormData) {
     },
   });
 
+  const interviewer = await prisma.user.findUnique({
+    where: { id: interviewerId },
+    select: { name: true, email: true },
+  });
+  if (!interviewer) {
+    throw new Error("Interviewer not found.");
+  }
+
   if (request.conversationId) {
     const operatorIds = await getChapterOperatorIds(request.chapterId);
     await syncConversationParticipants(request.conversationId, [
@@ -2546,7 +3114,7 @@ export async function confirmInterviewReschedule(formData: FormData) {
       "Interview rescheduled",
       `Your interview was moved to ${scheduledAt.toLocaleString()}.`,
       `/interviews/schedule`,
-      { policyKey: "INTERVIEW_UPDATES" }
+      { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
     ),
     createSystemNotification(
       interviewerId,
@@ -2554,12 +3122,33 @@ export async function confirmInterviewReschedule(formData: FormData) {
       "Interview rescheduled",
       `${request.intervieweeId === viewer.userId ? "The interviewee" : viewer.userName} confirmed a new time.`,
       `/interviews/schedule`,
-      { policyKey: "INTERVIEW_UPDATES" }
+      { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
     ),
+    sendInterviewLifecycleEmails({
+      event: "RESCHEDULED",
+      requestId: request.id,
+      domain: request.domain,
+      title:
+        request.domain === "HIRING"
+          ? `Interview: ${request.application?.position.title ?? "Application interview"}`
+          : "Instructor readiness interview",
+      interviewee:
+        request.domain === "HIRING" && request.application
+          ? request.application.applicant
+          : request.gate!.instructor,
+      interviewer,
+      scheduledAt,
+      duration: slotContext.duration,
+      meetingLink: slotContext.meetingLink,
+    }),
   ]);
 
   revalidatePath("/interviews/schedule");
   revalidatePath("/chapter");
+}
+
+export async function runInterviewSchedulingAutomation() {
+  await runInterviewAutomation();
 }
 
 export async function cancelInterviewWorkflow(formData: FormData) {
@@ -2570,8 +3159,18 @@ export async function cancelInterviewWorkflow(formData: FormData) {
   const request = await prisma.interviewSchedulingRequest.findUnique({
     where: { id: requestId },
     include: {
+      interviewee: {
+        select: { name: true, email: true },
+      },
+      interviewer: {
+        select: { name: true, email: true },
+      },
       application: {
-        select: { id: true },
+        include: {
+          position: {
+            select: { title: true },
+          },
+        },
       },
       gate: {
         select: { id: true },
@@ -2644,7 +3243,7 @@ export async function cancelInterviewWorkflow(formData: FormData) {
       "Interview cancelled",
       "An interview booking was cancelled. Please choose a new time.",
       `/interviews/schedule`,
-      { policyKey: "INTERVIEW_UPDATES" }
+      { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
     ),
     createSystemNotification(
       request.interviewerId,
@@ -2652,8 +3251,22 @@ export async function cancelInterviewWorkflow(formData: FormData) {
       "Interview cancelled",
       "An interview booking was cancelled.",
       `/interviews/schedule`,
-      { policyKey: "INTERVIEW_UPDATES" }
+      { sendEmail: false, policyKey: "INTERVIEW_UPDATES" }
     ),
+    sendInterviewLifecycleEmails({
+      event: "CANCELLED",
+      requestId: request.id,
+      domain: request.domain,
+      title:
+        request.domain === "HIRING"
+          ? `Interview: ${request.application?.position.title ?? "Application interview"}`
+          : "Instructor readiness interview",
+      interviewee: request.interviewee,
+      interviewer: request.interviewer ?? { name: null, email: null },
+      scheduledAt: request.scheduledAt,
+      duration: request.duration,
+      meetingLink: request.meetingLink,
+    }),
   ]);
 
   revalidatePath("/interviews/schedule");

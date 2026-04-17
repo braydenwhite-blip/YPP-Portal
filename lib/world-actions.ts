@@ -1,8 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import { getLevelForXp } from "@/lib/xp-config";
 
 export interface PassionIsland {
@@ -68,7 +67,7 @@ const COMPLETION_SOURCE_LABELS: Record<string, string> = {
 };
 
 export async function getWorldData(): Promise<WorldData> {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const userId = session.user.id;

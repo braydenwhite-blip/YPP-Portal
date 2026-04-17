@@ -1,13 +1,14 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import { RoleType } from "@prisma/client";
 import { hasInstructorPathwaySpecTable } from "@/lib/instructor-pathway-spec-compat";
 import { getSingleStudentPathwayJourney } from "@/lib/chapter-pathway-journey";
+import { whereUserHasRole } from "@/lib/user-role-where";
 
 export default async function PathwayMentorsPage({ params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const userId = session.user.id;
@@ -31,13 +32,7 @@ export default async function PathwayMentorsPage({ params }: { params: { id: str
         .findMany({
           where: {
             pathwayId: pathway.id,
-            user: {
-              roles: {
-                some: {
-                  role: "INSTRUCTOR",
-                },
-              },
-            },
+            user: whereUserHasRole(RoleType.INSTRUCTOR),
           },
           include: {
             user: {
@@ -60,8 +55,8 @@ export default async function PathwayMentorsPage({ params }: { params: { id: str
   if (instructors.length === 0) {
     instructors = await prisma.user.findMany({
       where: {
-        primaryRole: "INSTRUCTOR",
         ...(viewer.chapterId ? { chapterId: viewer.chapterId } : {}),
+        ...whereUserHasRole(RoleType.INSTRUCTOR),
       },
       select: {
         id: true,

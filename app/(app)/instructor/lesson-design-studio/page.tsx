@@ -1,11 +1,13 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth-supabase";
 import {
   getCurriculumDraftForStudio,
   listCurriculumDraftSummaries,
 } from "@/lib/curriculum-draft-actions";
-import { getCurriculumDraftProgress } from "@/lib/curriculum-draft-progress";
+import {
+  getCurriculumDraftProgress,
+  getWeeklyPlansInput,
+} from "@/lib/curriculum-draft-progress";
 import {
   deriveStudioPhase,
   getCanonicalStudioHref,
@@ -21,7 +23,7 @@ export default async function CurriculumBuilderStudioPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const roles = session.user.roles ?? [];
@@ -64,22 +66,24 @@ export default async function CurriculumBuilderStudioPage({
     );
   }
 
+  const studioDraft = draft.draft;
+
   const progress = getCurriculumDraftProgress({
-    title: draft.title,
-    interestArea: draft.interestArea,
-    outcomes: draft.outcomes,
-    courseConfig: draft.courseConfig,
-    weeklyPlans: draft.weeklyPlans,
-    understandingChecks: draft.understandingChecks,
+    title: studioDraft.title,
+    interestArea: studioDraft.interestArea,
+    outcomes: studioDraft.outcomes,
+    courseConfig: studioDraft.courseConfig,
+    weeklyPlans: studioDraft.weeklyPlans,
+    understandingChecks: studioDraft.understandingChecks,
   });
   const currentPhase = deriveStudioPhase({
-    status: draft.status,
-    title: draft.title,
-    interestArea: draft.interestArea,
-    outcomes: draft.outcomes,
-    courseConfig: draft.courseConfig,
-    weeklyPlans: draft.weeklyPlans,
-    understandingChecks: draft.understandingChecks,
+    status: studioDraft.status,
+    title: studioDraft.title,
+    interestArea: studioDraft.interestArea,
+    outcomes: studioDraft.outcomes,
+    courseConfig: studioDraft.courseConfig,
+    weeklyPlans: studioDraft.weeklyPlans,
+    understandingChecks: studioDraft.understandingChecks,
     progress,
   });
 
@@ -91,23 +95,24 @@ export default async function CurriculumBuilderStudioPage({
       notice={notice}
       currentPhase={currentPhase}
       progress={progress}
+      viewerAccess={draft.access}
       draft={{
-        id: draft.id,
-        title: draft.title,
-        description: draft.description ?? "",
-        interestArea: draft.interestArea,
-        outcomes: draft.outcomes,
-        courseConfig: draft.courseConfig,
-        weeklyPlans: (draft.weeklyPlans as unknown[]) ?? [],
-        understandingChecks: draft.understandingChecks,
-        reviewRubric: draft.reviewRubric,
-        reviewNotes: draft.reviewNotes ?? "",
-        reviewedAt: draft.reviewedAt?.toISOString() ?? null,
-        submittedAt: draft.submittedAt?.toISOString() ?? null,
-        approvedAt: draft.approvedAt?.toISOString() ?? null,
-        generatedTemplateId: draft.generatedTemplateId ?? null,
-        status: draft.status,
-        updatedAt: draft.updatedAt.toISOString(),
+        id: studioDraft.id,
+        title: studioDraft.title,
+        description: studioDraft.description ?? "",
+        interestArea: studioDraft.interestArea,
+        outcomes: studioDraft.outcomes,
+        courseConfig: studioDraft.courseConfig,
+        weeklyPlans: getWeeklyPlansInput(studioDraft.weeklyPlans),
+        understandingChecks: studioDraft.understandingChecks,
+        reviewRubric: studioDraft.reviewRubric,
+        reviewNotes: studioDraft.reviewNotes ?? "",
+        reviewedAt: studioDraft.reviewedAt?.toISOString() ?? null,
+        submittedAt: studioDraft.submittedAt?.toISOString() ?? null,
+        approvedAt: studioDraft.approvedAt?.toISOString() ?? null,
+        generatedTemplateId: studioDraft.generatedTemplateId ?? null,
+        status: studioDraft.status,
+        updatedAt: studioDraft.updatedAt.toISOString(),
       }}
     />
   );
