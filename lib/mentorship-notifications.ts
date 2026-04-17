@@ -27,8 +27,9 @@ async function createOnce(params: {
   body: string;
   link: string;
   dedupKey: string;
+  /** When true, update the body of an existing notification instead of skipping. */
+  updateBodyIfExists?: boolean;
 }) {
-  // Dedup via the dedicated dedupeKey column (7-day window).
   const windowStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const existing = await prisma.notification.findFirst({
     where: {
@@ -38,7 +39,15 @@ async function createOnce(params: {
     select: { id: true },
   });
   if (existing) {
-    logger.debug({ dedupKey: params.dedupKey, notificationType: params.type }, "notification deduped");
+    if (params.updateBodyIfExists) {
+      // Refresh the notification body/title with the latest count/info
+      await prisma.notification.update({
+        where: { id: existing.id },
+        data: { title: params.title, body: params.body, isRead: false },
+      });
+    } else {
+      logger.debug({ dedupKey: params.dedupKey, notificationType: params.type }, "notification deduped");
+    }
     return null;
   }
   return prisma.notification.create({
@@ -196,6 +205,7 @@ export const notifyChairApprovalBatch = safeEmit(async function notifyChairAppro
     body: `Chair approval needed for ${params.pendingCount} monthly review${params.pendingCount > 1 ? "s" : ""}. Please approve or request changes.`,
     link: "/admin/mentorship-program",
     dedupKey: `gr:chair-pending:${params.chairId}:${params.cycleMonthIso.slice(0, 7)}`,
+    updateBodyIfExists: true, // always reflect the latest count
   });
 }, "notifyChairApprovalBatch");
 
@@ -226,6 +236,10 @@ export async function getMentorshipPendingActionCount(userId: string): Promise<n
           NotificationType.REFLECTION_SUBMITTED,
           NotificationType.REVIEW_SUBMITTED_FOR_APPROVAL,
           NotificationType.REVIEW_APPROVED_AND_RELEASED,
+          NotificationType.GR_REFLECTION_DUE,
+          NotificationType.GR_REVIEW_DUE,
+          NotificationType.GR_CHAIR_APPROVAL_PENDING,
+          NotificationType.GR_REVIEW_RELEASED,
         ],
       },
     },

@@ -57,7 +57,10 @@ export async function getGoalsForMentee(
     },
   });
 
-  if (grDoc && grDoc.goals.length > 0) {
+  if (grDoc) {
+    // Doc exists — never fall back to legacy even if there are 0 active goals.
+    // Treat "all goals completed/archived" as a real state; return empty and let
+    // the review form render the "All goals completed; awaiting next-cycle goals" state.
     return grDoc.goals.map((g) => ({
       id: g.id,
       title: g.title,
@@ -68,7 +71,7 @@ export async function getGoalsForMentee(
     }));
   }
 
-  // Fallback: legacy MentorshipProgramGoal list
+  // Fallback: legacy MentorshipProgramGoal list (only when no G&R doc exists at all)
   const mentee = await prisma.user.findUnique({
     where: { id: menteeId },
     select: { primaryRole: true },

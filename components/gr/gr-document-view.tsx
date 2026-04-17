@@ -5,6 +5,9 @@ import { saveGRPlanOfAction } from "@/lib/gr-actions";
 import CurrentPrioritiesHero from "./current-priorities-hero";
 import RatingBadge from "./rating-badge";
 import ProgressStateChip from "./progress-state-chip";
+import { GrowthSparkline } from "./growth-sparkline";
+import { MilestoneToast } from "./milestone-toast";
+import { MenteeReviewAck } from "./mentee-review-ack";
 
 // ─────────────── Types ───────────────
 
@@ -39,6 +42,7 @@ interface LatestReview {
   id: string; cycleMonth: string; overallRating: GoalRatingColor; overallComments: string;
   planOfAction: string; isQuarterly: boolean; projectedFuturePath: string | null;
   promotionReadiness: string | null; releasedToMenteeAt: string | null;
+  goalRatings: GoalRatingItem[];
 }
 interface PastReview {
   id: string; cycleMonth: string; overallRating: GoalRatingColor; overallComments: string;
@@ -46,6 +50,8 @@ interface PastReview {
   goalRatings: GoalRatingItem[]; goalSnapshots: GoalSnapshot[];
 }
 interface NextMonthGoal { id: string; title: string; description: string; priority: GoalPriority; dueDate: string | null }
+
+interface Milestone { id: string; kind: string; payload: Record<string, unknown> }
 
 interface DocumentData {
   id: string; templateTitle: string; roleType: string; roleLabel: string;
@@ -57,6 +63,9 @@ interface DocumentData {
   goals: Goal[]; successCriteria: SuccessCriteria[]; resources: Resource[];
   plansOfAction: PlanOfAction[]; latestReview: LatestReview | null;
   nextMonthGoals: NextMonthGoal[]; pastReviews: PastReview[];
+  ratingHistoryByGoal: Record<string, Array<{ cycleNumber: number; rating: string }>>;
+  unseenMilestones: Milestone[];
+  reviewAck?: { reaction: string; note: string | null } | null;
 }
 
 // ─────────────── Constants ───────────────
@@ -74,7 +83,7 @@ const PHASE_ORDER: GRTimePhase[] = ["MONTHLY", "FIRST_MONTH", "FIRST_QUARTER", "
 
 // ─────────────── Sub-components ───────────────
 
-function GoalCard({ goal }: { goal: Goal }) {
+function GoalCard({ goal, history }: { goal: Goal; history?: Array<{ cycleNumber: number; rating: string }> }) {
   const today = new Date();
   const due = goal.dueDate ? new Date(goal.dueDate) : null;
   const isOverdue = due ? due < today && goal.lifecycleStatus === "ACTIVE" : false;
@@ -93,6 +102,11 @@ function GoalCard({ goal }: { goal: Goal }) {
         {goal.isCustom && <span className="badge" style={{ fontSize: "0.65rem" }}>Custom</span>}
         <ProgressStateChip state={goal.progressState} />
         {goal.rating && <RatingBadge rating={goal.rating} />}
+        {history && history.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", marginLeft: "0.25rem" }}>
+            <GrowthSparkline history={history} />
+          </div>
+        )}
       </div>
 
       <p style={{ fontSize: "0.88rem", color: "var(--muted)", margin: "0 0 0.5rem", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
@@ -169,7 +183,7 @@ function PastReviewRow({ review }: { review: PastReview }) {
               <div style={{ display: "grid", gap: "0.3rem" }}>
                 {review.goalRatings.map((gr, i) => (
                   <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "0.85rem", color: "var(--muted)" }}>Goal</span>
+                    <span style={{ fontSize: "0.85rem", color: "var(--muted)" }}>(goal removed)</span>
                     <RatingBadge rating={gr.rating} />
                   </div>
                 ))}
@@ -237,6 +251,9 @@ export default function GRDocumentView({ document: doc, isOwner }: { document: D
 
   return (
     <div style={{ display: "grid", gap: "1.5rem" }}>
+
+      {/* Milestone celebrations (fixed bottom-right, outside flow) */}
+      {doc.unseenMilestones.length > 0 && <MilestoneToast milestones={doc.unseenMilestones} />}
 
       {/* 1. Current Priorities hero */}
       <CurrentPrioritiesHero goals={doc.currentPriorities as Parameters<typeof CurrentPrioritiesHero>[0]["goals"]} />
@@ -317,7 +334,7 @@ export default function GRDocumentView({ document: doc, isOwner }: { document: D
                 {PHASE_LABELS[phase]}
               </h3>
               <div style={{ display: "grid", gap: "0.5rem" }}>
-                {phaseGoals.map((goal) => <GoalCard key={goal.id} goal={goal} />)}
+                {phaseGoals.map((goal) => <GoalCard key={goal.id} goal={goal} history={doc.ratingHistoryByGoal?.[goal.id]} />)}
               </div>
               {phaseCriteria && (
                 <div style={{ marginTop: "0.75rem", padding: "0.75rem 1rem", background: "var(--surface-alt, #f9fafb)", borderRadius: "var(--radius-sm)" }}>
@@ -379,6 +396,11 @@ export default function GRDocumentView({ document: doc, isOwner }: { document: D
                 </div>
               )}
             </div>
+          )}
+
+          {/* Mentee acknowledgement (C3) — only shown to the mentee */}
+          {isOwner && doc.latestReview.releasedToMenteeAt && (
+            <MenteeReviewAck reviewId={doc.latestReview.id} existingAck={doc.reviewAck} />
           )}
         </div>
       )}

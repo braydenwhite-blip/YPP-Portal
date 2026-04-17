@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveGoalReview } from "@/lib/goal-review-actions";
+import { sendReflectionNudge } from "@/lib/gr-actions";
 import type { ReviewDraftOutput } from "@/lib/ai/generate-review-draft";
+import { AiCoachingSidebar } from "@/components/mentorship/ai-coaching-sidebar";
 
 type GoalRow = {
   id: string;
@@ -43,6 +45,8 @@ type Props = {
   cycleMonthLabel: string;
   goals: GoalRow[];
   reflectionResponses: ReflectionResponse[];
+  /** Whether the mentee has submitted a self-reflection for this cycle */
+  hasReflection: boolean;
   initialReview: {
     overallRating: string;
     overallComments: string;
@@ -50,6 +54,7 @@ type Props = {
     bonusPoints: number;
     bonusReason: string;
     status: string;
+    nextMonthGoalDraftsJson?: unknown;
   } | null;
   isQuarterly: boolean;
   pointsByRating: Record<string, number>;
@@ -85,6 +90,64 @@ function tierFor(total: number, thresholds: { tier: string; min: number }[]): st
   return null;
 }
 
+function NudgePanel({ reflectionId, menteeName }: { reflectionId: string; menteeName: string }) {
+  const [nudgeSent, setNudgeSent] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  function sendNudge() {
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("reflectionId", reflectionId);
+      await sendReflectionNudge(fd);
+      setNudgeSent(true);
+    });
+  }
+
+  return (
+    <div
+      style={{
+        background: "#fffbeb",
+        border: "1px solid #fde68a",
+        borderRadius: 8,
+        padding: "0.75rem 1rem",
+        fontSize: "0.83rem",
+        color: "#92400e",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "0.75rem",
+        flexWrap: "wrap",
+      }}
+    >
+      <span>
+        <strong>Awaiting self-reflection</strong> — AI suggestions will be available once {menteeName} submits their reflection.
+      </span>
+      {nudgeSent ? (
+        <span style={{ color: "#16a34a", fontWeight: 600, fontSize: "0.8rem" }}>✓ Reminder sent</span>
+      ) : (
+        <button
+          type="button"
+          onClick={sendNudge}
+          disabled={isPending}
+          style={{
+            padding: "0.3rem 0.75rem",
+            borderRadius: 6,
+            border: "1px solid #f59e0b",
+            background: "#fef3c7",
+            color: "#92400e",
+            cursor: "pointer",
+            fontSize: "0.8rem",
+            fontWeight: 600,
+            flexShrink: 0,
+          }}
+        >
+          {isPending ? "Sending…" : "Send reminder"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function GoalReviewForm({
   reflectionId,
   menteeName,
@@ -92,6 +155,7 @@ export function GoalReviewForm({
   cycleMonthLabel,
   goals,
   reflectionResponses,
+  hasReflection,
   initialReview,
   isQuarterly,
   pointsByRating,
@@ -112,13 +176,35 @@ export function GoalReviewForm({
   const [planOfAction, setPlanOfAction] = useState(initialReview?.planOfAction ?? "");
   const [bonusPoints, setBonusPoints] = useState<number>(initialReview?.bonusPoints ?? 0);
   const [bonusReason, setBonusReason] = useState(initialReview?.bonusReason ?? "");
-  const [goalRatings, setGoalRatings] = useState<Record<string, { rating: string; comments: string }>>(() => {
-    const init: Record<string, { rating: string; comments: string }> = {};
-    goals.forEach((g) => {
-      init[g.id] = { rating: g.currentRating, comments: g.currentComments ?? "" };
+
+  function initGoalRatings(goalList: GoalRow[]) {
+    const init: Record<string, { rating: string | null; comments: string }> = {};
+    goalList.forEach((g) => {
+      // Default to null (unset) unless a persisted rating exists — prevents accidental GETTING_STARTED on submit
+      init[g.id] = { rating: g.currentRating || null, comments: g.currentComments ?? "" };
     });
     return init;
-  });
+  }
+
+  const [goalRatings, setGoalRatings] = useState<Record<string, { rating: string | null; comments: string }>>(
+    () => initGoalRatings(goals)
+  );
+
+  // A13: re-seed when goals list changes (e.g. parent re-fetches)
+  const goalsKey = goals.map((g) => g.id).join(",");
+  useEffect(() => {
+    setGoalRatings(initGoalRatings(goals));
+    setGrProgressStates(() => {
+      const init: Record<string, string> = {};
+      goals.forEach((g) => { if (g.grDocumentGoalId) init[g.grDocumentGoalId] = g.currentProgressState ?? "NOT_STARTED"; });
+      return init;
+    });
+    setGrLifecycleStatuses(() => {
+      const init: Record<string, string> = {};
+      goals.forEach((g) => { if (g.grDocumentGoalId) init[g.grDocumentGoalId] = g.currentLifecycleStatus ?? "ACTIVE"; });
+      return init;
+    });
+  }, [goalsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── G&R-specific state ────────────────────────────────────────────────────
   const [grProgressStates, setGrProgressStates] = useState<Record<string, string>>(() => {
@@ -135,59 +221,62 @@ export function GoalReviewForm({
     });
     return init;
   });
-  const [nextMonthDrafts, setNextMonthDrafts] = useState<NextMonthGoalDraft[]>([]);
-  const isOverCap = currentActiveMonthlyCount + nextMonthDrafts.length > maxActiveMonthlyGoals;
+
+  // Restore persisted next-month drafts from a previous DRAFT save (A6)
+  const [nextMonthDrafts, setNextMonthDrafts] = useState<NextMonthGoalDraft[]>(() => {
+    try {
+      const raw = initialReview?.nextMonthGoalDraftsJson;
+      if (Array.isArray(raw)) return raw as NextMonthGoalDraft[];
+    } catch { /* ignore */ }
+    return [];
+  });
+
+  // A14: compute effective monthly cap (subtract goals the mentor already marked complete/archived locally)
+  const locallyCompletedCount = useMemo(
+    () => Object.values(grLifecycleStatuses).filter((s) => s === "COMPLETED" || s === "ARCHIVED").length,
+    [grLifecycleStatuses]
+  );
+  const monthlyDraftCount = nextMonthDrafts.length;
+  const effectiveMonthlyCount = Math.max(0, currentActiveMonthlyCount - locallyCompletedCount) + monthlyDraftCount;
+  const isOverCap = effectiveMonthlyCount > maxActiveMonthlyGoals;
 
   // ── AI draft state ────────────────────────────────────────────────────────
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [hasDraft, setHasDraft] = useState(false);
   const [aiDraftUsed, setAiDraftUsed] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
   const [showDraftBanner, setShowDraftBanner] = useState(false);
 
-  async function handleGenerateDraft() {
-    setIsGenerating(true);
-    setAiError(null);
-    try {
-      const res = await fetch("/api/ai/generate-review-draft", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reflectionId }),
+  function handleApplyComment(goalId: string, comment: string) {
+    setGoalRatings((prev) => ({
+      ...prev,
+      [goalId]: { ...(prev[goalId] ?? { rating: null, comments: "" }), comments: comment },
+    }));
+    setAiDraftUsed(true);
+  }
+
+  function handleApplyRating(goalId: string, rating: string) {
+    setGoalRatings((prev) => ({
+      ...prev,
+      [goalId]: { ...(prev[goalId] ?? { rating: null, comments: "" }), rating },
+    }));
+    setAiDraftUsed(true);
+  }
+
+  function handleApplyAll(draft: ReviewDraftOutput) {
+    if (draft.overallComments) setOverallComments(draft.overallComments);
+    if (draft.planOfAction) setPlanOfAction(draft.planOfAction);
+    setGoalRatings((prev) => {
+      const next = { ...prev };
+      goals.forEach((g) => {
+        const comment = draft.perGoalComments?.[g.id];
+        const rating = draft.perGoalSuggestedRating?.[g.id];
+        next[g.id] = {
+          rating: rating ?? next[g.id]?.rating ?? null,
+          comments: comment ?? next[g.id]?.comments ?? "",
+        };
       });
-
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error ?? `Request failed (${res.status})`);
-      }
-
-      const draft = (await res.json()) as ReviewDraftOutput;
-
-      // Apply overall fields
-      if (draft.overallComments) setOverallComments(draft.overallComments);
-      if (draft.planOfAction) setPlanOfAction(draft.planOfAction);
-
-      // Apply per-goal comments (matched by title)
-      if (draft.perGoalComments) {
-        setGoalRatings((prev) => {
-          const next = { ...prev };
-          goals.forEach((g) => {
-            const comment = draft.perGoalComments[g.title];
-            if (comment && g.id in next) {
-              next[g.id] = { ...next[g.id], comments: comment };
-            }
-          });
-          return next;
-        });
-      }
-
-      setAiDraftUsed(true);
-      setHasDraft(true);
-      setShowDraftBanner(true);
-    } catch (err) {
-      setAiError(err instanceof Error ? err.message : "Generation failed. Please try again.");
-    } finally {
-      setIsGenerating(false);
-    }
+      return next;
+    });
+    setAiDraftUsed(true);
+    setShowDraftBanner(true);
   }
 
   // ── Live award projection ─────────────────────────────────────────────────
@@ -216,7 +305,8 @@ export function GoalReviewForm({
     goals.forEach((g) => {
       if (g.grDocumentGoalId) {
         fd.append("grGoalIds", g.grDocumentGoalId);
-        fd.set(`goal_${g.grDocumentGoalId}_rating`, goalRatings[g.id]?.rating ?? "GETTING_STARTED");
+        // Fall back to GETTING_STARTED only on submit; draft saves can have null ratings
+        fd.set(`goal_${g.grDocumentGoalId}_rating`, goalRatings[g.id]?.rating ?? (submitForApproval ? "GETTING_STARTED" : ""));
         fd.set(`goal_${g.grDocumentGoalId}_comments`, goalRatings[g.id]?.comments ?? "");
         const ps = grProgressStates[g.grDocumentGoalId];
         if (ps) fd.set(`goal_${g.grDocumentGoalId}_progressState`, ps);
@@ -224,12 +314,15 @@ export function GoalReviewForm({
         if (ls) fd.set(`goal_${g.grDocumentGoalId}_lifecycleStatus`, ls);
       } else {
         fd.append("goalIds", g.id);
-        fd.set(`goal_${g.id}_rating`, goalRatings[g.id]?.rating ?? "GETTING_STARTED");
+        fd.set(`goal_${g.id}_rating`, goalRatings[g.id]?.rating ?? (submitForApproval ? "GETTING_STARTED" : ""));
         fd.set(`goal_${g.id}_comments`, goalRatings[g.id]?.comments ?? "");
       }
     });
     if (nextMonthDrafts.length > 0) {
       fd.set("nextMonthGoalsJson", JSON.stringify(nextMonthDrafts));
+    }
+    if (carryForward.size > 0) {
+      fd.set("carryForwardIds", JSON.stringify([...carryForward]));
     }
     return fd;
   }
@@ -253,8 +346,16 @@ export function GoalReviewForm({
       setError("Please write advice for next month before submitting for approval.");
       return;
     }
+    // A15: require explicit rating per goal on submit
+    if (submitForApproval) {
+      const unrated = goals.filter((g) => !goalRatings[g.id]?.rating);
+      if (unrated.length > 0) {
+        setError(`Please rate all goals before submitting. Missing: ${unrated.map((g) => g.title).join(", ")}`);
+        return;
+      }
+    }
     if (submitForApproval && isOverCap) {
-      setError(`You have ${currentActiveMonthlyCount + nextMonthDrafts.length} monthly goals queued but the cap is ${maxActiveMonthlyGoals}. Remove some next-month goals or mark existing ones as complete.`);
+      setError(`You have ${effectiveMonthlyCount} monthly goals queued but the cap is ${maxActiveMonthlyGoals}. Remove some next-month goals or mark existing ones as complete.`);
       return;
     }
     setError(null);
@@ -284,6 +385,27 @@ export function GoalReviewForm({
     reflectionResponses.forEach((r) => m.set(r.goalId, r));
     return m;
   }, [reflectionResponses]);
+
+  // B1: carry-forward toggles for MONTHLY goals
+  const [carryForward, setCarryForward] = useState<Set<string>>(new Set());
+
+  // B2: simple token-jaccard similarity (no deps)
+  function tokenJaccard(a: string, b: string): number {
+    const tokA = new Set(a.toLowerCase().split(/\W+/).filter(Boolean));
+    const tokB = new Set(b.toLowerCase().split(/\W+/).filter(Boolean));
+    let intersection = 0;
+    for (const t of tokA) { if (tokB.has(t)) intersection++; }
+    const union = tokA.size + tokB.size - intersection;
+    return union === 0 ? 0 : intersection / union;
+  }
+
+  function getSimilarActiveGoal(draftTitle: string): GoalRow | null {
+    if (!draftTitle.trim()) return null;
+    for (const g of goals) {
+      if (tokenJaccard(draftTitle, g.title) >= 0.6) return g;
+    }
+    return null;
+  }
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -376,61 +498,18 @@ export function GoalReviewForm({
         )}
       </section>
 
-      {/* AI Draft Button */}
-      {goals.length > 0 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <button
-            type="button"
-            onClick={handleGenerateDraft}
-            disabled={isGenerating || isPending}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "0.45rem 0.9rem",
-              borderRadius: 999,
-              fontSize: "0.82rem",
-              fontWeight: 600,
-              border: "1.5px solid #6366f1",
-              background: isGenerating ? "#f5f3ff" : "#fff",
-              color: "#6366f1",
-              cursor: isGenerating ? "default" : "pointer",
-              opacity: isPending ? 0.5 : 1,
-              transition: "background 0.15s",
-            }}
-          >
-            {isGenerating ? (
-              <>
-                <span
-                  style={{
-                    width: 12,
-                    height: 12,
-                    border: "2px solid #c4b5fd",
-                    borderTopColor: "#6366f1",
-                    borderRadius: "50%",
-                    display: "inline-block",
-                    animation: "spin 0.7s linear infinite",
-                  }}
-                />
-                Generating draft…
-              </>
-            ) : hasDraft ? (
-              <>↺ Try Again</>
-            ) : (
-              <>✦ Generate AI Draft</>
-            )}
-          </button>
-          <span style={{ fontSize: "0.75rem", color: "var(--muted)" }}>
-            Pre-fills all comment fields from {menteeName}&apos;s reflection. You review and edit before submitting.
-          </span>
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        </div>
+      {/* AI Coaching Sidebar — prominently placed before goal ratings */}
+      {hasReflection && goals.length > 0 && (
+        <AiCoachingSidebar
+          reflectionId={reflectionId}
+          goals={goals.map((g) => ({ id: g.id, title: g.title }))}
+          onApplyComment={handleApplyComment}
+          onApplyRating={handleApplyRating}
+          onApplyAll={handleApplyAll}
+        />
       )}
-
-      {aiError && (
-        <p style={{ fontSize: "0.82rem", color: "#dc2626", margin: 0 }}>
-          {aiError}
-        </p>
+      {!hasReflection && goals.length > 0 && (
+        <NudgePanel reflectionId={reflectionId} menteeName={menteeName} />
       )}
 
       {/* Per-goal G&R ratings */}
@@ -456,8 +535,10 @@ export function GoalReviewForm({
           )}
           {goals.map((g, idx) => {
             const rr = reflectionByGoal.get(g.id);
-            const current = goalRatings[g.id] ?? { rating: "GETTING_STARTED", comments: "" };
+            const current = goalRatings[g.id] ?? { rating: null, comments: "" };
             const selectedRating = RATINGS.find((r) => r.value === current.rating);
+            const isMonthly = g.timePhase === "MONTHLY";
+            const isCF = carryForward.has(g.id);
             return (
               <div
                 key={g.id}
@@ -479,22 +560,43 @@ export function GoalReviewForm({
                       <p className="muted" style={{ margin: "2px 0 0", fontSize: "0.79rem" }}>{g.description}</p>
                     )}
                   </div>
-                  {selectedRating && (
-                    <span
-                      style={{
-                        flexShrink: 0,
-                        padding: "0.2rem 0.6rem",
-                        borderRadius: 999,
-                        fontSize: "0.74rem",
-                        fontWeight: 700,
-                        background: `${selectedRating.color}18`,
-                        color: selectedRating.color,
-                        border: `1px solid ${selectedRating.color}44`,
-                      }}
-                    >
-                      {selectedRating.label}
-                    </span>
-                  )}
+                  <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexShrink: 0 }}>
+                    {/* A15: "Not yet rated" chip when rating is null */}
+                    {!selectedRating && (
+                      <span style={{ padding: "0.2rem 0.6rem", borderRadius: 999, fontSize: "0.74rem", fontWeight: 600, background: "var(--surface-alt)", color: "var(--muted)", border: "1px solid var(--border)" }}>
+                        Not yet rated
+                      </span>
+                    )}
+                    {selectedRating && (
+                      <span style={{ padding: "0.2rem 0.6rem", borderRadius: 999, fontSize: "0.74rem", fontWeight: 700, background: `${selectedRating.color}18`, color: selectedRating.color, border: `1px solid ${selectedRating.color}44` }}>
+                        {selectedRating.label}
+                      </span>
+                    )}
+                    {/* B1: carry-forward toggle for MONTHLY goals */}
+                    {isMonthly && (
+                      <button
+                        type="button"
+                        onClick={() => setCarryForward((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(g.id)) next.delete(g.id); else next.add(g.id);
+                          return next;
+                        })}
+                        style={{
+                          padding: "0.15rem 0.5rem",
+                          borderRadius: 4,
+                          border: `1px solid ${isCF ? "var(--success, #22c55e)" : "var(--border)"}`,
+                          background: isCF ? "#f0fdf4" : "var(--surface)",
+                          color: isCF ? "#16a34a" : "var(--muted)",
+                          cursor: "pointer",
+                          fontSize: "0.72rem",
+                          fontWeight: 600,
+                        }}
+                        title="Toggle to carry this goal into next month automatically"
+                      >
+                        {isCF ? "↻ Continuing" : "Continue →"}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Mentee's reflection inline */}
@@ -669,7 +771,7 @@ export function GoalReviewForm({
 
           {isOverCap && (
             <div style={{ padding: "0.5rem 0.75rem", background: "#fef9c3", border: "1px solid #fde68a", borderRadius: 6, fontSize: "0.82rem", color: "#854d0e", marginBottom: 10 }}>
-              Adding {nextMonthDrafts.length} goal{nextMonthDrafts.length > 1 ? "s" : ""} would bring the active monthly count to {currentActiveMonthlyCount + nextMonthDrafts.length}, exceeding the cap of {maxActiveMonthlyGoals}. Remove some drafts or mark existing goals as completed first.
+              The effective monthly goal count would be {effectiveMonthlyCount}, exceeding the cap of {maxActiveMonthlyGoals}. Remove some drafts or mark existing goals as completed.
             </div>
           )}
 
@@ -693,6 +795,26 @@ export function GoalReviewForm({
                   placeholder="Goal title"
                   style={{ width: "100%", fontSize: "0.88rem" }}
                 />
+                {/* B2: Similarity hint */}
+                {(() => {
+                  const similar = getSimilarActiveGoal(draft.title);
+                  return similar ? (
+                    <div style={{ fontSize: "0.76rem", background: "#fef9c3", border: "1px solid #fde68a", borderRadius: 4, padding: "0.3rem 0.5rem", color: "#854d0e" }}>
+                      Looks similar to active goal: &quot;{similar.title}&quot; — consider using the{" "}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCarryForward((prev) => new Set(prev).add(similar.id));
+                          removeNextMonthDraft(idx);
+                        }}
+                        style={{ background: "none", border: "none", color: "#854d0e", cursor: "pointer", padding: 0, fontWeight: 700, textDecoration: "underline", fontSize: "0.76rem" }}
+                      >
+                        Continue toggle
+                      </button>{" "}
+                      instead.
+                    </div>
+                  ) : null;
+                })()}
                 <textarea
                   value={draft.description}
                   onChange={(e) => updateNextMonthDraft(idx, { description: e.target.value })}

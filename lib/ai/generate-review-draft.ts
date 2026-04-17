@@ -14,6 +14,7 @@ export interface ReviewGoalInput {
   blockers: string | null;
   nextMonthPlans: string;
   objectiveAchieved: boolean;
+  hasReflection?: boolean; // false when no mentee reflection exists for this goal
 }
 
 export interface PriorReview {
@@ -38,17 +39,26 @@ export interface ReviewDraftInput {
 export interface ReviewDraftOutput {
   overallComments: string;
   planOfAction: string;
-  /** Keyed by goal title */
+  /** Keyed by goal id */
   perGoalComments: Record<string, string>;
+  /** Keyed by goal id — suggested rating based on reflection */
+  perGoalSuggestedRating?: Record<string, string>;
 }
 
-const SYSTEM_PROMPT = `You are a mentor review assistant for the Youth Passion Project (YPP) portal. Your role is to draft initial feedback comments to help mentors write high-quality, consistent monthly goal reviews for their mentees.
+const SYSTEM_PROMPT = `You are a mentor review assistant for the Youth Passion Project (YPP) portal. Your role is to draft initial feedback comments AND suggest performance ratings to help mentors write high-quality, consistent monthly goal reviews for their mentees.
 
-YPP has four performance rating levels:
+YPP has four performance rating levels (use these exact strings):
 - BEHIND_SCHEDULE: Behind timetable with no realistic catch-up path this cycle
 - GETTING_STARTED: Behind but catch-up is achievable with focused effort
 - ACHIEVED: Goals completed in line with schedule and expectations
 - ABOVE_AND_BEYOND: Significantly exceeds goals in both quantity and quality
+
+Rating guidance:
+- Default to GETTING_STARTED when reflection is thin or unclear
+- Use ACHIEVED when the mentee explicitly describes completed objectives
+- Use ABOVE_AND_BEYOND only when the reflection shows clear over-delivery
+- Use BEHIND_SCHEDULE when blockers are unresolved and goals are missed with no recovery plan
+- When hasReflection is false, suggest GETTING_STARTED and note that no reflection was provided
 
 Your drafts should:
 1. Be professional, specific, and grounded in the mentee's actual reflection
@@ -119,12 +129,14 @@ function buildUserPrompt(input: ReviewDraftInput): string {
   const goalsText = input.goals
     .map(
       (g) =>
-        `  Goal: "${g.title}"
+        `  Goal ID: "${g.id}"
+  Goal Title: "${g.title}"
   Description: ${g.description ?? "N/A"}
-  Progress: ${g.progressMade}
-  Accomplishments: ${g.accomplishments}
+  Has reflection: ${g.hasReflection !== false ? "yes" : "NO — mentee did not reflect on this goal"}
+  Progress: ${g.progressMade || "(none)"}
+  Accomplishments: ${g.accomplishments || "(none)"}
   Blockers: ${g.blockers ?? "None"}
-  Next month plans: ${g.nextMonthPlans}
+  Next month plans: ${g.nextMonthPlans || "(none)"}
   Objective achieved: ${g.objectiveAchieved}`
     )
     .join("\n\n");
@@ -139,7 +151,7 @@ function buildUserPrompt(input: ReviewDraftInput): string {
           .join("\n")
       : "  None (first review)";
 
-  const goalTitles = input.goals.map((g) => `"${g.title}"`).join(", ");
+  const goalIds = input.goals.map((g) => `"${g.id}"`).join(", ");
 
   return `Now draft a review for this mentee.
 
@@ -153,16 +165,19 @@ ${goalsText}
 PRIOR REVIEW HISTORY:
 ${priorText}
 
-Return ONLY valid JSON with these exact keys:
+Return ONLY valid JSON with these exact keys (use goal IDs as keys, not titles):
 {
   "overallComments": "...",
   "planOfAction": "...",
   "perGoalComments": {
-    ${input.goals.map((g) => `"${g.title}": "..."`).join(",\n    ")}
+    ${input.goals.map((g) => `"${g.id}": "..."`).join(",\n    ")}
+  },
+  "perGoalSuggestedRating": {
+    ${input.goals.map((g) => `"${g.id}": "BEHIND_SCHEDULE|GETTING_STARTED|ACHIEVED|ABOVE_AND_BEYOND"`).join(",\n    ")}
   }
 }
 
-The perGoalComments object must have exactly these keys: ${goalTitles}.`;
+The perGoalComments and perGoalSuggestedRating objects must have exactly these goal ID keys: ${goalIds}.`;
 }
 
 export async function generateMentorshipReviewDraft(
@@ -208,13 +223,24 @@ export async function generateMentorshipReviewDraft(
     );
   }
 
-  // Validate expected keys are present
   if (
     typeof parsed.overallComments !== "string" ||
     typeof parsed.planOfAction !== "string" ||
     typeof parsed.perGoalComments !== "object"
   ) {
     throw new Error("AI response missing required fields");
+  }
+
+  // Sanitize perGoalSuggestedRating — only keep valid GoalRatingColor values
+  const validRatings = new Set(["BEHIND_SCHEDULE", "GETTING_STARTED", "ACHIEVED", "ABOVE_AND_BEYOND"]);
+  if (parsed.perGoalSuggestedRating && typeof parsed.perGoalSuggestedRating === "object") {
+    const sanitized: Record<string, string> = {};
+    for (const [id, rating] of Object.entries(parsed.perGoalSuggestedRating)) {
+      if (typeof rating === "string" && validRatings.has(rating)) {
+        sanitized[id] = rating;
+      }
+    }
+    parsed.perGoalSuggestedRating = sanitized;
   }
 
   return parsed;

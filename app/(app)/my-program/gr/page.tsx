@@ -165,6 +165,11 @@ export default async function MyGRPage() {
           projectedFuturePath: doc.latestReview.projectedFuturePath,
           promotionReadiness: doc.latestReview.promotionReadiness,
           releasedToMenteeAt: doc.latestReview.releasedToMenteeAt?.toISOString() ?? null,
+          goalRatings: doc.latestReview.goalRatings.map((gr) => ({
+            grDocumentGoalId: gr.grDocumentGoalId,
+            rating: gr.rating as GoalRatingColor,
+            comments: gr.comments ?? null,
+          })),
         }
       : null,
     nextMonthGoals: doc.nextMonthGoals.map((g) => ({
@@ -199,6 +204,9 @@ export default async function MyGRPage() {
       })),
     })),
     roleLabel: ROLE_LABELS[doc.template.roleType] ?? doc.template.roleType,
+    ratingHistoryByGoal: doc.ratingHistoryByGoal,
+    unseenMilestones: doc.unseenMilestones,
+    reviewAck: doc.reviewAck,
   };
 
   return (

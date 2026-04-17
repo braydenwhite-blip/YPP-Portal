@@ -296,6 +296,7 @@ export default async function MonthlyReviewEditorPage({
           cycleMonthLabel={cycleMonthLabel}
           goals={goalRows}
           reflectionResponses={reflectionResponses}
+          hasReflection={latestReflection.goalResponses.length > 0}
           initialReview={initialReview}
           isQuarterly={latestReflection.cycleNumber % 3 === 0}
           pointsByRating={pointsByRating}

@@ -94,7 +94,7 @@ export async function POST(request: Request) {
     where: { id: reflectionId },
     include: {
       mentee: { select: { id: true, name: true, primaryRole: true } },
-      mentorship: { select: { mentorId: true } },
+      mentorship: { select: { mentorId: true, menteeId: true } },
       goalResponses: {
         include: {
           goal: {
@@ -115,6 +115,61 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
+  // ── Prefer G&R goals when available; fall back to legacy reflection goals ──
+  const grDoc = await prisma.gRDocument.findFirst({
+    where: { userId: reflection.menteeId, status: "ACTIVE" },
+    include: {
+      goals: {
+        where: { lifecycleStatus: "ACTIVE" },
+        orderBy: [{ priority: "desc" }, { dueDate: "asc" }, { sortOrder: "asc" }],
+      },
+    },
+  });
+
+  // Build a title-keyed lookup from legacy reflection responses for cross-referencing
+  const reflByTitle = new Map(
+    reflection.goalResponses.map((gr) => [gr.goal.title.toLowerCase().trim(), gr])
+  );
+
+  let goals: ReviewGoalInput[];
+  if (grDoc && grDoc.goals.length > 0) {
+    goals = grDoc.goals.map((g) => {
+      // Try to match a reflection response by title (best-effort)
+      const match = reflByTitle.get(g.title.toLowerCase().trim());
+      return {
+        id: g.id,
+        title: g.title,
+        description: g.description,
+        progressMade: match?.progressMade ?? "",
+        accomplishments: match?.accomplishments ?? "",
+        blockers: match?.blockers ?? null,
+        nextMonthPlans: match?.nextMonthPlans ?? "",
+        objectiveAchieved: match?.objectiveAchieved ?? false,
+        hasReflection: !!match,
+      };
+    });
+  } else {
+    // Legacy path: use the reflection's own goal responses
+    goals = reflection.goalResponses.map((gr) => ({
+      id: gr.goal.id,
+      title: gr.goal.title,
+      description: gr.goal.description,
+      progressMade: gr.progressMade,
+      accomplishments: gr.accomplishments,
+      blockers: gr.blockers,
+      nextMonthPlans: gr.nextMonthPlans,
+      objectiveAchieved: gr.objectiveAchieved,
+      hasReflection: true,
+    }));
+  }
+
+  if (goals.length === 0) {
+    return NextResponse.json(
+      { error: "No active goals found for this mentee. Assign a G&R document or add program goals." },
+      { status: 422 }
+    );
+  }
+
   // ── Fetch last 3 approved reviews for context ─────────────────────────────
   const priorReviewRows = await prisma.mentorGoalReview.findMany({
     where: {
@@ -130,18 +185,6 @@ export async function POST(request: Request) {
       },
     },
   });
-
-  // ── Build input for AI ────────────────────────────────────────────────────
-  const goals: ReviewGoalInput[] = reflection.goalResponses.map((gr) => ({
-    id: gr.goal.id,
-    title: gr.goal.title,
-    description: gr.goal.description,
-    progressMade: gr.progressMade,
-    accomplishments: gr.accomplishments,
-    blockers: gr.blockers,
-    nextMonthPlans: gr.nextMonthPlans,
-    objectiveAchieved: gr.objectiveAchieved,
-  }));
 
   const priorReviews: PriorReview[] = priorReviewRows.map((r) => ({
     cycleNumber: r.cycleNumber,
