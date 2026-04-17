@@ -6,6 +6,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import ApplicantVideoUpload from "@/components/applicant-video-upload";
 import BrandLockup from "@/components/brand-lockup";
+import { navigateToAuthDestination } from "@/lib/auth-client-navigation";
+import { createBrowserClientOrNull } from "@/lib/supabase/client";
+import { canUseLocalPasswordFallback } from "@/lib/supabase/config";
 import {
   clearInstructorSignupDraft,
   loadInstructorSignupDraft,
@@ -17,6 +20,15 @@ import { signUp } from "@/lib/signup-actions";
 const initialState = { status: "idle" as const, message: "" };
 
 const SECTION_LABELS = ["Account", "Profile", "School", "Teaching", "Availability"] as const;
+
+const HEAR_ABOUT_OPTIONS = [
+  "Word of mouth",
+  "TikTok",
+  "Instagram",
+  "A YPP staff member",
+  "A YPP student",
+  "Other",
+] as const;
 
 function timeHint(section: number): string {
   const hints: Record<number, string> = {
@@ -46,8 +58,14 @@ export default function InstructorSignupPage() {
   const [formKey, setFormKey] = useState(0);
   const [appliedDraft, setAppliedDraft] = useState<InstructorSignupDraftV1 | null>(null);
   const [resumeBanner, setResumeBanner] = useState<InstructorSignupDraftV1 | null>(null);
+  const [autoLoggingIn, setAutoLoggingIn] = useState(false);
+  const [autoLoginError, setAutoLoginError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Capture credentials for auto-login (never stored in state to avoid extra renders)
+  const emailRef = useRef("");
+  const passwordRef = useRef("");
 
   const scheduleSave = useCallback(() => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -75,9 +93,44 @@ export default function InstructorSignupPage() {
     }
   }, []);
 
+  // Auto-login after successful application submission
   useEffect(() => {
     if (state.status === "success" && state.message === "APPLICATION_SUBMITTED") {
       clearInstructorSignupDraft();
+      setAutoLoggingIn(true);
+
+      async function doSignIn() {
+        const email = emailRef.current;
+        const password = passwordRef.current;
+
+        // Primary: Supabase sign-in (account was just created there)
+        const supabaseClient = createBrowserClientOrNull();
+        if (supabaseClient) {
+          const { error: signInError } = await supabaseClient.auth.signInWithPassword({ email, password });
+          if (!signInError) {
+            navigateToAuthDestination("/application-status");
+            return;
+          }
+        }
+
+        // Fallback: local password (local dev without Supabase env vars)
+        if (canUseLocalPasswordFallback()) {
+          const response = await fetch("/api/auth/local-password", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+          });
+          if (response.ok) {
+            navigateToAuthDestination("/application-status");
+            return;
+          }
+        }
+
+        // Sign-in failed — surface a link to the login page
+        setAutoLoginError("Your application was submitted! Sign in below to view your status.");
+      }
+
+      doSignIn();
     }
   }, [state.status, state.message]);
 
@@ -100,33 +153,58 @@ export default function InstructorSignupPage() {
 
   const d = appliedDraft;
 
-  if (state.status === "success" && state.message === "APPLICATION_SUBMITTED") {
+  // Hear-about state — initialised from draft when form remounts
+  const [hearAbout, setHearAbout] = useState(() => field(d, "hearAboutYPPOption") ?? "");
+  const [hearAboutDetail, setHearAboutDetail] = useState(() => field(d, "hearAboutYPPDetail") ?? "");
+
+  // Keep hear-about in sync when draft is applied (formKey changes cause remount,
+  // but we also handle it via useEffect for safety)
+  useEffect(() => {
+    setHearAbout(field(d, "hearAboutYPPOption") ?? "");
+    setHearAboutDetail(field(d, "hearAboutYPPDetail") ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formKey]);
+
+  const hearAboutNeedsName =
+    hearAbout === "A YPP staff member" || hearAbout === "A YPP student";
+  const hearAboutNeedsDetail = hearAbout === "Other";
+  const hearAboutCombined =
+    hearAboutDetail.trim()
+      ? `${hearAbout}: ${hearAboutDetail.trim()}`
+      : hearAbout;
+
+  // Loading / post-submit state while auto-login fires (or if it fails)
+  if (autoLoggingIn) {
     return (
       <div className="login-shell">
-        <div className="login-card" style={{ justifySelf: "center" }}>
+        <div className="login-card" style={{ justifySelf: "center", textAlign: "center" }}>
           <div className="login-card-header login-card-header--stacked">
             <BrandLockup height={36} className="brand-lockup" reloadOnClick />
             <div>
-              <h1 className="page-title" style={{ fontSize: 20 }}>
-                Application received
-              </h1>
-              <p className="page-subtitle mt-0" style={{ fontSize: 13 }}>
-                Your instructor application is in
-              </p>
+              {autoLoginError ? (
+                <>
+                  <h1 className="page-title" style={{ fontSize: 20 }}>
+                    Application submitted!
+                  </h1>
+                  <p className="page-subtitle mt-0" style={{ fontSize: 13 }}>
+                    {autoLoginError}
+                  </p>
+                  <Link href="/login?callbackUrl=/application-status" className="button" style={{ marginTop: 12, display: "inline-block" }}>
+                    Sign in
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <h1 className="page-title" style={{ fontSize: 20 }}>
+                    Setting up your account…
+                  </h1>
+                  <p className="page-subtitle mt-0" style={{ fontSize: 13 }}>
+                    Signing you in and taking you to your application status
+                  </p>
+                </>
+              )}
             </div>
           </div>
-
-          <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.6, margin: "0 0 12px" }}>
-            We created your account and sent your application to the review team. You can sign in any time to check your status.
-          </p>
-          <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.6, margin: "0 0 20px" }}>
-            <strong>What happens next:</strong> we typically send a first update within <strong>3–5 business days</strong>. If you
-            do not hear anything by then, sign in and visit your application status page, or contact your chapter.
-          </p>
-
-          <Link className="button" style={{ display: "block", textAlign: "center" }} href="/login">
-            Go to Sign In
-          </Link>
         </div>
       </div>
     );
@@ -263,6 +341,8 @@ export default function InstructorSignupPage() {
           >
             <input type="hidden" name="accountType" value="APPLICANT" />
             <input type="hidden" name="motivationVideoUrl" value={motivationVideoUrl} />
+            {/* Combined hear-about value passed to server action */}
+            <input type="hidden" name="hearAboutYPP" value={hearAboutCombined} />
 
             <div data-signup-section="1">
               <div style={{ fontSize: 13, fontWeight: 700, color: "var(--muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>
@@ -271,7 +351,13 @@ export default function InstructorSignupPage() {
 
               <label className="form-label" style={{ marginTop: 0 }}>
                 Full name
-                <input className="input" name="name" placeholder="Your full name" required defaultValue={field(d, "name")} />
+                <input
+                  className="input"
+                  name="name"
+                  placeholder="Your full name"
+                  required
+                  defaultValue={field(d, "name")}
+                />
               </label>
 
               <label className="form-label">
@@ -283,12 +369,20 @@ export default function InstructorSignupPage() {
                   placeholder="you@example.com"
                   required
                   defaultValue={field(d, "email")}
+                  onInput={(e) => { emailRef.current = (e.target as HTMLInputElement).value; }}
                 />
               </label>
 
               <label className="form-label">
                 Password
-                <input className="input" name="password" type="password" placeholder="Min 8 characters, letter + number" required />
+                <input
+                  className="input"
+                  name="password"
+                  type="password"
+                  placeholder="Min 8 characters, letter + number"
+                  required
+                  onInput={(e) => { passwordRef.current = (e.target as HTMLInputElement).value; }}
+                />
               </label>
 
               <label className="form-label">
@@ -346,7 +440,30 @@ export default function InstructorSignupPage() {
 
               <label className="form-label">
                 How did you hear about YPP?
-                <input className="input" name="hearAboutYPP" placeholder="Optional" defaultValue={field(d, "hearAboutYPP")} />
+                <select
+                  className="input"
+                  name="hearAboutYPPOption"
+                  value={hearAbout}
+                  onChange={(e) => {
+                    setHearAbout(e.target.value);
+                    setHearAboutDetail("");
+                  }}
+                >
+                  <option value="">Select one (optional)</option>
+                  {HEAR_ABOUT_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+                {(hearAboutNeedsName || hearAboutNeedsDetail) && (
+                  <input
+                    className="input"
+                    name="hearAboutYPPDetail"
+                    style={{ marginTop: 6 }}
+                    placeholder={hearAboutNeedsName ? "Enter their name" : "Please specify"}
+                    value={hearAboutDetail}
+                    onChange={(e) => setHearAboutDetail(e.target.value)}
+                  />
+                )}
               </label>
             </div>
 
@@ -398,29 +515,18 @@ export default function InstructorSignupPage() {
                 <input className="input" name="schoolName" placeholder="Your school" required defaultValue={field(d, "schoolName")} />
               </label>
 
-              <div className="grid two">
-                <label className="form-label">
-                  Graduation year
-                  <input
-                    className="input"
-                    name="graduationYear"
-                    type="number"
-                    min={2025}
-                    max={2030}
-                    placeholder="e.g. 2027"
-                    required
-                    defaultValue={field(d, "graduationYear")}
-                  />
-                </label>
-                <label className="form-label">
-                  GPA
-                  <input className="input" name="gpa" placeholder="Optional" defaultValue={field(d, "gpa")} />
-                </label>
-              </div>
-
               <label className="form-label">
-                Class rank
-                <input className="input" name="classRank" placeholder="Optional" defaultValue={field(d, "classRank")} />
+                Graduation year
+                <input
+                  className="input"
+                  name="graduationYear"
+                  type="number"
+                  min={2025}
+                  max={2030}
+                  placeholder="e.g. 2027"
+                  required
+                  defaultValue={field(d, "graduationYear")}
+                />
               </label>
 
               <label className="form-label">
@@ -442,7 +548,7 @@ export default function InstructorSignupPage() {
               </label>
 
               <label className="form-label">
-                Teaching approach video
+                Teaching approach video <span style={{ fontWeight: 400, color: "var(--muted)" }}>(optional)</span>
                 <div style={{ marginTop: 8 }}>
                   <ApplicantVideoUpload
                     onUploadComplete={(file) => setMotivationVideoUrl(file.url)}
@@ -501,11 +607,6 @@ export default function InstructorSignupPage() {
                 Referral emails
                 <textarea className="input" name="referralEmails" rows={3} defaultValue={field(d, "referralEmails")} />
               </label>
-
-              <label className="form-label">
-                Race or ethnicity
-                <input className="input" name="ethnicity" placeholder="Optional" defaultValue={field(d, "ethnicity")} />
-              </label>
             </div>
 
             {state.message && state.message !== "APPLICATION_SUBMITTED" && (
@@ -517,16 +618,10 @@ export default function InstructorSignupPage() {
             <button
               className="button"
               type="submit"
-              disabled={motivationVideoUploading || !motivationVideoUrl}
+              disabled={motivationVideoUploading}
             >
               {motivationVideoUploading ? "Uploading video..." : "Submit Application"}
             </button>
-
-            {!motivationVideoUrl && !motivationVideoUploading && (
-              <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
-                Upload the required teaching approach video to unlock submission.
-              </p>
-            )}
           </form>
 
           <div className="login-help">

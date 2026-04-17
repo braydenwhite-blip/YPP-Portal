@@ -29,6 +29,9 @@ import {
   getMentorshipGoalReviews,
   getMentorshipMonthlyReviews,
 } from "@/lib/mentorship-kanban-actions";
+import { getChairQueueEnriched, getReviewCompletionStatus } from "@/lib/goal-review-actions";
+import ChairApprovalQueue from "@/components/gr/chair-approval-queue";
+import ReviewCompletionPanel from "@/components/gr/review-completion-panel";
 
 export const metadata = { title: "Mentorship Command Center — Admin" };
 
@@ -97,10 +100,12 @@ export default async function MentorshipProgramAdminPage({
   const lane = parseAdminMentorshipLane(searchParams.lane);
   const focus = parseFocus(searchParams.focus);
   const supportRole = parseSupportRole(searchParams.supportRole);
-  const [data, goalReviews, monthlyReviews] = await Promise.all([
+  const [data, goalReviews, monthlyReviews, chairQueue, completionStatus] = await Promise.all([
     getAdminMentorshipCommandCenterData(),
     getMentorshipGoalReviews(),
     getMentorshipMonthlyReviews(),
+    getChairQueueEnriched(),
+    getReviewCompletionStatus(),
   ]);
 
   const laneMeta = ADMIN_MENTORSHIP_LANE_META[lane];
@@ -766,6 +771,32 @@ export default async function MentorshipProgramAdminPage({
           </div>
         )}
       </section>
+
+      {/* ── G&R Chair Approval Queue ──────────────────── */}
+      {chairQueue && chairQueue.length > 0 && (
+        <section className="card" style={{ marginBottom: 24, borderLeft: "4px solid #f59e0b" }}>
+          <div className="section-title" style={{ marginBottom: 4 }}>G&amp;R Chair Approval Queue</div>
+          <p style={{ margin: "0 0 14px", color: "var(--muted)", fontSize: 13 }}>
+            Monthly reviews waiting for chair sign-off. Older reviews appear first.
+          </p>
+          <ChairApprovalQueue items={chairQueue} />
+        </section>
+      )}
+
+      {/* ── Review Completion Monitor ──────────────────── */}
+      {completionStatus && (
+        <section className="card" style={{ marginBottom: 24 }}>
+          <div className="section-title" style={{ marginBottom: 4 }}>Review Completion — Current Cycle</div>
+          <p style={{ margin: "0 0 14px", color: "var(--muted)", fontSize: 13 }}>
+            Mentorships that have not yet submitted a review for this month.
+          </p>
+          <ReviewCompletionPanel
+            total={completionStatus.total}
+            submitted={completionStatus.submitted}
+            missing={completionStatus.missing}
+          />
+        </section>
+      )}
 
       <section
         id="governance"

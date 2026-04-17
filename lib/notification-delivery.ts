@@ -48,6 +48,15 @@ type PreferenceRecord = {
   eventReminders: boolean;
 };
 
+type PreferenceToggleKey =
+  | "announcements"
+  | "mentorUpdates"
+  | "goalReminders"
+  | "courseUpdates"
+  | "reflectionReminders"
+  | "eventUpdates"
+  | "eventReminders";
+
 type DeliveryPlan = {
   channel: DbNotificationDeliveryChannel;
   status: NotificationDeliveryStatus;
@@ -85,7 +94,7 @@ type ResolvedRouting =
 const ACTION_REQUIRED_PREFIX = "[Action Required] ";
 const DEFAULT_DELIVERY_TIMEZONE = "America/New_York";
 
-function preferenceKeyForType(type: NotificationType): keyof PreferenceRecord | null {
+function preferenceKeyForType(type: NotificationType): PreferenceToggleKey | null {
   switch (type) {
     case "ANNOUNCEMENT":
       return "announcements";

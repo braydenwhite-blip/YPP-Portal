@@ -24,6 +24,7 @@ export async function logAuditEvent({
   targetId,
   description,
   metadata,
+  ipAddress,
 }: {
   action: AuditAction;
   actorId: string;
@@ -31,6 +32,7 @@ export async function logAuditEvent({
   targetId?: string;
   description: string;
   metadata?: Record<string, unknown>;
+  ipAddress?: string;
 }) {
   try {
     await prisma.auditLog.create({
@@ -41,6 +43,7 @@ export async function logAuditEvent({
         targetId: targetId || null,
         description,
         metadata: metadata ? JSON.parse(JSON.stringify(metadata)) : undefined,
+        ipAddress: ipAddress || null,
       },
     });
   } catch (err: any) {

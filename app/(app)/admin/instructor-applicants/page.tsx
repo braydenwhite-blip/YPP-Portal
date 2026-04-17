@@ -10,6 +10,8 @@ export default async function AdminInstructorApplicantsPage() {
   const roles = session?.user?.roles ?? [];
   const isAdmin = roles.includes("ADMIN");
   const isChapterPresident = roles.includes("CHAPTER_PRESIDENT");
+  // HIRING_ADMIN is checked as a role here to match preApproveApplication's auth check.
+  const canPreApprove = isAdmin || roles.includes("HIRING_ADMIN");
 
   if (!isAdmin && !isChapterPresident) {
     redirect("/");
@@ -71,7 +73,7 @@ export default async function AdminInstructorApplicantsPage() {
   ).length;
   const toInterview = applications.filter((application) => application.status === "INTERVIEW_SCHEDULED").length;
   const interviewedAwaitingDecision = applications.filter((application) =>
-    ["INTERVIEW_COMPLETED", "APPROVED", "REJECTED"].includes(application.status)
+    application.status === "INTERVIEW_COMPLETED"
   ).length;
 
   return (
@@ -81,7 +83,7 @@ export default async function AdminInstructorApplicantsPage() {
           <span className="badge">{isAdmin ? "Admin" : "Chapter President"}</span>
           <h1 className="page-title">Instructor Applicants</h1>
           <p className="page-subtitle">
-            Review candidates on a four-step board: New Applications, To Review, Curriculum Overview (scheduled session), then Overview Done / Awaiting Decision. Treat the overview as a collaborative walkthrough of their teaching approach — not a scored interview.
+            Review candidates on a six-step board: New Applications, To Review, Awaiting Curriculum Review, Overview Complete, Accepted, Rejected. The curriculum review is a collaborative walkthrough of their teaching approach — not a scored interview.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -100,15 +102,15 @@ export default async function AdminInstructorApplicantsPage() {
         </div>
         <div className="card kpi">
           <div className="kpi-value">{toInterview}</div>
-          <div className="kpi-label">Curriculum overview</div>
+          <div className="kpi-label">Awaiting Curriculum Review</div>
         </div>
         <div className="card kpi">
           <div className="kpi-value">{interviewedAwaitingDecision}</div>
-          <div className="kpi-label">Overview done / decision</div>
+          <div className="kpi-label">Overview Complete</div>
         </div>
       </div>
 
-      <InstructorKanbanBoard applications={serialized as any} reviewers={reviewerUsers} />
+      <InstructorKanbanBoard applications={serialized as any} reviewers={reviewerUsers} canPreApprove={canPreApprove} />
     </div>
   );
 }

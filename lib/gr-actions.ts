@@ -11,6 +11,7 @@ import {
   MenteeRoleType,
 } from "@prisma/client";
 import { logAuditEvent } from "@/lib/audit-log-actions";
+import { notifyMenteeReflectionDue } from "@/lib/mentorship-notifications";
 
 // ============================================
 // AUTH HELPERS
@@ -376,6 +377,10 @@ export async function assignGRDocument(formData: FormData) {
       roleMission: template.roleMission,
       roleStartDate,
       status: "DRAFT",
+      // Populate officerInfo when the template targets a specific officer position
+      ...(template.officerPosition
+        ? { officerInfo: { position: template.officerPosition } }
+        : {}),
       goals: {
         create: template.goals.map((g) => ({
           templateGoalId: g.id,
@@ -482,14 +487,37 @@ export async function proposeGRGoalChange(formData: FormData) {
   const changeType = getString(formData, "changeType");
   const goalId = getOptionalString(formData, "goalId");
   const reason = getOptionalString(formData, "reason");
+  const sourceReviewId = getOptionalString(formData, "sourceReviewId");
+
+  // Ownership check: mentors may only propose changes to their own mentee's document
+  const roles = session.user.roles ?? [];
+  if (!roles.includes("ADMIN")) {
+    const doc = await prisma.gRDocument.findUnique({
+      where: { id: documentId },
+      select: { mentorshipId: true },
+    });
+    if (!doc) throw new Error("G&R document not found");
+    const mentorship = await prisma.mentorship.findUnique({
+      where: { id: doc.mentorshipId },
+      select: { mentorId: true },
+    });
+    if (mentorship?.mentorId !== session.user.id) {
+      throw new Error("You are not authorized to propose changes to this G&R document");
+    }
+  }
 
   const proposedData: Record<string, string> = {};
   const title = getOptionalString(formData, "proposedTitle");
   const description = getOptionalString(formData, "proposedDescription");
   const timePhase = getOptionalString(formData, "proposedTimePhase");
+  const priority = getOptionalString(formData, "proposedPriority");
+  const dueDate = getOptionalString(formData, "proposedDueDate");
   if (title) proposedData.title = title;
   if (description) proposedData.description = description;
   if (timePhase) proposedData.timePhase = timePhase;
+  if (priority) proposedData.priority = priority;
+  if (dueDate) proposedData.dueDate = dueDate;
+  if (sourceReviewId) proposedData.sourceReviewId = sourceReviewId;
 
   await prisma.gRGoalChange.create({
     data: {
@@ -543,15 +571,21 @@ export async function reviewGRGoalChange(formData: FormData) {
           documentId: change.documentId,
           title: data.title ?? "New Goal",
           description: data.description ?? "",
-          timePhase: (data.timePhase as GRTimePhase) ?? "FIRST_MONTH",
+          timePhase: (data.timePhase as GRTimePhase) ?? "MONTHLY",
           isCustom: true,
+          lifecycleStatus: "ACTIVE",
+          priority: (data.priority as import("@prisma/client").GoalPriority) ?? "NORMAL",
+          dueDate: data.dueDate ? new Date(data.dueDate) : null,
+          sourceReviewId: data.sourceReviewId ?? null,
         },
       });
     } else if (change.changeType === "EDIT" && change.goalId) {
-      const updateData: Record<string, string> = {};
+      const updateData: Record<string, unknown> = {};
       if (data.title) updateData.title = data.title;
       if (data.description) updateData.description = data.description;
-      if (data.timePhase) updateData.timePhase = data.timePhase;
+      if (data.timePhase) updateData.timePhase = data.timePhase as GRTimePhase;
+      if (data.priority) updateData.priority = data.priority;
+      if (data.dueDate) updateData.dueDate = new Date(data.dueDate);
       await prisma.gRDocumentGoal.update({
         where: { id: change.goalId },
         data: updateData,
@@ -559,7 +593,7 @@ export async function reviewGRGoalChange(formData: FormData) {
     } else if (change.changeType === "REMOVE" && change.goalId) {
       await prisma.gRDocumentGoal.update({
         where: { id: change.goalId },
-        data: { isActive: false },
+        data: { isActive: false, lifecycleStatus: "ARCHIVED" },
       });
     }
   }
@@ -649,10 +683,10 @@ export async function getMyGRDocument() {
   const doc = await prisma.gRDocument.findFirst({
     where: { userId: session.user.id, status: { in: ["DRAFT", "ACTIVE"] } },
     include: {
-      template: true,
+      template: { select: { title: true, roleType: true, maxActiveMonthlyGoals: true } },
       goals: {
-        where: { isActive: true },
-        orderBy: [{ timePhase: "asc" }, { sortOrder: "asc" }],
+        where: { lifecycleStatus: { in: ["ACTIVE", "COMPLETED"] } },
+        orderBy: [{ lifecycleStatus: "asc" }, { priority: "desc" }, { dueDate: "asc" }, { sortOrder: "asc" }],
         include: { kpiValues: { orderBy: { measuredAt: "desc" }, take: 5 } },
       },
       successCriteria: { orderBy: { timePhase: "asc" } },
@@ -662,7 +696,177 @@ export async function getMyGRDocument() {
     },
   });
 
-  return doc;
+  if (!doc) return null;
+
+  const today = new Date();
+  const sevenDaysOut = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  // Current priorities: top 5 active goals with upcoming/overdue dates first
+  const currentPriorities = doc.goals
+    .filter((g) => g.lifecycleStatus === "ACTIVE")
+    .slice(0, 5)
+    .map((g) => ({
+      ...g,
+      isOverdue: g.dueDate ? g.dueDate < today : false,
+      isDueSoon: g.dueDate ? g.dueDate >= today && g.dueDate <= sevenDaysOut : false,
+    }));
+
+  const goalsByLifecycle = {
+    ACTIVE: doc.goals.filter((g) => g.lifecycleStatus === "ACTIVE").length,
+    COMPLETED: doc.goals.filter((g) => g.lifecycleStatus === "COMPLETED").length,
+    ARCHIVED: await prisma.gRDocumentGoal.count({
+      where: { documentId: doc.id, lifecycleStatus: "ARCHIVED" },
+    }),
+  };
+
+  // Latest released mentor review for this mentorship
+  const latestReview = await prisma.mentorGoalReview.findFirst({
+    where: {
+      mentorshipId: doc.mentorshipId,
+      releasedToMenteeAt: { not: null },
+    },
+    orderBy: { cycleMonth: "desc" },
+    include: {
+      goalRatings: {
+        include: {
+          grDocumentGoal: { select: { id: true, title: true } },
+        },
+      },
+      goalSnapshots: {
+        orderBy: { createdAt: "asc" },
+      },
+    },
+  });
+
+  // Next-month goals spawned by the latest review
+  const nextMonthGoals = latestReview
+    ? await prisma.gRDocumentGoal.findMany({
+        where: { documentId: doc.id, sourceReviewId: latestReview.id, lifecycleStatus: "ACTIVE" },
+        orderBy: [{ priority: "desc" }, { dueDate: "asc" }],
+      })
+    : [];
+
+  // Past reviews (all released, excluding the latest one)
+  const pastReviews = await prisma.mentorGoalReview.findMany({
+    where: {
+      mentorshipId: doc.mentorshipId,
+      releasedToMenteeAt: { not: null },
+      ...(latestReview ? { id: { not: latestReview.id } } : {}),
+    },
+    orderBy: { cycleMonth: "desc" },
+    include: {
+      goalSnapshots: {
+        orderBy: { createdAt: "asc" },
+      },
+      goalRatings: {
+        select: { rating: true, comments: true, grDocumentGoalId: true },
+      },
+    },
+  });
+
+  // Per-goal rating history for growth sparklines (last 6 cycles)
+  const goalRatingHistory = await prisma.goalReviewRating.findMany({
+    where: {
+      grDocumentGoal: { documentId: doc.id },
+      review: { mentorshipId: doc.mentorshipId, releasedToMenteeAt: { not: null } },
+    },
+    orderBy: { review: { cycleNumber: "asc" } },
+    include: { review: { select: { cycleNumber: true } } },
+    take: 200, // cap to avoid huge joins
+  });
+
+  // Group by grDocumentGoalId → cycleNumber → rating
+  const ratingHistoryByGoal: Record<string, Array<{ cycleNumber: number; rating: string }>> = {};
+  for (const r of goalRatingHistory) {
+    if (!r.grDocumentGoalId) continue;
+    (ratingHistoryByGoal[r.grDocumentGoalId] ??= []).push({
+      cycleNumber: r.review.cycleNumber,
+      rating: r.rating,
+    });
+  }
+
+  // Unseen milestone events
+  const { consumeUnseenMilestones } = await import("@/lib/milestones");
+  const unseenMilestones = await consumeUnseenMilestones(session.user.id);
+
+  // Latest review ack (if any)
+  const reviewAck = latestReview
+    ? await prisma.menteeReviewAck.findUnique({
+        where: { reviewId: latestReview.id },
+        select: { reaction: true, note: true },
+      })
+    : null;
+
+  return {
+    ...doc,
+    currentPriorities,
+    goalsByLifecycle,
+    latestReview,
+    nextMonthGoals,
+    pastReviews,
+    ratingHistoryByGoal,
+    unseenMilestones: unseenMilestones.map((m) => ({
+      id: m.id,
+      kind: m.kind,
+      payload: m.payload as Record<string, unknown>,
+    })),
+    reviewAck,
+  };
+}
+
+export async function submitReviewAck(formData: FormData) {
+  const session = await requireAuth();
+  const reviewId = getString(formData, "reviewId");
+  const reaction = getString(formData, "reaction");
+  const note = getOptionalString(formData, "note");
+
+  const validReactions = ["GRATEFUL", "MOTIVATED", "UNCLEAR", "UNSURE"];
+  if (!validReactions.includes(reaction)) throw new Error("Invalid reaction");
+
+  // Verify the mentee owns this review
+  const review = await prisma.mentorGoalReview.findUniqueOrThrow({
+    where: { id: reviewId },
+    select: { menteeId: true },
+  });
+  if (review.menteeId !== session.user.id) throw new Error("Unauthorized");
+
+  await prisma.menteeReviewAck.upsert({
+    where: { reviewId },
+    create: { reviewId, userId: session.user.id, reaction, note: note || null },
+    update: { reaction, note: note || null },
+  });
+
+  revalidatePath("/my-program/gr");
+}
+
+// B3: Mentor sends a "please submit your reflection" nudge
+export async function sendReflectionNudge(formData: FormData) {
+  const session = await requireMentorOrAdmin();
+  const reflectionId = getString(formData, "reflectionId");
+
+  const reflection = await prisma.monthlySelfReflection.findUniqueOrThrow({
+    where: { id: reflectionId },
+    select: {
+      menteeId: true,
+      cycleMonth: true,
+      mentorship: {
+        select: {
+          mentorId: true,
+        },
+      },
+    },
+  });
+
+  const roles = session.user.roles ?? [];
+  const isAdmin = roles.includes("ADMIN") || roles.includes("CHAPTER_PRESIDENT");
+  if (!isAdmin && reflection.mentorship.mentorId !== session.user.id) {
+    throw new Error("Unauthorized: not the mentor for this mentorship");
+  }
+
+  await notifyMenteeReflectionDue({
+    menteeId: reflection.menteeId,
+    cycleMonthIso: reflection.cycleMonth.toISOString(),
+  });
 }
 
 export async function getGRDocumentForUser(userId: string) {

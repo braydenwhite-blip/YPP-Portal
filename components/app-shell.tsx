@@ -1,55 +1,48 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import Nav, { type NavBadges } from "@/components/nav";
 import BrandLockup from "@/components/brand-lockup";
 import LogoutButton from "@/components/logout-button";
-import PageHelperFab from "@/components/page-helper-fab";
+import type { NavGroup, NavViewModel } from "@/lib/navigation/types";
 import type { PageHelperRole } from "@/lib/page-helper/types";
+
+const PageHelperFab = dynamic(() => import("@/components/page-helper-fab"), {
+  ssr: false,
+});
 
 export default function AppShell({
   children,
   userName,
   roles,
-  adminSubtypes,
   primaryRole,
-  awardTier,
+  navModel,
   badges,
-  enabledFeatureKeys,
-  unlockedSections,
+  lockedGroups,
   recentlyUnlockedGroups,
   studentFullPortalExplorer,
-  studentHasChapter,
 }: {
   children: React.ReactNode;
   userName?: string | null;
   roles?: string[];
-  adminSubtypes?: string[];
   primaryRole?: string | null;
-  awardTier?: string;
+  navModel: NavViewModel;
   badges?: NavBadges;
-  enabledFeatureKeys?: string[];
-  unlockedSections?: string[];
-  recentlyUnlockedGroups?: string[];
+  lockedGroups?: Array<[NavGroup, string]>;
+  recentlyUnlockedGroups?: NavGroup[];
   studentFullPortalExplorer?: boolean;
-  /** User is assigned to a chapter; hide "Join a chapter" in the nav. */
-  studentHasChapter?: boolean;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const sidebarId = "portal-sidebar";
 
-  // Convert serialized arrays back to Sets for the Nav component
-  const unlockedSectionsSet = useMemo(
-    () => (unlockedSections ? new Set(unlockedSections) : undefined),
-    [unlockedSections],
-  );
   const recentlyUnlockedGroupsSet = useMemo(
-    () => (recentlyUnlockedGroups ? new Set(recentlyUnlockedGroups) : undefined),
+    () => (recentlyUnlockedGroups ? new Set<NavGroup>(recentlyUnlockedGroups) : undefined),
     [recentlyUnlockedGroups],
   );
-  const enabledFeatureKeysSet = useMemo(
-    () => (enabledFeatureKeys ? new Set(enabledFeatureKeys) : undefined),
-    [enabledFeatureKeys],
+  const lockedGroupsMap = useMemo(
+    () => (lockedGroups ? new Map(lockedGroups) : undefined),
+    [lockedGroups],
   );
 
   const userInitials = useMemo(() => {
@@ -64,7 +57,6 @@ export default function AppShell({
 
   return (
     <div className="app-shell">
-      {/* Mobile menu toggle */}
       <button
         className="sidebar-toggle"
         onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -76,7 +68,6 @@ export default function AppShell({
         {sidebarOpen ? "\u2715" : "\u2630"}
       </button>
 
-      {/* Mobile backdrop */}
       <div
         className={`sidebar-backdrop ${sidebarOpen ? "open" : ""}`}
         onClick={() => setSidebarOpen(false)}
@@ -93,7 +84,6 @@ export default function AppShell({
       />
 
       <aside id={sidebarId} className={`sidebar ${sidebarOpen ? "open" : ""}`}>
-        {/* Header — fixed */}
         <div className="sidebar-header">
           <div className="sidebar-brand">
             <BrandLockup
@@ -105,24 +95,17 @@ export default function AppShell({
           </div>
         </div>
 
-        {/* Scrollable navigation */}
         <div className="sidebar-nav">
           <Nav
-            roles={roles}
-            adminSubtypes={adminSubtypes}
-            primaryRole={primaryRole}
-            awardTier={awardTier}
+            model={navModel}
             badges={badges}
-            enabledFeatureKeys={enabledFeatureKeysSet}
             onNavigate={() => setSidebarOpen(false)}
-            unlockedSections={unlockedSectionsSet}
+            lockedGroups={lockedGroupsMap}
             recentlyUnlockedGroups={recentlyUnlockedGroupsSet}
             studentFullPortalExplorer={studentFullPortalExplorer}
-            studentHasChapter={studentHasChapter}
           />
         </div>
 
-        {/* Footer — fixed */}
         <div className="sidebar-footer">
           <div className="sidebar-footer-card sidebar-marble-panel">
             <div className="sidebar-user-row">

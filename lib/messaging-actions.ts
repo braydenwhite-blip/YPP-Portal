@@ -41,6 +41,10 @@ function getMessagePriority(formData: FormData) {
     : MessagePriority.NORMAL;
 }
 
+function getSenderDisplayName(name?: string | null) {
+  return name?.trim() || "Portal User";
+}
+
 async function notifyConversationParticipants(params: {
   conversationId: string;
   senderId: string;
@@ -258,6 +262,7 @@ export async function getConversation(conversationId: string) {
 export async function sendMessage(formData: FormData) {
   const session = await requireAuth();
   const userId = session.user.id;
+  const senderName = getSenderDisplayName(session.user.name);
 
   const conversationId = getString(formData, "conversationId");
   const content = getString(formData, "content");
@@ -307,7 +312,7 @@ export async function sendMessage(formData: FormData) {
           {
             messageId: message.id,
             senderId: message.senderId,
-            senderName: session.user.name,
+            senderName,
             content: message.content,
             createdAt: message.createdAt
           }
@@ -327,7 +332,7 @@ export async function sendMessage(formData: FormData) {
               {
                 type: 'MESSAGE',
                 conversationId,
-                senderName: session.user.name
+                senderName
               }
             );
           }
@@ -342,7 +347,7 @@ export async function sendMessage(formData: FormData) {
   await notifyConversationParticipants({
     conversationId,
     senderId: userId,
-    senderName: session.user.name,
+    senderName,
     content: message.content,
     priority,
     isNewThread: false,
@@ -359,6 +364,7 @@ export async function sendMessage(formData: FormData) {
 export async function startConversation(formData: FormData) {
   const session = await requireAuth();
   const userId = session.user.id;
+  const senderName = getSenderDisplayName(session.user.name);
 
   const recipientId = getString(formData, "recipientId");
   const subject = getString(formData, "subject", false) || null;
@@ -407,7 +413,7 @@ export async function startConversation(formData: FormData) {
       await notifyConversationParticipants({
         conversationId: existingConversation.id,
         senderId: userId,
-        senderName: session.user.name,
+        senderName,
         content: message,
         priority,
         isNewThread: false,
@@ -448,7 +454,7 @@ export async function startConversation(formData: FormData) {
   await notifyConversationParticipants({
     conversationId: conversation.id,
     senderId: userId,
-    senderName: session.user.name,
+    senderName,
     content: message,
     priority,
     isNewThread: true,

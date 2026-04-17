@@ -1,11 +1,42 @@
+function stripTrailingSlashes(value: string) {
+  return value.replace(/\/+$/, "");
+}
+
+function isLoopbackHostname(value: string) {
+  return (
+    value === "localhost" ||
+    value === "127.0.0.1" ||
+    value === "0.0.0.0" ||
+    value.startsWith("127.")
+  );
+}
+
+function getHostnameCandidate(value: string) {
+  return value.replace(/^\/+/, "").split("/")[0]?.split(":")[0] || "";
+}
+
 function normalizeUrl(value: string | undefined) {
-  return value?.trim().replace(/\/+$/, "") || "";
+  const trimmed = value?.trim() || "";
+  if (!trimmed) return "";
+
+  const protocol = isLoopbackHostname(getHostnameCandidate(trimmed)) ? "http" : "https";
+  const withProtocol = /^https?:\/\//i.test(trimmed)
+    ? trimmed
+    : `${protocol}://${trimmed.replace(/^\/+/, "")}`;
+
+  try {
+    return stripTrailingSlashes(new URL(withProtocol).toString());
+  } catch {
+    return "";
+  }
 }
 
 function isLoopbackHost(value: string) {
+  const normalized = normalizeUrl(value);
+  if (!normalized) return false;
+
   try {
-    const url = new URL(value);
-    return ["localhost", "127.0.0.1", "0.0.0.0"].includes(url.hostname);
+    return isLoopbackHostname(new URL(normalized).hostname);
   } catch {
     return false;
   }
@@ -31,16 +62,10 @@ export function getPublicAppUrl() {
   if (nextAuthUrl && !isLoopbackHost(nextAuthUrl)) return nextAuthUrl;
 
   const vercelProductionUrl = normalizeUrl(process.env.VERCEL_PROJECT_PRODUCTION_URL);
-  if (vercelProductionUrl) {
-    return /^https?:\/\//i.test(vercelProductionUrl)
-      ? vercelProductionUrl
-      : `https://${vercelProductionUrl}`;
-  }
+  if (vercelProductionUrl) return vercelProductionUrl;
 
   const vercelUrl = normalizeUrl(process.env.VERCEL_URL);
-  if (vercelUrl) {
-    return /^https?:\/\//i.test(vercelUrl) ? vercelUrl : `https://${vercelUrl}`;
-  }
+  if (vercelUrl) return vercelUrl;
 
   if (nextAuthUrl) return nextAuthUrl;
 

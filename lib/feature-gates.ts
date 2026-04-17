@@ -11,6 +11,16 @@ import {
   type FeatureUserContext,
 } from "@/lib/feature-gate-constants";
 
+type ApplicableFeatureScope = "USER" | "CHAPTER" | "ROLE" | "GLOBAL";
+type FeatureRuleSnapshot = Map<FeatureKey, Partial<Record<ApplicableFeatureScope, boolean>>>;
+
+const FEATURE_RULE_PRECEDENCE: ApplicableFeatureScope[] = [
+  "USER",
+  "CHAPTER",
+  "ROLE",
+  "GLOBAL",
+];
+
 function isKnownFeatureKey(value: string): value is FeatureKey {
   return FEATURE_KEYS.includes(value as FeatureKey);
 }
@@ -89,63 +99,89 @@ async function resolveFeatureRuleValue(
   featureKey: FeatureKey,
   userContext: FeatureUserContext
 ): Promise<boolean> {
+  const snapshot = await resolveFeatureRuleSnapshot(userContext);
+  return resolveFeatureEnabledFromSnapshot(featureKey, snapshot);
+}
+
+async function resolveFeatureRuleSnapshot(
+  userContext: FeatureUserContext
+): Promise<FeatureRuleSnapshot> {
   const now = new Date();
   const context = await resolveUserContext(userContext);
-  const commonWhere = activeWindowWhere(now);
+  const roles = Array.from(context.roleSet);
+  const scopeFilters: Prisma.FeatureGateRuleWhereInput[] = [{ scope: "GLOBAL" }];
 
   if (context.userId) {
-    const userRule = await prisma.featureGateRule.findFirst({
-      where: {
-        ...commonWhere,
-        featureKey,
-        scope: "USER",
-        userId: context.userId,
-      },
-      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+    scopeFilters.push({
+      scope: "USER",
+      userId: context.userId,
     });
-
-    if (userRule) return userRule.enabled;
   }
 
   if (context.chapterId) {
-    const chapterRule = await prisma.featureGateRule.findFirst({
-      where: {
-        ...commonWhere,
-        featureKey,
-        scope: "CHAPTER",
-        chapterId: context.chapterId,
-      },
-      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+    scopeFilters.push({
+      scope: "CHAPTER",
+      chapterId: context.chapterId,
     });
-
-    if (chapterRule) return chapterRule.enabled;
   }
 
-  const roles = Array.from(context.roleSet);
   if (roles.length > 0) {
-    const roleRule = await prisma.featureGateRule.findFirst({
-      where: {
-        ...commonWhere,
-        featureKey,
-        scope: "ROLE",
-        role: { in: roles as any },
-      },
-      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+    scopeFilters.push({
+      scope: "ROLE",
+      role: { in: roles as any },
     });
-
-    if (roleRule) return roleRule.enabled;
   }
 
-  const globalRule = await prisma.featureGateRule.findFirst({
+  const rules = await prisma.featureGateRule.findMany({
     where: {
-      ...commonWhere,
-      featureKey,
-      scope: "GLOBAL",
+      ...activeWindowWhere(now),
+      featureKey: { in: [...FEATURE_KEYS] },
+      OR: scopeFilters,
+    },
+    select: {
+      featureKey: true,
+      enabled: true,
+      scope: true,
     },
     orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
   });
 
-  if (globalRule) return globalRule.enabled;
+  const snapshot: FeatureRuleSnapshot = new Map();
+
+  for (const rule of rules) {
+    if (!isKnownFeatureKey(rule.featureKey)) {
+      continue;
+    }
+
+    const bucket = snapshot.get(rule.featureKey) ?? {};
+    const scope = rule.scope as ApplicableFeatureScope;
+
+    if (bucket[scope] !== undefined) {
+      continue;
+    }
+
+    bucket[scope] = rule.enabled;
+    snapshot.set(rule.featureKey, bucket);
+  }
+
+  return snapshot;
+}
+
+function resolveFeatureEnabledFromSnapshot(
+  featureKey: FeatureKey,
+  snapshot: FeatureRuleSnapshot
+): boolean {
+  const bucket = snapshot.get(featureKey);
+  if (!bucket) {
+    return defaultFeatureEnabled(featureKey);
+  }
+
+  for (const scope of FEATURE_RULE_PRECEDENCE) {
+    const enabled = bucket[scope];
+    if (enabled !== undefined) {
+      return enabled;
+    }
+  }
 
   return defaultFeatureEnabled(featureKey);
 }
@@ -172,14 +208,11 @@ export async function getEnabledFeatureKeysForUser(
   userContext: FeatureUserContext
 ): Promise<FeatureKey[]> {
   try {
-    const resolved = await Promise.all(
-      FEATURE_KEYS.map(async (featureKey) => ({
-        featureKey,
-        enabled: await resolveFeatureRuleValue(featureKey, userContext),
-      }))
-    );
+    const snapshot = await resolveFeatureRuleSnapshot(userContext);
 
-    return resolved.filter((entry) => entry.enabled).map((entry) => entry.featureKey);
+    return FEATURE_KEYS.filter((featureKey) =>
+      resolveFeatureEnabledFromSnapshot(featureKey, snapshot)
+    );
   } catch (error) {
     if (isMissingFeatureGateTableError(error)) {
       return FEATURE_KEYS.filter((featureKey) => defaultFeatureEnabled(featureKey));

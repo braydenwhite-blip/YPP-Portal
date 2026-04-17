@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition, useEffect, useCallback } from "react";
 import type { InstructorApp, Reviewer } from "./kanban-board";
 import {
@@ -8,6 +9,8 @@ import {
   assignReviewer,
   setActionDueDate,
   saveScoresAndNotes,
+  preApproveApplication,
+  offerInterviewSlots,
 } from "@/lib/instructor-application-actions";
 
 /* ── Score Bar ─────────────────────────────────────── */
@@ -64,6 +67,7 @@ function statusPillClass(status: string): string {
     case "SUBMITTED": return "status-pill submitted";
     case "UNDER_REVIEW": return "status-pill under-review";
     case "INFO_REQUESTED": return "status-pill info-requested";
+    case "PRE_APPROVED": return "status-pill interview-scheduled";
     case "INTERVIEW_SCHEDULED": return "status-pill interview-scheduled";
     case "INTERVIEW_COMPLETED": return "status-pill interview-completed";
     case "APPROVED": return "status-pill approved";
@@ -74,6 +78,7 @@ function statusPillClass(status: string): string {
 }
 
 function statusLabel(status: string): string {
+  if (status === "PRE_APPROVED") return "Pre-Approved";
   if (status === "INTERVIEW_SCHEDULED") return "Curriculum overview scheduled";
   if (status === "INTERVIEW_COMPLETED") return "Curriculum overview completed";
   return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -113,22 +118,26 @@ const RECOMMENDATION_OPTIONS = [
 export default function ApplicantDetailPanel({
   app,
   reviewers,
+  canPreApprove,
   onClose,
   onUpdate,
 }: {
   app: InstructorApp;
   reviewers: Reviewer[];
+  /** True only for ADMIN and HIRING_ADMIN roles — mirrors server-side auth in preApproveApplication. */
+  canPreApprove: boolean;
   onClose: () => void;
   onUpdate: (updated: Partial<InstructorApp> & { id: string }) => void;
 }) {
   // Local state for editable fields
   const [scores, setScores] = useState({
-    scoreAcademic: app.scoreAcademic,
+    scoreSubjectKnowledge: app.scoreSubjectKnowledge,
     scoreCommunication: app.scoreCommunication,
-    scoreLeadership: app.scoreLeadership,
-    scoreMotivation: app.scoreMotivation,
+    scoreTeachingMethodology: app.scoreTeachingMethodology,
+    scoreCurriculumAlignment: app.scoreCurriculumAlignment,
     scoreFit: app.scoreFit,
   });
+  const [curriculumReviewSummary, setCurriculumReviewSummary] = useState(app.curriculumReviewSummary || "");
   const [notes, setNotes] = useState(app.reviewerNotes || "");
   const [recommendation, setRecommendation] = useState(app.decisionRecommendation || "");
   const [dueDate, setDueDate] = useState(app.actionDueDate ? app.actionDueDate.slice(0, 10) : "");
@@ -137,21 +146,28 @@ export default function ApplicantDetailPanel({
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  // Offer slots state
+  type SlotDraft = { date: string; time: string; durationMinutes: number };
+  const emptySlot = (): SlotDraft => ({ date: "", time: "", durationMinutes: 60 });
+  const [offerSlots, setOfferSlots] = useState<SlotDraft[]>([emptySlot()]);
+  const [offerSending, setOfferSending] = useState(false);
+
   // Reset local state when app changes
   useEffect(() => {
     setScores({
-      scoreAcademic: app.scoreAcademic,
+      scoreSubjectKnowledge: app.scoreSubjectKnowledge,
       scoreCommunication: app.scoreCommunication,
-      scoreLeadership: app.scoreLeadership,
-      scoreMotivation: app.scoreMotivation,
+      scoreTeachingMethodology: app.scoreTeachingMethodology,
+      scoreCurriculumAlignment: app.scoreCurriculumAlignment,
       scoreFit: app.scoreFit,
     });
+    setCurriculumReviewSummary(app.curriculumReviewSummary || "");
     setNotes(app.reviewerNotes || "");
     setRecommendation(app.decisionRecommendation || "");
     setDueDate(app.actionDueDate ? app.actionDueDate.slice(0, 10) : "");
     setSelectedReviewer(app.reviewerId || "");
     setActionMessage(null);
-  }, [app.id, app.scoreAcademic, app.scoreCommunication, app.scoreLeadership, app.scoreMotivation, app.scoreFit, app.reviewerNotes, app.decisionRecommendation, app.actionDueDate, app.reviewerId]);
+  }, [app.id, app.scoreSubjectKnowledge, app.scoreCommunication, app.scoreTeachingMethodology, app.scoreCurriculumAlignment, app.scoreFit, app.curriculumReviewSummary, app.reviewerNotes, app.decisionRecommendation, app.actionDueDate, app.reviewerId]);
 
   // Close on Escape
   useEffect(() => {
@@ -170,9 +186,9 @@ export default function ApplicantDetailPanel({
   // Save scores & notes
   async function handleSaveScores() {
     setSaving(true);
-    const result = await saveScoresAndNotes(app.id, { ...scores, reviewerNotes: notes });
+    const result = await saveScoresAndNotes(app.id, { ...scores, curriculumReviewSummary, reviewerNotes: notes });
     if (result.success) {
-      onUpdate({ id: app.id, ...scores, reviewerNotes: notes });
+      onUpdate({ id: app.id, ...scores, curriculumReviewSummary, reviewerNotes: notes });
       showMessage("Scores saved");
     } else {
       showMessage(result.error || "Failed to save");
@@ -250,9 +266,60 @@ export default function ApplicantDetailPanel({
     }
   }
 
+  async function handlePreApprove() {
+    if (!confirm(`Pre-approve ${app.legalName || app.applicant.name}? This will unlock instructor training for them and send a pre-approval email.`)) return;
+    setSaving(true);
+    const result = await preApproveApplication(app.id);
+    if (result.success) {
+      onUpdate({ id: app.id, status: "PRE_APPROVED" });
+      showMessage("Application pre-approved — training unlocked");
+    } else {
+      showMessage(result.error || "Failed to pre-approve");
+    }
+    setSaving(false);
+  }
+
+  async function handleOfferSlots() {
+    const validSlots = offerSlots.filter((s) => s.date && s.time);
+    if (validSlots.length === 0) {
+      showMessage("Add at least one complete time slot before sending.");
+      return;
+    }
+    // Client-side past-date guard — server will also validate, but this gives
+    // immediate feedback without a round trip.
+    const now = new Date();
+    const pastSlots = validSlots.filter((s) => new Date(`${s.date}T${s.time}`) <= now);
+    if (pastSlots.length > 0) {
+      showMessage("All proposed times must be in the future.");
+      return;
+    }
+    const slots = validSlots.map((s) => ({
+      scheduledAt: new Date(`${s.date}T${s.time}`),
+      durationMinutes: s.durationMinutes,
+    }));
+    setOfferSending(true);
+    const result = await offerInterviewSlots(app.id, slots);
+    if (result.success) {
+      showMessage("Available times sent to applicant");
+      setOfferSlots([emptySlot()]);
+    } else {
+      showMessage(result.error || "Failed to send times");
+    }
+    setOfferSending(false);
+  }
+
   const displayName = app.legalName || app.applicant.name;
   const deadlineText = formatDeadlineDetail(app);
   const isFinal = app.status === "APPROVED" || app.status === "REJECTED";
+  const applicationWorkspaceHref = `/applications/instructor/${app.id}`;
+  const showInterviewWorkspaceLink = [
+    "INTERVIEW_SCHEDULED",
+    "INTERVIEW_COMPLETED",
+    "ON_HOLD",
+    "APPROVED",
+    "REJECTED",
+  ].includes(app.status);
+  const interviewWorkspaceHref = `${applicationWorkspaceHref}/interview`;
 
   return (
     <>
@@ -292,6 +359,23 @@ export default function ApplicantDetailPanel({
         )}
 
         <div className="slideout-body">
+          <div className="slideout-section">
+            <div className="slideout-section-title">Structured Workspace</div>
+            <p style={{ fontSize: 13, color: "var(--muted)", marginTop: 0, marginBottom: 10 }}>
+              Open the dedicated workspace for category-by-category review, lesson draft inspection, and the official next-step decision.
+            </p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <Link href={applicationWorkspaceHref} className="button secondary">
+                Open Application Review
+              </Link>
+              {showInterviewWorkspaceLink ? (
+                <Link href={interviewWorkspaceHref} className="button secondary">
+                  Open Interview Workspace
+                </Link>
+              ) : null}
+            </div>
+          </div>
+
           {/* Contact & Background */}
           <div className="slideout-section">
             <div className="slideout-section-title">Contact & Background</div>
@@ -330,12 +414,6 @@ export default function ApplicantDetailPanel({
                 <div className="slideout-field">
                   <div className="slideout-field-label">Graduation</div>
                   <div className="slideout-field-value">Class of {app.graduationYear}</div>
-                </div>
-              )}
-              {app.gpa && (
-                <div className="slideout-field">
-                  <div className="slideout-field-label">GPA</div>
-                  <div className="slideout-field-value">{app.gpa}</div>
                 </div>
               )}
               {app.hoursPerWeek && (
@@ -472,18 +550,28 @@ export default function ApplicantDetailPanel({
             )}
           </div>
 
-          {/* Scoring Rubric */}
+          {/* Curriculum Review Rubric */}
           <div className="slideout-section">
             <div className="slideout-section-title">
-              Evaluation Scores
+              Curriculum Review Scores
               <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, marginLeft: 8, fontSize: 11 }}>
-                Click blocks to score, click again to mark "Not Enough Info"
+                Click blocks to score · click again to clear
               </span>
             </div>
             <ScoreBar
-              label="Academic Standing"
-              value={scores.scoreAcademic}
-              onChange={(v) => setScores((s) => ({ ...s, scoreAcademic: v }))}
+              label="Subject Matter Knowledge"
+              value={scores.scoreSubjectKnowledge}
+              onChange={(v) => setScores((s) => ({ ...s, scoreSubjectKnowledge: v }))}
+            />
+            <ScoreBar
+              label="Teaching Methodology"
+              value={scores.scoreTeachingMethodology}
+              onChange={(v) => setScores((s) => ({ ...s, scoreTeachingMethodology: v }))}
+            />
+            <ScoreBar
+              label="Curriculum Alignment"
+              value={scores.scoreCurriculumAlignment}
+              onChange={(v) => setScores((s) => ({ ...s, scoreCurriculumAlignment: v }))}
             />
             <ScoreBar
               label="Communication"
@@ -491,20 +579,22 @@ export default function ApplicantDetailPanel({
               onChange={(v) => setScores((s) => ({ ...s, scoreCommunication: v }))}
             />
             <ScoreBar
-              label="Leadership"
-              value={scores.scoreLeadership}
-              onChange={(v) => setScores((s) => ({ ...s, scoreLeadership: v }))}
-            />
-            <ScoreBar
-              label="Motivation"
-              value={scores.scoreMotivation}
-              onChange={(v) => setScores((s) => ({ ...s, scoreMotivation: v }))}
-            />
-            <ScoreBar
               label="Cultural Fit"
               value={scores.scoreFit}
               onChange={(v) => setScores((s) => ({ ...s, scoreFit: v }))}
             />
+            <div style={{ marginTop: 12 }}>
+              <div className="slideout-field-label" style={{ marginBottom: 4 }}>Curriculum Review Summary</div>
+              <textarea
+                className="input"
+                value={curriculumReviewSummary}
+                onChange={(e) => setCurriculumReviewSummary(e.target.value)}
+                rows={3}
+                placeholder="Key takeaways from the curriculum review session — teaching approach, subject knowledge, alignment with YPP curriculum..."
+                style={{ marginBottom: 0 }}
+                disabled={isFinal}
+              />
+            </div>
           </div>
 
           {/* Reviewer Notes */}
@@ -546,6 +636,75 @@ export default function ApplicantDetailPanel({
             </div>
           </div>
 
+          {/* Offer Times (visible when INTERVIEW_SCHEDULED) */}
+          {app.status === "INTERVIEW_SCHEDULED" && (
+            <div className="slideout-section">
+              <div className="slideout-section-title">Propose Times for Curriculum Overview/Interview</div>
+              <p style={{ fontSize: 13, color: "var(--muted)", marginTop: 0, marginBottom: 10 }}>
+                Add 1–4 times for the coming week. The applicant will receive an email and pick the one that works for them.
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {offerSlots.map((slot, i) => (
+                  <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <input
+                      type="date"
+                      className="input"
+                      value={slot.date}
+                      onChange={(e) => setOfferSlots((prev) => prev.map((s, idx) => idx === i ? { ...s, date: e.target.value } : s))}
+                      style={{ maxWidth: 150, marginBottom: 0 }}
+                    />
+                    <input
+                      type="time"
+                      className="input"
+                      value={slot.time}
+                      onChange={(e) => setOfferSlots((prev) => prev.map((s, idx) => idx === i ? { ...s, time: e.target.value } : s))}
+                      style={{ maxWidth: 120, marginBottom: 0 }}
+                    />
+                    <select
+                      className="input"
+                      value={slot.durationMinutes}
+                      onChange={(e) => setOfferSlots((prev) => prev.map((s, idx) => idx === i ? { ...s, durationMinutes: Number(e.target.value) } : s))}
+                      style={{ maxWidth: 110, marginBottom: 0 }}
+                    >
+                      <option value={30}>30 min</option>
+                      <option value={45}>45 min</option>
+                      <option value={60}>60 min</option>
+                      <option value={90}>90 min</option>
+                    </select>
+                    {offerSlots.length > 1 && (
+                      <button
+                        className="button secondary"
+                        onClick={() => setOfferSlots((prev) => prev.filter((_, idx) => idx !== i))}
+                        style={{ fontSize: 11, padding: "4px 10px", marginBottom: 0 }}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                {offerSlots.length < 4 && (
+                  <button
+                    className="button secondary"
+                    onClick={() => setOfferSlots((prev) => [...prev, emptySlot()])}
+                    style={{ fontSize: 12 }}
+                  >
+                    + Add Time Slot
+                  </button>
+                )}
+                <button
+                  className="button"
+                  onClick={handleOfferSlots}
+                  disabled={offerSending}
+                  style={{ fontSize: 12 }}
+                >
+                  {offerSending ? "Sending..." : "Send Times to Applicant"}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Quick Actions */}
           {!isFinal && (
             <div className="slideout-section">
@@ -559,6 +718,16 @@ export default function ApplicantDetailPanel({
                     style={{ fontSize: 12 }}
                   >
                     Begin Review
+                  </button>
+                )}
+                {(app.status === "UNDER_REVIEW" || app.status === "INFO_REQUESTED") && canPreApprove && (
+                  <button
+                    className="button secondary"
+                    onClick={handlePreApprove}
+                    disabled={saving}
+                    style={{ fontSize: 12, color: "#6b21c8", borderColor: "#6b21c8" }}
+                  >
+                    Pre-Approve
                   </button>
                 )}
                 {app.status === "ON_HOLD" && (

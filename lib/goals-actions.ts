@@ -1,3 +1,10 @@
+/**
+ * @deprecated LEGACY MODULE — do not add new server actions here.
+ * This module operates against the legacy Goal / GoalTemplate / ProgressUpdate models
+ * which are frozen pending Phase 1 migration. New code should use
+ * lib/goal-review-actions.ts (MentorGoalReview) and lib/self-reflection-actions.ts
+ * (MonthlySelfReflection) instead.
+ */
 "use server";
 
 import { prisma } from "@/lib/prisma";

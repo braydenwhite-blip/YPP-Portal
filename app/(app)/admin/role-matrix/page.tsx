@@ -7,8 +7,8 @@ export const metadata = { title: "Role Matrix Audit" };
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: "Admin",
-  CHAPTER_PRESIDENT: "Lead",
-  INSTRUCTOR: "Instr",
+  CHAPTER_PRESIDENT: "Chapter President",
+  INSTRUCTOR: "Instructor",
   MENTOR: "Mentor",
   STUDENT: "Student",
   STAFF: "Staff",

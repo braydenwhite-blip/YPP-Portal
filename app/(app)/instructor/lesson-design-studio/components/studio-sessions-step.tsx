@@ -288,41 +288,7 @@ export function StudioSessionsStep({
   const materialsCount = selectedWeek.materialsChecklist.length;
 
   return (
-    <section className="lds-step-layout wide">
-      <div className="lds-session-roadmap-card">
-        <div className="lds-step-card-header">
-          <div>
-            <p className="lds-section-eyebrow">Course roadmap</p>
-            <h2 className="lds-section-title">Sessions</h2>
-          </div>
-        </div>
-        <div className="lds-session-roadmap">
-          {weeklyPlans.map((week) => {
-            const isSelected = week.id === selectedWeek.id;
-            const weekCoaching = buildSessionCoaching(week);
-            const label = buildSessionLabel(week, courseConfig);
-            const isReady = weekCoaching.length === 0;
-
-            return (
-              <button
-                key={week.id}
-                type="button"
-                className={`lds-session-roadmap-item${isSelected ? " active" : ""}`}
-                onClick={() => onSelectWeek(week.id)}
-              >
-                <span className="lds-session-roadmap-label">{label}</span>
-                <strong>{week.title || "Untitled session"}</strong>
-                <span className={`lds-session-roadmap-status${isReady ? " ready" : " notes"}`}>
-                  {isReady
-                    ? "✓ Ready"
-                    : `${weekCoaching.length} note${weekCoaching.length === 1 ? "" : "s"}`}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
+    <section className="lds-step-layout">
       <div className="lds-step-main">
         <section className="lds-step-card">
           <div className="lds-step-card-header">
@@ -350,6 +316,32 @@ export function StudioSessionsStep({
                 Continue to readiness
               </button>
             </div>
+          </div>
+
+          <div className="lds-session-roadmap-inline">
+            {weeklyPlans.map((week) => {
+              const isSelected = week.id === selectedWeek.id;
+              const weekCoaching = buildSessionCoaching(week);
+              const label = buildSessionLabel(week, courseConfig);
+              const isReady = weekCoaching.length === 0;
+
+              return (
+                <button
+                  key={week.id}
+                  type="button"
+                  className={`lds-session-roadmap-item${isSelected ? " active" : ""}`}
+                  onClick={() => onSelectWeek(week.id)}
+                >
+                  <span className="lds-session-roadmap-label">{label}</span>
+                  <strong>{week.title || "Untitled session"}</strong>
+                  <span className={`lds-session-roadmap-status${isReady ? " ready" : " notes"}`}>
+                    {isReady
+                      ? "✓ Ready"
+                      : `${weekCoaching.length} note${weekCoaching.length === 1 ? "" : "s"}`}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
           {blockers.length > 0 ? (

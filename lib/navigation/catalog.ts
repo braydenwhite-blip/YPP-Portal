@@ -128,6 +128,7 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 9,
     },
     { href: "/feedback/anonymous", label: "Anonymous Feedback", icon: "💬" },
+    { href: "/help", label: "Need help?", icon: "❓" },
   ]),
 
   ...groupLinks("Learning", 300, [
@@ -336,33 +337,17 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/mentorship",
       label: "Mentorship",
       icon: "🤝",
-      roles: MENTOR_ROLES,
-      searchAliases: ["Support Hub", "Mentor Workspace"],
-      dashboardDescription: "Open the mentor and operator workspace for circles, queues, and support operations.",
+      roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN", "INSTRUCTOR", "STAFF"] as NavRole[],
+      searchAliases: ["My Mentor", "Support Hub", "Mentor Dashboard", "Monthly Reflection"],
+      dashboardDescription: "Your mentorship dashboard — Kanban for mentors, goals and feedback for mentees.",
       dashboardPriority: 16,
-    },
-    {
-      href: "/mentorship/mentees",
-      label: "My Mentees",
-      icon: "👥",
-      roles: MENTOR_ROLES,
-      dashboardDescription: "Review mentee progress and follow-up needs.",
-      dashboardPriority: 5,
-      dashboardBadgeKey: "active_mentees",
-    },
-    {
-      href: "/mentorship/reviews",
-      label: "Chair Reviews",
-      icon: "✅",
-      roles: MENTOR_ROLES,
-      dashboardDescription: "Approve or return monthly goal reviews waiting on chair action.",
-      dashboardPriority: 6,
     },
     {
       href: "/mentorship/unlock-sections",
       label: "Unlock Sections",
       icon: "🔓",
       roles: MENTOR_ROLES,
+      featureKey: "MENTORSHIP_LEGACY_UI",
       dashboardDescription: "Manage which portal sections your mentees can access.",
       dashboardPriority: 18,
     },
@@ -388,6 +373,7 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Program Overview",
       icon: "📋",
       roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
+      featureKey: "MENTORSHIP_LEGACY_UI",
       dashboardDescription: "View all active mentees, cycle status, and program-wide actions at a glance.",
     },
     {
@@ -395,6 +381,7 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Review Queue",
       icon: "📝",
       roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
+      featureKey: "MENTORSHIP_LEGACY_UI",
       dashboardDescription: "Write and submit monthly goal reviews for your assigned mentees.",
     },
     {
@@ -402,6 +389,7 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Chair Queue",
       icon: "✅",
       roles: ["ADMIN"] as NavRole[],
+      featureKey: "MENTORSHIP_LEGACY_UI",
       dashboardDescription: "Approve or request changes on mentor goal reviews before they are released.",
     },
     {
@@ -409,6 +397,7 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Awards",
       icon: "🏆",
       roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
+      featureKey: "MENTORSHIP_LEGACY_UI",
       dashboardDescription: "Nominate mentees for Bronze, Silver, Gold, and Lifetime achievement awards.",
     },
     {
@@ -453,6 +442,7 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Meeting Requests",
       icon: "📨",
       roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
+      featureKey: "MENTORSHIP_LEGACY_UI",
       dashboardDescription: "Review and confirm incoming meeting requests from your mentees.",
     },
     {
@@ -884,7 +874,15 @@ export const NAV_CATALOG: NavLink[] = [
       icon: "🚨",
       roles: ADMIN_ONLY,
     },
-    { href: "/admin/mentorship-program", label: "Mentorship Command Center", icon: "🎯", roles: ADMIN_ONLY },
+    {
+      href: "/admin/mentorship",
+      label: "Mentorship Oversight",
+      icon: "🎯",
+      roles: ADMIN_ONLY,
+      dashboardDescription: "Program pulse, approval queues, pairings, goals, and committees.",
+      dashboardPriority: 4,
+    },
+    { href: "/admin/mentorship-program", label: "Mentorship Command Center", icon: "🎯", roles: ADMIN_ONLY, featureKey: "MENTORSHIP_LEGACY_UI" },
     {
       href: "/admin/mentorship-program/gr-templates",
       label: "G&R Templates",

@@ -7,6 +7,9 @@ import { buildContextTrail } from "@/lib/context-trail";
 import { formatEnum } from "@/lib/format-utils";
 import { updateMentorshipActionItemStatus } from "@/lib/mentorship-hub-actions";
 import { getMyProgramHubData } from "@/lib/my-program-portal";
+import { DeadlineChip } from "@/components/mentorship/deadline-chip";
+import { ReviewSpine } from "@/components/mentorship/review-spine";
+import { getReviewSpineForMentee } from "@/lib/mentorship-cycle";
 
 export const metadata = { title: "My Program" };
 
@@ -125,6 +128,119 @@ export default async function MyProgramPage({
       ) : null}
 
       <ContextTrail items={trailItems} />
+
+      {hub.flags.isProgramParticipant && hub.programReflection?.available && (() => {
+        const pr = hub.programReflection!;
+        const now = new Date();
+        const currentMonthLabel = now.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+        const latest = pr.latestReflection;
+        const latestIsThisMonth =
+          latest &&
+          new Date(latest.cycleMonth).getFullYear() === now.getFullYear() &&
+          new Date(latest.cycleMonth).getMonth() === now.getMonth();
+
+        if (!latestIsThisMonth) {
+          // Reflection not yet submitted this cycle
+          return (
+            <div
+              className="card"
+              style={{
+                marginBottom: 20,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 16,
+                flexWrap: "wrap",
+                borderLeft: "4px solid #6366f1",
+                background: "linear-gradient(135deg, #eef2ff 0%, #f8f9ff 100%)",
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 700, marginBottom: 4, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  Your {currentMonthLabel} self-reflection is due
+                  <DeadlineChip
+                    softDeadline={new Date(now.getFullYear(), now.getMonth(), 21)}
+                  />
+                </div>
+                <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
+                  Cycle {pr.nextCycle} &middot; Submit before the end of the month so your mentor can write your review on time.
+                </p>
+              </div>
+              <Link href="/my-program/reflect" className="button primary small" style={{ whiteSpace: "nowrap" }}>
+                Start Reflection →
+              </Link>
+            </div>
+          );
+        }
+
+        if (latest && !latest.hasReleasedReview) {
+          // Submitted, awaiting mentor review
+          return (
+            <div
+              className="card"
+              style={{
+                marginBottom: 20,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 16,
+                flexWrap: "wrap",
+                borderLeft: "4px solid #22c55e",
+                background: "linear-gradient(135deg, #f0fdf4 0%, #f8fff9 100%)",
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>
+                  {currentMonthLabel} reflection submitted ✓
+                </div>
+                <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
+                  Cycle {latest.cycleNumber} &middot; Waiting on your mentor&apos;s review.
+                </p>
+              </div>
+            </div>
+          );
+        }
+
+        if (latest?.hasReleasedReview) {
+          // Review released — link to it
+          return (
+            <div
+              className="card"
+              style={{
+                marginBottom: 20,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 16,
+                flexWrap: "wrap",
+                borderLeft: "4px solid #3b82f6",
+                background: "linear-gradient(135deg, #eff6ff 0%, #f8faff 100%)",
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>
+                  Your {currentMonthLabel} review is available
+                </div>
+                <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
+                  Cycle {latest.cycleNumber} &middot; Your mentor&apos;s review has been released.
+                </p>
+              </div>
+              <Link href={`/my-program/reflect/${latest.id}`} className="button secondary small" style={{ whiteSpace: "nowrap" }}>
+                View Review →
+              </Link>
+            </div>
+          );
+        }
+
+        return null;
+      })()}
+
+      {hub.flags.isProgramParticipant && (
+        <ReviewSpine
+          cycles={await getReviewSpineForMentee(session.user.id)}
+          title="Your cycle timeline"
+        />
+      )}
 
       <section className="card" style={{ marginBottom: 24 }}>
         <div

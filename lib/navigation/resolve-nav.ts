@@ -5,12 +5,17 @@ import {
   STUDENT_V1_ALLOWED_HREFS,
   shouldApplyStudentV1NavFilter,
 } from "@/lib/navigation/student-v1-allowlist";
+import { APPLICANT_ALLOWED_HREFS } from "@/lib/navigation/applicant-allowlist";
 import {
   applyStudentMinimalSidebarLayout,
   studentMinimalLinkOrderIndex,
 } from "@/lib/navigation/student-v1-nav-layout";
 import type { NavGroup, NavLink, NavRole, NavViewModel } from "@/lib/navigation/types";
 import { normalizeAdminSubtypes } from "@/lib/admin-subtypes";
+export {
+  isNavHrefActive,
+  resolveNavActiveHref,
+} from "@/lib/navigation/is-active";
 
 const AWARD_TIERS = new Set(["BRONZE", "SILVER", "GOLD"]);
 const CRITICAL_CORE_LINKS = ["/messages"];
@@ -315,57 +320,6 @@ function sortLinksForRole(links: NavLink[], primaryRole: NavRole): NavLink[] {
   });
 }
 
-function pathMatchesHref(pathname: string, href: string): boolean {
-  if (href === "/") return pathname === "/";
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
-function profileMergedIntoPersonalizationActive(
-  pathname: string,
-  candidateHrefs: readonly string[],
-): boolean {
-  if (candidateHrefs.includes("/profile")) return false;
-  if (pathname === "/profile") return true;
-  return pathname.startsWith("/profile/") && !pathname.startsWith("/profile/timeline");
-}
-
-function navHrefMatchesPathnameForActive(
-  pathname: string,
-  href: string,
-  candidateHrefs: readonly string[],
-): boolean {
-  if (pathMatchesHref(pathname, href)) return true;
-  if (
-    href === "/settings/personalization" &&
-    profileMergedIntoPersonalizationActive(pathname, candidateHrefs)
-  ) {
-    return true;
-  }
-  return false;
-}
-
-/**
- * Among all visible nav links, returns the single best-matching href for the current pathname
- * (longest prefix / most specific). Prevents both `/profile` and `/profile/timeline` from
- * highlighting when only one page is open.
- *
- * When `/profile` is not in the nav (student minimal IA), `/profile` and nested profile routes
- * except Journey (`/profile/timeline`) count as active for `/settings/personalization`.
- */
-export function resolveNavActiveHref(pathname: string, candidateHrefs: readonly string[]): string | null {
-  const uniq = Array.from(
-    new Set(candidateHrefs.filter((h): h is string => typeof h === "string" && h.length > 0 && h !== "#")),
-  );
-  const matches = uniq.filter((href) => navHrefMatchesPathnameForActive(pathname, href, candidateHrefs));
-  if (matches.length === 0) return null;
-  return matches.reduce((best, h) => (h.length > best.length ? h : best));
-}
-
-/** True if pathname is this route or a nested segment under it (used for legacy checks). */
-export function isNavHrefActive(href: string, pathname: string): boolean {
-  return pathMatchesHref(pathname, href);
-}
-
 function addOrReplaceCoreItem(core: NavLink[], item: NavLink, limit: number): void {
   if (core.some((entry) => entry.href === item.href)) return;
   if (core.length < limit) {
@@ -450,6 +404,10 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
 
   if (shouldApplyStudentV1NavFilter(primaryRole, input.studentFullPortalExplorer)) {
     visible = visible.filter((item) => STUDENT_V1_ALLOWED_HREFS.has(item.href));
+  }
+
+  if (primaryRole === "APPLICANT") {
+    visible = visible.filter((item) => APPLICANT_ALLOWED_HREFS.has(item.href));
   }
 
   const studentMinimalSidebar =

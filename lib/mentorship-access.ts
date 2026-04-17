@@ -1,7 +1,25 @@
 import { prisma } from "@/lib/prisma";
 
+const MENTOR_CAPACITY_SOFT_CAP = 3;
+
 function hasRole(roles: string[], role: string) {
   return roles.includes(role);
+}
+
+export function canAccessMentorship(primaryRole: string): boolean {
+  return primaryRole !== "STUDENT" && primaryRole !== "APPLICANT" && primaryRole !== "PARENT";
+}
+
+export async function getMentorCapacityStatus(mentorId: string) {
+  const count = await prisma.mentorship.count({
+    where: { mentorId, status: "ACTIVE" },
+  });
+  return {
+    current: count,
+    cap: MENTOR_CAPACITY_SOFT_CAP,
+    isAtCapacity: count >= MENTOR_CAPACITY_SOFT_CAP,
+    isOverCapacity: count > MENTOR_CAPACITY_SOFT_CAP,
+  };
 }
 
 export async function getMentorshipAccessibleMenteeIds(

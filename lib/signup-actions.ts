@@ -119,8 +119,6 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
         countryOther: getString(formData, "countryOther", false),
         schoolName: getString(formData, "schoolName", false),
         graduationYear: graduationYearRaw ? parseInt(graduationYearRaw, 10) : undefined,
-        gpa: getString(formData, "gpa", false),
-        classRank: getString(formData, "classRank", false),
         subjectsOfInterest: getString(formData, "subjectsOfInterest", false),
         motivation: getString(formData, "motivation", false),
         motivationVideoUrl: getString(formData, "motivationVideoUrl", false),
@@ -129,7 +127,6 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
         availability: getString(formData, "availability", false),
         hoursPerWeek: hoursPerWeekRaw ? parseInt(hoursPerWeekRaw, 10) : undefined,
         preferredStartDate: getString(formData, "preferredStartDate", false),
-        ethnicity: getString(formData, "ethnicity", false),
       });
 
       if (!validation.success) {
@@ -164,9 +161,9 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
       },
     });
 
-    if (authError) {
-      console.error("[Signup] Supabase auth error:", authError.message);
-      return { status: "error", message: "Something went wrong. Please try again." };
+    if (authError || !authData.user?.id) {
+      console.error("[Signup] Supabase user creation failed:", authError ?? "createUser returned no user ID");
+      return { status: "error", message: "Something went wrong creating your account. Please try again." };
     }
 
     const newUser = await upsertPortalUser({
@@ -184,7 +181,7 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
         data: {
           applicantId: newUser.id,
           motivation: instructorApplicationInput.motivation || null,
-          motivationVideoUrl: instructorApplicationInput.motivationVideoUrl,
+          motivationVideoUrl: instructorApplicationInput.motivationVideoUrl || null,
           teachingExperience: instructorApplicationInput.teachingExperience,
           availability: instructorApplicationInput.availability,
           legalName: instructorApplicationInput.legalName,
@@ -201,25 +198,33 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
               : instructorApplicationInput.country,
           schoolName: instructorApplicationInput.schoolName,
           graduationYear: instructorApplicationInput.graduationYear,
-          gpa: instructorApplicationInput.gpa || null,
-          classRank: instructorApplicationInput.classRank || null,
           subjectsOfInterest: instructorApplicationInput.subjectsOfInterest || null,
           referralEmails: instructorApplicationInput.referralEmails || null,
           hoursPerWeek: instructorApplicationInput.hoursPerWeek,
           preferredStartDate: instructorApplicationInput.preferredStartDate || null,
-          ethnicity: instructorApplicationInput.ethnicity || null,
         },
       });
       await syncInstructorApplicationWorkflow(application.id);
     }
 
-    // Notify reviewers of new applicant (non-blocking)
+    // Notify reviewers + send welcome email to applicant (both non-blocking)
     if (primaryRole === RoleType.APPLICANT) {
       try {
         const { notifyReviewersOfNewApplication } = await import("@/lib/instructor-application-actions");
         await notifyReviewersOfNewApplication(newUser.id);
       } catch (notifyError) {
         console.error("[Signup] Failed to notify reviewers:", notifyError);
+      }
+      try {
+        const { sendInstructorApplicationSubmittedEmail } = await import("@/lib/email");
+        const { toAbsoluteAppUrl } = await import("@/lib/public-app-url");
+        await sendInstructorApplicationSubmittedEmail({
+          to: email,
+          applicantName: name,
+          statusUrl: toAbsoluteAppUrl("/application-status"),
+        });
+      } catch (emailError) {
+        console.error("[Signup] Failed to send applicant confirmation email:", emailError);
       }
       return {
         status: "success",
@@ -232,6 +237,7 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
       message: "ACCOUNT_CREATED"
     };
   } catch (error) {
+    console.error("[Signup] Unexpected signup error:", error);
     return {
       status: "error",
       message: "Something went wrong. Please try again."
