@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node ./node_modules/next/dist/bin/next dev",
-    "build": "node scripts/maybe-db-sync.mjs && rm -rf .next node_modules/.prisma && prisma generate && node --max-old-space-size=6144 ./node_modules/next/dist/bin/next build",
+    "build": "node scripts/maybe-db-sync.mjs && node scripts/clean-build-dirs.mjs && prisma generate && node --max-old-space-size=6144 ./node_modules/next/dist/bin/next build",
     "vercel-build": "npm run build",
     "postinstall": "prisma generate",
     "start": "node ./node_modules/next/dist/bin/next start",

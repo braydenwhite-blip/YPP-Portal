@@ -82,6 +82,16 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 1,
     },
     {
+      href: "/admin",
+      label: "Administration",
+      icon: "🛠",
+      roles: ADMIN_ONLY,
+      dashboardDescription:
+        "Open the admin hub for hiring, programs, content, analytics, and platform operations.",
+      dashboardPriority: 2,
+      coreEligible: true,
+    },
+    {
       href: "/interviews",
       label: "Interviews",
       icon: "🎤",
@@ -205,6 +215,15 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Monthly Reflection",
       icon: "📝",
       roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT"],
+      hideForPrimaryRoles: ["ADMIN"],
+    },
+    {
+      href: "/admin/reflections",
+      label: "Reflection reviews",
+      icon: "💭",
+      roles: ADMIN_ONLY,
+      dashboardDescription: "Review staff and instructor self-reflection submissions.",
+      dashboardPriority: 9,
     },
     {
       href: "/instructor-training",
@@ -639,6 +658,14 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 24,
     },
     {
+      href: "/admin/chapters",
+      label: "Chapter directory",
+      icon: "🏢",
+      roles: ADMIN_ONLY,
+      dashboardDescription: "Manage chapters, membership, and network-wide chapter settings in one place.",
+      dashboardPriority: 3,
+    },
+    {
       href: "/chapter/settings",
       label: "Chapter Settings",
       icon: "⚙️",
@@ -820,7 +847,6 @@ export const NAV_CATALOG: NavLink[] = [
     { href: "/admin/programs", label: "Manage Programs", icon: "📦", roles: ADMIN_ONLY },
     { href: "/admin/training", label: "Training Modules", icon: "🏫", roles: ADMIN_ONLY },
     { href: "/admin/goals", label: "Goals", icon: "🎯", roles: ADMIN_ONLY },
-    { href: "/admin/reflections", label: "Self-Reflections", icon: "💭", roles: ADMIN_ONLY },
     { href: "/admin/reflection-forms", label: "Reflection Forms", icon: "📋", roles: ADMIN_ONLY },
     { href: "/admin/challenges", label: "Challenges Mgmt", icon: "⚡", roles: ["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"] },
     { href: "/admin/activities", label: "Activities Mgmt", icon: "🧭", roles: ["ADMIN", "INSTRUCTOR", "CHAPTER_PRESIDENT"] },
@@ -847,7 +873,6 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 22,
     },
     { href: "/admin/chapter-reports", label: "Chapter Reports", icon: "📊", roles: ADMIN_ONLY },
-    { href: "/admin/chapters", label: "All Chapters", icon: "🏢", roles: ADMIN_ONLY },
     { href: "/admin/pathway-tracking", label: "Pathway Tracking", icon: "🛤", roles: ADMIN_ONLY },
     { href: "/admin/pathways", label: "Manage Pathways", icon: "🗺", roles: ADMIN_ONLY },
     { href: "/admin/audit-log", label: "Audit Log", icon: "🗒", roles: ADMIN_ONLY },

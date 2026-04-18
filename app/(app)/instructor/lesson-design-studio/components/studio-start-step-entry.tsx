@@ -9,7 +9,6 @@ interface StudioStartStepEntryProps {
   hasStartedDraft: boolean;
   onApplyStarterScaffold: (seed: SeedCurriculum) => void;
   onMoveForward: () => void;
-  onOpenStarterTour: () => void;
   onOpenQuickStartWizard: () => void;
 }
 
@@ -36,7 +35,6 @@ export function StudioStartStepEntry({
   hasStartedDraft,
   onApplyStarterScaffold,
   onMoveForward,
-  onOpenStarterTour,
   onOpenQuickStartWizard,
 }: StudioStartStepEntryProps) {
   const recommendedScaffoldId =
@@ -59,7 +57,6 @@ export function StudioStartStepEntry({
       hasStartedDraft={hasStartedDraft}
       onApplyStarterScaffold={onApplyStarterScaffold}
       onMoveForward={onMoveForward}
-      onOpenStarterTour={onOpenStarterTour}
       onOpenQuickStartWizard={onOpenQuickStartWizard}
     />
   );

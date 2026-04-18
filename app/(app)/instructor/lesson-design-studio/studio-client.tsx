@@ -305,7 +305,6 @@ export function StudioClient({
 }: StudioClientProps) {
   const router = useRouter();
   const historyStorageKey = `lds_history_${draft.id}`;
-  const onboardingStorageKey = `lds_onboarding_done_${userId}_${draft.id}`;
 
   const [title, setTitle] = useState(draft.title);
   const [description, setDescription] = useState(draft.description);
@@ -1679,12 +1678,12 @@ export function StudioClient({
             Tips
           </button>
         ) : null}
-        {isDraftEditable && historyVersions.length > 0 ? (
+        {isDraftEditable ? (
           <button
             type="button"
             className="button secondary"
             aria-label="Draft history"
-            title="Draft history"
+            title="Open saved versions from this browser (after auto-save)"
             onClick={() => setShowHistory(true)}
           >
             Log

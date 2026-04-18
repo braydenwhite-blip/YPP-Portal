@@ -8735,6 +8735,8 @@
 
 .cbs-studio .lds-guided-shell {
   gap: 22px;
+  /* Keep native controls/scrollbars on the light studio theme for all users (OS dark mode). */
+  color-scheme: light;
 }
 
 .cbs-studio .lds-guided-workbench {

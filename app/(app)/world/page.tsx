@@ -1,19 +1,14 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { Suspense } from "react";
-import dynamic from "next/dynamic";
 import { getWorldData } from "@/lib/world-actions";
 import Link from "next/link";
 import {
   WorldErrorBoundary,
   WorldLoadingSkeleton,
 } from "@/components/world/world-loading";
+import { PassionWorldDynamic } from "@/components/world/passion-world-dynamic";
 import { isFeatureEnabledForUser } from "@/lib/feature-gates";
-
-const PassionWorld = dynamic(
-  () => import("@/components/world/passion-world"),
-  { ssr: false, loading: () => <WorldLoadingSkeleton /> },
-);
 
 export const metadata = {
   title: "The Passion World | YPP",
@@ -22,7 +17,7 @@ export const metadata = {
 
 async function WorldContent() {
   const data = await getWorldData();
-  return <PassionWorld data={data} />;
+  return <PassionWorldDynamic data={data} />;
 }
 
 export default async function WorldPage() {

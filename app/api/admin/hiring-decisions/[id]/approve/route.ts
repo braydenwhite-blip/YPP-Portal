@@ -17,8 +17,9 @@ function errorStatus(message: string) {
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await getSession();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -33,7 +34,7 @@ export async function POST(
   const chairNote = typeof body.chairNote === "string" ? body.chairNote : undefined;
 
   try {
-    await approveHiringDecision(params.id, session.user.id, chairNote);
+    await approveHiringDecision(id, session.user.id, chairNote);
     return NextResponse.json({ ok: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to approve decision.";

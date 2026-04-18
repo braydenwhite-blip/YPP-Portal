@@ -19,6 +19,7 @@ import {
 } from "@/lib/navigation/student-v1-nav-layout";
 import type { NavGroup, NavLink, NavRole, NavViewModel } from "@/lib/navigation/types";
 import { normalizeAdminSubtypes } from "@/lib/admin-subtypes";
+import { applyAdminPrimarySidebarFilter } from "@/lib/navigation/admin-primary-nav-filter";
 
 const AWARD_TIERS = new Set(["BRONZE", "SILVER", "GOLD"]);
 const CRITICAL_CORE_LINKS = ["/messages"];
@@ -33,6 +34,9 @@ const ALWAYS_HIDDEN_HREFS = new Set([
   /** Hidden until product is ready; page remains reachable by URL. */
   "/instructor/mentee-health",
 ]);
+
+/** Shown in the primary admin sidebar without subtype gating (full RBAC still applies on the page). */
+const ADMIN_NAV_UNIVERSAL_HREFS = new Set<string>(["/admin", "/admin/reflections", "/admin/chapters"]);
 
 const ADMIN_LINKS_BY_SUBTYPE = {
   SUPER_ADMIN: [
@@ -112,18 +116,12 @@ const GROUP_ORDER_BY_ROLE: RoleGroupOrder = {
   ],
   ADMIN: [
     "Start Here",
-    "Admin People",
-    "Admin Content",
-    "Admin Reports",
-    "Admin Operations",
-    "Progress",
     "Learning",
+    "Progress",
     "People & Support",
     "Chapters",
     "Opportunities",
     "Profile & Settings",
-    "Challenges",
-    "Projects",
     "Family",
   ],
   CHAPTER_PRESIDENT: [
@@ -299,6 +297,8 @@ function hasAdminSubtypeAccess(item: NavLink, roles: NavRole[], adminSubtypes: s
   if (hasNonAdminRoleAccess(item, roles)) return true;
   if (!requiresAdminSubtypeFiltering(item)) return true;
 
+  if (ADMIN_NAV_UNIVERSAL_HREFS.has(item.href)) return true;
+
   const normalizedSubtypes = normalizeAdminSubtypes(adminSubtypes);
   const allowedHrefs = new Set<string>();
   for (const subtype of normalizedSubtypes) {
@@ -468,6 +468,8 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
     }),
     primaryRole,
   );
+
+  visible = applyAdminPrimarySidebarFilter(visible, primaryRole);
 
   if (shouldApplyStudentV1NavFilter(primaryRole, input.studentFullPortalExplorer)) {
     visible = visible.filter((item) => STUDENT_V1_ALLOWED_HREFS.has(item.href));

@@ -398,7 +398,7 @@ export default function Nav({
                       </button>
 
                       {!isLocked && groupOpen ? (
-                        <div className="nav-more-group-items">{group.items.map(renderNavLink)}</div>
+                        <div className="nav-more-group-items">{group.items.map((item) => renderNavLink(item))}</div>
                       ) : null}
                       {isLocked ? (
                         <p className="nav-student-locked-hint">
@@ -460,7 +460,7 @@ export default function Nav({
                           </button>
 
                           {!isLocked && groupOpen ? (
-                            <div className="nav-more-group-items">{group.items.map(renderNavLink)}</div>
+                            <div className="nav-more-group-items">{group.items.map((item) => renderNavLink(item))}</div>
                           ) : null}
                         </div>
                       );

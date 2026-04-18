@@ -45,12 +45,13 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
   ],
   ADMIN: [
     "/",
-    "/admin/portal-rollout",
-    "/admin/instructor-applicants",
-    "/admin/instructor-readiness",
-    "/admin/waitlist",
-    "/admin/students",
+    "/admin",
     "/messages",
+    "/goals",
+    "/my-program",
+    "/positions",
+    "/mentorship",
+    "/attendance",
   ],
   PARENT: [
     "/",
