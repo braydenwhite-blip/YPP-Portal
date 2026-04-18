@@ -22,28 +22,28 @@ export default function StudentDashboard({
 }: StudentDashboardProps) {
   const quickLinks = [
     {
-      title: "My Classes",
-      description: "Find classes, challenges, and learning pathways.",
+      title: "My classes",
+      description: "Active enrollments, sessions, and class updates.",
+      href: "/my-classes",
+      icon: "🎓",
+    },
+    {
+      title: "Assignments",
+      description: "Due work across all your classes in one place.",
+      href: "/my-classes/assignments",
+      icon: "📝",
+    },
+    {
+      title: "Browse classes",
+      description: "Discover offerings and open full class details.",
       href: "/curriculum",
-      icon: "🗺️",
+      icon: "📖",
     },
     {
-      title: "Projects",
-      description: "Turn ideas into real output through labs and the incubator.",
-      href: "/incubator",
-      icon: "🛠️",
-    },
-    {
-      title: "Challenges",
-      description: "Build streaks and consistency with daily prompts.",
-      href: "/challenges",
-      icon: "🏆",
-    },
-    {
-      title: "My Chapter",
-      description: "Connect with your community and find local events.",
+      title: "Chapter",
+      description: "Your chapter hub, members, and local pathways.",
       href: "/my-chapter",
-      icon: "👥",
+      icon: "🏘",
     },
   ];
 
@@ -102,11 +102,11 @@ export default function StudentDashboard({
             Pick up where you left off or join a new pathway to start turning your ideas into real projects.
           </p>
           <div style={{ marginTop: "24px", display: "flex", gap: "12px", flexWrap: "wrap", justifyContent: "center" }}>
-            <Link href="/curriculum" className="button" style={{ fontSize: "15px", padding: "10px 20px" }}>
-              Explore Classes
+            <Link href="/my-classes" className="button" style={{ fontSize: "15px", padding: "10px 20px" }}>
+              My classes
             </Link>
-            <Link href="/pathways/progress" className="button secondary" style={{ fontSize: "15px", padding: "10px 20px" }}>
-              View My Progress
+            <Link href="/my-classes/assignments" className="button secondary" style={{ fontSize: "15px", padding: "10px 20px" }}>
+              Assignments
             </Link>
           </div>
         </div>

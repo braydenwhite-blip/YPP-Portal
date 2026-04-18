@@ -6,7 +6,6 @@ import type {
   StudioReviewRubric,
 } from "@/lib/curriculum-draft-progress";
 import type { StudioPhase } from "@/lib/lesson-design-studio";
-import { StudioExampleSpotlight } from "./studio-example-spotlight";
 
 interface StudioReviewLaunchStepProps {
   reviewStatus: string;
@@ -20,12 +19,10 @@ interface StudioReviewLaunchStepProps {
   needsRevision: boolean;
   isActionPending: boolean;
   canCreateWorkingCopy?: boolean;
-  interestArea: string;
   onPhaseChange: (phase: StudioPhase) => void;
   onExportPdf: (type: "student" | "instructor") => Promise<boolean>;
   onSubmit: () => Promise<boolean>;
   onCreateWorkingCopy: () => Promise<void>;
-  onOpenExamplesLibrary: () => void;
 }
 
 function getReviewHeading(reviewStatus: string, needsRevision: boolean, isApproved: boolean) {
@@ -72,12 +69,10 @@ export function StudioReviewLaunchStep({
   needsRevision,
   isActionPending,
   canCreateWorkingCopy = true,
-  interestArea,
   onPhaseChange,
   onExportPdf,
   onSubmit,
   onCreateWorkingCopy,
-  onOpenExamplesLibrary,
 }: StudioReviewLaunchStepProps) {
   const heading = getReviewHeading(reviewStatus, needsRevision, isApproved);
   const reviewerNotes = [
@@ -90,7 +85,7 @@ export function StudioReviewLaunchStep({
   ].filter((note): note is string => Boolean(note && note.trim()));
 
   return (
-    <section className="lds-step-layout">
+    <section className="lds-step-layout lds-step-layout--review-launch">
       <div className="lds-step-main">
         <section className="lds-step-card">
           <div className="lds-step-card-header">
@@ -244,14 +239,6 @@ export function StudioReviewLaunchStep({
             </section>
           ) : null}
         </section>
-      </div>
-
-      <div className="lds-step-side">
-        <StudioExampleSpotlight
-          mode="launch"
-          interestArea={interestArea}
-          onOpenLibrary={onOpenExamplesLibrary}
-        />
       </div>
     </section>
   );

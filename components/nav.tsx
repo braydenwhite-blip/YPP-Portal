@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { isNavHrefActive, resolveNavActiveHref } from "@/lib/navigation/is-active";
+import type { ReactNode } from "react";
+import { resolveNavActiveHref, resolveNavModel } from "@/lib/navigation/resolve-nav";
+import { INSTRUCTOR_MINIMAL_GROUP_EMOJI } from "@/lib/navigation/instructor-v1-nav-layout";
 import { STUDENT_MINIMAL_GROUP_EMOJI } from "@/lib/navigation/student-v1-nav-layout";
-import type { NavGroup, NavLink, NavViewModel } from "@/lib/navigation/types";
+import type { NavGroup, NavLink } from "@/lib/navigation/types";
 
 /** Counts passed from the server layout for notification badges. */
 export interface NavBadges {
@@ -60,21 +62,65 @@ function matchesSearch(item: NavLink, searchLower: string): boolean {
 }
 
 export default function Nav({
-  model,
+  roles = [],
+  adminSubtypes,
+  primaryRole,
+  awardTier,
   badges,
+  enabledFeatureKeys,
   onNavigate,
+  unlockedSections,
   recentlyUnlockedGroups,
   lockedGroups: lockedGroupsProp,
   studentFullPortalExplorer,
+  studentHasChapter,
+  instructorFullPortalExplorer,
 }: {
-  model: NavViewModel;
+  roles?: string[];
+  adminSubtypes?: string[];
+  primaryRole?: string | null;
+  awardTier?: string;
   badges?: NavBadges;
+  enabledFeatureKeys?: Set<string>;
   onNavigate?: () => void;
-  recentlyUnlockedGroups?: Set<NavGroup>;
-  lockedGroups?: Map<NavGroup, string>;
+  unlockedSections?: Set<string>;
+  recentlyUnlockedGroups?: Set<string>;
+  lockedGroups?: Map<string, string>;
   studentFullPortalExplorer?: boolean;
+  /** When true, "Join a chapter" is hidden (user already has a chapter). */
+  studentHasChapter?: boolean;
+  instructorFullPortalExplorer?: boolean;
 }) {
   const pathname = usePathname();
+
+  const model = useMemo(
+    () =>
+      resolveNavModel({
+        roles,
+        adminSubtypes,
+        primaryRole,
+        awardTier,
+        pathname,
+        enabledFeatureKeys,
+        unlockedSections,
+        studentFullPortalExplorer,
+        studentHasChapter,
+        instructorFullPortalExplorer,
+      }),
+    [
+      adminSubtypes,
+      awardTier,
+      enabledFeatureKeys,
+      pathname,
+      primaryRole,
+      roles,
+      unlockedSections,
+      studentFullPortalExplorer,
+      studentHasChapter,
+      instructorFullPortalExplorer,
+    ],
+  );
+
   const allNavHrefs = useMemo(() => {
     const hrefs: string[] = [];
     for (const item of model.core) {
@@ -92,7 +138,9 @@ export default function Nav({
     () => resolveNavActiveHref(pathname, allNavHrefs),
     [pathname, allNavHrefs],
   );
-  const lockedGroups = lockedGroupsProp;
+
+  // Use locked groups from the model (computed from unlockedSections) or from explicit prop
+  const lockedGroups = model.lockedGroups ?? lockedGroupsProp;
 
   const storageKey = useMemo(() => storageKeyForRole(model.primaryRole), [model.primaryRole]);
 
@@ -199,6 +247,11 @@ export default function Nav({
 
   const showStudentMinimalChrome =
     model.primaryRole === "STUDENT" && studentFullPortalExplorer !== true;
+  const showInstructorMinimalChrome =
+    model.primaryRole === "INSTRUCTOR" && instructorFullPortalExplorer !== true;
+  const useMinimalFlatNavChrome = showStudentMinimalChrome || showInstructorMinimalChrome;
+  const minimalGroupEmoji =
+    model.primaryRole === "INSTRUCTOR" ? INSTRUCTOR_MINIMAL_GROUP_EMOJI : STUDENT_MINIMAL_GROUP_EMOJI;
   const studentHomeOnlyCore =
     showStudentMinimalChrome &&
     filteredCore.length === 1 &&
@@ -209,15 +262,18 @@ export default function Nav({
   const hiddenCount = model.more.reduce((sum, group) => sum + group.items.length, 0);
   const moreCountLabel = hasSearch ? totalMore : hiddenCount;
 
-  const renderNavLink = (item: NavLink): JSX.Element => {
+  const renderNavLink = (item: NavLink, opts?: { nestedUnderTraining?: boolean }): JSX.Element => {
     const isActive = activeNavHref !== null && item.href === activeNavHref;
     const badgeCount = item.badgeKey && badges ? badges[item.badgeKey] : undefined;
+    const nested = opts?.nestedUnderTraining === true;
 
     return (
       <Link
         key={item.href}
         href={item.href}
-        className={isActive ? "active" : undefined}
+        className={[isActive ? "active" : undefined, nested ? "nav-link--nested-under-training" : undefined]
+          .filter(Boolean)
+          .join(" ")}
         onClick={onNavigate}
       >
         <span className="nav-icon">{item.icon}</span>
@@ -229,8 +285,43 @@ export default function Nav({
     );
   };
 
+  function renderCoreNavItems(): ReactNode[] {
+    if (!showInstructorMinimalChrome) {
+      return filteredCore.map((item) => renderNavLink(item));
+    }
+    const out: ReactNode[] = [];
+    for (let i = 0; i < filteredCore.length; i += 1) {
+      const item = filteredCore[i];
+      if (item.href === "/instructor-training") {
+        const next = filteredCore[i + 1];
+        if (next?.href === "/instructor/lesson-design-studio") {
+          out.push(
+            <div key="instructor-training-with-studio" className="nav-training-group">
+              {renderNavLink(item)}
+              <div
+                className="nav-training-group-sub"
+                role="group"
+                aria-label="Instructor training tools"
+              >
+                {renderNavLink(next, { nestedUnderTraining: true })}
+              </div>
+            </div>,
+          );
+          i += 1;
+          continue;
+        }
+      }
+      if (item.href === "/instructor/lesson-design-studio") {
+        out.push(renderNavLink(item));
+        continue;
+      }
+      out.push(renderNavLink(item));
+    }
+    return out;
+  }
+
   return (
-    <nav className="nav">
+    <nav className="nav nav--minimal">
       <div className="nav-search-wrapper">
         <input
           ref={searchRef}
@@ -259,12 +350,14 @@ export default function Nav({
       ) : (
         <>
           <section className="nav-main-tools">
-            {studentHomeOnlyCore ? null : <p className="nav-block-title">Top Tools</p>}
-            <div className="nav-main-items">{filteredCore.map(renderNavLink)}</div>
+            {studentHomeOnlyCore ? null : (
+              <p className="nav-block-title">{useMinimalFlatNavChrome ? "Shortcuts" : "Top Tools"}</p>
+            )}
+            <div className="nav-main-items">{renderCoreNavItems()}</div>
           </section>
 
           {filteredMore.length > 0 ? (
-            showStudentMinimalChrome ? (
+            useMinimalFlatNavChrome ? (
               <section className="nav-student-flat-groups" aria-label="Navigation sections">
                 {filteredMore.map((group) => {
                   const groupHasActive =
@@ -275,8 +368,8 @@ export default function Nav({
                   const isLocked = lockedGroups?.has(group.label);
                   const lockReason = isLocked && lockedGroups ? lockedGroups.get(group.label) : undefined;
                   const isRecentlyUnlocked = recentlyUnlockedGroups?.has(group.label);
-                  const heading = STUDENT_MINIMAL_GROUP_EMOJI[group.label as NavGroup]
-                    ? `${STUDENT_MINIMAL_GROUP_EMOJI[group.label as NavGroup]} ${group.label}`
+                  const heading = minimalGroupEmoji[group.label as NavGroup]
+                    ? `${minimalGroupEmoji[group.label as NavGroup]} ${group.label}`
                     : group.label;
 
                   return (

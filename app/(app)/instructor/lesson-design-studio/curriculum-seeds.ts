@@ -1,6 +1,6 @@
 // ============================================================
 // Curriculum Seeds — 5 complete 8-week starter curricula
-// Used by the onboarding tour to scaffold a full curriculum
+// Used by quick-start and starter scaffolds to seed curriculum shape
 // when a new instructor picks their interest area.
 // ============================================================
 

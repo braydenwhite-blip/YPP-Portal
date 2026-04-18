@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   EXAMPLE_CURRICULA,
   EXAMPLE_CURRICULUM_ANNOTATIONS,
@@ -15,6 +16,8 @@ interface StudioExampleSpotlightProps {
   selectedSessionLabel?: string;
   onImportWeek?: (week: ExampleWeek) => void;
   onOpenLibrary?: () => void;
+  /** When false, the reference panel starts collapsed (saves vertical space). */
+  defaultExpanded?: boolean;
 }
 
 function normalizeTopic(value: string) {
@@ -58,7 +61,9 @@ export function StudioExampleSpotlight({
   selectedSessionLabel,
   onImportWeek,
   onOpenLibrary,
+  defaultExpanded = true,
 }: StudioExampleSpotlightProps) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
   const curriculum = getRecommendedCurriculum(interestArea);
   const annotations = EXAMPLE_CURRICULUM_ANNOTATIONS[curriculum.id];
   const targetWeek =
@@ -69,24 +74,27 @@ export function StudioExampleSpotlight({
   const weekAnnotations = EXAMPLE_WEEK_ANNOTATIONS[curriculum.id]?.[targetWeek.weekNumber];
   const title =
     mode === "course-map"
-      ? "See how a strong course promise sounds"
+      ? "Sample course promise"
       : mode === "session"
-        ? "Study a model session arc while you build"
-        : "Use the reviewer lens before you launch";
+        ? "Model session arc"
+        : "Reviewer lens";
 
   return (
-    <details className="lds-example-spotlight" open>
+    <details
+      className="lds-example-spotlight"
+      open={expanded}
+      onToggle={(event) => setExpanded(event.currentTarget.open)}
+    >
       <summary className="lds-example-spotlight-summary">
         <div className="lds-example-spotlight-header">
           <div>
-            <p className="lds-section-eyebrow">Reference panel</p>
+            <p className="lds-section-eyebrow">Examples</p>
             <h3 className="lds-section-title">{title}</h3>
             <p className="lds-section-copy">
-              Recommended example: <strong>{curriculum.title}</strong> in{" "}
-              {curriculum.interestArea}.
+              <strong>{curriculum.title}</strong> · {curriculum.interestArea}
             </p>
           </div>
-          <span className="lds-example-spotlight-toggle">Examples</span>
+          <span className="lds-example-spotlight-toggle">Show</span>
         </div>
       </summary>
 
@@ -98,7 +106,7 @@ export function StudioExampleSpotlight({
               <p>{curriculum.description}</p>
             </div>
             <div className="lds-example-list-card">
-              <h4>What makes this course promise work</h4>
+              <h4>Why it works</h4>
               <ul>
                 {annotations.whyThisCurriculumWorks.slice(0, 3).map((note) => (
                   <li key={note}>{note}</li>
@@ -106,7 +114,7 @@ export function StudioExampleSpotlight({
               </ul>
             </div>
             <div className="lds-example-list-card">
-              <h4>Outcome moves to borrow</h4>
+              <h4>Sample outcomes</h4>
               <ul>
                 {curriculum.outcomes.slice(0, 4).map((outcome) => (
                   <li key={outcome}>{outcome}</li>

@@ -94,7 +94,7 @@ export function StudioCourseMapStep({
   const descriptionAnchor: CurriculumCommentAnchor = {
     anchorType: "COURSE",
     anchorField: "description",
-    label: "Why this course matters",
+    label: "Course description",
   };
   const titleCommentStats = getCommentStats(titleAnchor);
   const interestAreaCommentStats = getCommentStats(interestAreaAnchor);
@@ -146,17 +146,14 @@ export function StudioCourseMapStep({
   }
 
   return (
-    <section className="lds-step-layout">
+    <section className="lds-step-layout lds-step-layout--course-map">
       <div className="lds-step-main">
         <section className="lds-step-card">
           <div className="lds-step-card-header">
             <div>
-              <p className="lds-section-eyebrow">Step 1</p>
-              <h2 className="lds-section-title">Shape the course promise</h2>
-              <p className="lds-section-copy">
-                Define the promise of the course before you perfect the details of the
-                lessons inside it.
-              </p>
+              <p className="lds-section-eyebrow">Course</p>
+              <h2 className="lds-section-title">Promise & shape</h2>
+              <p className="lds-section-copy">Title, audience, outcomes, and schedule shell.</p>
             </div>
             <div className="lds-inline-actions">
               <button
@@ -164,21 +161,21 @@ export function StudioCourseMapStep({
                 className="button ghost"
                 onClick={() => onPhaseChange("START")}
               >
-                Back to start
+                Start
               </button>
               <button
                 type="button"
                 className="button"
                 onClick={() => onPhaseChange("SESSIONS")}
               >
-                Continue to sessions
+                Sessions
               </button>
             </div>
           </div>
 
           {blockers.length > 0 ? (
             <div className="lds-blocker-card" role="alert">
-              <strong>Still blocking this step</strong>
+              <strong>Blocked</strong>
               <ul className="lds-simple-list">
                 {blockers.map((blocker) => (
                   <li key={blocker}>{blocker}</li>
@@ -189,21 +186,21 @@ export function StudioCourseMapStep({
 
           <div className="lds-course-map-summary">
             <div className="lds-stat-card">
-              <span className="lds-stat-label">Course arc</span>
+              <span className="lds-stat-label">Weeks</span>
               <strong className="lds-stat-value">
-                {courseConfig.durationWeeks} week{courseConfig.durationWeeks === 1 ? "" : "s"}
+                {courseConfig.durationWeeks}
               </strong>
             </div>
             <div className="lds-stat-card">
-              <span className="lds-stat-label">Session rhythm</span>
+              <span className="lds-stat-label">Sessions/wk</span>
               <strong className="lds-stat-value">
-                {courseConfig.sessionsPerWeek} per week
+                {courseConfig.sessionsPerWeek}
               </strong>
             </div>
             <div className="lds-stat-card">
-              <span className="lds-stat-label">Time budget</span>
+              <span className="lds-stat-label">Minutes</span>
               <strong className="lds-stat-value">
-                {courseConfig.classDurationMin} min
+                {courseConfig.classDurationMin}
               </strong>
             </div>
           </div>
@@ -232,7 +229,7 @@ export function StudioCourseMapStep({
                 placeholder="Example: Money Moves for Real Life"
               />
               <small id={titleHintId} className="lds-form-field-hint">
-                Make it feel confident, specific, and easy to picture on a class page.
+                Specific title students would recognize.
               </small>
               {renderCommentThread(
                 titleAnchor,
@@ -264,7 +261,7 @@ export function StudioCourseMapStep({
                 placeholder="Example: Finance, Coding, Music, Cooking"
               />
               <small id={interestAreaHintId} className="lds-form-field-hint">
-                This keeps examples and coaching aligned with the kind of course you are building.
+                Drives example picks and coaching tone.
               </small>
               {renderCommentThread(
                 interestAreaAnchor,
@@ -277,7 +274,7 @@ export function StudioCourseMapStep({
           <div className="lds-form-field">
             <div className="lds-form-label-row">
               <label className="lds-form-label" htmlFor={descriptionId}>
-                Why this course matters
+                Course description
               </label>
               {canComment || descriptionCommentStats.count > 0 ? (
                 <CommentIndicator
@@ -291,14 +288,14 @@ export function StudioCourseMapStep({
             <textarea
               id={descriptionId}
               aria-describedby={descriptionHintId}
-              rows={4}
+              rows={3}
               value={description}
               readOnly={isReadOnly}
               onChange={(event) => onUpdate("description", event.target.value)}
               placeholder="What will students learn, and why is this worth teaching?"
             />
             <small id={descriptionHintId} className="lds-form-field-hint">
-              Write the short, human explanation that makes the course feel worth showing up for.
+              What students gain and why it matters.
             </small>
             {renderCommentThread(
               descriptionAnchor,
@@ -310,10 +307,8 @@ export function StudioCourseMapStep({
           <section className="lds-subsection-card">
             <div className="lds-subsection-header">
               <div>
-                <h3>Learning outcomes</h3>
-                <p>
-                  Name the abilities students should leave with by the end of the course.
-                </p>
+                <h3>Outcomes</h3>
+                <p>What students can do by the end.</p>
               </div>
               <button
                 type="button"
@@ -321,7 +316,7 @@ export function StudioCourseMapStep({
                 disabled={isReadOnly}
                 onClick={addOutcome}
               >
-                Add outcome
+                Add
               </button>
             </div>
 
@@ -384,8 +379,8 @@ export function StudioCourseMapStep({
           <section className="lds-subsection-card">
             <div className="lds-subsection-header">
               <div>
-                <h3>Teaching container</h3>
-                <p>Set the outer shape of the course before you refine the lesson-by-lesson craft.</p>
+                <h3>Schedule shell</h3>
+                <p>Weeks, class size, delivery — tune sessions later.</p>
               </div>
             </div>
 
@@ -558,27 +553,26 @@ export function StudioCourseMapStep({
             </div>
 
             <p className="lds-container-note">
-              Keep this container realistic. A believable course shape makes the later
-              session planning feel much easier and much stronger.
+              Realistic numbers here make session planning easier later.
             </p>
           </section>
         </section>
 
         <StudioMicroChecks
-          title="Course promise checks"
-          description="These quick checks make sure the big picture of the curriculum stays coherent while you build."
+          eyebrow="Checks"
+          title="Course promise"
+          description="Two quick questions so the outline stays coherent."
           questionIds={["course_outcomes", "capstone_goal"]}
           understandingChecks={understandingChecks}
           onAnswer={onAnswerUnderstandingCheck}
           readOnly={isReadOnly}
         />
-      </div>
 
-      <div className="lds-step-side">
         <StudioExampleSpotlight
           mode="course-map"
           interestArea={interestArea}
           onOpenLibrary={onOpenExamplesLibrary}
+          defaultExpanded={false}
         />
       </div>
     </section>

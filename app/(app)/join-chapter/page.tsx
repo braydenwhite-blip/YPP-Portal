@@ -29,6 +29,11 @@ export default async function JoinChapterPage() {
           Chapters are local communities where you learn, grow, and build with
           other passionate young people. Pick a chapter to get started.
         </p>
+        <p style={{ marginTop: 12 }}>
+          <Link href="/chapters" style={{ color: "var(--ypp-purple)", fontSize: 14 }}>
+            Browse the full chapter directory →
+          </Link>
+        </p>
       </div>
 
       {chapters.length === 0 ? (

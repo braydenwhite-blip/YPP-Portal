@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveNavActiveHref, resolveNavModel } from "@/lib/navigation/resolve-nav";
+import { INSTRUCTOR_V1_ALLOWED_HREFS } from "@/lib/navigation/instructor-v1-allowlist";
 import { STUDENT_V1_ALLOWED_HREFS } from "@/lib/navigation/student-v1-allowlist";
 
 function hrefs(model: ReturnType<typeof resolveNavModel>) {
@@ -19,6 +20,13 @@ describe("resolveNavActiveHref", () => {
     expect(resolveNavActiveHref("/profile/timeline/step", candidates)).toBe("/profile/timeline");
   });
 
+  it("highlights Assignments hub when viewing a class assignment under /curriculum/.../assignments", () => {
+    const candidates = ["/my-classes", "/my-classes/assignments", "/curriculum"];
+    expect(
+      resolveNavActiveHref("/curriculum/offering-1/assignments/a1", candidates),
+    ).toBe("/my-classes/assignments");
+  });
+
   it("keeps /profile as its own active link when it appears in the nav", () => {
     const candidates = ["/profile", "/settings/personalization", "/profile/timeline"];
     expect(resolveNavActiveHref("/profile", candidates)).toBe("/profile");
@@ -32,19 +40,36 @@ describe("resolveNavModel", () => {
       primaryRole: "INSTRUCTOR",
       pathname: "/",
       enabledFeatureKeys: new Set(),
+      instructorFullPortalExplorer: false,
     });
 
     const visibleHrefs = hrefs(model);
 
+    for (const href of visibleHrefs) {
+      expect(INSTRUCTOR_V1_ALLOWED_HREFS.has(href)).toBe(true);
+    }
+
     expect(visibleHrefs).toContain("/");
     expect(visibleHrefs).toContain("/instructor-training");
+    expect(visibleHrefs).toContain("/instructor/lesson-design-studio");
     expect(visibleHrefs).toContain("/attendance");
     expect(visibleHrefs).toContain("/instructor/parent-feedback");
+    expect(visibleHrefs).toContain("/feedback/anonymous");
+    expect(visibleHrefs).toContain("/scheduling");
+    expect(visibleHrefs).toContain("/announcements");
+    expect(visibleHrefs).toContain("/calendar");
     expect(visibleHrefs).toContain("/my-program");
-    expect(visibleHrefs).toContain("/my-program/awards");
     expect(visibleHrefs).toContain("/messages");
+    expect(visibleHrefs).toContain("/chapters");
     expect(visibleHrefs).toContain("/notifications");
+    expect(visibleHrefs).toContain("/settings/personalization");
 
+    expect(visibleHrefs).not.toContain("/interviews");
+    expect(visibleHrefs).not.toContain("/my-program/awards");
+    expect(visibleHrefs).not.toContain("/goals");
+    expect(visibleHrefs).not.toContain("/reflection");
+    expect(visibleHrefs).not.toContain("/events");
+    expect(visibleHrefs).not.toContain("/profile/timeline");
     expect(visibleHrefs).not.toContain("/pathways");
     expect(visibleHrefs).not.toContain("/challenges");
     expect(visibleHrefs).not.toContain("/incubator");
@@ -53,12 +78,25 @@ describe("resolveNavModel", () => {
     expect(visibleHrefs).not.toContain("/lesson-plans");
   });
 
+  it("restores broad instructor navigation when full portal explorer is on", () => {
+    const model = resolveNavModel({
+      roles: ["INSTRUCTOR"],
+      primaryRole: "INSTRUCTOR",
+      pathname: "/",
+      enabledFeatureKeys: new Set(),
+      instructorFullPortalExplorer: true,
+    });
+    expect(hrefs(model)).toContain("/interviews");
+    expect(hrefs(model)).toContain("/my-program/awards");
+  });
+
   it("unlocks instructor teaching tools only when the feature key is enabled", () => {
     const model = resolveNavModel({
       roles: ["INSTRUCTOR"],
       primaryRole: "INSTRUCTOR",
       pathname: "/",
       enabledFeatureKeys: new Set(["INSTRUCTOR_TEACHING_TOOLS"]),
+      instructorFullPortalExplorer: true,
     });
 
     const visibleHrefs = hrefs(model);
@@ -144,6 +182,8 @@ describe("resolveNavModel", () => {
     expect(hrefs(model)).not.toContain("/profile");
     expect(hrefs(model)).toContain("/settings/personalization");
     expect(hrefs(model)).toContain("/my-program");
+    expect(hrefs(model)).toContain("/my-classes/assignments");
+    expect(hrefs(model)).not.toContain("/join-chapter");
     expect(hrefs(model)).not.toContain("/world");
     expect(hrefs(model)).not.toContain("/challenges");
     expect(hrefs(model)).not.toContain("/interviews");

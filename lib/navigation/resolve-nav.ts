@@ -2,20 +2,23 @@ import { CORE_NAV_LIMIT, CORE_NAV_MAP, PRIMARY_ROLE_FALLBACK_ORDER } from "@/lib
 import { NAV_CATALOG } from "@/lib/navigation/catalog";
 import { getVisibleNavGroups } from "@/lib/unlock-nav-groups";
 import {
+  INSTRUCTOR_V1_ALLOWED_HREFS,
+  shouldApplyInstructorV1NavFilter,
+} from "@/lib/navigation/instructor-v1-allowlist";
+import {
+  applyInstructorMinimalSidebarLayout,
+  instructorMinimalLinkOrderIndex,
+} from "@/lib/navigation/instructor-v1-nav-layout";
+import {
   STUDENT_V1_ALLOWED_HREFS,
   shouldApplyStudentV1NavFilter,
 } from "@/lib/navigation/student-v1-allowlist";
-import { APPLICANT_ALLOWED_HREFS } from "@/lib/navigation/applicant-allowlist";
 import {
   applyStudentMinimalSidebarLayout,
   studentMinimalLinkOrderIndex,
 } from "@/lib/navigation/student-v1-nav-layout";
 import type { NavGroup, NavLink, NavRole, NavViewModel } from "@/lib/navigation/types";
 import { normalizeAdminSubtypes } from "@/lib/admin-subtypes";
-export {
-  isNavHrefActive,
-  resolveNavActiveHref,
-} from "@/lib/navigation/is-active";
 
 const AWARD_TIERS = new Set(["BRONZE", "SILVER", "GOLD"]);
 const CRITICAL_CORE_LINKS = ["/messages"];
@@ -74,8 +77,8 @@ const ADMIN_LINKS_BY_SUBTYPE = {
 const GROUP_ORDER_BY_ROLE: RoleGroupOrder = {
   STUDENT: [
     "Learning",
-    "Progress",
     "Schedule",
+    "Progress",
     "Community",
     "Profile",
     "Start Here",
@@ -94,13 +97,13 @@ const GROUP_ORDER_BY_ROLE: RoleGroupOrder = {
   INSTRUCTOR: [
     "Start Here",
     "Progress",
-    "Learning",
     "People & Support",
+    "Chapters",
+    "Profile & Settings",
+    "Learning",
     "Opportunities",
     "Projects",
     "Challenges",
-    "Chapters",
-    "Profile & Settings",
     "Family",
     "Admin People",
     "Admin Content",
@@ -218,6 +221,8 @@ export interface ResolveNavInput {
   studentFullPortalExplorer?: boolean;
   /** When set, hides "Join a chapter" — not needed if the user is already assigned to a chapter. */
   studentHasChapter?: boolean;
+  /** When true, instructors see the full nav catalog. Omit/false uses env `INSTRUCTOR_FULL_PORTAL_EXPLORER`. */
+  instructorFullPortalExplorer?: boolean;
 }
 
 function toNavRole(value: string | null | undefined): NavRole | null {
@@ -320,6 +325,68 @@ function sortLinksForRole(links: NavLink[], primaryRole: NavRole): NavLink[] {
   });
 }
 
+function pathMatchesHref(pathname: string, href: string): boolean {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function profileMergedIntoPersonalizationActive(
+  pathname: string,
+  candidateHrefs: readonly string[],
+): boolean {
+  if (candidateHrefs.includes("/profile")) return false;
+  if (pathname === "/profile") return true;
+  return pathname.startsWith("/profile/") && !pathname.startsWith("/profile/timeline");
+}
+
+function studentAssignmentsHubActive(
+  pathname: string,
+  candidateHrefs: readonly string[],
+): boolean {
+  if (!candidateHrefs.includes("/my-classes/assignments")) return false;
+  return pathname.startsWith("/curriculum/") && pathname.includes("/assignments");
+}
+
+function navHrefMatchesPathnameForActive(
+  pathname: string,
+  href: string,
+  candidateHrefs: readonly string[],
+): boolean {
+  if (pathMatchesHref(pathname, href)) return true;
+  if (href === "/my-classes/assignments" && studentAssignmentsHubActive(pathname, candidateHrefs)) {
+    return true;
+  }
+  if (
+    href === "/settings/personalization" &&
+    profileMergedIntoPersonalizationActive(pathname, candidateHrefs)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Among all visible nav links, returns the single best-matching href for the current pathname
+ * (longest prefix / most specific). Prevents both `/profile` and `/profile/timeline` from
+ * highlighting when only one page is open.
+ *
+ * When `/profile` is not in the nav (student minimal IA), `/profile` and nested profile routes
+ * except Journey (`/profile/timeline`) count as active for `/settings/personalization`.
+ */
+export function resolveNavActiveHref(pathname: string, candidateHrefs: readonly string[]): string | null {
+  const uniq = Array.from(
+    new Set(candidateHrefs.filter((h): h is string => typeof h === "string" && h.length > 0 && h !== "#")),
+  );
+  const matches = uniq.filter((href) => navHrefMatchesPathnameForActive(pathname, href, candidateHrefs));
+  if (matches.length === 0) return null;
+  return matches.reduce((best, h) => (h.length > best.length ? h : best));
+}
+
+/** True if pathname is this route or a nested segment under it (used for legacy checks). */
+export function isNavHrefActive(href: string, pathname: string): boolean {
+  return pathMatchesHref(pathname, href);
+}
+
 function addOrReplaceCoreItem(core: NavLink[], item: NavLink, limit: number): void {
   if (core.some((entry) => entry.href === item.href)) return;
   if (core.length < limit) {
@@ -406,15 +473,23 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
     visible = visible.filter((item) => STUDENT_V1_ALLOWED_HREFS.has(item.href));
   }
 
-  if (primaryRole === "APPLICANT") {
-    visible = visible.filter((item) => APPLICANT_ALLOWED_HREFS.has(item.href));
+  if (shouldApplyInstructorV1NavFilter(primaryRole, input.instructorFullPortalExplorer)) {
+    visible = visible.filter((item) => INSTRUCTOR_V1_ALLOWED_HREFS.has(item.href));
   }
 
   const studentMinimalSidebar =
     primaryRole === "STUDENT" && shouldApplyStudentV1NavFilter(primaryRole, input.studentFullPortalExplorer);
 
+  const instructorMinimalSidebar =
+    primaryRole === "INSTRUCTOR" &&
+    shouldApplyInstructorV1NavFilter(primaryRole, input.instructorFullPortalExplorer);
+
   if (studentMinimalSidebar) {
     visible = visible.map(applyStudentMinimalSidebarLayout);
+  }
+
+  if (instructorMinimalSidebar) {
+    visible = visible.map(applyInstructorMinimalSidebarLayout);
   }
 
   const visibleByHref = new Map(visible.map((item) => [item.href, item]));
@@ -456,7 +531,11 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
     const sorted =
       studentMinimalSidebar && primaryRole === "STUDENT"
         ? [...items].sort((a, b) => studentMinimalLinkOrderIndex(a.href) - studentMinimalLinkOrderIndex(b.href))
-        : items;
+        : instructorMinimalSidebar && primaryRole === "INSTRUCTOR"
+          ? [...items].sort(
+              (a, b) => instructorMinimalLinkOrderIndex(a.href) - instructorMinimalLinkOrderIndex(b.href),
+            )
+          : items;
     return { label, items: sorted };
   });
 

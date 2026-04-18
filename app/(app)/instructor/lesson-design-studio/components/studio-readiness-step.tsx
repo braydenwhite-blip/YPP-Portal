@@ -74,7 +74,7 @@ export function StudioReadinessStep({
   onAnswerUnderstandingCheck,
 }: StudioReadinessStepProps) {
   return (
-    <section className="lds-step-layout">
+    <section className="lds-step-layout lds-step-layout--readiness">
       <div className="lds-step-main">
         <section className="lds-step-card">
           <div className="lds-step-card-header">
@@ -174,31 +174,6 @@ export function StudioReadinessStep({
           readOnly={isReadOnly}
         />
       </div>
-
-      <aside className="lds-step-side">
-        <section className="lds-step-card">
-          <p className="lds-section-eyebrow">Progress snapshot</p>
-          <h3 className="lds-section-title">How close you are</h3>
-          <div className="lds-kpi-stack">
-            <div>
-              <span>Fully built sessions</span>
-              <strong>
-                {progress.fullyBuiltSessions}/{progress.totalSessionsExpected}
-              </strong>
-            </div>
-            <div>
-              <span>Teaching checks</span>
-              <strong>
-                {understandingChecks.lastScorePct ?? 0}% score
-              </strong>
-            </div>
-            <div>
-              <span>Submission status</span>
-              <strong>{progress.readyForSubmission ? "Ready" : "Still tightening"}</strong>
-            </div>
-          </div>
-        </section>
-      </aside>
     </section>
   );
 }

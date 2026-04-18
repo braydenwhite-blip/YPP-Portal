@@ -42,6 +42,7 @@ export function getDashboardModulesForRole(
     unlockedSections?: Set<string>;
     enabledFeatureKeys?: Set<string>;
     studentFullPortalExplorer?: boolean;
+    instructorFullPortalExplorer?: boolean;
   }
 ) {
   const nav = resolveNavModel({
@@ -51,6 +52,7 @@ export function getDashboardModulesForRole(
     unlockedSections: options?.unlockedSections,
     enabledFeatureKeys: options?.enabledFeatureKeys,
     studentFullPortalExplorer: options?.studentFullPortalExplorer,
+    instructorFullPortalExplorer: options?.instructorFullPortalExplorer,
   });
 
   const hasAward = options?.hasAward ?? false;

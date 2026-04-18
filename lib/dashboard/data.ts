@@ -29,6 +29,10 @@ import { getRecommendedActivitiesForUser } from "@/lib/activity-hub/actions";
 import { getStudentChapterJourneyData } from "@/lib/chapter-pathway-journey";
 import { withPrismaFallback } from "@/lib/prisma-guard";
 import {
+  isInstructorFullPortalExplorerEnabled,
+  INSTRUCTOR_V1_ALLOWLIST_VERSION,
+} from "@/lib/navigation/instructor-v1-allowlist";
+import {
   isStudentFullPortalExplorerEnabled,
   STUDENT_V1_ALLOWLIST_VERSION,
 } from "@/lib/navigation/student-v1-allowlist";
@@ -132,6 +136,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
         unlockedSections,
         enabledFeatureKeys: new Set(enabledFeatureKeys),
         studentFullPortalExplorer: isStudentFullPortalExplorerEnabled(),
+        instructorFullPortalExplorer: isInstructorFullPortalExplorerEnabled(),
       })
     ),
     getUnreadNotificationCountCached(userId),
@@ -1531,6 +1536,8 @@ const getDashboardDataCached = unstable_cache(
 export async function getDashboardData(userId: string, primaryRole: string | null): Promise<DashboardData> {
   const cachePartition = `${STUDENT_V1_ALLOWLIST_VERSION}-${
     process.env.STUDENT_FULL_PORTAL_EXPLORER === "true" ? "full" : "minimal"
+  }-${INSTRUCTOR_V1_ALLOWLIST_VERSION}-${
+    process.env.INSTRUCTOR_FULL_PORTAL_EXPLORER === "true" ? "ifull" : "imin"
   }`;
   return getDashboardDataCached(userId, primaryRole, cachePartition);
 }

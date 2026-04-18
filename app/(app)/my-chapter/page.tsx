@@ -593,17 +593,21 @@ export default async function MyChapterPage() {
                 <div className="kpi-label">Pathways</div>
               </div>
             </div>
-            {chapter?.slug && (
-              <Link
-                href={`/chapters/${chapter.slug}`}
-                style={{
-                  display: "block", marginTop: 12, textAlign: "center",
-                  fontSize: 12, color: "var(--ypp-purple)",
-                }}
-              >
-                View public chapter page →
+            <div style={{ marginTop: 12, textAlign: "center", display: "flex", flexDirection: "column", gap: 8 }}>
+              {chapter?.slug && (
+                <Link
+                  href={`/chapters/${chapter.slug}`}
+                  style={{
+                    fontSize: 12, color: "var(--ypp-purple)",
+                  }}
+                >
+                  View public chapter page →
+                </Link>
+              )}
+              <Link href="/chapters" style={{ fontSize: 12, color: "var(--muted)" }}>
+                Explore other chapters →
               </Link>
-            )}
+            </div>
           </div>
         </div>
       </div>

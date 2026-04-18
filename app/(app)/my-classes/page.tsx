@@ -38,11 +38,14 @@ export default async function MyClassesPage({
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Link href="/my-classes/assignments" className="button secondary">
+            Assignments
+          </Link>
           <Link href="/curriculum" className="button secondary">
-            Browse Classes
+            Browse classes
           </Link>
           <Link href="/curriculum/schedule" className="button secondary">
-            Calendar View
+            Schedule
           </Link>
         </div>
       </div>

@@ -57,7 +57,7 @@ describe("lesson design studio helpers", () => {
         entry: "application_status",
         draftId: "draft_123",
       })
-    ).toBe("/instructor/lesson-design-studio?entry=application-status&draftId=draft_123");
+    ).toBe("/instructor/lesson-design-studio/draft_123/setup?entry=application-status");
   });
 
   it("builds chooser and editor links with optional draft ids", () => {
@@ -66,7 +66,7 @@ describe("lesson design studio helpers", () => {
         entryContext: "TRAINING",
         draftId: "draft_456",
       })
-    ).toBe("/instructor/lesson-design-studio?entry=training&draftId=draft_456");
+    ).toBe("/instructor/lesson-design-studio/draft_456/setup?entry=training");
     expect(buildLessonDesignStudioHref()).toBe("/instructor/lesson-design-studio");
   });
 

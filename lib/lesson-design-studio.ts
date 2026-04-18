@@ -50,9 +50,9 @@ export const STUDIO_PHASES: Array<{
 }> = [
   { id: "START", label: "Start", shortLabel: "Start" },
   { id: "COURSE_MAP", label: "Course Map", shortLabel: "Map" },
-  { id: "SESSIONS", label: "Sessions", shortLabel: "Sessions" },
-  { id: "READINESS", label: "Readiness", shortLabel: "Ready" },
-  { id: "REVIEW_LAUNCH", label: "Review & Launch", shortLabel: "Launch" },
+  { id: "SESSIONS", label: "Sessions", shortLabel: "Plan" },
+  { id: "READINESS", label: "Readiness", shortLabel: "Checks" },
+  { id: "REVIEW_LAUNCH", label: "Review & Launch", shortLabel: "Submit" },
 ];
 
 const GUIDED_PHASE_META: Record<StudioPhase, GuidedStudioStepMeta> = {
@@ -79,7 +79,7 @@ const GUIDED_PHASE_META: Record<StudioPhase, GuidedStudioStepMeta> = {
   SESSIONS: {
     id: "SESSIONS",
     label: "Sessions",
-    shortLabel: "Sessions",
+    shortLabel: "Plan",
     headline: "Build one teachable session at a time",
     description:
       "Focus on the next session, keep the whole roadmap visible, and make each lesson arc feel realistic.",
@@ -89,7 +89,7 @@ const GUIDED_PHASE_META: Record<StudioPhase, GuidedStudioStepMeta> = {
   READINESS: {
     id: "READINESS",
     label: "Readiness",
-    shortLabel: "Ready",
+    shortLabel: "Checks",
     headline: "Tighten the teaching moves before launch",
     description:
       "Clear the last blockers, answer the teaching checks, and make sure the draft feels ready for a real classroom.",
@@ -99,7 +99,7 @@ const GUIDED_PHASE_META: Record<StudioPhase, GuidedStudioStepMeta> = {
   REVIEW_LAUNCH: {
     id: "REVIEW_LAUNCH",
     label: "Review & Launch",
-    shortLabel: "Launch",
+    shortLabel: "Submit",
     headline: "Review, submit, and move toward launch",
     description:
       "Use this final hub to understand feedback, submit with confidence, and carry the curriculum into the next real step.",
@@ -162,10 +162,50 @@ export function getStudioDraftIdFromSearchParams(
     : null;
 }
 
+/** URL segment for each studio phase (path-based editor pages). */
+export const STUDIO_STEP_SLUGS = [
+  "setup",
+  "plan",
+  "sessions",
+  "checks",
+  "submit",
+] as const;
+
+export type StudioStepSlug = (typeof STUDIO_STEP_SLUGS)[number];
+
+const PHASE_TO_SLUG: Record<StudioPhase, StudioStepSlug> = {
+  START: "setup",
+  COURSE_MAP: "plan",
+  SESSIONS: "sessions",
+  READINESS: "checks",
+  REVIEW_LAUNCH: "submit",
+};
+
+const SLUG_TO_PHASE: Record<StudioStepSlug, StudioPhase> = {
+  setup: "START",
+  plan: "COURSE_MAP",
+  sessions: "SESSIONS",
+  checks: "READINESS",
+  submit: "REVIEW_LAUNCH",
+};
+
+export function studioPhaseToStepSlug(phase: StudioPhase): StudioStepSlug {
+  return PHASE_TO_SLUG[phase];
+}
+
+export function studioStepSlugToPhase(slug: string): StudioPhase | null {
+  if (slug in SLUG_TO_PHASE) {
+    return SLUG_TO_PHASE[slug as StudioStepSlug];
+  }
+  return null;
+}
+
 export function buildLessonDesignStudioHref(args?: {
   entryContext?: StudioEntryContext;
   draftId?: string | null;
   notice?: string | null;
+  /** When opening a draft, which editor page (defaults to Start / setup). */
+  phase?: StudioPhase | null;
 }) {
   const next = new URLSearchParams();
 
@@ -173,15 +213,18 @@ export function buildLessonDesignStudioHref(args?: {
     next.set("entry", serializeStudioEntryContext(args.entryContext));
   }
 
-  if (args?.draftId) {
-    next.set("draftId", args.draftId);
-  }
-
   if (args?.notice) {
     next.set("notice", args.notice);
   }
 
   const query = next.toString();
+
+  if (args?.draftId) {
+    const slug = studioPhaseToStepSlug(args.phase ?? "START");
+    const path = `/instructor/lesson-design-studio/${args.draftId}/${slug}`;
+    return query ? `${path}?${query}` : path;
+  }
+
   return query
     ? `/instructor/lesson-design-studio?${query}`
     : "/instructor/lesson-design-studio";

@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   createBlankCurriculumDraft,
   createWorkingCopyFromCurriculumDraft,
@@ -11,7 +12,6 @@ import {
   buildLessonDesignStudioHref,
   type StudioEntryContext,
 } from "@/lib/lesson-design-studio";
-import { openLessonDesignStudio } from "@/lib/lesson-design-studio-navigation";
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
@@ -61,6 +61,7 @@ export function DraftChooser({
   drafts,
   notice,
 }: DraftChooserProps) {
+  const router = useRouter();
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -83,11 +84,13 @@ export function DraftChooser({
   const noticeCopy = getNoticeCopy(notice);
 
   function openDraft(draftId: string, nextNotice?: string | null) {
-    openLessonDesignStudio({
-      entryContext,
-      draftId,
-      notice: nextNotice,
-    });
+    router.push(
+      buildLessonDesignStudioHref({
+        entryContext,
+        draftId,
+        notice: nextNotice,
+      })
+    );
   }
 
   function runAction(actionKey: string, runner: () => Promise<{ draftId: string; reusedExisting: boolean }>) {
@@ -115,52 +118,45 @@ export function DraftChooser({
 
   return (
     <div className="cbs-studio lds-shell">
-      <section className="card lds-chooser-hero">
-        <div className="lds-chooser-hero-copy">
-          <span className="badge">Lesson Design Studio</span>
-          <p className="lds-hero-eyebrow">Choose your next teaching draft</p>
-          <h1 className="lds-hero-title">Pick the curriculum you want to work on</h1>
-          <p className="lds-hero-copy">
-            {userName}, this studio now keeps finished curricula as history so you can
-            review old work, start clean, or keep going from a strong past draft
-            without losing what you already submitted.
+      <header className="topbar lds-chooser-topbar">
+        <div className="lds-chooser-topbar-intro">
+          <Link href="/instructor-training" className="studio-back-link">
+            ← Instructor Training
+          </Link>
+          <p className="badge lds-chooser-topbar-badge">Curriculum Builder</p>
+          <h1 className="page-title">Lesson Design Studio</h1>
+          <p className="page-subtitle">
+            {userName}, open your working draft to keep building, start a blank curriculum, or reuse a past
+            submission as a starting point. Submitted work stays in your library as read-only history.
           </p>
         </div>
+        <div className="lds-chooser-topbar-actions">
+          <button
+            type="button"
+            className="button"
+            disabled={isPending}
+            onClick={() => {
+              if (primaryEditableDraft) {
+                openDraft(primaryEditableDraft.id);
+                return;
+              }
 
-        <div className="lds-chooser-actions">
+              runAction("blank", () => createBlankCurriculumDraft());
+            }}
+          >
+            {primaryEditableDraft ? "Open Working Draft" : "Start Blank Curriculum"}
+          </button>
           {primaryEditableDraft ? (
-            <Link
-              className="button"
-              href={buildLessonDesignStudioHref({
-                entryContext,
-                draftId: primaryEditableDraft.id,
-              })}
-            >
-              Open current working draft
-            </Link>
-          ) : (
-            <button
-              type="button"
-              className="button"
-              disabled={isPending}
-              onClick={() => {
-                runAction("blank", () => createBlankCurriculumDraft());
-              }}
-            >
-              Start blank curriculum
-            </button>
-          )}
-          {primaryEditableDraft ? (
-            <p className="lds-chooser-meta">
-              One editable curriculum stays active at a time so your working draft does not split into confusing branches.
+            <p className="lds-chooser-topbar-hint">
+              One editable curriculum is active at a time so your draft stays in a single clear thread.
             </p>
           ) : (
-            <p className="lds-chooser-meta">
-              No editable draft is open right now, so you can start fresh or reuse an older submission below.
+            <p className="lds-chooser-topbar-hint">
+              No editable draft is open—start fresh or branch from history below.
             </p>
           )}
         </div>
-      </section>
+      </header>
 
       {noticeCopy || actionError || legacyEditableDrafts.length > 0 ? (
         <section className="card lds-chooser-notice-card" role="status">
@@ -181,9 +177,7 @@ export function DraftChooser({
           <div className="lds-chooser-section-header">
             <div>
               <p className="lds-phase-eyebrow">Current Working Draft</p>
-              <h2 className="lds-phase-title">
-                Keep building the curriculum that is still editable
-              </h2>
+              <h2 className="lds-phase-title">Continue Your Editable Curriculum</h2>
             </div>
           </div>
 
@@ -199,15 +193,13 @@ export function DraftChooser({
               Last updated {formatDate(primaryEditableDraft.updatedAt)}
             </p>
             <div className="lds-draft-card-actions">
-              <Link
+              <button
+                type="button"
                 className="button"
-                href={buildLessonDesignStudioHref({
-                  entryContext,
-                  draftId: primaryEditableDraft.id,
-                })}
+                onClick={() => openDraft(primaryEditableDraft.id)}
               >
-                Open working draft
-              </Link>
+                Open Working Draft
+              </button>
             </div>
           </article>
         </section>
@@ -217,10 +209,10 @@ export function DraftChooser({
         <div className="lds-chooser-section-header">
           <div>
             <p className="lds-phase-eyebrow">Draft Library</p>
-            <h2 className="lds-phase-title">Review old work or branch from it</h2>
+            <h2 className="lds-phase-title">Curriculum History & Templates</h2>
             <p className="lds-phase-copy">
-              Submitted, approved, and returned curricula stay here as read-only history.
-              Open any one to review it, or make a new working copy when you want to teach from that pattern again.
+              Submitted, approved, and returned curricula remain here as read-only records. Open any entry to review
+              it, or create a new working copy when you want to teach from that design again.
             </p>
           </div>
         </div>
@@ -268,15 +260,13 @@ export function DraftChooser({
                   ) : null}
 
                   <div className="lds-draft-card-actions">
-                    <Link
+                    <button
+                      type="button"
                       className="button secondary"
-                      href={buildLessonDesignStudioHref({
-                        entryContext,
-                        draftId: draft.id,
-                      })}
+                      onClick={() => openDraft(draft.id)}
                     >
                       Open
-                    </Link>
+                    </button>
                     <button
                       type="button"
                       className="button"

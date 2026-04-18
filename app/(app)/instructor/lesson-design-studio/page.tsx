@@ -4,18 +4,15 @@ import {
   getCurriculumDraftForStudio,
   listCurriculumDraftSummaries,
 } from "@/lib/curriculum-draft-actions";
+import { getCurriculumDraftProgress } from "@/lib/curriculum-draft-progress";
 import {
-  getCurriculumDraftProgress,
-  getWeeklyPlansInput,
-} from "@/lib/curriculum-draft-progress";
-import {
+  buildLessonDesignStudioHref,
   deriveStudioPhase,
   getCanonicalStudioHref,
   getStudioDraftIdFromSearchParams,
   getStudioEntryContextFromSearchParams,
 } from "@/lib/lesson-design-studio";
 import { DraftChooser } from "./draft-chooser";
-import { StudioClient } from "./studio-client";
 import "./studio.css";
 
 export default async function CurriculumBuilderStudioPage({
@@ -76,7 +73,7 @@ export default async function CurriculumBuilderStudioPage({
     weeklyPlans: studioDraft.weeklyPlans,
     understandingChecks: studioDraft.understandingChecks,
   });
-  const currentPhase = deriveStudioPhase({
+  const derivedPhase = deriveStudioPhase({
     status: studioDraft.status,
     title: studioDraft.title,
     interestArea: studioDraft.interestArea,
@@ -87,33 +84,12 @@ export default async function CurriculumBuilderStudioPage({
     progress,
   });
 
-  return (
-    <StudioClient
-      userId={session.user.id}
-      userName={session.user.name ?? "Instructor"}
-      entryContext={entryContext}
-      notice={notice}
-      currentPhase={currentPhase}
-      progress={progress}
-      viewerAccess={draft.access}
-      draft={{
-        id: studioDraft.id,
-        title: studioDraft.title,
-        description: studioDraft.description ?? "",
-        interestArea: studioDraft.interestArea,
-        outcomes: studioDraft.outcomes,
-        courseConfig: studioDraft.courseConfig,
-        weeklyPlans: getWeeklyPlansInput(studioDraft.weeklyPlans),
-        understandingChecks: studioDraft.understandingChecks,
-        reviewRubric: studioDraft.reviewRubric,
-        reviewNotes: studioDraft.reviewNotes ?? "",
-        reviewedAt: studioDraft.reviewedAt?.toISOString() ?? null,
-        submittedAt: studioDraft.submittedAt?.toISOString() ?? null,
-        approvedAt: studioDraft.approvedAt?.toISOString() ?? null,
-        generatedTemplateId: studioDraft.generatedTemplateId ?? null,
-        status: studioDraft.status,
-        updatedAt: studioDraft.updatedAt.toISOString(),
-      }}
-    />
+  redirect(
+    buildLessonDesignStudioHref({
+      entryContext,
+      draftId,
+      notice,
+      phase: derivedPhase,
+    })
   );
 }

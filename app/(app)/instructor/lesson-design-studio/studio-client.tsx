@@ -1,6 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -29,18 +28,23 @@ import {
 } from "@/lib/curriculum-draft-progress";
 import {
   buildGuidedStudioJourney,
-  deriveStudioPhase,
+  buildLessonDesignStudioHref,
   getStudioPhaseIndex,
-  getStudioPhaseMeta,
   type StudioEntryContext,
   type StudioPhase,
 } from "@/lib/lesson-design-studio";
-import { openLessonDesignStudio } from "@/lib/lesson-design-studio-navigation";
+import { ActivityTemplates } from "./components/activity-templates";
+import { ExamplesLibrary } from "./components/examples-library";
 import { GuidedStudioShell } from "./components/guided-studio-shell";
+import { StudioNavTips } from "./components/studio-nav-tips";
 import { CommentSidebar } from "./components/comment-sidebar";
+import { StudioCourseMapStep } from "./components/studio-course-map-step";
+import { StudioReadinessStep } from "./components/studio-readiness-step";
+import { StudioReviewLaunchStep } from "./components/studio-review-launch-step";
+import { StudioSessionsStep } from "./components/studio-sessions-step";
+import { StudioStartStep } from "./components/studio-start-step";
 import { QuickStartWizard } from "./components/quick-start-wizard";
 import { StudentPreviewPanel } from "./components/student-preview-panel";
-import { useBodyScrollLock } from "./components/use-body-scroll-lock";
 import { SEED_CURRICULA, type SeedCurriculum } from "./curriculum-seeds";
 import type { ExampleWeek } from "./examples-data";
 import {
@@ -61,77 +65,6 @@ import type {
   WeekPlan,
 } from "./types";
 
-const StudioStartStepEntry = dynamic(
-  () =>
-    import("./components/studio-start-step-entry").then(
-      (module) => module.StudioStartStepEntry
-    ),
-  {
-    loading: () => <div className="lds-step-card">Loading starter support...</div>,
-  }
-);
-
-const StudioCourseMapStep = dynamic(
-  () =>
-    import("./components/studio-course-map-step").then(
-      (module) => module.StudioCourseMapStep
-    ),
-  {
-    loading: () => <div className="lds-step-card">Loading course map...</div>,
-  }
-);
-
-const StudioSessionsStep = dynamic(
-  () =>
-    import("./components/studio-sessions-step").then(
-      (module) => module.StudioSessionsStep
-    ),
-  {
-    loading: () => <div className="lds-step-card">Loading session builder...</div>,
-  }
-);
-
-const StudioReadinessStep = dynamic(
-  () =>
-    import("./components/studio-readiness-step").then(
-      (module) => module.StudioReadinessStep
-    ),
-  {
-    loading: () => <div className="lds-step-card">Loading readiness checks...</div>,
-  }
-);
-
-const StudioReviewLaunchStep = dynamic(
-  () =>
-    import("./components/studio-review-launch-step").then(
-      (module) => module.StudioReviewLaunchStep
-    ),
-  {
-    loading: () => <div className="lds-step-card">Loading review and launch...</div>,
-  }
-);
-
-const ExamplesLibrary = dynamic(
-  () =>
-    import("./components/examples-library").then(
-      (module) => module.ExamplesLibrary
-    )
-);
-
-const ActivityTemplates = dynamic(
-  () =>
-    import("./components/activity-templates").then(
-      (module) => module.ActivityTemplates
-    )
-);
-
-const OnboardingTour = dynamic(
-  () =>
-    import("./components/onboarding-tour").then(
-      (module) => module.OnboardingTour
-    )
-);
-
 interface StudioClientProps {
   userId: string;
   userName: string;
@@ -139,7 +72,8 @@ interface StudioClientProps {
   viewerAccess: StudioViewerAccess;
   entryContext?: StudioEntryContext;
   notice?: string | null;
-  currentPhase?: StudioPhase;
+  /** Active editor page (URL-driven). */
+  studioPhase: StudioPhase;
   progress?: CurriculumDraftProgress;
 }
 
@@ -261,19 +195,6 @@ function normalizeTopic(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
-function scoreSeedMatch(seed: SeedCurriculum, topic: string) {
-  const draft = normalizeTopic(topic);
-  const seedTopic = normalizeTopic(seed.interestArea);
-  if (!draft) return 0;
-  if (seedTopic === draft) return 100;
-  if (seedTopic.includes(draft) || draft.includes(seedTopic)) return 80;
-
-  const draftWords = new Set(draft.split(" ").filter(Boolean));
-  return seedTopic
-    .split(" ")
-    .filter((word) => draftWords.has(word)).length * 20;
-}
-
 function isBlankWeekPlan(week: WeekPlan) {
   return (
     !week.title.trim() &&
@@ -285,57 +206,17 @@ function isBlankWeekPlan(week: WeekPlan) {
   );
 }
 
-function getEntrySummary(
-  entryContext: StudioEntryContext,
-  status: string,
-  userName: string
-) {
-  if (status === "NEEDS_REVISION") {
-    return {
-      eyebrow: "Revision Journey",
-      title: "Tighten the draft and move back toward launch",
-      body:
-        "A reviewer has sent this curriculum back with guidance. Use the notes in each phase to strengthen the parts that still need work.",
-    };
-  }
+function scoreSeedMatch(seed: SeedCurriculum, topic: string) {
+  const draft = normalizeTopic(topic);
+  const seedTopic = normalizeTopic(seed.interestArea);
+  if (!draft) return 0;
+  if (seedTopic === draft) return 100;
+  if (seedTopic.includes(draft) || draft.includes(seedTopic)) return 80;
 
-  switch (entryContext) {
-    case "TRAINING":
-      return {
-        eyebrow: "Capstone Studio",
-        title: "Leave training with a curriculum you can really teach",
-        body:
-          "This studio is now the main capstone workspace. Shape the course, build each session, and finish with something that feels ready for a real classroom.",
-      };
-    case "APPLICATION_STATUS":
-      return {
-        eyebrow: "Application Journey",
-        title: "Build the curriculum that carries your application forward",
-        body:
-          "Your next big step is a full, teachable first curriculum. Use this studio to turn your idea into a complete capstone submission.",
-      };
-    case "REVIEW":
-      return {
-        eyebrow: "Review Follow-Up",
-        title: "Review feedback, revise with purpose, and relaunch",
-        body:
-          "Keep the reviewer’s guidance close, update the right parts of the draft, and then return to review with a stronger curriculum package.",
-      };
-    case "NAV":
-      return {
-        eyebrow: "Studio Journey",
-        title: `Welcome back, ${userName}`,
-        body:
-          "This is your step-by-step teaching studio. Start with a scaffold if you need momentum, then shape the course and build the sessions that make it real.",
-      };
-    default:
-      return {
-        eyebrow: "Lesson Design Studio",
-        title: "Build a first curriculum that feels connected from start to launch",
-        body:
-          "Move through the phases one at a time, use examples when you need them, and keep the whole teaching journey visible in one place.",
-      };
-  }
+  const draftWords = new Set(draft.split(" ").filter(Boolean));
+  return seedTopic
+    .split(" ")
+    .filter((word) => draftWords.has(word)).length * 20;
 }
 
 function getStatusPill(status: string) {
@@ -370,6 +251,48 @@ function matchesCommentAnchor(
   );
 }
 
+function loadLessonDesignHistoryFromStorage(
+  storageKey: string
+): LessonDesignHistoryVersion[] {
+  try {
+    const stored = localStorage.getItem(storageKey);
+    if (!stored) return [];
+
+    const parsed = JSON.parse(stored) as Array<{
+      savedAt?: string;
+      snapshot?: Partial<LessonDesignHistoryVersion["snapshot"]>;
+    }>;
+
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter((version) => version && typeof version === "object")
+      .map((version) => ({
+        savedAt: String(version.savedAt ?? new Date().toISOString()),
+        snapshot: {
+          title: String(version.snapshot?.title ?? ""),
+          description: String(version.snapshot?.description ?? ""),
+          interestArea: String(version.snapshot?.interestArea ?? ""),
+          outcomes: Array.isArray(version.snapshot?.outcomes)
+            ? version.snapshot.outcomes.filter(
+                (item): item is string => typeof item === "string"
+              )
+            : [],
+          courseConfig: normalizeCourseConfig(version.snapshot?.courseConfig),
+          weeklyPlans: getWeeklyPlansInput(version.snapshot?.weeklyPlans).map(
+            normalizeWeek
+          ),
+          understandingChecks: normalizeUnderstandingChecks(
+            version.snapshot?.understandingChecks
+          ),
+        },
+      }));
+  } catch (error) {
+    console.error("Failed to restore Lesson Design Studio history.", error);
+    return [];
+  }
+}
+
 export function StudioClient({
   userId,
   userName,
@@ -377,7 +300,7 @@ export function StudioClient({
   viewerAccess,
   entryContext = "DIRECT",
   notice = null,
-  currentPhase,
+  studioPhase,
   progress: initialProgress,
 }: StudioClientProps) {
   const router = useRouter();
@@ -427,52 +350,16 @@ export function StudioClient({
   const [libraryTargetPlanId, setLibraryTargetPlanId] = useState<string | null>(
     null
   );
-  const [manuallyRequestedTour, setManuallyRequestedTour] = useState(false);
-  const [tourInstanceKey, setTourInstanceKey] = useState(0);
+  const [showNavTips, setShowNavTips] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState(draft.updatedAt);
   const [toast, setToast] = useState<ToastState>(null);
   const [historyVersions, setHistoryVersions] = useState<
     LessonDesignHistoryVersion[]
-  >(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const stored = localStorage.getItem(historyStorageKey);
-      if (!stored) return [];
+  >([]);
 
-      const parsed = JSON.parse(stored) as Array<{
-        savedAt?: string;
-        snapshot?: Partial<LessonDesignHistoryVersion["snapshot"]>;
-      }>;
-
-      if (!Array.isArray(parsed)) return [];
-
-      return parsed
-        .filter((version) => version && typeof version === "object")
-        .map((version) => ({
-          savedAt: String(version.savedAt ?? new Date().toISOString()),
-          snapshot: {
-            title: String(version.snapshot?.title ?? ""),
-            description: String(version.snapshot?.description ?? ""),
-            interestArea: String(version.snapshot?.interestArea ?? ""),
-            outcomes: Array.isArray(version.snapshot?.outcomes)
-              ? version.snapshot.outcomes.filter(
-                  (item): item is string => typeof item === "string"
-                )
-              : [],
-            courseConfig: normalizeCourseConfig(version.snapshot?.courseConfig),
-            weeklyPlans: getWeeklyPlansInput(version.snapshot?.weeklyPlans).map(
-              normalizeWeek
-            ),
-            understandingChecks: normalizeUnderstandingChecks(
-              version.snapshot?.understandingChecks
-            ),
-          },
-        }));
-    } catch (error) {
-      console.error("Failed to restore Lesson Design Studio history.", error);
-      return [];
-    }
-  });
+  useEffect(() => {
+    setHistoryVersions(loadLessonDesignHistoryFromStorage(historyStorageKey));
+  }, [historyStorageKey]);
 
   const reviewRubric: StudioReviewRubric = normalizeReviewRubric(
     draft.reviewRubric
@@ -492,9 +379,9 @@ export function StudioClient({
   const isWorkflowActionPending = isFlushing || isSubmitting || isExporting;
   const workflowNotice =
     notice === "active-draft-reused"
-      ? "You already had one editable curriculum open, so the studio reopened that working draft instead of creating a second one."
+      ? "Reopened your existing editable draft (only one at a time)."
       : notice === "draft-unavailable"
-        ? "That draft changed while you were working. We moved you back to the draft list so you can choose the next step safely."
+        ? "That draft changed; you were returned to the draft list."
         : null;
 
   const progress = useMemo(
@@ -510,20 +397,20 @@ export function StudioClient({
     [title, interestArea, outcomes, courseConfig, weeklyPlans, understandingChecks]
   );
 
-  const initialDerivedPhase =
-    currentPhase ??
-    deriveStudioPhase({
-      status: draft.status,
-      title: draft.title,
-      interestArea: draft.interestArea,
-      outcomes: draft.outcomes,
-      courseConfig: draft.courseConfig,
-      weeklyPlans: draft.weeklyPlans,
-      understandingChecks: draft.understandingChecks,
-      progress: initialProgress,
-    });
+  const activePhase = studioPhase;
 
-  const [activePhase, setActivePhase] = useState<StudioPhase>(initialDerivedPhase);
+  const goToPhase = useCallback(
+    (phase: StudioPhase) => {
+      router.push(
+        buildLessonDesignStudioHref({
+          draftId: draft.id,
+          phase,
+          entryContext,
+        })
+      );
+    },
+    [draft.id, entryContext, router]
+  );
   const [selectedWeekId, setSelectedWeekId] = useState<string | null>(
     weeklyPlans[0]?.id ?? null
   );
@@ -711,10 +598,12 @@ export function StudioClient({
             message.includes("Draft not found or unauthorized") ||
             message.includes("locked for review history")
           ) {
-            openLessonDesignStudio({
-              entryContext,
-              notice: "draft-unavailable",
-            });
+            router.push(
+              buildLessonDesignStudioHref({
+                entryContext,
+                notice: "draft-unavailable",
+              })
+            );
           }
           return false;
         } finally {
@@ -738,6 +627,7 @@ export function StudioClient({
       getSnapshotSignature,
       isDraftEditable,
       pushToHistory,
+      router,
       showToast,
     ]
   );
@@ -1117,10 +1007,10 @@ export function StudioClient({
 
       setShowExamplesLibrary(false);
       setLibraryTargetPlanId(null);
-      setActivePhase("SESSIONS");
+      goToPhase("SESSIONS");
       return true;
     },
-    [buildSnapshot, courseConfig.classDurationMin, isDraftEditable, triggerAutoSave]
+    [buildSnapshot, courseConfig.classDurationMin, goToPhase, isDraftEditable, triggerAutoSave]
   );
 
   const handleApplyStarterScaffold = useCallback(
@@ -1187,10 +1077,10 @@ export function StudioClient({
       setOutcomes(seed.outcomes);
       setCourseConfig(nextCourseConfig);
       setWeeklyPlans(seededPlans);
-      setActivePhase("COURSE_MAP");
+      goToPhase("COURSE_MAP");
       triggerAutoSave(nextSnapshot);
     },
-    [buildSnapshot, courseConfig, isDraftEditable, pushToHistory, triggerAutoSave]
+    [buildSnapshot, courseConfig, goToPhase, isDraftEditable, pushToHistory, triggerAutoSave]
   );
 
   const handleGenerateQuickStart = useCallback(
@@ -1254,7 +1144,7 @@ export function StudioClient({
       await submitCurriculumDraft(draft.id);
       setCurrentStatus("SUBMITTED");
       setLastSavedAt(new Date().toISOString());
-      setActivePhase("REVIEW_LAUNCH");
+      goToPhase("REVIEW_LAUNCH");
       router.refresh();
       return true;
     } catch (error) {
@@ -1265,7 +1155,16 @@ export function StudioClient({
         setIsSubmitting(false);
       }
     }
-  }, [draft.id, flushDraftNow, isDraftEditable, isExporting, isFlushing, isSubmitting, router]);
+  }, [
+    draft.id,
+    flushDraftNow,
+    goToPhase,
+    isDraftEditable,
+    isExporting,
+    isFlushing,
+    isSubmitting,
+    router,
+  ]);
 
   const handleRestoreVersion = useCallback(
     (version: LessonDesignHistoryVersion) => {
@@ -1320,146 +1219,22 @@ export function StudioClient({
     [hasManuallySelectedExampleTab]
   );
 
-  const handleTourSeedHeader = useCallback(
-    (info: {
-      title: string;
-      description: string;
-      interestArea: string;
-      outcomes: string[];
-      durationWeeks: number;
-      classDurationMin: number;
-    }) => {
-      if (!isDraftEditable) return;
-      pushToHistory(buildSnapshot());
-
-      const nextCourseConfig = normalizeCourseConfig({
-        ...courseConfig,
-        durationWeeks: info.durationWeeks,
-        sessionsPerWeek: 1,
-        classDurationMin: info.classDurationMin,
-      });
-      const nextPlans = normalizePlansForConfig(weeklyPlans, nextCourseConfig);
-      const nextSnapshot = buildSnapshot({
-        title: info.title,
-        description: info.description,
-        interestArea: info.interestArea,
-        outcomes: info.outcomes,
-        courseConfig: nextCourseConfig,
-        weeklyPlans: nextPlans,
-      });
-
-      setTitle(info.title);
-      setDescription(info.description);
-      setInterestArea(info.interestArea);
-      setOutcomes(info.outcomes);
-      setCourseConfig(nextCourseConfig);
-      setWeeklyPlans(nextPlans);
-      setActivePhase("COURSE_MAP");
-      triggerAutoSave(nextSnapshot);
-    },
-    [
-      buildSnapshot,
-      courseConfig,
-      isDraftEditable,
-      normalizePlansForConfig,
-      pushToHistory,
-      triggerAutoSave,
-      weeklyPlans,
-    ]
-  );
-
-  const handleTourSeedWeeks = useCallback(
-    (
-      weeks: Array<{
-        title: string;
-        objective: string;
-        teacherPrepNotes: string;
-        classDurationMin: number;
-        activities: Array<{
-          title: string;
-          type: string;
-          durationMin: number;
-          description: string;
-        }>;
-        atHomeAssignment: {
-          type: string;
-          title: string;
-          description: string;
-        };
-      }>
-    ) => {
-      if (!isDraftEditable) return;
-      setWeeklyPlans((prev) => {
-        const next = [...prev];
-        let cursor = 0;
-
-        for (const seededWeek of weeks) {
-          while (cursor < next.length && !isBlankWeekPlan(next[cursor])) {
-            cursor += 1;
-          }
-
-          if (cursor >= next.length) break;
-
-          const target = next[cursor];
-          next[cursor] = {
-            ...target,
-            title: seededWeek.title,
-            classDurationMin: seededWeek.classDurationMin,
-            objective: seededWeek.objective,
-            teacherPrepNotes: seededWeek.teacherPrepNotes,
-            materialsChecklist: [],
-            atHomeAssignment: seededWeek.atHomeAssignment
-              ? {
-                  type: normalizeAtHomeAssignmentType(
-                    seededWeek.atHomeAssignment.type
-                  ),
-                  title: seededWeek.atHomeAssignment.title,
-                  description: seededWeek.atHomeAssignment.description,
-                }
-              : null,
-            activities: seededWeek.activities.map((activity, activityIndex) => ({
-              id: generateId(),
-              title: activity.title,
-              type: normalizeActivityType(activity.type),
-              durationMin: activity.durationMin,
-              description: activity.description,
-              resources: null,
-              notes: null,
-              sortOrder: activityIndex,
-              materials: null,
-              differentiationTips: null,
-              energyLevel: null,
-              standardsTags: [],
-              rubric: null,
-            })),
-          };
-          cursor += 1;
-        }
-
-        triggerAutoSave(buildSnapshot({ weeklyPlans: next }));
-        return next;
-      });
-      setActivePhase("SESSIONS");
-    },
-    [buildSnapshot, isDraftEditable, triggerAutoSave]
-  );
-
-  const handleTourComplete = useCallback(async () => {
+  const handleMarkTrainingOrientationComplete = useCallback(async () => {
     const didSave = await flushDraftNow();
     if (!didSave) {
-      alert("Please fix the save error before finishing the tour.");
+      alert("Please fix the save error before recording orientation.");
       return;
     }
 
     try {
       await markLessonDesignStudioTourComplete(draft.id);
-      setManuallyRequestedTour(false);
+      setShowNavTips(false);
       router.refresh();
     } catch (error) {
       alert(
         error instanceof Error
           ? error.message
-          : "Failed to save tour completion"
+          : "Failed to record orientation completion"
       );
     }
   }, [draft.id, flushDraftNow, router]);
@@ -1469,11 +1244,14 @@ export function StudioClient({
 
     try {
       const result = await createWorkingCopyFromCurriculumDraft(draft.id);
-      openLessonDesignStudio({
-        entryContext,
-        draftId: result.draftId,
-        notice: result.reusedExisting ? "active-draft-reused" : null,
-      });
+      router.push(
+        buildLessonDesignStudioHref({
+          entryContext,
+          draftId: result.draftId,
+          phase: "START",
+          notice: result.reusedExisting ? "active-draft-reused" : null,
+        })
+      );
     } catch (error) {
       alert(
         error instanceof Error
@@ -1481,7 +1259,7 @@ export function StudioClient({
           : "Failed to open a working copy."
       );
     }
-  }, [draft.id, entryContext, isWorkflowActionPending]);
+  }, [draft.id, entryContext, isWorkflowActionPending, router]);
 
   const resolveCommentAnchorLabel = useCallback(
     (
@@ -1738,20 +1516,9 @@ export function StudioClient({
     [getErrorMessage, showToast]
   );
 
-  const restartOnboardingTour = useCallback(() => {
-    try {
-      localStorage.removeItem(onboardingStorageKey);
-    } catch (error) {
-      console.error("Failed to reset Lesson Design Studio onboarding state.", error);
-      showToast(
-        "error",
-        "The starter support tour could not be reset on this device."
-      );
-    }
-
-    setManuallyRequestedTour(true);
-    setTourInstanceKey((current) => current + 1);
-  }, [onboardingStorageKey, showToast]);
+  const openStudioNavTips = useCallback(() => {
+    setShowNavTips(true);
+  }, []);
 
   useEffect(() => {
     void loadComments();
@@ -1795,8 +1562,6 @@ export function StudioClient({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showHistory]);
 
-  useBodyScrollLock(showHistory);
-
   const selectedWeek =
     weeklyPlans.find((plan) => plan.id === selectedWeekId) ?? weeklyPlans[0] ?? null;
 
@@ -1821,11 +1586,7 @@ export function StudioClient({
     nonEmptyOutcomes.length === 0 &&
     weeklyPlans.every((plan) => isBlankWeekPlan(plan));
   const hasStartedDraft = !isDraftBlank;
-  const shouldRenderOnboardingTour =
-    !isReviewControlledStatus && manuallyRequestedTour;
-  const entrySummary = getEntrySummary(entryContext, reviewStatus, userName);
   const statusPill = getStatusPill(reviewStatus);
-  const activePhaseMeta = getStudioPhaseMeta(activePhase);
   const journey = buildGuidedStudioJourney({
     activePhase,
     status: reviewStatus,
@@ -1865,82 +1626,81 @@ export function StudioClient({
   const isReviewerView = viewerAccess.viewerKind === "REVIEWER";
   const readOnlyNotice = isDraftReadOnly
     ? isReviewerView
-      ? "Review mode is on."
+      ? "Review mode."
       : reviewStatus === "SUBMITTED"
-        ? "This curriculum is under review."
+        ? "Under review."
         : reviewStatus === "APPROVED"
-          ? "This curriculum is approved."
-          : "This curriculum is preserved as review history."
+          ? "Approved."
+          : "Read-only history."
     : null;
   const readOnlyBody = isDraftReadOnly
     ? isReviewerView
-      ? "You can move through the studio, leave comments, and resolve feedback here. Curriculum fields stay read-only so the review process stays separate from the author’s edits."
-      : "You can still review the course, move between steps, and export PDFs here. Start a working copy when you want to keep editing without changing the submitted history."
+      ? "Comments only; curriculum fields are locked."
+      : "Browse and export; use a working copy to edit."
     : null;
-  const heroActions = (
-    <>
-      {isDraftEditable ? (
-        <button
-          type="button"
-          className="button secondary"
-          onClick={() => {
-            openExamplesLibrary(null);
-          }}
-        >
-          Open examples library
-        </button>
-      ) : null}
-      {isDraftReadOnly && !isReviewerView ? (
-        <button
-          type="button"
-          className="button"
-          onClick={() => void handleCreateWorkingCopy()}
-          disabled={isWorkflowActionPending}
-        >
-          {isApproved
-            ? "Build another from this"
-            : reviewStatus === "REJECTED"
-              ? "Start over from this draft"
-              : "Use as starting point"}
-        </button>
-      ) : null}
-      {isDraftEditable ? (
-        <button
-          type="button"
-          className="button secondary"
-          onClick={restartOnboardingTour}
-        >
-          Rebuild with starter support
-        </button>
-      ) : null}
-      {isDraftEditable && historyVersions.length > 0 ? (
-        <button
-          type="button"
-          className="button secondary"
-          onClick={() => setShowHistory(true)}
-        >
-          View version history
-        </button>
-      ) : null}
-    </>
-  );
+  const heroActions =
+    isDraftEditable || (isDraftReadOnly && !isReviewerView) ? (
+      <>
+        {isDraftEditable ? (
+          <button
+            type="button"
+            className="button secondary"
+            aria-label="Examples library"
+            title="Example curricula"
+            onClick={() => {
+              openExamplesLibrary(null);
+            }}
+          >
+            Library
+          </button>
+        ) : null}
+        {isDraftReadOnly && !isReviewerView ? (
+          <button
+            type="button"
+            className="button"
+            onClick={() => void handleCreateWorkingCopy()}
+            disabled={isWorkflowActionPending}
+          >
+            {isApproved
+              ? "Build another from this"
+              : reviewStatus === "REJECTED"
+                ? "Start over from this draft"
+                : "Use as starting point"}
+          </button>
+        ) : null}
+        {isDraftEditable ? (
+          <button
+            type="button"
+            className="button secondary"
+            aria-label="Studio tips"
+            title="Studio tips"
+            onClick={openStudioNavTips}
+          >
+            Tips
+          </button>
+        ) : null}
+        {isDraftEditable && historyVersions.length > 0 ? (
+          <button
+            type="button"
+            className="button secondary"
+            aria-label="Draft history"
+            title="Draft history"
+            onClick={() => setShowHistory(true)}
+          >
+            Log
+          </button>
+        ) : null}
+      </>
+    ) : null;
 
   const hasToolbarActions =
     viewerAccess.canComment || (activePhase === "SESSIONS" && selectedWeek);
-  const hasBlockingOverlay =
-    showExamplesLibrary ||
-    templatesWeekId !== null ||
-    showQuickStartWizard ||
-    showStudentPreview ||
-    showCommentSidebar ||
-    shouldRenderOnboardingTour ||
-    showHistory;
   const toolbarActions = hasToolbarActions ? (
     <>
       {viewerAccess.canComment ? (
         <button
           type="button"
-          className="button secondary"
+          className="button secondary lds-toolbar-comments-btn"
           title={commentsError ?? undefined}
           onClick={() => {
             setActiveCommentAnchor(null);
@@ -1970,13 +1730,13 @@ export function StudioClient({
 
   const stepContent =
     activePhase === "START" ? (
-      <StudioStartStepEntry
-        interestArea={interestArea}
+      <StudioStartStep
+        starterScaffolds={SEED_CURRICULA}
+        recommendedScaffoldId={recommendedSeed.id}
         isReadOnly={isDraftReadOnly}
         hasStartedDraft={hasStartedDraft}
         onApplyStarterScaffold={handleApplyStarterScaffold}
-        onMoveForward={() => setActivePhase("COURSE_MAP")}
-        onOpenStarterTour={restartOnboardingTour}
+        onMoveForward={() => goToPhase("COURSE_MAP")}
         onOpenQuickStartWizard={() => setShowQuickStartWizard(true)}
       />
     ) : activePhase === "COURSE_MAP" ? (
@@ -1994,7 +1754,7 @@ export function StudioClient({
         understandingChecks={understandingChecks}
         isReadOnly={isDraftReadOnly}
         onUpdate={handleUpdate}
-        onPhaseChange={setActivePhase}
+        onPhaseChange={goToPhase}
         onAnswerUnderstandingCheck={handleAnswerUnderstandingCheck}
         onOpenExamplesLibrary={() => openExamplesLibrary(null)}
         onOpenComments={openCommentsForAnchor}
@@ -2004,7 +1764,6 @@ export function StudioClient({
       />
     ) : activePhase === "SESSIONS" ? (
       <StudioSessionsStep
-        interestArea={interestArea}
         courseConfig={courseConfig}
         weeklyPlans={weeklyPlans}
         currentUserId={userId}
@@ -2026,7 +1785,7 @@ export function StudioClient({
         onOpenTemplates={setTemplatesWeekId}
         onOpenExamplesLibrary={openExamplesLibrary}
         onImportExampleWeek={handleImportWeek}
-        onPhaseChange={setActivePhase}
+        onPhaseChange={goToPhase}
         onAnswerUnderstandingCheck={handleAnswerUnderstandingCheck}
         onOpenComments={openCommentsForAnchor}
         onCreateComment={handleCreateComment}
@@ -2039,7 +1798,7 @@ export function StudioClient({
         blockers={journey.blockers}
         understandingChecks={understandingChecks}
         isReadOnly={isDraftReadOnly}
-        onPhaseChange={setActivePhase}
+        onPhaseChange={goToPhase}
         onAnswerUnderstandingCheck={handleAnswerUnderstandingCheck}
       />
     ) : (
@@ -2055,81 +1814,68 @@ export function StudioClient({
         needsRevision={needsRevision}
         isActionPending={isWorkflowActionPending}
         canCreateWorkingCopy={!isReviewerView}
-        interestArea={interestArea}
-        onPhaseChange={setActivePhase}
+        onPhaseChange={goToPhase}
         onExportPdf={handleExportPdf}
         onSubmit={handleSubmit}
         onCreateWorkingCopy={handleCreateWorkingCopy}
-        onOpenExamplesLibrary={() => openExamplesLibrary(null)}
       />
     );
 
   return (
     <GuidedStudioShell
-      eyebrow={entrySummary.eyebrow}
-      title={entrySummary.title}
-      body={entrySummary.body}
+      curriculumTitle={title.trim() || "Untitled curriculum"}
+      draftId={draft.id}
+      entryContext={entryContext}
+      activePhase={activePhase}
       statusLabel={statusPill.label}
       statusClassName={statusPill.className}
       saveStatus={isDraftEditable ? saveStatus : "idle"}
-      currentPhaseLabel={activePhaseMeta.label}
-      sessionsBuiltLabel={`${progress.fullyBuiltSessions}/${progress.totalSessionsExpected}`}
-      understandingLabel={progress.understandingChecksPassed ? "Passed" : "In progress"}
-      blockerLabel={blockerCount === 0 ? "None" : String(blockerCount)}
       updatedAtLabel={`Last saved ${new Date(lastSavedAt).toLocaleString()}`}
       workflowNotice={workflowNotice}
       readOnlyNotice={readOnlyNotice}
       readOnlyBody={readOnlyBody}
-      isModalOpen={hasBlockingOverlay}
       toast={toast}
-      journey={journey}
-      onPhaseChange={setActivePhase}
       toolbarActions={toolbarActions}
       heroActions={heroActions}
-    >
-      {stepContent}
+      globalOverlays={
+        <>
+      <ExamplesLibrary
+        open={showExamplesLibrary}
+        activeTab={activeExampleTab}
+        interestArea={interestArea}
+        targetLabel={targetPlanLabel}
+        errorMessage={examplesLibraryError}
+        autoRecommendEnabled={!hasManuallySelectedExampleTab}
+        onClose={() => {
+          setShowExamplesLibrary(false);
+          setLibraryTargetPlanId(null);
+          setExamplesLibraryError(null);
+        }}
+        onTabChange={handleExamplesTabChange}
+        onImportWeek={(week) => handleImportWeek(week, libraryTargetPlanId)}
+      />
 
-      {showExamplesLibrary ? (
-        <ExamplesLibrary
-          open={showExamplesLibrary}
-          activeTab={activeExampleTab}
-          interestArea={interestArea}
-          targetLabel={targetPlanLabel}
-          errorMessage={examplesLibraryError}
-          autoRecommendEnabled={!hasManuallySelectedExampleTab}
-          onClose={() => {
-            setShowExamplesLibrary(false);
-            setLibraryTargetPlanId(null);
-            setExamplesLibraryError(null);
-          }}
-          onTabChange={handleExamplesTabChange}
-          onImportWeek={(week) => handleImportWeek(week, libraryTargetPlanId)}
-        />
-      ) : null}
-
-      {templatesWeekId !== null ? (
-        <ActivityTemplates
-          open={templatesWeekId !== null}
-          onClose={() => setTemplatesWeekId(null)}
-          onInsert={(template) => {
-            if (!templatesWeekId) return;
-            setTemplatesWeekId(null);
-            handleAddActivity(templatesWeekId, {
-              title: template.title,
-              type: template.type,
-              durationMin: template.durationMin,
-              description: template.description,
-              resources: null,
-              notes: null,
-              materials: null,
-              differentiationTips: null,
-              energyLevel: null,
-              standardsTags: [],
-              rubric: null,
-            });
-          }}
-        />
-      ) : null}
+      <ActivityTemplates
+        open={templatesWeekId !== null}
+        onClose={() => setTemplatesWeekId(null)}
+        onInsert={(template) => {
+          if (!templatesWeekId) return;
+          setTemplatesWeekId(null);
+          handleAddActivity(templatesWeekId, {
+            title: template.title,
+            type: template.type,
+            durationMin: template.durationMin,
+            description: template.description,
+            resources: null,
+            notes: null,
+            materials: null,
+            differentiationTips: null,
+            energyLevel: null,
+            standardsTags: [],
+            rubric: null,
+          });
+        }}
+      />
 
       <QuickStartWizard
         open={showQuickStartWizard}
@@ -2162,24 +1908,18 @@ export function StudioClient({
         resolveAnchorLabel={resolveCommentAnchorLabel}
       />
 
-      {shouldRenderOnboardingTour ? (
-        <OnboardingTour
-          key={`${onboardingStorageKey}_${tourInstanceKey}`}
-          storageKey={onboardingStorageKey}
-          onSeedHeader={handleTourSeedHeader}
-          onSeedWeeks={handleTourSeedWeeks}
-          onComplete={handleTourComplete}
-        />
-      ) : null}
+      <StudioNavTips
+        open={showNavTips}
+        onClose={() => setShowNavTips(false)}
+        showTrainingOrientationAction={isDraftEditable && !isReviewControlledStatus}
+        onMarkTrainingOrientation={handleMarkTrainingOrientationComplete}
+      />
 
       {showHistory ? (
         <div className="cbs-modal-overlay" onClick={() => setShowHistory(false)}>
           <div
             className="cbs-history-modal"
             onClick={(event) => event.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Version history"
           >
             <div className="cbs-history-header">
               <h3 className="cbs-history-title">Version History</h3>
@@ -2224,6 +1964,10 @@ export function StudioClient({
           </div>
         </div>
       ) : null}
+        </>
+      }
+    >
+      {stepContent}
     </GuidedStudioShell>
   );
 }

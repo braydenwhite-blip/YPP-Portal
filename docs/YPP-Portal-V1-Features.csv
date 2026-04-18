@@ -1,0 +1,83 @@
+Role,Subtype,Feature_area,Feature_or_requirement,Priority,V1_scope,Notes
+Platform,,Authentication,Email and password sign-in; password reset; verification where enabled,Critical,Must,docs/V1_AUTH_SCOPE.md
+Platform,,Authentication,Rate limiting and account lockout after failed attempts,High,Must,lib/auth
+Platform,,Authentication,Role-based access enforced on routes and navigation,Critical,Must,Primary role drives dashboard at /
+Platform,,Cross-role,Unified home dashboard: queues KPIs next actions role-appropriate,High,Must,README; core nav per role
+Platform,,Cross-role,Searchable All Tools Explorer (filtered to what your roles may access),High,Must,README
+APPLICANT,,Onboarding,Application status and instructor applicant journey,High,Must,/application-status; NAV_CATALOG Start Here
+APPLICANT,,Training access,Training academy and lesson design studio access while applicant,High,Must,core-map APPLICANT paths
+APPLICANT,,Hiring,Open positions and applications surfaces,Medium,Must,/positions /applications
+STUDENT,,Dashboard,Student home dashboard and quick actions,High,Must,core-map STUDENT
+STUDENT,,Learning,Pathways overview (101/201/301 Labs Commons),High,Must,README /pathways
+STUDENT,,Learning,Curriculum and my classes / program surfaces,High,Must,/curriculum /my-classes /my-program
+STUDENT,,Chapter,Chapter view and local program participation,High,Must,/my-chapter
+STUDENT,,Events,Events and competition prep (student-facing),High,Must,/events
+STUDENT,,Mentorship,Mentorship experience as mentee (goals check-ins reviews visibility),High,Must,Pairing-dependent
+STUDENT,,Goals,Assigned goals and progress visibility,High,Must,Goal templates may be role-specific
+STUDENT,,Reflections,Monthly reflection / happiness tracking where assigned,Medium,Must,README
+STUDENT,,Comms,Messaging hub,Medium,Must,core-map
+PARENT,,Portal,Parent dashboard linked students progress and achievements,High,Must,/parent /parent/dashboard
+PARENT,,Family,Connect / link students; manage link requests,High,Must,/parent/connect
+PARENT,,Intake,Parent-led student intake journey start and case tracking,High,Must,/parent/student-intake/new
+PARENT,,Learning,Parent-facing resources and guidance,Medium,Must,/parent/resources
+PARENT,,Enrollment,Enroll linked students in offerings where available,High,Must,ParentEnrollOffering parent-actions
+PARENT,,Comms,Messages with parent context,Medium,Must,messages tab parent
+PARENT,,Goals,Goals surfaces available to parent role in nav,Medium,Must,core-map PARENT /goals
+PARENT,,Access control,Admin approval queue for parent access ParentApproval,High,Must,/admin/parent-approvals FEATURE_REFERENCE
+INSTRUCTOR,,Teaching,Instructor home dashboard and teaching queues,High,Must,core-map INSTRUCTOR
+INSTRUCTOR,,Training,Instructor training dashboard and level-based progression,High,Must,README /instructor-training
+INSTRUCTOR,,Training academy,Modules: video checkpoints quiz evidence completion,Critical,Must,Enforced before first publish
+INSTRUCTOR,,Readiness,Interview scheduling reviewer slots or availability requests,High,Must,README
+INSTRUCTOR,,Readiness,Lesson Design Studio capstone and approval flow,High,Must,workflow-map-v1
+INSTRUCTOR,,Publishing,Class offering publish gated on readiness grandfathered exemption for legacy,High,Must,README
+INSTRUCTOR,,Class role,Lead instructor responsibilities on a course offering,High,Must,InstructorRole LEAD
+INSTRUCTOR,,Class role,Co-instructor assignment and permissions,High,Must,InstructorRole CO_INSTRUCTOR
+INSTRUCTOR,,Class role,Assistant instructor role where used,Medium,Should,InstructorRole ASSISTANT
+INSTRUCTOR,,Operations,Attendance recap and class operations surfaces,High,Must,core-map /attendance
+INSTRUCTOR,,Mentorship,Mentorship hub access (instructor as participant),Medium,Must,Nav includes /mentorship
+INSTRUCTOR,,Family,Parent feedback surfaces for instructors,Medium,Must,/instructor/parent-feedback
+INSTRUCTOR,,Recognition,My program awards where applicable,Medium,Must,core-map
+INSTRUCTOR,,Comms,Messaging hub,Medium,Must,core-map
+MENTOR,,Mentoring,Mentor home dashboard and mentorship queues,High,Must,core-map MENTOR
+MENTOR,,Mentoring,Mentorship hub mentee list sessions action items,High,Must,/mentorship /mentorship/mentees
+MENTOR,,Mentor subtype,Primary mentor responsibilities pairing and ongoing support,High,Must,SupportRole PRIMARY_MENTOR
+MENTOR,,Mentor subtype,Committee chair approvals and chair queue workflows,High,Must,SupportRole CHAIR; workflow-map-v1
+MENTOR,,Mentor subtype,Specialist college alumni peer support roles as assigned,Medium,Should,SupportRole enum
+MENTOR,,Goals,Submit mentor feedback on mentee goals progress indicators,High,Must,README
+MENTOR,,Operations,Office hours scheduling or participation,Medium,Must,/office-hours
+MENTOR,,Events,Events surfaces relevant to mentors,Medium,Must,core-map /events
+MENTOR,,Resources,Mentor resource library,Medium,Should,/mentor/resources
+MENTOR,,Comms,Messaging hub,Medium,Must,core-map
+CHAPTER_PRESIDENT,,Chapter ops,Chapter president dashboard and chapter-lead tooling,High,Must,/chapter-lead/dashboard
+CHAPTER_PRESIDENT,,Readiness,Chapter-lead instructor readiness command center,High,Must,/chapter-lead/instructor-readiness
+CHAPTER_PRESIDENT,,Hiring,Chapter-lead instructor applicants pipeline,High,Must,/chapter-lead/instructor-applicants
+CHAPTER_PRESIDENT,,Rollout,Chapter portal rollout tracking where used,Medium,Should,/chapter-lead/portal-rollout
+CHAPTER_PRESIDENT,,Program,Local chapter stats and chapter view,High,Must,/chapter
+CHAPTER_PRESIDENT,,Recruiting,Chapter recruiting dashboard tabs positions candidates interviews decisions,Medium,Must,/chapter/recruiting README
+CHAPTER_PRESIDENT,,Teaching,Attendance and teaching surfaces shared with instructor role,High,Must,catalog INSTRUCTOR_ROLES
+CHAPTER_PRESIDENT,,Mentorship,Mentorship surfaces shared with mentor admin,Medium,Must,MENTOR_ROLES in catalog
+CHAPTER_PRESIDENT,,Admin-lite,Scoped admin links challenges activities passions incubator,Medium,Must,catalog chapter president
+CHAPTER_PRESIDENT,,Comms,Messaging hub,Medium,Must,core-map
+CHAPTER_LEAD,,Chapter ops,Chapter lead role: confirm org mapping to chapter-lead routes vs president,Medium,Should,Schema RoleType CHAPTER_LEAD; align with CHAPTER_PRESIDENT in nav if same person
+ADMIN,,All admins,Full admin dashboard and cross-cutting admin queues,High,Must,core-map ADMIN
+ADMIN,SUPER_ADMIN,Provisioning,Create and manage users courses pathways modules events mentorships,High,Must,README typical super-admin scope
+ADMIN,HIRING_ADMIN,Hiring,Instructor applicants and hiring workflows,High,Must,Subtype name implies scope
+ADMIN,INTAKE_ADMIN,Intake,Waitlist students student intake admin surfaces,High,Must,/admin/waitlist /admin/students
+ADMIN,MENTORSHIP_ADMIN,Mentorship,Mentorship program administration pairing templates,High,Must,Subtype scope
+ADMIN,CONTENT_ADMIN,Content,Content approval and curriculum structure management,High,Must,WorkflowKind CONTENT_APPROVAL
+ADMIN,COMMUNICATIONS_ADMIN,Comms,Announcements and communications routing,Medium,Must,Role naming
+ADMIN,,Readiness,Admin instructor readiness command center,High,Must,/admin/instructor-readiness
+ADMIN,,Hiring,Admin instructor applicants and interview decisions,High,Must,/admin/instructor-applicants
+ADMIN,,Rollout,Portal rollout admin view,Medium,Should,/admin/portal-rollout
+ADMIN,,Parents,Parent approval queue for parent portal access,High,Must,/admin/parent-approvals
+ADMIN,,Goals,Goal template management and assignment oversight,Medium,Must,README
+ADMIN,,Reflections,View staff reflections and progress updates org-wide,Medium,Must,README
+ADMIN,,Comms,Messaging hub,Medium,Must,core-map
+STAFF,,Internal staff,Staff home paths announcements calendar goals,Medium,Must,core-map STAFF
+STAFF,,Hiring,Positions and applications participation,Medium,Must,/positions /applications
+STAFF,,Interviews,Interview participation with instructors applicants,Medium,Must,INTERVIEW_ROLES includes STAFF
+STAFF,,Comms,Messaging hub,Medium,Must,core-map
+Platform,,Launch,Production deployment and environment configuration,High,Must,docs/DEPLOYMENT.md
+Platform,,Launch,Security review checklist for V1,High,Must,docs/V1_SECURITY_CHECKLIST.md
+Platform,,Launch,Manual QA script coverage,High,Must,docs/V1_MANUAL_QA_SCRIPT.md
+Platform,,Launch,Reliability matrix and workflow blocked states documented,Medium,Should,docs/portal-reliability-matrix.md docs/workflow-map-v1.md

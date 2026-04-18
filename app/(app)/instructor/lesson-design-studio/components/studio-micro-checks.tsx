@@ -8,6 +8,8 @@ import {
 } from "@/lib/curriculum-draft-progress";
 
 interface StudioMicroChecksProps {
+  /** Short label above the title (default: Teaching checks). */
+  eyebrow?: string;
   title: string;
   description: string;
   questionIds: string[];
@@ -17,6 +19,7 @@ interface StudioMicroChecksProps {
 }
 
 export function StudioMicroChecks({
+  eyebrow = "Teaching checks",
   title,
   description,
   questionIds,
@@ -40,7 +43,7 @@ export function StudioMicroChecks({
     <section className="lds-step-card">
       <div className="lds-step-card-header">
         <div>
-          <p className="lds-section-eyebrow">Teaching checks</p>
+          <p className="lds-section-eyebrow">{eyebrow}</p>
           <h3 className="lds-section-title">{title}</h3>
           <p className="lds-section-copy">{description}</p>
         </div>

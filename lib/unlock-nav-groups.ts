@@ -26,6 +26,7 @@ export const INSTRUCTOR_ALWAYS_VISIBLE_GROUPS: NavGroup[] = [
   "Start Here",
   "Progress",
   "People & Support",
+  "Chapters",
   "Profile & Settings",
 ];
 

@@ -11,7 +11,6 @@ interface StudioStartStepProps {
   hasStartedDraft: boolean;
   onApplyStarterScaffold: (seed: SeedCurriculum) => void;
   onMoveForward: () => void;
-  onOpenStarterTour: () => void;
   onOpenQuickStartWizard: () => void;
 }
 
@@ -38,10 +37,10 @@ function buildPreviewBars(seed: SeedCurriculum) {
 
 function buildRecommendationReason(seed: SeedCurriculum, isRecommended: boolean) {
   if (isRecommended) {
-    return "Best fit because its topic and session rhythm are the closest match to the curriculum direction already visible in your draft.";
+    return "Closest match to your draft direction.";
   }
 
-  return `A strong option if you want a polished ${seed.interestArea.toLowerCase()} starting point that you can adapt quickly.`;
+  return `Solid ${seed.interestArea.toLowerCase()} scaffold you can adapt fast.`;
 }
 
 export function StudioStartStep({
@@ -51,63 +50,35 @@ export function StudioStartStep({
   hasStartedDraft,
   onApplyStarterScaffold,
   onMoveForward,
-  onOpenStarterTour,
   onOpenQuickStartWizard,
 }: StudioStartStepProps) {
   return (
-    <section className="lds-step-layout">
+    <section className="lds-step-layout lds-step-layout--start">
       <div className="lds-step-main">
         <section className="lds-step-card">
           <div className="lds-start-hero">
             <div className="lds-start-hero-copy">
-              <p className="lds-section-eyebrow">Starter support</p>
-              <h2 className="lds-section-title">Pick a starter scaffold</h2>
+              <p className="lds-section-eyebrow">Start</p>
+              <h2 className="lds-section-title">Choose a starter</h2>
               <p className="lds-section-copy">
-                Start with a beautifully structured draft, then tune it until it
-                feels fully yours. The quick-start wizard is the fastest route when
-                you want help choosing a strong foundation.
+                Pick a scaffold below — or <strong>Use wizard first</strong> on a card to run the
+                wizard before you build the draft.
               </p>
-            </div>
-
-            <div className="lds-start-hero-panel">
-              <div className="lds-start-hero-panel-copy">
-                <span className="lds-start-hero-kicker">Quick-start wizard</span>
-                <strong>Topic → Style → Generate</strong>
-                <p>
-                  Choose the nearest topic, pick the teaching feel you want, and let
-                  the studio prefill the full curriculum skeleton.
-                </p>
-              </div>
-              <div className="lds-inline-actions">
-                <button
-                  type="button"
-                  className="button"
-                  disabled={isReadOnly}
-                  onClick={onOpenQuickStartWizard}
-                >
-                  Open quick-start wizard
-                </button>
-                {hasStartedDraft ? (
-                  <button
-                    type="button"
-                    className="button ghost"
-                    onClick={onMoveForward}
-                  >
+              {hasStartedDraft ? (
+                <div className="lds-inline-actions">
+                  <button type="button" className="button ghost" onClick={onMoveForward}>
                     Skip and keep editing
                   </button>
-                ) : null}
-              </div>
+                </div>
+              ) : null}
             </div>
           </div>
 
           <div className="lds-start-gallery-header">
             <div>
-              <p className="lds-section-eyebrow">Visual template gallery</p>
-              <h3 className="lds-section-title">Choose a premium starting point</h3>
-              <p className="lds-section-copy">
-                Each starter shows the shape of the course before you commit. Hover
-                or focus a card to inspect outcomes and session titles at a glance.
-              </p>
+              <p className="lds-section-eyebrow">Gallery</p>
+              <h3 className="lds-section-title">Starter scaffolds</h3>
+              <p className="lds-section-copy">Hover a card for week titles and outcomes.</p>
             </div>
           </div>
 
@@ -220,42 +191,6 @@ export function StudioStartStep({
           </div>
         </section>
       </div>
-
-      <aside className="lds-step-side">
-        <section className="lds-step-card">
-          <p className="lds-section-eyebrow">What happens next</p>
-          <h3 className="lds-section-title">Your first draft appears fully shaped</h3>
-          <ul className="lds-simple-list">
-            <li>The studio builds a full starter curriculum you can edit immediately.</li>
-            <li>You refine the course promise, shape each session, and clear readiness checks.</li>
-            <li>The scaffold gives you structure, not restrictions.</li>
-          </ul>
-        </section>
-
-        <section className="lds-step-card">
-          <p className="lds-section-eyebrow">Need a slower walkthrough?</p>
-          <h3 className="lds-section-title">Use guided starter support step by step</h3>
-          <p className="lds-section-copy">
-            If you want a guided build, the walkthrough still seeds the curriculum in calm,
-            teachable stages.
-          </p>
-          <div className="lds-inline-actions">
-            <button
-              type="button"
-              className="button secondary"
-              disabled={isReadOnly}
-              onClick={onOpenStarterTour}
-            >
-              Rebuild with starter support
-            </button>
-            {hasStartedDraft ? (
-              <button type="button" className="button ghost" onClick={onMoveForward}>
-                Skip and keep editing
-              </button>
-            ) : null}
-          </div>
-        </section>
-      </aside>
     </section>
   );
 }

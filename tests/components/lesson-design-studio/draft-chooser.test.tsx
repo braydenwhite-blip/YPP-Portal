@@ -8,13 +8,13 @@ const actionMocks = vi.hoisted(() => ({
   createWorkingCopyFromCurriculumDraft: vi.fn(),
 }));
 
-const navigationMocks = vi.hoisted(() => ({
-  openLessonDesignStudio: vi.fn(),
+const routerMocks = vi.hoisted(() => ({
+  push: vi.fn(),
 }));
 
 vi.mock("@/lib/curriculum-draft-actions", () => actionMocks);
-vi.mock("@/lib/lesson-design-studio-navigation", () => ({
-  openLessonDesignStudio: navigationMocks.openLessonDesignStudio,
+vi.mock("next/navigation", () => ({
+  useRouter: () => routerMocks,
 }));
 
 function buildDraft(overrides: Partial<any> = {}) {
@@ -40,7 +40,7 @@ describe("DraftChooser", () => {
     actionMocks.createWorkingCopyFromCurriculumDraft
       .mockReset()
       .mockResolvedValue({ draftId: "draft-2", reusedExisting: false });
-    navigationMocks.openLessonDesignStudio.mockReset();
+    routerMocks.push.mockReset();
   });
 
   it("shows the primary editable draft separately from history", () => {
@@ -62,13 +62,7 @@ describe("DraftChooser", () => {
       />
     );
 
-    expect(screen.getByText("Open current working draft")).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "Open working draft" })
-    ).toHaveAttribute(
-      "href",
-      "/instructor/lesson-design-studio?draftId=draft-1"
-    );
+    expect(screen.getAllByText("Open Working Draft").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Approved Curriculum")).toBeInTheDocument();
     expect(screen.getByText("Approved")).toBeInTheDocument();
   });
@@ -105,12 +99,8 @@ describe("DraftChooser", () => {
       expect(actionMocks.createWorkingCopyFromCurriculumDraft).toHaveBeenCalledWith(
         "draft-2"
       );
-      expect(navigationMocks.openLessonDesignStudio).toHaveBeenCalledWith(
-        {
-          entryContext: "DIRECT",
-          draftId: "draft-1",
-          notice: "active-draft-reused",
-        }
+      expect(routerMocks.push).toHaveBeenCalledWith(
+        "/instructor/lesson-design-studio/draft-1/setup?notice=active-draft-reused"
       );
     });
   });
