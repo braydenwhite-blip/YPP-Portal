@@ -13,6 +13,14 @@ import {
 
 type ApplicableFeatureScope = "USER" | "CHAPTER" | "ROLE" | "GLOBAL";
 type FeatureRuleSnapshot = Map<FeatureKey, Partial<Record<ApplicableFeatureScope, boolean>>>;
+type FeatureRuleForSnapshot = {
+  featureKey: string;
+  enabled: boolean;
+  scope: string;
+  userId?: string | null;
+  chapterId?: string | null;
+  role?: string | null;
+};
 
 const FEATURE_RULE_PRECEDENCE: ApplicableFeatureScope[] = [
   "USER",
@@ -146,6 +154,10 @@ async function resolveFeatureRuleSnapshot(
     orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
   });
 
+  return buildFeatureRuleSnapshot(rules);
+}
+
+function buildFeatureRuleSnapshot(rules: FeatureRuleForSnapshot[]): FeatureRuleSnapshot {
   const snapshot: FeatureRuleSnapshot = new Map();
 
   for (const rule of rules) {
@@ -165,6 +177,24 @@ async function resolveFeatureRuleSnapshot(
   }
 
   return snapshot;
+}
+
+function ruleAppliesToContext(
+  rule: FeatureRuleForSnapshot,
+  context: { userId?: string; chapterId: string | null; roleSet: Set<string> }
+): boolean {
+  switch (rule.scope) {
+    case "GLOBAL":
+      return true;
+    case "USER":
+      return Boolean(context.userId && rule.userId === context.userId);
+    case "CHAPTER":
+      return Boolean(context.chapterId && rule.chapterId === context.chapterId);
+    case "ROLE":
+      return Boolean(rule.role && context.roleSet.has(rule.role));
+    default:
+      return false;
+  }
 }
 
 function resolveFeatureEnabledFromSnapshot(
@@ -219,6 +249,90 @@ export async function getEnabledFeatureKeysForUser(
     }
     throw error;
   }
+}
+
+export async function getEnabledFeatureKeysForUsers(
+  userContexts: FeatureUserContext[]
+): Promise<Map<string, FeatureKey[]>> {
+  const result = new Map<string, FeatureKey[]>();
+  if (userContexts.length === 0) {
+    return result;
+  }
+
+  const contexts = await Promise.all(userContexts.map(resolveUserContext));
+  const contextsByUserId = contexts.filter(
+    (context): context is { userId: string; chapterId: string | null; roleSet: Set<string> } =>
+      Boolean(context.userId)
+  );
+
+  if (contextsByUserId.length === 0) {
+    return result;
+  }
+
+  const userIds = Array.from(new Set(contextsByUserId.map((context) => context.userId)));
+  const chapterIds = Array.from(
+    new Set(
+      contextsByUserId
+        .map((context) => context.chapterId)
+        .filter((chapterId): chapterId is string => Boolean(chapterId))
+    )
+  );
+  const roles = Array.from(
+    new Set(contextsByUserId.flatMap((context) => Array.from(context.roleSet)))
+  );
+
+  const scopeFilters: Prisma.FeatureGateRuleWhereInput[] = [{ scope: "GLOBAL" }];
+  if (userIds.length > 0) {
+    scopeFilters.push({ scope: "USER", userId: { in: userIds } });
+  }
+  if (chapterIds.length > 0) {
+    scopeFilters.push({ scope: "CHAPTER", chapterId: { in: chapterIds } });
+  }
+  if (roles.length > 0) {
+    scopeFilters.push({ scope: "ROLE", role: { in: roles as any } });
+  }
+
+  try {
+    const rules = await prisma.featureGateRule.findMany({
+      where: {
+        ...activeWindowWhere(new Date()),
+        featureKey: { in: [...FEATURE_KEYS] },
+        OR: scopeFilters,
+      },
+      select: {
+        featureKey: true,
+        enabled: true,
+        scope: true,
+        userId: true,
+        chapterId: true,
+        role: true,
+      },
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+    });
+
+    for (const context of contextsByUserId) {
+      const snapshot = buildFeatureRuleSnapshot(
+        rules.filter((rule) => ruleAppliesToContext(rule, context))
+      );
+      result.set(
+        context.userId,
+        FEATURE_KEYS.filter((featureKey) =>
+          resolveFeatureEnabledFromSnapshot(featureKey, snapshot)
+        )
+      );
+    }
+  } catch (error) {
+    if (!isMissingFeatureGateTableError(error)) {
+      throw error;
+    }
+
+    const defaults = FEATURE_KEYS.filter((featureKey) => defaultFeatureEnabled(featureKey));
+    for (const context of contextsByUserId) {
+      result.set(context.userId, defaults);
+    }
+  }
+
+  return result;
 }
 
 function revalidateFeatureGateSurfaces() {

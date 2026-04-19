@@ -36,7 +36,7 @@ const ALWAYS_HIDDEN_HREFS = new Set([
 ]);
 
 /** Shown in the primary admin sidebar without subtype gating (full RBAC still applies on the page). */
-const ADMIN_NAV_UNIVERSAL_HREFS = new Set<string>(["/admin", "/admin/reflections", "/admin/chapters"]);
+const ADMIN_NAV_UNIVERSAL_HREFS = new Set<string>(["/admin/reflections", "/admin/chapters"]);
 
 const ADMIN_LINKS_BY_SUBTYPE = {
   SUPER_ADMIN: [
@@ -469,7 +469,7 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
     primaryRole,
   );
 
-  visible = applyAdminPrimarySidebarFilter(visible, primaryRole);
+  visible = applyAdminPrimarySidebarFilter(visible, primaryRole, roles, adminSubtypes);
 
   if (shouldApplyStudentV1NavFilter(primaryRole, input.studentFullPortalExplorer)) {
     visible = visible.filter((item) => STUDENT_V1_ALLOWED_HREFS.has(item.href));

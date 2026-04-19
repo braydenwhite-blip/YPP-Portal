@@ -79,11 +79,29 @@ function buildCsp(nonce: string): string {
   ].join("; ");
 }
 
+function applySecurityHeaders(response: NextResponse): NextResponse {
+  const nonce = generateNonce();
+
+  // Forward nonce to server components via request header
+  response.headers.set("x-nonce", nonce);
+
+  // Set dynamic nonce-based CSP on every response
+  response.headers.set("Content-Security-Policy", buildCsp(nonce));
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+
+  return response;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isLogin = pathname.startsWith("/login");
   const isSignup = pathname.startsWith("/signup");
   const isPublic = isPublicPath(pathname);
+
+  if (isPublic && !isLogin && !isSignup) {
+    return applySecurityHeaders(NextResponse.next({ request }));
+  }
 
   // Create Supabase client and refresh session
   const { supabase, response } = createMiddlewareClient(request);
@@ -98,9 +116,13 @@ export async function middleware(request: NextRequest) {
     }
   }
   const isArchivedPortalUser = user?.user_metadata?.portalArchived === true;
-  const legacySession = await verifyLegacySessionToken(
-    request.cookies.get(LEGACY_AUTH_COOKIE_NAME)?.value ?? null
-  );
+  const legacyToken =
+    !user || isArchivedPortalUser
+      ? request.cookies.get(LEGACY_AUTH_COOKIE_NAME)?.value ?? null
+      : null;
+  const legacySession = legacyToken
+    ? await verifyLegacySessionToken(legacyToken)
+    : null;
   const isAuthenticated = (!!user && !isArchivedPortalUser) || !!legacySession;
 
   // Unauthenticated users may access public routes only.
@@ -119,18 +141,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(appUrl);
   }
 
-  // Generate a cryptographically random nonce for CSP in the Edge runtime.
-  const nonce = generateNonce();
-
-  // Forward nonce to server components via request header
-  response.headers.set("x-nonce", nonce);
-
-  // Set dynamic nonce-based CSP on every response
-  response.headers.set("Content-Security-Policy", buildCsp(nonce));
-  response.headers.set("X-Content-Type-Options", "nosniff");
-  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-
-  return response;
+  return applySecurityHeaders(response);
 }
 
 export const config = {

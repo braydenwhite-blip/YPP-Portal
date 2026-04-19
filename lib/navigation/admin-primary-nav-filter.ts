@@ -52,23 +52,37 @@ const PEOPLE_SUPPORT_HIDDEN_FOR_ADMIN_PRIMARY = new Set<string>([
   "/instructor/certification-pathway",
 ]);
 
+function hasMatchingNonAdminRole(item: NavLink, roles: NavRole[]): boolean {
+  return (
+    item.roles?.some((role) => role !== "ADMIN" && roles.includes(role)) ?? false
+  );
+}
+
 /**
  * Streamlined left-rail for primary-role admins: learning + progress stay broad;
  * hiring/mentorship/attendance stay visible; deep instructor/mentor/college/extra links are trimmed.
  */
 export function applyAdminPrimarySidebarFilter(
   links: NavLink[],
-  primaryRole: NavRole
+  primaryRole: NavRole,
+  roles: NavRole[] = [],
+  adminSubtypes: string[] = []
 ): NavLink[] {
   if (primaryRole !== "ADMIN") return links;
+  const hasAdminSubtype = adminSubtypes.length > 0;
 
   return links.filter((item) => {
-    if (ADMIN_PRIMARY_HIDDEN_GROUPS.has(item.group)) return false;
+    if (ADMIN_PRIMARY_HIDDEN_GROUPS.has(item.group)) return hasAdminSubtype;
     if (item.group === "Challenges" || item.group === "Projects") return false;
     if (item.group === "Opportunities" && !OPPORTUNITIES_KEEP_ONLY.has(item.href)) {
       return false;
     }
-    if (PEOPLE_SUPPORT_HIDDEN_FOR_ADMIN_PRIMARY.has(item.href)) return false;
+    if (
+      PEOPLE_SUPPORT_HIDDEN_FOR_ADMIN_PRIMARY.has(item.href) &&
+      !hasMatchingNonAdminRole(item, roles)
+    ) {
+      return false;
+    }
     if (item.href.startsWith("/my-program/")) return false;
 
     return true;

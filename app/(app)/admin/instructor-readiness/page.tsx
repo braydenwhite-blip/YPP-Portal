@@ -2,10 +2,7 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth-supabase";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import {
-  buildFallbackInstructorReadiness,
-  getInstructorReadiness,
-} from "@/lib/instructor-readiness";
+import { getInstructorReadinessMany } from "@/lib/instructor-readiness";
 import { withPrismaFallback } from "@/lib/prisma-guard";
 import EvidenceBoard from "./evidence-board";
 import OfferingBoard from "./offering-board";
@@ -23,17 +20,8 @@ export default async function InstructorReadinessPage() {
     redirect("/");
   }
 
-  const [requiredModules, instructors, evidenceQueue, approvalQueue, interviewQueue] =
+  const [instructors, evidenceQueue, approvalQueue, interviewQueue] =
     await Promise.all([
-      withPrismaFallback(
-        "admin-readiness:required-modules",
-        () =>
-          prisma.trainingModule.findMany({
-            where: { required: true },
-            select: { id: true },
-          }),
-        []
-      ),
       withPrismaFallback(
         "admin-readiness:instructors",
         () =>
@@ -148,17 +136,9 @@ export default async function InstructorReadinessPage() {
       ),
     ]);
 
-  const readinessEntries = await Promise.all(
-    instructors.map(async (instructor) => {
-      const readiness = await withPrismaFallback(
-        "admin-readiness:readiness-by-instructor",
-        () => getInstructorReadiness(instructor.id),
-        buildFallbackInstructorReadiness(instructor.id)
-      );
-      return [instructor.id, readiness] as const;
-    })
+  const readinessByInstructor = await getInstructorReadinessMany(
+    instructors.map((instructor) => instructor.id)
   );
-  const readinessByInstructor = new Map(readinessEntries);
   const approvalQueueByInstructor = new Map(
     instructors.map((instructor) => [instructor.id, [] as typeof approvalQueue])
   );

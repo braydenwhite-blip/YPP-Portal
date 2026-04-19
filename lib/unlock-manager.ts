@@ -161,8 +161,10 @@ export async function unlockSection(
   });
 }
 
-export async function checkAndAutoUnlock(userId: string): Promise<string[]> {
-  const existing = await getUnlockedSections(userId);
+async function unlockPendingSections(
+  userId: string,
+  existing: Set<string>
+): Promise<string[]> {
   const pendingSections = Object.keys(SECTION_UNLOCK_MAP).filter(
     (sectionKey) => !existing.has(sectionKey)
   );
@@ -211,6 +213,25 @@ export async function checkAndAutoUnlock(userId: string): Promise<string[]> {
   );
 
   return newlyUnlocked;
+}
+
+export async function checkAndAutoUnlock(userId: string): Promise<string[]> {
+  const existing = await getUnlockedSections(userId);
+  return unlockPendingSections(userId, existing);
+}
+
+export async function checkAndAutoUnlockAndGetSections(
+  userId: string
+): Promise<{ unlockedSections: Set<string>; newlyUnlocked: string[] }> {
+  const existing = await getUnlockedSections(userId);
+  const newlyUnlocked = await unlockPendingSections(userId, existing);
+  const unlockedSections = new Set(existing);
+
+  for (const sectionKey of newlyUnlocked) {
+    unlockedSections.add(sectionKey);
+  }
+
+  return { unlockedSections, newlyUnlocked };
 }
 
 export type UnlockProgressItem = {

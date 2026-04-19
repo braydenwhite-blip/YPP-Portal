@@ -40,6 +40,34 @@ const INSTRUCTOR_PUBLISH_HREF = "/instructor/class-settings";
 const LESSON_DESIGN_STUDIO_HREF = "/instructor/lesson-design-studio?entry=training";
 const TRACKABLE_REQUIRED_VIDEO_PROVIDERS = new Set(["YOUTUBE", "VIMEO", "CUSTOM"]);
 
+type RequiredTrainingModule = {
+  id: string;
+  title: string;
+  videoUrl: string | null;
+  videoProvider: string | null;
+  requiresQuiz: boolean;
+  requiresEvidence: boolean;
+  checkpoints: { id: string }[];
+  quizQuestions: { id: string }[];
+};
+
+type InstructorTrainingAssignment = {
+  userId: string;
+  moduleId: string;
+  status: string;
+};
+
+type InstructorInterviewGateSnapshot = {
+  instructorId: string;
+  status: string;
+  outcome: string | null;
+};
+
+type GrandfatheredOfferingCount = {
+  instructorId: string;
+  _count: { _all: number };
+};
+
 /** True if the author has submitted or had approved any Lesson Design Studio package (v1 training capstone). */
 export async function authorHasSubmittedOrApprovedStudioDraft(
   authorId: string
@@ -98,67 +126,25 @@ export function isInterviewGateEnforced() {
   return envTrue(raw);
 }
 
-export async function getInstructorReadiness(instructorId: string): Promise<InstructorReadiness> {
-  const featureEnabled = isNativeInstructorGateEnabled();
-  const interviewRequired = isInterviewGateEnforced();
-
-  const readinessData = await withPrismaFallback(
-    "getInstructorReadiness:queries",
-    () =>
-      Promise.all([
-        prisma.trainingModule.findMany({
-          where: { required: true },
-          select: {
-            id: true,
-            title: true,
-            videoUrl: true,
-            videoProvider: true,
-            requiresQuiz: true,
-            requiresEvidence: true,
-            checkpoints: {
-              where: { required: true },
-              select: { id: true },
-            },
-            quizQuestions: {
-              select: { id: true },
-            },
-          },
-        }),
-        prisma.trainingAssignment.findMany({
-          where: { userId: instructorId },
-          select: { moduleId: true, status: true },
-        }),
-        prisma.instructorInterviewGate.findUnique({
-          where: { instructorId },
-          select: {
-            status: true,
-            outcome: true,
-          },
-        }),
-        prisma.classOffering.findMany({
-          where: {
-            instructorId,
-          },
-          select: {
-            grandfatheredTrainingExemption: true,
-          },
-        }),
-        prisma.curriculumDraft.findMany({
-          where: { authorId: instructorId },
-          orderBy: { updatedAt: "desc" },
-          take: 24,
-          select: { status: true },
-        }),
-      ]),
-    null
-  );
-
-  if (!readinessData) {
-    return buildFallbackInstructorReadiness(instructorId);
-  }
-
-  const [requiredModules, assignments, interviewGate, offerings, capstoneDrafts] = readinessData;
-
+function buildInstructorReadinessFromSnapshot({
+  instructorId,
+  featureEnabled,
+  interviewRequired,
+  requiredModules,
+  assignments,
+  interviewGate,
+  legacyExemptOfferingCount,
+  studioCapstoneComplete,
+}: {
+  instructorId: string;
+  featureEnabled: boolean;
+  interviewRequired: boolean;
+  requiredModules: RequiredTrainingModule[];
+  assignments: InstructorTrainingAssignment[];
+  interviewGate: InstructorInterviewGateSnapshot | null;
+  legacyExemptOfferingCount: number;
+  studioCapstoneComplete: boolean;
+}): InstructorReadiness {
   const moduleConfigIssueById = new Map<string, string>();
   for (const trainingModule of requiredModules) {
     const requiredCheckpointCount = trainingModule.checkpoints.length;
@@ -222,10 +208,7 @@ export async function getInstructorReadiness(instructorId: string): Promise<Inst
       : moduleConfigIssueById.size === 0 &&
         completedRequiredModules >= requiredModules.length;
 
-  const studioCapstoneComplete = capstoneDrafts.some(
-    (draft) => draft.status === "SUBMITTED" || draft.status === "APPROVED"
-  );
-  const trainingComplete = academyModulesComplete;
+  const trainingComplete = academyModulesComplete && studioCapstoneComplete;
 
   const interviewStatus = interviewGate?.status ?? "REQUIRED";
   const interviewOutcome = interviewGate?.outcome ?? null;
@@ -255,6 +238,15 @@ export async function getInstructorReadiness(instructorId: string): Promise<Inst
       href: INSTRUCTOR_TOOLS_HREF,
     });
   }
+  if (!studioCapstoneComplete) {
+    missingRequirements.push({
+      code: "STUDIO_CAPSTONE_REQUIRED",
+      title: "Submit Lesson Design Studio capstone",
+      detail:
+        "Submit or receive approval for a Lesson Design Studio package before requesting offering approval.",
+      href: LESSON_DESIGN_STUDIO_HREF,
+    });
+  }
   if (interviewRequired && !interviewPassed) {
     missingRequirements.push({
       code: "INTERVIEW_REQUIRED",
@@ -269,10 +261,6 @@ export async function getInstructorReadiness(instructorId: string): Promise<Inst
 
   const baseReadinessComplete = !featureEnabled || missingRequirements.length === 0;
   const canRequestOfferingApproval = baseReadinessComplete;
-  const legacyExemptOfferingCount = offerings.filter(
-    (offering) => offering.grandfatheredTrainingExemption
-  ).length;
-
   const nextAction =
     missingRequirements[0]
       ? {
@@ -306,12 +294,143 @@ export async function getInstructorReadiness(instructorId: string): Promise<Inst
   };
 }
 
+export async function getInstructorReadinessMany(
+  instructorIds: string[]
+): Promise<Map<string, InstructorReadiness>> {
+  const uniqueInstructorIds = Array.from(new Set(instructorIds)).filter(Boolean);
+  const readinessByInstructor = new Map<string, InstructorReadiness>();
+
+  if (uniqueInstructorIds.length === 0) {
+    return readinessByInstructor;
+  }
+
+  const featureEnabled = isNativeInstructorGateEnabled();
+  const interviewRequired = isInterviewGateEnforced();
+
+  const readinessData = await withPrismaFallback(
+    "getInstructorReadinessMany:queries",
+    () =>
+      Promise.all([
+        prisma.trainingModule.findMany({
+          where: { required: true },
+          select: {
+            id: true,
+            title: true,
+            videoUrl: true,
+            videoProvider: true,
+            requiresQuiz: true,
+            requiresEvidence: true,
+            checkpoints: {
+              where: { required: true },
+              select: { id: true },
+            },
+            quizQuestions: {
+              select: { id: true },
+            },
+          },
+        }),
+        prisma.trainingAssignment.findMany({
+          where: { userId: { in: uniqueInstructorIds } },
+          select: { userId: true, moduleId: true, status: true },
+        }),
+        prisma.instructorInterviewGate.findMany({
+          where: { instructorId: { in: uniqueInstructorIds } },
+          select: {
+            instructorId: true,
+            status: true,
+            outcome: true,
+          },
+        }),
+        prisma.classOffering.groupBy({
+          by: ["instructorId"],
+          where: {
+            instructorId: { in: uniqueInstructorIds },
+            grandfatheredTrainingExemption: true,
+          },
+          _count: { _all: true },
+        }),
+        prisma.curriculumDraft.findMany({
+          where: {
+            authorId: { in: uniqueInstructorIds },
+            status: { in: ["SUBMITTED", "APPROVED"] },
+          },
+          select: { authorId: true },
+        }),
+      ]),
+    null
+  );
+
+  if (!readinessData) {
+    for (const instructorId of uniqueInstructorIds) {
+      readinessByInstructor.set(instructorId, buildFallbackInstructorReadiness(instructorId));
+    }
+    return readinessByInstructor;
+  }
+
+  const [
+    requiredModules,
+    assignments,
+    interviewGates,
+    grandfatheredOfferingCounts,
+    submittedOrApprovedDrafts,
+  ] = readinessData;
+
+  const assignmentsByInstructor = new Map<string, InstructorTrainingAssignment[]>();
+  for (const assignment of assignments) {
+    const current = assignmentsByInstructor.get(assignment.userId);
+    if (current) {
+      current.push(assignment);
+    } else {
+      assignmentsByInstructor.set(assignment.userId, [assignment]);
+    }
+  }
+
+  const interviewGateByInstructor = new Map(
+    interviewGates.map((gate) => [gate.instructorId, gate] as const)
+  );
+
+  const legacyExemptOfferingCountByInstructor = new Map(
+    (grandfatheredOfferingCounts as GrandfatheredOfferingCount[]).map((entry) => [
+      entry.instructorId,
+      entry._count._all,
+    ] as const)
+  );
+
+  const instructorsWithSubmittedCapstone = new Set(
+    submittedOrApprovedDrafts.map((draft) => draft.authorId)
+  );
+
+  for (const instructorId of uniqueInstructorIds) {
+    readinessByInstructor.set(
+      instructorId,
+      buildInstructorReadinessFromSnapshot({
+        instructorId,
+        featureEnabled,
+        interviewRequired,
+        requiredModules,
+        assignments: assignmentsByInstructor.get(instructorId) ?? [],
+        interviewGate: interviewGateByInstructor.get(instructorId) ?? null,
+        legacyExemptOfferingCount:
+          legacyExemptOfferingCountByInstructor.get(instructorId) ?? 0,
+        studioCapstoneComplete: instructorsWithSubmittedCapstone.has(instructorId),
+      })
+    );
+  }
+
+  return readinessByInstructor;
+}
+
+export async function getInstructorReadiness(instructorId: string): Promise<InstructorReadiness> {
+  const readinessByInstructor = await getInstructorReadinessMany([instructorId]);
+  return readinessByInstructor.get(instructorId) ?? buildFallbackInstructorReadiness(instructorId);
+}
+
 export function assertReadinessAllowsPublish(
   readiness: Pick<InstructorReadiness, "baseReadinessComplete">
 ): void {
   if (!readiness.baseReadinessComplete) {
     throw new Error(
-      "Publishing blocked. Complete academy modules and interview readiness first."
+      "Publishing blocked. Complete academy modules, Lesson Design Studio capstone, and interview readiness first."
     );
   }
 }

@@ -3,7 +3,7 @@ import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import {
   deleteFeatureGateRule,
-  getEnabledFeatureKeysForUser,
+  getEnabledFeatureKeysForUsers,
   setUserFeatureGateRule,
 } from "@/lib/feature-gates";
 import { normalizeRoleList } from "@/lib/authorization";
@@ -44,21 +44,23 @@ export async function GET(request: Request) {
       })
     : [];
 
-  const payload = await Promise.all(
-    users.map(async (user) => ({
-      id: user.id,
-      name: user.name,
-      email: user.email,
+  const enabledFeatureKeysByUser = await getEnabledFeatureKeysForUsers(
+    users.map((user) => ({
+      userId: user.id,
+      chapterId: user.chapterId,
+      roles: normalizeRoleList(user.roles, user.primaryRole),
       primaryRole: user.primaryRole,
-      chapterName: user.chapter?.name ?? null,
-      enabledFeatureKeys: await getEnabledFeatureKeysForUser({
-        userId: user.id,
-        chapterId: user.chapterId,
-        roles: normalizeRoleList(user.roles, user.primaryRole),
-        primaryRole: user.primaryRole,
-      }),
     }))
   );
+
+  const payload = users.map((user) => ({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    primaryRole: user.primaryRole,
+    chapterName: user.chapter?.name ?? null,
+    enabledFeatureKeys: enabledFeatureKeysByUser.get(user.id) ?? [],
+  }));
 
   return NextResponse.json({ users: payload });
 }

@@ -3,7 +3,7 @@ import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import {
   deleteFeatureGateRule,
-  getEnabledFeatureKeysForUser,
+  getEnabledFeatureKeysForUsers,
   listFeatureGateRules,
   setUserFeatureGateRule,
 } from "@/lib/feature-gates";
@@ -77,19 +77,17 @@ export default async function AdminFeatureGatesPage({
         })
       : [];
 
+  const enabledFeatureKeyListByUser = await getEnabledFeatureKeysForUsers(
+    users.map((user) => ({
+      userId: user.id,
+      chapterId: user.chapterId,
+      roles: normalizeRoleList(user.roles, user.primaryRole),
+      primaryRole: user.primaryRole,
+    }))
+  );
   const enabledFeatureKeysByUser = new Map(
-    await Promise.all(
-      users.map(async (user) => [
-        user.id,
-        new Set(
-          await getEnabledFeatureKeysForUser({
-            userId: user.id,
-            chapterId: user.chapterId,
-            roles: normalizeRoleList(user.roles, user.primaryRole),
-            primaryRole: user.primaryRole,
-          })
-        ),
-      ] as const)
+    Array.from(enabledFeatureKeyListByUser.entries()).map(
+      ([userId, featureKeys]) => [userId, new Set(featureKeys)] as const
     )
   );
 

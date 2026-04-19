@@ -3,7 +3,7 @@ import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getInstructorReadiness } from "@/lib/instructor-readiness";
+import { getInstructorReadinessMany } from "@/lib/instructor-readiness";
 
 type RolloutTask = {
   phase: string;
@@ -122,11 +122,13 @@ export default async function ChapterLeadPortalRolloutPage() {
     }),
   ]);
 
-  const readinessResults = await Promise.all(
-    instructors.map(async (instructor) => getInstructorReadiness(instructor.id))
+  const readinessByInstructor = await getInstructorReadinessMany(
+    instructors.map((instructor) => instructor.id)
   );
 
-  const readyInstructors = readinessResults.filter((r) => r.baseReadinessComplete).length;
+  const readyInstructors = instructors.filter(
+    (instructor) => readinessByInstructor.get(instructor.id)?.baseReadinessComplete
+  ).length;
 
   const fallbackTasks = buildChapterFallbackTasks({
     readyInstructors,
