@@ -43,7 +43,6 @@ const PIPELINE_SELECT = {
   chairQueuedAt: true,
   createdAt: true,
   updatedAt: true,
-  subjectsOfInterest: true,
   applicant: {
     select: {
       id: true,
@@ -233,7 +232,6 @@ export async function getChairQueue({
       legalName: true,
       chairQueuedAt: true,
       materialsReadyAt: true,
-      subjectsOfInterest: true,
       applicant: {
         select: {
           id: true,
