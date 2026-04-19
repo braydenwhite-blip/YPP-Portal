@@ -229,6 +229,9 @@ async function main() {
 
   await ensureSeattleChapterDemoEvent(seattle.id);
 
+  // ── Instructor Applicant Workflow V1 seed ──────────────────────────────────
+  await seedInstructorApplicantWorkflow(frisch.id, passwordHash, verifiedAt);
+
   const seedAlreadyPresent = await prisma.pathway.findFirst({
     where: { name: SEED_PATHWAY_NAME },
     select: { id: true },
@@ -914,6 +917,253 @@ async function main() {
   }
 
   console.log(`Seeded Pathways portal data for ${pathway.name}.`);
+}
+
+// ── Instructor Applicant Workflow V1 ──────────────────────────────────────────
+async function seedInstructorApplicantWorkflow(
+  chapterId: string,
+  passwordHash: string,
+  verifiedAt: Date
+) {
+  // HIRING_CHAIR user
+  const chair = await prisma.user.upsert({
+    where: { email: "hiring.chair@youthpassionproject.org" },
+    create: {
+      name: "Morgan Ellison",
+      email: "hiring.chair@youthpassionproject.org",
+      passwordHash,
+      emailVerified: verifiedAt,
+      primaryRole: RoleType.HIRING_CHAIR,
+      chapterId,
+      roles: { create: [{ role: RoleType.HIRING_CHAIR }] },
+    },
+    update: {
+      name: "Morgan Ellison",
+      passwordHash,
+      emailVerified: verifiedAt,
+      primaryRole: RoleType.HIRING_CHAIR,
+      chapterId,
+      roles: { deleteMany: {}, create: [{ role: RoleType.HIRING_CHAIR }] },
+    },
+  });
+
+  // Applicant users (idempotent)
+  const applicant1 = await prisma.user.upsert({
+    where: { email: "demo.applicant.submitted@example.com" },
+    create: {
+      name: "Alex Rivera",
+      email: "demo.applicant.submitted@example.com",
+      passwordHash,
+      emailVerified: verifiedAt,
+      primaryRole: RoleType.STUDENT,
+      chapterId,
+      roles: { create: [{ role: RoleType.STUDENT }] },
+    },
+    update: { name: "Alex Rivera" },
+  });
+
+  const applicant2 = await prisma.user.upsert({
+    where: { email: "demo.applicant.interview@example.com" },
+    create: {
+      name: "Jamie Torres",
+      email: "demo.applicant.interview@example.com",
+      passwordHash,
+      emailVerified: verifiedAt,
+      primaryRole: RoleType.STUDENT,
+      chapterId,
+      roles: { create: [{ role: RoleType.STUDENT }] },
+    },
+    update: { name: "Jamie Torres" },
+  });
+
+  const applicant3 = await prisma.user.upsert({
+    where: { email: "demo.applicant.chair@example.com" },
+    create: {
+      name: "Sam Nguyen",
+      email: "demo.applicant.chair@example.com",
+      passwordHash,
+      emailVerified: verifiedAt,
+      primaryRole: RoleType.STUDENT,
+      chapterId,
+      roles: { create: [{ role: RoleType.STUDENT }] },
+    },
+    update: { name: "Sam Nguyen" },
+  });
+
+  // Reviewer user
+  const reviewer = await prisma.user.upsert({
+    where: { email: "demo.reviewer@youthpassionproject.org" },
+    create: {
+      name: "Casey Park",
+      email: "demo.reviewer@youthpassionproject.org",
+      passwordHash,
+      emailVerified: verifiedAt,
+      primaryRole: RoleType.ADMIN,
+      chapterId,
+      roles: { create: [{ role: RoleType.ADMIN }] },
+    },
+    update: { name: "Casey Park" },
+  });
+
+  // Application 1 — SUBMITTED
+  const existing1 = await prisma.instructorApplication.findFirst({
+    where: { applicantId: applicant1.id },
+    select: { id: true },
+  });
+  existing1 ?? await prisma.instructorApplication.create({
+    data: {
+      applicantId: applicant1.id,
+      status: "SUBMITTED",
+      motivation: "I have a passion for sharing knowledge about mathematics and want to help students discover the joy of problem-solving.",
+      teachingExperience: "3 years tutoring high school students in algebra and calculus.",
+      availability: "Weekends and weekday evenings",
+      subjectsOfInterest: "Mathematics, Statistics",
+      schoolName: "State University",
+      graduationYear: 2025,
+      timeline: {
+        create: [
+          {
+            kind: "STATUS_CHANGE",
+            actorId: applicant1.id,
+            payload: { from: null, to: "SUBMITTED" },
+          },
+        ],
+      },
+    },
+  });
+
+  // Application 2 — INTERVIEW_SCHEDULED (partial materials — no course outline yet)
+  const existing2 = await prisma.instructorApplication.findFirst({
+    where: { applicantId: applicant2.id },
+    select: { id: true },
+  });
+  existing2 ?? await prisma.instructorApplication.create({
+    data: {
+      applicantId: applicant2.id,
+      status: "INTERVIEW_SCHEDULED",
+      motivation: "Teaching is my calling. I want to bring real-world chemistry knowledge to the classroom.",
+      teachingExperience: "TA for Organic Chemistry lab for 2 semesters.",
+      availability: "Tuesday and Thursday evenings",
+      subjectsOfInterest: "Chemistry, Biology",
+      schoolName: "Tech Institute",
+      graduationYear: 2024,
+      reviewerId: reviewer.id,
+      reviewerAssignedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+      documents: {
+        create: [
+          {
+            kind: "FIRST_CLASS_PLAN",
+            fileUrl: "https://example.com/demo-first-class-plan.pdf",
+            originalName: "first_class_plan.pdf",
+            fileSize: 24000,
+            uploadedById: applicant2.id,
+          },
+        ],
+      },
+      offeredSlots: {
+        create: [
+          {
+            scheduledAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+            durationMinutes: 45,
+            confirmedAt: new Date(),
+            offeredByUserId: reviewer.id,
+          },
+        ],
+      },
+      timeline: {
+        create: [
+          { kind: "STATUS_CHANGE", actorId: applicant2.id, payload: { from: null, to: "SUBMITTED" } },
+          { kind: "STATUS_CHANGE", actorId: reviewer.id, payload: { from: "SUBMITTED", to: "UNDER_REVIEW" } },
+          { kind: "STATUS_CHANGE", actorId: reviewer.id, payload: { from: "UNDER_REVIEW", to: "PRE_APPROVED" } },
+          { kind: "STATUS_CHANGE", actorId: reviewer.id, payload: { from: "PRE_APPROVED", to: "INTERVIEW_SCHEDULED" } },
+        ],
+      },
+    },
+  });
+
+  // Application 3 — CHAIR_REVIEW (full materials + interview reviews)
+  const existing3 = await prisma.instructorApplication.findFirst({
+    where: { applicantId: applicant3.id },
+    select: { id: true },
+  });
+  if (!existing3) {
+    const app3 = await prisma.instructorApplication.create({
+      data: {
+        applicantId: applicant3.id,
+        status: "CHAIR_REVIEW",
+        motivation: "I want to inspire students with the power of computer science and help bridge the opportunity gap.",
+        teachingExperience: "Ran a coding bootcamp for underserved youth for 1 year.",
+        availability: "Flexible — available most days after 3pm",
+        subjectsOfInterest: "Computer Science, Programming",
+        schoolName: "Engineering College",
+        graduationYear: 2023,
+        reviewerId: reviewer.id,
+        reviewerAssignedAt: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000),
+        materialsReadyAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+        chairQueuedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        documents: {
+          create: [
+            {
+              kind: "COURSE_OUTLINE",
+              fileUrl: "https://example.com/demo-course-outline.pdf",
+              originalName: "course_outline.pdf",
+              fileSize: 48000,
+              uploadedById: applicant3.id,
+            },
+            {
+              kind: "FIRST_CLASS_PLAN",
+              fileUrl: "https://example.com/demo-first-class-plan-cs.pdf",
+              originalName: "first_class_plan.pdf",
+              fileSize: 31000,
+              uploadedById: applicant3.id,
+            },
+          ],
+        },
+        timeline: {
+          create: [
+            { kind: "STATUS_CHANGE", actorId: applicant3.id, payload: { from: null, to: "SUBMITTED" } },
+            { kind: "STATUS_CHANGE", actorId: reviewer.id, payload: { from: "SUBMITTED", to: "UNDER_REVIEW" } },
+            { kind: "STATUS_CHANGE", actorId: reviewer.id, payload: { from: "UNDER_REVIEW", to: "PRE_APPROVED" } },
+            { kind: "STATUS_CHANGE", actorId: reviewer.id, payload: { from: "PRE_APPROVED", to: "INTERVIEW_SCHEDULED" } },
+            { kind: "STATUS_CHANGE", actorId: reviewer.id, payload: { from: "INTERVIEW_SCHEDULED", to: "INTERVIEW_COMPLETED" } },
+            { kind: "STATUS_CHANGE", actorId: chair.id, payload: { from: "INTERVIEW_COMPLETED", to: "CHAIR_REVIEW" } },
+          ],
+        },
+      },
+    });
+
+    // Interviewer assignment
+    await prisma.instructorApplicationInterviewer.create({
+      data: {
+        applicationId: app3.id,
+        interviewerId: reviewer.id,
+        role: "LEAD",
+        assignedById: reviewer.id,
+      },
+    });
+
+    // Interview review
+    await prisma.instructorInterviewReview.create({
+      data: {
+        applicationId: app3.id,
+        reviewerId: reviewer.id,
+        status: "SUBMITTED",
+        overallRating: "ABOVE_AND_BEYOND",
+        recommendation: "ACCEPT",
+        summary: "Sam demonstrated excellent subject mastery and a clear passion for teaching. Would be a strong addition to the instructor team.",
+        submittedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+        categories: {
+          create: [
+            { category: "RELATIONSHIP_BUILDING", rating: "ABOVE_AND_BEYOND", notes: "Clear and engaging communicator." },
+            { category: "SUBJECT_MATTER_FIT", rating: "ABOVE_AND_BEYOND", notes: "Deep expertise in CS fundamentals." },
+            { category: "COMMUNITY_FIT", rating: "ON_TRACK", notes: "Clearly driven by mission." },
+          ],
+        },
+      },
+    });
+  }
+
+  console.log("Seeded Instructor Applicant Workflow V1 demo data.");
 }
 
 main()
