@@ -60,7 +60,7 @@ async function notifyChapterPresidentApplicationReviewers(applicantId: string) {
   }
 
   const { getBaseUrl } = await import("@/lib/portal-auth-utils");
-  const baseUrl = getBaseUrl();
+  const baseUrl = await getBaseUrl();
   await sendNewApplicationNotification({
     to: emails,
     applicantName: applicant?.name ?? "Unknown",
@@ -394,7 +394,7 @@ export async function reviewChapterPresidentApplication(
           },
         });
         const { getBaseUrl } = await import("@/lib/portal-auth-utils");
-  const baseUrl = getBaseUrl();
+  const baseUrl = await getBaseUrl();
         try {
           await sendInfoRequestEmail({
             to: application.applicant.email,
@@ -426,7 +426,7 @@ export async function reviewChapterPresidentApplication(
           },
         });
         const { getBaseUrl } = await import("@/lib/portal-auth-utils");
-  const baseUrl = getBaseUrl();
+  const baseUrl = await getBaseUrl();
         try {
           await sendInterviewScheduledEmail({
             to: application.applicant.email,

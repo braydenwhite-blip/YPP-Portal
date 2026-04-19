@@ -46,7 +46,7 @@ export async function requestPasswordReset(
     }
 
     const supabaseAdmin = createServiceClient();
-    const redirectTo = `${getBaseUrl()}/auth/callback?next=${encodeURIComponent("/reset-password")}`;
+    const redirectTo = `${await getBaseUrl()}/auth/callback?next=${encodeURIComponent("/reset-password")}`;
 
     const { data, error } = await supabaseAdmin.auth.admin.generateLink({
       type: "recovery",

@@ -129,8 +129,9 @@ export async function deliverNotification(input: DeliveryInput) {
   }
 
   if (shouldSendEmail) {
+    const baseUrl = await getBaseUrl();
     const fullLink = input.link
-      ? `${getBaseUrl()}${input.link.startsWith("/") ? input.link : `/${input.link}`}`
+      ? `${baseUrl}${input.link.startsWith("/") ? input.link : `/${input.link}`}`
       : undefined;
 
     await sendNotificationEmail({

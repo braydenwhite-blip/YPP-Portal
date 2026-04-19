@@ -54,7 +54,7 @@ export async function requestMagicLink(
     }
 
     const supabaseAdmin = createServiceClient();
-    const redirectTo = buildAuthRedirectUrl(nextPath);
+    const redirectTo = await buildAuthRedirectUrl(nextPath);
 
     const { data, error } = await supabaseAdmin.auth.admin.generateLink({
       type: "magiclink",

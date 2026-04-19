@@ -6,8 +6,9 @@ import { createServiceClient } from "@/lib/supabase/server";
 
 const DEFAULT_LOCAL_FALLBACK = "http://localhost:3000";
 
-function getHeaderValue(headerName: string) {
-  const value = headers().get(headerName)?.split(",")[0]?.trim();
+async function getHeaderValue(headerName: string) {
+  const headerStore = await headers();
+  const value = headerStore.get(headerName)?.split(",")[0]?.trim();
   return value || "";
 }
 
@@ -28,14 +29,14 @@ function hostHeaderLooksLoopback(host: string) {
  * (cron, internal fetches) never pick `Host: localhost` over `VERCEL_URL`.
  * Request headers are only used when the app URL is still the local default.
  */
-export function getBaseUrl() {
+export async function getBaseUrl() {
   const canonical = getPublicAppUrl();
   if (canonical !== DEFAULT_LOCAL_FALLBACK) {
     return canonical;
   }
 
-  const forwardedHost = getHeaderValue("x-forwarded-host");
-  const host = forwardedHost || getHeaderValue("host");
+  const forwardedHost = await getHeaderValue("x-forwarded-host");
+  const host = forwardedHost || (await getHeaderValue("host"));
   if (!host) {
     return canonical;
   }
@@ -45,7 +46,7 @@ export function getBaseUrl() {
     return canonical;
   }
 
-  const forwardedProto = getHeaderValue("x-forwarded-proto");
+  const forwardedProto = await getHeaderValue("x-forwarded-proto");
   const protocol = forwardedProto || (host.includes("localhost") ? "http" : "https");
   return `${protocol}://${host}`;
 }
@@ -62,8 +63,9 @@ export function sanitizeAuthNextPath(raw: string | undefined | null): string {
   return v;
 }
 
-export function buildAuthRedirectUrl(nextPath: string) {
-  return `${getBaseUrl()}/auth/callback?next=${encodeURIComponent(sanitizeAuthNextPath(nextPath))}`;
+export async function buildAuthRedirectUrl(nextPath: string) {
+  const baseUrl = await getBaseUrl();
+  return `${baseUrl}/auth/callback?next=${encodeURIComponent(sanitizeAuthNextPath(nextPath))}`;
 }
 
 type PortalUserMetadataParams = {
@@ -187,7 +189,7 @@ export async function generateSupabaseRecoveryLink(email: string, nextPath = "/r
     type: "recovery",
     email,
     options: {
-      redirectTo: buildAuthRedirectUrl(nextPath),
+      redirectTo: await buildAuthRedirectUrl(nextPath),
     },
   });
 

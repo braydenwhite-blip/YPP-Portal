@@ -48,7 +48,7 @@ export async function updateCPApplicationStage(
     // When moved to INTERVIEW_SCHEDULED, prompt applicant to submit availability windows
     if (newStatus === "INTERVIEW_SCHEDULED") {
       const { getBaseUrl } = await import("@/lib/portal-auth-utils");
-      const baseUrl = getBaseUrl();
+      const baseUrl = await getBaseUrl();
       sendAvailabilityRequestEmail({
         to: updated.applicant.email,
         applicantName: updated.applicant.name,
@@ -131,4 +131,3 @@ export async function assignCPReviewer(
     return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
   }
 }
-

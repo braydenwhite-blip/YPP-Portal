@@ -96,7 +96,7 @@ export async function notifyReviewersOfNewApplication(applicantId: string) {
   if (!emails.length) return;
 
   const { getBaseUrl } = await import("@/lib/portal-auth-utils");
-  const baseUrl = getBaseUrl();
+  const baseUrl = await getBaseUrl();
   await sendNewApplicationNotification({
     to: emails,
     applicantName: applicant.name,
@@ -379,7 +379,7 @@ async function requestMoreInfoInternal(
   });
 
   const { getBaseUrl } = await import("@/lib/portal-auth-utils");
-  const baseUrl = getBaseUrl();
+  const baseUrl = await getBaseUrl();
   try {
     await sendInfoRequestEmail({
       to: application.applicant.email,
@@ -428,7 +428,7 @@ export async function scheduleInterview(
   });
 
   const { getBaseUrl } = await import("@/lib/portal-auth-utils");
-  const baseUrl = getBaseUrl();
+  const baseUrl = await getBaseUrl();
   try {
     await sendInterviewScheduledEmail({
       to: application.applicant.email,
@@ -727,7 +727,7 @@ export async function preApproveApplication(
     });
 
     const { getBaseUrl } = await import("@/lib/portal-auth-utils");
-    const baseUrl = getBaseUrl();
+    const baseUrl = await getBaseUrl();
     if (application.applicant.email) {
       await sendInstructorPreApprovedEmail({
         to: application.applicant.email,
@@ -788,7 +788,7 @@ export async function offerInterviewSlots(
 
     // Send "pick your time" email to the applicant
     const { getBaseUrl } = await import("@/lib/portal-auth-utils");
-    const baseUrl = getBaseUrl();
+    const baseUrl = await getBaseUrl();
     await sendPickYourTimeEmail({
       to: application.applicant.email,
       applicantName: application.applicant.name,
@@ -851,7 +851,7 @@ export async function selectInterviewSlot(
     // Build ICS and send confirmation to applicant + all reviewers who offered slots
     const { generateIcsContent } = await import("@/lib/email");
     const { getBaseUrl } = await import("@/lib/portal-auth-utils");
-    const baseUrl = getBaseUrl();
+    const baseUrl = await getBaseUrl();
     const endsAt = new Date(slot.scheduledAt.getTime() + slot.durationMinutes * 60_000);
     const icsContent = generateIcsContent({
       uid: `slot-${slotId}@youthpassionproject.org`,

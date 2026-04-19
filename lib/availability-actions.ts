@@ -91,7 +91,7 @@ async function autoAssignSession(
   kind: "cp" | "instructor"
 ): Promise<{ matched: boolean }> {
   const { getBaseUrl } = await import("@/lib/portal-auth-utils");
-  const baseUrl = getBaseUrl();
+  const baseUrl = await getBaseUrl();
 
   // 1. Fetch application with reviewer + windows
   let reviewerId: string | null = null;
