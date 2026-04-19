@@ -281,20 +281,14 @@ export default function InstructorApplicantsCommandCenter({
         </>
       )}
 
-      {/* Chair Queue tab */}
+      {/* Chair Queue tab — redirects to dedicated page */}
       {activeTab === "chair_queue" && canSeeChairQueue && (
-        <div
-          style={{
-            padding: "48px 24px",
-            textAlign: "center",
-            color: "var(--muted)",
-            fontSize: 14,
-          }}
-        >
-          {/* TODO (prompt 4): Render ChairQueueBoard here */}
-          <p>Chair Queue board — coming in the next build step.</p>
-          <a href="/admin/instructor-applicants?tab=chair-queue" className="button secondary" style={{ marginTop: 12, display: "inline-block" }}>
-            Open dedicated chair queue
+        <div style={{ padding: "40px 0", textAlign: "center" }}>
+          <p style={{ fontSize: 14, color: "var(--muted)", marginBottom: 12 }}>
+            The Chair Queue is now a dedicated page.
+          </p>
+          <a href="/admin/instructor-applicants/chair-queue" className="button">
+            Open Chair Queue →
           </a>
         </div>
       )}
