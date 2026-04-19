@@ -22,6 +22,7 @@ import {
   requestMoreInfo,
   scheduleInterview,
 } from "@/lib/instructor-application-actions";
+import { maybeAutoAdvanceAfterInterviewReview } from "@/lib/instructor-interview-actions";
 import {
   INSTRUCTOR_APPLICATION_NEXT_STEP_OPTIONS,
   INSTRUCTOR_INTERVIEW_RECOMMENDATION_OPTIONS,
@@ -890,29 +891,39 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
     await syncLeadFlags(tx, applicationId, leadReviewerId ?? null);
   });
 
-  if (intent === "submit" && isLeadReviewer && canFinalizeRecommendation && recommendation) {
-    await markInterviewCompleted(applicationId, actor.id, summary ?? overallNotes ?? undefined);
+  if (intent === "submit") {
+    // V1 workflow: if there are active interviewer assignments, use auto-advance
+    // (all-reviews-submitted → INTERVIEW_COMPLETED → CHAIR_REVIEW) instead of
+    // the old lead-reviewer-decides-directly path.
+    const autoAdvanced = await maybeAutoAdvanceAfterInterviewReview(applicationId, actor.id);
 
-    if (recommendation === "ACCEPT") {
-      await approveInstructorApplication(applicationId, actor.id, summary ?? overallNotes ?? undefined);
-    } else if (recommendation === "ACCEPT_WITH_SUPPORT") {
-      await holdInstructorApplication(
-        applicationId,
-        actor.id,
-        revisionRequirements ?? curriculumFeedback ?? summary ?? overallNotes ?? undefined
-      );
-    } else if (recommendation === "HOLD") {
-      await holdInstructorApplication(
-        applicationId,
-        actor.id,
-        summary ?? overallNotes ?? curriculumFeedback ?? undefined
-      );
-    } else if (recommendation === "REJECT") {
-      await rejectInstructorApplication(
-        applicationId,
-        actor.id,
-        applicantMessage ?? summary ?? "The interview review did not result in approval."
-      );
+    if (!autoAdvanced && isLeadReviewer && canFinalizeRecommendation && recommendation) {
+      // Legacy / no-interviewer-assignment path — keep original behavior
+      await markInterviewCompleted(applicationId, actor.id, summary ?? overallNotes ?? undefined);
+
+      if (recommendation === "ACCEPT") {
+        await approveInstructorApplication(applicationId, actor.id, summary ?? overallNotes ?? undefined);
+      } else if (recommendation === "ACCEPT_WITH_SUPPORT") {
+        await holdInstructorApplication(
+          applicationId,
+          actor.id,
+          revisionRequirements ?? curriculumFeedback ?? summary ?? overallNotes ?? undefined
+        );
+      } else if (recommendation === "HOLD") {
+        await holdInstructorApplication(
+          applicationId,
+          actor.id,
+          summary ?? overallNotes ?? curriculumFeedback ?? undefined
+        );
+      } else if (recommendation === "REJECT") {
+        await rejectInstructorApplication(
+          applicationId,
+          actor.id,
+          applicantMessage ?? summary ?? "The interview review did not result in approval."
+        );
+      }
+    } else if (!autoAdvanced) {
+      await revalidateInstructorReviewPaths(applicationId);
     }
   } else {
     await revalidateInstructorReviewPaths(applicationId);

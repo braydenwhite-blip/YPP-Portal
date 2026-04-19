@@ -1218,3 +1218,204 @@ export function isEmailConfigured(): boolean {
   if (provider === "resend") return !!process.env.RESEND_API_KEY;
   return isSmtpConfigured() || !!process.env.RESEND_API_KEY;
 }
+
+// ─── Instructor Applicant Workflow V1 email templates ─────────────────────────
+
+/**
+ * Notify a reviewer they have been assigned to an instructor application.
+ */
+export async function sendReviewerAssignedEmail(
+  userId: string,
+  applicationId: string
+): Promise<EmailResult> {
+  const { prisma } = await import("@/lib/prisma");
+  const [user, application] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { name: true, email: true } }),
+    prisma.instructorApplication.findUnique({
+      where: { id: applicationId },
+      select: { applicant: { select: { name: true } } },
+    }),
+  ]);
+  if (!user?.email || !application) return { success: false, error: "User or application not found" };
+
+  const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+  const baseUrl = getBaseUrl();
+  const subject = "You've been assigned to review an instructor application";
+  const html = emailShell(`
+    <h2 style="margin: 0 0 16px; color: #1c1917;">Reviewer Assignment</h2>
+    <p>Hi ${escapeHtml(user.name)},</p>
+    <p>You have been assigned as the reviewer for <strong>${escapeHtml(application.applicant.name)}</strong>'s instructor application.</p>
+    <p>Please complete your structured review when you're ready.</p>
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${escapeHtml(`${baseUrl}/applications/instructor/${applicationId}`)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Application</a>
+    </div>
+  `);
+  return sendEmail({ to: user.email, subject, html });
+}
+
+/**
+ * Notify an interviewer they have been assigned to an instructor application.
+ */
+export async function sendInterviewerAssignedEmail(
+  userId: string,
+  applicationId: string,
+  role: "LEAD" | "SECOND"
+): Promise<EmailResult> {
+  const { prisma } = await import("@/lib/prisma");
+  const [user, application] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { name: true, email: true } }),
+    prisma.instructorApplication.findUnique({
+      where: { id: applicationId },
+      select: { applicant: { select: { name: true } } },
+    }),
+  ]);
+  if (!user?.email || !application) return { success: false, error: "User or application not found" };
+
+  const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+  const baseUrl = getBaseUrl();
+  const roleLabel = role === "LEAD" ? "Lead Interviewer" : "Second Interviewer";
+  const subject = `You've been assigned as ${roleLabel} for an instructor interview`;
+  const html = emailShell(`
+    <h2 style="margin: 0 0 16px; color: #1c1917;">Interviewer Assignment — ${escapeHtml(roleLabel)}</h2>
+    <p>Hi ${escapeHtml(user.name)},</p>
+    <p>You have been assigned as the <strong>${escapeHtml(roleLabel)}</strong> for <strong>${escapeHtml(application.applicant.name)}</strong>'s instructor interview.</p>
+    <p>Please review the applicant's materials and complete your interview evaluation after the session.</p>
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${escapeHtml(`${baseUrl}/applications/instructor/${applicationId}/interview`)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Interview Workspace</a>
+    </div>
+  `);
+  return sendEmail({ to: user.email, subject, html });
+}
+
+/**
+ * Remind applicant to upload required materials after confirming an interview slot.
+ */
+export async function sendMaterialsMissingReminderEmail(
+  applicantEmail: string,
+  applicantName: string,
+  applicationId: string
+): Promise<EmailResult> {
+  const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+  const baseUrl = getBaseUrl();
+  const subject = "Action required: upload your course materials before your interview";
+  const html = emailShell(`
+    <h2 style="margin: 0 0 16px; color: #1c1917;">Materials needed before your interview</h2>
+    <p>Hi ${escapeHtml(applicantName)},</p>
+    <p>Your interview slot is confirmed — great! To ensure your interview goes smoothly, please upload the required materials before your session:</p>
+    <ul style="color: #44403c; line-height: 2;">
+      <li><strong>Course Outline</strong> — a structured outline of your proposed class</li>
+      <li><strong>First Class Plan</strong> — a lesson plan for your first session</li>
+    </ul>
+    <p>These help the interview team understand your teaching approach before you meet.</p>
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${escapeHtml(`${baseUrl}/applications/instructor/${applicationId}`)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Upload Materials</a>
+    </div>
+    <p style="color: #78716c; font-size: 13px;">If you've already uploaded these, you can ignore this reminder.</p>
+  `);
+  return sendEmail({ to: applicantEmail, subject, html });
+}
+
+/**
+ * Daily digest email for HIRING_CHAIR users listing applications awaiting decision.
+ */
+export async function sendChairDigestEmail(
+  chairEmail: string,
+  chairName: string,
+  pendingCount: number,
+  applications: Array<{ applicantName: string; queuedDaysAgo: number }>
+): Promise<EmailResult> {
+  if (pendingCount === 0) return { success: true };
+
+  const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+  const baseUrl = getBaseUrl();
+  const subject = `Chair Queue: ${pendingCount} application${pendingCount === 1 ? "" : "s"} awaiting your decision`;
+
+  const rows = applications
+    .slice(0, 10)
+    .map(
+      (a) =>
+        `<tr><td style="padding: 8px 12px; border-bottom: 1px solid #e7e5e4;">${escapeHtml(a.applicantName)}</td>` +
+        `<td style="padding: 8px 12px; border-bottom: 1px solid #e7e5e4; color: ${a.queuedDaysAgo >= 3 ? "#dc2626" : "#44403c"};">${a.queuedDaysAgo}d in queue</td></tr>`
+    )
+    .join("");
+
+  const html = emailShell(`
+    <h2 style="margin: 0 0 16px; color: #1c1917;">Chair Queue — Daily Digest</h2>
+    <p>Hi ${escapeHtml(chairName)},</p>
+    <p>You have <strong>${pendingCount}</strong> instructor application${pendingCount === 1 ? "" : "s"} awaiting a chair decision.</p>
+    <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
+      <thead>
+        <tr style="background: #f5f5f4;">
+          <th style="padding: 8px 12px; text-align: left; font-weight: 600;">Applicant</th>
+          <th style="padding: 8px 12px; text-align: left; font-weight: 600;">Wait time</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    ${pendingCount > 10 ? `<p style="color: #78716c; font-size: 13px;">…and ${pendingCount - 10} more in the queue.</p>` : ""}
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${escapeHtml(`${baseUrl}/admin/instructor-applicants/chair-queue`)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Open Chair Queue</a>
+    </div>
+  `);
+  return sendEmail({ to: chairEmail, subject, html });
+}
+
+/**
+ * Notify applicant of a chair decision (APPROVE / REJECT / HOLD / REQUEST_INFO / REQUEST_SECOND_INTERVIEW).
+ */
+export async function sendChairDecisionEmail(
+  applicantEmail: string,
+  applicationId: string,
+  action: string
+): Promise<EmailResult> {
+  const { prisma } = await import("@/lib/prisma");
+  const application = await prisma.instructorApplication.findUnique({
+    where: { id: applicationId },
+    select: { applicant: { select: { name: true, email: true } } },
+  });
+  const applicantName = application?.applicant.name ?? "Applicant";
+  const to = applicantEmail;
+
+  const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+  const baseUrl = getBaseUrl();
+  const statusUrl = `${baseUrl}/application-status`;
+
+  type ActionContent = { subject: string; body: string };
+  const contentByAction: Record<string, ActionContent> = {
+    APPROVE: {
+      subject: "Congratulations — Your YPP Instructor Application is Approved!",
+      body: `<p>We are delighted to let you know that your instructor application has been <strong>approved</strong> by our review committee. Welcome to the YPP instructor team!</p><p>Check your training academy for next steps.</p>`,
+    },
+    REJECT: {
+      subject: "Update on Your YPP Instructor Application",
+      body: `<p>Thank you for your interest in teaching at Youth Passion Project. After careful review, we are not moving forward with your application at this time.</p><p>We encourage you to reapply in the future as our needs evolve.</p>`,
+    },
+    HOLD: {
+      subject: "Your YPP Instructor Application is on Hold",
+      body: `<p>Your application has been placed on hold while the committee gathers additional information. We will follow up when a decision is ready.</p>`,
+    },
+    REQUEST_INFO: {
+      subject: "YPP Needs More Information About Your Application",
+      body: `<p>The review committee has requested additional information before making a final decision. Please log in to your application page to respond.</p>`,
+    },
+    REQUEST_SECOND_INTERVIEW: {
+      subject: "Your YPP Application — Second Interview Requested",
+      body: `<p>The committee would like to schedule a second interview before making a final decision. Your reviewer will be in touch with available times shortly.</p>`,
+    },
+  };
+
+  const content = contentByAction[action] ?? {
+    subject: "Update on Your YPP Instructor Application",
+    body: `<p>There has been an update to your instructor application. Please log in to view the latest status.</p>`,
+  };
+
+  const html = emailShell(`
+    <h2 style="margin: 0 0 16px; color: #1c1917;">${content.subject}</h2>
+    <p>Hi ${escapeHtml(applicantName)},</p>
+    ${content.body}
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${escapeHtml(statusUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Application Status</a>
+    </div>
+  `);
+  return sendEmail({ to, subject: content.subject, html });
+}
