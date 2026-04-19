@@ -199,7 +199,7 @@ export default function InterviewReviewEditor({
 
   const showRecommendation =
     isLeadReviewer && canFinalizeRecommendation;
-  const showRevisionRequirements = recommendation === "ACCEPT_WITH_REVISIONS";
+  const showRevisionRequirements = recommendation === "ACCEPT_WITH_SUPPORT";
   const showApplicantMessage = recommendation === "REJECT";
 
   function updateCategoryRating(

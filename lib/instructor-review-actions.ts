@@ -830,8 +830,8 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
     if (isLeadReviewer && canFinalizeRecommendation && !recommendation) {
       throw new Error("The lead reviewer must choose a final recommendation before submitting the interview review.");
     }
-    if (isLeadReviewer && recommendation === "ACCEPT_WITH_REVISIONS" && !revisionRequirements) {
-      throw new Error("Required revisions must be listed for an 'Accept with Revisions' outcome.");
+    if (isLeadReviewer && recommendation === "ACCEPT_WITH_SUPPORT" && !revisionRequirements) {
+      throw new Error("Required support notes must be listed for an 'Accept with Support' outcome.");
     }
     if (isLeadReviewer && recommendation === "REJECT" && !applicantMessage) {
       throw new Error("A short applicant-facing rejection reason is required.");
@@ -895,7 +895,7 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
 
     if (recommendation === "ACCEPT") {
       await approveInstructorApplication(applicationId, actor.id, summary ?? overallNotes ?? undefined);
-    } else if (recommendation === "ACCEPT_WITH_REVISIONS") {
+    } else if (recommendation === "ACCEPT_WITH_SUPPORT") {
       await holdInstructorApplication(
         applicationId,
         actor.id,

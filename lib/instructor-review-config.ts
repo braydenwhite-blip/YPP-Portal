@@ -114,9 +114,9 @@ export const INSTRUCTOR_INTERVIEW_RECOMMENDATION_OPTIONS = [
     description: "Recommend approval now.",
   },
   {
-    value: "ACCEPT_WITH_REVISIONS",
-    label: "Accept with Revisions",
-    description: "Do not approve yet. Required revisions must be completed first.",
+    value: "ACCEPT_WITH_SUPPORT",
+    label: "Accept with Support",
+    description: "Recommend approval with structured support during onboarding.",
   },
   {
     value: "HOLD",
