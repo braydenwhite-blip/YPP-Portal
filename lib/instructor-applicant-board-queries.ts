@@ -314,6 +314,7 @@ export async function getArchivedApplications({
         status: true,
         archivedAt: true,
         updatedAt: true,
+        subjectsOfInterest: true,
         applicant: {
           select: { id: true, name: true, chapterId: true, chapter: { select: { name: true } } },
         },
