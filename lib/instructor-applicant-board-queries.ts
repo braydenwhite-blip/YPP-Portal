@@ -42,6 +42,7 @@ const PIPELINE_SELECT = {
   chairQueuedAt: true,
   createdAt: true,
   updatedAt: true,
+  subjectsOfInterest: true,
   applicant: {
     select: {
       id: true,
@@ -49,7 +50,6 @@ const PIPELINE_SELECT = {
       email: true,
       chapterId: true,
       chapter: { select: { id: true, name: true } },
-      subjectsOfInterest: true,
     },
   },
   reviewer: {
@@ -229,6 +229,7 @@ export async function getChairQueue({
       status: true,
       chairQueuedAt: true,
       materialsReadyAt: true,
+      subjectsOfInterest: true,
       applicant: {
         select: {
           id: true,
@@ -236,7 +237,6 @@ export async function getChairQueue({
           email: true,
           chapterId: true,
           chapter: { select: { id: true, name: true } },
-          subjectsOfInterest: true,
         },
       },
       reviewer: { select: { id: true, name: true } },
@@ -394,7 +394,8 @@ export async function getCandidateInterviewers(
   const application = await prisma.instructorApplication.findUnique({
     where: { id: applicationId },
     select: {
-      applicant: { select: { chapterId: true, subjectsOfInterest: true } },
+      subjectsOfInterest: true,
+      applicant: { select: { chapterId: true } },
       interviewerAssignments: {
         where: { removedAt: null },
         select: { interviewerId: true, role: true },
@@ -439,13 +440,12 @@ export async function getCandidateInterviewers(
       name: true,
       email: true,
       chapterId: true,
-      subjectsOfInterest: true,
       roles: { select: { role: true } },
     },
     orderBy: { name: "asc" },
   });
 
-  // Enrich with load + chapter match + subject overlap
+  // Enrich with load + chapter match
   const enriched = await Promise.all(
     candidates.map(async (user) => {
       const [interviewerLoad, reviewerLoad] = await Promise.all([
@@ -455,31 +455,19 @@ export async function getCandidateInterviewers(
 
       const chapterMatch = chapterId ? user.chapterId === chapterId : false;
 
-      const applicantSubjects = (application.applicant.subjectsOfInterest ?? "")
-        .toLowerCase()
-        .split(/[\s,;]+/)
-        .filter(Boolean);
-      const userSubjects = (user.subjectsOfInterest ?? "")
-        .toLowerCase()
-        .split(/[\s,;]+/)
-        .filter(Boolean);
-      const subjectOverlap = applicantSubjects.some((s) => userSubjects.includes(s));
-
       return {
         ...user,
         interviewerActiveLoad: interviewerLoad.activeCount,
         interviewerLastAssignedAt: interviewerLoad.lastAssignedAt,
         reviewerActiveLoad: reviewerLoad.activeCount,
         chapterMatch,
-        subjectOverlap,
       };
     })
   );
 
-  // Sort: chapter match first, then subject overlap, then load ascending
+  // Sort: chapter match first, then load ascending
   return enriched.sort((a, b) => {
     if (a.chapterMatch !== b.chapterMatch) return a.chapterMatch ? -1 : 1;
-    if (a.subjectOverlap !== b.subjectOverlap) return a.subjectOverlap ? -1 : 1;
     return a.interviewerActiveLoad - b.interviewerActiveLoad;
   });
 }
@@ -491,7 +479,7 @@ export async function getCandidateReviewers(applicationId: string) {
     where: { id: applicationId },
     select: {
       reviewerId: true,
-      applicant: { select: { chapterId: true, subjectsOfInterest: true } },
+      applicant: { select: { chapterId: true } },
     },
   });
 
@@ -513,7 +501,6 @@ export async function getCandidateReviewers(applicationId: string) {
       name: true,
       email: true,
       chapterId: true,
-      subjectsOfInterest: true,
       roles: { select: { role: true } },
     },
     orderBy: { name: "asc" },
@@ -524,29 +511,18 @@ export async function getCandidateReviewers(applicationId: string) {
       const load = await getReviewerLoad(user.id);
 
       const chapterMatch = chapterId ? user.chapterId === chapterId : false;
-      const applicantSubjects = (application.applicant.subjectsOfInterest ?? "")
-        .toLowerCase()
-        .split(/[\s,;]+/)
-        .filter(Boolean);
-      const userSubjects = (user.subjectsOfInterest ?? "")
-        .toLowerCase()
-        .split(/[\s,;]+/)
-        .filter(Boolean);
-      const subjectOverlap = applicantSubjects.some((s) => userSubjects.includes(s));
 
       return {
         ...user,
         reviewerActiveLoad: load.activeCount,
         reviewerLastAssignedAt: load.lastAssignedAt,
         chapterMatch,
-        subjectOverlap,
       };
     })
   );
 
   return enriched.sort((a, b) => {
     if (a.chapterMatch !== b.chapterMatch) return a.chapterMatch ? -1 : 1;
-    if (a.subjectOverlap !== b.subjectOverlap) return a.subjectOverlap ? -1 : 1;
     return a.reviewerActiveLoad - b.reviewerActiveLoad;
   });
 }

@@ -10,7 +10,6 @@ type Candidate = {
   email: string;
   chapterId: string | null;
   chapterMatch: boolean;
-  subjectOverlap: boolean;
   interviewerActiveLoad: number;
   interviewerLastAssignedAt: Date | string | null;
 };
@@ -200,9 +199,6 @@ export default function InterviewerAssignPicker({
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 2 }}>
                         {c.chapterMatch && (
                           <span className="pill pill-info pill-small">Same chapter</span>
-                        )}
-                        {c.subjectOverlap && (
-                          <span className="pill pill-purple pill-small">Subject match</span>
                         )}
                       </div>
                     </div>

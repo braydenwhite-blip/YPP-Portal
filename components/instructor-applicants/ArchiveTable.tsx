@@ -7,11 +7,11 @@ type ArchiveApp = {
   status: string;
   archivedAt: Date | string | null;
   updatedAt: Date | string;
+  subjectsOfInterest: string | null;
   applicant: {
     name: string | null;
     email: string;
     chapter: { name: string } | null;
-    subjectsOfInterest: string | null;
   };
   reviewer: { name: string | null } | null;
   chairDecision: { action: string; decidedAt: Date | string } | null;
@@ -157,8 +157,8 @@ export default function ArchiveTable({ applications }: ArchiveTableProps) {
                   {app.applicant.chapter?.name ?? "—"}
                 </td>
                 <td style={{ padding: "10px 12px", color: "var(--muted)", maxWidth: 150 }}>
-                  {app.applicant.subjectsOfInterest
-                    ? app.applicant.subjectsOfInterest.split(/[\s,;]+/).filter(Boolean).slice(0, 2).join(", ")
+                  {app.subjectsOfInterest
+                    ? app.subjectsOfInterest.split(/[\s,;]+/).filter(Boolean).slice(0, 2).join(", ")
                     : "—"}
                 </td>
                 <td style={{ padding: "10px 12px", color: "var(--muted)" }}>

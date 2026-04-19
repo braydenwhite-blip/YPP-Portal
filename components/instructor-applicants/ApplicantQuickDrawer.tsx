@@ -9,12 +9,12 @@ type DrawerApp = {
   status: string;
   materialsReadyAt: Date | string | null;
   overdue?: boolean;
+  subjectsOfInterest: string | null;
   applicant: {
     id: string;
     name: string | null;
     email: string;
     chapter: { name: string } | null;
-    subjectsOfInterest: string | null;
   };
   reviewer: { id: string; name: string | null } | null;
   interviewerAssignments: Array<{
@@ -135,11 +135,11 @@ export default function ApplicantQuickDrawer({
           {activeSection === "summary" && (
             <>
               {/* Subjects */}
-              {app.applicant.subjectsOfInterest && (
+              {app.subjectsOfInterest && (
                 <div className="slideout-section">
                   <div className="slideout-section-title">Subjects of Interest</div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {app.applicant.subjectsOfInterest
+                    {app.subjectsOfInterest
                       .split(/[\s,;]+/)
                       .filter(Boolean)
                       .map((s) => (
