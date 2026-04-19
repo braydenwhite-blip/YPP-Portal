@@ -84,16 +84,16 @@ const contentChecks = [
     pattern: "getAdminPortalAnalytics(",
   },
   {
-    id: "legacy-instructor-banner",
-    description: "Legacy instructor applicants page points to recruiting",
+    id: "admin-instructor-applicants-page",
+    description: "Admin instructor applicants page loads the command center",
     file: "app/(app)/admin/instructor-applicants/page.tsx",
-    pattern: "This page is kept for compatibility.",
+    pattern: "InstructorApplicantsCommandCenter",
   },
   {
-    id: "legacy-cp-banner",
-    description: "Legacy chapter president applicants page points to recruiting",
+    id: "admin-chapter-president-applicants-page",
+    description: "Admin chapter president applicants page uses the kanban pipeline",
     file: "app/(app)/admin/chapter-president-applicants/page.tsx",
-    pattern: "This page is kept for compatibility.",
+    pattern: "chapterPresidentApplication",
   },
 ];
 

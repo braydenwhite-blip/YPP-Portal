@@ -78,11 +78,14 @@ function loadTsModule(entryPath, cache = new Map()) {
 }
 
 function routeExists(href) {
-  if (href === "/") {
+  // Catalog may use ?tab=… or #anchors on real app routes; only the path maps to page.tsx.
+  const pathOnly = href.split("?")[0]?.split("#")[0] ?? href;
+
+  if (pathOnly === "/" || pathOnly === "") {
     return fs.existsSync(path.join(APP_ROOT, "page.tsx"));
   }
 
-  const fullPath = path.join(APP_ROOT, ...href.split("/").filter(Boolean), "page.tsx");
+  const fullPath = path.join(APP_ROOT, ...pathOnly.split("/").filter(Boolean), "page.tsx");
   return fs.existsSync(fullPath);
 }
 

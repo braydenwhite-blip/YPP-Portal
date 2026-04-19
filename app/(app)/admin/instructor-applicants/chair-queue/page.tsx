@@ -1,0 +1,38 @@
+import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth-supabase";
+import { getHiringActor, canSeeChairQueue } from "@/lib/chapter-hiring-permissions";
+import { getChairQueue } from "@/lib/instructor-applicant-board-queries";
+import { isInstructorApplicantWorkflowV1Enabled } from "@/lib/feature-flags";
+import ChairQueueClientWrapper from "./client";
+
+export const dynamic = "force-dynamic";
+
+export default async function ChairQueuePage() {
+  const session = await getSession();
+  if (!session?.user?.id) redirect("/signin");
+
+  if (!isInstructorApplicantWorkflowV1Enabled()) {
+    redirect("/admin/instructor-applicants");
+  }
+
+  const actor = await getHiringActor(session.user.id);
+
+  if (!canSeeChairQueue(actor)) {
+    redirect("/admin/instructor-applicants");
+  }
+
+  const applications = await getChairQueue({ scope: "admin" });
+
+  return (
+    <div style={{ maxWidth: 1000, margin: "0 auto", padding: "24px" }}>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700 }}>Chair Queue</h1>
+        <p style={{ margin: "6px 0 0", fontSize: 14, color: "var(--muted)" }}>
+          {applications.length} application{applications.length !== 1 ? "s" : ""} awaiting chair decision
+        </p>
+      </div>
+
+      <ChairQueueClientWrapper initialApplications={applications} />
+    </div>
+  );
+}
