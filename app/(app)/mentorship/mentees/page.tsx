@@ -14,6 +14,7 @@ import { prisma } from "@/lib/prisma";
 import { formatEnum } from "@/lib/format-utils";
 import { MentorKanban } from "@/components/mentorship/mentor-kanban";
 import { getMentorKanbanData } from "@/lib/mentorship-kanban-actions";
+import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
 
 const TONE_STYLES = {
   neutral: { background: "#e2e8f0", color: "#334155" },
@@ -149,7 +150,8 @@ export default async function MenteesPage({ searchParams }: PageProps) {
         menteePairs: {
           where: { status: "ACTIVE" },
           take: 1,
-          include: {
+          select: {
+            ...MENTORSHIP_LEGACY_ROOT_SELECT,
             mentor: { select: { name: true } },
             chair: { select: { name: true } },
             track: { select: { name: true } },
@@ -157,6 +159,12 @@ export default async function MenteesPage({ searchParams }: PageProps) {
               where: { month: normalizedMonth },
               orderBy: { createdAt: "desc" },
               take: 1,
+              select: {
+                id: true,
+                status: true,
+                overallStatus: true,
+                month: true,
+              },
             },
           },
         },
@@ -183,7 +191,8 @@ export default async function MenteesPage({ searchParams }: PageProps) {
           in: accessibleMenteeIds.length > 0 ? accessibleMenteeIds : ["__none__"],
         },
       },
-      include: {
+      select: {
+        ...MENTORSHIP_LEGACY_ROOT_SELECT,
         mentor: { select: { name: true } },
         chair: { select: { name: true } },
         track: { select: { name: true } },
@@ -191,17 +200,57 @@ export default async function MenteesPage({ searchParams }: PageProps) {
           where: { month: normalizedMonth },
           orderBy: { createdAt: "desc" },
           take: 1,
+          select: {
+            id: true,
+            status: true,
+            overallStatus: true,
+            month: true,
+          },
         },
         mentee: {
-          include: {
-            roles: true,
-            chapter: true,
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            primaryRole: true,
+            roles: { select: { id: true, role: true } },
+            chapter: { select: { id: true, name: true } },
             goals: {
-              include: {
-                template: true,
+              select: {
+                id: true,
+                userId: true,
+                templateId: true,
+                targetDate: true,
+                timetable: true,
+                createdAt: true,
+                updatedAt: true,
+                template: {
+                  select: {
+                    id: true,
+                    title: true,
+                    description: true,
+                    roleType: true,
+                    mentorshipProgramGroup: true,
+                    chapterId: true,
+                    isActive: true,
+                    sortOrder: true,
+                    createdAt: true,
+                    updatedAt: true,
+                  },
+                },
                 progress: {
                   orderBy: { createdAt: "desc" },
                   take: 1,
+                  select: {
+                    id: true,
+                    goalId: true,
+                    monthlyReviewId: true,
+                    submittedById: true,
+                    forUserId: true,
+                    status: true,
+                    comments: true,
+                    createdAt: true,
+                  },
                 },
               },
             },
@@ -214,6 +263,13 @@ export default async function MenteesPage({ searchParams }: PageProps) {
               },
               orderBy: { submittedAt: "desc" },
               take: 1,
+              select: {
+                id: true,
+                userId: true,
+                formId: true,
+                month: true,
+                submittedAt: true,
+              },
             },
           },
         },

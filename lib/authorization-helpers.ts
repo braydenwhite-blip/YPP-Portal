@@ -175,7 +175,8 @@ export async function requireMentorOfUser(menteeId: string): Promise<SessionUser
       mentorId: user.id,
       menteeId,
       status: "ACTIVE"
-    }
+    },
+    select: { id: true },
   });
 
   if (!mentorship) {
@@ -209,7 +210,8 @@ export async function requireGoalsAccess(targetUserId: string): Promise<SessionU
         mentorId: user.id,
         menteeId: targetUserId,
         status: "ACTIVE"
-      }
+      },
+      select: { id: true },
     });
 
     if (mentorship) {

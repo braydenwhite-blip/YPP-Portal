@@ -43,7 +43,7 @@ export default async function GoalsPage() {
           chapter: true,
           menteePairs: {
             where: { status: "ACTIVE" },
-            include: {
+            select: {
               mentor: {
                 select: { id: true, name: true, email: true, phone: true },
               },
@@ -125,7 +125,7 @@ export default async function GoalsPage() {
             },
           },
           mentorship: {
-            include: {
+            select: {
               track: {
                 select: {
                   name: true,

@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
 import { getSession } from "@/lib/auth-supabase";
 
 // ============================================
@@ -22,7 +23,8 @@ export async function getMentorOverview() {
     where: isAdmin
       ? { status: "ACTIVE" }
       : { mentorId: userId, status: "ACTIVE" },
-    include: {
+    select: {
+      ...MENTORSHIP_LEGACY_ROOT_SELECT,
       mentee: {
         select: {
           id: true,
@@ -38,7 +40,13 @@ export async function getMentorOverview() {
       selfReflections: {
         orderBy: { cycleNumber: "desc" },
         take: 1,
-        include: {
+        select: {
+          id: true,
+          cycleNumber: true,
+          cycleMonth: true,
+          submittedAt: true,
+          mentorshipId: true,
+          menteeId: true,
           goalReview: {
             select: {
               id: true,

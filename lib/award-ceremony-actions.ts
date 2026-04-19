@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { createMentorshipNotification } from "@/lib/mentorship-program-actions";
@@ -267,7 +268,8 @@ export async function generateRecommendationTemplate(menteeId: string) {
   // Only the assigned mentor or admin can generate recommendation letters
   const mentorship = await prisma.mentorship.findFirst({
     where: { menteeId, status: "ACTIVE" },
-    include: {
+    select: {
+      ...MENTORSHIP_LEGACY_ROOT_SELECT,
       mentee: {
         select: {
           name: true,

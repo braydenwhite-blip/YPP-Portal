@@ -60,7 +60,9 @@ export async function getMyProgramData() {
     // Active program mentorship pairing
     prisma.mentorship.findFirst({
       where: { menteeId: userId, status: "ACTIVE" },
-      include: {
+      select: {
+        id: true,
+        startDate: true,
         mentor: { select: { id: true, name: true, email: true } },
         selfReflections: {
           orderBy: { cycleNumber: "desc" },
@@ -199,10 +201,17 @@ export async function submitSelfReflection(formData: FormData) {
   const [mentorship, activeGoals] = await Promise.all([
     prisma.mentorship.findFirst({
       where: { menteeId: userId, status: "ACTIVE" },
-      include: {
+      select: {
+        id: true,
         selfReflections: {
           orderBy: { cycleNumber: "desc" },
           take: 1,
+          select: {
+            id: true,
+            cycleNumber: true,
+            cycleMonth: true,
+            submittedAt: true,
+          },
         },
       },
     }),

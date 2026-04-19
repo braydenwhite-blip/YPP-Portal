@@ -223,7 +223,11 @@ export async function getMentorshipHubData(params: {
     await Promise.all([
       prisma.mentorship.findMany({
         where: mentorshipWhere,
-        include: {
+        select: {
+          id: true,
+          programGroup: true,
+          governanceMode: true,
+          startDate: true,
           mentee: {
             select: {
               id: true,
@@ -246,6 +250,11 @@ export async function getMentorshipHubData(params: {
                 },
                 orderBy: { submittedAt: "desc" },
                 take: 1,
+                select: {
+                  id: true,
+                  month: true,
+                  submittedAt: true,
+                },
               },
               incubatorProjects: {
                 select: {
@@ -279,7 +288,20 @@ export async function getMentorshipHubData(params: {
           },
           circleMembers: {
             where: { isActive: true },
-            include: {
+            select: {
+              id: true,
+              mentorshipId: true,
+              menteeId: true,
+              userId: true,
+              role: true,
+              source: true,
+              isPrimary: true,
+              isActive: true,
+              notes: true,
+              availabilityNotes: true,
+              capacityOverride: true,
+              createdAt: true,
+              updatedAt: true,
               user: {
                 select: {
                   id: true,
@@ -294,6 +316,31 @@ export async function getMentorshipHubData(params: {
           sessions: {
             orderBy: [{ completedAt: "desc" }, { scheduledAt: "asc" }],
             take: 4,
+            select: {
+              id: true,
+              mentorshipId: true,
+              scheduleRequestId: true,
+              menteeId: true,
+              type: true,
+              title: true,
+              scheduledAt: true,
+              completedAt: true,
+              cancelledAt: true,
+              durationMinutes: true,
+              agenda: true,
+              notes: true,
+              meetingLink: true,
+              cancellationReason: true,
+              schedulingOverrideReason: true,
+              reminder24SentAt: true,
+              reminder2SentAt: true,
+              participantIds: true,
+              attendedIds: true,
+              createdById: true,
+              ledById: true,
+              createdAt: true,
+              updatedAt: true,
+            },
           },
           actionItems: {
             where: {
@@ -307,6 +354,21 @@ export async function getMentorshipHubData(params: {
             },
             orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
             take: 5,
+            select: {
+              id: true,
+              mentorshipId: true,
+              menteeId: true,
+              sessionId: true,
+              title: true,
+              details: true,
+              status: true,
+              ownerId: true,
+              createdById: true,
+              dueAt: true,
+              completedAt: true,
+              createdAt: true,
+              updatedAt: true,
+            },
           },
           supportRequests: {
             where: {
@@ -314,7 +376,26 @@ export async function getMentorshipHubData(params: {
                 in: [MentorshipRequestStatus.OPEN, MentorshipRequestStatus.ANSWERED],
               },
             },
-            include: {
+            orderBy: { requestedAt: "desc" },
+            take: 5,
+            select: {
+              id: true,
+              mentorshipId: true,
+              menteeId: true,
+              requesterId: true,
+              assignedToId: true,
+              trackId: true,
+              kind: true,
+              visibility: true,
+              status: true,
+              title: true,
+              details: true,
+              isAnonymous: true,
+              passionId: true,
+              projectId: true,
+              requestedAt: true,
+              resolvedAt: true,
+              lastResponseAt: true,
               requester: {
                 select: { id: true, name: true },
               },
@@ -322,22 +403,49 @@ export async function getMentorshipHubData(params: {
                 select: { id: true, name: true },
               },
               responses: {
-                include: {
+                orderBy: { createdAt: "desc" },
+                take: 2,
+                select: {
+                  id: true,
+                  requestId: true,
+                  responderId: true,
+                  body: true,
+                  videoUrl: true,
+                  resourceLinks: true,
+                  isHelpful: true,
+                  helpfulCount: true,
+                  createdAt: true,
+                  updatedAt: true,
                   responder: {
                     select: { id: true, name: true },
                   },
                 },
-                orderBy: { createdAt: "desc" },
-                take: 2,
               },
             },
-            orderBy: { requestedAt: "desc" },
-            take: 5,
           },
           resources: {
             where: { isPublished: true },
             orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
             take: 4,
+            select: {
+              id: true,
+              mentorshipId: true,
+              menteeId: true,
+              requestId: true,
+              responseId: true,
+              trackId: true,
+              createdById: true,
+              type: true,
+              title: true,
+              description: true,
+              url: true,
+              body: true,
+              passionId: true,
+              isFeatured: true,
+              isPublished: true,
+              createdAt: true,
+              updatedAt: true,
+            },
           },
           monthlyReviews: {
             where: {
@@ -559,7 +667,10 @@ export async function getSupportWorkspaceData(params: {
         menteeId,
         status: "ACTIVE",
       },
-      include: {
+      select: {
+        id: true,
+        programGroup: true,
+        governanceMode: true,
         mentor: {
           select: { id: true, name: true, email: true, primaryRole: true },
         },
@@ -571,7 +682,20 @@ export async function getSupportWorkspaceData(params: {
         },
         circleMembers: {
           where: { isActive: true },
-          include: {
+          select: {
+            id: true,
+            mentorshipId: true,
+            menteeId: true,
+            userId: true,
+            role: true,
+            source: true,
+            isPrimary: true,
+            isActive: true,
+            notes: true,
+            availabilityNotes: true,
+            capacityOverride: true,
+            createdAt: true,
+            updatedAt: true,
             user: {
               select: {
                 id: true,
@@ -594,33 +718,121 @@ export async function getSupportWorkspaceData(params: {
         sessions: {
           orderBy: [{ scheduledAt: "desc" }],
           take: 8,
+          select: {
+            id: true,
+            mentorshipId: true,
+            scheduleRequestId: true,
+            menteeId: true,
+            type: true,
+            title: true,
+            scheduledAt: true,
+            completedAt: true,
+            cancelledAt: true,
+            durationMinutes: true,
+            agenda: true,
+            notes: true,
+            meetingLink: true,
+            cancellationReason: true,
+            schedulingOverrideReason: true,
+            reminder24SentAt: true,
+            reminder2SentAt: true,
+            participantIds: true,
+            attendedIds: true,
+            createdById: true,
+            ledById: true,
+            createdAt: true,
+            updatedAt: true,
+          },
         },
         actionItems: {
-          include: {
-            owner: {
-              select: { id: true, name: true },
-            },
-            createdBy: {
-              select: { id: true, name: true },
-            },
-          },
           orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
           take: 12,
+          select: {
+            id: true,
+            mentorshipId: true,
+            menteeId: true,
+            sessionId: true,
+            title: true,
+            details: true,
+            status: true,
+            ownerId: true,
+            owner: { select: { id: true, name: true } },
+            createdById: true,
+            createdBy: { select: { id: true, name: true } },
+            dueAt: true,
+            completedAt: true,
+            createdAt: true,
+            updatedAt: true,
+          },
         },
         monthlyReviews: {
-          include: {
+          orderBy: [{ month: "desc" }],
+          take: 3,
+          select: {
+            id: true,
+            mentorshipId: true,
+            trackId: true,
+            menteeId: true,
+            mentorId: true,
+            chairId: true,
+            reflectionSubmissionId: true,
+            month: true,
+            requiresChairApproval: true,
+            status: true,
+            overallStatus: true,
+            overallComments: true,
+            strengths: true,
+            focusAreas: true,
+            collaborationNotes: true,
+            promotionReadiness: true,
+            nextMonthPlan: true,
+            mentorInternalNotes: true,
+            chairDecisionNotes: true,
+            characterCulturePoints: true,
+            baseAchievementPoints: true,
+            totalAchievementPoints: true,
+            mentorSubmittedAt: true,
+            chairDecisionAt: true,
+            publishedAt: true,
+            createdAt: true,
+            updatedAt: true,
             goalRatings: {
-              include: {
+              select: {
+                id: true,
+                reviewId: true,
+                goalId: true,
+                status: true,
+                comments: true,
+                createdAt: true,
+                updatedAt: true,
                 goal: {
-                  include: {
-                    template: true,
+                  select: {
+                    id: true,
+                    templateId: true,
+                    userId: true,
+                    targetDate: true,
+                    timetable: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    template: {
+                      select: {
+                        id: true,
+                        title: true,
+                        description: true,
+                        roleType: true,
+                        mentorshipProgramGroup: true,
+                        chapterId: true,
+                        isActive: true,
+                        sortOrder: true,
+                        createdAt: true,
+                        updatedAt: true,
+                      },
+                    },
                   },
                 },
               },
             },
           },
-          orderBy: [{ month: "desc" }],
-          take: 3,
         },
       },
     }),
@@ -876,7 +1088,11 @@ export async function getMentorshipGovernanceSnapshot() {
   const [mentorships, openRequests, resources] = await Promise.all([
     prisma.mentorship.findMany({
       where: { status: "ACTIVE" },
-      include: {
+      select: {
+        id: true,
+        programGroup: true,
+        governanceMode: true,
+        startDate: true,
         mentee: {
           select: {
             id: true,
@@ -890,6 +1106,7 @@ export async function getMentorshipGovernanceSnapshot() {
         circleMembers: {
           where: { isActive: true },
           select: {
+            id: true,
             role: true,
             user: {
               select: { id: true, name: true },
@@ -899,6 +1116,31 @@ export async function getMentorshipGovernanceSnapshot() {
         sessions: {
           orderBy: { scheduledAt: "desc" },
           take: 3,
+          select: {
+            id: true,
+            mentorshipId: true,
+            scheduleRequestId: true,
+            menteeId: true,
+            type: true,
+            title: true,
+            scheduledAt: true,
+            completedAt: true,
+            cancelledAt: true,
+            durationMinutes: true,
+            agenda: true,
+            notes: true,
+            meetingLink: true,
+            cancellationReason: true,
+            schedulingOverrideReason: true,
+            reminder24SentAt: true,
+            reminder2SentAt: true,
+            participantIds: true,
+            attendedIds: true,
+            createdById: true,
+            ledById: true,
+            createdAt: true,
+            updatedAt: true,
+          },
         },
         actionItems: {
           where: {

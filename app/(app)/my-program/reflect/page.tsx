@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
+import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
 import ReflectionForm from "./reflection-form";
 import Link from "next/link";
@@ -20,7 +21,8 @@ export default async function ReflectPage() {
   const [mentorship, goals] = await Promise.all([
     prisma.mentorship.findFirst({
       where: { menteeId: userId, status: "ACTIVE" },
-      include: {
+      select: {
+        ...MENTORSHIP_LEGACY_ROOT_SELECT,
         selfReflections: {
           orderBy: { cycleNumber: "desc" },
           take: 1,

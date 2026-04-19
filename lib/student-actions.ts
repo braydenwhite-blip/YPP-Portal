@@ -1,6 +1,10 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import {
+  MENTORSHIP_CHECK_IN_SELECT,
+  MENTORSHIP_LEGACY_ROOT_SELECT,
+} from "@/lib/mentorship-read-fragments";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 
@@ -156,7 +160,8 @@ export async function getMyStudentMentor() {
       type: "STUDENT",
       status: "ACTIVE",
     },
-    include: {
+    select: {
+      ...MENTORSHIP_LEGACY_ROOT_SELECT,
       mentor: {
         select: {
           id: true,
@@ -171,6 +176,7 @@ export async function getMyStudentMentor() {
       checkIns: {
         orderBy: { createdAt: "desc" },
         take: 5,
+        select: MENTORSHIP_CHECK_IN_SELECT,
       },
     },
   });

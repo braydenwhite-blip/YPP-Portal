@@ -154,7 +154,7 @@ async function getProgramReflectionSummary(userId: string, primaryRole: string |
   const [mentorship, goals, reflections] = await Promise.all([
     prisma.mentorship.findFirst({
       where: { menteeId: userId, status: "ACTIVE" },
-      include: {
+      select: {
         mentor: { select: { id: true, name: true, email: true } },
         selfReflections: {
           orderBy: { cycleNumber: "desc" },

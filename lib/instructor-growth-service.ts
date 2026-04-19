@@ -7,6 +7,7 @@ import {
 } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
 import {
   getClassTemplateCapabilities,
   getTemplateSubmissionStatus,
@@ -213,7 +214,8 @@ export async function getAssignedInstructorMentor(instructorId: string) {
       status: "ACTIVE",
     },
     orderBy: { startDate: "desc" },
-    include: {
+    select: {
+      ...MENTORSHIP_LEGACY_ROOT_SELECT,
       mentor: {
         select: {
           id: true,

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
 import { getSession } from "@/lib/auth-supabase";
 import AnnouncementBanner from "@/components/announcement-banner";
 import XpDisplay from "@/components/xp-display";
@@ -154,7 +155,10 @@ export default async function OverviewPage() {
   const mentorships = isMentor && userId
     ? await prisma.mentorship.findMany({
         where: { mentorId: userId },
-        include: { mentee: true }
+        select: {
+          ...MENTORSHIP_LEGACY_ROOT_SELECT,
+          mentee: { select: { name: true } },
+        },
       })
     : [];
 

@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import {
@@ -692,7 +693,12 @@ export async function getMyGRDocument() {
       successCriteria: { orderBy: { timePhase: "asc" } },
       resources: { include: { resource: true }, orderBy: { sortOrder: "asc" } },
       plansOfAction: { orderBy: { cycleNumber: "desc" } },
-      mentorship: { include: { mentor: { select: { id: true, name: true, email: true } } } },
+      mentorship: {
+        select: {
+          ...MENTORSHIP_LEGACY_ROOT_SELECT,
+          mentor: { select: { id: true, name: true, email: true } },
+        },
+      },
     },
   });
 
@@ -884,7 +890,12 @@ export async function getGRDocumentForUser(userId: string) {
       successCriteria: { orderBy: { timePhase: "asc" } },
       resources: { include: { resource: true }, orderBy: { sortOrder: "asc" } },
       plansOfAction: { orderBy: { cycleNumber: "desc" } },
-      mentorship: { include: { mentor: { select: { id: true, name: true, email: true } } } },
+      mentorship: {
+        select: {
+          ...MENTORSHIP_LEGACY_ROOT_SELECT,
+          mentor: { select: { id: true, name: true, email: true } },
+        },
+      },
       user: { select: { id: true, name: true, email: true } },
     },
   });
@@ -964,7 +975,12 @@ export async function getGRAssignedDocuments() {
     include: {
       user: { select: { id: true, name: true, email: true } },
       template: { select: { title: true, roleType: true } },
-      mentorship: { include: { mentor: { select: { name: true } } } },
+      mentorship: {
+        select: {
+          ...MENTORSHIP_LEGACY_ROOT_SELECT,
+          mentor: { select: { name: true } },
+        },
+      },
       _count: { select: { goals: true, goalChanges: { where: { status: "PROPOSED" } } } },
     },
     orderBy: { createdAt: "desc" },

@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { KudosCategory } from "@prisma/client";
@@ -81,7 +82,10 @@ export async function getKudosRecipients() {
     // Admins can send kudos to anyone in active mentorships
     const mentorships = await prisma.mentorship.findMany({
       where: { status: "ACTIVE" },
-      include: { mentee: { select: { id: true, name: true, primaryRole: true } } },
+      select: {
+        ...MENTORSHIP_LEGACY_ROOT_SELECT,
+        mentee: { select: { id: true, name: true, primaryRole: true } },
+      },
     });
     return mentorships.map((m) => ({
       id: m.mentee.id,
@@ -93,13 +97,17 @@ export async function getKudosRecipients() {
   // Mentors can send kudos to their mentees
   const mentorships = await prisma.mentorship.findMany({
     where: { mentorId: userId, status: "ACTIVE" },
-    include: { mentee: { select: { id: true, name: true, primaryRole: true } } },
+    select: {
+      ...MENTORSHIP_LEGACY_ROOT_SELECT,
+      mentee: { select: { id: true, name: true, primaryRole: true } },
+    },
   });
 
   // Mentees can send kudos to peers in their chapter/program
   const menteeships = await prisma.mentorship.findMany({
     where: { menteeId: userId, status: "ACTIVE" },
-    include: {
+    select: {
+      ...MENTORSHIP_LEGACY_ROOT_SELECT,
       mentee: {
         select: {
           chapterId: true,

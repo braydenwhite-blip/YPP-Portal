@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
+import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
 import Link from "next/link";
 
 export const metadata = { title: "Mentorship Calendar — YPP" };
@@ -70,10 +71,12 @@ async function getMentorshipCalendarData(userId: string, roles: string[]) {
   // ---- MENTEE: reflection due dates ----
   const menteeships = await prisma.mentorship.findMany({
     where: { menteeId: userId, status: "ACTIVE" },
-    include: {
+    select: {
+      ...MENTORSHIP_LEGACY_ROOT_SELECT,
       selfReflections: {
         orderBy: { cycleNumber: "desc" },
         take: 1,
+        select: { cycleNumber: true, cycleMonth: true },
       },
     },
   });
@@ -134,7 +137,8 @@ async function getMentorshipCalendarData(userId: string, roles: string[]) {
     const mentorships = isAdmin
       ? await prisma.mentorship.findMany({
           where: { status: "ACTIVE" },
-          include: {
+          select: {
+            ...MENTORSHIP_LEGACY_ROOT_SELECT,
             mentee: { select: { name: true } },
             selfReflections: {
               where: {
@@ -142,12 +146,18 @@ async function getMentorshipCalendarData(userId: string, roles: string[]) {
               },
               orderBy: { cycleNumber: "asc" },
               take: 10,
+              select: {
+                id: true,
+                cycleNumber: true,
+                submittedAt: true,
+              },
             },
           },
         })
       : await prisma.mentorship.findMany({
           where: { mentorId: userId, status: "ACTIVE" },
-          include: {
+          select: {
+            ...MENTORSHIP_LEGACY_ROOT_SELECT,
             mentee: { select: { name: true } },
             selfReflections: {
               where: {
@@ -155,6 +165,11 @@ async function getMentorshipCalendarData(userId: string, roles: string[]) {
               },
               orderBy: { cycleNumber: "asc" },
               take: 10,
+              select: {
+                id: true,
+                cycleNumber: true,
+                submittedAt: true,
+              },
             },
           },
         });

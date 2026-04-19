@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
 import { withPrismaFallback } from "@/lib/prisma-guard";
 
 // ============================================
@@ -272,7 +273,8 @@ async function addMentorshipTrail(
   // Check if user is a mentor with active mentees
   const mentorships = await prisma.mentorship.findMany({
     where: { mentorId: input.userId, status: "ACTIVE" },
-    include: {
+    select: {
+      ...MENTORSHIP_LEGACY_ROOT_SELECT,
       mentee: {
         select: {
           id: true,
@@ -299,7 +301,8 @@ async function addMentorshipTrail(
   // Check if user is a mentee
   const menteeships = await prisma.mentorship.findMany({
     where: { menteeId: input.userId, status: "ACTIVE" },
-    include: {
+    select: {
+      ...MENTORSHIP_LEGACY_ROOT_SELECT,
       mentor: {
         select: { name: true },
       },

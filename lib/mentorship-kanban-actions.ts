@@ -2,6 +2,7 @@
 
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
+import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
 import { revalidatePath } from "next/cache";
 import {
   GoalReviewStatus,
@@ -282,7 +283,10 @@ export async function getMentorKanbanData(): Promise<{
 
   const mentorships = await prisma.mentorship.findMany({
     where,
-    include: {
+    select: {
+      ...MENTORSHIP_LEGACY_ROOT_SELECT,
+      cycleStage: true,
+      mentorTag: true,
       mentee: { select: { id: true, name: true, email: true, primaryRole: true } },
       track: { select: { name: true } },
       goalReviews: {
@@ -446,7 +450,10 @@ export async function getSimplifiedMentorKanban(): Promise<{
 
   const mentorships = await prisma.mentorship.findMany({
     where,
-    include: {
+    select: {
+      ...MENTORSHIP_LEGACY_ROOT_SELECT,
+      cycleStage: true,
+      mentorTag: true,
       mentee: { select: { id: true, name: true, email: true, primaryRole: true } },
       track: { select: { name: true } },
       goalReviews: {

@@ -30,6 +30,7 @@ import {
   hasMentorshipMenteeAccess,
 } from "@/lib/mentorship-access";
 import { prisma } from "@/lib/prisma";
+import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
 
 function getString(formData: FormData, key: string, required = true) {
   const value = formData.get(key);
@@ -90,7 +91,8 @@ async function getActiveMentorshipContext(menteeId: string) {
       menteeId,
       status: "ACTIVE",
     },
-    include: {
+    select: {
+      ...MENTORSHIP_LEGACY_ROOT_SELECT,
       track: {
         select: { id: true, programGroup: true, governanceMode: true },
       },

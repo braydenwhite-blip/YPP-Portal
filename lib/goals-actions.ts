@@ -253,7 +253,8 @@ export async function submitProgressUpdate(formData: FormData) {
         mentorId: submittedById,
         menteeId: forUserId,
         status: "ACTIVE"
-      }
+      },
+      select: { id: true },
     });
 
     if (!mentorship) {
@@ -313,7 +314,8 @@ export async function submitBulkProgressUpdates(formData: FormData) {
         mentorId: submittedById,
         menteeId: forUserId,
         status: "ACTIVE"
-      }
+      },
+      select: { id: true },
     });
 
     if (!mentorship) {

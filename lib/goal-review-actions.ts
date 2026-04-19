@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import {
@@ -68,11 +69,18 @@ export async function getMyReviewQueue() {
 
   const mentorships = await prisma.mentorship.findMany({
     where: isAdmin ? { status: "ACTIVE" } : { mentorId: userId, status: "ACTIVE" },
-    include: {
+    select: {
+      ...MENTORSHIP_LEGACY_ROOT_SELECT,
       mentee: { select: { id: true, name: true, email: true, primaryRole: true } },
       selfReflections: {
         orderBy: { cycleNumber: "desc" },
-        include: {
+        select: {
+          id: true,
+          cycleNumber: true,
+          cycleMonth: true,
+          submittedAt: true,
+          mentorshipId: true,
+          menteeId: true,
           goalReview: {
             select: { id: true, status: true, pointsAwarded: true, releasedToMenteeAt: true },
           },

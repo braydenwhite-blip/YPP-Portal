@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
+import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
 import Link from "next/link";
 
 export default async function MenteeHealthPage() {
@@ -21,33 +22,36 @@ export default async function MenteeHealthPage() {
   // Get mentees (students where user is mentor)
   const mentorships = await prisma.mentorship.findMany({
     where: { mentorId: session.user.id, status: "ACTIVE" },
-    include: {
+    select: {
+      ...MENTORSHIP_LEGACY_ROOT_SELECT,
       mentee: {
-        include: {
+        select: {
+          id: true,
+          name: true,
           enrollments: {
-            include: {
-              course: true
-            }
+            select: { status: true },
           },
           assignmentSubmissions: {
             where: {
               createdAt: {
-                gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // Last 30 days
-              }
-            }
+                gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
+              },
+            },
+            select: { id: true },
           },
           reflectionSubmissions: {
             where: {
               submittedAt: {
-                gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-              }
+                gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+              },
             },
             orderBy: { submittedAt: "desc" },
-            take: 1
-          }
-        }
-      }
-    }
+            take: 1,
+            select: { submittedAt: true },
+          },
+        },
+      },
+    },
   });
 
   // Calculate health metrics for each mentee

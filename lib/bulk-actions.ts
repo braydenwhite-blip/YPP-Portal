@@ -51,7 +51,8 @@ export async function assignMentorBulk(formData: FormData) {
 
   for (const menteeId of menteeIds) {
     const existing = await prisma.mentorship.findFirst({
-      where: { mentorId, menteeId, type }
+      where: { mentorId, menteeId, type },
+      select: { id: true },
     });
 
     if (!existing) {

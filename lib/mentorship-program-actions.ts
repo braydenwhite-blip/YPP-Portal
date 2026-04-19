@@ -54,6 +54,7 @@ import {
 } from "@/lib/mentorship-access";
 import { ensureMentorshipSupportCircle } from "@/lib/mentorship-hub-actions";
 import { prisma } from "@/lib/prisma";
+import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
 
 function getString(formData: FormData, key: string, required = true) {
   const value = formData.get(key);
@@ -258,6 +259,7 @@ export async function assignProgramMentor(formData: FormData) {
 
   const existing = await prisma.mentorship.findFirst({
     where: { menteeId, status: "ACTIVE" },
+    select: { id: true },
   });
 
   if (existing) {
@@ -345,7 +347,8 @@ export async function endProgramMentorship(formData: FormData) {
 
   const mentorship = await prisma.mentorship.findUniqueOrThrow({
     where: { id: mentorshipId },
-    include: {
+    select: {
+      ...MENTORSHIP_LEGACY_ROOT_SELECT,
       mentor: { select: { name: true } },
       mentee: { select: { name: true } },
     },
@@ -511,7 +514,10 @@ async function getAccessibleMentorship(params: {
       menteeId,
       status: "ACTIVE",
     },
-    include: {
+    select: {
+      ...MENTORSHIP_LEGACY_ROOT_SELECT,
+      kickoffCompletedAt: true,
+      kickoffScheduledAt: true,
       mentor: { select: { id: true, name: true, email: true } },
       mentee: {
         select: {
@@ -523,9 +529,11 @@ async function getAccessibleMentorship(params: {
         },
       },
       track: {
-        include: {
+        select: {
+          programGroup: true,
+          governanceMode: true,
           committees: {
-            include: {
+            select: {
               chairUser: { select: { id: true, name: true } },
             },
           },
@@ -1453,7 +1461,8 @@ export async function updateMentorshipGovernance(formData: FormData) {
 
   const mentorship = await prisma.mentorship.findUniqueOrThrow({
     where: { id: mentorshipId },
-    include: {
+    select: {
+      ...MENTORSHIP_LEGACY_ROOT_SELECT,
       mentee: {
         select: {
           primaryRole: true,

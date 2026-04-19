@@ -106,7 +106,7 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Scheduling Hub",
       icon: "🗓",
       roles: ["APPLICANT", "STUDENT", "INSTRUCTOR", "STAFF", "ADMIN", "CHAPTER_PRESIDENT", "MENTOR"] as NavRole[],
-      dashboardDescription: "See interviews, mentorship, and college-advisor scheduling work in one place.",
+      dashboardDescription: "See interviews and mentorship scheduling work in one place.",
       dashboardPriority: 8,
     },
     {
@@ -500,20 +500,6 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardDescription: "Download your achievement certificate and volunteer hours verification letter.",
     },
     {
-      href: "/college-advisor/roadmap",
-      label: "College Roadmap",
-      icon: "🎓",
-      roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
-      dashboardDescription: "Follow your personalized college readiness journey from exploration to transition.",
-    },
-    {
-      href: "/college-advisor/activities",
-      label: "Activities Builder",
-      icon: "📋",
-      roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
-      dashboardDescription: "Build your extracurricular portfolio and export in Common App format.",
-    },
-    {
       href: "/alumni-network",
       label: "Alumni Network",
       icon: "🤝",
@@ -709,17 +695,10 @@ export const NAV_CATALOG: NavLink[] = [
   ]),
 
   ...groupLinks("Profile & Settings", 1000, [
-    { href: "/certificates", label: "My Certificates", icon: "📜" },
     {
       href: "/alumni",
       label: "Alumni Directory",
       icon: "🎓",
-      requiresAward: true,
-    },
-    {
-      href: "/college-advisor",
-      label: "College Advisor",
-      icon: "🧑‍💻",
       requiresAward: true,
     },
     {

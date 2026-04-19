@@ -7,6 +7,10 @@ import { ProgressStatus } from "@prisma/client";
 import { recomputeMentorshipCycleStage, getCurrentCycleMonth } from "@/lib/mentorship-cycle";
 import { emitReflectionWindowOpened } from "@/lib/mentorship-notifications";
 import { logger } from "@/lib/logger";
+import {
+  MENTORSHIP_CHECK_IN_SELECT,
+  MENTORSHIP_LEGACY_ROOT_SELECT,
+} from "@/lib/mentorship-read-fragments";
 
 // ============================================
 // MENTEE MANAGEMENT
@@ -34,33 +38,111 @@ export async function getMyMentees() {
       mentorId: session.user.id,
       status: "ACTIVE",
     },
-    include: {
+    select: {
+      ...MENTORSHIP_LEGACY_ROOT_SELECT,
       mentee: {
-        include: {
-          profile: true,
-          chapter: true,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          primaryRole: true,
+          profile: {
+            select: {
+              bio: true,
+              avatarUrl: true,
+              interests: true,
+            },
+          },
+          chapter: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
           goals: {
-            include: {
-              template: true,
+            select: {
+              id: true,
+              userId: true,
+              templateId: true,
+              targetDate: true,
+              timetable: true,
+              createdAt: true,
+              updatedAt: true,
+              template: {
+                select: {
+                  id: true,
+                  title: true,
+                  description: true,
+                  roleType: true,
+                  mentorshipProgramGroup: true,
+                  chapterId: true,
+                  isActive: true,
+                  sortOrder: true,
+                  createdAt: true,
+                  updatedAt: true,
+                },
+              },
               progress: {
                 orderBy: { createdAt: "desc" },
                 take: 1,
+                select: {
+                  id: true,
+                  goalId: true,
+                  monthlyReviewId: true,
+                  submittedById: true,
+                  forUserId: true,
+                  status: true,
+                  comments: true,
+                  createdAt: true,
+                },
               },
             },
           },
           reflectionSubmissions: {
             orderBy: { submittedAt: "desc" },
             take: 1,
-            include: {
-              form: true,
+            select: {
+              id: true,
+              userId: true,
+              formId: true,
+              month: true,
+              submittedAt: true,
+              form: {
+                select: {
+                  id: true,
+                  title: true,
+                  roleType: true,
+                  isActive: true,
+                },
+              },
             },
           },
           trainings: {
-            include: { module: true },
+            select: {
+              id: true,
+              userId: true,
+              moduleId: true,
+              cohortId: true,
+              status: true,
+              completedAt: true,
+              createdAt: true,
+              updatedAt: true,
+              module: {
+                select: {
+                  id: true,
+                  title: true,
+                  sortOrder: true,
+                },
+              },
+            },
           },
           courses: {
-            include: {
-              enrollments: { select: { id: true } },
+            select: {
+              id: true,
+              title: true,
+              enrollments: {
+                select: { id: true },
+              },
             },
           },
         },
@@ -68,6 +150,7 @@ export async function getMyMentees() {
       checkIns: {
         orderBy: { createdAt: "desc" },
         take: 3,
+        select: MENTORSHIP_CHECK_IN_SELECT,
       },
     },
   });
@@ -144,10 +227,12 @@ export async function getMenteeDetail(menteeId: string) {
         orderBy: { awardedAt: "desc" },
       },
       menteePairs: {
-        include: {
+        select: {
+          ...MENTORSHIP_LEGACY_ROOT_SELECT,
           mentor: { select: { id: true, name: true, email: true } },
           checkIns: {
             orderBy: { createdAt: "desc" },
+            select: MENTORSHIP_CHECK_IN_SELECT,
           },
         },
       },
@@ -223,6 +308,7 @@ export async function addMentorshipCheckIn(formData: FormData) {
   // Verify the mentorship exists and user is the mentor
   const mentorship = await prisma.mentorship.findUnique({
     where: { id: mentorshipId },
+    select: { id: true, mentorId: true, menteeId: true },
   });
 
   if (!mentorship) {
@@ -262,9 +348,12 @@ export async function getMentorshipCheckIns(menteeId: string) {
       menteeId,
       OR: [{ mentorId: session.user.id }, { mentee: { id: session.user.id } }],
     },
-    include: {
+    select: {
+      id: true,
+      menteeId: true,
       checkIns: {
         orderBy: { createdAt: "desc" },
+        select: MENTORSHIP_CHECK_IN_SELECT,
       },
     },
   });
@@ -281,9 +370,10 @@ export async function getMentorshipCheckIns(menteeId: string) {
 
     const allMentorships = await prisma.mentorship.findMany({
       where: { menteeId },
-      include: {
+      select: {
         checkIns: {
           orderBy: { createdAt: "desc" },
+          select: MENTORSHIP_CHECK_IN_SELECT,
         },
       },
     });
@@ -307,7 +397,8 @@ export async function getMyMentor() {
       menteeId: session.user.id,
       status: "ACTIVE",
     },
-    include: {
+    select: {
+      ...MENTORSHIP_LEGACY_ROOT_SELECT,
       mentor: {
         select: {
           id: true,
@@ -322,6 +413,7 @@ export async function getMyMentor() {
       checkIns: {
         orderBy: { createdAt: "desc" },
         take: 5,
+        select: MENTORSHIP_CHECK_IN_SELECT,
       },
     },
   });

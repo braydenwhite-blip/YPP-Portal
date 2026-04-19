@@ -33,6 +33,14 @@ function isMissingTableError(error: unknown) {
   );
 }
 
+/** Table or column missing vs Prisma schema (local DB behind migrations). */
+function isMissingTableOrColumnError(error: unknown) {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    (error.code === "P2021" || error.code === "P2022")
+  );
+}
+
 function formatAbsoluteDate(value: Date | null | undefined) {
   if (!value) return "No date";
   return new Intl.DateTimeFormat("en-US", {
@@ -143,19 +151,46 @@ async function renderAdminWorkflowHome(params: {
 }) {
   const isSuperAdmin = params.adminSubtypes.includes("SUPER_ADMIN");
 
-  const [workflowItems, notifications, unreadNotifications] = await Promise.all([
+  const [workflowItems, unreadNotifications] = await Promise.all([
     listWorkflowHomeItems({
       userId: params.userId,
       roles: params.roles,
       adminSubtypes: params.adminSubtypes,
     }),
-    prisma.notification.findMany({
+    getUnreadNotificationCountCached(params.userId),
+  ]);
+
+  let notifications: Prisma.NotificationGetPayload<{
+    select: {
+      id: true;
+      title: true;
+      body: true;
+      link: true;
+      isRead: true;
+      createdAt: true;
+      type: true;
+    };
+  }>[] = [];
+  try {
+    notifications = await prisma.notification.findMany({
       where: { userId: params.userId },
       orderBy: { createdAt: "desc" },
       take: 6,
-    }),
-    getUnreadNotificationCountCached(params.userId),
-  ]);
+      select: {
+        id: true,
+        title: true,
+        body: true,
+        link: true,
+        isRead: true,
+        createdAt: true,
+        type: true,
+      },
+    });
+  } catch (error) {
+    if (!isMissingTableOrColumnError(error)) {
+      throw error;
+    }
+  }
 
   const todayLabel = new Intl.DateTimeFormat("en-US", {
     weekday: "long",

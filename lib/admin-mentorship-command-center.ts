@@ -15,6 +15,7 @@ import {
   type AdminMentorshipLane,
 } from "@/lib/mentorship-admin-helpers";
 import { prisma } from "@/lib/prisma";
+import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
 
 function startOfMonth(date = new Date()) {
   return new Date(date.getFullYear(), date.getMonth(), 1);
@@ -122,7 +123,8 @@ export async function getAdminMentorshipCommandCenterData() {
   ] = await Promise.all([
     prisma.mentorship.findMany({
       where: { status: "ACTIVE" },
-      include: {
+      select: {
+        ...MENTORSHIP_LEGACY_ROOT_SELECT,
         mentor: {
           select: { id: true, name: true, email: true },
         },

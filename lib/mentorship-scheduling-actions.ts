@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth-supabase";
 import { createMentorshipNotification } from "@/lib/mentorship-program-actions";
 import { prisma } from "@/lib/prisma";
+import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
 import { isRecoverablePrismaError, withPrismaFallback } from "@/lib/prisma-guard";
 import { toAbsoluteAppUrl } from "@/lib/public-app-url";
 import {
@@ -717,7 +718,8 @@ export async function getSchedulePageData(): Promise<SchedulePageData | null> {
 
   const mentorship = await prisma.mentorship.findFirst({
     where: { menteeId: userId, status: "ACTIVE" },
-    include: {
+    select: {
+      ...MENTORSHIP_LEGACY_ROOT_SELECT,
       mentor: { select: { id: true, name: true, email: true } },
     },
   });
@@ -829,7 +831,8 @@ export async function getMyMentorshipScheduleHubData(): Promise<MyMentorshipSche
 
   const mentorship = await prisma.mentorship.findFirst({
     where: { menteeId: userId, status: "ACTIVE" },
-    include: {
+    select: {
+      ...MENTORSHIP_LEGACY_ROOT_SELECT,
       mentor: { select: { id: true, name: true, email: true } },
     },
   });
@@ -1117,7 +1120,8 @@ export async function requestMentorMeeting(formData: FormData) {
 
   const mentorship = await prisma.mentorship.findUniqueOrThrow({
     where: { id: mentorshipId },
-    include: {
+    select: {
+      ...MENTORSHIP_LEGACY_ROOT_SELECT,
       mentor: { select: { id: true, name: true, email: true } },
       mentee: { select: { id: true, name: true, email: true } },
     },
@@ -1317,7 +1321,8 @@ export async function bookMentorAvailabilitySlot(formData: FormData) {
 
   const mentorship = await prisma.mentorship.findUniqueOrThrow({
     where: { id: mentorshipId },
-    include: {
+    select: {
+      ...MENTORSHIP_LEGACY_ROOT_SELECT,
       mentor: { select: { id: true, name: true, email: true } },
       mentee: { select: { id: true, name: true, email: true } },
     },

@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
 import { getSession } from "@/lib/auth-supabase";
 
 // ============================================
@@ -80,7 +81,8 @@ export async function generateCommitteePrepPacket(mentorshipId: string): Promise
 
   const mentorship = await prisma.mentorship.findUniqueOrThrow({
     where: { id: mentorshipId },
-    include: {
+    select: {
+      ...MENTORSHIP_LEGACY_ROOT_SELECT,
       mentee: {
         select: {
           id: true,
@@ -96,9 +98,26 @@ export async function generateCommitteePrepPacket(mentorshipId: string): Promise
         where: { status: "APPROVED" },
         orderBy: { cycleNumber: "desc" },
         take: 3,
-        include: {
+        select: {
+          cycleNumber: true,
+          cycleMonth: true,
+          overallRating: true,
+          pointsAwarded: true,
+          overallComments: true,
+          planOfAction: true,
+          bonusPoints: true,
+          bonusReason: true,
+          isQuarterly: true,
+          projectedFuturePath: true,
+          promotionReadiness: true,
+          chairComments: true,
           goalRatings: {
-            include: { goal: { select: { title: true } } },
+            select: {
+              rating: true,
+              comments: true,
+              goal: { select: { title: true } },
+              grDocumentGoal: { select: { title: true } },
+            },
           },
         },
       },
@@ -113,7 +132,7 @@ export async function generateCommitteePrepPacket(mentorshipId: string): Promise
         orderBy: { createdAt: "asc" },
       },
       feedbackRequests: {
-        include: {
+        select: {
           responses: {
             select: {
               overallRating: true,
@@ -232,7 +251,7 @@ export async function generateCommitteePrepPacket(mentorshipId: string): Promise
       promotionReadiness: r.promotionReadiness,
       chairComments: r.chairComments,
       goalRatings: r.goalRatings.map((gr) => ({
-        goalTitle: gr.goal?.title ?? "",
+        goalTitle: gr.goal?.title ?? gr.grDocumentGoal?.title ?? "",
         rating: gr.rating,
         comments: gr.comments,
       })),

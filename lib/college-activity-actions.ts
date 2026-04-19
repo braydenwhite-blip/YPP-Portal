@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { ActivityCategory } from "@prisma/client";
@@ -102,7 +103,8 @@ export async function populateYppActivities() {
   const [mentorships, summary] = await Promise.all([
     prisma.mentorship.findMany({
       where: { menteeId: userId },
-      include: {
+      select: {
+        ...MENTORSHIP_LEGACY_ROOT_SELECT,
         selfReflections: { select: { id: true } },
       },
     }),
