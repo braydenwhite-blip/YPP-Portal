@@ -26,6 +26,8 @@ const PEOPLE_SUPPORT_HIDDEN_FOR_ADMIN_PRIMARY = new Set<string>([
   "/mentorship/unlock-sections",
   "/instructor-growth",
   "/instructor-growth/review",
+  "/college-advisor/roadmap",
+  "/college-advisor/activities",
   "/alumni-network",
   "/events",
   "/calendar",
