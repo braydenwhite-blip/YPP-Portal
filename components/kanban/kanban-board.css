@@ -279,6 +279,16 @@
 .status-pill.rejected { background: #fee2e2; color: #dc2626; }
 .status-pill.on-hold { background: #f4f4f5; color: #71717a; }
 .status-pill.withdrawn { background: #f5f5f4; color: #57534e; }
+
+/* ── Instructor Applicant Workflow V1 status pills ── */
+.status-pill.chair-review { background: #fef3c7; color: #b45309; }
+.status-pill.pre-approved { background: #dcfce7; color: #166534; }
+
+/* ── Derived column chips ────────────────────────── */
+.kanban-column-chip.interview-prep { background: #fef9c3; color: #854d0e; }
+.kanban-column-chip.ready-for-interview { background: #dcfce7; color: #166534; }
+.kanban-column-chip.materials-missing { background: #fee2e2; color: #991b1b; }
+.kanban-column-chip.overdue { background: #fee2e2; color: #dc2626; }
 .status-pill.accepted { background: #dcfce7; color: #16a34a; }
 .status-pill.draft { background: #f4f4f5; color: #71717a; }
 .status-pill.pending-chair-approval { background: #fef3c7; color: #d97706; }

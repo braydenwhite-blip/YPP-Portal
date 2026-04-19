@@ -31,9 +31,15 @@ export const INSTRUCTOR_REVIEW_CATEGORIES = [
   },
   {
     key: "PROFESSIONALISM_AND_FOLLOW_THROUGH",
-    label: "Professionalism & Follow-Through",
+    label: "Interview Readiness & Professionalism",
     description:
       "Follow-through, preparation habits, and whether the candidate operates like someone others can count on.",
+  },
+  {
+    key: "SUBJECT_MATTER_FIT",
+    label: "Subject Matter Fit",
+    description:
+      "Depth and currency of knowledge in the subjects they plan to teach, and ability to make the content accessible.",
   },
 ] as const;
 
@@ -114,9 +120,9 @@ export const INSTRUCTOR_INTERVIEW_RECOMMENDATION_OPTIONS = [
     description: "Recommend approval now.",
   },
   {
-    value: "ACCEPT_WITH_REVISIONS",
-    label: "Accept with Revisions",
-    description: "Do not approve yet. Required revisions must be completed first.",
+    value: "ACCEPT_WITH_SUPPORT",
+    label: "Accept with Support",
+    description: "Recommend approval with structured support during onboarding.",
   },
   {
     value: "HOLD",

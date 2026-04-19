@@ -3,8 +3,9 @@
 import { createSystemNotification } from "@/lib/notification-actions";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
-import { InterviewOutcome, InterviewRequestStatus } from "@prisma/client";
+import { InstructorApplicationStatus, InterviewOutcome, InterviewRequestStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { syncInstructorApplicationWorkflow } from "@/lib/workflow";
 
 function getString(formData: FormData, key: string, required = true) {
   const value = formData.get(key);
@@ -959,4 +960,144 @@ export async function setInterviewOutcome(formData: FormData) {
   });
 
   revalidateInterviewPaths();
+}
+
+// ─── Instructor Applicant Workflow V1 auto-advance ────────────────────────────
+
+/**
+ * After any InstructorInterviewReview is submitted, check if all active
+ * interviewer assignments have now submitted. If so, advance the application
+ * status (INTERVIEW_SCHEDULED → INTERVIEW_COMPLETED, then → CHAIR_REVIEW).
+ *
+ * Uses a row-level status check inside the transaction to guard against races
+ * when two interviewers submit near-simultaneously.
+ *
+ * Returns true if a status advance occurred (so callers can skip old behavior).
+ */
+export async function maybeAutoAdvanceAfterInterviewReview(
+  applicationId: string,
+  actorId: string
+): Promise<boolean> {
+  const app = await prisma.instructorApplication.findUnique({
+    where: { id: applicationId },
+    select: {
+      status: true,
+      interviewerAssignments: {
+        where: { removedAt: null },
+        select: { interviewerId: true },
+      },
+      interviewReviews: {
+        where: { status: "SUBMITTED" },
+        select: { reviewerId: true },
+      },
+    },
+  });
+
+  if (!app) return false;
+
+  const activeInterviewerIds = app.interviewerAssignments.map((a) => a.interviewerId);
+
+  // If no V1 interviewer assignments, fall through to old behavior
+  if (activeInterviewerIds.length === 0) return false;
+
+  const submittedIds = new Set(app.interviewReviews.map((r) => r.reviewerId));
+  const allSubmitted = activeInterviewerIds.every((id) => submittedIds.has(id));
+  if (!allSubmitted) return false;
+
+  const now = new Date();
+
+  if (
+    app.status === InstructorApplicationStatus.INTERVIEW_SCHEDULED ||
+    app.status === InstructorApplicationStatus.INTERVIEW_COMPLETED
+  ) {
+    const targetStatus =
+      app.status === InstructorApplicationStatus.INTERVIEW_SCHEDULED
+        ? InstructorApplicationStatus.INTERVIEW_COMPLETED
+        : InstructorApplicationStatus.CHAIR_REVIEW;
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        // Re-read status inside transaction to guard against races
+        const fresh = await tx.instructorApplication.findUnique({
+          where: { id: applicationId },
+          select: { status: true },
+        });
+        if (
+          fresh?.status !== InstructorApplicationStatus.INTERVIEW_SCHEDULED &&
+          fresh?.status !== InstructorApplicationStatus.INTERVIEW_COMPLETED
+        ) {
+          // Already advanced by a concurrent request — skip silently
+          return;
+        }
+
+        const actualTarget =
+          fresh.status === InstructorApplicationStatus.INTERVIEW_SCHEDULED
+            ? InstructorApplicationStatus.INTERVIEW_COMPLETED
+            : InstructorApplicationStatus.CHAIR_REVIEW;
+
+        const updateData: Record<string, unknown> = { status: actualTarget };
+        if (actualTarget === InstructorApplicationStatus.CHAIR_REVIEW) {
+          updateData.chairQueuedAt = now;
+        }
+
+        await tx.instructorApplication.update({
+          where: { id: applicationId },
+          data: updateData,
+        });
+
+        await tx.instructorApplicationTimelineEvent.create({
+          data: {
+            applicationId,
+            kind: "STATUS_CHANGE",
+            actorId,
+            payload: {
+              from: fresh.status,
+              to: actualTarget,
+              trigger: "auto-advance-on-all-reviews-submitted",
+            },
+          },
+        });
+
+        // If we only moved to INTERVIEW_COMPLETED, immediately check if we
+        // should further advance to CHAIR_REVIEW in the same transaction
+        if (actualTarget === InstructorApplicationStatus.INTERVIEW_COMPLETED) {
+          await tx.instructorApplication.update({
+            where: { id: applicationId },
+            data: {
+              status: InstructorApplicationStatus.CHAIR_REVIEW,
+              chairQueuedAt: now,
+            },
+          });
+          await tx.instructorApplicationTimelineEvent.create({
+            data: {
+              applicationId,
+              kind: "STATUS_CHANGE",
+              actorId,
+              payload: {
+                from: InstructorApplicationStatus.INTERVIEW_COMPLETED,
+                to: InstructorApplicationStatus.CHAIR_REVIEW,
+                trigger: "auto-advance-on-all-reviews-submitted",
+              },
+            },
+          });
+        }
+      });
+    } catch (e) {
+      console.error("[maybeAutoAdvanceAfterInterviewReview]", e);
+      return false;
+    }
+
+    try {
+      await syncInstructorApplicationWorkflow(applicationId);
+    } catch (e) {
+      console.error("[maybeAutoAdvanceAfterInterviewReview] sync failed:", e);
+    }
+
+    revalidatePath(`/applications/instructor/${applicationId}`);
+    revalidatePath("/admin/instructor-applicants");
+    revalidatePath("/admin/instructor-applicants/chair-queue");
+    return true;
+  }
+
+  return false;
 }

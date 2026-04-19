@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
-import { RoleType, InstructorApplicationStatus, ApprovalStatus } from "@prisma/client";
+import { RoleType, InstructorApplicationStatus, ApprovalStatus, ChairDecisionAction } from "@prisma/client";
 import {
   sendNewApplicationNotification,
   sendApplicationApprovedEmail,
@@ -14,12 +14,20 @@ import {
   sendPickYourTimeEmail,
   sendInterviewConfirmedEmail,
   sendInstructorPreApprovedEmail,
+  sendReviewerAssignedEmail,
+  sendInterviewerAssignedEmail,
+  sendChairDecisionEmail,
 } from "@/lib/email";
 import {
   getLegacyApplicationTransitionError,
   type LegacyApplicationReviewAction,
 } from "@/lib/legacy-application-review";
 import { syncInstructorApplicationWorkflow } from "@/lib/workflow";
+import {
+  getHiringActor,
+  assertCanAssignInterviewers,
+  assertCanActAsChair,
+} from "@/lib/chapter-hiring-permissions";
 
 type FormState = {
   status: "idle" | "error" | "success";
@@ -609,18 +617,56 @@ export async function saveDecisionRecommendation(
 
 /**
  * Assign a reviewer to an application.
+ * V1: also sets reviewerAssignedAt/By, auto-advances SUBMITTED→UNDER_REVIEW, writes timeline.
  */
 export async function assignReviewer(
   applicationId: string,
   reviewerId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireAdminOrChapterLead();
-    await prisma.instructorApplication.update({
+    const session = await requireAdminOrChapterLead();
+    const application = await prisma.instructorApplication.findUnique({
       where: { id: applicationId },
-      data: { reviewerId },
+      select: { status: true, reviewerId: true },
     });
+    if (!application) return { success: false, error: "Application not found." };
+
+    const now = new Date();
+    const newStatus =
+      application.status === InstructorApplicationStatus.SUBMITTED
+        ? InstructorApplicationStatus.UNDER_REVIEW
+        : application.status;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.instructorApplication.update({
+        where: { id: applicationId },
+        data: {
+          reviewerId,
+          reviewerAssignedAt: now,
+          reviewerAssignedById: session.user.id,
+          status: newStatus,
+        },
+      });
+      await tx.instructorApplicationTimelineEvent.create({
+        data: {
+          applicationId,
+          kind: "REVIEWER_ASSIGNED",
+          actorId: session.user.id,
+          payload: { reviewerId, previousReviewerId: application.reviewerId ?? null },
+        },
+      });
+    });
+
+    // Fire email outside transaction so DB is committed first
+    try {
+      await sendReviewerAssignedEmail(reviewerId, applicationId);
+    } catch (e) {
+      console.error("[assignReviewer] email failed:", e);
+    }
+
+    await syncInstructorApplicationWorkflow(applicationId);
     revalidatePath("/admin/instructor-applicants");
+    revalidatePath("/chapter-lead/instructor-applicants");
     return { success: true };
   } catch (error) {
     console.error("[assignReviewer]", error);
@@ -901,4 +947,452 @@ export async function selectInterviewSlot(
     console.error("[selectInterviewSlot]", error);
     return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
   }
+}
+
+// ─── Instructor Applicant Workflow V1 actions ─────────────────────────────────
+
+/** Reassign reviewer — same as assignReviewer but always fires, regardless of prior reviewer. */
+export async function reassignReviewer(
+  applicationId: string,
+  newReviewerId: string
+): Promise<{ success: boolean; error?: string }> {
+  return assignReviewer(applicationId, newReviewerId);
+}
+
+/**
+ * Assign an interviewer (LEAD or SECOND) to an application.
+ * LEAD must exist before SECOND can be assigned.
+ */
+export async function assignInterviewer(formData: FormData): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const applicationId = String(formData.get("applicationId") ?? "").trim();
+    const interviewerId = String(formData.get("interviewerId") ?? "").trim();
+    const roleRaw = String(formData.get("role") ?? "").trim();
+    if (!applicationId || !interviewerId) return { success: false, error: "Missing fields." };
+    if (roleRaw !== "LEAD" && roleRaw !== "SECOND") return { success: false, error: "role must be LEAD or SECOND." };
+    const role = roleRaw as "LEAD" | "SECOND";
+
+    const app = await prisma.instructorApplication.findUnique({
+      where: { id: applicationId },
+      select: {
+        id: true,
+        applicantId: true,
+        reviewerId: true,
+        applicant: { select: { chapterId: true } },
+        interviewerAssignments: {
+          where: { removedAt: null },
+          select: { interviewerId: true, role: true, removedAt: true },
+        },
+      },
+    });
+    if (!app) return { success: false, error: "Application not found." };
+
+    const actor = await getHiringActor(session.user.id);
+    assertCanAssignInterviewers(
+      actor,
+      {
+        id: app.id,
+        applicantId: app.applicantId,
+        reviewerId: app.reviewerId,
+        applicantChapterId: app.applicant.chapterId,
+        interviewerAssignments: app.interviewerAssignments,
+      },
+      role
+    );
+
+    if (role === "SECOND" && !app.interviewerAssignments.some((a) => a.role === "LEAD")) {
+      return { success: false, error: "Assign a LEAD interviewer before adding a SECOND." };
+    }
+
+    const alreadyAssigned = app.interviewerAssignments.some((a) => a.interviewerId === interviewerId);
+    if (alreadyAssigned) return { success: false, error: "This interviewer is already assigned." };
+
+    await prisma.$transaction(async (tx) => {
+      await tx.instructorApplicationInterviewer.create({
+        data: {
+          applicationId,
+          interviewerId,
+          role,
+          assignedById: actor.id,
+        },
+      });
+      await tx.instructorApplicationTimelineEvent.create({
+        data: {
+          applicationId,
+          kind: "INTERVIEWER_ASSIGNED",
+          actorId: actor.id,
+          payload: { interviewerId, role },
+        },
+      });
+    });
+
+    try {
+      await sendInterviewerAssignedEmail(interviewerId, applicationId, role);
+    } catch (e) {
+      console.error("[assignInterviewer] email failed:", e);
+    }
+
+    revalidatePath(`/applications/instructor/${applicationId}`);
+    revalidatePath("/admin/instructor-applicants");
+    return { success: true };
+  } catch (error) {
+    console.error("[assignInterviewer]", error);
+    return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
+  }
+}
+
+/** Soft-remove an interviewer assignment by setting removedAt. */
+export async function removeInterviewer(formData: FormData): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const assignmentId = String(formData.get("assignmentId") ?? "").trim();
+    if (!assignmentId) return { success: false, error: "Missing assignmentId." };
+
+    const assignment = await prisma.instructorApplicationInterviewer.findUnique({
+      where: { id: assignmentId },
+      select: { id: true, applicationId: true, interviewerId: true, role: true, removedAt: true },
+    });
+    if (!assignment) return { success: false, error: "Interviewer assignment not found." };
+    if (assignment.removedAt) return { success: false, error: "Already removed." };
+
+    const actor = await getHiringActor(session.user.id);
+    if (!actor.roles.includes("ADMIN") && !actor.roles.includes("CHAPTER_PRESIDENT")) {
+      return { success: false, error: "Only Admins or Chapter Presidents can remove interviewers." };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.instructorApplicationInterviewer.update({
+        where: { id: assignmentId },
+        data: { removedAt: new Date() },
+      });
+      await tx.instructorApplicationTimelineEvent.create({
+        data: {
+          applicationId: assignment.applicationId,
+          kind: "INTERVIEWER_REMOVED",
+          actorId: actor.id,
+          payload: { interviewerId: assignment.interviewerId, role: assignment.role },
+        },
+      });
+    });
+
+    revalidatePath(`/applications/instructor/${assignment.applicationId}`);
+    revalidatePath("/admin/instructor-applicants");
+    return { success: true };
+  } catch (error) {
+    console.error("[removeInterviewer]", error);
+    return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
+  }
+}
+
+/**
+ * Manually send an application to the Chair queue.
+ * Guard: status must be INTERVIEW_COMPLETED and every active interviewer must have
+ * submitted an InstructorInterviewReview.
+ * Admins may override the "all reviews submitted" guard with overrideReason.
+ */
+export async function sendToChair(formData: FormData): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const applicationId = String(formData.get("applicationId") ?? "").trim();
+    const overrideReason = String(formData.get("overrideReason") ?? "").trim() || null;
+    if (!applicationId) return { success: false, error: "Missing applicationId." };
+
+    const actor = await getHiringActor(session.user.id);
+    if (!actor.roles.includes("ADMIN") && !actor.roles.includes("CHAPTER_PRESIDENT")) {
+      return { success: false, error: "Unauthorized." };
+    }
+
+    const app = await prisma.instructorApplication.findUnique({
+      where: { id: applicationId },
+      select: {
+        status: true,
+        interviewerAssignments: {
+          where: { removedAt: null },
+          select: { interviewerId: true },
+        },
+        interviewReviews: {
+          where: { status: "SUBMITTED" },
+          select: { reviewerId: true },
+        },
+      },
+    });
+    if (!app) return { success: false, error: "Application not found." };
+    if (app.status !== InstructorApplicationStatus.INTERVIEW_COMPLETED) {
+      return { success: false, error: "Application must be in INTERVIEW_COMPLETED status to send to chair." };
+    }
+
+    const activeInterviewerIds = app.interviewerAssignments.map((a) => a.interviewerId);
+    const submittedReviewerIds = new Set(app.interviewReviews.map((r) => r.reviewerId));
+    const missingReviews = activeInterviewerIds.filter((id) => !submittedReviewerIds.has(id));
+
+    if (missingReviews.length > 0 && !actor.roles.includes("ADMIN")) {
+      return {
+        success: false,
+        error: `${missingReviews.length} interviewer(s) have not yet submitted their review.`,
+      };
+    }
+
+    const now = new Date();
+    await prisma.$transaction(async (tx) => {
+      await tx.instructorApplication.update({
+        where: { id: applicationId },
+        data: { status: InstructorApplicationStatus.CHAIR_REVIEW, chairQueuedAt: now },
+      });
+      await tx.instructorApplicationTimelineEvent.create({
+        data: {
+          applicationId,
+          kind: "STATUS_CHANGE",
+          actorId: actor.id,
+          payload: {
+            from: InstructorApplicationStatus.INTERVIEW_COMPLETED,
+            to: InstructorApplicationStatus.CHAIR_REVIEW,
+            ...(overrideReason ? { overrideReason } : {}),
+          },
+        },
+      });
+    });
+
+    await syncInstructorApplicationWorkflow(applicationId);
+    revalidatePath(`/applications/instructor/${applicationId}`);
+    revalidatePath("/admin/instructor-applicants");
+    revalidatePath("/admin/instructor-applicants/chair-queue");
+    return { success: true };
+  } catch (error) {
+    console.error("[sendToChair]", error);
+    return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
+  }
+}
+
+/**
+ * Chair decision action.
+ * Validates chair role and CHAIR_REVIEW status inside the transaction.
+ * APPROVE runs atomically with existing syncInstructorApplicationWorkflow.
+ * REQUEST_SECOND_INTERVIEW reverts status to INTERVIEW_SCHEDULED.
+ */
+export async function chairDecide(formData: FormData): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const applicationId = String(formData.get("applicationId") ?? "").trim();
+    const actionRaw = String(formData.get("action") ?? "").trim();
+    const rationale = String(formData.get("rationale") ?? "").trim() || null;
+    const comparisonNotes = String(formData.get("comparisonNotes") ?? "").trim() || null;
+    if (!applicationId || !actionRaw) return { success: false, error: "Missing required fields." };
+
+    const validActions = Object.values(ChairDecisionAction) as string[];
+    if (!validActions.includes(actionRaw)) {
+      return { success: false, error: "Invalid chair action." };
+    }
+    const action = actionRaw as ChairDecisionAction;
+
+    const actor = await getHiringActor(session.user.id);
+    assertCanActAsChair(actor);
+
+    const app = await prisma.instructorApplication.findUnique({
+      where: { id: applicationId },
+      select: {
+        status: true,
+        applicantId: true,
+        reviewerId: true,
+        applicant: { select: { id: true, name: true, email: true } },
+        interviewerAssignments: {
+          where: { removedAt: null },
+          select: { interviewerId: true, interviewer: { select: { id: true, email: true } } },
+        },
+      },
+    });
+    if (!app) return { success: false, error: "Application not found." };
+    if (app.status !== InstructorApplicationStatus.CHAIR_REVIEW) {
+      return { success: false, error: "Chair decisions can only be made when the application is in CHAIR_REVIEW status." };
+    }
+
+    const now = new Date();
+
+    const statusByAction: Partial<Record<ChairDecisionAction, InstructorApplicationStatus>> = {
+      APPROVE: InstructorApplicationStatus.APPROVED,
+      REJECT: InstructorApplicationStatus.REJECTED,
+      HOLD: InstructorApplicationStatus.ON_HOLD,
+      REQUEST_INFO: InstructorApplicationStatus.INFO_REQUESTED,
+      REQUEST_SECOND_INTERVIEW: InstructorApplicationStatus.INTERVIEW_SCHEDULED,
+    };
+    const newStatus = statusByAction[action]!;
+
+    await prisma.$transaction(async (tx) => {
+      // Re-check status inside transaction to guard against stale clicks
+      const fresh = await tx.instructorApplication.findUnique({
+        where: { id: applicationId },
+        select: { status: true },
+      });
+      if (fresh?.status !== InstructorApplicationStatus.CHAIR_REVIEW) {
+        throw new Error("Application status changed before decision was recorded — please refresh.");
+      }
+
+      // Supersede any prior chair decision for audit chain
+      await tx.instructorApplicationChairDecision.updateMany({
+        where: { applicationId, supersededAt: null },
+        data: { supersededAt: now },
+      });
+
+      await tx.instructorApplicationChairDecision.create({
+        data: { applicationId, chairId: actor.id, action, rationale, comparisonNotes, decidedAt: now },
+      });
+
+      const appUpdateData: Record<string, unknown> = { status: newStatus };
+      if (action === "APPROVE") appUpdateData.approvedAt = now;
+      if (action === "REJECT") appUpdateData.rejectedAt = now;
+
+      if (action === "APPROVE") {
+        // Grant INSTRUCTOR role atomically in the same transaction
+        await tx.instructorApplication.update({ where: { id: applicationId }, data: appUpdateData });
+        await tx.user.update({
+          where: { id: app.applicantId },
+          data: { primaryRole: RoleType.INSTRUCTOR },
+        });
+        await tx.userRole.upsert({
+          where: { userId_role: { userId: app.applicantId, role: RoleType.INSTRUCTOR } },
+          update: {},
+          create: { userId: app.applicantId, role: RoleType.INSTRUCTOR },
+        });
+        const existing = await tx.instructorApproval.findFirst({
+          where: { instructorId: app.applicantId },
+        });
+        if (!existing) {
+          await tx.instructorApproval.create({
+            data: { instructorId: app.applicantId, status: ApprovalStatus.TRAINING_IN_PROGRESS },
+          });
+        }
+      } else {
+        await tx.instructorApplication.update({ where: { id: applicationId }, data: appUpdateData });
+      }
+
+      await tx.instructorApplicationTimelineEvent.create({
+        data: {
+          applicationId,
+          kind: "CHAIR_DECISION",
+          actorId: actor.id,
+          payload: {
+            action,
+            from: InstructorApplicationStatus.CHAIR_REVIEW,
+            to: newStatus,
+            rationale: rationale ?? null,
+          },
+        },
+      });
+    });
+
+    // Post-transaction side effects
+    try {
+      if (action === "APPROVE") {
+        await syncInstructorApplicationWorkflow(applicationId);
+        await sendApplicationApprovedEmail({
+          to: app.applicant.email,
+          applicantName: app.applicant.name,
+        });
+      }
+      await sendChairDecisionEmail(app.applicant.email, applicationId, action);
+    } catch (e) {
+      console.error("[chairDecide] post-tx side-effect failed:", e);
+    }
+
+    revalidatePath(`/applications/instructor/${applicationId}`);
+    revalidatePath("/admin/instructor-applicants");
+    revalidatePath("/admin/instructor-applicants/chair-queue");
+    return { success: true };
+  } catch (error) {
+    console.error("[chairDecide]", error);
+    return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
+  }
+}
+
+/** Admin-only manual archive — sets archivedAt immediately. */
+export async function archiveApplication(formData: FormData): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+    const roles = session.user.roles ?? [];
+    if (!roles.includes("ADMIN")) return { success: false, error: "Only Admins can manually archive applications." };
+
+    const applicationId = String(formData.get("applicationId") ?? "").trim();
+    if (!applicationId) return { success: false, error: "Missing applicationId." };
+
+    const now = new Date();
+    await prisma.$transaction(async (tx) => {
+      await tx.instructorApplication.update({
+        where: { id: applicationId },
+        data: { archivedAt: now },
+      });
+      await tx.instructorApplicationTimelineEvent.create({
+        data: {
+          applicationId,
+          kind: "ARCHIVED",
+          actorId: session.user.id,
+          payload: { manual: true, archivedAt: now.toISOString() },
+        },
+      });
+    });
+
+    revalidatePath("/admin/instructor-applicants");
+    return { success: true };
+  } catch (error) {
+    console.error("[archiveApplication]", error);
+    return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
+  }
+}
+
+/**
+ * Server-only cron helper — archives terminal applications older than 30 days.
+ * Called from /api/admin/applicants/auto-archive (cron-protected route).
+ * Idempotent: safe to run multiple times.
+ */
+export async function autoArchiveTerminalApplications(): Promise<{ archived: number }> {
+  const TERMINAL_STATUSES: InstructorApplicationStatus[] = [
+    InstructorApplicationStatus.APPROVED,
+    InstructorApplicationStatus.REJECTED,
+    InstructorApplicationStatus.WITHDRAWN,
+  ];
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+  const candidates = await prisma.instructorApplication.findMany({
+    where: {
+      status: { in: TERMINAL_STATUSES },
+      archivedAt: null,
+      updatedAt: { lt: cutoff },
+    },
+    select: { id: true, status: true },
+  });
+
+  const now = new Date();
+  let archived = 0;
+
+  for (const app of candidates) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.instructorApplication.update({
+          where: { id: app.id },
+          data: { archivedAt: now },
+        });
+        await tx.instructorApplicationTimelineEvent.create({
+          data: {
+            applicationId: app.id,
+            kind: "ARCHIVED",
+            actorId: null,
+            payload: { manual: false, reason: "auto-archive-30d" },
+          },
+        });
+      });
+      archived++;
+    } catch (e) {
+      console.error(`[autoArchiveTerminalApplications] failed for ${app.id}:`, e);
+    }
+  }
+
+  return { archived };
 }

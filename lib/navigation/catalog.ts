@@ -778,6 +778,15 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardBadgeKey: "instructor_applicants",
     },
     {
+      href: "/admin/instructor-applicants?tab=chair-queue",
+      label: "Chair Queue",
+      icon: "⚖️",
+      roles: ADMIN_ONLY,
+      badgeKey: "chairQueueCount",
+      dashboardDescription: "Review applications awaiting chair decision.",
+      searchAliases: ["chair", "hiring chair", "decisions"],
+    },
+    {
       href: "/admin/chapter-president-applicants",
       label: "CP Applicants",
       icon: "👑",

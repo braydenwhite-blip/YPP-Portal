@@ -10,7 +10,7 @@ export type NavRole =
   | "STAFF"
   | "STUDENT";
 
-export type NavBadgeKey = "notifications" | "messages" | "approvals";
+export type NavBadgeKey = "notifications" | "messages" | "approvals" | "chairQueueCount";
 
 export type NavGroup =
   | "Family"

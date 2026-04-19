@@ -318,3 +318,34 @@ export function shouldSendPolicyEmail(
 ): boolean {
   return getNotificationPolicy(type).email && allowEmailOverride;
 }
+
+// ─── Instructor Applicant Workflow V1 notification helpers ────────────────────
+
+/** 5-minute debounce window for assignment notification deduplication. */
+export const DEBOUNCE_WINDOW_MS = 5 * 60 * 1000;
+
+/**
+ * In-memory debounce store for assignment notifications.
+ * Keys: `${notificationType}:${userId}:${applicationId}`.
+ * NOTE: serverless-safe only within a single invocation. For cross-request
+ * deduplication upgrade to a Redis or database-backed approach.
+ */
+const _debounceStore = new Map<string, number>();
+
+/**
+ * Returns true if a notification of this type for this (userId, applicationId)
+ * has NOT been sent within DEBOUNCE_WINDOW_MS and should be fired now.
+ * Side-effect: records the current timestamp if returning true.
+ */
+export function shouldSendAssignmentNotification(
+  notificationType: "REVIEWER_ASSIGNED" | "INTERVIEWER_ASSIGNED",
+  userId: string,
+  applicationId: string
+): boolean {
+  const key = `${notificationType}:${userId}:${applicationId}`;
+  const last = _debounceStore.get(key);
+  const now = Date.now();
+  if (last && now - last < DEBOUNCE_WINDOW_MS) return false;
+  _debounceStore.set(key, now);
+  return true;
+}

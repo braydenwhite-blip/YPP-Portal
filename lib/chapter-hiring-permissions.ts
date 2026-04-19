@@ -2,6 +2,21 @@ import { PositionType } from "@prisma/client";
 import { getEnabledFeatureKeysForUser } from "@/lib/feature-gates";
 import { prisma } from "@/lib/prisma";
 
+// ─── Application permission context ─────────────────────────────────────────
+// Minimal projection of InstructorApplication used for authorization checks.
+// Build via a Prisma query that selects these fields before calling assert helpers.
+export type ApplicationContext = {
+  id: string;
+  applicantId: string;
+  reviewerId: string | null;
+  /** chapterId of the applicant (not the application itself) */
+  applicantChapterId: string | null;
+  interviewerAssignments: Array<{
+    interviewerId: string;
+    removedAt: Date | null;
+  }>;
+};
+
 export type HiringActor = {
   id: string;
   chapterId: string | null;
@@ -117,4 +132,74 @@ export function assertCanMakeChapterDecision(
   if (!canChapterLeadDecidePositionType(type)) {
     throw new Error("This reviewer cannot decide this position type.");
   }
+}
+
+// ─── Instructor Applicant Workflow V1 helpers ────────────────────────────────
+
+export function isHiringChair(actor: HiringActor): boolean {
+  return actor.roles.includes("HIRING_CHAIR");
+}
+
+export function isAssignedReviewer(actor: HiringActor, application: ApplicationContext): boolean {
+  return application.reviewerId === actor.id;
+}
+
+export function isAssignedInterviewer(actor: HiringActor, application: ApplicationContext): boolean {
+  return application.interviewerAssignments.some(
+    (a) => a.interviewerId === actor.id && !a.removedAt
+  );
+}
+
+/**
+ * ADMIN, chapter-scoped CHAPTER_PRESIDENT, or assigned LEAD reviewer adding a SECOND.
+ * targetRole = the role being assigned ("LEAD" | "SECOND").
+ */
+export function assertCanAssignInterviewers(
+  actor: HiringActor,
+  application: ApplicationContext,
+  targetRole: "LEAD" | "SECOND"
+): void {
+  if (isAdmin(actor)) return;
+
+  if (
+    isChapterLead(actor) &&
+    actor.chapterId &&
+    actor.chapterId === application.applicantChapterId
+  ) {
+    return;
+  }
+
+  if (isAssignedReviewer(actor, application) && targetRole === "SECOND") return;
+
+  throw new Error("Unauthorized: you cannot assign interviewers for this application.");
+}
+
+/** ADMIN or HIRING_CHAIR. Chapter Presidents are explicitly NOT chairs per product decision. */
+export function assertCanActAsChair(actor: HiringActor): void {
+  if (isAdmin(actor) || isHiringChair(actor)) return;
+  throw new Error("Only Admins or Hiring Chairs can make chair decisions.");
+}
+
+/** Role-based view permission per Part 2.B.1 of the implementation plan. */
+export function assertCanViewApplicant(
+  actor: HiringActor,
+  application: ApplicationContext
+): void {
+  if (isAdmin(actor) || isHiringChair(actor)) return;
+
+  if (isChapterLead(actor)) {
+    if (actor.chapterId && actor.chapterId === application.applicantChapterId) return;
+    throw new Error("Chapter Presidents can only view applicants in their own chapter.");
+  }
+
+  if (isAssignedReviewer(actor, application)) return;
+  if (isAssignedInterviewer(actor, application)) return;
+  if (actor.id === application.applicantId) return;
+
+  throw new Error("You do not have permission to view this application.");
+}
+
+/** Whether this actor can see the Chair Queue nav item / page. */
+export function canSeeChairQueue(actor: HiringActor): boolean {
+  return isAdmin(actor) || isHiringChair(actor);
 }

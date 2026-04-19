@@ -27,6 +27,7 @@ enum RoleType {
   STAFF
   PARENT
   APPLICANT
+  HIRING_CHAIR
 }
 
 enum AdminSubtype {
@@ -316,9 +317,11 @@ enum InstructorApplicationStatus {
   PRE_APPROVED
   INTERVIEW_SCHEDULED
   INTERVIEW_COMPLETED
+  CHAIR_REVIEW
   APPROVED
   REJECTED
   ON_HOLD
+  WITHDRAWN
 }
 
 enum StructuredReviewStatus {
@@ -333,6 +336,7 @@ enum InstructorReviewCategoryKey {
   COMMUNITY_FIT
   LONG_TERM_POTENTIAL
   PROFESSIONALISM_AND_FOLLOW_THROUGH
+  SUBJECT_MATTER_FIT
 }
 
 enum InstructorApplicationNextStep {
@@ -344,9 +348,29 @@ enum InstructorApplicationNextStep {
 
 enum InstructorInterviewRecommendation {
   ACCEPT
-  ACCEPT_WITH_REVISIONS
+  ACCEPT_WITH_SUPPORT
   HOLD
   REJECT
+}
+
+enum ApplicantDocumentKind {
+  COURSE_OUTLINE
+  FIRST_CLASS_PLAN
+  RESUME
+  OTHER
+}
+
+enum InterviewerAssignmentRole {
+  LEAD
+  SECOND
+}
+
+enum ChairDecisionAction {
+  APPROVE
+  REJECT
+  HOLD
+  REQUEST_INFO
+  REQUEST_SECOND_INTERVIEW
 }
 
 enum InterviewQuestionSource {
@@ -1058,11 +1082,18 @@ model User {
   pathwayStepUnlocks          PathwayStepUnlock[]       @relation("PathwayStepUnlocks")
 
   // Instructor Application Relations
-  instructorApplication          InstructorApplication?        @relation("InstructorApplications")
-  instructorApplicationsReviewed InstructorApplication[]       @relation("InstructorApplicationReviews")
-  instructorApplicationReviews   InstructorApplicationReview[] @relation("InstructorApplicationStructuredReviews")
-  instructorInterviewReviews     InstructorInterviewReview[]   @relation("InstructorInterviewStructuredReviews")
-  offeredInterviewSlots          OfferedInterviewSlot[]        @relation("OfferedInterviewSlots")
+  instructorApplication                    InstructorApplication?                   @relation("InstructorApplications")
+  instructorApplicationsReviewed           InstructorApplication[]                  @relation("InstructorApplicationReviews")
+  instructorApplicationsAssignedBy         InstructorApplication[]                  @relation("InstructorApplicationReviewerAssignedBy")
+  instructorApplicationReviews             InstructorApplicationReview[]            @relation("InstructorApplicationStructuredReviews")
+  instructorInterviewReviews               InstructorInterviewReview[]              @relation("InstructorInterviewStructuredReviews")
+  offeredInterviewSlots                    OfferedInterviewSlot[]                   @relation("OfferedInterviewSlots")
+  // Instructor Applicant Workflow V1 Relations
+  interviewerAssignments                   InstructorApplicationInterviewer[]       @relation("InterviewerAssignments")
+  interviewerAssignedByAssignments         InstructorApplicationInterviewer[]       @relation("InterviewerAssignedBy")
+  applicantDocumentsUploaded               ApplicantDocument[]                      @relation("ApplicantDocUploader")
+  chairDecisionsMade                       InstructorApplicationChairDecision[]     @relation("ChairDecisions")
+  applicantTimelineEvents                  InstructorApplicationTimelineEvent[]     @relation("TimelineActor")
 
   // Chapter President Application Relations
   chapterPresidentApplication          ChapterPresidentApplication?  @relation("ChapterPresidentApplications")
@@ -1654,6 +1685,18 @@ model InstructorApplication {
   // --- Reviewer-offered interview slots (new scheduling flow) ---
   offeredSlots OfferedInterviewSlot[]
 
+  // --- Instructor Applicant Workflow V1 ---
+  reviewerAssignedAt     DateTime?
+  reviewerAssignedById   String?
+  reviewerAssignedBy     User?                                    @relation("InstructorApplicationReviewerAssignedBy", fields: [reviewerAssignedById], references: [id])
+  chairQueuedAt          DateTime?
+  materialsReadyAt       DateTime?
+  archivedAt             DateTime?
+  interviewerAssignments InstructorApplicationInterviewer[]
+  documents              ApplicantDocument[]
+  chairDecision          InstructorApplicationChairDecision?
+  timeline               InstructorApplicationTimelineEvent[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1662,6 +1705,9 @@ model InstructorApplication {
   @@index([cohortId])
   @@index([graduationYear])
   @@index([stateProvince])
+  @@index([reviewerAssignedById])
+  @@index([chairQueuedAt])
+  @@index([archivedAt])
 }
 
 model InstructorApplicationReview {
@@ -1800,6 +1846,74 @@ model OfferedInterviewSlot {
 
   @@index([instructorApplicationId])
   @@index([offeredByUserId])
+}
+
+// ============================================
+// INSTRUCTOR APPLICANT WORKFLOW V1 MODELS
+// ============================================
+
+model InstructorApplicationInterviewer {
+  id            String                    @id @default(cuid())
+  applicationId String
+  application   InstructorApplication     @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  interviewerId String
+  interviewer   User                      @relation("InterviewerAssignments", fields: [interviewerId], references: [id])
+  role          InterviewerAssignmentRole
+  assignedAt    DateTime                  @default(now())
+  assignedById  String
+  assignedBy    User                      @relation("InterviewerAssignedBy", fields: [assignedById], references: [id])
+  removedAt     DateTime?
+
+  @@unique([applicationId, role])
+  @@index([interviewerId, removedAt])
+  @@index([assignedById])
+}
+
+model ApplicantDocument {
+  id            String                @id @default(cuid())
+  applicationId String
+  application   InstructorApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  kind          ApplicantDocumentKind
+  fileUrl       String
+  originalName  String?
+  fileSize      Int?
+  note          String?
+  uploadedById  String
+  uploadedBy    User                  @relation("ApplicantDocUploader", fields: [uploadedById], references: [id])
+  uploadedAt    DateTime              @default(now())
+  supersededAt  DateTime?
+
+  @@index([applicationId, kind, supersededAt])
+  @@index([uploadedById])
+}
+
+model InstructorApplicationChairDecision {
+  id              String              @id @default(cuid())
+  applicationId   String              @unique
+  application     InstructorApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  chairId         String
+  chair           User                @relation("ChairDecisions", fields: [chairId], references: [id])
+  action          ChairDecisionAction
+  rationale       String?
+  comparisonNotes String?
+  decidedAt       DateTime            @default(now())
+  supersededAt    DateTime?
+
+  @@index([chairId])
+}
+
+model InstructorApplicationTimelineEvent {
+  id            String                @id @default(cuid())
+  applicationId String
+  application   InstructorApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  kind          String
+  actorId       String?
+  actor         User?                 @relation("TimelineActor", fields: [actorId], references: [id])
+  payload       Json
+  createdAt     DateTime              @default(now())
+
+  @@index([applicationId, createdAt])
+  @@index([actorId])
 }
 
 model TrainingCheckpoint {
