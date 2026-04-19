@@ -187,15 +187,32 @@ export default function InstructorApplicantsCommandCenter({
   return (
     <div>
       {/* Tab bar */}
-      <div style={{ display: "flex", borderBottom: "1px solid var(--border)", marginBottom: 16 }}>
-        <button type="button" style={tabStyle("pipeline")} onClick={() => setTab("pipeline")}>
+      <div
+        role="tablist"
+        aria-label="Applicant workflow views"
+        style={{ display: "flex", borderBottom: "1px solid var(--border)", marginBottom: 16 }}
+      >
+        <button
+          role="tab"
+          type="button"
+          aria-selected={activeTab === "pipeline"}
+          style={tabStyle("pipeline")}
+          onClick={() => setTab("pipeline")}
+        >
           Pipeline
         </button>
         {canSeeChairQueue && (
-          <button type="button" style={tabStyle("chair_queue")} onClick={() => setTab("chair_queue")}>
+          <button
+            role="tab"
+            type="button"
+            aria-selected={activeTab === "chair_queue"}
+            style={tabStyle("chair_queue")}
+            onClick={() => setTab("chair_queue")}
+          >
             Chair Queue
             {chairQueueCount > 0 && (
               <span
+                aria-label={`${chairQueueCount} pending`}
                 style={{
                   marginLeft: 6,
                   background: "#b45309",
@@ -211,14 +228,20 @@ export default function InstructorApplicantsCommandCenter({
             )}
           </button>
         )}
-        <button type="button" style={tabStyle("archive")} onClick={() => setTab("archive")}>
+        <button
+          role="tab"
+          type="button"
+          aria-selected={activeTab === "archive"}
+          style={tabStyle("archive")}
+          onClick={() => setTab("archive")}
+        >
           Archive
         </button>
       </div>
 
       {/* Pipeline tab */}
       {activeTab === "pipeline" && (
-        <>
+        <div role="tabpanel" aria-label="Pipeline view">
           <ApplicantCommandFilters
             isAdmin={isAdmin}
             chapters={chapters}
@@ -278,12 +301,12 @@ export default function InstructorApplicantsCommandCenter({
             searchPlaceholder="Search applicants..."
             emptyColumnLabel="No applicants"
           />
-        </>
+        </div>
       )}
 
       {/* Chair Queue tab — redirects to dedicated page */}
       {activeTab === "chair_queue" && canSeeChairQueue && (
-        <div style={{ padding: "40px 0", textAlign: "center" }}>
+        <div role="tabpanel" aria-label="Chair queue" style={{ padding: "40px 0", textAlign: "center" }}>
           <p style={{ fontSize: 14, color: "var(--muted)", marginBottom: 12 }}>
             The Chair Queue is now a dedicated page.
           </p>
@@ -295,10 +318,12 @@ export default function InstructorApplicantsCommandCenter({
 
       {/* Archive tab */}
       {activeTab === "archive" && (
-        <ArchiveTable
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          applications={archivedApps as any}
-        />
+        <div role="tabpanel" aria-label="Archive">
+          <ArchiveTable
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            applications={archivedApps as any}
+          />
+        </div>
       )}
 
       {/* Standalone drawer state (outside KanbanBoard for imperative open) */}

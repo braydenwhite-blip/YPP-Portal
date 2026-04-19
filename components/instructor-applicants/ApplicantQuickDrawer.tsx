@@ -66,8 +66,13 @@ export default function ApplicantQuickDrawer({
 
   return (
     <>
-      <div className="slideout-backdrop" onClick={onClose} />
-      <div className="slideout-panel">
+      <div className="slideout-backdrop" onClick={onClose} aria-hidden="true" />
+      <div
+        className="slideout-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Applicant detail: ${app.applicant.name ?? app.applicant.email}`}
+      >
         {/* Header */}
         <div className="slideout-header">
           <div>
@@ -80,6 +85,7 @@ export default function ApplicantQuickDrawer({
               )}
               <span
                 className={`status-pill ${app.status.toLowerCase().replace(/_/g, "-")}`}
+                aria-label={`Status: ${STATUS_LABELS[app.status] ?? app.status.replace(/_/g, " ")}`}
               >
                 {STATUS_LABELS[app.status] ?? app.status.replace(/_/g, " ")}
               </span>
@@ -101,6 +107,8 @@ export default function ApplicantQuickDrawer({
 
         {/* Tab nav */}
         <div
+          role="tablist"
+          aria-label="Applicant sections"
           style={{
             display: "flex",
             borderBottom: "1px solid var(--border)",
@@ -110,7 +118,9 @@ export default function ApplicantQuickDrawer({
           {(["summary", "reviewer", "interviewer"] as const).map((tab) => (
             <button
               key={tab}
+              role="tab"
               type="button"
+              aria-selected={activeSection === tab}
               onClick={() => setActiveSection(tab)}
               style={{
                 background: "none",

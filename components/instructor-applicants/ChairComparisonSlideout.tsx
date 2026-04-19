@@ -110,6 +110,7 @@ export default function ChairComparisonSlideout({ application, onClose, onDecisi
     <>
       {/* Backdrop */}
       <div
+        aria-hidden="true"
         style={{
           position: "fixed",
           inset: 0,
@@ -122,6 +123,9 @@ export default function ChairComparisonSlideout({ application, onClose, onDecisi
       {/* Slideout */}
       <div
         className="slideout-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Chair decision: ${displayName}`}
         style={{
           position: "fixed",
           top: 0,
@@ -165,6 +169,7 @@ export default function ChairComparisonSlideout({ application, onClose, onDecisi
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close chair decision panel"
             style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "var(--muted)", padding: 4 }}
           >
             ✕
@@ -421,6 +426,7 @@ export default function ChairComparisonSlideout({ application, onClose, onDecisi
               type="button"
               className={a.cls}
               disabled={pending}
+              aria-label={`${a.label} application for ${displayName}`}
               onClick={() => handleDecide(a.value)}
               style={{
                 fontSize: 13,

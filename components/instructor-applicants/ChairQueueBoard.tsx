@@ -82,6 +82,8 @@ export default function ChairQueueBoard({ applications, onRefresh }: Props) {
     <div>
       {/* Chapter tabs + YPP-wide toggle */}
       <div
+        role="tablist"
+        aria-label="Filter by chapter"
         style={{
           display: "flex",
           gap: 4,
@@ -92,7 +94,9 @@ export default function ChairQueueBoard({ applications, onRefresh }: Props) {
         }}
       >
         <button
+          role="tab"
           type="button"
+          aria-selected={showAll}
           onClick={() => { setActiveChapterId(null); setShowAll(true); }}
           style={{
             padding: "8px 16px",
@@ -114,7 +118,9 @@ export default function ChairQueueBoard({ applications, onRefresh }: Props) {
           return (
             <button
               key={chapId}
+              role="tab"
               type="button"
+              aria-selected={active}
               onClick={() => { setActiveChapterId(chapId); setShowAll(false); }}
               style={{
                 padding: "8px 16px",
@@ -161,6 +167,7 @@ export default function ChairQueueBoard({ applications, onRefresh }: Props) {
               <button
                 key={app.id}
                 type="button"
+                aria-label={`Open chair decision for ${displayName}`}
                 onClick={() => setSelectedApp(app)}
                 style={{
                   display: "flex",
