@@ -125,17 +125,21 @@ export default async function InterviewerWorkspacePage({
 
           {workspace ? (
             <InterviewReviewEditor
-              action={saveInstructorInterviewReviewAction}
+              action={saveInstructorInterviewReviewAction as (fd: FormData) => void}
               applicationId={id}
               returnTo={`/applications/instructor/${id}`}
               initialReview={workspace.myReview}
               canEdit={workspace.myReview?.status !== "SUBMITTED" || actorIsAdmin}
               isLeadReviewer={workspace.myReview?.isLeadReview ?? false}
-              isAdmin={actorIsAdmin}
-              drafts={workspace.drafts}
+              canFinalizeRecommendation={actorIsAdmin || (workspace.myReview?.isLeadReview ?? false)}
+              drafts={workspace.drafts.map((d) => ({
+                id: d.id,
+                title: d.title,
+                status: d.status as string,
+                updatedAt: d.updatedAt instanceof Date ? d.updatedAt.toISOString() : String(d.updatedAt),
+              }))}
               selectedDraftId={workspace.selectedDraftId}
               questionBank={workspace.questionBank}
-              applicationReviews={workspace.applicationReviews}
             />
           ) : (
             <div

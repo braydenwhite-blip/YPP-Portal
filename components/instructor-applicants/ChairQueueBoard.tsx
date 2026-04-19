@@ -4,10 +4,13 @@ import { useState } from "react";
 import ChairComparisonSlideout from "./ChairComparisonSlideout";
 
 interface InterviewReview {
+  id: string;
   reviewerId: string;
   recommendation: string | null;
   overallRating: string | null;
+  summary: string | null;
   reviewer: { id: string; name: string | null };
+  categories: Array<{ category: string; rating: string | null; notes: string | null }>;
 }
 
 interface Document {

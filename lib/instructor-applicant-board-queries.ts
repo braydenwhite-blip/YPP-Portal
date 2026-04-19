@@ -228,6 +228,8 @@ export async function getChairQueue({
       id: true,
       status: true,
       subjectsOfInterest: true,
+      preferredFirstName: true,
+      legalName: true,
       chairQueuedAt: true,
       materialsReadyAt: true,
       applicant: {
@@ -243,17 +245,20 @@ export async function getChairQueue({
       // Lead reviewer note preview
       applicationReviews: {
         where: { isLeadReview: true, status: "SUBMITTED" },
-        select: { summary: true, nextStep: true, overallRating: true },
+        select: { summary: true, notes: true, nextStep: true, overallRating: true },
         take: 1,
       },
       // Per-interviewer recommendation
       interviewReviews: {
         where: { status: "SUBMITTED" },
         select: {
+          id: true,
           reviewerId: true,
           recommendation: true,
           overallRating: true,
+          summary: true,
           reviewer: { select: { id: true, name: true } },
+          categories: { select: { category: true, rating: true, notes: true } },
         },
       },
       interviewerAssignments: {
@@ -269,7 +274,7 @@ export async function getChairQueue({
       },
       documents: {
         where: { supersededAt: null },
-        select: { id: true, kind: true, fileUrl: true, uploadedAt: true },
+        select: { id: true, kind: true, fileUrl: true, originalName: true, uploadedAt: true },
       },
     },
     orderBy: { chairQueuedAt: "asc" },

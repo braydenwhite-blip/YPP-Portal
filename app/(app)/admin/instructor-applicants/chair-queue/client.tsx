@@ -25,10 +25,13 @@ type QueueItem = {
     overallRating: string | null;
   }>;
   interviewReviews: Array<{
+    id: string;
     reviewerId: string;
     recommendation: string | null;
     overallRating: string | null;
+    summary: string | null;
     reviewer: { id: string; name: string | null };
+    categories: Array<{ category: string; rating: string | null; notes: string | null }>;
   }>;
   interviewerAssignments: Array<{
     id: string;

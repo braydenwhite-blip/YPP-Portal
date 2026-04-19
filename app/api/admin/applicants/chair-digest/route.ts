@@ -29,19 +29,18 @@ export async function POST(req: NextRequest) {
     select: { id: true, email: true, name: true },
   });
 
-  const summary = {
-    count: pendingApps.length,
-    oldest: pendingApps.reduce(
-      (min, a) =>
-        a.chairQueuedAt && (!min || a.chairQueuedAt < min) ? a.chairQueuedAt : min,
-      null as Date | null
-    ),
-  };
+  const now = Date.now();
+  const digestApps = pendingApps.map((a) => ({
+    applicantName: a.preferredFirstName ?? a.legalName ?? a.applicant.name ?? "Applicant",
+    queuedDaysAgo: a.chairQueuedAt
+      ? Math.floor((now - new Date(a.chairQueuedAt).getTime()) / 86400000)
+      : 0,
+  }));
 
   let sent = 0;
   for (const chair of chairs) {
     try {
-      await sendChairDigestEmail(chair.id, summary);
+      await sendChairDigestEmail(chair.email, chair.name ?? "Chair", pendingApps.length, digestApps);
       sent++;
     } catch (err) {
       console.error(`[chair-digest] Failed to send to ${chair.email}:`, err);

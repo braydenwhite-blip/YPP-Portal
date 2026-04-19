@@ -13,10 +13,10 @@ interface OfferedSlot {
 
 interface AvailabilityWindow {
   id: string;
-  startAt: Date;
-  endAt: Date;
-  note: string | null;
-  applicant?: { name: string | null };
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  timezone: string;
 }
 
 interface Props {
@@ -135,22 +135,25 @@ export default function InterviewSchedulingInlinePanel({
           <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600, color: "#b45309" }}>
             Applicant Availability Requests ({availabilityWindows.length})
           </p>
-          {availabilityWindows.map((w) => (
-            <div
-              key={w.id}
-              style={{
-                padding: "8px 12px",
-                background: "#fffbeb",
-                border: "1px solid #fde68a",
-                borderRadius: 6,
-                marginBottom: 6,
-                fontSize: 13,
-              }}
-            >
-              {formatDt(w.startAt)} – {formatDt(w.endAt)}
-              {w.note && <span style={{ marginLeft: 8, color: "var(--muted)" }}>· {w.note}</span>}
-            </div>
-          ))}
+          {availabilityWindows.map((w) => {
+            const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+            return (
+              <div
+                key={w.id}
+                style={{
+                  padding: "8px 12px",
+                  background: "#fffbeb",
+                  border: "1px solid #fde68a",
+                  borderRadius: 6,
+                  marginBottom: 6,
+                  fontSize: 13,
+                }}
+              >
+                {days[w.dayOfWeek]} {w.startTime}–{w.endTime}
+                <span style={{ marginLeft: 8, color: "var(--muted)" }}>({w.timezone})</span>
+              </div>
+            );
+          })}
         </div>
       )}
 

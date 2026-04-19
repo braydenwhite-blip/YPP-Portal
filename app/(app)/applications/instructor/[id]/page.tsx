@@ -14,6 +14,7 @@ import {
   canSeeChairQueue,
 } from "@/lib/chapter-hiring-permissions";
 import { isInstructorApplicantWorkflowV1Enabled } from "@/lib/feature-flags";
+import { getCandidateReviewers, getCandidateInterviewers } from "@/lib/instructor-applicant-board-queries";
 import ApplicantCockpitHeader from "@/components/instructor-applicants/ApplicantCockpitHeader";
 import ApplicantCockpitSidebar from "@/components/instructor-applicants/ApplicantCockpitSidebar";
 import ApplicantNextActionBar from "@/components/instructor-applicants/ApplicantNextActionBar";
@@ -65,6 +66,7 @@ async function fetchCockpitData(applicationId: string) {
           interviewerId: true,
           role: true,
           assignedAt: true,
+          removedAt: true,
           interviewer: { select: { id: true, name: true, email: true } },
         },
       },
@@ -88,6 +90,7 @@ async function fetchCockpitData(applicationId: string) {
           actorId: true,
           payload: true,
           createdAt: true,
+          actor: { select: { id: true, name: true } },
         },
         orderBy: { createdAt: "desc" },
       },
@@ -102,8 +105,8 @@ async function fetchCockpitData(applicationId: string) {
         orderBy: { scheduledAt: "asc" },
       },
       availabilityWindows: {
-        select: { id: true, startAt: true, endAt: true, note: true },
-        orderBy: { startAt: "asc" },
+        select: { id: true, dayOfWeek: true, startTime: true, endTime: true, timezone: true },
+        orderBy: { dayOfWeek: "asc" },
       },
       interviewReviews: {
         where: { status: "SUBMITTED" },
@@ -191,6 +194,15 @@ export default async function ApplicantCockpitPage({
   const isReadOnlyReview = !actorIsReviewer && !actorIsAdmin && !isChapterLead(actor);
   const isHidden = !canAssignReviewer && !canAssignInterviewers && !actorIsReviewer && !actorIsInterviewer && !canActAsChairBool;
 
+  const [reviewerCandidates, interviewerCandidatesLead, interviewerCandidatesSecond] =
+    canAssignReviewer || canAssignInterviewers
+      ? await Promise.all([
+          getCandidateReviewers(id),
+          getCandidateInterviewers(id, { role: "LEAD" }),
+          getCandidateInterviewers(id, { role: "SECOND" }),
+        ])
+      : [[], [], []];
+
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
       <div style={{ padding: "12px 24px", borderBottom: "1px solid #e5e7eb" }}>
@@ -266,14 +278,19 @@ export default async function ApplicantCockpitPage({
               <h2 style={{ margin: "0 0 16px", fontSize: 17, fontWeight: 700 }}>Initial Review</h2>
               {reviewWorkspace ? (
                 <ApplicationReviewEditor
-                  action={saveInstructorApplicationReviewAction}
+                  action={saveInstructorApplicationReviewAction as (fd: FormData) => void}
                   applicationId={id}
                   returnTo={`/applications/instructor/${id}`}
                   initialReview={reviewWorkspace.myReview}
                   canEdit={!isReadOnlyReview && reviewWorkspace.myReview?.status !== "SUBMITTED"}
                   isLeadReviewer={reviewWorkspace.isLeadReviewer}
                   isAdmin={actorIsAdmin}
-                  drafts={reviewWorkspace.drafts}
+                  drafts={reviewWorkspace.drafts.map((d) => ({
+                    id: d.id,
+                    title: d.title,
+                    status: d.status as string,
+                    updatedAt: d.updatedAt instanceof Date ? d.updatedAt.toISOString() : String(d.updatedAt),
+                  }))}
                   selectedDraftId={reviewWorkspace.selectedDraftId}
                 />
               ) : (
@@ -381,7 +398,12 @@ export default async function ApplicantCockpitPage({
             {/* Full Timeline */}
             <section id="section-timeline" className="card" style={{ padding: "20px 24px" }}>
               <h2 style={{ margin: "0 0 16px", fontSize: 17, fontWeight: 700 }}>Timeline</h2>
-              <ApplicantTimelineFeed events={application.timeline} />
+              <ApplicantTimelineFeed
+                events={application.timeline.map((e) => ({
+                  ...e,
+                  payload: e.payload as Record<string, unknown>,
+                }))}
+              />
             </section>
           </main>
 
@@ -391,6 +413,9 @@ export default async function ApplicantCockpitPage({
             canAssignReviewer={canAssignReviewer}
             canAssignInterviewers={canAssignInterviewers}
             currentUserId={actor.id}
+            reviewerCandidates={reviewerCandidates}
+            interviewerCandidatesLead={interviewerCandidatesLead}
+            interviewerCandidatesSecond={interviewerCandidatesSecond}
           />
         </div>
       </div>
@@ -401,7 +426,10 @@ export default async function ApplicantCockpitPage({
           status: application.status,
           reviewerId: application.reviewerId,
           materialsReadyAt: application.materialsReadyAt,
-          interviewerAssignments: application.interviewerAssignments,
+          interviewerAssignments: application.interviewerAssignments.map((a) => ({
+            role: a.role as "LEAD" | "SECOND",
+            removedAt: a.removedAt,
+          })),
         }}
         canAssignReviewer={canAssignReviewer}
         canAssignInterviewers={canAssignInterviewers}

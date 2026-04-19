@@ -5,13 +5,43 @@ import ReviewerAssignPicker from "./ReviewerAssignPicker";
 import InterviewerAssignPicker from "./InterviewerAssignPicker";
 import ApplicantDocumentsPanel from "./ApplicantDocumentsPanel";
 import ApplicantTimelineFeed from "./ApplicantTimelineFeed";
-import type { InstructorApplicationTimelineEvent } from "@prisma/client";
 
 interface InterviewerAssignment {
   id: string;
   interviewerId: string;
   role: "LEAD" | "SECOND";
   interviewer: { id: string; name: string | null; email: string };
+}
+
+interface ReviewerCandidate {
+  id: string;
+  name: string | null;
+  email: string;
+  chapterId: string | null;
+  chapterMatch: boolean;
+  subjectOverlap: boolean;
+  reviewerActiveLoad: number;
+  reviewerLastAssignedAt: Date | string | null;
+}
+
+interface InterviewerCandidate {
+  id: string;
+  name: string | null;
+  email: string;
+  chapterId: string | null;
+  chapterMatch: boolean;
+  subjectOverlap: boolean;
+  interviewerActiveLoad: number;
+  interviewerLastAssignedAt: Date | string | null;
+}
+
+interface SidebarTimelineEvent {
+  id: string;
+  kind: string;
+  createdAt: Date;
+  actorId: string | null;
+  payload: unknown;
+  actor?: { id: string; name: string | null } | null;
 }
 
 interface Props {
@@ -30,21 +60,37 @@ interface Props {
       uploadedAt: Date;
       supersededAt: Date | null;
     }>;
-    timeline: InstructorApplicationTimelineEvent[];
+    timeline: SidebarTimelineEvent[];
   };
   canAssignReviewer: boolean;
   canAssignInterviewers: boolean;
   currentUserId: string;
+  reviewerCandidates: ReviewerCandidate[];
+  interviewerCandidatesLead: InterviewerCandidate[];
+  interviewerCandidatesSecond: InterviewerCandidate[];
 }
 
 export default function ApplicantCockpitSidebar({
   application,
   canAssignReviewer,
   canAssignInterviewers,
-  currentUserId,
+  reviewerCandidates,
+  interviewerCandidatesLead,
+  interviewerCandidatesSecond,
 }: Props) {
   const [showAllTimeline, setShowAllTimeline] = useState(false);
   const previewEvents = application.timeline.slice(0, 5);
+
+  // Normalise timeline events for the feed component
+  function toFeedEvents(evts: SidebarTimelineEvent[]) {
+    return evts.map((e) => ({
+      id: e.id,
+      kind: e.kind,
+      createdAt: e.createdAt,
+      payload: (e.payload ?? {}) as Record<string, unknown>,
+      actor: e.actor,
+    }));
+  }
 
   return (
     <aside style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -81,6 +127,7 @@ export default function ApplicantCockpitSidebar({
           <ReviewerAssignPicker
             applicationId={application.id}
             currentReviewerId={application.reviewerId}
+            candidates={reviewerCandidates}
           />
         )}
       </section>
@@ -124,6 +171,7 @@ export default function ApplicantCockpitSidebar({
                     applicationId={application.id}
                     role={role}
                     currentAssignment={assigned ?? null}
+                    candidates={role === "LEAD" ? interviewerCandidatesLead : interviewerCandidatesSecond}
                   />
                 </div>
               )}
@@ -135,9 +183,9 @@ export default function ApplicantCockpitSidebar({
       {/* Documents */}
       <ApplicantDocumentsPanel
         applicationId={application.id}
-        documents={application.documents}
-        materialsReadyAt={application.materialsReadyAt}
-        currentUserId={currentUserId}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        documents={application.documents as any}
+        canUpload
       />
 
       {/* Timeline preview */}
@@ -155,7 +203,9 @@ export default function ApplicantCockpitSidebar({
             </button>
           )}
         </div>
-        <ApplicantTimelineFeed events={showAllTimeline ? application.timeline : previewEvents} compact />
+        <ApplicantTimelineFeed
+          events={toFeedEvents(showAllTimeline ? application.timeline : previewEvents)}
+        />
       </section>
     </aside>
   );
