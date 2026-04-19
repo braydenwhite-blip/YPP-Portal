@@ -35,6 +35,7 @@ export type DerivedColumn =
 const PIPELINE_SELECT = {
   id: true,
   status: true,
+  subjectsOfInterest: true,
   materialsReadyAt: true,
   archivedAt: true,
   reviewerAssignedAt: true,
@@ -49,7 +50,6 @@ const PIPELINE_SELECT = {
       email: true,
       chapterId: true,
       chapter: { select: { id: true, name: true } },
-      subjectsOfInterest: true,
     },
   },
   reviewer: {
@@ -227,6 +227,7 @@ export async function getChairQueue({
     select: {
       id: true,
       status: true,
+      subjectsOfInterest: true,
       chairQueuedAt: true,
       materialsReadyAt: true,
       applicant: {
@@ -236,7 +237,6 @@ export async function getChairQueue({
           email: true,
           chapterId: true,
           chapter: { select: { id: true, name: true } },
-          subjectsOfInterest: true,
         },
       },
       reviewer: { select: { id: true, name: true } },
@@ -394,7 +394,8 @@ export async function getCandidateInterviewers(
   const application = await prisma.instructorApplication.findUnique({
     where: { id: applicationId },
     select: {
-      applicant: { select: { chapterId: true, subjectsOfInterest: true } },
+      subjectsOfInterest: true,
+      applicant: { select: { chapterId: true } },
       interviewerAssignments: {
         where: { removedAt: null },
         select: { interviewerId: true, role: true },
@@ -439,13 +440,13 @@ export async function getCandidateInterviewers(
       name: true,
       email: true,
       chapterId: true,
-      subjectsOfInterest: true,
       roles: { select: { role: true } },
     },
     orderBy: { name: "asc" },
   });
 
   // Enrich with load + chapter match + subject overlap
+  // Note: User model has no subjectsOfInterest; overlap is always false in V1.
   const enriched = await Promise.all(
     candidates.map(async (user) => {
       const [interviewerLoad, reviewerLoad] = await Promise.all([
@@ -454,16 +455,7 @@ export async function getCandidateInterviewers(
       ]);
 
       const chapterMatch = chapterId ? user.chapterId === chapterId : false;
-
-      const applicantSubjects = (application.applicant.subjectsOfInterest ?? "")
-        .toLowerCase()
-        .split(/[\s,;]+/)
-        .filter(Boolean);
-      const userSubjects = (user.subjectsOfInterest ?? "")
-        .toLowerCase()
-        .split(/[\s,;]+/)
-        .filter(Boolean);
-      const subjectOverlap = applicantSubjects.some((s) => userSubjects.includes(s));
+      const subjectOverlap = false;
 
       return {
         ...user,
@@ -491,7 +483,8 @@ export async function getCandidateReviewers(applicationId: string) {
     where: { id: applicationId },
     select: {
       reviewerId: true,
-      applicant: { select: { chapterId: true, subjectsOfInterest: true } },
+      subjectsOfInterest: true,
+      applicant: { select: { chapterId: true } },
     },
   });
 
@@ -513,7 +506,6 @@ export async function getCandidateReviewers(applicationId: string) {
       name: true,
       email: true,
       chapterId: true,
-      subjectsOfInterest: true,
       roles: { select: { role: true } },
     },
     orderBy: { name: "asc" },
@@ -524,15 +516,8 @@ export async function getCandidateReviewers(applicationId: string) {
       const load = await getReviewerLoad(user.id);
 
       const chapterMatch = chapterId ? user.chapterId === chapterId : false;
-      const applicantSubjects = (application.applicant.subjectsOfInterest ?? "")
-        .toLowerCase()
-        .split(/[\s,;]+/)
-        .filter(Boolean);
-      const userSubjects = (user.subjectsOfInterest ?? "")
-        .toLowerCase()
-        .split(/[\s,;]+/)
-        .filter(Boolean);
-      const subjectOverlap = applicantSubjects.some((s) => userSubjects.includes(s));
+      // User model has no subjectsOfInterest; overlap is always false in V1.
+      const subjectOverlap = false;
 
       return {
         ...user,

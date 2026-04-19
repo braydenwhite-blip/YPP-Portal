@@ -84,7 +84,7 @@ async function writeTimelineEvent(
 ) {
   const db = tx ?? prisma;
   await (db as typeof prisma).instructorApplicationTimelineEvent.create({
-    data: { applicationId, kind, actorId, payload },
+    data: { applicationId, kind, actorId, payload: payload as import("@prisma/client").Prisma.InputJsonValue },
   });
 }
 
