@@ -14,6 +14,7 @@ export interface NavBadges {
   notifications?: number;
   messages?: number;
   approvals?: number;
+  chairQueueCount?: number;
 }
 
 interface NavState {

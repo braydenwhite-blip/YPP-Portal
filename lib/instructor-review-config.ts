@@ -31,9 +31,15 @@ export const INSTRUCTOR_REVIEW_CATEGORIES = [
   },
   {
     key: "PROFESSIONALISM_AND_FOLLOW_THROUGH",
-    label: "Professionalism & Follow-Through",
+    label: "Interview Readiness & Professionalism",
     description:
       "Follow-through, preparation habits, and whether the candidate operates like someone others can count on.",
+  },
+  {
+    key: "SUBJECT_MATTER_FIT",
+    label: "Subject Matter Fit",
+    description:
+      "Depth and currency of knowledge in the subjects they plan to teach, and ability to make the content accessible.",
   },
 ] as const;
 
