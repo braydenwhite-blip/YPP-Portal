@@ -671,6 +671,11 @@ export async function getSupportWorkspaceData(params: {
         id: true,
         programGroup: true,
         governanceMode: true,
+        mentorId: true,
+        startDate: true,
+        cycleStage: true,
+        kickoffScheduledAt: true,
+        kickoffCompletedAt: true,
         mentor: {
           select: { id: true, name: true, email: true, primaryRole: true },
         },
