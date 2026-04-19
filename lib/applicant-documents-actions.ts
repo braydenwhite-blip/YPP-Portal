@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
-import { ApplicantDocumentKind } from "@prisma/client";
+import { ApplicantDocumentKind, Prisma } from "@prisma/client";
 import { getHiringActor, assertCanViewApplicant, type ApplicationContext } from "@/lib/chapter-hiring-permissions";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -84,7 +84,7 @@ async function writeTimelineEvent(
 ) {
   const db = tx ?? prisma;
   await (db as typeof prisma).instructorApplicationTimelineEvent.create({
-    data: { applicationId, kind, actorId, payload },
+    data: { applicationId, kind, actorId, payload: payload as Prisma.InputJsonValue },
   });
 }
 
