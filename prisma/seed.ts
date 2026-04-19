@@ -143,6 +143,39 @@ async function main() {
     },
   });
 
+  await prisma.user.upsert({
+    where: { email: "test.admin@youthpassionproject.org" },
+    create: {
+      name: "Test Admin",
+      email: "test.admin@youthpassionproject.org",
+      passwordHash,
+      emailVerified: verifiedAt,
+      primaryRole: RoleType.ADMIN,
+      chapterId: seattle.id,
+      roles: {
+        create: [{ role: RoleType.ADMIN }],
+      },
+      adminSubtypes: {
+        create: [...adminSubtypeSeeds],
+      },
+    },
+    update: {
+      name: "Test Admin",
+      passwordHash,
+      emailVerified: verifiedAt,
+      primaryRole: RoleType.ADMIN,
+      chapterId: seattle.id,
+      roles: {
+        deleteMany: {},
+        create: [{ role: RoleType.ADMIN }],
+      },
+      adminSubtypes: {
+        deleteMany: {},
+        create: [...adminSubtypeSeeds],
+      },
+    },
+  });
+
   const mentor = await prisma.user.upsert({
     where: { email: "carlygelles@gmail.com" },
     create: {
