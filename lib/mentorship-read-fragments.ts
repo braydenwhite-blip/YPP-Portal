@@ -16,6 +16,8 @@ export const MENTORSHIP_LEGACY_ROOT_SELECT = {
   notes: true,
   trackId: true,
   chairId: true,
+  kickoffScheduledAt: true,
+  kickoffCompletedAt: true,
 } as const;
 
 export const MENTORSHIP_CHECK_IN_SELECT = {

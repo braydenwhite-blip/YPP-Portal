@@ -23,9 +23,9 @@ function instructorStatusLabel(status: InstructorApplicationStatus): string {
     case "INTERVIEW_COMPLETED": return "Curriculum Overview Completed";
     case "ON_HOLD": return "On Hold";
     case "CHAIR_REVIEW": return "Under Final Review";
-    case "WITHDRAWN": return "Withdrawn";
     case "APPROVED": return "Approved";
     case "REJECTED": return "Not Accepted";
+    case "WITHDRAWN": return "Withdrawn";
     default: {
       const exhaustiveCheck: never = status;
       return exhaustiveCheck;

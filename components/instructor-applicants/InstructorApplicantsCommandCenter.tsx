@@ -14,12 +14,12 @@ type PipelineApp = {
   materialsReadyAt: Date | string | null;
   archivedAt: Date | string | null;
   overdue?: boolean;
+  subjectsOfInterest: string | null;
   applicant: {
     id: string;
     name: string | null;
     email: string;
     chapter: { id: string; name: string } | null;
-    subjectsOfInterest: string | null;
   };
   reviewer: { id: string; name: string | null } | null;
   interviewerAssignments: Array<{
@@ -269,7 +269,7 @@ export default function InstructorApplicantsCommandCenter({
                 app?.applicant.name ?? "",
                 app?.applicant.email ?? "",
                 app?.applicant.chapter?.name ?? "",
-                app?.applicant.subjectsOfInterest ?? "",
+                app?.subjectsOfInterest ?? "",
                 app?.reviewer?.name ?? "",
               ]
                 .join(" ")

@@ -213,7 +213,7 @@ export default async function MenteesPage({ searchParams }: PageProps) {
             name: true,
             email: true,
             primaryRole: true,
-            roles: { select: { id: true, role: true } },
+            roles: { select: { role: true } },
             chapter: { select: { id: true, name: true } },
             goals: {
               select: {

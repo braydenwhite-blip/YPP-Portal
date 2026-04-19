@@ -19,7 +19,6 @@ interface ReviewerCandidate {
   email: string;
   chapterId: string | null;
   chapterMatch: boolean;
-  subjectOverlap: boolean;
   reviewerActiveLoad: number;
   reviewerLastAssignedAt: Date | string | null;
 }
@@ -30,7 +29,6 @@ interface InterviewerCandidate {
   email: string;
   chapterId: string | null;
   chapterMatch: boolean;
-  subjectOverlap: boolean;
   interviewerActiveLoad: number;
   interviewerLastAssignedAt: Date | string | null;
 }

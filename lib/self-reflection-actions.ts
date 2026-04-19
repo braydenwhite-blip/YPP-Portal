@@ -203,6 +203,9 @@ export async function submitSelfReflection(formData: FormData) {
       where: { menteeId: userId, status: "ACTIVE" },
       select: {
         id: true,
+        mentorId: true,
+        reflectionStreak: true,
+        longestReflectionStreak: true,
         selfReflections: {
           orderBy: { cycleNumber: "desc" },
           take: 1,

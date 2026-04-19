@@ -6,11 +6,11 @@ type PipelineCardApp = {
   status: string;
   materialsReadyAt: Date | string | null;
   overdue?: boolean;
+  subjectsOfInterest: string | null;
   applicant: {
     name: string | null;
     email: string;
     chapter: { name: string } | null;
-    subjectsOfInterest: string | null;
   };
   reviewer: { id: string; name: string | null } | null;
   interviewerAssignments: Array<{
@@ -64,7 +64,7 @@ export default function ApplicantPipelineCard({
   onClick,
   isDragging = false,
 }: ApplicantPipelineCardProps): ReactNode {
-  const subjectTags = (app.applicant.subjectsOfInterest ?? "")
+  const subjectTags = (app.subjectsOfInterest ?? "")
     .split(/[\s,;]+/)
     .filter(Boolean)
     .slice(0, 3);

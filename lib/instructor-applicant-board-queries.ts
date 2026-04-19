@@ -319,6 +319,7 @@ export async function getArchivedApplications({
         status: true,
         archivedAt: true,
         updatedAt: true,
+        subjectsOfInterest: true,
         applicant: {
           select: { id: true, name: true, chapterId: true, chapter: { select: { name: true } } },
         },
@@ -450,8 +451,7 @@ export async function getCandidateInterviewers(
     orderBy: { name: "asc" },
   });
 
-  // Enrich with load + chapter match + subject overlap
-  // Note: User model has no subjectsOfInterest; overlap is always false in V1.
+  // Enrich with load + chapter match
   const enriched = await Promise.all(
     candidates.map(async (user) => {
       const [interviewerLoad, reviewerLoad] = await Promise.all([
@@ -460,7 +460,6 @@ export async function getCandidateInterviewers(
       ]);
 
       const chapterMatch = chapterId ? user.chapterId === chapterId : false;
-      const subjectOverlap = false;
 
       return {
         ...user,
@@ -468,15 +467,13 @@ export async function getCandidateInterviewers(
         interviewerLastAssignedAt: interviewerLoad.lastAssignedAt,
         reviewerActiveLoad: reviewerLoad.activeCount,
         chapterMatch,
-        subjectOverlap,
       };
     })
   );
 
-  // Sort: chapter match first, then subject overlap, then load ascending
+  // Sort: chapter match first, then load ascending
   return enriched.sort((a, b) => {
     if (a.chapterMatch !== b.chapterMatch) return a.chapterMatch ? -1 : 1;
-    if (a.subjectOverlap !== b.subjectOverlap) return a.subjectOverlap ? -1 : 1;
     return a.interviewerActiveLoad - b.interviewerActiveLoad;
   });
 }
@@ -488,7 +485,6 @@ export async function getCandidateReviewers(applicationId: string) {
     where: { id: applicationId },
     select: {
       reviewerId: true,
-      subjectsOfInterest: true,
       applicant: { select: { chapterId: true } },
     },
   });
@@ -521,22 +517,18 @@ export async function getCandidateReviewers(applicationId: string) {
       const load = await getReviewerLoad(user.id);
 
       const chapterMatch = chapterId ? user.chapterId === chapterId : false;
-      // User model has no subjectsOfInterest; overlap is always false in V1.
-      const subjectOverlap = false;
 
       return {
         ...user,
         reviewerActiveLoad: load.activeCount,
         reviewerLastAssignedAt: load.lastAssignedAt,
         chapterMatch,
-        subjectOverlap,
       };
     })
   );
 
   return enriched.sort((a, b) => {
     if (a.chapterMatch !== b.chapterMatch) return a.chapterMatch ? -1 : 1;
-    if (a.subjectOverlap !== b.subjectOverlap) return a.subjectOverlap ? -1 : 1;
     return a.reviewerActiveLoad - b.reviewerActiveLoad;
   });
 }

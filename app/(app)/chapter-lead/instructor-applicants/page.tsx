@@ -105,11 +105,11 @@ export default async function ChapterLeadInstructorApplicantsPage({
       archivedAt: (app.archivedAt as Date | null)?.toISOString() ?? null,
       updatedAt: (app.updatedAt as Date | null)?.toISOString() ?? null,
       overdue: app.overdue as boolean | undefined,
+      subjectsOfInterest: app.subjectsOfInterest as string | null,
       applicant: {
         id: app.applicant.id as string,
         name: app.applicant.name as string | null,
         email: app.applicant.email as string,
-        subjectsOfInterest: app.applicant.subjectsOfInterest as string | null,
         chapter: app.applicant.chapter
           ? { id: app.applicant.chapter.id as string, name: app.applicant.chapter.name as string }
           : null,
@@ -131,11 +131,11 @@ export default async function ChapterLeadInstructorApplicantsPage({
     status: app.status,
     archivedAt: app.archivedAt?.toISOString() ?? null,
     updatedAt: app.updatedAt.toISOString(),
+    subjectsOfInterest: app.subjectsOfInterest ?? null,
     applicant: {
       id: app.applicant.id,
       name: app.applicant.name,
       email: "",
-      subjectsOfInterest: null as string | null,
       chapter: app.applicant.chapter ?? null,
     },
     reviewer: app.reviewer ?? null,
