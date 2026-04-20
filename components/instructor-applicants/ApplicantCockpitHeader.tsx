@@ -34,7 +34,7 @@ function StatusPill({ status }: { status: InstructorApplicationStatus }) {
     WITHDRAWN: { label: "Withdrawn", cls: "pill-declined" },
   };
   const { label, cls } = map[status] ?? { label: status, cls: "" };
-  return <span className={`pill ${cls}`} style={{ fontSize: 13 }}>{label}</span>;
+  return <span className={`pill cockpit-hero-status ${cls}`}>{label}</span>;
 }
 
 interface Props {
@@ -53,6 +53,14 @@ interface Props {
   };
 }
 
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  }
+  return (parts[0]?.[0] ?? "A").toUpperCase();
+}
+
 export default function ApplicantCockpitHeader({ application }: Props) {
   const displayName =
     application.preferredFirstName && application.legalName
@@ -67,82 +75,60 @@ export default function ApplicantCockpitHeader({ application }: Props) {
   const currentStepIndex = getStepIndex(application.status);
 
   return (
-    <div
-      className="card"
-      style={{ marginBottom: 24, padding: "20px 24px" }}
-    >
-      {/* Name + status row */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>{displayName}</h1>
-          <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap", alignItems: "center" }}>
+    <header className="applicant-cockpit-hero">
+      <div className="applicant-cockpit-hero-main">
+        <div className="applicant-cockpit-avatar" aria-hidden="true">
+          {initials(displayName)}
+        </div>
+        <div className="applicant-cockpit-identity">
+          <div className="applicant-cockpit-eyebrow">Instructor applicant cockpit</div>
+          <h1>{displayName}</h1>
+          <div className="applicant-cockpit-chip-row">
             {application.applicant.chapter && (
-              <span className="pill pill-purple" style={{ fontSize: 12 }}>
+              <span className="pill pill-purple cockpit-hero-chip">
                 {application.applicant.chapter.name}
               </span>
             )}
             {subjects.map((s) => (
-              <span key={s} className="pill pill-info" style={{ fontSize: 12 }}>
+              <span key={s} className="pill pill-info cockpit-hero-chip">
                 {s}
               </span>
             ))}
             <StatusPill status={application.status} />
           </div>
           {(application.schoolName || application.graduationYear) && (
-            <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--muted)" }}>
+            <p className="applicant-cockpit-school">
               {[application.schoolName, application.graduationYear && `Class of ${application.graduationYear}`]
                 .filter(Boolean)
-                .join(" · ")}
+                .join(" | ")}
             </p>
           )}
         </div>
       </div>
 
       {/* Progress stepper */}
-      <div style={{ marginTop: 20, display: "flex", gap: 0 }}>
+      <div className="applicant-cockpit-stepper" aria-label="Application progress">
         {STEPS.map((step, i) => {
           const done = i < currentStepIndex;
           const active = i === currentStepIndex;
           return (
-            <div key={step.label} style={{ flex: 1, position: "relative" }}>
-              <div style={{ display: "flex", alignItems: "center" }}>
-                <div
-                  style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: "50%",
-                    background: done || active ? "#6b21c8" : "#e5e7eb",
-                    border: active ? "3px solid #a855f7" : "none",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                    color: done || active ? "#fff" : "#9ca3af",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    zIndex: 1,
-                    position: "relative",
-                  }}
-                >
+            <div
+              key={step.label}
+              className={`applicant-cockpit-step${done ? " is-done" : ""}${active ? " is-active" : ""}`}
+            >
+              <div className="applicant-cockpit-step-track">
+                <div className="applicant-cockpit-step-dot">
                   {done ? "✓" : i + 1}
                 </div>
-                {i < STEPS.length - 1 && (
-                  <div
-                    style={{
-                      flex: 1,
-                      height: 2,
-                      background: done ? "#6b21c8" : "#e5e7eb",
-                    }}
-                  />
-                )}
+                {i < STEPS.length - 1 && <div className="applicant-cockpit-step-line" />}
               </div>
-              <p style={{ margin: "4px 0 0", fontSize: 11, color: active ? "#6b21c8" : "var(--muted)", fontWeight: active ? 700 : 400 }}>
+              <p>
                 {step.label}
               </p>
             </div>
           );
         })}
       </div>
-    </div>
+    </header>
   );
 }

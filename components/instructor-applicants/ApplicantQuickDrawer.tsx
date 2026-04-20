@@ -68,18 +68,18 @@ export default function ApplicantQuickDrawer({
     <>
       <div className="slideout-backdrop" onClick={onClose} aria-hidden="true" />
       <div
-        className="slideout-panel"
+        className="slideout-panel applicant-quick-drawer"
         role="dialog"
         aria-modal="true"
         aria-label={`Applicant detail: ${app.applicant.name ?? app.applicant.email}`}
       >
         {/* Header */}
-        <div className="slideout-header">
+        <div className="slideout-header applicant-quick-drawer-header">
           <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text)" }}>
+            <div className="applicant-quick-drawer-title">
               {app.applicant.name ?? app.applicant.email}
             </div>
-            <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, flexWrap: "wrap" }}>
+            <div className="applicant-quick-drawer-chips">
               {app.applicant.chapter && (
                 <span className="kanban-card-chapter">{app.applicant.chapter.name}</span>
               )}
@@ -109,11 +109,7 @@ export default function ApplicantQuickDrawer({
         <div
           role="tablist"
           aria-label="Applicant sections"
-          style={{
-            display: "flex",
-            borderBottom: "1px solid var(--border)",
-            padding: "0 24px",
-          }}
+          className="applicant-quick-drawer-tabs"
         >
           {(["summary", "reviewer", "interviewer"] as const).map((tab) => (
             <button
@@ -122,18 +118,8 @@ export default function ApplicantQuickDrawer({
               type="button"
               aria-selected={activeSection === tab}
               onClick={() => setActiveSection(tab)}
-              style={{
-                background: "none",
-                border: "none",
-                borderBottom: activeSection === tab ? "2px solid #6b21c8" : "2px solid transparent",
-                padding: "10px 12px",
-                fontSize: 13,
-                fontWeight: activeSection === tab ? 700 : 400,
-                color: activeSection === tab ? "#6b21c8" : "var(--muted)",
-                cursor: "pointer",
-                marginBottom: -1,
-                textTransform: "capitalize",
-              }}
+              className="applicant-quick-drawer-tab"
+              data-active={activeSection === tab}
             >
               {tab === "reviewer" ? "Reviewer" : tab === "interviewer" ? "Interviewers" : "Summary"}
             </button>
@@ -146,9 +132,9 @@ export default function ApplicantQuickDrawer({
             <>
               {/* Subjects */}
               {app.subjectsOfInterest && (
-                <div className="slideout-section">
-                  <div className="slideout-section-title">Subjects of Interest</div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              <div className="slideout-section">
+                <div className="slideout-section-title">Subjects of Interest</div>
+                  <div className="applicant-quick-drawer-chips">
                     {app.subjectsOfInterest
                       .split(/[\s,;]+/)
                       .filter(Boolean)
@@ -165,7 +151,7 @@ export default function ApplicantQuickDrawer({
                 {app.reviewer ? (
                   <div className="slideout-field-value">{app.reviewer.name ?? "Unknown"}</div>
                 ) : (
-                  <div style={{ fontSize: 13, color: "#d97706", fontStyle: "italic" }}>Not assigned</div>
+                  <div className="applicant-card-unassigned">Not assigned</div>
                 )}
               </div>
 
@@ -193,14 +179,7 @@ export default function ApplicantQuickDrawer({
                 <div className="slideout-section">
                   <div className="slideout-section-title">Reviewer note</div>
                   <div
-                    style={{
-                      fontSize: 13,
-                      color: "var(--text)",
-                      lineHeight: 1.5,
-                      background: "var(--surface-2)",
-                      borderRadius: 8,
-                      padding: "10px 12px",
-                    }}
+                    className="applicant-quick-drawer-note"
                   >
                     {leadReview.summary}
                   </div>
@@ -211,10 +190,9 @@ export default function ApplicantQuickDrawer({
               <div style={{ marginTop: 24 }}>
                 <Link
                   href={`/applications/instructor/${app.id}`}
-                  className="button"
-                  style={{ display: "block", textAlign: "center" }}
+                  className="button applicant-quick-drawer-cta"
                 >
-                  Open full cockpit →
+                  Open full cockpit
                 </Link>
               </div>
             </>

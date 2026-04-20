@@ -85,49 +85,40 @@ export default function ArchiveTable({ applications }: ArchiveTableProps) {
 
   if (applications.length === 0) {
     return (
-      <div
-        style={{
-          padding: "48px 24px",
-          textAlign: "center",
-          color: "var(--muted)",
-          fontSize: 14,
-        }}
-      >
+      <div className="applicant-archive-empty">
         No archived applications yet. Applications are archived 30 days after reaching a terminal state.
       </div>
     );
   }
 
   return (
-    <div style={{ display: "grid", gap: 12 }}>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+    <div className="applicant-archive">
+      <div className="applicant-archive-toolbar">
         <input
-          className="input"
+          className="input applicant-archive-search"
           placeholder="Search applicants..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ maxWidth: 260, marginBottom: 0 }}
         />
         <select
-          className="input"
+          className="input applicant-command-select"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          style={{ width: "auto", marginBottom: 0 }}
         >
           <option value="">All statuses</option>
           {Object.entries(STATUS_LABELS).map(([v, l]) => (
             <option key={v} value={v}>{l}</option>
           ))}
         </select>
-        <span style={{ fontSize: 13, color: "var(--muted)" }}>
+        <span className="applicant-archive-count">
           {filtered.length} of {applications.length}
         </span>
       </div>
 
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+      <div className="applicant-archive-table-wrap">
+        <table className="applicant-archive-table">
           <thead>
-            <tr style={{ borderBottom: "2px solid var(--border)" }}>
+            <tr>
               <Th onClick={() => toggleSort("applicant")} sorted={sortKey === "applicant"} dir={sortDir}>
                 Applicant
               </Th>
@@ -148,41 +139,40 @@ export default function ArchiveTable({ applications }: ArchiveTableProps) {
             {filtered.map((app) => (
               <tr
                 key={app.id}
-                style={{ borderBottom: "1px solid var(--border)" }}
               >
-                <td style={{ padding: "10px 12px", fontWeight: 600 }}>
+                <td className="applicant-archive-name">
                   {app.applicant.name ?? app.applicant.email}
                 </td>
-                <td style={{ padding: "10px 12px", color: "var(--muted)" }}>
+                <td>
                   {app.applicant.chapter?.name ?? "—"}
                 </td>
-                <td style={{ padding: "10px 12px", color: "var(--muted)", maxWidth: 150 }}>
+                <td>
                   {app.subjectsOfInterest
                     ? app.subjectsOfInterest.split(/[\s,;]+/).filter(Boolean).slice(0, 2).join(", ")
                     : "—"}
                 </td>
-                <td style={{ padding: "10px 12px", color: "var(--muted)" }}>
+                <td>
                   {app.reviewer?.name ?? "—"}
                 </td>
-                <td style={{ padding: "10px 12px" }}>
+                <td>
                   <span className={`status-pill ${app.status.toLowerCase().replace(/_/g, "-")}`}>
                     {STATUS_LABELS[app.status] ?? app.status.replace(/_/g, " ")}
                   </span>
                 </td>
-                <td style={{ padding: "10px 12px" }}>
+                <td>
                   {app.chairDecision
                     ? DECISION_LABELS[app.chairDecision.action] ?? app.chairDecision.action
                     : "—"}
                 </td>
-                <td style={{ padding: "10px 12px", color: "var(--muted)", whiteSpace: "nowrap" }}>
+                <td className="applicant-archive-date">
                   {app.archivedAt
                     ? new Date(app.archivedAt).toLocaleDateString()
                     : new Date(app.updatedAt).toLocaleDateString()}
                 </td>
-                <td style={{ padding: "10px 12px" }}>
+                <td>
                   <a
                     href={`/applications/instructor/${app.id}`}
-                    style={{ fontSize: 12, color: "var(--link, #2563eb)", textDecoration: "underline" }}
+                    className="cockpit-text-link"
                   >
                     View
                   </a>
@@ -210,18 +200,7 @@ function Th({
   return (
     <th
       onClick={onClick}
-      style={{
-        padding: "8px 12px",
-        textAlign: "left",
-        fontWeight: 700,
-        fontSize: 11,
-        color: "var(--muted)",
-        textTransform: "uppercase",
-        letterSpacing: "0.3px",
-        cursor: onClick ? "pointer" : undefined,
-        whiteSpace: "nowrap",
-        userSelect: "none",
-      }}
+      className={onClick ? "is-sortable" : undefined}
     >
       {children}
       {sorted && <span style={{ marginLeft: 4 }}>{dir === "asc" ? "↑" : "↓"}</span>}

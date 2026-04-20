@@ -55,22 +55,13 @@ export default function ApplicantCommandFilters({
   const myCasesOnly = searchParams.get("myCasesOnly") === "1";
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexWrap: "wrap",
-        gap: 8,
-        alignItems: "center",
-        padding: "10px 0",
-      }}
-    >
+    <div className="applicant-command-filters">
       {/* Chapter pivot — admin only */}
       {isAdmin && chapters.length > 0 && (
         <select
-          className="input"
+          className="input applicant-command-select"
           value={getParam("chapterId")}
           onChange={(e) => setParam("chapterId", e.target.value)}
-          style={{ width: "auto", minWidth: 140, marginBottom: 0 }}
         >
           <option value="">All chapters</option>
           {chapters.map((c) => (
@@ -82,10 +73,9 @@ export default function ApplicantCommandFilters({
       {/* Reviewer filter */}
       {reviewers.length > 0 && (
         <select
-          className="input"
+          className="input applicant-command-select"
           value={getParam("reviewerId")}
           onChange={(e) => setParam("reviewerId", e.target.value)}
-          style={{ width: "auto", minWidth: 160, marginBottom: 0 }}
         >
           <option value="">Any reviewer</option>
           {reviewers.map((r) => (
@@ -97,10 +87,9 @@ export default function ApplicantCommandFilters({
       {/* Interviewer filter */}
       {interviewers.length > 0 && (
         <select
-          className="input"
+          className="input applicant-command-select"
           value={getParam("interviewerId")}
           onChange={(e) => setParam("interviewerId", e.target.value)}
-          style={{ width: "auto", minWidth: 160, marginBottom: 0 }}
         >
           <option value="">Any interviewer</option>
           {interviewers.map((i) => (
@@ -112,8 +101,7 @@ export default function ApplicantCommandFilters({
       {/* Toggle chips */}
       <button
         type="button"
-        className={`button outline${materialsMissing ? " active" : ""}`}
-        style={materialsMissing ? { background: "#fee2e2", borderColor: "#fca5a5", color: "#b91c1c" } : undefined}
+        className={`button outline applicant-filter-chip${materialsMissing ? " active is-danger" : ""}`}
         onClick={() => toggleParam("materialsMissing")}
       >
         Materials missing
@@ -121,8 +109,7 @@ export default function ApplicantCommandFilters({
 
       <button
         type="button"
-        className={`button outline${overdueOnly ? " active" : ""}`}
-        style={overdueOnly ? { background: "#fef3c7", borderColor: "#fcd34d", color: "#b45309" } : undefined}
+        className={`button outline applicant-filter-chip${overdueOnly ? " active is-warning" : ""}`}
         onClick={() => toggleParam("overdueOnly")}
       >
         Overdue
@@ -131,8 +118,7 @@ export default function ApplicantCommandFilters({
       {actorId && (
         <button
           type="button"
-          className={`button outline${myCasesOnly ? " active" : ""}`}
-          style={myCasesOnly ? { background: "#f3e8ff", borderColor: "#c4b5fd", color: "#6b21c8" } : undefined}
+          className={`button outline applicant-filter-chip${myCasesOnly ? " active is-primary" : ""}`}
           onClick={() => toggleParam("myCasesOnly")}
         >
           My cases only

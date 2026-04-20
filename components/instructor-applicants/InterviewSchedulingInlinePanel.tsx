@@ -69,37 +69,32 @@ export default function InterviewSchedulingInlinePanel({
   const pending_slots = offeredSlots.filter((s) => !s.confirmedAt);
 
   return (
-    <section id="section-scheduling" className="card" style={{ padding: "20px 24px", marginBottom: 24 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>Scheduling</h2>
+    <section id="section-scheduling" className="cockpit-panel cockpit-scheduling-panel">
+      <div className="cockpit-panel-header-row">
+        <div className="cockpit-section-heading">
+          <span className="cockpit-section-kicker">Interview logistics</span>
+          <h2>Scheduling</h2>
+        </div>
         <a
           href={`/interviews/schedule?applicationId=${applicationId}`}
-          className="button outline"
-          style={{ fontSize: 13, padding: "4px 12px" }}
+          className="button outline cockpit-inline-button"
         >
-          Open in scheduling workspace →
+          Open scheduling workspace
         </a>
       </div>
 
       {/* Confirmed slots */}
       {confirmed.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600, color: "#16a34a" }}>
+        <div className="cockpit-slot-group">
+          <p className="cockpit-slot-title is-confirmed">
             Confirmed ({confirmed.length})
           </p>
           {confirmed.map((slot) => (
             <div
               key={slot.id}
-              style={{
-                padding: "8px 12px",
-                background: "#f0fdf4",
-                border: "1px solid #bbf7d0",
-                borderRadius: 6,
-                marginBottom: 6,
-                fontSize: 13,
-              }}
+              className="cockpit-slot-card is-confirmed"
             >
-              ✓ {formatDt(slot.scheduledAt)} · {slot.durationMinutes} min
+              {formatDt(slot.scheduledAt)} | {slot.durationMinutes} min
             </div>
           ))}
         </div>
@@ -107,23 +102,16 @@ export default function InterviewSchedulingInlinePanel({
 
       {/* Posted (pending confirmation) */}
       {pending_slots.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600, color: "var(--muted)" }}>
+        <div className="cockpit-slot-group">
+          <p className="cockpit-slot-title">
             Awaiting Confirmation ({pending_slots.length})
           </p>
           {pending_slots.map((slot) => (
             <div
               key={slot.id}
-              style={{
-                padding: "8px 12px",
-                background: "#f9fafb",
-                border: "1px solid #e5e7eb",
-                borderRadius: 6,
-                marginBottom: 6,
-                fontSize: 13,
-              }}
+              className="cockpit-slot-card"
             >
-              {formatDt(slot.scheduledAt)} · {slot.durationMinutes} min · by {slot.offeredBy.name ?? "Unknown"}
+              {formatDt(slot.scheduledAt)} | {slot.durationMinutes} min | by {slot.offeredBy.name ?? "Unknown"}
             </div>
           ))}
         </div>
@@ -131,8 +119,8 @@ export default function InterviewSchedulingInlinePanel({
 
       {/* Applicant availability windows */}
       {availabilityWindows.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600, color: "#b45309" }}>
+        <div className="cockpit-slot-group">
+          <p className="cockpit-slot-title is-requested">
             Applicant Availability Requests ({availabilityWindows.length})
           </p>
           {availabilityWindows.map((w) => {
@@ -140,17 +128,10 @@ export default function InterviewSchedulingInlinePanel({
             return (
               <div
                 key={w.id}
-                style={{
-                  padding: "8px 12px",
-                  background: "#fffbeb",
-                  border: "1px solid #fde68a",
-                  borderRadius: 6,
-                  marginBottom: 6,
-                  fontSize: 13,
-                }}
+                className="cockpit-slot-card is-requested"
               >
-                {days[w.dayOfWeek]} {w.startTime}–{w.endTime}
-                <span style={{ marginLeft: 8, color: "var(--muted)" }}>({w.timezone})</span>
+                {days[w.dayOfWeek]} {w.startTime}-{w.endTime}
+                <span>({w.timezone})</span>
               </div>
             );
           })}
@@ -158,35 +139,34 @@ export default function InterviewSchedulingInlinePanel({
       )}
 
       {offeredSlots.length === 0 && availabilityWindows.length === 0 && (
-        <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 16px" }}>
+        <p className="cockpit-muted">
           No slots posted yet.
         </p>
       )}
 
       {/* Quick post-slot form */}
       {canPostSlots && (
-        <form onSubmit={handlePostSlot} style={{ borderTop: "1px solid #e5e7eb", paddingTop: 16 }}>
-          <p style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 600 }}>Post a Slot</p>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <form onSubmit={handlePostSlot} className="cockpit-slot-form">
+          <p>Post a Slot</p>
+          <div>
             <input
               type="datetime-local"
               name="scheduledAt"
               required
               className="input"
-              style={{ fontSize: 13 }}
             />
-            <select name="durationMinutes" className="input" style={{ fontSize: 13, width: "auto" }}>
+            <select name="durationMinutes" className="input">
               <option value="30">30 min</option>
               <option value="45">45 min</option>
               <option value="60" defaultValue="60">60 min</option>
               <option value="90">90 min</option>
             </select>
-            <button type="submit" className="button" disabled={pending} style={{ fontSize: 13 }}>
+            <button type="submit" className="button cockpit-inline-button" disabled={pending}>
               {pending ? "Posting…" : "Post"}
             </button>
           </div>
           {result && (
-            <p style={{ margin: "8px 0 0", fontSize: 13, color: result.startsWith("Failed") ? "#dc2626" : "#16a34a" }}>
+            <p className={result.startsWith("Failed") ? "cockpit-form-error" : "cockpit-form-success"}>
               {result}
             </p>
           )}

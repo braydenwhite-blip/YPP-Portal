@@ -204,78 +204,79 @@ export default async function ApplicantCockpitPage({
       : [[], [], []];
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
-      <div style={{ padding: "12px 24px", borderBottom: "1px solid #e5e7eb" }}>
+    <div className="applicant-cockpit-page">
+      <div className="applicant-cockpit-backbar">
         <Link
           href={actorCanSeeChair ? "/admin/instructor-applicants" : "/chapter-lead/instructor-applicants"}
-          style={{ fontSize: 13, color: "var(--muted)", textDecoration: "none" }}
+          className="applicant-cockpit-backlink"
         >
-          ← Instructor Applicants
+          Back to Instructor Applicants
         </Link>
       </div>
 
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 24px 120px" }}>
+      <div className="applicant-cockpit-container">
         <ApplicantCockpitHeader application={application} />
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 360px",
-            gap: 24,
-            alignItems: "start",
-          }}
-        >
-          <main style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        <div className="applicant-cockpit-layout">
+          <main className="applicant-cockpit-main">
             {/* Applicant Summary */}
-            <section id="section-summary" className="card" style={{ padding: "20px 24px" }}>
-              <h2 style={{ margin: "0 0 16px", fontSize: 17, fontWeight: 700 }}>Applicant Summary</h2>
-              <dl style={{ margin: 0, display: "grid", gridTemplateColumns: "160px 1fr", gap: "8px 12px" }}>
-                <dt style={{ fontSize: 13, color: "var(--muted)", fontWeight: 600 }}>Email</dt>
-                <dd style={{ margin: 0, fontSize: 13 }}>{application.applicant.email}</dd>
-                <dt style={{ fontSize: 13, color: "var(--muted)", fontWeight: 600 }}>Teaching Experience</dt>
-                <dd style={{ margin: 0, fontSize: 13, whiteSpace: "pre-wrap" }}>{application.teachingExperience}</dd>
-                <dt style={{ fontSize: 13, color: "var(--muted)", fontWeight: 600 }}>Availability</dt>
-                <dd style={{ margin: 0, fontSize: 13 }}>{application.availability}</dd>
+            <section id="section-summary" className="cockpit-panel cockpit-panel-accent">
+              <div className="cockpit-section-heading">
+                <span className="cockpit-section-kicker">Profile</span>
+                <h2>Applicant Summary</h2>
+              </div>
+              <dl className="cockpit-detail-grid">
+                <dt>Email</dt>
+                <dd>{application.applicant.email}</dd>
+                <dt>Teaching Experience</dt>
+                <dd>{application.teachingExperience}</dd>
+                <dt>Availability</dt>
+                <dd>{application.availability}</dd>
                 {application.subjectsOfInterest && (
                   <>
-                    <dt style={{ fontSize: 13, color: "var(--muted)", fontWeight: 600 }}>Subjects</dt>
-                    <dd style={{ margin: 0, fontSize: 13 }}>{application.subjectsOfInterest}</dd>
+                    <dt>Subjects</dt>
+                    <dd>{application.subjectsOfInterest}</dd>
                   </>
                 )}
               </dl>
             </section>
 
             {/* Motivation */}
-            <section id="section-motivation" className="card" style={{ padding: "20px 24px" }}>
-              <h2 style={{ margin: "0 0 16px", fontSize: 17, fontWeight: 700 }}>Motivation</h2>
+            <section id="section-motivation" className="cockpit-panel">
+              <div className="cockpit-section-heading">
+                <span className="cockpit-section-kicker">Why they applied</span>
+                <h2>Motivation</h2>
+              </div>
               {application.motivationVideoUrl && (
-                <div style={{ marginBottom: 16 }}>
-                  <p style={{ margin: "0 0 6px", fontSize: 13, fontWeight: 600, color: "var(--muted)" }}>
+                <div className="cockpit-video-callout">
+                  <p>
                     Motivation Video
                   </p>
                   <a
                     href={application.motivationVideoUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="button outline"
-                    style={{ fontSize: 13 }}
+                    className="button outline cockpit-inline-button"
                   >
-                    ▶ Watch Video
+                    Watch video
                   </a>
                 </div>
               )}
               {application.motivation ? (
-                <p style={{ margin: 0, fontSize: 14, lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
+                <p className="cockpit-prose">
                   {application.motivation}
                 </p>
               ) : (
-                <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>No written motivation provided.</p>
+                <p className="cockpit-muted">No written motivation provided.</p>
               )}
             </section>
 
             {/* Initial Review */}
-            <section id="section-review" className="card" style={{ padding: "20px 24px" }}>
-              <h2 style={{ margin: "0 0 16px", fontSize: 17, fontWeight: 700 }}>Initial Review</h2>
+            <section id="section-review" className="cockpit-review-workspace">
+              <div className="cockpit-section-heading">
+                <span className="cockpit-section-kicker">Evaluation</span>
+                <h2>Initial Review</h2>
+              </div>
               {reviewWorkspace ? (
                 <ApplicationReviewEditor
                   action={saveInstructorApplicationReviewAction as (fd: FormData) => void}
@@ -294,7 +295,7 @@ export default async function ApplicantCockpitPage({
                   selectedDraftId={reviewWorkspace.selectedDraftId}
                 />
               ) : (
-                <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
+                <p className="cockpit-muted">
                   {isReadOnlyReview
                     ? "Review visible to assigned reviewer and admins only."
                     : "Review not yet available for this application."}
@@ -312,54 +313,46 @@ export default async function ApplicantCockpitPage({
 
             {/* Interview Reviews summary */}
             {application.interviewReviews.length > 0 && (
-              <section id="section-interview-reviews" className="card" style={{ padding: "20px 24px" }}>
-                <h2 style={{ margin: "0 0 16px", fontSize: 17, fontWeight: 700 }}>Interview Reviews</h2>
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <section id="section-interview-reviews" className="cockpit-panel">
+                <div className="cockpit-section-heading">
+                  <span className="cockpit-section-kicker">Interview signal</span>
+                  <h2>Interview Reviews</h2>
+                </div>
+                <div className="cockpit-stack">
                   {application.interviewReviews.map((review) => {
                     const recOpt = PROGRESS_RATING_OPTIONS.find((o) => o.value === review.overallRating);
                     return (
                       <div
                         key={review.id}
-                        style={{
-                          padding: "14px 16px",
-                          background: "#f9fafb",
-                          border: "1px solid #e5e7eb",
-                          borderRadius: 8,
-                        }}
+                        className="cockpit-review-card"
                       >
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                          <strong style={{ fontSize: 14 }}>{review.reviewer.name ?? "Interviewer"}</strong>
+                        <div className="cockpit-review-card-header">
+                          <strong>{review.reviewer.name ?? "Interviewer"}</strong>
                           {recOpt && (
                             <span
-                              style={{
-                                fontSize: 12,
-                                padding: "2px 8px",
-                                borderRadius: 99,
-                                background: recOpt.bg,
-                                color: recOpt.color,
-                                fontWeight: 600,
-                              }}
+                              className="cockpit-score-chip"
+                              style={{ background: recOpt.bg, color: recOpt.color }}
                             >
                               {recOpt.shortLabel}
                             </span>
                           )}
                           {review.recommendation && (
-                            <span className="pill pill-info" style={{ fontSize: 12 }}>
+                            <span className="pill pill-info pill-small">
                               {review.recommendation.replace(/_/g, " ")}
                             </span>
                           )}
                         </div>
                         {review.summary && (
-                          <p style={{ margin: 0, fontSize: 13, color: "#374151", lineHeight: 1.6 }}>
+                          <p className="cockpit-prose cockpit-prose-small">
                             {review.summary}
                           </p>
                         )}
                         {actorIsInterviewer && review.reviewerId === actor.id && (
                           <Link
                             href={`/applications/instructor/${id}/interview`}
-                            style={{ display: "inline-block", marginTop: 8, fontSize: 12, color: "#6b21c8" }}
+                            className="cockpit-text-link"
                           >
-                            Edit my review →
+                            Edit my review
                           </Link>
                         )}
                       </div>
@@ -371,33 +364,29 @@ export default async function ApplicantCockpitPage({
 
             {actorIsInterviewer && (
               <div
-                className="card"
-                style={{
-                  padding: "16px 24px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
+                className="cockpit-panel cockpit-panel-compact cockpit-workspace-callout"
               >
                 <div>
-                  <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>Interviewer Workspace</p>
-                  <p style={{ margin: "2px 0 0", fontSize: 13, color: "var(--muted)" }}>
+                  <p className="cockpit-callout-title">Interviewer Workspace</p>
+                  <p className="cockpit-muted">
                     Pre-interview brief, materials, and evaluation form.
                   </p>
                 </div>
                 <Link
                   href={`/applications/instructor/${id}/interview`}
-                  className="button outline"
-                  style={{ fontSize: 13 }}
+                  className="button outline cockpit-inline-button"
                 >
-                  Open →
+                  Open
                 </Link>
               </div>
             )}
 
             {/* Full Timeline */}
-            <section id="section-timeline" className="card" style={{ padding: "20px 24px" }}>
-              <h2 style={{ margin: "0 0 16px", fontSize: 17, fontWeight: 700 }}>Timeline</h2>
+            <section id="section-timeline" className="cockpit-panel">
+              <div className="cockpit-section-heading">
+                <span className="cockpit-section-kicker">Audit trail</span>
+                <h2>Timeline</h2>
+              </div>
               <ApplicantTimelineFeed
                 events={application.timeline.map((e) => ({
                   ...e,

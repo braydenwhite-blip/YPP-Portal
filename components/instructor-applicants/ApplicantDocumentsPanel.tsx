@@ -32,11 +32,11 @@ interface ApplicantDocumentsPanelProps {
 const KIND_META: Record<DocKind, { label: string; hint: string }> = {
   COURSE_OUTLINE: {
     label: "Course Outline",
-    hint: "PDF or Word doc — course overview, objectives, and session breakdown.",
+    hint: "PDF or Word doc - course overview, objectives, and session breakdown.",
   },
   FIRST_CLASS_PLAN: {
     label: "First Class Plan",
-    hint: "PDF or Word doc — detailed plan for the first session.",
+    hint: "PDF or Word doc - detailed plan for the first session.",
   },
 };
 
@@ -161,7 +161,7 @@ export default function ApplicantDocumentsPanel({
   }
 
   return (
-    <div style={{ display: "grid", gap: 16 }}>
+    <div className="cockpit-documents-panel">
       {KINDS.map((kind) => {
         const meta = KIND_META[kind];
         const active = activeDoc(kind);
@@ -171,17 +171,12 @@ export default function ApplicantDocumentsPanel({
         return (
           <div
             key={kind}
-            style={{
-              border: `1px solid ${active ? "var(--border)" : "#fca5a5"}`,
-              borderRadius: 10,
-              padding: 14,
-              background: active ? "#fff" : "#fff7f7",
-            }}
+            className={`cockpit-document-card${active ? " is-complete" : " is-missing"}`}
           >
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+            <div className="cockpit-document-header">
               <div>
-                <div style={{ fontWeight: 700, fontSize: 14 }}>{meta.label}</div>
-                <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{meta.hint}</div>
+                <div className="cockpit-document-title">{meta.label}</div>
+                <div className="cockpit-document-hint">{meta.hint}</div>
               </div>
               {active ? (
                 <span className="pill pill-success pill-small">Uploaded</span>
@@ -192,27 +187,18 @@ export default function ApplicantDocumentsPanel({
 
             {active && (
               <div
-                style={{
-                  marginTop: 10,
-                  padding: "8px 10px",
-                  borderRadius: 6,
-                  background: "var(--surface-2)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 8,
-                }}
+                className="cockpit-document-file"
               >
                 <a
                   href={active.fileUrl}
                   target="_blank"
                   rel="noreferrer"
-                  style={{ fontSize: 13, color: "var(--link, #2563eb)", textDecoration: "underline" }}
+                  className="cockpit-text-link"
                 >
                   {active.originalName ?? "View document"}
                 </a>
-                <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
-                  <span style={{ fontSize: 11, color: "var(--muted)" }}>
+                <div className="cockpit-document-actions">
+                  <span>
                     {new Date(active.uploadedAt).toLocaleDateString()}
                   </span>
                   {canDelete && (
@@ -230,7 +216,7 @@ export default function ApplicantDocumentsPanel({
             )}
 
             {canUpload && (
-              <div style={{ marginTop: 10 }}>
+              <div className="cockpit-document-upload">
                 <input
                   ref={(el: HTMLInputElement | null) => { inputRefs.current[kind] = el; }}
                   type="file"
@@ -254,22 +240,14 @@ export default function ApplicantDocumentsPanel({
             )}
 
             {err && (
-              <p style={{ margin: "8px 0 0", fontSize: 12, color: "#dc2626" }}>{err}</p>
+              <p className="cockpit-form-error">{err}</p>
             )}
 
             {history.length > 0 && (
-              <div style={{ marginTop: 10 }}>
+              <div className="cockpit-document-history">
                 <button
                   type="button"
-                  style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: 12,
-                    color: "var(--muted)",
-                    padding: 0,
-                    textDecoration: "underline",
-                  }}
+                  className="cockpit-plain-button"
                   onClick={() =>
                     setExpandedHistory((prev) => ({ ...prev, [kind]: !prev[kind] }))
                   }
@@ -277,27 +255,21 @@ export default function ApplicantDocumentsPanel({
                   {expandedHistory[kind] ? "Hide" : "Show"} {history.length} prior version{history.length > 1 ? "s" : ""}
                 </button>
                 {expandedHistory[kind] && (
-                  <div style={{ marginTop: 6, display: "grid", gap: 4 }}>
+                  <div className="cockpit-document-history-list">
                     {history.map((d) => (
                       <div
                         key={d.id}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 8,
-                          fontSize: 12,
-                          color: "var(--muted)",
-                        }}
+                        className="cockpit-document-history-item"
                       >
                         <a
                           href={d.fileUrl}
                           target="_blank"
                           rel="noreferrer"
-                          style={{ color: "inherit", textDecoration: "underline" }}
+                          className="cockpit-text-link"
                         >
                           {d.originalName ?? "Document"}
                         </a>
-                        <span>·</span>
+                        <span>|</span>
                         <span>superseded {new Date(d.supersededAt!).toLocaleDateString()}</span>
                       </div>
                     ))}

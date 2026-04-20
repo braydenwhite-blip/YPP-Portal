@@ -172,31 +172,20 @@ export default function InstructorApplicantsCommandCenter({
     [pipelineApps]
   );
 
-  const tabStyle = (tab: TabValue) => ({
-    background: "none",
-    border: "none",
-    borderBottom: activeTab === tab ? "2px solid #6b21c8" : "2px solid transparent",
-    padding: "10px 16px",
-    fontSize: 14,
-    fontWeight: activeTab === tab ? 700 : 400,
-    color: activeTab === tab ? "#6b21c8" : "var(--muted)",
-    cursor: "pointer",
-    marginBottom: -1,
-  });
-
   return (
-    <div>
+    <div className="applicant-command">
       {/* Tab bar */}
       <div
         role="tablist"
         aria-label="Applicant workflow views"
-        style={{ display: "flex", borderBottom: "1px solid var(--border)", marginBottom: 16 }}
+        className="applicant-command-tabs"
       >
         <button
           role="tab"
           type="button"
           aria-selected={activeTab === "pipeline"}
-          style={tabStyle("pipeline")}
+          className="applicant-command-tab"
+          data-active={activeTab === "pipeline"}
           onClick={() => setTab("pipeline")}
         >
           Pipeline
@@ -206,22 +195,15 @@ export default function InstructorApplicantsCommandCenter({
             role="tab"
             type="button"
             aria-selected={activeTab === "chair_queue"}
-            style={tabStyle("chair_queue")}
+            className="applicant-command-tab"
+            data-active={activeTab === "chair_queue"}
             onClick={() => setTab("chair_queue")}
           >
             Chair Queue
             {chairQueueCount > 0 && (
               <span
                 aria-label={`${chairQueueCount} pending`}
-                style={{
-                  marginLeft: 6,
-                  background: "#b45309",
-                  color: "#fff",
-                  borderRadius: 10,
-                  padding: "1px 7px",
-                  fontSize: 11,
-                  fontWeight: 700,
-                }}
+                className="applicant-command-tab-count"
               >
                 {chairQueueCount}
               </span>
@@ -232,7 +214,8 @@ export default function InstructorApplicantsCommandCenter({
           role="tab"
           type="button"
           aria-selected={activeTab === "archive"}
-          style={tabStyle("archive")}
+          className="applicant-command-tab"
+          data-active={activeTab === "archive"}
           onClick={() => setTab("archive")}
         >
           Archive
@@ -241,7 +224,7 @@ export default function InstructorApplicantsCommandCenter({
 
       {/* Pipeline tab */}
       {activeTab === "pipeline" && (
-        <div role="tabpanel" aria-label="Pipeline view">
+        <div role="tabpanel" aria-label="Pipeline view" className="applicant-command-panel">
           <ApplicantCommandFilters
             isAdmin={isAdmin}
             chapters={chapters}
@@ -306,21 +289,20 @@ export default function InstructorApplicantsCommandCenter({
 
       {/* Chair Queue tab — redirects to dedicated page */}
       {activeTab === "chair_queue" && canSeeChairQueue && (
-        <div role="tabpanel" aria-label="Chair queue" style={{ padding: "40px 0", textAlign: "center" }}>
-          <p style={{ fontSize: 14, color: "var(--muted)", marginBottom: 12 }}>
+        <div role="tabpanel" aria-label="Chair queue" className="applicant-command-empty">
+          <p>
             The Chair Queue is now a dedicated page.
           </p>
           <a href="/admin/instructor-applicants/chair-queue" className="button">
-            Open Chair Queue →
+            Open Chair Queue
           </a>
         </div>
       )}
 
       {/* Archive tab */}
       {activeTab === "archive" && (
-        <div role="tabpanel" aria-label="Archive">
+        <div role="tabpanel" aria-label="Archive" className="applicant-command-panel">
           <ArchiveTable
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             applications={archivedApps as any}
           />
         </div>

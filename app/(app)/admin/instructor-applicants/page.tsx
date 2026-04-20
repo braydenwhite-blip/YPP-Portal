@@ -127,11 +127,9 @@ export default async function AdminInstructorApplicantsPage({
     ]);
 
   // Flatten pipeline columns into a single array
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pipelineApps = (Object.values(pipelineResult.columns).flat() as any[]);
 
   // Serialize dates for client components
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function serializeApp(app: any) {
     return {
       id: app.id as string,
@@ -191,8 +189,8 @@ export default async function AdminInstructorApplicantsPage({
   const postInterviewCount = pipelineResult.columns.post_interview.length;
 
   return (
-    <div className="page-shell">
-      <div className="page-header">
+    <div className="page-shell applicant-command-page">
+      <div className="page-header applicant-command-header">
         <div>
           <span className="badge">{isAdmin ? "Admin" : "Chapter President"}</span>
           <h1 className="page-title">Instructor Applicants</h1>
@@ -202,20 +200,20 @@ export default async function AdminInstructorApplicantsPage({
         </div>
       </div>
 
-      <div className="grid four" style={{ marginTop: 20, marginBottom: 20 }}>
-        <div className="card kpi">
+      <div className="grid four applicant-command-kpis">
+        <div className="card kpi applicant-command-kpi">
           <div className="kpi-value">{newCount}</div>
           <div className="kpi-label">New Applications</div>
         </div>
-        <div className="card kpi">
+        <div className="card kpi applicant-command-kpi">
           <div className="kpi-value">{toReviewCount}</div>
           <div className="kpi-label">Needs Review</div>
         </div>
-        <div className="card kpi">
+        <div className="card kpi applicant-command-kpi">
           <div className="kpi-value">{toInterviewCount}</div>
           <div className="kpi-label">In Interview Stage</div>
         </div>
-        <div className="card kpi">
+        <div className="card kpi applicant-command-kpi">
           <div className="kpi-value">{postInterviewCount}</div>
           <div className="kpi-label">Post-Interview</div>
         </div>
@@ -224,9 +222,7 @@ export default async function AdminInstructorApplicantsPage({
       <InstructorApplicantsCommandCenter
         scope={isAdmin ? "global" : "chapter"}
         chapterId={chapterId}
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         pipelineApps={serializedPipeline as any}
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         archivedApps={serializedArchive as any}
         chairQueueCount={chairQueueItems.length}
         canSeeChairQueue={showChairQueue}

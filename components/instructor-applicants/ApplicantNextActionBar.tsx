@@ -100,26 +100,12 @@ export default function ApplicantNextActionBar({
   if (!action) return null;
 
   return (
-    <div
-      style={{
-        position: "sticky",
-        bottom: 0,
-        background: "#fff",
-        borderTop: "1px solid #e5e7eb",
-        padding: "14px 24px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 16,
-        zIndex: 50,
-        boxShadow: "0 -2px 8px rgba(0,0,0,0.06)",
-      }}
-    >
+    <div className="applicant-next-action-bar">
       <div>
-        <p style={{ margin: 0, fontWeight: 700, fontSize: 14 }}>{action.label}</p>
-        <p style={{ margin: "2px 0 0", fontSize: 13, color: "var(--muted)" }}>{action.description}</p>
+        <p className="applicant-next-action-title">{action.label}</p>
+        <p className="applicant-next-action-description">{action.description}</p>
         {message && (
-          <p style={{ margin: "4px 0 0", fontSize: 13, color: message.ok ? "#16a34a" : "#dc2626" }}>
+          <p className={message.ok ? "cockpit-form-success" : "cockpit-form-error"}>
             {message.text}
           </p>
         )}
@@ -127,15 +113,14 @@ export default function ApplicantNextActionBar({
       {action.handler ? (
         <button
           type="button"
-          className="button"
+          className="button applicant-next-action-button"
           onClick={action.handler}
           disabled={pending}
-          style={{ minWidth: 140, flexShrink: 0 }}
         >
           {pending ? "Sending…" : action.label}
         </button>
       ) : action.href ? (
-        <a href={action.href} className="button" style={{ minWidth: 140, flexShrink: 0, textAlign: "center" }}>
+        <a href={action.href} className="button applicant-next-action-button">
           {action.label}
         </a>
       ) : null}

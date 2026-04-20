@@ -44,9 +44,9 @@ function eventLabel(kind: string, payload: Record<string, unknown>): string {
     case "INTERVIEWER_ASSIGNED":
       return `Interviewer assigned${payload.role ? ` (${String(payload.role)})` : ""}`;
     case "DOC_UPLOADED":
-      return `Document uploaded${payload.kind ? ` — ${String(payload.kind).replace(/_/g, " ")}` : ""}`;
+      return `Document uploaded${payload.kind ? ` - ${String(payload.kind).replace(/_/g, " ")}` : ""}`;
     case "DOC_REMOVED":
-      return `Document removed${payload.kind ? ` — ${String(payload.kind).replace(/_/g, " ")}` : ""}`;
+      return `Document removed${payload.kind ? ` - ${String(payload.kind).replace(/_/g, " ")}` : ""}`;
     case "SLOT_POSTED":
       return "Interview slot posted";
     case "SLOT_CONFIRMED":
@@ -86,7 +86,7 @@ const TONE_COLOR: Record<Tone, string> = {
 export default function ApplicantTimelineFeed({ events }: ApplicantTimelineFeedProps): ReactNode {
   if (events.length === 0) {
     return (
-      <p aria-label="No timeline events yet" style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>
+      <p aria-label="No timeline events yet" className="cockpit-muted">
         No timeline events yet.
       </p>
     );
@@ -101,54 +101,36 @@ export default function ApplicantTimelineFeed({ events }: ApplicantTimelineFeedP
       role="log"
       aria-label="Application timeline"
       aria-live="polite"
-      style={{ display: "grid", gap: 16 }}
+      className="cockpit-timeline"
     >
       {grouped.map(([day, dayEvents]) => (
-        <div key={day}>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              color: "var(--muted)",
-              textTransform: "uppercase",
-              letterSpacing: "0.5px",
-              marginBottom: 8,
-            }}
-          >
+        <div key={day} className="cockpit-timeline-day">
+          <div className="cockpit-timeline-date">
             {day}
           </div>
-          <div style={{ display: "grid", gap: 6 }}>
+          <div className="cockpit-timeline-events">
             {dayEvents.map((event) => {
               const tone = eventTone(event.kind);
               return (
                 <div
                   key={event.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 10,
-                    padding: "8px 12px",
-                    borderRadius: 8,
-                    border: "1px solid var(--border)",
-                    background: "#fff",
-                  }}
+                  className="cockpit-timeline-event"
                 >
                   <div
                     className={`dashboard-action-stripe tone-${tone}`}
-                    style={{ alignSelf: "stretch", minHeight: 20, borderRadius: 3 }}
                   />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+                  <div className="cockpit-timeline-content">
+                    <div className="cockpit-timeline-label">
                       {eventLabel(event.kind, event.payload)}
                     </div>
                     {event.actor && (
-                      <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>
+                      <div className="cockpit-timeline-actor">
                         by {event.actor.name ?? "Unknown"}
                       </div>
                     )}
                   </div>
                   <div
-                    style={{ fontSize: 11, color: "var(--muted)", flexShrink: 0 }}
+                    className="cockpit-timeline-time"
                     title={new Date(event.createdAt).toLocaleString()}
                   >
                     {new Date(event.createdAt).toLocaleTimeString("en-US", {

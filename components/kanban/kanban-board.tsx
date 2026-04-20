@@ -257,13 +257,12 @@ export default function KanbanBoard<TItem extends { id: string; status: string }
   return (
     <>
       {/* Toolbar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+      <div className="kanban-toolbar">
         <input
           className="input"
           placeholder={searchPlaceholder}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          style={{ maxWidth: 360, marginBottom: 0 }}
         />
         {toolbarExtra}
       </div>

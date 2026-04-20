@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 
 import {
   INSTRUCTOR_APPLICATION_NEXT_STEP_OPTIONS,
@@ -145,7 +145,7 @@ export default function ApplicationReviewEditor({
   }
 
   return (
-    <form action={action} className="form-grid">
+    <form action={action} className="form-grid application-review-editor">
       <input type="hidden" name="applicationId" value={applicationId} />
       <input type="hidden" name="returnTo" value={returnTo} />
       <input type="hidden" name="categoriesJson" value={categoryPayload} />
@@ -156,22 +156,22 @@ export default function ApplicationReviewEditor({
       />
 
       {!canEdit ? (
-        <div className="card" style={{ background: "#f8fafc", border: "1px solid var(--border)" }}>
-          <p style={{ margin: 0, fontSize: 14, color: "var(--muted)" }}>
+        <div className="review-editor-notice">
+          <p>
             This review is locked because it has already been submitted. An admin can still edit it if needed.
           </p>
         </div>
       ) : null}
 
-      <div className="card" style={{ display: "grid", gap: 16 }}>
+      <div className="review-editor-panel">
         <div>
-          <h2 style={{ margin: "0 0 6px" }}>Overall Application Evaluation</h2>
-          <p style={{ margin: 0, color: "var(--muted)", fontSize: 14 }}>
+          <h2>Overall Application Evaluation</h2>
+          <p>
             Use the same mentorship color language so application review feels consistent with the rest of the portal.
           </p>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8 }}>
+        <div className="review-rating-grid">
           {PROGRESS_RATING_OPTIONS.map((option) => {
             const selected = overallRating === option.value;
             return (
@@ -180,19 +180,13 @@ export default function ApplicationReviewEditor({
                 type="button"
                 disabled={!canEdit}
                 onClick={() => setOverallRating(option.value)}
-                style={{
-                  borderRadius: 10,
-                  border: selected ? `2px solid ${option.color}` : "1px solid var(--border)",
-                  background: selected ? option.bg : "var(--surface)",
-                  padding: 12,
-                  textAlign: "left",
-                  cursor: canEdit ? "pointer" : "default",
-                }}
+                className={`review-rating-option${selected ? " is-selected" : ""}`}
+                style={{ "--rating-color": option.color, "--rating-bg": option.bg } as CSSProperties}
               >
-                <div style={{ fontWeight: 700, color: option.color }}>{option.label}</div>
-                <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                <div>{option.label}</div>
+                <span>
                   {option.description}
-                </div>
+                </span>
               </button>
             );
           })}
@@ -220,26 +214,17 @@ export default function ApplicationReviewEditor({
             </select>
           </label>
         ) : (
-          <div
-            style={{
-              padding: 12,
-              borderRadius: 10,
-              background: "var(--surface-alt)",
-              border: "1px solid var(--border)",
-              fontSize: 14,
-              color: "var(--muted)",
-            }}
-          >
+          <div className="review-editor-callout">
             Your review will inform the lead reviewer’s official next-step decision.
             <input type="hidden" name="nextStep" value="" />
           </div>
         )}
       </div>
 
-      <div className="card" style={{ display: "grid", gap: 18 }}>
+      <div className="review-editor-panel">
         <div>
-          <h2 style={{ margin: "0 0 6px" }}>Category Evaluations</h2>
-          <p style={{ margin: 0, color: "var(--muted)", fontSize: 14 }}>
+          <h2>Category Evaluations</h2>
+          <p>
             Rate each category, then add a short internal note only if it helps future reviewers scan faster.
           </p>
         </div>
@@ -249,22 +234,16 @@ export default function ApplicationReviewEditor({
           return (
             <div
               key={category.key}
-              style={{
-                border: "1px solid var(--border)",
-                borderRadius: 12,
-                padding: 14,
-                display: "grid",
-                gap: 12,
-              }}
+              className="review-category-card"
             >
               <div>
-                <div style={{ fontWeight: 700 }}>{category.label}</div>
-                <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 4 }}>
+                <div className="review-category-title">{category.label}</div>
+                <div className="review-category-description">
                   {category.description}
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8 }}>
+              <div className="review-rating-grid review-rating-grid-compact">
                 {PROGRESS_RATING_OPTIONS.map((option) => {
                   const selected = current.rating === option.value;
                   return (
@@ -273,19 +252,13 @@ export default function ApplicationReviewEditor({
                       type="button"
                       disabled={!canEdit}
                       onClick={() => updateCategoryRating(category.key, option.value)}
-                      style={{
-                        borderRadius: 10,
-                        border: selected ? `2px solid ${option.color}` : "1px solid var(--border)",
-                        background: selected ? option.bg : "var(--surface)",
-                        padding: 10,
-                        textAlign: "left",
-                        cursor: canEdit ? "pointer" : "default",
-                      }}
+                      className={`review-rating-option${selected ? " is-selected" : ""}`}
+                      style={{ "--rating-color": option.color, "--rating-bg": option.bg } as CSSProperties}
                     >
-                      <div style={{ fontWeight: 700, color: option.color }}>{option.shortLabel}</div>
-                      <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
+                      <div>{option.shortLabel}</div>
+                      <span>
                         {option.helperLabel}
-                      </div>
+                      </span>
                     </button>
                   );
                 })}
@@ -309,10 +282,10 @@ export default function ApplicationReviewEditor({
         })}
       </div>
 
-      <div className="card" style={{ display: "grid", gap: 12 }}>
+      <div className="review-editor-panel">
         <div>
-          <h2 style={{ margin: "0 0 6px" }}>Lesson Design Studio Draft</h2>
-          <p style={{ margin: 0, color: "var(--muted)", fontSize: 14 }}>
+          <h2>Lesson Design Studio Draft</h2>
+          <p>
             If a draft is available, attach it to the review. If it is missing, the review can still move forward with a note.
           </p>
         </div>
@@ -335,32 +308,14 @@ export default function ApplicationReviewEditor({
             </select>
           </label>
         ) : (
-          <div
-            style={{
-              padding: 12,
-              borderRadius: 10,
-              background: "#fff7ed",
-              border: "1px solid #fdba74",
-              color: "#9a3412",
-              fontSize: 14,
-            }}
-          >
+          <div className="review-editor-warning">
             No Lesson Design Studio draft exists yet for this applicant.
           </div>
         )}
 
         {showDraftOverride ? (
-          <div
-            style={{
-              borderRadius: 12,
-              border: "1px solid #f59e0b",
-              background: "#fffbeb",
-              padding: 14,
-              display: "grid",
-              gap: 10,
-            }}
-          >
-            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 600 }}>
+          <div className="review-editor-warning review-editor-warning-grid">
+            <label className="review-checkbox-row">
               <input
                 type="checkbox"
                 checked={draftOverrideUsed || movingToInterviewWithoutDraft}
@@ -391,7 +346,7 @@ export default function ApplicationReviewEditor({
         )}
       </div>
 
-      <div className="card" style={{ display: "grid", gap: 12 }}>
+      <div className="review-editor-panel">
         <label className="form-row">
           Lead summary
           <textarea
@@ -448,7 +403,7 @@ export default function ApplicationReviewEditor({
           <input type="hidden" name="applicantMessage" value={applicantMessage} />
         )}
 
-        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14 }}>
+        <label className="review-checkbox-row">
           <input
             type="checkbox"
             checked={flagForLeadership}
@@ -460,7 +415,7 @@ export default function ApplicationReviewEditor({
         <input type="hidden" name="flagForLeadership" value={flagForLeadership ? "true" : "false"} />
       </div>
 
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+      <div className="review-editor-actions">
         <button
           className="button secondary"
           type="submit"

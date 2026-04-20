@@ -95,33 +95,19 @@ export default function ApplicantCockpitSidebar({
   }
 
   return (
-    <aside style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <aside className="applicant-cockpit-sidebar">
       {/* Reviewer */}
-      <section id="sidebar-reviewer" className="card" style={{ padding: "16px 20px" }}>
-        <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700 }}>Assigned Reviewer</h3>
+      <section id="sidebar-reviewer" className="cockpit-sidebar-card">
+        <h3>Assigned Reviewer</h3>
         {application.reviewer ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: "50%",
-                background: "#6b21c8",
-                color: "#fff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 13,
-                fontWeight: 700,
-                flexShrink: 0,
-              }}
-            >
+          <div className="cockpit-person-row">
+            <div className="cockpit-person-avatar">
               {(application.reviewer.name ?? "?")[0]?.toUpperCase()}
             </div>
-            <span style={{ fontSize: 14 }}>{application.reviewer.name ?? "Unknown"}</span>
+            <span>{application.reviewer.name ?? "Unknown"}</span>
           </div>
         ) : (
-          <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 10px" }}>
+          <p className="cockpit-muted">
             No reviewer assigned
           </p>
         )}
@@ -135,40 +121,27 @@ export default function ApplicantCockpitSidebar({
       </section>
 
       {/* Interviewers */}
-      <section id="sidebar-interviewers" className="card" style={{ padding: "16px 20px" }}>
-        <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700 }}>Interviewers</h3>
+      <section id="sidebar-interviewers" className="cockpit-sidebar-card">
+        <h3>Interviewers</h3>
         {(["LEAD", "SECOND"] as const).map((role) => {
           const assigned = application.interviewerAssignments.find((a) => a.role === role);
           return (
-            <div key={role} style={{ marginBottom: 12 }}>
-              <p style={{ margin: "0 0 4px", fontSize: 12, color: "var(--muted)", fontWeight: 600 }}>
+            <div key={role} className="cockpit-assignment-row">
+              <p className="cockpit-assignment-label">
                 {role}
               </p>
               {assigned ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: "50%",
-                      background: role === "LEAD" ? "#6b21c8" : "#a855f7",
-                      color: "#fff",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 12,
-                      fontWeight: 700,
-                    }}
-                  >
+                <div className="cockpit-person-row cockpit-person-row-small">
+                  <div className={`cockpit-person-avatar${role === "SECOND" ? " is-secondary" : ""}`}>
                     {(assigned.interviewer.name ?? "?")[0]?.toUpperCase()}
                   </div>
-                  <span style={{ fontSize: 13 }}>{assigned.interviewer.name ?? assigned.interviewer.email}</span>
+                  <span>{assigned.interviewer.name ?? assigned.interviewer.email}</span>
                 </div>
               ) : (
-                <p style={{ fontSize: 12, color: "var(--muted)", margin: 0 }}>Not assigned</p>
+                <p className="cockpit-muted cockpit-muted-small">Not assigned</p>
               )}
               {canAssignInterviewers && (
-                <div style={{ marginTop: 6 }}>
+                <div className="cockpit-assignment-control">
                   <InterviewerAssignPicker
                     applicationId={application.id}
                     role={role}
@@ -193,14 +166,13 @@ export default function ApplicantCockpitSidebar({
       </section>
 
       {/* Timeline preview */}
-      <section className="card" style={{ padding: "16px 20px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>Recent Activity</h3>
+      <section className="cockpit-sidebar-card">
+        <div className="cockpit-sidebar-card-header">
+          <h3>Recent Activity</h3>
           {application.timeline.length > 5 && (
             <button
               type="button"
-              className="button outline"
-              style={{ fontSize: 12, padding: "3px 10px" }}
+              className="button outline cockpit-tiny-button"
               onClick={() => setShowAllTimeline(!showAllTimeline)}
             >
               {showAllTimeline ? "Show less" : `See all (${application.timeline.length})`}

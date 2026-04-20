@@ -8,7 +8,7 @@ export default function MaterialsMissingChip({ materialsReadyAt }: MaterialsMiss
   if (materialsReadyAt) return null;
   return (
     <span
-      className="pill pill-attention pill-small"
+      className="pill pill-attention pill-small applicant-materials-chip"
       aria-label="Required materials not yet uploaded"
     >
       Materials missing
