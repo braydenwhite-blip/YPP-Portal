@@ -81,10 +81,10 @@ const DOMAIN_STYLES: Record<"HIRING" | "READINESS", { background: string; color:
 };
 
 const SURFACE_CARD: CSSProperties = {
-  border: "1px solid rgba(148, 163, 184, 0.18)",
-  borderRadius: 24,
-  background: "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.96) 100%)",
-  boxShadow: "0 18px 50px rgba(15, 23, 42, 0.08)",
+  border: "1px solid rgba(99, 102, 241, 0.07)",
+  borderRadius: "var(--radius-xl)",
+  background: "var(--surface)",
+  boxShadow: "0 1px 3px rgba(15, 23, 42, 0.06)",
 };
 
 type FeedbackState =
@@ -95,6 +95,7 @@ type FeedbackState =
 type Viewer = InterviewSchedulePageData["viewer"];
 type WorkflowStatusFilter = "ALL" | InterviewWorkflowView["status"];
 type PanelMode = "queue" | "calendars";
+type QueueSectionKey = "attention" | "booked" | "closed";
 
 function formatLocalDateTime(value: string) {
   return new Date(value).toLocaleString(undefined, {
@@ -228,11 +229,10 @@ function SummaryTile({
   return (
     <div
       style={{
-        borderRadius: 22,
+        borderRadius: "var(--radius-md)",
         padding: "1rem 1.1rem",
-        background: "rgba(255,255,255,0.9)",
+        background: "var(--surface)",
         border: `1px solid ${accent}22`,
-        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.75)",
       }}
     >
       <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: accent }}>
@@ -241,6 +241,50 @@ function SummaryTile({
       <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.1, marginTop: 6 }}>{value}</div>
       <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 4 }}>{label}</div>
     </div>
+  );
+}
+
+function FocusButton({
+  label,
+  detail,
+  count,
+  active,
+  accent,
+  onClick,
+}: {
+  label: string;
+  detail: string;
+  count: number;
+  active?: boolean;
+  accent: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        minHeight: 84,
+        borderRadius: "var(--radius-md)",
+        border: active ? `1px solid ${accent}` : "1px solid rgba(148,163,184,0.18)",
+        background: active ? `${accent}14` : "rgba(255,255,255,0.86)",
+        color: "var(--text)",
+        cursor: "pointer",
+        padding: "0.9rem 1rem",
+        textAlign: "left",
+        display: "grid",
+        gap: 5,
+        boxShadow: active ? `0 14px 32px ${accent}1f` : "inset 0 1px 0 rgba(255,255,255,0.75)",
+      }}
+    >
+      <span style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+        <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: accent }}>
+          {label}
+        </span>
+        <span style={{ fontSize: 22, fontWeight: 900, lineHeight: 1 }}>{count}</span>
+      </span>
+      <span style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.35 }}>{detail}</span>
+    </button>
   );
 }
 
@@ -273,6 +317,138 @@ function Pill({
     >
       {label}
     </span>
+  );
+}
+
+function EmptyPanel({ title, body }: { title: string; body: string }) {
+  return (
+    <div
+      style={{
+        ...SURFACE_CARD,
+        padding: "1.2rem",
+        borderStyle: "dashed",
+        boxShadow: "none",
+        color: "var(--muted)",
+      }}
+    >
+      <div style={{ fontWeight: 800, color: "var(--text)", marginBottom: 6 }}>{title}</div>
+      <div style={{ fontSize: 13, lineHeight: 1.5 }}>{body}</div>
+    </div>
+  );
+}
+
+function WorkflowMiniCard({
+  workflow,
+  isSelected,
+  onSelect,
+}: {
+  workflow: InterviewWorkflowView;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  const statusStyle = STATUS_STYLES[workflow.status];
+  const domainStyle = DOMAIN_STYLES[workflow.domain];
+  const accent = toneForWorkflow(workflow);
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      style={{
+        width: "100%",
+        minHeight: 132,
+        textAlign: "left",
+        borderRadius: "var(--radius-md)",
+        border: isSelected ? `1px solid ${accent}80` : "1px solid rgba(148,163,184,0.16)",
+        background: isSelected
+          ? `linear-gradient(180deg, ${accent}12 0%, rgba(255,255,255,0.98) 70%)`
+          : "rgba(255,255,255,0.92)",
+        boxShadow: isSelected ? `0 14px 34px ${accent}1a` : "none",
+        padding: "0.95rem",
+        cursor: "pointer",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      <span
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: "0 auto 0 0",
+          width: 5,
+          background: accent,
+          opacity: isSelected ? 0.95 : 0.45,
+        }}
+      />
+      <span style={{ display: "grid", gap: 9, paddingLeft: 6 }}>
+        <span style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
+          <span style={{ minWidth: 0 }}>
+            <span style={{ display: "block", fontWeight: 800, fontSize: 15, lineHeight: 1.25 }}>
+              {workflow.title}
+            </span>
+            <span style={{ display: "block", fontSize: 12, color: "var(--muted)", marginTop: 3 }}>
+              {workflow.intervieweeName} · {workflow.chapterName}
+            </span>
+          </span>
+          <span style={{ fontSize: 11, fontWeight: 800, color: accent, flexShrink: 0 }}>
+            {formatHourAge(workflow.ageHours)}
+          </span>
+        </span>
+        <span style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <Pill label={workflow.domain === "HIRING" ? "Hiring" : "Readiness"} background={domainStyle.background} color={domainStyle.color} />
+          <Pill label={statusStyle.label} background={statusStyle.background} color={statusStyle.color} border={statusStyle.border} />
+        </span>
+        <span style={{ display: "grid", gap: 3, fontSize: 12, color: "var(--muted)" }}>
+          <span>
+            {workflow.scheduledAt ? formatCompactDateTime(workflow.scheduledAt) : `${workflow.openSlots.length} open slot${workflow.openSlots.length === 1 ? "" : "s"}`}
+          </span>
+          <span>
+            {workflow.interviewerName ? `With ${workflow.interviewerName}` : workflow.statusLabel}
+          </span>
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function QueueSection({
+  title,
+  subtitle,
+  workflows,
+  selectedWorkflowId,
+  onSelect,
+}: {
+  title: string;
+  subtitle: string;
+  workflows: InterviewWorkflowView[];
+  selectedWorkflowId: string | null;
+  onSelect: (workflowId: string) => void;
+}) {
+  return (
+    <section style={{ display: "grid", gap: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline" }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: 18 }}>{title}</h2>
+          <div style={{ color: "var(--muted)", fontSize: 12, marginTop: 3 }}>{subtitle}</div>
+        </div>
+        <div style={{ fontSize: 12, fontWeight: 800, color: "var(--muted)" }}>{workflows.length}</div>
+      </div>
+
+      {workflows.length === 0 ? (
+        <EmptyPanel title="Nothing here" body="This lane is clear for the current filters." />
+      ) : (
+        <div style={{ display: "grid", gap: 10 }}>
+          {workflows.map((workflow) => (
+            <WorkflowMiniCard
+              key={workflow.id}
+              workflow={workflow}
+              isSelected={workflow.id === selectedWorkflowId}
+              onSelect={() => onSelect(workflow.id)}
+            />
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -761,7 +937,7 @@ function WorkflowCard({
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18, marginLeft: 8 }}>
         <Link href={workflow.detailHref} className="button small outline" style={{ textDecoration: "none" }}>
-          Open source record
+          {workflow.domain === "HIRING" ? "Open cockpit" : "Open record"}
         </Link>
         {workflow.conversationId ? (
           <Link href={`/messages/${workflow.conversationId}`} className="button small outline" style={{ textDecoration: "none" }}>
@@ -1273,6 +1449,9 @@ export default function InterviewScheduleClient({
       data.interviewerOptions[0]?.id ??
       null
   );
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(
+    searchParams.get("workflow") ?? data.workflows[0]?.id ?? null
+  );
   const deferredSearch = useDeferredValue(search.trim());
 
   async function runAction(actionId: string, successMessage: string, task: () => Promise<void>) {
@@ -1319,6 +1498,26 @@ export default function InterviewScheduleClient({
   const closedWorkflows = filteredWorkflows.filter((workflow) =>
     ["COMPLETED", "CANCELLED"].includes(workflow.status)
   );
+  const queueWorkflows = [...attentionWorkflows, ...bookedWorkflows, ...closedWorkflows];
+  const selectedWorkflow =
+    queueWorkflows.find((workflow) => workflow.id === selectedWorkflowId) ??
+    queueWorkflows[0] ??
+    null;
+  const selectedQueueSection: QueueSectionKey =
+    selectedWorkflow && ["COMPLETED", "CANCELLED"].includes(selectedWorkflow.status)
+      ? "closed"
+      : selectedWorkflow?.status === "BOOKED"
+      ? "booked"
+      : "attention";
+  const bookedSoonCount = filteredWorkflows.filter((workflow) => isUpcoming(workflow.scheduledAt, 7)).length;
+  const visibleStaleCount = filteredWorkflows.filter((workflow) => workflow.status === "STALE").length;
+  const visibleAtRiskCount = filteredWorkflows.filter((workflow) => workflow.isAtRisk).length;
+  const hasActiveFilters =
+    Boolean(search.trim()) ||
+    domainFilter !== "ALL" ||
+    statusFilter !== "ALL" ||
+    chapterFilter !== "ALL" ||
+    interviewerFilter !== "ALL";
 
   const filteredCalendars = data.calendars.filter((calendar) => {
     if (chapterFilter !== "ALL" && calendar.chapterId !== chapterFilter) return false;
@@ -1337,27 +1536,43 @@ export default function InterviewScheduleClient({
     ? selectedInterviewerId
     : filteredCalendars[0]?.interviewerId ?? null;
 
+  function applyFocus(status: WorkflowStatusFilter) {
+    setPanel("queue");
+    setStatusFilter(status);
+  }
+
+  function clearFilters() {
+    setSearch("");
+    setDomainFilter("ALL");
+    setStatusFilter("ALL");
+    setChapterFilter("ALL");
+    setInterviewerFilter("ALL");
+  }
+
   return (
     <main className="main-content">
-      <div
-        style={{
-          ...SURFACE_CARD,
-          padding: "1.5rem",
-          background:
-            "radial-gradient(circle at top left, rgba(191,219,254,0.9) 0%, rgba(255,255,255,0.96) 38%), linear-gradient(135deg, rgba(14,165,233,0.12) 0%, rgba(251,191,36,0.1) 100%)",
-          marginBottom: 20,
-        }}
-      >
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 24px 120px" }}>
+        <div
+          style={{
+            ...SURFACE_CARD,
+            padding: "20px 24px",
+            marginBottom: 24,
+          }}
+        >
         <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
           <div style={{ maxWidth: 720 }}>
-            <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: "#0369a1" }}>
-              Interview Scheduling OS
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <span className="pill pill-purple" style={{ fontSize: 12 }}>Interview Scheduling OS</span>
+              <span className="pill pill-info" style={{ fontSize: 12 }}>{data.summary.total} active workflows</span>
+              {data.summary.atRisk > 0 ? (
+                <span className="pill pill-overdue" style={{ fontSize: 12 }}>{data.summary.atRisk} past SLA</span>
+              ) : null}
             </div>
-            <h1 style={{ margin: "10px 0 0", fontSize: "clamp(2rem, 4vw, 3rem)", lineHeight: 1.02 }}>
-              Shared calendar command center for chapter hiring and instructor readiness
+            <h1 style={{ margin: "10px 0 0", fontSize: 22, lineHeight: 1.25, fontWeight: 700 }}>
+              Shared calendar command center
             </h1>
-            <p style={{ margin: "12px 0 0", fontSize: 15, color: "#475569", maxWidth: 640 }}>
-              Live interviewer calendars, shared booking, interview threads, reminders, and the chapter SLA queue now live in one workspace.
+            <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--muted)", maxWidth: 640 }}>
+              Manage bookings from the review flow: queue the next action, confirm times, and jump back to the applicant record.
             </p>
           </div>
 
@@ -1398,11 +1613,74 @@ export default function InterviewScheduleClient({
           <SummaryTile eyebrow="Reschedule" value={data.summary.rescheduleRequested} label="workflows needing a replacement time" accent="#db2777" />
           <SummaryTile eyebrow="At risk" value={data.summary.atRisk} label="items beyond the 24 hour scheduling SLA" accent="#dc2626" />
         </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+            gap: 10,
+            marginTop: 14,
+          }}
+        >
+          <FocusButton
+            label="All active"
+            detail="Show the full queue"
+            count={filteredWorkflows.length}
+            active={statusFilter === "ALL"}
+            accent="#0f766e"
+            onClick={() => applyFocus("ALL")}
+          />
+          <FocusButton
+            label="Need time"
+            detail="No booking yet"
+            count={filteredWorkflows.filter((workflow) => workflow.status === "UNSCHEDULED").length}
+            active={statusFilter === "UNSCHEDULED"}
+            accent="#d97706"
+            onClick={() => applyFocus("UNSCHEDULED")}
+          />
+          <FocusButton
+            label="Reschedule"
+            detail="Replacement needed"
+            count={filteredWorkflows.filter((workflow) => workflow.status === "RESCHEDULE_REQUESTED").length}
+            active={statusFilter === "RESCHEDULE_REQUESTED"}
+            accent="#db2777"
+            onClick={() => applyFocus("RESCHEDULE_REQUESTED")}
+          />
+          <FocusButton
+            label="At risk"
+            detail="Past the SLA"
+            count={visibleStaleCount}
+            active={statusFilter === "STALE"}
+            accent="#dc2626"
+            onClick={() => applyFocus("STALE")}
+          />
+          <FocusButton
+            label="Booked soon"
+            detail="Next 7 days"
+            count={bookedSoonCount}
+            active={statusFilter === "BOOKED"}
+            accent="#2563eb"
+            onClick={() => applyFocus("BOOKED")}
+          />
+        </div>
       </div>
 
       {feedback ? <Banner feedback={feedback} onDismiss={() => setFeedback(null)} /> : null}
 
       <div style={{ ...SURFACE_CARD, padding: "1rem", marginBottom: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 12 }}>
+          <div>
+            <div style={{ fontWeight: 800 }}>Find the right interview</div>
+            <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 3 }}>
+              Filter by person, chapter, interviewer, workflow type, or status.
+            </div>
+          </div>
+          {hasActiveFilters ? (
+            <button type="button" className="button small outline" onClick={clearFilters}>
+              Reset filters
+            </button>
+          ) : null}
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
           <label className="form-row">
             Search
@@ -1458,253 +1736,210 @@ export default function InterviewScheduleClient({
       </div>
 
       {panel === "queue" ? (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20, alignItems: "start" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div>
-                <h2 style={{ margin: 0 }}>Needs attention</h2>
-                <div style={{ color: "var(--muted)", fontSize: 13, marginTop: 4 }}>
-                  Unscheduled, awaiting response, reschedule, and at-risk interview work.
-                </div>
-              </div>
-              {attentionWorkflows.length === 0 ? (
-                <div style={{ ...SURFACE_CARD, padding: "1.2rem", color: "var(--muted)" }}>
-                  Nothing in the attention queue for this filter.
-                </div>
-              ) : (
-                attentionWorkflows.map((workflow) => (
-                  <WorkflowCard
-                    key={workflow.id}
-                    viewer={data.viewer}
-                    workflow={workflow}
-                    isPending={isPending}
-                    activeActionId={activeActionId}
-                    onBook={(selectedWorkflow, slot, note) =>
-                      runAction(`book:${selectedWorkflow.id}`, "Interview booked successfully.", async () => {
-                        const formData = new FormData();
-                        formData.set("domain", selectedWorkflow.domain);
-                        formData.set("workflowId", selectedWorkflow.workflowId);
-                        formData.set("interviewerId", slot.interviewerId);
-                        formData.set("scheduledAt", slot.startsAt);
-                        formData.set("duration", String(slot.duration));
-                        if (note.trim()) formData.set("note", note.trim());
-                        await bookInterviewWorkflowSlot(formData);
-                      })
-                    }
-                    onConfirmReschedule={(selectedWorkflow, slot, note) =>
-                      runAction(`reschedule:${selectedWorkflow.id}`, "Interview reschedule confirmed.", async () => {
-                        const formData = new FormData();
-                        formData.set("requestId", selectedWorkflow.activeRequestId!);
-                        formData.set("interviewerId", slot.interviewerId);
-                        formData.set("scheduledAt", slot.startsAt);
-                        formData.set("duration", String(slot.duration));
-                        if (note.trim()) formData.set("note", note.trim());
-                        await confirmInterviewReschedule(formData);
-                      })
-                    }
-                    onRequestReschedule={(requestId, note) =>
-                      runAction(`reschedule:${workflow.id}`, "Reschedule request sent to the interview thread.", async () => {
-                        const formData = new FormData();
-                        formData.set("requestId", requestId);
-                        if (note.trim()) formData.set("note", note.trim());
-                        await requestInterviewReschedule(formData);
-                      })
-                    }
-                    onCancel={(requestId, note) =>
-                      runAction(`cancel:${workflow.id}`, "Interview booking cancelled.", async () => {
-                        const formData = new FormData();
-                        formData.set("requestId", requestId);
-                        if (note.trim()) formData.set("note", note.trim());
-                        await cancelInterviewWorkflow(formData);
-                      })
-                    }
-                    onSendMessage={(conversationId, content, actionId) =>
-                      runAction(actionId, "Message sent to the interview thread.", async () => {
-                        const formData = new FormData();
-                        formData.set("conversationId", conversationId);
-                        formData.set("content", content);
-                        await sendMessage(formData);
-                      })
-                    }
-                  />
-                ))
-              )}
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div>
-                <h2 style={{ margin: 0 }}>Booked soon</h2>
-                <div style={{ color: "var(--muted)", fontSize: 13, marginTop: 4 }}>
-                  Confirmed interview bookings and shared thread follow-up.
-                </div>
-              </div>
-              {bookedWorkflows.length === 0 ? (
-                <div style={{ ...SURFACE_CARD, padding: "1.2rem", color: "var(--muted)" }}>
-                  No booked interviews in this filter.
-                </div>
-              ) : (
-                bookedWorkflows.map((workflow) => (
-                  <WorkflowCard
-                    key={workflow.id}
-                    viewer={data.viewer}
-                    workflow={workflow}
-                    isPending={isPending}
-                    activeActionId={activeActionId}
-                    onBook={() => void 0}
-                    onConfirmReschedule={() => void 0}
-                    onRequestReschedule={(requestId, note) =>
-                      runAction(`reschedule:${workflow.id}`, "Reschedule request sent to the interview thread.", async () => {
-                        const formData = new FormData();
-                        formData.set("requestId", requestId);
-                        if (note.trim()) formData.set("note", note.trim());
-                        await requestInterviewReschedule(formData);
-                      })
-                    }
-                    onCancel={(requestId, note) =>
-                      runAction(`cancel:${workflow.id}`, "Interview booking cancelled.", async () => {
-                        const formData = new FormData();
-                        formData.set("requestId", requestId);
-                        if (note.trim()) formData.set("note", note.trim());
-                        await cancelInterviewWorkflow(formData);
-                      })
-                    }
-                    onSendMessage={(conversationId, content, actionId) =>
-                      runAction(actionId, "Message sent to the interview thread.", async () => {
-                        const formData = new FormData();
-                        formData.set("conversationId", conversationId);
-                        formData.set("content", content);
-                        await sendMessage(formData);
-                      })
-                    }
-                  />
-                ))
-              )}
-            </div>
-
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 360px), 1fr))", gap: 20, alignItems: "start" }}>
+          <aside style={{ position: "sticky", top: 20, display: "grid", gap: 18 }}>
+            <QueueSection
+              title="Needs attention"
+              subtitle="Unscheduled, awaiting response, reschedule, and at-risk work."
+              workflows={attentionWorkflows}
+              selectedWorkflowId={selectedWorkflow?.id ?? null}
+              onSelect={setSelectedWorkflowId}
+            />
+            <QueueSection
+              title="Booked soon"
+              subtitle="Confirmed interviews with follow-up actions."
+              workflows={bookedWorkflows}
+              selectedWorkflowId={selectedWorkflow?.id ?? null}
+              onSelect={setSelectedWorkflowId}
+            />
             {closedWorkflows.length > 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                <div>
-                  <h2 style={{ margin: 0 }}>Closed out</h2>
-                  <div style={{ color: "var(--muted)", fontSize: 13, marginTop: 4 }}>
-                    Completed and cancelled interview records.
-                  </div>
-                </div>
-                {closedWorkflows.map((workflow) => (
-                  <WorkflowCard
-                    key={workflow.id}
-                    viewer={data.viewer}
-                    workflow={workflow}
-                    isPending={isPending}
-                    activeActionId={activeActionId}
-                    onBook={() => void 0}
-                    onConfirmReschedule={() => void 0}
-                    onRequestReschedule={() => void 0}
-                    onCancel={() => void 0}
-                    onSendMessage={(conversationId, content, actionId) =>
-                      runAction(actionId, "Message sent to the interview thread.", async () => {
-                        const formData = new FormData();
-                        formData.set("conversationId", conversationId);
-                        formData.set("content", content);
-                        await sendMessage(formData);
-                      })
-                    }
-                  />
-                ))}
-              </div>
+              <QueueSection
+                title="Closed out"
+                subtitle="Completed and cancelled interview records."
+                workflows={closedWorkflows}
+                selectedWorkflowId={selectedWorkflow?.id ?? null}
+                onSelect={setSelectedWorkflowId}
+              />
             ) : null}
-          </div>
+          </aside>
 
-          <div style={{ position: "sticky", top: 20, display: "flex", flexDirection: "column", gap: 18 }}>
-            <div style={{ ...SURFACE_CARD, padding: "1.2rem" }}>
-              <div style={{ fontWeight: 700, fontSize: 16 }}>Calendar radar</div>
-              <div style={{ color: "var(--muted)", fontSize: 13, marginTop: 6 }}>
-                Interviewer calendars stay visible beside the queue so booking decisions happen in context.
-              </div>
-              <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
-                {filteredCalendars.slice(0, 4).map((calendar) => (
-                  <button
-                    key={calendar.interviewerId}
-                    type="button"
-                    onClick={() => {
-                      setSelectedInterviewerId(calendar.interviewerId);
-                      setPanel("calendars");
-                    }}
-                    style={{
-                      textAlign: "left",
-                      borderRadius: 18,
-                      padding: "0.95rem",
-                      border: "1px solid rgba(148,163,184,0.16)",
-                      background: "rgba(255,255,255,0.96)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                      <div>
-                        <div style={{ fontWeight: 700 }}>{calendar.interviewerName}</div>
-                        <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                          {calendar.chapterName ?? "Global"} · {calendar.interviewerRole}
-                        </div>
-                      </div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: "#047857" }}>
-                        {calendar.nextOpenSlots.length} open
-                      </div>
+          <section style={{ display: "grid", gap: 18, minWidth: 0 }}>
+            {selectedWorkflow ? (
+              <>
+                <div
+                  style={{
+                    ...SURFACE_CARD,
+                    padding: "1rem 1.1rem",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 12,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "#475569" }}>
+                      Selected interview
                     </div>
-                    {calendar.nextOpenSlots[0] ? (
-                      <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 10 }}>
-                        Next: {formatCompactDateTime(calendar.nextOpenSlots[0].startsAt)}
-                      </div>
+                    <div style={{ fontWeight: 800, fontSize: 18, marginTop: 4 }}>
+                      {selectedQueueSection === "attention"
+                        ? "Resolve the next scheduling step"
+                        : selectedQueueSection === "booked"
+                        ? "Keep the booking ready"
+                        : "Review the finished record"}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <Link href={selectedWorkflow.detailHref} className="button small outline" style={{ textDecoration: "none" }}>
+                      {selectedWorkflow.domain === "HIRING" ? "Open cockpit" : "Open record"}
+                    </Link>
+                    {selectedWorkflow.conversationId ? (
+                      <Link href={`/messages/${selectedWorkflow.conversationId}`} className="button small outline" style={{ textDecoration: "none" }}>
+                        Open thread
+                      </Link>
                     ) : null}
-                  </button>
-                ))}
-              </div>
-              <button type="button" className="button small outline" style={{ marginTop: 14 }} onClick={() => setPanel("calendars")}>
-                Open calendar studio
-              </button>
-            </div>
+                  </div>
+                </div>
 
-            <div style={{ ...SURFACE_CARD, padding: "1.2rem" }}>
-              <div style={{ fontWeight: 700, fontSize: 16 }}>Ops pulse</div>
-              <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
-                <div
-                  style={{
-                    borderRadius: 16,
-                    padding: "0.85rem 0.9rem",
-                    background: "rgba(254,242,242,0.9)",
-                    border: "1px solid rgba(239,68,68,0.16)",
-                  }}
-                >
-                  <div style={{ fontSize: 12, color: "var(--muted)" }}>At-risk now</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, marginTop: 2 }}>{attentionWorkflows.filter((workflow) => workflow.isAtRisk).length}</div>
-                </div>
-                <div
-                  style={{
-                    borderRadius: 16,
-                    padding: "0.85rem 0.9rem",
-                    background: "rgba(239,246,255,0.9)",
-                    border: "1px solid rgba(59,130,246,0.16)",
-                  }}
-                >
-                  <div style={{ fontSize: 12, color: "var(--muted)" }}>Booked in 7 days</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, marginTop: 2 }}>
-                    {bookedWorkflows.filter((workflow) => isUpcoming(workflow.scheduledAt, 7)).length}
+                <WorkflowCard
+                  viewer={data.viewer}
+                  workflow={selectedWorkflow}
+                  isPending={isPending}
+                  activeActionId={activeActionId}
+                  onBook={(workflow, slot, note) =>
+                    runAction(`book:${workflow.id}`, "Interview booked successfully.", async () => {
+                      const formData = new FormData();
+                      formData.set("domain", workflow.domain);
+                      formData.set("workflowId", workflow.workflowId);
+                      formData.set("interviewerId", slot.interviewerId);
+                      formData.set("scheduledAt", slot.startsAt);
+                      formData.set("duration", String(slot.duration));
+                      if (note.trim()) formData.set("note", note.trim());
+                      await bookInterviewWorkflowSlot(formData);
+                    })
+                  }
+                  onConfirmReschedule={(workflow, slot, note) =>
+                    runAction(`reschedule:${workflow.id}`, "Interview reschedule confirmed.", async () => {
+                      const formData = new FormData();
+                      formData.set("requestId", workflow.activeRequestId!);
+                      formData.set("interviewerId", slot.interviewerId);
+                      formData.set("scheduledAt", slot.startsAt);
+                      formData.set("duration", String(slot.duration));
+                      if (note.trim()) formData.set("note", note.trim());
+                      await confirmInterviewReschedule(formData);
+                    })
+                  }
+                  onRequestReschedule={(requestId, note) =>
+                    runAction(`reschedule:${selectedWorkflow.id}`, "Reschedule request sent to the interview thread.", async () => {
+                      const formData = new FormData();
+                      formData.set("requestId", requestId);
+                      if (note.trim()) formData.set("note", note.trim());
+                      await requestInterviewReschedule(formData);
+                    })
+                  }
+                  onCancel={(requestId, note) =>
+                    runAction(`cancel:${selectedWorkflow.id}`, "Interview booking cancelled.", async () => {
+                      const formData = new FormData();
+                      formData.set("requestId", requestId);
+                      if (note.trim()) formData.set("note", note.trim());
+                      await cancelInterviewWorkflow(formData);
+                    })
+                  }
+                  onSendMessage={(conversationId, content, actionId) =>
+                    runAction(actionId, "Message sent to the interview thread.", async () => {
+                      const formData = new FormData();
+                      formData.set("conversationId", conversationId);
+                      formData.set("content", content);
+                      await sendMessage(formData);
+                    })
+                  }
+                />
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 18 }}>
+                  <div style={{ ...SURFACE_CARD, padding: "1.2rem" }}>
+                    <div style={{ fontWeight: 800, fontSize: 16 }}>Calendar radar</div>
+                    <div style={{ color: "var(--muted)", fontSize: 13, marginTop: 6 }}>
+                      Jump to an interviewer calendar when a queue item needs more openings.
+                    </div>
+                    <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
+                      {filteredCalendars.slice(0, 3).map((calendar) => (
+                        <button
+                          key={calendar.interviewerId}
+                          type="button"
+                          onClick={() => {
+                            setSelectedInterviewerId(calendar.interviewerId);
+                            setPanel("calendars");
+                          }}
+                          style={{
+                            textAlign: "left",
+                            borderRadius: 16,
+                            padding: "0.85rem",
+                            border: "1px solid rgba(148,163,184,0.16)",
+                            background: "rgba(255,255,255,0.96)",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <span style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                            <span>
+                              <span style={{ display: "block", fontWeight: 800 }}>{calendar.interviewerName}</span>
+                              <span style={{ display: "block", fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                                {calendar.chapterName ?? "Global"} · {calendar.interviewerRole}
+                              </span>
+                            </span>
+                            <span style={{ fontSize: 12, fontWeight: 800, color: "#047857" }}>
+                              {calendar.nextOpenSlots.length} open
+                            </span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                    <button type="button" className="button small outline" style={{ marginTop: 14 }} onClick={() => setPanel("calendars")}>
+                      Open calendar studio
+                    </button>
+                  </div>
+
+                  <div style={{ ...SURFACE_CARD, padding: "1.2rem" }}>
+                    <div style={{ fontWeight: 800, fontSize: 16 }}>Ops pulse</div>
+                    <div style={{ display: "grid", gap: 12, marginTop: 14 }}>
+                      {[
+                        { label: "At risk", value: visibleAtRiskCount, detail: "visible queue items past SLA", color: "#dc2626" },
+                        { label: "Booked soon", value: bookedSoonCount, detail: "confirmed in the next 7 days", color: "#2563eb" },
+                        {
+                          label: "Threads",
+                          value: filteredWorkflows.filter((workflow) => workflow.conversationId).length,
+                          detail: "visible workflows with shared messages",
+                          color: "#7c3aed",
+                        },
+                      ].map((metric) => (
+                        <div
+                          key={metric.label}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: 14,
+                            alignItems: "center",
+                            paddingBottom: 12,
+                            borderBottom: "1px solid rgba(148,163,184,0.14)",
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 800, color: metric.color }}>{metric.label}</div>
+                            <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 3 }}>{metric.detail}</div>
+                          </div>
+                          <div style={{ fontSize: 26, fontWeight: 900, color: metric.color }}>{metric.value}</div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-                <div
-                  style={{
-                    borderRadius: 16,
-                    padding: "0.85rem 0.9rem",
-                    background: "rgba(253,242,248,0.9)",
-                    border: "1px solid rgba(244,114,182,0.16)",
-                  }}
-                >
-                  <div style={{ fontSize: 12, color: "var(--muted)" }}>Open threads</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, marginTop: 2 }}>
-                    {filteredWorkflows.filter((workflow) => workflow.conversationId).length}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+              </>
+            ) : (
+              <EmptyPanel
+                title="No interviews match these filters"
+                body="Reset the filters or switch to interviewer calendars to create more bookable time."
+              />
+            )}
+          </section>
         </div>
       ) : (
         <CalendarManager
@@ -1740,6 +1975,7 @@ export default function InterviewScheduleClient({
           }
         />
       )}
+      </div>
     </main>
   );
 }
