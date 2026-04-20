@@ -1449,8 +1449,30 @@ export default function InterviewScheduleClient({
       data.interviewerOptions[0]?.id ??
       null
   );
+  const requestedWorkflowId = searchParams.get("workflow");
+  const requestedApplicationId = searchParams.get("applicationId");
+  const openedFromInstructorApplicantCockpit =
+    searchParams.get("source") === "instructorApplicant";
+  const requestedWorkflow = requestedWorkflowId
+    ? data.workflows.find(
+        (workflow) =>
+          workflow.id === requestedWorkflowId ||
+          workflow.workflowId === requestedWorkflowId
+      ) ?? null
+    : null;
+  const requestedApplicantWorkflow = requestedApplicationId
+    ? data.workflows.find(
+        (workflow) =>
+          workflow.domain === "HIRING" &&
+          workflow.workflowId === requestedApplicationId
+      ) ?? null
+    : null;
+  const hasSchedulerDeepLink = Boolean(requestedWorkflowId || requestedApplicationId);
+  const schedulerDeepLinkResolved = Boolean(requestedWorkflow || requestedApplicantWorkflow);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(
-    searchParams.get("workflow") ?? data.workflows[0]?.id ?? null
+    requestedWorkflow?.id ??
+      requestedApplicantWorkflow?.id ??
+      (hasSchedulerDeepLink ? null : data.workflows[0]?.id ?? null)
   );
   const deferredSearch = useDeferredValue(search.trim());
 
@@ -1503,6 +1525,14 @@ export default function InterviewScheduleClient({
     queueWorkflows.find((workflow) => workflow.id === selectedWorkflowId) ??
     queueWorkflows[0] ??
     null;
+  const openedFromApplicantCockpit = Boolean(
+    requestedApplicationId &&
+      selectedWorkflow?.domain === "HIRING" &&
+      selectedWorkflow.workflowId === requestedApplicationId
+  );
+  const showInstructorApplicantHandoff = Boolean(
+    openedFromInstructorApplicantCockpit && !schedulerDeepLinkResolved
+  );
   const selectedQueueSection: QueueSectionKey =
     selectedWorkflow && ["COMPLETED", "CANCELLED"].includes(selectedWorkflow.status)
       ? "closed"
@@ -1564,6 +1594,12 @@ export default function InterviewScheduleClient({
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
               <span className="pill pill-purple" style={{ fontSize: 12 }}>Interview Scheduling OS</span>
               <span className="pill pill-info" style={{ fontSize: 12 }}>{data.summary.total} active workflows</span>
+              {openedFromApplicantCockpit ? (
+                <span className="pill pill-success" style={{ fontSize: 12 }}>Applicant cockpit linked</span>
+              ) : null}
+              {showInstructorApplicantHandoff ? (
+                <span className="pill pill-info" style={{ fontSize: 12 }}>Applicant handoff</span>
+              ) : null}
               {data.summary.atRisk > 0 ? (
                 <span className="pill pill-overdue" style={{ fontSize: 12 }}>{data.summary.atRisk} past SLA</span>
               ) : null}
@@ -1572,7 +1608,9 @@ export default function InterviewScheduleClient({
               Shared calendar command center
             </h1>
             <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--muted)", maxWidth: 640 }}>
-              Manage bookings from the review flow: queue the next action, confirm times, and jump back to the applicant record.
+              {showInstructorApplicantHandoff
+                ? "Use this calendar scheduler to find open interviewer time. The applicant-specific offer is sent from the cockpit slot panel after you choose the time."
+                : "This is the full scheduler behind the cockpit Post slot panel. When opened from an applicant cockpit, that applicant is selected here so posted slots, calendar options, booking notes, and the interview thread stay together."}
             </p>
           </div>
 
@@ -1598,6 +1636,27 @@ export default function InterviewScheduleClient({
             ) : null}
           </div>
         </div>
+        {showInstructorApplicantHandoff ? (
+          <div
+            style={{
+              marginTop: 16,
+              padding: "12px 14px",
+              border: "1px solid rgba(37, 99, 235, 0.18)",
+              borderRadius: 8,
+              background: "rgba(239, 246, 255, 0.86)",
+              color: "var(--muted)",
+              fontSize: 13,
+              lineHeight: 1.5,
+            }}
+          >
+            <strong style={{ color: "var(--text)" }}>
+              Opened from an instructor applicant cockpit.
+            </strong>{" "}
+            This scheduler manages shared interviewer calendars. Pick an
+            interviewer-backed time here, then return to the cockpit slot panel
+            to send the official applicant offer.
+          </div>
+        ) : null}
 
         <div
           style={{

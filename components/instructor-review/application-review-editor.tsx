@@ -225,7 +225,7 @@ export default function ApplicationReviewEditor({
         <div>
           <h2>Category Evaluations</h2>
           <p>
-            Rate each category, then add a short internal note only if it helps future reviewers scan faster.
+            Rate each category and add a short internal note so future reviewers can scan the reasoning quickly.
           </p>
         </div>
 
@@ -265,16 +265,18 @@ export default function ApplicationReviewEditor({
               </div>
 
               <label className="form-row" style={{ margin: 0 }}>
-                Internal note
+                Internal note (required)
                 <textarea
                   className="input"
                   rows={2}
                   value={current.notes}
                   disabled={!canEdit}
+                  required={canEdit}
+                  aria-required={canEdit}
                   onChange={(event) =>
                     updateCategoryNotes(category.key, event.target.value)
                   }
-                  placeholder="Optional note for reviewers..."
+                  placeholder="Required note for reviewers..."
                 />
               </label>
             </div>
@@ -422,6 +424,7 @@ export default function ApplicationReviewEditor({
           name="intent"
           value="save"
           disabled={!canEdit}
+          formNoValidate
         >
           Save Draft
         </button>

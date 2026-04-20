@@ -44,7 +44,8 @@ async function getApplicationContext(applicationId: string): Promise<Application
 
 /**
  * Recompute and persist `materialsReadyAt` on an InstructorApplication.
- * Set when both COURSE_OUTLINE and FIRST_CLASS_PLAN have a non-superseded document.
+ * Set when the applicant has a first-class plan plus either a course outline
+ * document or written structure notes on the first-class plan.
  * Must be called inside a Prisma transaction (pass `tx`) or standalone.
  */
 async function recomputeMaterialsReadyAt(
@@ -64,10 +65,22 @@ async function recomputeMaterialsReadyAt(
       kind: { in: requiredKinds },
       supersededAt: null,
     },
-    select: { kind: true },
+    select: { kind: true, note: true },
   });
 
-  const hasAll = requiredKinds.every((k) => presentKinds.some((d) => d.kind === k));
+  const hasFirstClassPlan = presentKinds.some(
+    (doc) => doc.kind === ApplicantDocumentKind.FIRST_CLASS_PLAN
+  );
+  const hasCourseOutline = presentKinds.some(
+    (doc) => doc.kind === ApplicantDocumentKind.COURSE_OUTLINE
+  );
+  const hasStructureNotes = presentKinds.some(
+    (doc) =>
+      doc.kind === ApplicantDocumentKind.FIRST_CLASS_PLAN &&
+      typeof doc.note === "string" &&
+      doc.note.trim().length > 0
+  );
+  const hasAll = hasFirstClassPlan && (hasCourseOutline || hasStructureNotes);
 
   await (db as typeof prisma).instructorApplication.update({
     where: { id: applicationId },
@@ -160,7 +173,7 @@ export async function uploadApplicantDocument(
       );
     });
 
-    // Emit telemetry when both required docs are now present (materialsReadyAt just stamped).
+    // Emit telemetry when the required prep materials are now present.
     const refreshed = await prisma.instructorApplication.findUnique({
       where: { id: applicationId },
       select: { materialsReadyAt: true, status: true, applicant: { select: { chapterId: true } } },
@@ -175,6 +188,7 @@ export async function uploadApplicantDocument(
     }
 
     revalidatePath(`/applications/instructor/${applicationId}`);
+    revalidatePath("/application-status");
     revalidatePath("/admin/instructor-applicants");
     return { success: true };
   } catch (error) {
@@ -232,6 +246,7 @@ export async function deleteApplicantDocument(
     });
 
     revalidatePath(`/applications/instructor/${doc.applicationId}`);
+    revalidatePath("/application-status");
     revalidatePath("/admin/instructor-applicants");
     return { success: true };
   } catch (error) {

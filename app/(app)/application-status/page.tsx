@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma";
 import {
   InstructorApplicationStatus,
   ChapterPresidentApplicationStatus,
-  TrainingModuleType,
 } from "@prisma/client";
 import InfoResponseForm from "./info-response-form";
 import CPInfoResponseForm from "./cp-info-response-form";
@@ -12,6 +11,7 @@ import AvailabilityForm from "./availability-form";
 import SlotPickerForm from "./slot-picker-form";
 import Link from "next/link";
 import InstructorApplicationMotivationResponse from "@/components/instructor-application-motivation-response";
+import InstructorCurriculumPrepPanel from "./instructor-curriculum-prep-panel";
 
 function instructorStatusLabel(status: InstructorApplicationStatus): string {
   switch (status) {
@@ -66,6 +66,10 @@ function currentStageIndex(status: string): number {
   return 3;
 }
 
+function canShowCurriculumPrep(status: InstructorApplicationStatus): boolean {
+  return status !== "APPROVED" && status !== "REJECTED" && status !== "WITHDRAWN";
+}
+
 function ProgressStepper({
   status,
   middleStageLabel = "Interview",
@@ -117,7 +121,7 @@ export default async function ApplicationStatusPage() {
   const primaryRole = session.user.primaryRole;
 
   // Fetch both application types
-  const [instructorApp, cpApp, capstoneModule] = await Promise.all([
+  const [instructorApp, cpApp] = await Promise.all([
     prisma.instructorApplication.findUnique({
       where: { applicantId: session.user.id },
       include: {
@@ -126,6 +130,18 @@ export default async function ApplicationStatusPage() {
         offeredSlots: {
           where: { confirmedAt: null },
           orderBy: { scheduledAt: "asc" },
+        },
+        documents: {
+          where: { supersededAt: null },
+          select: {
+            id: true,
+            kind: true,
+            fileUrl: true,
+            originalName: true,
+            note: true,
+            uploadedAt: true,
+          },
+          orderBy: { uploadedAt: "desc" },
         },
       },
     }),
@@ -136,10 +152,6 @@ export default async function ApplicationStatusPage() {
         chapter: { select: { name: true } },
         availabilityWindows: true,
       },
-    }),
-    prisma.trainingModule.findFirst({
-      where: { type: TrainingModuleType.CURRICULUM_REVIEW },
-      select: { id: true, title: true },
     }),
   ]);
 
@@ -176,38 +188,14 @@ export default async function ApplicationStatusPage() {
           <ProgressStepper status={instructorApp.status} middleStageLabel="Curriculum overview" />
 
           <div className="card" style={{ marginBottom: 16 }}>
-            {capstoneModule &&
-              ["PRE_APPROVED", "INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED", "APPROVED"].includes(instructorApp.status) ? (
-              <div
-                style={{
-                  marginBottom: 16,
-                  padding: "14px 16px",
-                  borderRadius: 12,
-                  background: "var(--surface-2)",
-                  border: "1px solid var(--border)",
-                }}
-              >
-                <h3 className="section-title" style={{ marginTop: 0 }}>Build Your First Curriculum</h3>
-                <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
-                  The goal is to leave the instructor pathway with a full curriculum in hand. Continue your studio journey in the Lesson Design Studio when you are ready to build the capstone.
-                </p>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <Link
-                    href={`/training/${capstoneModule.id}`}
-                    className="button"
-                    style={{ display: "inline-block", textDecoration: "none" }}
-                  >
-                    Open {capstoneModule.title}
-                  </Link>
-                  <Link
-                    href="/instructor/lesson-design-studio?entry=application-status"
-                    className="button secondary"
-                    style={{ display: "inline-block", textDecoration: "none" }}
-                  >
-                    Continue your studio journey
-                  </Link>
-                </div>
-              </div>
+            {canShowCurriculumPrep(instructorApp.status) ? (
+              <InstructorCurriculumPrepPanel
+                applicationId={instructorApp.id}
+                documents={instructorApp.documents.map((doc) => ({
+                  ...doc,
+                  uploadedAt: doc.uploadedAt.toISOString(),
+                }))}
+              />
             ) : null}
 
             {instructorApp.status === "SUBMITTED" && (
@@ -256,14 +244,11 @@ export default async function ApplicationStatusPage() {
               <>
                 <h3 className="section-title" style={{ color: "#6b21c8" }}>You&apos;ve Been Pre-Approved!</h3>
                 <p style={{ color: "var(--muted)", fontSize: 14 }}>
-                  Great news — you&apos;ve been pre-approved to move forward in the instructor pathway. You can now begin your instructor training in the portal.
+                  Great news — you&apos;ve been pre-approved to move forward in the instructor pathway. Instructor training will unlock after final approval.
                 </p>
                 <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 8 }}>
-                  Once you complete training, your reviewer will reach out with times for a <strong>curriculum overview/interview</strong> — a collaborative session where you&apos;ll walk through how you&apos;d teach using YPP materials.
+                  For now, use the curriculum prep area above to build a draft curriculum or upload a one-class plan and structure notes for your <strong>curriculum overview/interview</strong>.
                 </p>
-                <Link href="/instructor-training" className="button" style={{ display: "inline-block", textDecoration: "none", marginTop: 4 }}>
-                  Start Instructor Training
-                </Link>
               </>
             )}
             {instructorApp.status === "INTERVIEW_SCHEDULED" && (

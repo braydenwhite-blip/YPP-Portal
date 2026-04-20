@@ -11,6 +11,10 @@ import {
   getInstructorReadiness,
 } from "@/lib/instructor-readiness";
 import { withPrismaFallback } from "@/lib/prisma-guard";
+import {
+  getTrainingAccessRedirect,
+  hasApprovedInstructorTrainingAccess,
+} from "@/lib/training-access";
 
 function formatDateTime(value: Date | string | null | undefined) {
   if (!value) return "-";
@@ -100,12 +104,10 @@ export default async function InstructorTrainingPage() {
   }
 
   const roles = session.user.roles ?? [];
-  const isInstructorUser =
-    roles.includes("INSTRUCTOR") || roles.includes("ADMIN") || roles.includes("CHAPTER_PRESIDENT");
-  const canAccessTraining = isInstructorUser || roles.includes("APPLICANT");
+  const canAccessTraining = hasApprovedInstructorTrainingAccess(roles);
 
   if (!canAccessTraining) {
-    redirect("/");
+    redirect(getTrainingAccessRedirect(roles));
   }
 
   const isReviewer = roles.includes("ADMIN") || roles.includes("CHAPTER_PRESIDENT");

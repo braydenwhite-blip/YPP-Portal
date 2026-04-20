@@ -401,16 +401,18 @@ export default function InterviewReviewEditor({
               </div>
 
               <label className="form-row" style={{ margin: 0 }}>
-                Internal note
+                Internal note (required)
                 <textarea
                   className="input"
                   rows={2}
                   value={current.notes}
                   disabled={!canEdit}
+                  required={canEdit}
+                  aria-required={canEdit}
                   onChange={(event) =>
                     updateCategoryNotes(category.key, event.target.value)
                   }
-                  placeholder="Optional category-specific note..."
+                  placeholder="Required category-specific note..."
                 />
               </label>
             </div>
@@ -659,6 +661,7 @@ export default function InterviewReviewEditor({
           name="intent"
           value="save"
           disabled={!canEdit}
+          formNoValidate
         >
           Save Draft
         </button>

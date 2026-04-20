@@ -10,6 +10,7 @@ import {
 import type { CurriculumDraftSummaryRecord } from "@/lib/curriculum-draft-lifecycle";
 import {
   buildLessonDesignStudioHref,
+  getStudioExitDestination,
   type StudioEntryContext,
 } from "@/lib/lesson-design-studio";
 
@@ -82,6 +83,7 @@ export function DraftChooser({
     [drafts]
   );
   const noticeCopy = getNoticeCopy(notice);
+  const exitDestination = getStudioExitDestination(entryContext);
 
   function openDraft(draftId: string, nextNotice?: string | null) {
     router.push(
@@ -120,8 +122,8 @@ export function DraftChooser({
     <div className="cbs-studio lds-shell">
       <header className="topbar lds-chooser-topbar">
         <div className="lds-chooser-topbar-intro">
-          <Link href="/instructor-training" className="studio-back-link">
-            ← Instructor Training
+          <Link href={exitDestination.href} className="studio-back-link">
+            ← {exitDestination.label}
           </Link>
           <p className="badge lds-chooser-topbar-badge">Curriculum Builder</p>
           <h1 className="page-title">Lesson Design Studio</h1>

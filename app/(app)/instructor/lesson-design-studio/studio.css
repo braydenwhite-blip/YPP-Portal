@@ -9648,6 +9648,117 @@
   background: linear-gradient(165deg, rgba(99, 102, 241, 0.06) 0%, rgba(255, 255, 255, 0.95) 100%);
 }
 
+/* Final visual safety rails: keep the studio chrome from creating horizontal overflow. */
+.cbs-studio {
+  overflow-x: clip;
+}
+
+.cbs-studio .lds-studio-toolbar,
+.cbs-studio .lds-guided-workbench,
+.cbs-studio .lds-guided-main,
+.cbs-studio .lds-guided-editor,
+.cbs-studio .lds-guided-editor-stage,
+.cbs-studio .lds-step-layout,
+.cbs-studio .lds-step-main {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.cbs-studio .lds-studio-toolbar-main--simple {
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+}
+
+.cbs-studio .lds-toolbar-region-right,
+.cbs-studio .lds-toolbar-meta-cluster,
+.cbs-studio .lds-toolbar-actions,
+.cbs-studio .lds-guided-top-row-actions,
+.cbs-studio .lds-studio-page-nav,
+.cbs-studio .lds-studio-page-nav-list {
+  min-width: 0;
+}
+
+.cbs-studio .lds-toolbar-actions,
+.cbs-studio .lds-guided-top-row-actions {
+  flex-wrap: wrap;
+}
+
+.cbs-studio .button,
+.cbs-studio .lds-studio-page-nav-link {
+  text-align: center;
+  white-space: normal;
+  line-height: 1.2;
+}
+
+.cbs-studio .lds-studio-page-nav-link {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (max-width: 720px) {
+  .cbs-studio .lds-chooser-topbar {
+    gap: 16px;
+  }
+
+  .cbs-studio .lds-chooser-topbar-intro,
+  .cbs-studio .lds-chooser-topbar-actions {
+    flex-basis: auto;
+    width: 100%;
+  }
+
+  .cbs-studio .lds-chooser-topbar-hint {
+    text-align: left;
+  }
+
+  .cbs-studio .lds-studio-toolbar-main--simple {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .cbs-studio .lds-toolbar-region-right,
+  .cbs-studio .lds-toolbar-meta-cluster,
+  .cbs-studio .lds-toolbar-meta-row {
+    align-items: stretch;
+    justify-content: flex-start;
+    max-width: 100%;
+  }
+
+  .cbs-studio .lds-toolbar-meta-row--secondary .lds-updated-at {
+    text-align: left;
+  }
+
+  .cbs-studio .lds-guided-top-row .lds-studio-page-nav,
+  .cbs-studio .lds-guided-top-row-actions {
+    width: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .cbs-studio .lds-studio-toolbar {
+    position: static;
+    top: auto;
+  }
+
+  .cbs-studio .lds-guided-main--full .lds-guided-top-row {
+    padding: 8px;
+  }
+
+  .cbs-studio .lds-studio-page-nav-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .cbs-studio .lds-guided-top-row-actions .button {
+    flex: 1 1 12rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .cbs-studio .lds-studio-page-nav-list {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cbs-studio *,
   .cbs-studio *::before,

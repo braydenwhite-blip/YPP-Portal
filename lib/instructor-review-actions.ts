@@ -368,6 +368,9 @@ function validateSubmittedCategories(categories: ReviewCategoryPayload[]) {
     if (!match || !match.rating) {
       throw new Error(`A rating is required for ${category.label}.`);
     }
+    if (!match.notes) {
+      throw new Error(`An internal note is required for ${category.label}.`);
+    }
   }
 }
 

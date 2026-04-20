@@ -230,7 +230,7 @@ export const NAV_CATALOG: NavLink[] = [
       label: "Instructor Training",
       icon: "🎓",
       searchAliases: ["Training Academy", "Training"],
-      roles: INSTRUCTOR_AND_APPLICANT_ROLES,
+      roles: INSTRUCTOR_ROLES,
       dashboardDescription: "Complete all required academy modules to unlock offering approval.",
       dashboardPriority: 4,
       dashboardBadgeKey: "training_incomplete",

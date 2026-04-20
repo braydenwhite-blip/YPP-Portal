@@ -592,9 +592,6 @@ function instructorApplicationHref(status: InstructorApplicationStatus, applicat
   switch (status) {
     case "INTERVIEW_SCHEDULED":
     case "INTERVIEW_COMPLETED":
-    case "ON_HOLD":
-    case "APPROVED":
-    case "REJECTED":
       return `/applications/instructor/${applicationId}/interview`;
     default:
       return `/applications/instructor/${applicationId}`;

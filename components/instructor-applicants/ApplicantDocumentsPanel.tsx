@@ -11,6 +11,7 @@ type DocEntry = {
   kind: ApplicantDocumentKind;
   fileUrl: string;
   originalName: string | null;
+  note?: string | null;
   uploadedAt: Date | string;
   supersededAt: Date | string | null;
 };
@@ -31,8 +32,8 @@ interface ApplicantDocumentsPanelProps {
 
 const KIND_META: Record<DocKind, { label: string; hint: string }> = {
   COURSE_OUTLINE: {
-    label: "Course Outline",
-    hint: "PDF or Word doc - course overview, objectives, and session breakdown.",
+    label: "Course Outline / Structure Notes",
+    hint: "PDF, Word doc, or structure notes attached to the first class plan.",
   },
   FIRST_CLASS_PLAN: {
     label: "First Class Plan",
@@ -65,6 +66,16 @@ export default function ApplicantDocumentsPanel({
 
   function activeDoc(kind: DocKind): DocEntry | undefined {
     return localDocs.find((d) => d.kind === kind && !d.supersededAt);
+  }
+
+  function firstClassPlanWithStructureNotes(): DocEntry | undefined {
+    return localDocs.find(
+      (d) =>
+        d.kind === "FIRST_CLASS_PLAN" &&
+        !d.supersededAt &&
+        typeof d.note === "string" &&
+        d.note.trim().length > 0
+    );
   }
 
   function historyDocs(kind: DocKind): DocEntry[] {
@@ -165,21 +176,28 @@ export default function ApplicantDocumentsPanel({
       {KINDS.map((kind) => {
         const meta = KIND_META[kind];
         const active = activeDoc(kind);
+        const structureNotesDoc =
+          kind === "COURSE_OUTLINE" && !active
+            ? firstClassPlanWithStructureNotes()
+            : undefined;
+        const isComplete = Boolean(active || structureNotesDoc);
         const history = historyDocs(kind);
         const err = errors[kind];
 
         return (
           <div
             key={kind}
-            className={`cockpit-document-card${active ? " is-complete" : " is-missing"}`}
+            className={`cockpit-document-card${isComplete ? " is-complete" : " is-missing"}`}
           >
             <div className="cockpit-document-header">
               <div>
                 <div className="cockpit-document-title">{meta.label}</div>
                 <div className="cockpit-document-hint">{meta.hint}</div>
               </div>
-              {active ? (
-                <span className="pill pill-success pill-small">Uploaded</span>
+              {isComplete ? (
+                <span className="pill pill-success pill-small">
+                  {structureNotesDoc ? "Notes received" : "Uploaded"}
+                </span>
               ) : (
                 <span className="pill pill-attention pill-small">Missing</span>
               )}
@@ -214,6 +232,26 @@ export default function ApplicantDocumentsPanel({
                 </div>
               </div>
             )}
+
+            {structureNotesDoc ? (
+              <div className="cockpit-document-file">
+                <span>Structure notes were submitted with the first class plan.</span>
+              </div>
+            ) : null}
+
+            {(active?.note || structureNotesDoc?.note) ? (
+              <p
+                style={{
+                  margin: "8px 0 0",
+                  color: "var(--muted)",
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {active?.note ?? structureNotesDoc?.note}
+              </p>
+            ) : null}
 
             {canUpload && (
               <div className="cockpit-document-upload">

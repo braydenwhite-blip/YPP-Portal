@@ -147,6 +147,14 @@ export function serializeStudioEntryContext(value: StudioEntryContext) {
   }
 }
 
+export function getStudioExitDestination(entryContext: StudioEntryContext) {
+  if (entryContext === "APPLICATION_STATUS") {
+    return { href: "/application-status", label: "Application Status" };
+  }
+
+  return { href: "/instructor-training", label: "Instructor Training" };
+}
+
 export function getStudioEntryContextFromSearchParams(
   searchParams: SearchParamsRecord
 ) {
@@ -232,12 +240,21 @@ export function buildLessonDesignStudioHref(args?: {
 
 export function getCanonicalStudioHref(searchParams: SearchParamsRecord) {
   const entryContext = getStudioEntryContextFromSearchParams(searchParams);
+  const entryParam = firstValue(searchParams.entry);
   const draftId = getStudioDraftIdFromSearchParams(searchParams);
   const notice = firstValue(searchParams.notice);
   const hasLegacyTemplateId = Boolean(firstValue(searchParams.templateId));
-  const hasEntryParam = typeof firstValue(searchParams.entry) === "string";
+  const hasEntryParam = typeof entryParam === "string";
 
   if (!hasLegacyTemplateId && (!hasEntryParam || entryContext === "DIRECT")) {
+    return null;
+  }
+
+  if (
+    !hasLegacyTemplateId &&
+    typeof entryParam === "string" &&
+    entryParam === serializeStudioEntryContext(entryContext)
+  ) {
     return null;
   }
 

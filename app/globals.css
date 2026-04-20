@@ -7559,6 +7559,21 @@ select.input {
   color: var(--cockpit-amber);
 }
 
+.cockpit-scheduler-bridge {
+  margin: 14px 0 2px;
+  padding: 12px 14px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 8px;
+  background: rgba(239, 246, 255, 0.86);
+  color: var(--cockpit-soft-ink);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.cockpit-scheduler-bridge strong {
+  color: var(--cockpit-ink);
+}
+
 .cockpit-slot-card {
   padding: 10px 12px;
   border: 1px solid var(--cockpit-line);
@@ -7990,21 +8005,36 @@ select.input {
 }
 
 .applicant-command .kanban-wrapper {
+  overflow-x: hidden;
   padding: 2px 4px 18px;
 }
 
 .applicant-command .kanban-board {
-  gap: 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
   min-height: 62vh;
+  align-items: start;
 }
 
 .applicant-command .kanban-column {
-  flex-basis: 292px;
-  min-width: 292px;
+  position: relative;
+  min-width: 0;
+  width: 100%;
+  min-height: 360px;
+  max-height: none;
   overflow: hidden;
   border: 1px solid rgba(71, 85, 105, 0.1);
   border-radius: 8px;
   background: rgba(248, 250, 252, 0.92);
+}
+
+.applicant-command .kanban-column::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, #6b21c8, #0f766e, #b45309);
 }
 
 .applicant-command .kanban-column-header {
@@ -8014,7 +8044,15 @@ select.input {
 }
 
 .applicant-command .kanban-column-title {
-  letter-spacing: 0.06em;
+  min-width: 0;
+  line-height: 1.2;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.applicant-command .kanban-column-body {
+  max-height: calc(100vh - 370px);
+  min-height: 280px;
 }
 
 .applicant-command .kanban-column-count {
@@ -8062,6 +8100,10 @@ select.input {
   margin-bottom: 9px;
 }
 
+.applicant-pipeline-card-top > div {
+  min-width: 0;
+}
+
 .applicant-card-avatar {
   width: 28px;
   height: 28px;
@@ -8075,6 +8117,7 @@ select.input {
   color: var(--cockpit-ink, #180f2a);
   font-size: 13.5px;
   font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
 .applicant-pipeline-card .kanban-card-chapter {
@@ -8333,6 +8376,10 @@ select.input {
 
   .applicant-command-panel {
     padding: 14px;
+  }
+
+  .applicant-command .kanban-board {
+    grid-template-columns: 1fr;
   }
 
   .applicant-command-kpis.grid.four {

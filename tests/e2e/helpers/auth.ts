@@ -7,6 +7,7 @@ const DEFAULT_PASSWORD =
 
 const USERS = {
   admin: process.env.E2E_ADMIN_EMAIL ?? "e2e.admin@ypp.test",
+  applicant: process.env.E2E_APPLICANT_EMAIL ?? "e2e.legacy.applicant@ypp.test",
   chapterLead:
     process.env.E2E_CHAPTER_PRESIDENT_EMAIL ??
     "e2e.chapter.lead.alpha@ypp.test",

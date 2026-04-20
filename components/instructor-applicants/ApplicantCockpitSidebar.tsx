@@ -56,6 +56,7 @@ interface Props {
       kind: ApplicantDocumentKind;
       fileUrl: string;
       originalName: string | null;
+      note: string | null;
       uploadedAt: Date;
       supersededAt: Date | null;
     }>;

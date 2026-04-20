@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { postInterviewSlot } from "@/lib/instructor-interview-actions";
+import { offerInterviewSlots } from "@/lib/instructor-application-actions";
 
 interface OfferedSlot {
   id: string;
@@ -53,11 +53,23 @@ export default function InterviewSchedulingInlinePanel({
   function handlePostSlot(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    fd.set("instructorApplicationId", applicationId);
+    const scheduledAt = new Date(String(fd.get("scheduledAt") ?? ""));
+    const durationMinutes = Number(fd.get("durationMinutes") ?? 60);
+
+    if (Number.isNaN(scheduledAt.getTime())) {
+      setResult("Pick a valid date and time before posting.");
+      return;
+    }
+
     startTransition(async () => {
       try {
-        await postInterviewSlot(fd);
-        setResult("Slot posted.");
+        const response = await offerInterviewSlots(applicationId, [
+          { scheduledAt, durationMinutes },
+        ]);
+        if (!response.success) {
+          throw new Error(response.error ?? "Failed to post slot.");
+        }
+        setResult("Slot sent to the applicant status page.");
         (e.target as HTMLFormElement).reset();
       } catch (err) {
         setResult(err instanceof Error ? err.message : "Failed to post slot.");
@@ -67,21 +79,27 @@ export default function InterviewSchedulingInlinePanel({
 
   const confirmed = offeredSlots.filter((s) => s.confirmedAt);
   const pending_slots = offeredSlots.filter((s) => !s.confirmedAt);
+  const schedulerHref = `/interviews/schedule?panel=calendars&domain=HIRING&applicationId=${encodeURIComponent(applicationId)}&source=instructorApplicant`;
 
   return (
     <section id="section-scheduling" className="cockpit-panel cockpit-scheduling-panel">
       <div className="cockpit-panel-header-row">
         <div className="cockpit-section-heading">
-          <span className="cockpit-section-kicker">Interview logistics</span>
-          <h2>Scheduling</h2>
+          <span className="cockpit-section-kicker">Shared interview scheduler</span>
+          <h2>Scheduling handoff</h2>
         </div>
         <a
-          href={`/interviews/schedule?applicationId=${applicationId}`}
+          href={schedulerHref}
           className="button outline cockpit-inline-button"
         >
-          Open scheduling workspace
+          Open interviewer calendars
         </a>
       </div>
+      <p className="cockpit-scheduler-bridge">
+        <strong>Clear handoff.</strong> Use the shared scheduler to find an
+        interviewer-backed time, then post that exact time here. Posting here
+        sends the official applicant offer and updates the applicant status page.
+      </p>
 
       {/* Confirmed slots */}
       {confirmed.length > 0 && (
@@ -104,7 +122,7 @@ export default function InterviewSchedulingInlinePanel({
       {pending_slots.length > 0 && (
         <div className="cockpit-slot-group">
           <p className="cockpit-slot-title">
-            Awaiting Confirmation ({pending_slots.length})
+            Sent to applicant, awaiting confirmation ({pending_slots.length})
           </p>
           {pending_slots.map((slot) => (
             <div
@@ -140,14 +158,14 @@ export default function InterviewSchedulingInlinePanel({
 
       {offeredSlots.length === 0 && availabilityWindows.length === 0 && (
         <p className="cockpit-muted">
-          No slots posted yet.
+          No official applicant time offers have been posted yet.
         </p>
       )}
 
       {/* Quick post-slot form */}
       {canPostSlots && (
         <form onSubmit={handlePostSlot} className="cockpit-slot-form">
-          <p>Post a Slot</p>
+          <p>Send official time offer</p>
           <div>
             <input
               type="datetime-local"
@@ -162,7 +180,7 @@ export default function InterviewSchedulingInlinePanel({
               <option value="90">90 min</option>
             </select>
             <button type="submit" className="button cockpit-inline-button" disabled={pending}>
-              {pending ? "Posting…" : "Post"}
+              {pending ? "Posting..." : "Post slot"}
             </button>
           </div>
           {result && (

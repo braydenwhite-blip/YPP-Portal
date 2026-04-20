@@ -31,6 +31,10 @@ describe("lesson design studio helpers", () => {
     expect(getCanonicalStudioHref({})).toBeNull();
   });
 
+  it("does not redirect an already canonical application-status studio entry", () => {
+    expect(getCanonicalStudioHref({ entry: "application-status" })).toBeNull();
+  });
+
   it("removes legacy templateId links and keeps application status entry metadata", () => {
     expect(
       getCanonicalStudioHref({

@@ -3,6 +3,10 @@ import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { withPrismaFallback } from "@/lib/prisma-guard";
 import { getPreferredCurriculumDraftForStudioSurface } from "@/lib/curriculum-draft-actions";
+import {
+  getTrainingAccessRedirect,
+  hasApprovedInstructorTrainingAccess,
+} from "@/lib/training-access";
 import TrainingModuleClient from "./client";
 
 export default async function TrainingModulePage({
@@ -18,15 +22,11 @@ export default async function TrainingModulePage({
   }
 
   const roles = session.user.roles ?? [];
-  const canView =
-    roles.includes("APPLICANT") ||
-    roles.includes("INSTRUCTOR") ||
-    roles.includes("ADMIN") ||
-    roles.includes("CHAPTER_PRESIDENT") ||
-    roles.includes("STUDENT");
+  const hasInstructorTrainingAccess = hasApprovedInstructorTrainingAccess(roles);
+  const canView = hasInstructorTrainingAccess || roles.includes("STUDENT");
 
   if (!canView) {
-    redirect("/");
+    redirect(getTrainingAccessRedirect(roles));
   }
 
   const learnerId = session.user.id;
@@ -69,10 +69,7 @@ export default async function TrainingModulePage({
   }
 
   const canAccessLessonDesignStudio =
-    roles.includes("APPLICANT") ||
-    roles.includes("INSTRUCTOR") ||
-    roles.includes("ADMIN") ||
-    roles.includes("CHAPTER_PRESIDENT");
+    hasInstructorTrainingAccess;
 
   const lessonDesignStudioDraft =
     trainingModule.type === "CURRICULUM_REVIEW" && canAccessLessonDesignStudio

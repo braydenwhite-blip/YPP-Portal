@@ -77,6 +77,7 @@ async function fetchCockpitData(applicationId: string) {
           kind: true,
           fileUrl: true,
           originalName: true,
+          note: true,
           uploadedAt: true,
           supersededAt: true,
         },

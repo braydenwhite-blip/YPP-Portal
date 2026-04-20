@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
 import { createSystemNotification } from "@/lib/notification-actions";
 import { onProgressEvent } from "@/lib/progress-events";
+import { hasApprovedInstructorTrainingAccess } from "@/lib/training-access";
 
 async function requireAuth() {
   const session = await getSession();
@@ -162,6 +163,18 @@ export async function checkAndIssuePathwayCompletion(
 // ============================================
 
 export async function checkAndIssueTrainingCompletion(userId: string) {
+  const learner = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      roles: { select: { role: true } },
+    },
+  });
+
+  const roles = learner?.roles.map((role) => role.role) ?? [];
+  if (!hasApprovedInstructorTrainingAccess(roles)) {
+    return null;
+  }
+
   // Get all required training modules
   const requiredModules = await prisma.trainingModule.findMany({
     where: { required: true },

@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
-import type { StudioEntryContext, StudioPhase } from "@/lib/lesson-design-studio";
+import {
+  getStudioExitDestination,
+  type StudioEntryContext,
+  type StudioPhase,
+} from "@/lib/lesson-design-studio";
 import { StudioPageNav } from "./studio-page-nav";
 
 interface GuidedStudioShellProps {
@@ -79,6 +83,7 @@ export function GuidedStudioShell({
   globalOverlays,
 }: GuidedStudioShellProps) {
   const saveIndicator = getSaveIndicator(saveStatus);
+  const exitDestination = getStudioExitDestination(entryContext);
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
@@ -105,8 +110,8 @@ export function GuidedStudioShell({
       <section className={`lds-studio-toolbar${isScrolled ? " scrolled" : ""}`}>
         <div className="lds-studio-toolbar-main lds-studio-toolbar-main--simple">
           <div className="lds-toolbar-region lds-toolbar-region-left">
-            <Link href="/instructor-training" className="studio-back-link">
-              ← Instructor Training
+            <Link href={exitDestination.href} className="studio-back-link">
+              ← {exitDestination.label}
             </Link>
             <div className="lds-toolbar-brand">
               <span className="lds-toolbar-brand-mark" aria-hidden="true" />

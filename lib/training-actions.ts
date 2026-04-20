@@ -18,6 +18,7 @@ import {
 } from "@/lib/curriculum-draft-progress";
 import { createOrUpdateStudioLaunchPackage } from "@/lib/curriculum-draft-launch-actions";
 import { syncInstructorGrowthSignalsForInstructor } from "@/lib/instructor-growth-service";
+import { canAccessTrainingLearnerActions } from "@/lib/training-access";
 
 async function requireAuth() {
   const session = await getSession();
@@ -52,15 +53,10 @@ async function syncTrainingGrowth(userId: string) {
 async function requireTrainingLearner() {
   const session = await requireAuth();
   const roles = session.user.roles ?? [];
-  const canAccessTraining =
-    roles.includes("STUDENT") ||
-    roles.includes("APPLICANT") ||
-    roles.includes("INSTRUCTOR") ||
-    roles.includes("ADMIN") ||
-    roles.includes("CHAPTER_PRESIDENT");
+  const canAccessTraining = canAccessTrainingLearnerActions(roles);
 
   if (!canAccessTraining) {
-    throw new Error("Unauthorized - Training learner access required");
+    throw new Error("Unauthorized - Training is available after instructor approval.");
   }
 
   return session;
