@@ -5,8 +5,8 @@ test("@smoke admin can view instructor applicants pipeline", async ({ page }) =>
   await loginAs(page, "admin");
   await page.goto("/admin/instructor-applicants");
 
-  await expect(page.getByRole("button", { name: "Pipeline" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Archive" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Pipeline" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Archive" })).toBeVisible();
 });
 
 test("@smoke admin can navigate to chair queue page", async ({ page }) => {
@@ -20,8 +20,8 @@ test("@smoke chapter lead can view their chapter applicants pipeline", async ({ 
   await loginAs(page, "chapterLead");
   await page.goto("/chapter-lead/instructor-applicants");
 
-  await expect(page.getByRole("button", { name: "Pipeline" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Archive" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Pipeline" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Archive" })).toBeVisible();
 });
 
 test("@smoke admin is redirected away from chair queue when feature is off", async ({ page }) => {
