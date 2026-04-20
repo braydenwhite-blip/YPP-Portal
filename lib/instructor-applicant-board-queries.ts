@@ -114,6 +114,7 @@ function getDerivedColumn(app: {
 }
 
 const OVERDUE_THRESHOLD_MS = 5 * 24 * 60 * 60 * 1000; // 5 days
+const STUCK_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 function isOverdue(app: {
   status: InstructorApplicationStatus;
@@ -122,6 +123,18 @@ function isOverdue(app: {
   if (app.status !== "UNDER_REVIEW") return false;
   if (!app.reviewerAssignedAt) return false;
   return Date.now() - app.reviewerAssignedAt.getTime() > OVERDUE_THRESHOLD_MS;
+}
+
+/**
+ * Risk 3: INTERVIEW_COMPLETED sitting >7 days — likely a second interviewer
+ * who has not submitted. Surfaces a "Stuck" chip and enables forceSendToChair.
+ */
+function isStuck(app: {
+  status: InstructorApplicationStatus;
+  updatedAt: Date;
+}): boolean {
+  if (app.status !== "INTERVIEW_COMPLETED") return false;
+  return Date.now() - app.updatedAt.getTime() > STUCK_THRESHOLD_MS;
 }
 
 // ─── Pipeline query ───────────────────────────────────────────────────────────
@@ -196,7 +209,7 @@ export async function getApplicantPipeline({
 
   for (const app of applications) {
     const col = getDerivedColumn(app);
-    const enriched = { ...app, overdue: isOverdue(app) };
+    const enriched = { ...app, overdue: isOverdue(app), stuck: isStuck(app) };
 
     if (filters.overdueOnly && !enriched.overdue) continue;
     columns[col].push(enriched as unknown as typeof applications[number]);

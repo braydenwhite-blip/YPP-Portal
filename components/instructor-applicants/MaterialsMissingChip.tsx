@@ -7,6 +7,11 @@ interface MaterialsMissingChipProps {
 export default function MaterialsMissingChip({ materialsReadyAt }: MaterialsMissingChipProps): ReactNode {
   if (materialsReadyAt) return null;
   return (
-    <span className="pill pill-attention pill-small">Materials missing</span>
+    <span
+      className="pill pill-attention pill-small"
+      aria-label="Required materials not yet uploaded"
+    >
+      Materials missing
+    </span>
   );
 }

@@ -637,3 +637,16 @@ WITHDRAWN (terminal, applicant-initiated)
 ---
 
 **PART 4 COMPLETE**
+
+---
+
+# PART 5 — Deferred TODOs (V2)
+
+Items confirmed out-of-scope for V1 and deferred to V2. Each has a ticket stub for backlog tracking.
+
+| Ticket | Risk ref | Description | Rationale for deferral |
+|--------|----------|-------------|------------------------|
+| YPP-1001 | Risk 14 | **"Materials updated since brief read" banner** — `InterviewerBriefCard` should display a highlighted warning when any `ApplicantDocument` has been re-uploaded (`uploadedAt > briefOpenedAt`). Requires storing `briefReadAt` timestamp per interviewer assignment. | Timeline event fires on re-upload (already implemented); the brief card can fall back to showing "materials uploaded recently" using the document `uploadedAt` field. Full "since you last read" semantics require per-viewer read tracking. | 
+| YPP-1002 | Risk 3 | **Hard capacity caps for interviewers** — currently only soft "active load" badges; no hard limit prevents over-assignment. | V1 is manual-first; capacity rules can be layered in V2 once load patterns are observed in production. |
+| YPP-1003 | Risk 7 | **Redis-backed debounce for assignment notifications** — current `shouldSendAssignmentNotification` uses an in-process Map (works within a single serverless invocation; duplicate emails possible across concurrent invocations). | Low risk in staging; upgrade to Upstash Redis key with TTL once email volume justifies it. |
+| YPP-1004 | — | **Applicant self-serve status page** — applicants currently receive email updates only; no portal view of their workflow stage. | Deferred per V1/V2 scope split (Part 4.D). |

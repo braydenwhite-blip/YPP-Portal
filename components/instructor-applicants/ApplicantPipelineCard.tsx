@@ -6,6 +6,7 @@ type PipelineCardApp = {
   status: string;
   materialsReadyAt: Date | string | null;
   overdue?: boolean;
+  stuck?: boolean;
   subjectsOfInterest: string | null;
   applicant: {
     name: string | null;
@@ -110,7 +111,16 @@ export default function ApplicantPipelineCard({
       <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 6 }}>
         <MaterialsMissingChip materialsReadyAt={app.materialsReadyAt} />
         {app.overdue && (
-          <span className="pill pill-attention pill-small">Overdue</span>
+          <span className="pill pill-attention pill-small" aria-label="Overdue review">Overdue</span>
+        )}
+        {app.stuck && (
+          <span
+            className="pill pill-attention pill-small"
+            aria-label="Stuck — interviewer review pending over 7 days"
+            title="INTERVIEW_COMPLETED for more than 7 days — use Force to Chair to unblock"
+          >
+            Stuck
+          </span>
         )}
       </div>
 

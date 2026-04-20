@@ -64,6 +64,7 @@ export default function ChairComparisonSlideout({ application, onClose, onDecisi
   const [rationale, setRationale] = useState("");
   const [comparisonNotes, setComparisonNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [staleState, setStaleState] = useState(false);
 
   if (!application) return null;
 
@@ -80,6 +81,7 @@ export default function ChairComparisonSlideout({ application, onClose, onDecisi
 
   function handleDecide(action: ChairDecisionAction) {
     setError(null);
+    setStaleState(false);
     startTransition(async () => {
       const fd = new FormData();
       fd.set("applicationId", application!.id);
@@ -90,7 +92,12 @@ export default function ChairComparisonSlideout({ application, onClose, onDecisi
       if (result.success) {
         onDecisionMade();
       } else {
-        setError(result.error ?? "An error occurred.");
+        const msg = result.error ?? "An error occurred.";
+        if (msg.includes("status changed") || msg === "STATUS_CHANGED") {
+          setStaleState(true);
+        } else {
+          setError(msg);
+        }
       }
     });
   }
@@ -103,6 +110,7 @@ export default function ChairComparisonSlideout({ application, onClose, onDecisi
     <>
       {/* Backdrop */}
       <div
+        aria-hidden="true"
         style={{
           position: "fixed",
           inset: 0,
@@ -115,6 +123,9 @@ export default function ChairComparisonSlideout({ application, onClose, onDecisi
       {/* Slideout */}
       <div
         className="slideout-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Chair decision: ${displayName}`}
         style={{
           position: "fixed",
           top: 0,
@@ -158,6 +169,7 @@ export default function ChairComparisonSlideout({ application, onClose, onDecisi
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close chair decision panel"
             style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "var(--muted)", padding: 4 }}
           >
             ✕
@@ -357,8 +369,32 @@ export default function ChairComparisonSlideout({ application, onClose, onDecisi
             />
           </div>
 
-          {error && (
+          {staleState && (
             <div
+              role="alert"
+              aria-live="polite"
+              style={{
+                padding: "10px 14px",
+                background: "#fffbeb",
+                border: "1px solid #fde68a",
+                borderRadius: 6,
+                marginBottom: 16,
+                fontSize: 13,
+                color: "#92400e",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <span aria-hidden>⚠️</span>
+              This application was updated since you opened it. Close and reopen to see the latest state before deciding.
+            </div>
+          )}
+
+          {error && !staleState && (
+            <div
+              role="alert"
+              aria-live="polite"
               style={{
                 padding: "10px 14px",
                 background: "#fef2f2",
@@ -390,6 +426,7 @@ export default function ChairComparisonSlideout({ application, onClose, onDecisi
               type="button"
               className={a.cls}
               disabled={pending}
+              aria-label={`${a.label} application for ${displayName}`}
               onClick={() => handleDecide(a.value)}
               style={{
                 fontSize: 13,

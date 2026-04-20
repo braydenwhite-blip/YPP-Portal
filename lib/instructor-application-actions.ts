@@ -28,6 +28,9 @@ import {
   assertCanAssignInterviewers,
   assertCanActAsChair,
 } from "@/lib/chapter-hiring-permissions";
+import { ApplicantWorkflowError } from "@/lib/applicant-workflow-error";
+import { shouldSendAssignmentNotification } from "@/lib/notification-policy";
+import { trackApplicantEvent } from "@/lib/telemetry";
 
 type FormState = {
   status: "idle" | "error" | "success";
@@ -657,14 +660,24 @@ export async function assignReviewer(
       });
     });
 
-    // Fire email outside transaction so DB is committed first
+    // Fire email outside transaction so DB is committed first.
+    // Debounced: one email per reviewer per application per 5-min window (Risk 7).
     try {
-      await sendReviewerAssignedEmail(reviewerId, applicationId);
+      if (shouldSendAssignmentNotification("REVIEWER_ASSIGNED", reviewerId, applicationId)) {
+        await sendReviewerAssignedEmail(reviewerId, applicationId);
+      }
     } catch (e) {
       console.error("[assignReviewer] email failed:", e);
     }
 
     await syncInstructorApplicationWorkflow(applicationId);
+    trackApplicantEvent("applicant.reviewer.assigned", {
+      applicationId,
+      actorId: session.user.id,
+      chapterId: null,
+      status: String(newStatus),
+      meta: { reviewerId },
+    });
     revalidatePath("/admin/instructor-applicants");
     revalidatePath("/chapter-lead/instructor-applicants");
     return { success: true };
@@ -981,6 +994,7 @@ export async function assignInterviewer(formData: FormData): Promise<{ success: 
         id: true,
         applicantId: true,
         reviewerId: true,
+        status: true,
         applicant: { select: { chapterId: true } },
         interviewerAssignments: {
           where: { removedAt: null },
@@ -1029,12 +1043,22 @@ export async function assignInterviewer(formData: FormData): Promise<{ success: 
       });
     });
 
+    // Debounced: one email per interviewer per application per 5-min window (Risk 7).
     try {
-      await sendInterviewerAssignedEmail(interviewerId, applicationId, role);
+      if (shouldSendAssignmentNotification("INTERVIEWER_ASSIGNED", interviewerId, applicationId)) {
+        await sendInterviewerAssignedEmail(interviewerId, applicationId, role);
+      }
     } catch (e) {
       console.error("[assignInterviewer] email failed:", e);
     }
 
+    trackApplicantEvent("applicant.interviewer.assigned", {
+      applicationId,
+      actorId: actor.id,
+      chapterId: app.applicant.chapterId ?? null,
+      status: app.status,
+      meta: { interviewerId, role },
+    });
     revalidatePath(`/applications/instructor/${applicationId}`);
     revalidatePath("/admin/instructor-applicants");
     return { success: true };
@@ -1171,6 +1195,69 @@ export async function sendToChair(formData: FormData): Promise<{ success: boolea
 }
 
 /**
+ * Admin-only force-override: advance a stuck INTERVIEW_COMPLETED application to
+ * CHAIR_REVIEW even when one or more interviewers have not submitted (Risk 3).
+ * Requires an explicit overrideReason for the audit log.
+ */
+export async function forceSendToChair(
+  applicationId: string,
+  overrideReason: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+    const roles = session.user.roles ?? [];
+    if (!roles.includes("ADMIN")) {
+      return { success: false, error: "forceSendToChair is admin-only." };
+    }
+    if (!overrideReason.trim()) {
+      return { success: false, error: "An override reason is required." };
+    }
+
+    const app = await prisma.instructorApplication.findUnique({
+      where: { id: applicationId },
+      select: { status: true },
+    });
+    if (!app) return { success: false, error: "Application not found." };
+    if (app.status !== InstructorApplicationStatus.INTERVIEW_COMPLETED) {
+      return {
+        success: false,
+        error: "forceSendToChair can only be called on INTERVIEW_COMPLETED applications.",
+      };
+    }
+
+    const now = new Date();
+    await prisma.$transaction(async (tx) => {
+      await tx.instructorApplication.update({
+        where: { id: applicationId },
+        data: { status: InstructorApplicationStatus.CHAIR_REVIEW, chairQueuedAt: now },
+      });
+      await tx.instructorApplicationTimelineEvent.create({
+        data: {
+          applicationId,
+          kind: "STATUS_CHANGE",
+          actorId: session.user.id,
+          payload: {
+            from: InstructorApplicationStatus.INTERVIEW_COMPLETED,
+            to: InstructorApplicationStatus.CHAIR_REVIEW,
+            overrideReason: overrideReason.trim(),
+            forcedBy: session.user.id,
+          },
+        },
+      });
+    });
+
+    revalidatePath(`/applications/instructor/${applicationId}`);
+    revalidatePath("/admin/instructor-applicants");
+    revalidatePath("/admin/instructor-applicants/chair-queue");
+    return { success: true };
+  } catch (error) {
+    console.error("[forceSendToChair]", error);
+    return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
+  }
+}
+
+/**
  * Chair decision action.
  * Validates chair role and CHAIR_REVIEW status inside the transaction.
  * APPROVE runs atomically with existing syncInstructorApplicationWorkflow.
@@ -1232,7 +1319,10 @@ export async function chairDecide(formData: FormData): Promise<{ success: boolea
         select: { status: true },
       });
       if (fresh?.status !== InstructorApplicationStatus.CHAIR_REVIEW) {
-        throw new Error("Application status changed before decision was recorded — please refresh.");
+        throw new ApplicantWorkflowError(
+          "STATUS_CHANGED",
+          "Application status changed before decision was recorded — please refresh."
+        );
       }
 
       // Supersede any prior chair decision for audit chain
@@ -1288,20 +1378,67 @@ export async function chairDecide(formData: FormData): Promise<{ success: boolea
       });
     });
 
-    // Post-transaction side effects
-    try {
-      if (action === "APPROVE") {
+    // Post-transaction side effects.
+    // APPROVE: sync must succeed or we compensate (Risk 10).
+    if (action === "APPROVE") {
+      try {
         await syncInstructorApplicationWorkflow(applicationId);
+      } catch (syncError) {
+        console.error("[chairDecide] onboarding sync failed — compensating rollback", syncError);
+        // Revert status + decision so the chair can try again with a clean state.
+        const rollbackNow = new Date();
+        await prisma.$transaction(async (tx) => {
+          await tx.instructorApplicationChairDecision.updateMany({
+            where: { applicationId, supersededAt: null },
+            data: { supersededAt: rollbackNow },
+          });
+          await tx.instructorApplication.update({
+            where: { id: applicationId },
+            data: {
+              status: InstructorApplicationStatus.CHAIR_REVIEW,
+              approvedAt: null,
+            },
+          });
+          await tx.instructorApplicationTimelineEvent.create({
+            data: {
+              applicationId,
+              kind: "SYNC_ROLLBACK",
+              actorId: actor.id,
+              payload: {
+                error: syncError instanceof Error ? syncError.message : String(syncError),
+                rolledBackAt: rollbackNow.toISOString(),
+              },
+            },
+          });
+        });
+        return {
+          success: false,
+          error: "Onboarding sync failed — decision was reversed. Please try again.",
+        };
+      }
+      try {
         await sendApplicationApprovedEmail({
           to: app.applicant.email,
           applicantName: app.applicant.name,
         });
+      } catch (e) {
+        console.error("[chairDecide] approval email failed:", e);
       }
-      await sendChairDecisionEmail(app.applicant.email, applicationId, action);
-    } catch (e) {
-      console.error("[chairDecide] post-tx side-effect failed:", e);
     }
 
+    try {
+      await sendChairDecisionEmail(app.applicant.email, applicationId, action);
+    } catch (e) {
+      console.error("[chairDecide] decision email failed:", e);
+    }
+
+    trackApplicantEvent("applicant.chair.decided", {
+      applicationId,
+      actorId: actor.id,
+      chapterId: null,
+      status: String(newStatus),
+      meta: { action },
+    });
     revalidatePath(`/applications/instructor/${applicationId}`);
     revalidatePath("/admin/instructor-applicants");
     revalidatePath("/admin/instructor-applicants/chair-queue");

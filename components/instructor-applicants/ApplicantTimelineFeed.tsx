@@ -86,7 +86,9 @@ const TONE_COLOR: Record<Tone, string> = {
 export default function ApplicantTimelineFeed({ events }: ApplicantTimelineFeedProps): ReactNode {
   if (events.length === 0) {
     return (
-      <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>No timeline events yet.</p>
+      <p aria-label="No timeline events yet" style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>
+        No timeline events yet.
+      </p>
     );
   }
 
@@ -95,7 +97,12 @@ export default function ApplicantTimelineFeed({ events }: ApplicantTimelineFeedP
   ));
 
   return (
-    <div style={{ display: "grid", gap: 16 }}>
+    <div
+      role="log"
+      aria-label="Application timeline"
+      aria-live="polite"
+      style={{ display: "grid", gap: 16 }}
+    >
       {grouped.map(([day, dayEvents]) => (
         <div key={day}>
           <div

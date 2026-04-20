@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { InstructorApplicationStatus, InterviewOutcome, InterviewRequestStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { syncInstructorApplicationWorkflow } from "@/lib/workflow";
+import { trackApplicantEvent } from "@/lib/telemetry";
 
 function getString(formData: FormData, key: string, required = true) {
   const value = formData.get(key);
@@ -1093,6 +1094,13 @@ export async function maybeAutoAdvanceAfterInterviewReview(
       console.error("[maybeAutoAdvanceAfterInterviewReview] sync failed:", e);
     }
 
+    trackApplicantEvent("applicant.status.auto_advanced", {
+      applicationId,
+      actorId,
+      chapterId: null,
+      status: "CHAIR_REVIEW",
+      meta: { trigger: "all-reviews-submitted" },
+    });
     revalidatePath(`/applications/instructor/${applicationId}`);
     revalidatePath("/admin/instructor-applicants");
     revalidatePath("/admin/instructor-applicants/chair-queue");

@@ -28,6 +28,14 @@ Dedicated portal for YPP Pathways (curriculum structure, instructor training, me
 - Goal template management and assignment
 - View all staff reflections and progress updates
 
+### Instructor Applicant Workflow (V1)
+- End-to-end pipeline: intake → reviewer evaluation → interviewer assignment → structured interview → chair decision → onboarding sync
+- New `HIRING_CHAIR` role with a dedicated Chair Queue page at `/admin/instructor-applicants/chair-queue`
+- Calm decision cockpit (Chair Comparison Slideout) with readiness checklist, per-interviewer rubric dots, and rationale capture
+- Shared Command Center at `/admin/instructor-applicants` and `/chapter-lead/instructor-applicants`
+- Auto-advance `INTERVIEW_COMPLETED → CHAIR_REVIEW` on last interviewer review (race-safe transaction)
+- Behind `ENABLE_INSTRUCTOR_APPLICANT_WORKFLOW_V1` feature flag; schema is additive / safe to roll back by flipping the flag
+
 ### Native Instructor Readiness (Training + Interview Gate)
 - Training academy completion is enforced by module requirements (video/checkpoints/quiz/evidence)
 - Instructors can schedule interviews from training progress via:
@@ -90,6 +98,7 @@ Dedicated portal for YPP Pathways (curriculum structure, instructor training, me
 | `carlygelles@gmail.com` | Mentor + Staff (Boston Chapter) |
 | `avery.lin@youthpassionproject.org` | Instructor (The Frisch School) |
 | `jordan.patel@youthpassionproject.org` | Student (The Frisch School) |
+| `hiring.chair@youthpassionproject.org` | **HIRING_CHAIR** (Morgan Ellison) — seeded for Instructor Applicant Workflow V1 demo |
 
 **Password for all seeded users:** Set via the `SEED_PASSWORD` environment variable before running `npm run db:seed`.
 
@@ -107,6 +116,8 @@ Dedicated portal for YPP Pathways (curriculum structure, instructor training, me
 | `ENABLE_NATIVE_INSTRUCTOR_GATE` | Enable native readiness gate (`true`/`false`, defaults to enabled). |
 | `ENFORCE_PRE_OFFERING_INTERVIEW` | Enforce interview requirement before first publish (`true`/`false`, defaults to enabled). |
 | `ENABLE_UNIFIED_ALL_TOOLS_DASHBOARD` | Enable unified primary-role dashboard at `/` (`true`/`false`, defaults to enabled). |
+| `ENABLE_INSTRUCTOR_APPLICANT_WORKFLOW_V1` | Enable the Instructor Applicant Workflow V1 pipeline (`true`/`false`, defaults to `true`). |
+| `CRON_SECRET` | Shared secret for cron-protected API routes (`/api/admin/applicants/chair-digest`, `/api/admin/applicants/auto-archive`). Must match `vercel.json`. |
 | `TWILIO_ACCOUNT_SID` | Twilio account SID for SMS delivery. |
 | `TWILIO_AUTH_TOKEN` | Twilio auth token for SMS delivery and webhook validation. |
 | `TWILIO_MESSAGING_SERVICE_SID` | Preferred Twilio Messaging Service SID for outbound SMS. |
@@ -254,9 +265,18 @@ See [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) for the full feature road
 - And more...
 
 ## Operator Runbook
+- **Instructor Applicant Workflow V1**: [`docs/brayden/instructor-applicant-workflow-runbook.md`](./docs/brayden/instructor-applicant-workflow-runbook.md)
 - Native training + interview workflow: [`docs/brayden/instructor-training-interview-native-runbook.md`](./docs/brayden/instructor-training-interview-native-runbook.md)
 - Chapter operating system + hiring workflow: [`docs/brayden/chapter-os-runbook.md`](./docs/brayden/chapter-os-runbook.md)
 - Primary-role command center + 45-day expansion roadmap: [`docs/brayden/dashboard-45-day-expansion-plan.md`](./docs/brayden/dashboard-45-day-expansion-plan.md)
+
+## Instructor Applicant Workflow — Key Routes
+- Command Center (Admin): `/admin/instructor-applicants`
+- Command Center (Chapter Lead): `/chapter-lead/instructor-applicants`
+- Chair Queue: `/admin/instructor-applicants/chair-queue`
+- Applicant detail cockpit: `/applications/instructor/[id]`
+- Interviewer workspace: `/applications/instructor/[id]/interview`
+- Archive tab: `/admin/instructor-applicants?tab=archive`
 
 ## Chapter Recruiting (Native)
 - Canonical chapter hiring route: `/chapter/recruiting`

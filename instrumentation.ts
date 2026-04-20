@@ -7,6 +7,7 @@
  *
  * All statements use IF NOT EXISTS / DO NOTHING so they are fully idempotent.
  */
+
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 

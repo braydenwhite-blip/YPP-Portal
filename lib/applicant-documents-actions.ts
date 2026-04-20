@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { ApplicantDocumentKind, Prisma } from "@prisma/client";
 import { getHiringActor, assertCanViewApplicant, type ApplicationContext } from "@/lib/chapter-hiring-permissions";
+import { trackApplicantEvent } from "@/lib/telemetry";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -158,6 +159,20 @@ export async function uploadApplicantDocument(
         tx
       );
     });
+
+    // Emit telemetry when both required docs are now present (materialsReadyAt just stamped).
+    const refreshed = await prisma.instructorApplication.findUnique({
+      where: { id: applicationId },
+      select: { materialsReadyAt: true, status: true, applicant: { select: { chapterId: true } } },
+    });
+    if (refreshed?.materialsReadyAt) {
+      trackApplicantEvent("applicant.materials.ready", {
+        applicationId,
+        actorId: actor.id,
+        chapterId: refreshed.applicant?.chapterId ?? null,
+        status: refreshed.status,
+      });
+    }
 
     revalidatePath(`/applications/instructor/${applicationId}`);
     revalidatePath("/admin/instructor-applicants");
