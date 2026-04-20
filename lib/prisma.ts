@@ -5,6 +5,9 @@ const globalForPrismaWarnings = global as unknown as {
   prismaRuntimeUrlWarningShown?: boolean;
 };
 
+const DEFAULT_TRANSACTION_POOL_CONNECTION_LIMIT = "5";
+const DEFAULT_TRANSACTION_POOL_TIMEOUT = "20";
+
 function parseUrl(rawUrl: string): URL | null {
   try {
     return new URL(rawUrl);
@@ -41,6 +44,13 @@ function warnOnce(message: string) {
   if (globalForPrismaWarnings.prismaRuntimeUrlWarningShown) return;
   globalForPrismaWarnings.prismaRuntimeUrlWarningShown = true;
   console.warn(message);
+}
+
+function getPositiveIntegerEnv(name: string, fallback: string): string {
+  const value = process.env[name]?.trim();
+  if (!value) return fallback;
+  if (/^[1-9]\d*$/.test(value)) return value;
+  return fallback;
 }
 
 function warnIfDatabaseUrlsLookWrong(params: {
@@ -85,7 +95,19 @@ function normalizeDatabaseUrl(rawUrl: string): string {
         url.searchParams.set("pgbouncer", "true");
       }
       if (!url.searchParams.has("connection_limit")) {
-        url.searchParams.set("connection_limit", "1");
+        url.searchParams.set(
+          "connection_limit",
+          getPositiveIntegerEnv(
+            "PRISMA_CONNECTION_LIMIT",
+            DEFAULT_TRANSACTION_POOL_CONNECTION_LIMIT,
+          ),
+        );
+      }
+      if (!url.searchParams.has("pool_timeout")) {
+        url.searchParams.set(
+          "pool_timeout",
+          getPositiveIntegerEnv("PRISMA_POOL_TIMEOUT", DEFAULT_TRANSACTION_POOL_TIMEOUT),
+        );
       }
     }
 

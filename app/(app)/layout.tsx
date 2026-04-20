@@ -36,10 +36,20 @@ export default async function AppLayout({
   const roles = session?.user?.roles ?? [];
   const primaryRole = session?.user?.primaryRole ?? null;
   const userId = session?.user?.id;
-  const shouldCheckOnboarding = Boolean(userId && primaryRole !== "APPLICANT");
+  const hiringDemoMode =
+    process.env.HIRING_DEMO_MODE === "true" ||
+    process.env.NEXT_PUBLIC_HIRING_DEMO_MODE === "true" ||
+    process.env.DEMO_MODE === "true" ||
+    process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+  const shouldCheckOnboarding = Boolean(
+    userId && primaryRole !== "APPLICANT" && !hiringDemoMode,
+  );
+  const shouldLoadShellMetadata = Boolean(
+    userId && primaryRole !== "APPLICANT" && !hiringDemoMode,
+  );
 
-  const onboardingPromise: Promise<{ completedAt: Date | null } | null> = shouldCheckOnboarding
-    ? prisma.onboardingProgress
+  const onboardingRow: { completedAt: Date | null } | null = shouldCheckOnboarding
+    ? await prisma.onboardingProgress
         .findUnique({
           where: { userId: userId! },
           select: { completedAt: true },
@@ -51,23 +61,7 @@ export default async function AppLayout({
           }
           throw e;
         })
-    : Promise.resolve({ completedAt: new Date() });
-
-  const badgePromise: Promise<[number, number, number, string[]]> = userId
-    ? Promise.all([
-        getUnreadNotificationCountCached(userId),
-        getUnreadDirectMessageCountCached(userId),
-        Promise.resolve(0),
-        getEnabledFeatureKeysForUserCached(
-          userId,
-          session.user.chapterId ?? null,
-          rolesToSortedCsv(roles),
-          primaryRole,
-        ).catch(() => []),
-      ])
-    : Promise.resolve([0, 0, 0, []]);
-
-  const [onboardingRow, badgeTuple] = await Promise.all([onboardingPromise, badgePromise]);
+    : { completedAt: new Date() };
 
   if (shouldCheckOnboarding) {
     if (onboardingRow === null) {
@@ -85,8 +79,17 @@ export default async function AppLayout({
   let enabledFeatureKeysArray: string[] | undefined;
   let unlockedSectionsArray: string[] | undefined;
   let recentlyUnlockedGroupsArray: string[] | undefined;
-  if (userId) {
-    const [unreadNotifications, unreadMessages, pendingApprovals, enabledFeatureKeys] = badgeTuple;
+  if (shouldLoadShellMetadata && userId) {
+    const unreadNotifications = await getUnreadNotificationCountCached(userId);
+    const unreadMessages = await getUnreadDirectMessageCountCached(userId);
+    const pendingApprovals = 0;
+    const enabledFeatureKeys = await getEnabledFeatureKeysForUserCached(
+      userId,
+      session.user.chapterId ?? null,
+      rolesToSortedCsv(roles),
+      primaryRole,
+    ).catch(() => []);
+
     badges = {
       notifications: unreadNotifications || undefined,
       messages: unreadMessages || undefined,
@@ -97,25 +100,23 @@ export default async function AppLayout({
     // Fetch unlock data for progressive nav reveal (STUDENT and PARENT roles)
     if (primaryRole === "STUDENT" || primaryRole === "PARENT") {
       try {
-        const [unlockedSections, recentlyUnlockedSections] = await Promise.all([
-          ensureAutoUnlockAndGetSections(userId),
-          withPrismaFallback(
-            "recentUnlocks",
-            async () => {
-              const sevenDaysAgo = new Date();
-              sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-              const recent = await prisma.portalUnlock.findMany({
-                where: {
-                  userId,
-                  unlockedAt: { gte: sevenDaysAgo },
-                },
-                select: { sectionKey: true },
-              });
-              return recent.map((r) => r.sectionKey);
-            },
-            () => [] as string[],
-          ),
-        ]);
+        const unlockedSections = await ensureAutoUnlockAndGetSections(userId);
+        const recentlyUnlockedSections = await withPrismaFallback(
+          "recentUnlocks",
+          async () => {
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            const recent = await prisma.portalUnlock.findMany({
+              where: {
+                userId,
+                unlockedAt: { gte: sevenDaysAgo },
+              },
+              select: { sectionKey: true },
+            });
+            return recent.map((r) => r.sectionKey);
+          },
+          () => [] as string[],
+        );
         unlockedSectionsArray = Array.from(unlockedSections);
 
         // Map section keys to nav group names for the "New!" badge
@@ -138,11 +139,6 @@ export default async function AppLayout({
 
   const studentFullPortalExplorer = process.env.STUDENT_FULL_PORTAL_EXPLORER === "true";
   const instructorFullPortalExplorer = process.env.INSTRUCTOR_FULL_PORTAL_EXPLORER === "true";
-  const hiringDemoMode =
-    process.env.HIRING_DEMO_MODE === "true" ||
-    process.env.NEXT_PUBLIC_HIRING_DEMO_MODE === "true" ||
-    process.env.DEMO_MODE === "true" ||
-    process.env.NEXT_PUBLIC_DEMO_MODE === "true";
   const studentHasChapter = Boolean(session?.user?.chapterId);
 
   return (
