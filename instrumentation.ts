@@ -7,6 +7,11 @@
  *
  * All statements use IF NOT EXISTS / DO NOTHING so they are fully idempotent.
  */
+
+// Re-export telemetry helpers so instrumentation consumers can use a single import.
+export { trackApplicantEvent } from "@/lib/telemetry";
+export type { ApplicantTelemetryEvent, ApplicantTelemetryPayload } from "@/lib/telemetry";
+
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 

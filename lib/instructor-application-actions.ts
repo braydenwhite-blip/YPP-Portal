@@ -30,6 +30,7 @@ import {
 } from "@/lib/chapter-hiring-permissions";
 import { ApplicantWorkflowError } from "@/lib/applicant-workflow-error";
 import { shouldSendAssignmentNotification } from "@/lib/notification-policy";
+import { trackApplicantEvent } from "@/lib/telemetry";
 
 type FormState = {
   status: "idle" | "error" | "success";
@@ -670,6 +671,13 @@ export async function assignReviewer(
     }
 
     await syncInstructorApplicationWorkflow(applicationId);
+    trackApplicantEvent("applicant.reviewer.assigned", {
+      applicationId,
+      actorId: session.user.id,
+      chapterId: null,
+      status: String(newStatus),
+      meta: { reviewerId },
+    });
     revalidatePath("/admin/instructor-applicants");
     revalidatePath("/chapter-lead/instructor-applicants");
     return { success: true };
@@ -1043,6 +1051,13 @@ export async function assignInterviewer(formData: FormData): Promise<{ success: 
       console.error("[assignInterviewer] email failed:", e);
     }
 
+    trackApplicantEvent("applicant.interviewer.assigned", {
+      applicationId,
+      actorId: actor.id,
+      chapterId: app.applicant.chapterId ?? null,
+      status: app.status,
+      meta: { interviewerId, role },
+    });
     revalidatePath(`/applications/instructor/${applicationId}`);
     revalidatePath("/admin/instructor-applicants");
     return { success: true };
@@ -1416,6 +1431,13 @@ export async function chairDecide(formData: FormData): Promise<{ success: boolea
       console.error("[chairDecide] decision email failed:", e);
     }
 
+    trackApplicantEvent("applicant.chair.decided", {
+      applicationId,
+      actorId: actor.id,
+      chapterId: null,
+      status: String(newStatus),
+      meta: { action },
+    });
     revalidatePath(`/applications/instructor/${applicationId}`);
     revalidatePath("/admin/instructor-applicants");
     revalidatePath("/admin/instructor-applicants/chair-queue");
