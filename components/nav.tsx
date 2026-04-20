@@ -76,6 +76,7 @@ export default function Nav({
   studentFullPortalExplorer,
   studentHasChapter,
   instructorFullPortalExplorer,
+  hiringDemoMode,
 }: {
   roles?: string[];
   adminSubtypes?: string[];
@@ -91,6 +92,7 @@ export default function Nav({
   /** When true, "Join a chapter" is hidden (user already has a chapter). */
   studentHasChapter?: boolean;
   instructorFullPortalExplorer?: boolean;
+  hiringDemoMode?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -107,6 +109,7 @@ export default function Nav({
         studentFullPortalExplorer,
         studentHasChapter,
         instructorFullPortalExplorer,
+        hiringDemoMode,
       }),
     [
       adminSubtypes,
@@ -119,6 +122,7 @@ export default function Nav({
       studentFullPortalExplorer,
       studentHasChapter,
       instructorFullPortalExplorer,
+      hiringDemoMode,
     ],
   );
 
@@ -245,6 +249,7 @@ export default function Nav({
   const totalCore = filteredCore.length;
   const totalMore = filteredMore.reduce((sum, group) => sum + group.items.length, 0);
   const totalResults = totalCore + totalMore;
+  const showSearch = hiringDemoMode !== true;
 
   const showStudentMinimalChrome =
     model.primaryRole === "STUDENT" && studentFullPortalExplorer !== true;
@@ -323,28 +328,30 @@ export default function Nav({
 
   return (
     <nav className="nav nav--minimal">
-      <div className="nav-search-wrapper">
-        <input
-          ref={searchRef}
-          type="text"
-          className="nav-search"
-          placeholder="Search navigation..."
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          aria-label="Search navigation"
-        />
-        {!search ? <span className="nav-search-kbd">⌘K</span> : null}
-        {search && (
-          <button
-            type="button"
-            className="nav-search-clear"
-            onClick={() => setSearch("")}
-            aria-label="Clear search"
-          >
-            {"✕"}
-          </button>
-        )}
-      </div>
+      {showSearch ? (
+        <div className="nav-search-wrapper">
+          <input
+            ref={searchRef}
+            type="text"
+            className="nav-search"
+            placeholder="Search navigation..."
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            aria-label="Search navigation"
+          />
+          {!search ? <span className="nav-search-kbd">⌘K</span> : null}
+          {search && (
+            <button
+              type="button"
+              className="nav-search-clear"
+              onClick={() => setSearch("")}
+              aria-label="Clear search"
+            >
+              {"✕"}
+            </button>
+          )}
+        </div>
+      ) : null}
 
       {totalResults === 0 ? (
         <div className="nav-empty">No results for &ldquo;{search}&rdquo;</div>
@@ -352,7 +359,9 @@ export default function Nav({
         <>
           <section className="nav-main-tools">
             {studentHomeOnlyCore ? null : (
-              <p className="nav-block-title">{useMinimalFlatNavChrome ? "Shortcuts" : "Top Tools"}</p>
+              <p className="nav-block-title">
+                {hiringDemoMode ? "Hiring" : useMinimalFlatNavChrome ? "Shortcuts" : "Top Tools"}
+              </p>
             )}
             <div className="nav-main-items">{renderCoreNavItems()}</div>
           </section>

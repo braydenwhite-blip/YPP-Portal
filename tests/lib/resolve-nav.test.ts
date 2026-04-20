@@ -206,6 +206,32 @@ describe("resolveNavModel", () => {
     expect(visibleHrefs).not.toContain("/admin/portal-rollout");
   });
 
+  it("shows only application status for applicants in hiring demo mode", () => {
+    const model = resolveNavModel({
+      roles: ["APPLICANT"],
+      primaryRole: "APPLICANT",
+      pathname: "/application-status",
+      hiringDemoMode: true,
+    });
+
+    expect(hrefs(model)).toEqual(["/application-status"]);
+    expect(model.core.map((item) => item.href)).toEqual(["/application-status"]);
+    expect(model.more).toEqual([]);
+  });
+
+  it("shows only the instructor applicants admin page in hiring demo mode", () => {
+    const model = resolveNavModel({
+      roles: ["ADMIN"],
+      primaryRole: "ADMIN",
+      pathname: "/admin/instructor-applicants",
+      hiringDemoMode: true,
+    });
+
+    expect(hrefs(model)).toEqual(["/admin/instructor-applicants"]);
+    expect(model.core.map((item) => item.href)).toEqual(["/admin/instructor-applicants"]);
+    expect(model.more).toEqual([]);
+  });
+
   it("unlocks only the approved admin pages for content admins", () => {
     const model = resolveNavModel({
       roles: ["ADMIN"],

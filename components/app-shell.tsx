@@ -21,6 +21,7 @@ export default function AppShell({
   studentFullPortalExplorer,
   studentHasChapter,
   instructorFullPortalExplorer,
+  hiringDemoMode,
 }: {
   children: React.ReactNode;
   userName?: string | null;
@@ -36,6 +37,7 @@ export default function AppShell({
   /** User is assigned to a chapter; hide "Join a chapter" in the nav. */
   studentHasChapter?: boolean;
   instructorFullPortalExplorer?: boolean;
+  hiringDemoMode?: boolean;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const sidebarId = "portal-sidebar";
@@ -122,6 +124,7 @@ export default function AppShell({
             studentFullPortalExplorer={studentFullPortalExplorer}
             studentHasChapter={studentHasChapter}
             instructorFullPortalExplorer={instructorFullPortalExplorer}
+            hiringDemoMode={hiringDemoMode}
           />
         </div>
 

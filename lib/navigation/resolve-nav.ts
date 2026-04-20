@@ -221,6 +221,8 @@ export interface ResolveNavInput {
   studentHasChapter?: boolean;
   /** When true, instructors see the full nav catalog. Omit/false uses env `INSTRUCTOR_FULL_PORTAL_EXPLORER`. */
   instructorFullPortalExplorer?: boolean;
+  /** Demo-only: narrow the left sidebar to the hiring surfaces for the active role. */
+  hiringDemoMode?: boolean;
 }
 
 function toNavRole(value: string | null | undefined): NavRole | null {
@@ -308,6 +310,19 @@ function hasAdminSubtypeAccess(item: NavLink, roles: NavRole[], adminSubtypes: s
   }
 
   return allowedHrefs.has(item.href);
+}
+
+function hiringDemoHrefsForRole(primaryRole: NavRole): string[] | null {
+  if (primaryRole === "APPLICANT") {
+    return ["/application-status"];
+  }
+  if (primaryRole === "ADMIN") {
+    return ["/admin/instructor-applicants"];
+  }
+  if (primaryRole === "CHAPTER_PRESIDENT") {
+    return ["/chapter-lead/instructor-applicants"];
+  }
+  return null;
 }
 
 function groupIndex(primaryRole: NavRole, group: NavGroup): number {
@@ -421,6 +436,9 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
   const hasAward = isAwardTier(input.awardTier);
   const limit = Math.min(input.maxCoreItems ?? CORE_NAV_LIMIT, CORE_NAV_LIMIT);
   const adminSubtypes = input.adminSubtypes ?? [];
+  const hiringDemoHrefs = input.hiringDemoMode
+    ? hiringDemoHrefsForRole(primaryRole)
+    : null;
   const usesUnlockVisibility =
     primaryRole === "INSTRUCTOR" ||
     (input.unlockedSections && (primaryRole === "STUDENT" || primaryRole === "PARENT"));
@@ -441,6 +459,10 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
 
   let visible = sortLinksForRole(
     NAV_CATALOG.filter((item) => {
+      if (hiringDemoHrefs) {
+        return hiringDemoHrefs.includes(item.href) && hasRoleAccess(item, roles);
+      }
+
       if (ALWAYS_HIDDEN_HREFS.has(item.href)) return false;
       if (input.studentHasChapter && item.href === "/join-chapter") return false;
       if (!hasRoleAccess(item, roles)) return false;
@@ -469,7 +491,9 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
     primaryRole,
   );
 
-  visible = applyAdminPrimarySidebarFilter(visible, primaryRole, roles, adminSubtypes);
+  if (!hiringDemoHrefs) {
+    visible = applyAdminPrimarySidebarFilter(visible, primaryRole, roles, adminSubtypes);
+  }
 
   if (shouldApplyStudentV1NavFilter(primaryRole, input.studentFullPortalExplorer)) {
     visible = visible.filter((item) => STUDENT_V1_ALLOWED_HREFS.has(item.href));
@@ -497,7 +521,8 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
   const visibleByHref = new Map(visible.map((item) => [item.href, item]));
 
   const coreHrefList =
-    studentMinimalSidebar && primaryRole === "STUDENT" ? ["/"] : CORE_NAV_MAP[primaryRole];
+    hiringDemoHrefs ??
+    (studentMinimalSidebar && primaryRole === "STUDENT" ? ["/"] : CORE_NAV_MAP[primaryRole]);
 
   const core: NavLink[] = [];
   for (const href of coreHrefList) {
@@ -515,7 +540,9 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
   }
 
   const coreHrefs = new Set(core.map((item) => item.href));
-  const moreLinks = visible.filter((item) => !coreHrefs.has(item.href));
+  const moreLinks = hiringDemoHrefs
+    ? []
+    : visible.filter((item) => !coreHrefs.has(item.href));
 
   const grouped = new Map<NavGroup, NavLink[]>();
   for (const link of moreLinks) {

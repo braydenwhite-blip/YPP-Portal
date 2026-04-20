@@ -138,6 +138,11 @@ export default async function AppLayout({
 
   const studentFullPortalExplorer = process.env.STUDENT_FULL_PORTAL_EXPLORER === "true";
   const instructorFullPortalExplorer = process.env.INSTRUCTOR_FULL_PORTAL_EXPLORER === "true";
+  const hiringDemoMode =
+    process.env.HIRING_DEMO_MODE === "true" ||
+    process.env.NEXT_PUBLIC_HIRING_DEMO_MODE === "true" ||
+    process.env.DEMO_MODE === "true" ||
+    process.env.NEXT_PUBLIC_DEMO_MODE === "true";
   const studentHasChapter = Boolean(session?.user?.chapterId);
 
   return (
@@ -154,6 +159,7 @@ export default async function AppLayout({
       studentFullPortalExplorer={studentFullPortalExplorer}
       studentHasChapter={studentHasChapter}
       instructorFullPortalExplorer={instructorFullPortalExplorer}
+      hiringDemoMode={hiringDemoMode}
     >
       {children}
     </AppShell>
