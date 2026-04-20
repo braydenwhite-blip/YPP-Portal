@@ -994,6 +994,7 @@ export async function assignInterviewer(formData: FormData): Promise<{ success: 
         id: true,
         applicantId: true,
         reviewerId: true,
+        status: true,
         applicant: { select: { chapterId: true } },
         interviewerAssignments: {
           where: { removedAt: null },
