@@ -141,6 +141,33 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(appUrl);
   }
 
+  const DEMO_MODE = process.env.DEMO_MODE === "true";
+  const DEMO_ALLOWED_PREFIXES = [
+    "/",
+    "/positions",
+    "/applications",
+    "/interviews",
+    "/admin/applications",
+    "/admin/recruiting",
+    "/admin/hiring-committee",
+    "/admin/instructor-applicants",
+    "/admin/chapter-president-applicants",
+    "/admin/positions",
+    "/not-rolled-out",
+    "/onboarding",
+  ];
+
+  if (DEMO_MODE && isAuthenticated) {
+    const allowed = DEMO_ALLOWED_PREFIXES.some(
+      (p) => pathname === p || pathname.startsWith(p + "/")
+    );
+    if (!allowed) {
+      const dest = request.nextUrl.clone();
+      dest.pathname = "/not-rolled-out";
+      return NextResponse.redirect(dest);
+    }
+  }
+
   return applySecurityHeaders(response);
 }
 
