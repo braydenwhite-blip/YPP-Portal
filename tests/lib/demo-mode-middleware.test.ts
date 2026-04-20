@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { isDemoAllowedPathname } from "@/middleware";
+import {
+  getHiringDemoHomeHref,
+  isDemoAllowedPathname,
+} from "@/lib/hiring-demo-mode";
 
 describe("demo mode middleware allowlist", () => {
   it("allows applicant application status and curriculum prep routes", () => {
@@ -15,5 +18,17 @@ describe("demo mode middleware allowlist", () => {
   it("keeps non-demo training routes blocked", () => {
     expect(isDemoAllowedPathname("/instructor-training")).toBe(false);
     expect(isDemoAllowedPathname("/training/module-1")).toBe(false);
+  });
+
+  it("sends demo users to the right hiring home", () => {
+    expect(getHiringDemoHomeHref({ primaryRole: "APPLICANT" })).toBe(
+      "/application-status"
+    );
+    expect(getHiringDemoHomeHref({ primaryRole: "ADMIN" })).toBe(
+      "/admin/instructor-applicants"
+    );
+    expect(getHiringDemoHomeHref({ primaryRole: "CHAPTER_PRESIDENT" })).toBe(
+      "/chapter-lead/instructor-applicants"
+    );
   });
 });

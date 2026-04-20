@@ -7,6 +7,10 @@ import {
   getArchivedApplications,
 } from "@/lib/instructor-applicant-board-queries";
 import InstructorApplicantsCommandCenter from "@/components/instructor-applicants/InstructorApplicantsCommandCenter";
+import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
+
+const DEMO_PIPELINE_TAKE = 48;
+const DEMO_FILTER_TAKE = 40;
 
 export default async function ChapterLeadInstructorApplicantsPage({
   searchParams,
@@ -17,6 +21,7 @@ export default async function ChapterLeadInstructorApplicantsPage({
   const roles = session?.user?.roles ?? [];
   const isChapterPresident = roles.includes("CHAPTER_PRESIDENT");
   const isAdmin = roles.includes("ADMIN");
+  const hiringDemoMode = isHiringDemoModeEnabled();
 
   if (!isChapterPresident && !isAdmin) {
     redirect("/");
@@ -51,19 +56,15 @@ export default async function ChapterLeadInstructorApplicantsPage({
   const overdueOnly = resolvedParams.overdueOnly === "1";
   const myCasesOnly = resolvedParams.myCasesOnly === "1";
 
-  const [pipelineResult, archiveResult, reviewerUsers, interviewerUsers] = await Promise.all([
-    getApplicantPipeline({
-      scope: "chapter",
-      chapterId,
-      filters: {
-        reviewerId,
-        interviewerId,
-        materialsMissing,
-        overdueOnly,
-        myCasesActorId: myCasesOnly ? session!.user.id : undefined,
-      },
-    }),
-    getArchivedApplications({ scope: "chapter", chapterId }),
+  const pipelineFilters = {
+    reviewerId,
+    interviewerId,
+    materialsMissing,
+    overdueOnly,
+    myCasesActorId: myCasesOnly ? session!.user.id : undefined,
+  };
+
+  const loadReviewerUsers = () =>
     prisma.user.findMany({
       where: {
         chapterId: chapterId ?? undefined,
@@ -74,7 +75,10 @@ export default async function ChapterLeadInstructorApplicantsPage({
       },
       select: { id: true, name: true, email: true },
       orderBy: { name: "asc" },
-    }),
+      take: hiringDemoMode ? DEMO_FILTER_TAKE : undefined,
+    });
+
+  const loadInterviewerUsers = () =>
     prisma.user.findMany({
       where: {
         chapterId: chapterId ?? undefined,
@@ -90,8 +94,36 @@ export default async function ChapterLeadInstructorApplicantsPage({
       },
       select: { id: true, name: true, email: true },
       orderBy: { name: "asc" },
-    }),
-  ]);
+      take: hiringDemoMode ? DEMO_FILTER_TAKE : undefined,
+    });
+
+  let pipelineResult: Awaited<ReturnType<typeof getApplicantPipeline>>;
+  let archiveResult: Awaited<ReturnType<typeof getArchivedApplications>>;
+  let reviewerUsers: Awaited<ReturnType<typeof loadReviewerUsers>>;
+  let interviewerUsers: Awaited<ReturnType<typeof loadInterviewerUsers>>;
+
+  if (hiringDemoMode) {
+    pipelineResult = await getApplicantPipeline({
+      scope: "chapter",
+      chapterId,
+      filters: pipelineFilters,
+      take: DEMO_PIPELINE_TAKE,
+    });
+    archiveResult = { items: [], total: 0, skip: 0, take: 0 };
+    reviewerUsers = await loadReviewerUsers();
+    interviewerUsers = reviewerUsers;
+  } else {
+    [pipelineResult, archiveResult, reviewerUsers, interviewerUsers] = await Promise.all([
+      getApplicantPipeline({
+        scope: "chapter",
+        chapterId,
+        filters: pipelineFilters,
+      }),
+      getArchivedApplications({ scope: "chapter", chapterId }),
+      loadReviewerUsers(),
+      loadInterviewerUsers(),
+    ]);
+  }
 
   const pipelineApps = (Object.values(pipelineResult.columns).flat() as any[]);
 

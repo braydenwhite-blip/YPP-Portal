@@ -12,6 +12,7 @@ import SlotPickerForm from "./slot-picker-form";
 import Link from "next/link";
 import InstructorApplicationMotivationResponse from "@/components/instructor-application-motivation-response";
 import InstructorCurriculumPrepPanel from "./instructor-curriculum-prep-panel";
+import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
 
 function instructorStatusLabel(status: InstructorApplicationStatus): string {
   switch (status) {
@@ -119,9 +120,9 @@ export default async function ApplicationStatusPage() {
 
   const roles = session.user.roles ?? [];
   const primaryRole = session.user.primaryRole;
+  const hiringDemoMode = isHiringDemoModeEnabled();
 
-  // Fetch both application types
-  const [instructorApp, cpApp] = await Promise.all([
+  const loadInstructorApplication = () =>
     prisma.instructorApplication.findUnique({
       where: { applicantId: session.user.id },
       include: {
@@ -144,7 +145,9 @@ export default async function ApplicationStatusPage() {
           orderBy: { uploadedAt: "desc" },
         },
       },
-    }),
+    });
+
+  const loadChapterPresidentApplication = () =>
     prisma.chapterPresidentApplication.findUnique({
       where: { applicantId: session.user.id },
       include: {
@@ -152,8 +155,20 @@ export default async function ApplicationStatusPage() {
         chapter: { select: { name: true } },
         availabilityWindows: true,
       },
-    }),
-  ]);
+    });
+
+  let instructorApp: Awaited<ReturnType<typeof loadInstructorApplication>>;
+  let cpApp: Awaited<ReturnType<typeof loadChapterPresidentApplication>>;
+
+  if (hiringDemoMode) {
+    instructorApp = await loadInstructorApplication();
+    cpApp = instructorApp ? null : await loadChapterPresidentApplication();
+  } else {
+    [instructorApp, cpApp] = await Promise.all([
+      loadInstructorApplication(),
+      loadChapterPresidentApplication(),
+    ]);
+  }
 
   if (!instructorApp && !cpApp) {
     // No applications — redirect unless applicant role

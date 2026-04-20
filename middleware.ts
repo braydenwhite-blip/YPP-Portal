@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createMiddlewareClient } from "@/lib/supabase/middleware";
 import { LEGACY_AUTH_COOKIE_NAME, verifyLegacySessionToken } from "@/lib/legacy-auth";
+import { isDemoAllowedPathname, isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
 
 const PUBLIC_PATHS = [
   "/login",
@@ -93,29 +94,6 @@ function applySecurityHeaders(response: NextResponse): NextResponse {
   return response;
 }
 
-export const DEMO_ALLOWED_PREFIXES = [
-  "/",
-  "/application-status",
-  "/positions",
-  "/applications",
-  "/interviews",
-  "/instructor/lesson-design-studio",
-  "/admin/applications",
-  "/admin/recruiting",
-  "/admin/hiring-committee",
-  "/admin/instructor-applicants",
-  "/admin/chapter-president-applicants",
-  "/admin/positions",
-  "/not-rolled-out",
-  "/onboarding",
-];
-
-export function isDemoAllowedPathname(pathname: string): boolean {
-  return DEMO_ALLOWED_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
-  );
-}
-
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isLogin = pathname.startsWith("/login");
@@ -127,9 +105,15 @@ export async function middleware(request: NextRequest) {
   }
 
   // Create Supabase client and refresh session
+  const demoMode = isHiringDemoModeEnabled();
+  const legacyToken = request.cookies.get(LEGACY_AUTH_COOKIE_NAME)?.value ?? null;
+  const demoLegacySession = demoMode
+    ? await verifyLegacySessionToken(legacyToken)
+    : null;
+
   const { supabase, response } = createMiddlewareClient(request);
   let user = null;
-  if (supabase) {
+  if (!demoLegacySession && supabase) {
     try {
       const { data } = await supabase.auth.getUser();
       user = data?.user ?? null;
@@ -139,12 +123,14 @@ export async function middleware(request: NextRequest) {
     }
   }
   const isArchivedPortalUser = user?.user_metadata?.portalArchived === true;
-  const legacyToken =
+  const fallbackLegacyToken =
     !user || isArchivedPortalUser
-      ? request.cookies.get(LEGACY_AUTH_COOKIE_NAME)?.value ?? null
+      ? legacyToken
       : null;
-  const legacySession = legacyToken
-    ? await verifyLegacySessionToken(legacyToken)
+  const legacySession = demoLegacySession
+    ? demoLegacySession
+    : fallbackLegacyToken
+    ? await verifyLegacySessionToken(fallbackLegacyToken)
     : null;
   const isAuthenticated = (!!user && !isArchivedPortalUser) || !!legacySession;
 
@@ -164,9 +150,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(appUrl);
   }
 
-  const DEMO_MODE = process.env.DEMO_MODE === "true";
-
-  if (DEMO_MODE && isAuthenticated) {
+  if (demoMode && isAuthenticated) {
     if (!isDemoAllowedPathname(pathname)) {
       const dest = request.nextUrl.clone();
       dest.pathname = "/not-rolled-out";

@@ -9,6 +9,10 @@ import {
   getChairQueue,
 } from "@/lib/instructor-applicant-board-queries";
 import InstructorApplicantsCommandCenter from "@/components/instructor-applicants/InstructorApplicantsCommandCenter";
+import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
+
+const DEMO_PIPELINE_TAKE = 48;
+const DEMO_FILTER_TAKE = 40;
 
 export default async function AdminInstructorApplicantsPage({
   searchParams,
@@ -19,6 +23,7 @@ export default async function AdminInstructorApplicantsPage({
   const roles = session?.user?.roles ?? [];
   const isAdmin = roles.includes("ADMIN");
   const isChapterPresident = roles.includes("CHAPTER_PRESIDENT");
+  const hiringDemoMode = isHiringDemoModeEnabled();
 
   if (!isAdmin && !isChapterPresident) {
     redirect("/");
@@ -75,56 +80,91 @@ export default async function AdminInstructorApplicantsPage({
   // Determine chair queue visibility
   const showChairQueue = canSeeChairQueue(actor);
 
-  const [pipelineResult, archiveResult, chairQueueItems, chapters, reviewerUsers, interviewerUsers] =
-    await Promise.all([
-      getApplicantPipeline({
-        scope,
-        chapterId: effectiveChapterId,
-        filters: {
-          reviewerId,
-          interviewerId,
-          materialsMissing,
-          overdueOnly,
-          myCasesActorId: myCasesOnly ? session!.user.id : undefined,
-        },
-      }),
-      getArchivedApplications({ scope, chapterId: effectiveChapterId }),
-      showChairQueue
-        ? getChairQueue({ scope, chapterId: effectiveChapterId })
-        : Promise.resolve([]),
-      isAdmin
-        ? prisma.chapter.findMany({
-            select: { id: true, name: true },
-            orderBy: { name: "asc" },
-          })
-        : Promise.resolve([]),
-      prisma.user.findMany({
-        where: {
-          OR: [
-            { roles: { some: { role: "ADMIN" } } },
-            { roles: { some: { role: "CHAPTER_PRESIDENT" } } },
-            { roles: { some: { role: "HIRING_CHAIR" } } },
-          ],
-        },
-        select: { id: true, name: true, email: true },
-        orderBy: { name: "asc" },
-      }),
-      prisma.user.findMany({
-        where: {
-          OR: [
-            { roles: { some: { role: "ADMIN" } } },
-            { roles: { some: { role: "CHAPTER_PRESIDENT" } } },
-            {
-              featureGateRulesTargeted: {
-                some: { featureKey: "INTERVIEWER", enabled: true },
-              },
+  const pipelineFilters = {
+    reviewerId,
+    interviewerId,
+    materialsMissing,
+    overdueOnly,
+    myCasesActorId: myCasesOnly ? session!.user.id : undefined,
+  };
+
+  const loadChapters = () =>
+    isAdmin
+      ? prisma.chapter.findMany({
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+          take: hiringDemoMode ? DEMO_FILTER_TAKE : undefined,
+        })
+      : Promise.resolve([]);
+
+  const loadReviewerUsers = () =>
+    prisma.user.findMany({
+      where: {
+        OR: [
+          { roles: { some: { role: "ADMIN" } } },
+          { roles: { some: { role: "CHAPTER_PRESIDENT" } } },
+          { roles: { some: { role: "HIRING_CHAIR" } } },
+        ],
+      },
+      select: { id: true, name: true, email: true },
+      orderBy: { name: "asc" },
+      take: hiringDemoMode ? DEMO_FILTER_TAKE : undefined,
+    });
+
+  const loadInterviewerUsers = () =>
+    prisma.user.findMany({
+      where: {
+        OR: [
+          { roles: { some: { role: "ADMIN" } } },
+          { roles: { some: { role: "CHAPTER_PRESIDENT" } } },
+          {
+            featureGateRulesTargeted: {
+              some: { featureKey: "INTERVIEWER", enabled: true },
             },
-          ],
-        },
-        select: { id: true, name: true, email: true },
-        orderBy: { name: "asc" },
-      }),
-    ]);
+          },
+        ],
+      },
+      select: { id: true, name: true, email: true },
+      orderBy: { name: "asc" },
+      take: hiringDemoMode ? DEMO_FILTER_TAKE : undefined,
+    });
+
+  let pipelineResult: Awaited<ReturnType<typeof getApplicantPipeline>>;
+  let archiveResult: Awaited<ReturnType<typeof getArchivedApplications>>;
+  let chairQueueItems: Awaited<ReturnType<typeof getChairQueue>>;
+  let chapters: Awaited<ReturnType<typeof loadChapters>>;
+  let reviewerUsers: Awaited<ReturnType<typeof loadReviewerUsers>>;
+  let interviewerUsers: Awaited<ReturnType<typeof loadInterviewerUsers>>;
+
+  if (hiringDemoMode) {
+    pipelineResult = await getApplicantPipeline({
+      scope,
+      chapterId: effectiveChapterId,
+      filters: pipelineFilters,
+      take: DEMO_PIPELINE_TAKE,
+    });
+    archiveResult = { items: [], total: 0, skip: 0, take: 0 };
+    chairQueueItems = [];
+    chapters = await loadChapters();
+    reviewerUsers = await loadReviewerUsers();
+    interviewerUsers = reviewerUsers;
+  } else {
+    [pipelineResult, archiveResult, chairQueueItems, chapters, reviewerUsers, interviewerUsers] =
+      await Promise.all([
+        getApplicantPipeline({
+          scope,
+          chapterId: effectiveChapterId,
+          filters: pipelineFilters,
+        }),
+        getArchivedApplications({ scope, chapterId: effectiveChapterId }),
+        showChairQueue
+          ? getChairQueue({ scope, chapterId: effectiveChapterId })
+          : Promise.resolve([]),
+        loadChapters(),
+        loadReviewerUsers(),
+        loadInterviewerUsers(),
+      ]);
+  }
 
   // Flatten pipeline columns into a single array
   const pipelineApps = (Object.values(pipelineResult.columns).flat() as any[]);
@@ -187,6 +227,10 @@ export default async function AdminInstructorApplicantsPage({
     pipelineResult.columns.interview_prep.length +
     pipelineResult.columns.ready_for_interview.length;
   const postInterviewCount = pipelineResult.columns.post_interview.length;
+  const chairQueueCount =
+    hiringDemoMode && showChairQueue
+      ? pipelineResult.columns.chair_review.length
+      : chairQueueItems.length;
 
   return (
     <div className="page-shell applicant-command-page">
@@ -224,7 +268,7 @@ export default async function AdminInstructorApplicantsPage({
         chapterId={chapterId}
         pipelineApps={serializedPipeline as any}
         archivedApps={serializedArchive as any}
-        chairQueueCount={chairQueueItems.length}
+        chairQueueCount={chairQueueCount}
         canSeeChairQueue={showChairQueue}
         chapters={chapters}
         reviewers={reviewerUsers}

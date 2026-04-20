@@ -13,6 +13,7 @@ import {
 import { ensureAutoUnlockAndGetSections } from "@/lib/unlock-request-cache";
 import { getVisibleNavGroups } from "@/lib/unlock-nav-groups";
 import { withPrismaFallback } from "@/lib/prisma-guard";
+import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
 
 // Force runtime rendering so `next build` doesn't try to prerender pages that
 // require auth/database access (which can fail in build environments).
@@ -36,11 +37,7 @@ export default async function AppLayout({
   const roles = session?.user?.roles ?? [];
   const primaryRole = session?.user?.primaryRole ?? null;
   const userId = session?.user?.id;
-  const hiringDemoMode =
-    process.env.HIRING_DEMO_MODE === "true" ||
-    process.env.NEXT_PUBLIC_HIRING_DEMO_MODE === "true" ||
-    process.env.DEMO_MODE === "true" ||
-    process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+  const hiringDemoMode = isHiringDemoModeEnabled();
   const shouldCheckOnboarding = Boolean(
     userId && primaryRole !== "APPLICANT" && !hiringDemoMode,
   );

@@ -147,10 +147,12 @@ export async function getApplicantPipeline({
   scope,
   chapterId,
   filters = {},
+  take,
 }: {
   scope: PipelineScope;
   chapterId?: string;
   filters?: PipelineFilters;
+  take?: number;
 }): Promise<{ columns: Record<DerivedColumn, typeof applications[number][]> }> {
   const where: Record<string, unknown> = {
     // Exclude already-archived items from the main pipeline
@@ -194,6 +196,7 @@ export async function getApplicantPipeline({
     where,
     select: PIPELINE_SELECT,
     orderBy: { createdAt: "desc" },
+    take,
   });
 
   const columns: Record<DerivedColumn, typeof applications> = {

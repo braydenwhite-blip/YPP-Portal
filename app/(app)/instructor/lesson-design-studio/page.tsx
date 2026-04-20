@@ -47,12 +47,10 @@ export default async function CurriculumBuilderStudioPage({
     redirect(canonicalHref);
   }
 
-  const [draftSummaries, draft] = await Promise.all([
-    listCurriculumDraftSummaries(),
-    draftId ? getCurriculumDraftForStudio(draftId) : Promise.resolve(null),
-  ]);
+  const draft = draftId ? await getCurriculumDraftForStudio(draftId) : null;
 
   if (!draftId || !draft) {
+    const draftSummaries = await listCurriculumDraftSummaries();
     return (
       <DraftChooser
         userName={session.user.name ?? "Instructor"}

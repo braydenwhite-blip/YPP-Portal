@@ -25,6 +25,10 @@ import AtRiskPanel from "@/components/dashboard/at-risk-panel";
 import { getAtRiskChapters } from "@/lib/governance/actions";
 import LegacyOverviewPage from "./legacy-overview-page";
 import StudentHome from "@/components/dashboard/student-home";
+import {
+  getHiringDemoHomeHref,
+  isHiringDemoModeEnabled,
+} from "@/lib/hiring-demo-mode";
 
 function isMissingTableError(error: unknown) {
   return (
@@ -358,6 +362,15 @@ export default async function OverviewPage() {
   const adminSubtypes = normalizeAdminSubtypes(
     ((session.user as { adminSubtypes?: string[] }).adminSubtypes ?? [])
   );
+
+  if (isHiringDemoModeEnabled()) {
+    redirect(
+      getHiringDemoHomeHref({
+        primaryRole: session.user.primaryRole,
+        roles,
+      })
+    );
+  }
 
   if (roles.includes("ADMIN")) {
     return renderAdminWorkflowHome({

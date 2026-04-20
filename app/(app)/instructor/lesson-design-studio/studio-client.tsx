@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import {
   createWorkingCopyFromCurriculumDraft,
   markLessonDesignStudioTourComplete,
@@ -33,18 +34,12 @@ import {
   type StudioEntryContext,
   type StudioPhase,
 } from "@/lib/lesson-design-studio";
-import { ActivityTemplates } from "./components/activity-templates";
-import { ExamplesLibrary } from "./components/examples-library";
 import { GuidedStudioShell } from "./components/guided-studio-shell";
-import { StudioNavTips } from "./components/studio-nav-tips";
-import { CommentSidebar } from "./components/comment-sidebar";
 import { StudioCourseMapStep } from "./components/studio-course-map-step";
 import { StudioReadinessStep } from "./components/studio-readiness-step";
 import { StudioReviewLaunchStep } from "./components/studio-review-launch-step";
 import { StudioSessionsStep } from "./components/studio-sessions-step";
 import { StudioStartStep } from "./components/studio-start-step";
-import { QuickStartWizard } from "./components/quick-start-wizard";
-import { StudentPreviewPanel } from "./components/student-preview-panel";
 import { SEED_CURRICULA, type SeedCurriculum } from "./curriculum-seeds";
 import type { ExampleWeek } from "./examples-data";
 import {
@@ -64,6 +59,31 @@ import type {
   WeekActivity,
   WeekPlan,
 } from "./types";
+
+const ActivityTemplates = dynamic(
+  () => import("./components/activity-templates").then((mod) => mod.ActivityTemplates),
+  { ssr: false }
+);
+const CommentSidebar = dynamic(
+  () => import("./components/comment-sidebar").then((mod) => mod.CommentSidebar),
+  { ssr: false }
+);
+const ExamplesLibrary = dynamic(
+  () => import("./components/examples-library").then((mod) => mod.ExamplesLibrary),
+  { ssr: false }
+);
+const QuickStartWizard = dynamic(
+  () => import("./components/quick-start-wizard").then((mod) => mod.QuickStartWizard),
+  { ssr: false }
+);
+const StudentPreviewPanel = dynamic(
+  () => import("./components/student-preview-panel").then((mod) => mod.StudentPreviewPanel),
+  { ssr: false }
+);
+const StudioNavTips = dynamic(
+  () => import("./components/studio-nav-tips").then((mod) => mod.StudioNavTips),
+  { ssr: false }
+);
 
 interface StudioClientProps {
   userId: string;

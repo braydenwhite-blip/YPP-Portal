@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { normalizeRoleValues, normalizeRoleValue } from "@/lib/role-utils";
 import { getLegacySessionFromCookies } from "@/lib/legacy-auth-server";
 import { normalizeAdminSubtypes, type AdminSubtypeValue } from "@/lib/admin-subtypes";
+import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
 
 export type SessionUser = {
   id: string;
@@ -71,18 +72,32 @@ async function resolvePrismaUserForSession(where: {
  * One Supabase + Prisma resolution per RSC request (layout + page both call getSession).
  */
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
-  const supabase = await createServerClientOrNull();
-  const authUser = supabase
-    ? (await supabase.auth.getUser()).data.user
+  const demoLegacySession = isHiringDemoModeEnabled()
+    ? await getLegacySessionFromCookies()
     : null;
+  const supabase = demoLegacySession ? null : await createServerClientOrNull();
+  const authUser =
+    !demoLegacySession && supabase
+      ? (await supabase.auth.getUser()).data.user
+      : null;
 
-  const prismaUser = authUser
-    ? await resolvePrismaUserForSession({ supabaseAuthId: authUser.id })
-    : await (async () => {
-        const legacySession = await getLegacySessionFromCookies();
-        if (!legacySession) return null;
-        return resolvePrismaUserForSession({ id: legacySession.userId, email: legacySession.email });
-      })();
+  let prismaUser = null;
+  if (demoLegacySession) {
+    prismaUser = await resolvePrismaUserForSession({
+      id: demoLegacySession.userId,
+      email: demoLegacySession.email,
+    });
+  } else if (authUser) {
+    prismaUser = await resolvePrismaUserForSession({ supabaseAuthId: authUser.id });
+  } else {
+    const legacySession = await getLegacySessionFromCookies();
+    prismaUser = legacySession
+      ? await resolvePrismaUserForSession({
+          id: legacySession.userId,
+          email: legacySession.email,
+        })
+      : null;
+  }
 
   if (!prismaUser) return null;
 
