@@ -5,6 +5,7 @@ import ReviewerAssignPicker from "./ReviewerAssignPicker";
 import InterviewerAssignPicker from "./InterviewerAssignPicker";
 import ApplicantDocumentsPanel from "./ApplicantDocumentsPanel";
 import ApplicantTimelineFeed from "./ApplicantTimelineFeed";
+import type { ApplicantDocumentKind } from "@prisma/client";
 
 interface InterviewerAssignment {
   id: string;
@@ -52,7 +53,7 @@ interface Props {
     interviewerAssignments: InterviewerAssignment[];
     documents: Array<{
       id: string;
-      kind: string;
+      kind: ApplicantDocumentKind;
       fileUrl: string;
       originalName: string | null;
       uploadedAt: Date;
@@ -78,6 +79,9 @@ export default function ApplicantCockpitSidebar({
 }: Props) {
   const [showAllTimeline, setShowAllTimeline] = useState(false);
   const previewEvents = application.timeline.slice(0, 5);
+  const hasLeadInterviewer = application.interviewerAssignments.some(
+    (assignment) => assignment.role === "LEAD"
+  );
 
   // Normalise timeline events for the feed component
   function toFeedEvents(evts: SidebarTimelineEvent[]) {
@@ -93,7 +97,7 @@ export default function ApplicantCockpitSidebar({
   return (
     <aside style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Reviewer */}
-      <section className="card" style={{ padding: "16px 20px" }}>
+      <section id="sidebar-reviewer" className="card" style={{ padding: "16px 20px" }}>
         <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700 }}>Assigned Reviewer</h3>
         {application.reviewer ? (
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
@@ -131,7 +135,7 @@ export default function ApplicantCockpitSidebar({
       </section>
 
       {/* Interviewers */}
-      <section className="card" style={{ padding: "16px 20px" }}>
+      <section id="sidebar-interviewers" className="card" style={{ padding: "16px 20px" }}>
         <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700 }}>Interviewers</h3>
         {(["LEAD", "SECOND"] as const).map((role) => {
           const assigned = application.interviewerAssignments.find((a) => a.role === role);
@@ -170,6 +174,7 @@ export default function ApplicantCockpitSidebar({
                     role={role}
                     currentAssignment={assigned ?? null}
                     candidates={role === "LEAD" ? interviewerCandidatesLead : interviewerCandidatesSecond}
+                    disabled={role === "SECOND" && !hasLeadInterviewer}
                   />
                 </div>
               )}
@@ -179,12 +184,13 @@ export default function ApplicantCockpitSidebar({
       </section>
 
       {/* Documents */}
-      <ApplicantDocumentsPanel
-        applicationId={application.id}
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        documents={application.documents as any}
-        canUpload
-      />
+      <section id="sidebar-documents">
+        <ApplicantDocumentsPanel
+          applicationId={application.id}
+          documents={application.documents}
+          canUpload
+        />
+      </section>
 
       {/* Timeline preview */}
       <section className="card" style={{ padding: "16px 20px" }}>

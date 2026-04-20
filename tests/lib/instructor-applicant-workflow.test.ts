@@ -7,6 +7,7 @@
  *   Risk 8  — auto-advance race handles "0 rows updated" gracefully
  *   Risk 10 — APPROVE + sync failure triggers compensating rollback
  *   Risk 12 — PRE_APPROVED apps are excluded from the chair queue
+ *   Risk 13 — cockpit second-interviewer candidates do not crash without LEAD
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -355,5 +356,24 @@ describe("Risk 12 — chair queue excludes PRE_APPROVED", () => {
 
     expect(columns.chair_review).toHaveLength(0);
     expect(columns.interview_prep).toHaveLength(1);
+  });
+});
+
+// ─── Risk 13: cockpit loads before LEAD interviewer assignment ────────────────
+
+describe("Risk 13 — second interviewer candidates before LEAD", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns no SECOND candidates instead of throwing when no LEAD is assigned", async () => {
+    mockFindUnique.mockResolvedValueOnce({
+      subjectsOfInterest: null,
+      applicant: { chapterId: "chapter-1" },
+      interviewerAssignments: [],
+    });
+
+    const { getCandidateInterviewers } = await import("@/lib/instructor-applicant-board-queries");
+    await expect(getCandidateInterviewers("app-1", { role: "SECOND" })).resolves.toEqual([]);
   });
 });

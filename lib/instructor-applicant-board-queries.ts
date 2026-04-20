@@ -426,10 +426,10 @@ export async function getCandidateInterviewers(
 
   const chapterId = application.applicant.chapterId;
 
-  // LEAD must be assigned before SECOND; if looking for SECOND, LEAD must already exist
+  // LEAD must be assigned before SECOND; keep render-time candidate loading non-throwing.
   if (role === "SECOND") {
     const hasLead = application.interviewerAssignments.some((a) => a.role === "LEAD");
-    if (!hasLead) throw new Error("Assign a LEAD interviewer before adding a SECOND.");
+    if (!hasLead) return [];
   }
 
   // Already assigned interviewers (active) — exclude from candidates

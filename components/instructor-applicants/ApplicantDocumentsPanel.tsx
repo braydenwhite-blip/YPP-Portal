@@ -2,16 +2,24 @@
 
 import { useState, useTransition, useRef } from "react";
 import { uploadApplicantDocument, deleteApplicantDocument } from "@/lib/applicant-documents-actions";
+import type { ApplicantDocumentKind } from "@prisma/client";
 
-type DocKind = "COURSE_OUTLINE" | "FIRST_CLASS_PLAN";
+type DocKind = Extract<ApplicantDocumentKind, "COURSE_OUTLINE" | "FIRST_CLASS_PLAN">;
 
 type DocEntry = {
   id: string;
-  kind: DocKind;
+  kind: ApplicantDocumentKind;
   fileUrl: string;
   originalName: string | null;
   uploadedAt: Date | string;
   supersededAt: Date | string | null;
+};
+
+type UploadResponse = {
+  url?: string;
+  originalName?: string;
+  size?: number;
+  error?: string;
 };
 
 interface ApplicantDocumentsPanelProps {
@@ -64,20 +72,44 @@ export default function ApplicantDocumentsPanel({
   }
 
   function handleFileSelect(kind: DocKind, file: File) {
-    if (file.size > 20 * 1024 * 1024) {
-      setErrors((prev) => ({ ...prev, [kind]: "File exceeds 20 MB limit." }));
+    if (file.size > 10 * 1024 * 1024) {
+      setErrors((prev) => ({ ...prev, [kind]: "File exceeds 10 MB limit." }));
       return;
     }
     setErrors((prev) => ({ ...prev, [kind]: null }));
 
-    const formData = new FormData();
-    formData.set("applicationId", applicationId);
-    formData.set("kind", kind);
-    formData.set("file", file);
-
     startTransition(async () => {
       try {
-        await uploadApplicantDocument(formData);
+        const uploadFormData = new FormData();
+        uploadFormData.set("file", file);
+        uploadFormData.set("category", "OTHER");
+        uploadFormData.set("entityId", applicationId);
+        uploadFormData.set("entityType", "INSTRUCTOR_APPLICATION_DOCUMENT");
+
+        const uploadResponse = await fetch("/api/upload", {
+          method: "POST",
+          body: uploadFormData,
+        });
+        const uploadPayload = (await uploadResponse.json().catch(() => ({}))) as UploadResponse;
+
+        if (!uploadResponse.ok || !uploadPayload.url) {
+          throw new Error(uploadPayload.error ?? "Upload failed.");
+        }
+        const uploadedUrl = uploadPayload.url;
+        const uploadedName = uploadPayload.originalName ?? file.name;
+
+        const formData = new FormData();
+        formData.set("applicationId", applicationId);
+        formData.set("kind", kind);
+        formData.set("fileUrl", uploadedUrl);
+        formData.set("originalName", uploadedName);
+        formData.set("fileSize", String(uploadPayload.size ?? file.size));
+
+        const result = await uploadApplicantDocument(formData);
+        if (!result.success) {
+          throw new Error(result.error ?? "Document could not be saved.");
+        }
+
         // Optimistic local update — full refresh happens via revalidatePath server-side
         const nowStr = new Date().toISOString();
         setLocalDocs((prev) => {
@@ -89,8 +121,8 @@ export default function ApplicantDocumentsPanel({
             {
               id: `tmp-${Date.now()}`,
               kind,
-              fileUrl: URL.createObjectURL(file),
-              originalName: file.name,
+              fileUrl: uploadedUrl,
+              originalName: uploadedName,
               uploadedAt: nowStr,
               supersededAt: null,
             },
@@ -110,13 +142,20 @@ export default function ApplicantDocumentsPanel({
     formData.set("documentId", doc.id);
     startTransition(async () => {
       try {
-        await deleteApplicantDocument(formData);
+        const result = await deleteApplicantDocument(formData);
+        if (!result.success) {
+          throw new Error(result.error ?? "Document could not be removed.");
+        }
         const nowStr = new Date().toISOString();
         setLocalDocs((prev) =>
           prev.map((d) => (d.id === doc.id ? { ...d, supersededAt: nowStr } : d))
         );
-      } catch {
-        // ignore — revalidation will correct state
+      } catch (err) {
+        setErrors((prev) => ({
+          ...prev,
+          [doc.kind === "COURSE_OUTLINE" ? "COURSE_OUTLINE" : "FIRST_CLASS_PLAN"]:
+            err instanceof Error ? err.message : "Remove failed.",
+        }));
       }
     });
   }

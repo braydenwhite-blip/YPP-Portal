@@ -654,6 +654,15 @@ export async function saveInstructorApplicationReviewAction(formData: FormData) 
     throw new Error("Submitted application reviews are locked. Ask an admin to reopen it if changes are needed.");
   }
 
+  const movingToInterviewWithoutDraft = isLeadReviewer && nextStep === "MOVE_TO_INTERVIEW" && !hasDraft;
+  const normalizedDraftOverrideUsed = isLeadReviewer
+    ? draftOverrideUsed || movingToInterviewWithoutDraft
+    : false;
+  const normalizedDraftOverrideReason =
+    isLeadReviewer && movingToInterviewWithoutDraft
+      ? draftOverrideReason ?? "No Lesson Design Studio draft was available during application review."
+      : draftOverrideReason;
+
   if (intent === "submit") {
     validateSubmittedCategories(categories);
     if (!overallRating) {
@@ -664,11 +673,6 @@ export async function saveInstructorApplicationReviewAction(formData: FormData) 
     }
     if (isLeadReviewer && (nextStep === "REQUEST_INFO" || nextStep === "REJECT") && !applicantMessage) {
       throw new Error("An applicant-facing message is required for request-info and rejection decisions.");
-    }
-    if (isLeadReviewer && nextStep === "MOVE_TO_INTERVIEW" && !hasDraft) {
-      if (!isAdmin(actor) || !draftOverrideUsed || !draftOverrideReason) {
-        throw new Error("A Lesson Design Studio draft is required before moving to interview unless an admin uses the override with a reason.");
-      }
     }
   }
 
@@ -700,8 +704,8 @@ export async function saveInstructorApplicationReviewAction(formData: FormData) 
         concerns,
         applicantMessage,
         flagForLeadership,
-        draftOverrideUsed: isLeadReviewer ? draftOverrideUsed : false,
-        draftOverrideReason: isLeadReviewer ? draftOverrideReason : null,
+        draftOverrideUsed: normalizedDraftOverrideUsed,
+        draftOverrideReason: isLeadReviewer ? normalizedDraftOverrideReason : null,
         submittedAt: intent === "submit" ? new Date() : null,
       },
       update: {
@@ -718,8 +722,8 @@ export async function saveInstructorApplicationReviewAction(formData: FormData) 
         concerns,
         applicantMessage,
         flagForLeadership,
-        draftOverrideUsed: isLeadReviewer ? draftOverrideUsed : false,
-        draftOverrideReason: isLeadReviewer ? draftOverrideReason : null,
+        draftOverrideUsed: normalizedDraftOverrideUsed,
+        draftOverrideReason: isLeadReviewer ? normalizedDraftOverrideReason : null,
         submittedAt: intent === "submit" ? new Date() : null,
       },
       select: { id: true },

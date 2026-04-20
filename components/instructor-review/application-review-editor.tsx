@@ -73,7 +73,6 @@ export default function ApplicationReviewEditor({
   initialReview,
   canEdit,
   isLeadReviewer,
-  isAdmin,
   drafts,
   selectedDraftId,
 }: ApplicationReviewEditorProps) {
@@ -107,11 +106,9 @@ export default function ApplicationReviewEditor({
 
   const showApplicantMessage =
     isLeadReviewer && (nextStep === "REQUEST_INFO" || nextStep === "REJECT");
-  const showDraftOverride =
-    isLeadReviewer &&
-    isAdmin &&
-    drafts.length === 0 &&
-    nextStep === "MOVE_TO_INTERVIEW";
+  const movingToInterviewWithoutDraft =
+    isLeadReviewer && drafts.length === 0 && nextStep === "MOVE_TO_INTERVIEW";
+  const showDraftOverride = movingToInterviewWithoutDraft;
 
   const categoryPayload = useMemo(
     () =>
@@ -152,7 +149,11 @@ export default function ApplicationReviewEditor({
       <input type="hidden" name="applicationId" value={applicationId} />
       <input type="hidden" name="returnTo" value={returnTo} />
       <input type="hidden" name="categoriesJson" value={categoryPayload} />
-      <input type="hidden" name="draftOverrideUsed" value={draftOverrideUsed ? "true" : "false"} />
+      <input
+        type="hidden"
+        name="draftOverrideUsed"
+        value={draftOverrideUsed || movingToInterviewWithoutDraft ? "true" : "false"}
+      />
 
       {!canEdit ? (
         <div className="card" style={{ background: "#f8fafc", border: "1px solid var(--border)" }}>
@@ -312,7 +313,7 @@ export default function ApplicationReviewEditor({
         <div>
           <h2 style={{ margin: "0 0 6px" }}>Lesson Design Studio Draft</h2>
           <p style={{ margin: 0, color: "var(--muted)", fontSize: 14 }}>
-            The lead reviewer cannot move an applicant into interview without a draft unless an admin uses the override.
+            If a draft is available, attach it to the review. If it is missing, the review can still move forward with a note.
           </p>
         </div>
 
@@ -362,15 +363,15 @@ export default function ApplicationReviewEditor({
             <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 600 }}>
               <input
                 type="checkbox"
-                checked={draftOverrideUsed}
+                checked={draftOverrideUsed || movingToInterviewWithoutDraft}
                 disabled={!canEdit}
                 onChange={(event) => setDraftOverrideUsed(event.target.checked)}
               />
-              Admin override: allow interview stage without a draft
+              Continue to interview without a Lesson Design Studio draft
             </label>
-            {draftOverrideUsed ? (
+            {draftOverrideUsed || movingToInterviewWithoutDraft ? (
               <label className="form-row" style={{ margin: 0 }}>
-                Override reason
+                Missing-draft note
                 <textarea
                   className="input"
                   name="draftOverrideReason"
@@ -378,7 +379,7 @@ export default function ApplicationReviewEditor({
                   value={draftOverrideReason}
                   disabled={!canEdit}
                   onChange={(event) => setDraftOverrideReason(event.target.value)}
-                  placeholder="Explain why this applicant is moving forward without a draft..."
+                  placeholder="Optional: explain what is missing or what should be checked during the interview..."
                 />
               </label>
             ) : (

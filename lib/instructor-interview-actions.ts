@@ -1011,13 +1011,9 @@ export async function maybeAutoAdvanceAfterInterviewReview(
     app.status === InstructorApplicationStatus.INTERVIEW_SCHEDULED ||
     app.status === InstructorApplicationStatus.INTERVIEW_COMPLETED
   ) {
-    const targetStatus =
-      app.status === InstructorApplicationStatus.INTERVIEW_SCHEDULED
-        ? InstructorApplicationStatus.INTERVIEW_COMPLETED
-        : InstructorApplicationStatus.CHAIR_REVIEW;
-
+    let advanced = false;
     try {
-      await prisma.$transaction(async (tx) => {
+      advanced = await prisma.$transaction(async (tx) => {
         // Re-read status inside transaction to guard against races
         const fresh = await tx.instructorApplication.findUnique({
           where: { id: applicationId },
@@ -1028,7 +1024,7 @@ export async function maybeAutoAdvanceAfterInterviewReview(
           fresh?.status !== InstructorApplicationStatus.INTERVIEW_COMPLETED
         ) {
           // Already advanced by a concurrent request — skip silently
-          return;
+          return false;
         }
 
         const actualTarget =
@@ -1082,11 +1078,15 @@ export async function maybeAutoAdvanceAfterInterviewReview(
             },
           });
         }
+
+        return true;
       });
     } catch (e) {
       console.error("[maybeAutoAdvanceAfterInterviewReview]", e);
       return false;
     }
+
+    if (!advanced) return false;
 
     try {
       await syncInstructorApplicationWorkflow(applicationId);
