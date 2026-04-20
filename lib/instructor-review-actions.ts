@@ -32,20 +32,16 @@ import {
   type InstructorReviewCategoryValue,
   type ProgressRatingValue,
 } from "@/lib/instructor-review-config";
+import {
+  parseInterviewQuestionResponses,
+  validateSubmittedQuestionResponses,
+  type LiveQuestionResponsePayload,
+} from "@/lib/instructor-interview-live";
 
 type ReviewCategoryPayload = {
   category: InstructorReviewCategoryValue;
   rating?: ProgressRatingValue | null;
   notes?: string | null;
-};
-
-type QuestionResponsePayload = {
-  questionBankId?: string | null;
-  source?: "DEFAULT" | "CUSTOM";
-  prompt?: string | null;
-  followUpPrompt?: string | null;
-  notes?: string | null;
-  sortOrder?: number | null;
 };
 
 function getString(formData: FormData, key: string, required = true) {
@@ -139,46 +135,6 @@ function parseCategories(raw: string) {
   }
 
   return categories;
-}
-
-function parseQuestionResponses(raw: string) {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    throw new Error("Interview question responses could not be parsed.");
-  }
-
-  if (!Array.isArray(parsed)) {
-    throw new Error("Interview question responses must be an array.");
-  }
-
-  return parsed.map((entry, index): QuestionResponsePayload => {
-    if (!entry || typeof entry !== "object") {
-      throw new Error("Each interview question response must be an object.");
-    }
-    const prompt = normalizeNullableText(String((entry as { prompt?: unknown }).prompt ?? ""));
-    const sourceRaw = String((entry as { source?: unknown }).source ?? "DEFAULT").trim();
-    const source = sourceRaw === "CUSTOM" ? "CUSTOM" : "DEFAULT";
-
-    if (!prompt) {
-      throw new Error("Every interview question must have a prompt.");
-    }
-
-    const sortOrderValue = Number((entry as { sortOrder?: unknown }).sortOrder ?? index);
-    return {
-      questionBankId: normalizeNullableText(
-        String((entry as { questionBankId?: unknown }).questionBankId ?? "")
-      ),
-      source,
-      prompt,
-      followUpPrompt: normalizeNullableText(
-        String((entry as { followUpPrompt?: unknown }).followUpPrompt ?? "")
-      ),
-      notes: normalizeNullableText(String((entry as { notes?: unknown }).notes ?? "")),
-      sortOrder: Number.isFinite(sortOrderValue) ? sortOrderValue : index,
-    };
-  });
 }
 
 const CATEGORY_VALUE_SET = new Set(
@@ -374,21 +330,6 @@ function validateSubmittedCategories(categories: ReviewCategoryPayload[]) {
   }
 }
 
-function validateSubmittedQuestions(questionResponses: QuestionResponsePayload[]) {
-  if (questionResponses.length === 0) {
-    throw new Error("Interview questions are required before submission.");
-  }
-
-  for (const question of questionResponses) {
-    if (!question.prompt) {
-      throw new Error("Every interview question must include a prompt.");
-    }
-    if (!question.notes) {
-      throw new Error("Every interview question must include interviewer notes before submission.");
-    }
-  }
-}
-
 async function replaceApplicationReviewCategories(
   tx: Prisma.TransactionClient,
   reviewId: string,
@@ -431,27 +372,78 @@ async function replaceInterviewReviewCategories(
   });
 }
 
-async function replaceInterviewQuestionResponses(
+async function syncInterviewQuestionResponses(
   tx: Prisma.TransactionClient,
   reviewId: string,
-  questionResponses: QuestionResponsePayload[]
+  questionResponses: LiveQuestionResponsePayload[]
 ) {
-  await tx.instructorInterviewQuestionResponse.deleteMany({
+  const existing = await tx.instructorInterviewQuestionResponse.findMany({
     where: { reviewId },
+    select: { id: true, questionBankId: true, source: true },
   });
+  const existingById = new Map(existing.map((response) => [response.id, response]));
+  const existingByQuestionBankId = new Map(
+    existing
+      .filter((response) => response.questionBankId)
+      .map((response) => [response.questionBankId!, response])
+  );
+  const keptIds = new Set<string>();
 
-  if (questionResponses.length === 0) return;
-
-  await tx.instructorInterviewQuestionResponse.createMany({
-    data: questionResponses.map((question, index) => ({
-      reviewId,
+  for (const [index, question] of questionResponses.entries()) {
+    const matched =
+      (question.id ? existingById.get(question.id) : null) ??
+      (question.questionBankId ? existingByQuestionBankId.get(question.questionBankId) : null);
+    const normalizedStatus = question.status ?? "UNTOUCHED";
+    const askedAt =
+      normalizedStatus === "ASKED"
+        ? question.askedAt ?? new Date()
+        : null;
+    const skippedAt =
+      normalizedStatus === "SKIPPED"
+        ? question.skippedAt ?? new Date()
+        : null;
+    const data = {
       questionBankId: question.questionBankId ?? null,
-      source: question.source === "CUSTOM" ? "CUSTOM" : "DEFAULT",
-      prompt: question.prompt ?? "",
+      source: question.source === "CUSTOM" ? ("CUSTOM" as const) : ("DEFAULT" as const),
+      status: normalizedStatus,
+      prompt: question.prompt,
       followUpPrompt: question.followUpPrompt ?? null,
+      competency: question.competency ?? null,
+      whyAsked: question.whyAsked ?? null,
       notes: question.notes ?? null,
+      rating: question.rating ?? null,
+      askedAt,
+      skippedAt,
       sortOrder: question.sortOrder ?? index,
-    })),
+    };
+
+    if (matched) {
+      await tx.instructorInterviewQuestionResponse.update({
+        where: { id: matched.id },
+        data: {
+          ...data,
+          tags: { set: question.tags ?? [] },
+        },
+      });
+      keptIds.add(matched.id);
+    } else {
+      const created = await tx.instructorInterviewQuestionResponse.create({
+        data: {
+          reviewId,
+          ...data,
+          tags: question.tags ?? [],
+        },
+        select: { id: true },
+      });
+      keptIds.add(created.id);
+    }
+  }
+
+  await tx.instructorInterviewQuestionResponse.deleteMany({
+    where: {
+      reviewId,
+      id: { notIn: Array.from(keptIds) },
+    },
   });
 }
 
@@ -527,6 +519,22 @@ export async function getInstructorInterviewReviewWorkspace(applicationId: strin
         reviewer: { select: { id: true, name: true } },
         categories: true,
         questionResponses: {
+          select: {
+            id: true,
+            questionBankId: true,
+            source: true,
+            status: true,
+            prompt: true,
+            followUpPrompt: true,
+            competency: true,
+            whyAsked: true,
+            notes: true,
+            rating: true,
+            tags: true,
+            askedAt: true,
+            skippedAt: true,
+            sortOrder: true,
+          },
           orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
         },
         curriculumDraft: {
@@ -537,6 +545,23 @@ export async function getInstructorInterviewReviewWorkspace(applicationId: strin
     }),
     prisma.instructorInterviewQuestionBank.findMany({
       where: { isActive: true },
+      select: {
+        id: true,
+        slug: true,
+        prompt: true,
+        helperText: true,
+        followUpPrompt: true,
+        topic: true,
+        competency: true,
+        whyItMatters: true,
+        interviewerGuidance: true,
+        listenFor: true,
+        suggestedFollowUps: true,
+        strongSignals: true,
+        concernSignals: true,
+        notePrompts: true,
+        sortOrder: true,
+      },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     }),
     prisma.instructorApplicationReview.findMany({
@@ -777,6 +802,155 @@ export async function updateInstructorInterviewScheduleAction(formData: FormData
   redirect(appendNotice(returnTo, "interview-scheduled"));
 }
 
+export async function saveInstructorInterviewLiveDraftAction(input: {
+  applicationId?: string;
+  categoriesJson?: string;
+  questionResponsesJson?: string;
+  overallRating?: string | null;
+  recommendation?: string | null;
+  summary?: string | null;
+  overallNotes?: string | null;
+  demeanorNotes?: string | null;
+  maturityNotes?: string | null;
+  communicationNotes?: string | null;
+  professionalismNotes?: string | null;
+  followUpItems?: string | null;
+  curriculumFeedback?: string | null;
+  revisionRequirements?: string | null;
+  applicantMessage?: string | null;
+  curriculumDraftId?: string | null;
+  flagForLeadership?: boolean | string | null;
+}) {
+  try {
+    const session = await requireReviewSession();
+    const applicationId = normalizeNullableText(input.applicationId ?? "");
+    if (!applicationId) {
+      throw new Error("Missing required field: applicationId");
+    }
+
+    const overallRating = parseProgressRating(input.overallRating);
+    const recommendation = parseInterviewRecommendation(input.recommendation);
+    const categories = parseCategories(input.categoriesJson ?? "[]");
+    const questionResponses = parseInterviewQuestionResponses(input.questionResponsesJson ?? "[]");
+    const summary = normalizeNullableText(input.summary);
+    const overallNotes = normalizeNullableText(input.overallNotes);
+    const demeanorNotes = normalizeNullableText(input.demeanorNotes);
+    const maturityNotes = normalizeNullableText(input.maturityNotes);
+    const communicationNotes = normalizeNullableText(input.communicationNotes);
+    const professionalismNotes = normalizeNullableText(input.professionalismNotes);
+    const followUpItems = normalizeNullableText(input.followUpItems);
+    const curriculumFeedback = normalizeNullableText(input.curriculumFeedback);
+    const revisionRequirements = normalizeNullableText(input.revisionRequirements);
+    const applicantMessage = normalizeNullableText(input.applicantMessage);
+    const curriculumDraftId = normalizeNullableText(input.curriculumDraftId);
+    const flagForLeadership =
+      input.flagForLeadership === true || String(input.flagForLeadership ?? "") === "true";
+
+    const { actor, application } = await assertInterviewReviewAccess(applicationId, session.user.id);
+    const drafts = await listApplicantCurriculumDrafts(application.applicantId);
+
+    if (isFinalApplicationStatus(application.status) && !isAdmin(actor)) {
+      throw new Error("This application is already finalized.");
+    }
+
+    let leadReviewerId = application.reviewerId;
+    if (!leadReviewerId && canReviewFullFlow(actor, application.applicant.chapterId)) {
+      leadReviewerId = actor.id;
+      await prisma.instructorApplication.update({
+        where: { id: applicationId },
+        data: { reviewerId: actor.id },
+      });
+    }
+
+    const isLeadReviewer = leadReviewerId === actor.id;
+    const existingReview = await prisma.instructorInterviewReview.findUnique({
+      where: {
+        applicationId_reviewerId: {
+          applicationId,
+          reviewerId: actor.id,
+        },
+      },
+      select: { id: true, status: true },
+    });
+
+    if (
+      existingReview?.status === StructuredReviewStatus.SUBMITTED &&
+      !isAdmin(actor)
+    ) {
+      throw new Error("Submitted interview reviews are locked. Ask an admin to reopen it if changes are needed.");
+    }
+
+    const savedAt = new Date();
+    const review = await prisma.$transaction(async (tx) => {
+      const savedReview = await tx.instructorInterviewReview.upsert({
+        where: {
+          applicationId_reviewerId: {
+            applicationId,
+            reviewerId: actor.id,
+          },
+        },
+        create: {
+          applicationId,
+          reviewerId: actor.id,
+          curriculumDraftId: curriculumDraftId ?? pickDefaultCurriculumDraftId(drafts) ?? null,
+          status: StructuredReviewStatus.DRAFT,
+          isLeadReview: isLeadReviewer,
+          overallRating,
+          recommendation: isLeadReviewer ? recommendation : null,
+          summary,
+          overallNotes,
+          demeanorNotes,
+          maturityNotes,
+          communicationNotes,
+          professionalismNotes,
+          followUpItems,
+          curriculumFeedback,
+          revisionRequirements,
+          applicantMessage,
+          flagForLeadership,
+          submittedAt: null,
+        },
+        update: {
+          curriculumDraftId: curriculumDraftId ?? pickDefaultCurriculumDraftId(drafts) ?? null,
+          status: StructuredReviewStatus.DRAFT,
+          isLeadReview: isLeadReviewer,
+          overallRating,
+          recommendation: isLeadReviewer ? recommendation : null,
+          summary,
+          overallNotes,
+          demeanorNotes,
+          maturityNotes,
+          communicationNotes,
+          professionalismNotes,
+          followUpItems,
+          curriculumFeedback,
+          revisionRequirements,
+          applicantMessage,
+          flagForLeadership,
+          submittedAt: null,
+        },
+        select: { id: true },
+      });
+
+      await replaceInterviewReviewCategories(tx, savedReview.id, categories);
+      await syncInterviewQuestionResponses(tx, savedReview.id, questionResponses);
+      await syncLeadFlags(tx, applicationId, leadReviewerId ?? null);
+      return savedReview;
+    });
+
+    return {
+      success: true,
+      savedAt: savedAt.toISOString(),
+      reviewId: review.id,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Interview draft could not be saved.",
+    };
+  }
+}
+
 export async function saveInstructorInterviewReviewAction(formData: FormData) {
   const session = await requireReviewSession();
   const applicationId = getString(formData, "applicationId");
@@ -785,9 +959,14 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
   const overallRating = parseProgressRating(formData.get("overallRating"));
   const recommendation = parseInterviewRecommendation(formData.get("recommendation"));
   const categories = parseCategories(getString(formData, "categoriesJson"));
-  const questionResponses = parseQuestionResponses(getString(formData, "questionResponsesJson"));
+  const questionResponses = parseInterviewQuestionResponses(getString(formData, "questionResponsesJson"));
   const summary = normalizeNullableText(getString(formData, "summary", false));
   const overallNotes = normalizeNullableText(getString(formData, "overallNotes", false));
+  const demeanorNotes = normalizeNullableText(getString(formData, "demeanorNotes", false));
+  const maturityNotes = normalizeNullableText(getString(formData, "maturityNotes", false));
+  const communicationNotes = normalizeNullableText(getString(formData, "communicationNotes", false));
+  const professionalismNotes = normalizeNullableText(getString(formData, "professionalismNotes", false));
+  const followUpItems = normalizeNullableText(getString(formData, "followUpItems", false));
   const curriculumFeedback = normalizeNullableText(getString(formData, "curriculumFeedback", false));
   const revisionRequirements = normalizeNullableText(getString(formData, "revisionRequirements", false));
   const applicantMessage = normalizeNullableText(getString(formData, "applicantMessage", false));
@@ -831,7 +1010,7 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
 
   if (intent === "submit") {
     validateSubmittedCategories(categories);
-    validateSubmittedQuestions(questionResponses);
+    validateSubmittedQuestionResponses(questionResponses);
     if (!overallRating) {
       throw new Error("An overall interview evaluation is required before submission.");
     }
@@ -867,6 +1046,11 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
         recommendation: isLeadReviewer ? recommendation : null,
         summary,
         overallNotes,
+        demeanorNotes,
+        maturityNotes,
+        communicationNotes,
+        professionalismNotes,
+        followUpItems,
         curriculumFeedback,
         revisionRequirements,
         applicantMessage,
@@ -884,6 +1068,11 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
         recommendation: isLeadReviewer ? recommendation : null,
         summary,
         overallNotes,
+        demeanorNotes,
+        maturityNotes,
+        communicationNotes,
+        professionalismNotes,
+        followUpItems,
         curriculumFeedback,
         revisionRequirements,
         applicantMessage,
@@ -894,7 +1083,7 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
     });
 
     await replaceInterviewReviewCategories(tx, review.id, categories);
-    await replaceInterviewQuestionResponses(tx, review.id, questionResponses);
+    await syncInterviewQuestionResponses(tx, review.id, questionResponses);
     await syncLeadFlags(tx, applicationId, leadReviewerId ?? null);
   });
 

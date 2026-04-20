@@ -12,6 +12,7 @@ import InterviewReviewEditor from "@/components/instructor-review/interview-revi
 import InterviewerBriefCard from "@/components/instructor-applicants/InterviewerBriefCard";
 import {
   getInstructorInterviewReviewWorkspace,
+  saveInstructorInterviewLiveDraftAction,
   saveInstructorInterviewReviewAction,
 } from "@/lib/instructor-review-actions";
 
@@ -106,7 +107,7 @@ export default async function InterviewerWorkspacePage({
         </Link>
       </div>
 
-      <div style={{ maxWidth: 860, margin: "0 auto", padding: "24px 24px 60px" }}>
+      <div style={{ maxWidth: 1180, margin: "0 auto", padding: "24px 24px 60px" }}>
         {/* Pre-interview brief */}
         <InterviewerBriefCard
           application={application}
@@ -115,17 +116,18 @@ export default async function InterviewerWorkspacePage({
           reviewerNote={reviewerNote}
         />
 
-        {/* Post-interview evaluation */}
+        {/* Live interview workspace */}
         <div className="card" style={{ padding: "24px 28px" }}>
-          <h2 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 700 }}>Post-Interview Evaluation</h2>
+          <h2 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 700 }}>Live Interview Workspace</h2>
           <p style={{ margin: "0 0 20px", fontSize: 13, color: "var(--muted)" }}>
-            Submit your evaluation after the interview. Submitting will auto-advance status when all
-            assigned interviewers have submitted.
+            Run the interview, save live notes as you go, and submit the final evaluation when the
+            conversation is complete.
           </p>
 
           {workspace ? (
             <InterviewReviewEditor
               action={saveInstructorInterviewReviewAction as (fd: FormData) => void}
+              liveDraftAction={saveInstructorInterviewLiveDraftAction}
               applicationId={id}
               returnTo={`/applications/instructor/${id}`}
               initialReview={workspace.myReview}

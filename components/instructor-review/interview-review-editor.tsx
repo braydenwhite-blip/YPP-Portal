@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 import {
   INSTRUCTOR_INTERVIEW_RECOMMENDATION_OPTIONS,
@@ -17,13 +17,32 @@ type CategoryState = {
   notes: string;
 };
 
+type QuestionStatus = "UNTOUCHED" | "ASKED" | "SKIPPED";
+
+type AnswerTag =
+  | "STRONG_ANSWER"
+  | "WEAK_ANSWER"
+  | "RED_FLAG"
+  | "FOLLOW_UP_NEEDED"
+  | "GREAT_COMMUNICATOR"
+  | "HIGH_POTENTIAL"
+  | "NEEDS_COACHING";
+
 type QuestionState = {
+  id: string | null;
   localId: string;
   questionBankId: string | null;
   source: "DEFAULT" | "CUSTOM";
+  status: QuestionStatus;
   prompt: string;
   followUpPrompt: string;
+  competency: string;
+  whyAsked: string;
   notes: string;
+  rating: ProgressRatingValue | null;
+  tags: AnswerTag[];
+  askedAt: string | null;
+  skippedAt: string | null;
   sortOrder: number;
 };
 
@@ -33,6 +52,11 @@ type ReviewSnapshot = {
   recommendation: InstructorInterviewRecommendationValue | null;
   summary: string | null;
   overallNotes: string | null;
+  demeanorNotes: string | null;
+  maturityNotes: string | null;
+  communicationNotes: string | null;
+  professionalismNotes: string | null;
+  followUpItems: string | null;
   curriculumFeedback: string | null;
   revisionRequirements: string | null;
   applicantMessage: string | null;
@@ -47,15 +71,66 @@ type ReviewSnapshot = {
     id: string;
     questionBankId: string | null;
     source: "DEFAULT" | "CUSTOM";
+    status: QuestionStatus;
     prompt: string;
     followUpPrompt: string | null;
+    competency: string | null;
+    whyAsked: string | null;
     notes: string | null;
+    rating: ProgressRatingValue | null;
+    tags: AnswerTag[];
+    askedAt: Date | string | null;
+    skippedAt: Date | string | null;
     sortOrder: number;
   }>;
 } | null;
 
+type QuestionBankItem = {
+  id: string;
+  slug: string;
+  prompt: string;
+  helperText: string | null;
+  followUpPrompt: string | null;
+  topic: string | null;
+  competency: string | null;
+  whyItMatters: string | null;
+  interviewerGuidance: string | null;
+  listenFor: string | null;
+  suggestedFollowUps: unknown;
+  strongSignals: unknown;
+  concernSignals: unknown;
+  notePrompts: unknown;
+  sortOrder: number;
+};
+
+type LiveDraftInput = {
+  applicationId: string;
+  categoriesJson: string;
+  questionResponsesJson: string;
+  overallRating: string | null;
+  recommendation: string | null;
+  summary: string | null;
+  overallNotes: string | null;
+  demeanorNotes: string | null;
+  maturityNotes: string | null;
+  communicationNotes: string | null;
+  professionalismNotes: string | null;
+  followUpItems: string | null;
+  curriculumFeedback: string | null;
+  revisionRequirements: string | null;
+  applicantMessage: string | null;
+  curriculumDraftId: string | null;
+  flagForLeadership: boolean;
+};
+
 interface InterviewReviewEditorProps {
   action: (formData: FormData) => void;
+  liveDraftAction: (input: LiveDraftInput) => Promise<{
+    success: boolean;
+    savedAt?: string;
+    reviewId?: string;
+    error?: string;
+  }>;
   applicationId: string;
   returnTo: string;
   initialReview: ReviewSnapshot;
@@ -69,14 +144,29 @@ interface InterviewReviewEditorProps {
     updatedAt: string;
   }>;
   selectedDraftId: string | null;
-  questionBank: Array<{
-    id: string;
-    prompt: string;
-    helperText: string | null;
-    followUpPrompt: string | null;
-    topic: string | null;
-    sortOrder: number;
-  }>;
+  questionBank: QuestionBankItem[];
+}
+
+const TAG_OPTIONS: Array<{ value: AnswerTag; label: string; tone: string }> = [
+  { value: "STRONG_ANSWER", label: "Strong Answer", tone: "success" },
+  { value: "WEAK_ANSWER", label: "Weak Answer", tone: "warning" },
+  { value: "RED_FLAG", label: "Red Flag", tone: "danger" },
+  { value: "FOLLOW_UP_NEEDED", label: "Follow Up Needed", tone: "info" },
+  { value: "GREAT_COMMUNICATOR", label: "Great Communicator", tone: "success" },
+  { value: "HIGH_POTENTIAL", label: "High Potential", tone: "success" },
+  { value: "NEEDS_COACHING", label: "Needs Coaching", tone: "warning" },
+];
+
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.map((item) => String(item)).filter(Boolean)
+    : [];
+}
+
+function dateToInputValue(value: Date | string | null | undefined) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
 function buildInitialCategories(initialReview: ReviewSnapshot): CategoryState[] {
@@ -94,7 +184,7 @@ function buildInitialCategories(initialReview: ReviewSnapshot): CategoryState[] 
 
 function buildInitialQuestions(
   initialReview: ReviewSnapshot,
-  questionBank: InterviewReviewEditorProps["questionBank"]
+  questionBank: QuestionBankItem[]
 ) {
   const existing = initialReview?.questionResponses ?? [];
   const defaultQuestions = questionBank.map((question) => {
@@ -102,12 +192,20 @@ function buildInitialQuestions(
       (response) => response.questionBankId === question.id
     );
     return {
+      id: existingResponse?.id ?? null,
       localId: existingResponse?.id ?? question.id,
       questionBankId: question.id,
       source: "DEFAULT" as const,
+      status: existingResponse?.status ?? "UNTOUCHED",
       prompt: existingResponse?.prompt ?? question.prompt,
       followUpPrompt: existingResponse?.followUpPrompt ?? question.followUpPrompt ?? "",
+      competency: existingResponse?.competency ?? question.competency ?? question.topic ?? "",
+      whyAsked: existingResponse?.whyAsked ?? "",
       notes: existingResponse?.notes ?? "",
+      rating: existingResponse?.rating ?? null,
+      tags: existingResponse?.tags ?? [],
+      askedAt: dateToInputValue(existingResponse?.askedAt),
+      skippedAt: dateToInputValue(existingResponse?.skippedAt),
       sortOrder: existingResponse?.sortOrder ?? question.sortOrder,
     };
   });
@@ -116,20 +214,41 @@ function buildInitialQuestions(
     .filter((response) => response.source === "CUSTOM")
     .sort((left, right) => left.sortOrder - right.sortOrder)
     .map((response) => ({
+      id: response.id,
       localId: response.id,
       questionBankId: response.questionBankId,
       source: "CUSTOM" as const,
+      status: response.status ?? "ASKED",
       prompt: response.prompt,
       followUpPrompt: response.followUpPrompt ?? "",
+      competency: response.competency ?? "",
+      whyAsked: response.whyAsked ?? "",
       notes: response.notes ?? "",
+      rating: response.rating ?? null,
+      tags: response.tags ?? [],
+      askedAt: dateToInputValue(response.askedAt),
+      skippedAt: dateToInputValue(response.skippedAt),
       sortOrder: response.sortOrder,
     }));
 
   return [...defaultQuestions, ...customQuestions];
 }
 
+function labelFromStatus(status: QuestionStatus) {
+  if (status === "ASKED") return "Asked";
+  if (status === "SKIPPED") return "Skipped";
+  return "Not Started";
+}
+
+function statusClass(status: QuestionStatus) {
+  if (status === "ASKED") return "is-asked";
+  if (status === "SKIPPED") return "is-skipped";
+  return "is-untouched";
+}
+
 export default function InterviewReviewEditor({
   action,
+  liveDraftAction,
   applicationId,
   returnTo,
   initialReview,
@@ -148,6 +267,13 @@ export default function InterviewReviewEditor({
   );
   const [summary, setSummary] = useState(initialReview?.summary ?? "");
   const [overallNotes, setOverallNotes] = useState(initialReview?.overallNotes ?? "");
+  const [demeanorNotes, setDemeanorNotes] = useState(initialReview?.demeanorNotes ?? "");
+  const [maturityNotes, setMaturityNotes] = useState(initialReview?.maturityNotes ?? "");
+  const [communicationNotes, setCommunicationNotes] = useState(initialReview?.communicationNotes ?? "");
+  const [professionalismNotes, setProfessionalismNotes] = useState(
+    initialReview?.professionalismNotes ?? ""
+  );
+  const [followUpItems, setFollowUpItems] = useState(initialReview?.followUpItems ?? "");
   const [curriculumFeedback, setCurriculumFeedback] = useState(
     initialReview?.curriculumFeedback ?? ""
   );
@@ -169,16 +295,33 @@ export default function InterviewReviewEditor({
   const [questions, setQuestions] = useState<QuestionState[]>(
     buildInitialQuestions(initialReview, questionBank)
   );
+  const [activeQuestionId, setActiveQuestionId] = useState(
+    questions[0]?.localId ?? ""
+  );
+  const [saveStatus, setSaveStatus] = useState<"idle" | "dirty" | "saving" | "saved" | "error">("idle");
+  const [saveMessage, setSaveMessage] = useState("");
+  const mountedRef = useRef(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveSeqRef = useRef(0);
 
   const questionPayload = useMemo(
     () =>
       JSON.stringify(
         questions.map((question, index) => ({
+          id: question.id,
+          localId: question.localId,
           questionBankId: question.questionBankId,
           source: question.source,
+          status: question.status,
           prompt: question.prompt,
           followUpPrompt: question.followUpPrompt,
+          competency: question.competency,
+          whyAsked: question.whyAsked,
           notes: question.notes,
+          rating: question.rating,
+          tags: question.tags,
+          askedAt: question.askedAt,
+          skippedAt: question.skippedAt,
           sortOrder: index,
         }))
       ),
@@ -197,10 +340,117 @@ export default function InterviewReviewEditor({
     [categories]
   );
 
-  const showRecommendation =
-    isLeadReviewer && canFinalizeRecommendation;
+  const livePayload = useMemo<LiveDraftInput>(
+    () => ({
+      applicationId,
+      categoriesJson: categoryPayload,
+      questionResponsesJson: questionPayload,
+      overallRating: overallRating || null,
+      recommendation: recommendation || null,
+      summary: summary || null,
+      overallNotes: overallNotes || null,
+      demeanorNotes: demeanorNotes || null,
+      maturityNotes: maturityNotes || null,
+      communicationNotes: communicationNotes || null,
+      professionalismNotes: professionalismNotes || null,
+      followUpItems: followUpItems || null,
+      curriculumFeedback: curriculumFeedback || null,
+      revisionRequirements: revisionRequirements || null,
+      applicantMessage: applicantMessage || null,
+      curriculumDraftId: curriculumDraftId || null,
+      flagForLeadership,
+    }),
+    [
+      applicationId,
+      applicantMessage,
+      categoryPayload,
+      communicationNotes,
+      curriculumDraftId,
+      curriculumFeedback,
+      demeanorNotes,
+      flagForLeadership,
+      followUpItems,
+      maturityNotes,
+      overallNotes,
+      overallRating,
+      professionalismNotes,
+      questionPayload,
+      recommendation,
+      revisionRequirements,
+      summary,
+    ]
+  );
+  const livePayloadRef = useRef(livePayload);
+
+  const activeQuestion =
+    questions.find((question) => question.localId === activeQuestionId) ?? questions[0] ?? null;
+  const activeBankItem = activeQuestion?.questionBankId
+    ? questionBank.find((question) => question.id === activeQuestion.questionBankId)
+    : null;
+
+  const progress = useMemo(() => {
+    const asked = questions.filter((question) => question.status === "ASKED").length;
+    const skipped = questions.filter((question) => question.status === "SKIPPED").length;
+    const untouched = questions.length - asked - skipped;
+    const redFlags = questions.filter((question) => question.tags.includes("RED_FLAG")).length;
+    const followUps = questions.filter((question) => question.tags.includes("FOLLOW_UP_NEEDED")).length;
+    const incompleteAsked = questions.filter(
+      (question) => question.status === "ASKED" && (!question.notes.trim() || !question.rating)
+    ).length;
+    const sections = questions.reduce<Record<string, { total: number; asked: number }>>(
+      (acc, question) => {
+        const key = question.competency || activeBankItem?.topic || "Interview";
+        const entry = acc[key] ?? { total: 0, asked: 0 };
+        entry.total += 1;
+        if (question.status === "ASKED") entry.asked += 1;
+        acc[key] = entry;
+        return acc;
+      },
+      {}
+    );
+    return { asked, skipped, untouched, redFlags, followUps, incompleteAsked, sections };
+  }, [activeBankItem?.topic, questions]);
+
+  const showRecommendation = isLeadReviewer && canFinalizeRecommendation;
   const showRevisionRequirements = recommendation === "ACCEPT_WITH_SUPPORT";
   const showApplicantMessage = recommendation === "REJECT";
+
+  async function runLiveSave(reason: "auto" | "manual") {
+    if (!canEdit) return;
+    const seq = saveSeqRef.current + 1;
+    saveSeqRef.current = seq;
+    setSaveStatus("saving");
+    setSaveMessage(reason === "manual" ? "Saving now..." : "Autosaving...");
+    const result = await liveDraftAction(livePayloadRef.current);
+    if (seq !== saveSeqRef.current) return;
+    if (result.success) {
+      setSaveStatus("saved");
+      const savedAt = result.savedAt ? new Date(result.savedAt) : new Date();
+      setSaveMessage(`Saved ${savedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`);
+    } else {
+      setSaveStatus("error");
+      setSaveMessage(result.error ?? "Draft could not be saved.");
+    }
+  }
+
+  useEffect(() => {
+    livePayloadRef.current = livePayload;
+    if (!canEdit) return;
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      return;
+    }
+    setSaveStatus("dirty");
+    setSaveMessage("Unsaved changes");
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      void runLiveSave("auto");
+    }, 1500);
+
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [canEdit, livePayload]);
 
   function updateCategoryRating(
     categoryKey: InstructorReviewCategoryValue,
@@ -226,59 +476,516 @@ export default function InterviewReviewEditor({
 
   function updateQuestion(
     localId: string,
-    field: keyof QuestionState,
-    value: string | number
+    updater: (question: QuestionState) => QuestionState
   ) {
     setQuestions((current) =>
       current.map((question) =>
-        question.localId === localId ? { ...question, [field]: value } : question
+        question.localId === localId ? updater(question) : question
       )
     );
   }
 
+  function setQuestionStatus(localId: string, status: QuestionStatus) {
+    const now = new Date().toISOString();
+    updateQuestion(localId, (question) => ({
+      ...question,
+      status,
+      askedAt: status === "ASKED" ? question.askedAt ?? now : null,
+      skippedAt: status === "SKIPPED" ? question.skippedAt ?? now : null,
+    }));
+  }
+
+  function toggleTag(localId: string, tag: AnswerTag) {
+    updateQuestion(localId, (question) => ({
+      ...question,
+      tags: question.tags.includes(tag)
+        ? question.tags.filter((entry) => entry !== tag)
+        : [...question.tags, tag],
+    }));
+  }
+
   function addCustomQuestion() {
+    const localId = `custom-${Date.now()}`;
     setQuestions((current) => [
       ...current,
       {
-        localId: `custom-${Date.now()}`,
+        id: null,
+        localId,
         questionBankId: null,
         source: "CUSTOM",
+        status: "ASKED",
         prompt: "",
         followUpPrompt: "",
+        competency: "",
+        whyAsked: "",
         notes: "",
+        rating: null,
+        tags: ["FOLLOW_UP_NEEDED"],
+        askedAt: new Date().toISOString(),
+        skippedAt: null,
         sortOrder: current.length,
       },
     ]);
+    setActiveQuestionId(localId);
   }
 
   function removeCustomQuestion(localId: string) {
     setQuestions((current) => current.filter((question) => question.localId !== localId));
+    if (activeQuestionId === localId) {
+      const nextQuestion = questions.find((question) => question.localId !== localId);
+      setActiveQuestionId(nextQuestion?.localId ?? "");
+    }
   }
 
   return (
-    <form action={action} className="form-grid">
+    <form action={action} className="live-interview-workspace">
       <input type="hidden" name="applicationId" value={applicationId} />
       <input type="hidden" name="returnTo" value={returnTo} />
       <input type="hidden" name="categoriesJson" value={categoryPayload} />
       <input type="hidden" name="questionResponsesJson" value={questionPayload} />
+      <input type="hidden" name="demeanorNotes" value={demeanorNotes} />
+      <input type="hidden" name="maturityNotes" value={maturityNotes} />
+      <input type="hidden" name="communicationNotes" value={communicationNotes} />
+      <input type="hidden" name="professionalismNotes" value={professionalismNotes} />
+      <input type="hidden" name="followUpItems" value={followUpItems} />
 
       {!canEdit ? (
-        <div className="card" style={{ background: "#f8fafc", border: "1px solid var(--border)" }}>
-          <p style={{ margin: 0, fontSize: 14, color: "var(--muted)" }}>
+        <div className="review-editor-notice">
+          <p>
             This interview review is locked because it has already been submitted. An admin can still edit it if needed.
           </p>
         </div>
       ) : null}
 
-      <div className="card" style={{ display: "grid", gap: 16 }}>
+      <section className="live-interview-hero">
         <div>
-          <h2 style={{ margin: "0 0 6px" }}>Overall Interview Evaluation</h2>
-          <p style={{ margin: 0, color: "var(--muted)", fontSize: 14 }}>
-            The interview should assess both the person and the draft they bring into the conversation.
+          <span className="cockpit-section-kicker">During-interview workflow</span>
+          <h2>Live Question Runner</h2>
+          <p>
+            Move through questions, capture notes while answers are fresh, tag signals, and save as you go.
           </p>
         </div>
+        <div className={`live-save-chip is-${saveStatus}`} aria-live="polite">
+          <span>{saveStatus === "idle" ? "Ready" : saveMessage}</span>
+          <button
+            type="button"
+            className="button small outline"
+            disabled={!canEdit || saveStatus === "saving"}
+            onClick={() => void runLiveSave("manual")}
+          >
+            Save Now
+          </button>
+        </div>
+      </section>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8 }}>
+      <section className="live-interview-grid">
+        <aside className="live-progress-rail" aria-label="Interview progress">
+          <div className="live-progress-counts">
+            <div>
+              <strong>{progress.asked}</strong>
+              <span>Asked</span>
+            </div>
+            <div>
+              <strong>{progress.skipped}</strong>
+              <span>Skipped</span>
+            </div>
+            <div>
+              <strong>{progress.untouched}</strong>
+              <span>Left</span>
+            </div>
+          </div>
+
+          <div className="live-progress-alerts">
+            <span className={progress.redFlags > 0 ? "is-danger" : ""}>
+              {progress.redFlags} red flag{progress.redFlags === 1 ? "" : "s"}
+            </span>
+            <span className={progress.followUps > 0 ? "is-info" : ""}>
+              {progress.followUps} follow-up{progress.followUps === 1 ? "" : "s"}
+            </span>
+            <span className={progress.incompleteAsked > 0 ? "is-warning" : ""}>
+              {progress.incompleteAsked} incomplete
+            </span>
+          </div>
+
+          <div className="live-section-list">
+            {Object.entries(progress.sections).map(([section, value]) => (
+              <div key={section}>
+                <span>{section}</span>
+                <strong>
+                  {value.asked}/{value.total}
+                </strong>
+              </div>
+            ))}
+          </div>
+
+          <div className="live-question-nav">
+            {questions.map((question, index) => (
+              <button
+                key={question.localId}
+                type="button"
+                className={`live-question-nav-item ${statusClass(question.status)}${
+                  question.localId === activeQuestion?.localId ? " is-active" : ""
+                }`}
+                onClick={() => setActiveQuestionId(question.localId)}
+              >
+                <span>{index + 1}</span>
+                <strong>{question.competency || "Custom"}</strong>
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            className="button secondary live-add-question-button"
+            onClick={addCustomQuestion}
+            disabled={!canEdit}
+          >
+            Add Follow-Up Question
+          </button>
+        </aside>
+
+        {activeQuestion ? (
+          <article className={`live-question-card ${statusClass(activeQuestion.status)}`}>
+            <div className="live-question-card-header">
+              <div>
+                <span className="cockpit-section-kicker">
+                  {activeQuestion.source === "CUSTOM" ? "Custom follow-up" : activeBankItem?.topic ?? "Interview question"}
+                </span>
+                <h3>{activeQuestion.competency || "Live interview question"}</h3>
+              </div>
+              <span className={`live-status-pill ${statusClass(activeQuestion.status)}`}>
+                {labelFromStatus(activeQuestion.status)}
+              </span>
+            </div>
+
+            {activeQuestion.source === "CUSTOM" ? (
+              <div className="live-custom-grid">
+                <label className="form-row">
+                  Custom question
+                  <textarea
+                    className="input"
+                    rows={3}
+                    value={activeQuestion.prompt}
+                    disabled={!canEdit}
+                    onChange={(event) =>
+                      updateQuestion(activeQuestion.localId, (question) => ({
+                        ...question,
+                        prompt: event.target.value,
+                      }))
+                    }
+                    placeholder="Ask the follow-up exactly how you want it saved..."
+                  />
+                </label>
+                <label className="form-row">
+                  Competency
+                  <input
+                    className="input"
+                    value={activeQuestion.competency}
+                    disabled={!canEdit}
+                    onChange={(event) =>
+                      updateQuestion(activeQuestion.localId, (question) => ({
+                        ...question,
+                        competency: event.target.value,
+                      }))
+                    }
+                    placeholder="Example: Communication, coachability, student support..."
+                  />
+                </label>
+                <label className="form-row">
+                  Why it was asked
+                  <textarea
+                    className="input"
+                    rows={2}
+                    value={activeQuestion.whyAsked}
+                    disabled={!canEdit}
+                    onChange={(event) =>
+                      updateQuestion(activeQuestion.localId, (question) => ({
+                        ...question,
+                        whyAsked: event.target.value,
+                      }))
+                    }
+                    placeholder="What signal or gap made this follow-up useful?"
+                  />
+                </label>
+              </div>
+            ) : (
+              <>
+                <p className="live-question-text">{activeQuestion.prompt}</p>
+                {activeBankItem?.whyItMatters ? (
+                  <p className="live-guidance-callout">{activeBankItem.whyItMatters}</p>
+                ) : null}
+              </>
+            )}
+
+            <div className="live-status-actions" role="group" aria-label="Question status">
+              <button
+                type="button"
+                className={activeQuestion.status === "ASKED" ? "is-selected" : ""}
+                disabled={!canEdit}
+                onClick={() => setQuestionStatus(activeQuestion.localId, "ASKED")}
+              >
+                Mark Asked
+              </button>
+              <button
+                type="button"
+                className={activeQuestion.status === "SKIPPED" ? "is-selected" : ""}
+                disabled={!canEdit}
+                onClick={() => setQuestionStatus(activeQuestion.localId, "SKIPPED")}
+              >
+                Mark Skipped
+              </button>
+            </div>
+
+            {activeBankItem ? (
+              <div className="live-guidance-grid">
+                {activeBankItem.listenFor ? (
+                  <div>
+                    <h4>Listen For</h4>
+                    <p>{activeBankItem.listenFor}</p>
+                  </div>
+                ) : null}
+                {activeBankItem.interviewerGuidance ? (
+                  <div>
+                    <h4>Interviewer Guidance</h4>
+                    <p>{activeBankItem.interviewerGuidance}</p>
+                  </div>
+                ) : null}
+                <div>
+                  <h4>Strong Signals</h4>
+                  <ul>
+                    {asStringArray(activeBankItem.strongSignals).map((signal) => (
+                      <li key={signal}>{signal}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h4>Concern Signals</h4>
+                  <ul>
+                    {asStringArray(activeBankItem.concernSignals).map((signal) => (
+                      <li key={signal}>{signal}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            ) : null}
+
+            <label className="form-row">
+              Follow-up asked or planned
+              <textarea
+                className="input"
+                rows={2}
+                value={activeQuestion.followUpPrompt}
+                disabled={!canEdit}
+                onChange={(event) =>
+                  updateQuestion(activeQuestion.localId, (question) => ({
+                    ...question,
+                    followUpPrompt: event.target.value,
+                  }))
+                }
+                placeholder={
+                  activeBankItem
+                    ? asStringArray(activeBankItem.suggestedFollowUps)[0] ?? "Capture the follow-up you asked..."
+                    : "Capture the custom follow-up or next probe..."
+                }
+              />
+            </label>
+
+            {activeBankItem && asStringArray(activeBankItem.suggestedFollowUps).length > 0 ? (
+              <div className="live-followup-suggestions">
+                {asStringArray(activeBankItem.suggestedFollowUps).map((followUp) => (
+                  <button
+                    key={followUp}
+                    type="button"
+                    disabled={!canEdit}
+                    onClick={() =>
+                      updateQuestion(activeQuestion.localId, (question) => ({
+                        ...question,
+                        followUpPrompt: question.followUpPrompt
+                          ? `${question.followUpPrompt}\n${followUp}`
+                          : followUp,
+                      }))
+                    }
+                  >
+                    {followUp}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            <label className="form-row">
+              Notes on candidate answer
+              <textarea
+                className="input live-notes-input"
+                rows={7}
+                value={activeQuestion.notes}
+                disabled={!canEdit}
+                onChange={(event) =>
+                  updateQuestion(activeQuestion.localId, (question) => ({
+                    ...question,
+                    notes: event.target.value,
+                  }))
+                }
+                placeholder={
+                  activeBankItem
+                    ? asStringArray(activeBankItem.notePrompts).join(" / ") ||
+                      "Capture evidence, examples, concerns, and exact phrasing while it is fresh."
+                    : "Capture the answer, signal, and why this follow-up mattered."
+                }
+              />
+            </label>
+
+            <div className="live-score-block">
+              <h4>Live Score</h4>
+              <div className="review-rating-grid review-rating-grid-compact">
+                {PROGRESS_RATING_OPTIONS.map((option) => {
+                  const selected = activeQuestion.rating === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      disabled={!canEdit}
+                      onClick={() =>
+                        updateQuestion(activeQuestion.localId, (question) => ({
+                          ...question,
+                          rating: option.value,
+                        }))
+                      }
+                      className={`review-rating-option${selected ? " is-selected" : ""}`}
+                      style={
+                        {
+                          "--rating-color": option.color,
+                          "--rating-bg": option.bg,
+                        } as CSSProperties
+                      }
+                    >
+                      <div>{option.shortLabel}</div>
+                      <span>{option.helperLabel}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="live-tag-block">
+              <h4>Answer Tags</h4>
+              <div>
+                {TAG_OPTIONS.map((tag) => (
+                  <button
+                    key={tag.value}
+                    type="button"
+                    className={`live-tag-chip is-${tag.tone}${
+                      activeQuestion.tags.includes(tag.value) ? " is-selected" : ""
+                    }`}
+                    disabled={!canEdit}
+                    onClick={() => toggleTag(activeQuestion.localId, tag.value)}
+                  >
+                    {tag.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {activeQuestion.source === "CUSTOM" ? (
+              <button
+                type="button"
+                className="button small outline"
+                disabled={!canEdit}
+                onClick={() => removeCustomQuestion(activeQuestion.localId)}
+              >
+                Remove Custom Question
+              </button>
+            ) : null}
+          </article>
+        ) : (
+          <div className="review-editor-notice">
+            <p>No interview questions are available yet.</p>
+          </div>
+        )}
+      </section>
+
+      <section className="review-editor-panel">
+        <div>
+          <h2>General Live Notes</h2>
+          <p>Use these when the signal is not tied to one specific question.</p>
+        </div>
+        <label className="form-row">
+          Overall observations
+          <textarea
+            className="input"
+            name="overallNotes"
+            rows={4}
+            value={overallNotes}
+            disabled={!canEdit}
+            onChange={(event) => setOverallNotes(event.target.value)}
+            placeholder="Quick shorthand is fine: standout moments, concerns, patterns, open loops..."
+          />
+        </label>
+        <div className="live-guided-notes-grid">
+          <label className="form-row">
+            Demeanor
+            <textarea
+              className="input"
+              rows={3}
+              value={demeanorNotes}
+              disabled={!canEdit}
+              onChange={(event) => setDemeanorNotes(event.target.value)}
+              placeholder="Warmth, confidence, humility, presence..."
+            />
+          </label>
+          <label className="form-row">
+            Maturity
+            <textarea
+              className="input"
+              rows={3}
+              value={maturityNotes}
+              disabled={!canEdit}
+              onChange={(event) => setMaturityNotes(event.target.value)}
+              placeholder="Judgment, ownership, self-awareness..."
+            />
+          </label>
+          <label className="form-row">
+            Communication
+            <textarea
+              className="input"
+              rows={3}
+              value={communicationNotes}
+              disabled={!canEdit}
+              onChange={(event) => setCommunicationNotes(event.target.value)}
+              placeholder="Clarity, listening, parent/student readiness..."
+            />
+          </label>
+          <label className="form-row">
+            Professionalism
+            <textarea
+              className="input"
+              rows={3}
+              value={professionalismNotes}
+              disabled={!canEdit}
+              onChange={(event) => setProfessionalismNotes(event.target.value)}
+              placeholder="Preparation, reliability, follow-through..."
+            />
+          </label>
+        </div>
+        <label className="form-row">
+          Unresolved follow-ups
+          <textarea
+            className="input"
+            rows={3}
+            value={followUpItems}
+            disabled={!canEdit}
+            onChange={(event) => setFollowUpItems(event.target.value)}
+            placeholder="Anything the chair, reviewer, or second interviewer should revisit..."
+          />
+        </label>
+      </section>
+
+      <section className="review-editor-panel">
+        <div>
+          <h2>Overall Interview Evaluation</h2>
+          <p>The live notes above should roll up into this final interview judgment.</p>
+        </div>
+
+        <div className="review-rating-grid">
           {PROGRESS_RATING_OPTIONS.map((option) => {
             const selected = overallRating === option.value;
             return (
@@ -287,19 +994,16 @@ export default function InterviewReviewEditor({
                 type="button"
                 disabled={!canEdit}
                 onClick={() => setOverallRating(option.value)}
-                style={{
-                  borderRadius: 10,
-                  border: selected ? `2px solid ${option.color}` : "1px solid var(--border)",
-                  background: selected ? option.bg : "var(--surface)",
-                  padding: 12,
-                  textAlign: "left",
-                  cursor: canEdit ? "pointer" : "default",
-                }}
+                className={`review-rating-option${selected ? " is-selected" : ""}`}
+                style={
+                  {
+                    "--rating-color": option.color,
+                    "--rating-bg": option.bg,
+                  } as CSSProperties
+                }
               >
-                <div style={{ fontWeight: 700, color: option.color }}>{option.label}</div>
-                <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
-                  {option.description}
-                </div>
+                <div>{option.label}</div>
+                <span>{option.description}</span>
               </button>
             );
           })}
@@ -329,51 +1033,29 @@ export default function InterviewReviewEditor({
             </select>
           </label>
         ) : (
-          <div
-            style={{
-              padding: 12,
-              borderRadius: 10,
-              background: "var(--surface-alt)",
-              border: "1px solid var(--border)",
-              fontSize: 14,
-              color: "var(--muted)",
-            }}
-          >
-            Your interview evaluation will inform the lead reviewer’s final recommendation.
+          <div className="review-editor-callout">
+            Your interview evaluation will inform the lead reviewer&apos;s final recommendation.
             <input type="hidden" name="recommendation" value="" />
           </div>
         )}
-      </div>
+      </section>
 
-      <div className="card" style={{ display: "grid", gap: 18 }}>
+      <section className="review-editor-panel">
         <div>
-          <h2 style={{ margin: "0 0 6px" }}>Interview Categories</h2>
-          <p style={{ margin: 0, color: "var(--muted)", fontSize: 14 }}>
-            Keep the same category language from the application review so interview signals stack naturally on top of the initial screening.
-          </p>
+          <h2>Interview Categories</h2>
+          <p>Use the same category language from the application review so interview signals stack naturally.</p>
         </div>
 
         {INSTRUCTOR_REVIEW_CATEGORIES.map((category) => {
           const current = categories.find((entry) => entry.category === category.key)!;
           return (
-            <div
-              key={category.key}
-              style={{
-                border: "1px solid var(--border)",
-                borderRadius: 12,
-                padding: 14,
-                display: "grid",
-                gap: 12,
-              }}
-            >
+            <div key={category.key} className="review-category-card">
               <div>
-                <div style={{ fontWeight: 700 }}>{category.label}</div>
-                <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 4 }}>
-                  {category.description}
-                </div>
+                <div className="review-category-title">{category.label}</div>
+                <div className="review-category-description">{category.description}</div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8 }}>
+              <div className="review-rating-grid review-rating-grid-compact">
                 {PROGRESS_RATING_OPTIONS.map((option) => {
                   const selected = current.rating === option.value;
                   return (
@@ -382,25 +1064,22 @@ export default function InterviewReviewEditor({
                       type="button"
                       disabled={!canEdit}
                       onClick={() => updateCategoryRating(category.key, option.value)}
-                      style={{
-                        borderRadius: 10,
-                        border: selected ? `2px solid ${option.color}` : "1px solid var(--border)",
-                        background: selected ? option.bg : "var(--surface)",
-                        padding: 10,
-                        textAlign: "left",
-                        cursor: canEdit ? "pointer" : "default",
-                      }}
+                      className={`review-rating-option${selected ? " is-selected" : ""}`}
+                      style={
+                        {
+                          "--rating-color": option.color,
+                          "--rating-bg": option.bg,
+                        } as CSSProperties
+                      }
                     >
-                      <div style={{ fontWeight: 700, color: option.color }}>{option.shortLabel}</div>
-                      <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
-                        {option.helperLabel}
-                      </div>
+                      <div>{option.shortLabel}</div>
+                      <span>{option.helperLabel}</span>
                     </button>
                   );
                 })}
               </div>
 
-              <label className="form-row" style={{ margin: 0 }}>
+              <label className="form-row">
                 Internal note (required)
                 <textarea
                   className="input"
@@ -418,14 +1097,12 @@ export default function InterviewReviewEditor({
             </div>
           );
         })}
-      </div>
+      </section>
 
-      <div className="card" style={{ display: "grid", gap: 14 }}>
+      <section className="review-editor-panel">
         <div>
-          <h2 style={{ margin: "0 0 6px" }}>Lesson Design Studio Draft Review</h2>
-          <p style={{ margin: 0, color: "var(--muted)", fontSize: 14 }}>
-            Choose the draft this interview review is referencing, then capture curriculum-specific feedback below.
-          </p>
+          <h2>Lesson Design Studio Draft Review</h2>
+          <p>Choose the draft this interview references, then capture curriculum-specific feedback.</p>
         </div>
 
         {drafts.length > 0 ? (
@@ -440,22 +1117,13 @@ export default function InterviewReviewEditor({
             >
               {drafts.map((draft) => (
                 <option key={draft.id} value={draft.id}>
-                  {(draft.title || "Untitled curriculum").trim()} · {draft.status.replace(/_/g, " ")}
+                  {(draft.title || "Untitled curriculum").trim()} - {draft.status.replace(/_/g, " ")}
                 </option>
               ))}
             </select>
           </label>
         ) : (
-          <div
-            style={{
-              padding: 12,
-              borderRadius: 10,
-              background: "#fff7ed",
-              border: "1px solid #fdba74",
-              color: "#9a3412",
-              fontSize: 14,
-            }}
-          >
+          <div className="review-editor-warning">
             No curriculum draft is currently available for this applicant.
           </div>
         )}
@@ -482,108 +1150,12 @@ export default function InterviewReviewEditor({
             value={revisionRequirements}
             disabled={!canEdit}
             onChange={(event) => setRevisionRequirements(event.target.value)}
-            placeholder="List the draft revisions that must happen before approval, if any."
+            placeholder="List draft revisions that must happen before approval, if any."
           />
         </label>
-      </div>
+      </section>
 
-      <div className="card" style={{ display: "grid", gap: 14 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-          <div>
-            <h2 style={{ margin: "0 0 6px" }}>Interview Questions</h2>
-            <p style={{ margin: 0, color: "var(--muted)", fontSize: 14 }}>
-              Every interview includes the shared default bank. Add custom follow-up questions only when the candidate needs them.
-            </p>
-          </div>
-          <button type="button" className="button secondary" onClick={addCustomQuestion} disabled={!canEdit}>
-            Add Custom Question
-          </button>
-        </div>
-
-        {questions.map((question, index) => {
-          const isCustom = question.source === "CUSTOM";
-          const helperText =
-            question.questionBankId
-              ? questionBank.find((entry) => entry.id === question.questionBankId)?.helperText ?? null
-              : null;
-
-          return (
-            <div
-              key={question.localId}
-              style={{
-                border: "1px solid var(--border)",
-                borderRadius: 12,
-                padding: 14,
-                display: "grid",
-                gap: 10,
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start" }}>
-                <div>
-                  <div style={{ fontWeight: 700 }}>
-                    {isCustom ? `Custom Question ${index + 1}` : `Question ${index + 1}`}
-                  </div>
-                  {helperText ? (
-                    <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 4 }}>
-                      {helperText}
-                    </div>
-                  ) : null}
-                </div>
-                {isCustom ? (
-                  <button
-                    type="button"
-                    className="button small outline"
-                    onClick={() => removeCustomQuestion(question.localId)}
-                    disabled={!canEdit}
-                  >
-                    Remove
-                  </button>
-                ) : null}
-              </div>
-
-              <label className="form-row" style={{ margin: 0 }}>
-                Prompt
-                <textarea
-                  className="input"
-                  rows={2}
-                  value={question.prompt}
-                  disabled={!canEdit || !isCustom}
-                  onChange={(event) => updateQuestion(question.localId, "prompt", event.target.value)}
-                  placeholder="Interview prompt..."
-                />
-              </label>
-
-              <label className="form-row" style={{ margin: 0 }}>
-                Optional follow-up prompt
-                <textarea
-                  className="input"
-                  rows={2}
-                  value={question.followUpPrompt}
-                  disabled={!canEdit}
-                  onChange={(event) =>
-                    updateQuestion(question.localId, "followUpPrompt", event.target.value)
-                  }
-                  placeholder="Optional follow-up to probe deeper..."
-                />
-              </label>
-
-              <label className="form-row" style={{ margin: 0 }}>
-                Interviewer notes
-                <textarea
-                  className="input"
-                  rows={3}
-                  value={question.notes}
-                  disabled={!canEdit}
-                  onChange={(event) => updateQuestion(question.localId, "notes", event.target.value)}
-                  placeholder="What did the candidate say, and what signal did it give you?"
-                />
-              </label>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="card" style={{ display: "grid", gap: 12 }}>
+      <section className="review-editor-panel">
         <label className="form-row">
           Final interview summary
           <textarea
@@ -597,31 +1169,9 @@ export default function InterviewReviewEditor({
           />
         </label>
 
-        <label className="form-row">
-          Overall interview notes
-          <textarea
-            className="input"
-            name="overallNotes"
-            rows={4}
-            value={overallNotes}
-            disabled={!canEdit}
-            onChange={(event) => setOverallNotes(event.target.value)}
-            placeholder="Capture anything that does not fit neatly into one category."
-          />
-        </label>
-
         {showRevisionRequirements ? (
-          <div
-            style={{
-              padding: 12,
-              borderRadius: 10,
-              background: "#fffbeb",
-              border: "1px solid #f59e0b",
-              color: "#92400e",
-              fontSize: 14,
-            }}
-          >
-            Keep the required revisions field above specific. This recommendation does not approve the candidate yet.
+          <div className="review-editor-warning">
+            Keep required revisions specific. This recommendation does not approve the candidate yet.
           </div>
         ) : null}
 
@@ -642,7 +1192,7 @@ export default function InterviewReviewEditor({
           <input type="hidden" name="applicantMessage" value={applicantMessage} />
         )}
 
-        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14 }}>
+        <label className="review-checkbox-row">
           <input
             type="checkbox"
             checked={flagForLeadership}
@@ -652,9 +1202,9 @@ export default function InterviewReviewEditor({
           Flag for leadership discussion
         </label>
         <input type="hidden" name="flagForLeadership" value={flagForLeadership ? "true" : "false"} />
-      </div>
+      </section>
 
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+      <div className="review-editor-actions">
         <button
           className="button secondary"
           type="submit"

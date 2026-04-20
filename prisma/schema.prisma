@@ -378,6 +378,22 @@ enum InterviewQuestionSource {
   CUSTOM
 }
 
+enum InterviewQuestionRunStatus {
+  UNTOUCHED
+  ASKED
+  SKIPPED
+}
+
+enum InterviewAnswerTag {
+  STRONG_ANSWER
+  WEAK_ANSWER
+  RED_FLAG
+  FOLLOW_UP_NEEDED
+  GREAT_COMMUNICATOR
+  HIGH_POTENTIAL
+  NEEDS_COACHING
+}
+
 enum ChapterPresidentApplicationStatus {
   SUBMITTED
   UNDER_REVIEW
@@ -1755,17 +1771,25 @@ model InstructorApplicationReviewCategory {
 }
 
 model InstructorInterviewQuestionBank {
-  id             String                                @id @default(cuid())
-  slug           String                                @unique
-  prompt         String                                @db.Text
-  helperText     String?                               @db.Text
-  followUpPrompt String?                               @db.Text
-  topic          String?
-  sortOrder      Int                                   @default(0)
-  isActive       Boolean                               @default(true)
-  responses      InstructorInterviewQuestionResponse[]
-  createdAt      DateTime                              @default(now())
-  updatedAt      DateTime                              @updatedAt
+  id                  String                                @id @default(cuid())
+  slug                String                                @unique
+  prompt              String                                @db.Text
+  helperText          String?                               @db.Text
+  followUpPrompt      String?                               @db.Text
+  topic               String?
+  competency          String?
+  whyItMatters        String?                               @db.Text
+  interviewerGuidance String?                               @db.Text
+  listenFor           String?                               @db.Text
+  suggestedFollowUps  Json                                  @default("[]")
+  strongSignals       Json                                  @default("[]")
+  concernSignals      Json                                  @default("[]")
+  notePrompts         Json                                  @default("[]")
+  sortOrder           Int                                   @default(0)
+  isActive            Boolean                               @default(true)
+  responses           InstructorInterviewQuestionResponse[]
+  createdAt           DateTime                              @default(now())
+  updatedAt           DateTime                              @updatedAt
 
   @@index([isActive, sortOrder])
 }
@@ -1784,6 +1808,11 @@ model InstructorInterviewReview {
   recommendation       InstructorInterviewRecommendation?
   summary              String?                               @db.Text
   overallNotes         String?                               @db.Text
+  demeanorNotes        String?                               @db.Text
+  maturityNotes        String?                               @db.Text
+  communicationNotes   String?                               @db.Text
+  professionalismNotes String?                               @db.Text
+  followUpItems        String?                               @db.Text
   curriculumFeedback   String?                               @db.Text
   revisionRequirements String?                               @db.Text
   applicantMessage     String?                               @db.Text
@@ -1821,14 +1850,22 @@ model InstructorInterviewQuestionResponse {
   questionBankId String?
   questionBank   InstructorInterviewQuestionBank? @relation(fields: [questionBankId], references: [id], onDelete: SetNull)
   source         InterviewQuestionSource          @default(DEFAULT)
+  status         InterviewQuestionRunStatus       @default(UNTOUCHED)
   prompt         String                           @db.Text
   followUpPrompt String?                          @db.Text
+  competency     String?
+  whyAsked       String?                          @db.Text
   notes          String?                          @db.Text
+  rating         ProgressStatus?
+  tags           InterviewAnswerTag[]             @default([])
+  askedAt        DateTime?
+  skippedAt      DateTime?
   sortOrder      Int                              @default(0)
   createdAt      DateTime                         @default(now())
   updatedAt      DateTime                         @updatedAt
 
   @@index([reviewId, sortOrder])
+  @@index([reviewId, status])
   @@index([questionBankId])
 }
 
