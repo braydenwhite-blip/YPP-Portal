@@ -93,6 +93,29 @@ function applySecurityHeaders(response: NextResponse): NextResponse {
   return response;
 }
 
+export const DEMO_ALLOWED_PREFIXES = [
+  "/",
+  "/application-status",
+  "/positions",
+  "/applications",
+  "/interviews",
+  "/instructor/lesson-design-studio",
+  "/admin/applications",
+  "/admin/recruiting",
+  "/admin/hiring-committee",
+  "/admin/instructor-applicants",
+  "/admin/chapter-president-applicants",
+  "/admin/positions",
+  "/not-rolled-out",
+  "/onboarding",
+];
+
+export function isDemoAllowedPathname(pathname: string): boolean {
+  return DEMO_ALLOWED_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isLogin = pathname.startsWith("/login");
@@ -142,26 +165,9 @@ export async function middleware(request: NextRequest) {
   }
 
   const DEMO_MODE = process.env.DEMO_MODE === "true";
-  const DEMO_ALLOWED_PREFIXES = [
-    "/",
-    "/positions",
-    "/applications",
-    "/interviews",
-    "/admin/applications",
-    "/admin/recruiting",
-    "/admin/hiring-committee",
-    "/admin/instructor-applicants",
-    "/admin/chapter-president-applicants",
-    "/admin/positions",
-    "/not-rolled-out",
-    "/onboarding",
-  ];
 
   if (DEMO_MODE && isAuthenticated) {
-    const allowed = DEMO_ALLOWED_PREFIXES.some(
-      (p) => pathname === p || pathname.startsWith(p + "/")
-    );
-    if (!allowed) {
+    if (!isDemoAllowedPathname(pathname)) {
       const dest = request.nextUrl.clone();
       dest.pathname = "/not-rolled-out";
       return NextResponse.redirect(dest);
