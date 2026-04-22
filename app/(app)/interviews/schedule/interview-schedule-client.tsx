@@ -937,7 +937,7 @@ function WorkflowCard({
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18, marginLeft: 8 }}>
         <Link href={workflow.detailHref} className="button small outline" style={{ textDecoration: "none" }}>
-          {workflow.domain === "HIRING" ? "Open cockpit" : "Open record"}
+          {workflow.domain === "HIRING" ? "Open workspace" : "Open record"}
         </Link>
         {workflow.conversationId ? (
           <Link href={`/messages/${workflow.conversationId}`} className="button small outline" style={{ textDecoration: "none" }}>
@@ -1451,7 +1451,7 @@ export default function InterviewScheduleClient({
   );
   const requestedWorkflowId = searchParams.get("workflow");
   const requestedApplicationId = searchParams.get("applicationId");
-  const openedFromInstructorApplicantCockpit =
+  const openedFromInstructorApplicantWorkspace =
     searchParams.get("source") === "instructorApplicant";
   const requestedWorkflow = requestedWorkflowId
     ? data.workflows.find(
@@ -1525,13 +1525,13 @@ export default function InterviewScheduleClient({
     queueWorkflows.find((workflow) => workflow.id === selectedWorkflowId) ??
     queueWorkflows[0] ??
     null;
-  const openedFromApplicantCockpit = Boolean(
+  const openedFromApplicantWorkspace = Boolean(
     requestedApplicationId &&
       selectedWorkflow?.domain === "HIRING" &&
       selectedWorkflow.workflowId === requestedApplicationId
   );
   const showInstructorApplicantHandoff = Boolean(
-    openedFromInstructorApplicantCockpit && !schedulerDeepLinkResolved
+    openedFromInstructorApplicantWorkspace && !schedulerDeepLinkResolved
   );
   const selectedQueueSection: QueueSectionKey =
     selectedWorkflow && ["COMPLETED", "CANCELLED"].includes(selectedWorkflow.status)
@@ -1594,8 +1594,8 @@ export default function InterviewScheduleClient({
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
               <span className="pill pill-purple" style={{ fontSize: 12 }}>Interview Scheduling OS</span>
               <span className="pill pill-info" style={{ fontSize: 12 }}>{data.summary.total} active workflows</span>
-              {openedFromApplicantCockpit ? (
-                <span className="pill pill-success" style={{ fontSize: 12 }}>Applicant cockpit linked</span>
+              {openedFromApplicantWorkspace ? (
+                <span className="pill pill-success" style={{ fontSize: 12 }}>Applicant workspace linked</span>
               ) : null}
               {showInstructorApplicantHandoff ? (
                 <span className="pill pill-info" style={{ fontSize: 12 }}>Applicant handoff</span>
@@ -1609,8 +1609,8 @@ export default function InterviewScheduleClient({
             </h1>
             <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--muted)", maxWidth: 640 }}>
               {showInstructorApplicantHandoff
-                ? "Use this calendar scheduler to find open interviewer time. The applicant-specific offer is sent from the cockpit slot panel after you choose the time."
-                : "This is the full scheduler behind the cockpit Post slot panel. When opened from an applicant cockpit, that applicant is selected here so posted slots, calendar options, booking notes, and the interview thread stay together."}
+                ? "Use this calendar scheduler to find open interviewer time. The applicant-specific offer is sent from the workspace slot panel after you choose the time."
+                : "This is the full scheduler behind the workspace Post slot panel. When opened from an applicant workspace, that applicant is selected here so posted slots, calendar options, booking notes, and the interview thread stay together."}
             </p>
           </div>
 
@@ -1650,10 +1650,10 @@ export default function InterviewScheduleClient({
             }}
           >
             <strong style={{ color: "var(--text)" }}>
-              Opened from an instructor applicant cockpit.
+              Opened from an instructor applicant workspace.
             </strong>{" "}
             This scheduler manages shared interviewer calendars. Pick an
-            interviewer-backed time here, then return to the cockpit slot panel
+            interviewer-backed time here, then return to the workspace slot panel
             to send the official applicant offer.
           </div>
         ) : null}
@@ -1850,7 +1850,7 @@ export default function InterviewScheduleClient({
                   </div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     <Link href={selectedWorkflow.detailHref} className="button small outline" style={{ textDecoration: "none" }}>
-                      {selectedWorkflow.domain === "HIRING" ? "Open cockpit" : "Open record"}
+                      {selectedWorkflow.domain === "HIRING" ? "Open workspace" : "Open record"}
                     </Link>
                     {selectedWorkflow.conversationId ? (
                       <Link href={`/messages/${selectedWorkflow.conversationId}`} className="button small outline" style={{ textDecoration: "none" }}>

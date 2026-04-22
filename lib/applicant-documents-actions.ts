@@ -25,10 +25,11 @@ async function getApplicationContext(applicationId: string): Promise<Application
       id: true,
       applicantId: true,
       reviewerId: true,
+      interviewRound: true,
       applicant: { select: { chapterId: true } },
       interviewerAssignments: {
         where: { removedAt: null },
-        select: { interviewerId: true, removedAt: true },
+        select: { interviewerId: true, round: true, removedAt: true },
       },
     },
   });
@@ -37,6 +38,7 @@ async function getApplicationContext(applicationId: string): Promise<Application
     id: app.id,
     applicantId: app.applicantId,
     reviewerId: app.reviewerId,
+    interviewRound: app.interviewRound,
     applicantChapterId: app.applicant.chapterId,
     interviewerAssignments: app.interviewerAssignments,
   };

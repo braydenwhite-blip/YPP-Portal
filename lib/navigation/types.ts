@@ -4,6 +4,7 @@ export type NavRole =
   | "ADMIN"
   | "APPLICANT"
   | "CHAPTER_PRESIDENT"
+  | "HIRING_CHAIR"
   | "INSTRUCTOR"
   | "MENTOR"
   | "PARENT"

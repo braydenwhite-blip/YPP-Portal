@@ -156,7 +156,7 @@ export default function InstructorCurriculumPrepPanel({
           ) : null}
 
           <button type="submit" className="button" disabled={isPending}>
-            {isPending ? "Saving..." : "Save plan and notes"}
+            {isPending ? "Saving…" : "Save Plan & Notes"}
           </button>
         </form>
       </div>

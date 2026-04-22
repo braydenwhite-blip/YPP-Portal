@@ -81,7 +81,7 @@ export default function ApplicantCockpitHeader({ application }: Props) {
           {initials(displayName)}
         </div>
         <div className="applicant-cockpit-identity">
-          <div className="applicant-cockpit-eyebrow">Instructor applicant cockpit</div>
+          <div className="applicant-cockpit-eyebrow">Instructor applicant workspace</div>
           <h1>{displayName}</h1>
           <div className="applicant-cockpit-chip-row">
             {application.applicant.chapter && (

@@ -35,7 +35,7 @@ export default function DecisionReadinessChecklist({
   hasBothMaterials,
   hasSubjects,
 }: Props) {
-  const allReady = hasReviewerNote && hasInterviewReview && hasBothMaterials && hasSubjects;
+  const allReady = hasReviewerNote && hasInterviewReview && hasSubjects;
 
   return (
     <div
@@ -54,7 +54,7 @@ export default function DecisionReadinessChecklist({
       <div role="list">
         <CheckItem label="Reviewer note present" ok={hasReviewerNote} />
         <CheckItem label="≥1 submitted interview review" ok={hasInterviewReview} />
-        <CheckItem label="Both materials uploaded (Course Outline + First Class Plan)" ok={hasBothMaterials} />
+        <CheckItem label="Materials uploaded (soft warning only)" ok={hasBothMaterials} />
         <CheckItem label="Subjects of interest declared" ok={hasSubjects} />
       </div>
     </div>

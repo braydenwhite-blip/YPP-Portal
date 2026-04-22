@@ -218,10 +218,10 @@ async function main() {
   const chapterLead = await ensureUser({
     email: "e2e.chapter.lead.alpha@ypp.test",
     name: "E2E Chapter Lead Alpha",
-    primaryRole: RoleType.CHAPTER_LEAD,
+    primaryRole: RoleType.CHAPTER_PRESIDENT,
     chapterId: alphaChapter.id,
     passwordHash,
-    roles: [RoleType.CHAPTER_LEAD],
+    roles: [RoleType.CHAPTER_PRESIDENT, RoleType.CHAPTER_LEAD],
   });
   const applicant = await ensureUser({
     email: "e2e.applicant.alpha@ypp.test",

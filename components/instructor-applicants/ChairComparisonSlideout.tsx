@@ -23,10 +23,10 @@ interface InterviewReview {
 interface Application {
   id: string;
   subjectsOfInterest: string | null;
-  materialsReadyAt: Date | null;
+  materialsReadyAt: Date | string | null;
   preferredFirstName: string | null;
   legalName: string | null;
-  chairQueuedAt: Date | null;
+  chairQueuedAt: Date | string | null;
   applicant: {
     name: string | null;
     email: string;
@@ -74,9 +74,7 @@ export default function ChairComparisonSlideout({ application, onClose, onDecisi
   const reviewerNote = application.applicationReviews[0] ?? null;
   const hasReviewerNote = !!reviewerNote?.summary || !!reviewerNote?.notes;
   const hasInterviewReview = application.interviewReviews.length > 0;
-  const hasBothMaterials =
-    application.documents.some((d) => d.kind === "COURSE_OUTLINE") &&
-    application.documents.some((d) => d.kind === "FIRST_CLASS_PLAN");
+  const hasBothMaterials = Boolean(application.materialsReadyAt);
   const hasSubjects = !!application.subjectsOfInterest?.trim();
 
   function handleDecide(action: ChairDecisionAction) {
@@ -111,12 +109,7 @@ export default function ChairComparisonSlideout({ application, onClose, onDecisi
       {/* Backdrop */}
       <div
         aria-hidden="true"
-        style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(0,0,0,0.3)",
-          zIndex: 40,
-        }}
+        className="chair-decision-backdrop"
         onClick={onClose}
       />
 
@@ -126,29 +119,11 @@ export default function ChairComparisonSlideout({ application, onClose, onDecisi
         role="dialog"
         aria-modal="true"
         aria-label={`Chair decision: ${displayName}`}
-        style={{
-          position: "fixed",
-          top: 0,
-          right: 0,
-          bottom: 0,
-          width: 640,
-          background: "#fff",
-          boxShadow: "-4px 0 24px rgba(0,0,0,0.12)",
-          zIndex: 50,
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
+        data-chair-decision="true"
       >
         {/* Header */}
         <div
-          style={{
-            padding: "20px 24px",
-            borderBottom: "1px solid #e5e7eb",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-          }}
+          className="chair-decision-header"
         >
           <div>
             <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{displayName}</h2>
@@ -170,14 +145,14 @@ export default function ChairComparisonSlideout({ application, onClose, onDecisi
             type="button"
             onClick={onClose}
             aria-label="Close chair decision panel"
-            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "var(--muted)", padding: 4 }}
+            className="chair-decision-close"
           >
             ✕
           </button>
         </div>
 
         {/* Scrollable body */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
+        <div className="chair-decision-body">
           {/* Decision readiness */}
           <DecisionReadinessChecklist
             hasReviewerNote={hasReviewerNote}
@@ -282,10 +257,10 @@ export default function ChairComparisonSlideout({ application, onClose, onDecisi
           )}
 
           {/* Materials preview */}
-          {application.documents.length > 0 && (
+          {(
             <div style={{ marginBottom: 20 }}>
               <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 700 }}>Materials</p>
-              {["COURSE_OUTLINE", "FIRST_CLASS_PLAN"].map((kind) => {
+              {["FIRST_CLASS_PLAN"].map((kind) => {
                 const doc = application.documents.find((d) => d.kind === kind);
                 return (
                   <div
@@ -302,7 +277,7 @@ export default function ChairComparisonSlideout({ application, onClose, onDecisi
                     }}
                   >
                     <span style={{ fontSize: 13 }}>
-                      {kind === "COURSE_OUTLINE" ? "Course Outline" : "First Class Plan"}
+                      One-Class Plan & Structure Notes
                     </span>
                     {doc ? (
                       <a
@@ -412,13 +387,7 @@ export default function ChairComparisonSlideout({ application, onClose, onDecisi
 
         {/* Action buttons */}
         <div
-          style={{
-            padding: "16px 24px",
-            borderTop: "1px solid #e5e7eb",
-            display: "flex",
-            gap: 8,
-            flexWrap: "wrap",
-          }}
+          className="chair-decision-actions"
         >
           {ACTIONS.map((a) => (
             <button

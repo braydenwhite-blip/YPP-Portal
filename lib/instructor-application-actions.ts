@@ -17,6 +17,7 @@ import {
   sendReviewerAssignedEmail,
   sendInterviewerAssignedEmail,
   sendChairDecisionEmail,
+  sendMaterialsMissingReminderEmail,
 } from "@/lib/email";
 import {
   getLegacyApplicationTransitionError,
@@ -25,6 +26,7 @@ import {
 import { syncInstructorApplicationWorkflow } from "@/lib/workflow";
 import {
   getHiringActor,
+  assertCanManageApplication,
   assertCanAssignInterviewers,
   assertCanActAsChair,
 } from "@/lib/chapter-hiring-permissions";
@@ -380,14 +382,15 @@ async function requestMoreInfoInternal(
   });
   if (!application) throw new Error("Application not found");
 
-  await prisma.instructorApplication.update({
-    where: { id: applicationId },
-    data: {
-      status: InstructorApplicationStatus.INFO_REQUESTED,
-      reviewerId,
-      infoRequest: message,
-    },
-  });
+    await prisma.instructorApplication.update({
+      where: { id: applicationId },
+      data: {
+        status: InstructorApplicationStatus.INFO_REQUESTED,
+        reviewerId,
+        infoRequest: message,
+        infoRequestReturnStatus: InstructorApplicationStatus.UNDER_REVIEW,
+      },
+    });
 
   const { getBaseUrl } = await import("@/lib/portal-auth-utils");
   const baseUrl = await getBaseUrl();
@@ -502,11 +505,15 @@ export async function submitInfoResponse(
       };
     }
 
+    const returnStatus =
+      application.infoRequestReturnStatus ?? InstructorApplicationStatus.UNDER_REVIEW;
+
     await prisma.instructorApplication.update({
       where: { id: application.id },
       data: {
         applicantResponse: response,
-        status: InstructorApplicationStatus.SUBMITTED,
+        status: returnStatus,
+        infoRequestReturnStatus: null,
       },
     });
 
@@ -516,6 +523,9 @@ export async function submitInfoResponse(
       console.error("[submitInfoResponse] notify failed:", e);
     }
 
+    await syncInstructorApplicationWorkflow(application.id);
+    revalidatePath("/admin/instructor-applicants");
+    revalidatePath("/admin/instructor-applicants/chair-queue");
     revalidatePath("/application-status");
     return { status: "success", message: "Your response has been submitted." };
   } catch (error) {
@@ -630,9 +640,41 @@ export async function assignReviewer(
     const session = await requireAdminOrChapterLead();
     const application = await prisma.instructorApplication.findUnique({
       where: { id: applicationId },
-      select: { status: true, reviewerId: true },
+      select: {
+        id: true,
+        applicantId: true,
+        status: true,
+        reviewerId: true,
+        applicant: { select: { chapterId: true } },
+      },
     });
     if (!application) return { success: false, error: "Application not found." };
+    const actor = await getHiringActor(session.user.id);
+    assertCanManageApplication(actor, {
+      id: application.id,
+      applicantId: application.applicantId,
+      reviewerId: application.reviewerId,
+      applicantChapterId: application.applicant.chapterId,
+      interviewerAssignments: [],
+    });
+    const targetReviewer = await prisma.user.findUnique({
+      where: { id: reviewerId },
+      select: { chapterId: true, roles: { select: { role: true } } },
+    });
+    if (!targetReviewer) return { success: false, error: "Reviewer not found." };
+    const targetRoles = targetReviewer.roles.map((role) => role.role);
+    const targetIsAdmin = targetRoles.includes("ADMIN");
+    const targetIsChapterPresident = targetRoles.includes("CHAPTER_PRESIDENT");
+    if (!targetIsAdmin && !targetIsChapterPresident) {
+      return { success: false, error: "Reviewer must be an Admin or Chapter President." };
+    }
+    if (
+      !targetIsAdmin &&
+      application.applicant.chapterId &&
+      targetReviewer.chapterId !== application.applicant.chapterId
+    ) {
+      return { success: false, error: "Chapter President reviewers must belong to the applicant's chapter." };
+    }
 
     const now = new Date();
     const newStatus =
@@ -654,7 +696,7 @@ export async function assignReviewer(
         data: {
           applicationId,
           kind: "REVIEWER_ASSIGNED",
-          actorId: session.user.id,
+          actorId: actor.id,
           payload: { reviewerId, previousReviewerId: application.reviewerId ?? null },
         },
       });
@@ -673,8 +715,8 @@ export async function assignReviewer(
     await syncInstructorApplicationWorkflow(applicationId);
     trackApplicantEvent("applicant.reviewer.assigned", {
       applicationId,
-      actorId: session.user.id,
-      chapterId: null,
+      actorId: actor.id,
+      chapterId: application.applicant.chapterId ?? null,
       status: String(newStatus),
       meta: { reviewerId },
     });
@@ -695,7 +737,24 @@ export async function setActionDueDate(
   dueDate: string | null
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireAdminOrChapterLead();
+    const session = await requireAdminOrChapterLead();
+    const app = await prisma.instructorApplication.findUnique({
+      where: { id: applicationId },
+      select: {
+        id: true,
+        applicantId: true,
+        reviewerId: true,
+        applicant: { select: { chapterId: true } },
+      },
+    });
+    if (!app) return { success: false, error: "Application not found." };
+    assertCanManageApplication(await getHiringActor(session.user.id), {
+      id: app.id,
+      applicantId: app.applicantId,
+      reviewerId: app.reviewerId,
+      applicantChapterId: app.applicant.chapterId,
+      interviewerAssignments: [],
+    });
     await prisma.instructorApplication.update({
       where: { id: applicationId },
       data: { actionDueDate: dueDate ? new Date(dueDate) : null },
@@ -727,7 +786,24 @@ export async function saveScoresAndNotes(
   }
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireAdminOrChapterLead();
+    const session = await requireAdminOrChapterLead();
+    const app = await prisma.instructorApplication.findUnique({
+      where: { id: applicationId },
+      select: {
+        id: true,
+        applicantId: true,
+        reviewerId: true,
+        applicant: { select: { chapterId: true } },
+      },
+    });
+    if (!app) return { success: false, error: "Application not found." };
+    assertCanManageApplication(await getHiringActor(session.user.id), {
+      id: app.id,
+      applicantId: app.applicantId,
+      reviewerId: app.reviewerId,
+      applicantChapterId: app.applicant.chapterId,
+      interviewerAssignments: [],
+    });
     await prisma.instructorApplication.update({
       where: { id: applicationId },
       data: {
@@ -874,7 +950,9 @@ export async function selectInterviewSlot(
       where: { id: slotId },
       include: {
         instructorApplication: {
-          include: { applicant: { select: { name: true, email: true } } },
+          include: {
+            applicant: { select: { name: true, email: true } },
+          },
         },
         offeredBy: { select: { name: true, email: true } },
       },
@@ -931,6 +1009,14 @@ export async function selectInterviewSlot(
       detailUrl: `${baseUrl}/application-status`,
       icsContent,
     }).catch((err) => console.error("[selectInterviewSlot] applicant email failed:", err));
+
+    if (!slot.instructorApplication.materialsReadyAt) {
+      await sendMaterialsMissingReminderEmail(
+        applicant.email,
+        applicant.name,
+        slot.instructorApplicationId
+      ).catch((err) => console.error("[selectInterviewSlot] materials reminder failed:", err));
+    }
 
     // Find all reviewers who offered slots for this application and notify them
     const reviewerSlots = await prisma.offeredInterviewSlot.findMany({
@@ -994,11 +1080,12 @@ export async function assignInterviewer(formData: FormData): Promise<{ success: 
         id: true,
         applicantId: true,
         reviewerId: true,
+        interviewRound: true,
         status: true,
         applicant: { select: { chapterId: true } },
         interviewerAssignments: {
           where: { removedAt: null },
-          select: { interviewerId: true, role: true, removedAt: true },
+          select: { interviewerId: true, role: true, round: true, removedAt: true },
         },
       },
     });
@@ -1011,17 +1098,25 @@ export async function assignInterviewer(formData: FormData): Promise<{ success: 
         id: app.id,
         applicantId: app.applicantId,
         reviewerId: app.reviewerId,
+        interviewRound: app.interviewRound,
         applicantChapterId: app.applicant.chapterId,
         interviewerAssignments: app.interviewerAssignments,
       },
       role
     );
 
-    if (role === "SECOND" && !app.interviewerAssignments.some((a) => a.role === "LEAD")) {
+    const currentRoundAssignments = app.interviewerAssignments.filter(
+      (assignment) => assignment.round === app.interviewRound
+    );
+
+    if (role === "SECOND" && !currentRoundAssignments.some((a) => a.role === "LEAD")) {
       return { success: false, error: "Assign a LEAD interviewer before adding a SECOND." };
     }
+    if (currentRoundAssignments.some((a) => a.role === role)) {
+      return { success: false, error: `${role} interviewer is already assigned for this round.` };
+    }
 
-    const alreadyAssigned = app.interviewerAssignments.some((a) => a.interviewerId === interviewerId);
+    const alreadyAssigned = currentRoundAssignments.some((a) => a.interviewerId === interviewerId);
     if (alreadyAssigned) return { success: false, error: "This interviewer is already assigned." };
 
     await prisma.$transaction(async (tx) => {
@@ -1029,6 +1124,7 @@ export async function assignInterviewer(formData: FormData): Promise<{ success: 
         data: {
           applicationId,
           interviewerId,
+          round: app.interviewRound,
           role,
           assignedById: actor.id,
         },
@@ -1038,7 +1134,7 @@ export async function assignInterviewer(formData: FormData): Promise<{ success: 
           applicationId,
           kind: "INTERVIEWER_ASSIGNED",
           actorId: actor.id,
-          payload: { interviewerId, role },
+          payload: { interviewerId, role, round: app.interviewRound },
         },
       });
     });
@@ -1079,15 +1175,36 @@ export async function removeInterviewer(formData: FormData): Promise<{ success: 
 
     const assignment = await prisma.instructorApplicationInterviewer.findUnique({
       where: { id: assignmentId },
-      select: { id: true, applicationId: true, interviewerId: true, role: true, removedAt: true },
+      select: {
+        id: true,
+        applicationId: true,
+        interviewerId: true,
+        role: true,
+        round: true,
+        removedAt: true,
+        application: {
+          select: {
+            id: true,
+            applicantId: true,
+            reviewerId: true,
+            interviewRound: true,
+            applicant: { select: { chapterId: true } },
+          },
+        },
+      },
     });
     if (!assignment) return { success: false, error: "Interviewer assignment not found." };
     if (assignment.removedAt) return { success: false, error: "Already removed." };
 
     const actor = await getHiringActor(session.user.id);
-    if (!actor.roles.includes("ADMIN") && !actor.roles.includes("CHAPTER_PRESIDENT")) {
-      return { success: false, error: "Only Admins or Chapter Presidents can remove interviewers." };
-    }
+    assertCanManageApplication(actor, {
+      id: assignment.application.id,
+      applicantId: assignment.application.applicantId,
+      reviewerId: assignment.application.reviewerId,
+      interviewRound: assignment.application.interviewRound,
+      applicantChapterId: assignment.application.applicant.chapterId,
+      interviewerAssignments: [],
+    });
 
     await prisma.$transaction(async (tx) => {
       await tx.instructorApplicationInterviewer.update({
@@ -1099,7 +1216,7 @@ export async function removeInterviewer(formData: FormData): Promise<{ success: 
           applicationId: assignment.applicationId,
           kind: "INTERVIEWER_REMOVED",
           actorId: actor.id,
-          payload: { interviewerId: assignment.interviewerId, role: assignment.role },
+          payload: { interviewerId: assignment.interviewerId, role: assignment.role, round: assignment.round },
         },
       });
     });
@@ -1129,31 +1246,47 @@ export async function sendToChair(formData: FormData): Promise<{ success: boolea
     if (!applicationId) return { success: false, error: "Missing applicationId." };
 
     const actor = await getHiringActor(session.user.id);
-    if (!actor.roles.includes("ADMIN") && !actor.roles.includes("CHAPTER_PRESIDENT")) {
-      return { success: false, error: "Unauthorized." };
-    }
 
     const app = await prisma.instructorApplication.findUnique({
       where: { id: applicationId },
       select: {
+        id: true,
+        applicantId: true,
+        reviewerId: true,
         status: true,
+        interviewRound: true,
+        applicant: { select: { chapterId: true } },
         interviewerAssignments: {
           where: { removedAt: null },
-          select: { interviewerId: true },
+          select: { interviewerId: true, round: true, removedAt: true },
         },
         interviewReviews: {
           where: { status: "SUBMITTED" },
-          select: { reviewerId: true },
+          select: { reviewerId: true, round: true, recommendation: true },
         },
       },
     });
     if (!app) return { success: false, error: "Application not found." };
+    assertCanManageApplication(actor, {
+      id: app.id,
+      applicantId: app.applicantId,
+      reviewerId: app.reviewerId,
+      interviewRound: app.interviewRound,
+      applicantChapterId: app.applicant.chapterId,
+      interviewerAssignments: app.interviewerAssignments,
+    });
     if (app.status !== InstructorApplicationStatus.INTERVIEW_COMPLETED) {
       return { success: false, error: "Application must be in INTERVIEW_COMPLETED status to send to chair." };
     }
 
-    const activeInterviewerIds = app.interviewerAssignments.map((a) => a.interviewerId);
-    const submittedReviewerIds = new Set(app.interviewReviews.map((r) => r.reviewerId));
+    const activeInterviewerIds = app.interviewerAssignments
+      .filter((assignment) => assignment.round === app.interviewRound)
+      .map((a) => a.interviewerId);
+    const submittedReviewerIds = new Set(
+      app.interviewReviews
+        .filter((review) => review.round === app.interviewRound && review.recommendation)
+        .map((r) => r.reviewerId)
+    );
     const missingReviews = activeInterviewerIds.filter((id) => !submittedReviewerIds.has(id));
 
     if (missingReviews.length > 0 && !actor.roles.includes("ADMIN")) {
@@ -1279,6 +1412,15 @@ export async function chairDecide(formData: FormData): Promise<{ success: boolea
       return { success: false, error: "Invalid chair action." };
     }
     const action = actionRaw as ChairDecisionAction;
+    if ((action === "REQUEST_INFO" || action === "REJECT") && !rationale) {
+      return {
+        success: false,
+        error:
+          action === "REQUEST_INFO"
+            ? "Add the information request before sending it to the applicant."
+            : "Add a rejection reason before rejecting the application.",
+      };
+    }
 
     const actor = await getHiringActor(session.user.id);
     assertCanActAsChair(actor);
@@ -1289,10 +1431,11 @@ export async function chairDecide(formData: FormData): Promise<{ success: boolea
         status: true,
         applicantId: true,
         reviewerId: true,
+        interviewRound: true,
         applicant: { select: { id: true, name: true, email: true } },
         interviewerAssignments: {
           where: { removedAt: null },
-          select: { interviewerId: true, interviewer: { select: { id: true, email: true } } },
+          select: { interviewerId: true, round: true, interviewer: { select: { id: true, email: true } } },
         },
       },
     });
@@ -1311,6 +1454,14 @@ export async function chairDecide(formData: FormData): Promise<{ success: boolea
       REQUEST_SECOND_INTERVIEW: InstructorApplicationStatus.INTERVIEW_SCHEDULED,
     };
     const newStatus = statusByAction[action]!;
+
+    let approvalRollback:
+      | {
+          previousPrimaryRole: RoleType;
+          hadInstructorRole: boolean;
+          existingApprovalId: string | null;
+        }
+      | null = null;
 
     await prisma.$transaction(async (tx) => {
       // Re-check status inside transaction to guard against stale clicks
@@ -1337,9 +1488,43 @@ export async function chairDecide(formData: FormData): Promise<{ success: boolea
 
       const appUpdateData: Record<string, unknown> = { status: newStatus };
       if (action === "APPROVE") appUpdateData.approvedAt = now;
-      if (action === "REJECT") appUpdateData.rejectedAt = now;
+      if (action === "REJECT") {
+        appUpdateData.rejectedAt = now;
+        appUpdateData.rejectionReason = rationale;
+      }
+      if (action === "REQUEST_INFO") {
+        appUpdateData.infoRequest = rationale;
+        appUpdateData.infoRequestReturnStatus = InstructorApplicationStatus.CHAIR_REVIEW;
+      }
+      if (action === "REQUEST_SECOND_INTERVIEW") {
+        appUpdateData.interviewRound = { increment: 1 };
+        appUpdateData.chairQueuedAt = null;
+        appUpdateData.interviewScheduledAt = null;
+      }
 
       if (action === "APPROVE") {
+        const [applicantUser, existingInstructorRole, existingApproval] = await Promise.all([
+          tx.user.findUnique({
+            where: { id: app.applicantId },
+            select: { primaryRole: true },
+          }),
+          tx.userRole.findUnique({
+            where: { userId_role: { userId: app.applicantId, role: RoleType.INSTRUCTOR } },
+            select: { userId: true },
+          }),
+          tx.instructorApproval.findFirst({
+            where: { instructorId: app.applicantId },
+            select: { id: true },
+          }),
+        ]);
+        if (!applicantUser) {
+          throw new Error("Applicant user not found.");
+        }
+        approvalRollback = {
+          previousPrimaryRole: applicantUser.primaryRole,
+          hadInstructorRole: Boolean(existingInstructorRole),
+          existingApprovalId: existingApproval?.id ?? null,
+        };
         // Grant INSTRUCTOR role atomically in the same transaction
         await tx.instructorApplication.update({ where: { id: applicationId }, data: appUpdateData });
         await tx.user.update({
@@ -1351,10 +1536,7 @@ export async function chairDecide(formData: FormData): Promise<{ success: boolea
           update: {},
           create: { userId: app.applicantId, role: RoleType.INSTRUCTOR },
         });
-        const existing = await tx.instructorApproval.findFirst({
-          where: { instructorId: app.applicantId },
-        });
-        if (!existing) {
+        if (!existingApproval) {
           await tx.instructorApproval.create({
             data: { instructorId: app.applicantId, status: ApprovalStatus.TRAINING_IN_PROGRESS },
           });
@@ -1392,6 +1574,22 @@ export async function chairDecide(formData: FormData): Promise<{ success: boolea
             where: { applicationId, supersededAt: null },
             data: { supersededAt: rollbackNow },
           });
+          if (approvalRollback && !approvalRollback.hadInstructorRole) {
+            await tx.userRole.deleteMany({
+              where: { userId: app.applicantId, role: RoleType.INSTRUCTOR },
+            });
+          }
+          if (approvalRollback && !approvalRollback.existingApprovalId) {
+            await tx.instructorApproval.deleteMany({
+              where: { instructorId: app.applicantId },
+            });
+          }
+          if (approvalRollback) {
+            await tx.user.update({
+              where: { id: app.applicantId },
+              data: { primaryRole: approvalRollback.previousPrimaryRole },
+            });
+          }
           await tx.instructorApplication.update({
             where: { id: applicationId },
             data: {
@@ -1426,10 +1624,35 @@ export async function chairDecide(formData: FormData): Promise<{ success: boolea
       }
     }
 
-    try {
-      await sendChairDecisionEmail(app.applicant.email, applicationId, action);
-    } catch (e) {
-      console.error("[chairDecide] decision email failed:", e);
+    if (action === "REJECT") {
+      try {
+        await sendApplicationRejectedEmail({
+          to: app.applicant.email,
+          applicantName: app.applicant.name,
+          reason: rationale ?? "The chair review did not result in approval.",
+        });
+      } catch (e) {
+        console.error("[chairDecide] rejection email failed:", e);
+      }
+    } else if (action === "REQUEST_INFO") {
+      try {
+        const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+        const baseUrl = await getBaseUrl();
+        await sendInfoRequestEmail({
+          to: app.applicant.email,
+          applicantName: app.applicant.name,
+          message: rationale ?? "Please provide the requested follow-up information.",
+          statusUrl: `${baseUrl}/application-status`,
+        });
+      } catch (e) {
+        console.error("[chairDecide] info-request email failed:", e);
+      }
+    } else if (action !== "APPROVE") {
+      try {
+        await sendChairDecisionEmail(app.applicant.email, applicationId, action);
+      } catch (e) {
+        console.error("[chairDecide] decision email failed:", e);
+      }
     }
 
     trackApplicantEvent("applicant.chair.decided", {

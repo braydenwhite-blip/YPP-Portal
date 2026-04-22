@@ -411,7 +411,7 @@ export default function InterviewReviewEditor({
     return { asked, skipped, untouched, redFlags, followUps, incompleteAsked, sections };
   }, [activeBankItem?.topic, questions]);
 
-  const showRecommendation = isLeadReviewer && canFinalizeRecommendation;
+  const showRecommendation = canFinalizeRecommendation;
   const showRevisionRequirements = recommendation === "ACCEPT_WITH_SUPPORT";
   const showApplicantMessage = recommendation === "REJECT";
 
@@ -420,7 +420,7 @@ export default function InterviewReviewEditor({
     const seq = saveSeqRef.current + 1;
     saveSeqRef.current = seq;
     setSaveStatus("saving");
-    setSaveMessage(reason === "manual" ? "Saving now..." : "Autosaving...");
+    setSaveMessage(reason === "manual" ? "Saving now…" : "Autosaving…");
     const result = await liveDraftAction(livePayloadRef.current);
     if (seq !== saveSeqRef.current) return;
     if (result.success) {

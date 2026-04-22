@@ -132,6 +132,7 @@ export default async function ChapterLeadInstructorApplicantsPage({
       id: app.id as string,
       status: app.status as string,
       materialsReadyAt: (app.materialsReadyAt as Date | null)?.toISOString() ?? null,
+      interviewScheduledAt: (app.interviewScheduledAt as Date | null)?.toISOString() ?? null,
       archivedAt: (app.archivedAt as Date | null)?.toISOString() ?? null,
       updatedAt: (app.updatedAt as Date | null)?.toISOString() ?? null,
       overdue: app.overdue as boolean | undefined,
@@ -173,6 +174,7 @@ export default async function ChapterLeadInstructorApplicantsPage({
       ? { action: app.chairDecision.action, decidedAt: app.chairDecision.decidedAt.toISOString() }
       : null,
     materialsReadyAt: null as string | null,
+    interviewScheduledAt: null as string | null,
     interviewerAssignments: [] as Array<{ id: string; role: string; interviewer: { id: string; name: string | null } }>,
     overdue: false,
     applicationReviews: [] as Array<{ summary: string | null; nextStep: string | null; overallRating: string | null }>,

@@ -40,6 +40,7 @@ export default async function InterviewerWorkspacePage({
     select: {
       id: true,
       status: true,
+      interviewRound: true,
       subjectsOfInterest: true,
       motivationVideoUrl: true,
       preferredFirstName: true,
@@ -50,7 +51,7 @@ export default async function InterviewerWorkspacePage({
       },
       interviewerAssignments: {
         where: { removedAt: null },
-        select: { interviewerId: true, removedAt: true },
+        select: { interviewerId: true, round: true, removedAt: true },
       },
       documents: {
         where: { supersededAt: null },
@@ -76,6 +77,7 @@ export default async function InterviewerWorkspacePage({
     id: application.id,
     applicantId: application.applicant.id,
     reviewerId: application.reviewerId,
+    interviewRound: application.interviewRound,
     applicantChapterId: application.applicant.chapterId,
     interviewerAssignments: application.interviewerAssignments,
   };
@@ -103,7 +105,7 @@ export default async function InterviewerWorkspacePage({
           href={`/applications/instructor/${id}`}
           style={{ fontSize: 13, color: "var(--muted)", textDecoration: "none" }}
         >
-          ← Back to Applicant Cockpit
+          ← Back to Applicant Workspace
         </Link>
       </div>
 
@@ -133,7 +135,7 @@ export default async function InterviewerWorkspacePage({
               initialReview={workspace.myReview}
               canEdit={workspace.myReview?.status !== "SUBMITTED" || actorIsAdmin}
               isLeadReviewer={workspace.myReview?.isLeadReview ?? false}
-              canFinalizeRecommendation={actorIsAdmin || (workspace.myReview?.isLeadReview ?? false)}
+              canFinalizeRecommendation={workspace.canFinalizeRecommendation}
               drafts={workspace.drafts.map((d) => ({
                 id: d.id,
                 title: d.title,

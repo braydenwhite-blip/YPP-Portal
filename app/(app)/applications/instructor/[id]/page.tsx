@@ -45,6 +45,7 @@ async function fetchCockpitData(applicationId: string) {
       graduationYear: true,
       subjectsOfInterest: true,
       reviewerId: true,
+      interviewRound: true,
       reviewerAssignedAt: true,
       materialsReadyAt: true,
       chairQueuedAt: true,
@@ -64,6 +65,7 @@ async function fetchCockpitData(applicationId: string) {
         select: {
           id: true,
           interviewerId: true,
+          round: true,
           role: true,
           assignedAt: true,
           removedAt: true,
@@ -144,6 +146,9 @@ export default async function ApplicantCockpitPage({
 
   const application = await fetchCockpitData(id);
   if (!application) notFound();
+  const currentInterviewerAssignments = application.interviewerAssignments.filter(
+    (assignment) => assignment.round === application.interviewRound
+  );
 
   const actor = await getHiringActor(session.user.id);
 
@@ -151,8 +156,9 @@ export default async function ApplicantCockpitPage({
     id: application.id,
     applicantId: application.applicant.id,
     reviewerId: application.reviewerId,
+    interviewRound: application.interviewRound,
     applicantChapterId: application.applicant.chapterId,
-    interviewerAssignments: application.interviewerAssignments,
+    interviewerAssignments: currentInterviewerAssignments,
   };
 
   try {
@@ -399,7 +405,7 @@ export default async function ApplicantCockpitPage({
 
           {/* Sidebar */}
           <ApplicantCockpitSidebar
-            application={application}
+            application={{ ...application, interviewerAssignments: currentInterviewerAssignments }}
             canAssignReviewer={canAssignReviewer}
             canAssignInterviewers={canAssignInterviewers}
             currentUserId={actor.id}
@@ -416,7 +422,7 @@ export default async function ApplicantCockpitPage({
           status: application.status,
           reviewerId: application.reviewerId,
           materialsReadyAt: application.materialsReadyAt,
-          interviewerAssignments: application.interviewerAssignments.map((a) => ({
+          interviewerAssignments: currentInterviewerAssignments.map((a) => ({
             role: a.role as "LEAD" | "SECOND",
             removedAt: a.removedAt,
           })),

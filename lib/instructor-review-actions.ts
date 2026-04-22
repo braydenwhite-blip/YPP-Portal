@@ -11,7 +11,7 @@ import {
 
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
-import { getHiringActor, isAdmin, isChapterLead, isDesignatedInterviewer } from "@/lib/chapter-hiring-permissions";
+import { getHiringActor, isAdmin, isChapterLead, isAssignedInterviewer } from "@/lib/chapter-hiring-permissions";
 import {
   approveInstructorApplication,
   holdInstructorApplication,
@@ -177,6 +177,10 @@ async function loadApplicationForReviewer(applicationId: string) {
       reviewer: {
         select: { id: true, name: true },
       },
+      interviewerAssignments: {
+        where: { removedAt: null },
+        select: { interviewerId: true, round: true, removedAt: true },
+      },
       customResponses: {
         include: {
           field: {
@@ -206,14 +210,34 @@ function canReviewFullFlow(actor: Awaited<ReturnType<typeof getHiringActor>>, ch
   return Boolean(isChapterLead(actor) && actor.chapterId && chapterId && actor.chapterId === chapterId);
 }
 
-function canReviewInterviewFlow(actor: Awaited<ReturnType<typeof getHiringActor>>, chapterId: string | null) {
-  if (canReviewFullFlow(actor, chapterId)) return true;
-  return Boolean(
-    isDesignatedInterviewer(actor) &&
-      actor.chapterId &&
-      chapterId &&
-      actor.chapterId === chapterId
-  );
+function canAccessInterviewWorkspace(
+  actor: Awaited<ReturnType<typeof getHiringActor>>,
+  application: Awaited<ReturnType<typeof loadApplicationForReviewer>>
+) {
+  if (canReviewFullFlow(actor, application.applicant.chapterId)) return true;
+  return isAssignedInterviewer(actor, {
+    id: application.id,
+    applicantId: application.applicantId,
+    reviewerId: application.reviewerId,
+    interviewRound: application.interviewRound,
+    applicantChapterId: application.applicant.chapterId,
+    interviewerAssignments: application.interviewerAssignments,
+  });
+}
+
+function canSubmitCurrentRoundInterviewReview(
+  actor: Awaited<ReturnType<typeof getHiringActor>>,
+  application: Awaited<ReturnType<typeof loadApplicationForReviewer>>
+) {
+  if (isAdmin(actor)) return true;
+  return isAssignedInterviewer(actor, {
+    id: application.id,
+    applicantId: application.applicantId,
+    reviewerId: application.reviewerId,
+    interviewRound: application.interviewRound,
+    applicantChapterId: application.applicant.chapterId,
+    interviewerAssignments: application.interviewerAssignments,
+  });
 }
 
 async function assertApplicationReviewAccess(
@@ -241,7 +265,7 @@ async function assertInterviewReviewAccess(
     loadApplicationForReviewer(applicationId),
   ]);
 
-  if (!canReviewInterviewFlow(actor, application.applicant.chapterId)) {
+  if (!canAccessInterviewWorkspace(actor, application)) {
     throw new Error("Unauthorized");
   }
 
@@ -514,7 +538,7 @@ export async function getInstructorInterviewReviewWorkspace(applicationId: strin
   const [drafts, reviews, questionBank, applicationReviews] = await Promise.all([
     listApplicantCurriculumDrafts(application.applicantId),
     prisma.instructorInterviewReview.findMany({
-      where: { applicationId },
+      where: { applicationId, round: application.interviewRound },
       include: {
         reviewer: { select: { id: true, name: true } },
         categories: true,
@@ -592,7 +616,7 @@ export async function getInstructorInterviewReviewWorkspace(applicationId: strin
     isLeadReviewer:
       application.reviewerId === session.user.id ||
       (!application.reviewerId && canReviewFullFlow(actor, application.applicant.chapterId)),
-    canFinalizeRecommendation: canReviewFullFlow(actor, application.applicant.chapterId),
+    canFinalizeRecommendation: canSubmitCurrentRoundInterviewReview(actor, application),
     canEditSubmittedReview: isAdmin(actor),
   };
 }
@@ -849,6 +873,10 @@ export async function saveInstructorInterviewLiveDraftAction(input: {
     const { actor, application } = await assertInterviewReviewAccess(applicationId, session.user.id);
     const drafts = await listApplicantCurriculumDrafts(application.applicantId);
 
+    if (!canSubmitCurrentRoundInterviewReview(actor, application)) {
+      throw new Error("Only admins or assigned current-round interviewers can save interview notes.");
+    }
+
     if (isFinalApplicationStatus(application.status) && !isAdmin(actor)) {
       throw new Error("This application is already finalized.");
     }
@@ -865,9 +893,10 @@ export async function saveInstructorInterviewLiveDraftAction(input: {
     const isLeadReviewer = leadReviewerId === actor.id;
     const existingReview = await prisma.instructorInterviewReview.findUnique({
       where: {
-        applicationId_reviewerId: {
+        applicationId_reviewerId_round: {
           applicationId,
           reviewerId: actor.id,
+          round: application.interviewRound,
         },
       },
       select: { id: true, status: true },
@@ -884,19 +913,21 @@ export async function saveInstructorInterviewLiveDraftAction(input: {
     const review = await prisma.$transaction(async (tx) => {
       const savedReview = await tx.instructorInterviewReview.upsert({
         where: {
-          applicationId_reviewerId: {
+          applicationId_reviewerId_round: {
             applicationId,
             reviewerId: actor.id,
+            round: application.interviewRound,
           },
         },
         create: {
           applicationId,
           reviewerId: actor.id,
+          round: application.interviewRound,
           curriculumDraftId: curriculumDraftId ?? pickDefaultCurriculumDraftId(drafts) ?? null,
           status: StructuredReviewStatus.DRAFT,
           isLeadReview: isLeadReviewer,
           overallRating,
-          recommendation: isLeadReviewer ? recommendation : null,
+          recommendation,
           summary,
           overallNotes,
           demeanorNotes,
@@ -915,7 +946,7 @@ export async function saveInstructorInterviewLiveDraftAction(input: {
           status: StructuredReviewStatus.DRAFT,
           isLeadReview: isLeadReviewer,
           overallRating,
-          recommendation: isLeadReviewer ? recommendation : null,
+          recommendation,
           summary,
           overallNotes,
           demeanorNotes,
@@ -976,6 +1007,10 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
   const { actor, application } = await assertInterviewReviewAccess(applicationId, session.user.id);
   const drafts = await listApplicantCurriculumDrafts(application.applicantId);
 
+  if (!canSubmitCurrentRoundInterviewReview(actor, application)) {
+    throw new Error("Only admins or assigned current-round interviewers can submit interview reviews.");
+  }
+
   if (isFinalApplicationStatus(application.status) && !isAdmin(actor)) {
     throw new Error("This application is already finalized.");
   }
@@ -990,12 +1025,13 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
   }
 
   const isLeadReviewer = leadReviewerId === actor.id;
-  const canFinalizeRecommendation = canReviewFullFlow(actor, application.applicant.chapterId);
+  const canFinalizeRecommendation = canSubmitCurrentRoundInterviewReview(actor, application);
   const existingReview = await prisma.instructorInterviewReview.findUnique({
     where: {
-      applicationId_reviewerId: {
+      applicationId_reviewerId_round: {
         applicationId,
         reviewerId: actor.id,
+        round: application.interviewRound,
       },
     },
     select: { id: true, status: true },
@@ -1014,13 +1050,13 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
     if (!overallRating) {
       throw new Error("An overall interview evaluation is required before submission.");
     }
-    if (isLeadReviewer && canFinalizeRecommendation && !recommendation) {
-      throw new Error("The lead reviewer must choose a final recommendation before submitting the interview review.");
+    if (canFinalizeRecommendation && !recommendation) {
+      throw new Error("Choose a recommendation before submitting the interview review.");
     }
-    if (isLeadReviewer && recommendation === "ACCEPT_WITH_SUPPORT" && !revisionRequirements) {
+    if (recommendation === "ACCEPT_WITH_SUPPORT" && !revisionRequirements) {
       throw new Error("Required support notes must be listed for an 'Accept with Support' outcome.");
     }
-    if (isLeadReviewer && recommendation === "REJECT" && !applicantMessage) {
+    if (recommendation === "REJECT" && !applicantMessage) {
       throw new Error("A short applicant-facing rejection reason is required.");
     }
   }
@@ -1028,14 +1064,16 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
   await prisma.$transaction(async (tx) => {
     const review = await tx.instructorInterviewReview.upsert({
       where: {
-        applicationId_reviewerId: {
+        applicationId_reviewerId_round: {
           applicationId,
           reviewerId: actor.id,
+          round: application.interviewRound,
         },
       },
       create: {
         applicationId,
         reviewerId: actor.id,
+        round: application.interviewRound,
         curriculumDraftId: curriculumDraftId ?? pickDefaultCurriculumDraftId(drafts) ?? null,
         status:
           intent === "submit"
@@ -1043,7 +1081,7 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
             : StructuredReviewStatus.DRAFT,
         isLeadReview: isLeadReviewer,
         overallRating,
-        recommendation: isLeadReviewer ? recommendation : null,
+        recommendation,
         summary,
         overallNotes,
         demeanorNotes,
@@ -1065,7 +1103,7 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
             : StructuredReviewStatus.DRAFT,
         isLeadReview: isLeadReviewer,
         overallRating,
-        recommendation: isLeadReviewer ? recommendation : null,
+        recommendation,
         summary,
         overallNotes,
         demeanorNotes,

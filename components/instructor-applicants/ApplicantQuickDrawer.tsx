@@ -186,13 +186,13 @@ export default function ApplicantQuickDrawer({
                 </div>
               )}
 
-              {/* Open full cockpit CTA */}
+              {/* Open full workspace CTA */}
               <div style={{ marginTop: 24 }}>
                 <Link
                   href={`/applications/instructor/${app.id}`}
                   className="button applicant-quick-drawer-cta"
                 >
-                  Open full cockpit
+                  Open full workspace
                 </Link>
               </div>
             </>

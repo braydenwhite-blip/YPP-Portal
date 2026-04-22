@@ -1239,7 +1239,7 @@ export async function sendReviewerAssignedEmail(
   if (!user?.email || !application) return { success: false, error: "User or application not found" };
 
   const { getBaseUrl } = await import("@/lib/portal-auth-utils");
-  const baseUrl = getBaseUrl();
+  const baseUrl = await getBaseUrl();
   const subject = "You've been assigned to review an instructor application";
   const html = emailShell(`
     <h2 style="margin: 0 0 16px; color: #1c1917;">Reviewer Assignment</h2>
@@ -1272,7 +1272,7 @@ export async function sendInterviewerAssignedEmail(
   if (!user?.email || !application) return { success: false, error: "User or application not found" };
 
   const { getBaseUrl } = await import("@/lib/portal-auth-utils");
-  const baseUrl = getBaseUrl();
+  const baseUrl = await getBaseUrl();
   const roleLabel = role === "LEAD" ? "Lead Interviewer" : "Second Interviewer";
   const subject = `You've been assigned as ${roleLabel} for an instructor interview`;
   const html = emailShell(`
@@ -1296,19 +1296,19 @@ export async function sendMaterialsMissingReminderEmail(
   applicationId: string
 ): Promise<EmailResult> {
   const { getBaseUrl } = await import("@/lib/portal-auth-utils");
-  const baseUrl = getBaseUrl();
+  const baseUrl = await getBaseUrl();
   const subject = "Action required: upload your course materials before your interview";
   const html = emailShell(`
     <h2 style="margin: 0 0 16px; color: #1c1917;">Materials needed before your interview</h2>
     <p>Hi ${escapeHtml(applicantName)},</p>
-    <p>Your interview slot is confirmed — great! To ensure your interview goes smoothly, please upload the required materials before your session:</p>
+    <p>Your interview slot is confirmed — great! To help your interview team prepare, please upload your curriculum prep materials before your session:</p>
     <ul style="color: #44403c; line-height: 2;">
-      <li><strong>Course Outline</strong> — a structured outline of your proposed class</li>
-      <li><strong>First Class Plan</strong> — a lesson plan for your first session</li>
+      <li><strong>One-class plan</strong> — a lesson plan for your first session</li>
+      <li><strong>Structure notes</strong> — a short outline of how the full class would fit together</li>
     </ul>
-    <p>These help the interview team understand your teaching approach before you meet.</p>
+    <p>These are helpful context for the team. They are not a blocker for your confirmed interview.</p>
     <div style="text-align: center; margin: 28px 0;">
-      <a href="${escapeHtml(`${baseUrl}/applications/instructor/${applicationId}`)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Upload Materials</a>
+      <a href="${escapeHtml(`${baseUrl}/application-status`)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Upload Materials</a>
     </div>
     <p style="color: #78716c; font-size: 13px;">If you've already uploaded these, you can ignore this reminder.</p>
   `);
@@ -1327,7 +1327,7 @@ export async function sendChairDigestEmail(
   if (pendingCount === 0) return { success: true };
 
   const { getBaseUrl } = await import("@/lib/portal-auth-utils");
-  const baseUrl = getBaseUrl();
+  const baseUrl = await getBaseUrl();
   const subject = `Chair Queue: ${pendingCount} application${pendingCount === 1 ? "" : "s"} awaiting your decision`;
 
   const rows = applications
@@ -1377,7 +1377,7 @@ export async function sendChairDecisionEmail(
   const to = applicantEmail;
 
   const { getBaseUrl } = await import("@/lib/portal-auth-utils");
-  const baseUrl = getBaseUrl();
+  const baseUrl = await getBaseUrl();
   const statusUrl = `${baseUrl}/application-status`;
 
   type ActionContent = { subject: string; body: string };

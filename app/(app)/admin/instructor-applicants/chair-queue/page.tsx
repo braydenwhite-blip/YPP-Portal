@@ -24,10 +24,11 @@ export default async function ChairQueuePage() {
   const applications = await getChairQueue({ scope: "admin" });
 
   return (
-    <div style={{ maxWidth: 1000, margin: "0 auto", padding: "24px" }}>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700 }}>Chair Queue</h1>
-        <p style={{ margin: "6px 0 0", fontSize: 14, color: "var(--muted)" }}>
+    <div className="page-shell chair-queue-page">
+      <div className="chair-queue-page-header">
+        <span className="badge">Hiring Chair</span>
+        <h1>Chair Queue</h1>
+        <p>
           {applications.length} application{applications.length !== 1 ? "s" : ""} awaiting chair decision
         </p>
       </div>

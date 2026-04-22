@@ -9,10 +9,12 @@ export type ApplicationContext = {
   id: string;
   applicantId: string;
   reviewerId: string | null;
+  interviewRound?: number | null;
   /** chapterId of the applicant (not the application itself) */
   applicantChapterId: string | null;
   interviewerAssignments: Array<{
     interviewerId: string;
+    round?: number | null;
     removedAt: Date | null;
   }>;
 };
@@ -145,9 +147,27 @@ export function isAssignedReviewer(actor: HiringActor, application: ApplicationC
 }
 
 export function isAssignedInterviewer(actor: HiringActor, application: ApplicationContext): boolean {
+  const currentRound = application.interviewRound ?? 1;
   return application.interviewerAssignments.some(
-    (a) => a.interviewerId === actor.id && !a.removedAt
+    (a) =>
+      a.interviewerId === actor.id &&
+      !a.removedAt &&
+      (a.round == null || a.round === currentRound)
   );
+}
+
+export function assertCanManageApplication(actor: HiringActor, application: ApplicationContext): void {
+  if (isAdmin(actor)) return;
+
+  if (
+    isChapterLead(actor) &&
+    actor.chapterId &&
+    actor.chapterId === application.applicantChapterId
+  ) {
+    return;
+  }
+
+  throw new Error("Chapter Presidents can only manage applicants in their own chapter.");
 }
 
 /**

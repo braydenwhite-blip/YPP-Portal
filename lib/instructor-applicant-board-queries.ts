@@ -37,6 +37,8 @@ const PIPELINE_SELECT = {
   status: true,
   subjectsOfInterest: true,
   materialsReadyAt: true,
+  interviewScheduledAt: true,
+  interviewRound: true,
   archivedAt: true,
   reviewerAssignedAt: true,
   reviewerAssignedById: true,
@@ -60,12 +62,16 @@ const PIPELINE_SELECT = {
     select: {
       id: true,
       interviewerId: true,
+      round: true,
       role: true,
       assignedAt: true,
       interviewer: { select: { id: true, name: true, email: true } },
     },
   },
-  chairDecision: {
+  chairDecisions: {
+    where: { supersededAt: null },
+    orderBy: { decidedAt: "desc" },
+    take: 1,
     select: { action: true, decidedAt: true, rationale: true },
   },
   applicationReviews: {
@@ -85,7 +91,7 @@ const TERMINAL_STATUSES: InstructorApplicationStatus[] = [
 
 function getDerivedColumn(app: {
   status: InstructorApplicationStatus;
-  materialsReadyAt: Date | null;
+  interviewScheduledAt: Date | null;
   archivedAt: Date | null;
 }): DerivedColumn {
   if (app.archivedAt || app.status === "WITHDRAWN") return "archive";
@@ -99,7 +105,7 @@ function getDerivedColumn(app: {
     case "PRE_APPROVED":
       return "interview_prep";
     case "INTERVIEW_SCHEDULED":
-      return app.materialsReadyAt ? "ready_for_interview" : "interview_prep";
+      return app.interviewScheduledAt ? "ready_for_interview" : "interview_prep";
     case "INTERVIEW_COMPLETED":
       return "post_interview";
     case "CHAIR_REVIEW":
@@ -212,7 +218,15 @@ export async function getApplicantPipeline({
 
   for (const app of applications) {
     const col = getDerivedColumn(app);
-    const enriched = { ...app, overdue: isOverdue(app), stuck: isStuck(app) };
+    const enriched = {
+      ...app,
+      interviewerAssignments: app.interviewerAssignments.filter(
+        (assignment) => assignment.round === app.interviewRound
+      ),
+      chairDecision: app.chairDecisions[0] ?? null,
+      overdue: isOverdue(app),
+      stuck: isStuck(app),
+    };
 
     if (filters.overdueOnly && !enriched.overdue) continue;
     columns[col].push(enriched as unknown as typeof applications[number]);
@@ -248,6 +262,7 @@ export async function getChairQueue({
       legalName: true,
       chairQueuedAt: true,
       materialsReadyAt: true,
+      interviewRound: true,
       applicant: {
         select: {
           id: true,
@@ -270,6 +285,7 @@ export async function getChairQueue({
         select: {
           id: true,
           reviewerId: true,
+          round: true,
           recommendation: true,
           overallRating: true,
           summary: true,
@@ -281,11 +297,15 @@ export async function getChairQueue({
         where: { removedAt: null },
         select: {
           id: true,
+          round: true,
           role: true,
           interviewer: { select: { id: true, name: true } },
         },
       },
-      chairDecision: {
+      chairDecisions: {
+        where: { supersededAt: null },
+        orderBy: { decidedAt: "desc" },
+        take: 1,
         select: { action: true, decidedAt: true },
       },
       documents: {
@@ -294,7 +314,16 @@ export async function getChairQueue({
       },
     },
     orderBy: { chairQueuedAt: "asc" },
-  });
+  }).then((applications) =>
+    applications.map((app) => ({
+      ...app,
+      interviewReviews: app.interviewReviews.filter((review) => review.round === app.interviewRound),
+      interviewerAssignments: app.interviewerAssignments.filter(
+        (assignment) => assignment.round === app.interviewRound
+      ),
+      chairDecision: app.chairDecisions[0] ?? null,
+    }))
+  );
 }
 
 // ─── Archive query ────────────────────────────────────────────────────────────
@@ -340,7 +369,12 @@ export async function getArchivedApplications({
           select: { id: true, name: true, chapterId: true, chapter: { select: { name: true } } },
         },
         reviewer: { select: { id: true, name: true } },
-        chairDecision: { select: { action: true, decidedAt: true } },
+        chairDecisions: {
+          where: { supersededAt: null },
+          orderBy: { decidedAt: "desc" },
+          take: 1,
+          select: { action: true, decidedAt: true },
+        },
       },
       orderBy: { archivedAt: "desc" },
       skip,
@@ -349,7 +383,15 @@ export async function getArchivedApplications({
     prisma.instructorApplication.count({ where }),
   ]);
 
-  return { items, total, skip, take };
+  return {
+    items: items.map((item) => ({
+      ...item,
+      chairDecision: item.chairDecisions[0] ?? null,
+    })),
+    total,
+    skip,
+    take,
+  };
 }
 
 // ─── Load helpers ─────────────────────────────────────────────────────────────
@@ -417,10 +459,11 @@ export async function getCandidateInterviewers(
     where: { id: applicationId },
     select: {
       subjectsOfInterest: true,
+      interviewRound: true,
       applicant: { select: { chapterId: true } },
       interviewerAssignments: {
         where: { removedAt: null },
-        select: { interviewerId: true, role: true },
+        select: { interviewerId: true, role: true, round: true },
       },
     },
   });
@@ -431,12 +474,16 @@ export async function getCandidateInterviewers(
 
   // LEAD must be assigned before SECOND; keep render-time candidate loading non-throwing.
   if (role === "SECOND") {
-    const hasLead = application.interviewerAssignments.some((a) => a.role === "LEAD");
+    const hasLead = application.interviewerAssignments.some(
+      (a) => a.role === "LEAD" && a.round === application.interviewRound
+    );
     if (!hasLead) return [];
   }
 
   // Already assigned interviewers (active) — exclude from candidates
-  const alreadyAssignedIds = application.interviewerAssignments.map((a) => a.interviewerId);
+  const alreadyAssignedIds = application.interviewerAssignments
+    .filter((assignment) => assignment.round === application.interviewRound)
+    .map((a) => a.interviewerId);
 
   // Eligible users: ADMIN, CHAPTER_PRESIDENT, or INTERVIEWER feature key holders.
   // For INTERVIEWER feature key we approximate via a FeatureGateRule user-level check.
@@ -515,7 +562,6 @@ export async function getCandidateReviewers(applicationId: string) {
       OR: [
         { roles: { some: { role: "ADMIN" } } },
         { roles: { some: { role: "CHAPTER_PRESIDENT" } } },
-        { roles: { some: { role: "HIRING_CHAIR" } } },
       ],
     },
     select: {

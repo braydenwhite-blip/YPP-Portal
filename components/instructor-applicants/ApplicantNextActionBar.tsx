@@ -64,10 +64,10 @@ export default function ApplicantNextActionBar({
       description: "Complete and submit the applicant review rubric.",
       href: "#section-review",
     };
-  } else if (status === "INTERVIEW_SCHEDULED" && !application.materialsReadyAt && isAssignedInterviewer) {
+  } else if (status === "INTERVIEW_SCHEDULED" && !application.materialsReadyAt && canAssignInterviewers) {
     action = {
-      label: "Upload Materials",
-      description: "Course Outline and First Class Plan are still missing.",
+      label: "Check Materials",
+      description: "Materials are still missing. This is a warning, not a blocker.",
       href: "#sidebar-documents",
     };
   } else if (status === "INTERVIEW_SCHEDULED" && isAssignedInterviewer) {

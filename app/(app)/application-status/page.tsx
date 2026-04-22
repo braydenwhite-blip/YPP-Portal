@@ -303,6 +303,17 @@ export default async function ApplicationStatusPage() {
                 <p style={{ color: "var(--muted)", fontSize: 14 }}>A final decision is pending.</p>
               </>
             )}
+            {instructorApp.status === "CHAIR_REVIEW" && (
+              <>
+                <h3 className="section-title">Under Final Review</h3>
+                <p style={{ color: "var(--muted)", fontSize: 14 }}>
+                  Your curriculum overview notes are with the final review team. You do not need to take action unless we ask for more information.
+                </p>
+                <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 8 }}>
+                  If your prep materials are still missing, you can upload them above. They help the team compare your plan, but they do not block review.
+                </p>
+              </>
+            )}
             {instructorApp.status === "ON_HOLD" && (
               <>
                 <h3 className="section-title">Application On Hold</h3>

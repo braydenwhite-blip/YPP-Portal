@@ -11,6 +11,7 @@ const MY_PROGRAM_ROLES: NavRole[] = ["STUDENT", "INSTRUCTOR", "CHAPTER_PRESIDENT
 const APPLICANT_ROLES: NavRole[] = ["APPLICANT", "STUDENT", "INSTRUCTOR", "STAFF", "ADMIN"];
 const INTERVIEW_ROLES: NavRole[] = ["INSTRUCTOR", "STAFF", "ADMIN", "CHAPTER_PRESIDENT"];
 const ADMIN_ONLY: NavRole[] = ["ADMIN"];
+const HIRING_CHAIR_ADMIN_ROLES: NavRole[] = ["ADMIN", "HIRING_CHAIR"];
 const PARENT_ONLY: NavRole[] = ["PARENT"];
 const STUDENT_ONLY: NavRole[] = ["STUDENT"];
 const CHAPTER_PRESIDENT_ONLY: NavRole[] = ["CHAPTER_PRESIDENT"];
@@ -781,7 +782,7 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/admin/instructor-applicants/chair-queue",
       label: "Chair Queue",
       icon: "⚖️",
-      roles: ADMIN_ONLY,
+      roles: HIRING_CHAIR_ADMIN_ROLES,
       badgeKey: "chairQueueCount",
       dashboardDescription: "Review applications awaiting chair decision.",
       searchAliases: ["chair", "hiring chair", "decisions"],

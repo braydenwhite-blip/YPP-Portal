@@ -1708,9 +1708,11 @@ model InstructorApplication {
   chairQueuedAt          DateTime?
   materialsReadyAt       DateTime?
   archivedAt             DateTime?
+  infoRequestReturnStatus InstructorApplicationStatus?
+  interviewRound         Int                                      @default(1)
   interviewerAssignments InstructorApplicationInterviewer[]
   documents              ApplicantDocument[]
-  chairDecision          InstructorApplicationChairDecision?
+  chairDecisions         InstructorApplicationChairDecision[]
   timeline               InstructorApplicationTimelineEvent[]
 
   createdAt DateTime @default(now())
@@ -1724,6 +1726,7 @@ model InstructorApplication {
   @@index([reviewerAssignedById])
   @@index([chairQueuedAt])
   @@index([archivedAt])
+  @@index([interviewRound])
 }
 
 model InstructorApplicationReview {
@@ -1800,6 +1803,7 @@ model InstructorInterviewReview {
   application          InstructorApplication                 @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   reviewerId           String
   reviewer             User                                  @relation("InstructorInterviewStructuredReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
+  round                Int                                   @default(1)
   curriculumDraftId    String?
   curriculumDraft      CurriculumDraft?                      @relation("InstructorInterviewReviewDraft", fields: [curriculumDraftId], references: [id], onDelete: SetNull)
   status               StructuredReviewStatus                @default(DRAFT)
@@ -1823,8 +1827,8 @@ model InstructorInterviewReview {
   createdAt            DateTime                              @default(now())
   updatedAt            DateTime                              @updatedAt
 
-  @@unique([applicationId, reviewerId])
-  @@index([applicationId, isLeadReview])
+  @@unique([applicationId, reviewerId, round])
+  @@index([applicationId, round, isLeadReview])
   @@index([reviewerId, status])
   @@index([curriculumDraftId])
 }
@@ -1895,13 +1899,15 @@ model InstructorApplicationInterviewer {
   application   InstructorApplication     @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   interviewerId String
   interviewer   User                      @relation("InterviewerAssignments", fields: [interviewerId], references: [id])
+  round         Int                       @default(1)
   role          InterviewerAssignmentRole
   assignedAt    DateTime                  @default(now())
   assignedById  String
   assignedBy    User                      @relation("InterviewerAssignedBy", fields: [assignedById], references: [id])
   removedAt     DateTime?
 
-  @@unique([applicationId, role])
+  @@index([applicationId, round, role])
+  @@index([applicationId, round, removedAt])
   @@index([interviewerId, removedAt])
   @@index([assignedById])
 }
@@ -1926,7 +1932,7 @@ model ApplicantDocument {
 
 model InstructorApplicationChairDecision {
   id              String              @id @default(cuid())
-  applicationId   String              @unique
+  applicationId   String
   application     InstructorApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   chairId         String
   chair           User                @relation("ChairDecisions", fields: [chairId], references: [id])
@@ -1936,6 +1942,7 @@ model InstructorApplicationChairDecision {
   decidedAt       DateTime            @default(now())
   supersededAt    DateTime?
 
+  @@index([applicationId, decidedAt])
   @@index([chairId])
 }
 

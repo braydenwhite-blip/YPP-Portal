@@ -580,6 +580,8 @@ function nextInstructorApplicationStage(status: InstructorApplicationStatus): Wo
     case "INTERVIEW_SCHEDULED":
     case "INTERVIEW_COMPLETED":
       return "INTERVIEW";
+    case "CHAIR_REVIEW":
+      return "CHAIR_REVIEW";
     case "APPROVED":
     case "REJECTED":
       return "COMPLETE";
@@ -593,6 +595,8 @@ function instructorApplicationHref(status: InstructorApplicationStatus, applicat
     case "INTERVIEW_SCHEDULED":
     case "INTERVIEW_COMPLETED":
       return `/applications/instructor/${applicationId}/interview`;
+    case "CHAIR_REVIEW":
+      return "/admin/instructor-applicants/chair-queue";
     default:
       return `/applications/instructor/${applicationId}`;
   }

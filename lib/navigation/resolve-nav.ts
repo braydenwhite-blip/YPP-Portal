@@ -124,6 +124,20 @@ const GROUP_ORDER_BY_ROLE: RoleGroupOrder = {
     "Profile & Settings",
     "Family",
   ],
+  HIRING_CHAIR: [
+    "Start Here",
+    "Admin Operations",
+    "People & Support",
+    "Chapters",
+    "Profile & Settings",
+    "Learning",
+    "Progress",
+    "Opportunities",
+    "Family",
+    "Admin People",
+    "Admin Content",
+    "Admin Reports",
+  ],
   CHAPTER_PRESIDENT: [
     "Start Here",
     "Chapters",
@@ -232,6 +246,7 @@ function toNavRole(value: string | null | undefined): NavRole | null {
     normalized === "ADMIN" ||
     normalized === "APPLICANT" ||
     normalized === "CHAPTER_PRESIDENT" ||
+    normalized === "HIRING_CHAIR" ||
     normalized === "INSTRUCTOR" ||
     normalized === "MENTOR" ||
     normalized === "PARENT" ||

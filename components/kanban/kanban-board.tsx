@@ -143,7 +143,7 @@ export default function KanbanBoard<TItem extends { id: string; status: string }
   renderDetailPanel,
   onStatusChange,
   getSearchText,
-  searchPlaceholder = "Search...",
+  searchPlaceholder = "Search…",
   emptyColumnLabel = "No items",
   toolbarExtra,
 }: KanbanBoardProps<TItem>) {
@@ -260,6 +260,9 @@ export default function KanbanBoard<TItem extends { id: string; status: string }
       <div className="kanban-toolbar">
         <input
           className="input"
+          aria-label="Search board"
+          name="kanbanSearch"
+          autoComplete="off"
           placeholder={searchPlaceholder}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}

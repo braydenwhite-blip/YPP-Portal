@@ -983,25 +983,33 @@ export async function maybeAutoAdvanceAfterInterviewReview(
     where: { id: applicationId },
     select: {
       status: true,
+      interviewRound: true,
       interviewerAssignments: {
         where: { removedAt: null },
-        select: { interviewerId: true },
+        select: { interviewerId: true, round: true },
       },
       interviewReviews: {
         where: { status: "SUBMITTED" },
-        select: { reviewerId: true },
+        select: { reviewerId: true, round: true, recommendation: true },
       },
     },
   });
 
   if (!app) return false;
 
-  const activeInterviewerIds = app.interviewerAssignments.map((a) => a.interviewerId);
+  const currentRound = app.interviewRound;
+  const activeInterviewerIds = app.interviewerAssignments
+    .filter((assignment) => assignment.round === currentRound)
+    .map((a) => a.interviewerId);
 
   // If no V1 interviewer assignments, fall through to old behavior
   if (activeInterviewerIds.length === 0) return false;
 
-  const submittedIds = new Set(app.interviewReviews.map((r) => r.reviewerId));
+  const submittedIds = new Set(
+    app.interviewReviews
+      .filter((review) => review.round === currentRound && review.recommendation)
+      .map((r) => r.reviewerId)
+  );
   const allSubmitted = activeInterviewerIds.every((id) => submittedIds.has(id));
   if (!allSubmitted) return false;
 
@@ -1014,57 +1022,45 @@ export async function maybeAutoAdvanceAfterInterviewReview(
     let advanced = false;
     try {
       advanced = await prisma.$transaction(async (tx) => {
-        // Re-read status inside transaction to guard against races
-        const fresh = await tx.instructorApplication.findUnique({
-          where: { id: applicationId },
-          select: { status: true },
-        });
-        if (
-          fresh?.status !== InstructorApplicationStatus.INTERVIEW_SCHEDULED &&
-          fresh?.status !== InstructorApplicationStatus.INTERVIEW_COMPLETED
-        ) {
-          // Already advanced by a concurrent request — skip silently
-          return false;
-        }
-
-        const actualTarget =
-          fresh.status === InstructorApplicationStatus.INTERVIEW_SCHEDULED
-            ? InstructorApplicationStatus.INTERVIEW_COMPLETED
-            : InstructorApplicationStatus.CHAIR_REVIEW;
-
-        const updateData: Record<string, unknown> = { status: actualTarget };
-        if (actualTarget === InstructorApplicationStatus.CHAIR_REVIEW) {
-          updateData.chairQueuedAt = now;
-        }
-
-        await tx.instructorApplication.update({
-          where: { id: applicationId },
-          data: updateData,
-        });
-
-        await tx.instructorApplicationTimelineEvent.create({
-          data: {
-            applicationId,
-            kind: "STATUS_CHANGE",
-            actorId,
-            payload: {
-              from: fresh.status,
-              to: actualTarget,
-              trigger: "auto-advance-on-all-reviews-submitted",
+        if (app.status === InstructorApplicationStatus.INTERVIEW_SCHEDULED) {
+          const toCompleted = await tx.instructorApplication.updateMany({
+            where: {
+              id: applicationId,
+              status: InstructorApplicationStatus.INTERVIEW_SCHEDULED,
+              interviewRound: currentRound,
             },
+            data: { status: InstructorApplicationStatus.INTERVIEW_COMPLETED },
+          });
+          if (toCompleted.count === 0) return false;
+
+          await tx.instructorApplicationTimelineEvent.create({
+            data: {
+              applicationId,
+              kind: "STATUS_CHANGE",
+              actorId,
+              payload: {
+                from: InstructorApplicationStatus.INTERVIEW_SCHEDULED,
+                to: InstructorApplicationStatus.INTERVIEW_COMPLETED,
+                round: currentRound,
+                trigger: "auto-advance-on-all-reviews-submitted",
+              },
+            },
+          });
+        }
+
+        const toChair = await tx.instructorApplication.updateMany({
+          where: {
+            id: applicationId,
+            status: InstructorApplicationStatus.INTERVIEW_COMPLETED,
+            interviewRound: currentRound,
+          },
+          data: {
+            status: InstructorApplicationStatus.CHAIR_REVIEW,
+            chairQueuedAt: now,
           },
         });
 
-        // If we only moved to INTERVIEW_COMPLETED, immediately check if we
-        // should further advance to CHAIR_REVIEW in the same transaction
-        if (actualTarget === InstructorApplicationStatus.INTERVIEW_COMPLETED) {
-          await tx.instructorApplication.update({
-            where: { id: applicationId },
-            data: {
-              status: InstructorApplicationStatus.CHAIR_REVIEW,
-              chairQueuedAt: now,
-            },
-          });
+        if (toChair.count > 0) {
           await tx.instructorApplicationTimelineEvent.create({
             data: {
               applicationId,
@@ -1073,13 +1069,14 @@ export async function maybeAutoAdvanceAfterInterviewReview(
               payload: {
                 from: InstructorApplicationStatus.INTERVIEW_COMPLETED,
                 to: InstructorApplicationStatus.CHAIR_REVIEW,
+                round: currentRound,
                 trigger: "auto-advance-on-all-reviews-submitted",
               },
             },
           });
         }
 
-        return true;
+        return toChair.count > 0;
       });
     } catch (e) {
       console.error("[maybeAutoAdvanceAfterInterviewReview]", e);

@@ -63,7 +63,8 @@ export default function ApplicantPipelineCard({
   const stageClass = app.status.toLowerCase().replace(/_/g, "-");
 
   return (
-    <div
+    <button
+      type="button"
       className={`kanban-card applicant-pipeline-card stage-${stageClass}${isDragging ? " dragging" : ""}`}
       onClick={onClick}
     >
@@ -142,6 +143,6 @@ export default function ApplicantPipelineCard({
           </div>
         )}
       </div>
-    </div>
+    </button>
   );
 }

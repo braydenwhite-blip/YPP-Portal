@@ -7,7 +7,7 @@
  *   Risk 8  — auto-advance race handles "0 rows updated" gracefully
  *   Risk 10 — APPROVE + sync failure triggers compensating rollback
  *   Risk 12 — PRE_APPROVED apps are excluded from the chair queue
- *   Risk 13 — cockpit second-interviewer candidates do not crash without LEAD
+ *   Risk 13 — workspace second-interviewer candidates do not crash without LEAD
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -50,6 +50,7 @@ vi.mock("@/lib/prisma", () => ({
       update: vi.fn(),
     },
     userRole: {
+      findUnique: vi.fn(),
       upsert: vi.fn(),
       deleteMany: vi.fn(),
     },
@@ -73,7 +74,9 @@ vi.mock("@/lib/email", () => ({
   sendReviewerAssignedEmail: vi.fn(),
   sendInterviewerAssignedEmail: vi.fn(),
   sendApplicationApprovedEmail: vi.fn(),
+  sendApplicationRejectedEmail: vi.fn(),
   sendChairDecisionEmail: vi.fn(),
+  sendInfoRequestEmail: vi.fn(),
 }));
 
 vi.mock("@/lib/chapter-hiring-permissions", () => ({
@@ -93,15 +96,50 @@ describe("Risk 2 — maybeAutoAdvanceAfterInterviewReview", () => {
     // Removed interviewer Alice has a review; active interviewer Bob does not.
     mockFindUnique.mockResolvedValueOnce({
       status: "INTERVIEW_SCHEDULED",
+      interviewRound: 1,
       interviewerAssignments: [
         // Only active (removedAt: null) assignments are included here because
         // the query uses `where: { removedAt: null }`.
-        { interviewerId: "bob" },
+        { interviewerId: "bob", round: 1 },
       ],
       interviewReviews: [
         // Alice submitted but is now removed; her review is preserved.
-        { reviewerId: "alice", status: "SUBMITTED" },
+        { reviewerId: "alice", status: "SUBMITTED", round: 1, recommendation: "ACCEPT" },
       ],
+    });
+
+    const { maybeAutoAdvanceAfterInterviewReview } = await import(
+      "@/lib/instructor-interview-actions"
+    );
+    const advanced = await maybeAutoAdvanceAfterInterviewReview("app-1", "actor-1");
+
+    expect(advanced).toBe(false);
+    expect(mockTransaction).not.toHaveBeenCalled();
+  });
+
+  it("does not auto-advance until every current-round submission has a recommendation", async () => {
+    mockFindUnique.mockResolvedValueOnce({
+      status: "INTERVIEW_SCHEDULED",
+      interviewRound: 1,
+      interviewerAssignments: [{ interviewerId: "bob", round: 1 }],
+      interviewReviews: [{ reviewerId: "bob", status: "SUBMITTED", round: 1, recommendation: null }],
+    });
+
+    const { maybeAutoAdvanceAfterInterviewReview } = await import(
+      "@/lib/instructor-interview-actions"
+    );
+    const advanced = await maybeAutoAdvanceAfterInterviewReview("app-1", "actor-1");
+
+    expect(advanced).toBe(false);
+    expect(mockTransaction).not.toHaveBeenCalled();
+  });
+
+  it("ignores prior-round recommendations when a second interview round is active", async () => {
+    mockFindUnique.mockResolvedValueOnce({
+      status: "INTERVIEW_SCHEDULED",
+      interviewRound: 2,
+      interviewerAssignments: [{ interviewerId: "bob", round: 2 }],
+      interviewReviews: [{ reviewerId: "bob", status: "SUBMITTED", round: 1, recommendation: "ACCEPT" }],
     });
 
     const { maybeAutoAdvanceAfterInterviewReview } = await import(
@@ -116,15 +154,18 @@ describe("Risk 2 — maybeAutoAdvanceAfterInterviewReview", () => {
   it("auto-advances when all active interviewers have submitted", async () => {
     mockFindUnique.mockResolvedValueOnce({
       status: "INTERVIEW_SCHEDULED",
-      interviewerAssignments: [{ interviewerId: "bob" }],
-      interviewReviews: [{ reviewerId: "bob", status: "SUBMITTED" }],
+      interviewRound: 1,
+      interviewerAssignments: [{ interviewerId: "bob", round: 1 }],
+      interviewReviews: [{ reviewerId: "bob", status: "SUBMITTED", round: 1, recommendation: "ACCEPT" }],
     });
 
     mockTransaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
       const fakeTx = {
         instructorApplication: {
-          findUnique: vi.fn().mockResolvedValue({ status: "INTERVIEW_SCHEDULED" }),
-          update: vi.fn().mockResolvedValue({}),
+          updateMany: vi
+            .fn()
+            .mockResolvedValueOnce({ count: 1 })
+            .mockResolvedValueOnce({ count: 1 }),
         },
         instructorApplicationTimelineEvent: { create: vi.fn().mockResolvedValue({}) },
       };
@@ -200,16 +241,16 @@ describe("Risk 8 — auto-advance race condition", () => {
   it("skips silently when another request already advanced the status", async () => {
     mockFindUnique.mockResolvedValueOnce({
       status: "INTERVIEW_SCHEDULED",
-      interviewerAssignments: [{ interviewerId: "bob" }],
-      interviewReviews: [{ reviewerId: "bob", status: "SUBMITTED" }],
+      interviewRound: 1,
+      interviewerAssignments: [{ interviewerId: "bob", round: 1 }],
+      interviewReviews: [{ reviewerId: "bob", status: "SUBMITTED", round: 1, recommendation: "ACCEPT" }],
     });
 
     // Simulate the race: by the time we open the transaction, status is CHAIR_REVIEW
     mockTransaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
       const fakeTx = {
         instructorApplication: {
-          findUnique: vi.fn().mockResolvedValue({ status: "CHAIR_REVIEW" }),
-          update: vi.fn(),
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
         },
         instructorApplicationTimelineEvent: { create: vi.fn() },
       };
@@ -252,6 +293,7 @@ describe("Risk 10 — chairDecide APPROVE sync failure rollback", () => {
       status: "CHAIR_REVIEW",
       applicantId: "applicant-1",
       reviewerId: null,
+      interviewRound: 1,
       applicant: { id: "applicant-1", name: "Test User", email: "applicant@test.com" },
       interviewerAssignments: [],
     });
@@ -268,8 +310,14 @@ describe("Risk 10 — chairDecide APPROVE sync failure rollback", () => {
           findUnique: vi.fn().mockResolvedValue({ status: "CHAIR_REVIEW" }),
           update: vi.fn().mockResolvedValue({}),
         },
-        user: { update: vi.fn().mockResolvedValue({}) },
-        userRole: { upsert: vi.fn().mockResolvedValue({}) },
+        user: {
+          findUnique: vi.fn().mockResolvedValue({ primaryRole: "APPLICANT" }),
+          update: vi.fn().mockResolvedValue({}),
+        },
+        userRole: {
+          findUnique: vi.fn().mockResolvedValue(null),
+          upsert: vi.fn().mockResolvedValue({}),
+        },
         instructorApproval: { findFirst: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue({}) },
         instructorApplicationTimelineEvent: { create: vi.fn().mockResolvedValue({}) },
       };
@@ -287,6 +335,9 @@ describe("Risk 10 — chairDecide APPROVE sync failure rollback", () => {
       const fakeTx = {
         instructorApplicationChairDecision: { updateMany: vi.fn().mockResolvedValue({}) },
         instructorApplication: { update: vi.fn().mockResolvedValue({}) },
+        instructorApproval: { deleteMany: vi.fn().mockResolvedValue({ count: 1 }) },
+        userRole: { deleteMany: vi.fn().mockResolvedValue({ count: 1 }) },
+        user: { update: vi.fn().mockResolvedValue({}) },
         instructorApplicationTimelineEvent: { create: vi.fn().mockResolvedValue({}) },
       };
       return fn(fakeTx);
@@ -336,6 +387,8 @@ describe("Risk 12 — chair queue excludes PRE_APPROVED", () => {
         id: "pre-app-1",
         status: "PRE_APPROVED",
         materialsReadyAt: null,
+        interviewScheduledAt: null,
+        interviewRound: 1,
         archivedAt: null,
         reviewerAssignedAt: null,
         reviewerAssignedById: null,
@@ -346,7 +399,7 @@ describe("Risk 12 — chair queue excludes PRE_APPROVED", () => {
         applicant: { id: "u1", name: "A", email: "a@test.com", chapterId: "c1", chapter: null },
         reviewer: null,
         interviewerAssignments: [],
-        chairDecision: null,
+        chairDecisions: [],
         applicationReviews: [],
       },
     ]);
@@ -359,7 +412,7 @@ describe("Risk 12 — chair queue excludes PRE_APPROVED", () => {
   });
 });
 
-// ─── Risk 13: cockpit loads before LEAD interviewer assignment ────────────────
+// ─── Risk 13: workspace loads before LEAD interviewer assignment ──────────────
 
 describe("Risk 13 — second interviewer candidates before LEAD", () => {
   beforeEach(() => {

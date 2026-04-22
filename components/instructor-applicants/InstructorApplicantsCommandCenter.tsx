@@ -12,6 +12,7 @@ type PipelineApp = {
   id: string;
   status: string;
   materialsReadyAt: Date | string | null;
+  interviewScheduledAt: Date | string | null;
   archivedAt: Date | string | null;
   overdue?: boolean;
   subjectsOfInterest: string | null;
@@ -101,7 +102,7 @@ const KANBAN_COLUMNS: KanbanColumnDef[] = [
 function getDerivedStatus(app: PipelineApp): string {
   // For kanban, we use a synthetic status key per derived column
   if (app.status === "INTERVIEW_SCHEDULED") {
-    return app.materialsReadyAt ? "INTERVIEW_SCHEDULED_READY" : app.status;
+    return app.interviewScheduledAt ? "INTERVIEW_SCHEDULED_READY" : app.status;
   }
   return app.status;
 }

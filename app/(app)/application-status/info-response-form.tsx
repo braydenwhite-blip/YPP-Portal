@@ -11,7 +11,7 @@ export default function InfoResponseForm() {
   if (state.status === "success") {
     return (
       <div className="form-success" style={{ marginBottom: 0 }}>
-        {state.message} A reviewer will follow up shortly.
+        {state.message} The review team will follow up shortly.
       </div>
     );
   }
@@ -25,7 +25,7 @@ export default function InfoResponseForm() {
           name="applicantResponse"
           required
           rows={5}
-          placeholder="Provide the additional information requested..."
+          placeholder="Provide the additional information requested…"
           style={{ resize: "vertical" }}
         />
       </label>

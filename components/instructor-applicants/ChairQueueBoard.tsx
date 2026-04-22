@@ -22,8 +22,8 @@ interface Document {
 interface ApplicationRow {
   id: string;
   subjectsOfInterest: string | null;
-  materialsReadyAt: Date | null;
-  chairQueuedAt: Date | null;
+  materialsReadyAt: Date | string | null;
+  chairQueuedAt: Date | string | null;
   preferredFirstName: string | null;
   legalName: string | null;
   applicant: {
@@ -45,16 +45,23 @@ interface Props {
   onRefresh: () => void;
 }
 
-const REC_COLORS: Record<string, string> = {
-  ACCEPT: "#16a34a",
-  ACCEPT_WITH_SUPPORT: "#7c3aed",
-  HOLD: "#d97706",
-  REJECT: "#dc2626",
+const REC_CLASSES: Record<string, string> = {
+  ACCEPT: "is-accept",
+  ACCEPT_WITH_SUPPORT: "is-support",
+  HOLD: "is-hold",
+  REJECT: "is-reject",
+};
+
+const REC_LABELS: Record<string, string> = {
+  ACCEPT: "Accept",
+  ACCEPT_WITH_SUPPORT: "Accept with Support",
+  HOLD: "Hold",
+  REJECT: "Reject",
 };
 
 export default function ChairQueueBoard({ applications, onRefresh }: Props) {
   const [selectedApp, setSelectedApp] = useState<ApplicationRow | null>(null);
-  const [showAll, setShowAll] = useState(false);
+  const [showAll, setShowAll] = useState(true);
 
   // Build chapter groups
   const chapters = Array.from(
@@ -79,38 +86,22 @@ export default function ChairQueueBoard({ applications, onRefresh }: Props) {
   }
 
   return (
-    <div>
-      {/* Chapter tabs + YPP-wide toggle */}
+    <div className="chair-queue-board">
       <div
         role="tablist"
         aria-label="Filter by chapter"
-        style={{
-          display: "flex",
-          gap: 4,
-          marginBottom: 20,
-          borderBottom: "1px solid #e5e7eb",
-          overflowX: "auto",
-          paddingBottom: 0,
-        }}
+        className="chair-queue-tabs"
       >
         <button
           role="tab"
           type="button"
           aria-selected={showAll}
           onClick={() => { setActiveChapterId(null); setShowAll(true); }}
-          style={{
-            padding: "8px 16px",
-            fontSize: 13,
-            fontWeight: showAll ? 700 : 400,
-            color: showAll ? "#6b21c8" : "var(--muted)",
-            background: "none",
-            border: "none",
-            borderBottom: showAll ? "2px solid #6b21c8" : "2px solid transparent",
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-          }}
+          className="chair-queue-tab"
+          data-active={showAll}
         >
-          YPP-wide ({applications.length})
+          <span>YPP-wide</span>
+          <strong>{applications.length}</strong>
         </button>
         {chapters.map(([chapId, chapName]) => {
           const count = applications.filter((a) => a.applicant.chapterId === chapId).length;
@@ -122,46 +113,32 @@ export default function ChairQueueBoard({ applications, onRefresh }: Props) {
               type="button"
               aria-selected={active}
               onClick={() => { setActiveChapterId(chapId); setShowAll(false); }}
-              style={{
-                padding: "8px 16px",
-                fontSize: 13,
-                fontWeight: active ? 700 : 400,
-                color: active ? "#6b21c8" : "var(--muted)",
-                background: "none",
-                border: "none",
-                borderBottom: active ? "2px solid #6b21c8" : "2px solid transparent",
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}
+              className="chair-queue-tab"
+              data-active={active}
             >
-              {chapName} ({count})
+              <span>{chapName}</span>
+              <strong>{count}</strong>
             </button>
           );
         })}
       </div>
 
-      {/* Application rows */}
       {displayed.length === 0 ? (
-        <div
-          style={{
-            padding: "40px",
-            textAlign: "center",
-            color: "var(--muted)",
-            fontSize: 14,
-            background: "#f9fafb",
-            borderRadius: 8,
-            border: "1px solid #e5e7eb",
-          }}
-        >
-          No applications in the chair queue.
+        <div className="chair-queue-empty">
+          <p>No applications in the chair queue.</p>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="chair-queue-list">
           {displayed.map((app) => {
             const days = daysInQueue(app);
             const displayName =
               app.preferredFirstName ?? app.legalName ?? app.applicant.name ?? "Applicant";
             const reviewerRec = app.applicationReviews[0];
+            const submittedRecs = new Set(app.interviewReviews.map((review) => review.reviewerId));
+            const missingRecommendations = app.interviewerAssignments.filter(
+              (assignment) => !submittedRecs.has(assignment.interviewer.id)
+            ).length;
+            const materialReady = Boolean(app.materialsReadyAt);
 
             return (
               <button
@@ -169,77 +146,62 @@ export default function ChairQueueBoard({ applications, onRefresh }: Props) {
                 type="button"
                 aria-label={`Open chair decision for ${displayName}`}
                 onClick={() => setSelectedApp(app)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 16,
-                  padding: "14px 18px",
-                  background: "#fff",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 8,
-                  cursor: "pointer",
-                  textAlign: "left",
-                  width: "100%",
-                  transition: "border-color 0.15s",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#6b21c8")}
-                onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#e5e7eb")}
+                className="chair-queue-row"
               >
-                {/* Name + chapter */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: 0, fontWeight: 700, fontSize: 14 }}>{displayName}</p>
+                <div className="chair-queue-applicant">
+                  <p>{displayName}</p>
                   {app.applicant.chapter && (
-                    <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--muted)" }}>
+                    <span>
                       {app.applicant.chapter.name}
-                    </p>
+                    </span>
                   )}
                 </div>
 
-                {/* Days in queue */}
-                {days !== null && (
-                  <span
-                    className={`pill ${days > 7 ? "pill-attention" : "pill-info"}`}
-                    style={{ fontSize: 12, whiteSpace: "nowrap", flexShrink: 0 }}
-                  >
-                    {days}d in queue
-                  </span>
-                )}
+                <div className="chair-queue-evidence" aria-label="Decision evidence">
+                  {days !== null && (
+                    <span className={`chair-queue-chip ${days > 7 ? "is-warn" : "is-info"}`}>
+                      {days}d queued
+                    </span>
+                  )}
 
-                {/* Reviewer rec */}
-                {reviewerRec?.nextStep && (
-                  <span className="pill pill-purple" style={{ fontSize: 12, flexShrink: 0 }}>
-                    {reviewerRec.nextStep.replace(/_/g, " ")}
-                  </span>
-                )}
+                  {reviewerRec?.nextStep && (
+                    <span className="chair-queue-chip is-reviewer">
+                      {reviewerRec.nextStep.replace(/_/g, " ")}
+                    </span>
+                  )}
 
-                {/* Interviewer rec dots */}
-                <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                  <span className={`chair-queue-chip ${materialReady ? "is-ready" : "is-warn"}`}>
+                    {materialReady ? "Materials Ready" : "Materials Soft Warning"}
+                  </span>
+
+                  {missingRecommendations > 0 && (
+                    <span className="chair-queue-chip is-warn">
+                      {missingRecommendations} Rec Missing
+                    </span>
+                  )}
+                </div>
+
+                <div className="chair-queue-recs" aria-label="Interviewer recommendations">
                   {app.interviewReviews.map((ir) => (
                     <span
                       key={ir.reviewerId}
-                      title={`${ir.reviewer.name ?? "Interviewer"}: ${ir.recommendation ?? "—"}`}
-                      style={{
-                        display: "inline-block",
-                        width: 10,
-                        height: 10,
-                        borderRadius: "50%",
-                        background: ir.recommendation
-                          ? (REC_COLORS[ir.recommendation] ?? "#9ca3af")
-                          : "#e5e7eb",
-                        border: "1px solid rgba(0,0,0,0.1)",
-                      }}
-                    />
+                      title={`${ir.reviewer.name ?? "Interviewer"}: ${ir.recommendation ? REC_LABELS[ir.recommendation] ?? ir.recommendation : "No recommendation"}`}
+                      className={`chair-rec-dot ${ir.recommendation ? REC_CLASSES[ir.recommendation] ?? "" : ""}`}
+                    >
+                      <span className="sr-only">
+                        {ir.reviewer.name ?? "Interviewer"}: {ir.recommendation ? REC_LABELS[ir.recommendation] ?? ir.recommendation : "No recommendation"}
+                      </span>
+                    </span>
                   ))}
                 </div>
 
-                <span style={{ color: "var(--muted)", fontSize: 16, flexShrink: 0 }}>›</span>
+                <span className="chair-queue-arrow" aria-hidden="true">›</span>
               </button>
             );
           })}
         </div>
       )}
 
-      {/* Comparison slideout */}
       {selectedApp && (
         <ChairComparisonSlideout
           application={selectedApp}
