@@ -83,7 +83,7 @@ export async function exportInstructorApplicationsCsv(filters?: {
     "Composite Score",
     "Reviewer",
     "Reviewer Notes",
-    "Curriculum Overview Scheduled At",
+    "Interview Scheduled At",
     "Approved At",
     "Rejected At",
   ];

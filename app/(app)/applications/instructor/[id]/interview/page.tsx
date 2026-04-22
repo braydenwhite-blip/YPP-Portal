@@ -136,13 +136,6 @@ export default async function InterviewerWorkspacePage({
               canEdit={workspace.myReview?.status !== "SUBMITTED" || actorIsAdmin}
               isLeadReviewer={workspace.myReview?.isLeadReview ?? false}
               canFinalizeRecommendation={workspace.canFinalizeRecommendation}
-              drafts={workspace.drafts.map((d) => ({
-                id: d.id,
-                title: d.title,
-                status: d.status as string,
-                updatedAt: d.updatedAt instanceof Date ? d.updatedAt.toISOString() : String(d.updatedAt),
-              }))}
-              selectedDraftId={workspace.selectedDraftId}
               questionBank={workspace.questionBank}
             />
           ) : (
