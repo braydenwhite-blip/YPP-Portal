@@ -154,23 +154,21 @@ export default function ApplicantQuickDrawer({
               </div>
 
               {/* Interviewers */}
-              {(leadInterviewer || secondInterviewer) && (
-                <div className="slideout-section">
-                  <div className="slideout-section-title">Interviewers</div>
-                  {leadInterviewer && (
-                    <div className="slideout-field">
-                      <div className="slideout-field-label">Lead</div>
-                      <div className="slideout-field-value">{leadInterviewer.interviewer.name ?? "Unknown"}</div>
-                    </div>
-                  )}
-                  {secondInterviewer && (
-                    <div className="slideout-field">
-                      <div className="slideout-field-label">Second</div>
-                      <div className="slideout-field-value">{secondInterviewer.interviewer.name ?? "Unknown"}</div>
-                    </div>
-                  )}
+              <div className="slideout-section">
+                <div className="slideout-section-title">Interviewers</div>
+                <div className="slideout-field">
+                  <div className="slideout-field-label">Lead</div>
+                  <div className="slideout-field-value">
+                    {leadInterviewer?.interviewer.name ?? "Not assigned"}
+                  </div>
                 </div>
-              )}
+                <div className="slideout-field">
+                  <div className="slideout-field-label">Second</div>
+                  <div className="slideout-field-value">
+                    {secondInterviewer?.interviewer.name ?? "Not assigned"}
+                  </div>
+                </div>
+              </div>
 
               {/* Lead review summary */}
               {leadReview?.summary && (

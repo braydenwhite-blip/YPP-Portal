@@ -46,6 +46,14 @@ interface Props {
     subjectsOfInterest: string | null;
     schoolName: string | null;
     graduationYear: number | null;
+    interviewRound: number;
+    reviewer: { id: string; name: string | null } | null;
+    interviewerAssignments: Array<{
+      id: string;
+      role: string;
+      round: number;
+      interviewer: { id: string; name: string | null; email: string };
+    }>;
     applicant: {
       name: string | null;
       chapter: { name: string } | null;
@@ -73,6 +81,11 @@ export default function ApplicantCockpitHeader({ application }: Props) {
     .filter(Boolean);
 
   const currentStepIndex = getStepIndex(application.status);
+  const currentAssignments = application.interviewerAssignments.filter(
+    (assignment) => assignment.round === application.interviewRound
+  );
+  const leadInterviewer = currentAssignments.find((assignment) => assignment.role === "LEAD");
+  const secondInterviewer = currentAssignments.find((assignment) => assignment.role === "SECOND");
 
   return (
     <header className="applicant-cockpit-hero">
@@ -103,6 +116,20 @@ export default function ApplicantCockpitHeader({ application }: Props) {
                 .join(" | ")}
             </p>
           )}
+          <div className="applicant-cockpit-owner-row" aria-label="Application owners">
+            <span className="applicant-cockpit-owner-chip">
+              <span>Reviewer</span>
+              <strong>{application.reviewer?.name ?? "Not assigned"}</strong>
+            </span>
+            <span className="applicant-cockpit-owner-chip">
+              <span>Lead Interviewer</span>
+              <strong>{leadInterviewer?.interviewer.name ?? "Not assigned"}</strong>
+            </span>
+            <span className="applicant-cockpit-owner-chip">
+              <span>Second Interviewer</span>
+              <strong>{secondInterviewer?.interviewer.name ?? "Not assigned"}</strong>
+            </span>
+          </div>
         </div>
       </div>
 

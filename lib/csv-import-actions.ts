@@ -2,7 +2,9 @@
 
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
+import { InstructorApplicationStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { findDefaultInitialReviewerForChapter } from "@/lib/instructor-application-defaults";
 
 export async function parseCSV(text: string): Promise<{
   headers: string[];
@@ -76,6 +78,8 @@ export async function importApplicationsFromCSV(formData: FormData): Promise<{
       }
 
       if (roleType === "INSTRUCTOR") {
+        const defaultInitialReviewer = await findDefaultInitialReviewerForChapter(user.chapterId);
+        const defaultReviewerAssignedAt = defaultInitialReviewer ? new Date() : null;
         const motivation =
           fieldMapping.motivation !== undefined
             ? row[fieldMapping.motivation]
@@ -92,10 +96,29 @@ export async function importApplicationsFromCSV(formData: FormData): Promise<{
         await prisma.instructorApplication.create({
           data: {
             applicantId: user.id,
+            status: defaultInitialReviewer
+              ? InstructorApplicationStatus.UNDER_REVIEW
+              : InstructorApplicationStatus.SUBMITTED,
+            reviewerId: defaultInitialReviewer?.id,
+            reviewerAssignedAt: defaultReviewerAssignedAt,
             motivation: motivation || "",
             teachingExperience: teachingExperience || "",
             availability: availability || "",
             ...(cohortId ? { cohortId } : {}),
+            timeline: defaultInitialReviewer
+              ? {
+                  create: {
+                    kind: "REVIEWER_ASSIGNED",
+                    actorId: null,
+                    payload: {
+                      reviewerId: defaultInitialReviewer.id,
+                      previousReviewerId: null,
+                      defaultAssignment: true,
+                      reason: "chapter_president_default",
+                    },
+                  },
+                }
+              : undefined,
           },
         });
       } else {

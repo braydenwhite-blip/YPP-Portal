@@ -7166,6 +7166,41 @@ select.input {
   font-size: 13px;
 }
 
+.applicant-cockpit-owner-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.applicant-cockpit-owner-chip {
+  display: inline-grid;
+  min-width: 156px;
+  max-width: 230px;
+  gap: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.13);
+  padding: 8px 10px;
+  color: #ffffff;
+}
+
+.applicant-cockpit-owner-chip span {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.applicant-cockpit-owner-chip strong {
+  min-width: 0;
+  color: #ffffff;
+  font-size: 13px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
 .applicant-cockpit-stepper {
   position: relative;
   z-index: 1;
@@ -8672,6 +8707,40 @@ select.input {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.applicant-card-owner-list {
+  display: grid;
+  width: 100%;
+  gap: 5px;
+}
+
+.applicant-card-owner-chip {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 6px;
+  align-items: baseline;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 5px 7px;
+}
+
+.applicant-card-owner-chip span {
+  color: var(--cockpit-soft-ink);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.applicant-card-owner-chip strong {
+  min-width: 0;
+  color: var(--cockpit-ink);
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .applicant-card-unassigned {

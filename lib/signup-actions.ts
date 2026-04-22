@@ -2,9 +2,10 @@
 
 import { prisma } from "@/lib/prisma";
 import { createServiceClient } from "@/lib/supabase/server";
-import { RoleType } from "@prisma/client";
+import { InstructorApplicationStatus, RoleType } from "@prisma/client";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { syncInstructorApplicationWorkflow } from "@/lib/workflow";
+import { findDefaultInitialReviewerForChapter } from "@/lib/instructor-application-defaults";
 import { instructorApplicationSchema, type InstructorApplicationInput } from "@/lib/application-schemas";
 
 type FormState = {
@@ -181,9 +182,16 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
 
     // If applicant, create the InstructorApplication record with all fields
     if (primaryRole === RoleType.APPLICANT && instructorApplicationInput) {
+      const defaultInitialReviewer = await findDefaultInitialReviewerForChapter(chapterId || null);
+      const defaultReviewerAssignedAt = defaultInitialReviewer ? new Date() : null;
       const application = await prisma.instructorApplication.create({
         data: {
           applicantId: newUser.id,
+          status: defaultInitialReviewer
+            ? InstructorApplicationStatus.UNDER_REVIEW
+            : InstructorApplicationStatus.SUBMITTED,
+          reviewerId: defaultInitialReviewer?.id,
+          reviewerAssignedAt: defaultReviewerAssignedAt,
           motivation: instructorApplicationInput.motivation || null,
           motivationVideoUrl: instructorApplicationInput.motivationVideoUrl || null,
           teachingExperience: instructorApplicationInput.teachingExperience,
@@ -210,6 +218,20 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
           firstClassPlan: instructorApplicationInput.firstClassPlan || null,
           hoursPerWeek: instructorApplicationInput.hoursPerWeek,
           preferredStartDate: instructorApplicationInput.preferredStartDate || null,
+          timeline: defaultInitialReviewer
+            ? {
+                create: {
+                  kind: "REVIEWER_ASSIGNED",
+                  actorId: null,
+                  payload: {
+                    reviewerId: defaultInitialReviewer.id,
+                    previousReviewerId: null,
+                    defaultAssignment: true,
+                    reason: "chapter_president_default",
+                  },
+                },
+              }
+            : undefined,
         },
       });
       await syncInstructorApplicationWorkflow(application.id);

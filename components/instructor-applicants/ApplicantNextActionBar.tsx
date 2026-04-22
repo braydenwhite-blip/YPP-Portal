@@ -50,7 +50,7 @@ export default function ApplicantNextActionBar({
     action = {
       label: "Assign Reviewer",
       description: "A reviewer must be assigned before this application can advance.",
-      href: "#sidebar-reviewer",
+      href: "#section-review",
     };
   } else if (
     status === "UNDER_REVIEW" &&
@@ -61,7 +61,7 @@ export default function ApplicantNextActionBar({
     action = {
       label: "Assign Lead Interviewer",
       description: "A lead interviewer must be assigned before proposed times can be sent.",
-      href: "#sidebar-interviewers",
+      href: "#section-scheduling",
     };
   } else if (
     status === "UNDER_REVIEW" &&

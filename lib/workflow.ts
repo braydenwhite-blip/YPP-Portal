@@ -648,7 +648,7 @@ export async function syncInstructorApplicationWorkflow(applicationId: string) {
       applicant: {
         select: { id: true, name: true, chapterId: true },
       },
-      reviewer: { select: { id: true } },
+      reviewer: { select: { id: true, name: true } },
     },
   });
 
@@ -660,7 +660,7 @@ export async function syncInstructorApplicationWorkflow(applicationId: string) {
     stage: nextInstructorApplicationStage(application.status),
     status: workflowStatusFromTerminalState(isComplete),
     title: `${application.applicant.name} instructor application`,
-    summary: `Status: ${application.status.replace(/_/g, " ")}${application.reviewer ? ` · Reviewer: ${application.reviewer.id}` : ""}`,
+    summary: `Status: ${application.status.replace(/_/g, " ")}${application.reviewer ? ` · Reviewer: ${application.reviewer.name}` : ""}`,
     href: instructorApplicationHref(application.status, application.id),
     sourceType: "InstructorApplication",
     sourceId: application.id,

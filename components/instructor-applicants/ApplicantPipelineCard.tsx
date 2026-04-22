@@ -126,36 +126,24 @@ export default function ApplicantPipelineCard({
       </div>
 
       <div className="kanban-card-footer">
-        <div className="applicant-card-people">
-          {app.reviewer ? (
-            <span title={`Reviewer: ${app.reviewer.name ?? "Unknown"}`}>
-              <Avatar name={app.reviewer.name} email="" title={`Reviewer: ${app.reviewer.name ?? "Unknown"}`} />
+        <div className="applicant-card-owner-list">
+          <span className="applicant-card-owner-chip">
+            <span>Reviewer</span>
+            <strong>{app.reviewer?.name ?? "Not assigned"}</strong>
+          </span>
+          {leadInterviewer && (
+            <span className="applicant-card-owner-chip">
+              <span>Lead</span>
+              <strong>{leadInterviewer.interviewer.name ?? "Unknown"}</strong>
             </span>
-          ) : (
-            <span className="applicant-card-unassigned">
-              No reviewer
+          )}
+          {secondInterviewer && (
+            <span className="applicant-card-owner-chip">
+              <span>Second</span>
+              <strong>{secondInterviewer.interviewer.name ?? "Unknown"}</strong>
             </span>
           )}
         </div>
-
-        {(leadInterviewer || secondInterviewer) && (
-          <div className="applicant-card-people">
-            {leadInterviewer && (
-              <Avatar
-                name={leadInterviewer.interviewer.name}
-                email=""
-                title={`Lead: ${leadInterviewer.interviewer.name ?? "Unknown"}`}
-              />
-            )}
-            {secondInterviewer && (
-              <Avatar
-                name={secondInterviewer.interviewer.name}
-                email=""
-                title={`2nd: ${secondInterviewer.interviewer.name ?? "Unknown"}`}
-              />
-            )}
-          </div>
-        )}
       </div>
     </button>
   );
