@@ -34,15 +34,17 @@ export async function loginAs(
   await page.getByRole("button", { name: "Sign In", exact: true }).click();
 
   if (options?.callbackUrl) {
-    await expect(page).toHaveURL(
+    await page.waitForURL(
       new RegExp(options.callbackUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
       {
         timeout: 45_000,
+        waitUntil: "load",
       }
     );
   } else {
-    await expect(page).not.toHaveURL(/\/login/, {
+    await page.waitForURL((url) => !url.pathname.startsWith("/login"), {
       timeout: 45_000,
+      waitUntil: "load",
     });
   }
 

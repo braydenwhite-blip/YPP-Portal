@@ -81,29 +81,22 @@ function ProgressStepper({
   ] as const;
   const stageIdx = currentStageIndex(status);
   return (
-    <div className="card" style={{ marginBottom: 24 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+    <div className="card application-progress-card">
+      <ol className="application-progress-track" aria-label="Application progress">
         {stages.map((stage, i) => (
-          <div key={stage.key} style={{ display: "flex", alignItems: "center", flex: i < stages.length - 1 ? 1 : "initial" }}>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 80 }}>
-              <div style={{
-                width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-                background: i <= stageIdx ? "#6b21c8" : "var(--border)",
-                color: i <= stageIdx ? "white" : "var(--muted)",
-                fontWeight: 700, fontSize: 14,
-              }}>
-                {i < stageIdx ? "\u2713" : i + 1}
-              </div>
-              <span style={{ fontSize: 11, color: i <= stageIdx ? "#6b21c8" : "var(--muted)", marginTop: 4, textAlign: "center" }}>
-                {stage.label}
-              </span>
-            </div>
-            {i < stages.length - 1 && (
-              <div style={{ flex: 1, height: 2, background: i < stageIdx ? "#6b21c8" : "var(--border)", margin: "0 4px", marginBottom: 20 }} />
-            )}
-          </div>
+          <li
+            key={stage.key}
+            className="application-progress-step"
+            data-active={i <= stageIdx}
+            data-complete={i < stageIdx}
+          >
+            <span className="application-progress-dot">
+              {i < stageIdx ? "\u2713" : i + 1}
+            </span>
+            <span className="application-progress-label">{stage.label}</span>
+          </li>
         ))}
-      </div>
+      </ol>
     </div>
   );
 }
@@ -183,12 +176,12 @@ export default async function ApplicationStatusPage() {
       {/* Instructor Application */}
       {instructorApp && (
         <div style={{ marginBottom: 32 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+          <div className="application-status-heading-row">
             <span className="badge" style={{ background: statusColor(instructorApp.status), color: "white" }}>
               {instructorStatusLabel(instructorApp.status)}
             </span>
-            <h2 style={{ margin: 0, fontSize: 18 }}>Instructor Application</h2>
-            <span style={{ fontSize: 13, color: "var(--muted)" }}>
+            <h2 className="application-status-card-title">Instructor Application</h2>
+            <span className="application-status-date">
               Applied {new Date(instructorApp.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
             </span>
           </div>
@@ -395,15 +388,15 @@ export default async function ApplicationStatusPage() {
       {/* Chapter President Application */}
       {cpApp && (
         <div style={{ marginBottom: 32 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+          <div className="application-status-heading-row">
             <span className="badge" style={{ background: statusColor(cpApp.status), color: "white" }}>
               {cpStatusLabel(cpApp.status)}
             </span>
-            <h2 style={{ margin: 0, fontSize: 18 }}>Chapter President Application</h2>
+            <h2 className="application-status-card-title">Chapter President Application</h2>
             {cpApp.chapter && (
               <span className="pill">{cpApp.chapter.name}</span>
             )}
-            <span style={{ fontSize: 13, color: "var(--muted)" }}>
+            <span className="application-status-date">
               Applied {new Date(cpApp.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
             </span>
           </div>

@@ -35,10 +35,6 @@ import {
   type StudioPhase,
 } from "@/lib/lesson-design-studio";
 import { GuidedStudioShell } from "./components/guided-studio-shell";
-import { StudioCourseMapStep } from "./components/studio-course-map-step";
-import { StudioReadinessStep } from "./components/studio-readiness-step";
-import { StudioReviewLaunchStep } from "./components/studio-review-launch-step";
-import { StudioSessionsStep } from "./components/studio-sessions-step";
 import { StudioStartStep } from "./components/studio-start-step";
 import { SEED_CURRICULA, type SeedCurriculum } from "./curriculum-seeds";
 import type { ExampleWeek } from "./examples-data";
@@ -62,6 +58,22 @@ import type {
 
 const ActivityTemplates = dynamic(
   () => import("./components/activity-templates").then((mod) => mod.ActivityTemplates),
+  { ssr: false }
+);
+const StudioCourseMapStep = dynamic(
+  () => import("./components/studio-course-map-step").then((mod) => mod.StudioCourseMapStep),
+  { ssr: false }
+);
+const StudioReadinessStep = dynamic(
+  () => import("./components/studio-readiness-step").then((mod) => mod.StudioReadinessStep),
+  { ssr: false }
+);
+const StudioReviewLaunchStep = dynamic(
+  () => import("./components/studio-review-launch-step").then((mod) => mod.StudioReviewLaunchStep),
+  { ssr: false }
+);
+const StudioSessionsStep = dynamic(
+  () => import("./components/studio-sessions-step").then((mod) => mod.StudioSessionsStep),
   { ssr: false }
 );
 const CommentSidebar = dynamic(

@@ -104,6 +104,7 @@ export default function AppShell({
               height={40}
               className="brand-lockup"
               href="/"
+              priority
               onClick={() => setSidebarOpen(false)}
             />
           </div>

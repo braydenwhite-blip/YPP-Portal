@@ -103,14 +103,16 @@ export default async function ChapterLeadInstructorApplicantsPage({
   let interviewerUsers: Awaited<ReturnType<typeof loadInterviewerUsers>>;
 
   if (hiringDemoMode) {
-    pipelineResult = await getApplicantPipeline({
-      scope: "chapter",
-      chapterId,
-      filters: pipelineFilters,
-      take: DEMO_PIPELINE_TAKE,
-    });
+    [pipelineResult, reviewerUsers] = await Promise.all([
+      getApplicantPipeline({
+        scope: "chapter",
+        chapterId,
+        filters: pipelineFilters,
+        take: DEMO_PIPELINE_TAKE,
+      }),
+      loadReviewerUsers(),
+    ]);
     archiveResult = { items: [], total: 0, skip: 0, take: 0 };
-    reviewerUsers = await loadReviewerUsers();
     interviewerUsers = reviewerUsers;
   } else {
     [pipelineResult, archiveResult, reviewerUsers, interviewerUsers] = await Promise.all([

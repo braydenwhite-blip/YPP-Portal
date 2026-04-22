@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useTransition, useMemo, type ReactNode } from "react";
+import { useState, useCallback, useEffect, useTransition, useMemo, type ReactNode } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -153,12 +153,9 @@ export default function KanbanBoard<TItem extends { id: string; status: string }
   const [, startTransition] = useTransition();
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Sync when parent passes new items
-  useMemo(() => {
-    if (initialItems !== items && initialItems.length !== items.length) {
-      setItems(initialItems);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Sync when parent passes fresh server data.
+  useEffect(() => {
+    setItems(initialItems);
   }, [initialItems]);
 
   const sensors = useSensors(
