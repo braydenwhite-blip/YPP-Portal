@@ -8029,11 +8029,32 @@ select.input {
   border-top: 1px solid var(--cockpit-line);
 }
 
-.cockpit-slot-form > div {
+.cockpit-slot-draft-list {
+  display: grid;
+  gap: 9px;
+}
+
+.cockpit-slot-draft-row {
   display: grid;
   grid-template-columns: minmax(210px, 1fr) minmax(120px, 160px) auto;
   gap: 9px;
+  align-items: end;
+}
+
+.cockpit-slot-draft-row label {
+  display: grid;
+  gap: 4px;
+  color: var(--cockpit-soft-ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.cockpit-slot-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
   align-items: center;
+  justify-content: flex-end;
 }
 
 .cockpit-form-error,
@@ -9130,8 +9151,16 @@ select.input {
     max-height: 260px;
   }
 
-  .cockpit-slot-form > div {
+  .cockpit-slot-draft-row {
     grid-template-columns: 1fr;
+  }
+
+  .cockpit-slot-form-actions {
+    justify-content: stretch;
+  }
+
+  .cockpit-slot-form-actions .button {
+    width: 100%;
   }
 
   .applicant-cockpit-sidebar {

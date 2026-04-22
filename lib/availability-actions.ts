@@ -401,42 +401,11 @@ export async function submitInstructorAvailability(
   applicationId: string,
   windows: AvailabilityWindow[]
 ): Promise<{ success: boolean; matched?: boolean; error?: string }> {
-  try {
-    const session = await getSession();
-    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
-
-    const app = await prisma.instructorApplication.findUnique({
-      where: { id: applicationId },
-      select: { applicantId: true, status: true },
-    });
-    if (!app || app.applicantId !== session.user.id) {
-      return { success: false, error: "Application not found." };
-    }
-    if (app.status !== "INTERVIEW_SCHEDULED") {
-      return { success: false, error: "This application is not awaiting scheduling." };
-    }
-
-    if (!windows.length || windows.length > 5) {
-      return { success: false, error: "Please provide 1–5 availability windows." };
-    }
-
-    await prisma.applicantAvailabilityWindow.deleteMany({
-      where: { instructorApplicationId: applicationId },
-    });
-    await prisma.applicantAvailabilityWindow.createMany({
-      data: windows.map((w) => ({
-        instructorApplicationId: applicationId,
-        dayOfWeek: w.dayOfWeek,
-        startTime: w.startTime,
-        endTime: w.endTime,
-        timezone: w.timezone,
-      })),
-    });
-
-    const result = await autoAssignSession(applicationId, "instructor");
-    return { success: true, matched: result.matched };
-  } catch (error) {
-    console.error("[submitInstructorAvailability]", error);
-    return { success: false, error: "Something went wrong. Please try again." };
-  }
+  void applicationId;
+  void windows;
+  return {
+    success: false,
+    error:
+      "Instructor interview scheduling is now handled by the lead interviewer, who will send proposed times for you to choose from.",
+  };
 }

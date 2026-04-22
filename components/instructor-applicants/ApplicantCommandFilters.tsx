@@ -50,7 +50,6 @@ export default function ApplicantCommandFilters({
     [searchParams, setParam]
   );
 
-  const materialsMissing = searchParams.get("materialsMissing") === "1";
   const overdueOnly = searchParams.get("overdueOnly") === "1";
   const myCasesOnly = searchParams.get("myCasesOnly") === "1";
 
@@ -99,14 +98,6 @@ export default function ApplicantCommandFilters({
       )}
 
       {/* Toggle chips */}
-      <button
-        type="button"
-        className={`button outline applicant-filter-chip${materialsMissing ? " active is-danger" : ""}`}
-        onClick={() => toggleParam("materialsMissing")}
-      >
-        Materials missing
-      </button>
-
       <button
         type="button"
         className={`button outline applicant-filter-chip${overdueOnly ? " active is-warning" : ""}`}

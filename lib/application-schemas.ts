@@ -183,9 +183,19 @@ export const instructorApplicationSchema = z.object({
   referralEmails: z.string().max(2000, "Referral emails should be under 2,000 characters.").optional(),
 
   // Course planning
-  textbook: z.string().max(500, "Textbook name should be under 500 characters.").optional(),
-  courseOutline: z.string().max(5000, "Course outline should be under 5,000 characters.").optional(),
-  firstClassPlan: z.string().max(5000, "First class plan should be under 5,000 characters.").optional(),
+  courseIdea: z
+    .string()
+    .min(8, "Please describe the class you would like to teach.")
+    .max(1000, "Class idea should be under 1,000 characters."),
+  textbook: z.string().max(500, "Resource note should be under 500 characters.").optional(),
+  courseOutline: z
+    .string()
+    .min(30, "Please share a rough outline of the topics this class would cover.")
+    .max(5000, "Course outline should be under 5,000 characters."),
+  firstClassPlan: z
+    .string()
+    .min(30, "Please sketch what the first session might look like.")
+    .max(5000, "First class plan should be under 5,000 characters."),
 
   // Availability
   availability: z

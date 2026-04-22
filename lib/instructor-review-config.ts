@@ -46,6 +46,31 @@ export const INSTRUCTOR_REVIEW_CATEGORIES = [
 export type InstructorReviewCategoryValue =
   (typeof INSTRUCTOR_REVIEW_CATEGORIES)[number]["key"];
 
+export const INSTRUCTOR_INITIAL_REVIEW_SIGNALS = [
+  {
+    key: "CURRICULUM_STRENGTH",
+    label: "Rough Class Idea",
+    description:
+      "The class idea, rough outline, and first-session sketch are clear enough to discuss in an interview.",
+  },
+  {
+    key: "RELATIONSHIP_BUILDING",
+    label: "Teaching & Communication Promise",
+    description:
+      "The applicant shows enough teaching clarity, maturity, and communication promise for a live conversation.",
+  },
+  {
+    key: "ORGANIZATION_AND_COMMITMENT",
+    label: "Reliability & Fit",
+    description:
+      "The application suggests the applicant can follow through and fit the YPP instructor role.",
+  },
+] as const satisfies ReadonlyArray<{
+  key: InstructorReviewCategoryValue;
+  label: string;
+  description: string;
+}>;
+
 export const PROGRESS_RATING_OPTIONS = [
   {
     value: "BEHIND_SCHEDULE",
@@ -86,6 +111,10 @@ export const PROGRESS_RATING_OPTIONS = [
 ] as const;
 
 export type ProgressRatingValue = (typeof PROGRESS_RATING_OPTIONS)[number]["value"];
+
+export const INITIAL_REVIEW_RATING_OPTIONS = PROGRESS_RATING_OPTIONS.filter(
+  (option) => option.value !== "ABOVE_AND_BEYOND"
+);
 
 export const INSTRUCTOR_APPLICATION_NEXT_STEP_OPTIONS = [
   {

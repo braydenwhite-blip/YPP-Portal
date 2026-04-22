@@ -3,21 +3,26 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
-import { RoleType, InstructorApplicationStatus, ApprovalStatus, ChairDecisionAction } from "@prisma/client";
+import {
+  RoleType,
+  InstructorApplicationStatus,
+  ApprovalStatus,
+  ChairDecisionAction,
+  StructuredReviewStatus,
+} from "@prisma/client";
 import {
   sendNewApplicationNotification,
   sendApplicationApprovedEmail,
   sendApplicationRejectedEmail,
   sendInfoRequestEmail,
   sendInterviewScheduledEmail,
-  sendAvailabilityRequestEmail,
   sendPickYourTimeEmail,
   sendInterviewConfirmedEmail,
   sendInstructorPreApprovedEmail,
   sendReviewerAssignedEmail,
   sendInterviewerAssignedEmail,
   sendChairDecisionEmail,
-  sendMaterialsMissingReminderEmail,
+  sendInterviewTimesDeclinedEmail,
 } from "@/lib/email";
 import {
   getLegacyApplicationTransitionError,
@@ -29,6 +34,7 @@ import {
   assertCanManageApplication,
   assertCanAssignInterviewers,
   assertCanActAsChair,
+  isAdmin,
 } from "@/lib/chapter-hiring-permissions";
 import { ApplicantWorkflowError } from "@/lib/applicant-workflow-error";
 import { shouldSendAssignmentNotification } from "@/lib/notification-policy";
@@ -526,6 +532,7 @@ export async function submitInfoResponse(
     await syncInstructorApplicationWorkflow(application.id);
     revalidatePath("/admin/instructor-applicants");
     revalidatePath("/admin/instructor-applicants/chair-queue");
+    revalidatePath("/chapter-lead/instructor-applicants");
     revalidatePath("/application-status");
     return { status: "success", message: "Your response has been submitted." };
   } catch (error) {
@@ -876,6 +883,7 @@ export async function preApproveApplication(
     }
 
     revalidatePath("/admin/instructor-applicants");
+    revalidatePath("/chapter-lead/instructor-applicants");
     revalidatePath("/application-status");
     return { success: true };
   } catch (error) {
@@ -889,36 +897,147 @@ export async function offerInterviewSlots(
   slots: { scheduledAt: Date; durationMinutes: number }[]
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const session = await requireAdminOrChapterLead();
+    const session = await getSession();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+    const actor = await getHiringActor(session.user.id);
 
     const application = await prisma.instructorApplication.findUnique({
       where: { id: applicationId },
-      include: { applicant: { select: { name: true, email: true } } },
+      select: {
+        id: true,
+        status: true,
+        applicantId: true,
+        reviewerId: true,
+        reviewerNotes: true,
+        interviewRound: true,
+        interviewScheduledAt: true,
+        applicant: { select: { name: true, email: true, chapterId: true } },
+        interviewerAssignments: {
+          where: { removedAt: null },
+          select: { interviewerId: true, role: true, round: true, removedAt: true },
+        },
+        applicationReviews: {
+          where: { isLeadReview: true, status: StructuredReviewStatus.SUBMITTED },
+          select: { nextStep: true, summary: true },
+          take: 1,
+        },
+      },
     });
     if (!application) return { success: false, error: "Application not found." };
 
-    if (slots.length < 1 || slots.length > 4) {
-      return { success: false, error: "Please provide between 1 and 4 time slots." };
+    const currentRound = application.interviewRound ?? 1;
+    const actorIsAssignedLead = application.interviewerAssignments.some(
+      (assignment) =>
+        assignment.role === "LEAD" &&
+        assignment.interviewerId === actor.id &&
+        (assignment.round == null || assignment.round === currentRound)
+    );
+
+    if (!isAdmin(actor) && !actorIsAssignedLead) {
+      return { success: false, error: "Only the assigned lead interviewer can send applicant interview times." };
     }
 
-    // Reject any slots that are already in the past — the applicant shouldn't
-    // see expired times in their "pick your time" email or on the status page.
+    if (slots.length < 3 || slots.length > 5) {
+      return { success: false, error: "Please provide 3 to 5 proposed interview times." };
+    }
+
+    const normalizedSlots = slots.map((slot) => ({
+      scheduledAt: new Date(slot.scheduledAt),
+      durationMinutes: Number(slot.durationMinutes || 60),
+    }));
+
+    if (
+      normalizedSlots.some(
+        (slot) =>
+          Number.isNaN(slot.scheduledAt.getTime()) ||
+          !Number.isFinite(slot.durationMinutes) ||
+          slot.durationMinutes < 15 ||
+          slot.durationMinutes > 180
+      )
+    ) {
+      return { success: false, error: "Every proposed time needs a valid date and duration." };
+    }
+
     const now = new Date();
-    if (slots.some((s) => s.scheduledAt <= now)) {
+    if (normalizedSlots.some((slot) => slot.scheduledAt <= now)) {
       return { success: false, error: "All proposed times must be in the future." };
     }
 
-    // Replace any unconfirmed existing slots, then create the new ones
-    await prisma.offeredInterviewSlot.deleteMany({
-      where: { instructorApplicationId: applicationId, confirmedAt: null },
-    });
-    await prisma.offeredInterviewSlot.createMany({
-      data: slots.map((s) => ({
-        instructorApplicationId: applicationId,
-        scheduledAt: s.scheduledAt,
-        durationMinutes: s.durationMinutes,
-        offeredByUserId: session.user.id,
-      })),
+    const uniqueTimes = new Set(normalizedSlots.map((slot) => slot.scheduledAt.getTime()));
+    if (uniqueTimes.size !== normalizedSlots.length) {
+      return { success: false, error: "Each proposed time must be different." };
+    }
+
+    const leadReview = application.applicationReviews[0] ?? null;
+    const allowedStatuses: InstructorApplicationStatus[] = [
+      InstructorApplicationStatus.UNDER_REVIEW,
+      InstructorApplicationStatus.INTERVIEW_SCHEDULED,
+    ];
+    if (!allowedStatuses.includes(application.status)) {
+      return { success: false, error: "Interview times can only be sent for applications in review or interview scheduling." };
+    }
+    if (application.interviewScheduledAt) {
+      return { success: false, error: "This applicant already confirmed an interview time." };
+    }
+    if (
+      application.status === InstructorApplicationStatus.UNDER_REVIEW &&
+      leadReview?.nextStep !== "MOVE_TO_INTERVIEW"
+    ) {
+      return { success: false, error: "Submit the initial review with Move to Interview before sending times." };
+    }
+
+    const shouldAdvanceToScheduling = application.status === InstructorApplicationStatus.UNDER_REVIEW;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.offeredInterviewSlot.deleteMany({
+        where: { instructorApplicationId: applicationId, confirmedAt: null },
+      });
+
+      if (shouldAdvanceToScheduling) {
+        await tx.instructorApplication.update({
+          where: { id: applicationId },
+          data: {
+            status: InstructorApplicationStatus.INTERVIEW_SCHEDULED,
+            interviewScheduledAt: null,
+            reviewerNotes: leadReview?.summary ?? application.reviewerNotes,
+          },
+        });
+
+        await tx.instructorApplicationTimelineEvent.create({
+          data: {
+            applicationId,
+            kind: "STATUS_CHANGE",
+            actorId: actor.id,
+            payload: {
+              from: InstructorApplicationStatus.UNDER_REVIEW,
+              to: InstructorApplicationStatus.INTERVIEW_SCHEDULED,
+              reason: "lead_interviewer_sent_times",
+            },
+          },
+        });
+      }
+
+      await tx.offeredInterviewSlot.createMany({
+        data: normalizedSlots.map((slot) => ({
+          instructorApplicationId: applicationId,
+          scheduledAt: slot.scheduledAt,
+          durationMinutes: slot.durationMinutes,
+          offeredByUserId: actor.id,
+        })),
+      });
+
+      await tx.instructorApplicationTimelineEvent.create({
+        data: {
+          applicationId,
+          kind: "INTERVIEW_TIMES_SENT",
+          actorId: actor.id,
+          payload: {
+            count: normalizedSlots.length,
+            round: currentRound,
+            times: normalizedSlots.map((slot) => slot.scheduledAt.toISOString()),
+          },
+        },
+      });
     });
 
     // Send "pick your time" email to the applicant
@@ -927,11 +1046,17 @@ export async function offerInterviewSlots(
     await sendPickYourTimeEmail({
       to: application.applicant.email,
       applicantName: application.applicant.name,
-      slots,
+      slots: normalizedSlots,
       statusUrl: `${baseUrl}/application-status`,
     }).catch((err) => console.error("[offerInterviewSlots] email failed:", err));
 
+    if (shouldAdvanceToScheduling) {
+      await syncInstructorApplicationWorkflow(applicationId);
+    }
+    revalidatePath(`/applications/instructor/${applicationId}`);
     revalidatePath("/admin/instructor-applicants");
+    revalidatePath("/chapter-lead/instructor-applicants");
+    revalidatePath("/application-status");
     return { success: true };
   } catch (error) {
     console.error("[offerInterviewSlots]", error);
@@ -964,6 +1089,10 @@ export async function selectInterviewSlot(
     }
 
     const now = new Date();
+    if (slot.scheduledAt <= now) {
+      return { success: false, error: "This time has already passed. Please request new times." };
+    }
+
     // Use updateMany with confirmedAt: null as an atomic guard against concurrent
     // double-clicks or duplicate tab submissions. If count === 0, another request
     // already confirmed this slot — bail out before sending duplicate emails.
@@ -1010,14 +1139,6 @@ export async function selectInterviewSlot(
       icsContent,
     }).catch((err) => console.error("[selectInterviewSlot] applicant email failed:", err));
 
-    if (!slot.instructorApplication.materialsReadyAt) {
-      await sendMaterialsMissingReminderEmail(
-        applicant.email,
-        applicant.name,
-        slot.instructorApplicationId
-      ).catch((err) => console.error("[selectInterviewSlot] materials reminder failed:", err));
-    }
-
     // Find all reviewers who offered slots for this application and notify them
     const reviewerSlots = await prisma.offeredInterviewSlot.findMany({
       where: { instructorApplicationId: slot.instructorApplicationId },
@@ -1040,10 +1161,130 @@ export async function selectInterviewSlot(
       }
     }
 
+    revalidatePath(`/applications/instructor/${slot.instructorApplicationId}`);
+    revalidatePath("/admin/instructor-applicants");
+    revalidatePath("/chapter-lead/instructor-applicants");
     revalidatePath("/application-status");
     return { success: true };
   } catch (error) {
     console.error("[selectInterviewSlot]", error);
+    return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
+  }
+}
+
+export async function requestNewInterviewTimes(
+  applicationId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const application = await prisma.instructorApplication.findUnique({
+      where: { id: applicationId },
+      select: {
+        id: true,
+        applicantId: true,
+        status: true,
+        interviewRound: true,
+        interviewScheduledAt: true,
+        applicant: { select: { name: true } },
+        offeredSlots: {
+          where: { confirmedAt: null },
+          select: {
+            id: true,
+            scheduledAt: true,
+            offeredBy: { select: { id: true, name: true, email: true } },
+          },
+        },
+        interviewerAssignments: {
+          where: { removedAt: null },
+          select: {
+            role: true,
+            round: true,
+            interviewer: { select: { id: true, name: true, email: true } },
+          },
+        },
+      },
+    });
+
+    if (!application) return { success: false, error: "Application not found." };
+    if (application.applicantId !== session.user.id) {
+      return { success: false, error: "Unauthorized." };
+    }
+    if (
+      application.status !== InstructorApplicationStatus.INTERVIEW_SCHEDULED ||
+      application.interviewScheduledAt
+    ) {
+      return { success: false, error: "This application is not waiting on interview time selection." };
+    }
+    if (application.offeredSlots.length === 0) {
+      return { success: false, error: "There are no pending proposed times to decline." };
+    }
+
+    const currentRound = application.interviewRound ?? 1;
+    const leadInterviewer = application.interviewerAssignments.find(
+      (assignment) =>
+        assignment.role === "LEAD" &&
+        (assignment.round == null || assignment.round === currentRound) &&
+        assignment.interviewer.email
+    )?.interviewer;
+
+    const notifyByEmail = new Map<
+      string,
+      { email: string; name: string | null }
+    >();
+    if (leadInterviewer?.email) {
+      notifyByEmail.set(leadInterviewer.email, {
+        email: leadInterviewer.email,
+        name: leadInterviewer.name,
+      });
+    }
+    for (const slot of application.offeredSlots) {
+      if (slot.offeredBy.email) {
+        notifyByEmail.set(slot.offeredBy.email, {
+          email: slot.offeredBy.email,
+          name: slot.offeredBy.name,
+        });
+      }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.offeredInterviewSlot.deleteMany({
+        where: { instructorApplicationId: applicationId, confirmedAt: null },
+      });
+      await tx.instructorApplicationTimelineEvent.create({
+        data: {
+          applicationId,
+          kind: "INTERVIEW_TIMES_DECLINED",
+          actorId: session.user.id,
+          payload: {
+            declinedCount: application.offeredSlots.length,
+            declinedTimes: application.offeredSlots.map((slot) => slot.scheduledAt.toISOString()),
+          },
+        },
+      });
+    });
+
+    const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+    const baseUrl = await getBaseUrl();
+    await Promise.all(
+      Array.from(notifyByEmail.values()).map((recipient) =>
+        sendInterviewTimesDeclinedEmail({
+          to: recipient.email,
+          recipientName: recipient.name,
+          applicantName: application.applicant.name,
+          workspaceUrl: `${baseUrl}/applications/instructor/${applicationId}#section-scheduling`,
+        }).catch((err) => console.error("[requestNewInterviewTimes] email failed:", err))
+      )
+    );
+
+    revalidatePath(`/applications/instructor/${applicationId}`);
+    revalidatePath("/admin/instructor-applicants");
+    revalidatePath("/chapter-lead/instructor-applicants");
+    revalidatePath("/application-status");
+    return { success: true };
+  } catch (error) {
+    console.error("[requestNewInterviewTimes]", error);
     return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
   }
 }

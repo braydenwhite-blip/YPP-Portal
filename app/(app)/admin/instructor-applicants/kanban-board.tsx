@@ -86,13 +86,13 @@ const COLUMNS: KanbanColumnDef[] = [
   },
   {
     id: "awaiting_curriculum_review",
-    title: "Awaiting Curriculum Review",
+    title: "Interview Scheduling",
     statuses: ["INTERVIEW_SCHEDULED"],
     color: "#0f766e",
   },
   {
     id: "overview_complete",
-    title: "Overview Complete",
+    title: "Interview Complete",
     statuses: ["INTERVIEW_COMPLETED"],
     color: "#7c3aed",
   },

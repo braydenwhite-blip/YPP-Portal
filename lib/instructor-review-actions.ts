@@ -17,7 +17,6 @@ import {
   holdInstructorApplication,
   markInstructorApplicationUnderReview,
   markInterviewCompleted,
-  moveInstructorApplicationToInterviewStage,
   rejectInstructorApplication,
   requestMoreInfo,
   scheduleInterview,
@@ -25,6 +24,7 @@ import {
 import { maybeAutoAdvanceAfterInterviewReview } from "@/lib/instructor-interview-actions";
 import {
   INSTRUCTOR_APPLICATION_NEXT_STEP_OPTIONS,
+  INSTRUCTOR_INITIAL_REVIEW_SIGNALS,
   INSTRUCTOR_INTERVIEW_RECOMMENDATION_OPTIONS,
   INSTRUCTOR_REVIEW_CATEGORIES,
   type InstructorApplicationNextStepValue,
@@ -179,7 +179,7 @@ async function loadApplicationForReviewer(applicationId: string) {
       },
       interviewerAssignments: {
         where: { removedAt: null },
-        select: { interviewerId: true, round: true, removedAt: true },
+        select: { interviewerId: true, round: true, role: true, removedAt: true },
       },
       customResponses: {
         include: {
@@ -338,17 +338,21 @@ async function syncLeadFlags(
   });
 }
 
-function validateSubmittedCategories(categories: ReviewCategoryPayload[]) {
-  if (categories.length !== INSTRUCTOR_REVIEW_CATEGORIES.length) {
+function validateSubmittedCategories(
+  categories: ReviewCategoryPayload[],
+  expectedCategories: ReadonlyArray<{ key: InstructorReviewCategoryValue; label: string }>,
+  options: { requireNotes?: boolean } = {}
+) {
+  if (categories.length !== expectedCategories.length) {
     throw new Error("Every review category must be present before submission.");
   }
 
-  for (const category of INSTRUCTOR_REVIEW_CATEGORIES) {
+  for (const category of expectedCategories) {
     const match = categories.find((entry) => entry.category === category.key);
     if (!match || !match.rating) {
       throw new Error(`A rating is required for ${category.label}.`);
     }
-    if (!match.notes) {
+    if (options.requireNotes && !match.notes) {
       throw new Error(`An internal note is required for ${category.label}.`);
     }
   }
@@ -666,14 +670,9 @@ export async function saveInstructorApplicationReviewAction(formData: FormData) 
   const notes = normalizeNullableText(getString(formData, "notes", false));
   const concerns = normalizeNullableText(getString(formData, "concerns", false));
   const applicantMessage = normalizeNullableText(getString(formData, "applicantMessage", false));
-  const curriculumDraftId = normalizeNullableText(getString(formData, "curriculumDraftId", false));
-  const draftOverrideUsed = getString(formData, "draftOverrideUsed", false) === "true";
-  const draftOverrideReason = normalizeNullableText(getString(formData, "draftOverrideReason", false));
   const flagForLeadership = getString(formData, "flagForLeadership", false) === "true";
 
   const { actor, application } = await assertApplicationReviewAccess(applicationId, session.user.id);
-  const drafts = await listApplicantCurriculumDrafts(application.applicantId);
-  const hasDraft = drafts.length > 0;
 
   if (isFinalApplicationStatus(application.status) && !isAdmin(actor)) {
     throw new Error("This application is already finalized.");
@@ -706,22 +705,30 @@ export async function saveInstructorApplicationReviewAction(formData: FormData) 
     throw new Error("Submitted application reviews are locked. Ask an admin to reopen it if changes are needed.");
   }
 
-  const movingToInterviewWithoutDraft = isLeadReviewer && nextStep === "MOVE_TO_INTERVIEW" && !hasDraft;
-  const normalizedDraftOverrideUsed = isLeadReviewer
-    ? draftOverrideUsed || movingToInterviewWithoutDraft
-    : false;
-  const normalizedDraftOverrideReason =
-    isLeadReviewer && movingToInterviewWithoutDraft
-      ? draftOverrideReason ?? "No Lesson Design Studio draft was available during application review."
-      : draftOverrideReason;
+  const currentRound = application.interviewRound ?? 1;
+  const hasLeadInterviewer = application.interviewerAssignments.some(
+    (assignment) =>
+      assignment.role === "LEAD" &&
+      (assignment.round == null || assignment.round === currentRound)
+  );
+  const roughPlanMissing =
+    !application.courseIdea?.trim() ||
+    !application.courseOutline?.trim() ||
+    !application.firstClassPlan?.trim();
 
   if (intent === "submit") {
-    validateSubmittedCategories(categories);
-    if (!overallRating) {
-      throw new Error("An overall application evaluation is required before submission.");
+    validateSubmittedCategories(categories, INSTRUCTOR_INITIAL_REVIEW_SIGNALS);
+    if (!summary) {
+      throw new Error("An internal summary is required before submitting the initial review.");
     }
     if (isLeadReviewer && !nextStep) {
       throw new Error("The lead reviewer must choose the application next step before submission.");
+    }
+    if (isLeadReviewer && nextStep === "MOVE_TO_INTERVIEW" && roughPlanMissing) {
+      throw new Error("The rough class idea, outline, and first-session sketch are required before moving to interview. Request more information from the applicant first.");
+    }
+    if (isLeadReviewer && nextStep === "MOVE_TO_INTERVIEW" && !hasLeadInterviewer) {
+      throw new Error("Assign a lead interviewer before moving this applicant to interview.");
     }
     if (isLeadReviewer && (nextStep === "REQUEST_INFO" || nextStep === "REJECT") && !applicantMessage) {
       throw new Error("An applicant-facing message is required for request-info and rejection decisions.");
@@ -743,7 +750,7 @@ export async function saveInstructorApplicationReviewAction(formData: FormData) 
       create: {
         applicationId,
         reviewerId: actor.id,
-        curriculumDraftId: curriculumDraftId ?? pickDefaultCurriculumDraftId(drafts) ?? null,
+        curriculumDraftId: null,
         status:
           intent === "submit"
             ? StructuredReviewStatus.SUBMITTED
@@ -756,12 +763,12 @@ export async function saveInstructorApplicationReviewAction(formData: FormData) 
         concerns,
         applicantMessage,
         flagForLeadership,
-        draftOverrideUsed: normalizedDraftOverrideUsed,
-        draftOverrideReason: isLeadReviewer ? normalizedDraftOverrideReason : null,
+        draftOverrideUsed: false,
+        draftOverrideReason: null,
         submittedAt: intent === "submit" ? new Date() : null,
       },
       update: {
-        curriculumDraftId: curriculumDraftId ?? pickDefaultCurriculumDraftId(drafts) ?? null,
+        curriculumDraftId: null,
         status:
           intent === "submit"
             ? StructuredReviewStatus.SUBMITTED
@@ -774,8 +781,8 @@ export async function saveInstructorApplicationReviewAction(formData: FormData) 
         concerns,
         applicantMessage,
         flagForLeadership,
-        draftOverrideUsed: normalizedDraftOverrideUsed,
-        draftOverrideReason: isLeadReviewer ? normalizedDraftOverrideReason : null,
+        draftOverrideUsed: false,
+        draftOverrideReason: null,
         submittedAt: intent === "submit" ? new Date() : null,
       },
       select: { id: true },
@@ -787,7 +794,7 @@ export async function saveInstructorApplicationReviewAction(formData: FormData) 
 
   if (intent === "submit" && isLeadReviewer && nextStep) {
     if (nextStep === "MOVE_TO_INTERVIEW") {
-      await moveInstructorApplicationToInterviewStage(applicationId, actor.id, summary ?? notes ?? undefined);
+      await revalidateInstructorReviewPaths(applicationId);
     } else if (nextStep === "REQUEST_INFO" && applicantMessage) {
       await requestMoreInfo(applicationId, actor.id, applicantMessage);
     } else if (nextStep === "HOLD") {
@@ -1045,7 +1052,7 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
   }
 
   if (intent === "submit") {
-    validateSubmittedCategories(categories);
+    validateSubmittedCategories(categories, INSTRUCTOR_REVIEW_CATEGORIES, { requireNotes: true });
     validateSubmittedQuestionResponses(questionResponses);
     if (!overallRating) {
       throw new Error("An overall interview evaluation is required before submission.");

@@ -3,6 +3,10 @@
 import { useTransition, useState } from "react";
 import { chairDecide } from "@/lib/instructor-application-actions";
 import DecisionReadinessChecklist from "./DecisionReadinessChecklist";
+import {
+  INITIAL_REVIEW_RATING_OPTIONS,
+  INSTRUCTOR_INITIAL_REVIEW_SIGNALS,
+} from "@/lib/instructor-review-config";
 import type { ChairDecisionAction } from "@prisma/client";
 
 interface Category {
@@ -22,7 +26,14 @@ interface InterviewReview {
 
 interface Application {
   id: string;
+  motivation: string | null;
+  teachingExperience: string | null;
+  availability: string | null;
   subjectsOfInterest: string | null;
+  courseIdea: string | null;
+  textbook: string | null;
+  courseOutline: string | null;
+  firstClassPlan: string | null;
   materialsReadyAt: Date | string | null;
   preferredFirstName: string | null;
   legalName: string | null;
@@ -33,7 +44,12 @@ interface Application {
     chapter: { name: string } | null;
   };
   reviewer: { name: string | null } | null;
-  applicationReviews: Array<{ summary: string | null; nextStep: string | null; notes: string | null }>;
+  applicationReviews: Array<{
+    summary: string | null;
+    nextStep: string | null;
+    notes: string | null;
+    categories: Category[];
+  }>;
   interviewReviews: InterviewReview[];
   documents: Array<{ kind: string; fileUrl: string; originalName: string | null }>;
 }
@@ -59,6 +75,19 @@ const REC_COLOR: Record<string, string> = {
   REJECT: "#dc2626",
 };
 
+function RoughPlanField({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <p style={{ margin: "0 0 3px", fontSize: 12, fontWeight: 700, color: "var(--muted)" }}>
+        {label}
+      </p>
+      <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, whiteSpace: "pre-wrap" }}>
+        {value?.trim() || "Not provided"}
+      </p>
+    </div>
+  );
+}
+
 export default function ChairComparisonSlideout({ application, onClose, onDecisionMade }: Props) {
   const [pending, startTransition] = useTransition();
   const [rationale, setRationale] = useState("");
@@ -74,8 +103,12 @@ export default function ChairComparisonSlideout({ application, onClose, onDecisi
   const reviewerNote = application.applicationReviews[0] ?? null;
   const hasReviewerNote = !!reviewerNote?.summary || !!reviewerNote?.notes;
   const hasInterviewReview = application.interviewReviews.length > 0;
-  const hasBothMaterials = Boolean(application.materialsReadyAt);
+  const hasOptionalDocuments = Boolean(application.materialsReadyAt);
   const hasSubjects = !!application.subjectsOfInterest?.trim();
+  const roughClassIdea = application.courseIdea ?? application.textbook;
+  const lightSignals = (reviewerNote?.categories ?? []).filter((category) =>
+    INSTRUCTOR_INITIAL_REVIEW_SIGNALS.some((signal) => signal.key === category.category)
+  );
 
   function handleDecide(action: ChairDecisionAction) {
     setError(null);
@@ -157,9 +190,48 @@ export default function ChairComparisonSlideout({ application, onClose, onDecisi
           <DecisionReadinessChecklist
             hasReviewerNote={hasReviewerNote}
             hasInterviewReview={hasInterviewReview}
-            hasBothMaterials={hasBothMaterials}
+            hasOptionalDocuments={hasOptionalDocuments}
             hasSubjects={hasSubjects}
           />
+
+          {/* Application answers */}
+          <div style={{ marginBottom: 20 }}>
+            <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 700 }}>
+              Application Answers
+            </p>
+            <div
+              style={{
+                padding: "12px 16px",
+                border: "1px solid #e5e7eb",
+                borderRadius: 8,
+                background: "#ffffff",
+              }}
+            >
+              <RoughPlanField label="Motivation" value={application.motivation} />
+              <RoughPlanField label="Teaching experience" value={application.teachingExperience} />
+              <RoughPlanField label="Interview availability" value={application.availability} />
+              <RoughPlanField label="Subjects of interest" value={application.subjectsOfInterest} />
+            </div>
+          </div>
+
+          {/* Application rough plan */}
+          <div style={{ marginBottom: 20 }}>
+            <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 700 }}>
+              Rough Course Plan
+            </p>
+            <div
+              style={{
+                padding: "12px 16px",
+                border: "1px solid #e5e7eb",
+                borderRadius: 8,
+                background: "#f9fafb",
+              }}
+            >
+              <RoughPlanField label="Class idea" value={roughClassIdea} />
+              <RoughPlanField label="Rough outline" value={application.courseOutline} />
+              <RoughPlanField label="First-session sketch" value={application.firstClassPlan} />
+            </div>
+          </div>
 
           {/* Reviewer note */}
           {reviewerNote && (
@@ -185,6 +257,49 @@ export default function ChairComparisonSlideout({ application, onClose, onDecisi
                 <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--muted)" }}>
                   Reviewer recommendation: <strong>{reviewerNote.nextStep.replace(/_/g, " ")}</strong>
                 </p>
+              )}
+              {lightSignals.length > 0 && (
+                <div style={{ display: "grid", gap: 7, marginTop: 10 }}>
+                  {lightSignals.map((signal) => {
+                    const meta = INSTRUCTOR_INITIAL_REVIEW_SIGNALS.find(
+                      (entry) => entry.key === signal.category
+                    );
+                    const rating = INITIAL_REVIEW_RATING_OPTIONS.find(
+                      (entry) => entry.value === signal.rating
+                    );
+                    return (
+                      <div
+                        key={signal.category}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 8,
+                          padding: "8px 10px",
+                          background: "#f9fafb",
+                          border: "1px solid #e5e7eb",
+                          borderRadius: 6,
+                        }}
+                      >
+                        <span style={{ fontSize: 12, fontWeight: 700 }}>
+                          {meta?.label ?? signal.category.replace(/_/g, " ")}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 800,
+                            color: rating?.color ?? "#374151",
+                            background: rating?.bg ?? "#f3f4f6",
+                            borderRadius: 999,
+                            padding: "2px 8px",
+                          }}
+                        >
+                          {rating?.shortLabel ?? signal.rating ?? "—"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
           )}
@@ -256,10 +371,10 @@ export default function ChairComparisonSlideout({ application, onClose, onDecisi
             </div>
           )}
 
-          {/* Materials preview */}
+          {/* Optional documents preview */}
           {(
             <div style={{ marginBottom: 20 }}>
-              <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 700 }}>Materials</p>
+              <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 700 }}>Optional Documents</p>
               {["FIRST_CLASS_PLAN"].map((kind) => {
                 const doc = application.documents.find((d) => d.kind === kind);
                 return (
@@ -270,8 +385,8 @@ export default function ChairComparisonSlideout({ application, onClose, onDecisi
                       alignItems: "center",
                       justifyContent: "space-between",
                       padding: "8px 12px",
-                      background: doc ? "#f0fdf4" : "#fef2f2",
-                      border: `1px solid ${doc ? "#bbf7d0" : "#fecaca"}`,
+                      background: doc ? "#f0fdf4" : "#f9fafb",
+                      border: `1px solid ${doc ? "#bbf7d0" : "#e5e7eb"}`,
                       borderRadius: 6,
                       marginBottom: 6,
                     }}
@@ -290,7 +405,7 @@ export default function ChairComparisonSlideout({ application, onClose, onDecisi
                         View
                       </a>
                     ) : (
-                      <span className="pill pill-attention" style={{ fontSize: 12 }}>Missing</span>
+                      <span className="pill" style={{ fontSize: 12 }}>Not uploaded</span>
                     )}
                   </div>
                 );

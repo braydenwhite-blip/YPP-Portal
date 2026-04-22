@@ -39,6 +39,10 @@ async function fetchCockpitData(applicationId: string) {
       motivationVideoUrl: true,
       teachingExperience: true,
       availability: true,
+      courseIdea: true,
+      textbook: true,
+      courseOutline: true,
+      firstClassPlan: true,
       legalName: true,
       preferredFirstName: true,
       schoolName: true,
@@ -47,6 +51,7 @@ async function fetchCockpitData(applicationId: string) {
       reviewerId: true,
       interviewRound: true,
       reviewerAssignedAt: true,
+      interviewScheduledAt: true,
       materialsReadyAt: true,
       chairQueuedAt: true,
       archivedAt: true,
@@ -107,6 +112,18 @@ async function fetchCockpitData(applicationId: string) {
         },
         orderBy: { scheduledAt: "asc" },
       },
+      applicationReviews: {
+        where: { isLeadReview: true, status: "SUBMITTED" },
+        select: {
+          nextStep: true,
+          summary: true,
+          submittedAt: true,
+          categories: {
+            select: { category: true, rating: true, notes: true },
+          },
+        },
+        take: 1,
+      },
       availabilityWindows: {
         select: { id: true, dayOfWeek: true, startTime: true, endTime: true, timezone: true },
         orderBy: { dayOfWeek: "asc" },
@@ -149,6 +166,10 @@ export default async function ApplicantCockpitPage({
   const currentInterviewerAssignments = application.interviewerAssignments.filter(
     (assignment) => assignment.round === application.interviewRound
   );
+  const hasLeadInterviewer = currentInterviewerAssignments.some(
+    (assignment) => assignment.role === "LEAD"
+  );
+  const leadApplicationReview = application.applicationReviews[0] ?? null;
 
   const actor = await getHiringActor(session.user.id);
 
@@ -171,6 +192,12 @@ export default async function ApplicantCockpitPage({
   const actorIsChair = isHiringChair(actor);
   const actorIsReviewer = isAssignedReviewer(actor, appCtx);
   const actorIsInterviewer = isAssignedInterviewer(actor, appCtx);
+  const actorIsLeadInterviewer = currentInterviewerAssignments.some(
+    (assignment) =>
+      assignment.role === "LEAD" &&
+      assignment.interviewerId === actor.id &&
+      !assignment.removedAt
+  );
   const actorCanSeeChair = canSeeChairQueue(actor);
 
   let canActAsChairBool = false;
@@ -187,7 +214,12 @@ export default async function ApplicantCockpitPage({
     actorIsAdmin ||
     (isChapterLead(actor) && actor.chapterId === application.applicant.chapterId) ||
     actorIsReviewer;
-  const canPostSlots = actorIsAdmin || actorIsReviewer || actorIsInterviewer;
+  const canPostSlots = actorIsAdmin || actorIsLeadInterviewer;
+  const canSendInterviewTimes =
+    canPostSlots &&
+    !application.interviewScheduledAt &&
+    (application.status === "INTERVIEW_SCHEDULED" ||
+      leadApplicationReview?.nextStep === "MOVE_TO_INTERVIEW");
 
   let reviewWorkspace: Awaited<ReturnType<typeof getInstructorApplicationReviewWorkspace>> | null = null;
   if (actorIsReviewer || actorIsAdmin || isChapterLead(actor)) {
@@ -290,16 +322,14 @@ export default async function ApplicantCockpitPage({
                   applicationId={id}
                   returnTo={`/applications/instructor/${id}`}
                   initialReview={reviewWorkspace.myReview}
+                  roughPlan={{
+                    courseIdea: application.courseIdea ?? application.textbook,
+                    courseOutline: application.courseOutline,
+                    firstClassPlan: application.firstClassPlan,
+                  }}
                   canEdit={!isReadOnlyReview && reviewWorkspace.myReview?.status !== "SUBMITTED"}
                   isLeadReviewer={reviewWorkspace.isLeadReviewer}
-                  isAdmin={actorIsAdmin}
-                  drafts={reviewWorkspace.drafts.map((d) => ({
-                    id: d.id,
-                    title: d.title,
-                    status: d.status as string,
-                    updatedAt: d.updatedAt instanceof Date ? d.updatedAt.toISOString() : String(d.updatedAt),
-                  }))}
-                  selectedDraftId={reviewWorkspace.selectedDraftId}
+                  hasLeadInterviewer={hasLeadInterviewer}
                 />
               ) : (
                 <p className="cockpit-muted">
@@ -315,7 +345,7 @@ export default async function ApplicantCockpitPage({
               applicationId={application.id}
               offeredSlots={application.offeredSlots}
               availabilityWindows={application.availabilityWindows}
-              canPostSlots={canPostSlots}
+              canPostSlots={canSendInterviewTimes}
             />
 
             {/* Interview Reviews summary */}
@@ -422,6 +452,8 @@ export default async function ApplicantCockpitPage({
           status: application.status,
           reviewerId: application.reviewerId,
           materialsReadyAt: application.materialsReadyAt,
+          interviewScheduledAt: application.interviewScheduledAt,
+          leadReviewNextStep: leadApplicationReview?.nextStep ?? null,
           interviewerAssignments: currentInterviewerAssignments.map((a) => ({
             role: a.role as "LEAD" | "SECOND",
             removedAt: a.removedAt,
@@ -431,6 +463,7 @@ export default async function ApplicantCockpitPage({
         canAssignInterviewers={canAssignInterviewers}
         isAssignedReviewer={actorIsReviewer}
         isAssignedInterviewer={actorIsInterviewer}
+        isAssignedLeadInterviewer={actorIsLeadInterviewer}
         canActAsChair={canActAsChairBool}
         isAdmin={actorIsAdmin}
         hidden={isHidden}

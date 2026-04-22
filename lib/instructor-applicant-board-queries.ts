@@ -257,7 +257,14 @@ export async function getChairQueue({
     select: {
       id: true,
       status: true,
+      motivation: true,
+      teachingExperience: true,
+      availability: true,
       subjectsOfInterest: true,
+      courseIdea: true,
+      textbook: true,
+      courseOutline: true,
+      firstClassPlan: true,
       preferredFirstName: true,
       legalName: true,
       chairQueuedAt: true,
@@ -276,7 +283,13 @@ export async function getChairQueue({
       // Lead reviewer note preview
       applicationReviews: {
         where: { isLeadReview: true, status: "SUBMITTED" },
-        select: { summary: true, notes: true, nextStep: true, overallRating: true },
+        select: {
+          summary: true,
+          notes: true,
+          nextStep: true,
+          overallRating: true,
+          categories: { select: { category: true, rating: true, notes: true } },
+        },
         take: 1,
       },
       // Per-interviewer recommendation

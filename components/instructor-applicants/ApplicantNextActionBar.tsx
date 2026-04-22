@@ -10,12 +10,15 @@ interface Props {
     status: InstructorApplicationStatus;
     reviewerId: string | null;
     materialsReadyAt: Date | null;
+    interviewScheduledAt: Date | null;
+    leadReviewNextStep?: string | null;
     interviewerAssignments: Array<{ role: "LEAD" | "SECOND"; removedAt: Date | null }>;
   };
   canAssignReviewer: boolean;
   canAssignInterviewers: boolean;
   isAssignedReviewer: boolean;
   isAssignedInterviewer: boolean;
+  isAssignedLeadInterviewer: boolean;
   canActAsChair: boolean;
   isAdmin: boolean;
   hidden?: boolean;
@@ -27,6 +30,7 @@ export default function ApplicantNextActionBar({
   canAssignInterviewers,
   isAssignedReviewer,
   isAssignedInterviewer,
+  isAssignedLeadInterviewer,
   canActAsChair,
   isAdmin,
   hidden = false,
@@ -50,30 +54,39 @@ export default function ApplicantNextActionBar({
     };
   } else if (
     status === "UNDER_REVIEW" &&
+    application.leadReviewNextStep === "MOVE_TO_INTERVIEW" &&
     !hasLead &&
     (canAssignInterviewers || isAssignedReviewer)
   ) {
     action = {
       label: "Assign Lead Interviewer",
-      description: "After review is submitted with MOVE_TO_INTERVIEW, assign a lead interviewer.",
+      description: "A lead interviewer must be assigned before proposed times can be sent.",
       href: "#sidebar-interviewers",
+    };
+  } else if (
+    status === "UNDER_REVIEW" &&
+    application.leadReviewNextStep === "MOVE_TO_INTERVIEW" &&
+    (isAssignedLeadInterviewer || isAdmin)
+  ) {
+    action = {
+      label: "Send Interview Times",
+      description: "Send at least 3 proposed times to move this applicant into interview scheduling.",
+      href: "#section-scheduling",
     };
   } else if (status === "UNDER_REVIEW" && isAssignedReviewer) {
     action = {
-      label: "Submit Review",
-      description: "Complete and submit the applicant review rubric.",
+      label: "Submit Initial Review",
+      description: "Complete the light paper screen and choose the next step.",
       href: "#section-review",
     };
-  } else if (status === "INTERVIEW_SCHEDULED" && !application.materialsReadyAt && canAssignInterviewers) {
+  } else if (
+    status === "INTERVIEW_SCHEDULED" &&
+    !application.interviewScheduledAt &&
+    (isAssignedLeadInterviewer || isAdmin)
+  ) {
     action = {
-      label: "Check Materials",
-      description: "Materials are still missing. This is a warning, not a blocker.",
-      href: "#sidebar-documents",
-    };
-  } else if (status === "INTERVIEW_SCHEDULED" && isAssignedInterviewer) {
-    action = {
-      label: "Post Interview Slots",
-      description: "Post available interview time slots for the applicant to confirm.",
+      label: "Update Interview Times",
+      description: "The applicant has not picked a time yet. Send a fresh set if needed.",
       href: "#section-scheduling",
     };
   } else if (status === "INTERVIEW_COMPLETED" && canActAsChair) {

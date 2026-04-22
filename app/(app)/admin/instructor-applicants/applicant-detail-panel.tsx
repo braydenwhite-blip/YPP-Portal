@@ -149,7 +149,8 @@ export default function ApplicantDetailPanel({
   // Offer slots state
   type SlotDraft = { date: string; time: string; durationMinutes: number };
   const emptySlot = (): SlotDraft => ({ date: "", time: "", durationMinutes: 60 });
-  const [offerSlots, setOfferSlots] = useState<SlotDraft[]>([emptySlot()]);
+  const freshSlotSet = (): SlotDraft[] => [emptySlot(), emptySlot(), emptySlot()];
+  const [offerSlots, setOfferSlots] = useState<SlotDraft[]>(freshSlotSet());
   const [offerSending, setOfferSending] = useState(false);
 
   // Reset local state when app changes
@@ -281,8 +282,8 @@ export default function ApplicantDetailPanel({
 
   async function handleOfferSlots() {
     const validSlots = offerSlots.filter((s) => s.date && s.time);
-    if (validSlots.length === 0) {
-      showMessage("Add at least one complete time slot before sending.");
+    if (validSlots.length < 3 || validSlots.length > 5) {
+      showMessage("Add 3 to 5 complete time slots before sending.");
       return;
     }
     // Client-side past-date guard — server will also validate, but this gives
@@ -301,7 +302,7 @@ export default function ApplicantDetailPanel({
     const result = await offerInterviewSlots(app.id, slots);
     if (result.success) {
       showMessage("Available times sent to applicant");
-      setOfferSlots([emptySlot()]);
+      setOfferSlots(freshSlotSet());
     } else {
       showMessage(result.error || "Failed to send times");
     }
@@ -550,53 +551,6 @@ export default function ApplicantDetailPanel({
             )}
           </div>
 
-          {/* Curriculum Review Rubric */}
-          <div className="slideout-section">
-            <div className="slideout-section-title">
-              Curriculum Review Scores
-              <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, marginLeft: 8, fontSize: 11 }}>
-                Click blocks to score · click again to clear
-              </span>
-            </div>
-            <ScoreBar
-              label="Subject Matter Knowledge"
-              value={scores.scoreSubjectKnowledge}
-              onChange={(v) => setScores((s) => ({ ...s, scoreSubjectKnowledge: v }))}
-            />
-            <ScoreBar
-              label="Teaching Methodology"
-              value={scores.scoreTeachingMethodology}
-              onChange={(v) => setScores((s) => ({ ...s, scoreTeachingMethodology: v }))}
-            />
-            <ScoreBar
-              label="Curriculum Alignment"
-              value={scores.scoreCurriculumAlignment}
-              onChange={(v) => setScores((s) => ({ ...s, scoreCurriculumAlignment: v }))}
-            />
-            <ScoreBar
-              label="Communication"
-              value={scores.scoreCommunication}
-              onChange={(v) => setScores((s) => ({ ...s, scoreCommunication: v }))}
-            />
-            <ScoreBar
-              label="Cultural Fit"
-              value={scores.scoreFit}
-              onChange={(v) => setScores((s) => ({ ...s, scoreFit: v }))}
-            />
-            <div style={{ marginTop: 12 }}>
-              <div className="slideout-field-label" style={{ marginBottom: 4 }}>Curriculum Review Summary</div>
-              <textarea
-                className="input"
-                value={curriculumReviewSummary}
-                onChange={(e) => setCurriculumReviewSummary(e.target.value)}
-                rows={3}
-                placeholder="Key takeaways from the curriculum review session — teaching approach, subject knowledge, alignment with YPP curriculum..."
-                style={{ marginBottom: 0 }}
-                disabled={isFinal}
-              />
-            </div>
-          </div>
-
           {/* Reviewer Notes */}
           <div className="slideout-section">
             <div className="slideout-section-title">Reviewer Notes</div>
@@ -641,7 +595,7 @@ export default function ApplicantDetailPanel({
             <div className="slideout-section">
               <div className="slideout-section-title">Propose Interview Times</div>
               <p style={{ fontSize: 13, color: "var(--muted)", marginTop: 0, marginBottom: 10 }}>
-                Add 1–4 times for the coming week. The applicant will receive an email and pick the one that works for them.
+                Add 3–5 future times. The applicant will receive an email and pick the one that works for them.
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {offerSlots.map((slot, i) => (
@@ -671,7 +625,7 @@ export default function ApplicantDetailPanel({
                       <option value={60}>60 min</option>
                       <option value={90}>90 min</option>
                     </select>
-                    {offerSlots.length > 1 && (
+                    {offerSlots.length > 3 && (
                       <button
                         className="button secondary"
                         onClick={() => setOfferSlots((prev) => prev.filter((_, idx) => idx !== i))}
@@ -684,7 +638,7 @@ export default function ApplicantDetailPanel({
                 ))}
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                {offerSlots.length < 4 && (
+                {offerSlots.length < 5 && (
                   <button
                     className="button secondary"
                     onClick={() => setOfferSlots((prev) => [...prev, emptySlot()])}

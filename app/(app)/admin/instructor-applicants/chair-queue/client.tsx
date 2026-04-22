@@ -4,7 +4,14 @@ import ChairQueueBoard from "@/components/instructor-applicants/ChairQueueBoard"
 
 type QueueItem = {
   id: string;
+  motivation: string | null;
+  teachingExperience: string | null;
+  availability: string | null;
   subjectsOfInterest: string | null;
+  courseIdea: string | null;
+  textbook: string | null;
+  courseOutline: string | null;
+  firstClassPlan: string | null;
   materialsReadyAt: Date | null;
   chairQueuedAt: Date | null;
   preferredFirstName: string | null;
@@ -22,6 +29,7 @@ type QueueItem = {
     nextStep: string | null;
     notes: string | null;
     overallRating: string | null;
+    categories: Array<{ category: string; rating: string | null; notes: string | null }>;
   }>;
   interviewReviews: Array<{
     id: string;

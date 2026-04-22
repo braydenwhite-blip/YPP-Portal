@@ -82,11 +82,24 @@ export default function AvailabilityForm({
   const sessionLabel = isCp ? "interview" : "curriculum review session";
   const heading = isCp
     ? "Tell us when you're free for your interview"
-    : "When are you free for your curriculum review session?";
+    : "Interview times are coming from your lead interviewer";
   const subheading = isCp
     ? "Add up to 5 recurring weekly windows and we'll find the first slot that works for both you and your interviewer."
-    : "Add your weekly availability windows and we'll automatically match you with a time that works.";
+    : "You do not need to submit availability windows. Your lead interviewer will send a few proposed times here for you to choose from.";
   const submitLabel = isCp ? "Find My Interview Time" : "Find My Session Time";
+
+  if (!isCp) {
+    return (
+      <div style={{ marginTop: 16 }}>
+        <h3 style={{ margin: "0 0 6px", color: "#1c1917", fontSize: 16, fontWeight: 700 }}>
+          {heading}
+        </h3>
+        <p style={{ margin: 0, fontSize: 14, color: "var(--muted)", lineHeight: 1.6 }}>
+          {subheading}
+        </p>
+      </div>
+    );
+  }
 
   function updateWindow(index: number, patch: Partial<AvailabilityWindow>) {
     setWindows((prev) =>

@@ -22,6 +22,10 @@ const mockUpdateMany = vi.fn();
 const mockCreate = vi.fn();
 const mockTransaction = vi.fn();
 const mockCount = vi.fn();
+const mockOfferedSlotDeleteMany = vi.fn();
+const mockOfferedSlotCreateMany = vi.fn();
+const mockSendPickYourTimeEmail = vi.fn();
+const mockSendInterviewTimesDeclinedEmail = vi.fn();
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -36,6 +40,13 @@ vi.mock("@/lib/prisma", () => ({
     },
     instructorApplicationTimelineEvent: {
       create: mockCreate,
+    },
+    offeredInterviewSlot: {
+      deleteMany: mockOfferedSlotDeleteMany,
+      createMany: mockOfferedSlotCreateMany,
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      updateMany: vi.fn(),
     },
     instructorApplicationChairDecision: {
       updateMany: mockUpdateMany,
@@ -77,12 +88,24 @@ vi.mock("@/lib/email", () => ({
   sendApplicationRejectedEmail: vi.fn(),
   sendChairDecisionEmail: vi.fn(),
   sendInfoRequestEmail: vi.fn(),
+  sendInterviewScheduledEmail: vi.fn(),
+  sendPickYourTimeEmail: mockSendPickYourTimeEmail,
+  sendInterviewConfirmedEmail: vi.fn(),
+  sendInstructorPreApprovedEmail: vi.fn(),
+  sendInterviewTimesDeclinedEmail: mockSendInterviewTimesDeclinedEmail,
+  generateIcsContent: vi.fn(() => "ICS"),
 }));
 
 vi.mock("@/lib/chapter-hiring-permissions", () => ({
   getHiringActor: vi.fn(),
   assertCanActAsChair: vi.fn(),
   assertCanAssignInterviewers: vi.fn(),
+  assertCanManageApplication: vi.fn(),
+  isAdmin: vi.fn(() => false),
+}));
+
+vi.mock("@/lib/portal-auth-utils", () => ({
+  getBaseUrl: vi.fn(async () => "https://portal.test"),
 }));
 
 // ─── Risk 2: auto-advance only counts non-removed assignments ──────────────────
@@ -428,5 +451,199 @@ describe("Risk 13 — second interviewer candidates before LEAD", () => {
 
     const { getCandidateInterviewers } = await import("@/lib/instructor-applicant-board-queries");
     await expect(getCandidateInterviewers("app-1", { role: "SECOND" })).resolves.toEqual([]);
+  });
+});
+
+// ─── Manual instructor interview times ───────────────────────────────────────
+
+describe("manual instructor interview times", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.resetAllMocks();
+  });
+
+  function futureSlot(offsetHours: number) {
+    return {
+      scheduledAt: new Date(Date.now() + offsetHours * 60 * 60 * 1000),
+      durationMinutes: 60,
+    };
+  }
+
+  async function mockLeadSession() {
+    const { getSession } = await import("@/lib/auth-supabase");
+    vi.mocked(getSession).mockResolvedValue({
+      user: { id: "lead-1", roles: [], email: "lead@test.com" },
+    } as never);
+
+    const { getHiringActor, isAdmin } = await import("@/lib/chapter-hiring-permissions");
+    vi.mocked(getHiringActor).mockResolvedValue({
+      id: "lead-1",
+      chapterId: "chapter-1",
+      roles: [],
+    } as never);
+    vi.mocked(isAdmin).mockReturnValue(false);
+  }
+
+  function mockMoveToInterviewApplication() {
+    mockFindUnique.mockResolvedValueOnce({
+      id: "app-1",
+      status: "UNDER_REVIEW",
+      applicantId: "applicant-1",
+      reviewerId: "reviewer-1",
+      reviewerNotes: null,
+      interviewRound: 1,
+      interviewScheduledAt: null,
+      applicant: { name: "Applicant One", email: "applicant@test.com", chapterId: "chapter-1" },
+      interviewerAssignments: [
+        { interviewerId: "lead-1", role: "LEAD", round: 1, removedAt: null },
+      ],
+      applicationReviews: [
+        { nextStep: "MOVE_TO_INTERVIEW", summary: "Worth interviewing." },
+      ],
+    });
+  }
+
+  it("requires at least 3 and at most 5 proposed times", async () => {
+    await mockLeadSession();
+    mockMoveToInterviewApplication();
+
+    const { offerInterviewSlots } = await import("@/lib/instructor-application-actions");
+    const result = await offerInterviewSlots("app-1", [futureSlot(24), futureSlot(48)]);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("3 to 5");
+    expect(mockTransaction).not.toHaveBeenCalled();
+  });
+
+  it("lets the assigned lead send 3 times and advances the application when slots are sent", async () => {
+    await mockLeadSession();
+    mockMoveToInterviewApplication();
+    mockSendPickYourTimeEmail.mockResolvedValue({ success: true });
+
+    mockTransaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) => {
+      const tx = {
+        offeredInterviewSlot: {
+          deleteMany: mockOfferedSlotDeleteMany,
+          createMany: mockOfferedSlotCreateMany,
+        },
+        instructorApplication: { update: mockUpdate },
+        instructorApplicationTimelineEvent: { create: mockCreate },
+      };
+      return fn(tx);
+    });
+
+    const { offerInterviewSlots } = await import("@/lib/instructor-application-actions");
+    const result = await offerInterviewSlots("app-1", [
+      futureSlot(24),
+      futureSlot(48),
+      futureSlot(72),
+    ]);
+
+    expect(result.success).toBe(true);
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "app-1" },
+        data: expect.objectContaining({ status: "INTERVIEW_SCHEDULED" }),
+      })
+    );
+    expect(mockOfferedSlotCreateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.arrayContaining([
+          expect.objectContaining({ offeredByUserId: "lead-1", durationMinutes: 60 }),
+        ]),
+      })
+    );
+    expect(mockSendPickYourTimeEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "applicant@test.com",
+        statusUrl: "https://portal.test/application-status",
+      })
+    );
+  });
+
+  it("does not send times before the lead review chooses Move to Interview", async () => {
+    await mockLeadSession();
+    mockFindUnique.mockResolvedValueOnce({
+      id: "app-1",
+      status: "UNDER_REVIEW",
+      applicantId: "applicant-1",
+      reviewerId: "reviewer-1",
+      reviewerNotes: null,
+      interviewRound: 1,
+      interviewScheduledAt: null,
+      applicant: { name: "Applicant One", email: "applicant@test.com", chapterId: "chapter-1" },
+      interviewerAssignments: [
+        { interviewerId: "lead-1", role: "LEAD", round: 1, removedAt: null },
+      ],
+      applicationReviews: [{ nextStep: "HOLD", summary: "Wait." }],
+    });
+
+    const { offerInterviewSlots } = await import("@/lib/instructor-application-actions");
+    const result = await offerInterviewSlots("app-1", [
+      futureSlot(24),
+      futureSlot(48),
+      futureSlot(72),
+    ]);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Move to Interview");
+    expect(mockTransaction).not.toHaveBeenCalled();
+  });
+
+  it("clears pending offers and notifies the lead when the applicant says none work", async () => {
+    const { getSession } = await import("@/lib/auth-supabase");
+    vi.mocked(getSession).mockResolvedValue({
+      user: { id: "applicant-1", roles: ["APPLICANT"], email: "applicant@test.com" },
+    } as never);
+
+    mockSendInterviewTimesDeclinedEmail.mockResolvedValue({ success: true });
+    mockFindUnique.mockResolvedValueOnce({
+      id: "app-1",
+      applicantId: "applicant-1",
+      status: "INTERVIEW_SCHEDULED",
+      interviewRound: 1,
+      interviewScheduledAt: null,
+      applicant: { name: "Applicant One" },
+      offeredSlots: [
+        {
+          id: "slot-1",
+          scheduledAt: futureSlot(24).scheduledAt,
+          offeredBy: { id: "lead-1", name: "Lead One", email: "lead@test.com" },
+        },
+      ],
+      interviewerAssignments: [
+        {
+          role: "LEAD",
+          round: 1,
+          interviewer: { id: "lead-1", name: "Lead One", email: "lead@test.com" },
+        },
+      ],
+    });
+    mockTransaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) => {
+      const tx = {
+        offeredInterviewSlot: { deleteMany: mockOfferedSlotDeleteMany },
+        instructorApplicationTimelineEvent: { create: mockCreate },
+      };
+      return fn(tx);
+    });
+
+    const { requestNewInterviewTimes } = await import("@/lib/instructor-application-actions");
+    const result = await requestNewInterviewTimes("app-1");
+
+    expect(result.success).toBe(true);
+    expect(mockOfferedSlotDeleteMany).toHaveBeenCalledWith({
+      where: { instructorApplicationId: "app-1", confirmedAt: null },
+    });
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ kind: "INTERVIEW_TIMES_DECLINED" }),
+      })
+    );
+    expect(mockSendInterviewTimesDeclinedEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "lead@test.com",
+        workspaceUrl: "https://portal.test/applications/instructor/app-1#section-scheduling",
+      })
+    );
   });
 });

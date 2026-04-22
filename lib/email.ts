@@ -830,7 +830,7 @@ export async function sendPickYourTimeEmail({
     .join("");
   const html = emailShell(`
     <h2 style="margin: 0 0 16px; color: #1c1917;">Choose your time, ${escapeHtml(firstName)}!</h2>
-    <p>Great news — a reviewer would like to schedule your interview. This is a relaxed conversation about your teaching approach, not an exam.</p>
+    <p>Great news — your lead interviewer would like to schedule your interview. This is a relaxed conversation about your teaching approach, not an exam.</p>
     <p><strong>Proposed times:</strong></p>
     <ul style="color: #57534e; font-size: 14px; line-height: 1.8; padding-left: 20px;">
       ${slotRows}
@@ -839,7 +839,32 @@ export async function sendPickYourTimeEmail({
     <div style="text-align: center; margin: 28px 0;">
       <a href="${statusUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Choose Your Time</a>
     </div>
-    <p style="color: #78716c; font-size: 13px;">If none of these times work, please reach out to your chapter president or reviewer directly.</p>
+    <p style="color: #78716c; font-size: 13px;">If none of these times work, use the option on your application status page and your lead interviewer will send a new set.</p>
+  `);
+  return sendEmail({ to, subject, html });
+}
+
+export async function sendInterviewTimesDeclinedEmail({
+  to,
+  recipientName,
+  applicantName,
+  workspaceUrl,
+}: {
+  to: string;
+  recipientName: string | null;
+  applicantName: string;
+  workspaceUrl: string;
+}): Promise<EmailResult> {
+  const firstName = recipientName?.split(" ")[0] || "there";
+  const subject = "Applicant needs new interview times";
+  const html = emailShell(`
+    <h2 style="margin: 0 0 16px; color: #1c1917;">New times needed</h2>
+    <p>Hi ${escapeHtml(firstName)},</p>
+    <p>${escapeHtml(applicantName)} marked that none of the proposed interview times work.</p>
+    <p>The previous unconfirmed times were cleared. Please send a new set of 3 to 5 future options.</p>
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${escapeHtml(workspaceUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Send New Times</a>
+    </div>
   `);
   return sendEmail({ to, subject, html });
 }
@@ -1012,7 +1037,7 @@ export async function sendAvailabilityRequestEmail({
 
   const subject = isCp
     ? "You've been selected for an interview — next steps inside"
-    : "Next step: schedule your curriculum review session";
+    : "Next step: interview time options are coming soon";
 
   const tagline = isCp
     ? "Your chapter presidency journey just got real."
@@ -1020,13 +1045,16 @@ export async function sendAvailabilityRequestEmail({
 
   const heading = isCp
     ? `${escapeHtml(applicantName)}, you've been selected for an interview!`
-    : `${escapeHtml(applicantName)}, you've been invited for a curriculum review session!`;
+    : `${escapeHtml(applicantName)}, you've been invited to interview!`;
 
   const bodyText = isCp
     ? `YPP chapters are built by people exactly like you — driven, visionary, ready to lead. We've reviewed your application and we want to meet you. The next step is to let us know when you're available so we can lock in a time that works for everyone.`
-    : `This isn't a test — it's a conversation. We want to hear how you think about teaching, explore how our curriculum aligns with your approach, and get to know you better. Share a few times that work for you and we'll take it from there.`;
+    : `This isn't a test — it's a conversation. We want to hear how you think about teaching and get to know you better. Your lead interviewer will send a few proposed times for you to choose from.`;
 
-  const ctaLabel = isCp ? "Submit My Availability" : "Choose My Available Times";
+  const ctaLabel = isCp ? "Submit My Availability" : "View My Application Status";
+  const nextStepText = isCp
+    ? "Log in, add your available time windows, and we'll automatically match you with a slot — no back-and-forth needed."
+    : "Log in to your application status page. When your lead interviewer sends proposed times, you will be able to pick the one that works best.";
 
   const html = brandedShell({
     tagline,
@@ -1035,7 +1063,7 @@ export async function sendAvailabilityRequestEmail({
       <p style="margin: 0 0 20px; color: #44403c; font-size: 15px; line-height: 1.7;">${escapeHtml(bodyText)}</p>
       <div style="background: #f5f3ff; border-left: 4px solid #7c3aed; border-radius: 8px; padding: 16px 20px; margin: 0 0 28px;">
         <p style="margin: 0; font-size: 14px; color: #5b21b6; font-weight: 600;">What happens next?</p>
-        <p style="margin: 8px 0 0; font-size: 14px; color: #44403c;">Log in, add your available time windows, and we'll automatically match you with a slot — no back-and-forth needed.</p>
+        <p style="margin: 8px 0 0; font-size: 14px; color: #44403c;">${escapeHtml(nextStepText)}</p>
       </div>
       <div style="text-align: center; margin: 28px 0;">
         <a href="${escapeHtml(statusUrl)}" style="display: inline-block; background: #6b21c8; color: white; padding: 14px 36px; border-radius: 9999px; text-decoration: none; font-weight: 700; font-size: 15px; letter-spacing: 0.02em;">${escapeHtml(ctaLabel)}</a>

@@ -1664,6 +1664,7 @@ model InstructorApplication {
   preferredStartDate String?
 
   // --- Course planning (collected at application time) ---
+  courseIdea     String? @db.Text
   textbook       String? @db.Text
   courseOutline  String? @db.Text
   firstClassPlan String? @db.Text

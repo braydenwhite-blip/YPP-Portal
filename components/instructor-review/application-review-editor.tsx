@@ -3,15 +3,15 @@
 import { useMemo, useState, type CSSProperties } from "react";
 
 import {
+  INITIAL_REVIEW_RATING_OPTIONS,
   INSTRUCTOR_APPLICATION_NEXT_STEP_OPTIONS,
-  INSTRUCTOR_REVIEW_CATEGORIES,
-  PROGRESS_RATING_OPTIONS,
+  INSTRUCTOR_INITIAL_REVIEW_SIGNALS,
   type InstructorApplicationNextStepValue,
   type InstructorReviewCategoryValue,
   type ProgressRatingValue,
 } from "@/lib/instructor-review-config";
 
-type CategoryState = {
+type SignalState = {
   category: InstructorReviewCategoryValue;
   rating: ProgressRatingValue | null;
   notes: string;
@@ -36,34 +36,45 @@ type ReviewSnapshot = {
   }>;
 } | null;
 
+type RoughPlan = {
+  courseIdea: string | null;
+  courseOutline: string | null;
+  firstClassPlan: string | null;
+};
+
 interface ApplicationReviewEditorProps {
   action: (formData: FormData) => void;
   applicationId: string;
   returnTo: string;
   initialReview: ReviewSnapshot;
+  roughPlan: RoughPlan;
   canEdit: boolean;
   isLeadReviewer: boolean;
-  isAdmin: boolean;
-  drafts: Array<{
-    id: string;
-    title: string;
-    status: string;
-    updatedAt: string;
-  }>;
-  selectedDraftId: string | null;
+  hasLeadInterviewer: boolean;
 }
 
-function buildInitialCategories(initialReview: ReviewSnapshot): CategoryState[] {
-  return INSTRUCTOR_REVIEW_CATEGORIES.map((category) => {
+function buildInitialSignals(initialReview: ReviewSnapshot): SignalState[] {
+  return INSTRUCTOR_INITIAL_REVIEW_SIGNALS.map((signal) => {
     const existing = initialReview?.categories.find(
-      (entry) => entry.category === category.key
+      (entry) => entry.category === signal.key
     );
     return {
-      category: category.key,
+      category: signal.key,
       rating: existing?.rating ?? null,
       notes: existing?.notes ?? "",
     };
   });
+}
+
+function FieldBlock({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div className="slideout-field">
+      <div className="slideout-field-label">{label}</div>
+      <div className="slideout-field-value" style={{ whiteSpace: "pre-wrap" }}>
+        {value?.trim() || "Not provided"}
+      </div>
+    </div>
+  );
 }
 
 export default function ApplicationReviewEditor({
@@ -71,75 +82,50 @@ export default function ApplicationReviewEditor({
   applicationId,
   returnTo,
   initialReview,
+  roughPlan,
   canEdit,
   isLeadReviewer,
-  drafts,
-  selectedDraftId,
+  hasLeadInterviewer,
 }: ApplicationReviewEditorProps) {
-  const [overallRating, setOverallRating] = useState<ProgressRatingValue | "">(
-    initialReview?.overallRating ?? ""
-  );
   const [nextStep, setNextStep] = useState<InstructorApplicationNextStepValue | "">(
     initialReview?.nextStep ?? ""
   );
   const [summary, setSummary] = useState(initialReview?.summary ?? "");
-  const [notes, setNotes] = useState(initialReview?.notes ?? "");
-  const [concerns, setConcerns] = useState(initialReview?.concerns ?? "");
   const [applicantMessage, setApplicantMessage] = useState(
     initialReview?.applicantMessage ?? ""
   );
   const [flagForLeadership, setFlagForLeadership] = useState(
     initialReview?.flagForLeadership ?? false
   );
-  const [draftOverrideUsed, setDraftOverrideUsed] = useState(
-    initialReview?.draftOverrideUsed ?? false
-  );
-  const [draftOverrideReason, setDraftOverrideReason] = useState(
-    initialReview?.draftOverrideReason ?? ""
-  );
-  const [curriculumDraftId, setCurriculumDraftId] = useState(
-    initialReview?.curriculumDraftId ?? selectedDraftId ?? ""
-  );
-  const [categories, setCategories] = useState<CategoryState[]>(
-    buildInitialCategories(initialReview)
+  const [signals, setSignals] = useState<SignalState[]>(
+    buildInitialSignals(initialReview)
   );
 
   const showApplicantMessage =
     isLeadReviewer && (nextStep === "REQUEST_INFO" || nextStep === "REJECT");
-  const movingToInterviewWithoutDraft =
-    isLeadReviewer && drafts.length === 0 && nextStep === "MOVE_TO_INTERVIEW";
-  const showDraftOverride = movingToInterviewWithoutDraft;
+  const moveToInterviewNeedsLead =
+    isLeadReviewer && nextStep === "MOVE_TO_INTERVIEW" && !hasLeadInterviewer;
+  const hasRedSignal = signals.some((signal) => signal.rating === "BEHIND_SCHEDULE");
 
-  const categoryPayload = useMemo(
+  const signalPayload = useMemo(
     () =>
       JSON.stringify(
-        categories.map((category) => ({
-          category: category.category,
-          rating: category.rating,
-          notes: category.notes,
+        signals.map((signal) => ({
+          category: signal.category,
+          rating: signal.rating,
+          notes: signal.notes,
         }))
       ),
-    [categories]
+    [signals]
   );
 
-  function updateCategoryRating(
+  function updateSignalRating(
     categoryKey: InstructorReviewCategoryValue,
     rating: ProgressRatingValue
   ) {
-    setCategories((current) =>
-      current.map((category) =>
-        category.category === categoryKey ? { ...category, rating } : category
-      )
-    );
-  }
-
-  function updateCategoryNotes(
-    categoryKey: InstructorReviewCategoryValue,
-    value: string
-  ) {
-    setCategories((current) =>
-      current.map((category) =>
-        category.category === categoryKey ? { ...category, notes: value } : category
+    setSignals((current) =>
+      current.map((signal) =>
+        signal.category === categoryKey ? { ...signal, rating } : signal
       )
     );
   }
@@ -148,50 +134,103 @@ export default function ApplicationReviewEditor({
     <form action={action} className="form-grid application-review-editor">
       <input type="hidden" name="applicationId" value={applicationId} />
       <input type="hidden" name="returnTo" value={returnTo} />
-      <input type="hidden" name="categoriesJson" value={categoryPayload} />
-      <input
-        type="hidden"
-        name="draftOverrideUsed"
-        value={draftOverrideUsed || movingToInterviewWithoutDraft ? "true" : "false"}
-      />
+      <input type="hidden" name="categoriesJson" value={signalPayload} />
+      <input type="hidden" name="overallRating" value="" />
+      <input type="hidden" name="notes" value="" />
+      <input type="hidden" name="concerns" value="" />
+      <input type="hidden" name="curriculumDraftId" value="" />
+      <input type="hidden" name="draftOverrideUsed" value="false" />
+      <input type="hidden" name="draftOverrideReason" value="" />
 
       {!canEdit ? (
         <div className="review-editor-notice">
           <p>
-            This review is locked because it has already been submitted. An admin can still edit it if needed.
+            This screen is locked because it has already been submitted. An admin can still edit it if needed.
           </p>
         </div>
       ) : null}
 
       <div className="review-editor-panel">
         <div>
-          <h2>Overall Application Evaluation</h2>
+          <h2>Rough Course Snapshot</h2>
           <p>
-            Use the same mentorship color language so application review feels consistent with the rest of the portal.
+            Use this as a paper screen. The applicant will build the full curriculum later if hired.
+          </p>
+        </div>
+        <div className="cockpit-detail-grid">
+          <FieldBlock label="Class Idea" value={roughPlan.courseIdea} />
+          <FieldBlock label="Rough Outline" value={roughPlan.courseOutline} />
+          <FieldBlock label="First-Session Sketch" value={roughPlan.firstClassPlan} />
+        </div>
+      </div>
+
+      <div className="review-editor-panel">
+        <div>
+          <h2>Initial Review Signals</h2>
+          <p>
+            Rate only the first-pass signals needed to decide whether an interview is worthwhile.
           </p>
         </div>
 
-        <div className="review-rating-grid">
-          {PROGRESS_RATING_OPTIONS.map((option) => {
-            const selected = overallRating === option.value;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                disabled={!canEdit}
-                onClick={() => setOverallRating(option.value)}
-                className={`review-rating-option${selected ? " is-selected" : ""}`}
-                style={{ "--rating-color": option.color, "--rating-bg": option.bg } as CSSProperties}
-              >
-                <div>{option.label}</div>
-                <span>
-                  {option.description}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        <input type="hidden" name="overallRating" value={overallRating} />
+        {INSTRUCTOR_INITIAL_REVIEW_SIGNALS.map((signal) => {
+          const current = signals.find((entry) => entry.category === signal.key)!;
+          return (
+            <div key={signal.key} className="review-category-card">
+              <div>
+                <div className="review-category-title">{signal.label}</div>
+                <div className="review-category-description">
+                  {signal.description}
+                </div>
+              </div>
+
+              <div className="review-rating-grid review-rating-grid-compact">
+                {INITIAL_REVIEW_RATING_OPTIONS.map((option) => {
+                  const selected = current.rating === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      disabled={!canEdit}
+                      onClick={() => updateSignalRating(signal.key, option.value)}
+                      className={`review-rating-option${selected ? " is-selected" : ""}`}
+                      style={
+                        {
+                          "--rating-color": option.color,
+                          "--rating-bg": option.bg,
+                        } as CSSProperties
+                      }
+                    >
+                      <div>{option.shortLabel}</div>
+                      <span>{option.helperLabel}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+
+        {hasRedSignal ? (
+          <div className="review-editor-warning">
+            One or more signals are red. You can still move forward, but use the summary to explain why an interview is still appropriate.
+          </div>
+        ) : null}
+      </div>
+
+      <div className="review-editor-panel">
+        <label className="form-row">
+          Internal Summary
+          <textarea
+            className="input"
+            name="summary"
+            rows={4}
+            value={summary}
+            required={canEdit}
+            disabled={!canEdit}
+            onChange={(event) => setSummary(event.target.value)}
+            placeholder="Summarize the strongest signal, any concern, and why this applicant should or should not continue."
+          />
+        </label>
 
         {isLeadReviewer ? (
           <label className="form-row">
@@ -200,6 +239,7 @@ export default function ApplicationReviewEditor({
               className="input"
               name="nextStep"
               value={nextStep}
+              required={canEdit}
               onChange={(event) =>
                 setNextStep(event.target.value as InstructorApplicationNextStepValue | "")
               }
@@ -215,187 +255,26 @@ export default function ApplicationReviewEditor({
           </label>
         ) : (
           <div className="review-editor-callout">
-            Your review will inform the lead reviewer’s official next-step decision.
+            Your review will inform the lead reviewer&apos;s official next-step decision.
             <input type="hidden" name="nextStep" value="" />
           </div>
         )}
-      </div>
 
-      <div className="review-editor-panel">
-        <div>
-          <h2>Category Evaluations</h2>
-          <p>
-            Rate each category and add a short internal note so future reviewers can scan the reasoning quickly.
-          </p>
-        </div>
-
-        {INSTRUCTOR_REVIEW_CATEGORIES.map((category) => {
-          const current = categories.find((entry) => entry.category === category.key)!;
-          return (
-            <div
-              key={category.key}
-              className="review-category-card"
-            >
-              <div>
-                <div className="review-category-title">{category.label}</div>
-                <div className="review-category-description">
-                  {category.description}
-                </div>
-              </div>
-
-              <div className="review-rating-grid review-rating-grid-compact">
-                {PROGRESS_RATING_OPTIONS.map((option) => {
-                  const selected = current.rating === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      disabled={!canEdit}
-                      onClick={() => updateCategoryRating(category.key, option.value)}
-                      className={`review-rating-option${selected ? " is-selected" : ""}`}
-                      style={{ "--rating-color": option.color, "--rating-bg": option.bg } as CSSProperties}
-                    >
-                      <div>{option.shortLabel}</div>
-                      <span>
-                        {option.helperLabel}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <label className="form-row" style={{ margin: 0 }}>
-                Internal note (required)
-                <textarea
-                  className="input"
-                  rows={2}
-                  value={current.notes}
-                  disabled={!canEdit}
-                  required={canEdit}
-                  aria-required={canEdit}
-                  onChange={(event) =>
-                    updateCategoryNotes(category.key, event.target.value)
-                  }
-                  placeholder="Required note for reviewers..."
-                />
-              </label>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="review-editor-panel">
-        <div>
-          <h2>Lesson Design Studio Draft</h2>
-          <p>
-            If a draft is available, attach it to the review. If it is missing, the review can still move forward with a note.
-          </p>
-        </div>
-
-        {drafts.length > 0 ? (
-          <label className="form-row">
-            Draft to reference in this review
-            <select
-              className="input"
-              name="curriculumDraftId"
-              value={curriculumDraftId}
-              onChange={(event) => setCurriculumDraftId(event.target.value)}
-              disabled={!canEdit}
-            >
-              {drafts.map((draft) => (
-                <option key={draft.id} value={draft.id}>
-                  {(draft.title || "Untitled curriculum").trim()} · {draft.status.replace(/_/g, " ")}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : (
+        {moveToInterviewNeedsLead ? (
           <div className="review-editor-warning">
-            No Lesson Design Studio draft exists yet for this applicant.
+            Assign a lead interviewer before submitting Move to Interview. The lead will send 3 or more proposed times to the applicant.
           </div>
-        )}
-
-        {showDraftOverride ? (
-          <div className="review-editor-warning review-editor-warning-grid">
-            <label className="review-checkbox-row">
-              <input
-                type="checkbox"
-                checked={draftOverrideUsed || movingToInterviewWithoutDraft}
-                disabled={!canEdit}
-                onChange={(event) => setDraftOverrideUsed(event.target.checked)}
-              />
-              Continue to interview without a Lesson Design Studio draft
-            </label>
-            {draftOverrideUsed || movingToInterviewWithoutDraft ? (
-              <label className="form-row" style={{ margin: 0 }}>
-                Missing-draft note
-                <textarea
-                  className="input"
-                  name="draftOverrideReason"
-                  rows={2}
-                  value={draftOverrideReason}
-                  disabled={!canEdit}
-                  onChange={(event) => setDraftOverrideReason(event.target.value)}
-                  placeholder="Optional: explain what is missing or what should be checked during the interview..."
-                />
-              </label>
-            ) : (
-              <input type="hidden" name="draftOverrideReason" value="" />
-            )}
-          </div>
-        ) : (
-          <input type="hidden" name="draftOverrideReason" value={draftOverrideReason} />
-        )}
-      </div>
-
-      <div className="review-editor-panel">
-        <label className="form-row">
-          Lead summary
-          <textarea
-            className="input"
-            name="summary"
-            rows={4}
-            value={summary}
-            disabled={!canEdit}
-            onChange={(event) => setSummary(event.target.value)}
-            placeholder="What matters most about this applicant at this stage?"
-          />
-        </label>
-
-        <label className="form-row">
-          Internal notes
-          <textarea
-            className="input"
-            name="notes"
-            rows={4}
-            value={notes}
-            disabled={!canEdit}
-            onChange={(event) => setNotes(event.target.value)}
-            placeholder="Extra context for reviewers and leadership..."
-          />
-        </label>
-
-        <label className="form-row">
-          Concerns or blockers
-          <textarea
-            className="input"
-            name="concerns"
-            rows={3}
-            value={concerns}
-            disabled={!canEdit}
-            onChange={(event) => setConcerns(event.target.value)}
-            placeholder="Specific concerns, gaps, or things to watch..."
-          />
-        </label>
+        ) : null}
 
         {showApplicantMessage ? (
           <label className="form-row">
-            Applicant-facing message
+            Applicant-Facing Message
             <textarea
               className="input"
               name="applicantMessage"
               rows={3}
               value={applicantMessage}
+              required={canEdit}
               disabled={!canEdit}
               onChange={(event) => setApplicantMessage(event.target.value)}
               placeholder="This message will be used when asking for more information or rejecting the application."
@@ -428,8 +307,14 @@ export default function ApplicationReviewEditor({
         >
           Save Draft
         </button>
-        <button className="button" type="submit" name="intent" value="submit" disabled={!canEdit}>
-          Submit Review
+        <button
+          className="button"
+          type="submit"
+          name="intent"
+          value="submit"
+          disabled={!canEdit || moveToInterviewNeedsLead}
+        >
+          Submit Initial Review
         </button>
       </div>
     </form>

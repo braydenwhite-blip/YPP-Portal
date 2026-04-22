@@ -2,7 +2,6 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import MaterialsMissingChip from "./MaterialsMissingChip";
 
 type DrawerApp = {
   id: string;
@@ -89,7 +88,6 @@ export default function ApplicantQuickDrawer({
               >
                 {STATUS_LABELS[app.status] ?? app.status.replace(/_/g, " ")}
               </span>
-              <MaterialsMissingChip materialsReadyAt={app.materialsReadyAt} />
               {app.overdue && (
                 <span className="pill pill-attention pill-small">Overdue</span>
               )}

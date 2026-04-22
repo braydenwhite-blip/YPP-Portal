@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import MaterialsMissingChip from "./MaterialsMissingChip";
 
 type PipelineCardApp = {
   id: string;
@@ -96,7 +95,6 @@ export default function ApplicantPipelineCard({
       )}
 
       <div className="applicant-card-alerts">
-        <MaterialsMissingChip materialsReadyAt={app.materialsReadyAt} />
         {app.overdue && (
           <span className="pill pill-attention pill-small" aria-label="Overdue review">Overdue</span>
         )}

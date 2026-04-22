@@ -220,7 +220,7 @@ export default function InstructorSignupPage() {
       <div style={{ maxWidth: 820, margin: "0 auto", padding: "40px 32px 80px" }}>
         <h1 style={{ fontSize: 26, fontWeight: 700, margin: "0 0 8px" }}>Apply to become a YPP instructor.</h1>
         <p style={{ fontSize: 14, color: "var(--muted)", margin: "0 0 28px", lineHeight: 1.6 }}>
-          The process is supportive — we want to understand how you teach, not score you. The course outline and first-class plan are informal: bullet points or a few sentences is exactly right.
+          Share your background, availability, and a rough class plan so the review team can understand what you want to teach and whether an interview is the right next step.
         </p>
 
         {resumeBanner && (
@@ -453,21 +453,21 @@ export default function InstructorSignupPage() {
             </label>
 
             <label className="form-label">
-              What textbook or resource will you teach from?
+              What class would you like to teach?
               <input
                 className="input"
-                name="textbook"
-                placeholder="e.g. Principles of Economics by Mankiw"
+                name="courseIdea"
+                placeholder="e.g. Personal finance for middle school students"
                 required
-                defaultValue={field(d, "textbook")}
+                defaultValue={field(d, "courseIdea") ?? field(d, "textbook")}
               />
               <span style={HELPER}>
-                Name the book, website, or materials you plan to build your course around. If you are creating your own materials from scratch, just say so and describe what they would cover.
+                Give the review team a clear title or short description of the class you want to lead.
               </span>
             </label>
 
             <label className="form-label">
-              Course outline
+              Rough course outline
               <textarea
                 className="input"
                 name="courseOutline"
@@ -479,12 +479,12 @@ export default function InstructorSignupPage() {
                 defaultValue={field(d, "courseOutline")}
               />
               <span style={HELPER}>
-                No need for perfect detail — a rough topic-by-topic sketch of the full course is exactly what we are looking for. This does not need to be polished or complete.
+                Share the main topics you would expect to cover. This should be professional enough to review, but it is still only an early outline.
               </span>
             </label>
 
             <label className="form-label">
-              First class plan
+              First-session sketch
               <textarea
                 className="input"
                 name="firstClassPlan"
@@ -496,7 +496,7 @@ export default function InstructorSignupPage() {
                 defaultValue={field(d, "firstClassPlan")}
               />
               <span style={HELPER}>
-                Describe how you would open, what you would teach, and how you would close the first session. A few sentences or bullet points is perfect — informality is fine.
+                Describe how you would open the first session, what you would teach first, and how you would close.
               </span>
             </label>
 

@@ -24,6 +24,10 @@ interface Props {
   application: {
     id: string;
     subjectsOfInterest: string | null;
+    courseIdea: string | null;
+    textbook: string | null;
+    courseOutline: string | null;
+    firstClassPlan: string | null;
     motivationVideoUrl: string | null;
     preferredFirstName: string | null;
     legalName: string | null;
@@ -52,6 +56,19 @@ const KIND_LABELS: Record<string, string> = {
   OTHER: "Other",
 };
 
+function RoughPlanField({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <p style={{ margin: "0 0 3px", fontSize: 12, fontWeight: 700, color: "var(--muted)" }}>
+        {label}
+      </p>
+      <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, whiteSpace: "pre-wrap" }}>
+        {value?.trim() || "Not provided"}
+      </p>
+    </div>
+  );
+}
+
 export default function InterviewerBriefCard({ application, documents, confirmedSlots, reviewerNote }: Props) {
   const displayName =
     application.preferredFirstName ?? application.legalName ?? application.applicant.name ?? "Applicant";
@@ -63,6 +80,7 @@ export default function InterviewerBriefCard({ application, documents, confirmed
 
   const courseOutline = documents.find((d) => d.kind === "COURSE_OUTLINE");
   const firstClassPlan = documents.find((d) => d.kind === "FIRST_CLASS_PLAN");
+  const classIdea = application.courseIdea ?? application.textbook;
 
   return (
     <div className="card" style={{ padding: "24px 28px", marginBottom: 24 }}>
@@ -119,6 +137,25 @@ export default function InterviewerBriefCard({ application, documents, confirmed
         </div>
       )}
 
+      {/* Rough plan from application */}
+      <div style={{ marginBottom: 20 }}>
+        <p style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 700, color: "var(--muted)" }}>
+          Rough Course Plan
+        </p>
+        <div
+          style={{
+            padding: "12px 16px",
+            border: "1px solid #e5e7eb",
+            borderRadius: 8,
+            background: "#f9fafb",
+          }}
+        >
+          <RoughPlanField label="Class idea" value={classIdea} />
+          <RoughPlanField label="Rough outline" value={application.courseOutline} />
+          <RoughPlanField label="First-session sketch" value={application.firstClassPlan} />
+        </div>
+      </div>
+
       {/* Reviewer note excerpt */}
       {reviewerNote && (reviewerNote.summary || reviewerNote.notes) && (
         <div style={{ marginBottom: 20 }}>
@@ -142,10 +179,10 @@ export default function InterviewerBriefCard({ application, documents, confirmed
         </div>
       )}
 
-      {/* Materials */}
+      {/* Optional documents */}
       <div style={{ marginBottom: 20 }}>
         <p style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 700, color: "var(--muted)" }}>
-          Required Materials
+          Optional Documents
         </p>
         {[courseOutline, firstClassPlan].map((doc, i) => {
           const kind = i === 0 ? "COURSE_OUTLINE" : "FIRST_CLASS_PLAN";
@@ -157,8 +194,8 @@ export default function InterviewerBriefCard({ application, documents, confirmed
                 alignItems: "center",
                 justifyContent: "space-between",
                 padding: "10px 14px",
-                background: doc ? "#f0fdf4" : "#fef2f2",
-                border: `1px solid ${doc ? "#bbf7d0" : "#fecaca"}`,
+                background: doc ? "#f0fdf4" : "#f9fafb",
+                border: `1px solid ${doc ? "#bbf7d0" : "#e5e7eb"}`,
                 borderRadius: 6,
                 marginBottom: 8,
               }}
@@ -183,7 +220,7 @@ export default function InterviewerBriefCard({ application, documents, confirmed
                   View
                 </a>
               ) : (
-                <span className="pill pill-attention" style={{ fontSize: 12 }}>Missing</span>
+                <span className="pill" style={{ fontSize: 12 }}>Not uploaded</span>
               )}
             </div>
           );

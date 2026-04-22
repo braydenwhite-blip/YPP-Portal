@@ -3,7 +3,7 @@
 interface Props {
   hasReviewerNote: boolean;
   hasInterviewReview: boolean;
-  hasBothMaterials: boolean;
+  hasOptionalDocuments: boolean;
   hasSubjects: boolean;
 }
 
@@ -32,7 +32,7 @@ function CheckItem({ label, ok }: { label: string; ok: boolean }) {
 export default function DecisionReadinessChecklist({
   hasReviewerNote,
   hasInterviewReview,
-  hasBothMaterials,
+  hasOptionalDocuments,
   hasSubjects,
 }: Props) {
   const allReady = hasReviewerNote && hasInterviewReview && hasSubjects;
@@ -54,7 +54,7 @@ export default function DecisionReadinessChecklist({
       <div role="list">
         <CheckItem label="Reviewer note present" ok={hasReviewerNote} />
         <CheckItem label="≥1 submitted interview review" ok={hasInterviewReview} />
-        <CheckItem label="Materials uploaded (soft warning only)" ok={hasBothMaterials} />
+        <CheckItem label="Optional document uploaded" ok={hasOptionalDocuments} />
         <CheckItem label="Subjects of interest declared" ok={hasSubjects} />
       </div>
     </div>

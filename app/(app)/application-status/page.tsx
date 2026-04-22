@@ -258,13 +258,13 @@ export default async function ApplicationStatusPage() {
                 ) : instructorApp.offeredSlots && instructorApp.offeredSlots.length > 0 ? (
                   <>
                     <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
-                      A reviewer has proposed the following times for your interview. Click the one that works best for you — you&apos;ll receive a calendar invite once confirmed.
+                      Your lead interviewer has proposed the following times. Pick the one that works best, or let us know if none of them work.
                     </p>
-                    <SlotPickerForm slots={instructorApp.offeredSlots} />
+                    <SlotPickerForm applicationId={instructorApp.id} slots={instructorApp.offeredSlots} />
                   </>
                 ) : (
                   <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
-                    Your reviewer will propose a few available times shortly. Check back here to pick the time that works best for you.
+                    Your lead interviewer will propose a few available times shortly. Check back here to pick the time that works best for you.
                   </p>
                 )}
               </>
@@ -347,6 +347,24 @@ export default async function ApplicationStatusPage() {
                 <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Interview availability:</strong></p>
                 <p style={{ fontSize: 14, margin: 0 }}>{instructorApp.availability}</p>
               </div>
+              {(instructorApp.courseIdea || instructorApp.textbook) && (
+                <div style={{ marginTop: 16 }}>
+                  <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Class idea:</strong></p>
+                  <p style={{ fontSize: 14, margin: 0, whiteSpace: "pre-wrap" }}>{instructorApp.courseIdea ?? instructorApp.textbook}</p>
+                </div>
+              )}
+              {instructorApp.courseOutline && (
+                <div style={{ marginTop: 16 }}>
+                  <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Rough course outline:</strong></p>
+                  <p style={{ fontSize: 14, margin: 0, whiteSpace: "pre-wrap" }}>{instructorApp.courseOutline}</p>
+                </div>
+              )}
+              {instructorApp.firstClassPlan && (
+                <div style={{ marginTop: 16 }}>
+                  <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>First-session sketch:</strong></p>
+                  <p style={{ fontSize: 14, margin: 0, whiteSpace: "pre-wrap" }}>{instructorApp.firstClassPlan}</p>
+                </div>
+              )}
             </div>
           </details>
         </div>

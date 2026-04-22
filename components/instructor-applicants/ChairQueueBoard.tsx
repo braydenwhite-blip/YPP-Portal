@@ -21,7 +21,14 @@ interface Document {
 
 interface ApplicationRow {
   id: string;
+  motivation: string | null;
+  teachingExperience: string | null;
+  availability: string | null;
   subjectsOfInterest: string | null;
+  courseIdea: string | null;
+  textbook: string | null;
+  courseOutline: string | null;
+  firstClassPlan: string | null;
   materialsReadyAt: Date | string | null;
   chairQueuedAt: Date | string | null;
   preferredFirstName: string | null;
@@ -34,7 +41,13 @@ interface ApplicationRow {
     chapter: { id: string; name: string } | null;
   };
   reviewer: { id: string; name: string | null } | null;
-  applicationReviews: Array<{ summary: string | null; nextStep: string | null; notes: string | null; overallRating: string | null }>;
+  applicationReviews: Array<{
+    summary: string | null;
+    nextStep: string | null;
+    notes: string | null;
+    overallRating: string | null;
+    categories: Array<{ category: string; rating: string | null; notes: string | null }>;
+  }>;
   interviewReviews: InterviewReview[];
   interviewerAssignments: Array<{ id: string; role: string; interviewer: { id: string; name: string | null } }>;
   documents: Document[];
@@ -138,7 +151,6 @@ export default function ChairQueueBoard({ applications, onRefresh }: Props) {
             const missingRecommendations = app.interviewerAssignments.filter(
               (assignment) => !submittedRecs.has(assignment.interviewer.id)
             ).length;
-            const materialReady = Boolean(app.materialsReadyAt);
 
             return (
               <button
@@ -169,10 +181,6 @@ export default function ChairQueueBoard({ applications, onRefresh }: Props) {
                       {reviewerRec.nextStep.replace(/_/g, " ")}
                     </span>
                   )}
-
-                  <span className={`chair-queue-chip ${materialReady ? "is-ready" : "is-warn"}`}>
-                    {materialReady ? "Materials Ready" : "Materials Soft Warning"}
-                  </span>
 
                   {missingRecommendations > 0 && (
                     <span className="chair-queue-chip is-warn">
