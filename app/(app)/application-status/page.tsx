@@ -20,8 +20,8 @@ function instructorStatusLabel(status: InstructorApplicationStatus): string {
     case "UNDER_REVIEW": return "Under Review";
     case "INFO_REQUESTED": return "More Info Requested";
     case "PRE_APPROVED": return "Pre-Approved";
-    case "INTERVIEW_SCHEDULED": return "Curriculum Overview Scheduled";
-    case "INTERVIEW_COMPLETED": return "Curriculum Overview Completed";
+    case "INTERVIEW_SCHEDULED": return "Interview Scheduled";
+    case "INTERVIEW_COMPLETED": return "Interview Completed";
     case "ON_HOLD": return "On Hold";
     case "CHAIR_REVIEW": return "Under Final Review";
     case "APPROVED": return "Approved";
@@ -76,7 +76,6 @@ function ProgressStepper({
   middleStageLabel = "Interview",
 }: {
   status: string;
-  /** Instructor applications use "Curriculum overview"; chapter president flow keeps "Interview". */
   middleStageLabel?: string;
 }) {
   const stages = [
@@ -200,7 +199,7 @@ export default async function ApplicationStatusPage() {
             </span>
           </div>
 
-          <ProgressStepper status={instructorApp.status} middleStageLabel="Curriculum overview" />
+          <ProgressStepper status={instructorApp.status} />
 
           <div className="card" style={{ marginBottom: 16 }}>
             {canShowCurriculumPrep(instructorApp.status) ? (
@@ -220,7 +219,7 @@ export default async function ApplicationStatusPage() {
                   Your application is in the queue. We typically send a first update within <strong>3–5 business days</strong>. If you need anything sooner, contact your chapter.
                 </p>
                 <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 8 }}>
-                  Review is about understanding how you teach — not a scored exam. The curriculum overview later is the same: a conversation, not a test.
+                  Review is about understanding how you teach — not a scored exam. The interview, when scheduled, is a two-way conversation, not a test.
                 </p>
               </>
             )}
@@ -231,7 +230,7 @@ export default async function ApplicationStatusPage() {
                   {instructorApp.reviewer ? `${instructorApp.reviewer.name} is` : "A reviewer is"} currently evaluating your application.
                 </p>
                 <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 8 }}>
-                  We are looking for fit and clarity, not perfection. The curriculum overview (when you reach that step) is a two-way discussion, not an audition.
+                  We are looking for fit and clarity, not perfection. If we move forward, you will be invited to a short interview — a two-way discussion, not an audition.
                 </p>
               </>
             )}
@@ -262,17 +261,17 @@ export default async function ApplicationStatusPage() {
                   Great news — you&apos;ve been pre-approved to move forward in the instructor pathway. Instructor training will unlock after final approval.
                 </p>
                 <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 8 }}>
-                  For now, use the curriculum prep area above to build a draft curriculum or upload a one-class plan and structure notes for your <strong>curriculum overview/interview</strong>.
+                  We&apos;ll be in touch shortly to schedule your interview.
                 </p>
               </>
             )}
             {instructorApp.status === "INTERVIEW_SCHEDULED" && (
               <>
-                <h3 className="section-title">Curriculum Overview/Interview</h3>
+                <h3 className="section-title">Interview</h3>
                 {instructorApp.interviewScheduledAt ? (
                   <>
                     <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
-                      Your curriculum overview/interview has been confirmed. You will receive a calendar invite by email. If you need to reschedule, reach out to your reviewer.
+                      Your interview has been confirmed. You will receive a calendar invite by email. If you need to reschedule, reach out to your reviewer.
                     </p>
                     <div style={{ background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px", marginBottom: 16, textAlign: "center" }}>
                       <p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
@@ -286,7 +285,7 @@ export default async function ApplicationStatusPage() {
                 ) : instructorApp.offeredSlots && instructorApp.offeredSlots.length > 0 ? (
                   <>
                     <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
-                      A reviewer has proposed the following times for your curriculum overview/interview. Click the one that works best for you — you&apos;ll receive a calendar invite once confirmed.
+                      A reviewer has proposed the following times for your interview. Click the one that works best for you — you&apos;ll receive a calendar invite once confirmed.
                     </p>
                     <SlotPickerForm slots={instructorApp.offeredSlots} />
                   </>
@@ -299,7 +298,7 @@ export default async function ApplicationStatusPage() {
             )}
             {instructorApp.status === "INTERVIEW_COMPLETED" && (
               <>
-                <h3 className="section-title">Curriculum Overview Completed</h3>
+                <h3 className="section-title">Interview Completed</h3>
                 <p style={{ color: "var(--muted)", fontSize: 14 }}>A final decision is pending.</p>
               </>
             )}
@@ -307,7 +306,7 @@ export default async function ApplicationStatusPage() {
               <>
                 <h3 className="section-title">Under Final Review</h3>
                 <p style={{ color: "var(--muted)", fontSize: 14 }}>
-                  Your curriculum overview notes are with the final review team. You do not need to take action unless we ask for more information.
+                  Your interview notes are with the final review team. You do not need to take action unless we ask for more information.
                 </p>
                 <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 8 }}>
                   If your prep materials are still missing, you can upload them above. They help the team compare your plan, but they do not block review.
@@ -372,7 +371,7 @@ export default async function ApplicationStatusPage() {
                 <p style={{ fontSize: 14, margin: 0, whiteSpace: "pre-wrap" }}>{instructorApp.teachingExperience}</p>
               </div>
               <div>
-                <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Curriculum overview availability:</strong></p>
+                <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 4px" }}><strong>Interview availability:</strong></p>
                 <p style={{ fontSize: 14, margin: 0 }}>{instructorApp.availability}</p>
               </div>
             </div>

@@ -57,11 +57,9 @@ type ReviewSnapshot = {
   communicationNotes: string | null;
   professionalismNotes: string | null;
   followUpItems: string | null;
-  curriculumFeedback: string | null;
   revisionRequirements: string | null;
   applicantMessage: string | null;
   flagForLeadership: boolean;
-  curriculumDraftId: string | null;
   categories: Array<{
     category: InstructorReviewCategoryValue;
     rating: ProgressRatingValue | null;
@@ -116,10 +114,8 @@ type LiveDraftInput = {
   communicationNotes: string | null;
   professionalismNotes: string | null;
   followUpItems: string | null;
-  curriculumFeedback: string | null;
   revisionRequirements: string | null;
   applicantMessage: string | null;
-  curriculumDraftId: string | null;
   flagForLeadership: boolean;
 };
 
@@ -137,13 +133,6 @@ interface InterviewReviewEditorProps {
   canEdit: boolean;
   isLeadReviewer: boolean;
   canFinalizeRecommendation: boolean;
-  drafts: Array<{
-    id: string;
-    title: string;
-    status: string;
-    updatedAt: string;
-  }>;
-  selectedDraftId: string | null;
   questionBank: QuestionBankItem[];
 }
 
@@ -255,8 +244,6 @@ export default function InterviewReviewEditor({
   canEdit,
   isLeadReviewer,
   canFinalizeRecommendation,
-  drafts,
-  selectedDraftId,
   questionBank,
 }: InterviewReviewEditorProps) {
   const [overallRating, setOverallRating] = useState<ProgressRatingValue | "">(
@@ -274,9 +261,6 @@ export default function InterviewReviewEditor({
     initialReview?.professionalismNotes ?? ""
   );
   const [followUpItems, setFollowUpItems] = useState(initialReview?.followUpItems ?? "");
-  const [curriculumFeedback, setCurriculumFeedback] = useState(
-    initialReview?.curriculumFeedback ?? ""
-  );
   const [revisionRequirements, setRevisionRequirements] = useState(
     initialReview?.revisionRequirements ?? ""
   );
@@ -285,9 +269,6 @@ export default function InterviewReviewEditor({
   );
   const [flagForLeadership, setFlagForLeadership] = useState(
     initialReview?.flagForLeadership ?? false
-  );
-  const [curriculumDraftId, setCurriculumDraftId] = useState(
-    initialReview?.curriculumDraftId ?? selectedDraftId ?? ""
   );
   const [categories, setCategories] = useState<CategoryState[]>(
     buildInitialCategories(initialReview)
@@ -354,10 +335,8 @@ export default function InterviewReviewEditor({
       communicationNotes: communicationNotes || null,
       professionalismNotes: professionalismNotes || null,
       followUpItems: followUpItems || null,
-      curriculumFeedback: curriculumFeedback || null,
       revisionRequirements: revisionRequirements || null,
       applicantMessage: applicantMessage || null,
-      curriculumDraftId: curriculumDraftId || null,
       flagForLeadership,
     }),
     [
@@ -365,8 +344,6 @@ export default function InterviewReviewEditor({
       applicantMessage,
       categoryPayload,
       communicationNotes,
-      curriculumDraftId,
-      curriculumFeedback,
       demeanorNotes,
       flagForLeadership,
       followUpItems,
@@ -1100,62 +1077,6 @@ export default function InterviewReviewEditor({
       </section>
 
       <section className="review-editor-panel">
-        <div>
-          <h2>Lesson Design Studio Draft Review</h2>
-          <p>Choose the draft this interview references, then capture curriculum-specific feedback.</p>
-        </div>
-
-        {drafts.length > 0 ? (
-          <label className="form-row">
-            Draft being reviewed
-            <select
-              className="input"
-              name="curriculumDraftId"
-              value={curriculumDraftId}
-              onChange={(event) => setCurriculumDraftId(event.target.value)}
-              disabled={!canEdit}
-            >
-              {drafts.map((draft) => (
-                <option key={draft.id} value={draft.id}>
-                  {(draft.title || "Untitled curriculum").trim()} - {draft.status.replace(/_/g, " ")}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : (
-          <div className="review-editor-warning">
-            No curriculum draft is currently available for this applicant.
-          </div>
-        )}
-
-        <label className="form-row">
-          Curriculum feedback
-          <textarea
-            className="input"
-            name="curriculumFeedback"
-            rows={4}
-            value={curriculumFeedback}
-            disabled={!canEdit}
-            onChange={(event) => setCurriculumFeedback(event.target.value)}
-            placeholder="How realistic, teachable, and well-structured is the draft?"
-          />
-        </label>
-
-        <label className="form-row">
-          Required revisions
-          <textarea
-            className="input"
-            name="revisionRequirements"
-            rows={3}
-            value={revisionRequirements}
-            disabled={!canEdit}
-            onChange={(event) => setRevisionRequirements(event.target.value)}
-            placeholder="List draft revisions that must happen before approval, if any."
-          />
-        </label>
-      </section>
-
-      <section className="review-editor-panel">
         <label className="form-row">
           Final interview summary
           <textarea
@@ -1165,7 +1086,7 @@ export default function InterviewReviewEditor({
             value={summary}
             disabled={!canEdit}
             onChange={(event) => setSummary(event.target.value)}
-            placeholder="What matters most after the full interview and curriculum review?"
+            placeholder="What matters most after the full interview?"
           />
         </label>
 

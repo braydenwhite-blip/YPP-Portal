@@ -169,17 +169,17 @@ export async function reviewInstructorApplication(
         const dateStr = getString(formData, "scheduledAt");
         const scheduledAt = new Date(dateStr);
         if (isNaN(scheduledAt.getTime())) {
-          return { status: "error", message: "Invalid date or time for the curriculum overview session." };
+          return { status: "error", message: "Invalid date or time for the interview." };
         }
         const notes = getString(formData, "notes", false);
         await scheduleInterview(applicationId, session.user.id, scheduledAt, notes || undefined);
-        return { status: "success", message: "Curriculum overview session scheduled and applicant notified." };
+        return { status: "success", message: "Interview scheduled and applicant notified." };
       }
 
       case "mark_interview_complete": {
         const notes = getString(formData, "notes", false);
         await markInterviewCompleted(applicationId, session.user.id, notes || undefined);
-        return { status: "success", message: "Curriculum overview session marked as completed." };
+        return { status: "success", message: "Interview marked as completed." };
       }
 
       case "put_on_hold": {
@@ -992,8 +992,8 @@ export async function selectInterviewSlot(
     const endsAt = new Date(slot.scheduledAt.getTime() + slot.durationMinutes * 60_000);
     const icsContent = generateIcsContent({
       uid: `slot-${slotId}@youthpassionproject.org`,
-      title: `YPP Curriculum Overview/Interview — ${slot.instructorApplication.applicant.name}`,
-      description: "YPP instructor curriculum overview and interview session.",
+      title: `YPP Instructor Interview — ${slot.instructorApplication.applicant.name}`,
+      description: "YPP instructor interview.",
       startsAt: slot.scheduledAt,
       endsAt,
     });

@@ -1663,6 +1663,11 @@ model InstructorApplication {
   hoursPerWeek       Int?
   preferredStartDate String?
 
+  // --- Course planning (collected at application time) ---
+  textbook       String? @db.Text
+  courseOutline  String? @db.Text
+  firstClassPlan String? @db.Text
+
   // --- Reviewer scoring rubric ---
   scoreAcademic      Int?
   scoreCommunication Int?

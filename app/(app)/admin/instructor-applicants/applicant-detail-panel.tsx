@@ -79,8 +79,8 @@ function statusPillClass(status: string): string {
 
 function statusLabel(status: string): string {
   if (status === "PRE_APPROVED") return "Pre-Approved";
-  if (status === "INTERVIEW_SCHEDULED") return "Curriculum overview scheduled";
-  if (status === "INTERVIEW_COMPLETED") return "Curriculum overview completed";
+  if (status === "INTERVIEW_SCHEDULED") return "Interview scheduled";
+  if (status === "INTERVIEW_COMPLETED") return "Interview completed";
   return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
@@ -428,7 +428,7 @@ export default function ApplicantDetailPanel({
               </div>
               {app.interviewScheduledAt && (
                 <div className="slideout-field">
-                  <div className="slideout-field-label">Curriculum overview</div>
+                  <div className="slideout-field-label">Interview</div>
                   <div className="slideout-field-value">{formatDate(app.interviewScheduledAt)}</div>
                 </div>
               )}
@@ -465,7 +465,7 @@ export default function ApplicantDetailPanel({
               </div>
             )}
             <div className="slideout-field">
-              <div className="slideout-field-label">Curriculum overview availability</div>
+              <div className="slideout-field-label">Interview availability</div>
               <div className="slideout-field-value">{app.availability}</div>
             </div>
             {app.preferredStartDate && (
@@ -639,7 +639,7 @@ export default function ApplicantDetailPanel({
           {/* Offer Times (visible when INTERVIEW_SCHEDULED) */}
           {app.status === "INTERVIEW_SCHEDULED" && (
             <div className="slideout-section">
-              <div className="slideout-section-title">Propose Times for Curriculum Overview/Interview</div>
+              <div className="slideout-section-title">Propose Interview Times</div>
               <p style={{ fontSize: 13, color: "var(--muted)", marginTop: 0, marginBottom: 10 }}>
                 Add 1–4 times for the coming week. The applicant will receive an email and pick the one that works for them.
               </p>
@@ -756,7 +756,7 @@ export default function ApplicantDetailPanel({
                     if (app.status !== "INTERVIEW_COMPLETED") {
                       if (
                         !confirm(
-                          "This applicant has not completed a curriculum overview session yet. Approve anyway?"
+                          "This applicant has not had their interview yet. Approve anyway?"
                         )
                       )
                         return;
