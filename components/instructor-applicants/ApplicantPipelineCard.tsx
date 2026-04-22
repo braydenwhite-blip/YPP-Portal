@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
+import { PROGRESS_RATING_OPTIONS } from "@/lib/instructor-review-config";
 
 type PipelineCardApp = {
   id: string;
@@ -13,6 +14,9 @@ type PipelineCardApp = {
     chapter: { name: string } | null;
   };
   reviewer: { id: string; name: string | null } | null;
+  applicationReviews?: Array<{
+    overallRating: string | null;
+  }>;
   interviewerAssignments: Array<{
     id: string;
     role: string;
@@ -60,6 +64,9 @@ export default function ApplicantPipelineCard({
   const leadInterviewer = app.interviewerAssignments.find((a) => a.role === "LEAD");
   const secondInterviewer = app.interviewerAssignments.find((a) => a.role === "SECOND");
   const stageClass = app.status.toLowerCase().replace(/_/g, "-");
+  const latestRating = app.applicationReviews?.find((review) => review.overallRating)
+    ?.overallRating;
+  const ratingOption = PROGRESS_RATING_OPTIONS.find((option) => option.value === latestRating);
 
   return (
     <button
@@ -69,7 +76,7 @@ export default function ApplicantPipelineCard({
     >
       <div className="applicant-pipeline-card-top">
         <Avatar name={app.applicant.name} email={app.applicant.email} />
-        <div>
+        <div className="applicant-pipeline-card-title">
           <div className="kanban-card-name">
             {app.applicant.name ?? app.applicant.email}
           </div>
@@ -80,6 +87,15 @@ export default function ApplicantPipelineCard({
             </div>
           )}
         </div>
+        {ratingOption && (
+          <span
+            className="kanban-card-rating-chip"
+            style={{ "--rating-color": ratingOption.color } as CSSProperties}
+            title={`${ratingOption.label}: ${ratingOption.helperLabel}`}
+          >
+            {ratingOption.label[0]}
+          </span>
+        )}
       </div>
 
       {subjectTags.length > 0 && (

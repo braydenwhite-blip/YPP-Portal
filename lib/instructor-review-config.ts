@@ -1,33 +1,33 @@
 export const INSTRUCTOR_REVIEW_CATEGORIES = [
   {
     key: "CURRICULUM_STRENGTH",
-    label: "Curriculum & Class Strength",
+    label: "Teaching/Instruction",
     description:
-      "Quality of the class idea, structure, clarity, feasibility, and ability to teach the content well.",
+      "Course idea shows promise and applicant shows promise to teach it.",
   },
   {
     key: "RELATIONSHIP_BUILDING",
-    label: "Relationships With Parents & Students",
+    label: "Relationships/Personability",
     description:
-      "Personability, communication, maturity, warmth, and ability to build trust.",
+      "Applicant shows promise to build strong relationships with parents and students.",
   },
   {
     key: "ORGANIZATION_AND_COMMITMENT",
-    label: "Organization & Commitment",
+    label: "Organization/Commitment",
     description:
-      "Reliability, responsiveness, time management, and seriousness of commitment.",
+      "Application shows applicant is organized and will make necessary commitment.",
   },
   {
     key: "COMMUNITY_FIT",
-    label: "YPP Community Fit",
+    label: "Connection to YPP Community",
     description:
-      "Collaboration, chapter-mindedness, and willingness to contribute beyond teaching one class.",
+      "Applicant shows signs of connecting to and strengthening the YPP community.",
   },
   {
     key: "LONG_TERM_POTENTIAL",
     label: "Long-Term Potential",
     description:
-      "Growth potential, leadership upside, and willingness to deepen involvement over time.",
+      "Application suggests applicant has long-term leadership potential within YPP.",
   },
   {
     key: "PROFESSIONALISM_AND_FOLLOW_THROUGH",
@@ -49,21 +49,27 @@ export type InstructorReviewCategoryValue =
 export const INSTRUCTOR_INITIAL_REVIEW_SIGNALS = [
   {
     key: "CURRICULUM_STRENGTH",
-    label: "Rough Class Idea",
+    label: "Teaching/Instruction",
     description:
-      "The class idea, rough outline, and first-session sketch are clear enough to discuss in an interview.",
+      "Course idea shows promise and applicant shows promise to teach it.",
   },
   {
     key: "RELATIONSHIP_BUILDING",
-    label: "Teaching & Communication Promise",
+    label: "Relationships/Personability",
     description:
-      "The applicant shows enough teaching clarity, maturity, and communication promise for a live conversation.",
+      "Applicant shows promise to build strong relationships with parents and students.",
   },
   {
     key: "ORGANIZATION_AND_COMMITMENT",
-    label: "Reliability & Fit",
+    label: "Organization/Commitment",
     description:
-      "The application suggests the applicant can follow through and fit the YPP instructor role.",
+      "Application shows applicant is organized and will make necessary commitment.",
+  },
+  {
+    key: "LONG_TERM_POTENTIAL",
+    label: "Long-Term Potential",
+    description:
+      "Application suggests applicant has long-term leadership potential within YPP.",
   },
 ] as const satisfies ReadonlyArray<{
   key: InstructorReviewCategoryValue;
@@ -76,8 +82,8 @@ export const PROGRESS_RATING_OPTIONS = [
     value: "BEHIND_SCHEDULE",
     label: "Red",
     shortLabel: "Red",
-    helperLabel: "Not ready",
-    description: "Serious concern or clearly not ready for this expectation.",
+    helperLabel: "No",
+    description: "Not ready / clear no.",
     color: "#dc2626",
     bg: "#fef2f2",
   },
@@ -85,8 +91,8 @@ export const PROGRESS_RATING_OPTIONS = [
     value: "GETTING_STARTED",
     label: "Yellow",
     shortLabel: "Yellow",
-    helperLabel: "Borderline",
-    description: "Some promise is there, but concerns or gaps still need work.",
+    helperLabel: "Maybe / with coaching",
+    description: "Maybe — with appropriate coaching.",
     color: "#d97706",
     bg: "#fffbeb",
   },
@@ -94,8 +100,8 @@ export const PROGRESS_RATING_OPTIONS = [
     value: "ON_TRACK",
     label: "Green",
     shortLabel: "Green",
-    helperLabel: "Ready",
-    description: "Solid, ready, and trustworthy for the expectation being reviewed.",
+    helperLabel: "Yes",
+    description: "Ready / clear yes.",
     color: "#16a34a",
     bg: "#f0fdf4",
   },
@@ -104,7 +110,7 @@ export const PROGRESS_RATING_OPTIONS = [
     label: "Purple",
     shortLabel: "Purple",
     helperLabel: "Exceptional",
-    description: "Exceptionally strong signal that stands out beyond the normal bar.",
+    description: "Exceptionally strong in ways the rest of YPP should learn from.",
     color: "#7c3aed",
     bg: "#faf5ff",
   },

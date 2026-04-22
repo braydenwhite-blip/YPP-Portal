@@ -19,7 +19,10 @@ import ApplicantCockpitHeader from "@/components/instructor-applicants/Applicant
 import ApplicantCockpitSidebar from "@/components/instructor-applicants/ApplicantCockpitSidebar";
 import ApplicantNextActionBar from "@/components/instructor-applicants/ApplicantNextActionBar";
 import ApplicantTimelineFeed from "@/components/instructor-applicants/ApplicantTimelineFeed";
+import CollapsibleAssignmentPanel from "@/components/instructor-applicants/CollapsibleAssignmentPanel";
 import InterviewSchedulingInlinePanel from "@/components/instructor-applicants/InterviewSchedulingInlinePanel";
+import InterviewerAssignPicker from "@/components/instructor-applicants/InterviewerAssignPicker";
+import ReviewerAssignPicker from "@/components/instructor-applicants/ReviewerAssignPicker";
 import ApplicationReviewEditor from "@/components/instructor-review/application-review-editor";
 import {
   saveInstructorApplicationReviewAction,
@@ -167,6 +170,10 @@ export default async function ApplicantCockpitPage({
   const currentInterviewerAssignments = application.interviewerAssignments.filter(
     (assignment) => assignment.round === application.interviewRound
   );
+  const leadInterviewerAssignment =
+    currentInterviewerAssignments.find((assignment) => assignment.role === "LEAD") ?? null;
+  const secondInterviewerAssignment =
+    currentInterviewerAssignments.find((assignment) => assignment.role === "SECOND") ?? null;
   const hasLeadInterviewer = currentInterviewerAssignments.some(
     (assignment) => assignment.role === "LEAD"
   );
@@ -339,6 +346,18 @@ export default async function ApplicantCockpitPage({
                     : "Review not yet available for this application."}
                 </p>
               )}
+              {canAssignReviewer && (
+                <CollapsibleAssignmentPanel
+                  title="Assigned Reviewer"
+                  assigneeName={application.reviewer?.name}
+                >
+                  <ReviewerAssignPicker
+                    applicationId={application.id}
+                    currentReviewerId={application.reviewerId}
+                    candidates={reviewerCandidates}
+                  />
+                </CollapsibleAssignmentPanel>
+              )}
             </section>
 
             {/* Scheduling */}
@@ -347,7 +366,35 @@ export default async function ApplicantCockpitPage({
               offeredSlots={application.offeredSlots}
               availabilityWindows={application.availabilityWindows}
               canPostSlots={canSendInterviewTimes}
-            />
+            >
+              {canAssignInterviewers && (
+                <div className="cockpit-assignment-panel-grid">
+                  <CollapsibleAssignmentPanel
+                    title="Lead Interviewer"
+                    assigneeName={leadInterviewerAssignment?.interviewer.name}
+                  >
+                    <InterviewerAssignPicker
+                      applicationId={application.id}
+                      role="LEAD"
+                      currentAssignment={leadInterviewerAssignment}
+                      candidates={interviewerCandidatesLead}
+                    />
+                  </CollapsibleAssignmentPanel>
+                  <CollapsibleAssignmentPanel
+                    title="Second Interviewer"
+                    assigneeName={secondInterviewerAssignment?.interviewer.name}
+                  >
+                    <InterviewerAssignPicker
+                      applicationId={application.id}
+                      role="SECOND"
+                      currentAssignment={secondInterviewerAssignment}
+                      candidates={interviewerCandidatesSecond}
+                      disabled={!hasLeadInterviewer}
+                    />
+                  </CollapsibleAssignmentPanel>
+                </div>
+              )}
+            </InterviewSchedulingInlinePanel>
 
             {/* Interview Reviews summary */}
             {application.interviewReviews.length > 0 && (
@@ -436,13 +483,7 @@ export default async function ApplicantCockpitPage({
 
           {/* Sidebar */}
           <ApplicantCockpitSidebar
-            application={{ ...application, interviewerAssignments: currentInterviewerAssignments }}
-            canAssignReviewer={canAssignReviewer}
-            canAssignInterviewers={canAssignInterviewers}
-            currentUserId={actor.id}
-            reviewerCandidates={reviewerCandidates}
-            interviewerCandidatesLead={interviewerCandidatesLead}
-            interviewerCandidatesSecond={interviewerCandidatesSecond}
+            application={application}
           />
         </div>
       </div>

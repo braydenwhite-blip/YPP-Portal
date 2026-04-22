@@ -1,12 +1,13 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { KanbanBoard, type KanbanColumnDef } from "@/components/kanban";
 import {
-  compositeScore,
   formatDeadline,
   recommendationInfo,
 } from "@/components/kanban/kanban-utils";
 import { updateApplicationStage } from "@/lib/instructor-application-actions";
+import { PROGRESS_RATING_OPTIONS } from "@/lib/instructor-review-config";
 import ApplicantDetailPanel from "./applicant-detail-panel";
 
 /* ── Types ─────────────────────────────────────────── */
@@ -61,6 +62,9 @@ export type InstructorApp = {
   infoRequest: string | null;
   applicantResponse: string | null;
   rejectionReason: string | null;
+  applicationReviews?: Array<{
+    overallRating: string | null;
+  }>;
 };
 
 export type Reviewer = {
@@ -117,6 +121,16 @@ function formatInstructorDeadline(app: InstructorApp): { text: string; className
 
 /* ── Card ─────────────────────────────────────────── */
 
+function initials(name: string | null | undefined, email: string): string {
+  if (name) {
+    const parts = name.trim().split(" ");
+    return parts.length >= 2
+      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+      : (parts[0][0] ?? "?").toUpperCase();
+  }
+  return (email[0] ?? "?").toUpperCase();
+}
+
 function ApplicantCard({
   app,
   onClick,
@@ -126,58 +140,50 @@ function ApplicantCard({
   onClick: () => void;
   isDragging?: boolean;
 }) {
-  // Prefer new curriculum-review scores; fall back to legacy scores if not yet set
-  const comp = compositeScore([
-    app.scoreSubjectKnowledge ?? app.scoreAcademic,
-    app.scoreCommunication,
-    app.scoreTeachingMethodology ?? app.scoreLeadership,
-    app.scoreCurriculumAlignment ?? app.scoreMotivation,
-    app.scoreFit,
-  ]);
   const deadline = formatInstructorDeadline(app);
   const rec = recommendationInfo(app.decisionRecommendation);
   const displayName = app.legalName || app.applicant.name;
+  const latestRating = app.applicationReviews?.find((review) => review.overallRating)
+    ?.overallRating;
+  const ratingOption = PROGRESS_RATING_OPTIONS.find((option) => option.value === latestRating);
 
   return (
     <div
-      className={`kanban-card${isDragging ? " dragging" : ""}`}
+      className={`kanban-card applicant-pipeline-card${isDragging ? " dragging" : ""}`}
       onClick={(e) => {
         if (e.defaultPrevented) return;
         onClick();
       }}
     >
-      <div className="kanban-card-name">{displayName}</div>
-      <div className="kanban-card-meta">
-        {app.applicant.chapter && (
-          <span className="kanban-card-chapter">{app.applicant.chapter.name}</span>
-        )}
-        <span className={`kanban-card-reviewer${app.reviewer ? "" : " unassigned"}`}>
-          {app.reviewer ? app.reviewer.name : "Unassigned"}
-        </span>
+      <div className="applicant-pipeline-card-top">
+        <div className="applicant-card-avatar">
+          {initials(displayName, app.applicant.email)}
+        </div>
+        <div className="applicant-pipeline-card-title">
+          <div className="kanban-card-name">{displayName}</div>
+          <div className="kanban-card-meta">
+            {app.applicant.chapter && (
+              <span className="kanban-card-chapter">{app.applicant.chapter.name}</span>
+            )}
+            <span className={`kanban-card-reviewer${app.reviewer ? "" : " unassigned"}`}>
+              {app.reviewer ? app.reviewer.name : "Unassigned"}
+            </span>
+          </div>
+        </div>
       </div>
       {deadline && <div className={deadline.className}>{deadline.text}</div>}
       <div className="kanban-card-footer">
-        <div className="kanban-card-score">
-          {comp != null ? (
-            <>
-              {[1, 2, 3, 4, 5].map((n) => (
-                <div
-                  key={n}
-                  className={`kanban-card-score-dot ${n <= Math.round(comp) ? "filled" : "empty"}`}
-                />
-              ))}
-              <span style={{ fontSize: 10, color: "var(--muted)", marginLeft: 4 }}>
-                {comp.toFixed(1)}
-              </span>
-            </>
-          ) : (
-            <span
-              className="kanban-card-score-dot no-info"
-              title="Not scored yet"
-              style={{ width: 16, height: 8, borderRadius: 3 }}
-            />
-          )}
-        </div>
+        {ratingOption ? (
+          <span
+            className="kanban-card-rating-chip"
+            style={{ "--rating-color": ratingOption.color } as CSSProperties}
+            title={`${ratingOption.label}: ${ratingOption.helperLabel}`}
+          >
+            {ratingOption.label[0]}
+          </span>
+        ) : (
+          <span />
+        )}
         {rec && <span className={rec.className}>{rec.label}</span>}
       </div>
     </div>
@@ -189,12 +195,22 @@ function ApplicantCard({
 function DragOverlayCard({ app }: { app: InstructorApp }) {
   const displayName = app.legalName || app.applicant.name;
   return (
-    <div className="kanban-card" style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.15)", width: 264 }}>
-      <div className="kanban-card-name">{displayName}</div>
-      <div className="kanban-card-meta">
-        {app.applicant.chapter && (
-          <span className="kanban-card-chapter">{app.applicant.chapter.name}</span>
-        )}
+    <div
+      className="kanban-card applicant-pipeline-card"
+      style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.15)", width: 264 }}
+    >
+      <div className="applicant-pipeline-card-top">
+        <div className="applicant-card-avatar">
+          {initials(displayName, app.applicant.email)}
+        </div>
+        <div className="applicant-pipeline-card-title">
+          <div className="kanban-card-name">{displayName}</div>
+          <div className="kanban-card-meta">
+            {app.applicant.chapter && (
+              <span className="kanban-card-chapter">{app.applicant.chapter.name}</span>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

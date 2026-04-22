@@ -7020,7 +7020,7 @@ select.input {
 
 .applicant-cockpit-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
   gap: 24px;
   align-items: start;
 }
@@ -7368,6 +7368,68 @@ select.input {
   gap: 16px;
 }
 
+.cockpit-assignment-panel-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.collapsible-assignment-panel {
+  overflow: hidden;
+  border: 1px solid var(--cockpit-line);
+  border-radius: 8px;
+  background: var(--cockpit-surface);
+  box-shadow: 0 10px 30px rgba(59, 15, 110, 0.08);
+}
+
+.collapsible-assignment-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.collapsible-assignment-summary::-webkit-details-marker {
+  display: none;
+}
+
+.collapsible-assignment-title {
+  min-width: 0;
+  color: var(--cockpit-ink);
+  font-size: 14px;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.collapsible-assignment-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  max-width: 52%;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #047857;
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.collapsible-assignment-chip.is-empty {
+  background: #fff7ed;
+  color: var(--cockpit-amber, #b45309);
+}
+
+.collapsible-assignment-body {
+  border-top: 1px solid var(--cockpit-line);
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
 .application-review-editor {
   gap: 14px;
 }
@@ -7392,13 +7454,14 @@ select.input {
 
 .review-rating-option {
   min-height: 104px;
-  border: 1px solid var(--cockpit-line);
+  border: 2px solid var(--rating-color);
   border-radius: 8px;
-  background: var(--cockpit-surface-strong);
+  background: var(--rating-bg);
   padding: 12px;
   text-align: left;
   cursor: pointer;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+  transition: border-color var(--transition-fast), background var(--transition-fast),
+    box-shadow var(--transition-fast), transform var(--transition-fast);
 }
 
 .review-rating-option:hover:not(:disabled) {
@@ -7407,8 +7470,14 @@ select.input {
 }
 
 .review-rating-option.is-selected {
-  border: 2px solid var(--rating-color);
-  background: var(--rating-bg);
+  background: var(--rating-color);
+  border-color: var(--rating-color);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--rating-color) 35%, transparent);
+}
+
+.review-rating-option.is-selected div,
+.review-rating-option.is-selected span {
+  color: #fff;
 }
 
 .review-rating-option div {
@@ -8550,12 +8619,14 @@ select.input {
 
 .applicant-pipeline-card-top {
   display: flex;
+  align-items: flex-start;
   gap: 9px;
   min-width: 0;
   margin-bottom: 9px;
 }
 
-.applicant-pipeline-card-top > div {
+.applicant-pipeline-card-title {
+  flex: 1;
   min-width: 0;
 }
 
@@ -9090,6 +9161,10 @@ select.input {
 @media (max-width: 860px) {
   .applicant-cockpit-container {
     padding: 20px 16px 128px;
+  }
+
+  .cockpit-assignment-panel-grid {
+    grid-template-columns: 1fr;
   }
 
   .applicant-cockpit-hero {

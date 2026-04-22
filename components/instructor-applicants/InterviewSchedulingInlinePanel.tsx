@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import type { ReactNode } from "react";
 import { offerInterviewSlots } from "@/lib/instructor-application-actions";
 
 interface OfferedSlot {
@@ -25,6 +26,7 @@ interface Props {
   offeredSlots: OfferedSlot[];
   availabilityWindows: AvailabilityWindow[];
   canPostSlots: boolean;
+  children?: ReactNode;
 }
 
 type SlotDraft = {
@@ -53,6 +55,7 @@ export default function InterviewSchedulingInlinePanel({
   offeredSlots,
   availabilityWindows,
   canPostSlots,
+  children,
 }: Props) {
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<{ text: string; ok: boolean } | null>(null);
@@ -161,6 +164,8 @@ export default function InterviewSchedulingInlinePanel({
         <strong>Manual offer.</strong> The lead interviewer chooses 3 to 5 future
         options, sends them to the applicant, and the applicant picks one.
       </p>
+
+      {children}
 
       {/* Confirmed slots */}
       {confirmed.length > 0 && (
