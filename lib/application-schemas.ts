@@ -182,10 +182,15 @@ export const instructorApplicationSchema = z.object({
   // Referral
   referralEmails: z.string().max(2000, "Referral emails should be under 2,000 characters.").optional(),
 
+  // Course planning
+  textbook: z.string().max(500, "Textbook name should be under 500 characters.").optional(),
+  courseOutline: z.string().max(5000, "Course outline should be under 5,000 characters.").optional(),
+  firstClassPlan: z.string().max(5000, "First class plan should be under 5,000 characters.").optional(),
+
   // Availability
   availability: z
     .string()
-    .min(10, "Please describe when you are available for your curriculum overview session.")
+    .min(10, "Please describe when you are available for an interview.")
     .max(1000, "Availability should be under 1,000 characters."),
   hoursPerWeek: z
     .number({ invalid_type_error: "Please enter how many hours per week you can commit." })

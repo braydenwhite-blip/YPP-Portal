@@ -223,7 +223,7 @@ export default function InstructorSignupPage() {
             This route is only for instructor applicants. Family account creation now has its own signup flow, so this page can stay focused on the teaching application.
           </p>
           <p className="hero-subtitle mt-12" style={{ fontSize: 14 }}>
-            The process is supportive: we are getting to know how you teach, not scoring you like an exam. The optional curriculum overview later works the same way — a conversation, not a test.
+            The process is supportive: we are getting to know how you teach, not scoring you like an exam. You will share a short course outline and first-class sketch as part of the application — no formal documents required.
           </p>
         </section>
 
@@ -289,8 +289,7 @@ export default function InstructorSignupPage() {
               lineHeight: 1.55,
             }}
           >
-            <strong>How we review:</strong> we want to understand your teaching style. This is not a scored exam. After you apply,
-            the curriculum overview is a two-way conversation about your approach and materials — still not a test.
+            <strong>How we review:</strong> we want to understand your teaching style. This is not a scored exam. The course outline and first-class plan below should be informal — think rough notes, not a polished document.
           </div>
 
           <div style={{ marginBottom: 18 }}>
@@ -548,6 +547,38 @@ export default function InstructorSignupPage() {
               </label>
 
               <label className="form-label">
+                Textbook or main learning resource <span style={{ fontWeight: 400, color: "var(--muted)" }}>(optional)</span>
+                <input
+                  className="input"
+                  name="textbook"
+                  placeholder="e.g. Principles of Economics by Mankiw, or a self-made curriculum"
+                  defaultValue={field(d, "textbook")}
+                />
+              </label>
+
+              <label className="form-label">
+                Informal course outline <span style={{ fontWeight: 400, color: "var(--muted)" }}>(optional)</span>
+                <textarea
+                  className="input"
+                  name="courseOutline"
+                  rows={4}
+                  placeholder="A rough sketch of the topics or units you'd cover — no need to be formal or complete."
+                  defaultValue={field(d, "courseOutline")}
+                />
+              </label>
+
+              <label className="form-label">
+                Plan for your first class <span style={{ fontWeight: 400, color: "var(--muted)" }}>(optional)</span>
+                <textarea
+                  className="input"
+                  name="firstClassPlan"
+                  rows={4}
+                  placeholder="Walk us through how you'd run your very first session — informally is fine."
+                  defaultValue={field(d, "firstClassPlan")}
+                />
+              </label>
+
+              <label className="form-label">
                 Teaching approach video <span style={{ fontWeight: 400, color: "var(--muted)" }}>(optional)</span>
                 <div style={{ marginTop: 8 }}>
                   <ApplicantVideoUpload
@@ -574,7 +605,7 @@ export default function InstructorSignupPage() {
               </div>
 
               <label className="form-label">
-                Curriculum overview session availability
+                Interview availability
                 <input
                   className="input"
                   name="availability"

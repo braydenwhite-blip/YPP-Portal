@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition, type FormEvent } from "react";
 import FileUpload from "@/components/file-upload";
@@ -94,18 +93,11 @@ export default function InstructorCurriculumPrepPanel({
       <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
         <div>
           <h3 className="section-title" style={{ marginTop: 0 }}>
-            Curriculum Prep Before Training
+            Optional: Upload a Class Plan
           </h3>
           <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
-            Training unlocks after final instructor approval. Until then, you can build a draft curriculum or upload a one-class plan with your overall structure notes.
+            Training unlocks after final instructor approval. If you have a more detailed class plan or supporting materials you would like your reviewer to see, you can upload them here.
           </p>
-          <Link
-            href="/instructor/lesson-design-studio?entry=application-status"
-            className="button secondary"
-            style={{ display: "inline-flex", textDecoration: "none", marginTop: 4 }}
-          >
-            Build draft curriculum
-          </Link>
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12, minWidth: 0 }}>
