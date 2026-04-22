@@ -7,6 +7,7 @@ interface OfferedSlot {
   id: string;
   scheduledAt: Date;
   durationMinutes: number;
+  meetingUrl: string | null;
   confirmedAt: Date | null;
   offeredBy: { name: string | null };
 }
@@ -55,6 +56,7 @@ export default function InterviewSchedulingInlinePanel({
 }: Props) {
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<{ text: string; ok: boolean } | null>(null);
+  const [meetingUrl, setMeetingUrl] = useState("");
   const [nextDraftId, setNextDraftId] = useState(4);
   const [slotDrafts, setSlotDrafts] = useState<SlotDraft[]>([
     { id: 1, scheduledAt: "", durationMinutes: "60" },
@@ -87,6 +89,7 @@ export default function InterviewSchedulingInlinePanel({
     const parsedSlots = slotDrafts.map((slot) => ({
       scheduledAt: new Date(slot.scheduledAt),
       durationMinutes: Number(slot.durationMinutes || 60),
+      meetingUrl: meetingUrl.trim(),
     }));
 
     if (parsedSlots.some((slot) => Number.isNaN(slot.scheduledAt.getTime()))) {
@@ -106,6 +109,16 @@ export default function InterviewSchedulingInlinePanel({
       return;
     }
 
+    try {
+      const url = new URL(meetingUrl.trim());
+      if (url.protocol !== "https:" && url.protocol !== "http:") {
+        throw new Error("Meeting link must start with http:// or https://.");
+      }
+    } catch {
+      setResult({ text: "Add a valid Zoom, Google Meet, or other meeting link.", ok: false });
+      return;
+    }
+
     startTransition(async () => {
       try {
         const response = await offerInterviewSlots(applicationId, parsedSlots);
@@ -118,6 +131,7 @@ export default function InterviewSchedulingInlinePanel({
           { id: 2, scheduledAt: "", durationMinutes: "60" },
           { id: 3, scheduledAt: "", durationMinutes: "60" },
         ]);
+        setMeetingUrl("");
         setNextDraftId(4);
       } catch (err) {
         setResult({ text: err instanceof Error ? err.message : "Failed to send times.", ok: false });
@@ -160,6 +174,14 @@ export default function InterviewSchedulingInlinePanel({
               className="cockpit-slot-card is-confirmed"
             >
               {formatDt(slot.scheduledAt)} | {slot.durationMinutes} min
+              {slot.meetingUrl ? (
+                <>
+                  {" | "}
+                  <a href={slot.meetingUrl} target="_blank" rel="noreferrer" className="cockpit-text-link">
+                    Join link
+                  </a>
+                </>
+              ) : null}
             </div>
           ))}
         </div>
@@ -213,6 +235,17 @@ export default function InterviewSchedulingInlinePanel({
       {canPostSlots && (
         <form onSubmit={handleSendTimes} className="cockpit-slot-form">
           <p>Send proposed interview times</p>
+          <label className="cockpit-slot-meeting-link">
+            <span>Meeting link</span>
+            <input
+              type="url"
+              className="input"
+              required
+              value={meetingUrl}
+              onChange={(event) => setMeetingUrl(event.target.value)}
+              placeholder="https://meet.google.com/..."
+            />
+          </label>
           <div className="cockpit-slot-draft-list">
             {slotDrafts.map((slot, index) => (
               <div key={slot.id} className="cockpit-slot-draft-row">

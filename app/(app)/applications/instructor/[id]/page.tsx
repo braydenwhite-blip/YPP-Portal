@@ -107,6 +107,7 @@ async function fetchCockpitData(applicationId: string) {
           id: true,
           scheduledAt: true,
           durationMinutes: true,
+          meetingUrl: true,
           confirmedAt: true,
           offeredBy: { select: { name: true } },
         },

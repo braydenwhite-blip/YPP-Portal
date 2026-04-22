@@ -836,6 +836,7 @@ export async function sendPickYourTimeEmail({
       ${slotRows}
     </ul>
     <p>Log in to the portal and pick the time that works best for you.</p>
+    <p>After you choose a time, your confirmation email and status page will include the meeting link.</p>
     <div style="text-align: center; margin: 28px 0;">
       <a href="${statusUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Choose Your Time</a>
     </div>
@@ -881,6 +882,7 @@ export async function sendInterviewConfirmedEmail({
   durationMinutes,
   role,
   detailUrl,
+  meetingUrl,
   icsContent,
 }: {
   to: string;
@@ -890,6 +892,7 @@ export async function sendInterviewConfirmedEmail({
   durationMinutes: number;
   role: "applicant" | "reviewer";
   detailUrl: string;
+  meetingUrl?: string | null;
   icsContent: string;
 }): Promise<EmailResult> {
   const firstName = recipientName.split(" ")[0] || recipientName;
@@ -918,6 +921,11 @@ export async function sendInterviewConfirmedEmail({
       <p style="margin: 0; font-size: 16px; font-weight: 600; color: #1c1917;">${escapeHtml(formattedDate)}</p>
       <p style="margin: 8px 0 0; font-size: 13px; color: #78716c;">Duration: ${durationMinutes} minutes</p>
     </div>
+    ${meetingUrl ? `
+    <div style="text-align: center; margin: 24px 0;">
+      <a href="${escapeHtml(meetingUrl)}" style="background: #16a34a; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">Join Interview</a>
+    </div>
+    ` : ""}
     <div style="text-align: center; margin: 28px 0;">
       <a href="${detailUrl}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Details</a>
     </div>

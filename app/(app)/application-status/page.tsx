@@ -123,7 +123,13 @@ export default async function ApplicationStatusPage() {
         reviewer: { select: { name: true } },
         availabilityWindows: true,
         offeredSlots: {
-          where: { confirmedAt: null },
+          select: {
+            id: true,
+            scheduledAt: true,
+            durationMinutes: true,
+            meetingUrl: true,
+            confirmedAt: true,
+          },
           orderBy: { scheduledAt: "asc" },
         },
       },
@@ -159,6 +165,11 @@ export default async function ApplicationStatusPage() {
     }
     redirect("/");
   }
+
+  const confirmedInstructorSlot =
+    instructorApp?.offeredSlots.find((slot) => slot.confirmedAt) ?? null;
+  const pendingInstructorSlots =
+    instructorApp?.offeredSlots.filter((slot) => !slot.confirmedAt) ?? [];
 
   return (
     <div className="page-shell">
@@ -244,7 +255,7 @@ export default async function ApplicationStatusPage() {
                 {instructorApp.interviewScheduledAt ? (
                   <>
                     <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
-                      Your interview has been confirmed. You will receive a calendar invite by email. If you need to reschedule, reach out to your reviewer.
+                      Your interview has been confirmed. Your calendar invite includes the same meeting link shown here. If you need to reschedule, reach out to your lead interviewer.
                     </p>
                     <div style={{ background: "var(--surface-2)", borderRadius: 8, padding: "12px 16px", marginBottom: 16, textAlign: "center" }}>
                       <p style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
@@ -253,14 +264,25 @@ export default async function ApplicationStatusPage() {
                           hour: "numeric", minute: "2-digit",
                         })}
                       </p>
+                      {confirmedInstructorSlot?.meetingUrl && (
+                        <a
+                          href={confirmedInstructorSlot.meetingUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="button"
+                          style={{ display: "inline-block", marginTop: 12, textDecoration: "none" }}
+                        >
+                          Join Interview
+                        </a>
+                      )}
                     </div>
                   </>
-                ) : instructorApp.offeredSlots && instructorApp.offeredSlots.length > 0 ? (
+                ) : pendingInstructorSlots.length > 0 ? (
                   <>
                     <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>
                       Your lead interviewer has proposed the following times. Pick the one that works best, or let us know if none of them work.
                     </p>
-                    <SlotPickerForm applicationId={instructorApp.id} slots={instructorApp.offeredSlots} />
+                    <SlotPickerForm applicationId={instructorApp.id} slots={pendingInstructorSlots} />
                   </>
                 ) : (
                   <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 0 }}>

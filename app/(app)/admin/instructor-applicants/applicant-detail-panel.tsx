@@ -151,6 +151,7 @@ export default function ApplicantDetailPanel({
   const emptySlot = (): SlotDraft => ({ date: "", time: "", durationMinutes: 60 });
   const freshSlotSet = (): SlotDraft[] => [emptySlot(), emptySlot(), emptySlot()];
   const [offerSlots, setOfferSlots] = useState<SlotDraft[]>(freshSlotSet());
+  const [offerMeetingUrl, setOfferMeetingUrl] = useState("");
   const [offerSending, setOfferSending] = useState(false);
 
   // Reset local state when app changes
@@ -294,15 +295,26 @@ export default function ApplicantDetailPanel({
       showMessage("All proposed times must be in the future.");
       return;
     }
+    try {
+      const url = new URL(offerMeetingUrl.trim());
+      if (url.protocol !== "http:" && url.protocol !== "https:") {
+        throw new Error("Invalid protocol");
+      }
+    } catch {
+      showMessage("Add a valid meeting link before sending times.");
+      return;
+    }
     const slots = validSlots.map((s) => ({
       scheduledAt: new Date(`${s.date}T${s.time}`),
       durationMinutes: s.durationMinutes,
+      meetingUrl: offerMeetingUrl.trim(),
     }));
     setOfferSending(true);
     const result = await offerInterviewSlots(app.id, slots);
     if (result.success) {
       showMessage("Available times sent to applicant");
       setOfferSlots(freshSlotSet());
+      setOfferMeetingUrl("");
     } else {
       showMessage(result.error || "Failed to send times");
     }
@@ -597,6 +609,14 @@ export default function ApplicantDetailPanel({
               <p style={{ fontSize: 13, color: "var(--muted)", marginTop: 0, marginBottom: 10 }}>
                 Add 3–5 future times. The applicant will receive an email and pick the one that works for them.
               </p>
+              <input
+                type="url"
+                className="input"
+                value={offerMeetingUrl}
+                onChange={(e) => setOfferMeetingUrl(e.target.value)}
+                placeholder="Meeting link, e.g. https://meet.google.com/..."
+                style={{ marginBottom: 10 }}
+              />
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {offerSlots.map((slot, i) => (
                   <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>

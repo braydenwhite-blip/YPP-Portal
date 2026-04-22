@@ -64,7 +64,7 @@ export default async function InterviewerWorkspacePage({
       },
       offeredSlots: {
         where: { confirmedAt: { not: null } },
-        select: { id: true, scheduledAt: true, durationMinutes: true, confirmedAt: true },
+        select: { id: true, scheduledAt: true, durationMinutes: true, meetingUrl: true, confirmedAt: true },
         orderBy: { scheduledAt: "asc" },
       },
       applicationReviews: {

@@ -12,6 +12,7 @@ interface OfferedSlot {
   id: string;
   scheduledAt: Date;
   durationMinutes: number;
+  meetingUrl: string | null;
   confirmedAt: Date | null;
 }
 
@@ -118,6 +119,14 @@ export default function InterviewerBriefCard({ application, documents, confirmed
           {confirmedSlots.map((slot) => (
             <p key={slot.id} style={{ margin: 0, fontSize: 13 }}>
               {formatDt(slot.scheduledAt)} · {slot.durationMinutes} min
+              {slot.meetingUrl ? (
+                <>
+                  {" · "}
+                  <a href={slot.meetingUrl} target="_blank" rel="noreferrer" className="cockpit-text-link">
+                    Join interview
+                  </a>
+                </>
+              ) : null}
             </p>
           ))}
         </div>

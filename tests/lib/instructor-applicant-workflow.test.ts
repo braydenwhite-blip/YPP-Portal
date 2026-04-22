@@ -466,6 +466,7 @@ describe("manual instructor interview times", () => {
     return {
       scheduledAt: new Date(Date.now() + offsetHours * 60 * 60 * 1000),
       durationMinutes: 60,
+      meetingUrl: "https://meet.google.com/ypp-test",
     };
   }
 
@@ -550,6 +551,7 @@ describe("manual instructor interview times", () => {
       expect.objectContaining({
         data: expect.arrayContaining([
           expect.objectContaining({ offeredByUserId: "lead-1", durationMinutes: 60 }),
+          expect.objectContaining({ meetingUrl: "https://meet.google.com/ypp-test" }),
         ]),
       })
     );

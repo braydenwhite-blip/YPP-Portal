@@ -894,7 +894,7 @@ export async function preApproveApplication(
 
 export async function offerInterviewSlots(
   applicationId: string,
-  slots: { scheduledAt: Date; durationMinutes: number }[]
+  slots: { scheduledAt: Date; durationMinutes: number; meetingUrl?: string | null }[]
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const session = await getSession();
@@ -944,6 +944,7 @@ export async function offerInterviewSlots(
     const normalizedSlots = slots.map((slot) => ({
       scheduledAt: new Date(slot.scheduledAt),
       durationMinutes: Number(slot.durationMinutes || 60),
+      meetingUrl: String(slot.meetingUrl ?? "").trim(),
     }));
 
     if (
@@ -956,6 +957,17 @@ export async function offerInterviewSlots(
       )
     ) {
       return { success: false, error: "Every proposed time needs a valid date and duration." };
+    }
+
+    for (const slot of normalizedSlots) {
+      try {
+        const url = new URL(slot.meetingUrl);
+        if (url.protocol !== "https:" && url.protocol !== "http:") {
+          throw new Error("Meeting link must be http or https.");
+        }
+      } catch {
+        return { success: false, error: "Add a valid meeting link before sending interview times." };
+      }
     }
 
     const now = new Date();
@@ -1022,6 +1034,7 @@ export async function offerInterviewSlots(
           instructorApplicationId: applicationId,
           scheduledAt: slot.scheduledAt,
           durationMinutes: slot.durationMinutes,
+          meetingUrl: slot.meetingUrl,
           offeredByUserId: actor.id,
         })),
       });
@@ -1035,6 +1048,7 @@ export async function offerInterviewSlots(
             count: normalizedSlots.length,
             round: currentRound,
             times: normalizedSlots.map((slot) => slot.scheduledAt.toISOString()),
+            meetingUrl: normalizedSlots[0]?.meetingUrl ?? null,
           },
         },
       });
@@ -1106,6 +1120,13 @@ export async function selectInterviewSlot(
           where: { id: slot.instructorApplicationId },
           data: { interviewScheduledAt: slot.scheduledAt },
         });
+        await tx.offeredInterviewSlot.deleteMany({
+          where: {
+            instructorApplicationId: slot.instructorApplicationId,
+            confirmedAt: null,
+            id: { not: slotId },
+          },
+        });
       }
       return result;
     });
@@ -1125,6 +1146,7 @@ export async function selectInterviewSlot(
       description: "YPP instructor interview.",
       startsAt: slot.scheduledAt,
       endsAt,
+      meetingLink: slot.meetingUrl,
     });
 
     const applicant = slot.instructorApplication.applicant;
@@ -1136,6 +1158,7 @@ export async function selectInterviewSlot(
       durationMinutes: slot.durationMinutes,
       role: "applicant",
       detailUrl: `${baseUrl}/application-status`,
+      meetingUrl: slot.meetingUrl,
       icsContent,
     }).catch((err) => console.error("[selectInterviewSlot] applicant email failed:", err));
 
@@ -1156,6 +1179,7 @@ export async function selectInterviewSlot(
           durationMinutes: slot.durationMinutes,
           role: "reviewer",
           detailUrl: `${baseUrl}/admin/instructor-applicants`,
+          meetingUrl: slot.meetingUrl,
           icsContent,
         }).catch((err) => console.error("[selectInterviewSlot] reviewer email failed:", err));
       }

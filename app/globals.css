@@ -8034,6 +8034,14 @@ select.input {
   gap: 9px;
 }
 
+.cockpit-slot-meeting-link {
+  display: grid;
+  gap: 4px;
+  color: var(--cockpit-soft-ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .cockpit-slot-draft-row {
   display: grid;
   grid-template-columns: minmax(210px, 1fr) minmax(120px, 160px) auto;

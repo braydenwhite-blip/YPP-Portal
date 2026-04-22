@@ -1885,6 +1885,7 @@ model OfferedInterviewSlot {
   instructorApplication   InstructorApplication @relation(fields: [instructorApplicationId], references: [id], onDelete: Cascade)
   scheduledAt             DateTime
   durationMinutes         Int                   @default(60)
+  meetingUrl              String?               @db.Text
   offeredByUserId         String
   offeredBy               User                  @relation("OfferedInterviewSlots", fields: [offeredByUserId], references: [id], onDelete: Cascade)
   confirmedAt             DateTime?
