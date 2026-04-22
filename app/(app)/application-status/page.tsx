@@ -11,7 +11,6 @@ import AvailabilityForm from "./availability-form";
 import SlotPickerForm from "./slot-picker-form";
 import Link from "next/link";
 import InstructorApplicationMotivationResponse from "@/components/instructor-application-motivation-response";
-import InstructorCurriculumPrepPanel from "./instructor-curriculum-prep-panel";
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
 
 function instructorStatusLabel(status: InstructorApplicationStatus): string {
@@ -65,10 +64,6 @@ function currentStageIndex(status: string): number {
   if (status === "UNDER_REVIEW" || status === "INFO_REQUESTED" || status === "ON_HOLD") return 1;
   if (status === "PRE_APPROVED" || status === "INTERVIEW_SCHEDULED" || status === "INTERVIEW_COMPLETED") return 2;
   return 3;
-}
-
-function canShowCurriculumPrep(status: InstructorApplicationStatus): boolean {
-  return status !== "APPROVED" && status !== "REJECTED" && status !== "WITHDRAWN";
 }
 
 function ProgressStepper({
@@ -131,18 +126,6 @@ export default async function ApplicationStatusPage() {
           where: { confirmedAt: null },
           orderBy: { scheduledAt: "asc" },
         },
-        documents: {
-          where: { supersededAt: null },
-          select: {
-            id: true,
-            kind: true,
-            fileUrl: true,
-            originalName: true,
-            note: true,
-            uploadedAt: true,
-          },
-          orderBy: { uploadedAt: "desc" },
-        },
       },
     });
 
@@ -202,16 +185,6 @@ export default async function ApplicationStatusPage() {
           <ProgressStepper status={instructorApp.status} />
 
           <div className="card" style={{ marginBottom: 16 }}>
-            {canShowCurriculumPrep(instructorApp.status) ? (
-              <InstructorCurriculumPrepPanel
-                applicationId={instructorApp.id}
-                documents={instructorApp.documents.map((doc) => ({
-                  ...doc,
-                  uploadedAt: doc.uploadedAt.toISOString(),
-                }))}
-              />
-            ) : null}
-
             {instructorApp.status === "SUBMITTED" && (
               <>
                 <h3 className="section-title">Application Received</h3>
