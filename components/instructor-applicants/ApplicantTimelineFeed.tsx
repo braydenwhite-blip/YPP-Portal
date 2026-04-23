@@ -22,6 +22,7 @@ function eventTone(kind: string): Tone {
     case "INTERVIEWER_ASSIGNED":
     case "INTERVIEWER_REMOVED":
     case "INTERVIEW_COMPLETED":
+    case "CHAIR_REVIEW_QUEUED":
       return "accent";
     case "STATUS_CHANGE":
     case "DOC_UPLOADED":
@@ -72,6 +73,8 @@ function eventLabel(kind: string, payload: Record<string, unknown>): string {
       return "Interview slot confirmed";
     case "INTERVIEW_COMPLETED":
       return "Interview marked complete";
+    case "CHAIR_REVIEW_QUEUED":
+      return `Queued for chair review${payload.emailed ? " (email sent)" : ""}`;
     case "CHAIR_DECISION":
       return `Chair decision: ${String(payload.action ?? "").replace(/_/g, " ")}`;
     case "NOTE_ADDED":

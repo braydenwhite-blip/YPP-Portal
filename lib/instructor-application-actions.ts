@@ -23,6 +23,7 @@ import {
   sendInterviewerAssignedEmail,
   sendChairDecisionEmail,
   sendInterviewTimesDeclinedEmail,
+  sendChairReviewQueuedEmail,
 } from "@/lib/email";
 import {
   getLegacyApplicationTransitionError,
@@ -1473,7 +1474,7 @@ export async function assignInterviewer(formData: FormData): Promise<{ success: 
 
     // Debounced: one email per interviewer per application per 5-min window (Risk 7).
     try {
-      if (shouldSendAssignmentNotification("INTERVIEWER_ASSIGNED", interviewerId, applicationId)) {
+      if (shouldSendAssignmentNotification("INTERVIEWER_ASSIGNED", interviewerId, applicationId, role)) {
         await sendInterviewerAssignedEmail(interviewerId, applicationId, role);
       }
     } catch (e) {
@@ -1588,7 +1589,7 @@ export async function sendToChair(formData: FormData): Promise<{ success: boolea
         reviewerId: true,
         status: true,
         interviewRound: true,
-        applicant: { select: { chapterId: true } },
+        applicant: { select: { chapterId: true, name: true, email: true } },
         interviewerAssignments: {
           where: { removedAt: null },
           select: { interviewerId: true, round: true, removedAt: true },
@@ -1650,6 +1651,31 @@ export async function sendToChair(formData: FormData): Promise<{ success: boolea
     });
 
     await syncInstructorApplicationWorkflow(applicationId);
+
+    let emailed = false;
+    try {
+      const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+      const baseUrl = await getBaseUrl();
+      if (app.applicant.email) {
+        await sendChairReviewQueuedEmail({
+          to: app.applicant.email,
+          applicantName: app.applicant.name ?? "Applicant",
+          statusUrl: `${baseUrl}/application-status`,
+        });
+        emailed = true;
+      }
+    } catch (e) {
+      console.error("[sendToChair] chair-review-queued email failed:", e);
+    }
+    await prisma.instructorApplicationTimelineEvent.create({
+      data: {
+        applicationId,
+        kind: "CHAIR_REVIEW_QUEUED",
+        actorId: actor.id,
+        payload: { emailed },
+      },
+    });
+
     revalidatePath(`/applications/instructor/${applicationId}`);
     revalidatePath("/admin/instructor-applicants");
     revalidatePath("/admin/instructor-applicants/chair-queue");
@@ -1682,7 +1708,7 @@ export async function forceSendToChair(
 
     const app = await prisma.instructorApplication.findUnique({
       where: { id: applicationId },
-      select: { status: true },
+      select: { status: true, applicant: { select: { name: true, email: true } } },
     });
     if (!app) return { success: false, error: "Application not found." };
     if (app.status !== InstructorApplicationStatus.INTERVIEW_COMPLETED) {
@@ -1711,6 +1737,30 @@ export async function forceSendToChair(
           },
         },
       });
+    });
+
+    let emailed = false;
+    try {
+      const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+      const baseUrl = await getBaseUrl();
+      if (app.applicant.email) {
+        await sendChairReviewQueuedEmail({
+          to: app.applicant.email,
+          applicantName: app.applicant.name ?? "Applicant",
+          statusUrl: `${baseUrl}/application-status`,
+        });
+        emailed = true;
+      }
+    } catch (e) {
+      console.error("[forceSendToChair] chair-review-queued email failed:", e);
+    }
+    await prisma.instructorApplicationTimelineEvent.create({
+      data: {
+        applicationId,
+        kind: "CHAIR_REVIEW_QUEUED",
+        actorId: session.user.id,
+        payload: { emailed },
+      },
     });
 
     revalidatePath(`/applications/instructor/${applicationId}`);

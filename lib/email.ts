@@ -1389,6 +1389,29 @@ export async function sendChairDigestEmail(
 /**
  * Notify applicant of a chair decision (APPROVE / REJECT / HOLD / REQUEST_INFO / REQUEST_SECOND_INTERVIEW).
  */
+export async function sendChairReviewQueuedEmail({
+  to,
+  applicantName,
+  statusUrl,
+}: {
+  to: string;
+  applicantName: string;
+  statusUrl: string;
+}): Promise<EmailResult> {
+  const subject = "Your YPP instructor application is under final review";
+  const html = emailShell(`
+    <h2 style="margin: 0 0 16px; color: #1c1917;">Great news, ${escapeHtml(applicantName)}!</h2>
+    <p>Your interviews have been completed and your instructor application has been passed to our hiring chair for final review.</p>
+    <p>The hiring chair typically completes their review within <strong>up to two weeks</strong>. You will receive another email as soon as a decision has been made.</p>
+    <p>In the meantime, you can check your current application status at any time:</p>
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${escapeHtml(statusUrl)}" style="background: #6b21c8; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">View Application Status</a>
+    </div>
+    <p style="color: #78716c; font-size: 13px;">Thank you for your patience — we appreciate your interest in joining the YPP instructor team.</p>
+  `);
+  return sendEmail({ to, subject, html });
+}
+
 export async function sendChairDecisionEmail(
   applicantEmail: string,
   applicationId: string,
