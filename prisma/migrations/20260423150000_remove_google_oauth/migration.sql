@@ -1,34 +1,44 @@
--- Drop Google OAuth support.
+-- Drop Google OAuth support — safe / online-compatible subset.
 --
 -- Supabase now handles all auth (email + password, magic links, password
--- reset, 2FA). The NextAuth-style OAuth adapter tables and the user-level
--- oauthProvider/oauthId/image columns are no longer referenced by any code
--- path. emailVerified is retained — native signup flows still set it.
+-- reset, 2FA). The NextAuth-style OAuth adapter tables below are unused
+-- by runtime code and can be dropped without user impact.
 --
--- NOTE: The Supabase user-sync trigger (handle_new_supabase_user / on_auth_user_created)
--- lived in the auth schema and referenced oauthProvider. Supabase restricts
--- DDL on auth.* to the service-role, so the trigger must be dropped via the
--- Supabase Dashboard → SQL Editor (once, manually):
+-- What this migration does:
+--   1. Drops OAuthAccount, OAuthSession, VerificationToken. These tables
+--      have no active writers (Google OAuth disabled in Supabase, NextAuth
+--      retired to 410), so ACCESS EXCLUSIVE locks acquire instantly.
 --
---   DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
---   DROP FUNCTION IF EXISTS public.handle_new_supabase_user();
+-- What this migration DOES NOT do (intentionally):
+--   - Does NOT run `ALTER TABLE "User" DROP COLUMN` for oauthProvider /
+--     oauthId / image. DROP COLUMN requires ACCESS EXCLUSIVE on User,
+--     which cannot be acquired under live traffic and causes deploys to
+--     fail with SQLSTATE 55P03 (lock_timeout). These columns are harmless
+--     dead columns once removed from prisma/schema.prisma — Prisma Client
+--     never references them. Drop them manually during a quiet window:
 --
--- The trigger skipped email-provider signups, so removing Google OAuth from
--- the Supabase dashboard means it will never fire again regardless.
+--       ALTER TABLE "User" DROP COLUMN IF EXISTS "oauthProvider";
+--       ALTER TABLE "User" DROP COLUMN IF EXISTS "oauthId";
+--       ALTER TABLE "User" DROP COLUMN IF EXISTS "image";
+--       DROP INDEX IF EXISTS "User_oauthProvider_oauthId_idx";
+--
+--   - Does NOT drop the Supabase user-sync trigger (lives in auth.*,
+--     requires service-role). Run these manually from the Supabase
+--     Dashboard SQL Editor:
+--
+--       DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+--       DROP FUNCTION IF EXISTS public.handle_new_supabase_user();
+--
+--     The trigger already skips email-provider signups, so with Google
+--     OAuth disabled in Supabase it will never fire.
 
--- Give the session-pooler connection enough time for DDL.
+-- Give the session-pooler connection enough slack for DDL and bound
+-- lock waits so a stuck lock fails fast instead of timing the whole
+-- build out at the pooler level.
 SET statement_timeout = 0;
-SET lock_timeout = '30s';
+SET lock_timeout = '2min';
 
--- Drop the User OAuth index.
-DROP INDEX IF EXISTS "User_oauthProvider_oauthId_idx";
-
--- Drop OAuth columns on User.
-ALTER TABLE "User" DROP COLUMN IF EXISTS "oauthProvider";
-ALTER TABLE "User" DROP COLUMN IF EXISTS "oauthId";
-ALTER TABLE "User" DROP COLUMN IF EXISTS "image";
-
--- Drop NextAuth adapter tables (no runtime code uses these anymore).
+-- Drop NextAuth adapter tables. No active writers → locks acquire fast.
 DROP TABLE IF EXISTS "OAuthSession";
 DROP TABLE IF EXISTS "OAuthAccount";
 DROP TABLE IF EXISTS "VerificationToken";
