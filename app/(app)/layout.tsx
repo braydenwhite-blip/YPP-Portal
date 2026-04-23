@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import AppShell from "@/components/app-shell";
+import SessionUnavailablePage from "@/components/session-unavailable-page";
 import { getSession } from "@/lib/auth-supabase";
 import {
   getEnabledFeatureKeysForUserCached,
@@ -34,9 +35,21 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const session = await getSession();
-  const roles = session?.user?.roles ?? [];
-  const primaryRole = session?.user?.primaryRole ?? null;
-  const userId = session?.user?.id;
+
+  // Middleware passed this request through (auth cookie is valid), but
+  // getSession couldn't resolve the user record — either the Prisma row
+  // is missing, the lookup timed out, or supabaseAuthId is unlinked.
+  // Rendering the shell with "Portal User" placeholders silently hides a
+  // broken session. We cannot redirect to /login — middleware will bounce
+  // the valid auth cookie right back here and loop. Instead, render a
+  // dedicated recovery page with retry + sign-out options.
+  if (!session?.user) {
+    return <SessionUnavailablePage />;
+  }
+
+  const roles = session.user.roles ?? [];
+  const primaryRole = session.user.primaryRole ?? null;
+  const userId = session.user.id;
   const hiringDemoMode = isHiringDemoModeEnabled();
   const shouldCheckOnboarding = Boolean(
     userId && primaryRole !== "APPLICANT" && !hiringDemoMode,

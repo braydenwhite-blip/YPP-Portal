@@ -117,7 +117,7 @@ function applySecurityHeaders(response: NextResponse): NextResponse {
   return response;
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isLogin = pathname.startsWith("/login");
   const isSignup = pathname.startsWith("/signup");
