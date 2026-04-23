@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { signUp, pickFormFields } from "@/lib/signup-actions";
+import { signUp } from "@/lib/signup-actions";
+import { pickFormFields } from "@/lib/signup-form-utils";
 import { prisma } from "@/lib/prisma";
 import { createServiceClient } from "@/lib/supabase/server";
 

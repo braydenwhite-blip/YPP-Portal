@@ -7,22 +7,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { syncInstructorApplicationWorkflow } from "@/lib/workflow";
 import { findDefaultInitialReviewerForChapter } from "@/lib/instructor-application-defaults";
 import { instructorApplicationSchema, type InstructorApplicationInput } from "@/lib/application-schemas";
-
-export type SignupFormState = {
-  status: "idle" | "error" | "success";
-  message: string;
-  fields?: Record<string, string>;
-};
-
-// Exported for unit testing
-export function pickFormFields(formData: FormData): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const [k, v] of formData.entries()) {
-    if (k === "password" || k === "passwordConfirm") continue;
-    if (typeof v === "string") out[k] = v;
-  }
-  return out;
-}
+import { pickFormFields, type SignupFormState } from "@/lib/signup-form-utils";
 
 type FormState = SignupFormState;
 

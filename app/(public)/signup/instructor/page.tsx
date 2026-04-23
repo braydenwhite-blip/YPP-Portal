@@ -14,7 +14,8 @@ import {
   saveInstructorSignupDraft,
   type InstructorSignupDraftV1,
 } from "@/lib/instructor-signup-draft";
-import { signUp, type SignupFormState } from "@/lib/signup-actions";
+import { signUp } from "@/lib/signup-actions";
+import type { SignupFormState } from "@/lib/signup-form-utils";
 
 const initialState: SignupFormState = { status: "idle" as const, message: "" };
 
