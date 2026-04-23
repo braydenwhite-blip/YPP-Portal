@@ -47,6 +47,8 @@ interface ApplicationRow {
     notes: string | null;
     overallRating: string | null;
     categories: Array<{ category: string; rating: string | null; notes: string | null }>;
+    editedAt: Date | string | null;
+    editedBy: { name: string | null } | null;
   }>;
   interviewReviews: InterviewReview[];
   interviewerAssignments: Array<{ id: string; role: string; interviewer: { id: string; name: string | null } }>;

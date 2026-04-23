@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import {
   createApplicationCohort,
   batchUpdateStatus,
+  type BatchUpdateResult,
 } from "@/lib/application-cohort-actions";
 
 interface Cohort {
@@ -28,6 +29,7 @@ export default function ApplicationCohortManager({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [batchSummary, setBatchSummary] = useState<BatchUpdateResult | null>(null);
 
   function handleCreate(formData: FormData) {
     startTransition(async () => {
@@ -36,19 +38,23 @@ export default function ApplicationCohortManager({
     });
   }
 
-  function handleBatchAccept(cohortId: string, roleType: string) {
+  function handleBatchApprove(cohortId: string, roleType: string) {
     const applicationType =
       roleType === "CHAPTER_PRESIDENT" ? "chapter_president" : "instructor";
+    setBatchSummary(null);
     startTransition(async () => {
-      await batchUpdateStatus(cohortId, "ACCEPTED", applicationType);
+      const result = await batchUpdateStatus(cohortId, "APPROVED", applicationType);
+      setBatchSummary(result);
     });
   }
 
   function handleBatchReject(cohortId: string, roleType: string) {
     const applicationType =
       roleType === "CHAPTER_PRESIDENT" ? "chapter_president" : "instructor";
+    setBatchSummary(null);
     startTransition(async () => {
-      await batchUpdateStatus(cohortId, "REJECTED", applicationType);
+      const result = await batchUpdateStatus(cohortId, "REJECTED", applicationType);
+      setBatchSummary(result);
     });
   }
 
@@ -114,6 +120,39 @@ export default function ApplicationCohortManager({
           {showCreateForm ? "Cancel" : "Create New Cohort"}
         </button>
       </div>
+
+      {batchSummary && (
+        <div
+          style={{
+            padding: "12px 16px",
+            borderRadius: "6px",
+            border: `1px solid ${batchSummary.ok ? "#bbf7d0" : "#fecaca"}`,
+            backgroundColor: batchSummary.ok ? "#f0fdf4" : "#fef2f2",
+            fontSize: "13px",
+            color: batchSummary.ok ? "#166534" : "#991b1b",
+          }}
+        >
+          {batchSummary.ok ? (
+            <>
+              <strong>Batch complete:</strong> {batchSummary.updated}/{batchSummary.total} updated, {batchSummary.emailed} emailed
+              {batchSummary.skipped.length > 0 && (
+                <span> · {batchSummary.skipped.length} skipped (invalid transition)</span>
+              )}
+              {batchSummary.emailFailures > 0 && (
+                <span> · {batchSummary.emailFailures} email failure{batchSummary.emailFailures !== 1 ? "s" : ""}</span>
+              )}
+            </>
+          ) : (
+            <><strong>Error:</strong> {batchSummary.error}</>
+          )}
+          <button
+            onClick={() => setBatchSummary(null)}
+            style={{ marginLeft: "12px", background: "none", border: "none", cursor: "pointer", fontWeight: 600, fontSize: "13px" }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {showCreateForm && (
         <div
@@ -327,7 +366,7 @@ export default function ApplicationCohortManager({
                   <button
                     className="button"
                     disabled={isPending || memberCount === 0}
-                    onClick={() => handleBatchAccept(cohort.id, cohort.roleType)}
+                    onClick={() => handleBatchApprove(cohort.id, cohort.roleType)}
                     style={{
                       backgroundColor: "#16a34a",
                       color: "#fff",
@@ -340,7 +379,7 @@ export default function ApplicationCohortManager({
                       opacity: isPending || memberCount === 0 ? 0.6 : 1,
                     }}
                   >
-                    {isPending ? "Updating..." : "Batch Accept"}
+                    {isPending ? "Updating..." : "Batch Approve"}
                   </button>
                   <button
                     className="button"

@@ -9,6 +9,7 @@ import {
   getChairQueue,
 } from "@/lib/instructor-applicant-board-queries";
 import InstructorApplicantsCommandCenter from "@/components/instructor-applicants/InstructorApplicantsCommandCenter";
+import PipelineFunnelChart, { FunnelCounts } from "@/components/instructor-applicants/PipelineFunnelChart";
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
 
 const DEMO_PIPELINE_TAKE = 48;
@@ -135,6 +136,21 @@ export default async function AdminInstructorApplicantsPage({
   let reviewerUsers: Awaited<ReturnType<typeof loadReviewerUsers>>;
   let interviewerUsers: Awaited<ReturnType<typeof loadInterviewerUsers>>;
 
+  // Funnel counts — separate query, no filters applied (global view of the funnel)
+  const funnelGroupBy = isAdmin
+    ? prisma.instructorApplication.groupBy({
+        by: ["status"],
+        _count: true,
+        where: { archivedAt: null },
+      })
+    : prisma.instructorApplication.groupBy({
+        by: ["status"],
+        _count: true,
+        where: { archivedAt: null, applicant: { chapterId } },
+      });
+
+  let funnelCounts: FunnelCounts = {};
+
   if (hiringDemoMode) {
     [pipelineResult, chapters, reviewerUsers] = await Promise.all([
       getApplicantPipeline({
@@ -150,7 +166,7 @@ export default async function AdminInstructorApplicantsPage({
     chairQueueItems = [];
     interviewerUsers = reviewerUsers;
   } else {
-    [pipelineResult, archiveResult, chairQueueItems, chapters, reviewerUsers, interviewerUsers] =
+    const [pipelineRes, archiveRes, chairRes, chaptersRes, reviewerRes, interviewerRes, funnelRes] =
       await Promise.all([
         getApplicantPipeline({
           scope,
@@ -164,7 +180,19 @@ export default async function AdminInstructorApplicantsPage({
         loadChapters(),
         loadReviewerUsers(),
         loadInterviewerUsers(),
+        funnelGroupBy,
       ]);
+
+    pipelineResult = pipelineRes;
+    archiveResult = archiveRes;
+    chairQueueItems = chairRes;
+    chapters = chaptersRes;
+    reviewerUsers = reviewerRes;
+    interviewerUsers = interviewerRes;
+
+    funnelCounts = Object.fromEntries(
+      funnelRes.map((row) => [row.status, row._count])
+    ) as FunnelCounts;
   }
 
   // Flatten pipeline columns into a single array
@@ -245,6 +273,16 @@ export default async function AdminInstructorApplicantsPage({
             Pipeline, assignments, and decisions for all instructor applicants.
           </p>
         </div>
+        <div className="applicant-command-header-actions">
+          <a
+            href="/api/admin/instructor-applicants/export.csv"
+            download
+            className="button secondary small"
+            aria-label="Download instructor applicants CSV export"
+          >
+            Download CSV
+          </a>
+        </div>
       </div>
 
       <div className="grid four applicant-command-kpis">
@@ -265,6 +303,8 @@ export default async function AdminInstructorApplicantsPage({
           <div className="kpi-label">Post-Interview</div>
         </div>
       </div>
+
+      <PipelineFunnelChart counts={funnelCounts} />
 
       <InstructorApplicantsCommandCenter
         scope={isAdmin ? "global" : "chapter"}

@@ -11,6 +11,7 @@ export default function InstructorApplicantDetailError({
   reset: () => void;
 }) {
   useEffect(() => {
+    console.error("[applicant-cockpit error]", error, error.digest);
     reportClientError("instructor-applicant-detail-error", error);
   }, [error]);
 
@@ -35,6 +36,11 @@ export default function InstructorApplicantDetailError({
             Back to pipeline
           </a>
         </div>
+        {error.digest && (
+          <p className="mt-4 text-xs text-gray-400">
+            Error ref: <code className="font-mono">{error.digest}</code>
+          </p>
+        )}
       </div>
     </div>
   );

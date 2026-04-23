@@ -23,6 +23,7 @@ import {
   sendInterviewerAssignedEmail,
   sendChairDecisionEmail,
   sendInterviewTimesDeclinedEmail,
+  sendChairReviewQueuedEmail,
 } from "@/lib/email";
 import {
   getLegacyApplicationTransitionError,
@@ -35,6 +36,7 @@ import {
   assertCanAssignInterviewers,
   assertCanActAsChair,
   isAdmin,
+  isHiringChair,
 } from "@/lib/chapter-hiring-permissions";
 import { ApplicantWorkflowError } from "@/lib/applicant-workflow-error";
 import { shouldSendAssignmentNotification } from "@/lib/notification-policy";
@@ -388,7 +390,8 @@ async function requestMoreInfoInternal(
   });
   if (!application) throw new Error("Application not found");
 
-    await prisma.instructorApplication.update({
+  await prisma.$transaction(async (tx) => {
+    await tx.instructorApplication.update({
       where: { id: applicationId },
       data: {
         status: InstructorApplicationStatus.INFO_REQUESTED,
@@ -397,6 +400,15 @@ async function requestMoreInfoInternal(
         infoRequestReturnStatus: InstructorApplicationStatus.UNDER_REVIEW,
       },
     });
+    await tx.instructorApplicationTimelineEvent.create({
+      data: {
+        applicationId,
+        kind: "INFO_REQUESTED",
+        actorId: reviewerId,
+        payload: { message: message.slice(0, 500) },
+      },
+    });
+  });
 
   const { getBaseUrl } = await import("@/lib/portal-auth-utils");
   const baseUrl = await getBaseUrl();
@@ -514,13 +526,23 @@ export async function submitInfoResponse(
     const returnStatus =
       application.infoRequestReturnStatus ?? InstructorApplicationStatus.UNDER_REVIEW;
 
-    await prisma.instructorApplication.update({
-      where: { id: application.id },
-      data: {
-        applicantResponse: response,
-        status: returnStatus,
-        infoRequestReturnStatus: null,
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.instructorApplication.update({
+        where: { id: application.id },
+        data: {
+          applicantResponse: response,
+          status: returnStatus,
+          infoRequestReturnStatus: null,
+        },
+      });
+      await tx.instructorApplicationTimelineEvent.create({
+        data: {
+          applicationId: application.id,
+          kind: "INFO_RESPONSE_RECEIVED",
+          actorId: session.user.id,
+          payload: { responseLength: response.length },
+        },
+      });
     });
 
     try {
@@ -801,31 +823,78 @@ export async function saveScoresAndNotes(
         applicantId: true,
         reviewerId: true,
         applicant: { select: { chapterId: true } },
+        scoreAcademic: true,
+        scoreCommunication: true,
+        scoreLeadership: true,
+        scoreMotivation: true,
+        scoreFit: true,
+        scoreSubjectKnowledge: true,
+        scoreTeachingMethodology: true,
+        scoreCurriculumAlignment: true,
+        curriculumReviewSummary: true,
+        reviewerNotes: true,
       },
     });
     if (!app) return { success: false, error: "Application not found." };
-    assertCanManageApplication(await getHiringActor(session.user.id), {
+    const actor = await getHiringActor(session.user.id);
+    assertCanManageApplication(actor, {
       id: app.id,
       applicantId: app.applicantId,
       reviewerId: app.reviewerId,
       applicantChapterId: app.applicant.chapterId,
       interviewerAssignments: [],
     });
-    await prisma.instructorApplication.update({
-      where: { id: applicationId },
-      data: {
-        scoreAcademic: data.scoreAcademic,
-        scoreCommunication: data.scoreCommunication,
-        scoreLeadership: data.scoreLeadership,
-        scoreMotivation: data.scoreMotivation,
-        scoreFit: data.scoreFit,
-        scoreSubjectKnowledge: data.scoreSubjectKnowledge,
-        scoreTeachingMethodology: data.scoreTeachingMethodology,
-        scoreCurriculumAlignment: data.scoreCurriculumAlignment,
-        curriculumReviewSummary: data.curriculumReviewSummary || null,
-        reviewerNotes: data.reviewerNotes,
-      },
+
+    type ScoreField = keyof typeof data;
+    const scoreFields: ScoreField[] = [
+      "scoreAcademic",
+      "scoreCommunication",
+      "scoreLeadership",
+      "scoreMotivation",
+      "scoreFit",
+      "scoreSubjectKnowledge",
+      "scoreTeachingMethodology",
+      "scoreCurriculumAlignment",
+      "curriculumReviewSummary",
+      "reviewerNotes",
+    ];
+    const changed: Record<string, { from: unknown; to: unknown }> = {};
+    for (const field of scoreFields) {
+      const incoming = field in data ? data[field] : undefined;
+      if (incoming === undefined) continue;
+      const prev = app[field as keyof typeof app];
+      const next = field === "curriculumReviewSummary" ? (data.curriculumReviewSummary || null) : incoming;
+      if (prev !== next) changed[field] = { from: prev ?? null, to: next ?? null };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.instructorApplication.update({
+        where: { id: applicationId },
+        data: {
+          scoreAcademic: data.scoreAcademic,
+          scoreCommunication: data.scoreCommunication,
+          scoreLeadership: data.scoreLeadership,
+          scoreMotivation: data.scoreMotivation,
+          scoreFit: data.scoreFit,
+          scoreSubjectKnowledge: data.scoreSubjectKnowledge,
+          scoreTeachingMethodology: data.scoreTeachingMethodology,
+          scoreCurriculumAlignment: data.scoreCurriculumAlignment,
+          curriculumReviewSummary: data.curriculumReviewSummary || null,
+          reviewerNotes: data.reviewerNotes,
+        },
+      });
+      if (Object.keys(changed).length > 0) {
+        await tx.instructorApplicationTimelineEvent.create({
+          data: {
+            applicationId,
+            kind: "SCORES_UPDATED",
+            actorId: actor.id,
+            payload: JSON.parse(JSON.stringify({ changed })),
+          },
+        });
+      }
     });
+
     revalidatePath("/admin/instructor-applicants");
     return { success: true };
   } catch (error) {
@@ -1000,59 +1069,65 @@ export async function offerInterviewSlots(
 
     const shouldAdvanceToScheduling = application.status === InstructorApplicationStatus.UNDER_REVIEW;
 
-    await prisma.$transaction(async (tx) => {
-      await tx.offeredInterviewSlot.deleteMany({
-        where: { instructorApplicationId: applicationId, confirmedAt: null },
-      });
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.offeredInterviewSlot.deleteMany({
+          where: { instructorApplicationId: applicationId, confirmedAt: null },
+        });
 
-      if (shouldAdvanceToScheduling) {
-        await tx.instructorApplication.update({
-          where: { id: applicationId },
-          data: {
-            status: InstructorApplicationStatus.INTERVIEW_SCHEDULED,
-            interviewScheduledAt: null,
-            reviewerNotes: leadReview?.summary ?? application.reviewerNotes,
-          },
+        if (shouldAdvanceToScheduling) {
+          await tx.instructorApplication.update({
+            where: { id: applicationId },
+            data: {
+              status: InstructorApplicationStatus.INTERVIEW_SCHEDULED,
+              interviewScheduledAt: null,
+              reviewerNotes: leadReview?.summary ?? application.reviewerNotes,
+            },
+          });
+
+          await tx.instructorApplicationTimelineEvent.create({
+            data: {
+              applicationId,
+              kind: "STATUS_CHANGE",
+              actorId: actor.id,
+              payload: {
+                from: InstructorApplicationStatus.UNDER_REVIEW,
+                to: InstructorApplicationStatus.INTERVIEW_SCHEDULED,
+                reason: "lead_interviewer_sent_times",
+              },
+            },
+          });
+        }
+
+        // skipDuplicates is a belt-and-suspenders guard; the unique index on
+        // (instructorApplicationId, scheduledAt) is the primary enforcement.
+        await tx.offeredInterviewSlot.createMany({
+          data: normalizedSlots.map((slot) => ({
+            instructorApplicationId: applicationId,
+            scheduledAt: slot.scheduledAt,
+            durationMinutes: slot.durationMinutes,
+            meetingUrl: slot.meetingUrl,
+            offeredByUserId: actor.id,
+          })),
+          skipDuplicates: true,
         });
 
         await tx.instructorApplicationTimelineEvent.create({
           data: {
             applicationId,
-            kind: "STATUS_CHANGE",
+            kind: "INTERVIEW_TIMES_SENT",
             actorId: actor.id,
             payload: {
-              from: InstructorApplicationStatus.UNDER_REVIEW,
-              to: InstructorApplicationStatus.INTERVIEW_SCHEDULED,
-              reason: "lead_interviewer_sent_times",
+              count: normalizedSlots.length,
+              round: currentRound,
+              times: normalizedSlots.map((slot) => slot.scheduledAt.toISOString()),
+              meetingUrl: normalizedSlots[0]?.meetingUrl ?? null,
             },
           },
         });
-      }
-
-      await tx.offeredInterviewSlot.createMany({
-        data: normalizedSlots.map((slot) => ({
-          instructorApplicationId: applicationId,
-          scheduledAt: slot.scheduledAt,
-          durationMinutes: slot.durationMinutes,
-          meetingUrl: slot.meetingUrl,
-          offeredByUserId: actor.id,
-        })),
-      });
-
-      await tx.instructorApplicationTimelineEvent.create({
-        data: {
-          applicationId,
-          kind: "INTERVIEW_TIMES_SENT",
-          actorId: actor.id,
-          payload: {
-            count: normalizedSlots.length,
-            round: currentRound,
-            times: normalizedSlots.map((slot) => slot.scheduledAt.toISOString()),
-            meetingUrl: normalizedSlots[0]?.meetingUrl ?? null,
-          },
-        },
-      });
-    });
+      },
+      { isolationLevel: "Serializable" }
+    );
 
     // Send "pick your time" email to the applicant
     const { getBaseUrl } = await import("@/lib/portal-auth-utils");
@@ -1073,6 +1148,13 @@ export async function offerInterviewSlots(
     revalidatePath("/application-status");
     return { success: true };
   } catch (error) {
+    // Concurrent callers racing to insert the same slots trigger a unique-constraint
+    // violation (Prisma code P2002). Return a user-friendly conflict message so the
+    // UI can prompt the reviewer to refresh and check the current slot state.
+    const prismaErr = error as { code?: string };
+    if (prismaErr?.code === "P2002") {
+      return { success: false, error: "Another reviewer posted conflicting slots. Refresh and try again." };
+    }
     console.error("[offerInterviewSlots]", error);
     return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
   }
@@ -1406,7 +1488,7 @@ export async function assignInterviewer(formData: FormData): Promise<{ success: 
 
     // Debounced: one email per interviewer per application per 5-min window (Risk 7).
     try {
-      if (shouldSendAssignmentNotification("INTERVIEWER_ASSIGNED", interviewerId, applicationId)) {
+      if (shouldSendAssignmentNotification("INTERVIEWER_ASSIGNED", interviewerId, applicationId, role)) {
         await sendInterviewerAssignedEmail(interviewerId, applicationId, role);
       }
     } catch (e) {
@@ -1437,6 +1519,7 @@ export async function removeInterviewer(formData: FormData): Promise<{ success: 
 
     const assignmentId = String(formData.get("assignmentId") ?? "").trim();
     if (!assignmentId) return { success: false, error: "Missing assignmentId." };
+    const reason = String(formData.get("reason") ?? "").trim() || null;
 
     const assignment = await prisma.instructorApplicationInterviewer.findUnique({
       where: { id: assignmentId },
@@ -1481,7 +1564,7 @@ export async function removeInterviewer(formData: FormData): Promise<{ success: 
           applicationId: assignment.applicationId,
           kind: "INTERVIEWER_REMOVED",
           actorId: actor.id,
-          payload: { interviewerId: assignment.interviewerId, role: assignment.role, round: assignment.round },
+          payload: { interviewerId: assignment.interviewerId, role: assignment.role, round: assignment.round, reason },
         },
       });
     });
@@ -1520,7 +1603,7 @@ export async function sendToChair(formData: FormData): Promise<{ success: boolea
         reviewerId: true,
         status: true,
         interviewRound: true,
-        applicant: { select: { chapterId: true } },
+        applicant: { select: { chapterId: true, name: true, email: true } },
         interviewerAssignments: {
           where: { removedAt: null },
           select: { interviewerId: true, round: true, removedAt: true },
@@ -1582,6 +1665,31 @@ export async function sendToChair(formData: FormData): Promise<{ success: boolea
     });
 
     await syncInstructorApplicationWorkflow(applicationId);
+
+    let emailed = false;
+    try {
+      const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+      const baseUrl = await getBaseUrl();
+      if (app.applicant.email) {
+        await sendChairReviewQueuedEmail({
+          to: app.applicant.email,
+          applicantName: app.applicant.name ?? "Applicant",
+          statusUrl: `${baseUrl}/application-status`,
+        });
+        emailed = true;
+      }
+    } catch (e) {
+      console.error("[sendToChair] chair-review-queued email failed:", e);
+    }
+    await prisma.instructorApplicationTimelineEvent.create({
+      data: {
+        applicationId,
+        kind: "CHAIR_REVIEW_QUEUED",
+        actorId: actor.id,
+        payload: { emailed },
+      },
+    });
+
     revalidatePath(`/applications/instructor/${applicationId}`);
     revalidatePath("/admin/instructor-applicants");
     revalidatePath("/admin/instructor-applicants/chair-queue");
@@ -1614,7 +1722,7 @@ export async function forceSendToChair(
 
     const app = await prisma.instructorApplication.findUnique({
       where: { id: applicationId },
-      select: { status: true },
+      select: { status: true, applicant: { select: { name: true, email: true } } },
     });
     if (!app) return { success: false, error: "Application not found." };
     if (app.status !== InstructorApplicationStatus.INTERVIEW_COMPLETED) {
@@ -1643,6 +1751,30 @@ export async function forceSendToChair(
           },
         },
       });
+    });
+
+    let emailed = false;
+    try {
+      const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+      const baseUrl = await getBaseUrl();
+      if (app.applicant.email) {
+        await sendChairReviewQueuedEmail({
+          to: app.applicant.email,
+          applicantName: app.applicant.name ?? "Applicant",
+          statusUrl: `${baseUrl}/application-status`,
+        });
+        emailed = true;
+      }
+    } catch (e) {
+      console.error("[forceSendToChair] chair-review-queued email failed:", e);
+    }
+    await prisma.instructorApplicationTimelineEvent.create({
+      data: {
+        applicationId,
+        kind: "CHAIR_REVIEW_QUEUED",
+        actorId: session.user.id,
+        payload: { emailed },
+      },
     });
 
     revalidatePath(`/applications/instructor/${applicationId}`);
@@ -1879,28 +2011,27 @@ export async function chairDecide(formData: FormData): Promise<{ success: boolea
           error: "Onboarding sync failed — decision was reversed. Please try again.",
         };
       }
-      try {
+    }
+
+    // Send the appropriate decision email and track any failure on the row.
+    let emailKind: string = action;
+    let emailError: Error | null = null;
+    try {
+      if (action === "APPROVE") {
+        emailKind = "APPROVE";
         await sendApplicationApprovedEmail({
           to: app.applicant.email,
           applicantName: app.applicant.name,
         });
-      } catch (e) {
-        console.error("[chairDecide] approval email failed:", e);
-      }
-    }
-
-    if (action === "REJECT") {
-      try {
+      } else if (action === "REJECT") {
+        emailKind = "REJECT";
         await sendApplicationRejectedEmail({
           to: app.applicant.email,
           applicantName: app.applicant.name,
           reason: rationale ?? "The chair review did not result in approval.",
         });
-      } catch (e) {
-        console.error("[chairDecide] rejection email failed:", e);
-      }
-    } else if (action === "REQUEST_INFO") {
-      try {
+      } else if (action === "REQUEST_INFO") {
+        emailKind = "REQUEST_INFO";
         const { getBaseUrl } = await import("@/lib/portal-auth-utils");
         const baseUrl = await getBaseUrl();
         await sendInfoRequestEmail({
@@ -1909,15 +2040,34 @@ export async function chairDecide(formData: FormData): Promise<{ success: boolea
           message: rationale ?? "Please provide the requested follow-up information.",
           statusUrl: `${baseUrl}/application-status`,
         });
-      } catch (e) {
-        console.error("[chairDecide] info-request email failed:", e);
-      }
-    } else if (action !== "APPROVE") {
-      try {
+      } else {
+        emailKind = action;
         await sendChairDecisionEmail(app.applicant.email, applicationId, action);
-      } catch (e) {
-        console.error("[chairDecide] decision email failed:", e);
       }
+      // Email succeeded — clear any prior failure flags.
+      await prisma.instructorApplication.update({
+        where: { id: applicationId },
+        data: { lastNotificationError: null, lastNotificationErrorAt: null },
+      });
+    } catch (e) {
+      emailError = e instanceof Error ? e : new Error(String(e));
+      console.error(`[chairDecide] ${emailKind} email failed:`, emailError);
+      // Persist the failure so admins can see it and resend manually.
+      await prisma.instructorApplication.update({
+        where: { id: applicationId },
+        data: {
+          lastNotificationError: emailError.message,
+          lastNotificationErrorAt: new Date(),
+        },
+      });
+      await prisma.instructorApplicationTimelineEvent.create({
+        data: {
+          applicationId,
+          kind: "NOTIFICATION_FAILED",
+          actorId: actor.id,
+          payload: { emailKind, error: emailError.message },
+        },
+      });
     }
 
     trackApplicantEvent("applicant.chair.decided", {
@@ -1934,6 +2084,101 @@ export async function chairDecide(formData: FormData): Promise<{ success: boolea
   } catch (error) {
     console.error("[chairDecide]", error);
     return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
+  }
+}
+
+/**
+ * Re-send the most recent chair decision email for an application.
+ * Persists the result (success clears error flags; failure updates them).
+ * ADMIN or HIRING_CHAIR only.
+ */
+export async function resendChairDecisionEmail(
+  applicationId: string
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) return { ok: false, error: "Unauthorized" };
+
+    const actor = await getHiringActor(session.user.id);
+    if (!isAdmin(actor) && !isHiringChair(actor)) {
+      return { ok: false, error: "Only Admins or Hiring Chairs can resend decision emails." };
+    }
+
+    const app = await prisma.instructorApplication.findUnique({
+      where: { id: applicationId },
+      select: {
+        applicant: { select: { name: true, email: true } },
+        infoRequest: true,
+      },
+    });
+    if (!app) return { ok: false, error: "Application not found." };
+
+    // Find the latest non-superseded chair decision.
+    const decision = await prisma.instructorApplicationChairDecision.findFirst({
+      where: { applicationId, supersededAt: null },
+      orderBy: { decidedAt: "desc" },
+    });
+    if (!decision) return { ok: false, error: "No chair decision to resend." };
+
+    const { action, rationale } = decision;
+    const emailKind: string = action;
+
+    try {
+      if (action === "APPROVE") {
+        await sendApplicationApprovedEmail({
+          to: app.applicant.email,
+          applicantName: app.applicant.name,
+        });
+      } else if (action === "REJECT") {
+        await sendApplicationRejectedEmail({
+          to: app.applicant.email,
+          applicantName: app.applicant.name,
+          reason: rationale ?? "The chair review did not result in approval.",
+        });
+      } else if (action === "REQUEST_INFO") {
+        const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+        const baseUrl = await getBaseUrl();
+        await sendInfoRequestEmail({
+          to: app.applicant.email,
+          applicantName: app.applicant.name,
+          message: rationale ?? app.infoRequest ?? "Please provide the requested follow-up information.",
+          statusUrl: `${baseUrl}/application-status`,
+        });
+      } else {
+        await sendChairDecisionEmail(app.applicant.email, applicationId, action);
+      }
+
+      // Success: clear error flags and add timeline event.
+      await prisma.instructorApplication.update({
+        where: { id: applicationId },
+        data: { lastNotificationError: null, lastNotificationErrorAt: null },
+      });
+      await prisma.instructorApplicationTimelineEvent.create({
+        data: {
+          applicationId,
+          kind: "NOTIFICATION_RESENT",
+          actorId: actor.id,
+          payload: { emailKind, by: actor.id },
+        },
+      });
+    } catch (e) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      console.error("[resendChairDecisionEmail] email send failed:", err);
+      await prisma.instructorApplication.update({
+        where: { id: applicationId },
+        data: {
+          lastNotificationError: err.message,
+          lastNotificationErrorAt: new Date(),
+        },
+      });
+      return { ok: false, error: "Email send failed." };
+    }
+
+    revalidatePath(`/applications/instructor/${applicationId}`);
+    return { ok: true };
+  } catch (error) {
+    console.error("[resendChairDecisionEmail]", error);
+    return { ok: false, error: error instanceof Error ? error.message : "Something went wrong." };
   }
 }
 

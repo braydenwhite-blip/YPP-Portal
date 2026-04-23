@@ -7,6 +7,7 @@ import { InstructorApplicationStatus, InterviewOutcome, InterviewRequestStatus }
 import { revalidatePath } from "next/cache";
 import { syncInstructorApplicationWorkflow } from "@/lib/workflow";
 import { trackApplicantEvent } from "@/lib/telemetry";
+import { sendChairReviewQueuedEmail } from "@/lib/email";
 
 function getString(formData: FormData, key: string, required = true) {
   const value = formData.get(key);
@@ -984,6 +985,8 @@ export async function maybeAutoAdvanceAfterInterviewReview(
     select: {
       status: true,
       interviewRound: true,
+      chairQueuedAt: true,
+      applicant: { select: { name: true, email: true } },
       interviewerAssignments: {
         where: { removedAt: null },
         select: { interviewerId: true, round: true },
@@ -1089,6 +1092,32 @@ export async function maybeAutoAdvanceAfterInterviewReview(
       await syncInstructorApplicationWorkflow(applicationId);
     } catch (e) {
       console.error("[maybeAutoAdvanceAfterInterviewReview] sync failed:", e);
+    }
+
+    if (!app.chairQueuedAt) {
+      let emailed = false;
+      try {
+        const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+        const baseUrl = await getBaseUrl();
+        if (app.applicant.email) {
+          await sendChairReviewQueuedEmail({
+            to: app.applicant.email,
+            applicantName: app.applicant.name ?? "Applicant",
+            statusUrl: `${baseUrl}/application-status`,
+          });
+          emailed = true;
+        }
+      } catch (e) {
+        console.error("[maybeAutoAdvanceAfterInterviewReview] chair-review-queued email failed:", e);
+      }
+      await prisma.instructorApplicationTimelineEvent.create({
+        data: {
+          applicationId,
+          kind: "CHAIR_REVIEW_QUEUED",
+          actorId,
+          payload: { emailed },
+        },
+      });
     }
 
     trackApplicantEvent("applicant.status.auto_advanced", {

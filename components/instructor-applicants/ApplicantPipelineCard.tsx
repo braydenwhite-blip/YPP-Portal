@@ -83,7 +83,7 @@ export default function ApplicantPipelineCard({
 
           {app.applicant.chapter && (
             <div className="kanban-card-meta">
-              <span className="kanban-card-chapter">{app.applicant.chapter.name}</span>
+              <span className="pill pill-purple pill-small kanban-card-chapter">{app.applicant.chapter.name}</span>
             </div>
           )}
         </div>

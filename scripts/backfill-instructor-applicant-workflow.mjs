@@ -65,7 +65,7 @@ async function backfillTimelineEvents() {
   console.log(`[timeline] Created ${created} STATUS_CHANGE event(s) from updatedAt.`);
 }
 
-async function clearStaleMateriasReadyAt() {
+async function clearStaleMaterialsReadyAt() {
   const apps = await prisma.instructorApplication.findMany({
     where: { materialsReadyAt: { not: null } },
     select: {
@@ -111,7 +111,7 @@ async function main() {
   console.log("Starting Instructor Applicant Workflow V1 backfill…");
   await backfillReviewerIds();
   await backfillTimelineEvents();
-  await clearStaleMateriasReadyAt();
+  await clearStaleMaterialsReadyAt();
   await archiveOldTerminal();
   console.log("Backfill complete.");
 }
