@@ -326,23 +326,29 @@ export const DEBOUNCE_WINDOW_MS = 5 * 60 * 1000;
 
 /**
  * In-memory debounce store for assignment notifications.
- * Keys: `${notificationType}:${userId}:${applicationId}`.
+ * Keys: `${notificationType}:${applicationId}:${role}:${interviewerId}`.
  * NOTE: serverless-safe only within a single invocation. For cross-request
  * deduplication upgrade to a Redis or database-backed approach.
  */
 const _debounceStore = new Map<string, number>();
 
 /**
- * Returns true if a notification of this type for this (userId, applicationId)
- * has NOT been sent within DEBOUNCE_WINDOW_MS and should be fired now.
+ * Returns true if a notification of this type for this
+ * (applicationId, role, interviewerId) has NOT been sent within
+ * DEBOUNCE_WINDOW_MS and should be fired now.
  * Side-effect: records the current timestamp if returning true.
+ *
+ * Including interviewerId in the key ensures that unassigning person A and
+ * reassigning person B within the debounce window still fires a fresh email
+ * for B, while a double-save of the same assignment is still suppressed.
  */
 export function shouldSendAssignmentNotification(
   notificationType: "REVIEWER_ASSIGNED" | "INTERVIEWER_ASSIGNED",
-  userId: string,
-  applicationId: string
+  interviewerId: string,
+  applicationId: string,
+  role?: string
 ): boolean {
-  const key = `${notificationType}:${userId}:${applicationId}`;
+  const key = `${notificationType}:${applicationId}:${role ?? ""}:${interviewerId}`;
   const last = _debounceStore.get(key);
   const now = Date.now();
   if (last && now - last < DEBOUNCE_WINDOW_MS) return false;
