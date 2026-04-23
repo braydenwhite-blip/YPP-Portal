@@ -180,7 +180,7 @@ This script is idempotent and safe to rerun.
 2. **Set Environment Variables**
    In Vercel project settings, add:
    ```
-   DATABASE_URL=postgresql://postgres.<ref>:<password>@aws-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1&sslmode=require
+   DATABASE_URL=postgresql://postgres.<ref>:<password>@aws-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=5&sslmode=require
    DIRECT_URL=postgresql://postgres:<password>@db.<ref>.supabase.co:5432/postgres?sslmode=require
    NEXTAUTH_SECRET=generate_with_openssl_rand_base64_32
    SEED_PASSWORD=a_strong_password_for_seeded_accounts
@@ -221,9 +221,14 @@ DIRECT_URL="postgres://user:pass@ep-xxx.us-east-2.aws.neon.tech/neondb?sslmode=r
 
 Example with Supabase (pooling + direct):
 ```
-DATABASE_URL="postgresql://postgres.<ref>:<password>@aws-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1&sslmode=require"
+DATABASE_URL="postgresql://postgres.<ref>:<password>@aws-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=5&sslmode=require"
 DIRECT_URL="postgresql://postgres:<password>@db.<ref>.supabase.co:5432/postgres?sslmode=require"
 ```
+
+> ⚠️ Do not set `connection_limit=1` — it deadlocks any page that issues more
+> than one parallel Prisma query (Prisma P2024). Use `5` or higher; set
+> `PRISMA_CONNECTION_LIMIT` to override. `lib/prisma.ts` will automatically
+> bump any sub-3 value to the safe default and log a warning.
 
 ## Project Structure
 
