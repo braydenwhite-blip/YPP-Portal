@@ -49,6 +49,8 @@ interface Application {
     nextStep: string | null;
     notes: string | null;
     categories: Category[];
+    editedAt: Date | string | null;
+    editedBy: { name: string | null } | null;
   }>;
   interviewReviews: InterviewReview[];
   documents: Array<{ kind: string; fileUrl: string; originalName: string | null }>;
@@ -236,9 +238,32 @@ export default function ChairComparisonSlideout({ application, onClose, onDecisi
           {/* Reviewer note */}
           {reviewerNote && (
             <div style={{ marginBottom: 20 }}>
-              <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 700 }}>
-                Reviewer Note {application.reviewer && `— ${application.reviewer.name}`}
-              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>
+                  Reviewer Note {application.reviewer && `— ${application.reviewer.name}`}
+                </p>
+                {reviewerNote.editedAt && (
+                  <span
+                    style={{
+                      fontSize: 11,
+                      padding: "2px 7px",
+                      borderRadius: 99,
+                      background: "#fef3c7",
+                      color: "#92400e",
+                      border: "1px solid #fde68a",
+                      fontWeight: 600,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Edited{reviewerNote.editedBy?.name ? ` by ${reviewerNote.editedBy.name}` : ""} &middot;{" "}
+                    {new Date(reviewerNote.editedAt).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </span>
+                )}
+              </div>
               <blockquote
                 style={{
                   margin: 0,

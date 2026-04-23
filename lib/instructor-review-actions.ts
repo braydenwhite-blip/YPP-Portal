@@ -358,6 +358,45 @@ function validateSubmittedCategories(
   }
 }
 
+type ExistingReviewSnapshot = {
+  summary: string | null;
+  notes: string | null;
+  concerns: string | null;
+  nextStep: string | null;
+  categories: Array<{ category: string; rating: string | null; notes: string | null }>;
+};
+
+function hasApplicationReviewMeaningfulChange(
+  existing: ExistingReviewSnapshot,
+  incoming: {
+    summary: string | null;
+    notes: string | null;
+    concerns: string | null;
+    nextStep: string | null;
+    categories: ReviewCategoryPayload[];
+  }
+): boolean {
+  if (existing.summary !== incoming.summary) return true;
+  if (existing.notes !== incoming.notes) return true;
+  if (existing.concerns !== incoming.concerns) return true;
+  if (existing.nextStep !== incoming.nextStep) return true;
+
+  // Compare categories: sort both by category key before comparing
+  const sortKey = (c: { category: string }) => c.category;
+  const oldCats = [...existing.categories].sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+  const newCats = [...incoming.categories].sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+
+  if (oldCats.length !== newCats.length) return true;
+  for (let i = 0; i < oldCats.length; i++) {
+    const o = oldCats[i];
+    const n = newCats[i];
+    if (o.category !== n.category || o.rating !== (n.rating ?? null) || o.notes !== (n.notes ?? null)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 async function replaceApplicationReviewCategories(
   tx: Prisma.TransactionClient,
   reviewId: string,
@@ -695,7 +734,18 @@ export async function saveInstructorApplicationReviewAction(formData: FormData) 
         reviewerId: actor.id,
       },
     },
-    select: { id: true, status: true },
+    select: {
+      id: true,
+      status: true,
+      submittedAt: true,
+      summary: true,
+      notes: true,
+      concerns: true,
+      nextStep: true,
+      categories: {
+        select: { category: true, rating: true, notes: true },
+      },
+    },
   });
 
   if (
@@ -739,7 +789,31 @@ export async function saveInstructorApplicationReviewAction(formData: FormData) 
     await markInstructorApplicationUnderReview(applicationId, actor.id);
   }
 
+  // Determine whether this edit requires a revision snapshot:
+  // Only when saving as SUBMITTED and the review was already submitted (submittedAt set).
+  const needsRevision =
+    intent === "submit" &&
+    existingReview?.submittedAt != null &&
+    hasApplicationReviewMeaningfulChange(existingReview, { summary, notes, concerns, nextStep: isLeadReviewer ? nextStep : null, categories });
+
+  const now = new Date();
+
   await prisma.$transaction(async (tx) => {
+    if (needsRevision && existingReview) {
+      await tx.instructorApplicationReviewRevision.create({
+        data: {
+          reviewId: existingReview.id,
+          editedById: actor.id,
+          editedAt: now,
+          summary: existingReview.summary,
+          notes: existingReview.notes,
+          concerns: existingReview.concerns,
+          nextStep: existingReview.nextStep,
+          categoriesSnapshot: existingReview.categories as unknown as Prisma.InputJsonValue,
+        },
+      });
+    }
+
     const review = await tx.instructorApplicationReview.upsert({
       where: {
         applicationId_reviewerId: {
@@ -766,6 +840,7 @@ export async function saveInstructorApplicationReviewAction(formData: FormData) 
         draftOverrideUsed: false,
         draftOverrideReason: null,
         submittedAt: intent === "submit" ? new Date() : null,
+        ...(needsRevision ? { editedAt: now, editedById: actor.id } : {}),
       },
       update: {
         curriculumDraftId: null,
@@ -784,6 +859,7 @@ export async function saveInstructorApplicationReviewAction(formData: FormData) 
         draftOverrideUsed: false,
         draftOverrideReason: null,
         submittedAt: intent === "submit" ? new Date() : null,
+        ...(needsRevision ? { editedAt: now, editedById: actor.id } : {}),
       },
       select: { id: true },
     });

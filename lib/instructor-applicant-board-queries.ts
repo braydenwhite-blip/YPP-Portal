@@ -289,6 +289,8 @@ export async function getChairQueue({
           nextStep: true,
           overallRating: true,
           categories: { select: { category: true, rating: true, notes: true } },
+          editedAt: true,
+          editedBy: { select: { name: true } },
         },
         take: 1,
       },

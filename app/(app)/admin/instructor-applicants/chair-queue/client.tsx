@@ -30,6 +30,8 @@ type QueueItem = {
     notes: string | null;
     overallRating: string | null;
     categories: Array<{ category: string; rating: string | null; notes: string | null }>;
+    editedAt: Date | null;
+    editedBy: { name: string | null } | null;
   }>;
   interviewReviews: Array<{
     id: string;

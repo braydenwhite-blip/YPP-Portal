@@ -1098,18 +1098,20 @@ model User {
   pathwayStepUnlocks          PathwayStepUnlock[]       @relation("PathwayStepUnlocks")
 
   // Instructor Application Relations
-  instructorApplication            InstructorApplication?               @relation("InstructorApplications")
-  instructorApplicationsReviewed   InstructorApplication[]              @relation("InstructorApplicationReviews")
-  instructorApplicationsAssignedBy InstructorApplication[]              @relation("InstructorApplicationReviewerAssignedBy")
-  instructorApplicationReviews     InstructorApplicationReview[]        @relation("InstructorApplicationStructuredReviews")
-  instructorInterviewReviews       InstructorInterviewReview[]          @relation("InstructorInterviewStructuredReviews")
-  offeredInterviewSlots            OfferedInterviewSlot[]               @relation("OfferedInterviewSlots")
+  instructorApplication            InstructorApplication?                @relation("InstructorApplications")
+  instructorApplicationsReviewed   InstructorApplication[]               @relation("InstructorApplicationReviews")
+  instructorApplicationsAssignedBy InstructorApplication[]               @relation("InstructorApplicationReviewerAssignedBy")
+  instructorApplicationReviews     InstructorApplicationReview[]         @relation("InstructorApplicationStructuredReviews")
+  instructorInterviewReviews       InstructorInterviewReview[]           @relation("InstructorInterviewStructuredReviews")
+  offeredInterviewSlots            OfferedInterviewSlot[]                @relation("OfferedInterviewSlots")
   // Instructor Applicant Workflow V1 Relations
-  interviewerAssignments           InstructorApplicationInterviewer[]   @relation("InterviewerAssignments")
-  interviewerAssignedByAssignments InstructorApplicationInterviewer[]   @relation("InterviewerAssignedBy")
-  applicantDocumentsUploaded       ApplicantDocument[]                  @relation("ApplicantDocUploader")
-  chairDecisionsMade               InstructorApplicationChairDecision[] @relation("ChairDecisions")
-  applicantTimelineEvents          InstructorApplicationTimelineEvent[] @relation("TimelineActor")
+  interviewerAssignments           InstructorApplicationInterviewer[]    @relation("InterviewerAssignments")
+  interviewerAssignedByAssignments InstructorApplicationInterviewer[]    @relation("InterviewerAssignedBy")
+  applicantDocumentsUploaded       ApplicantDocument[]                   @relation("ApplicantDocUploader")
+  chairDecisionsMade               InstructorApplicationChairDecision[]  @relation("ChairDecisions")
+  applicantTimelineEvents          InstructorApplicationTimelineEvent[]  @relation("TimelineActor")
+  reviewsLastEdited                InstructorApplicationReview[]         @relation("ReviewLastEditor")
+  reviewRevisionsMade              InstructorApplicationReviewRevision[] @relation("ReviewRevisionEditor")
 
   // Chapter President Application Relations
   chapterPresidentApplication          ChapterPresidentApplication?  @relation("ChapterPresidentApplications")
@@ -1760,6 +1762,10 @@ model InstructorApplicationReview {
   draftOverrideReason String?                               @db.Text
   submittedAt         DateTime?
   categories          InstructorApplicationReviewCategory[]
+  revisions           InstructorApplicationReviewRevision[]
+  editedAt            DateTime?
+  editedById          String?
+  editedBy            User?                                 @relation("ReviewLastEditor", fields: [editedById], references: [id])
   createdAt           DateTime                              @default(now())
   updatedAt           DateTime                              @updatedAt
 
@@ -1781,6 +1787,24 @@ model InstructorApplicationReviewCategory {
 
   @@unique([reviewId, category])
   @@index([category])
+}
+
+model InstructorApplicationReviewRevision {
+  id                 String                         @id @default(cuid())
+  reviewId           String
+  review             InstructorApplicationReview    @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  editedById         String
+  editedBy           User                           @relation("ReviewRevisionEditor", fields: [editedById], references: [id])
+  editedAt           DateTime                       @default(now())
+  // Snapshot of the previous state before this edit
+  summary            String?                        @db.Text
+  notes              String?                        @db.Text
+  concerns           String?                        @db.Text
+  nextStep           InstructorApplicationNextStep?
+  // Stored as JSON: array of { category, rating, notes } — snapshot of previous categories
+  categoriesSnapshot Json
+
+  @@index([reviewId, editedAt])
 }
 
 model InstructorInterviewQuestionBank {
