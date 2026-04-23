@@ -57,6 +57,7 @@ type ReviewSnapshot = {
   communicationNotes: string | null;
   professionalismNotes: string | null;
   followUpItems: string | null;
+  curriculumFeedback: string | null;
   revisionRequirements: string | null;
   applicantMessage: string | null;
   flagForLeadership: boolean;
@@ -114,6 +115,7 @@ type LiveDraftInput = {
   communicationNotes: string | null;
   professionalismNotes: string | null;
   followUpItems: string | null;
+  curriculumFeedback: string | null;
   revisionRequirements: string | null;
   applicantMessage: string | null;
   flagForLeadership: boolean;
@@ -261,6 +263,13 @@ export default function InterviewReviewEditor({
     initialReview?.recommendation ?? ""
   );
   const [summary, setSummary] = useState(initialReview?.summary ?? "");
+  const [overallNotes] = useState(initialReview?.overallNotes ?? "");
+  const [demeanorNotes] = useState(initialReview?.demeanorNotes ?? "");
+  const [maturityNotes] = useState(initialReview?.maturityNotes ?? "");
+  const [communicationNotes] = useState(initialReview?.communicationNotes ?? "");
+  const [professionalismNotes] = useState(initialReview?.professionalismNotes ?? "");
+  const [followUpItems] = useState(initialReview?.followUpItems ?? "");
+  const [curriculumFeedback] = useState(initialReview?.curriculumFeedback ?? "");
   const [revisionRequirements, setRevisionRequirements] = useState(
     initialReview?.revisionRequirements ?? ""
   );
@@ -330,12 +339,13 @@ export default function InterviewReviewEditor({
       overallRating: overallRating || null,
       recommendation: recommendation || null,
       summary: summary || null,
-      overallNotes: null,
-      demeanorNotes: null,
-      maturityNotes: null,
-      communicationNotes: null,
-      professionalismNotes: null,
-      followUpItems: null,
+      overallNotes: overallNotes || null,
+      demeanorNotes: demeanorNotes || null,
+      maturityNotes: maturityNotes || null,
+      communicationNotes: communicationNotes || null,
+      professionalismNotes: professionalismNotes || null,
+      followUpItems: followUpItems || null,
+      curriculumFeedback: curriculumFeedback || null,
       revisionRequirements: revisionRequirements || null,
       applicantMessage: applicantMessage || null,
       flagForLeadership,
@@ -344,8 +354,15 @@ export default function InterviewReviewEditor({
       applicationId,
       applicantMessage,
       categoryPayload,
+      communicationNotes,
+      curriculumFeedback,
+      demeanorNotes,
       flagForLeadership,
+      followUpItems,
+      maturityNotes,
+      overallNotes,
       overallRating,
+      professionalismNotes,
       questionPayload,
       recommendation,
       revisionRequirements,
@@ -939,6 +956,13 @@ export default function InterviewReviewEditor({
           })}
         </div>
         <input type="hidden" name="overallRating" value={overallRating} />
+        <input type="hidden" name="overallNotes" value={overallNotes} />
+        <input type="hidden" name="demeanorNotes" value={demeanorNotes} />
+        <input type="hidden" name="maturityNotes" value={maturityNotes} />
+        <input type="hidden" name="communicationNotes" value={communicationNotes} />
+        <input type="hidden" name="professionalismNotes" value={professionalismNotes} />
+        <input type="hidden" name="followUpItems" value={followUpItems} />
+        <input type="hidden" name="curriculumFeedback" value={curriculumFeedback} />
 
         {showRecommendation ? (
           <label className="form-row">
