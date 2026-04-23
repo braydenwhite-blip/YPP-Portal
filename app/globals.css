@@ -8913,12 +8913,16 @@ select.input {
   color: var(--cockpit-ink, #180f2a);
   font-size: 13.5px;
   font-weight: 800;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .applicant-pipeline-card .kanban-card-chapter {
-  border-radius: 999px;
-  background: #f8fafc;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .applicant-card-tags {
