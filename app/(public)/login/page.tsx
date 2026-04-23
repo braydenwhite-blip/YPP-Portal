@@ -63,21 +63,39 @@ function LoginPageContent() {
     const normalizedEmail = email.trim().toLowerCase();
 
     if (!hasSupabaseBrowserAuth || isLegacyAuthBypassEmail(normalizedEmail)) {
-      const legacyResponse = await fetch("/api/auth/local-password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: normalizedEmail,
-          password,
-        }),
-      });
-      const legacyResult = (await legacyResponse.json().catch(() => null)) as
-        | { success?: boolean; error?: string }
-        | null;
+      // Bound the legacy pre-flight so a slow DB/pool cannot block the
+      // Supabase fallback. 3s is generous for a single findUnique; if the
+      // database is that unhealthy we want the user on Supabase auth anyway.
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 3000);
+      let legacyResponse: Response | null = null;
+      let legacyResult: { success?: boolean; error?: string } | null = null;
+      try {
+        legacyResponse = await fetch("/api/auth/local-password", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: normalizedEmail,
+            password,
+          }),
+          signal: controller.signal,
+        });
+        legacyResult = (await legacyResponse.json().catch(() => null)) as
+          | { success?: boolean; error?: string }
+          | null;
+      } catch {
+        // Network error / abort — treat as "legacy unavailable" and fall
+        // through to Supabase. If Supabase isn't configured either, the
+        // branch below surfaces the error.
+        legacyResponse = null;
+        legacyResult = null;
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
 
-      if (legacyResponse.ok && legacyResult?.success) {
+      if (legacyResponse?.ok && legacyResult?.success) {
         navigateToAuthDestination(callbackUrl);
         return;
       }
