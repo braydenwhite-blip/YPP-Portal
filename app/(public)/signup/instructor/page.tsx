@@ -14,9 +14,9 @@ import {
   saveInstructorSignupDraft,
   type InstructorSignupDraftV1,
 } from "@/lib/instructor-signup-draft";
-import { signUp } from "@/lib/signup-actions";
+import { signUp, type SignupFormState } from "@/lib/signup-actions";
 
-const initialState = { status: "idle" as const, message: "" };
+const initialState: SignupFormState = { status: "idle" as const, message: "" };
 
 const SECTION_LABELS = ["Account", "Profile", "School", "Teaching", "Availability"] as const;
 
@@ -42,8 +42,14 @@ function timeHint(section: number): string {
 
 function field(
   draft: InstructorSignupDraftV1 | null,
-  key: string
+  key: string,
+  serverFields?: Record<string, string>
 ): string | undefined {
+  // Server state (most recent submission attempt) wins over local draft
+  if (serverFields && key in serverFields) {
+    const sv = serverFields[key];
+    return sv === "" ? undefined : sv;
+  }
   const v = draft?.fields[key];
   return v === "" ? undefined : v;
 }
@@ -168,15 +174,17 @@ export default function InstructorSignupPage() {
   }
 
   const d = appliedDraft;
+  // Server-returned fields from last submission attempt (excludes password)
+  const sf = state.fields;
 
-  const [hearAbout, setHearAbout] = useState(() => field(d, "hearAboutYPPOption") ?? "");
-  const [hearAboutDetail, setHearAboutDetail] = useState(() => field(d, "hearAboutYPPDetail") ?? "");
+  const [hearAbout, setHearAbout] = useState(() => field(d, "hearAboutYPPOption", sf) ?? "");
+  const [hearAboutDetail, setHearAboutDetail] = useState(() => field(d, "hearAboutYPPDetail", sf) ?? "");
 
   useEffect(() => {
-    setHearAbout(field(d, "hearAboutYPPOption") ?? "");
-    setHearAboutDetail(field(d, "hearAboutYPPDetail") ?? "");
+    setHearAbout(field(d, "hearAboutYPPOption", sf) ?? "");
+    setHearAboutDetail(field(d, "hearAboutYPPDetail", sf) ?? "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formKey]);
+  }, [formKey, sf]);
 
   const hearAboutNeedsName = hearAbout === "A YPP staff member" || hearAbout === "A YPP student";
   const hearAboutNeedsDetail = hearAbout === "Other";
@@ -288,7 +296,7 @@ export default function InstructorSignupPage() {
 
             <label className="form-label" style={{ marginTop: 0 }}>
               Full name
-              <input className="input" name="name" placeholder="Your full name" required defaultValue={field(d, "name")} />
+              <input className="input" name="name" placeholder="Your full name" required defaultValue={field(d, "name", sf)} />
             </label>
 
             <label className="form-label">
@@ -299,7 +307,7 @@ export default function InstructorSignupPage() {
                 type="email"
                 placeholder="you@example.com"
                 required
-                defaultValue={field(d, "email")}
+                defaultValue={field(d, "email", sf)}
                 onInput={(e) => { emailRef.current = (e.target as HTMLInputElement).value; }}
               />
             </label>
@@ -318,7 +326,7 @@ export default function InstructorSignupPage() {
 
             <label className="form-label">
               Chapter
-              <select className="input" name="chapterId" defaultValue={field(d, "chapterId") ?? ""}>
+              <select className="input" name="chapterId" defaultValue={field(d, "chapterId", sf) ?? ""}>
                 <option value="">Select a chapter</option>
                 {chapters.map((chapter) => (
                   <option key={chapter.id} value={chapter.id}>{chapter.name}</option>
@@ -335,22 +343,22 @@ export default function InstructorSignupPage() {
 
             <label className="form-label">
               Legal name
-              <input className="input" name="legalName" placeholder="First, middle, and last name" required defaultValue={field(d, "legalName")} />
+              <input className="input" name="legalName" placeholder="First, middle, and last name" required defaultValue={field(d, "legalName", sf)} />
             </label>
 
             <label className="form-label">
               Preferred first name
-              <input className="input" name="preferredFirstName" placeholder="What should we call you?" required defaultValue={field(d, "preferredFirstName")} />
+              <input className="input" name="preferredFirstName" placeholder="What should we call you?" required defaultValue={field(d, "preferredFirstName", sf)} />
             </label>
 
             <div className="grid two">
               <label className="form-label">
                 Phone number
-                <input className="input" name="phoneNumber" type="tel" placeholder="(555) 123-4567" defaultValue={field(d, "phoneNumber")} />
+                <input className="input" name="phoneNumber" type="tel" placeholder="(555) 123-4567" defaultValue={field(d, "phoneNumber", sf)} />
               </label>
               <label className="form-label">
                 Date of birth
-                <input className="input" name="dateOfBirth" type="date" defaultValue={field(d, "dateOfBirth")} />
+                <input className="input" name="dateOfBirth" type="date" defaultValue={field(d, "dateOfBirth", sf)} />
               </label>
             </div>
 
@@ -389,22 +397,22 @@ export default function InstructorSignupPage() {
             <div className="grid two">
               <label className="form-label">
                 City
-                <input className="input" name="city" placeholder="e.g. Phoenix" required defaultValue={field(d, "city")} />
+                <input className="input" name="city" placeholder="e.g. Phoenix" required defaultValue={field(d, "city", sf)} />
               </label>
               <label className="form-label">
                 State or province
-                <input className="input" name="stateProvince" placeholder="e.g. Arizona" required defaultValue={field(d, "stateProvince")} />
+                <input className="input" name="stateProvince" placeholder="e.g. Arizona" required defaultValue={field(d, "stateProvince", sf)} />
               </label>
             </div>
 
             <div className="grid two">
               <label className="form-label">
                 ZIP or postal code
-                <input className="input" name="zipCode" placeholder="e.g. 85004" required defaultValue={field(d, "zipCode")} />
+                <input className="input" name="zipCode" placeholder="e.g. 85004" required defaultValue={field(d, "zipCode", sf)} />
               </label>
               <label className="form-label">
                 Country
-                <select className="input" name="country" defaultValue={field(d, "country") ?? "United States"} required>
+                <select className="input" name="country" defaultValue={field(d, "country", sf) ?? "United States"} required>
                   <option value="United States">United States</option>
                   <option value="Other">Other</option>
                 </select>
@@ -413,12 +421,12 @@ export default function InstructorSignupPage() {
 
             <label className="form-label">
               If you chose &quot;Other,&quot; which country?
-              <input className="input" name="countryOther" placeholder="Optional" defaultValue={field(d, "countryOther")} />
+              <input className="input" name="countryOther" placeholder="Optional" defaultValue={field(d, "countryOther", sf)} />
             </label>
 
             <label className="form-label">
               High school name
-              <input className="input" name="schoolName" placeholder="Your school" required defaultValue={field(d, "schoolName")} />
+              <input className="input" name="schoolName" placeholder="Your school" required defaultValue={field(d, "schoolName", sf)} />
             </label>
 
             <label className="form-label">
@@ -431,13 +439,13 @@ export default function InstructorSignupPage() {
                 max={2030}
                 placeholder="e.g. 2027"
                 required
-                defaultValue={field(d, "graduationYear")}
+                defaultValue={field(d, "graduationYear", sf)}
               />
             </label>
 
             <label className="form-label">
               Subjects of interest
-              <input className="input" name="subjectsOfInterest" placeholder="Optional" defaultValue={field(d, "subjectsOfInterest")} />
+              <input className="input" name="subjectsOfInterest" placeholder="Optional" defaultValue={field(d, "subjectsOfInterest", sf)} />
             </label>
           </div>
 
@@ -449,7 +457,7 @@ export default function InstructorSignupPage() {
 
             <label className="form-label">
               Teaching or mentoring experience
-              <textarea className="input" name="teachingExperience" rows={4} required defaultValue={field(d, "teachingExperience")} />
+              <textarea className="input" name="teachingExperience" rows={4} required defaultValue={field(d, "teachingExperience", sf)} />
             </label>
 
             <label className="form-label">
@@ -459,7 +467,7 @@ export default function InstructorSignupPage() {
                 name="courseIdea"
                 placeholder="e.g. Personal finance for middle school students"
                 required
-                defaultValue={field(d, "courseIdea") ?? field(d, "textbook")}
+                defaultValue={field(d, "courseIdea", sf) ?? field(d, "textbook", sf)}
               />
               <span style={HELPER}>
                 Give the review team a clear title or short description of the class you want to lead.
@@ -476,7 +484,7 @@ export default function InstructorSignupPage() {
                 placeholder={
                   "List the main topics or units across the full course. Bullet points are great.\n\nExample:\n- Week 1: What is personal finance?\n- Week 2: Budgeting basics\n- Week 3: Saving and investing\n..."
                 }
-                defaultValue={field(d, "courseOutline")}
+                defaultValue={field(d, "courseOutline", sf)}
               />
               <span style={HELPER}>
                 Share the main topics you would expect to cover. This should be professional enough to review, but it is still only an early outline.
@@ -493,7 +501,7 @@ export default function InstructorSignupPage() {
                 placeholder={
                   "Walk us through how you'd run your very first session.\n\nExample:\n- Open with an icebreaker (5 min)\n- Introduce the course and yourself (10 min)\n- Teach the first concept with examples (20 min)\n- Q&A and wrap-up (10 min)"
                 }
-                defaultValue={field(d, "firstClassPlan")}
+                defaultValue={field(d, "firstClassPlan", sf)}
               />
               <span style={HELPER}>
                 Describe how you would open the first session, what you would teach first, and how you would close.
@@ -502,7 +510,7 @@ export default function InstructorSignupPage() {
 
             <label className="form-label">
               Optional written motivation
-              <textarea className="input" name="motivation" rows={3} defaultValue={field(d, "motivation")} />
+              <textarea className="input" name="motivation" rows={3} defaultValue={field(d, "motivation", sf)} />
             </label>
           </div>
 
@@ -519,24 +527,24 @@ export default function InstructorSignupPage() {
                 name="availability"
                 placeholder="e.g. weekday evenings, time zone"
                 required
-                defaultValue={field(d, "availability")}
+                defaultValue={field(d, "availability", sf)}
               />
             </label>
 
             <div className="grid two">
               <label className="form-label">
                 Hours per week you can commit
-                <input className="input" name="hoursPerWeek" type="number" min={1} max={40} required defaultValue={field(d, "hoursPerWeek")} />
+                <input className="input" name="hoursPerWeek" type="number" min={1} max={40} required defaultValue={field(d, "hoursPerWeek", sf)} />
               </label>
               <label className="form-label">
                 Preferred start date
-                <input className="input" name="preferredStartDate" type="date" defaultValue={field(d, "preferredStartDate")} />
+                <input className="input" name="preferredStartDate" type="date" defaultValue={field(d, "preferredStartDate", sf)} />
               </label>
             </div>
 
             <label className="form-label">
               Referral emails
-              <textarea className="input" name="referralEmails" rows={3} defaultValue={field(d, "referralEmails")} />
+              <textarea className="input" name="referralEmails" rows={3} defaultValue={field(d, "referralEmails", sf)} />
             </label>
           </div>
 

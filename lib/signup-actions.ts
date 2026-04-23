@@ -8,10 +8,23 @@ import { syncInstructorApplicationWorkflow } from "@/lib/workflow";
 import { findDefaultInitialReviewerForChapter } from "@/lib/instructor-application-defaults";
 import { instructorApplicationSchema, type InstructorApplicationInput } from "@/lib/application-schemas";
 
-type FormState = {
+export type SignupFormState = {
   status: "idle" | "error" | "success";
   message: string;
+  fields?: Record<string, string>;
 };
+
+// Exported for unit testing
+export function pickFormFields(formData: FormData): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of formData.entries()) {
+    if (k === "password" || k === "passwordConfirm") continue;
+    if (typeof v === "string") out[k] = v;
+  }
+  return out;
+}
+
+type FormState = SignupFormState;
 
 function getString(formData: FormData, key: string, required = true) {
   const value = formData.get(key);
@@ -90,15 +103,15 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
     // Rate limit: 5 signup attempts per email per 15 minutes
     const rl = checkRateLimit(`signup:${email}`, 5, 15 * 60 * 1000);
     if (!rl.success) {
-      return { status: "error", message: "Too many attempts. Please try again later." };
+      return { status: "error", message: "Too many attempts. Please try again later.", fields: pickFormFields(formData) };
     }
 
     // M1: Stronger password policy (8+ chars, at least one number and one letter)
     if (password.length < 8) {
-      return { status: "error", message: "Password must be at least 8 characters." };
+      return { status: "error", message: "Password must be at least 8 characters.", fields: pickFormFields(formData) };
     }
     if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
-      return { status: "error", message: "Password must contain at least one letter and one number." };
+      return { status: "error", message: "Password must contain at least one letter and one number.", fields: pickFormFields(formData) };
     }
 
     let instructorApplicationInput: InstructorApplicationInput | null = null;
@@ -138,6 +151,7 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
         return {
           status: "error",
           message: validation.error.issues[0]?.message || "Please review your application and try again.",
+          fields: pickFormFields(formData),
         };
       }
 
