@@ -8601,6 +8601,104 @@ select.input {
   margin-top: 7px;
 }
 
+/* ─── Pipeline Funnel Chart ─────────────────────────────────────────── */
+
+.pipeline-funnel-panel {
+  margin: 0 0 24px;
+  padding: 20px 24px;
+}
+
+.pipeline-funnel-title {
+  margin: 0 0 16px;
+}
+
+.pipeline-funnel-stages {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pipeline-funnel-row {
+  display: grid;
+  grid-template-columns: 160px 1fr 52px 100px;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.pipeline-funnel-label {
+  font-weight: 600;
+  color: var(--ypp-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pipeline-funnel-bar-wrap {
+  background: var(--ypp-purple-100);
+  border-radius: var(--radius-full);
+  height: 12px;
+  overflow: hidden;
+}
+
+.pipeline-funnel-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--ypp-purple-700), var(--ypp-mid));
+  border-radius: var(--radius-full);
+  transition: width 0.3s ease;
+  min-width: 4px;
+}
+
+.pipeline-funnel-count {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--ypp-purple-800);
+}
+
+.pipeline-funnel-dropoff {
+  font-size: 11.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.pipeline-funnel-divider {
+  margin: 16px 0 12px;
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+.pipeline-funnel-exits {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.pipeline-funnel-exit-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12.5px;
+}
+
+.pipeline-funnel-exit-label {
+  color: var(--muted);
+}
+
+.pipeline-funnel-exit-count {
+  font-weight: 700;
+  color: var(--ypp-ink);
+}
+
+/* ─── Page header: download CSV action ─────────────────────────────── */
+
+.applicant-command-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
 .applicant-command {
   border: 1px solid rgba(71, 85, 105, 0.12);
   border-radius: 8px;
