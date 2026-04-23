@@ -17,6 +17,7 @@ import {
   holdInstructorApplication,
   markInstructorApplicationUnderReview,
   markInterviewCompleted,
+  moveInstructorApplicationToInterviewStage,
   rejectInstructorApplication,
   requestMoreInfo,
   scheduleInterview,
@@ -870,7 +871,21 @@ export async function saveInstructorApplicationReviewAction(formData: FormData) 
 
   if (intent === "submit" && isLeadReviewer && nextStep) {
     if (nextStep === "MOVE_TO_INTERVIEW") {
-      await revalidateInstructorReviewPaths(applicationId);
+      // Don't reset a scheduled interview if the lead reviewer re-submits later in the flow.
+      const alreadyPastReview =
+        application.status === InstructorApplicationStatus.INTERVIEW_SCHEDULED ||
+        application.status === InstructorApplicationStatus.INTERVIEW_COMPLETED ||
+        application.status === InstructorApplicationStatus.CHAIR_REVIEW ||
+        isFinalApplicationStatus(application.status);
+      if (alreadyPastReview) {
+        await revalidateInstructorReviewPaths(applicationId);
+      } else {
+        await moveInstructorApplicationToInterviewStage(
+          applicationId,
+          actor.id,
+          summary ?? concerns ?? notes ?? undefined
+        );
+      }
     } else if (nextStep === "REQUEST_INFO" && applicantMessage) {
       await requestMoreInfo(applicationId, actor.id, applicantMessage);
     } else if (nextStep === "HOLD") {
