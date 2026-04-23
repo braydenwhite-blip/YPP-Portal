@@ -4,6 +4,29 @@ import { createMiddlewareClient } from "@/lib/supabase/middleware";
 import { LEGACY_AUTH_COOKIE_NAME, verifyLegacySessionToken } from "@/lib/legacy-auth";
 import { isDemoAllowedPathname, isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
 
+// Supabase SSR writes session data into cookies of the form `sb-<ref>-auth-token`
+// and may chunk large JWTs across `<name>.0`, `<name>.1`, … When the refresh
+// token is rejected ("refresh_token_not_found"), those cookies become poison —
+// every subsequent request re-attempts the refresh and spams errors. Strip
+// them off the response so the client starts clean on the next request.
+function clearSupabaseAuthCookies(request: NextRequest, response: NextResponse) {
+  for (const cookie of request.cookies.getAll()) {
+    if (cookie.name.startsWith("sb-") && cookie.name.includes("-auth-token")) {
+      response.cookies.set(cookie.name, "", { maxAge: 0, path: "/" });
+    }
+  }
+}
+
+function isRecoverableAuthError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const code = (error as { code?: string; status?: number }).code;
+  const status = (error as { code?: string; status?: number }).status;
+  if (code === "refresh_token_not_found") return true;
+  if (code === "invalid_grant") return true;
+  if (status === 400 || status === 401) return true;
+  return false;
+}
+
 const PUBLIC_PATHS = [
   "/login",
   "/signup",
@@ -115,10 +138,21 @@ export async function middleware(request: NextRequest) {
   let user = null;
   if (!demoLegacySession && supabase) {
     try {
-      const { data } = await supabase.auth.getUser();
-      user = data?.user ?? null;
-    } catch {
-      // Supabase URL is unreachable (e.g. dummy local URL) — continue with legacy auth
+      const { data, error } = await supabase.auth.getUser();
+      if (error && isRecoverableAuthError(error)) {
+        // Stale/invalid Supabase session — clear the poison cookies and treat
+        // this request as unauthenticated. Legacy auth may still take over.
+        clearSupabaseAuthCookies(request, response);
+        user = null;
+      } else {
+        user = data?.user ?? null;
+      }
+    } catch (error) {
+      // Network error or unreachable Supabase (e.g. dummy local URL). Clear
+      // cookies for recoverable auth errors so they don't recur every request.
+      if (isRecoverableAuthError(error)) {
+        clearSupabaseAuthCookies(request, response);
+      }
       user = null;
     }
   }

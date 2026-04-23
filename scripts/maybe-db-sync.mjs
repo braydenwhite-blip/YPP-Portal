@@ -140,19 +140,29 @@ try {
   status = 1;
 }
 
-// ── P3009: failed migration left in the database ──────────────────────────
-// Prisma blocks all future deploys when a migration is recorded as "started"
-// but never finished. Detect this and resolve each failed migration as
-// "rolled-back", then retry the deploy so the rest can proceed.
-if (status !== 0 && (output.includes("P3009") || output.includes("failed migrations in the target database"))) {
-  console.log("[db-sync] Detected P3009 — resolving failed migration(s) then retrying...");
+// ── P3009 / P3018: failed migration blocking future deploys ───────────────
+// P3009: migration started but never finished (dirty state).
+// P3018: migration failed to apply and was rolled back.
+// Both block subsequent deploys. Resolve each failed migration as
+// "rolled-back" and retry so the rest can proceed.
+const hasBlockedMigration =
+  status !== 0 &&
+  (output.includes("P3009") ||
+    output.includes("P3018") ||
+    output.includes("failed migrations in the target database") ||
+    output.includes("New migrations cannot be applied before the error is recovered from"));
 
-  // Extract every migration name that Prisma reports as failed.
-  // The error line looks like:
-  //   The `<name>` migration started at <timestamp> failed
-  const failedNames = [...output.matchAll(/The `([^`]+)` migration\b[^`\n]*\bfailed/g)].map(
-    (m) => m[1]
-  );
+if (hasBlockedMigration) {
+  const errorCode = output.includes("P3018") ? "P3018" : "P3009";
+  console.log(`[db-sync] Detected ${errorCode} — resolving failed migration(s) then retrying...`);
+
+  // Extract every migration name Prisma reports as failed.
+  // P3009 line: The `<name>` migration started at <timestamp> failed
+  // P3018 line: Migration name: <name>
+  const failedNames = [
+    ...[...output.matchAll(/The `([^`]+)` migration\b[^`\n]*\bfailed/g)].map((m) => m[1]),
+    ...[...output.matchAll(/Migration name:\s*(\S+)/g)].map((m) => m[1]),
+  ].filter((v, i, a) => a.indexOf(v) === i); // dedupe
 
   if (failedNames.length === 0) {
     console.warn("[db-sync] Could not parse failed migration name(s) from Prisma output.");

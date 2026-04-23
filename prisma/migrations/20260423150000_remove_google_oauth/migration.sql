@@ -1,0 +1,47 @@
+-- Remove Google OAuth support (metadata-only migration).
+--
+-- This migration is intentionally a no-op at the schema level.
+--
+-- Why: every attempt to physically remove the OAuth footprint online
+-- (ALTER TABLE "User" DROP COLUMN, DROP TABLE "OAuthAccount/Session",
+-- DROP INDEX, DROP TRIGGER on auth.users) requires an ACCESS EXCLUSIVE
+-- lock on the "User" table — either directly, or transitively via
+-- foreign-key constraint teardown on the child tables. Under live
+-- production traffic "User" is never idle long enough for Postgres to
+-- acquire that lock, so migrate deploy fails with SQLSTATE 55P03
+-- (lock timeout) and blocks every subsequent deploy.
+--
+-- Runtime impact of leaving the tables/columns in place: zero.
+-- prisma/schema.prisma no longer references oauthProvider, oauthId,
+-- image, OAuthAccount, OAuthSession, or VerificationToken, so Prisma
+-- Client never emits SQL touching them. The rows/tables are purely
+-- dead weight in the database.
+--
+-- Manual cleanup — run from the Supabase Dashboard SQL Editor during
+-- a quiet window (or with the project in maintenance). All statements
+-- are idempotent:
+--
+--   BEGIN;
+--   SET LOCAL statement_timeout = 0;
+--   SET LOCAL lock_timeout = '10min';
+--
+--   -- User columns + index
+--   DROP INDEX IF EXISTS "User_oauthProvider_oauthId_idx";
+--   ALTER TABLE "User" DROP COLUMN IF EXISTS "oauthProvider";
+--   ALTER TABLE "User" DROP COLUMN IF EXISTS "oauthId";
+--   ALTER TABLE "User" DROP COLUMN IF EXISTS "image";
+--
+--   -- NextAuth adapter tables (no writers)
+--   DROP TABLE IF EXISTS "OAuthSession";
+--   DROP TABLE IF EXISTS "OAuthAccount";
+--   DROP TABLE IF EXISTS "VerificationToken";
+--
+--   COMMIT;
+--
+--   -- Supabase user-sync trigger — must run as service_role /
+--   -- supabase_admin from the Dashboard (auth.* is restricted):
+--   DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+--   DROP FUNCTION IF EXISTS public.handle_new_supabase_user();
+
+-- Intentionally empty operation — records this migration as applied.
+SELECT 1;
