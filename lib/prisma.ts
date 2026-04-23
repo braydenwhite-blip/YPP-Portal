@@ -7,6 +7,11 @@ const globalForPrismaWarnings = global as unknown as {
 
 const DEFAULT_TRANSACTION_POOL_CONNECTION_LIMIT = "5";
 const DEFAULT_TRANSACTION_POOL_TIMEOUT = "20";
+// connection_limit values below this are almost certainly copy-pasted from old
+// docs (many README examples used `connection_limit=1`). On Vercel serverless
+// with Supabase's transaction pooler, a single-slot pool deadlocks any page
+// that fires more than one parallel Prisma call (Prisma P2024).
+const MIN_SAFE_CONNECTION_LIMIT = 3;
 
 function parseUrl(rawUrl: string): URL | null {
   try {
@@ -94,15 +99,30 @@ function normalizeDatabaseUrl(rawUrl: string): string {
       if (url.searchParams.get("pgbouncer") !== "true") {
         url.searchParams.set("pgbouncer", "true");
       }
-      if (!url.searchParams.has("connection_limit")) {
-        url.searchParams.set(
-          "connection_limit",
-          getPositiveIntegerEnv(
-            "PRISMA_CONNECTION_LIMIT",
-            DEFAULT_TRANSACTION_POOL_CONNECTION_LIMIT,
-          ),
-        );
+
+      const desiredConnectionLimit = getPositiveIntegerEnv(
+        "PRISMA_CONNECTION_LIMIT",
+        DEFAULT_TRANSACTION_POOL_CONNECTION_LIMIT,
+      );
+      const existingConnectionLimit = url.searchParams.get("connection_limit");
+      const existingConnectionLimitNum = existingConnectionLimit
+        ? Number.parseInt(existingConnectionLimit, 10)
+        : Number.NaN;
+      if (
+        !existingConnectionLimit ||
+        !Number.isFinite(existingConnectionLimitNum) ||
+        existingConnectionLimitNum < MIN_SAFE_CONNECTION_LIMIT
+      ) {
+        if (existingConnectionLimit) {
+          warnOnce(
+            `[prisma] Overriding DATABASE_URL connection_limit=${existingConnectionLimit} ` +
+              `with ${desiredConnectionLimit}. Single-connection pools deadlock parallel queries ` +
+              `on Vercel serverless. Set PRISMA_CONNECTION_LIMIT to override explicitly.`,
+          );
+        }
+        url.searchParams.set("connection_limit", desiredConnectionLimit);
       }
+
       if (!url.searchParams.has("pool_timeout")) {
         url.searchParams.set(
           "pool_timeout",
