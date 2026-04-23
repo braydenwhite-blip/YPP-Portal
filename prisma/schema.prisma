@@ -2761,6 +2761,8 @@ model Award {
   recipientId String
   awardedAt   DateTime   @default(now())
   recipient   User       @relation(fields: [recipientId], references: [id])
+
+  @@index([recipientId, awardedAt(sort: Desc)])
 }
 
 // ============================================
