@@ -45,7 +45,6 @@ export async function migrateUsersToSupabaseAuth(options?: {
       name: true,
       passwordHash: true,
       emailVerified: true,
-      oauthProvider: true,
       primaryRole: true,
       chapterId: true,
     },
@@ -81,7 +80,7 @@ export async function migrateUsersToSupabaseAuth(options?: {
       summary.logs.push({
         email,
         status: "dry_run",
-        detail: `Would migrate (password: ${hasPassword ? "yes" : "no"}, oauth: ${user.oauthProvider ?? "none"}).`,
+        detail: `Would migrate (password: ${hasPassword ? "yes" : "no"}).`,
       });
       summary.migrated++;
       continue;

@@ -64,9 +64,6 @@ describe("LoginPage", () => {
     expect(
       screen.getByText(/Supabase public auth is missing in this local environment/i)
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Sign in with Google" })
-    ).toBeDisabled();
     expect(screen.getByRole("button", { name: "Magic Link" })).toBeDisabled();
   });
 

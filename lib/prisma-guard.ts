@@ -7,6 +7,11 @@ const RECOVERABLE_MESSAGE_PARTS = [
   "does not exist",
   "invalid input value for enum",
   "Error in connector",
+  // Postgres statement_timeout (SQLSTATE 57014) and Prisma pool-timeout are
+  // transient — callers asking for a safe fallback should see the fallback
+  // rather than a 500.
+  "canceling statement due to statement timeout",
+  "Connection pool timeout",
 ];
 
 type FallbackFactory<T> = T | (() => T);
