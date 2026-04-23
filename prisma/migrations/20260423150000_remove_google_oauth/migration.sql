@@ -1,44 +1,47 @@
--- Drop Google OAuth support — safe / online-compatible subset.
+-- Remove Google OAuth support (metadata-only migration).
 --
--- Supabase now handles all auth (email + password, magic links, password
--- reset, 2FA). The NextAuth-style OAuth adapter tables below are unused
--- by runtime code and can be dropped without user impact.
+-- This migration is intentionally a no-op at the schema level.
 --
--- What this migration does:
---   1. Drops OAuthAccount, OAuthSession, VerificationToken. These tables
---      have no active writers (Google OAuth disabled in Supabase, NextAuth
---      retired to 410), so ACCESS EXCLUSIVE locks acquire instantly.
+-- Why: every attempt to physically remove the OAuth footprint online
+-- (ALTER TABLE "User" DROP COLUMN, DROP TABLE "OAuthAccount/Session",
+-- DROP INDEX, DROP TRIGGER on auth.users) requires an ACCESS EXCLUSIVE
+-- lock on the "User" table — either directly, or transitively via
+-- foreign-key constraint teardown on the child tables. Under live
+-- production traffic "User" is never idle long enough for Postgres to
+-- acquire that lock, so migrate deploy fails with SQLSTATE 55P03
+-- (lock timeout) and blocks every subsequent deploy.
 --
--- What this migration DOES NOT do (intentionally):
---   - Does NOT run `ALTER TABLE "User" DROP COLUMN` for oauthProvider /
---     oauthId / image. DROP COLUMN requires ACCESS EXCLUSIVE on User,
---     which cannot be acquired under live traffic and causes deploys to
---     fail with SQLSTATE 55P03 (lock_timeout). These columns are harmless
---     dead columns once removed from prisma/schema.prisma — Prisma Client
---     never references them. Drop them manually during a quiet window:
+-- Runtime impact of leaving the tables/columns in place: zero.
+-- prisma/schema.prisma no longer references oauthProvider, oauthId,
+-- image, OAuthAccount, OAuthSession, or VerificationToken, so Prisma
+-- Client never emits SQL touching them. The rows/tables are purely
+-- dead weight in the database.
 --
---       ALTER TABLE "User" DROP COLUMN IF EXISTS "oauthProvider";
---       ALTER TABLE "User" DROP COLUMN IF EXISTS "oauthId";
---       ALTER TABLE "User" DROP COLUMN IF EXISTS "image";
---       DROP INDEX IF EXISTS "User_oauthProvider_oauthId_idx";
+-- Manual cleanup — run from the Supabase Dashboard SQL Editor during
+-- a quiet window (or with the project in maintenance). All statements
+-- are idempotent:
 --
---   - Does NOT drop the Supabase user-sync trigger (lives in auth.*,
---     requires service-role). Run these manually from the Supabase
---     Dashboard SQL Editor:
+--   BEGIN;
+--   SET LOCAL statement_timeout = 0;
+--   SET LOCAL lock_timeout = '10min';
 --
---       DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
---       DROP FUNCTION IF EXISTS public.handle_new_supabase_user();
+--   -- User columns + index
+--   DROP INDEX IF EXISTS "User_oauthProvider_oauthId_idx";
+--   ALTER TABLE "User" DROP COLUMN IF EXISTS "oauthProvider";
+--   ALTER TABLE "User" DROP COLUMN IF EXISTS "oauthId";
+--   ALTER TABLE "User" DROP COLUMN IF EXISTS "image";
 --
---     The trigger already skips email-provider signups, so with Google
---     OAuth disabled in Supabase it will never fire.
+--   -- NextAuth adapter tables (no writers)
+--   DROP TABLE IF EXISTS "OAuthSession";
+--   DROP TABLE IF EXISTS "OAuthAccount";
+--   DROP TABLE IF EXISTS "VerificationToken";
+--
+--   COMMIT;
+--
+--   -- Supabase user-sync trigger — must run as service_role /
+--   -- supabase_admin from the Dashboard (auth.* is restricted):
+--   DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+--   DROP FUNCTION IF EXISTS public.handle_new_supabase_user();
 
--- Give the session-pooler connection enough slack for DDL and bound
--- lock waits so a stuck lock fails fast instead of timing the whole
--- build out at the pooler level.
-SET statement_timeout = 0;
-SET lock_timeout = '2min';
-
--- Drop NextAuth adapter tables. No active writers → locks acquire fast.
-DROP TABLE IF EXISTS "OAuthSession";
-DROP TABLE IF EXISTS "OAuthAccount";
-DROP TABLE IF EXISTS "VerificationToken";
+-- Intentionally empty operation — records this migration as applied.
+SELECT 1;
