@@ -167,6 +167,7 @@ export default async function ApplicantCockpitPage({
 
   const application = await fetchCockpitData(id);
   if (!application) notFound();
+  if (!application.applicant) notFound();
   const currentInterviewerAssignments = application.interviewerAssignments.filter(
     (assignment) => assignment.round === application.interviewRound
   );
@@ -179,7 +180,12 @@ export default async function ApplicantCockpitPage({
   );
   const leadApplicationReview = application.applicationReviews[0] ?? null;
 
-  const actor = await getHiringActor(session.user.id);
+  let actor;
+  try {
+    actor = await getHiringActor(session.user.id);
+  } catch {
+    redirect("/");
+  }
 
   const appCtx = {
     id: application.id,
@@ -241,14 +247,21 @@ export default async function ApplicantCockpitPage({
   const isReadOnlyReview = !actorIsReviewer && !actorIsAdmin && !isChapterLead(actor);
   const isHidden = !canAssignReviewer && !canAssignInterviewers && !actorIsReviewer && !actorIsInterviewer && !canActAsChairBool;
 
-  const [reviewerCandidates, interviewerCandidatesLead, interviewerCandidatesSecond] =
-    canAssignReviewer || canAssignInterviewers
-      ? await Promise.all([
+  let reviewerCandidates: Awaited<ReturnType<typeof getCandidateReviewers>> = [];
+  let interviewerCandidatesLead: Awaited<ReturnType<typeof getCandidateInterviewers>> = [];
+  let interviewerCandidatesSecond: Awaited<ReturnType<typeof getCandidateInterviewers>> = [];
+  if (canAssignReviewer || canAssignInterviewers) {
+    try {
+      [reviewerCandidates, interviewerCandidatesLead, interviewerCandidatesSecond] =
+        await Promise.all([
           getCandidateReviewers(id),
           getCandidateInterviewers(id, { role: "LEAD" }),
           getCandidateInterviewers(id, { role: "SECOND" }),
-        ])
-      : [[], [], []];
+        ]);
+    } catch (err) {
+      console.error("[applicant-cockpit] candidate picker queries failed", err);
+    }
+  }
 
   return (
     <div className="applicant-cockpit-page">
