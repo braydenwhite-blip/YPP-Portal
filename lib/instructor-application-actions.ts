@@ -388,7 +388,8 @@ async function requestMoreInfoInternal(
   });
   if (!application) throw new Error("Application not found");
 
-    await prisma.instructorApplication.update({
+  await prisma.$transaction(async (tx) => {
+    await tx.instructorApplication.update({
       where: { id: applicationId },
       data: {
         status: InstructorApplicationStatus.INFO_REQUESTED,
@@ -397,6 +398,15 @@ async function requestMoreInfoInternal(
         infoRequestReturnStatus: InstructorApplicationStatus.UNDER_REVIEW,
       },
     });
+    await tx.instructorApplicationTimelineEvent.create({
+      data: {
+        applicationId,
+        kind: "INFO_REQUESTED",
+        actorId: reviewerId,
+        payload: { message: message.slice(0, 500) },
+      },
+    });
+  });
 
   const { getBaseUrl } = await import("@/lib/portal-auth-utils");
   const baseUrl = await getBaseUrl();
@@ -514,13 +524,23 @@ export async function submitInfoResponse(
     const returnStatus =
       application.infoRequestReturnStatus ?? InstructorApplicationStatus.UNDER_REVIEW;
 
-    await prisma.instructorApplication.update({
-      where: { id: application.id },
-      data: {
-        applicantResponse: response,
-        status: returnStatus,
-        infoRequestReturnStatus: null,
-      },
+    await prisma.$transaction(async (tx) => {
+      await tx.instructorApplication.update({
+        where: { id: application.id },
+        data: {
+          applicantResponse: response,
+          status: returnStatus,
+          infoRequestReturnStatus: null,
+        },
+      });
+      await tx.instructorApplicationTimelineEvent.create({
+        data: {
+          applicationId: application.id,
+          kind: "INFO_RESPONSE_RECEIVED",
+          actorId: session.user.id,
+          payload: { responseLength: response.length },
+        },
+      });
     });
 
     try {
@@ -801,31 +821,78 @@ export async function saveScoresAndNotes(
         applicantId: true,
         reviewerId: true,
         applicant: { select: { chapterId: true } },
+        scoreAcademic: true,
+        scoreCommunication: true,
+        scoreLeadership: true,
+        scoreMotivation: true,
+        scoreFit: true,
+        scoreSubjectKnowledge: true,
+        scoreTeachingMethodology: true,
+        scoreCurriculumAlignment: true,
+        curriculumReviewSummary: true,
+        reviewerNotes: true,
       },
     });
     if (!app) return { success: false, error: "Application not found." };
-    assertCanManageApplication(await getHiringActor(session.user.id), {
+    const actor = await getHiringActor(session.user.id);
+    assertCanManageApplication(actor, {
       id: app.id,
       applicantId: app.applicantId,
       reviewerId: app.reviewerId,
       applicantChapterId: app.applicant.chapterId,
       interviewerAssignments: [],
     });
-    await prisma.instructorApplication.update({
-      where: { id: applicationId },
-      data: {
-        scoreAcademic: data.scoreAcademic,
-        scoreCommunication: data.scoreCommunication,
-        scoreLeadership: data.scoreLeadership,
-        scoreMotivation: data.scoreMotivation,
-        scoreFit: data.scoreFit,
-        scoreSubjectKnowledge: data.scoreSubjectKnowledge,
-        scoreTeachingMethodology: data.scoreTeachingMethodology,
-        scoreCurriculumAlignment: data.scoreCurriculumAlignment,
-        curriculumReviewSummary: data.curriculumReviewSummary || null,
-        reviewerNotes: data.reviewerNotes,
-      },
+
+    type ScoreField = keyof typeof data;
+    const scoreFields: ScoreField[] = [
+      "scoreAcademic",
+      "scoreCommunication",
+      "scoreLeadership",
+      "scoreMotivation",
+      "scoreFit",
+      "scoreSubjectKnowledge",
+      "scoreTeachingMethodology",
+      "scoreCurriculumAlignment",
+      "curriculumReviewSummary",
+      "reviewerNotes",
+    ];
+    const changed: Record<string, { from: unknown; to: unknown }> = {};
+    for (const field of scoreFields) {
+      const incoming = field in data ? data[field] : undefined;
+      if (incoming === undefined) continue;
+      const prev = app[field as keyof typeof app];
+      const next = field === "curriculumReviewSummary" ? (data.curriculumReviewSummary || null) : incoming;
+      if (prev !== next) changed[field] = { from: prev ?? null, to: next ?? null };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.instructorApplication.update({
+        where: { id: applicationId },
+        data: {
+          scoreAcademic: data.scoreAcademic,
+          scoreCommunication: data.scoreCommunication,
+          scoreLeadership: data.scoreLeadership,
+          scoreMotivation: data.scoreMotivation,
+          scoreFit: data.scoreFit,
+          scoreSubjectKnowledge: data.scoreSubjectKnowledge,
+          scoreTeachingMethodology: data.scoreTeachingMethodology,
+          scoreCurriculumAlignment: data.scoreCurriculumAlignment,
+          curriculumReviewSummary: data.curriculumReviewSummary || null,
+          reviewerNotes: data.reviewerNotes,
+        },
+      });
+      if (Object.keys(changed).length > 0) {
+        await tx.instructorApplicationTimelineEvent.create({
+          data: {
+            applicationId,
+            kind: "SCORES_UPDATED",
+            actorId: actor.id,
+            payload: JSON.parse(JSON.stringify({ changed })),
+          },
+        });
+      }
     });
+
     revalidatePath("/admin/instructor-applicants");
     return { success: true };
   } catch (error) {
@@ -1437,6 +1504,7 @@ export async function removeInterviewer(formData: FormData): Promise<{ success: 
 
     const assignmentId = String(formData.get("assignmentId") ?? "").trim();
     if (!assignmentId) return { success: false, error: "Missing assignmentId." };
+    const reason = String(formData.get("reason") ?? "").trim() || null;
 
     const assignment = await prisma.instructorApplicationInterviewer.findUnique({
       where: { id: assignmentId },
@@ -1481,7 +1549,7 @@ export async function removeInterviewer(formData: FormData): Promise<{ success: 
           applicationId: assignment.applicationId,
           kind: "INTERVIEWER_REMOVED",
           actorId: actor.id,
-          payload: { interviewerId: assignment.interviewerId, role: assignment.role, round: assignment.round },
+          payload: { interviewerId: assignment.interviewerId, role: assignment.role, round: assignment.round, reason },
         },
       });
     });

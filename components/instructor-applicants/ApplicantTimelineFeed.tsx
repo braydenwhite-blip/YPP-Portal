@@ -20,6 +20,7 @@ function eventTone(kind: string): Tone {
       return "urgent";
     case "REVIEWER_ASSIGNED":
     case "INTERVIEWER_ASSIGNED":
+    case "INTERVIEWER_REMOVED":
     case "INTERVIEW_COMPLETED":
       return "accent";
     case "STATUS_CHANGE":
@@ -27,7 +28,10 @@ function eventTone(kind: string): Tone {
     case "DOC_REMOVED":
     case "SLOT_POSTED":
     case "SLOT_CONFIRMED":
+    case "SCORES_UPDATED":
       return "info";
+    case "INFO_REQUESTED":
+    case "INFO_RESPONSE_RECEIVED":
     case "NOTE_ADDED":
       return "warning";
     default:
@@ -39,10 +43,25 @@ function eventLabel(kind: string, payload: Record<string, unknown>): string {
   switch (kind) {
     case "STATUS_CHANGE":
       return `Status changed${payload.from ? ` from ${String(payload.from).replace(/_/g, " ")}` : ""} to ${String(payload.to ?? "").replace(/_/g, " ")}`;
-    case "REVIEWER_ASSIGNED":
-      return "Reviewer assigned";
+    case "REVIEWER_ASSIGNED": {
+      const prev = payload.previousReviewerId;
+      return prev ? "Reviewer reassigned" : "Reviewer assigned";
+    }
     case "INTERVIEWER_ASSIGNED":
       return `Interviewer assigned${payload.role ? ` (${String(payload.role)})` : ""}`;
+    case "INTERVIEWER_REMOVED":
+      return `Removed ${payload.role ? String(payload.role).toLowerCase() : ""} interviewer${payload.round != null ? ` (round ${String(payload.round)})` : ""}`.trim();
+    case "SCORES_UPDATED": {
+      const changed = payload.changed as Record<string, unknown> | undefined;
+      const fields = changed ? Object.keys(changed) : [];
+      return fields.length > 0
+        ? `Updated scores: ${fields.map((f) => f.replace(/^score/, "")).join(", ")}`
+        : "Updated scores";
+    }
+    case "INFO_REQUESTED":
+      return "Requested more information";
+    case "INFO_RESPONSE_RECEIVED":
+      return "Applicant responded to info request";
     case "DOC_UPLOADED":
       return `Document uploaded${payload.kind ? ` - ${String(payload.kind).replace(/_/g, " ")}` : ""}`;
     case "DOC_REMOVED":
