@@ -29,6 +29,7 @@ import {
   getInstructorApplicationReviewWorkspace,
 } from "@/lib/instructor-review-actions";
 import { PROGRESS_RATING_OPTIONS } from "@/lib/instructor-review-config";
+import NotificationFailureBanner from "@/components/instructor-applicants/NotificationFailureBanner";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,8 @@ async function fetchCockpitData(applicationId: string) {
       materialsReadyAt: true,
       chairQueuedAt: true,
       archivedAt: true,
+      lastNotificationError: true,
+      lastNotificationErrorAt: true,
       applicant: {
         select: {
           id: true,
@@ -276,6 +279,15 @@ export default async function ApplicantCockpitPage({
 
       <div className="applicant-cockpit-container">
         <ApplicantCockpitHeader application={application} />
+
+        {application.lastNotificationError && (
+          <NotificationFailureBanner
+            applicationId={application.id}
+            error={application.lastNotificationError}
+            at={application.lastNotificationErrorAt!}
+            canResend={actorIsAdmin || actorIsChair}
+          />
+        )}
 
         <div className="applicant-cockpit-layout">
           <main className="applicant-cockpit-main">

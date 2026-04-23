@@ -34,7 +34,10 @@ function eventTone(kind: string): Tone {
     case "INFO_REQUESTED":
     case "INFO_RESPONSE_RECEIVED":
     case "NOTE_ADDED":
+    case "NOTIFICATION_FAILED":
       return "warning";
+    case "NOTIFICATION_RESENT":
+      return "info";
     default:
       return "info";
   }
@@ -79,6 +82,10 @@ function eventLabel(kind: string, payload: Record<string, unknown>): string {
       return `Chair decision: ${String(payload.action ?? "").replace(/_/g, " ")}`;
     case "NOTE_ADDED":
       return "Note added";
+    case "NOTIFICATION_FAILED":
+      return `Notification delivery failed${payload.emailKind ? ` (${String(payload.emailKind).replace(/_/g, " ")})` : ""}`;
+    case "NOTIFICATION_RESENT":
+      return `Notification resent${payload.emailKind ? ` (${String(payload.emailKind).replace(/_/g, " ")})` : ""}`;
     default:
       return kind.replace(/_/g, " ");
   }

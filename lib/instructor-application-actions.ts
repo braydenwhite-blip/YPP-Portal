@@ -36,6 +36,7 @@ import {
   assertCanAssignInterviewers,
   assertCanActAsChair,
   isAdmin,
+  isHiringChair,
 } from "@/lib/chapter-hiring-permissions";
 import { ApplicantWorkflowError } from "@/lib/applicant-workflow-error";
 import { shouldSendAssignmentNotification } from "@/lib/notification-policy";
@@ -1997,28 +1998,27 @@ export async function chairDecide(formData: FormData): Promise<{ success: boolea
           error: "Onboarding sync failed — decision was reversed. Please try again.",
         };
       }
-      try {
+    }
+
+    // Send the appropriate decision email and track any failure on the row.
+    let emailKind: string = action;
+    let emailError: Error | null = null;
+    try {
+      if (action === "APPROVE") {
+        emailKind = "APPROVE";
         await sendApplicationApprovedEmail({
           to: app.applicant.email,
           applicantName: app.applicant.name,
         });
-      } catch (e) {
-        console.error("[chairDecide] approval email failed:", e);
-      }
-    }
-
-    if (action === "REJECT") {
-      try {
+      } else if (action === "REJECT") {
+        emailKind = "REJECT";
         await sendApplicationRejectedEmail({
           to: app.applicant.email,
           applicantName: app.applicant.name,
           reason: rationale ?? "The chair review did not result in approval.",
         });
-      } catch (e) {
-        console.error("[chairDecide] rejection email failed:", e);
-      }
-    } else if (action === "REQUEST_INFO") {
-      try {
+      } else if (action === "REQUEST_INFO") {
+        emailKind = "REQUEST_INFO";
         const { getBaseUrl } = await import("@/lib/portal-auth-utils");
         const baseUrl = await getBaseUrl();
         await sendInfoRequestEmail({
@@ -2027,15 +2027,34 @@ export async function chairDecide(formData: FormData): Promise<{ success: boolea
           message: rationale ?? "Please provide the requested follow-up information.",
           statusUrl: `${baseUrl}/application-status`,
         });
-      } catch (e) {
-        console.error("[chairDecide] info-request email failed:", e);
-      }
-    } else if (action !== "APPROVE") {
-      try {
+      } else {
+        emailKind = action;
         await sendChairDecisionEmail(app.applicant.email, applicationId, action);
-      } catch (e) {
-        console.error("[chairDecide] decision email failed:", e);
       }
+      // Email succeeded — clear any prior failure flags.
+      await prisma.instructorApplication.update({
+        where: { id: applicationId },
+        data: { lastNotificationError: null, lastNotificationErrorAt: null },
+      });
+    } catch (e) {
+      emailError = e instanceof Error ? e : new Error(String(e));
+      console.error(`[chairDecide] ${emailKind} email failed:`, emailError);
+      // Persist the failure so admins can see it and resend manually.
+      await prisma.instructorApplication.update({
+        where: { id: applicationId },
+        data: {
+          lastNotificationError: emailError.message,
+          lastNotificationErrorAt: new Date(),
+        },
+      });
+      await prisma.instructorApplicationTimelineEvent.create({
+        data: {
+          applicationId,
+          kind: "NOTIFICATION_FAILED",
+          actorId: actor.id,
+          payload: { emailKind, error: emailError.message },
+        },
+      });
     }
 
     trackApplicantEvent("applicant.chair.decided", {
@@ -2052,6 +2071,101 @@ export async function chairDecide(formData: FormData): Promise<{ success: boolea
   } catch (error) {
     console.error("[chairDecide]", error);
     return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
+  }
+}
+
+/**
+ * Re-send the most recent chair decision email for an application.
+ * Persists the result (success clears error flags; failure updates them).
+ * ADMIN or HIRING_CHAIR only.
+ */
+export async function resendChairDecisionEmail(
+  applicationId: string
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) return { ok: false, error: "Unauthorized" };
+
+    const actor = await getHiringActor(session.user.id);
+    if (!isAdmin(actor) && !isHiringChair(actor)) {
+      return { ok: false, error: "Only Admins or Hiring Chairs can resend decision emails." };
+    }
+
+    const app = await prisma.instructorApplication.findUnique({
+      where: { id: applicationId },
+      select: {
+        applicant: { select: { name: true, email: true } },
+        infoRequest: true,
+      },
+    });
+    if (!app) return { ok: false, error: "Application not found." };
+
+    // Find the latest non-superseded chair decision.
+    const decision = await prisma.instructorApplicationChairDecision.findFirst({
+      where: { applicationId, supersededAt: null },
+      orderBy: { decidedAt: "desc" },
+    });
+    if (!decision) return { ok: false, error: "No chair decision to resend." };
+
+    const { action, rationale } = decision;
+    const emailKind: string = action;
+
+    try {
+      if (action === "APPROVE") {
+        await sendApplicationApprovedEmail({
+          to: app.applicant.email,
+          applicantName: app.applicant.name,
+        });
+      } else if (action === "REJECT") {
+        await sendApplicationRejectedEmail({
+          to: app.applicant.email,
+          applicantName: app.applicant.name,
+          reason: rationale ?? "The chair review did not result in approval.",
+        });
+      } else if (action === "REQUEST_INFO") {
+        const { getBaseUrl } = await import("@/lib/portal-auth-utils");
+        const baseUrl = await getBaseUrl();
+        await sendInfoRequestEmail({
+          to: app.applicant.email,
+          applicantName: app.applicant.name,
+          message: rationale ?? app.infoRequest ?? "Please provide the requested follow-up information.",
+          statusUrl: `${baseUrl}/application-status`,
+        });
+      } else {
+        await sendChairDecisionEmail(app.applicant.email, applicationId, action);
+      }
+
+      // Success: clear error flags and add timeline event.
+      await prisma.instructorApplication.update({
+        where: { id: applicationId },
+        data: { lastNotificationError: null, lastNotificationErrorAt: null },
+      });
+      await prisma.instructorApplicationTimelineEvent.create({
+        data: {
+          applicationId,
+          kind: "NOTIFICATION_RESENT",
+          actorId: actor.id,
+          payload: { emailKind, by: actor.id },
+        },
+      });
+    } catch (e) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      console.error("[resendChairDecisionEmail] email send failed:", err);
+      await prisma.instructorApplication.update({
+        where: { id: applicationId },
+        data: {
+          lastNotificationError: err.message,
+          lastNotificationErrorAt: new Date(),
+        },
+      });
+      return { ok: false, error: "Email send failed." };
+    }
+
+    revalidatePath(`/applications/instructor/${applicationId}`);
+    return { ok: true };
+  } catch (error) {
+    console.error("[resendChairDecisionEmail]", error);
+    return { ok: false, error: error instanceof Error ? error.message : "Something went wrong." };
   }
 }
 

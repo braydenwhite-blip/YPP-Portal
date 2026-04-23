@@ -1098,18 +1098,18 @@ model User {
   pathwayStepUnlocks          PathwayStepUnlock[]       @relation("PathwayStepUnlocks")
 
   // Instructor Application Relations
-  instructorApplication                    InstructorApplication?                   @relation("InstructorApplications")
-  instructorApplicationsReviewed           InstructorApplication[]                  @relation("InstructorApplicationReviews")
-  instructorApplicationsAssignedBy         InstructorApplication[]                  @relation("InstructorApplicationReviewerAssignedBy")
-  instructorApplicationReviews             InstructorApplicationReview[]            @relation("InstructorApplicationStructuredReviews")
-  instructorInterviewReviews               InstructorInterviewReview[]              @relation("InstructorInterviewStructuredReviews")
-  offeredInterviewSlots                    OfferedInterviewSlot[]                   @relation("OfferedInterviewSlots")
+  instructorApplication            InstructorApplication?               @relation("InstructorApplications")
+  instructorApplicationsReviewed   InstructorApplication[]              @relation("InstructorApplicationReviews")
+  instructorApplicationsAssignedBy InstructorApplication[]              @relation("InstructorApplicationReviewerAssignedBy")
+  instructorApplicationReviews     InstructorApplicationReview[]        @relation("InstructorApplicationStructuredReviews")
+  instructorInterviewReviews       InstructorInterviewReview[]          @relation("InstructorInterviewStructuredReviews")
+  offeredInterviewSlots            OfferedInterviewSlot[]               @relation("OfferedInterviewSlots")
   // Instructor Applicant Workflow V1 Relations
-  interviewerAssignments                   InstructorApplicationInterviewer[]       @relation("InterviewerAssignments")
-  interviewerAssignedByAssignments         InstructorApplicationInterviewer[]       @relation("InterviewerAssignedBy")
-  applicantDocumentsUploaded               ApplicantDocument[]                      @relation("ApplicantDocUploader")
-  chairDecisionsMade                       InstructorApplicationChairDecision[]     @relation("ChairDecisions")
-  applicantTimelineEvents                  InstructorApplicationTimelineEvent[]     @relation("TimelineActor")
+  interviewerAssignments           InstructorApplicationInterviewer[]   @relation("InterviewerAssignments")
+  interviewerAssignedByAssignments InstructorApplicationInterviewer[]   @relation("InterviewerAssignedBy")
+  applicantDocumentsUploaded       ApplicantDocument[]                  @relation("ApplicantDocUploader")
+  chairDecisionsMade               InstructorApplicationChairDecision[] @relation("ChairDecisions")
+  applicantTimelineEvents          InstructorApplicationTimelineEvent[] @relation("TimelineActor")
 
   // Chapter President Application Relations
   chapterPresidentApplication          ChapterPresidentApplication?  @relation("ChapterPresidentApplications")
@@ -1708,18 +1708,22 @@ model InstructorApplication {
   offeredSlots OfferedInterviewSlot[]
 
   // --- Instructor Applicant Workflow V1 ---
-  reviewerAssignedAt     DateTime?
-  reviewerAssignedById   String?
-  reviewerAssignedBy     User?                                    @relation("InstructorApplicationReviewerAssignedBy", fields: [reviewerAssignedById], references: [id])
-  chairQueuedAt          DateTime?
-  materialsReadyAt       DateTime?
-  archivedAt             DateTime?
+  reviewerAssignedAt      DateTime?
+  reviewerAssignedById    String?
+  reviewerAssignedBy      User?                                @relation("InstructorApplicationReviewerAssignedBy", fields: [reviewerAssignedById], references: [id])
+  chairQueuedAt           DateTime?
+  materialsReadyAt        DateTime?
+  archivedAt              DateTime?
   infoRequestReturnStatus InstructorApplicationStatus?
-  interviewRound         Int                                      @default(1)
-  interviewerAssignments InstructorApplicationInterviewer[]
-  documents              ApplicantDocument[]
-  chairDecisions         InstructorApplicationChairDecision[]
-  timeline               InstructorApplicationTimelineEvent[]
+  interviewRound          Int                                  @default(1)
+  interviewerAssignments  InstructorApplicationInterviewer[]
+  documents               ApplicantDocument[]
+  chairDecisions          InstructorApplicationChairDecision[]
+  timeline                InstructorApplicationTimelineEvent[]
+
+  // --- Notification failure tracking ---
+  lastNotificationError   String?   @db.Text
+  lastNotificationErrorAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1938,15 +1942,15 @@ model ApplicantDocument {
 }
 
 model InstructorApplicationChairDecision {
-  id              String              @id @default(cuid())
+  id              String                @id @default(cuid())
   applicationId   String
   application     InstructorApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   chairId         String
-  chair           User                @relation("ChairDecisions", fields: [chairId], references: [id])
+  chair           User                  @relation("ChairDecisions", fields: [chairId], references: [id])
   action          ChairDecisionAction
   rationale       String?
   comparisonNotes String?
-  decidedAt       DateTime            @default(now())
+  decidedAt       DateTime              @default(now())
   supersededAt    DateTime?
 
   @@index([applicationId, decidedAt])
