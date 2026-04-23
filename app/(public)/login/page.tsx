@@ -139,14 +139,6 @@ function LoginPageContent() {
       return;
     }
 
-    // Check if MFA is required
-    if (data.session === null && data.user === null) {
-      // This shouldn't happen with valid credentials, treat as error
-      setError("Something went wrong. Please try again.");
-      setLoading(false);
-      return;
-    }
-
     // Check for MFA challenge
     const { data: mfaData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
     if (mfaData?.nextLevel === "aal2" && mfaData.currentLevel === "aal1") {
