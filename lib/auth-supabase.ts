@@ -131,6 +131,27 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
     });
   } else if (authUser) {
     prismaUser = await resolvePrismaUserForSession({ supabaseAuthId: authUser.id });
+
+    // Fallback: some users (migrated from legacy auth, or created before the
+    // Supabase sync trigger was live) have a Prisma row without supabaseAuthId.
+    // Match on verified email instead and back-fill the link so the lookup is
+    // fast on subsequent requests. Without this, they render as "Portal User".
+    if (!prismaUser && authUser.email) {
+      const byEmail = await resolvePrismaUserForSession({ email: authUser.email });
+      if (byEmail) {
+        prismaUser = byEmail;
+        try {
+          await prisma.user.update({
+            where: { id: byEmail.id },
+            data: { supabaseAuthId: authUser.id },
+          });
+        } catch (error) {
+          // Best-effort back-fill — if the write fails (pool, unique clash,
+          // whatever), the email fallback will still resolve them next time.
+          console.warn("[auth] Could not back-fill supabaseAuthId.", error);
+        }
+      }
+    }
   } else {
     const legacySession = await getLegacySessionFromCookies();
     prismaUser = legacySession
