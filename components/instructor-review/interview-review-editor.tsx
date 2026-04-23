@@ -253,14 +253,6 @@ export default function InterviewReviewEditor({
     initialReview?.recommendation ?? ""
   );
   const [summary, setSummary] = useState(initialReview?.summary ?? "");
-  const [overallNotes, setOverallNotes] = useState(initialReview?.overallNotes ?? "");
-  const [demeanorNotes, setDemeanorNotes] = useState(initialReview?.demeanorNotes ?? "");
-  const [maturityNotes, setMaturityNotes] = useState(initialReview?.maturityNotes ?? "");
-  const [communicationNotes, setCommunicationNotes] = useState(initialReview?.communicationNotes ?? "");
-  const [professionalismNotes, setProfessionalismNotes] = useState(
-    initialReview?.professionalismNotes ?? ""
-  );
-  const [followUpItems, setFollowUpItems] = useState(initialReview?.followUpItems ?? "");
   const [revisionRequirements, setRevisionRequirements] = useState(
     initialReview?.revisionRequirements ?? ""
   );
@@ -329,12 +321,12 @@ export default function InterviewReviewEditor({
       overallRating: overallRating || null,
       recommendation: recommendation || null,
       summary: summary || null,
-      overallNotes: overallNotes || null,
-      demeanorNotes: demeanorNotes || null,
-      maturityNotes: maturityNotes || null,
-      communicationNotes: communicationNotes || null,
-      professionalismNotes: professionalismNotes || null,
-      followUpItems: followUpItems || null,
+      overallNotes: null,
+      demeanorNotes: null,
+      maturityNotes: null,
+      communicationNotes: null,
+      professionalismNotes: null,
+      followUpItems: null,
       revisionRequirements: revisionRequirements || null,
       applicantMessage: applicantMessage || null,
       flagForLeadership,
@@ -343,14 +335,8 @@ export default function InterviewReviewEditor({
       applicationId,
       applicantMessage,
       categoryPayload,
-      communicationNotes,
-      demeanorNotes,
       flagForLeadership,
-      followUpItems,
-      maturityNotes,
-      overallNotes,
       overallRating,
-      professionalismNotes,
       questionPayload,
       recommendation,
       revisionRequirements,
@@ -372,7 +358,7 @@ export default function InterviewReviewEditor({
     const redFlags = questions.filter((question) => question.tags.includes("RED_FLAG")).length;
     const followUps = questions.filter((question) => question.tags.includes("FOLLOW_UP_NEEDED")).length;
     const incompleteAsked = questions.filter(
-      (question) => question.status === "ASKED" && (!question.notes.trim() || !question.rating)
+      (question) => question.status === "ASKED" && !question.notes.trim()
     ).length;
     const sections = questions.reduce<Record<string, { total: number; asked: number }>>(
       (acc, question) => {
@@ -520,11 +506,6 @@ export default function InterviewReviewEditor({
       <input type="hidden" name="returnTo" value={returnTo} />
       <input type="hidden" name="categoriesJson" value={categoryPayload} />
       <input type="hidden" name="questionResponsesJson" value={questionPayload} />
-      <input type="hidden" name="demeanorNotes" value={demeanorNotes} />
-      <input type="hidden" name="maturityNotes" value={maturityNotes} />
-      <input type="hidden" name="communicationNotes" value={communicationNotes} />
-      <input type="hidden" name="professionalismNotes" value={professionalismNotes} />
-      <input type="hidden" name="followUpItems" value={followUpItems} />
 
       {!canEdit ? (
         <div className="review-editor-notice">
@@ -715,18 +696,6 @@ export default function InterviewReviewEditor({
 
             {activeBankItem ? (
               <div className="live-guidance-grid">
-                {activeBankItem.listenFor ? (
-                  <div>
-                    <h4>Listen For</h4>
-                    <p>{activeBankItem.listenFor}</p>
-                  </div>
-                ) : null}
-                {activeBankItem.interviewerGuidance ? (
-                  <div>
-                    <h4>Interviewer Guidance</h4>
-                    <p>{activeBankItem.interviewerGuidance}</p>
-                  </div>
-                ) : null}
                 <div>
                   <h4>Strong Signals</h4>
                   <ul>
@@ -811,38 +780,6 @@ export default function InterviewReviewEditor({
               />
             </label>
 
-            <div className="live-score-block">
-              <h4>Live Score</h4>
-              <div className="review-rating-grid review-rating-grid-compact">
-                {PROGRESS_RATING_OPTIONS.map((option) => {
-                  const selected = activeQuestion.rating === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      disabled={!canEdit}
-                      onClick={() =>
-                        updateQuestion(activeQuestion.localId, (question) => ({
-                          ...question,
-                          rating: option.value,
-                        }))
-                      }
-                      className={`review-rating-option${selected ? " is-selected" : ""}`}
-                      style={
-                        {
-                          "--rating-color": option.color,
-                          "--rating-bg": option.bg,
-                        } as CSSProperties
-                      }
-                    >
-                      <div>{option.shortLabel}</div>
-                      <span>{option.helperLabel}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
             <div className="live-tag-block">
               <h4>Answer Tags</h4>
               <div>
@@ -882,84 +819,8 @@ export default function InterviewReviewEditor({
 
       <section className="review-editor-panel">
         <div>
-          <h2>General Live Notes</h2>
-          <p>Use these when the signal is not tied to one specific question.</p>
-        </div>
-        <label className="form-row">
-          Overall observations
-          <textarea
-            className="input"
-            name="overallNotes"
-            rows={4}
-            value={overallNotes}
-            disabled={!canEdit}
-            onChange={(event) => setOverallNotes(event.target.value)}
-            placeholder="Quick shorthand is fine: standout moments, concerns, patterns, open loops..."
-          />
-        </label>
-        <div className="live-guided-notes-grid">
-          <label className="form-row">
-            Demeanor
-            <textarea
-              className="input"
-              rows={3}
-              value={demeanorNotes}
-              disabled={!canEdit}
-              onChange={(event) => setDemeanorNotes(event.target.value)}
-              placeholder="Warmth, confidence, humility, presence..."
-            />
-          </label>
-          <label className="form-row">
-            Maturity
-            <textarea
-              className="input"
-              rows={3}
-              value={maturityNotes}
-              disabled={!canEdit}
-              onChange={(event) => setMaturityNotes(event.target.value)}
-              placeholder="Judgment, ownership, self-awareness..."
-            />
-          </label>
-          <label className="form-row">
-            Communication
-            <textarea
-              className="input"
-              rows={3}
-              value={communicationNotes}
-              disabled={!canEdit}
-              onChange={(event) => setCommunicationNotes(event.target.value)}
-              placeholder="Clarity, listening, parent/student readiness..."
-            />
-          </label>
-          <label className="form-row">
-            Professionalism
-            <textarea
-              className="input"
-              rows={3}
-              value={professionalismNotes}
-              disabled={!canEdit}
-              onChange={(event) => setProfessionalismNotes(event.target.value)}
-              placeholder="Preparation, reliability, follow-through..."
-            />
-          </label>
-        </div>
-        <label className="form-row">
-          Unresolved follow-ups
-          <textarea
-            className="input"
-            rows={3}
-            value={followUpItems}
-            disabled={!canEdit}
-            onChange={(event) => setFollowUpItems(event.target.value)}
-            placeholder="Anything the chair, reviewer, or second interviewer should revisit..."
-          />
-        </label>
-      </section>
-
-      <section className="review-editor-panel">
-        <div>
           <h2>Overall Interview Evaluation</h2>
-          <p>The live notes above should roll up into this final interview judgment.</p>
+          <p>Your per-question and per-category notes roll up into this final interview judgment.</p>
         </div>
 
         <div className="review-rating-grid">

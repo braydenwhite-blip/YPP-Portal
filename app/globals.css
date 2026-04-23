@@ -7689,13 +7689,14 @@ select.input {
 .review-category-title {
   color: var(--cockpit-ink);
   font-weight: 800;
+  font-size: 18px;
 }
 
 .review-category-description {
-  margin-top: 4px;
+  margin-top: 6px;
   color: var(--cockpit-soft-ink);
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 17px;
+  line-height: 1.55;
 }
 
 .review-editor-callout {
@@ -8013,10 +8014,10 @@ select.input {
 .live-question-text {
   margin: 0;
   color: var(--cockpit-ink);
-  font-size: 22px;
+  font-size: 30px;
   font-weight: 800;
-  line-height: 1.36;
-  letter-spacing: 0;
+  line-height: 1.28;
+  letter-spacing: -0.01em;
 }
 
 .live-guidance-callout {
@@ -8066,7 +8067,6 @@ select.input {
 }
 
 .live-guidance-grid h4,
-.live-score-block h4,
 .live-tag-block h4 {
   margin: 0 0 7px;
   color: var(--cockpit-ink);
@@ -8109,7 +8109,6 @@ select.input {
   min-height: 180px;
 }
 
-.live-score-block,
 .live-tag-block {
   display: grid;
   gap: 8px;
@@ -9598,7 +9597,7 @@ select.input {
 
   .live-question-text,
   .live-question-card h3 {
-    font-size: 19px;
+    font-size: 22px;
   }
 
   .applicant-command-panel {
