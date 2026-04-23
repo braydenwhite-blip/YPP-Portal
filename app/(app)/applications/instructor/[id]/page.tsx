@@ -30,6 +30,7 @@ import {
 } from "@/lib/instructor-review-actions";
 import { PROGRESS_RATING_OPTIONS } from "@/lib/instructor-review-config";
 import NotificationFailureBanner from "@/components/instructor-applicants/NotificationFailureBanner";
+import ReviewSubmissionWarningsBanner from "@/components/instructor-applicants/ReviewSubmissionWarningsBanner";
 
 export const dynamic = "force-dynamic";
 
@@ -157,12 +158,13 @@ export default async function ApplicantCockpitPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ notice?: string }>;
+  searchParams: Promise<{ notice?: string; reviewWarnings?: string }>;
 }) {
   const session = await getSession();
   if (!session?.user?.id) redirect("/signin");
 
   const { id } = await params;
+  const { notice, reviewWarnings } = await searchParams;
 
   if (!isInstructorApplicantWorkflowV1Enabled()) {
     redirect("/admin/instructor-applicants");
@@ -288,6 +290,12 @@ export default async function ApplicantCockpitPage({
             canResend={actorIsAdmin || actorIsChair}
           />
         )}
+
+        <ReviewSubmissionWarningsBanner
+          notice={notice ?? null}
+          warningsJson={reviewWarnings ?? null}
+        />
+
 
         <div className="applicant-cockpit-layout">
           <main className="applicant-cockpit-main">
