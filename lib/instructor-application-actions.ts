@@ -1069,59 +1069,65 @@ export async function offerInterviewSlots(
 
     const shouldAdvanceToScheduling = application.status === InstructorApplicationStatus.UNDER_REVIEW;
 
-    await prisma.$transaction(async (tx) => {
-      await tx.offeredInterviewSlot.deleteMany({
-        where: { instructorApplicationId: applicationId, confirmedAt: null },
-      });
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.offeredInterviewSlot.deleteMany({
+          where: { instructorApplicationId: applicationId, confirmedAt: null },
+        });
 
-      if (shouldAdvanceToScheduling) {
-        await tx.instructorApplication.update({
-          where: { id: applicationId },
-          data: {
-            status: InstructorApplicationStatus.INTERVIEW_SCHEDULED,
-            interviewScheduledAt: null,
-            reviewerNotes: leadReview?.summary ?? application.reviewerNotes,
-          },
+        if (shouldAdvanceToScheduling) {
+          await tx.instructorApplication.update({
+            where: { id: applicationId },
+            data: {
+              status: InstructorApplicationStatus.INTERVIEW_SCHEDULED,
+              interviewScheduledAt: null,
+              reviewerNotes: leadReview?.summary ?? application.reviewerNotes,
+            },
+          });
+
+          await tx.instructorApplicationTimelineEvent.create({
+            data: {
+              applicationId,
+              kind: "STATUS_CHANGE",
+              actorId: actor.id,
+              payload: {
+                from: InstructorApplicationStatus.UNDER_REVIEW,
+                to: InstructorApplicationStatus.INTERVIEW_SCHEDULED,
+                reason: "lead_interviewer_sent_times",
+              },
+            },
+          });
+        }
+
+        // skipDuplicates is a belt-and-suspenders guard; the unique index on
+        // (instructorApplicationId, scheduledAt) is the primary enforcement.
+        await tx.offeredInterviewSlot.createMany({
+          data: normalizedSlots.map((slot) => ({
+            instructorApplicationId: applicationId,
+            scheduledAt: slot.scheduledAt,
+            durationMinutes: slot.durationMinutes,
+            meetingUrl: slot.meetingUrl,
+            offeredByUserId: actor.id,
+          })),
+          skipDuplicates: true,
         });
 
         await tx.instructorApplicationTimelineEvent.create({
           data: {
             applicationId,
-            kind: "STATUS_CHANGE",
+            kind: "INTERVIEW_TIMES_SENT",
             actorId: actor.id,
             payload: {
-              from: InstructorApplicationStatus.UNDER_REVIEW,
-              to: InstructorApplicationStatus.INTERVIEW_SCHEDULED,
-              reason: "lead_interviewer_sent_times",
+              count: normalizedSlots.length,
+              round: currentRound,
+              times: normalizedSlots.map((slot) => slot.scheduledAt.toISOString()),
+              meetingUrl: normalizedSlots[0]?.meetingUrl ?? null,
             },
           },
         });
-      }
-
-      await tx.offeredInterviewSlot.createMany({
-        data: normalizedSlots.map((slot) => ({
-          instructorApplicationId: applicationId,
-          scheduledAt: slot.scheduledAt,
-          durationMinutes: slot.durationMinutes,
-          meetingUrl: slot.meetingUrl,
-          offeredByUserId: actor.id,
-        })),
-      });
-
-      await tx.instructorApplicationTimelineEvent.create({
-        data: {
-          applicationId,
-          kind: "INTERVIEW_TIMES_SENT",
-          actorId: actor.id,
-          payload: {
-            count: normalizedSlots.length,
-            round: currentRound,
-            times: normalizedSlots.map((slot) => slot.scheduledAt.toISOString()),
-            meetingUrl: normalizedSlots[0]?.meetingUrl ?? null,
-          },
-        },
-      });
-    });
+      },
+      { isolationLevel: "Serializable" }
+    );
 
     // Send "pick your time" email to the applicant
     const { getBaseUrl } = await import("@/lib/portal-auth-utils");
@@ -1142,6 +1148,13 @@ export async function offerInterviewSlots(
     revalidatePath("/application-status");
     return { success: true };
   } catch (error) {
+    // Concurrent callers racing to insert the same slots trigger a unique-constraint
+    // violation (Prisma code P2002). Return a user-friendly conflict message so the
+    // UI can prompt the reviewer to refresh and check the current slot state.
+    const prismaErr = error as { code?: string };
+    if (prismaErr?.code === "P2002") {
+      return { success: false, error: "Another reviewer posted conflicting slots. Refresh and try again." };
+    }
     console.error("[offerInterviewSlots]", error);
     return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
   }

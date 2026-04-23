@@ -1896,6 +1896,10 @@ model OfferedInterviewSlot {
 
   createdAt DateTime @default(now())
 
+  // Two slots for the same application at the same instant are meaningless.
+  // If a declined slot needs to be re-offered at the same time, delete it first
+  // (or shift by ≥1 second). This prevents duplicate rows on concurrent writes.
+  @@unique([instructorApplicationId, scheduledAt])
   @@index([instructorApplicationId])
   @@index([offeredByUserId])
 }

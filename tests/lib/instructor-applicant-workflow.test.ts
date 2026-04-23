@@ -649,3 +649,203 @@ describe("manual instructor interview times", () => {
     );
   });
 });
+
+// ─── WS6: offerInterviewSlots concurrent / race tests ───────────────────────
+
+describe("offerInterviewSlots — race condition / unique constraint", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.resetAllMocks();
+  });
+
+  function futureSlot(offsetHours: number) {
+    return {
+      scheduledAt: new Date(Date.now() + offsetHours * 60 * 60 * 1000),
+      durationMinutes: 60,
+      meetingUrl: "https://meet.google.com/ypp-test",
+    };
+  }
+
+  async function mockLeadSession() {
+    const { getSession } = await import("@/lib/auth-supabase");
+    vi.mocked(getSession).mockResolvedValue({
+      user: { id: "lead-1", roles: [], email: "lead@test.com" },
+    } as never);
+
+    const { getHiringActor, isAdmin } = await import("@/lib/chapter-hiring-permissions");
+    vi.mocked(getHiringActor).mockResolvedValue({
+      id: "lead-1",
+      chapterId: "chapter-1",
+      roles: [],
+    } as never);
+    vi.mocked(isAdmin).mockReturnValue(false);
+  }
+
+  function mockInterviewScheduledApplication() {
+    mockFindUnique.mockResolvedValue({
+      id: "app-1",
+      status: "INTERVIEW_SCHEDULED",
+      applicantId: "applicant-1",
+      reviewerId: "reviewer-1",
+      reviewerNotes: null,
+      interviewRound: 1,
+      interviewScheduledAt: null,
+      applicant: { name: "Applicant One", email: "applicant@test.com", chapterId: "chapter-1" },
+      interviewerAssignments: [
+        { interviewerId: "lead-1", role: "LEAD", round: 1, removedAt: null },
+      ],
+      applicationReviews: [],
+    });
+  }
+
+  function makeTx() {
+    return {
+      offeredInterviewSlot: {
+        deleteMany: mockOfferedSlotDeleteMany,
+        createMany: mockOfferedSlotCreateMany,
+      },
+      instructorApplication: { update: mockUpdate },
+      instructorApplicationTimelineEvent: { create: mockCreate },
+    };
+  }
+
+  it("normal single-call insert succeeds", async () => {
+    await mockLeadSession();
+    mockInterviewScheduledApplication();
+    mockSendPickYourTimeEmail.mockResolvedValue({ success: true });
+
+    mockTransaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) =>
+      fn(makeTx())
+    );
+
+    const { offerInterviewSlots } = await import("@/lib/instructor-application-actions");
+    const result = await offerInterviewSlots("app-1", [
+      futureSlot(24),
+      futureSlot(48),
+      futureSlot(72),
+    ]);
+
+    expect(result.success).toBe(true);
+    expect(mockOfferedSlotCreateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ skipDuplicates: true })
+    );
+  });
+
+  it("returns conflict error when transaction throws a P2002 unique-constraint violation", async () => {
+    await mockLeadSession();
+    mockInterviewScheduledApplication();
+
+    // Simulate a concurrent writer having already inserted the same slots —
+    // the DB raises a unique-constraint violation that Prisma surfaces as P2002.
+    const uniqueConstraintError = Object.assign(new Error("Unique constraint failed"), {
+      code: "P2002",
+      meta: { target: ["instructorApplicationId", "scheduledAt"] },
+    });
+    mockTransaction.mockRejectedValueOnce(uniqueConstraintError);
+
+    const { offerInterviewSlots } = await import("@/lib/instructor-application-actions");
+    const result = await offerInterviewSlots("app-1", [
+      futureSlot(24),
+      futureSlot(48),
+      futureSlot(72),
+    ]);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe(
+      "Another reviewer posted conflicting slots. Refresh and try again."
+    );
+  });
+
+  it("two callers with non-overlapping slots both succeed independently", async () => {
+    mockSendPickYourTimeEmail.mockResolvedValue({ success: true });
+
+    // First caller: lead-1
+    await mockLeadSession();
+    mockFindUnique.mockResolvedValueOnce({
+      id: "app-1",
+      status: "INTERVIEW_SCHEDULED",
+      applicantId: "applicant-1",
+      reviewerId: "reviewer-1",
+      reviewerNotes: null,
+      interviewRound: 1,
+      interviewScheduledAt: null,
+      applicant: { name: "Applicant One", email: "applicant@test.com", chapterId: "chapter-1" },
+      interviewerAssignments: [
+        { interviewerId: "lead-1", role: "LEAD", round: 1, removedAt: null },
+      ],
+      applicationReviews: [],
+    });
+    mockTransaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) =>
+      fn(makeTx())
+    );
+
+    const { offerInterviewSlots } = await import("@/lib/instructor-application-actions");
+    const result1 = await offerInterviewSlots("app-1", [
+      futureSlot(24),
+      futureSlot(48),
+      futureSlot(72),
+    ]);
+
+    // Reset so the second call gets fresh mocks
+    vi.resetAllMocks();
+
+    // Second caller (admin) with completely different times
+    const { getSession } = await import("@/lib/auth-supabase");
+    vi.mocked(getSession).mockResolvedValue({
+      user: { id: "admin-1", roles: ["ADMIN"], email: "admin@test.com" },
+    } as never);
+    const { getHiringActor, isAdmin } = await import("@/lib/chapter-hiring-permissions");
+    vi.mocked(getHiringActor).mockResolvedValue({
+      id: "admin-1",
+      chapterId: "chapter-1",
+      roles: ["ADMIN"],
+    } as never);
+    vi.mocked(isAdmin).mockReturnValue(true);
+    mockSendPickYourTimeEmail.mockResolvedValue({ success: true });
+
+    mockFindUnique.mockResolvedValueOnce({
+      id: "app-1",
+      status: "INTERVIEW_SCHEDULED",
+      applicantId: "applicant-1",
+      reviewerId: "reviewer-1",
+      reviewerNotes: null,
+      interviewRound: 1,
+      interviewScheduledAt: null,
+      applicant: { name: "Applicant One", email: "applicant@test.com", chapterId: "chapter-1" },
+      interviewerAssignments: [
+        { interviewerId: "lead-1", role: "LEAD", round: 1, removedAt: null },
+      ],
+      applicationReviews: [],
+    });
+    mockTransaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) =>
+      fn(makeTx())
+    );
+
+    const result2 = await offerInterviewSlots("app-1", [
+      futureSlot(100),
+      futureSlot(124),
+      futureSlot(148),
+    ]);
+
+    expect(result1.success).toBe(true);
+    expect(result2.success).toBe(true);
+  });
+
+  it("passes isolationLevel Serializable to prisma.$transaction", async () => {
+    await mockLeadSession();
+    mockInterviewScheduledApplication();
+    mockSendPickYourTimeEmail.mockResolvedValue({ success: true });
+
+    mockTransaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>, _opts: unknown) =>
+      fn(makeTx())
+    );
+
+    const { offerInterviewSlots } = await import("@/lib/instructor-application-actions");
+    await offerInterviewSlots("app-1", [futureSlot(24), futureSlot(48), futureSlot(72)]);
+
+    expect(mockTransaction).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({ isolationLevel: "Serializable" })
+    );
+  });
+});
