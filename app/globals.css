@@ -7689,13 +7689,14 @@ select.input {
 .review-category-title {
   color: var(--cockpit-ink);
   font-weight: 800;
+  font-size: 18px;
 }
 
 .review-category-description {
-  margin-top: 4px;
+  margin-top: 6px;
   color: var(--cockpit-soft-ink);
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 17px;
+  line-height: 1.55;
 }
 
 .review-editor-callout {
@@ -7709,6 +7710,41 @@ select.input {
   border-color: #fdba74;
   color: #9a3412;
   font-size: 14px;
+}
+
+.required-star {
+  margin-left: 4px;
+  color: #dc2626;
+  font-weight: 900;
+}
+
+.review-editor-missing {
+  margin-bottom: 16px;
+  padding: 16px 18px;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  background: #fffbeb;
+  color: #7c2d12;
+}
+
+.review-editor-missing h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 800;
+  color: #7c2d12;
+}
+
+.review-editor-missing p {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.review-editor-missing ul {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .review-editor-warning-grid {
@@ -8013,10 +8049,10 @@ select.input {
 .live-question-text {
   margin: 0;
   color: var(--cockpit-ink);
-  font-size: 22px;
+  font-size: 30px;
   font-weight: 800;
-  line-height: 1.36;
-  letter-spacing: 0;
+  line-height: 1.28;
+  letter-spacing: -0.01em;
 }
 
 .live-guidance-callout {
@@ -8066,7 +8102,6 @@ select.input {
 }
 
 .live-guidance-grid h4,
-.live-score-block h4,
 .live-tag-block h4 {
   margin: 0 0 7px;
   color: var(--cockpit-ink);
@@ -8109,7 +8144,6 @@ select.input {
   min-height: 180px;
 }
 
-.live-score-block,
 .live-tag-block {
   display: grid;
   gap: 8px;
@@ -9598,7 +9632,7 @@ select.input {
 
   .live-question-text,
   .live-question-card h3 {
-    font-size: 19px;
+    font-size: 22px;
   }
 
   .applicant-command-panel {

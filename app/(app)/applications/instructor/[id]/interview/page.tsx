@@ -114,16 +114,8 @@ export default async function InterviewerWorkspacePage({
       </div>
 
       <div style={{ maxWidth: 1180, margin: "0 auto", padding: "24px 24px 60px" }}>
-        {/* Pre-interview brief */}
-        <InterviewerBriefCard
-          application={application}
-          documents={application.documents}
-          confirmedSlots={application.offeredSlots}
-          reviewerNote={reviewerNote}
-        />
-
         {/* Live interview workspace */}
-        <div className="card" style={{ padding: "24px 28px" }}>
+        <div className="card" style={{ padding: "24px 28px", marginBottom: 24 }}>
           <h2 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 700 }}>Live Interview Workspace</h2>
           <p style={{ margin: "0 0 20px", fontSize: 13, color: "var(--muted)" }}>
             Run the interview, save live notes as you go, and submit the final evaluation when the
@@ -158,6 +150,31 @@ export default async function InterviewerWorkspacePage({
             </div>
           )}
         </div>
+
+        {/* Pre-interview brief (collapsible, collapsed by default) */}
+        <details className="interview-brief-collapsible">
+          <summary
+            className="card"
+            style={{
+              cursor: "pointer",
+              padding: "16px 28px",
+              fontSize: 15,
+              fontWeight: 700,
+              color: "var(--cockpit-ink, #1f1147)",
+              listStyle: "revert",
+            }}
+          >
+            Show Pre-Interview Brief (initial review)
+          </summary>
+          <div style={{ marginTop: 12 }}>
+            <InterviewerBriefCard
+              application={application}
+              documents={application.documents}
+              confirmedSlots={application.offeredSlots}
+              reviewerNote={reviewerNote}
+            />
+          </div>
+        </details>
       </div>
     </div>
   );
