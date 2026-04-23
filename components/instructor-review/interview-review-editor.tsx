@@ -146,6 +146,14 @@ const TAG_OPTIONS: Array<{ value: AnswerTag; label: string; tone: string }> = [
   { value: "NEEDS_COACHING", label: "Needs Coaching", tone: "warning" },
 ];
 
+function RequiredStar() {
+  return (
+    <span className="required-star" aria-hidden="true">
+      *
+    </span>
+  );
+}
+
 function asStringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.map((item) => String(item)).filter(Boolean)
@@ -273,6 +281,7 @@ export default function InterviewReviewEditor({
   );
   const [saveStatus, setSaveStatus] = useState<"idle" | "dirty" | "saving" | "saved" | "error">("idle");
   const [saveMessage, setSaveMessage] = useState("");
+  const [missingFields, setMissingFields] = useState<string[]>([]);
   const mountedRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveSeqRef = useRef(0);
@@ -500,8 +509,71 @@ export default function InterviewReviewEditor({
     }
   }
 
+  function collectMissingFields(): string[] {
+    const missing: string[] = [];
+
+    for (const category of INSTRUCTOR_REVIEW_CATEGORIES) {
+      const current = categories.find((entry) => entry.category === category.key);
+      if (!current?.rating) {
+        missing.push(`${category.label}: rating`);
+      }
+      if (!current?.notes.trim()) {
+        missing.push(`${category.label}: note`);
+      }
+    }
+
+    if (!overallRating) {
+      missing.push("Overall interview evaluation rating");
+    }
+
+    if (canFinalizeRecommendation && !recommendation) {
+      missing.push("Final recommendation");
+    }
+
+    if (recommendation === "ACCEPT_WITH_SUPPORT" && !revisionRequirements.trim()) {
+      missing.push("Required support notes");
+    }
+
+    if (recommendation === "REJECT" && !applicantMessage.trim()) {
+      missing.push("Applicant-facing rejection message");
+    }
+
+    for (const question of questions) {
+      if (!question.prompt.trim()) {
+        missing.push(`Question prompt (${question.competency || "custom"})`);
+        continue;
+      }
+      if (question.status === "ASKED" && !question.notes.trim()) {
+        missing.push(`Notes for "${question.prompt.slice(0, 60)}${question.prompt.length > 60 ? "…" : ""}"`);
+      }
+    }
+
+    return missing;
+  }
+
+  function handleFormSubmit(event: React.FormEvent<HTMLFormElement>) {
+    const submitter = (event.nativeEvent as SubmitEvent).submitter as
+      | HTMLButtonElement
+      | null;
+    const intent = submitter?.value ?? "save";
+    if (intent !== "submit") {
+      setMissingFields([]);
+      return;
+    }
+    const missing = collectMissingFields();
+    if (missing.length > 0) {
+      event.preventDefault();
+      setMissingFields(missing);
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      return;
+    }
+    setMissingFields([]);
+  }
+
   return (
-    <form action={action} className="live-interview-workspace">
+    <form action={action} onSubmit={handleFormSubmit} className="live-interview-workspace">
       <input type="hidden" name="applicationId" value={applicationId} />
       <input type="hidden" name="returnTo" value={returnTo} />
       <input type="hidden" name="categoriesJson" value={categoryPayload} />
@@ -512,6 +584,20 @@ export default function InterviewReviewEditor({
           <p>
             This interview review is locked because it has already been submitted. An admin can still edit it if needed.
           </p>
+        </div>
+      ) : null}
+
+      {missingFields.length > 0 ? (
+        <div className="review-editor-missing" role="alert">
+          <h3>Just a few things to finish before submitting</h3>
+          <p>
+            Save the draft any time. When you&apos;re ready to submit, please fill in:
+          </p>
+          <ul>
+            {missingFields.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
         </div>
       ) : null}
 
@@ -759,7 +845,10 @@ export default function InterviewReviewEditor({
             ) : null}
 
             <label className="form-row">
-              Notes on candidate answer
+              <span>
+                Notes on candidate answer
+                {activeQuestion.status === "ASKED" ? <RequiredStar /> : null}
+              </span>
               <textarea
                 className="input live-notes-input"
                 rows={7}
@@ -819,7 +908,10 @@ export default function InterviewReviewEditor({
 
       <section className="review-editor-panel">
         <div>
-          <h2>Overall Interview Evaluation</h2>
+          <h2>
+            Overall Interview Evaluation
+            <RequiredStar />
+          </h2>
           <p>Your per-question and per-category notes roll up into this final interview judgment.</p>
         </div>
 
@@ -850,7 +942,10 @@ export default function InterviewReviewEditor({
 
         {showRecommendation ? (
           <label className="form-row">
-            Final recommendation
+            <span>
+              Final recommendation
+              <RequiredStar />
+            </span>
             <select
               className="input"
               name="recommendation"
@@ -889,7 +984,10 @@ export default function InterviewReviewEditor({
           return (
             <div key={category.key} className="review-category-card">
               <div>
-                <div className="review-category-title">{category.label}</div>
+                <div className="review-category-title">
+                  {category.label}
+                  <RequiredStar />
+                </div>
                 <div className="review-category-description">{category.description}</div>
               </div>
 
@@ -918,13 +1016,15 @@ export default function InterviewReviewEditor({
               </div>
 
               <label className="form-row">
-                Internal note (required)
+                <span>
+                  Internal note
+                  <RequiredStar />
+                </span>
                 <textarea
                   className="input"
                   rows={2}
                   value={current.notes}
                   disabled={!canEdit}
-                  required={canEdit}
                   aria-required={canEdit}
                   onChange={(event) =>
                     updateCategoryNotes(category.key, event.target.value)
@@ -952,14 +1052,36 @@ export default function InterviewReviewEditor({
         </label>
 
         {showRevisionRequirements ? (
-          <div className="review-editor-warning">
-            Keep required revisions specific. This recommendation does not approve the candidate yet.
-          </div>
-        ) : null}
+          <>
+            <div className="review-editor-warning">
+              Keep required revisions specific. This recommendation does not approve the candidate yet.
+            </div>
+            <label className="form-row">
+              <span>
+                Required support notes
+                <RequiredStar />
+              </span>
+              <textarea
+                className="input"
+                name="revisionRequirements"
+                rows={3}
+                value={revisionRequirements}
+                disabled={!canEdit}
+                onChange={(event) => setRevisionRequirements(event.target.value)}
+                placeholder="List the concrete coaching, prep, or revisions required during onboarding."
+              />
+            </label>
+          </>
+        ) : (
+          <input type="hidden" name="revisionRequirements" value={revisionRequirements} />
+        )}
 
         {showApplicantMessage ? (
           <label className="form-row">
-            Applicant-facing rejection message
+            <span>
+              Applicant-facing rejection message
+              <RequiredStar />
+            </span>
             <textarea
               className="input"
               name="applicantMessage"
