@@ -35,7 +35,6 @@ import {
 } from "@/lib/instructor-review-config";
 import {
   parseInterviewQuestionResponses,
-  validateSubmittedQuestionResponses,
   type LiveQuestionResponsePayload,
 } from "@/lib/instructor-interview-live";
 
@@ -57,10 +56,14 @@ function getOptionalString(formData: FormData, key: string) {
   return getString(formData, key, false) || null;
 }
 
-function appendNotice(path: string, notice: string) {
+function appendNotice(path: string, notice: string, warnings?: string[]) {
   if (!path) return path;
   const join = path.includes("?") ? "&" : "?";
-  return `${path}${join}notice=${encodeURIComponent(notice)}`;
+  let result = `${path}${join}notice=${encodeURIComponent(notice)}`;
+  if (warnings && warnings.length > 0) {
+    result = `${result}&reviewWarnings=${encodeURIComponent(JSON.stringify(warnings))}`;
+  }
+  return result;
 }
 
 function isFinalApplicationStatus(status: InstructorApplicationStatus) {
@@ -339,24 +342,45 @@ async function syncLeadFlags(
   });
 }
 
-function validateSubmittedCategories(
+function collectCategoryWarnings(
   categories: ReviewCategoryPayload[],
   expectedCategories: ReadonlyArray<{ key: InstructorReviewCategoryValue; label: string }>,
   options: { requireNotes?: boolean } = {}
-) {
-  if (categories.length !== expectedCategories.length) {
-    throw new Error("Every review category must be present before submission.");
-  }
-
+): string[] {
+  const warnings: string[] = [];
   for (const category of expectedCategories) {
     const match = categories.find((entry) => entry.category === category.key);
     if (!match || !match.rating) {
-      throw new Error(`A rating is required for ${category.label}.`);
+      warnings.push(`Missing rating: ${category.label}`);
     }
-    if (options.requireNotes && !match.notes) {
-      throw new Error(`An internal note is required for ${category.label}.`);
+    if (options.requireNotes && (!match || !match.notes)) {
+      warnings.push(`Missing internal note: ${category.label}`);
     }
   }
+  return warnings;
+}
+
+function collectQuestionResponseWarnings(
+  questionResponses: LiveQuestionResponsePayload[]
+): string[] {
+  const warnings: string[] = [];
+  if (questionResponses.length === 0) {
+    warnings.push("No interview questions were recorded.");
+    return warnings;
+  }
+  let missingPrompt = 0;
+  let askedWithoutNotes = 0;
+  for (const question of questionResponses) {
+    if (!question.prompt) missingPrompt += 1;
+    if (question.status === "ASKED" && !question.notes) askedWithoutNotes += 1;
+  }
+  if (missingPrompt > 0) {
+    warnings.push(`${missingPrompt} interview question${missingPrompt === 1 ? "" : "s"} missing a prompt.`);
+  }
+  if (askedWithoutNotes > 0) {
+    warnings.push(`${askedWithoutNotes} asked question${askedWithoutNotes === 1 ? "" : "s"} missing interviewer notes.`);
+  }
+  return warnings;
 }
 
 type ExistingReviewSnapshot = {
@@ -767,22 +791,25 @@ export async function saveInstructorApplicationReviewAction(formData: FormData) 
     !application.courseOutline?.trim() ||
     !application.firstClassPlan?.trim();
 
+  const submissionWarnings: string[] = [];
   if (intent === "submit") {
-    validateSubmittedCategories(categories, INSTRUCTOR_INITIAL_REVIEW_SIGNALS);
+    submissionWarnings.push(
+      ...collectCategoryWarnings(categories, INSTRUCTOR_INITIAL_REVIEW_SIGNALS)
+    );
     if (!summary) {
-      throw new Error("An internal summary is required before submitting the initial review.");
+      submissionWarnings.push("Internal summary is missing — consider adding one for future reviewers.");
     }
     if (isLeadReviewer && !nextStep) {
-      throw new Error("The lead reviewer must choose the application next step before submission.");
+      submissionWarnings.push("No application next step was chosen — the decision will remain open.");
     }
     if (isLeadReviewer && nextStep === "MOVE_TO_INTERVIEW" && roughPlanMissing) {
-      throw new Error("The rough class idea, outline, and first-session sketch are required before moving to interview. Request more information from the applicant first.");
+      submissionWarnings.push("Rough class idea, outline, or first-session sketch is incomplete. The applicant may need to provide more information.");
     }
     if (isLeadReviewer && nextStep === "MOVE_TO_INTERVIEW" && !hasLeadInterviewer) {
-      throw new Error("Assign a lead interviewer before moving this applicant to interview.");
+      submissionWarnings.push("No lead interviewer is assigned for this interview round yet.");
     }
     if (isLeadReviewer && (nextStep === "REQUEST_INFO" || nextStep === "REJECT") && !applicantMessage) {
-      throw new Error("An applicant-facing message is required for request-info and rejection decisions.");
+      submissionWarnings.push("No applicant-facing message was written — the applicant won't receive a custom outcome note.");
     }
   }
 
@@ -892,12 +919,14 @@ export async function saveInstructorApplicationReviewAction(formData: FormData) 
       await holdInstructorApplication(applicationId, actor.id, summary ?? concerns ?? notes ?? undefined);
     } else if (nextStep === "REJECT" && applicantMessage) {
       await rejectInstructorApplication(applicationId, actor.id, applicantMessage);
+    } else {
+      await revalidateInstructorReviewPaths(applicationId);
     }
   } else {
     await revalidateInstructorReviewPaths(applicationId);
   }
 
-  redirect(appendNotice(returnTo, buildReviewNotice(intent, "application")));
+  redirect(appendNotice(returnTo, buildReviewNotice(intent, "application"), submissionWarnings));
 }
 
 export async function updateInstructorInterviewScheduleAction(formData: FormData) {
@@ -1142,20 +1171,23 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
     throw new Error("Submitted interview reviews are locked. Ask an admin to reopen it if changes are needed.");
   }
 
+  const submissionWarnings: string[] = [];
   if (intent === "submit") {
-    validateSubmittedCategories(categories, INSTRUCTOR_REVIEW_CATEGORIES, { requireNotes: true });
-    validateSubmittedQuestionResponses(questionResponses);
+    submissionWarnings.push(
+      ...collectCategoryWarnings(categories, INSTRUCTOR_REVIEW_CATEGORIES, { requireNotes: true })
+    );
+    submissionWarnings.push(...collectQuestionResponseWarnings(questionResponses));
     if (!overallRating) {
-      throw new Error("An overall interview evaluation is required before submission.");
+      submissionWarnings.push("Overall interview evaluation is missing.");
     }
     if (canFinalizeRecommendation && !recommendation) {
-      throw new Error("Choose a recommendation before submitting the interview review.");
+      submissionWarnings.push("No recommendation was chosen — the interview outcome will remain open.");
     }
     if (recommendation === "ACCEPT_WITH_SUPPORT" && !revisionRequirements) {
-      throw new Error("Required support notes must be listed for an 'Accept with Support' outcome.");
+      submissionWarnings.push("Required support notes are missing for an 'Accept with Support' outcome.");
     }
     if (recommendation === "REJECT" && !applicantMessage) {
-      throw new Error("A short applicant-facing rejection reason is required.");
+      submissionWarnings.push("No applicant-facing rejection reason was written.");
     }
   }
 
@@ -1261,5 +1293,5 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
     await revalidateInstructorReviewPaths(applicationId);
   }
 
-  redirect(appendNotice(returnTo, buildReviewNotice(intent, "interview")));
+  redirect(appendNotice(returnTo, buildReviewNotice(intent, "interview"), submissionWarnings));
 }
