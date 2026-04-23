@@ -5,13 +5,16 @@ const globalForPrismaWarnings = global as unknown as {
   prismaRuntimeUrlWarningShown?: boolean;
 };
 
-const DEFAULT_TRANSACTION_POOL_CONNECTION_LIMIT = "5";
-const DEFAULT_TRANSACTION_POOL_TIMEOUT = "20";
+const DEFAULT_TRANSACTION_POOL_CONNECTION_LIMIT = "10";
+// Fail fast on pool exhaustion so a slow request surfaces an error the
+// caller can degrade from, instead of hanging for the full Vercel 30s
+// function budget and timing out with no useful stack.
+const DEFAULT_TRANSACTION_POOL_TIMEOUT = "8";
 // connection_limit values below this are almost certainly copy-pasted from old
 // docs (many README examples used `connection_limit=1`). On Vercel serverless
 // with Supabase's transaction pooler, a single-slot pool deadlocks any page
 // that fires more than one parallel Prisma call (Prisma P2024).
-const MIN_SAFE_CONNECTION_LIMIT = 3;
+const MIN_SAFE_CONNECTION_LIMIT = 5;
 
 function parseUrl(rawUrl: string): URL | null {
   try {

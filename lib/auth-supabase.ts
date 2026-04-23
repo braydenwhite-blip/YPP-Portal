@@ -34,33 +34,32 @@ const sessionUserSelect = {
   },
 } as const;
 
-function isPrismaTimeout(error: unknown): boolean {
+function isRecoverablePrismaTimeout(error: unknown): boolean {
   if (!error) return false;
   const message = error instanceof Error ? error.message : String(error);
-  // Postgres statement_timeout → SQLSTATE 57014. Supabase's pooler is prone
-  // to these under load; callers should degrade rather than 500.
+  // Postgres statement_timeout (57014) and connection pool timeout (P2024).
+  // We degrade to "signed out" rather than 500 the page, but we do NOT
+  // retry: the user is already waiting on a struggling database, and a
+  // retry just doubles their wait for the same likely-failing outcome.
+  // Downstream requests will pick up the session once the pool recovers.
   return (
     message.includes("57014") ||
     message.includes("canceling statement due to statement timeout") ||
+    message.includes("P2024") ||
     message.includes("Connection pool timeout") ||
     message.includes("connection timeout")
   );
 }
 
-async function runWithTimeoutRetry<T>(op: () => Promise<T>): Promise<T | null> {
+async function runSessionQuery<T>(op: () => Promise<T>): Promise<T | null> {
   try {
     return await op();
   } catch (error) {
-    if (!isPrismaTimeout(error)) throw error;
-    try {
-      return await op();
-    } catch (retryError) {
-      if (isPrismaTimeout(retryError)) {
-        console.error("[auth] Prisma user lookup timed out twice; treating as signed out.", retryError);
-        return null;
-      }
-      throw retryError;
+    if (isRecoverablePrismaTimeout(error)) {
+      console.error("[auth] Prisma user lookup timed out; treating as signed out.", error);
+      return null;
     }
+    throw error;
   }
 }
 
@@ -70,7 +69,7 @@ async function resolvePrismaUserForSession(where: {
   email?: string;
 }) {
   if (where.supabaseAuthId) {
-    const user = await runWithTimeoutRetry(() =>
+    const user = await runSessionQuery(() =>
       prisma.user.findUnique({
         where: { supabaseAuthId: where.supabaseAuthId! },
         select: sessionUserSelect,
@@ -80,7 +79,7 @@ async function resolvePrismaUserForSession(where: {
   }
 
   if (where.id) {
-    const user = await runWithTimeoutRetry(() =>
+    const user = await runSessionQuery(() =>
       prisma.user.findUnique({
         where: { id: where.id! },
         select: sessionUserSelect,
@@ -90,7 +89,7 @@ async function resolvePrismaUserForSession(where: {
   }
 
   if (where.email) {
-    return runWithTimeoutRetry(() =>
+    return runSessionQuery(() =>
       prisma.user.findFirst({
         where: {
           email: where.email!,
