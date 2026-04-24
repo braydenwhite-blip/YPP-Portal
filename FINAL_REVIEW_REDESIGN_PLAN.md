@@ -871,4 +871,272 @@ without scope-creeping into a generic "applicant management" rewrite.
 
 ---
 
-*Sections 4–9 to follow.*
+## 4. Layout, Grid & Responsive
+
+The spatial contract. Where things live on the screen, how they behave as
+the viewport shrinks, and how the sticky regions compose without fighting
+each other. Pixel-concrete so ambiguity can't eat into build time.
+
+### 4.1 Breakpoints
+
+Four breakpoints, one off-ramp:
+
+| Breakpoint | Range | Treatment |
+|------------|-------|-----------|
+| **Ultrawide** | ≥ 1920 px | Content max-width caps at 1440 px, centered. No new columns. |
+| **Desktop** | 1280–1919 px | Full two-column cockpit, 7/5 split |
+| **Laptop** | 1024–1279 px | Two-column, 8/4 split (right rail narrows) |
+| **Tablet** | 768–1023 px | Single column, right rail becomes a top strip |
+| **Mobile** | 375–767 px | Read-only + "open on laptop" prompt (see §4.8) |
+| **Sub-mobile** | < 375 px | Unsupported; degrades to plain vertical scroll of all content |
+
+Breakpoint names match what the existing `app/globals.css` tends to use so
+the `@media` blocks are readable by anyone already in the codebase.
+
+### 4.2 The 12-column grid (desktop)
+
+The cockpit sits inside a standard page container with a 12-column grid,
+24 px gutters, and a 1440 px max content width. Horizontal padding matches
+the app shell: 32 px desktop, 24 px laptop, 20 px tablet.
+
+```
+|--- col 1 ---|--- 2 ---|--- 3 ---|--- 4 ---|--- 5 ---|--- 6 ---|
+|--- col 7 ---|--- 8 ---|--- 9 ---|--- 10 ---|--- 11 ---|--- 12 ---|
+
+FeedbackPanel: grid-column: 1 / span 7   (columns 1-7)
+SignalPanel:   grid-column: 8 / span 5   (columns 8-12)
+```
+
+**Why 7/5 and not 8/4 or 6/6?**
+
+- 6/6 puts the score matrix and the feed at equal visual weight, which is
+  wrong — the chair reads narrative more than they scan the matrix.
+- 8/4 is too narrow on the right; at 1280 px laptop width the score
+  matrix columns start crushing (32 px cells become unreadable).
+- 7/5 gives the feed ~760 px (enough for comfortable reading at 14 px
+  type, ~14 words per line) and the right rail ~520 px (enough for a
+  4-column score matrix with readable cells).
+
+At laptop breakpoint (1024–1279 px) the split slides to 8/4 because the
+total grid width drops from ~1408 px to ~960 px, and the right rail
+can't afford to stay wide without cannibalizing feed readability. The
+score matrix adapts — see §4.6.
+
+### 4.3 Fold anatomy
+
+The "fold" is the viewport height below the sticky snapshot bar, before
+the dock. On a standard laptop (1440 × 900), that's roughly **716 px**
+of visible content:
+
+```
+┌──────────────────────────────────────┐  y = 0
+│  ApplicantSnapshotBar       72 px    │  (sticky)
+├──────────────────────────────────────┤  y = 72
+│                                      │
+│  ReviewWorkspace                     │
+│  ┌─────────────────┬──────────────┐  │
+│  │ Feedback        │ Signal       │  │
+│  │  · Consensus    │  · Matrix    │  │  ← everything in the fold
+│  │  · Risk pill    │  · Readiness │  │
+│  │  · Feed start   │  · Docs peek │  │
+│  │                 │              │  │
+│  └─────────────────┴──────────────┘  │
+│                                      │  y = 788 (fold edge)
+│   (scroll zone continues below)      │
+│                                      │
+├──────────────────────────────────────┤  y = 900 - 112 = 788
+│  DecisionDock              112 px    │  (sticky)
+└──────────────────────────────────────┘  y = 900
+```
+
+**What must fit above the fold at 1440 × 900:**
+
+Left column (feedback, ~760 px wide):
+- Consensus headline + sentiment chip row (~120 px)
+- Risk flags pill (~40 px)
+- Top of activity feed — first 2 pinned items OR 3 chronological items
+  (~480 px)
+
+Right column (signal, ~520 px wide):
+- Score comparison matrix condensed (~240 px — reviewers × 4 categories)
+- Readiness meter ring + legend (~180 px)
+- Quick documents row (~80 px)
+
+Nothing below the fold is critical to the default decision. The timeline,
+full matrix, full feed, and internal notes all live below, one scroll away.
+
+### 4.4 Sticky regions and z-index
+
+Three sticky regions, one floating overlay layer, one modal layer.
+
+```
+z-index scale (explicit, no magic numbers)
+─────────────────────────────────────────
+  0   canvas / default flow
+  1   SnapshotBar contents
+  10  SnapshotBar container (sticky top)
+  20  DecisionDock container (sticky bottom)
+  30  QueueNavigator dropdown, tooltips, hover cards
+  40  Toast region (decision confirmation, save state)
+  50  Modal backdrop (decision confirm, keyboard help)
+  60  Modal content
+  70  Global UI (error boundary banners)
+```
+
+Sticky behavior:
+- **SnapshotBar** — `position: sticky; top: 0;`. Always visible on scroll.
+- **SignalPanel** — `position: sticky; top: calc(72px + 24px);`. The right
+  rail stays in view while the chair scrolls the feed. This is the key
+  move: the score matrix, readiness meter, and risk flags are reference
+  data; they should not scroll away while the chair reads narrative.
+- **DecisionDock** — `position: sticky; bottom: 0;`. Always accessible.
+
+Page container has `padding-bottom: 136px` (dock height + gap) so content
+never occludes under the dock.
+
+### 4.5 Scroll regions
+
+The page itself scrolls. Inside the page, **no nested scroll containers** —
+nested scrollbars are disorienting and a mobile accessibility anti-pattern.
+Two implications:
+
+1. **The activity feed is not a fixed-height scroll box.** It grows to its
+   natural height and scrolls with the page. The right rail staying
+   sticky is what makes this work.
+2. **The score matrix overflows horizontally on narrow screens** — it
+   gets its own `overflow-x: auto` with a subtle gradient mask on the
+   right edge to hint at more content. Only this one element is allowed
+   a nested scroll, and only on the x-axis.
+
+### 4.6 Score matrix responsive behavior
+
+The matrix is the densest signal on the page; it needs its own plan.
+
+**Desktop (≥ 1280 px, right rail ~520 px):** 4-column compact layout.
+Rows = reviewers (up to 4: reviewer + up to 3 interviewers). Columns =
+the 4 most divergent categories (computed by variance). Cell is 48 × 48 px
+with a color chip + label. "Show all 7 categories" expands to a full
+7-column matrix overlaid in a `<details>` disclosure.
+
+**Laptop (1024–1279 px, right rail ~360 px):** 3-column matrix. Categories
+are chosen by the same variance rule. "Show all" expands to the full grid
+in a side-by-side overlay.
+
+**Tablet (768–1023 px, right rail → top strip):** Horizontal scroll
+strip. Rows become columns; the chair swipes left/right across reviewers.
+This is the one exception to "no nested scroll." Scroll snap points align
+with each reviewer column so swipe feels deliberate.
+
+**Mobile:** Not first-class. Shows a read-only summary row ("3 reviewers,
+2 Hire, 1 Hold — open on laptop to compare") and hides the full matrix.
+
+### 4.7 Tablet collapse strategy
+
+At 1023 px and below, the two-column workspace collapses into a single
+column. The right rail (signal panel) moves **above** the feedback panel,
+not below, because the signals are calibration data — the chair wants to
+see them before they read narrative.
+
+```
+Tablet order (top → bottom):
+  1. ApplicantSnapshotBar (sticky)
+  2. SignalPanel (score matrix condensed, readiness ring, risk pill, docs)
+  3. FeedbackPanel (consensus, activity feed, pinned)
+  4. DecisionDock (sticky)
+```
+
+CSS:
+```css
+@media (max-width: 1023px) {
+  .review-workspace {
+    grid-template-columns: 1fr;
+  }
+  .review-workspace__right { order: -1; }   /* signal panel first */
+  .review-workspace__left  { order: 0; }
+}
+```
+
+The dock's decision buttons reflow from inline row to a 2-column grid
+(Approve and Reject as equal-width primary/destructive; other three
+stack below as a secondary row).
+
+### 4.8 Mobile: deliberately read-only
+
+Chairs occasionally review on phone (coffee shop, commute). Building a
+fully responsive decision surface for 375 px width is not worth the
+effort — it encourages rushed decisions and loses the matrix entirely.
+Our choice:
+
+**At < 768 px, the cockpit renders a read-only summary:**
+- Applicant snapshot (full)
+- Consensus headline
+- Interviewer recommendations as stacked chips (no matrix)
+- Risk flags (full)
+- Activity feed (full, chronological only — no pinning)
+- A prominent button: *"Open on laptop to decide"* with a "send me this
+  link" option that emails the chair the URL
+
+Decision actions are **hidden** on mobile. A chair can read context and
+prepare mentally, but cannot approve/reject from their phone. This is a
+deliberate product choice — the hiring decision is too important to
+make on glass. Called out in §9 as a decision to confirm with product.
+
+### 4.9 Touch target and focus sizing
+
+- All interactive elements ≥ 44 × 44 px on tablet and below (WCAG 2.5.8).
+- Desktop decision buttons are 44 px tall; secondary buttons 36 px; chips
+  32 px (chips aren't primary decision actions).
+- Focus ring: `2 px solid var(--ypp-primary)` with `2 px` offset. Visible
+  on every interactive element including the dock buttons, where the
+  ring sits *inside* the button to avoid being clipped by the sticky
+  container.
+
+### 4.10 Content reflow rules
+
+Six rules the layout must respect, in priority order:
+
+1. **The dock never covers content.** Page container padding-bottom
+   matches dock height + 24 px gap at every breakpoint.
+2. **The snapshot bar never covers focused content.** When a field gets
+   keyboard focus via Tab, scroll-padding-top on the page container
+   equals snapshot bar height (`scroll-padding-top: 96px`) so the
+   focused element lands below the bar, not under it.
+3. **Long applicant names ellipsize.** `max-width` on the identity block
+   with `text-overflow: ellipsis`. Full name available via hover tooltip.
+4. **Long category labels wrap once, then ellipsize.** Two-line max in
+   matrix column headers.
+5. **Feed items with code-like long strings wrap at word boundaries
+   where possible, character boundaries when not.** `overflow-wrap: anywhere`
+   on signal bodies.
+6. **Right rail never exceeds 520 px.** Wider than this and the matrix
+   starts feeling like the primary content, breaking hierarchy.
+
+### 4.11 Print and export
+
+Chairs occasionally export a decision record for a candidate file. We
+don't ship a custom print stylesheet in this redesign, but the layout
+must not break:
+
+- `@media print { .decision-dock, .keyboard-shortcut-hints,
+  .queue-navigator { display: none } }`
+- Background colors print as white; text prints as `--ink-default`.
+- Sticky positions become static.
+
+A proper "Export to PDF" feature is a §9 future-work item, not shipped in
+v1 of the redesign.
+
+### 4.12 Layout at a glance (summary table)
+
+| Zone | Desktop ≥1280 | Laptop 1024–1279 | Tablet 768–1023 | Mobile <768 |
+|------|---------------|------------------|-----------------|-------------|
+| SnapshotBar | Sticky 72 px, full width, 12 cols | Sticky 72 px | Sticky 88 px (wraps) | Static 120 px |
+| FeedbackPanel | 7 cols | 8 cols | Full width, below signals | Full width |
+| SignalPanel | 5 cols, sticky | 4 cols, sticky | Full width, above feedback | Condensed |
+| ScoreMatrix | 4 divergent cols | 3 divergent cols | Horizontal scroll strip | Summary chip only |
+| DecisionDock | Sticky 112 px | Sticky 112 px | Sticky 144 px (stacked rows) | Hidden (read-only) |
+| Page max-width | 1440 px | 100% of container | 100% | 100% |
+| Gutter | 32 px | 24 px | 20 px | 16 px |
+
+---
+
+*Sections 5–9 to follow.*
