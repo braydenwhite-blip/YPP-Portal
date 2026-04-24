@@ -29,7 +29,7 @@ export default async function ChairQueuePage() {
         <span className="badge">Hiring Chair</span>
         <h1>Chair Queue</h1>
         <p>
-          {applications.length} application{applications.length !== 1 ? "s" : ""} awaiting chair decision
+          {applications.length} application{applications.length !== 1 ? "s" : ""} awaiting chair decision. Open any row to launch the full chair review workspace.
         </p>
       </div>
 

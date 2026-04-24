@@ -1,7 +1,7 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import ChairComparisonSlideout from "./ChairComparisonSlideout";
 
 interface InterviewReview {
   id: string;
@@ -57,7 +57,6 @@ interface ApplicationRow {
 
 interface Props {
   applications: ApplicationRow[];
-  onRefresh: () => void;
 }
 
 const REC_CLASSES: Record<string, string> = {
@@ -74,8 +73,7 @@ const REC_LABELS: Record<string, string> = {
   REJECT: "Reject",
 };
 
-export default function ChairQueueBoard({ applications, onRefresh }: Props) {
-  const [selectedApp, setSelectedApp] = useState<ApplicationRow | null>(null);
+export default function ChairQueueBoard({ applications }: Props) {
   const [showAll, setShowAll] = useState(true);
 
   // Build chapter groups
@@ -155,11 +153,10 @@ export default function ChairQueueBoard({ applications, onRefresh }: Props) {
             ).length;
 
             return (
-              <button
+              <Link
                 key={app.id}
-                type="button"
                 aria-label={`Open chair decision for ${displayName}`}
-                onClick={() => setSelectedApp(app)}
+                href={`/admin/instructor-applicants/chair-queue/${app.id}`}
                 className="chair-queue-row"
               >
                 <div className="chair-queue-applicant">
@@ -206,21 +203,10 @@ export default function ChairQueueBoard({ applications, onRefresh }: Props) {
                 </div>
 
                 <span className="chair-queue-arrow" aria-hidden="true">›</span>
-              </button>
+              </Link>
             );
           })}
         </div>
-      )}
-
-      {selectedApp && (
-        <ChairComparisonSlideout
-          application={selectedApp}
-          onClose={() => setSelectedApp(null)}
-          onDecisionMade={() => {
-            setSelectedApp(null);
-            onRefresh();
-          }}
-        />
       )}
     </div>
   );

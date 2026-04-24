@@ -237,6 +237,123 @@ export async function getApplicantPipeline({
 
 // ─── Chair queue ──────────────────────────────────────────────────────────────
 
+const CHAIR_QUEUE_SELECT = {
+  id: true,
+  status: true,
+  motivation: true,
+  teachingExperience: true,
+  availability: true,
+  subjectsOfInterest: true,
+  courseIdea: true,
+  textbook: true,
+  courseOutline: true,
+  firstClassPlan: true,
+  preferredFirstName: true,
+  legalName: true,
+  chairQueuedAt: true,
+  materialsReadyAt: true,
+  interviewRound: true,
+  applicant: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      chapterId: true,
+      chapter: { select: { id: true, name: true } },
+    },
+  },
+  reviewer: { select: { id: true, name: true } },
+  // Lead reviewer note preview
+  applicationReviews: {
+    where: { isLeadReview: true, status: "SUBMITTED" },
+    select: {
+      summary: true,
+      notes: true,
+      nextStep: true,
+      overallRating: true,
+      categories: { select: { category: true, rating: true, notes: true } },
+      editedAt: true,
+      editedBy: { select: { name: true } },
+    },
+    take: 1,
+  },
+  // Per-interviewer recommendation
+  interviewReviews: {
+    where: { status: "SUBMITTED" },
+    select: {
+      id: true,
+      reviewerId: true,
+      round: true,
+      recommendation: true,
+      overallRating: true,
+      summary: true,
+      reviewer: { select: { id: true, name: true } },
+      categories: { select: { category: true, rating: true, notes: true } },
+    },
+  },
+  interviewerAssignments: {
+    where: { removedAt: null },
+    select: {
+      id: true,
+      round: true,
+      role: true,
+      interviewer: { select: { id: true, name: true } },
+    },
+  },
+  chairDecisions: {
+    where: { supersededAt: null },
+    orderBy: { decidedAt: "desc" },
+    take: 1,
+    select: { action: true, decidedAt: true },
+  },
+  documents: {
+    where: { supersededAt: null },
+    select: { id: true, kind: true, fileUrl: true, originalName: true, uploadedAt: true },
+  },
+} as const;
+
+function buildChairQueueWhere({
+  scope,
+  chapterId,
+  applicationId,
+}: {
+  scope: PipelineScope;
+  chapterId?: string;
+  applicationId?: string;
+}) {
+  const where: Record<string, unknown> = {
+    status: "CHAIR_REVIEW" as InstructorApplicationStatus,
+  };
+
+  if (applicationId) {
+    where.id = applicationId;
+  }
+
+  if (scope === "chapter" && chapterId) {
+    where.applicant = { chapterId };
+  }
+
+  return where;
+}
+
+function normalizeChairQueueApplication<
+  TApplication extends {
+    interviewRound: number | null;
+    interviewReviews: Array<{ round: number | null }>;
+    interviewerAssignments: Array<{ round: number | null }>;
+    chairDecisions: Array<unknown>;
+  },
+>(app: TApplication) {
+  return {
+    ...app,
+    interviewReviews: app.interviewReviews.filter((review) => review.round === app.interviewRound),
+    interviewerAssignments: app.interviewerAssignments.filter(
+      (assignment) => assignment.round === app.interviewRound
+    ),
+    chairDecision: app.chairDecisions[0] ?? null,
+  };
+}
+
 export async function getChairQueue({
   scope,
   chapterId,
@@ -244,101 +361,34 @@ export async function getChairQueue({
   scope: PipelineScope;
   chapterId?: string;
 }) {
-  const where: Record<string, unknown> = {
-    status: "CHAIR_REVIEW" as InstructorApplicationStatus,
-  };
+  const applications = await prisma.instructorApplication.findMany({
+    where: buildChairQueueWhere({ scope, chapterId }),
+    select: CHAIR_QUEUE_SELECT,
+    orderBy: { chairQueuedAt: "asc" },
+  });
 
-  if (scope === "chapter" && chapterId) {
-    where.applicant = { chapterId };
+  return applications.map((app) => normalizeChairQueueApplication(app));
+}
+
+export async function getChairQueueItem({
+  scope,
+  chapterId,
+  applicationId,
+}: {
+  scope: PipelineScope;
+  chapterId?: string;
+  applicationId: string;
+}) {
+  const application = await prisma.instructorApplication.findFirst({
+    where: buildChairQueueWhere({ scope, chapterId, applicationId }),
+    select: CHAIR_QUEUE_SELECT,
+  });
+
+  if (!application) {
+    return null;
   }
 
-  return prisma.instructorApplication.findMany({
-    where,
-    select: {
-      id: true,
-      status: true,
-      motivation: true,
-      teachingExperience: true,
-      availability: true,
-      subjectsOfInterest: true,
-      courseIdea: true,
-      textbook: true,
-      courseOutline: true,
-      firstClassPlan: true,
-      preferredFirstName: true,
-      legalName: true,
-      chairQueuedAt: true,
-      materialsReadyAt: true,
-      interviewRound: true,
-      applicant: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          chapterId: true,
-          chapter: { select: { id: true, name: true } },
-        },
-      },
-      reviewer: { select: { id: true, name: true } },
-      // Lead reviewer note preview
-      applicationReviews: {
-        where: { isLeadReview: true, status: "SUBMITTED" },
-        select: {
-          summary: true,
-          notes: true,
-          nextStep: true,
-          overallRating: true,
-          categories: { select: { category: true, rating: true, notes: true } },
-          editedAt: true,
-          editedBy: { select: { name: true } },
-        },
-        take: 1,
-      },
-      // Per-interviewer recommendation
-      interviewReviews: {
-        where: { status: "SUBMITTED" },
-        select: {
-          id: true,
-          reviewerId: true,
-          round: true,
-          recommendation: true,
-          overallRating: true,
-          summary: true,
-          reviewer: { select: { id: true, name: true } },
-          categories: { select: { category: true, rating: true, notes: true } },
-        },
-      },
-      interviewerAssignments: {
-        where: { removedAt: null },
-        select: {
-          id: true,
-          round: true,
-          role: true,
-          interviewer: { select: { id: true, name: true } },
-        },
-      },
-      chairDecisions: {
-        where: { supersededAt: null },
-        orderBy: { decidedAt: "desc" },
-        take: 1,
-        select: { action: true, decidedAt: true },
-      },
-      documents: {
-        where: { supersededAt: null },
-        select: { id: true, kind: true, fileUrl: true, originalName: true, uploadedAt: true },
-      },
-    },
-    orderBy: { chairQueuedAt: "asc" },
-  }).then((applications) =>
-    applications.map((app) => ({
-      ...app,
-      interviewReviews: app.interviewReviews.filter((review) => review.round === app.interviewRound),
-      interviewerAssignments: app.interviewerAssignments.filter(
-        (assignment) => assignment.round === app.interviewRound
-      ),
-      chairDecision: app.chairDecisions[0] ?? null,
-    }))
-  );
+  return normalizeChairQueueApplication(application);
 }
 
 // ─── Archive query ────────────────────────────────────────────────────────────

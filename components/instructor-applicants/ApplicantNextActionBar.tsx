@@ -105,8 +105,8 @@ export default function ApplicantNextActionBar({
   } else if (status === "CHAIR_REVIEW" && canActAsChair) {
     action = {
       label: "Make Decision",
-      description: "Review this application in the Chair Queue and record your decision.",
-      href: "/admin/instructor-applicants/chair-queue",
+      description: "Open the full chair review workspace and record your decision.",
+      href: `/admin/instructor-applicants/chair-queue/${application.id}`,
     };
   }
 
