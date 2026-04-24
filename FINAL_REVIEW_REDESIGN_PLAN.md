@@ -18,17 +18,19 @@ redesign; implementation work should reference it.
    touch adaptations
 5. **Components — Phase 1: Shell & Layout Primitives** — cockpit shell, context,
    hotkeys, layout wrappers, shared chips
-6. **Components — Phase 2: Snapshot, Queue & Decision Dock** — the decision
-   path end-to-end, feature parity plus polish
-7. **Components — Phase 3: Feedback, Consensus & Matrix** — the world-class
+6. **Components — Phase 2A: Snapshot & Queue Navigator** — situational awareness,
+   queue control, status banner
+7. **Components — Phase 2B: Decision Dock & Commit Flow** — the decision surface,
+   autosave, confirmation, the action itself
+8. **Components — Phase 3: Feedback, Consensus & Matrix** — the world-class
    differentiation layer
-8. **Unified Feedback System** — ReviewSignal abstraction, pinning, sentiment,
+9. **Unified Feedback System** — ReviewSignal abstraction, pinning, sentiment,
    consensus, threading, @mentions, filters
-9. **Data Model & Server Actions** — schema deltas, migrations, RBAC matrix,
-   autosave
-10. **Quality, Edge Cases & Launch Readiness** — regressions, edge cases, test
+10. **Data Model & Server Actions** — schema deltas, migrations, RBAC matrix,
+    autosave
+11. **Quality, Edge Cases & Launch Readiness** — regressions, edge cases, test
     plan, performance budgets, launch checklist
-11. **Execution Roadmap & Open Questions** — phased rollout, quick wins vs.
+12. **Execution Roadmap & Open Questions** — phased rollout, quick wins vs.
     bigger builds, final recommendation, product decisions needed
 
 ---
@@ -1464,4 +1466,378 @@ by a second developer while the shell is being built.
 
 ---
 
-*Sections 6–11 to follow.*
+## 6. Components — Phase 2A: Snapshot & Queue Navigator
+
+**Phase 2A mission:** give the chair situational awareness and queue
+control. After 2A merges, a chair can open any applicant, instantly
+understand who they're looking at, see how ready they are to decide,
+and walk prev/next through the queue with keyboard or click. They
+*still cannot decide* — the dock stays a placeholder until Phase 2B.
+
+Why the split matters: Phase 2A is low-risk, reversible, and
+information-density work. Phase 2B is the transactional, high-risk
+work that grants roles and sends emails. Keeping them separate lets
+2A ship and get real-user feedback on the header system before 2B's
+server-action wiring hits production.
+
+**Exit criteria for Phase 2A:**
+1. Snapshot bar renders identity, status, subjects, owners, and
+   days-in-queue at all four breakpoints
+2. `DecisionReadinessMeter` accurately reflects the four signals
+   (interviews, materials, recommendation, info requests)
+3. Queue navigator prev/next works with `<Link prefetch>`; `J`/`K`
+   keyboard shortcuts navigate without route flash
+4. Dropdown lists remaining queued applicants, sortable
+5. If `status !== CHAIR_REVIEW`, `ApplicantStatusBanner` replaces the
+   readiness meter with a read-only decided-by summary
+6. Post-decision toast component exists (mounted, not yet triggered)
+7. Analytics events `final_review.viewed` and `final_review.queue_advance`
+   fire
+
+### 6.1 Components in this phase
+
+| # | Component | File | LOC | Client? |
+|---|-----------|------|-----|---------|
+| 1 | `ApplicantSnapshotBar` | `components/instructor-applicants/final-review/ApplicantSnapshotBar.tsx` | ~160 | yes |
+| 2 | `ApplicantIdentity` | `components/instructor-applicants/final-review/ApplicantIdentity.tsx` | ~90 | no |
+| 3 | `DecisionReadinessMeter` (compact) | `components/instructor-applicants/final-review/DecisionReadinessMeter.tsx` | ~130 | yes |
+| 4 | `QueueNavigator` | `components/instructor-applicants/final-review/QueueNavigator.tsx` | ~180 | yes |
+| 5 | `QueueSiblingDropdown` | `components/instructor-applicants/final-review/QueueSiblingDropdown.tsx` | ~120 | yes |
+| 6 | `ApplicantStatusBanner` | `components/instructor-applicants/final-review/ApplicantStatusBanner.tsx` | ~80 | no |
+| 7 | `PostDecisionToast` (shell) | `components/instructor-applicants/final-review/PostDecisionToast.tsx` | ~90 | yes |
+
+Plus ~120 LOC of CSS in `app/globals.css` scoped to Phase 2A.
+
+### 6.2 `ApplicantSnapshotBar` — the sticky header
+
+**Purpose.** The 72 px sticky bar that carries applicant identity, the
+compact readiness meter, and the queue navigator. The one element that
+never leaves the chair's view as they scroll.
+
+**Props.**
+```ts
+interface ApplicantSnapshotBarProps {
+  application: {
+    id: string;
+    status: InstructorApplicationStatus;
+    preferredFirstName: string | null;
+    legalName: string | null;
+    applicant: { id: string; name: string | null; email: string };
+    chapter: { id: string; name: string } | null;
+    subjectsOfInterest: string | null;
+    schoolName: string | null;
+    graduationYear: number | null;
+    chairQueuedAt: string | null;
+    materialsReadyAt: string | null;
+    interviewerAssignments: InterviewerAssignment[];
+    reviewer: { id: string; name: string | null } | null;
+  };
+  readiness: ReadinessSignals;
+  queue: QueueNeighbors;
+  latestDecision?: ChairDecisionSummary | null;
+}
+```
+
+**State.** None — purely derived from props. The hover/dropdown state
+lives in the child `QueueNavigator`.
+
+**Layout.**
+- Left (grid-cols 1–6): `<ApplicantIdentity size="md">`
+- Center (grid-cols 7–9): compact `<DecisionReadinessMeter compact>` OR
+  `<ApplicantStatusBanner>` if decision already recorded
+- Right (grid-cols 10–12): `<QueueNavigator>` with prev/next/counter
+
+At tablet, wraps to two rows (identity on top, meter + queue below).
+
+**Motion.** On first mount, fade-in-from-below (y: -8 → 0, 200 ms
+easeOut). On applicant change, the avatar inside `<ApplicantIdentity>`
+uses `layoutId="applicant-avatar"` so it morphs between applicants
+during queue advance (§2.7 signature interaction).
+
+### 6.3 `ApplicantIdentity`
+
+**Purpose.** Avatar + name + status pill + chapter + subject +
+days-in-queue. The "who is this person" block, used in the snapshot
+bar, in the confirm modal header, and in queue dropdown rows.
+
+**Props.**
+```ts
+interface ApplicantIdentityProps {
+  applicant: { id: string; name: string | null; avatarUrl?: string | null };
+  preferredFirstName: string | null;
+  legalName: string | null;
+  status: InstructorApplicationStatus;
+  chapterName: string | null;
+  subjectsOfInterest: string | null;  // CSV
+  daysInQueue: number | null;          // computed from chairQueuedAt
+  schoolName?: string | null;
+  graduationYear?: number | null;
+  size?: "sm" | "md" | "lg";
+  showSchoolLine?: boolean;            // default true at md/lg, false at sm
+}
+```
+
+**Composition rules.**
+- Display name = `preferredFirstName ?? legalName ?? applicant.name ?? "—"`
+- If both preferred and legal differ, render `"Preferred (Legal)"` style,
+  legal in `--ink-muted`
+- Status pill uses the existing `.pill.pill-*` classes from
+  `globals.css`, reused verbatim for consistency with the kanban
+- Subjects split on CSV → max 2 pill chips visible, `"+N more"` chip for
+  overflow, full list in a hover tooltip
+- Days-in-queue shows `"2d in queue"` if `daysInQueue ≥ 1`, `"queued today"`
+  otherwise; `null` hides the pill
+- Long names truncate per §4.10 rules
+
+**Accessibility.** Full legal name is announced via `aria-label` on the
+display-name heading so screen readers don't miss it if the rendered
+form is ambiguous.
+
+### 6.4 `DecisionReadinessMeter` — the calibration ring
+
+**Purpose.** A 48 px conic-gradient SVG ring showing how many of the
+four readiness signals are met. Hover/tap on each segment surfaces the
+specific gap. One of the three core trust mechanisms from §1.6.
+
+**Props.**
+```ts
+interface DecisionReadinessMeterProps {
+  signals: {
+    hasSubmittedInterviewReviews: boolean;       // ≥1 interview review with status=SUBMITTED
+    hasMaterialsComplete: boolean;               // course outline + first class plan uploaded
+    hasReviewerRecommendation: boolean;          // InstructorApplicationReview.status=SUBMITTED
+    hasNoOpenInfoRequest: boolean;               // infoRequest === null
+  };
+  compact?: boolean;                             // snapshot bar vs right rail
+}
+```
+
+**Visual.** Four arc segments, each 90°, colored `--score-good` when
+complete, `--ink-faint` when incomplete. Center shows count: `3 / 4`
+in `--font-headline`. Below the ring (or to the right in compact mode),
+a legend lists the four signals with check/empty icons.
+
+**Motion.** On mount, each completed segment animates from 0° to 90°
+over 300 ms with a 60 ms stagger — the ring "fills in" rather than
+appearing whole. Reduced-motion renders filled immediately.
+
+**Interaction.** Hovering any segment opens a popover (via floating-ui,
+already in deps) showing the specific gap: *"Missing: 1 of 2 interview
+reviews (Alex Chen — DRAFT)"*. Click opens the feed filtered to that
+source (Phase 3 wires the filter action; Phase 2A shows the popover
+only).
+
+**Empty/error states.** All four false → ring is fully gray, center
+shows `0 / 4`, helper text below: *"Application isn't ready for a
+decision yet."*
+
+### 6.5 `QueueNavigator`
+
+**Purpose.** Prev/next arrows + position counter + sibling dropdown
+trigger. The chair's way to walk the queue without returning to the
+kanban.
+
+**Props.**
+```ts
+interface QueueNavigatorProps {
+  currentId: string;
+  prevId: string | null;
+  nextId: string | null;
+  position: number;                    // 1-indexed
+  total: number;
+  siblings: QueueSibling[];            // for the dropdown
+  hotkeysEnabled?: boolean;            // default true
+}
+
+type QueueSibling = {
+  id: string;
+  displayName: string;
+  chapterName: string | null;
+  daysInQueue: number | null;
+  recommendation: "STRONG_HIRE" | "HIRE" | "MIXED" | "CONCERN" | "REJECT" | null;
+};
+```
+
+**Behavior.**
+- Arrow buttons use `<Link prefetch>` so hover primes the next route
+- Disabled state when prev/next is null (end of queue)
+- Position counter reads `"3 of 12"` in `--font-label`
+- `J`/`K` keys (via `useHotkeys`) navigate if `hotkeysEnabled`
+- Clicking the counter opens `<QueueSiblingDropdown>`
+
+**Motion.** Arrow buttons have a 120 ms translateX press effect (-2 px
+on press, 0 on release). Queue-advance arrow briefly shows a success
+check glyph before the navigation fires — gives the chair visual
+confirmation their keystroke landed.
+
+**Edge cases.**
+- `total === 1` → hide arrows, hide dropdown, keep the counter
+- `total === 0` → component returns null
+- Queue changes mid-session (another chair decides on one of the
+  siblings) → `router.refresh()` on the snapshot after a decision
+  commits, which reloads queue neighbors
+
+### 6.6 `QueueSiblingDropdown`
+
+**Purpose.** The full list of remaining queued applicants, sortable by
+days-in-queue, chapter, or recommendation strength. Lets the chair
+jump non-sequentially (do all same-chapter in batch, or clear the
+oldest first).
+
+**Props.**
+```ts
+interface QueueSiblingDropdownProps {
+  siblings: QueueSibling[];
+  currentId: string;
+  anchorRef: RefObject<HTMLElement>;
+  onClose: () => void;
+}
+```
+
+**State.** Local `sortKey` (default `"daysInQueue-desc"`), local
+`searchQuery` for quick-filter.
+
+**Rendering.** Each row is an `<ApplicantIdentity size="sm">` + a
+`<RecommendationBadge size="sm">` (Phase 3 data; Phase 2A renders
+"—" when null). Click navigates via `<Link>`. `Tab` cycles through
+rows with focus ring.
+
+**Max height.** 480 px with internal scroll. If siblings.length < 8,
+fits without scroll. Scrolls within itself (allowed exception to §4.5's
+"no nested scroll" rule — this is a floating overlay, not inline
+content).
+
+**Accessibility.** `role="listbox"`, each row `role="option"`. `Esc`
+closes. Focus returns to the counter trigger on close.
+
+### 6.7 `ApplicantStatusBanner`
+
+**Purpose.** When the application is no longer in `CHAIR_REVIEW` (already
+approved, rejected, on hold, waitlisted, withdrawn), the snapshot bar
+replaces the readiness meter with a read-only banner summarizing the
+latest decision. This is the "audit view" — the chair can read context
+and timeline but cannot re-decide.
+
+**Props.**
+```ts
+interface ApplicantStatusBannerProps {
+  status: InstructorApplicationStatus;
+  latestDecision: ChairDecisionSummary | null;
+  // includes: action, chair name, decidedAt, rationale preview, conditions count
+}
+```
+
+**Visual.** A single-line banner with a status-colored left border,
+icon, and text like *"Approved with conditions by Alex Chen · 2 days
+ago"*. Click opens a detail popover with full rationale and
+superseded-decisions link.
+
+**Rescind affordance.** If the current actor has `SUPER_ADMIN` role,
+a subtle *"Rescind decision"* link appears on hover. Clicking opens
+the Phase 2B rescind flow (not available in 2A; link is disabled with
+tooltip *"Rescind flow coming in Phase 2B"*).
+
+### 6.8 `PostDecisionToast` (shell)
+
+**Purpose.** The toast that appears after `chairDecide` succeeds,
+offering the next applicant with their avatar + name. Phase 2A ships
+the *component* (mount, slot, styling); Phase 2B wires up the trigger
+from the confirm modal's success handler.
+
+**Props.**
+```ts
+interface PostDecisionToastProps {
+  open: boolean;
+  decidedAction: ChairDecisionAction | null;
+  decidedApplicant: { name: string; chapterName: string | null } | null;
+  nextApplicant: { id: string; name: string; avatarUrl?: string | null; chapterName: string | null } | null;
+  onDismiss: () => void;
+  onAdvance: () => void;               // navigates to nextApplicant
+}
+```
+
+**Behavior.**
+- Slides up from the dock region (400 ms spring per §2.6 surface-entry)
+- Auto-dismisses after 8 s unless hovered (pauses the timer)
+- Pressing `J` triggers `onAdvance` directly
+- If `nextApplicant === null`, shows *"Queue cleared — nice work"* with
+  a link back to the chair queue page
+
+**Motion.** Avatar morphs via `layoutId="applicant-avatar"` from the
+snapshot bar into the toast, then after advance morphs again into the
+new snapshot bar. Zero jump cuts.
+
+**Accessibility.** `role="status"` with `aria-live="polite"` so screen
+readers announce the result without stealing focus. The advance button
+is the autofocused element when the toast opens.
+
+### 6.9 Files touched in Phase 2A
+
+| Status | Path | Notes |
+|--------|------|-------|
+| [NEW] | `components/instructor-applicants/final-review/ApplicantSnapshotBar.tsx` | §6.2 |
+| [NEW] | `components/instructor-applicants/final-review/ApplicantIdentity.tsx` | §6.3 |
+| [NEW] | `components/instructor-applicants/final-review/DecisionReadinessMeter.tsx` | §6.4 — replaces the existing `DecisionReadinessChecklist` inline styles with tokenized CSS |
+| [NEW] | `components/instructor-applicants/final-review/QueueNavigator.tsx` | §6.5 |
+| [NEW] | `components/instructor-applicants/final-review/QueueSiblingDropdown.tsx` | §6.6 |
+| [NEW] | `components/instructor-applicants/final-review/ApplicantStatusBanner.tsx` | §6.7 |
+| [NEW] | `components/instructor-applicants/final-review/PostDecisionToast.tsx` | §6.8 shell only |
+| [NEW] | `lib/readiness-signals.ts` | Pure function `computeReadinessSignals(application)` returning the 4 booleans |
+| [MODIFY] | `components/instructor-applicants/final-review/FinalReviewCockpit.tsx` | Mount snapshot bar as first child of page body |
+| [MODIFY] | `lib/final-review-queries.ts` | Extend `getChairQueueNeighbors` to include `siblings` with recommendation data |
+| [MODIFY] | `app/globals.css` | ~120 LOC of snapshot-bar + meter-ring + dropdown styles under a `/* Phase 2A */` block |
+| [DEPRECATE] | `components/instructor-applicants/DecisionReadinessChecklist.tsx` | Kept as-is for the old applicant detail panel; cockpit uses the new meter |
+
+### 6.10 Dependencies between Phase 2A components
+
+```
+ApplicantSnapshotBar
+  ├── ApplicantIdentity (size="md")                    — from Phase 1 primitives
+  ├── DecisionReadinessMeter (compact)
+  │     └── floating-ui popover (already in deps)
+  ├── ApplicantStatusBanner (conditional)
+  └── QueueNavigator
+        └── QueueSiblingDropdown
+              └── ApplicantIdentity (size="sm")
+
+PostDecisionToast (mounted at cockpit root, not inside snapshot bar)
+  ├── ApplicantIdentity (size="sm")
+  └── RecommendationBadge                              — from Phase 1 primitives
+```
+
+All Phase 2A components depend only on Phase 1 primitives. Nothing
+depends on the decision dock or the feedback feed. Safe to ship behind
+the feature flag alone.
+
+### 6.11 Analytics events introduced in Phase 2A
+
+| Event | Payload | Purpose |
+|-------|---------|---------|
+| `final_review.viewed` | `{ applicationId, source: "kanban" \| "queue" \| "direct" \| "toast" }` | Entry-point attribution |
+| `final_review.queue_advance` | `{ from: applicationId, to: applicationId, method: "click" \| "keyboard" \| "toast" }` | Measure keyboard adoption |
+| `final_review.sibling_dropdown_opened` | `{ applicationId, queueTotal }` | Is non-sequential navigation valuable? |
+| `final_review.readiness_segment_hovered` | `{ applicationId, segment: "interviews" \| "materials" \| "recommendation" \| "info_request" }` | Which readiness gaps chairs care about most |
+
+All events go through the existing `trackEvent` helper (`lib/analytics-actions.ts`).
+
+### 6.12 Phase 2A risks
+
+- **`layoutId` avatar morph regression.** Framer Motion's layout
+  animations can flicker if the parent container doesn't have a stable
+  ID. Mitigation: explicit Storybook test of the advance transition
+  across all four breakpoints.
+- **Queue neighbor query cost.** `getChairQueueNeighbors` with siblings
+  could be expensive at scale (100+ queued apps). Mitigation: cap
+  `siblings` at 30 items in the query; the dropdown shows "+N more"
+  with a link to the full queue page.
+- **Status banner stealing meter space.** On decided-but-still-on-page
+  views, the snapshot bar becomes information-dense. Mitigation:
+  `ApplicantStatusBanner` replaces (not coexists with) the meter — the
+  page is audit-mode, no decision possible.
+- **J/K collision with browser scroll.** Some browsers bind J/K to
+  tab navigation with extensions (Vimium). Mitigation: document this
+  in the help overlay; `Esc` deactivates hotkeys temporarily.
+
+---
+
+*Sections 7–12 to follow.*
