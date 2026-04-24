@@ -29,20 +29,22 @@ redesign; implementation work should reference it.
 10. **Components — Phase 2D.6: Transactional Failure Surfaces** — sync
     rollback banner, stale-click recovery, deadlock handling, validation
     errors, network-drop recovery
-11. **Components — Phase 2D.8: Notification & Soft Failure Surfaces** —
-    email failure banner with retry, contrarian-override audit, soft
-    warnings, post-commit notification errors
-12. **Components — Phase 2E: Rescind & Audit** — superseding prior decisions,
+11. **Components — Phase 2D.9: Notification Failure Handling** — email
+    send failure banner, resend flow, failure aging indicator, diagnostic
+    drawer
+12. **Components — Phase 2D.9.5: Soft Warning Surfaces & Audit Traces** —
+    contrarian-override audit card, soft warning chips, advisory surfaces
+13. **Components — Phase 2E: Rescind & Audit** — superseding prior decisions,
     conditions display, rescind modal for SUPER_ADMINs
-13. **Components — Phase 3: Feedback, Consensus & Matrix** — the world-class
+14. **Components — Phase 3: Feedback, Consensus & Matrix** — the world-class
     differentiation layer
-14. **Unified Feedback System** — ReviewSignal abstraction, pinning, sentiment,
+15. **Unified Feedback System** — ReviewSignal abstraction, pinning, sentiment,
     consensus, threading, @mentions, filters
-15. **Data Model & Server Actions** — schema deltas, migrations, RBAC matrix,
+16. **Data Model & Server Actions** — schema deltas, migrations, RBAC matrix,
     autosave
-16. **Quality, Edge Cases & Launch Readiness** — regressions, edge cases, test
+17. **Quality, Edge Cases & Launch Readiness** — regressions, edge cases, test
     plan, performance budgets, launch checklist
-17. **Execution Roadmap & Open Questions** — phased rollout, quick wins vs.
+18. **Execution Roadmap & Open Questions** — phased rollout, quick wins vs.
     bigger builds, final recommendation, product decisions needed
 
 ---
@@ -3528,4 +3530,354 @@ All events hit the existing `trackEvent` helper. Dashboard thresholds:
 
 ---
 
-*Sections 11–17 to follow.*
+## 11. Components — Phase 2D.9: Notification Failure Handling
+
+**Phase 2D.9 mission:** when the decision committed successfully but
+the notification email failed to send (Resend timeout, SMTP error,
+recipient throttle), the chair sees it, understands what happened,
+and can retry — without ambiguity about whether the decision itself
+stuck. The decision is safe (the DB commit succeeded); only the
+downstream side-effect failed.
+
+This phase is purely about surfacing existing server-side
+infrastructure. The fields are already on `InstructorApplication`:
+`lastNotificationError` (string) and `lastNotificationErrorAt`
+(DateTime). The `resendChairDecisionEmail` server action already
+exists at `lib/instructor-application-actions.ts:2095–2170`. Pre-
+redesign these fail silently — the chair has no idea the applicant
+didn't receive the email. Phase 2D.9 fixes the silence.
+
+**Exit criteria for Phase 2D.9:**
+1. When the cockpit loads for an applicant with
+   `lastNotificationError != null`, `NotificationFailureBanner`
+   renders immediately at page top (z-index 65, below sync-rollback
+   at 70)
+2. Clicking "Resend" calls `resendChairDecisionEmail`, shows pending
+   state inline, displays success or failure outcome via
+   `NotificationResendToast`
+3. `DecisionAgingIndicator` escalates the banner's severity as the
+   failure ages: amber at 5 min, orange at 15 min, red at 30 min
+4. `NotificationDiagnosticDrawer` opens from the banner showing the
+   raw error, attempt count, and timestamps — so chairs can copy
+   context to support without screenshots
+5. Successful resend clears `lastNotificationError`, writes a
+   `NOTIFICATION_RESENT` timeline event, and dismisses the banner
+6. Failed resend appends to the diagnostic drawer but does not
+   increment a retry-count ceiling — chairs can retry as many times
+   as they want (rate limited at 6 per hour server-side, see §11.7)
+
+### 11.1 Components in this phase
+
+| # | Component | File | LOC | Client? |
+|---|-----------|------|-----|---------|
+| 1 | `NotificationFailureBanner` (modified) | `components/instructor-applicants/NotificationFailureBanner.tsx` | +~90 | yes |
+| 2 | `NotificationResendToast` | `components/instructor-applicants/final-review/NotificationResendToast.tsx` | ~80 | yes |
+| 3 | `DecisionAgingIndicator` | `components/instructor-applicants/final-review/DecisionAgingIndicator.tsx` | ~110 | yes |
+| 4 | `NotificationDiagnosticDrawer` | `components/instructor-applicants/final-review/NotificationDiagnosticDrawer.tsx` | ~140 | yes |
+
+Plus ~80 LOC of CSS for banner severity variants, aging pulse, and
+drawer expansion.
+
+### 11.2 `NotificationFailureBanner` — the "email didn't send" surface
+
+**Purpose.** A banner mounted at page top that surfaces a stuck
+notification email so the chair can retry. Rewrites the existing
+`NotificationFailureBanner.tsx` component to use the design tokens
+from §2, the z-index hierarchy from §10, and the retry machinery
+below.
+
+**Props.**
+```ts
+interface NotificationFailureBannerProps {
+  applicationId: string;
+  applicantName: string;
+  applicantEmail: string;                 // for diagnostic display
+  decidedAction: ChairDecisionAction;
+  lastNotificationError: string;          // raw error string from the server
+  lastNotificationErrorAt: string;        // ISO timestamp
+  recentAttempts: NotificationAttempt[];  // from timeline query
+  canResend: boolean;                     // false during in-flight resend
+  onResend: () => void;
+  onOpenDiagnostic: () => void;
+  onCopyDiagnostic: () => void;
+}
+
+type NotificationAttempt = {
+  kind: "NOTIFICATION_FAILED" | "NOTIFICATION_RESENT";
+  at: string;
+  error?: string;
+};
+```
+
+**Visual.** Full-width banner, left-border color keyed to severity
+(see §11.4 aging), icon `MailWarning`. Layout: two rows.
+
+Row 1 (always visible):
+> **The approval email didn't reach *Alex Morgan*** (`alex@…`)
+>
+> Failed 8 minutes ago. [Resend] [Diagnostic ▾]
+
+Row 2 (inline, reveals on hover or focus of diagnostic link):
+> Last attempt: `Timeout reaching Resend API (gateway 504)`. Retry
+> history: 2 failed, 0 succeeded.
+
+**Behavior.**
+- Fade in 240 ms on mount; exit fade 180 ms on resolve
+- Resend button is busy-state aware: spinner + "Sending…" while
+  `canResend === false`
+- Opening the diagnostic drawer does NOT dismiss the banner — chair
+  might open it, read, close, retry
+- Banner does not collapse the page content — the dock and workspace
+  continue to be interactive (this is a side-effect failure, not a
+  blocker)
+- Disappears on successful resend (server clears
+  `lastNotificationError`, `router.refresh()` reads the cleared
+  state)
+
+**Accessibility.** `role="alert" aria-live="polite"` (polite, not
+assertive — the decision already committed, this is recoverable).
+Focus moves to Resend button on first render if chair opens page via
+queue navigation; otherwise stays where it was.
+
+### 11.3 `NotificationResendToast`
+
+**Purpose.** Confirms the outcome of a resend attempt. Lives at
+bottom-right, non-blocking.
+
+**Props.**
+```ts
+interface NotificationResendToastProps {
+  open: boolean;
+  outcome: "success" | "failure" | null;
+  applicantName: string;
+  onDismiss: () => void;
+}
+```
+
+**Visual.**
+- Success: green `CheckCircle2`, copy *"Approval email resent to Alex
+  Morgan"*, auto-dismiss at 5 s
+- Failure: amber `AlertTriangle`, copy *"Resend failed — see diagnostic"*
+  with a tap target to open the drawer; manual dismiss only
+
+**Motion.** Slide from bottom-right (180 ms easeOut). Respects
+reduced-motion.
+
+### 11.4 `DecisionAgingIndicator` — escalating severity
+
+**Purpose.** A stuck notification gets more painful the longer it's
+stuck. At 5 minutes it's a minor annoyance; at 30 it's a candidate-
+experience problem. The aging indicator drives the banner's visual
+severity over time so the chair feels the urgency without being yelled
+at on the first failure.
+
+**API.** Pure function, not a rendered component:
+
+```ts
+export function computeAgingSeverity(
+  failedAt: string,
+  now: Date = new Date()
+): {
+  severity: "fresh" | "amber" | "orange" | "red";
+  ageMinutes: number;
+  copyHint: string;
+};
+```
+
+**Thresholds.**
+| Age | Severity | Left border | Copy hint |
+|-----|----------|-------------|-----------|
+| 0–5 min | `fresh` | `--score-mixed` (amber) | "just failed" |
+| 5–15 min | `amber` | `--score-mixed` with 3 s pulse animation | "failed 8 minutes ago" |
+| 15–30 min | `orange` | `--score-concern` (orange) | "failed 22 minutes ago" |
+| 30+ min | `red` | `--score-weak` (red), border 8 px | "failed 47 minutes ago — applicant hasn't been notified" |
+
+**Usage.** `NotificationFailureBanner` consumes `computeAgingSeverity`
+to pick border color and pulse. The indicator re-evaluates every 60 s
+via `setInterval` so a stuck banner gradually escalates in the
+chair's visible dashboard even without a page refresh.
+
+**Motion.** At `amber` and above, the left border subtly pulses
+(opacity 0.6 → 1 over 3 s, repeating). Red severity adds a one-time
+shake on first render so the chair notices (200 ms keyframes,
+reduced-motion swaps to opacity fade).
+
+### 11.5 `NotificationDiagnosticDrawer`
+
+**Purpose.** An expandable drawer from the banner that shows the
+full error + retry history + a copy-to-clipboard action. Eliminates
+the "take a screenshot, describe it in an email" friction.
+
+**Props.**
+```ts
+interface NotificationDiagnosticDrawerProps {
+  open: boolean;
+  applicationId: string;
+  applicantName: string;
+  applicantEmail: string;
+  decidedAction: ChairDecisionAction;
+  decidedAt: string;
+  attempts: NotificationAttempt[];
+  onClose: () => void;
+  onCopy: () => void;
+}
+```
+
+**Visual.** Slide-down drawer beneath the banner (not a modal — the
+drawer is contextual to the banner, not a full-screen interrupt).
+Monospace body listing each attempt:
+
+```
+Application: clx1a2b3c4…
+Applicant:   alex@example.com
+Action:      APPROVE_WITH_CONDITIONS
+Decided:     2026-04-24T16:28:11Z
+
+Attempts (most recent first):
+  2 | 2026-04-24T16:38:12Z | FAILED
+      Timeout reaching Resend API (gateway 504)
+  1 | 2026-04-24T16:28:11Z | FAILED
+      HTTP 429 from Resend (rate limited)
+```
+
+**Behavior.**
+- `onCopy` copies a markdown-formatted version of the above into the
+  clipboard, ready to paste into an email or Slack
+- Drawer closes on `Escape` key or click outside
+- Retry history paginates at 10 entries with "Show older" link (rare
+  case but some apps get many retry attempts)
+
+**Motion.** `AnimatePresence` + `height: 0 → auto` expand (200 ms
+easeOut per §2.6 state-change). No jarring scroll jumps.
+
+### 11.6 `retryAge` tracking — where it comes from
+
+The server already writes `NOTIFICATION_FAILED` and
+`NOTIFICATION_RESENT` timeline events. Phase 2D.9 queries the
+timeline for the last 10 such events per application inside
+`getApplicationForFinalReview` and ships them as
+`notificationAttempts` in the page props.
+
+Query addition in `lib/final-review-queries.ts`:
+
+```ts
+notificationAttempts: await prisma.instructorApplicationTimelineEvent.findMany({
+  where: {
+    applicationId: id,
+    kind: { in: ["NOTIFICATION_FAILED", "NOTIFICATION_RESENT"] },
+  },
+  orderBy: { createdAt: "desc" },
+  take: 10,
+  select: { kind: true, createdAt: true, payload: true },
+}),
+```
+
+Small query cost — uses the existing `@@index([applicationId, createdAt])`
+on the timeline event table.
+
+### 11.7 `resendChairDecisionEmail` — server action (existing)
+
+Lives at `lib/instructor-application-actions.ts:2095–2170`. Phase 2D.9
+does NOT modify the server logic; it only wires the UI. Quick recap
+for reference:
+
+- RBAC: ADMIN, SUPER_ADMIN, or HIRING_CHAIR with view permission on
+  the application
+- Reads the latest non-superseded `InstructorApplicationChairDecision`
+- Dispatches the same email generator used during commit
+  (`sendChairDecisionEmail`)
+- On success: clears `lastNotificationError` / `lastNotificationErrorAt`,
+  writes `NOTIFICATION_RESENT` timeline event
+- On failure: overwrites `lastNotificationError` with the new error,
+  writes `NOTIFICATION_FAILED` timeline event (so the retry history
+  grows)
+- Rate limited at 6 attempts per hour per application — existing
+  `lib/rate-limit-redis.ts` infrastructure
+
+The rate limit edge case: if the chair hits the limit, server returns
+`{ error: "RATE_LIMITED", resetAt }`. Client renders an inline hint
+*"Resend limit reached (6/hr). Try again at 5:42 PM."* and disables
+the Resend button until `resetAt`. Uses the `ApplicantWorkflowError`
+code pattern from §10.7.
+
+### 11.8 Files touched in Phase 2D.9
+
+| Status | Path | Notes |
+|--------|------|-------|
+| [MODIFY] | `components/instructor-applicants/NotificationFailureBanner.tsx` | Rewrite for dock era — new tokens (§2.5), aging severity hook, diagnostic drawer integration, replaces the existing simple "failed — retry" UI |
+| [NEW] | `components/instructor-applicants/final-review/NotificationResendToast.tsx` | §11.3 |
+| [NEW] | `components/instructor-applicants/final-review/DecisionAgingIndicator.tsx` | §11.4 — pure function module + CSS for severity variants |
+| [NEW] | `components/instructor-applicants/final-review/NotificationDiagnosticDrawer.tsx` | §11.5 |
+| [MODIFY] | `lib/final-review-queries.ts` | Extend `getApplicationForFinalReview` to include `notificationAttempts` (last 10 timeline events) |
+| [MODIFY] | `components/instructor-applicants/final-review/FinalReviewCockpit.tsx` | Conditionally render banner at top when `lastNotificationError != null`; mount `NotificationResendToast` at cockpit root |
+| [MODIFY] | `app/globals.css` | ~80 LOC under `/* Phase 2D.9 */` block: banner severity variants, aging pulse keyframes, drawer expand/collapse |
+
+Server side: **no changes**. All mechanics (banner data, resend
+action, rate limit, timeline events) already exist — Phase 2D.9 is
+pure UI.
+
+### 11.9 Dependencies between Phase 2D.9 components
+
+```
+FinalReviewCockpit (page-top mount)
+  └── NotificationFailureBanner (shown when lastNotificationError != null)
+        ├── computeAgingSeverity (pure function)        — §11.4
+        ├── NotificationDiagnosticDrawer (inline)       — §11.5
+        └── (triggers) resendChairDecisionEmail         — existing server action
+              └── on success: router.refresh() + NotificationResendToast
+              └── on failure: banner updates, toast shows failure
+```
+
+All Phase 2D.9 components depend only on Phase 1/2A primitives
+(`SaveStateIndicator`, `ReviewerIdentityChip`) and on the structured
+error-code contract from §10.7 (for `RATE_LIMITED` handling).
+
+### 11.10 Analytics events introduced in Phase 2D.9
+
+| Event | Payload | Purpose |
+|-------|---------|---------|
+| `final_review.notification_failure_shown` | `{ applicationId, action, ageMinutes, severity }` | Rate of email failures — target < 1% of decisions |
+| `final_review.notification_resend_clicked` | `{ applicationId, ageMinutes, attemptsPrior }` | How quickly chairs notice and retry |
+| `final_review.notification_resend_succeeded` | `{ applicationId, attemptsPrior }` | Success rate of retries |
+| `final_review.notification_resend_failed` | `{ applicationId, error, attemptsPrior }` | Keep escalating if retries keep failing |
+| `final_review.notification_diagnostic_opened` | `{ applicationId, ageMinutes }` | Do chairs actually inspect the error? |
+| `final_review.notification_diagnostic_copied` | `{ applicationId }` | Proxy metric for support-escalation |
+| `final_review.notification_rate_limited` | `{ applicationId, resetAt }` | How often chairs hit the 6/hr cap — if high, raise the cap |
+
+Dashboard thresholds: `notification_failure_shown` over 2% of
+decisions is a P1 (email provider issue or configuration drift);
+over 5% is a P0 (applicants not getting notified at all).
+
+### 11.11 Phase 2D.9 risks
+
+- **Banner stacking with §10 surfaces.** If a sync-rollback banner
+  (§10.2) AND a notification-failure banner both apply, the sync
+  rollback wins (higher z-index and higher severity). Phase 2D.9's
+  banner is suppressed when any Phase 2D.6 banner is mounted.
+  Mitigation: `FinalReviewCockpit` checks in order — sync rollback
+  → network recovery → notification failure → none.
+- **Diagnostic copy leaking PII.** The applicant's email is in the
+  diagnostic blob. For most support scenarios this is fine and
+  necessary, but the chair might paste into a public channel.
+  Mitigation: banner copy explicitly labels the block *"Diagnostic
+  info (internal)"*; no further protection beyond chair discretion.
+- **Re-rendering the aging indicator every 60 s.** A simple
+  `setInterval` drives re-evaluation. Low cost, but creates noise
+  in React DevTools profiler. Mitigation: the interval is scoped to
+  the banner only; unmounts cleanly when banner dismisses.
+- **Stale notification data after resend.** The page props are
+  fetched server-side; `router.refresh()` triggers a re-fetch, but
+  there's a small window where the banner shows stale state.
+  Mitigation: optimistic UI — banner slides out 200 ms before the
+  server result to hide the refresh race; if resend fails, banner
+  slides back in with the new error.
+- **Rate-limit cap too low for legitimate cases.** 6/hr is enough
+  for normal use but a chair hammering a genuinely stuck email
+  might hit it. Mitigation: the inline hint surfaces `resetAt` so
+  the chair knows exactly when to retry; if this becomes a
+  recurring pain point, raise to 12/hr — but that's a future tuning
+  decision, not a launch blocker.
+
+---
+
+*Sections 12–18 to follow.*
