@@ -222,4 +222,36 @@ if (status !== 0) {
 }
 
 console.log("[db-sync] ✅ Migrations applied successfully.");
+
+// ── Content import: run after migrations succeed ───────────────────────────
+console.log("[db-sync] Running training content import...");
+
+let importStatus = 0;
+try {
+  importStatus = run("npx", ["tsx", "scripts/import-training-academy-content.mjs"]);
+} catch (err) {
+  console.error("[db-sync] Failed to spawn training content import:", err);
+  importStatus = 1;
+}
+
+if (importStatus !== 0) {
+  console.error(
+    "[db-sync] ❌ Training content import failed (exit code " + importStatus + ")."
+  );
+
+  if (requireDbSync) {
+    console.error("[db-sync] REQUIRE_DB_SYNC=1 is set — failing the build.");
+    process.exit(importStatus);
+  }
+
+  console.warn(
+    "[db-sync] ⚠️  Continuing the build WITHOUT importing training content."
+  );
+  console.warn(
+    "[db-sync] Set REQUIRE_DB_SYNC=1 to fail the build on import errors."
+  );
+  process.exit(0);
+}
+
+console.log("[db-sync] ✅ Training content import completed successfully.");
 process.exit(0);

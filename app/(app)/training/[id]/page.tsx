@@ -7,7 +7,20 @@ import {
   getTrainingAccessRedirect,
   hasApprovedInstructorTrainingAccess,
 } from "@/lib/training-access";
+import { serializeBeatForClient } from "@/lib/training-journey/serialize";
+import type { JourneyAttemptSummary } from "@/lib/training-journey/client-contracts";
+import { getBadgeForContentKey } from "@/lib/training-journey/client-contracts";
+import { JourneyShell } from "./journey-shell";
 import TrainingModuleClient from "./client";
+
+// ---------------------------------------------------------------------------
+// Feature flag helper (default-on per plan §9)
+// ---------------------------------------------------------------------------
+
+function isInteractiveJourneyEnabled(): boolean {
+  const v = process.env.ENABLE_INTERACTIVE_TRAINING_JOURNEY;
+  return v !== "false" && v !== "0" && v !== "no";
+}
 
 export default async function TrainingModulePage({
   params,
@@ -35,6 +48,180 @@ export default async function TrainingModulePage({
     !roles.includes("INSTRUCTOR") &&
     !roles.includes("ADMIN") &&
     !roles.includes("CHAPTER_PRESIDENT");
+
+  // ---------------------------------------------------------------------------
+  // INTERACTIVE_JOURNEY branch — runs before the legacy fetch to avoid loading
+  // checkpoints / videos / quiz data that journey modules don't need.
+  // ---------------------------------------------------------------------------
+
+  // Lightweight probe: check module type without pulling the full include graph.
+  const moduleTypePeek = await prisma.trainingModule.findUnique({
+    where: { id },
+    select: { type: true, contentKey: true },
+  });
+
+  if (moduleTypePeek?.type === "INTERACTIVE_JOURNEY") {
+    // Determine back-link for this user (same as legacy path below).
+    const academyHref = isStudentOnly ? "/student-training" : "/instructor-training";
+    const academyLabel = isStudentOnly ? "Back to student academy" : "Back to academy";
+
+    if (!isInteractiveJourneyEnabled()) {
+      // Feature disabled: render minimal placeholder; do NOT fall through to
+      // the video shell (journey modules have no video/quiz data).
+      const moduleTitle = await prisma.trainingModule.findUnique({
+        where: { id },
+        select: { title: true },
+      });
+      return (
+        <main style={{ maxWidth: 600, margin: "40px auto", padding: "0 16px" }}>
+          <a href={academyHref} style={{ fontSize: 14, color: "var(--muted)", textDecoration: "none" }}>
+            ← {academyLabel}
+          </a>
+          <h1 style={{ marginTop: 24 }}>{moduleTitle?.title ?? "Interactive Module"}</h1>
+          <p style={{ color: "var(--muted)" }}>Coming soon.</p>
+        </main>
+      );
+    }
+
+    // Full journey fetch
+    const journeyModule = await prisma.trainingModule.findUnique({
+      where: { id },
+      include: {
+        interactiveJourney: {
+          include: {
+            beats: { where: { removedAt: null }, orderBy: { sortOrder: "asc" } },
+          },
+        },
+      },
+    });
+
+    if (!journeyModule?.interactiveJourney) {
+      notFound();
+    }
+
+    const journey = journeyModule.interactiveJourney;
+
+    // Parallel: attempts + existing completion + next module
+    const [attempts, completion, nextModule] = await Promise.all([
+      prisma.interactiveBeatAttempt.findMany({
+        where: { userId: learnerId, beat: { journeyId: journey.id } },
+        orderBy: [{ beatId: "asc" }, { attemptNumber: "desc" }],
+      }),
+      prisma.interactiveJourneyCompletion.findUnique({
+        where: { journeyId_userId: { journeyId: journey.id, userId: learnerId } },
+      }),
+      prisma.trainingModule.findFirst({
+        where: { sortOrder: { gt: journeyModule.sortOrder } },
+        orderBy: { sortOrder: "asc" },
+        select: { id: true, title: true },
+      }),
+    ]);
+
+    // Mark IN_PROGRESS on first view (non-fatal; fire-and-forget).
+    // Use upsert: create the row if missing, otherwise leave status alone
+    // (do not downgrade a COMPLETE assignment that may exist from a prior visit).
+    if (!completion) {
+      prisma.trainingAssignment
+        .upsert({
+          where: { userId_moduleId: { userId: learnerId, moduleId: id } },
+          create: { userId: learnerId, moduleId: id, status: "IN_PROGRESS" },
+          update: {},
+        })
+        .catch(() => {
+          // Non-fatal — do not block the render
+        });
+    }
+
+    // Build latest-per-beat map (sorted desc by attemptNumber so first hit = latest)
+    const latestByBeatId = new Map<string, typeof attempts[number]>();
+    for (const a of attempts) {
+      if (!latestByBeatId.has(a.beatId)) {
+        latestByBeatId.set(a.beatId, a);
+      }
+    }
+
+    // Build beatId → beat lookup
+    const beatById = new Map(journey.beats.map((b) => [b.id, b]));
+
+    // JourneyAttemptSummary[] (latest attempt per beat)
+    const userAttempts: JourneyAttemptSummary[] = [];
+    for (const [beatId, attempt] of latestByBeatId.entries()) {
+      const beat = beatById.get(beatId);
+      if (!beat) continue;
+      userAttempts.push({
+        beatSourceKey: beat.sourceKey,
+        attemptNumber: attempt.attemptNumber,
+        correct: attempt.correct,
+        score: attempt.score,
+        response: attempt.response ?? null,
+      });
+    }
+
+    // Security boundary: strip answer keys from every beat before shipping to client
+    const clientBeats = journey.beats.map((beat) => serializeBeatForClient(beat));
+
+    // resumeBeatSourceKey: first scored beat without a correct latest attempt
+    let resumeBeatSourceKey: string | null = null;
+    for (const beat of journey.beats) {
+      if (beat.scoringWeight === 0) continue;
+      const latest = latestByBeatId.get(beat.id);
+      if (!latest || !latest.correct) {
+        resumeBeatSourceKey = beat.sourceKey;
+        break;
+      }
+    }
+    // If all beats correct AND journey completed → null (already done)
+    if (completion && resumeBeatSourceKey === null) {
+      resumeBeatSourceKey = null;
+    }
+
+    // Build JourneyCompletionSummary if a completion row exists
+    const completionSummary = completion
+      ? {
+          totalScore: completion.totalScore,
+          maxScore: completion.maxScore,
+          scorePct: completion.scorePct,
+          passed: completion.passed,
+          firstTryCorrectCount: completion.firstTryCorrectCount,
+          xpEarned: completion.xpEarned,
+          visitedBeatCount: completion.visitedBeatCount,
+          moduleBreakdown:
+            (completion.moduleBreakdown as Record<string, number> | null) ?? null,
+          personalizedTips:
+            (completion.personalizedTips as { module: string; tip: string }[] | null) ??
+            null,
+          completedAt: completion.completedAt.toISOString(),
+          badgeKey: getBadgeForContentKey(journeyModule.contentKey ?? null),
+        }
+      : null;
+
+    return (
+      <JourneyShell
+        snapshot={{
+          moduleId: journeyModule.id,
+          contentKey: journeyModule.contentKey ?? null,
+          title: journeyModule.title,
+          description: journeyModule.description,
+          estimatedMinutes: journey.estimatedMinutes,
+          passScorePct: journey.passScorePct,
+          strictMode: journey.strictMode,
+          version: journey.version,
+          beats: clientBeats,
+          userAttempts,
+          resumeBeatSourceKey,
+          completion: completionSummary,
+        }}
+        backHref={academyHref}
+        backLabel={academyLabel}
+        nextModule={nextModule ?? null}
+      />
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // END INTERACTIVE_JOURNEY branch
+  // Legacy path continues unchanged below.
+  // ---------------------------------------------------------------------------
 
   const trainingModule = await withPrismaFallback(
     "training-module:module",

@@ -3,7 +3,10 @@ import {
   parseArgs,
   readAcademyContent,
   validateAcademyContent,
+  loadCurriculumRegistry,
+  loadBeatSchemas,
 } from "./training-academy-content-utils.mjs";
+import { importCurriculumRegistry } from "./training-academy-curriculum-import.mjs";
 
 const prisma = new PrismaClient();
 
@@ -554,6 +557,48 @@ async function main() {
   console.log(`- resources updated: ${counters.resourcesUpdated}`);
   console.log(`- resources deleted: ${counters.resourcesDeleted}`);
   console.log(`- assignments created: ${counters.assignmentsCreated}`);
+
+  // ── Pass 2: Curriculum registry (TypeScript interactive journeys) ──────────
+  console.log("\n[training:import] Curriculum registry:");
+
+  let curriculumList;
+  try {
+    const { list } = await loadCurriculumRegistry();
+    curriculumList = list;
+  } catch (err) {
+    console.error(`[training:import] Failed to load curriculum registry: ${err.message}`);
+    process.exit(1);
+  }
+
+  let beatConfigSchemas, beatSchemaVersions;
+  try {
+    const schemas = await loadBeatSchemas();
+    beatConfigSchemas = schemas.beatConfigSchemas;
+    beatSchemaVersions = schemas.beatSchemaVersions;
+  } catch (err) {
+    console.error(`[training:import] Failed to load beat schemas: ${err.message}`);
+    process.exit(1);
+  }
+
+  let currCounters;
+  try {
+    currCounters = await importCurriculumRegistry(prisma, curriculumList, {
+      dryRun: args.dryRun,
+      beatConfigSchemas,
+      beatSchemaVersions,
+    });
+  } catch (err) {
+    console.error(`[training:import] Curriculum import failed: ${err.message}`);
+    process.exit(1);
+  }
+
+  console.log("[training:import] Curriculum summary:");
+  console.log(`- journeys created: ${currCounters.journeysCreated}`);
+  console.log(`- journeys updated: ${currCounters.journeysUpdated}`);
+  console.log(`- beats created: ${currCounters.beatsCreated}`);
+  console.log(`- beats updated: ${currCounters.beatsUpdated}`);
+  console.log(`- beats soft-deleted: ${currCounters.beatsSoftDeleted}`);
+  console.log(`- beats un-soft-deleted: ${currCounters.beatsUnSoftDeleted}`);
 }
 
 main()

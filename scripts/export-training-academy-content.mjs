@@ -1,3 +1,4 @@
+import path from "node:path";
 import { PrismaClient } from "@prisma/client";
 import {
   fallbackKey,
@@ -5,6 +6,11 @@ import {
   writeJsonFile,
   DEFAULT_CONTENT_FILE,
 } from "./training-academy-content-utils.mjs";
+
+const DEFAULT_CURRICULUM_FILE = path.resolve(
+  process.cwd(),
+  "data/training-academy/curriculum.v1.json"
+);
 
 const prisma = new PrismaClient();
 
@@ -75,6 +81,74 @@ async function main() {
 
   const savedPath = writeJsonFile(outputPath, payload);
   console.log(`[training:export] Exported ${payload.modules.length} module(s) to ${savedPath}`);
+
+  // ── Curriculum export (interactive journeys) ──────────────────────────────
+  await exportCurriculumRegistry();
+}
+
+async function exportCurriculumRegistry() {
+  // Fetch all INTERACTIVE_JOURNEY modules with their journeys and beats
+  const modules = await prisma.trainingModule.findMany({
+    where: { type: "INTERACTIVE_JOURNEY" },
+    orderBy: { sortOrder: "asc" },
+    include: {
+      interactiveJourney: {
+        include: {
+          beats: {
+            where: { removedAt: null },
+            orderBy: { sortOrder: "asc" },
+          },
+        },
+      },
+    },
+  });
+
+  const payload = {
+    version: "1.0.0",
+    updatedAt: new Date().toISOString(),
+    modules: modules
+      .filter((m) => m.interactiveJourney !== null)
+      .map((m) => {
+        const journey = m.interactiveJourney;
+        return {
+          contentKey:
+            m.contentKey || fallbackKey("module", m.title, m.id),
+          module: {
+            title: m.title,
+            description: m.description,
+            sortOrder: m.sortOrder,
+            required: m.required,
+            passScorePct: m.passScorePct,
+          },
+          journey: {
+            estimatedMinutes: journey.estimatedMinutes,
+            passScorePct: journey.passScorePct,
+            strictMode: journey.strictMode,
+            version: journey.version,
+          },
+          beats: journey.beats.map((beat) => ({
+            id: beat.id,
+            sourceKey: beat.sourceKey,
+            sortOrder: beat.sortOrder,
+            kind: beat.kind,
+            title: beat.title,
+            prompt: beat.prompt,
+            mediaUrl: beat.mediaUrl,
+            config: beat.config,
+            schemaVersion: beat.schemaVersion,
+            scoringWeight: beat.scoringWeight,
+            scoringRule: beat.scoringRule,
+            parentBeatId: beat.parentBeatId,
+            showWhen: beat.showWhen,
+          })),
+        };
+      }),
+  };
+
+  const curriculumPath = writeJsonFile(DEFAULT_CURRICULUM_FILE, payload);
+  console.log(
+    `[training:export] Exported ${payload.modules.length} interactive journey(s) to ${curriculumPath}`
+  );
 }
 
 main()
