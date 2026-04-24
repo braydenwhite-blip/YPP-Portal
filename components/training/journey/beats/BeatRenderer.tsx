@@ -31,6 +31,12 @@ import { MultiSelect } from "./MultiSelect";
 import { SpotTheMistake } from "./SpotTheMistake";
 import { Compare } from "./Compare";
 import { Reflection } from "./Reflection";
+import { SortOrder } from "./SortOrder";
+import { MatchPairs } from "./MatchPairs";
+import { FillInBlank } from "./FillInBlank";
+import { BranchingScenario } from "./BranchingScenario";
+import { Hotspot } from "./Hotspot";
+import { MessageComposer } from "./MessageComposer";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -150,6 +156,94 @@ export function BeatRenderer({
           beat={beat as ClientBeat & { config: unknown }}
           response={currentResponse as { text: string } | null}
           onResponseChange={onResponseChange as (next: { text: string } | null) => void}
+          readOnly={readOnly}
+        />
+      );
+      break;
+
+    case "SORT_ORDER":
+      body = (
+        <SortOrder
+          beat={beat as ClientBeat & { config: unknown }}
+          response={currentResponse as { orderedIds: string[] } | null}
+          onResponseChange={
+            onResponseChange as (next: { orderedIds: string[] } | null) => void
+          }
+          readOnly={readOnly}
+        />
+      );
+      break;
+
+    case "MATCH_PAIRS":
+      body = (
+        <MatchPairs
+          beat={beat as ClientBeat & { config: unknown }}
+          response={
+            currentResponse as { pairs: { leftId: string; rightId: string }[] } | null
+          }
+          onResponseChange={
+            onResponseChange as (
+              next: { pairs: { leftId: string; rightId: string }[] } | null
+            ) => void
+          }
+          readOnly={readOnly}
+        />
+      );
+      break;
+
+    case "FILL_IN_BLANK":
+      body = (
+        <FillInBlank
+          beat={beat as ClientBeat & { config: unknown }}
+          response={currentResponse as { text: string } | null}
+          onResponseChange={onResponseChange as (next: { text: string } | null) => void}
+          readOnly={readOnly}
+        />
+      );
+      break;
+
+    case "BRANCHING_SCENARIO":
+      body = (
+        <BranchingScenario
+          beat={beat as ClientBeat & { config: unknown }}
+          response={currentResponse as { selectedOptionId: string } | null}
+          onResponseChange={
+            onResponseChange as (next: { selectedOptionId: string } | null) => void
+          }
+          readOnly={readOnly}
+        />
+      );
+      break;
+
+    case "HOTSPOT":
+      body = (
+        <Hotspot
+          beat={beat as ClientBeat & { config: unknown }}
+          response={currentResponse as { x: number; y: number } | null}
+          onResponseChange={
+            onResponseChange as (next: { x: number; y: number } | null) => void
+          }
+          readOnly={readOnly}
+        />
+      );
+      break;
+
+    case "MESSAGE_COMPOSER":
+      body = (
+        <MessageComposer
+          beat={beat as ClientBeat & { config: unknown }}
+          response={
+            currentResponse as {
+              selections: { poolId: string; snippetIds: string[] }[];
+            } | null
+          }
+          onResponseChange={
+            onResponseChange as (
+              next: {
+                selections: { poolId: string; snippetIds: string[] }[];
+              } | null
+            ) => void
+          }
           readOnly={readOnly}
         />
       );
