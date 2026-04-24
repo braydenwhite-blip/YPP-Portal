@@ -111,11 +111,11 @@ function RightChip({ id, label, isPlaced, readOnly }: RightChipProps) {
   return (
     <div
       ref={setNodeRef}
+      {...attributes}
+      {...listeners}
       role="listitem"
       aria-label={label}
       className={className}
-      {...attributes}
-      {...listeners}
     >
       {label}
     </div>

@@ -110,11 +110,11 @@ function SortableItem({ id, label, index, total, readOnly }: SortableItemProps) 
     <div
       ref={setNodeRef}
       style={style}
+      {...attributes}
+      {...listeners}
       role="listitem"
       aria-label={`Item ${index + 1} of ${total}: ${label}${readOnly ? "" : " (use arrow keys to reorder)"}`}
       className={className}
-      {...attributes}
-      {...listeners}
     >
       <span className="sort-order__handle" aria-hidden="true">
         ≡
