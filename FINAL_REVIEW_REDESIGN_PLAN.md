@@ -3880,4 +3880,190 @@ over 5% is a P0 (applicants not getting notified at all).
 
 ---
 
-*Sections 12–18 to follow.*
+## 12. Components — Phase 2D.9.5: Soft Warnings & Audit Traces
+
+**Phase 2D.9.5 mission:** build the soft-warning and audit-trace layer
+that sits across the entire final-review surface. Warn the chair about
+risky, incomplete, or contradictory decisions without blocking
+legitimate human judgment. Capture enough structured audit events
+that any decision can be reconstructed later — for trust, compliance,
+debugging, and cross-chair review — without becoming surveillance
+theater.
+
+This phase generalizes the pre-commit warning from §8's
+`ContrarianWarningModal` into a proper warning engine, integrates
+with the idempotency and error-code machinery from §§9–10, and lays
+the foundation for the audit drawer rendered in §13's rescind flow.
+
+### 12.1 Goal of Soft Warnings
+
+Soft warnings exist to:
+
+- **Reduce accidental approve/reject mistakes.** A chair clicking
+  Approve on an applicant where two interviewers recommended Reject
+  should see that contradiction surfaced before they commit — not in
+  a regret email three weeks later.
+- **Surface missing review evidence.** If a chair is about to approve
+  someone with zero interview notes, the system should notice and say
+  so.
+- **Catch contradictions** between interview notes, rubric scores,
+  consensus narrative, readiness checklist, and the final decision
+  action.
+- **Help the chair slow down** before irreversible actions, without
+  forcing them through procedural speed-bumps for routine cases.
+- **Preserve reviewer agency.** Warnings are advisory. A chair who
+  has context the system doesn't see can always proceed. The system
+  is not smarter than the chair; it just notices more consistently.
+- **Avoid creating a bureaucratic wall.** Warnings should be specific
+  enough that an experienced chair can glance at one and dismiss it
+  in under three seconds if it doesn't apply. Generic "are you sure?"
+  dialogs are banned.
+
+**What soft warnings are not:**
+
+- Not hard blockers (except for true system integrity issues — see §12.2)
+- Not a substitute for policy review
+- Not a substitute for the decision-readiness meter (§6.4), which is
+  about completeness
+- Not persisted as "approval quality scores" — that would create
+  perverse incentives. Warnings are diagnostic, not evaluative.
+
+### 12.2 Warning Severity Model
+
+Three advisory levels, plus a narrow fourth tier for system integrity:
+
+| Level | Visible treatment | Requires acknowledgement? | Blocks commit? |
+|-------|-------------------|---------------------------|-----------------|
+| **INFO** | Subtle gray-blue chip with `Info` icon; listed in an "Additional context" section | No | No |
+| **CAUTION** | Amber chip with `AlertTriangle`; surfaces in the confirm modal summary | Only if grouped into a high-risk pattern (3+ CAUTIONs of related type) | No |
+| **HIGH_RISK** | Red chip with `AlertOctagon`; surfaces prominently near the Confirm button with an explicit "I've reviewed this" checkbox | Yes — individual `acknowledgedAt` timestamp required per warning key | No (unless combined with a SYSTEM_INTEGRITY condition) |
+| **SYSTEM_INTEGRITY** | Not shown to the chair as a warning — handled by §10's transactional surfaces instead (stale snapshot, duplicate commit, etc.) | N/A | **Yes, blocks commit** |
+
+The SYSTEM_INTEGRITY tier is a narrow carve-out for the four
+conditions that genuinely cannot be safely overridden:
+
+1. **Stale snapshot** — applicant's status changed server-side since
+   the chair loaded the page. Routes to `StaleClickRecoveryModal` per
+   §10.3.
+2. **Duplicate commit** — idempotency key already processed
+   successfully. Server returns the prior result (replay path from
+   §9.2); the chair never sees a warning, they see the success state.
+3. **Invalid state transition** — e.g., trying to APPROVE from
+   WAITLISTED when policy requires moving through CHAIR_REVIEW first.
+4. **Authorization failure** — chair no longer has permission at
+   commit time (role revoked mid-session). Redirects to the chair
+   queue with an explanatory toast.
+
+Everything else — including every "this looks like a mistake"
+signal — is INFO, CAUTION, or HIGH_RISK. The chair can always
+proceed with acknowledgement.
+
+**Severity examples:**
+
+| Scenario | Severity |
+|----------|----------|
+| Chair is deciding in 40 seconds on an applicant with 4 interviews | INFO |
+| Approval rationale is shorter than 30 characters | CAUTION |
+| Chair selects REJECT but rationale is generic ("Not a fit") | CAUTION |
+| Chair selects REJECT with short rationale and reject-reason-code = "Other" | HIGH_RISK (legal-safety) |
+| Any interview review has `flagForLeadership = true` | HIGH_RISK |
+| Any interview question tagged `RED_FLAG` | HIGH_RISK |
+| Chair's final action contradicts the majority interviewer recommendation | HIGH_RISK |
+| Consensus cache is stale (inputs changed since last generation) | INFO |
+| Another chair committed on this application 2 seconds ago | SYSTEM_INTEGRITY (stale snapshot) |
+| Same idempotency key already succeeded | SYSTEM_INTEGRITY (duplicate commit) |
+
+### 12.3 Warning Sources
+
+Warnings are generated deterministically from a single
+`FinalReviewSnapshot` object built server-side. The snapshot is the
+input to both the warning engine and the context hash (see §12.11).
+Sources:
+
+**Rubric & score patterns** — aggregates of `InstructorInterviewReview`
+and `InstructorApplicationReview` per-category scores. Variance
+detection (high disagreement), extremes (all BEHIND, all ABOVE),
+incompleteness (reviewer skipped ≥ 3 categories).
+
+**Interview comment content** — the free-text fields on interview
+reviews (`overallNotes`, `demeanorNotes`, `maturityNotes`,
+`communicationNotes`, `professionalismNotes`, `followUpItems`,
+`curriculumFeedback`, `revisionRequirements`). Used for
+presence/absence checks — not sentiment analysis (per our "derive
+sentiment, don't persist" rule, we also don't infer it beyond what
+the recommendation field already encodes).
+
+**Interview question tags** — `InterviewAnswerTag` values on
+`InstructorInterviewQuestionResponse`, especially `RED_FLAG`,
+`WEAK_ANSWER`, and `STRONG_ANSWER` counts.
+
+**Missing or thin evidence** — submitted-review counts, rationale
+length, reject reason code granularity, material upload presence.
+
+**Reviewer disagreement** — variance across `overallRating` and
+`recommendation` values for a given application.
+
+**Consensus confidence** — from `InstructorApplicationConsensus`:
+`confidence` ("HIGH" | "MIXED" | "LOW") and `stale` flag.
+
+**Application metadata** — applicant chapter vs. chair chapter
+(the cross-chapter question flagged in §18), applicant withdrew-and-
+reapplied history, prior rescinded decisions.
+
+**Prior workflow activity** — last timeline event recency, unresolved
+`WorkflowComment` entries, notification failures, pending
+`REQUEST_INFO` that was never answered.
+
+**Decision-action mismatch** — the chair's pending action vs. what
+the consensus / scores / recommendations suggest.
+
+**Readiness checklist gaps** — the four signals from §6.4 surfaced
+as warnings when the chair proceeds anyway.
+
+All sources read from the `FinalReviewSnapshot` — no live DB queries
+inside the warning engine. This makes the engine pure, testable, and
+deterministic: given the same snapshot, the same warnings emerge
+every time.
+
+### 12.4 Warning Catalog
+
+Twenty-two warnings catalogued below. Each has a stable `warningKey`
+that the UI, audit events, and analytics reference. All warning keys
+match `^[a-z][a-z0-9_]+$` (lowercase snake_case).
+
+| Warning key | Severity | Trigger condition | User-facing copy | Suggested action | Blocks commit? | Analytics event |
+|-------------|----------|-------------------|------------------|------------------|----------------|------------------|
+| `approve_with_low_interview_score` | HIGH_RISK | Action ∈ {APPROVE, APPROVE_WITH_CONDITIONS} AND ≥ 1 submitted `InstructorInterviewReview.overallRating = BEHIND_SCHEDULE` | "One interviewer rated this applicant *Below expectations* overall — are you sure you want to approve?" | Open the interview review; confirm you've considered the low score. | No (requires ack) | `final_review.warning.approve_with_low_interview_score` |
+| `reject_with_high_interview_score` | HIGH_RISK | Action = REJECT AND ≥ 1 submitted `overallRating = ABOVE_AND_BEYOND` | "One interviewer rated this applicant *Above and beyond* — rejecting despite strong feedback." | Review the positive interview; confirm rejection rationale addresses it. | No (requires ack) | `final_review.warning.reject_with_high_interview_score` |
+| `approve_without_interview_comments` | CAUTION | Action ∈ {APPROVE, APPROVE_WITH_CONDITIONS} AND 0 submitted interview reviews have any non-empty free-text note field | "No interviewer has left narrative notes on this applicant." | Consider pinging interviewers to add notes, or proceed if you have sufficient context. | No | `final_review.warning.approve_without_interview_comments` |
+| `final_decision_conflicts_with_consensus` | HIGH_RISK | Pending action does not match majority `InstructorInterviewReview.recommendation` across ≥ 2 submitted reviews | "Your decision doesn't match the majority of interviewer recommendations (2 say *Accept*, you selected *Reject*)." | Read the dissenting recommendations carefully; add explicit rationale addressing them. | No (requires ack) | `final_review.warning.final_decision_conflicts_with_consensus` |
+| `no_recent_reviewer_activity` | INFO | No `InstructorApplicationTimelineEvent` in the past 14 days | "No activity on this applicant in 14 days." | Verify the applicant isn't stalled waiting on someone. | No | `final_review.warning.no_recent_reviewer_activity` |
+| `unresolved_internal_comments` | CAUTION | ≥ 1 `WorkflowComment` (kind = COMMENT) authored in the past 30 days without a resolution marker | "2 internal comments haven't been resolved." | Open the comment thread; resolve or acknowledge before committing. | No | `final_review.warning.unresolved_internal_comments` |
+| `missing_required_training_note` | CAUTION | Applicant has a prior approval-with-conditions whose conditions include training; no `TRAINING_NOTE` signal exists for the referenced training checkpoint | "Expected training note for *Module 2 onboarding* is missing." | Check if training was actually completed; ping the training lead if unclear. | No | `final_review.warning.missing_required_training_note` |
+| `high_reviewer_disagreement` | CAUTION | Variance across submitted `overallRating` values spans ≥ 2 scale points (e.g., one BEHIND, one ABOVE) | "Interviewers disagreed significantly on this applicant." | Review the score matrix; read the most divergent reviewers' notes. | No | `final_review.warning.high_reviewer_disagreement` |
+| `rubric_scores_incomplete` | CAUTION | Any submitted interview review has ≥ 3 category ratings unset | "*Alex Chen* left 3 of 7 rubric categories unscored." | Consider whether incomplete rubrics affect your confidence in this decision. | No | `final_review.warning.rubric_scores_incomplete` |
+| `duplicate_commit_detected` | SYSTEM_INTEGRITY | Submitted `idempotencyKey` matches an existing `ChairDecisionCommitAttempt` with `result = SUCCESS` and differing input payload | (not shown — server returns `{ replayed: true }` or blocks with structured error) | N/A (handled by §9.2) | **Yes** | `final_review.warning.duplicate_commit_detected` |
+| `stale_consensus_cache` | INFO | `InstructorApplicationConsensus.stale = true` OR `inputHash ≠ currentReviewsHash` | "Consensus summary is based on older data — latest reviews may change the picture." | Regenerate the summary before deciding. | No | `final_review.warning.stale_consensus_cache` |
+| `applicant_status_changed_since_page_load` | SYSTEM_INTEGRITY | Snapshot's loaded status ≠ current DB status at commit time (i.e., no longer `CHAIR_REVIEW`) | (not shown as warning — triggers `StaleClickRecoveryModal` per §10.3) | N/A (handled by §10.3) | **Yes** | `final_review.warning.applicant_status_changed_since_page_load` |
+| `thin_evidence_for_rejection` | HIGH_RISK | Action = REJECT AND `rationale.length < 80` AND `rejectReasonCode = "Other"` | "Rejecting with a short free-text reason and no specific reason code can cause issues if the decision is appealed." | Add a specific reason code or expand the rationale to at least one paragraph. | No (requires ack) | `final_review.warning.thin_evidence_for_rejection` |
+| `thin_evidence_for_approval` | CAUTION | Action ∈ {APPROVE, APPROVE_WITH_CONDITIONS} AND `rationale.length < 30` | "Approval rationale is very brief." | Consider adding at least one sentence on why this applicant is a fit — helps future chairs and auditors. | No | `final_review.warning.thin_evidence_for_approval` |
+| `reliability_concern_present` | CAUTION | Any submitted review has non-empty `professionalismNotes` OR `followUpItems` OR an `InterviewAnswerTag = WEAK_ANSWER` on a reliability-competency question | "Interviewer flagged reliability or follow-through concerns." | Read the relevant notes; decide whether conditions (mentorship, check-in) address the concern. | No | `final_review.warning.reliability_concern_present` |
+| `communication_concern_present` | CAUTION | Any submitted review has non-empty `communicationNotes` OR the `COMMUNITY_FIT` category has `rating = BEHIND_SCHEDULE` | "Interviewer flagged communication concerns." | Review those notes; verify the applicant can succeed with the communication expectations of the role. | No | `final_review.warning.communication_concern_present` |
+| `needs_manual_admin_review` | HIGH_RISK | Any submitted review has `flagForLeadership = true` | "*Alex Chen* flagged this applicant for leadership review." | Confirm leadership has weighed in, or loop them in before you commit. | No (requires ack) | `final_review.warning.needs_manual_admin_review` |
+| `unusual_fast_decision` | INFO | Chair's time-on-page at commit is < 60 s AND application has ≥ 3 submitted interview reviews | "Deciding in under a minute with 3 interviews on file — take another pass if helpful." | Skim the consensus and risk flags before confirming. | No | `final_review.warning.unusual_fast_decision` |
+| `red_flag_tag_present` | HIGH_RISK | Any `InstructorInterviewQuestionResponse.tags` includes `RED_FLAG` | "2 red-flag tags on interview question responses." | Open the tagged questions; explicitly address them in your rationale. | No (requires ack) | `final_review.warning.red_flag_tag_present` |
+| `cross_chapter_chair_decision` | CAUTION | Actor's primary chapter ≠ applicant's chapter (and product has not resolved the open chapter-scope question from §18) | "You're deciding on an applicant from a chapter you don't lead." | Verify this is intentional; chapter scope for chairs is under review (see policy doc). | No | `final_review.warning.cross_chapter_chair_decision` |
+| `prior_rescinded_decision` | INFO | This application has ≥ 1 superseded `InstructorApplicationChairDecision` in history | "This applicant has a prior rescinded decision. Open the audit to review." | Glance at the superseded decision's rationale before committing. | No | `final_review.warning.prior_rescinded_decision` |
+| `conditions_without_owner` | CAUTION | Action = APPROVE_WITH_CONDITIONS AND ≥ 1 condition has `ownerId = null` | "1 condition has no owner assigned — nobody is on the hook to complete it." | Assign an owner or confirm the condition is self-serve. | No | `final_review.warning.conditions_without_owner` |
+
+Engine contract:
+- Every warning is a pure function of the `FinalReviewSnapshot`.
+- Warnings are computed server-side as part of
+  `getFinalReviewSnapshot` and client-side on pending-action change
+  (so the chair sees new warnings appear as they pick different
+  actions).
+- The client-computed warnings and server-computed warnings must
+  match at commit time; discrepancy triggers the `duplicate_commit_detected`
+  protection and forces a fresh snapshot load.
+
+§12 partial complete through 12.4; resume at 12.5.
