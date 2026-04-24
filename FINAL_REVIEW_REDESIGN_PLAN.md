@@ -4066,4 +4066,281 @@ Engine contract:
   match at commit time; discrepancy triggers the `duplicate_commit_detected`
   protection and forces a fresh snapshot load.
 
-§12 partial complete through 12.4; resume at 12.5.
+### 12.5 UI Placement
+
+Six placement zones, each with a specific job. A single warning may
+render in more than one zone — by design: the `conditions_without_owner`
+warning might appear as a chip in the readiness panel AND inline next
+to the offending condition row AND in the confirmation modal summary.
+The chair sees it where they're looking, not where the system thinks
+they *should* look.
+
+The golden rule: **warnings follow the chair; the chair does not
+follow the warnings.** We never force a modal when an inline chip
+would do. We never force an inline chip to be dismissed one-by-one
+when grouping in a single panel would do. We never interrupt the
+reading of interviewer narrative with a toast for something that
+isn't time-sensitive.
+
+#### 12.5.1 Zone 1 — Readiness Panel (right-rail, always visible)
+
+**What goes here:** the full authoritative list of warnings generated
+from the current snapshot, grouped by severity, always accessible.
+This is the *manifest* — the place the chair can verify every
+signal the system has noticed, whether or not they've seen it
+elsewhere.
+
+**Structure:**
+```
+┌ Risks & considerations ──────────────────┐
+│                                          │
+│  ▸ 2 HIGH_RISK warnings  [expand all]    │
+│    • Red flag raised by 2 interviewers   │
+│    • Decision conflicts with consensus   │
+│                                          │
+│  ▸ 3 CAUTION warnings                    │
+│    • (collapsed by default)              │
+│                                          │
+│  ▸ 2 INFO notes                          │
+│    • (collapsed by default)              │
+│                                          │
+└──────────────────────────────────────────┘
+```
+
+Rules:
+- HIGH_RISK group is expanded by default on page load
+- CAUTION and INFO groups collapsed by default; counts visible
+- Clicking a warning scrolls the affected evidence into view (e.g.,
+  `red_flag_tag_present` scrolls the matching question row in the
+  feed) and briefly highlights it with a 240 ms pulse
+- "Expand all" is a one-click affordance for chairs who prefer
+  full manifest mode
+- Panel auto-updates as the chair picks different actions — the
+  same warning engine runs client-side on every action-change
+  from §7's `DecisionButtons`
+
+#### 12.5.2 Zone 2 — Final Decision Card (sticky dock, above buttons)
+
+**What goes here:** a compact pre-commit preview line. Tells the
+chair, in one line, *how many unresolved HIGH_RISK warnings exist
+for the currently-pending action*. Encourages slow-down without
+requiring a full scroll back to the readiness panel.
+
+**Structure:**
+```
+┌ Decision dock ────────────────────────────────────────┐
+│  Rationale: "..."                          [Saved 2s] │
+│                                                       │
+│  ⚠ 2 risks to acknowledge before approving            │
+│                                                       │
+│  [Approve]  [Approve w/ conditions]  [Reject]  ...    │
+└───────────────────────────────────────────────────────┘
+```
+
+Rules:
+- Shown only when the pending action has ≥ 1 unresolved HIGH_RISK
+  warning. CAUTION and INFO do not render here.
+- Line copy is generated from the warning group, not hardcoded.
+- Click routes the chair to the confirmation modal's summary
+  directly (same destination as the action button itself — just a
+  preview-click path).
+- Disappears when all HIGH_RISK warnings for the pending action are
+  acknowledged.
+- Respects the adaptive primary button rule from §7.4 — if the
+  primary button shifts due to a new warning (e.g., a new interview
+  review lands and triggers `final_decision_conflicts_with_consensus`),
+  the risk preview line animates in beside the newly-primary
+  button.
+
+#### 12.5.3 Zone 3 — Confirmation Modal (blocking, pre-commit)
+
+**What goes here:** *only* the unresolved CAUTION and HIGH_RISK
+warnings that apply to the pending action, grouped by severity, with
+individual acknowledgement controls for HIGH_RISK. No INFO. No
+warnings for different actions than the one being confirmed.
+
+**Structure:**
+```
+┌ Confirm: Approve Alex Morgan ────────────────────────┐
+│                                                      │
+│  Risks (2 need acknowledgement)                      │
+│                                                      │
+│  ⛔ Red flag raised by 2 interviewers                 │
+│     [See evidence]  ☐ I've reviewed this risk        │
+│                                                      │
+│  ⛔ Decision conflicts with consensus                 │
+│     [See evidence]  ☐ I've reviewed this risk        │
+│                                                      │
+│  Considerations                                      │
+│  • Approval rationale is brief                       │
+│  • 1 condition has no owner                          │
+│                                                      │
+│  [Cancel]  [Confirm approval] ← disabled until ack'd │
+└──────────────────────────────────────────────────────┘
+```
+
+Rules:
+- **Strictly summarizes. Never duplicates.** Every warning shown in
+  the modal must already exist in the readiness panel; the modal
+  just surfaces the pending-action-relevant subset.
+- HIGH_RISK warnings render with `<input type="checkbox">` tied to
+  the acknowledgement flow (§12.6). The Confirm button is disabled
+  until every HIGH_RISK in this modal is acknowledged.
+- CAUTION warnings render as bulleted considerations — no checkbox,
+  no block.
+- **No nested modals.** If a chair clicks "See evidence", the
+  modal dims in-place (backdrop-filter blur) and a lightweight
+  inline drawer slides in from the right; closing returns the chair
+  to the modal with their ack state preserved.
+- Generalizes and replaces §8's `ContrarianWarningModal` — that
+  warning becomes one instance of `final_decision_conflicts_with_consensus`
+  rendered through this same surface. One component, many warnings.
+
+#### 12.5.4 Zone 4 — Audit Drawer / Review History Panel
+
+**What goes here:** warnings that *fired at commit time* for prior
+decisions on this application, alongside the structured audit
+events from §12.8. The drawer is the historical record — useful
+when a chair is reviewing a rescinded decision, or when a
+different chair is triaging the same applicant later.
+
+**Structure:**
+```
+┌ Audit history ─────────────────────────────────────────┐
+│                                                        │
+│  2026-04-24 16:28  Alex Chen approved with conditions  │
+│     Warnings at commit:                                │
+│     • Red flag raised by 2 interviewers [ack'd]        │
+│     • Thin evidence for approval                       │
+│     ▸ See rationale, conditions, timeline              │
+│                                                        │
+│  2026-04-20 09:12  Pat Kim requested more info         │
+│     Warnings at commit: none                           │
+│                                                        │
+└────────────────────────────────────────────────────────┘
+```
+
+Rules:
+- Warnings are immutable once committed — they reflect the state at
+  the time of the decision, not the state now. If the underlying
+  data later changes (e.g., a new interview review is submitted),
+  the historical warning snapshot is preserved.
+- Acknowledgements display inline so the audit shows *which* risks
+  the chair explicitly saw.
+- Drawer renders in Phase 2E's rescind surface (§13).
+
+#### 12.5.5 Zone 5 — Inline, Near Affected Evidence
+
+**What goes here:** a subset of warnings that point at a *specific*
+piece of evidence — `red_flag_tag_present` next to the tagged
+question, `conditions_without_owner` next to the condition row,
+`rubric_scores_incomplete` next to the incomplete reviewer's row
+in the score matrix.
+
+**Treatment:**
+- Small icon chip (`AlertOctagon` for HIGH_RISK, `AlertTriangle` for
+  CAUTION, `Info` for INFO), positioned in the top-right corner of
+  the evidence element
+- Hovering the chip shows a tooltip with the user-facing copy from
+  §12.4
+- Clicking the chip scrolls the same warning into focus in the
+  readiness panel (Zone 1) — tying inline and panel views together
+
+Rules:
+- Only warnings with a meaningful anchor element render inline.
+  Abstract warnings like `unusual_fast_decision` have no inline home
+  — they live in the readiness panel only.
+- Inline chips do NOT add additional copies of the warning count;
+  they're pointers, not duplicates. The Zone 1 panel is the
+  canonical count.
+
+#### 12.5.6 Zone 6 — Toast (system/process events only)
+
+**What goes here:** transient system feedback that is *about* the
+warning-acknowledgement flow, NOT warnings themselves.
+
+**Allowed toasts:**
+- "Warning acknowledged" — brief success tick, 2 s, no dismiss
+  needed
+- "Consensus recomputed with 3 new signals" — when the consensus
+  cache is refreshed mid-session and new warnings may have appeared
+- "Snapshot refreshed — 1 new warning" — when the server-side
+  snapshot changes (e.g., another admin added an internal note)
+
+**Banned toasts:**
+- ❌ "High-risk warning detected" — that's the readiness panel's
+  job, not a toast's. Toasts for substantive warnings train chairs
+  to ignore them (toast blindness) and violate the "warnings
+  follow the chair" rule.
+- ❌ "Are you sure?" — acknowledgement is a checkbox in the
+  modal, never a toast.
+- ❌ Any toast that is purely advisory without a time-sensitive
+  reason.
+
+This is the sharpest line in the placement system: substantive
+judgment warnings NEVER surface as toasts. If we find ourselves
+reaching for a toast to warn about a decision quality signal,
+the answer is to improve the readiness panel or the modal
+summary — not add a toast.
+
+#### 12.5.7 Visual Hierarchy
+
+Four ordering rules, applied top-down everywhere warnings render:
+
+1. **By severity first.** HIGH_RISK always renders above CAUTION
+   always renders above INFO. Never mix severities within a single
+   group — three CAUTION warnings and one HIGH_RISK is displayed as
+   two groups, not interleaved.
+2. **By warning key alphabetically within severity.** Stable
+   ordering across renders so a chair who scanned the list once
+   doesn't have to re-find a warning on the next render. Alphabetical
+   by `warningKey` is deterministic; trigger time would drift and is
+   not surfaced here.
+3. **Expand/collapse state is per-group, not per-warning.** The
+   chair toggles "HIGH_RISK (2)" or "CAUTION (3)" headers; they do
+   not micromanage individual rows. Collapsed state persists via
+   URL param (`?warnGroups=caution,info` = these groups collapsed)
+   so a page refresh does not undo the chair's scan preference.
+4. **Detailed rationale is behind an inline disclosure.** Each
+   warning row has a default compact form (the user-facing copy
+   from §12.4) plus an optional "Why is this flagged?" link that
+   expands to show the trigger condition in plain language. This
+   lets a power chair learn the system without cluttering the
+   default view.
+
+Visual weight pairing with §2.5 tokens:
+- HIGH_RISK rows use `--score-weak` border + `--score-weak` icon
+- CAUTION rows use `--score-mixed` border + icon
+- INFO rows use `--ink-muted` border + `Info` icon in
+  `--ink-muted`
+- Focused/highlighted row gets a 240 ms `--ypp-primary` pulse
+  (when the chair clicks "See evidence" from an inline chip or
+  the confirmation modal)
+
+#### 12.5.8 Anti-Patterns Explicitly Banned
+
+To keep this from drifting into "warning spam" over time, we enumerate
+what the system will *not* do:
+
+- ❌ **Modal per warning.** One confirmation modal ever. Warnings
+  group inside it; they do not chain modals.
+- ❌ **Full-page warning interstitial.** The "review these warnings
+  before proceeding" full-page step is the worst pattern in
+  enterprise software. Warnings live where the chair is already
+  looking.
+- ❌ **Auto-popping warnings on page load.** The readiness panel
+  shows the summary; opening the panel is the chair's choice.
+- ❌ **Badges or toasts that dismiss themselves after 3 s for
+  HIGH_RISK items.** HIGH_RISK warnings are not transient.
+- ❌ **Color-only severity signaling.** All severities are also
+  paired with an icon and a label per §2.10 accessibility rules.
+- ❌ **Warnings that speak in the first person ("I noticed...").**
+  Keep copy factual and direct ("Red flag raised by 2 interviewers")
+  — never anthropomorphic.
+- ❌ **Persistent top-of-page warning bars** unless they're the
+  SYSTEM_INTEGRITY surfaces from §10 (sync rollback, stale snapshot,
+  network recovery). Soft warnings live in the readiness panel,
+  the dock, the modal, inline, or the audit drawer — never as a
+  persistent banner.
+
+§12.5 complete; resume at 12.6.
