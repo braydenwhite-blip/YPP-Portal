@@ -1371,6 +1371,52 @@ Each phase exits with the system in a shippable state (behind the `ENABLE_INTERA
 
 **Estimated effort.** ~4 sessions.
 
+### Phase 5 — In-flight status (as of this commit)
+
+This commit lands the **majority** of Phase 5. The remaining items below are scoped, small, and unblocked — any follow-up session can pick them up without re-planning.
+
+**✅ Done in this commit:**
+
+Beat kinds (all 12 now implemented end-to-end):
+- `SortOrder.tsx` — dnd-kit `DndContext` + `MouseSensor` + `TouchSensor` + `KeyboardSensor` (via `sortableKeyboardCoordinates`); `role="list"` + `aria-label` on each row with position/label; custom `announcements` for drag start/over/end/cancel.
+- `MatchPairs.tsx` — left slots via `useDroppable`, right chips via `useDraggable`; plus a `<select>` fallback per slot (lists unassigned right items + current assignment) for keyboard/screen-reader paths; a right chip in a slot removes it from any previous pair.
+- `FillInBlank.tsx` — `<textarea>` with `maxLength: 200`, `aria-label` wired to `beat.prompt`; optional `hint` rendered below with `aria-live="polite"`; emits `null` when empty so Check disables.
+- `Hotspot.tsx` — visual overlay zones are `aria-hidden` + `tabIndex={-1}`; **all keyboard/AT input routes through a parallel `role="radiogroup"` list** (plan §11 R7). Image `onError` falls back to a text label.
+- `BranchingScenario.tsx` — scenario-framed radiogroup mirroring `ScenarioChoice` keyboard/ARIA; displays `config.rootPrompt` as a styled scenario block; non-null `leadsToChildSourceKey` shows a `⤷` indicator with `aria-label="leads to a follow-up scenario"`.
+- `MessageComposer.tsx` — per-pool fieldset with radio (max=1) or checkbox (max>1) pattern; live `aria-live="polite"` preview of the composed message; `isResponseValid = pools.every(p => selectedIds.length >= (p.minSelections ?? 1))`.
+
+`BeatRenderer.tsx` switch is now exhaustive — all 12 kinds have a `case`. The Phase-4 "unsupported kind" fallback still exists as a safety net but should be unreachable.
+
+Branching traversal wired end-to-end:
+- `JourneyAttemptSummary` extended with `response: unknown | null` (in `lib/training-journey/client-contracts.ts`) so the client can resolve predicates on ancestor attempts.
+- Viewer RSC (`app/(app)/training/[id]/page.tsx`) now threads `attempt.response` into the summary shipped to the shell.
+- `JourneyPlayer.evaluateShowWhen()` is no longer a stub — it looks up the ancestor's `{ selectedOptionId }` in the in-memory attempts list and compares via `equals` / `in` / `notEquals`.
+- `JourneyPlayer.setAttempts(...)` now carries the submitted response through on every beat submit (so M3 children resolve without a page refresh).
+- `lib/training-journey/actions.ts` `completeInteractiveJourney()` now filters `scoredBeats` through the same `showWhen` evaluator **server-side** — the readiness check only demands visible scored beats, and `maxScore` denominator sums only visible weights. This is the plan §4 Module 3 rule: "denominator only counts beats the user actually saw". `visitedBeatCount` retains its prior semantics (any beat with at least one attempt).
+
+Curriculum:
+- `lib/training-curriculum/run-a-great-session.ts` — **M2** authored (9 beats: CONCEPT_REVEAL, SORT_ORDER×2 with `partialCredit`, SCENARIO_CHOICE×2, FILL_IN_BLANK with regex fallbacks, COMPARE, REFLECTION, completion CONCEPT_REVEAL). ~70 pts scored; 80% pass.
+- `lib/training-curriculum/communication-reliability.ts` — **M4** authored (7 beats: CONCEPT_REVEAL, MESSAGE_COMPOSER×2, MULTI_SELECT threshold, SCENARIO_CHOICE, SPOT_THE_MISTAKE, completion CONCEPT_REVEAL).
+  - Beat 2 rubric: `requiredTags: ["apologetic","specific-eta"]`, `bannedTags: ["blame-shifting","vague-eta"]`. Correct combo: `open-apology + mid-specific-eta + any closing`.
+  - Beat 3 rubric: `requiredTags: ["acknowledging","specific-taught","next-step"]`, `bannedTags: ["defensive","dismissive"]`. Correct combo: `ack-direct + spec-lesson + next-action`.
+
+**🚧 Remaining (do these next — small, unblocked):**
+
+1. **Author Module 3** — `lib/training-curriculum/student-situations.ts`. Detailed spec (7 beats, three BRANCHING_SCENARIO trees with 2 children each, MATCH_PAIRS, two CONCEPT_REVEAL) is in `/root/.claude/plans/write-only-hzlf-of-crystalline-firefly.md`. Author directly in two passes (the subagent route hit stream-idle timeouts on this file twice). Key schema: children nested under `children[]` with `showWhen: { ancestorSourceKey, equals: <optionId> }`; "Distracted student" root uses `correctOptionId: null` (the scorer treats every choice as "noted" in that mode); "Quiet" and "Dominates" roots have a clear `correctOptionId`.
+2. **Register all three new modules** in `lib/training-curriculum/index.ts` — add imports for `M2_RUN_A_GREAT_SESSION`, `M3_STUDENT_SITUATIONS`, `M4_COMMUNICATION_RELIABILITY` and add their `contentKey`s to `CURRICULUM_REGISTRY`.
+3. **Run `npm run training:validate`** — the Zod validator should pass on all four modules. If a prompt exceeds 280 chars or feedback is missing a `"default"` key, the script prints a pointed error.
+4. **E2E tests** (new files under `tests/e2e/`, mirror the structure of `training-journey-m1.e2e.ts`):
+    - `training-journey-m2.e2e.ts` — complete M2 keyboard-only including both `SORT_ORDER` beats (arrow keys + Space to move items). Assert the hub marks M2 complete.
+    - `training-journey-m3.e2e.ts` — walk TWO different branches through the "Quiet student" tree (path A: `soft-invite` → child 2a; path B: `cold-call` → child 2b), assert the other path's child does NOT render, assert both complete scores correctly use the visited-only denominator.
+    - `training-journey-m4.e2e.ts` — run the "running late" composer with the correct trio → pass; swap to `open-blame` (blame-shifting banned) → verify score 0. Repeat for the parent-email composer: correct trio → pass; replace ack with defensive snippet → fail.
+    - `training-hub-unlock.e2e.ts` — fresh user, only M1 unlocked; complete M1, refresh, M2 unlocked; complete M2, M3 unlocked; etc.
+5. **Scoring unit tests** — extend `tests/lib/training-journey/scoring.test.ts` (create if absent) with:
+    - `BRANCHING_SCENARIO`: correct pick → correct + full score; wrong pick → incorrect + 0; `correctOptionId: null` → correct + full score for any pick (tone: "noted").
+    - `MESSAGE_COMPOSER`: required-tags-present + no-banned → full score; banned-tag present → score 0 regardless of required; partial — some required missing, no banned → partial credit proportional to hits.
+    - Visited-denominator: consider adding a unit test for `completeInteractiveJourney`'s visible-filter logic by factoring the `isVisible` helper out to a pure function in `lib/training-journey/scoring.ts` or a neighbouring file so it's unit-testable without DB mocks. (Fine to defer — the e2e test above covers it end-to-end.)
+
+**Exit gate (re-stated, authoritative for this phase):** all four modules playable and registered; `training:validate` passes; the five e2e scripts above pass; the three scoring unit test groups pass.
+
 ---
 
 ## 10.5. Build Roadmap — Part 2 (Gate, Hub, Admin, Launch)
