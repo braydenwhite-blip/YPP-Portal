@@ -109,6 +109,7 @@ enum TrainingModuleType {
   SCENARIO_PRACTICE
   CURRICULUM_REVIEW
   RESOURCE
+  INTERACTIVE_JOURNEY // NEW
 }
 
 enum TrainingStatus {
@@ -1174,6 +1175,10 @@ model User {
   supabaseAuthId String?   @unique @map("supabase_auth_id")
   archivedAt     DateTime?
 
+  // Interactive Training Journey
+  interactiveBeatAttempts       InteractiveBeatAttempt[]
+  interactiveJourneyCompletions InteractiveJourneyCompletion[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -1519,6 +1524,7 @@ model TrainingModule {
   quizQuestions       TrainingQuizQuestion[]
   quizAttempts        TrainingQuizAttempt[]
   evidenceSubmissions TrainingEvidenceSubmission[]
+  interactiveJourney  InteractiveJourney?
   createdAt           DateTime                     @default(now())
   updatedAt           DateTime                     @updatedAt
 }
@@ -10431,4 +10437,122 @@ model ApplicantAvailabilityWindow {
 
   @@index([chapterPresidentApplicationId])
   @@index([instructorApplicationId])
+}
+
+// ============================================
+// INTERACTIVE TRAINING JOURNEY MODELS
+// ============================================
+
+enum InteractiveBeatKind {
+  CONCEPT_REVEAL
+  SCENARIO_CHOICE
+  MULTI_SELECT
+  SORT_ORDER
+  MATCH_PAIRS
+  SPOT_THE_MISTAKE
+  FILL_IN_BLANK
+  BRANCHING_SCENARIO
+  REFLECTION
+  COMPARE
+  HOTSPOT
+  MESSAGE_COMPOSER
+}
+
+model InteractiveJourney {
+  id       String         @id @default(cuid())
+  moduleId String         @unique
+  module   TrainingModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  estimatedMinutes Int
+  passScorePct     Int     @default(80)
+  strictMode       Boolean @default(false)
+  version          Int     @default(1)
+
+  beats       InteractiveBeat[]
+  completions InteractiveJourneyCompletion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model InteractiveBeat {
+  id        String             @id @default(cuid())
+  journeyId String
+  journey   InteractiveJourney @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+
+  sourceKey String
+  sortOrder Int
+  kind      InteractiveBeatKind
+  title     String
+  prompt    String              @db.Text
+  mediaUrl  String?
+
+  config        Json
+  schemaVersion Int  @default(1)
+
+  scoringWeight Int     @default(10)
+  scoringRule   String?
+
+  parentBeatId String?
+  parent       InteractiveBeat?  @relation("BeatBranch", fields: [parentBeatId], references: [id], onDelete: Cascade)
+  children     InteractiveBeat[] @relation("BeatBranch")
+  showWhen     Json?
+
+  attempts InteractiveBeatAttempt[]
+
+  removedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([journeyId, sourceKey])
+  @@unique([journeyId, sortOrder])
+  @@index([parentBeatId])
+}
+
+model InteractiveBeatAttempt {
+  id     String          @id @default(cuid())
+  beatId String
+  beat   InteractiveBeat @relation(fields: [beatId], references: [id], onDelete: Cascade)
+  userId String
+  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  attemptNumber         Int
+  response              Json
+  responseSchemaVersion Int     @default(1)
+  correct               Boolean
+  score                 Int
+  timeMs                Int?
+  hintsShown            Int     @default(0)
+
+  attemptedAt DateTime @default(now())
+
+  @@unique([beatId, userId, attemptNumber])
+  @@index([userId, beatId, attemptedAt])
+  @@index([userId, attemptedAt])
+}
+
+model InteractiveJourneyCompletion {
+  id        String             @id @default(cuid())
+  journeyId String
+  journey   InteractiveJourney @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  totalScore           Int
+  maxScore             Int
+  scorePct             Int
+  passed               Boolean
+  firstTryCorrectCount Int     @default(0)
+  xpEarned             Int     @default(0)
+  visitedBeatCount     Int
+
+  moduleBreakdown  Json?
+  personalizedTips Json?
+
+  completedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([journeyId, userId])
+  @@index([userId, completedAt])
 }

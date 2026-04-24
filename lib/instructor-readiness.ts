@@ -43,12 +43,14 @@ const TRACKABLE_REQUIRED_VIDEO_PROVIDERS = new Set(["YOUTUBE", "VIMEO", "CUSTOM"
 type RequiredTrainingModule = {
   id: string;
   title: string;
+  type: string;
   videoUrl: string | null;
   videoProvider: string | null;
   requiresQuiz: boolean;
   requiresEvidence: boolean;
   checkpoints: { id: string }[];
   quizQuestions: { id: string }[];
+  interactiveJourney: { id: string } | null;
 };
 
 type InstructorTrainingAssignment = {
@@ -126,7 +128,7 @@ export function isInterviewGateEnforced() {
   return envTrue(raw);
 }
 
-function buildInstructorReadinessFromSnapshot({
+export function buildInstructorReadinessFromSnapshot({
   instructorId,
   featureEnabled,
   interviewRequired,
@@ -152,7 +154,9 @@ function buildInstructorReadinessFromSnapshot({
       Boolean(trainingModule.videoUrl) ||
       requiredCheckpointCount > 0 ||
       trainingModule.requiresQuiz ||
-      trainingModule.requiresEvidence;
+      trainingModule.requiresEvidence ||
+      (trainingModule.type === "INTERACTIVE_JOURNEY" &&
+        Boolean(trainingModule.interactiveJourney));
 
     if (!hasActionablePath) {
       moduleConfigIssueById.set(
@@ -316,6 +320,7 @@ export async function getInstructorReadinessMany(
           select: {
             id: true,
             title: true,
+            type: true,
             videoUrl: true,
             videoProvider: true,
             requiresQuiz: true,
@@ -325,6 +330,9 @@ export async function getInstructorReadinessMany(
               select: { id: true },
             },
             quizQuestions: {
+              select: { id: true },
+            },
+            interactiveJourney: {
               select: { id: true },
             },
           },
