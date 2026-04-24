@@ -22,18 +22,21 @@ redesign; implementation work should reference it.
    queue control, status banner
 7. **Components — Phase 2B: Decision Dock & Draft Rationale** — the decision
    surface composed, autosave, adaptive dock state (no commit yet)
-8. **Components — Phase 2C: Commit Flow & Post-Decision** — confirmation modal,
-   conditions editor, reason codes, the server action wiring, rollback UX,
-   toast advance, rescind
-9. **Components — Phase 3: Feedback, Consensus & Matrix** — the world-class
-   differentiation layer
-10. **Unified Feedback System** — ReviewSignal abstraction, pinning, sentiment,
+8. **Components — Phase 2C: Confirmation & Action Forms** — the pre-commit
+   modal, conditions editor, reason code picker, contrarian warning
+9. **Components — Phase 2D: Commit Wiring & Failure Surfaces** — `chairDecide`
+   extension, idempotency, sync rollback banner, email failure, toast advance
+10. **Components — Phase 2E: Rescind & Audit** — superseding prior decisions,
+    conditions display, rescind modal for SUPER_ADMINs
+11. **Components — Phase 3: Feedback, Consensus & Matrix** — the world-class
+    differentiation layer
+12. **Unified Feedback System** — ReviewSignal abstraction, pinning, sentiment,
     consensus, threading, @mentions, filters
-11. **Data Model & Server Actions** — schema deltas, migrations, RBAC matrix,
+13. **Data Model & Server Actions** — schema deltas, migrations, RBAC matrix,
     autosave
-12. **Quality, Edge Cases & Launch Readiness** — regressions, edge cases, test
+14. **Quality, Edge Cases & Launch Readiness** — regressions, edge cases, test
     plan, performance budgets, launch checklist
-13. **Execution Roadmap & Open Questions** — phased rollout, quick wins vs.
+15. **Execution Roadmap & Open Questions** — phased rollout, quick wins vs.
     bigger builds, final recommendation, product decisions needed
 
 ---
@@ -2185,4 +2188,438 @@ picker, and conditions editor live entirely in 2C.
 
 ---
 
-*Sections 8–13 to follow.*
+## 8. Components — Phase 2C: Confirmation & Action Forms
+
+**Phase 2C mission:** the pre-commit UI. After 2C merges, clicking any
+action button in the dock opens a fully-formed confirmation modal with
+a summary of what is about to happen, action-specific inputs
+(conditions checklist, reject reason code), and a contrarian warning
+when the chair's choice disagrees with the interviewer consensus or
+the data is incomplete. The Confirm button is still a no-op —
+2D wires `chairDecide()`.
+
+The split matters because 2C is pure form UI, validation, and copy —
+reviewable by the hiring team without any backend risk. Product can
+sign off on the reason codes and condition presets before the
+transactional code lands in 2D.
+
+**Exit criteria for Phase 2C:**
+1. `DecisionConfirmModal` renders for all seven `ChairDecisionAction`
+   values with action-specific content
+2. `DecisionSummaryCard` inside the modal shows consequence string,
+   superseded-prior-decision warning if any, email preview snippet,
+   and readiness gaps
+3. `ApproveWithConditionsEditor` renders for `APPROVE_WITH_CONDITIONS`
+   with the preset checklist from product + custom "Add condition"
+   affordance
+4. `RejectReasonCodePicker` renders for `REJECT` with five reason
+   codes driving the email template selection
+5. `ContrarianWarningModal` appears before the main confirm modal when
+   the chair's pick contradicts consensus (e.g., Approve with a
+   `RED_FLAG` tag) or data is incomplete (zero submitted interview
+   reviews, chair picks Approve)
+6. Esc closes; backdrop click closes (except when required field is
+   dirty — confirm-before-close prompt)
+7. Focus trap works per §2.10; focus returns to the originating action
+   button on close
+8. All action-specific text content copy-reviewed by product
+9. Analytics events `final_review.confirm_modal_opened` and
+   `final_review.confirm_modal_dismissed` fire
+
+### 8.1 Components in this phase
+
+| # | Component | File | LOC | Client? |
+|---|-----------|------|-----|---------|
+| 1 | `DecisionConfirmModal` | `components/instructor-applicants/final-review/DecisionConfirmModal.tsx` | ~200 | yes |
+| 2 | `DecisionSummaryCard` | `components/instructor-applicants/final-review/DecisionSummaryCard.tsx` | ~140 | no |
+| 3 | `ApproveWithConditionsEditor` | `components/instructor-applicants/final-review/ApproveWithConditionsEditor.tsx` | ~190 | yes |
+| 4 | `RejectReasonCodePicker` | `components/instructor-applicants/final-review/RejectReasonCodePicker.tsx` | ~120 | yes |
+| 5 | `ContrarianWarningModal` | `components/instructor-applicants/final-review/ContrarianWarningModal.tsx` | ~130 | yes |
+| 6 | `EmailPreviewSnippet` | `components/instructor-applicants/final-review/EmailPreviewSnippet.tsx` | ~80 | no |
+
+Plus ~160 LOC of CSS in `app/globals.css` scoped to Phase 2C (modal
+chrome, editor checklist styles, reason picker).
+
+### 8.2 `DecisionConfirmModal` — the container
+
+**Purpose.** The focus-trapped native `<dialog>` that mounts at the
+cockpit root (not inside the dock, so the backdrop can cover the
+full viewport). Renders action-specific children in a consistent
+frame: header, body slot, footer with Cancel + primary Confirm.
+
+**Props.**
+```ts
+interface DecisionConfirmModalProps {
+  open: boolean;
+  action: ChairDecisionAction;
+  application: {
+    id: string;
+    displayName: string;
+    chapterName: string | null;
+    status: InstructorApplicationStatus;
+  };
+  rationale: string;
+  comparisonNotes: string;
+  readiness: ReadinessSignals;
+  priorDecision: ChairDecisionSummary | null;  // for supersede warning
+  interviewerConsensus: {
+    totalReviews: number;
+    recommendations: Record<InstructorInterviewRecommendation, number>;
+    redFlagCount: number;
+  };
+  onCancel: () => void;
+  onConfirm: (payload: ConfirmPayload) => void;   // 2D wires this
+  submitting: boolean;                            // 2D controls this
+  error: string | null;                           // 2D provides this
+}
+```
+
+**Body slot routing.**
+- `APPROVE` → `<DecisionSummaryCard>` only
+- `APPROVE_WITH_CONDITIONS` → `<DecisionSummaryCard>` + `<ApproveWithConditionsEditor>`
+- `REJECT` → `<DecisionSummaryCard>` + `<RejectReasonCodePicker>`
+- `HOLD` / `WAITLIST` / `REQUEST_INFO` / `REQUEST_SECOND_INTERVIEW` →
+  `<DecisionSummaryCard>` with action-appropriate copy; no extra
+  inputs
+
+**Confirm button state.** Disabled until:
+- Required rationale is present (REJECT, REQUEST_INFO)
+- At least one condition is added for APPROVE_WITH_CONDITIONS
+- A reason code is selected for REJECT
+- `submitting === false`
+
+**Motion.** Backdrop fades in 200 ms; modal dialog springs up with
+`scale: 0.96 → 1` and `y: 16 → 0` per §2.7 micro-interaction #3.
+Reduced-motion: no scale/translate, just opacity fade.
+
+**Confirm-before-close.** If the chair has added conditions or typed
+in the reason-code "other" textarea and then hits Esc or clicks
+backdrop, show a second inline confirm: *"Discard unsaved changes?"*.
+Only fires when there's actually dirty state beyond the already-
+autosaved rationale.
+
+**Accessibility.**
+- Native `<dialog>` for built-in focus trap
+- `aria-labelledby` points to the modal header
+- `aria-describedby` points to the consequence string in the summary
+  card
+- Focus lands on the first focusable element in the body on open; on
+  close, focus returns to the originating `<ActionButton>`
+
+### 8.3 `DecisionSummaryCard` — what's about to happen
+
+**Purpose.** A read-only summary block at the top of the confirm modal
+body. Answers the chair's final question: *"What will this actually
+do?"* before they click Confirm.
+
+**Props.**
+```ts
+interface DecisionSummaryCardProps {
+  action: ChairDecisionAction;
+  applicantDisplayName: string;
+  chapterName: string | null;
+  rationale: string;
+  readiness: ReadinessSignals;
+  priorDecision: ChairDecisionSummary | null;
+  consensusSnapshot: ConsensusSnapshot;
+}
+```
+
+**Rendering layers (top to bottom):**
+
+1. **Headline** — action-specific, e.g., *"Approve Jane Doe for Physics
+   instructor role — MIT chapter."* Uses `--text-xl` + `--font-title`.
+2. **Consequence string** — exact, plain-language: what changes in the
+   system. Examples:
+   - `APPROVE` → *"This grants Jane the INSTRUCTOR role, enrolls her in
+     training, and sends an approval email. This action supersedes the
+     prior decision by Alex Chen from 3 days ago (HOLD)."* (supersede
+     line only if `priorDecision != null`)
+   - `REJECT` → *"This sets the application status to REJECTED and
+     sends Jane a rejection email using the selected reason code."*
+   - `WAITLIST` → *"This sets the application status to WAITLISTED.
+     No email is sent automatically — add the applicant to the
+     waitlist roster manually."*
+   - `REQUEST_SECOND_INTERVIEW` → *"This returns the application to
+     interview scheduling (Round 2). Prior round-1 interviews remain
+     visible in the audit trail."*
+3. **Readiness warning** — if `readinessPercentage < 100`, lists the
+   missing signals with icons (e.g., *"⚠ 1 of 2 interview reviews
+   pending — Alex Chen's review is still DRAFT"*).
+4. **Consensus snapshot** — three chips summarizing reviewer
+   recommendations: *"Accept ×2 · Hold ×1 · Reject ×0"*. Color-matched
+   to the sentiment palette from §2.5.
+5. **Email preview** — `<EmailPreviewSnippet>` showing the first ~200
+   chars of the outgoing email with a *"see full email"* disclosure.
+   Only for actions that send emails (APPROVE, APPROVE_WITH_CONDITIONS,
+   REJECT, HOLD, REQUEST_INFO).
+
+**State.** None — pure presentational.
+
+**Motion.** None on mount — the card is static content inside the
+already-animated modal.
+
+### 8.4 `ApproveWithConditionsEditor`
+
+**Purpose.** A checklist-first conditions editor for
+APPROVE_WITH_CONDITIONS. The vast majority of conditions are picked
+from a preset vocabulary — chair should not have to type them from
+scratch. A custom "Other" field exists for edge cases.
+
+**Props.**
+```ts
+interface ApproveWithConditionsEditorProps {
+  conditions: DecisionCondition[];
+  onChange: (conditions: DecisionCondition[]) => void;
+  presetOptions: ConditionPreset[];  // loaded from lib/condition-presets.ts
+}
+
+type ConditionPreset = {
+  id: string;
+  label: string;        // "Mentorship pair-up for first semester"
+  defaultOwner: "CHAIR" | "CHAPTER_LEAD" | "INSTRUCTOR" | null;
+  defaultDueOffsetDays: number | null;   // from decisionAt
+};
+
+type DecisionCondition = {
+  id: string;           // cuid, generated client-side
+  label: string;
+  ownerId: string | null;
+  dueAt: string | null; // ISO
+  source: "preset" | "custom";
+};
+```
+
+**Preset vocabulary (v1 — reviewable by product before ship):**
+1. Mentorship pair-up for first semester
+2. Mid-semester instructor check-in with chair
+3. Teaching shadow with an experienced instructor before first class
+4. Complete asynchronous onboarding module 1 before class start
+5. Submit signed agreement form by due date
+6. Attend chapter president 1:1 within first 2 weeks
+7. First-class observation by chapter lead
+
+Each preset is a checkbox. Checking adds a `DecisionCondition` to the
+array; unchecking removes it. Owner and due date are populated from
+the preset defaults and are edit-in-place inline.
+
+**Custom condition input.** Below the preset list, an `+ Add custom
+condition` button reveals a textarea + owner dropdown + due-date
+picker. Hard cap: **10 conditions total** (presets + custom combined).
+Soft warning at 6. Zero conditions blocks Confirm.
+
+**Validation.**
+- `label.trim().length > 0` and `≤ 300` chars
+- `ownerId` must reference a valid User (loaded via existing
+  typeahead pattern from `components/instructor-applicants/InterviewerAssignPicker.tsx`)
+- `dueAt` must be today or later
+
+**Motion.** Adding/removing a condition uses
+`AnimatePresence` + `motion.li` with `layout` so the list reflows
+smoothly (250 ms spring). Reduced-motion: instant.
+
+### 8.5 `RejectReasonCodePicker`
+
+**Purpose.** A structured reason code selector for REJECT. Drives the
+rejection email template so chairs don't author rejection prose from
+scratch and so legal has consistent language in the candidate file.
+
+**Props.**
+```ts
+interface RejectReasonCodePickerProps {
+  reasonCode: RejectReasonCode | null;
+  onChange: (code: RejectReasonCode, freeText: string | null) => void;
+  freeText: string | null;
+}
+
+type RejectReasonCode =
+  | "TEACHING_FIT"
+  | "COMMUNICATION"
+  | "PROFESSIONALISM"
+  | "RED_FLAG"
+  | "OTHER";
+```
+
+**Rendering.** Five radio cards in a vertical stack, each with:
+- Title (e.g., *"Teaching fit"*)
+- One-line description (e.g., *"Curriculum depth or pedagogical
+  approach not aligned with program expectations."*)
+- An inline snippet showing the email tone that will be generated
+
+Selecting `OTHER` reveals a required textarea with 500-char cap:
+*"Describe the reason — this text replaces the standard email
+template for this case."*
+
+**Validation.** If `reasonCode === null`, parent modal disables
+Confirm. If `reasonCode === "OTHER"` and `freeText.trim() === ""`,
+parent disables Confirm.
+
+**State.** None — fully controlled.
+
+**Product decision (§15).** The exact copy for each reason code's
+email template is a product deliverable, not an engineering one. This
+component is ready to render any text product provides; template
+content lives in `lib/email-templates/rejection.ts` (new file in
+Phase 2D).
+
+### 8.6 `ContrarianWarningModal`
+
+**Purpose.** A pre-pre-confirm step when the chair's chosen action
+disagrees with reviewer consensus or data is materially incomplete.
+Triggers before `DecisionConfirmModal` opens. If the chair confirms
+the warning, proceed to the main modal. If they cancel, return to
+the dock with the draft intact.
+
+**Triggers.** Computed by a pure function `detectContrarianSignals`
+(`lib/contrarian-signals.ts`, new):
+- Action is `APPROVE` or `APPROVE_WITH_CONDITIONS` but ≥1 interview
+  review contains a `RED_FLAG` tag
+- Action is `APPROVE` or `APPROVE_WITH_CONDITIONS` and majority of
+  submitted interview reviews recommend `REJECT`
+- Action is `APPROVE` or `APPROVE_WITH_CONDITIONS` and
+  `hasSubmittedInterviewReviews === false` (zero interviews; the
+  QA-flagged P0 edge case)
+- Action is `REJECT` and majority of submitted interview reviews
+  recommend `ACCEPT` or `ACCEPT_WITH_SUPPORT`
+- Action is `REJECT` and `priorDecision?.action === "APPROVE"` (chair
+  is reversing a prior approval — should usually use rescind flow in
+  Phase 2E instead)
+
+**Props.**
+```ts
+interface ContrarianWarningModalProps {
+  open: boolean;
+  signals: ContrarianSignal[];
+  action: ChairDecisionAction;
+  onCancel: () => void;
+  onConfirm: () => void;   // proceeds to DecisionConfirmModal
+}
+```
+
+**Rendering.** A focused modal (smaller than the main confirm) with
+one amber `AlertTriangle` icon at top, a headline like *"Your
+decision conflicts with reviewer feedback"*, then each signal
+rendered as a bullet with evidence:
+- *"2 interviewers recommended Reject — Alex Chen, Jordan Patel"*
+- *"1 red-flag tag raised by Alex Chen on question 'Handling a
+  disruptive student'"*
+
+Footer: *"Go back"* (secondary) and *"Continue to confirmation"*
+(primary, amber-toned to reinforce the caution). No auto-dismiss.
+
+**Audit.** If the chair proceeds, `final_review.contrarian_override`
+analytics event fires with the signal list; 2D passes the same
+`overrideWarnings: true` flag into `chairDecide` so the server
+records the override in the timeline event payload.
+
+### 8.7 `EmailPreviewSnippet`
+
+**Purpose.** A small, read-only preview of what the outgoing email
+will look like, rendered inside `DecisionSummaryCard`. Gives the
+chair last-second confidence that the email tone is appropriate
+before committing.
+
+**Props.**
+```ts
+interface EmailPreviewSnippetProps {
+  action: ChairDecisionAction;
+  applicantDisplayName: string;
+  rationale: string;
+  conditions?: DecisionCondition[];
+  rejectReasonCode?: RejectReasonCode | null;
+  rejectFreeText?: string | null;
+}
+```
+
+**Rendering.** A 2-line subject + first ~200 chars of body in a
+gray-bordered card styled like an email client preview pane. A
+disclosure toggle expands the full rendered HTML email in a read-only
+iframe sandboxed for safety.
+
+**Data source.** Uses the same `lib/email-templates/*` modules that
+the server action will use at commit time, so preview and actual
+email stay in sync. For actions that don't send emails (WAITLIST,
+REQUEST_SECOND_INTERVIEW), renders a muted *"No email sent for this
+action."*
+
+### 8.8 Files touched in Phase 2C
+
+| Status | Path | Notes |
+|--------|------|-------|
+| [NEW] | `components/instructor-applicants/final-review/DecisionConfirmModal.tsx` | §8.2 |
+| [NEW] | `components/instructor-applicants/final-review/DecisionSummaryCard.tsx` | §8.3 |
+| [NEW] | `components/instructor-applicants/final-review/ApproveWithConditionsEditor.tsx` | §8.4 |
+| [NEW] | `components/instructor-applicants/final-review/RejectReasonCodePicker.tsx` | §8.5 |
+| [NEW] | `components/instructor-applicants/final-review/ContrarianWarningModal.tsx` | §8.6 |
+| [NEW] | `components/instructor-applicants/final-review/EmailPreviewSnippet.tsx` | §8.7 |
+| [NEW] | `lib/condition-presets.ts` | The preset vocabulary; reviewable by product |
+| [NEW] | `lib/contrarian-signals.ts` | Pure function `detectContrarianSignals(application, action)` |
+| [NEW] | `lib/email-templates/approval.ts` | Template renderer; shared with 2D's email send |
+| [NEW] | `lib/email-templates/approval-with-conditions.ts` | |
+| [NEW] | `lib/email-templates/rejection.ts` | Keyed by `RejectReasonCode` |
+| [NEW] | `lib/email-templates/hold.ts` | |
+| [NEW] | `lib/email-templates/request-info.ts` | |
+| [MODIFY] | `components/instructor-applicants/final-review/FinalReviewCockpit.tsx` | Mount `<DecisionConfirmModal>` and `<ContrarianWarningModal>` at cockpit root; wire `pendingIntent` flow from dock |
+| [MODIFY] | `app/globals.css` | ~160 LOC under `/* Phase 2C */`: modal chrome, editor, reason picker, preview card |
+
+### 8.9 Dependencies between Phase 2C components
+
+```
+FinalReviewCockpit
+  ├── [Phase 2B] DecisionDock → emits action intent
+  ├── ContrarianWarningModal (conditionally precedes the main modal)
+  └── DecisionConfirmModal
+        ├── DecisionSummaryCard
+        │     └── EmailPreviewSnippet
+        ├── ApproveWithConditionsEditor  (when action = APPROVE_WITH_CONDITIONS)
+        └── RejectReasonCodePicker       (when action = REJECT)
+```
+
+All Phase 2C components depend on Phase 1 primitives
+(`RecommendationBadge`, `RatingChip` for consensus snapshot) plus the
+Phase 2A `ReadinessSignals` type. Pure UI — no server actions invoked
+by any 2C component.
+
+### 8.10 Analytics events introduced in Phase 2C
+
+| Event | Payload | Purpose |
+|-------|---------|---------|
+| `final_review.confirm_modal_opened` | `{ applicationId, action, readinessPercentage, hasContrarianWarning }` | Funnel: click → intent → confirm |
+| `final_review.confirm_modal_dismissed` | `{ applicationId, action, reason: "cancel" \| "backdrop" \| "escape" \| "discard_dirty" }` | Where chairs bail out |
+| `final_review.contrarian_warning_shown` | `{ applicationId, action, signals: string[] }` | How often the warning fires |
+| `final_review.contrarian_override` | `{ applicationId, action, signals: string[] }` | Chair proceeds anyway — audit input |
+| `final_review.condition_added` | `{ applicationId, source: "preset" \| "custom", presetId?: string }` | Preset adoption — tune the vocabulary |
+| `final_review.reject_reason_selected` | `{ applicationId, reasonCode }` | Distribution of rejection reasons |
+
+### 8.11 Phase 2C risks
+
+- **Preset vocabulary churn.** If product iterates the condition list
+  after launch, the change is a one-file edit (`lib/condition-presets.ts`)
+  — no migration. But: existing `InstructorApplicationChairDecision.conditions`
+  rows reference the labels as strings, so renamed presets don't
+  retroactively rename decided records. This is intentional; the
+  decision captures the label as-of-decide-time. Documented in §13
+  schema notes.
+- **Email preview diverging from actual email.** The preview and the
+  commit-time email must render from the same template module. Shared
+  `lib/email-templates/*` files enforce this. Integration test in §14
+  asserts the preview string equals the first ~200 chars of the sent
+  email body.
+- **Contrarian warning fatigue.** If chairs hit the warning on every
+  split decision, they'll train themselves to click through without
+  reading. Mitigation: the signals list is specific (names and quote
+  excerpts, not generic counts) and the button copy is *"Continue to
+  confirmation"* not *"I understand"* — making the chair acknowledge
+  the next step, not the warning itself.
+- **Conditions payload validation.** Client-side validation prevents
+  common errors but is not authoritative. 2D's `chairDecide` server
+  action must re-validate: label length, ownerId exists, dueAt in
+  the future, max 10 items. This is enumerated in §11.
+- **Modal backdrop over sticky regions.** The dock (z-index 20) and
+  snapshot bar (z-index 10) must not bleed through the modal backdrop
+  (z-index 50). Verified by Playwright visual regression at all four
+  breakpoints.
+
+---
+
+*Sections 9–15 to follow.*
