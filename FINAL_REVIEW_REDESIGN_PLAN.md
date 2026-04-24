@@ -17,20 +17,23 @@ redesign; implementation work should reference it.
 4. **Layout, Grid & Responsive** — 12-column grid, sticky regions, breakpoints,
    touch adaptations
 5. **Components — Phase 1: Shell & Layout Primitives** — cockpit shell, context,
-   hotkeys, layout wrappers, shared chips
+   layout wrappers, shared chips
 6. **Components — Phase 2A: Snapshot & Queue Navigator** — situational awareness,
    queue control, status banner
-7. **Components — Phase 2B: Decision Dock & Commit Flow** — the decision surface,
-   autosave, confirmation, the action itself
-8. **Components — Phase 3: Feedback, Consensus & Matrix** — the world-class
+7. **Components — Phase 2B: Decision Dock & Draft Rationale** — the decision
+   surface composed, autosave, adaptive dock state (no commit yet)
+8. **Components — Phase 2C: Commit Flow & Post-Decision** — confirmation modal,
+   conditions editor, reason codes, the server action wiring, rollback UX,
+   toast advance, rescind
+9. **Components — Phase 3: Feedback, Consensus & Matrix** — the world-class
    differentiation layer
-9. **Unified Feedback System** — ReviewSignal abstraction, pinning, sentiment,
-   consensus, threading, @mentions, filters
-10. **Data Model & Server Actions** — schema deltas, migrations, RBAC matrix,
+10. **Unified Feedback System** — ReviewSignal abstraction, pinning, sentiment,
+    consensus, threading, @mentions, filters
+11. **Data Model & Server Actions** — schema deltas, migrations, RBAC matrix,
     autosave
-11. **Quality, Edge Cases & Launch Readiness** — regressions, edge cases, test
+12. **Quality, Edge Cases & Launch Readiness** — regressions, edge cases, test
     plan, performance budgets, launch checklist
-12. **Execution Roadmap & Open Questions** — phased rollout, quick wins vs.
+13. **Execution Roadmap & Open Questions** — phased rollout, quick wins vs.
     bigger builds, final recommendation, product decisions needed
 
 ---
@@ -122,30 +125,31 @@ No spinners on the critical path. (Skeletons cover the matrix and feed if the
 payload streams late, never the snapshot.)
 
 **Orient (5–20 s).** Eyes go to the consensus chip. If it reads "Strong
-consensus — Hire" and the risk-flag pill is empty, the chair can hit `A` *now*.
-If it reads "Mixed: 1 Hire, 1 Hold," the chair scrolls — and the score matrix
-auto-highlights the categories where reviewers diverge most.
+consensus — Hire" and the risk-flag pill is empty, the chair can click
+Approve *now*.  If it reads "Mixed: 1 Hire, 1 Hold," the chair scrolls
+— and the score matrix auto-highlights the categories where reviewers
+diverge most.
 
 **Decide.** Three fast paths:
 
-- **Path A — Strong hire (~15 s).** Hit `A`. A compact confirmation slides up
-  with the rationale field pre-filled (`"Unanimous accept, no flags. Approved."`).
-  Hit `Enter`. The decision is recorded.
+- **Path A — Strong hire (~15 s).** Click Approve. A compact
+  confirmation slides up with the rationale field pre-filled (`"Unanimous
+  accept, no flags. Approved."`). Click Confirm. The decision is recorded.
 
-- **Path B — Clear reject (~45 s).** Hit `R`. Modal requires one *required
-  reason code* (drop-down: *Teaching fit*, *Communication*, *Professionalism*,
-  *Red flag*, *Other*) plus free text. The reason code drives the
-  legally-safe candidate email template — chairs no longer have to author
-  rejection prose from scratch.
+- **Path B — Clear reject (~45 s).** Click Reject. Modal requires one
+  *required reason code* (drop-down: *Teaching fit*, *Communication*,
+  *Professionalism*, *Red flag*, *Other*) plus free text. The reason
+  code drives the legally-safe candidate email template — chairs no
+  longer have to author rejection prose from scratch.
 
-- **Path C — Borderline (~5–8 min).** Hit `C` to enter the conditional-approve
-  flow, or scroll. The matrix auto-highlights divergent categories. The chair
-  pins quotes from the activity feed by hitting `P`; pinned quotes appear in
-  the rationale draft as cited citations. APPROVE_WITH_CONDITIONS opens a
-  *checklist* of common conditions (mentorship pair-up, mid-semester check-in,
-  teaching shadow) rather than a free-text void — the chair is rarely
-  inventing a new condition; they're picking from a vocabulary the program
-  already uses.
+- **Path C — Borderline (~5–8 min).** Click Approve-with-Conditions, or
+  scroll. The matrix auto-highlights divergent categories. The chair
+  pins quotes from the activity feed with a click on the pin icon;
+  pinned quotes appear in the rationale draft as cited citations.
+  APPROVE_WITH_CONDITIONS opens a *checklist* of common conditions
+  (mentorship pair-up, mid-semester check-in, teaching shadow) rather
+  than a free-text void — the chair is rarely inventing a new condition;
+  they're picking from a vocabulary the program already uses.
 
 **Commit (<2 s).** Decision saves through the existing `chairDecide()` server
 action. Optimistic UI flips the dock state immediately, with rollback on
@@ -154,10 +158,11 @@ notification email fails (existing `lastNotificationError` field), a
 persistent banner surfaces — silent failure is the single most damaging bug in
 the current system and the redesign fixes it visibly.
 
-**Next.** The success toast offers the next applicant in the queue with their
-avatar, name, and chapter visible: *"Next: Alex Morgan, MIT — press `J`."*
-This is the single biggest throughput win — zero round trips through the
-queue page. The chair stays in flow.
+**Next.** The success toast offers the next applicant in the queue with
+their avatar, name, and chapter visible: *"Next: Alex Morgan, MIT →."*
+One click on the toast's primary CTA and the chair lands on the next
+applicant. Zero round trips through the queue page. The chair stays in
+flow.
 
 ### 1.6 Trust and confidence design
 
@@ -217,12 +222,12 @@ The queue is an integral part of the cockpit, not a separate page the chair
 returns to between decisions. Three integration points:
 
 1. **Sticky snapshot bar** carries a `3 of 12 in queue` counter and prev/next
-   arrows. `J`/`K` keys navigate.
+   arrows.
 2. **Dropdown of remaining queued applicants** under the counter, with avatar
    + chapter + days-in-queue, so the chair can re-order intuition (do the
    week-old ones first, do same-chapter in batch).
 3. **Auto-advance toast** after each decision offers the next applicant by
-   name; chair hits `J` (or clicks) to land on it instantly. Next.js
+   name; one click on the toast lands on it instantly. Next.js
    `<Link prefetch>` makes the navigation feel instant.
 
 ### 1.9 Collaboration model
@@ -258,8 +263,8 @@ the new cockpit:
    surfaces showed them what to weigh, they don't second-guess later.
 2. **They moved fast.** A 15-applicant queue cleared in under an hour, with
    the borderline cases getting the time they deserved.
-3. **They felt the system worked with them, not against them.** Keyboard
-   shortcuts, autosave, queue-aware navigation, smart defaults — the
+3. **They felt the system worked with them, not against them.** Autosave,
+   queue-aware navigation, smart defaults, and adaptive dock states — the
    software disappeared into the workflow.
 
 That's the bar. Sections 2–8 of this plan are implementation in service of
@@ -467,11 +472,12 @@ pulses for 200 ms when a save lands. On error, the dot turns amber and the
 text becomes "Retrying…" — never a blocking spinner. Lives in the
 `SaveStateIndicator` component (§4).
 
-**2. Pin a quote.** Press `P` while hovering a feed item. The item gets a
-purple left-border accent (200 ms ease-in-out), a small `📌` indicator
-fades in (120 ms), and the item animates via `layoutId` to the pinned rail
-above the feed. The animation makes the *spatial relationship* between
-"feed" and "pinned" obvious without requiring explanation.
+**2. Pin a quote.** A pin-icon button appears on hover in the top-right
+of each feed item. Click it. The item gets a purple left-border accent
+(200 ms ease-in-out), the pin icon switches to filled state (120 ms),
+and the item animates via `layoutId` to the pinned rail above the feed.
+The animation makes the *spatial relationship* between "feed" and
+"pinned" obvious without requiring explanation.
 
 **3. Decision confirm modal.** Backdrop fades in 200 ms; the dialog itself
 springs up from the dock with a subtle `scale: 0.96 → 1` and `y: 16 → 0`.
@@ -501,8 +507,8 @@ must handle gracefully:
   a primary action *"Nudge interviewers."*
 - *No risk flags:* a small green check + *"No flags detected."* No big
   empty illustration — that's overkill for a successful-by-default state.
-- *No pinned signals:* one line of help text *"Press `P` while hovering a
-  comment to pin it for your rationale."*
+- *No pinned signals:* one line of help text *"Click the pin icon on any
+  comment to save it here for your rationale."*
 
 **Loading states.** Skeletons that match the shape of the content.
 - Snapshot bar: gray pill placeholders for name, chapter, and chips.
@@ -573,12 +579,6 @@ sends approval email, moves applicant to APPROVED."* Consensus chips use
 announcement without stealing focus. Pinned-rail item count announces on
 change.
 
-**Keyboard shortcuts and input scope.** The single most-likely UX bug is
-the chair typing rationale and the letter `A` triggering Approve. Solution:
-the `useHotkeys` hook (per `react-hotkeys-hook`) ignores events whose
-target is `input | textarea | [contenteditable]` unless the user holds
-`Meta`/`Ctrl`. Help overlay (`?` key) lists every shortcut.
-
 **Touch targets.** ≥44 px on all decision controls. Phone is read-only;
 tablet (768–1023 px) supports full decisioning.
 
@@ -607,7 +607,6 @@ polish time in the schedule:
   motion variants (~10 components → 5 dev days)
 - **1 day** for the consensus card alone — the headline element
 - **1 day** for the score matrix — the densest signal in the cockpit
-- **1 day** for keyboard shortcut hints + the `?` help overlay
 - **1 day** for skeletons across all loading states
 - **1 day** for the empty-state composition pass
 
@@ -735,8 +734,9 @@ blocks the render on an LLM call.
 
 ### 3.4 Server vs client boundary
 
-The `FinalReviewCockpit` shell is a **client component** (it owns hotkeys,
-the decision-confirm modal, Framer Motion contexts). Every heavy
+The `FinalReviewCockpit` shell is a **client component** (it owns
+context state, the decision-confirm modal, and Framer Motion contexts).
+Every heavy
 sub-tree below it stays client because they share state through a
 `FinalReviewContext`. Three pieces of *presentational* content are
 server-rendered and passed as children for the smallest possible initial
@@ -798,7 +798,7 @@ prefetch points:
    time the chair clicks, the code is in the bfcache.
 2. **Post-decision auto-advance toast** — when the toast renders, it
    preloads the next applicant's data via `router.prefetch(nextUrl)` so
-   pressing `J` or clicking the toast button lands in under 200 ms.
+   clicking the toast button lands in under 200 ms.
 
 What we **don't** prefetch:
 - Sibling applicants in the dropdown (cardinality is too high; only the
@@ -1124,8 +1124,7 @@ Chairs occasionally export a decision record for a candidate file. We
 don't ship a custom print stylesheet in this redesign, but the layout
 must not break:
 
-- `@media print { .decision-dock, .keyboard-shortcut-hints,
-  .queue-navigator { display: none } }`
+- `@media print { .decision-dock, .queue-navigator { display: none } }`
 - Background colors print as white; text prints as `--ink-default`.
 - Sticky positions become static.
 
@@ -1166,8 +1165,8 @@ and exercised, because every later phase depends on them.
 2. Snapshot bar and decision dock placeholders are sticky; right rail is
    sticky; scroll behavior matches §4
 3. Framer Motion `MotionConfig` respects `prefers-reduced-motion`
-4. `useHotkeys` hook ignores keystrokes inside inputs; `?` opens a
-   keyboard help overlay
+4. Focus management: tabbing through all interactive placeholders
+   follows visual order, focus rings visible, no `outline: none`
 5. Visual regression snapshots taken at all four breakpoints
 6. Zero decision actions wired up (placeholders only)
 
@@ -1175,16 +1174,15 @@ and exercised, because every later phase depends on them.
 
 | # | Component | File | LOC | Client? |
 |---|-----------|------|-----|---------|
-| 1 | `FinalReviewCockpit` | `components/instructor-applicants/final-review/FinalReviewCockpit.tsx` | ~180 | yes |
+| 1 | `FinalReviewCockpit` | `components/instructor-applicants/final-review/FinalReviewCockpit.tsx` | ~150 | yes |
 | 2 | `FinalReviewContext` | `components/instructor-applicants/final-review/FinalReviewContext.tsx` | ~90 | yes |
-| 3 | `useHotkeys` | `lib/use-hotkeys.ts` | ~60 | n/a |
-| 4 | `ReviewWorkspace` | `components/instructor-applicants/final-review/ReviewWorkspace.tsx` | ~40 | no |
-| 5 | `FeedbackPanel` | `components/instructor-applicants/final-review/FeedbackPanel.tsx` | ~30 | no |
-| 6 | `SignalPanel` | `components/instructor-applicants/final-review/SignalPanel.tsx` | ~30 | no |
-| 7 | `ReviewerIdentityChip` (shared) | `components/instructor-applicants/shared/ReviewerIdentityChip.tsx` | ~50 | no |
-| 8 | `RecommendationBadge` (shared) | `components/instructor-applicants/shared/RecommendationBadge.tsx` | ~40 | no |
-| 9 | `RatingChip` (shared) | `components/instructor-applicants/shared/RatingChip.tsx` | ~40 | no |
-| 10 | `SaveStateIndicator` (shared) | `components/shared/SaveStateIndicator.tsx` | ~50 | yes |
+| 3 | `ReviewWorkspace` | `components/instructor-applicants/final-review/ReviewWorkspace.tsx` | ~40 | no |
+| 4 | `FeedbackPanel` | `components/instructor-applicants/final-review/FeedbackPanel.tsx` | ~30 | no |
+| 5 | `SignalPanel` | `components/instructor-applicants/final-review/SignalPanel.tsx` | ~30 | no |
+| 6 | `ReviewerIdentityChip` (shared) | `components/instructor-applicants/shared/ReviewerIdentityChip.tsx` | ~50 | no |
+| 7 | `RecommendationBadge` (shared) | `components/instructor-applicants/shared/RecommendationBadge.tsx` | ~40 | no |
+| 8 | `RatingChip` (shared) | `components/instructor-applicants/shared/RatingChip.tsx` | ~40 | no |
+| 9 | `SaveStateIndicator` (shared) | `components/shared/SaveStateIndicator.tsx` | ~50 | yes |
 
 Plus CSS additions in `app/globals.css` covering the layout, surfaces,
 and tokens defined in §2 — approximately 200 LOC scoped to Phase 1.
@@ -1192,8 +1190,8 @@ and tokens defined in §2 — approximately 200 LOC scoped to Phase 1.
 ### 5.2 `FinalReviewCockpit` — the client shell
 
 **Purpose.** Top-level client component mounted by the server route. Owns
-the cross-section context, keyboard shortcut registration, Framer Motion
-config, and the skip-to-dock accessibility link.
+the cross-section context, Framer Motion config, and the skip-to-dock
+accessibility link.
 
 **Props.**
 ```ts
@@ -1213,10 +1211,6 @@ interface FinalReviewCockpitProps {
 **Motion.** Wraps the page body in `<MotionConfig reducedMotion="user">`.
 Mounts a single `<AnimatePresence>` that wraps the route transition, so
 cross-applicant navigation uses the fade-and-slight-Y pattern (§2.6).
-
-**Keyboard.** Mounts `useHotkeys` with the base shortcut map (J/K queue
-navigation, ? help overlay). Phase 2 will extend this map with A/R/W/I
-decision shortcuts.
 
 **Loading/empty/error.** Delegates to route-level `loading.tsx` and
 `error.tsx`. If `application.status !== "CHAIR_REVIEW"`, renders a
@@ -1254,37 +1248,7 @@ expose minimal slices so the matrix re-renders on focus change without
 the entire feed re-rendering on pin change. Context split can come later
 if the profiler shows waste; for v1, one context, two narrow hooks.
 
-### 5.4 `useHotkeys` — the keyboard hook
-
-**Purpose.** The single entry point for keyboard shortcuts in the cockpit.
-Prevents the most likely UX bug: letter keys firing while the chair types
-rationale.
-
-**API.**
-```ts
-type HotkeyMap = Record<string, (e: KeyboardEvent) => void>;
-
-export function useHotkeys(map: HotkeyMap, options?: {
-  ignoreInputs?: boolean;   // default true
-  scope?: string;           // for future scoped hotkeys
-}): void;
-```
-
-**Behavior.**
-- Listens on `window` via a single `keydown` handler.
-- Ignores events whose `target` matches `input, textarea, [contenteditable="true"]`
-  unless the user holds `Meta` or `Ctrl`.
-- Keys are matched case-insensitively; modifier keys written as
-  `"meta+a"`, `"ctrl+shift+p"`.
-- Cleans up listeners on unmount.
-- Normalizes `?` to handle the `shift+/` physical key.
-
-**Implementation note.** We considered `react-hotkeys-hook` (~8 kB) — fine
-to adopt if we want multi-scope support later, but for Phase 1 a ~60 LOC
-custom hook is simpler and has no dependency. Revisit if Phase 3
-introduces scoped hotkeys inside modals.
-
-### 5.5 `ReviewWorkspace` / `FeedbackPanel` / `SignalPanel`
+### 5.4 `ReviewWorkspace` / `FeedbackPanel` / `SignalPanel`
 
 Three thin layout wrappers — pure presentation, zero state.
 
@@ -1304,7 +1268,7 @@ names. We wrap them as components so that (a) the contract is documented,
 Framer Motion scroll context — if we add one — has a natural mount
 point.
 
-### 5.6 Shared primitive — `ReviewerIdentityChip`
+### 5.5 Shared primitive — `ReviewerIdentityChip`
 
 **Purpose.** Avatar + name + role pill. Used in the score matrix rows,
 activity feed item headers, consensus dissent callout, and the existing
@@ -1329,7 +1293,7 @@ avatar image uploaded? Render initials circle in `--ypp-purple-400`.
 **Motion.** None in Phase 1. Phase 2 adds a subtle hover state (scale
 1.02, 120 ms) for clickable variants.
 
-### 5.7 Shared primitive — `RecommendationBadge`
+### 5.6 Shared primitive — `RecommendationBadge`
 
 **Purpose.** Single source of truth for recommendation and sentiment
 labels + colors. Replaces the `REC_COLOR` inline-style map currently
@@ -1357,7 +1321,7 @@ Missing recommendation renders as a muted *"Not yet reviewed"* chip.
 - `CONCERN` → `AlertTriangle` with `--score-concern`
 - `REJECT` → `X` with `--score-weak`
 
-### 5.8 Shared primitive — `RatingChip`
+### 5.7 Shared primitive — `RatingChip`
 
 **Purpose.** Renders a `ProgressStatus` rating (the 4-point
 `BEHIND_SCHEDULE | GETTING_STARTED | ON_TRACK | ABOVE_AND_BEYOND` scale)
@@ -1382,7 +1346,7 @@ signal. Deuteranopia and high-contrast mode both preserve meaning.
 "—" label, not a red or gray "fail" state. This matters because a
 missing rating is "not yet scored," not "poor."
 
-### 5.9 Shared primitive — `SaveStateIndicator`
+### 5.8 Shared primitive — `SaveStateIndicator`
 
 **Purpose.** The autosave status chip used in the decision dock's
 `DraftRationaleField` (Phase 2) and ready for reuse in any future inline
@@ -1409,7 +1373,7 @@ interface SaveStateIndicatorProps {
 cycle, respects reduced-motion (swaps to a static dot). The scale-in
 on `saved` is a 200 ms spring with `stiffness: 380, damping: 22`.
 
-### 5.10 Files touched in Phase 1
+### 5.9 Files touched in Phase 1
 
 | Status | Path | Notes |
 |--------|------|-------|
@@ -1425,20 +1389,18 @@ on `saved` is a 200 ms spring with `stiffness: 380, damping: 22`.
 | [NEW] | `components/instructor-applicants/shared/RecommendationBadge.tsx` | §5.7 |
 | [NEW] | `components/instructor-applicants/shared/RatingChip.tsx` | §5.8 |
 | [NEW] | `components/shared/SaveStateIndicator.tsx` | §5.9 |
-| [NEW] | `lib/use-hotkeys.ts` | §5.4 |
 | [NEW] | `lib/final-review-queries.ts` | `getApplicationForFinalReview`, `getChairQueueNeighbors`, `getChairDraft` |
 | [MODIFY] | `lib/feature-flags.ts` | Add `ENABLE_FINAL_REVIEW_V2` flag helper |
 | [MODIFY] | `app/globals.css` | ~200 LOC of tokens + layout classes from §2 + §4 |
 | [MODIFY] | `components/instructor-applicants/ApplicantCockpitHeader.tsx` | Swap inline owner-chip markup for `<ReviewerIdentityChip>` |
 | [MODIFY] | `components/instructor-applicants/ChairQueueBoard.tsx` | Delete `REC_COLOR`/`REC_LABELS` maps, use `<RecommendationBadge>` |
 
-### 5.11 Dependencies between Phase 1 components
+### 5.10 Dependencies between Phase 1 components
 
 ```
 FinalReviewCockpit
   ├── MotionConfig (framer-motion)
   ├── FinalReviewContext.Provider
-  ├── useHotkeys
   └── ReviewWorkspace
         ├── FeedbackPanel (placeholder children in Phase 1)
         └── SignalPanel   (placeholder children in Phase 1)
@@ -1450,7 +1412,7 @@ Shared primitives (standalone, zero dependencies between them):
 No circular dependencies. The shared primitives can be built in parallel
 by a second developer while the shell is being built.
 
-### 5.12 Phase 1 risks
+### 5.11 Phase 1 risks
 
 - **CSS bloat.** `app/globals.css` is already 9000+ lines. Adding 200
   more without structure invites entropy. Mitigation: put the new Phase 1
@@ -1485,8 +1447,8 @@ server-action wiring hits production.
    days-in-queue at all four breakpoints
 2. `DecisionReadinessMeter` accurately reflects the four signals
    (interviews, materials, recommendation, info requests)
-3. Queue navigator prev/next works with `<Link prefetch>`; `J`/`K`
-   keyboard shortcuts navigate without route flash
+3. Queue navigator prev/next works with `<Link prefetch>` — click
+   navigation lands the next route in under 200 ms on warm cache
 4. Dropdown lists remaining queued applicants, sortable
 5. If `status !== CHAIR_REVIEW`, `ApplicantStatusBanner` replaces the
    readiness meter with a read-only decided-by summary
@@ -1646,7 +1608,6 @@ interface QueueNavigatorProps {
   position: number;                    // 1-indexed
   total: number;
   siblings: QueueSibling[];            // for the dropdown
-  hotkeysEnabled?: boolean;            // default true
 }
 
 type QueueSibling = {
@@ -1662,8 +1623,9 @@ type QueueSibling = {
 - Arrow buttons use `<Link prefetch>` so hover primes the next route
 - Disabled state when prev/next is null (end of queue)
 - Position counter reads `"3 of 12"` in `--font-label`
-- `J`/`K` keys (via `useHotkeys`) navigate if `hotkeysEnabled`
 - Clicking the counter opens `<QueueSiblingDropdown>`
+- Arrow buttons are large tap targets (44 × 44 px) with clearly
+  distinct disabled states — no need to hunt for where to click
 
 **Motion.** Arrow buttons have a 120 ms translateX press effect (-2 px
 on press, 0 on release). Queue-advance arrow briefly shows a success
@@ -1759,7 +1721,9 @@ interface PostDecisionToastProps {
 **Behavior.**
 - Slides up from the dock region (400 ms spring per §2.6 surface-entry)
 - Auto-dismisses after 8 s unless hovered (pauses the timer)
-- Pressing `J` triggers `onAdvance` directly
+- Primary CTA button inside the toast is autofocused, so a single
+  `Enter` press (the universal browser behavior, not a custom hotkey)
+  triggers `onAdvance`
 - If `nextApplicant === null`, shows *"Queue cleared — nice work"* with
   a link back to the chair queue page
 
@@ -1834,10 +1798,391 @@ All events go through the existing `trackEvent` helper (`lib/analytics-actions.t
   views, the snapshot bar becomes information-dense. Mitigation:
   `ApplicantStatusBanner` replaces (not coexists with) the meter — the
   page is audit-mode, no decision possible.
-- **J/K collision with browser scroll.** Some browsers bind J/K to
-  tab navigation with extensions (Vimium). Mitigation: document this
-  in the help overlay; `Esc` deactivates hotkeys temporarily.
 
 ---
 
-*Sections 7–12 to follow.*
+## 7. Components — Phase 2B: Decision Dock & Draft Rationale
+
+**Phase 2B mission:** compose the decision surface without actually
+committing anything. After 2B merges, the chair sees the sticky dock,
+can type a rationale that autosaves, can pick comparison notes, and can
+*click* an action button — which opens a confirmation modal shell with
+all the right context but no server mutation. The shell stays
+disabled-on-confirm until Phase 2C wires the actual commit.
+
+This split isolates the composition work (pure UI, zero risk) from the
+transactional work (role grants, emails, rollback) so the high-risk
+server-action code in 2C lands after 2B's ergonomics are proven in
+staging.
+
+**Exit criteria for Phase 2B:**
+1. `DecisionDock` renders sticky at bottom with correct z-index (20) at
+   all four breakpoints per §4.4
+2. `DraftRationaleField` autosaves via the new `saveChairDraft` server
+   action with 800 ms debounce; `SaveStateIndicator` accurately shows
+   idle / saving / saved / error
+3. Draft persists across page reload (server source of truth, localStorage
+   warm fallback)
+4. On applicant change, the draft context resets cleanly — no bleed
+   from previous applicant's rationale
+5. Six action buttons render with adaptive primary state per the
+   state machine in §1.7 (readiness signals determine which is the
+   focused primary button)
+6. Clicking any action button opens the confirm modal *shell* (Phase 2C
+   fills it); Cancel closes it with preserved draft
+7. Rationale character counter appears at 8 k (soft), blocks at 10 k
+   (hard, server-enforced in 2C)
+8. Analytics events `final_review.draft_autosaved` and
+   `final_review.decision_intent` fire
+
+### 7.1 Components in this phase
+
+| # | Component | File | LOC | Client? |
+|---|-----------|------|-----|---------|
+| 1 | `DecisionDock` | `components/instructor-applicants/final-review/DecisionDock.tsx` | ~140 | yes |
+| 2 | `DraftRationaleField` | `components/instructor-applicants/final-review/DraftRationaleField.tsx` | ~180 | yes |
+| 3 | `DecisionButtons` | `components/instructor-applicants/final-review/DecisionButtons.tsx` | ~120 | yes |
+| 4 | `ActionButton` (inner primitive) | `components/instructor-applicants/final-review/ActionButton.tsx` | ~90 | yes |
+| 5 | `DraftCharCounter` | `components/instructor-applicants/final-review/DraftCharCounter.tsx` | ~50 | yes |
+
+Plus ~140 LOC of CSS in `app/globals.css` scoped to Phase 2B.
+
+### 7.2 `DecisionDock` — sticky bottom orchestrator
+
+**Purpose.** The 112 px sticky bottom bar. Holds the draft rationale
+field on the left and the decision buttons on the right. One of the
+three sticky regions from §4.4; z-index 20 keeps it below modals
+(50/60) but above the page flow.
+
+**Props.**
+```ts
+interface DecisionDockProps {
+  applicationId: string;
+  applicantDisplayName: string;      // for confirm modal headers in 2C
+  actorId: string;
+  initialDraft: {
+    rationale: string;
+    comparisonNotes: string;
+    savedAt: string | null;
+  };
+  readiness: ReadinessSignals;       // drives adaptive primary button
+  hasAnyInterviewReview: boolean;    // enables the red-flag override path
+  pendingIntent: ChairDecisionAction | null;   // for confirm modal in 2C
+  onIntentOpen: (action: ChairDecisionAction) => void;
+  onIntentClose: () => void;
+}
+```
+
+**Layout.**
+- Left (grid-cols 1–8 on desktop): `<DraftRationaleField>` with tabbed
+  rationale / comparison notes, `<DraftCharCounter>` below.
+- Right (grid-cols 9–12): `<DecisionButtons>` with 6 action buttons.
+- On tablet: stacks into two rows (rationale on top, buttons below).
+- Dock has `box-shadow: var(--shadow-dock)` pointing upward so it reads
+  as "floating above" the content.
+
+**State.** Owns `pendingIntent: ChairDecisionAction | null` — surfaced
+to parent via props so Phase 2C can mount the modal at cockpit root
+rather than inside the dock (required for focus trap + backdrop).
+
+**Motion.** First-mount entrance per §2.6 pattern 1 (spring, y: 32 → 0,
+220 stiffness). On applicant change, no motion — the dock is "the same
+dock," only its contents change. Content changes inside (rationale
+field resetting, buttons re-computing primary state) animate per §2.6
+state-change (200 ms easeInOut).
+
+**Read-only mode.** When `status !== CHAIR_REVIEW` (already decided),
+the dock renders collapsed to a 56 px row showing *"This application
+was already decided — [view audit trail]."* No rationale field, no
+action buttons. Phase 2C adds the rescind link for super-admins.
+
+### 7.3 `DraftRationaleField` — autosaved tabbed textarea
+
+**Purpose.** The rationale composer. Two tabs — *Rationale* (what the
+applicant sees paraphrased in emails) and *Comparison notes* (internal
+only, for the audit trail). Autosaves with visible status feedback.
+One of the five signature micro-interactions (§2.7).
+
+**Props.**
+```ts
+interface DraftRationaleFieldProps {
+  applicationId: string;
+  actorId: string;
+  initialRationale: string;
+  initialComparisonNotes: string;
+  initialSavedAt: string | null;
+  onChange: (draft: { rationale: string; comparisonNotes: string }) => void;
+  requiredForIntent: ChairDecisionAction | null;
+  // if set, shows "required" asterisk and tooltip explaining why
+}
+```
+
+**State.**
+- Local: `rationale`, `comparisonNotes`, `activeTab` ("rationale" | "notes"),
+  `saveState` ("idle" | "saving" | "saved" | "error"), `lastSavedAt`.
+- Uses a single `useRef<NodeJS.Timeout>` for debounce.
+
+**Autosave behavior.**
+- On any change, immediately call `onChange` (so parent dock knows)
+  and schedule a debounced save 800 ms out.
+- Debounced save calls `saveChairDraft({ applicationId, rationale,
+  comparisonNotes })` — the new server action introduced in §11.
+- State machine:
+  - user types → `saveState = "idle"`, timer starts
+  - timer fires → `saveState = "saving"`, server action called
+  - success → `saveState = "saved"`, `lastSavedAt = now`
+  - failure → `saveState = "error"`, timer does not retry
+    automatically; user-triggered retry via `<SaveStateIndicator>`
+- `beforeunload` listener prompts if `saveState !== "saved"` and
+  rationale is non-empty.
+- localStorage warm cache keyed by `final-review-draft:{applicationId}:{actorId}`
+  — written on every change, read on mount if the server draft is
+  stale (older than localStorage) or missing. This is the belt-and-
+  suspenders defense against the crash-mid-compose scenario.
+
+**Tabs.**
+- *Rationale* is the default-active tab. Prominent label "What goes in
+  the applicant email."
+- *Comparison notes* tab is marked with `(internal)` in small label
+  type. Prominent label "Visible to chairs only — never sent to the
+  applicant."
+- Switching tabs does not trigger a save (each tab has its own
+  debounced save lifecycle, sharing the same backing row).
+
+**Required-for-intent affordance.** When `requiredForIntent` is set
+(e.g., `REJECT` or `REQUEST_INFO`), a red asterisk appears next to
+the tab label and the textarea placeholder changes to *"Required —
+explain why this applicant is being rejected"*. The `DecisionButtons`
+child prevents the chair from opening the confirm modal if the
+required field is empty.
+
+**Pre-fill templates.** On first open, if the rationale is empty and
+all readiness signals are green and consensus is unanimous, the
+textarea is pre-populated with *"Unanimous accept, no flags.
+Approved."* as a placeholder (not actual value) — chair can Tab to
+accept or just start typing. This is the Path-A fast-path (§1.5).
+
+**Motion.** Tab switch uses Framer's `AnimatePresence` with a 120 ms
+easeOut fade on the content swap. `SaveStateIndicator` handles its
+own dot pulse.
+
+### 7.4 `DecisionButtons` — adaptive action row
+
+**Purpose.** Six action buttons in a visual hierarchy that *adapts* to
+the applicant. Implements the state machine from §1.7.
+
+**Props.**
+```ts
+interface DecisionButtonsProps {
+  readiness: ReadinessSignals;
+  hasRedFlags: boolean;
+  hasMajorityReject: boolean;           // 2+ reviewers recommend REJECT
+  draftMeetsRequirements: boolean;      // rationale present if needed
+  onChoose: (action: ChairDecisionAction) => void;
+  disabled?: boolean;                   // during pending commit in 2C
+}
+```
+
+**The six actions (ChairDecisionAction enum extended per §11):**
+
+| Action | Icon | Default tone | Notes |
+|--------|------|--------------|-------|
+| `APPROVE` | `Check` | Primary | Adaptive — becomes muted if red flags |
+| `APPROVE_WITH_CONDITIONS` | `CheckCircle2` | Primary-alt | Becomes focused primary on split consensus |
+| `HOLD` | `Pause` | Secondary | Never primary |
+| `WAITLIST` | `Clock` | Secondary | Never primary |
+| `REQUEST_INFO` | `HelpCircle` | Secondary | Never primary |
+| `REQUEST_SECOND_INTERVIEW` | `RotateCw` | Secondary | Never primary |
+| `REJECT` | `X` | Destructive | Adaptive — becomes primary on red flags or majority-reject |
+
+**Adaptive primary rules** (only one action is visually primary at a
+time):
+1. If `hasRedFlags` OR `hasMajorityReject` → `REJECT` is primary;
+   Approve requires a confirmation checkbox inside the modal before
+   enabling
+2. Else if `hasMixedConsensus` (split recommendations) →
+   `APPROVE_WITH_CONDITIONS` is primary
+3. Else → `APPROVE` is primary
+
+Primary button is full-width at tablet (stacks above the secondary
+row of other four at that breakpoint). Secondary buttons are outline
+style with the lucide icon + label.
+
+**`onChoose` contract.** Does NOT commit. Calls `onChoose(action)`
+which the dock forwards to parent. Parent opens the confirm modal
+(Phase 2C). If `draftMeetsRequirements === false`, clicking the
+action button instead focuses the rationale field with a shake
+animation (200 ms keyframes, reduced-motion swap to outline pulse)
+and a tooltip *"Rationale is required for this action"*.
+
+**Motion.** Primary button has a subtle 1.5 s pulse glow (box-shadow
+animation) to draw the eye when it changes — e.g., if a new review
+submits mid-session and the primary flips from Approve to Reject,
+the new primary pulses once so the chair notices. Respects
+reduced-motion (static styling instead).
+
+### 7.5 `ActionButton` — the inner primitive
+
+**Purpose.** The actual button element. Encapsulates the icon + label
++ tone + disabled-loading states so `DecisionButtons` stays a pure
+composer.
+
+**Props.**
+```ts
+interface ActionButtonProps {
+  action: ChairDecisionAction;
+  tone: "primary" | "primary-alt" | "secondary" | "destructive";
+  icon: React.ComponentType<{ size?: number }>;
+  label: string;
+  description: string;                  // aria-describedby target
+  disabled?: boolean;
+  loading?: boolean;                    // Phase 2C toggles during commit
+  onClick: () => void;
+}
+```
+
+**Accessibility (critical).** Each button has `aria-describedby` pointing
+to a visually-hidden `<span>` with the consequence string per §2.10:
+
+```tsx
+<span id={`action-${action}-desc`} className="sr-only">
+  Approve. Grants instructor role, sends approval email,
+  moves applicant to APPROVED status.
+</span>
+```
+
+Screen readers announce "Approve. Grants instructor role…" when the
+button receives focus.
+
+**Loading state.** When `loading === true`, button shows a spinner dot
+in place of the icon, label stays, button becomes `aria-disabled` but
+NOT `disabled` (so the label keeps announcing during the transition).
+
+**Keyboard-accessible confirmation.** Button is a plain `<button>` —
+`Enter` and `Space` trigger `onClick` per browser default.
+Importantly: no custom hotkey interpretation. The chair uses mouse,
+trackpad, or Tab+Enter — whichever they prefer — without surprise.
+
+### 7.6 `DraftCharCounter`
+
+**Purpose.** Subtle character counter below the rationale textarea.
+Only becomes visible at 8 000 characters (80% of the hard cap) so
+it doesn't add cognitive load during normal writing.
+
+**Props.**
+```ts
+interface DraftCharCounterProps {
+  text: string;
+  softLimit?: number;    // default 8_000 — starts showing
+  hardLimit?: number;    // default 10_000 — server rejects beyond
+}
+```
+
+**Behavior.**
+- `text.length < softLimit` → renders nothing
+- `text.length ≥ softLimit && < hardLimit` → renders amber chip
+  *"8 312 / 10 000 — approaching limit"*
+- `text.length ≥ hardLimit` → renders red chip
+  *"10 024 / 10 000 — reduce length to save"*; dock disables submission
+
+The 10 k cap is server-enforced in Phase 2C's `chairDecide` guard —
+client-side is purely advisory. Prevents paste-bomb (§11 edge-case D9).
+
+### 7.7 The `saveChairDraft` server action (introduced here)
+
+Full schema and RBAC details in §11; summarized here because Phase 2B
+depends on it.
+
+**Signature.**
+```ts
+"use server"
+export async function saveChairDraft(formData: FormData): Promise<
+  { success: true; savedAt: string } | { success: false; error: string }
+>;
+```
+
+**Inputs.** `applicationId`, `rationale` (≤ 10 k chars), `comparisonNotes`
+(≤ 10 k chars).
+
+**Writes.** Upserts a new `InstructorApplicationChairDraft` row per
+`(applicationId, chairId)` (see §11 schema addition). Does NOT touch
+`InstructorApplication` or `InstructorApplicationChairDecision`.
+
+**RBAC.** Actor must be HIRING_CHAIR, HIRING_ADMIN, or SUPER_ADMIN with
+view permission on the application. Cross-chapter question flagged in
+§13 applies.
+
+**Idempotence.** Safe to call repeatedly. Last-writer-wins. If two
+chairs are drafting simultaneously on the same applicant, the draft
+row is scoped by chairId so they don't collide.
+
+**Failure semantics.** On 4xx, returns `{ success: false, error }`;
+UI shows the `error` state on `SaveStateIndicator`. On 5xx, the
+server action bubbles the error; `DraftRationaleField` catches and
+flips to error state, leaving the localStorage warm cache intact.
+
+### 7.8 Files touched in Phase 2B
+
+| Status | Path | Notes |
+|--------|------|-------|
+| [NEW] | `components/instructor-applicants/final-review/DecisionDock.tsx` | §7.2 |
+| [NEW] | `components/instructor-applicants/final-review/DraftRationaleField.tsx` | §7.3 |
+| [NEW] | `components/instructor-applicants/final-review/DecisionButtons.tsx` | §7.4 |
+| [NEW] | `components/instructor-applicants/final-review/ActionButton.tsx` | §7.5 |
+| [NEW] | `components/instructor-applicants/final-review/DraftCharCounter.tsx` | §7.6 |
+| [NEW] | `lib/chair-draft-actions.ts` | `saveChairDraft` server action |
+| [MODIFY] | `prisma/schema.prisma` | Add `InstructorApplicationChairDraft` model (details in §11) |
+| [MODIFY] | `components/instructor-applicants/final-review/FinalReviewCockpit.tsx` | Mount `<DecisionDock>` as last child; pass `onIntentOpen` handler; hold `pendingIntent` state (modal mount deferred to 2C) |
+| [MODIFY] | `lib/final-review-queries.ts` | `getChairDraft` already added in Phase 1 — wire through cockpit props |
+| [MODIFY] | `app/globals.css` | ~140 LOC under `/* Phase 2B */` block: dock, draft field, action buttons, character counter |
+
+### 7.9 Dependencies between Phase 2B components
+
+```
+DecisionDock
+  ├── DraftRationaleField
+  │     ├── SaveStateIndicator                 — from Phase 1
+  │     └── DraftCharCounter
+  └── DecisionButtons
+        └── ActionButton (×6)                  — one per ChairDecisionAction
+```
+
+All Phase 2B components depend only on Phase 1 primitives
+(`SaveStateIndicator`) plus Phase 2A's `ReadinessSignals` type. Zero
+cross-dependency with Phase 2C — the confirm modal, reason code
+picker, and conditions editor live entirely in 2C.
+
+### 7.10 Analytics events introduced in Phase 2B
+
+| Event | Payload | Purpose |
+|-------|---------|---------|
+| `final_review.draft_autosaved` | `{ applicationId, rationaleLength, comparisonNotesLength, durationMs }` | Measure draft-save latency; 30s p95 SLO |
+| `final_review.draft_autosave_failed` | `{ applicationId, error }` | Alert on save errors — draft data loss risk |
+| `final_review.decision_intent` | `{ applicationId, action, draftLength, readinessPercentage }` | Which actions the chair clicks through on; conversion funnel input for 2C's actual commits |
+| `final_review.rationale_required_nudge` | `{ applicationId, action }` | How often chairs hit the "rationale required" shake — if high, we're pushing too hard on required fields |
+
+### 7.11 Phase 2B risks
+
+- **Autosave race with server action.** If the chair triggers `chairDecide`
+  while a draft save is still in flight, the decision could commit with
+  a rationale that wasn't persisted. Mitigation: `DecisionButtons`
+  disables all actions for 200 ms after a save completes; Phase 2C's
+  `chairDecide` also reads the in-memory draft from the form submission,
+  not the persisted one.
+- **localStorage quota.** Chairs with many in-flight drafts across
+  applicants could theoretically hit 5 MB LS quota (unlikely at < 10 k
+  chars × tens of drafts, but possible). Mitigation: garbage-collect
+  drafts older than 7 days on cockpit mount.
+- **Tab switching loses focus.** Switching between rationale and notes
+  tabs can lose the cursor position. Mitigation: `DraftRationaleField`
+  preserves `selectionStart` per tab in local state, restores on tab
+  switch.
+- **Adaptive primary button confusion.** If the primary shifts from
+  Approve to Reject mid-session (new review lands), the chair may be
+  surprised. Mitigation: pulse animation per §7.4 draws attention;
+  also a passive toast *"Consensus changed — reject is now the suggested
+  action"* (non-blocking, dismissible).
+
+---
+
+*Sections 8–13 to follow.*
