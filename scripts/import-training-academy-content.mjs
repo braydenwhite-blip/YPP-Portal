@@ -1,4 +1,4 @@
-import { PrismaClient, TrainingStatus } from "@prisma/client";
+import { Prisma, PrismaClient, TrainingStatus } from "@prisma/client";
 import {
   parseArgs,
   readAcademyContent,
@@ -9,6 +9,11 @@ import {
 import { importCurriculumRegistry } from "./training-academy-curriculum-import.mjs";
 
 const prisma = new PrismaClient();
+const TRAINING_MODULE_FIELD_NAMES = new Set(
+  Prisma.dmmf.datamodel.models
+    .find((model) => model.name === "TrainingModule")
+    ?.fields.map((field) => field.name) ?? []
+);
 
 function normalizeQuestionOptions(options) {
   return (Array.isArray(options) ? options : [])
@@ -46,8 +51,14 @@ async function upsertModule(definition, dryRun, counters) {
     passScorePct: Number(definition.passScorePct),
     // New v2.0.0 fields
     estimatedMinutes: definition.estimatedMinutes ? Number(definition.estimatedMinutes) : null,
-    transcript: definition.transcript || null,
   };
+
+  // Keep the importer tolerant when content definitions add fields before the
+  // TrainingModule Prisma model does. This prevents a non-critical content
+  // property from failing the full Vercel build.
+  if (TRAINING_MODULE_FIELD_NAMES.has("transcript")) {
+    data.transcript = definition.transcript || null;
+  }
 
   if (!existing) {
     counters.modulesCreated += 1;
