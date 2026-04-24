@@ -67,19 +67,43 @@ type Direction = "forward" | "back";
 /**
  * Evaluates a `ShowWhenPredicate` against the user's latest attempt responses.
  *
- * Phase 4 (M1): no beats use showWhen — returns true unconditionally.
- * M3 will flesh out the response-matching logic against `attempts`.
- * TODO(M3): resolve `response` from the attempt record for the ancestor beat.
+ * Resolves `ancestorSourceKey` to the user's latest attempt for that beat and
+ * compares its response payload's `selectedOptionId` field against the
+ * predicate value. BRANCHING_SCENARIO is the only beat kind that currently
+ * seeds `showWhen`, and its response shape is `{ selectedOptionId }`.
+ *
+ * If the ancestor has no attempt yet, the predicate is unmet (child hidden).
  */
 function evaluateShowWhen(
   predicate: ShowWhenPredicate,
   attempts: JourneyAttemptSummary[]
 ): boolean {
-  // Phase 4 stub — predicate evaluation is not used in M1 (linear journey).
-  // The structure is here so the traversal loop calls the right hook point.
-  void predicate;
-  void attempts;
-  return true;
+  const ancestor = attempts.find(
+    (a) => a.beatSourceKey === predicate.ancestorSourceKey
+  );
+  if (!ancestor) return false;
+
+  const response = ancestor.response as
+    | { selectedOptionId?: unknown }
+    | null
+    | undefined;
+  const selectedId =
+    response && typeof response.selectedOptionId === "string"
+      ? response.selectedOptionId
+      : null;
+
+  if (selectedId === null) return false;
+
+  if ("equals" in predicate) {
+    return selectedId === predicate.equals;
+  }
+  if ("in" in predicate) {
+    return predicate.in.includes(selectedId);
+  }
+  if ("notEquals" in predicate) {
+    return selectedId !== predicate.notEquals;
+  }
+  return false;
 }
 
 /**
@@ -224,7 +248,10 @@ export function JourneyPlayer({
       return;
     }
 
-    // Record the attempt for traversal purposes
+    // Record the attempt for traversal purposes. Carry the submitted response
+    // through so `evaluateShowWhen` can resolve BRANCHING_SCENARIO children on
+    // the next advance.
+    const submittedResponse = currentResponse;
     setAttempts((prev) => {
       const updated = prev.filter((a) => a.beatSourceKey !== currentBeat.sourceKey);
       return [
@@ -234,6 +261,7 @@ export function JourneyPlayer({
           attemptNumber: result.attemptNumber,
           correct: result.correct,
           score: result.score,
+          response: submittedResponse,
         },
       ];
     });

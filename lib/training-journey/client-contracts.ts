@@ -32,12 +32,16 @@ export type { BeatFeedback, ClientBeat, ClientBeatAttempt, ClientJourney };
 // Snapshot shipped by the viewer RSC to <JourneyShell />
 // ---------------------------------------------------------------------------
 
-/** Latest attempt summary for one beat (one row per beat per user). */
+/** Latest attempt summary for one beat (one row per beat per user).
+ *  `response` carries the user's submitted payload so the client can evaluate
+ *  `showWhen` predicates on child beats of BRANCHING_SCENARIO parents. For
+ *  non-branching beats the field is opaque and unused. */
 export type JourneyAttemptSummary = {
   beatSourceKey: string;
   attemptNumber: number;
   correct: boolean;
   score: number;
+  response: unknown | null;
 };
 
 /**

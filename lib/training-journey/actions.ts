@@ -327,9 +327,49 @@ export async function completeInteractiveJourney(
   }
 
   // 7. Validate readiness
-  const scoredBeats = journey.beats.filter((b) => b.scoringWeight > 0);
+  //
+  // Branching support: beats with a `showWhen` predicate are only "visible" when
+  // the user's latest attempt on the ancestor beat matches the predicate. Beats
+  // that aren't visible are not required for completion and don't count in the
+  // score denominator — otherwise users would be penalised for taking different
+  // paths through a BRANCHING_SCENARIO tree (plan §4 Module 3: "denominator
+  // only counts beats the user actually saw").
+  const sourceKeyToBeatId = new Map<string, string>(
+    journey.beats.map((b) => [b.sourceKey, b.id])
+  );
 
-  for (const beat of scoredBeats) {
+  type ShowWhen =
+    | { ancestorSourceKey: string; equals: string }
+    | { ancestorSourceKey: string; in: string[] }
+    | { ancestorSourceKey: string; notEquals: string };
+
+  function isVisible(beat: (typeof journey.beats)[number]): boolean {
+    const predicate = beat.showWhen as ShowWhen | null | undefined;
+    if (!predicate) return true;
+    const ancestorId = sourceKeyToBeatId.get(predicate.ancestorSourceKey);
+    if (!ancestorId) return false;
+    const ancestorLatest = latestByBeatId.get(ancestorId);
+    if (!ancestorLatest) return false;
+    const response = ancestorLatest.response as
+      | { selectedOptionId?: unknown }
+      | null
+      | undefined;
+    const selectedId =
+      response && typeof response.selectedOptionId === "string"
+        ? response.selectedOptionId
+        : null;
+    if (selectedId === null) return false;
+    if ("equals" in predicate) return selectedId === predicate.equals;
+    if ("in" in predicate) return predicate.in.includes(selectedId);
+    if ("notEquals" in predicate) return selectedId !== predicate.notEquals;
+    return false;
+  }
+
+  const visibleScoredBeats = journey.beats.filter(
+    (b) => b.scoringWeight > 0 && isVisible(b)
+  );
+
+  for (const beat of visibleScoredBeats) {
     const latest = latestByBeatId.get(beat.id);
     if (journey.strictMode) {
       // Strict mode: any attempt is sufficient
@@ -341,7 +381,7 @@ export async function completeInteractiveJourney(
         };
       }
     } else {
-      // Non-strict (M1): correct attempt required on every scored beat
+      // Non-strict: correct attempt required on every visible scored beat
       if (!latest || !latest.correct) {
         return {
           ok: false,
@@ -353,7 +393,8 @@ export async function completeInteractiveJourney(
     }
   }
 
-  // 8. Compute completion metrics
+  // 8. Compute completion metrics (over visible scored beats only)
+  const scoredBeats = visibleScoredBeats;
   const totalScore = scoredBeats.reduce((sum, beat) => {
     const latest = latestByBeatId.get(beat.id);
     return sum + (latest?.score ?? 0);

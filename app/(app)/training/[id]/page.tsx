@@ -153,6 +153,7 @@ export default async function TrainingModulePage({
         attemptNumber: attempt.attemptNumber,
         correct: attempt.correct,
         score: attempt.score,
+        response: attempt.response ?? null,
       });
     }
 
