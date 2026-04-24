@@ -67,6 +67,7 @@
     "@vercel/kv": "^3.0.0",
     "bcryptjs": "2.4.3",
     "clsx": "2.1.1",
+    "framer-motion": "^11.18.2",
     "libphonenumber-js": "^1.12.41",
     "lowlight": "^3.3.0",
     "next": "^16.2.4",
