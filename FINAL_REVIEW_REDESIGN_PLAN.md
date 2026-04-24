@@ -24,19 +24,21 @@ redesign; implementation work should reference it.
    surface composed, autosave, adaptive dock state (no commit yet)
 8. **Components — Phase 2C: Confirmation & Action Forms** — the pre-commit
    modal, conditions editor, reason code picker, contrarian warning
-9. **Components — Phase 2D: Commit Wiring & Failure Surfaces** — `chairDecide`
-   extension, idempotency, sync rollback banner, email failure, toast advance
-10. **Components — Phase 2E: Rescind & Audit** — superseding prior decisions,
+9. **Components — Phase 2D: Commit Wiring & Happy Path** — `chairDecide`
+   extension, idempotency key, optimistic UI, toast advance
+10. **Components — Phase 2D.5: Failure Surfaces** — sync rollback banner,
+    email failure banner, stale-click recovery, retry flows
+11. **Components — Phase 2E: Rescind & Audit** — superseding prior decisions,
     conditions display, rescind modal for SUPER_ADMINs
-11. **Components — Phase 3: Feedback, Consensus & Matrix** — the world-class
+12. **Components — Phase 3: Feedback, Consensus & Matrix** — the world-class
     differentiation layer
-12. **Unified Feedback System** — ReviewSignal abstraction, pinning, sentiment,
+13. **Unified Feedback System** — ReviewSignal abstraction, pinning, sentiment,
     consensus, threading, @mentions, filters
-13. **Data Model & Server Actions** — schema deltas, migrations, RBAC matrix,
+14. **Data Model & Server Actions** — schema deltas, migrations, RBAC matrix,
     autosave
-14. **Quality, Edge Cases & Launch Readiness** — regressions, edge cases, test
+15. **Quality, Edge Cases & Launch Readiness** — regressions, edge cases, test
     plan, performance budgets, launch checklist
-15. **Execution Roadmap & Open Questions** — phased rollout, quick wins vs.
+16. **Execution Roadmap & Open Questions** — phased rollout, quick wins vs.
     bigger builds, final recommendation, product decisions needed
 
 ---
@@ -2622,4 +2624,450 @@ by any 2C component.
 
 ---
 
-*Sections 9–15 to follow.*
+## 9. Components — Phase 2D: Commit Wiring & Happy Path
+
+**Phase 2D mission:** wire Confirm to the server. After 2D merges, a
+chair clicking Confirm in the Phase 2C modal actually commits the
+decision — role grants happen, emails send, the `PostDecisionToast`
+(shell built in 2A) activates and offers the next applicant. The
+happy path is complete end-to-end.
+
+This phase is deliberately scoped to the *successful* commit. Failure
+surfaces (sync rollback banner, email failure banner, stale-click
+recovery, retry flows) land in Phase 2D.5. The split matters because
+happy-path wiring is simpler than the branches needed for every
+failure mode; shipping 2D first proves the contract and lets QA
+exercise it before 2D.5 adds the red-path polish.
+
+**Exit criteria for Phase 2D:**
+1. Clicking Confirm in `DecisionConfirmModal` calls `chairDecide()` via
+   the new `useCommitDecision` hook
+2. All seven actions commit successfully end-to-end: `APPROVE`,
+   `APPROVE_WITH_CONDITIONS`, `REJECT`, `HOLD`, `WAITLIST`,
+   `REQUEST_INFO`, `REQUEST_SECOND_INTERVIEW`
+3. Conditions payload persists to `InstructorApplicationChairDecision.conditions`
+   (JSON column added in §14)
+4. Reject reason code + free text persist to
+   `InstructorApplicationChairDecision.rationale` (structured prefix)
+5. Idempotency key prevents duplicate commits when the client retries
+   a request that already succeeded on the server
+6. `PostDecisionToast` triggers on success, preloaded with the next
+   queued applicant; clicking its CTA navigates
+7. Optimistic UI flips the dock to "pending" state immediately on
+   Confirm; rolls back to "editable" if the server returns an error
+   (failure UX is minimal in 2D — just an inline error chip; 2D.5
+   layers the richer banners)
+8. Analytics fire for commit start, commit success, idempotent replay,
+   and toast advance
+
+### 9.1 Components in this phase
+
+| # | Component | File | LOC | Client? |
+|---|-----------|------|-----|---------|
+| 1 | `useCommitDecision` (hook) | `lib/use-commit-decision.ts` | ~160 | yes |
+| 2 | `DecisionPendingOverlay` | `components/instructor-applicants/final-review/DecisionPendingOverlay.tsx` | ~80 | yes |
+| 3 | `PostDecisionToast` activation (modify the 2A shell) | `components/instructor-applicants/final-review/PostDecisionToast.tsx` | +~60 | yes |
+
+Server-action work (detailed in §14, summarized here):
+- `chairDecide()` in `lib/instructor-application-actions.ts` — extended
+  signature; new branches for WAITLIST and APPROVE_WITH_CONDITIONS;
+  idempotency check.
+- `InstructorApplicationChairDecision` model — new `conditions Json?`
+  column; full schema deltas in §14.
+- `ChairDecisionCommitAttempt` — new table keyed by idempotency key.
+
+Plus ~60 LOC of CSS for the pending overlay and toast motion variants.
+
+### 9.2 `useCommitDecision` — the commit hook
+
+**Purpose.** Encapsulates everything the client needs to commit a
+decision: idempotency key generation, optimistic state management,
+server-action dispatch, rollback on failure, toast trigger on success.
+This is the only place that talks to `chairDecide()` from the UI —
+keeping the surface tiny reduces the attack surface for bugs.
+
+**API.**
+```ts
+interface CommitDecisionInput {
+  applicationId: string;
+  action: ChairDecisionAction;
+  rationale: string;
+  comparisonNotes: string;
+  conditions?: DecisionCondition[];        // for APPROVE_WITH_CONDITIONS
+  rejectReasonCode?: RejectReasonCode;     // for REJECT
+  rejectFreeText?: string;                 // for REJECT
+  overrideWarnings?: boolean;              // true when chair confirmed through contrarian modal
+}
+
+type CommitDecisionState =
+  | { status: "idle" }
+  | { status: "pending";  startedAt: number; idempotencyKey: string }
+  | { status: "success";  decidedAt: string; nextApplicantId: string | null }
+  | { status: "error";    error: CommitDecisionError; canRetry: boolean };
+
+interface UseCommitDecisionReturn {
+  state: CommitDecisionState;
+  commit: (input: CommitDecisionInput) => Promise<void>;
+  reset: () => void;      // clears error state; used when chair cancels modal
+}
+
+export function useCommitDecision(): UseCommitDecisionReturn;
+```
+
+**Idempotency key generation.** On first `commit()` call for an
+applicant + action combination, generate a UUID v4 and store it in
+state. If the call fails and the chair retries the *same action*
+within 60 seconds, reuse the same key so the server recognizes the
+replay. If the chair changes the action (e.g., Approve → Hold),
+generate a new key.
+
+```ts
+const idempotencyKey = useRef<string | null>(null);
+
+async function commit(input: CommitDecisionInput) {
+  if (!idempotencyKey.current) {
+    idempotencyKey.current = crypto.randomUUID();
+  }
+  // ... dispatch with idempotencyKey.current
+}
+```
+
+**Optimistic UI.** On `commit()`, immediately:
+1. Set `state = { status: "pending", ... }`
+2. Dock collapses its buttons to disabled state (`DecisionPendingOverlay`
+   covers the dock contents with a blur + spinner)
+3. Dispatch `chairDecide(formData)` server action
+
+On success:
+1. Set `state = { status: "success", decidedAt, nextApplicantId }`
+2. Close the confirm modal
+3. Trigger `PostDecisionToast.open()` with the decided action + next
+   applicant data (pre-fetched by `router.prefetch(nextUrl)`)
+4. Fire analytics event `final_review.commit_succeeded`
+
+On error (non-idempotent replay):
+1. Set `state = { status: "error", error, canRetry }`
+2. Uncollapse the dock buttons (let the chair retry)
+3. Show minimal inline error chip in the confirm modal
+4. Fire analytics event `final_review.commit_failed`
+5. Phase 2D.5 layers richer banners on top of this state
+
+**Idempotent replay.** When the server returns `{ replayed: true,
+decidedAt, ... }` — meaning the idempotency key matched a prior
+successful commit — the hook treats it as a normal success. Fires
+analytics event `final_review.commit_replayed` so we can see how often
+this happens in production (helps size the retry window and detect
+flaky network conditions).
+
+**Reset.** When the chair cancels the modal or changes action,
+`reset()` clears the idempotency key so the next commit starts fresh.
+
+### 9.3 `DecisionPendingOverlay`
+
+**Purpose.** A lightweight overlay that covers the `DecisionDock`
+during commit so the chair can't double-click Confirm or change the
+rationale mid-commit. Visual confirmation that the system is working.
+
+**Props.**
+```ts
+interface DecisionPendingOverlayProps {
+  open: boolean;
+  action: ChairDecisionAction | null;   // for label display
+  elapsedMs: number;                    // for "Finalizing…" messaging on long commits
+}
+```
+
+**Visual.** Covers the dock with `backdrop-filter: blur(4px) saturate(0.9)`
+over `rgba(255, 255, 255, 0.6)` (matches the modal glass pattern in
+§2.4 but at 60% opacity — readable through). Centered spinner dot plus
+label:
+- 0–800 ms: *"Recording decision…"*
+- 800–3000 ms: *"Finalizing…"*
+- 3000+ ms: *"Still working — this usually takes 1–2 seconds"*
+
+The last message is important: `APPROVE` can take 4–8 seconds because
+it runs the role grant transaction and syncs the workflow. Without
+feedback, chairs assume the system hung.
+
+**Motion.** Fade in 120 ms easeOut; fade out 200 ms easeIn when
+`open → false`. Respects `prefers-reduced-motion` (instant toggle).
+
+**Accessibility.** `role="status"` `aria-live="polite"` so screen
+readers announce the state change but don't steal focus. Focus
+remains on the Confirm button so when the overlay closes (success or
+error), the chair's focus is exactly where they left it.
+
+### 9.4 `PostDecisionToast` activation
+
+The shell for this component was built in Phase 2A (§6.8). Phase 2D
+wires up the trigger.
+
+**The wiring.** `FinalReviewCockpit` already holds the toast's `open`
+state. When `useCommitDecision.state.status === "success"`:
+
+```tsx
+useEffect(() => {
+  if (commit.state.status === "success") {
+    openToast({
+      decidedAction: commit.state.input.action,
+      decidedApplicant: { name: applicant.preferredFirstName, ... },
+      nextApplicant: queue.next
+        ? { id: queue.next.id, name: queue.next.displayName, ... }
+        : null,
+    });
+    router.refresh();  // re-fetch for the audit banner on current page
+  }
+}, [commit.state]);
+```
+
+**Prefetching the next applicant.** On toast open, it calls
+`router.prefetch(/admin/instructor-applicants/${nextApplicant.id}/review)`
+so clicking the CTA lands in under 200 ms on warm cache.
+
+**Analytics.**
+- `final_review.toast_shown` — `{ applicationId, decidedAction, nextApplicantId }`
+- `final_review.toast_advance_clicked` — `{ from, to }`
+- `final_review.toast_dismissed` — `{ applicationId, reason: "timeout" | "manual" }`
+
+**Queue-empty state.** When `nextApplicant === null`, the toast reads
+*"Queue cleared — nice work"* with a link to the chair queue page. A
+subtle confetti burst animation (200 ms Framer-motion variants — 30
+SVG dots with randomized y/rotation, respecting reduced-motion)
+celebrates a rare-enough moment that it feels earned, not gimmicky.
+
+### 9.5 `chairDecide()` server action — extensions
+
+Full schema and field-level detail in §14. Summary of what Phase 2D
+adds to the existing 254-line function at
+`lib/instructor-application-actions.ts:1796–2050`:
+
+**New FormData fields:**
+- `action` — extend existing enum check to accept `WAITLIST` and
+  `APPROVE_WITH_CONDITIONS`
+- `conditions` — JSON-stringified `DecisionCondition[]` (required
+  when `action === "APPROVE_WITH_CONDITIONS"`)
+- `rejectReasonCode` — enum (required when `action === "REJECT"`)
+- `rejectFreeText` — string (required when `action === "REJECT"`)
+- `idempotencyKey` — UUID v4 string (required)
+- `overrideWarnings` — boolean (true when contrarian modal was
+  confirmed)
+
+**Idempotency check** — new preamble, before the existing
+`assertCanActAsChair` gate at line 1823:
+
+```ts
+const existing = await prisma.chairDecisionCommitAttempt.findUnique({
+  where: { idempotencyKey: input.idempotencyKey }
+});
+if (existing) {
+  if (existing.result === "SUCCESS") {
+    // Replay: return the prior result without re-committing
+    return {
+      success: true,
+      replayed: true,
+      decidedAt: existing.decidedAt,
+      nextApplicantId: existing.nextApplicantId,
+    };
+  }
+  // existing.result === "FAILED" — let the retry proceed, but log it
+  await logIdempotencyRetry(existing);
+}
+```
+
+**Conditions validation** — inside the existing transaction at line
+1882, extending the block for `APPROVE_WITH_CONDITIONS`:
+
+```ts
+if (action === "APPROVE_WITH_CONDITIONS") {
+  if (!Array.isArray(conditions) || conditions.length === 0) {
+    throw new ApplicantWorkflowError("CONDITIONS_REQUIRED");
+  }
+  if (conditions.length > 10) {
+    throw new ApplicantWorkflowError("TOO_MANY_CONDITIONS");
+  }
+  for (const c of conditions) {
+    if (typeof c.label !== "string" || c.label.trim().length === 0) {
+      throw new ApplicantWorkflowError("CONDITION_LABEL_INVALID");
+    }
+    if (c.label.length > 300) {
+      throw new ApplicantWorkflowError("CONDITION_LABEL_TOO_LONG");
+    }
+    if (c.ownerId && !(await prisma.user.findUnique({ where: { id: c.ownerId } }))) {
+      throw new ApplicantWorkflowError("CONDITION_OWNER_NOT_FOUND");
+    }
+  }
+}
+```
+
+**Reject reason code** — structured prefix for the `rationale` field:
+
+```ts
+if (action === "REJECT") {
+  if (!rejectReasonCode || !rejectFreeText?.trim()) {
+    throw new ApplicantWorkflowError("REJECT_REASON_REQUIRED");
+  }
+  rationale = `[${rejectReasonCode}] ${rejectFreeText.trim()}`;
+}
+```
+
+This keeps the DB storage simple (single `rationale` string) while
+giving the email generator a structured prefix to pick a template.
+
+**Status mapping** — extend the existing `statusByAction` map at line
+1846:
+
+```ts
+const statusByAction = {
+  APPROVE:                  "APPROVED",
+  APPROVE_WITH_CONDITIONS:  "APPROVED",
+  REJECT:                   "REJECTED",
+  HOLD:                     "ON_HOLD",
+  REQUEST_INFO:             "INFO_REQUESTED",
+  REQUEST_SECOND_INTERVIEW: "INTERVIEW_SCHEDULED",
+  WAITLIST:                 "WAITLISTED",  // new
+};
+```
+
+`APPROVE_WITH_CONDITIONS` uses the same role-grant path as `APPROVE`
+(lines 1902–1940 in the existing code); conditions ride on the
+decision row but don't affect the user's INSTRUCTOR role grant.
+`WAITLIST` requires a new `WAITLISTED` value on the
+`InstructorApplicationStatus` enum (§14) and a new
+`sendWaitlistEmail()` template.
+
+**Response shape** — expanded return value:
+
+```ts
+return {
+  success: true,
+  replayed: false,
+  decidedAt: result.decidedAt.toISOString(),
+  nextApplicantId: await getNextChairQueuedApplicantId(actor.id, chapter?.id),
+  emailStatus: emailFailure ? "failed" : "queued",
+};
+```
+
+`nextApplicantId` is computed inside the action using the same logic
+as `getChairQueueNeighbors()` — single source of truth for queue
+order.
+
+**Override warnings** — when `overrideWarnings === true`, the timeline
+payload records the fact so audit logs show the chair proceeded
+through a warning:
+
+```ts
+await tx.instructorApplicationTimelineEvent.create({
+  data: {
+    applicationId,
+    kind: "CHAIR_DECISION",
+    actorId: chair.id,
+    payload: { action, from, to, rationale, overrodeWarnings: input.overrideWarnings ?? false },
+  },
+});
+```
+
+### 9.6 `ChairDecisionCommitAttempt` — new table
+
+Full schema in §14. Purpose here: give the idempotency check
+something to query against. One row per `(chairId, idempotencyKey)`
+pair, written at commit time.
+
+Key fields:
+- `idempotencyKey` (UUID v4, unique index)
+- `chairId`, `applicationId`, `action`
+- `result` (`"SUCCESS" | "FAILED"`)
+- `decidedAt` (copy of the committed timestamp, null on failure)
+- `nextApplicantId` (cached for replay)
+- `createdAt`, `updatedAt`
+
+Rows older than 7 days are garbage-collected by a nightly cron (small
+table — worst case a few hundred rows per day).
+
+### 9.7 Files touched in Phase 2D
+
+| Status | Path | Notes |
+|--------|------|-------|
+| [NEW] | `lib/use-commit-decision.ts` | §9.2 hook |
+| [NEW] | `components/instructor-applicants/final-review/DecisionPendingOverlay.tsx` | §9.3 |
+| [MODIFY] | `components/instructor-applicants/final-review/PostDecisionToast.tsx` | Activate trigger from Phase 2A shell (§9.4) |
+| [MODIFY] | `components/instructor-applicants/final-review/FinalReviewCockpit.tsx` | Mount pending overlay; wire `useCommitDecision` to confirm modal's onConfirm; open toast on success |
+| [MODIFY] | `components/instructor-applicants/final-review/DecisionConfirmModal.tsx` | Call `commit.commit(...)` on Confirm; show inline error chip if `commit.state.status === "error"` (2D.5 replaces with richer banner) |
+| [MODIFY] | `lib/instructor-application-actions.ts` | §9.5 — extend `chairDecide()` at lines 1796–2050 with new fields, validation, status mapping, response shape |
+| [MODIFY] | `prisma/schema.prisma` | Add `InstructorApplicationStatus.WAITLISTED`; add `ChairDecisionAction.APPROVE_WITH_CONDITIONS` and `WAITLIST`; add `conditions Json?` column on `InstructorApplicationChairDecision`; add new `ChairDecisionCommitAttempt` model |
+| [NEW] | `lib/email/wait-list-template.ts` | `sendWaitlistEmail()` — uses the same pattern as `sendApplicationRejectedEmail()` |
+| [MODIFY] | `app/globals.css` | ~60 LOC under `/* Phase 2D */` block: pending overlay blur, toast celebration confetti, commit button pending state |
+
+### 9.8 Dependencies between Phase 2D components
+
+```
+FinalReviewCockpit
+  ├── useCommitDecision()                     — new hook from §9.2
+  ├── DecisionPendingOverlay                  — covers the dock during commit
+  ├── DecisionConfirmModal (Phase 2C)         — calls commit.commit() on Confirm
+  ├── PostDecisionToast (Phase 2A shell)      — now activated
+  └── router.prefetch(nextUrl)                — warms the next applicant
+```
+
+Server-side:
+```
+chairDecide()                                 — extended; existing rollback logic preserved
+  ├── idempotency check (new)
+  │     └── ChairDecisionCommitAttempt (new table)
+  ├── assertCanActAsChair (existing)
+  ├── conditions validation (new, for APPROVE_WITH_CONDITIONS)
+  ├── reject reason validation (new, for REJECT)
+  ├── existing transaction: supersede, create decision, update status, role grant
+  └── email send (existing; failure handling in Phase 2D.5)
+```
+
+All existing compensation logic (lines 1962–2013) is preserved
+without modification. Phase 2D does not change the rollback contract;
+Phase 2D.5 surfaces it in the UI.
+
+### 9.9 Analytics events introduced in Phase 2D
+
+| Event | Payload | Purpose |
+|-------|---------|---------|
+| `final_review.commit_started` | `{ applicationId, action, idempotencyKey }` | Funnel entry — intent → start |
+| `final_review.commit_succeeded` | `{ applicationId, action, durationMs, syncedWorkflow: boolean, emailStatus }` | Core success metric; durationMs is the northstar |
+| `final_review.commit_replayed` | `{ applicationId, action, idempotencyKey, originalDecidedAt }` | How often network flakiness triggers idempotent replay |
+| `final_review.commit_failed` | `{ applicationId, action, error }` | 2D.5 adds retry tracking |
+| `final_review.toast_shown` | `{ applicationId, decidedAction, nextApplicantId }` | Throughput input — did chairs see the next applicant? |
+| `final_review.toast_advance_clicked` | `{ from, to, dwellMs }` | Does the toast actually accelerate queue walking? |
+| `final_review.toast_dismissed` | `{ applicationId, reason }` | Opt-out signal; if high, rework the toast copy |
+
+### 9.10 Phase 2D risks
+
+- **`chairDecide` function length.** The existing function is already
+  254 lines and dense. Adding WAITLIST + APPROVE_WITH_CONDITIONS +
+  idempotency pushes it toward 320. Mitigation: extract `validateInputs()`
+  and `computeStatusTransition()` helpers at the top of the file so
+  the core transaction stays readable. Not a full refactor — just
+  surgical extraction.
+- **Idempotency key reuse across actions.** If the chair opens the
+  modal, cancels, changes action, and commits, we must reset the key
+  (`useCommitDecision.reset()`). If we don't, the server would replay
+  the original action even though the chair intended a different one.
+  Mitigation: `DecisionConfirmModal`'s `onClose` prop calls
+  `commit.reset()` — covered by an e2e test.
+- **Toast timing with `router.refresh()`.** `router.refresh()` fires
+  after the commit to update the current page's audit banner. If the
+  toast opens before the refresh completes, the chair can click
+  advance before the current page has its new state. Mitigation:
+  `router.refresh()` and toast `open()` fire in parallel; the toast's
+  CTA navigates to `nextApplicant`, which is fetched on that route's
+  own server component — not dependent on the current page's state.
+- **Prefetch thrashing.** If a chair opens and closes the toast
+  repeatedly, `router.prefetch(nextUrl)` fires once per open.
+  Next.js dedupes prefetch requests internally, but monitor the
+  dev tools Network tab during QA to confirm.
+- **APPROVE_WITH_CONDITIONS timeline payload size.** JSON-stringified
+  conditions could inflate the timeline payload to a few KB per
+  decision. Postgres JSON columns handle this fine, but over a year
+  of decisions the timeline table grows. Mitigation: §14 indexes the
+  timeline by `applicationId` and `createdAt` — the payload size is
+  not in the hot query path.
+
+---
+
+*Sections 10–16 to follow.*
