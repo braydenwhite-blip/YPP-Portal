@@ -16,15 +16,20 @@ redesign; implementation work should reference it.
    dual-rollout strategy
 4. **Layout, Grid & Responsive** — 12-column grid, sticky regions, breakpoints,
    touch adaptations
-5. **Component Specifications** — every new component, props, state, LOC budget
-6. **Unified Feedback System** — ReviewSignal abstraction, pinning, sentiment,
+5. **Components — Phase 1: Shell & Layout Primitives** — cockpit shell, context,
+   hotkeys, layout wrappers, shared chips
+6. **Components — Phase 2: Snapshot, Queue & Decision Dock** — the decision
+   path end-to-end, feature parity plus polish
+7. **Components — Phase 3: Feedback, Consensus & Matrix** — the world-class
+   differentiation layer
+8. **Unified Feedback System** — ReviewSignal abstraction, pinning, sentiment,
    consensus, threading, @mentions, filters
-7. **Data Model & Server Actions** — schema deltas, migrations, RBAC matrix,
+9. **Data Model & Server Actions** — schema deltas, migrations, RBAC matrix,
    autosave
-8. **Quality, Edge Cases & Launch Readiness** — regressions, edge cases, test
-   plan, performance budgets, launch checklist
-9. **Execution Roadmap & Open Questions** — phased rollout, quick wins vs.
-   bigger builds, final recommendation, product decisions needed
+10. **Quality, Edge Cases & Launch Readiness** — regressions, edge cases, test
+    plan, performance budgets, launch checklist
+11. **Execution Roadmap & Open Questions** — phased rollout, quick wins vs.
+    bigger builds, final recommendation, product decisions needed
 
 ---
 
@@ -1139,4 +1144,324 @@ v1 of the redesign.
 
 ---
 
-*Sections 5–9 to follow.*
+## 5. Components — Phase 1: Shell & Layout Primitives
+
+**Phase 1 mission:** ship the skeleton. After Phase 1 merges, a chair can
+navigate to the new route, see the applicant identity, feel the page
+architecture, and scroll through placeholder panels — but cannot yet make
+a decision. This phase is deliberately decoupled from decision logic so
+we can validate the data flow, sticky layout, motion system, and design
+tokens in isolation before adding behavior.
+
+It's also where the shared primitives (`ReviewerIdentityChip`,
+`RecommendationBadge`, `RatingChip`, `SaveStateIndicator`) get extracted
+and exercised, because every later phase depends on them.
+
+**Exit criteria for Phase 1:**
+1. Route `/admin/instructor-applicants/[id]/review` loads behind the
+   `ENABLE_FINAL_REVIEW_V2` flag with real application data in the
+   identity and queue positions
+2. Snapshot bar and decision dock placeholders are sticky; right rail is
+   sticky; scroll behavior matches §4
+3. Framer Motion `MotionConfig` respects `prefers-reduced-motion`
+4. `useHotkeys` hook ignores keystrokes inside inputs; `?` opens a
+   keyboard help overlay
+5. Visual regression snapshots taken at all four breakpoints
+6. Zero decision actions wired up (placeholders only)
+
+### 5.1 Components in this phase
+
+| # | Component | File | LOC | Client? |
+|---|-----------|------|-----|---------|
+| 1 | `FinalReviewCockpit` | `components/instructor-applicants/final-review/FinalReviewCockpit.tsx` | ~180 | yes |
+| 2 | `FinalReviewContext` | `components/instructor-applicants/final-review/FinalReviewContext.tsx` | ~90 | yes |
+| 3 | `useHotkeys` | `lib/use-hotkeys.ts` | ~60 | n/a |
+| 4 | `ReviewWorkspace` | `components/instructor-applicants/final-review/ReviewWorkspace.tsx` | ~40 | no |
+| 5 | `FeedbackPanel` | `components/instructor-applicants/final-review/FeedbackPanel.tsx` | ~30 | no |
+| 6 | `SignalPanel` | `components/instructor-applicants/final-review/SignalPanel.tsx` | ~30 | no |
+| 7 | `ReviewerIdentityChip` (shared) | `components/instructor-applicants/shared/ReviewerIdentityChip.tsx` | ~50 | no |
+| 8 | `RecommendationBadge` (shared) | `components/instructor-applicants/shared/RecommendationBadge.tsx` | ~40 | no |
+| 9 | `RatingChip` (shared) | `components/instructor-applicants/shared/RatingChip.tsx` | ~40 | no |
+| 10 | `SaveStateIndicator` (shared) | `components/shared/SaveStateIndicator.tsx` | ~50 | yes |
+
+Plus CSS additions in `app/globals.css` covering the layout, surfaces,
+and tokens defined in §2 — approximately 200 LOC scoped to Phase 1.
+
+### 5.2 `FinalReviewCockpit` — the client shell
+
+**Purpose.** Top-level client component mounted by the server route. Owns
+the cross-section context, keyboard shortcut registration, Framer Motion
+config, and the skip-to-dock accessibility link.
+
+**Props.**
+```ts
+interface FinalReviewCockpitProps {
+  application: SerializedApplicationForReview;
+  timeline: SerializedTimelineEvent[];
+  queue: QueueNeighbors;                // prev/next/position/total/siblings
+  initialDraft: ChairDraftSnapshot;     // { rationale, comparisonNotes, savedAt }
+  consensus: ConsensusSnapshot | null;  // Phase 3 populates this; Phase 1 accepts null
+  actorId: string;
+}
+```
+
+**State.** None at the top level — all state is delegated to
+`FinalReviewContext`. The cockpit is a composition shell.
+
+**Motion.** Wraps the page body in `<MotionConfig reducedMotion="user">`.
+Mounts a single `<AnimatePresence>` that wraps the route transition, so
+cross-applicant navigation uses the fade-and-slight-Y pattern (§2.6).
+
+**Keyboard.** Mounts `useHotkeys` with the base shortcut map (J/K queue
+navigation, ? help overlay). Phase 2 will extend this map with A/R/W/I
+decision shortcuts.
+
+**Loading/empty/error.** Delegates to route-level `loading.tsx` and
+`error.tsx`. If `application.status !== "CHAIR_REVIEW"`, renders a
+read-only banner *"Decision already recorded — view audit trail below"*
+and continues to render the timeline for audit.
+
+### 5.3 `FinalReviewContext` — cross-section state
+
+**Purpose.** A React Context owning the two pieces of state that need to
+be visible to multiple sibling sections: `focusedReviewerId` (for matrix
+↔ feed highlighting) and `pinnedSignalIds` (for the pinned rail).
+
+**API.**
+```ts
+interface FinalReviewContextValue {
+  focusedReviewerId: string | null;
+  setFocusedReviewerId: (id: string | null) => void;
+  pinnedSignalIds: string[];
+  togglePin: (signalId: string) => void;
+  quoteIntoRationale: (signalId: string) => void;  // wire-ready; Phase 2 uses it
+}
+
+export function FinalReviewProvider({ children, initialPinned }: ...): JSX.Element;
+export function useFinalReviewContext(): FinalReviewContextValue;
+export function useFocusedReviewer(): [string | null, (id: string | null) => void];
+export function usePinnedSignals(): { ids: string[]; toggle: (id: string) => void };
+```
+
+**URL sync.** Both pieces of state read from and write to `URLSearchParams`
+on mount and on change, per §3.5. `setFocusedReviewerId(id)` calls
+`router.replace(?focusedReviewer=...)` without scroll.
+
+**Why split into two hooks.** `useFocusedReviewer` and `usePinnedSignals`
+expose minimal slices so the matrix re-renders on focus change without
+the entire feed re-rendering on pin change. Context split can come later
+if the profiler shows waste; for v1, one context, two narrow hooks.
+
+### 5.4 `useHotkeys` — the keyboard hook
+
+**Purpose.** The single entry point for keyboard shortcuts in the cockpit.
+Prevents the most likely UX bug: letter keys firing while the chair types
+rationale.
+
+**API.**
+```ts
+type HotkeyMap = Record<string, (e: KeyboardEvent) => void>;
+
+export function useHotkeys(map: HotkeyMap, options?: {
+  ignoreInputs?: boolean;   // default true
+  scope?: string;           // for future scoped hotkeys
+}): void;
+```
+
+**Behavior.**
+- Listens on `window` via a single `keydown` handler.
+- Ignores events whose `target` matches `input, textarea, [contenteditable="true"]`
+  unless the user holds `Meta` or `Ctrl`.
+- Keys are matched case-insensitively; modifier keys written as
+  `"meta+a"`, `"ctrl+shift+p"`.
+- Cleans up listeners on unmount.
+- Normalizes `?` to handle the `shift+/` physical key.
+
+**Implementation note.** We considered `react-hotkeys-hook` (~8 kB) — fine
+to adopt if we want multi-scope support later, but for Phase 1 a ~60 LOC
+custom hook is simpler and has no dependency. Revisit if Phase 3
+introduces scoped hotkeys inside modals.
+
+### 5.5 `ReviewWorkspace` / `FeedbackPanel` / `SignalPanel`
+
+Three thin layout wrappers — pure presentation, zero state.
+
+| Component | Purpose | CSS class |
+|-----------|---------|-----------|
+| `ReviewWorkspace` | 12-col grid per §4; responsive reflow | `.review-workspace` |
+| `FeedbackPanel` | Left column (7 cols), stacks children with `--space-4` gap | `.feedback-panel` |
+| `SignalPanel` | Right column (5 cols), sticky below snapshot bar | `.signal-panel` |
+
+**Props.** `{ children: React.ReactNode }` for all three.
+
+**State.** None.
+
+**Why not CSS-only.** These could be raw `<section>` tags with class
+names. We wrap them as components so that (a) the contract is documented,
+(b) future `aria-labelledby` wiring has a place to live, and (c) the
+Framer Motion scroll context — if we add one — has a natural mount
+point.
+
+### 5.6 Shared primitive — `ReviewerIdentityChip`
+
+**Purpose.** Avatar + name + role pill. Used in the score matrix rows,
+activity feed item headers, consensus dissent callout, and the existing
+`ApplicantCockpitHeader` owner chips. Replaces at least three
+copy-pasted implementations currently in the codebase.
+
+**Props.**
+```ts
+interface ReviewerIdentityChipProps {
+  user: { id: string; name: string | null; avatarUrl?: string | null };
+  role: "LEAD_INTERVIEWER" | "INTERVIEWER" | "REVIEWER" | "CHAIR" | "STAFF" | "SYSTEM";
+  round?: number;                    // "· Interview Round 2"
+  size?: "sm" | "md" | "lg";
+  onClick?: () => void;              // optional, for clickable variant in matrix
+}
+```
+
+**Visual.** Role drives the pill color (per §2.5). Name uses
+`--font-body`; role pill uses `--font-label` (uppercase, tracked). No
+avatar image uploaded? Render initials circle in `--ypp-purple-400`.
+
+**Motion.** None in Phase 1. Phase 2 adds a subtle hover state (scale
+1.02, 120 ms) for clickable variants.
+
+### 5.7 Shared primitive — `RecommendationBadge`
+
+**Purpose.** Single source of truth for recommendation and sentiment
+labels + colors. Replaces the `REC_COLOR` inline-style map currently
+duplicated in `ChairComparisonSlideout.tsx:73-78` and
+`ChairQueueBoard.tsx:63-75`.
+
+**Props.**
+```ts
+interface RecommendationBadgeProps {
+  recommendation?: InstructorInterviewRecommendation | null;
+  sentiment?: SentimentTag | null;   // Phase 3 passes this; Phase 1 ignores
+  size?: "sm" | "md";
+  showIcon?: boolean;                // default true — WCAG fix (§2.9)
+}
+```
+
+**Behavior.** If both `recommendation` and `sentiment` are passed, the
+sentiment wins (derived from recommendation per §8's mapping table).
+Missing recommendation renders as a muted *"Not yet reviewed"* chip.
+
+**Icons.** Uses lucide-react per §2.9:
+- `STRONG_HIRE` → `Check` with `--score-strong`
+- `HIRE` → `ThumbsUp` with `--score-good`
+- `MIXED` → `Minus` with `--score-mixed`
+- `CONCERN` → `AlertTriangle` with `--score-concern`
+- `REJECT` → `X` with `--score-weak`
+
+### 5.8 Shared primitive — `RatingChip`
+
+**Purpose.** Renders a `ProgressStatus` rating (the 4-point
+`BEHIND_SCHEDULE | GETTING_STARTED | ON_TRACK | ABOVE_AND_BEYOND` scale)
+as an icon + label + color chip. Used in the score matrix cells and in
+activity feed items that surface a category rating.
+
+**Props.**
+```ts
+interface RatingChipProps {
+  rating: ProgressStatus | null;
+  label?: string;                 // optional category label ("Communication")
+  variant?: "solid" | "outline";  // solid for cells, outline for inline callouts
+  size?: "xs" | "sm" | "md";
+}
+```
+
+**WCAG fix.** Always pairs color with the icon from §2.9's
+`SCORE_DISPLAY` map + a 2–5 letter text label. Color is never the sole
+signal. Deuteranopia and high-contrast mode both preserve meaning.
+
+**Empty state.** Missing rating renders as a dashed-outline chip with
+"—" label, not a red or gray "fail" state. This matters because a
+missing rating is "not yet scored," not "poor."
+
+### 5.9 Shared primitive — `SaveStateIndicator`
+
+**Purpose.** The autosave status chip used in the decision dock's
+`DraftRationaleField` (Phase 2) and ready for reuse in any future inline
+editor. One of the five signature micro-interactions (§2.7).
+
+**Props.**
+```ts
+interface SaveStateIndicatorProps {
+  state: "idle" | "saving" | "saved" | "error";
+  lastSavedAt: string | null;   // ISO; drives "Saved 3s ago" ticker
+  onRetry?: () => void;         // shown when state = "error"
+}
+```
+
+**Behavior.**
+- `idle` → hidden
+- `saving` → pulsing purple dot + "Saving…"
+- `saved` → green dot (200 ms scale-in per §2.6 micro-feedback) + ticker
+  label "Saved 3s ago" / "Saved 1m ago" (update every 10 s via
+  `setInterval` inside a `useEffect`)
+- `error` → amber dot + "Couldn't save — retry" with clickable retry
+
+**Motion.** Dot pulse uses a 2-frame Framer keyframes animation, 1.2 s
+cycle, respects reduced-motion (swaps to a static dot). The scale-in
+on `saved` is a 200 ms spring with `stiffness: 380, damping: 22`.
+
+### 5.10 Files touched in Phase 1
+
+| Status | Path | Notes |
+|--------|------|-------|
+| [NEW] | `app/(app)/admin/instructor-applicants/[id]/review/page.tsx` | Server route, five-query fetch per §3.3 |
+| [NEW] | `app/(app)/admin/instructor-applicants/[id]/review/loading.tsx` | Skeleton per §2.8 |
+| [NEW] | `app/(app)/admin/instructor-applicants/[id]/review/error.tsx` | Route error boundary |
+| [NEW] | `components/instructor-applicants/final-review/FinalReviewCockpit.tsx` | §5.2 |
+| [NEW] | `components/instructor-applicants/final-review/FinalReviewContext.tsx` | §5.3 |
+| [NEW] | `components/instructor-applicants/final-review/ReviewWorkspace.tsx` | §5.5 |
+| [NEW] | `components/instructor-applicants/final-review/FeedbackPanel.tsx` | §5.5 |
+| [NEW] | `components/instructor-applicants/final-review/SignalPanel.tsx` | §5.5 |
+| [NEW] | `components/instructor-applicants/shared/ReviewerIdentityChip.tsx` | §5.6 |
+| [NEW] | `components/instructor-applicants/shared/RecommendationBadge.tsx` | §5.7 |
+| [NEW] | `components/instructor-applicants/shared/RatingChip.tsx` | §5.8 |
+| [NEW] | `components/shared/SaveStateIndicator.tsx` | §5.9 |
+| [NEW] | `lib/use-hotkeys.ts` | §5.4 |
+| [NEW] | `lib/final-review-queries.ts` | `getApplicationForFinalReview`, `getChairQueueNeighbors`, `getChairDraft` |
+| [MODIFY] | `lib/feature-flags.ts` | Add `ENABLE_FINAL_REVIEW_V2` flag helper |
+| [MODIFY] | `app/globals.css` | ~200 LOC of tokens + layout classes from §2 + §4 |
+| [MODIFY] | `components/instructor-applicants/ApplicantCockpitHeader.tsx` | Swap inline owner-chip markup for `<ReviewerIdentityChip>` |
+| [MODIFY] | `components/instructor-applicants/ChairQueueBoard.tsx` | Delete `REC_COLOR`/`REC_LABELS` maps, use `<RecommendationBadge>` |
+
+### 5.11 Dependencies between Phase 1 components
+
+```
+FinalReviewCockpit
+  ├── MotionConfig (framer-motion)
+  ├── FinalReviewContext.Provider
+  ├── useHotkeys
+  └── ReviewWorkspace
+        ├── FeedbackPanel (placeholder children in Phase 1)
+        └── SignalPanel   (placeholder children in Phase 1)
+
+Shared primitives (standalone, zero dependencies between them):
+  ReviewerIdentityChip, RecommendationBadge, RatingChip, SaveStateIndicator
+```
+
+No circular dependencies. The shared primitives can be built in parallel
+by a second developer while the shell is being built.
+
+### 5.12 Phase 1 risks
+
+- **CSS bloat.** `app/globals.css` is already 9000+ lines. Adding 200
+  more without structure invites entropy. Mitigation: put the new Phase 1
+  styles under a clear `/* ======= Final Review Cockpit: Phase 1 =======
+  */` block so Phase 2 and 3 can find their insertion points.
+- **Framer Motion bundle size.** Pulls ~25 kB gzipped. Acceptable per
+  §7's 80 kB budget but leaves less headroom for Phase 3. Audit with
+  `@next/bundle-analyzer` before merging Phase 1.
+- **Context re-render storms.** If a future contributor adds state to
+  `FinalReviewContext` without splitting providers, matrix + feed can
+  re-render unnecessarily. Mitigation: add a Storybook performance test
+  as part of Phase 1's exit criteria.
+
+---
+
+*Sections 6–11 to follow.*
