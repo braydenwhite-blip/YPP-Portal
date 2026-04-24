@@ -25,38 +25,71 @@ export const M4_COMMUNICATION_RELIABILITY: CurriculumDefinition = {
   },
   beats: [
     // -------------------------------------------------------------------------
-    // Beat 1 — CONCEPT_REVEAL (unscored)
+    // Beat 1 — MULTI_SELECT (scored, 10)
+    //
+    // Validator constraint: a 7-beat journey may contain at most 1
+    // CONCEPT_REVEAL (floor(7/4) = 1) and the completion beat uses that slot.
+    // Beat 1 therefore teaches the three communication rules via active recall:
+    // the learner picks the three rules from a mixed list of plausible-looking
+    // alternatives. Same concept as the previous CONCEPT_REVEAL opener, but
+    // tests retention rather than just presents it.
     // -------------------------------------------------------------------------
     {
       sourceKey: "comm-reliability/beat-01-three-rules",
       sortOrder: 1,
-      kind: "CONCEPT_REVEAL",
+      kind: "MULTI_SELECT",
       title: "Three rules of YPP communication",
       prompt:
-        "Before you write a single message, lock in these three rules. Tap each to see what they mean.",
-      scoringWeight: 0,
+        "Three of these are YPP's communication rules. Three are common-sounding distractors. Pick the three rules.",
+      scoringWeight: 10,
+      scoringRule: "threshold",
       config: {
-        panels: [
+        scoringMode: "threshold",
+        minimumCorrect: 3,
+        options: [
           {
             id: "respond-24h",
-            title: "Respond within 24 hours",
-            body: "Every parent message, every admin ping — answered within one day. A short, specific reply the same evening beats a thorough reply three days later.",
+            label: "Respond to every parent or admin message within 24 hours.",
+            correct: true,
           },
           {
             id: "lead-with-student",
-            title: "Lead with the student",
-            body: "Open with something concrete about the child — what they did, what they struggled with, what comes next. Parents trust specifics, not reassurance.",
+            label: "Open every message with something concrete about the student.",
+            correct: true,
           },
           {
             id: "no-surprises",
-            title: "No surprises",
-            body: "If a session is missed, a schedule changes, or a student is struggling — the parent hears it from you first, proactively, before they have to ask.",
+            label: "Tell the parent first — no news should ever reach them secondhand.",
+            correct: true,
+          },
+          {
+            id: "match-length",
+            label: "Match the parent's message length so you don't seem terse.",
+            correct: false,
+          },
+          {
+            id: "hedge-progress",
+            label: "Hedge when progress is slow so the parent stays optimistic.",
+            correct: false,
+          },
+          {
+            id: "weekly-summary",
+            label: "Only write a real update once a week to avoid over-communicating.",
+            correct: false,
           },
         ],
         correctFeedback: {
           tone: "correct",
           headline: "Three rules in.",
-          body: "Respond fast, lead with the student, and kill surprises. Everything else follows from these.",
+          body: "Respond within 24 hours, lead with the student, and kill surprises. Matching tone, hedging, and batching into weekly updates sound helpful — but each one erodes trust.",
+        },
+        incorrectFeedback: {
+          default: {
+            tone: "incorrect",
+            headline: "Not quite the three.",
+            body: "The three rules are timeliness (24h), specificity about the student, and proactive disclosure. The other options trade honesty for comfort — that's not the YPP bar.",
+            hint: "Which three would a parent actually feel the difference from?",
+          },
         },
       },
     },
