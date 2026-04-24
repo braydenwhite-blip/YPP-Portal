@@ -119,7 +119,8 @@ export default async function InterviewerWorkspacePage({
           <h2 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 700 }}>Live Interview Workspace</h2>
           <p style={{ margin: "0 0 20px", fontSize: 13, color: "var(--muted)" }}>
             Run the interview, save live notes as you go, and submit the final evaluation when the
-            conversation is complete.
+            conversation is complete. Once the required review set is in, the applicant is routed
+            to the Chair Queue automatically.
           </p>
 
           {workspace ? (
