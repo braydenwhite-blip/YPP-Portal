@@ -26,19 +26,23 @@ redesign; implementation work should reference it.
    modal, conditions editor, reason code picker, contrarian warning
 9. **Components — Phase 2D: Commit Wiring & Happy Path** — `chairDecide`
    extension, idempotency key, optimistic UI, toast advance
-10. **Components — Phase 2D.5: Failure Surfaces** — sync rollback banner,
-    email failure banner, stale-click recovery, retry flows
-11. **Components — Phase 2E: Rescind & Audit** — superseding prior decisions,
+10. **Components — Phase 2D.6: Transactional Failure Surfaces** — sync
+    rollback banner, stale-click recovery, deadlock handling, validation
+    errors, network-drop recovery
+11. **Components — Phase 2D.8: Notification & Soft Failure Surfaces** —
+    email failure banner with retry, contrarian-override audit, soft
+    warnings, post-commit notification errors
+12. **Components — Phase 2E: Rescind & Audit** — superseding prior decisions,
     conditions display, rescind modal for SUPER_ADMINs
-12. **Components — Phase 3: Feedback, Consensus & Matrix** — the world-class
+13. **Components — Phase 3: Feedback, Consensus & Matrix** — the world-class
     differentiation layer
-13. **Unified Feedback System** — ReviewSignal abstraction, pinning, sentiment,
+14. **Unified Feedback System** — ReviewSignal abstraction, pinning, sentiment,
     consensus, threading, @mentions, filters
-14. **Data Model & Server Actions** — schema deltas, migrations, RBAC matrix,
+15. **Data Model & Server Actions** — schema deltas, migrations, RBAC matrix,
     autosave
-15. **Quality, Edge Cases & Launch Readiness** — regressions, edge cases, test
+16. **Quality, Edge Cases & Launch Readiness** — regressions, edge cases, test
     plan, performance budgets, launch checklist
-16. **Execution Roadmap & Open Questions** — phased rollout, quick wins vs.
+17. **Execution Roadmap & Open Questions** — phased rollout, quick wins vs.
     bigger builds, final recommendation, product decisions needed
 
 ---
@@ -3070,4 +3074,458 @@ Phase 2D.5 surfaces it in the UI.
 
 ---
 
-*Sections 10–16 to follow.*
+## 10. Components — Phase 2D.6: Transactional Failure Surfaces
+
+**Phase 2D.6 mission:** when the commit transaction fails, gets rolled
+back, or races with another chair, the chair sees exactly what happened
+and knows what to do next. Never silent failure, never data loss, never
+ambiguous state. The *high-severity* family of failures — the ones that
+leave the database in a recoverable-but-non-obvious state.
+
+Phase 2D shipped the happy path with a minimal inline error chip. This
+phase replaces that chip with purpose-built surfaces for each failure
+family:
+
+| Failure family | What happened in the DB | UI surface |
+|----------------|-------------------------|------------|
+| **Sync rollback** | Decision committed then automatically reversed because workflow sync failed | Full-width red banner with retry |
+| **Stale click** | Another chair won the race; status is no longer `CHAIR_REVIEW` | Modal showing who won with what action |
+| **Validation** | Server rejected inputs (missing conditions, invalid reject reason, etc.) | Field-targeted error inside the confirm modal |
+| **Deadlock** | Transient Postgres deadlock; Prisma retries exhausted | Soft toast with automatic retry |
+| **Network drop** | Client never got the server's response | Idempotent retry via the existing key |
+
+**Exit criteria for Phase 2D.6:**
+1. `SyncRollbackBanner` renders when `chairDecide()` returns
+   `{ error: "SYNC_ROLLBACK" }` — sticky at page top, z-index 70 (above
+   dock + snapshot bar), never dismissible until the chair either
+   retries successfully or navigates away
+2. `StaleClickRecoveryModal` opens when `chairDecide()` returns
+   `{ error: "STATUS_CHANGED", winnerChairName, winnerAction,
+   winnerDecidedAt }` — auto-refreshes the page after the chair
+   acknowledges
+3. `CommitErrorModal` (new) replaces the inline error chip from 2D —
+   handles validation errors with jump-to-field affordance
+4. Deadlock errors silently auto-retry (up to 3 attempts, exponential
+   backoff) and surface only if all retries fail
+5. Network-drop recovery reuses the idempotency key from §9.2 — chair
+   clicks Retry, same key, server replays if first attempt succeeded
+   or processes freshly if it didn't
+6. All five failure families have Playwright e2e coverage (§16 test plan)
+7. Analytics events fire for each failure family; dashboards flag any
+   rate > 1% as a P1 signal
+
+### 10.1 Components in this phase
+
+| # | Component | File | LOC | Client? |
+|---|-----------|------|-----|---------|
+| 1 | `SyncRollbackBanner` | `components/instructor-applicants/final-review/SyncRollbackBanner.tsx` | ~110 | yes |
+| 2 | `StaleClickRecoveryModal` | `components/instructor-applicants/final-review/StaleClickRecoveryModal.tsx` | ~140 | yes |
+| 3 | `CommitErrorModal` | `components/instructor-applicants/final-review/CommitErrorModal.tsx` | ~160 | yes |
+| 4 | `DeadlockRetryToast` | `components/instructor-applicants/final-review/DeadlockRetryToast.tsx` | ~60 | yes |
+| 5 | `NetworkRecoveryBanner` | `components/instructor-applicants/final-review/NetworkRecoveryBanner.tsx` | ~90 | yes |
+
+Plus ~120 LOC of CSS for the banners, modal content, and toast motion.
+
+### 10.2 `SyncRollbackBanner` — the highest-severity surface
+
+**Purpose.** Tells the chair, unambiguously, that their decision was
+*committed and then reversed* because the workflow-sync step after
+the transaction failed. The existing `chairDecide()` at lines 1962–2013
+already runs the compensator (reverts role grants, flips status back
+to `CHAIR_REVIEW`, writes a `SYNC_ROLLBACK` timeline event). Phase 2D.6
+surfaces that compensator firing.
+
+**Props.**
+```ts
+interface SyncRollbackBannerProps {
+  applicationId: string;
+  rolledBackAction: ChairDecisionAction;
+  reversedAt: string;
+  reason: string;                         // server-provided human-readable
+  onRetry: () => void;                    // calls commit.commit() with same inputs
+  onContactSupport: () => void;           // opens mailto + copies context to clipboard
+}
+```
+
+**Visual.** Full-width (spans the grid), red left-border (8 px
+`--score-weak`), pale red background (`rgba(239, 68, 68, 0.06)`),
+icon-label-color per §2.9 with `AlertOctagon`. Copy:
+
+> **Decision was reversed.** We couldn't finalize "Approve" for
+> *Alex Morgan* because the onboarding pipeline didn't update. The
+> decision record was removed and the applicant is back in your
+> queue. [Retry] [Contact support]
+
+**Behavior.**
+- Mounts at page top, sticky (`position: sticky; top: 0; z-index: 70`)
+  — overlays the snapshot bar until dismissed or resolved
+- Dock buttons remain enabled; the chair can retry immediately or edit
+  the rationale first
+- Retry reuses the Phase 2D idempotency key (if the original
+  `ChairDecisionCommitAttempt` was marked `FAILED`, retry processes
+  freshly; if somehow marked `SUCCESS`, replay returns the same
+  result — defensive)
+- Contact support copies a diagnostic block to clipboard:
+  `applicationId`, `rolledBackAction`, `reversedAt`, `reason`,
+  `chairId`, `idempotencyKey` — so the chair can paste into an email
+  without having to screenshot and narrate
+
+**Motion.** Slide in from top (220 ms spring per §2.6 surface-entry).
+Never auto-dismisses — this is a serious event, the chair must act.
+
+**Accessibility.** `role="alert"` `aria-live="assertive"` — screen
+readers announce immediately and interrupt current speech. The retry
+button is autofocused when the banner appears so the chair can act
+without hunting.
+
+### 10.3 `StaleClickRecoveryModal` — the race loser's recovery
+
+**Purpose.** Two chairs can race on the same applicant. The first to
+commit wins; the second gets `STATUS_CHANGED`. The loser needs to
+know who won, what they decided, and see the page update to reflect
+reality.
+
+Today (pre-redesign) the loser just sees a generic error. Phase 2D.6
+shows the winner's decision clearly, then auto-refreshes the page so
+the status banner (§6.7 `ApplicantStatusBanner`) reflects the actual
+new state.
+
+**Props.**
+```ts
+interface StaleClickRecoveryModalProps {
+  open: boolean;
+  winnerChairName: string;
+  winnerAction: ChairDecisionAction;
+  winnerDecidedAt: string;
+  winnerRationalePreview: string;         // first 240 chars
+  attemptedAction: ChairDecisionAction;   // what THIS chair tried to do
+  onAcknowledge: () => void;              // closes + router.refresh()
+}
+```
+
+**Visual.** Standard modal (backdrop + centered card, z-index 50/60).
+Card header: `AlertCircle` icon (amber, not red — this is unexpected
+but not an error).
+
+> **This applicant was just decided by another chair.**
+>
+> *Alex Chen* marked *Alex Morgan* as **Approved with Conditions**
+> about 12 seconds ago.
+>
+> Their rationale (preview):
+> > "Strong curriculum and teaching demo. Conditions: complete
+> > onboarding module 2 within 30 days…"
+>
+> [See full decision] [Back to queue] [Continue reviewing audit]
+
+**Behavior.**
+- On "Back to queue" → navigate to `/admin/instructor-applicants/chair-queue`
+- On "Continue reviewing audit" → close modal, `router.refresh()`, the
+  page re-renders with `ApplicantStatusBanner` reflecting the new
+  decision; dock collapses to read-only per §7.2
+- On "See full decision" → expands the modal to show full rationale +
+  conditions (if any) + link to the other chair's profile
+- This chair's draft rationale is preserved in localStorage (§7.3)
+  — if they walk away and the decision is later rescinded, their
+  draft is still there
+
+**Preemption.** If the chair's rationale differs from the winner's in
+substantive ways, offer *"Send your rationale to the winning chair?"*
+— creates a `ReviewSignalReply` anchored on the decision with the
+chair's draft as the body. Valuable for edge cases where the loser
+saw something the winner missed.
+
+**Motion.** Standard modal entrance (300 ms spring, §2.6 layout).
+
+### 10.4 `CommitErrorModal` — validation failures with jump-to-field
+
+**Purpose.** Replaces the inline error chip from Phase 2D for
+validation errors. When `chairDecide()` rejects inputs (missing
+conditions, invalid reject reason, conditions too long), the chair
+sees exactly which field was wrong and can jump back to fix it.
+
+**Props.**
+```ts
+interface CommitErrorModalProps {
+  open: boolean;
+  error: {
+    code: CommitValidationErrorCode;
+    field?: "conditions" | "rejectReasonCode" | "rejectFreeText" | "rationale";
+    fieldIndex?: number;                  // for conditions[3].label
+    message: string;                      // server-provided
+  };
+  onJumpToField: () => void;              // closes modal + focuses field
+  onDismiss: () => void;
+}
+
+type CommitValidationErrorCode =
+  | "CONDITIONS_REQUIRED"
+  | "CONDITION_LABEL_INVALID"
+  | "CONDITION_LABEL_TOO_LONG"
+  | "CONDITION_OWNER_NOT_FOUND"
+  | "TOO_MANY_CONDITIONS"
+  | "REJECT_REASON_REQUIRED"
+  | "RATIONALE_TOO_LONG"
+  | "CONTRARIAN_OVERRIDE_MISSING";        // chair skipped Phase 2C warning somehow
+```
+
+**Visual.** Compact modal (narrower than decision confirm), amber
+accent (not red — validation isn't a system failure, just "try again").
+
+> **We couldn't save this decision.**
+>
+> *Condition #3 is missing a label.*
+>
+> Conditions must have a clear label (1–300 characters) so the
+> applicant and onboarding team know what to do.
+>
+> [Fix condition #3] [Cancel]
+
+**Behavior.** Clicking "Fix condition #3" closes the error modal,
+keeps the main confirm modal open, scrolls to that condition's row in
+`ApproveWithConditionsEditor`, and focuses its label input with a
+brief red outline pulse (200 ms).
+
+**Why not inline.** Inline validation on every keystroke would be
+noise. The server is the authority; surface its error at commit time
+in a way that's recoverable without rebuilding the entire form.
+
+### 10.5 `DeadlockRetryToast` — silent auto-retry
+
+**Purpose.** Postgres deadlocks are transient — another transaction
+held a lock, Prisma's retry exhausted, `chairDecide()` returns
+`{ error: "DEADLOCK_DETECTED" }`. Rather than showing an error banner,
+the client auto-retries with exponential backoff and only surfaces UI
+if all retries fail.
+
+**Behavior (lives inside `useCommitDecision`, not a visible component most
+of the time).**
+
+```ts
+// Inside useCommitDecision.commit():
+for (let attempt = 1; attempt <= 3; attempt++) {
+  const result = await chairDecide(formData);
+  if (result.error !== "DEADLOCK_DETECTED") return result;
+  setState({ status: "pending-retry", attempt });
+  await sleep(200 * 2 ** attempt);  // 400ms, 800ms, 1600ms
+}
+// all retries failed — show the toast
+```
+
+**Props (toast shell only, visible during retry).**
+```ts
+interface DeadlockRetryToastProps {
+  open: boolean;
+  attempt: number;                        // 1, 2, or 3
+  maxAttempts: number;
+}
+```
+
+**Visual.** Small toast, bottom-left, amber. Copy:
+> *"Busy moment — retrying… (attempt 2 of 3)"*
+
+If all 3 fail, toast is replaced by a `CommitErrorModal` with code
+`DEADLOCK_EXHAUSTED` and copy *"Database is busy. Wait a moment and
+try again."* — no auto-retry beyond 3.
+
+**Motion.** Slide in from bottom-left (180 ms easeOut). Auto-dismisses
+on success. Reduced-motion: instant toggle.
+
+### 10.6 `NetworkRecoveryBanner`
+
+**Purpose.** When the client detects a fetch timeout or `AbortError`
+during commit, it can't know whether the server processed the
+request. The banner surfaces this ambiguity and lets the chair retry
+safely using the idempotency key.
+
+**Props.**
+```ts
+interface NetworkRecoveryBannerProps {
+  applicationId: string;
+  attemptedAction: ChairDecisionAction;
+  attemptedAt: string;
+  idempotencyKey: string;
+  onRetry: () => void;
+  onCheckStatus: () => void;              // polls current application status
+}
+```
+
+**Visual.** Amber banner (sticky top, z-index 70, below SyncRollbackBanner
+priority). Copy:
+
+> **We couldn't confirm whether your decision saved.**
+>
+> Your connection dropped mid-submit. If the server already
+> processed it, retrying is safe — we'll detect the duplicate.
+>
+> [Retry] [Check status]
+
+**Behavior.**
+- "Retry" calls `commit.commit()` with the same idempotency key. If
+  the server processed the first attempt successfully, the call
+  returns `{ replayed: true }` and the toast flow activates normally.
+  If the server never saw the first attempt, the call processes
+  fresh.
+- "Check status" calls a lightweight `getApplicationStatus(id)` query
+  (new, ~5 LOC in `lib/final-review-queries.ts`) and renders a
+  state-dependent follow-up:
+  - Status changed to APPROVED (or whatever) → close banner, refresh
+    page, show success toast after the fact
+  - Status still CHAIR_REVIEW → safe to retry
+
+**Motion.** Slide from top (180 ms easeOut). Persistent until resolved.
+
+### 10.7 Error-code contract — client ↔ server
+
+For all of the above to work cleanly, `chairDecide()` must return
+structured error codes, not just error strings. Extend the existing
+`ApplicantWorkflowError` class to carry a machine-readable code plus
+an optional `context` object:
+
+```ts
+class ApplicantWorkflowError extends Error {
+  constructor(
+    public code:
+      | "STATUS_CHANGED"
+      | "SYNC_ROLLBACK"
+      | "DEADLOCK_DETECTED"
+      | "CONDITIONS_REQUIRED"
+      | "CONDITION_LABEL_INVALID"
+      | "CONDITION_LABEL_TOO_LONG"
+      | "CONDITION_OWNER_NOT_FOUND"
+      | "TOO_MANY_CONDITIONS"
+      | "REJECT_REASON_REQUIRED"
+      | "RATIONALE_TOO_LONG"
+      | "CONTRARIAN_OVERRIDE_MISSING"
+      | "UNAUTHORIZED"
+      | "APPLICATION_NOT_FOUND",
+    public context?: Record<string, unknown>
+  ) {
+    super(code);
+  }
+}
+```
+
+The server action's outer try/catch serializes this into the response
+shape:
+
+```ts
+return {
+  success: false,
+  error: err.code,
+  context: err.context,
+  message: HUMAN_MESSAGES[err.code],
+};
+```
+
+Client discriminates on `error` to pick the right surface:
+
+| `error` code | UI surface |
+|---------------|------------|
+| `STATUS_CHANGED` | `StaleClickRecoveryModal` |
+| `SYNC_ROLLBACK` | `SyncRollbackBanner` |
+| `DEADLOCK_DETECTED` | `DeadlockRetryToast` (then modal on exhaustion) |
+| `CONDITIONS_REQUIRED` + friends | `CommitErrorModal` with `field` |
+| `REJECT_REASON_REQUIRED` | `CommitErrorModal` with `field: "rejectReasonCode"` |
+| `RATIONALE_TOO_LONG` | `CommitErrorModal` + focus rationale field |
+| `UNAUTHORIZED` / `APPLICATION_NOT_FOUND` | Navigate to `/admin/instructor-applicants/chair-queue` with a toast |
+| (timeout/AbortError client-side) | `NetworkRecoveryBanner` |
+
+This is a tight, exhaustive switch — the `useCommitDecision` hook
+discriminates once and routes to the right surface. No string parsing,
+no drift.
+
+### 10.8 Files touched in Phase 2D.6
+
+| Status | Path | Notes |
+|--------|------|-------|
+| [NEW] | `components/instructor-applicants/final-review/SyncRollbackBanner.tsx` | §10.2 |
+| [NEW] | `components/instructor-applicants/final-review/StaleClickRecoveryModal.tsx` | §10.3 |
+| [NEW] | `components/instructor-applicants/final-review/CommitErrorModal.tsx` | §10.4 |
+| [NEW] | `components/instructor-applicants/final-review/DeadlockRetryToast.tsx` | §10.5 |
+| [NEW] | `components/instructor-applicants/final-review/NetworkRecoveryBanner.tsx` | §10.6 |
+| [MODIFY] | `lib/use-commit-decision.ts` | §10.5 auto-retry loop; §10.7 error discrimination routes to the right surface |
+| [MODIFY] | `lib/instructor-application-actions.ts` | §10.7 extend `ApplicantWorkflowError` with structured codes; wire existing rollback + sync-rollback to return `{ error: "SYNC_ROLLBACK" }` structured response |
+| [MODIFY] | `components/instructor-applicants/final-review/FinalReviewCockpit.tsx` | Mount the five new surfaces at cockpit root; route events from `useCommitDecision.state.error` |
+| [MODIFY] | `components/instructor-applicants/final-review/DecisionConfirmModal.tsx` | Remove the inline error chip from 2D; error display now delegated to `CommitErrorModal` |
+| [NEW] | `lib/final-review-queries.ts` | Add `getApplicationStatus(id)` — tiny query for network-recovery "Check status" action |
+| [MODIFY] | `app/globals.css` | ~120 LOC under `/* Phase 2D.6 */` block: banner variants, deadlock toast, error modal accent |
+
+### 10.9 Dependencies between Phase 2D.6 components
+
+```
+FinalReviewCockpit
+  ├── useCommitDecision (from 2D, now with retry loop)
+  │     ├── SyncRollbackBanner          — when error === "SYNC_ROLLBACK"
+  │     ├── StaleClickRecoveryModal     — when error === "STATUS_CHANGED"
+  │     ├── CommitErrorModal            — when error === validation codes
+  │     ├── DeadlockRetryToast          — during auto-retry attempts
+  │     └── NetworkRecoveryBanner       — when AbortError/timeout
+  └── DecisionConfirmModal (from 2C)    — onJumpToField from CommitErrorModal routes here
+```
+
+Server-side dependencies: all of Phase 2D.6's UI depends on the
+structured error codes from `chairDecide()`. The existing compensation
+logic at lines 1962–2013 is preserved unchanged; Phase 2D.6 only adds
+the structured error contract, it does not alter the transactional
+flow.
+
+### 10.10 Analytics events introduced in Phase 2D.6
+
+| Event | Payload | Purpose |
+|-------|---------|---------|
+| `final_review.sync_rollback_shown` | `{ applicationId, action, reason }` | Count rate of `SYNC_ROLLBACK` — target < 0.1% of commits |
+| `final_review.sync_rollback_retried` | `{ applicationId, attempt, outcome }` | Do chairs recover from rollback? |
+| `final_review.stale_click_shown` | `{ applicationId, attemptedAction, winnerAction, raceWindowMs }` | Concurrency pressure signal |
+| `final_review.stale_click_sent_rationale_to_winner` | `{ fromChairId, toChairId, applicationId }` | Measure the cross-chair rationale-handoff feature |
+| `final_review.validation_error_shown` | `{ applicationId, code, field }` | Which validation errors chairs hit most |
+| `final_review.deadlock_auto_retry` | `{ applicationId, attempt, succeeded }` | Deadlock rate; if > 1% investigate DB pressure |
+| `final_review.network_recovery_shown` | `{ applicationId, action }` | Network-drop rate |
+| `final_review.network_recovery_check_status` | `{ applicationId, resolvedStatus }` | Does the "Check status" affordance actually help? |
+
+All events hit the existing `trackEvent` helper. Dashboard thresholds:
+
+| Event | P1 alert | P0 alert |
+|-------|----------|----------|
+| `sync_rollback_shown` rate | > 0.5% | > 2% |
+| `stale_click_shown` rate | > 5% | > 20% (queue race problem) |
+| `validation_error_shown` rate | > 3% (UX issue, not system) | > 10% |
+| `deadlock_auto_retry` rate | > 1% | > 5% |
+
+### 10.11 Phase 2D.6 risks
+
+- **Banner stacking.** If both `SyncRollbackBanner` and
+  `NetworkRecoveryBanner` fire in rapid succession (rare but possible
+  — network drops during the compensator), the UI must render only
+  the higher-severity one. Mitigation: explicit `z-index` hierarchy
+  (sync rollback 70, network 65) plus `useCommitDecision` only holds
+  one error at a time — newer errors supersede older ones, which is
+  correct because the newer state is authoritative.
+- **Silent auto-retry masking real problems.** If we auto-retry
+  deadlocks transparently, we may hide a growing DB contention issue.
+  Mitigation: every auto-retry fires an analytics event; a dashboard
+  alert triggers if the rate exceeds 1%.
+- **`SyncRollbackBanner` copy is scary.** "Decision was reversed" is
+  an alarming phrase. Mitigation: the copy emphasizes what's true
+  and actionable ("back in your queue", "Retry"), not what's broken.
+  Copy should be reviewed with product/comms before launch.
+- **Stale-click modal as a privacy leak.** The winning chair's name
+  and rationale preview are surfaced to the loser. This is already
+  visible in the audit timeline, so no new leak — but worth
+  confirming with legal that hiring chairs seeing other chairs'
+  decisions is acceptable. Flagged in §17.
+- **`onJumpToField` brittleness.** The jump requires
+  `CommitErrorModal` to know the DOM structure of
+  `ApproveWithConditionsEditor`. Mitigation: fields expose stable
+  `data-testid` attributes; the jump uses `document.querySelector`
+  on that attribute, not on DOM position.
+- **Idempotency key reuse during `SYNC_ROLLBACK`.** When the
+  compensator fires, the `ChairDecisionCommitAttempt` row should be
+  marked `FAILED` (not `SUCCESS`) so retry processes freshly. Mitigation:
+  §14 makes this explicit in the schema — `result: SUCCESS` is set
+  only after the compensator's guard clause confirms no rollback was
+  needed.
+
+---
+
+*Sections 11–17 to follow.*
