@@ -1,6 +1,6 @@
 # Training Curriculum Import — Verification & Handoff
 
-Status snapshot for the M2/M3/M4 interactive-journey curriculum rebuild on
+Status snapshot for the M2/M3/M4/M5 interactive-journey curriculum rebuild on
 branch `claude/ypp-instruc-hhfZz`.
 
 ## Branch & commits verified
@@ -10,6 +10,8 @@ branch `claude/ypp-instruc-hhfZz`.
   - `83711f5` — Add Module 3 (Student Situations) compact authoring file
   - `a3dd787` — Register training curriculum modules (M2, M3, M4 added to `lib/training-curriculum/index.ts`)
   - `3a54770` — Fix training journey TypeScript blockers (`lib/training-journey/actions.ts`)
+  - `d797465` — Verify training curriculum import readiness (verification doc + read-only verify script)
+  - (this branch tip) — Add readiness check training curriculum (`lib/training-curriculum/readiness-check.ts`, M5 registered)
 
 ## Code-side verification (no DB required)
 
@@ -17,7 +19,7 @@ branch `claude/ypp-instruc-hhfZz`.
 | -------------------------------------- | ---------------------------------------- | ----------------------------------------- |
 | Strict TypeScript                      | `npx tsc --noEmit -p tsconfig.json`      | exit 0, no errors                         |
 | Project typecheck                      | `npm run typecheck`                      | exit 0                                    |
-| Curriculum + legacy JSON validators    | `npm run training:validate`              | 4 curricula validated                     |
+| Curriculum + legacy JSON validators    | `npm run training:validate`              | 5 curricula validated                     |
 
 Validator output also surfaces six pre-existing legacy JSON warnings on
 `data/training-academy/content.v1.json` (quiz < 4 questions and required
@@ -62,6 +64,7 @@ and `DIRECT_URL` set.
      - `academy_run_session_002`
      - `academy_student_situations_003`
      - `academy_communication_004`
+     - `academy_readiness_check_005`
    - Curriculum summary counters reflect `journeysCreated >= 1` and
      `beatsCreated` covering all flat beats. (For first-time imports this is
      the total beat count; for re-imports the importer reuses existing
@@ -104,6 +107,7 @@ and `DIRECT_URL` set.
    | `academy_run_session_002`           | 9               | CONCEPT_REVEAL, SORT_ORDER, SCENARIO_CHOICE, FILL_IN_BLANK, COMPARE, REFLECTION                |
    | `academy_student_situations_003`    | 8               | CONCEPT_REVEAL, MULTI_SELECT, BRANCHING_SCENARIO, SORT_ORDER, MESSAGE_COMPOSER                 |
    | `academy_communication_004`         | 7               | MULTI_SELECT, MESSAGE_COMPOSER, SCENARIO_CHOICE, SPOT_THE_MISTAKE, CONCEPT_REVEAL              |
+   | `academy_readiness_check_005`       | 10              | CONCEPT_REVEAL, MULTI_SELECT, SORT_ORDER, MATCH_PAIRS, BRANCHING_SCENARIO, MESSAGE_COMPOSER, FILL_IN_BLANK |
 
    The script computes the expected counts dynamically from
    `lib/training-curriculum/index.ts`, so future curriculum changes do not
@@ -115,9 +119,11 @@ and `DIRECT_URL` set.
   the journey page under `app/(app)/training/[id]/`. These read from the DB
   by `moduleId` and do not depend on the registry export at request time —
   the registry is import-time only.
-- After a successful import, M2/M3/M4 will appear in the academy module list
-  and be loadable via the existing `[id]` route as soon as their
-  `TrainingModule` rows exist with `type=INTERACTIVE_JOURNEY`.
+- After a successful import, M2/M3/M4/M5 will appear in the academy module
+  list and be loadable via the existing `[id]` route as soon as their
+  `TrainingModule` rows exist with `type=INTERACTIVE_JOURNEY`. M5
+  (`Readiness Check`) is authored with `strictMode: true`, so the player
+  enforces single-attempt scoring per beat for that journey.
 - `npm run build` was not executed in the verification environment (env vars
   missing, Next.js build is expensive). `tsc --noEmit` is green for the whole
   project.
@@ -147,9 +153,10 @@ and `DIRECT_URL` set.
 
 In a DB-enabled environment:
 1. Run the steps under "DB-touching steps" above.
-2. If `training:verify` reports OK for all four curricula, hand off to QA to
-   click through M2/M3/M4 in the app and confirm beat rendering for each new
-   beat kind (`BRANCHING_SCENARIO`, `MESSAGE_COMPOSER`, `SORT_ORDER`,
-   `MULTI_SELECT`, `SCENARIO_CHOICE`, `SPOT_THE_MISTAKE`, `FILL_IN_BLANK`,
-   `COMPARE`, `REFLECTION`, `CONCEPT_REVEAL`).
+2. If `training:verify` reports OK for all five curricula, hand off to QA to
+   click through M2/M3/M4/M5 in the app and confirm beat rendering for each
+   new beat kind (`BRANCHING_SCENARIO`, `MESSAGE_COMPOSER`, `SORT_ORDER`,
+   `MATCH_PAIRS`, `MULTI_SELECT`, `SCENARIO_CHOICE`, `SPOT_THE_MISTAKE`,
+   `FILL_IN_BLANK`, `COMPARE`, `REFLECTION`, `CONCEPT_REVEAL`). Pay
+   particular attention to M5's strict-mode behavior (no per-beat retry).
 3. Only then consider a `--prune` re-import to clean up stale modules.
