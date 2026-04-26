@@ -15,6 +15,10 @@ import {
   getTrainingAccessRedirect,
   hasApprovedInstructorTrainingAccess,
 } from "@/lib/training-access";
+import {
+  evaluateLessonDesignStudioGateFromAssignment,
+  READINESS_CHECK_MODULE_KEY,
+} from "@/lib/lesson-design-studio-gate";
 
 function formatDateTime(value: Date | string | null | undefined) {
   if (!value) return "-";
@@ -23,7 +27,6 @@ function formatDateTime(value: Date | string | null | undefined) {
 
 const TRACKABLE_REQUIRED_VIDEO_PROVIDERS = new Set(["YOUTUBE", "VIMEO", "CUSTOM"]);
 const LESSON_DESIGN_STUDIO_MODULE_KEY = "academy_lesson_studio_004";
-const READINESS_CHECK_MODULE_KEY = "academy_readiness_check_005";
 
 type ModuleCard = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -40,9 +43,11 @@ type ModuleCard = {
 function KanbanCard({
   card,
   readinessCheckPassed,
+  readinessCheckModuleId,
 }: {
   card: ModuleCard;
   readinessCheckPassed: boolean;
+  readinessCheckModuleId: string | null;
 }) {
   const isLDS = card.module.contentKey === LESSON_DESIGN_STUDIO_MODULE_KEY;
   const ldsLocked = isLDS && !readinessCheckPassed;
@@ -84,7 +89,7 @@ function KanbanCard({
           className="pill pill-small"
           style={{ marginBottom: 10, display: "inline-block" }}
         >
-          Locked — pass Readiness Check first
+          Complete Readiness Check to unlock
         </span>
       ) : null}
 
@@ -105,16 +110,26 @@ function KanbanCard({
       ) : null}
 
       {ldsLocked ? (
-        <button
-          type="button"
-          className="button small"
-          disabled
-          aria-disabled="true"
-          style={{ fontSize: 12, cursor: "not-allowed" }}
-          title="Pass the Readiness Check to unlock the Lesson Design Studio."
-        >
-          Locked
-        </button>
+        readinessCheckModuleId ? (
+          <Link
+            href={`/training/${readinessCheckModuleId}`}
+            className="button small"
+            style={{ textDecoration: "none", fontSize: 12 }}
+          >
+            Open Readiness Check
+          </Link>
+        ) : (
+          <button
+            type="button"
+            className="button small"
+            disabled
+            aria-disabled="true"
+            style={{ fontSize: 12, cursor: "not-allowed" }}
+            title="Complete the Readiness Check to unlock the Lesson Design Studio."
+          >
+            Locked
+          </button>
+        )
       ) : (
         <Link
           href={isLDS ? "/instructor/lesson-design-studio?entry=training" : `/training/${card.module.id}`}
@@ -128,11 +143,19 @@ function KanbanCard({
   );
 }
 
-export default async function InstructorTrainingPage() {
+export default async function InstructorTrainingPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }
+  const sp = (await searchParams) ?? {};
+  const lockedParamRaw = sp.locked;
+  const lockedParam = Array.isArray(lockedParamRaw) ? lockedParamRaw[0] : lockedParamRaw;
+  const showLdsLockedBanner = lockedParam === "lesson-design-studio";
 
   const roles = session.user.roles ?? [];
   const canAccessTraining = hasApprovedInstructorTrainingAccess(roles);
@@ -335,13 +358,16 @@ export default async function InstructorTrainingPage() {
   const readinessCheckCard = moduleCards.find(
     (c) => c.module.contentKey === READINESS_CHECK_MODULE_KEY,
   );
-  // If the Readiness Check module hasn't been imported yet, the LDS card stays
-  // unlocked (legacy behavior). Once imported, an assignment with status
-  // COMPLETE is the signal that the user passed M5 (per
-  // InteractiveJourneyCompletion.passed → assignment COMPLETE in actions.ts).
-  const readinessCheckPassed = readinessCheckCard
-    ? readinessCheckCard.assignment?.status === "COMPLETE"
-    : true;
+  const readinessCheckModuleId = readinessCheckCard?.module.id ?? null;
+  // Single source of truth for the LDS gate — same evaluator used by the
+  // server-side hard gate on the LDS route.
+  const ldsGate = evaluateLessonDesignStudioGateFromAssignment({
+    roles,
+    readinessCheckModuleId,
+    readinessCheckAssignmentStatus:
+      readinessCheckCard?.assignment?.status ?? null,
+  });
+  const readinessCheckPassed = ldsGate.unlocked;
 
   const moduleWeight = readiness.requiredModulesCount;
   const doneModuleWeight = readiness.academyModulesComplete
@@ -369,6 +395,37 @@ export default async function InstructorTrainingPage() {
           <p className="page-subtitle">Complete all required modules to unlock offering approval readiness and the interview gate.</p>
         </div>
       </div>
+
+      {showLdsLockedBanner && !readinessCheckPassed ? (
+        <div
+          className="card"
+          role="status"
+          style={{
+            marginBottom: 16,
+            borderColor: "#f59e0b",
+            background: "#fffbeb",
+          }}
+        >
+          <p style={{ margin: 0, fontSize: 13, color: "#92400e" }}>
+            <strong>Lesson Design Studio is locked.</strong>{" "}
+            Complete the Readiness Check first
+            {readinessCheckModuleId ? (
+              <>
+                {" — "}
+                <Link
+                  href={`/training/${readinessCheckModuleId}`}
+                  className="link"
+                >
+                  open it now
+                </Link>
+                .
+              </>
+            ) : (
+              "."
+            )}
+          </p>
+        </div>
+      ) : null}
 
       {/* Roadmap progress bar */}
       <div className="card" style={{ marginBottom: 20 }}>
@@ -567,7 +624,7 @@ export default async function InstructorTrainingPage() {
               {moduleCards
                 .filter((c) => !c.fullyComplete && c.assignment?.status !== "IN_PROGRESS")
                 .map((card) => (
-                  <KanbanCard key={card.module.id} card={card} readinessCheckPassed={readinessCheckPassed} />
+                  <KanbanCard key={card.module.id} card={card} readinessCheckPassed={readinessCheckPassed} readinessCheckModuleId={readinessCheckModuleId} />
                 ))}
               {moduleCards.filter((c) => !c.fullyComplete && c.assignment?.status !== "IN_PROGRESS").length === 0 && (
                 <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>None</p>
@@ -587,7 +644,7 @@ export default async function InstructorTrainingPage() {
               {moduleCards
                 .filter((c) => !c.fullyComplete && c.assignment?.status === "IN_PROGRESS")
                 .map((card) => (
-                  <KanbanCard key={card.module.id} card={card} readinessCheckPassed={readinessCheckPassed} />
+                  <KanbanCard key={card.module.id} card={card} readinessCheckPassed={readinessCheckPassed} readinessCheckModuleId={readinessCheckModuleId} />
                 ))}
               {moduleCards.filter((c) => !c.fullyComplete && c.assignment?.status === "IN_PROGRESS").length === 0 && (
                 <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>None yet</p>
@@ -607,7 +664,7 @@ export default async function InstructorTrainingPage() {
               {moduleCards
                 .filter((c) => c.fullyComplete)
                 .map((card) => (
-                  <KanbanCard key={card.module.id} card={card} readinessCheckPassed={readinessCheckPassed} />
+                  <KanbanCard key={card.module.id} card={card} readinessCheckPassed={readinessCheckPassed} readinessCheckModuleId={readinessCheckModuleId} />
                 ))}
               {moduleCards.filter((c) => c.fullyComplete).length === 0 && (
                 <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>None yet</p>

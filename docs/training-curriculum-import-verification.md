@@ -156,6 +156,80 @@ and `DIRECT_URL` set.
   DB in this pass. It is a small Prisma read-only script; review the source
   before first use.
 
+## Lesson Design Studio Capstone Gate
+
+The Readiness Check (M5) gates entry into the Lesson Design Studio capstone.
+The gate is enforced both client-visibly on the hub and server-side on the
+LDS route.
+
+### Source of truth
+
+- M5 `contentKey`: `academy_readiness_check_005`
+- Helper: `lib/lesson-design-studio-gate.ts`
+  - `getLessonDesignStudioGateStatus(userId, roles)` — async DB-backed check.
+  - `evaluateLessonDesignStudioGateFromAssignment({ roles, readinessCheckModuleId, readinessCheckAssignmentStatus })`
+    — pure function for callers (e.g. the hub) that already loaded the data.
+
+### Behavior
+
+| Condition                                         | Gate           | Reason                          |
+| ------------------------------------------------- | -------------- | ------------------------------- |
+| Caller has role `ADMIN` or `CHAPTER_PRESIDENT`    | unlocked       | `REVIEWER_BYPASS`               |
+| M5 `TrainingModule` row not present in DB         | unlocked       | `READINESS_CHECK_NOT_IMPORTED`  |
+| M5 row present, user assignment `status=COMPLETE` | unlocked       | `READY`                         |
+| M5 row present, any other assignment state        | locked         | `READINESS_CHECK_REQUIRED`      |
+
+### Where the gate is wired
+
+- **Hub card** (`app/(app)/instructor-training/page.tsx`):
+  - Lesson Design Studio `KanbanCard` renders dimmed with a
+    "Complete Readiness Check to unlock" pill while locked.
+  - When the M5 row is known, the locked card's CTA deep-links to
+    `/training/<m5ModuleId>` so the user can start the Readiness Check
+    immediately.
+  - When the page is visited with `?locked=lesson-design-studio` and the
+    user is still locked, a banner appears at the top of the hub.
+- **LDS server pages** (hard gate):
+  - `app/(app)/instructor/lesson-design-studio/page.tsx`
+  - `app/(app)/instructor/lesson-design-studio/[draftId]/[step]/page.tsx`
+  - Both call `getLessonDesignStudioGateStatus` after the existing role
+    check. If locked, they `redirect("/instructor-training?locked=lesson-design-studio")`.
+- **Reviewer roles** (`ADMIN`, `CHAPTER_PRESIDENT`) bypass the gate
+  everywhere.
+
+### Tests
+
+`tests/lib/lesson-design-studio-gate.test.ts` covers all six gate states
+plus admin short-circuit. Run with `npm test -- tests/lib/lesson-design-studio-gate.test.ts`.
+
+### Manual QA checklist
+
+After importing the curriculum into a DB-enabled environment and clicking
+through M5:
+
+1. **Pre-M5 DB row absent**: with no `TrainingModule` row for
+   `academy_readiness_check_005`, an instructor can open `/instructor/lesson-design-studio`
+   and see the LDS card unlocked on the hub. (Backward compatibility.)
+2. **M5 imported, instructor has not passed**: the LDS card shows the
+   locked pill and an "Open Readiness Check" CTA. Direct navigation to
+   `/instructor/lesson-design-studio` redirects to
+   `/instructor-training?locked=lesson-design-studio`, which renders the
+   locked banner.
+3. **Instructor completes M5** (`InteractiveJourneyCompletion.passed=true` →
+   `TrainingAssignment.status=COMPLETE`): hub card unlocks, "Open Studio"
+   CTA returns, direct LDS URL works.
+4. **Reviewer roles** (`ADMIN`, `CHAPTER_PRESIDENT`): the gate never engages
+   regardless of M5 status.
+5. **No regressions**: M2/M3/M4 journeys still load via `/training/[id]` and
+   `npm run training:validate` still reports 5 curricula.
+
+### Reminder
+
+The hard gate only takes effect after `npm run training:import` lands the M5
+row in the DB. Until then, every user keeps the legacy unlocked behavior.
+This must still be run in a DB-enabled environment with `DATABASE_URL` and
+`DIRECT_URL` set.
+
 ## Next recommended phase chunk
 
 In a DB-enabled environment:
