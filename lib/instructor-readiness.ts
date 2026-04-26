@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { withPrismaFallback } from "@/lib/prisma-guard";
+import {
+  evaluateLessonDesignStudioGateFromAssignment,
+  READINESS_CHECK_MODULE_KEY,
+  type LessonDesignStudioGateStatus,
+} from "@/lib/lesson-design-studio-gate";
 
 type NextAction = {
   title: string;
@@ -33,6 +38,8 @@ export type InstructorReadiness = {
   legacyExemptOfferingCount: number;
   missingRequirements: MissingRequirement[];
   nextAction: NextAction;
+  /** Whether this instructor can open the Lesson Design Studio capstone. */
+  lessonDesignStudioGate: LessonDesignStudioGateStatus;
 };
 
 const INSTRUCTOR_TOOLS_HREF = "/instructor-training";
@@ -44,6 +51,7 @@ type RequiredTrainingModule = {
   id: string;
   title: string;
   type: string;
+  contentKey: string | null;
   videoUrl: string | null;
   videoProvider: string | null;
   requiresQuiz: boolean;
@@ -108,6 +116,12 @@ export function buildFallbackInstructorReadiness(
         "Training and interview readiness checks are temporarily unavailable.",
       href: INSTRUCTOR_TOOLS_HREF,
     },
+    // When readiness data is unavailable we don't lock the user out of the
+    // capstone — same fallback posture the rest of this struct takes.
+    lessonDesignStudioGate: {
+      unlocked: true,
+      reason: "READINESS_CHECK_NOT_IMPORTED",
+    },
   };
 }
 
@@ -137,6 +151,7 @@ export function buildInstructorReadinessFromSnapshot({
   interviewGate,
   legacyExemptOfferingCount,
   studioCapstoneComplete,
+  roles = [],
 }: {
   instructorId: string;
   featureEnabled: boolean;
@@ -146,6 +161,8 @@ export function buildInstructorReadinessFromSnapshot({
   interviewGate: InstructorInterviewGateSnapshot | null;
   legacyExemptOfferingCount: number;
   studioCapstoneComplete: boolean;
+  /** Roles for THIS instructor (drives the LDS reviewer-bypass branch). */
+  roles?: string[];
 }): InstructorReadiness {
   const moduleConfigIssueById = new Map<string, string>();
   for (const trainingModule of requiredModules) {
@@ -265,6 +282,21 @@ export function buildInstructorReadinessFromSnapshot({
 
   const baseReadinessComplete = !featureEnabled || missingRequirements.length === 0;
   const canRequestOfferingApproval = baseReadinessComplete;
+
+  // Lesson Design Studio capstone gate. Single source of truth — the LDS
+  // server pages and the hub kanban card both read this through the gate
+  // helper, which delegates back to this readiness aggregate.
+  const readinessCheckModule = requiredModules.find(
+    (m) => m.contentKey === READINESS_CHECK_MODULE_KEY
+  );
+  const readinessCheckAssignment = readinessCheckModule
+    ? assignments.find((a) => a.moduleId === readinessCheckModule.id)
+    : undefined;
+  const lessonDesignStudioGate = evaluateLessonDesignStudioGateFromAssignment({
+    roles,
+    readinessCheckModuleId: readinessCheckModule?.id ?? null,
+    readinessCheckAssignmentStatus: readinessCheckAssignment?.status ?? null,
+  });
   const nextAction =
     missingRequirements[0]
       ? {
@@ -295,6 +327,7 @@ export function buildInstructorReadinessFromSnapshot({
     legacyExemptOfferingCount,
     missingRequirements,
     nextAction,
+    lessonDesignStudioGate,
   };
 }
 
@@ -321,6 +354,7 @@ export async function getInstructorReadinessMany(
             id: true,
             title: true,
             type: true,
+            contentKey: true,
             videoUrl: true,
             videoProvider: true,
             requiresQuiz: true,
@@ -364,6 +398,10 @@ export async function getInstructorReadinessMany(
           },
           select: { authorId: true },
         }),
+        prisma.userRole.findMany({
+          where: { userId: { in: uniqueInstructorIds } },
+          select: { userId: true, role: true },
+        }),
       ]),
     null
   );
@@ -381,6 +419,7 @@ export async function getInstructorReadinessMany(
     interviewGates,
     grandfatheredOfferingCounts,
     submittedOrApprovedDrafts,
+    userRoles,
   ] = readinessData;
 
   const assignmentsByInstructor = new Map<string, InstructorTrainingAssignment[]>();
@@ -408,6 +447,16 @@ export async function getInstructorReadinessMany(
     submittedOrApprovedDrafts.map((draft) => draft.authorId)
   );
 
+  const rolesByInstructor = new Map<string, string[]>();
+  for (const row of userRoles) {
+    const current = rolesByInstructor.get(row.userId);
+    if (current) {
+      current.push(row.role);
+    } else {
+      rolesByInstructor.set(row.userId, [row.role]);
+    }
+  }
+
   for (const instructorId of uniqueInstructorIds) {
     readinessByInstructor.set(
       instructorId,
@@ -421,6 +470,7 @@ export async function getInstructorReadinessMany(
         legacyExemptOfferingCount:
           legacyExemptOfferingCountByInstructor.get(instructorId) ?? 0,
         studioCapstoneComplete: instructorsWithSubmittedCapstone.has(instructorId),
+        roles: rolesByInstructor.get(instructorId) ?? [],
       })
     );
   }

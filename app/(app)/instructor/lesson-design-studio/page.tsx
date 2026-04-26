@@ -12,6 +12,7 @@ import {
   getStudioDraftIdFromSearchParams,
   getStudioEntryContextFromSearchParams,
 } from "@/lib/lesson-design-studio";
+import { getLessonDesignStudioGateStatus } from "@/lib/lesson-design-studio-gate";
 import { DraftChooser } from "./draft-chooser";
 import "./studio.css";
 
@@ -31,6 +32,11 @@ export default async function CurriculumBuilderStudioPage({
     roles.includes("APPLICANT");
 
   if (!hasAccess) redirect("/");
+
+  const gate = await getLessonDesignStudioGateStatus(session.user.id, roles);
+  if (!gate.unlocked) {
+    redirect("/instructor-training?locked=lesson-design-studio");
+  }
 
   const params = (await searchParams) ?? {};
   const entryContext = getStudioEntryContextFromSearchParams(params);
