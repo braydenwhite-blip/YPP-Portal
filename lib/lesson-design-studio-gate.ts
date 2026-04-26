@@ -12,11 +12,10 @@
  *     COMPLETE, access is allowed.
  *   - Otherwise the gate is locked.
  *
- * Server-only. Imports `prisma` directly; do not import from client code.
+ * Server-only. The async `getLessonDesignStudioGateStatus` delegates to
+ * `getInstructorReadiness` so the readiness aggregate, hub card, and LDS
+ * route hard-gate all share one decision source.
  */
-
-import { prisma } from "@/lib/prisma";
-import { withPrismaFallback } from "@/lib/prisma-guard";
 
 export const READINESS_CHECK_MODULE_KEY = "academy_readiness_check_005";
 
@@ -40,6 +39,11 @@ function isReviewer(roles: RoleLike[]): boolean {
  * Resolve whether the user should be allowed into the Lesson Design Studio.
  * Caller is responsible for the role-based access check (instructor/admin/etc.)
  * — this function only adds the Readiness-Check gate on top of that.
+ *
+ * Reviewer roles short-circuit without touching the DB. Otherwise this
+ * delegates to `getInstructorReadiness`, which loads required modules, the
+ * user's assignments, and the user's roles in a single batch and computes
+ * the gate inline. Single source of truth for the gate decision.
  */
 export async function getLessonDesignStudioGateStatus(
   userId: string,
@@ -48,40 +52,11 @@ export async function getLessonDesignStudioGateStatus(
   if (isReviewer(roles)) {
     return { unlocked: true, reason: "REVIEWER_BYPASS" };
   }
-
-  const m5Module = await withPrismaFallback(
-    "lds-gate:readiness-module",
-    () =>
-      prisma.trainingModule.findUnique({
-        where: { contentKey: READINESS_CHECK_MODULE_KEY },
-        select: { id: true },
-      }),
-    null
-  );
-
-  if (!m5Module) {
-    return { unlocked: true, reason: "READINESS_CHECK_NOT_IMPORTED" };
-  }
-
-  const assignment = await withPrismaFallback(
-    "lds-gate:assignment",
-    () =>
-      prisma.trainingAssignment.findUnique({
-        where: { userId_moduleId: { userId, moduleId: m5Module.id } },
-        select: { status: true },
-      }),
-    null
-  );
-
-  if (assignment?.status === "COMPLETE") {
-    return { unlocked: true, reason: "READY" };
-  }
-
-  return {
-    unlocked: false,
-    reason: "READINESS_CHECK_REQUIRED",
-    readinessCheckModuleId: m5Module.id,
-  };
+  // Lazy import to avoid the circular `instructor-readiness → gate-helper →
+  // instructor-readiness` cycle at module-evaluation time.
+  const { getInstructorReadiness } = await import("@/lib/instructor-readiness");
+  const readiness = await getInstructorReadiness(userId);
+  return readiness.lessonDesignStudioGate;
 }
 
 /**

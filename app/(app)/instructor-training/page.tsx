@@ -15,10 +15,7 @@ import {
   getTrainingAccessRedirect,
   hasApprovedInstructorTrainingAccess,
 } from "@/lib/training-access";
-import {
-  evaluateLessonDesignStudioGateFromAssignment,
-  READINESS_CHECK_MODULE_KEY,
-} from "@/lib/lesson-design-studio-gate";
+import { READINESS_CHECK_MODULE_KEY } from "@/lib/lesson-design-studio-gate";
 
 function formatDateTime(value: Date | string | null | undefined) {
   if (!value) return "-";
@@ -355,19 +352,15 @@ export default async function InstructorTrainingPage({
     (request) => request.status === "PENDING"
   );
 
-  const readinessCheckCard = moduleCards.find(
-    (c) => c.module.contentKey === READINESS_CHECK_MODULE_KEY,
-  );
-  const readinessCheckModuleId = readinessCheckCard?.module.id ?? null;
-  // Single source of truth for the LDS gate — same evaluator used by the
-  // server-side hard gate on the LDS route.
-  const ldsGate = evaluateLessonDesignStudioGateFromAssignment({
-    roles,
-    readinessCheckModuleId,
-    readinessCheckAssignmentStatus:
-      readinessCheckCard?.assignment?.status ?? null,
-  });
-  const readinessCheckPassed = ldsGate.unlocked;
+  // Single source of truth for the LDS gate. `readiness.lessonDesignStudioGate`
+  // is computed inside `buildInstructorReadinessFromSnapshot` and shared with
+  // the server-side hard gate on the LDS route via `getLessonDesignStudioGateStatus`.
+  const readinessCheckPassed = readiness.lessonDesignStudioGate.unlocked;
+  const readinessCheckModuleId =
+    readiness.lessonDesignStudioGate.unlocked
+      ? moduleCards.find((c) => c.module.contentKey === READINESS_CHECK_MODULE_KEY)
+          ?.module.id ?? null
+      : readiness.lessonDesignStudioGate.readinessCheckModuleId;
 
   const moduleWeight = readiness.requiredModulesCount;
   const doneModuleWeight = readiness.academyModulesComplete
