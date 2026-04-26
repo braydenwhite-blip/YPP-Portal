@@ -343,7 +343,7 @@ export async function completeInteractiveJourney(
     | { ancestorSourceKey: string; in: string[] }
     | { ancestorSourceKey: string; notEquals: string };
 
-  function isVisible(beat: (typeof journey.beats)[number]): boolean {
+  function isVisible(beat: NonNullable<typeof journey>["beats"][number]): boolean {
     const predicate = beat.showWhen as ShowWhen | null | undefined;
     if (!predicate) return true;
     const ancestorId = sourceKeyToBeatId.get(predicate.ancestorSourceKey);
@@ -614,6 +614,7 @@ export async function resumeInteractiveJourney(
       attemptNumber: attempt.attemptNumber,
       correct: attempt.correct,
       score: attempt.score,
+      response: attempt.response ?? null,
     });
   }
 
