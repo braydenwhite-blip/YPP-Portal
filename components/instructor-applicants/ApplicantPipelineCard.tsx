@@ -1,10 +1,13 @@
 import type { CSSProperties, ReactNode } from "react";
 import { PROGRESS_RATING_OPTIONS } from "@/lib/instructor-review-config";
+import { formatScheduleDateTime } from "@/lib/scheduling/shared";
 
 type PipelineCardApp = {
   id: string;
   status: string;
   materialsReadyAt: Date | string | null;
+  interviewScheduledAt?: Date | string | null;
+  updatedAt?: Date | string;
   overdue?: boolean;
   stuck?: boolean;
   subjectsOfInterest: string | null;
@@ -22,6 +25,21 @@ type PipelineCardApp = {
     role: string;
     interviewer: { id: string; name: string | null };
   }>;
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  SUBMITTED: "New",
+  UNDER_REVIEW: "Under Review",
+  INFO_REQUESTED: "Info Requested",
+  PRE_APPROVED: "Pre-Approved",
+  INTERVIEW_SCHEDULED: "Interview Scheduled",
+  INTERVIEW_SCHEDULED_READY: "Interview Scheduled",
+  INTERVIEW_COMPLETED: "Interview Completed",
+  CHAIR_REVIEW: "Chair Review",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+  ON_HOLD: "On Hold",
+  WITHDRAWN: "Withdrawn",
 };
 
 interface ApplicantPipelineCardProps {
@@ -67,6 +85,8 @@ export default function ApplicantPipelineCard({
   const latestRating = app.applicationReviews?.find((review) => review.overallRating)
     ?.overallRating;
   const ratingOption = PROGRESS_RATING_OPTIONS.find((option) => option.value === latestRating);
+  const statusLabel = STATUS_LABELS[app.status] ?? app.status.replace(/_/g, " ");
+  const hasMaterials = Boolean(app.materialsReadyAt);
 
   return (
     <button
@@ -79,6 +99,32 @@ export default function ApplicantPipelineCard({
         <div className="applicant-pipeline-card-title">
           <div className="kanban-card-name">
             {app.applicant.name ?? app.applicant.email}
+          </div>
+
+          <div className="applicant-card-meta-row">
+            <span
+              className={`status-pill ${stageClass}`}
+              aria-label={`Status: ${statusLabel}`}
+              title={statusLabel}
+            >
+              {statusLabel}
+            </span>
+
+            {app.interviewScheduledAt && (
+              <span
+                className="pill pill-small applicant-card-meta-pill"
+                title={`Interview: ${formatScheduleDateTime(app.interviewScheduledAt)}`}
+              >
+                {formatScheduleDateTime(app.interviewScheduledAt)}
+              </span>
+            )}
+
+            <span
+              className={`pill pill-small applicant-card-meta-pill${hasMaterials ? " pill-purple" : " pill-attention"}`}
+              title={hasMaterials ? "Materials ready" : "Materials missing"}
+            >
+              {hasMaterials ? "Materials" : "Missing"}
+            </span>
           </div>
 
           {app.applicant.chapter && (

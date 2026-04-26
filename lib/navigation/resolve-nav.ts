@@ -33,6 +33,22 @@ const ALWAYS_HIDDEN_HREFS = new Set([
   "/admin/hiring-committee",
   /** Hidden until product is ready; page remains reachable by URL. */
   "/instructor/mentee-health",
+  /**
+   * Chapter links are consolidated into a single "Chapter Hub" entry
+   * to keep the sidebar compact. The destination pages remain reachable
+   * via the hub (and by URL).
+   */
+  "/chapters",
+  "/join-chapter",
+  "/chapter/apply",
+  "/chapter/president",
+  "/chapter/student-intake",
+  "/chapter/channels",
+  "/chapter/members",
+  "/chapter/leaderboard",
+  "/chapter/achievements",
+  "/chapters/leaderboard",
+  "/admin/chapters",
 ]);
 
 /** Shown in the primary admin sidebar without subtype gating (full RBAC still applies on the page). */
@@ -566,6 +582,18 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
       current.push(link);
     } else {
       grouped.set(link.group, [link]);
+    }
+  }
+
+  // Admin UX: keep chapter-related links inside the same "info/tools" section.
+  // This matches the mental model of "one place to find chapter + support surfaces"
+  // rather than splitting them across separate "Chapters" and "People & Support" groups.
+  if (primaryRole === "ADMIN") {
+    const chapters = grouped.get("Chapters");
+    if (chapters && chapters.length > 0) {
+      const support = grouped.get("People & Support") ?? [];
+      grouped.set("People & Support", [...support, ...chapters]);
+      grouped.delete("Chapters");
     }
   }
 

@@ -8952,6 +8952,33 @@ select.input {
   text-overflow: ellipsis;
 }
 
+.applicant-card-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.applicant-card-meta-pill {
+  background: rgba(15, 118, 110, 0.08);
+  color: #0f766e;
+  font-weight: 800;
+}
+
+.applicant-card-meta-row .status-pill {
+  font-size: 10px;
+  line-height: 1;
+  border-radius: 999px;
+  padding: 4px 8px;
+  border: 1px solid rgba(71, 85, 105, 0.14);
+  background: #ffffff;
+  color: var(--cockpit-soft-ink);
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
 .applicant-pipeline-card .kanban-card-chapter {
   max-width: 100%;
   overflow: hidden;

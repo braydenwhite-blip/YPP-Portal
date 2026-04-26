@@ -2,11 +2,14 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
+import { formatScheduleDateTime } from "@/lib/scheduling/shared";
 
 type DrawerApp = {
   id: string;
   status: string;
   materialsReadyAt: Date | string | null;
+  interviewScheduledAt?: Date | string | null;
+  updatedAt?: Date | string;
   overdue?: boolean;
   subjectsOfInterest: string | null;
   applicant: {
@@ -128,6 +131,35 @@ export default function ApplicantQuickDrawer({
         <div className="slideout-body">
           {activeSection === "summary" && (
             <>
+              {/* Key details */}
+              <div className="slideout-section">
+                <div className="slideout-section-title">Quick glance</div>
+                <div className="slideout-field">
+                  <div className="slideout-field-label">Email</div>
+                  <div className="slideout-field-value">
+                    <a href={`mailto:${app.applicant.email}`}>{app.applicant.email}</a>
+                  </div>
+                </div>
+                <div className="slideout-field">
+                  <div className="slideout-field-label">Interview</div>
+                  <div className="slideout-field-value">
+                    {app.interviewScheduledAt ? formatScheduleDateTime(app.interviewScheduledAt) : "Not scheduled"}
+                  </div>
+                </div>
+                <div className="slideout-field">
+                  <div className="slideout-field-label">Materials</div>
+                  <div className="slideout-field-value">
+                    {app.materialsReadyAt ? "Ready" : "Missing"}
+                  </div>
+                </div>
+                <div className="slideout-field">
+                  <div className="slideout-field-label">Updated</div>
+                  <div className="slideout-field-value">
+                    {app.updatedAt ? new Date(app.updatedAt).toLocaleString() : "—"}
+                  </div>
+                </div>
+              </div>
+
               {/* Subjects */}
               {app.subjectsOfInterest && (
               <div className="slideout-section">
