@@ -124,6 +124,13 @@ and `DIRECT_URL` set.
   `TrainingModule` rows exist with `type=INTERACTIVE_JOURNEY`. M5
   (`Readiness Check`) is authored with `strictMode: true`, so the player
   enforces single-attempt scoring per beat for that journey.
+- The instructor-training hub (`app/(app)/instructor-training/page.tsx`) now
+  visually locks the Lesson Design Studio kanban card until the user's
+  `academy_readiness_check_005` assignment status is `COMPLETE`. While
+  locked, the card shows a "Locked — pass Readiness Check first" pill and a
+  disabled button instead of the "Open Studio" link. If the Readiness Check
+  module hasn't been imported yet, the card stays unlocked (legacy
+  behavior), so the gate only takes effect after the M5 import lands in DB.
 - `npm run build` was not executed in the verification environment (env vars
   missing, Next.js build is expensive). `tsc --noEmit` is green for the whole
   project.
