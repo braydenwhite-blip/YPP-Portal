@@ -5,89 +5,22 @@ import { useState } from "react";
 export default function ProgressGalleryPage() {
   const [showAddComparison, setShowAddComparison] = useState(false);
 
-  // Sample comparisons - in production, fetch from database
-  const comparisons = [
-    {
-      id: "1",
-      title: "Watercolor Landscape Progress",
-      passion: "Visual Arts",
-      beforeDate: "2024-01-15",
-      afterDate: "2024-03-01",
-      beforeImage: "🎨",
-      afterImage: "🖼️",
-      improvements: [
-        "Better color mixing",
-        "Improved depth perception",
-        "Smoother gradients",
-        "More confident brush strokes"
-      ],
-      skillsGained: ["Color theory", "Wet-on-wet technique", "Composition"],
-      reflection: "I've learned so much about layering colors and creating depth. My paintings now have much more dimension and life to them!",
-      isPublic: true,
-      likes: 24,
-      xpAwarded: 50
-    },
-    {
-      id: "2",
-      title: "Basketball Free Throw Improvement",
-      passion: "Sports",
-      beforeDate: "2024-01-01",
-      afterDate: "2024-02-15",
-      beforeImage: "🏀",
-      afterImage: "🎯",
-      improvements: [
-        "60% to 85% accuracy",
-        "Consistent form",
-        "Better follow-through",
-        "Mental focus improved"
-      ],
-      skillsGained: ["Shooting form", "Consistency", "Mental preparation"],
-      reflection: "Daily practice and coach feedback made all the difference. Now I'm confident in high-pressure situations!",
-      isPublic: true,
-      likes: 18,
-      xpAwarded: 40
-    },
-    {
-      id: "3",
-      title: "Guitar Speed & Clarity",
-      passion: "Music",
-      beforeDate: "2023-12-01",
-      afterDate: "2024-02-28",
-      beforeImage: "🎸",
-      afterImage: "🎶",
-      improvements: [
-        "Doubled picking speed",
-        "Cleaner note transitions",
-        "Better timing",
-        "More complex songs mastered"
-      ],
-      skillsGained: ["Alternate picking", "Finger independence", "Rhythm"],
-      reflection: "Slow, deliberate practice with a metronome transformed my playing. The progress is incredible!",
-      isPublic: false,
-      likes: 0,
-      xpAwarded: 45
-    },
-    {
-      id: "4",
-      title: "Public Speaking Confidence",
-      passion: "Service",
-      beforeDate: "2024-01-05",
-      afterDate: "2024-03-10",
-      beforeImage: "😰",
-      afterImage: "😎",
-      improvements: [
-        "Reduced nervousness",
-        "Better eye contact",
-        "Clearer delivery",
-        "Engaging storytelling"
-      ],
-      skillsGained: ["Voice projection", "Body language", "Audience engagement"],
-      reflection: "Each presentation got easier. Now I actually enjoy speaking in front of groups!",
-      isPublic: true,
-      likes: 32,
-      xpAwarded: 55
-    }
-  ];
+  /** Populated from the database when progress comparisons are stored. */
+  const comparisons: Array<{
+    id: string;
+    title: string;
+    passion: string;
+    beforeDate: string;
+    afterDate: string;
+    beforeImage: string;
+    afterImage: string;
+    improvements: string[];
+    skillsGained: string[];
+    reflection: string;
+    isPublic: boolean;
+    likes: number;
+    xpAwarded: number;
+  }> = [];
 
   return (
     <div>
@@ -129,6 +62,8 @@ export default function ProgressGalleryPage() {
         </div>
       </div>
 
+      {comparisons.length > 0 ? (
+        <>
       {/* Filters */}
       <div className="card" style={{ marginBottom: 28 }}>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
@@ -287,6 +222,8 @@ export default function ProgressGalleryPage() {
           </div>
         ))}
       </div>
+        </>
+      ) : null}
 
       {/* Add Comparison Modal */}
       {showAddComparison && (

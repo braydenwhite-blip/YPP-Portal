@@ -88,7 +88,7 @@ function getFocusCardStyle(isActive: boolean) {
 export default async function MentorshipProgramAdminPage({
   searchParams,
 }: {
-  searchParams: SearchParams;
+  searchParams: Promise<SearchParams>;
 }) {
   const session = await getSession();
   const roles = session?.user?.roles ?? [];
@@ -97,9 +97,10 @@ export default async function MentorshipProgramAdminPage({
     redirect("/");
   }
 
-  const lane = parseAdminMentorshipLane(searchParams.lane);
-  const focus = parseFocus(searchParams.focus);
-  const supportRole = parseSupportRole(searchParams.supportRole);
+  const resolvedSearchParams = await searchParams;
+  const lane = parseAdminMentorshipLane(resolvedSearchParams.lane);
+  const focus = parseFocus(resolvedSearchParams.focus);
+  const supportRole = parseSupportRole(resolvedSearchParams.supportRole);
   const [data, goalReviews, monthlyReviews, chairQueue, completionStatus] = await Promise.all([
     getAdminMentorshipCommandCenterData(),
     getMentorshipGoalReviews(),
