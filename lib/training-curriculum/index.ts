@@ -12,9 +12,15 @@ export type { CurriculumDefinition, BeatDefinition } from "./types";
 
 import type { CurriculumDefinition } from "./types";
 import { M1_YPP_STANDARD } from "./ypp-standard";
+import { M2_RUN_A_GREAT_SESSION } from "./run-a-great-session";
+import { M3_STUDENT_SITUATIONS } from "./student-situations";
+import { M4_COMMUNICATION_RELIABILITY } from "./communication-reliability";
 
 export const CURRICULUM_REGISTRY: Record<string, CurriculumDefinition> = {
   [M1_YPP_STANDARD.contentKey]: M1_YPP_STANDARD,
+  [M2_RUN_A_GREAT_SESSION.contentKey]: M2_RUN_A_GREAT_SESSION,
+  [M3_STUDENT_SITUATIONS.contentKey]: M3_STUDENT_SITUATIONS,
+  [M4_COMMUNICATION_RELIABILITY.contentKey]: M4_COMMUNICATION_RELIABILITY,
 };
 
 export function listCurricula(): CurriculumDefinition[] {
