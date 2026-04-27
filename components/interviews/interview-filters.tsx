@@ -1,10 +1,16 @@
 import Link from "next/link";
-import type { CSSProperties } from "react";
-import type { InterviewHubFilters, InterviewScope, InterviewStateFilter, InterviewView } from "@/lib/interviews/types";
+import type {
+  InterviewHubFilters,
+  InterviewHubKpis,
+  InterviewScope,
+  InterviewStateFilter,
+  InterviewView,
+} from "@/lib/interviews/types";
 
 type InterviewFiltersProps = {
   filters: InterviewHubFilters;
   canTeamView: boolean;
+  kpis?: InterviewHubKpis;
 };
 
 const SCOPES: Array<{ value: InterviewScope; label: string }> = [
@@ -19,7 +25,7 @@ const VIEWS: Array<{ value: InterviewView; label: string }> = [
 ];
 
 const STATES: Array<{ value: InterviewStateFilter | "all"; label: string }> = [
-  { value: "all", label: "All States" },
+  { value: "all", label: "All" },
   { value: "needs_action", label: "Needs Action" },
   { value: "scheduled", label: "Scheduled" },
   { value: "completed", label: "Completed" },
@@ -39,77 +45,80 @@ function makeHref(filters: InterviewHubFilters, partial: Partial<InterviewHubFil
   return `/interviews?${query.toString()}`;
 }
 
-function pillStyle(active: boolean): CSSProperties {
-  return {
-    padding: "6px 12px",
-    borderRadius: 999,
-    fontSize: 12,
-    fontWeight: active ? 600 : 500,
-    border: `1px solid ${active ? "#6b21c8" : "var(--border)"}`,
-    background: active ? "#f5f3ff" : "transparent",
-    color: active ? "#6b21c8" : "var(--muted)",
-    textDecoration: "none",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    transition: "all 0.15s ease",
-  };
+function stateCount(value: InterviewStateFilter | "all", kpis?: InterviewHubKpis) {
+  if (!kpis) return null;
+  if (value === "needs_action") return kpis.needsAction;
+  if (value === "scheduled") return kpis.scheduledTotal;
+  if (value === "completed") return kpis.completedThisWeek;
+  return null;
 }
 
-export default function InterviewFilters({ filters, canTeamView }: InterviewFiltersProps) {
+export default function InterviewFilters({ filters, canTeamView, kpis }: InterviewFiltersProps) {
   return (
-    <div className="card" style={{ marginBottom: 16 }}>
-      <div style={{ display: "grid", gap: 12 }}>
+    <div className="iv-card iv-card-body" aria-label="Filter interviews">
+      <div className="iv-filter-row">
         <div>
-          <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 600, color: "var(--muted)" }}>
-            Scope
-          </p>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {SCOPES.map((scope) => (
-              <Link
-                key={scope.value}
-                href={makeHref(filters, { scope: scope.value })}
-                style={pillStyle(filters.scope === scope.value)}
-              >
-                {scope.label}
-              </Link>
-            ))}
+          <p className="iv-filter-label">Scope</p>
+          <div className="iv-segmented" role="group" aria-label="Interview scope">
+            {SCOPES.map((scope) => {
+              const selected = filters.scope === scope.value;
+              return (
+                <Link
+                  key={scope.value}
+                  href={makeHref(filters, { scope: scope.value })}
+                  className={selected ? "is-selected" : ""}
+                  aria-current={selected ? "page" : undefined}
+                >
+                  {scope.label}
+                </Link>
+              );
+            })}
           </div>
         </div>
 
         {canTeamView ? (
           <div>
-            <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 600, color: "var(--muted)" }}>
-              View
-            </p>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {VIEWS.map((view) => (
-                <Link
-                  key={view.value}
-                  href={makeHref(filters, { view: view.value })}
-                  style={pillStyle(filters.view === view.value)}
-                >
-                  {view.label}
-                </Link>
-              ))}
+            <p className="iv-filter-label">View</p>
+            <div className="iv-segmented" role="group" aria-label="Interview view">
+              {VIEWS.map((view) => {
+                const selected = filters.view === view.value;
+                return (
+                  <Link
+                    key={view.value}
+                    href={makeHref(filters, { view: view.value })}
+                    className={selected ? "is-selected" : ""}
+                    aria-current={selected ? "page" : undefined}
+                  >
+                    {view.label}
+                  </Link>
+                );
+              })}
             </div>
           </div>
         ) : null}
+      </div>
 
-        <div>
-          <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 600, color: "var(--muted)" }}>
-            State
-          </p>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {STATES.map((state) => (
-              <Link
-                key={state.value}
-                href={makeHref(filters, { state: state.value })}
-                style={pillStyle(filters.state === state.value)}
-              >
-                {state.label}
-              </Link>
-            ))}
+      <div className="iv-filter-row" style={{ marginTop: 14 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p className="iv-filter-label">State</p>
+          <div className="iv-filter-chip-group">
+            {STATES.map((state) => {
+              const selected = filters.state === state.value;
+              const count = stateCount(state.value, kpis);
+              return (
+                <Link
+                  key={state.value}
+                  href={makeHref(filters, { state: state.value })}
+                  className={`iv-filter-chip${selected ? " is-selected" : ""}`}
+                  aria-current={selected ? "page" : undefined}
+                >
+                  {state.label}
+                  {typeof count === "number" && count > 0 ? (
+                    <span className="iv-filter-chip-count">{count}</span>
+                  ) : null}
+                </Link>
+              );
+            })}
           </div>
         </div>
       </div>

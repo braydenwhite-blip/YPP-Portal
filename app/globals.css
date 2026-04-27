@@ -10973,3 +10973,212 @@ select.input {
 /* --- Visually-hidden helper (alias of .sr-only) --- */
 /* (Reuses existing .sr-only — no duplicate definition needed.) */
 
+/* --- Task card (used by /interviews hub) --- */
+
+.iv-task-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 20px;
+}
+
+.iv-task-card-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.iv-task-card-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.iv-task-card-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+
+.iv-task-card-domain {
+  font-size: var(--iv-type-kicker-size);
+  font-weight: 700;
+  letter-spacing: var(--iv-type-kicker-tracking);
+  text-transform: uppercase;
+  color: var(--iv-accent-ink);
+}
+
+.iv-task-card-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.iv-task-card-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.iv-task-card-helper {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.iv-task-card-action {
+  flex-shrink: 0;
+}
+
+.iv-task-card-action-block {
+  margin-top: 4px;
+}
+
+.iv-task-card-detail {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.55;
+}
+
+.iv-task-card-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--iv-line-faint);
+}
+
+.iv-task-card-blockers {
+  background: var(--iv-danger-surface);
+  border: 1px solid var(--iv-danger-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.iv-task-card-blockers-label {
+  font-size: var(--iv-type-kicker-size);
+  font-weight: 700;
+  letter-spacing: var(--iv-type-kicker-tracking);
+  text-transform: uppercase;
+  color: var(--iv-danger-ink);
+}
+
+.iv-task-card-blockers ul {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--iv-danger-ink);
+}
+
+.iv-task-card-links {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.iv-task-card-disclosure {
+  display: inline-block;
+}
+
+.iv-task-card-disclosure[open] {
+  display: block;
+}
+
+.iv-task-card-disclosure-summary {
+  list-style: none;
+  cursor: pointer;
+  display: inline-flex;
+}
+
+.iv-task-card-disclosure-summary::-webkit-details-marker {
+  display: none;
+}
+
+.iv-task-card-disclosure-summary > .button {
+  pointer-events: none;
+}
+
+@media (max-width: 720px) {
+  .iv-task-card-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .iv-task-card-action {
+    align-self: stretch;
+  }
+}
+
+/* --- Hub layout helpers --- */
+
+.iv-hub-section-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.iv-hub-next-action {
+  background: linear-gradient(180deg, var(--iv-accent-tint) 0%, #ffffff 100%);
+  border: 1px solid var(--iv-accent);
+  border-radius: 14px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: var(--iv-shadow-card);
+}
+
+.iv-hub-next-action-kicker {
+  font-size: var(--iv-type-kicker-size);
+  font-weight: 800;
+  letter-spacing: var(--iv-type-kicker-tracking);
+  text-transform: uppercase;
+  color: var(--iv-accent-ink);
+}
+
+.iv-hub-next-action-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.iv-hub-next-action-helper {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.iv-hub-next-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.iv-hub-next-action-detail {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text);
+  flex: 1;
+  min-width: 240px;
+}
+
