@@ -11,8 +11,10 @@
 
 import { motion } from "framer-motion";
 import type { ChairDecisionAction } from "@prisma/client";
+import type { FinalReviewWarning } from "@/lib/final-review-warnings";
 import DraftRationaleField from "./DraftRationaleField";
 import DecisionButtons from "./DecisionButtons";
+import DockRiskPreview from "./DockRiskPreview";
 
 export interface DecisionDockProps {
   applicationId: string;
@@ -28,6 +30,9 @@ export interface DecisionDockProps {
   pendingAction: ChairDecisionAction | null;
   pending: boolean;
   readOnly?: boolean;
+  warnings?: FinalReviewWarning[];
+  acknowledgements?: Record<string, boolean>;
+  onOpenRiskPreview?: () => void;
   onDraftChange: (draft: { rationale: string; comparisonNotes: string }) => void;
   onChoose: (action: ChairDecisionAction) => void;
   exposeQuoteHandler?: (handler: ((quote: string) => void) | null) => void;
@@ -113,7 +118,21 @@ export default function DecisionDock(props: DecisionDockProps) {
         exposeQuoteHandler={exposeQuoteHandler}
         requiredForIntent={pendingAction}
       />
-      <div style={{ display: "flex", alignItems: "flex-end" }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-end",
+          gap: 8,
+        }}
+      >
+        {props.warnings && props.acknowledgements ? (
+          <DockRiskPreview
+            warnings={props.warnings}
+            acknowledgements={props.acknowledgements}
+            onClick={props.onOpenRiskPreview}
+          />
+        ) : null}
         <DecisionButtons
           hasRedFlags={hasRedFlags}
           hasMajorityReject={hasMajorityReject}

@@ -378,3 +378,80 @@ export async function getChairDraft(
 ): Promise<ChairDraftSnapshot> {
   return { rationale: "", comparisonNotes: "", savedAt: null };
 }
+
+/**
+ * Tiny status query used by the cockpit's `NetworkRecoveryBanner`'s
+ * "Check status" action. Returns `null` if the application no longer exists
+ * (rare but possible during cascading deletes).
+ */
+export async function getApplicationStatus(
+  applicationId: string
+): Promise<InstructorApplicationStatus | null> {
+  const row = await prisma.instructorApplication.findUnique({
+    where: { id: applicationId },
+    select: { status: true },
+  });
+  return row?.status ?? null;
+}
+
+/**
+ * Last 10 NOTIFICATION_FAILED / NOTIFICATION_RESENT timeline events for a
+ * given application — drives the cockpit's notification failure banner +
+ * diagnostic drawer. (§11.6)
+ */
+export type NotificationAttempt = {
+  kind: "NOTIFICATION_FAILED" | "NOTIFICATION_RESENT";
+  at: string;
+  emailKind: string | null;
+  error: string | null;
+};
+
+export async function getNotificationAttempts(
+  applicationId: string
+): Promise<NotificationAttempt[]> {
+  const events = await prisma.instructorApplicationTimelineEvent.findMany({
+    where: {
+      applicationId,
+      kind: { in: ["NOTIFICATION_FAILED", "NOTIFICATION_RESENT"] },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 10,
+    select: { kind: true, createdAt: true, payload: true },
+  });
+  return events.map((e) => {
+    const payload = (e.payload ?? {}) as { emailKind?: unknown; error?: unknown };
+    return {
+      kind: e.kind as NotificationAttempt["kind"],
+      at: e.createdAt.toISOString(),
+      emailKind: typeof payload.emailKind === "string" ? payload.emailKind : null,
+      error: typeof payload.error === "string" ? payload.error : null,
+    };
+  });
+}
+
+/**
+ * The notification snapshot consumed by the banner — pairs
+ * `lastNotificationError` with the recent attempt history.
+ */
+export interface NotificationSnapshot {
+  lastNotificationError: string | null;
+  lastNotificationErrorAt: string | null;
+  attempts: NotificationAttempt[];
+}
+
+export async function getNotificationSnapshot(
+  applicationId: string
+): Promise<NotificationSnapshot> {
+  const [app, attempts] = await Promise.all([
+    prisma.instructorApplication.findUnique({
+      where: { id: applicationId },
+      select: { lastNotificationError: true, lastNotificationErrorAt: true },
+    }),
+    getNotificationAttempts(applicationId),
+  ]);
+  return {
+    lastNotificationError: app?.lastNotificationError ?? null,
+    lastNotificationErrorAt: toIso(app?.lastNotificationErrorAt ?? null),
+    attempts,
+  };
+}

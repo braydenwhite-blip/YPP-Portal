@@ -15,8 +15,10 @@ import type {
   InstructorInterviewRecommendation,
 } from "@prisma/client";
 import type { ReadinessSignals } from "@/lib/readiness-signals";
+import type { FinalReviewWarning } from "@/lib/final-review-warnings";
 import DecisionSummaryCard from "./DecisionSummaryCard";
 import RejectReasonCodePicker, { type RejectReasonCode } from "./RejectReasonCodePicker";
+import ConfirmModalRisks from "./ConfirmModalRisks";
 
 export interface DecisionConfirmPayload {
   action: ChairDecisionAction;
@@ -46,6 +48,9 @@ export interface DecisionConfirmModalProps {
   };
   submitting: boolean;
   error: string | null;
+  warnings: FinalReviewWarning[];
+  acknowledgements: Record<string, boolean>;
+  onToggleAcknowledge: (key: string) => void;
   onCancel: () => void;
   onConfirm: (payload: DecisionConfirmPayload) => void;
 }
@@ -100,7 +105,10 @@ export default function DecisionConfirmModal(props: DecisionConfirmModalProps) {
     !requiresReason ||
     (reasonCode !== null && (reasonCode !== "OTHER" || reasonFreeText.trim().length > 0));
   const rationaleOk = !requiresRationale || rationale.trim().length > 0;
-  const canConfirm = reasonOk && rationaleOk && !submitting;
+  const allHighRiskAcknowledged = props.warnings
+    .filter((w) => w.severity === "HIGH_RISK")
+    .every((w) => props.acknowledgements[w.key] === true);
+  const canConfirm = reasonOk && rationaleOk && allHighRiskAcknowledged && !submitting;
 
   function handleConfirm() {
     if (!canConfirm) return;
@@ -172,6 +180,11 @@ export default function DecisionConfirmModal(props: DecisionConfirmModalProps) {
               consensus={consensus}
               rejectReasonCode={reasonCode}
               rejectFreeText={reasonCode === "OTHER" ? reasonFreeText : undefined}
+            />
+            <ConfirmModalRisks
+              warnings={props.warnings}
+              acknowledgements={props.acknowledgements}
+              onToggleAcknowledge={props.onToggleAcknowledge}
             />
             {requiresReason ? (
               <RejectReasonCodePicker

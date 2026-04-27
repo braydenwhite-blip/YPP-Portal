@@ -10,10 +10,14 @@ import {
   getApplicationForFinalReview,
   getChairDraft,
   getChairQueueNeighbors,
+  getNotificationSnapshot,
 } from "@/lib/final-review-queries";
+import { prisma } from "@/lib/prisma";
 import FinalReviewCockpit from "@/components/instructor-applicants/final-review/FinalReviewCockpit";
 
 export const dynamic = "force-dynamic";
+
+const RECENT_TIMELINE_WINDOW_DAYS = 14;
 
 export default async function FinalReviewCockpitPage({
   params,
@@ -38,21 +42,47 @@ export default async function FinalReviewCockpitPage({
   }
 
   const { id } = await params;
-  const [application, queue, draft] = await Promise.all([
-    getApplicationForFinalReview(id),
-    getChairQueueNeighbors(id),
-    getChairDraft(id, actor.id),
-  ]);
+  const [application, queue, draft, notificationSnapshot, recentEvent, supersededCount] =
+    await Promise.all([
+      getApplicationForFinalReview(id),
+      getChairQueueNeighbors(id),
+      getChairDraft(id, actor.id),
+      getNotificationSnapshot(id),
+      prisma.instructorApplicationTimelineEvent.findFirst({
+        where: {
+          applicationId: id,
+          createdAt: {
+            gte: new Date(
+              Date.now() - RECENT_TIMELINE_WINDOW_DAYS * 24 * 60 * 60 * 1000
+            ),
+          },
+        },
+        select: { id: true },
+      }),
+      prisma.instructorApplicationChairDecision.count({
+        where: { applicationId: id, supersededAt: { not: null } },
+      }),
+    ]);
 
   if (!application) {
     notFound();
   }
+
+  const isCrossChapter = Boolean(
+    actor.chapterId &&
+      application.applicant.chapterId &&
+      actor.chapterId !== application.applicant.chapterId
+  );
 
   return (
     <FinalReviewCockpit
       application={application}
       queue={queue}
       initialDraft={draft}
+      notificationSnapshot={notificationSnapshot}
+      isCrossChapter={isCrossChapter}
+      hasRecentTimelineActivity={Boolean(recentEvent)}
+      hasPriorSupersededDecision={supersededCount > 0}
       actorId={actor.id}
     />
   );

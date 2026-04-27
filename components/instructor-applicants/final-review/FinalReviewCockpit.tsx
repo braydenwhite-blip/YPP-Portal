@@ -9,7 +9,7 @@
  * lifecycle, and the post-decision toast. Children are pure presenters.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MotionConfig } from "framer-motion";
 import { useRouter } from "next/navigation";
 import type { ChairDecisionAction, InstructorInterviewRecommendation } from "@prisma/client";
@@ -18,9 +18,14 @@ import type {
   SerializedApplicationForReview,
   QueueNeighbors,
   ChairDraftSnapshot,
+  NotificationSnapshot,
 } from "@/lib/final-review-queries";
+import { getApplicationStatus } from "@/lib/final-review-queries";
 import { computeReadinessSignals } from "@/lib/readiness-signals";
-import { detectContrarianSignals, type ContrarianSignal } from "@/lib/contrarian-signals";
+import {
+  computeFinalReviewWarnings,
+  type InterviewSignal,
+} from "@/lib/final-review-warnings";
 import { useCommitDecision } from "@/lib/use-commit-decision";
 
 import { FinalReviewProvider, useFinalReviewContext } from "./FinalReviewContext";
@@ -30,10 +35,18 @@ import FeedbackPanel from "./FeedbackPanel";
 import SignalPanel from "./SignalPanel";
 import DecisionDock from "./DecisionDock";
 import DecisionConfirmModal, { type DecisionConfirmPayload } from "./DecisionConfirmModal";
-import ContrarianWarningModal from "./ContrarianWarningModal";
 import DecisionPendingOverlay from "./DecisionPendingOverlay";
 import PostDecisionToast from "./PostDecisionToast";
 import DecisionReadinessMeter from "./DecisionReadinessMeter";
+import RisksPanel from "./RisksPanel";
+import DockRiskPreview from "./DockRiskPreview";
+import SyncRollbackBanner from "./SyncRollbackBanner";
+import StaleClickRecoveryModal from "./StaleClickRecoveryModal";
+import CommitErrorModal, { type CommitValidationField } from "./CommitErrorModal";
+import DeadlockRetryToast from "./DeadlockRetryToast";
+import NetworkRecoveryBanner from "./NetworkRecoveryBanner";
+import CockpitNotificationBanner from "./CockpitNotificationBanner";
+import NotificationResendToast from "./NotificationResendToast";
 import RecommendationBadge from "@/components/instructor-applicants/shared/RecommendationBadge";
 import RatingChip from "@/components/instructor-applicants/shared/RatingChip";
 import ReviewerIdentityChip from "@/components/instructor-applicants/shared/ReviewerIdentityChip";
@@ -43,6 +56,10 @@ export interface FinalReviewCockpitProps {
   application: SerializedApplicationForReview;
   queue: QueueNeighbors;
   initialDraft: ChairDraftSnapshot;
+  notificationSnapshot: NotificationSnapshot;
+  isCrossChapter: boolean;
+  hasRecentTimelineActivity: boolean;
+  hasPriorSupersededDecision: boolean;
   actorId: string;
 }
 
@@ -65,20 +82,30 @@ function CockpitInner({
   application,
   queue,
   initialDraft,
+  notificationSnapshot,
+  isCrossChapter,
+  hasRecentTimelineActivity,
+  hasPriorSupersededDecision,
   actorId,
 }: FinalReviewCockpitProps) {
   const router = useRouter();
   const { registerQuoteHandler } = useFinalReviewContext();
   const displayName = deriveDisplayName(application);
+  const pageMountAtRef = useRef<number>(typeof window === "undefined" ? 0 : Date.now());
 
   const [draft, setDraft] = useState({
     rationale: initialDraft.rationale,
     comparisonNotes: initialDraft.comparisonNotes,
   });
   const [pendingAction, setPendingAction] = useState<ChairDecisionAction | null>(null);
-  const [contrarianSignals, setContrarianSignals] = useState<ContrarianSignal[]>([]);
-  const [contrarianAction, setContrarianAction] = useState<ChairDecisionAction | null>(null);
-  const [overrideWarnings, setOverrideWarnings] = useState(false);
+  const [acknowledgements, setAcknowledgements] = useState<Record<string, boolean>>({});
+  const [networkBannerDismissed, setNetworkBannerDismissed] = useState(false);
+  const [staleModalAcknowledged, setStaleModalAcknowledged] = useState(false);
+  const [commitErrorDismissed, setCommitErrorDismissed] = useState(false);
+  const [notificationToast, setNotificationToast] = useState<{
+    open: boolean;
+    outcome: "success" | "failure" | null;
+  }>({ open: false, outcome: null });
   const [toastOpen, setToastOpen] = useState(false);
   const [toastDecided, setToastDecided] = useState<ChairDecisionAction | null>(null);
 
@@ -111,44 +138,68 @@ function CockpitInner({
   const hasMixedConsensus =
     totalReviews > 1 &&
     new Set(recommendations.map((r) => (r === "ACCEPT_WITH_SUPPORT" ? "ACCEPT" : r))).size > 1;
-  const acceptingNames = application.interviewReviews
-    .filter((r) => r.recommendation === "ACCEPT" || r.recommendation === "ACCEPT_WITH_SUPPORT")
-    .map((r) => r.reviewerName ?? "Unknown reviewer");
-  const rejectingNames = application.interviewReviews
-    .filter((r) => r.recommendation === "REJECT")
-    .map((r) => r.reviewerName ?? "Unknown reviewer");
 
-  // Phase 1 does not surface RED_FLAG tags from the interview answers feed.
-  // Treat as 0 until Phase 3 wires the feed; the contrarian guard still fires
-  // on missing-interviews and majority-reject paths.
+  // RED_FLAG tags from the per-question feed land in a future Phase 3 of the
+  // plan. For now the warning engine handles the contrarian-style cases via
+  // overall-score / recommendation signals.
   const redFlagCount = 0;
   const hasRedFlags = redFlagCount > 0;
 
   const readOnly = application.status !== "CHAIR_REVIEW";
 
+  const interviewSignals: InterviewSignal[] = useMemo(
+    () =>
+      application.interviewReviews.map((r) => ({
+        reviewerName: r.reviewerName,
+        recommendation: r.recommendation,
+        overallRating: (r.overallRating ?? null) as InterviewSignal["overallRating"],
+        hasNarrative: Boolean(r.summary?.trim()),
+        unscoredCategoryCount: r.categories.filter((c) => !c.rating).length,
+      })),
+    [application.interviewReviews]
+  );
+
+  const warnings = useMemo(
+    () =>
+      computeFinalReviewWarnings({
+        pendingAction,
+        status: application.status,
+        interviews: interviewSignals,
+        rationaleLength: draft.rationale.trim().length,
+        rejectReasonCode: null,
+        hasMaterialsComplete: readiness.hasMaterialsComplete,
+        hasOpenInfoRequest: !readiness.hasNoOpenInfoRequest,
+        hasRecentTimelineActivity,
+        hasPriorSupersededDecision,
+        isCrossChapter,
+        timeOnPageMs:
+          pageMountAtRef.current > 0 ? Date.now() - pageMountAtRef.current : 0,
+      }),
+    [
+      pendingAction,
+      application.status,
+      interviewSignals,
+      draft.rationale,
+      readiness.hasMaterialsComplete,
+      readiness.hasNoOpenInfoRequest,
+      hasRecentTimelineActivity,
+      hasPriorSupersededDecision,
+      isCrossChapter,
+    ]
+  );
+
+  function toggleAcknowledge(key: string) {
+    setAcknowledgements((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
   function handleChoose(action: ChairDecisionAction) {
     if (readOnly) return;
-    if ((action === "REJECT" || action === "REQUEST_INFO") && draft.rationale.trim().length === 0) {
-      // Surface the modal anyway so the chair sees the inline error.
-    }
-    const signals = detectContrarianSignals({
-      action,
-      hasSubmittedInterviewReviews: readiness.hasSubmittedInterviewReviews,
-      recommendations,
-      redFlagCount,
-      acceptingReviewerNames: acceptingNames,
-      rejectingReviewerNames: rejectingNames,
-      priorDecisionAction: application.latestDecision?.action ?? null,
-    });
-    if (signals.length > 0 && !overrideWarnings) {
-      setContrarianAction(action);
-      setContrarianSignals(signals);
-      return;
-    }
+    setCommitErrorDismissed(false);
     setPendingAction(action);
   }
 
   function handleConfirm(payload: DecisionConfirmPayload) {
+    setCommitErrorDismissed(false);
     commit
       .commit({
         applicationId: application.id,
@@ -157,7 +208,10 @@ function CockpitInner({
         comparisonNotes: payload.comparisonNotes,
         rejectReasonCode: payload.rejectReasonCode,
         rejectFreeText: payload.rejectFreeText,
-        overrideWarnings,
+        // Any HIGH_RISK warning that's been ack'd is implicitly an override.
+        overrideWarnings: warnings
+          .filter((w) => w.severity === "HIGH_RISK")
+          .every((w) => acknowledgements[w.key] === true),
       })
       .catch(() => {
         // useCommitDecision already moves to the error state; nothing more here.
@@ -170,9 +224,10 @@ function CockpitInner({
       setToastDecided(commit.state.action);
       setToastOpen(true);
       setPendingAction(null);
-      setContrarianSignals([]);
-      setContrarianAction(null);
-      setOverrideWarnings(false);
+      setAcknowledgements({});
+      setNetworkBannerDismissed(false);
+      setStaleModalAcknowledged(false);
+      setCommitErrorDismissed(false);
       router.refresh();
     }
   }, [commit.state, router]);
@@ -263,6 +318,11 @@ function CockpitInner({
                 <DecisionReadinessMeter signals={readiness} />
               </div>
             </div>
+            <RisksPanel
+              warnings={warnings}
+              acknowledgements={acknowledgements}
+              onToggleAcknowledge={toggleAcknowledge}
+            />
             <CockpitInterviewerRoster application={application} />
           </SignalPanel>
         </ReviewWorkspace>
@@ -281,27 +341,19 @@ function CockpitInner({
         pendingAction={pendingAction}
         pending={commit.state.status === "pending"}
         readOnly={readOnly}
+        warnings={warnings}
+        acknowledgements={acknowledgements}
+        onOpenRiskPreview={() => {
+          // No pending action yet → open a default Approve-shaped modal so the
+          // chair can browse risks. If they already chose, keep their action.
+          if (!pendingAction) setPendingAction("APPROVE");
+        }}
         onDraftChange={setDraft}
         onChoose={handleChoose}
         exposeQuoteHandler={registerQuoteHandler}
       />
-      <ContrarianWarningModal
-        open={contrarianSignals.length > 0 && contrarianAction !== null}
-        signals={contrarianSignals}
-        action={contrarianAction ?? "APPROVE"}
-        onCancel={() => {
-          setContrarianSignals([]);
-          setContrarianAction(null);
-        }}
-        onContinue={() => {
-          setOverrideWarnings(true);
-          if (contrarianAction) setPendingAction(contrarianAction);
-          setContrarianSignals([]);
-          setContrarianAction(null);
-        }}
-      />
       <DecisionConfirmModal
-        open={pendingAction !== null && contrarianSignals.length === 0}
+        open={pendingAction !== null}
         action={pendingAction ?? "APPROVE"}
         application={{
           id: application.id,
@@ -318,16 +370,153 @@ function CockpitInner({
           recommendations,
           redFlagCount,
         }}
-        submitting={commit.state.status === "pending"}
-        error={commit.state.status === "error" ? commit.state.error : null}
+        submitting={commit.state.status === "pending" || commit.state.status === "retrying"}
+        error={
+          commit.state.status === "error" && commit.state.kind !== "validation"
+            ? commit.state.error
+            : null
+        }
+        warnings={warnings}
+        acknowledgements={acknowledgements}
+        onToggleAcknowledge={toggleAcknowledge}
         onCancel={() => {
-          if (commit.state.status === "pending") return;
+          if (commit.state.status === "pending" || commit.state.status === "retrying") return;
           setPendingAction(null);
           commit.reset();
         }}
         onConfirm={handleConfirm}
       />
       <DecisionPendingOverlay open={commit.state.status === "pending"} />
+      <DeadlockRetryToast
+        open={commit.state.status === "retrying"}
+        attempt={commit.state.status === "retrying" ? commit.state.attempt : 0}
+        maxAttempts={commit.state.status === "retrying" ? commit.state.maxAttempts : 3}
+      />
+      {commit.state.status === "error" && commit.state.kind === "sync_rollback" ? (
+        <SyncRollbackBanner
+          open
+          applicationId={application.id}
+          applicantName={displayName}
+          rolledBackAction={
+            (commit.state.context?.rolledBackAction as ChairDecisionAction | undefined) ??
+            commit.state.action
+          }
+          reversedAt={
+            (commit.state.context?.reversedAt as string | undefined) ?? commit.state.attemptedAt
+          }
+          reason={
+            (commit.state.context?.reason as string | undefined) ??
+            "The downstream pipeline didn't update."
+          }
+          idempotencyKey={commit.state.idempotencyKey}
+          chairId={actorId}
+          onRetry={() => {
+            commit.retryLast();
+          }}
+        />
+      ) : null}
+      <StaleClickRecoveryModal
+        open={
+          commit.state.status === "error" &&
+          commit.state.kind === "stale_click" &&
+          !staleModalAcknowledged
+        }
+        applicantName={displayName}
+        attemptedAction={
+          commit.state.status === "error" ? commit.state.action : "APPROVE"
+        }
+        winnerChairName={
+          (commit.state.status === "error"
+            ? (commit.state.context?.winnerChairName as string | null | undefined)
+            : null) ?? null
+        }
+        winnerAction={
+          (commit.state.status === "error"
+            ? (commit.state.context?.winnerAction as ChairDecisionAction | null | undefined)
+            : null) ?? null
+        }
+        winnerDecidedAt={
+          (commit.state.status === "error"
+            ? (commit.state.context?.winnerDecidedAt as string | null | undefined)
+            : null) ?? null
+        }
+        winnerRationalePreview={
+          (commit.state.status === "error"
+            ? (commit.state.context?.winnerRationalePreview as string | null | undefined)
+            : null) ?? null
+        }
+        onAcknowledge={() => {
+          setStaleModalAcknowledged(true);
+          commit.reset();
+          setPendingAction(null);
+        }}
+        backToQueueHref="/admin/instructor-applicants/chair-queue"
+      />
+      <CommitErrorModal
+        open={
+          commit.state.status === "error" &&
+          commit.state.kind === "validation" &&
+          !commitErrorDismissed
+        }
+        code={commit.state.status === "error" ? commit.state.code : null}
+        message={commit.state.status === "error" ? commit.state.error : ""}
+        field={
+          commit.state.status === "error"
+            ? ((commit.state.context?.field as CommitValidationField | undefined) ?? null)
+            : null
+        }
+        fieldIndex={
+          commit.state.status === "error"
+            ? (commit.state.context?.fieldIndex as number | undefined)
+            : undefined
+        }
+        onJumpToField={() => {
+          setCommitErrorDismissed(true);
+          // Keep the confirm modal open so the chair can fix and retry.
+        }}
+        onDismiss={() => {
+          setCommitErrorDismissed(true);
+          commit.reset();
+          setPendingAction(null);
+        }}
+      />
+      {commit.state.status === "error" &&
+      commit.state.kind === "network_drop" &&
+      !networkBannerDismissed ? (
+        <NetworkRecoveryBanner
+          open
+          applicationId={application.id}
+          attemptedAction={commit.state.action}
+          attemptedAt={commit.state.attemptedAt}
+          idempotencyKey={commit.state.idempotencyKey}
+          onRetry={() => commit.retryLast()}
+          onCheckStatus={() => getApplicationStatus(application.id)}
+          onResolve={() => {
+            setNetworkBannerDismissed(true);
+            commit.reset();
+            router.refresh();
+          }}
+        />
+      ) : null}
+      {notificationSnapshot.lastNotificationError &&
+      notificationSnapshot.lastNotificationErrorAt ? (
+        <CockpitNotificationBanner
+          applicationId={application.id}
+          applicantName={displayName}
+          applicantEmail={application.applicant.email}
+          decidedAction={application.latestDecision?.action ?? null}
+          lastNotificationError={notificationSnapshot.lastNotificationError}
+          lastNotificationErrorAt={notificationSnapshot.lastNotificationErrorAt}
+          attempts={notificationSnapshot.attempts}
+          onResendOutcome={(outcome) => setNotificationToast({ open: true, outcome })}
+        />
+      ) : null}
+      <NotificationResendToast
+        open={notificationToast.open}
+        outcome={notificationToast.outcome}
+        applicantName={displayName}
+        onDismiss={() => setNotificationToast({ open: false, outcome: null })}
+      />
       <PostDecisionToast
         open={toastOpen}
         decidedAction={toastDecided}

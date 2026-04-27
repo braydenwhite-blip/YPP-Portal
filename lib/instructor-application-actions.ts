@@ -1793,20 +1793,37 @@ export async function forceSendToChair(
  * APPROVE runs atomically with existing syncInstructorApplicationWorkflow.
  * REQUEST_SECOND_INTERVIEW reverts status to INTERVIEW_SCHEDULED.
  */
-export async function chairDecide(formData: FormData): Promise<{ success: boolean; error?: string }> {
+export type ChairDecideResult =
+  | { success: true; error?: undefined; code?: undefined; context?: undefined }
+  | {
+      success: false;
+      error?: string;
+      code?: string;
+      context?: Record<string, unknown>;
+    };
+
+export async function chairDecide(formData: FormData): Promise<ChairDecideResult> {
   try {
     const session = await getSession();
-    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+    if (!session?.user?.id) {
+      return { success: false, error: "Unauthorized", code: "UNAUTHORIZED" };
+    }
 
     const applicationId = String(formData.get("applicationId") ?? "").trim();
     const actionRaw = String(formData.get("action") ?? "").trim();
     const rationale = String(formData.get("rationale") ?? "").trim() || null;
     const comparisonNotes = String(formData.get("comparisonNotes") ?? "").trim() || null;
-    if (!applicationId || !actionRaw) return { success: false, error: "Missing required fields." };
+    if (!applicationId || !actionRaw) {
+      return {
+        success: false,
+        error: "Missing required fields.",
+        code: "VALIDATION",
+      };
+    }
 
     const validActions = Object.values(ChairDecisionAction) as string[];
     if (!validActions.includes(actionRaw)) {
-      return { success: false, error: "Invalid chair action." };
+      return { success: false, error: "Invalid chair action.", code: "VALIDATION" };
     }
     const action = actionRaw as ChairDecisionAction;
     if ((action === "REQUEST_INFO" || action === "REJECT") && !rationale) {
@@ -1816,11 +1833,30 @@ export async function chairDecide(formData: FormData): Promise<{ success: boolea
           action === "REQUEST_INFO"
             ? "Add the information request before sending it to the applicant."
             : "Add a rejection reason before rejecting the application.",
+        code: action === "REJECT" ? "REJECT_REASON_REQUIRED" : "RATIONALE_TOO_LONG",
+        context: { field: "rationale" },
+      };
+    }
+
+    if (rationale && rationale.length > 10_000) {
+      return {
+        success: false,
+        error: "Rationale exceeds the 10 000 character limit.",
+        code: "RATIONALE_TOO_LONG",
+        context: { field: "rationale", length: rationale.length },
       };
     }
 
     const actor = await getHiringActor(session.user.id);
-    assertCanActAsChair(actor);
+    try {
+      assertCanActAsChair(actor);
+    } catch (authErr) {
+      return {
+        success: false,
+        error: authErr instanceof Error ? authErr.message : "Unauthorized",
+        code: "UNAUTHORIZED",
+      };
+    }
 
     const app = await prisma.instructorApplication.findUnique({
       where: { id: applicationId },
@@ -1836,9 +1872,42 @@ export async function chairDecide(formData: FormData): Promise<{ success: boolea
         },
       },
     });
-    if (!app) return { success: false, error: "Application not found." };
+    if (!app) {
+      return {
+        success: false,
+        error: "Application not found.",
+        code: "APPLICATION_NOT_FOUND",
+      };
+    }
     if (app.status !== InstructorApplicationStatus.CHAIR_REVIEW) {
-      return { success: false, error: "Chair decisions can only be made when the application is in CHAIR_REVIEW status." };
+      // Surface who won the race so the StaleClickRecoveryModal has data
+      // to render without a separate lookup.
+      const latestDecision = await prisma.instructorApplicationChairDecision.findFirst({
+        where: { applicationId, supersededAt: null },
+        orderBy: { decidedAt: "desc" },
+        select: {
+          action: true,
+          decidedAt: true,
+          rationale: true,
+          chair: { select: { id: true, name: true } },
+        },
+      });
+      return {
+        success: false,
+        error:
+          "Chair decisions can only be made when the application is in CHAIR_REVIEW status.",
+        code: "STATUS_CHANGED",
+        context: latestDecision
+          ? {
+              currentStatus: app.status,
+              winnerChairName: latestDecision.chair?.name ?? null,
+              winnerAction: latestDecision.action,
+              winnerDecidedAt: latestDecision.decidedAt.toISOString(),
+              winnerRationalePreview:
+                (latestDecision.rationale ?? "").slice(0, 240) || null,
+            }
+          : { currentStatus: app.status },
+      };
     }
 
     const now = new Date();
@@ -2009,6 +2078,12 @@ export async function chairDecide(formData: FormData): Promise<{ success: boolea
         return {
           success: false,
           error: "Onboarding sync failed — decision was reversed. Please try again.",
+          code: "SYNC_ROLLBACK",
+          context: {
+            rolledBackAction: action,
+            reversedAt: rollbackNow.toISOString(),
+            reason: syncError instanceof Error ? syncError.message : String(syncError),
+          },
         };
       }
     }
@@ -2083,7 +2158,25 @@ export async function chairDecide(formData: FormData): Promise<{ success: boolea
     return { success: true };
   } catch (error) {
     console.error("[chairDecide]", error);
-    return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
+    if (error instanceof ApplicantWorkflowError) {
+      return {
+        success: false,
+        error: error.message,
+        code: error.code,
+        context: error.context,
+      };
+    }
+    const message = error instanceof Error ? error.message : "Something went wrong.";
+    // Postgres deadlock signature: error code "40P01" (Prisma surfaces this as
+    // the wrapped message). Treat as transient so the client can auto-retry.
+    if (/40P01|deadlock detected/i.test(message)) {
+      return {
+        success: false,
+        error: "Database deadlock detected — try again.",
+        code: "DEADLOCK_DETECTED",
+      };
+    }
+    return { success: false, error: message };
   }
 }
 
