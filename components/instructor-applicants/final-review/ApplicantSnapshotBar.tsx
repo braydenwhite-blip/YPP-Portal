@@ -59,7 +59,7 @@ export default function ApplicantSnapshotBar({
         zIndex: 10,
         background: "var(--cockpit-surface, #fff)",
         borderBottom: "1px solid var(--cockpit-line, rgba(71,85,105,0.16))",
-        padding: "14px 24px",
+        padding: "12px 24px",
         display: "grid",
         gridTemplateColumns: "minmax(0, 1fr) auto auto",
         alignItems: "center",

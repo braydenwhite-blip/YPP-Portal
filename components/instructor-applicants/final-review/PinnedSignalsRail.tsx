@@ -76,18 +76,18 @@ export default function PinnedSignalsRail({ application }: PinnedSignalsRailProp
           Click the pin icon on any feed item to save it here for your rationale.
         </p>
       ) : (
-        <ul style={{ listStyle: "none", padding: 0, margin: "10px 0 0", display: "flex", flexDirection: "column", gap: 8 }}>
+        <ul style={{ listStyle: "none", padding: 0, margin: "8px 0 0", display: "flex", flexDirection: "column", gap: 8 }}>
           {pinned.map(({ id, item }) => (
             <li
               key={id}
               style={{
-                padding: 10,
+                padding: 12,
                 borderRadius: 10,
                 background: "var(--cockpit-surface-strong, #faf8ff)",
                 border: "1px solid var(--cockpit-line, rgba(71,85,105,0.14))",
                 display: "flex",
                 flexDirection: "column",
-                gap: 6,
+                gap: 8,
               }}
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>

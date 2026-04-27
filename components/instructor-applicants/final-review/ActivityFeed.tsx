@@ -88,7 +88,7 @@ export default function ActivityFeed({ application }: ActivityFeedProps) {
         padding: 20,
         display: "flex",
         flexDirection: "column",
-        gap: 14,
+        gap: 12,
       }}
     >
       <p

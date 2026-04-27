@@ -326,7 +326,7 @@ function CockpitInner({
         onRescindClick={() => setRescindOpen(true)}
         routeBuilder={buildReviewRoute}
       />
-      <main style={{ flex: 1 }}>
+      <main style={{ flex: 1, paddingBottom: 120 }}>
         <ReviewWorkspace>
           <FeedbackPanel>
             <CockpitConsensusCard
@@ -663,7 +663,7 @@ function CockpitConsensusCard({
       </p>
       <h2
         style={{
-          margin: "6px 0 10px",
+          margin: "8px 0 8px",
           fontSize: 22,
           lineHeight: 1.25,
           color: "var(--ink-default, #1a0533)",
@@ -792,7 +792,7 @@ function CockpitMaterialsCard({
       </p>
       <dl
         style={{
-          margin: "10px 0 0",
+          margin: "8px 0 0",
           display: "grid",
           gridTemplateColumns: "minmax(120px, max-content) 1fr",
           gap: "8px 16px",
@@ -849,7 +849,7 @@ function CockpitInterviewerRoster({
       >
         Interviewer roster
       </p>
-      <ul style={{ listStyle: "none", padding: 0, margin: "8px 0 0", display: "flex", flexDirection: "column", gap: 6 }}>
+      <ul style={{ listStyle: "none", padding: 0, margin: "8px 0 0", display: "flex", flexDirection: "column", gap: 8 }}>
         {roster.map((assignment) => (
           <li key={assignment.id}>
             <ReviewerIdentityChip
