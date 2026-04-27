@@ -37,12 +37,16 @@ export interface ApplicantStatusBannerProps {
   status: InstructorApplicationStatus;
   latestDecision: { action: ChairDecisionAction; decidedAt: string } | null;
   decidedByName?: string | null;
+  canRescind?: boolean;
+  onRescindClick?: () => void;
 }
 
 export default function ApplicantStatusBanner({
   status,
   latestDecision,
   decidedByName,
+  canRescind,
+  onRescindClick,
 }: ApplicantStatusBannerProps) {
   const tone = STATUS_TONE[status] ?? { fg: "#5a1da8", bg: "rgba(107, 33, 200, 0.1)" };
   const actionLabel = latestDecision ? ACTION_LABEL[latestDecision.action] : status;
@@ -71,6 +75,26 @@ export default function ApplicantStatusBanner({
       ) : null}
       {decidedRel ? (
         <span style={{ color: "var(--ink-muted, #6b5f7a)" }}>· {decidedRel}</span>
+      ) : null}
+      {canRescind && onRescindClick ? (
+        <button
+          type="button"
+          onClick={onRescindClick}
+          style={{
+            background: "none",
+            border: "none",
+            padding: 0,
+            marginLeft: 6,
+            color: "#b91c1c",
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: "pointer",
+            textDecoration: "underline",
+            textUnderlineOffset: 2,
+          }}
+        >
+          Rescind
+        </button>
       ) : null}
     </div>
   );

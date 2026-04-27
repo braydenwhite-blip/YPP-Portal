@@ -2275,6 +2275,165 @@ export async function resendChairDecisionEmail(
   }
 }
 
+/**
+ * Rescind the most recent non-superseded chair decision (Phase 2E §13).
+ *
+ * SUPER_ADMIN-only. The decision row is marked superseded; the application's
+ * status is reverted to CHAIR_REVIEW so the chair queue can re-evaluate. For
+ * a rescind on an APPROVE we also revoke the granted INSTRUCTOR role and
+ * remove the auto-created InstructorApproval row — same compensator pattern
+ * the SYNC_ROLLBACK path uses inside `chairDecide()`.
+ *
+ * The whole operation runs inside a single transaction so the audit
+ * timeline always lines up with the user's role state.
+ */
+export async function rescindChairDecision(
+  formData: FormData
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const applicationId = String(formData.get("applicationId") ?? "").trim();
+    const reason = String(formData.get("reason") ?? "").trim();
+    if (!applicationId) return { success: false, error: "Missing applicationId." };
+    if (!reason) {
+      return {
+        success: false,
+        error: "Add a rescind reason — it's recorded in the audit trail.",
+      };
+    }
+    if (reason.length > 2_000) {
+      return { success: false, error: "Rescind reason exceeds the 2 000 character limit." };
+    }
+
+    // RBAC: SUPER_ADMIN only. Pull the actor's adminSubtypes inline to avoid
+    // adding a heavy helper to the request path.
+    const actorRow = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        id: true,
+        adminSubtypes: { select: { subtype: true } },
+      },
+    });
+    if (!actorRow) return { success: false, error: "Actor not found." };
+    const isSuper = actorRow.adminSubtypes.some((s) => s.subtype === "SUPER_ADMIN");
+    if (!isSuper) {
+      return {
+        success: false,
+        error: "Only Super Admins can rescind chair decisions.",
+      };
+    }
+
+    const app = await prisma.instructorApplication.findUnique({
+      where: { id: applicationId },
+      select: {
+        status: true,
+        applicantId: true,
+        chairDecisions: {
+          where: { supersededAt: null },
+          orderBy: { decidedAt: "desc" },
+          take: 1,
+          select: {
+            id: true,
+            action: true,
+            decidedAt: true,
+            chair: { select: { id: true, name: true } },
+          },
+        },
+      },
+    });
+    if (!app) return { success: false, error: "Application not found." };
+    const latest = app.chairDecisions[0];
+    if (!latest) {
+      return {
+        success: false,
+        error: "No active chair decision to rescind.",
+      };
+    }
+
+    const wasApprove = latest.action === "APPROVE";
+    const now = new Date();
+
+    await prisma.$transaction(async (tx) => {
+      await tx.instructorApplicationChairDecision.update({
+        where: { id: latest.id },
+        data: { supersededAt: now },
+      });
+
+      // Revert status to CHAIR_REVIEW so the queue picks the applicant back up.
+      await tx.instructorApplication.update({
+        where: { id: applicationId },
+        data: {
+          status: InstructorApplicationStatus.CHAIR_REVIEW,
+          chairQueuedAt: now,
+          approvedAt: null,
+          rejectedAt: null,
+          rejectionReason: null,
+          infoRequest: null,
+        },
+      });
+
+      if (wasApprove) {
+        // Compensator: revoke the INSTRUCTOR role grant. Mirror of the
+        // SYNC_ROLLBACK compensator at the bottom of chairDecide().
+        const existingApproval = await tx.instructorApproval.findFirst({
+          where: { instructorId: app.applicantId },
+          select: { id: true, status: true },
+        });
+        await tx.userRole.deleteMany({
+          where: { userId: app.applicantId, role: RoleType.INSTRUCTOR },
+        });
+        // If the auto-created approval is still in TRAINING_IN_PROGRESS we drop
+        // it; if a real human has progressed it, leave the row but mark it as
+        // rescinded via timeline (don't lose history).
+        if (existingApproval && existingApproval.status === ApprovalStatus.TRAINING_IN_PROGRESS) {
+          await tx.instructorApproval.delete({ where: { id: existingApproval.id } });
+        }
+        await tx.user.update({
+          where: { id: app.applicantId },
+          data: { primaryRole: RoleType.APPLICANT },
+        });
+      }
+
+      await tx.instructorApplicationTimelineEvent.create({
+        data: {
+          applicationId,
+          kind: "CHAIR_DECISION_RESCINDED",
+          actorId: session.user.id,
+          payload: {
+            rescindedDecisionId: latest.id,
+            rescindedAction: latest.action,
+            rescindedDecidedAt: latest.decidedAt.toISOString(),
+            originalChairId: latest.chair?.id ?? null,
+            originalChairName: latest.chair?.name ?? null,
+            rescindedAt: now.toISOString(),
+            reason,
+          },
+        },
+      });
+    });
+
+    trackApplicantEvent("applicant.chair.rescinded", {
+      applicationId,
+      actorId: session.user.id,
+      chapterId: null,
+      status: String(InstructorApplicationStatus.CHAIR_REVIEW),
+      meta: { rescindedAction: latest.action },
+    });
+    revalidatePath(`/applications/instructor/${applicationId}`);
+    revalidatePath("/admin/instructor-applicants");
+    revalidatePath("/admin/instructor-applicants/chair-queue");
+    return { success: true };
+  } catch (error) {
+    console.error("[rescindChairDecision]", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Something went wrong.",
+    };
+  }
+}
+
 /** Admin-only manual archive — sets archivedAt immediately. */
 export async function archiveApplication(formData: FormData): Promise<{ success: boolean; error?: string }> {
   try {

@@ -19,6 +19,7 @@ import type {
   QueueNeighbors,
   ChairDraftSnapshot,
   NotificationSnapshot,
+  AuditChain,
 } from "@/lib/final-review-queries";
 import { getApplicationStatus } from "@/lib/final-review-queries";
 import { computeReadinessSignals } from "@/lib/readiness-signals";
@@ -47,8 +48,12 @@ import DeadlockRetryToast from "./DeadlockRetryToast";
 import NetworkRecoveryBanner from "./NetworkRecoveryBanner";
 import CockpitNotificationBanner from "./CockpitNotificationBanner";
 import NotificationResendToast from "./NotificationResendToast";
+import RescindDecisionModal from "./RescindDecisionModal";
+import AuditHistoryDrawer from "./AuditHistoryDrawer";
+import ScoreMatrix from "./ScoreMatrix";
+import ActivityFeed from "./ActivityFeed";
+import PinnedSignalsRail from "./PinnedSignalsRail";
 import RecommendationBadge from "@/components/instructor-applicants/shared/RecommendationBadge";
-import RatingChip from "@/components/instructor-applicants/shared/RatingChip";
 import ReviewerIdentityChip from "@/components/instructor-applicants/shared/ReviewerIdentityChip";
 import { AlertTriangleIcon } from "./cockpit-icons";
 
@@ -57,9 +62,11 @@ export interface FinalReviewCockpitProps {
   queue: QueueNeighbors;
   initialDraft: ChairDraftSnapshot;
   notificationSnapshot: NotificationSnapshot;
+  auditChain: AuditChain;
   isCrossChapter: boolean;
   hasRecentTimelineActivity: boolean;
   hasPriorSupersededDecision: boolean;
+  isSuperAdmin: boolean;
   actorId: string;
 }
 
@@ -83,9 +90,11 @@ function CockpitInner({
   queue,
   initialDraft,
   notificationSnapshot,
+  auditChain,
   isCrossChapter,
   hasRecentTimelineActivity,
   hasPriorSupersededDecision,
+  isSuperAdmin,
   actorId,
 }: FinalReviewCockpitProps) {
   const router = useRouter();
@@ -106,6 +115,7 @@ function CockpitInner({
     open: boolean;
     outcome: "success" | "failure" | null;
   }>({ open: false, outcome: null });
+  const [rescindOpen, setRescindOpen] = useState(false);
   const [toastOpen, setToastOpen] = useState(false);
   const [toastDecided, setToastDecided] = useState<ChairDecisionAction | null>(null);
 
@@ -277,6 +287,8 @@ function CockpitInner({
         readiness={readiness}
         queue={queue}
         latestDecision={application.latestDecision}
+        canRescind={isSuperAdmin && readOnly && Boolean(application.latestDecision)}
+        onRescindClick={() => setRescindOpen(true)}
         routeBuilder={buildReviewRoute}
       />
       <main style={{ flex: 1 }}>
@@ -287,11 +299,24 @@ function CockpitInner({
               applicantDisplayName={displayName}
               redFlagCount={redFlagCount}
             />
-            <CockpitInterviewList
-              interviewReviews={application.interviewReviews}
+            <ScoreMatrix
+              reviewers={application.interviewReviews.map((r) => ({
+                id: r.reviewerId,
+                name: r.reviewerName,
+                round: r.round,
+              }))}
+              cells={application.interviewReviews.flatMap((r) =>
+                r.categories.map((c) => ({
+                  reviewerId: r.reviewerId,
+                  category: c.category,
+                  rating: (c.rating ?? null) as Parameters<typeof ScoreMatrix>[0]["cells"][number]["rating"],
+                }))
+              )}
             />
+            <ActivityFeed application={application} />
             <CockpitReviewerNote application={application} />
             <CockpitMaterialsCard application={application} />
+            <AuditHistoryDrawer chain={auditChain} initiallyOpen={readOnly} />
           </FeedbackPanel>
           <SignalPanel>
             <div
@@ -323,6 +348,7 @@ function CockpitInner({
               acknowledgements={acknowledgements}
               onToggleAcknowledge={toggleAcknowledge}
             />
+            <PinnedSignalsRail application={application} />
             <CockpitInterviewerRoster application={application} />
           </SignalPanel>
         </ReviewWorkspace>
@@ -517,6 +543,21 @@ function CockpitInner({
         applicantName={displayName}
         onDismiss={() => setNotificationToast({ open: false, outcome: null })}
       />
+      <RescindDecisionModal
+        open={rescindOpen}
+        applicationId={application.id}
+        applicantName={displayName}
+        decision={(() => {
+          if (!application.latestDecision) return null;
+          const newest = auditChain.decisions.find((d) => !d.supersededAt);
+          return {
+            action: application.latestDecision.action,
+            decidedAt: application.latestDecision.decidedAt,
+            chairName: newest?.chairName ?? null,
+          };
+        })()}
+        onCancel={() => setRescindOpen(false)}
+      />
       <PostDecisionToast
         open={toastOpen}
         decidedAction={toastDecided}
@@ -618,111 +659,6 @@ function CockpitConsensusCard({
           </span>
         ) : null}
       </div>
-    </section>
-  );
-}
-
-function CockpitInterviewList({
-  interviewReviews,
-}: {
-  interviewReviews: SerializedApplicationForReview["interviewReviews"];
-}) {
-  if (interviewReviews.length === 0) {
-    return (
-      <section
-        style={{
-          background: "var(--cockpit-surface, #fff)",
-          border: "1px dashed var(--cockpit-line-strong, rgba(71,85,105,0.25))",
-          borderRadius: 16,
-          padding: 20,
-          color: "var(--ink-muted, #6b5f7a)",
-        }}
-        aria-label="Interview reviews"
-      >
-        <p
-          style={{
-            margin: 0,
-            fontSize: 11,
-            fontWeight: 600,
-            textTransform: "uppercase",
-            letterSpacing: "0.06em",
-          }}
-        >
-          Interview reviews
-        </p>
-        <p style={{ margin: "8px 0 0", fontSize: 14 }}>
-          Interviews haven&apos;t been scored yet. Nudge interviewers from the queue dropdown to gather signal
-          before deciding.
-        </p>
-      </section>
-    );
-  }
-  return (
-    <section
-      style={{
-        background: "var(--cockpit-surface, #fff)",
-        border: "1px solid var(--cockpit-line, rgba(71,85,105,0.18))",
-        borderRadius: 16,
-        padding: 20,
-        display: "flex",
-        flexDirection: "column",
-        gap: 14,
-      }}
-      aria-label="Interview reviews"
-    >
-      <p
-        style={{
-          margin: 0,
-          fontSize: 11,
-          fontWeight: 600,
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          color: "var(--ink-muted, #6b5f7a)",
-        }}
-      >
-        Interview reviews · {interviewReviews.length}
-      </p>
-      <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 14 }}>
-        {interviewReviews.map((review) => (
-          <li
-            key={review.id}
-            style={{
-              padding: 14,
-              borderRadius: 12,
-              border: "1px solid var(--cockpit-line, rgba(71,85,105,0.16))",
-              background: "var(--cockpit-surface-strong, #faf8ff)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-              <ReviewerIdentityChip
-                user={{ id: review.reviewerId, name: review.reviewerName }}
-                role="INTERVIEWER"
-                round={review.round ?? undefined}
-                size="sm"
-              />
-              <RecommendationBadge recommendation={review.recommendation} />
-            </div>
-            {review.summary ? (
-              <p style={{ margin: "10px 0 6px", fontSize: 13, color: "var(--ink-default, #1a0533)", lineHeight: 1.5 }}>
-                {review.summary}
-              </p>
-            ) : null}
-            {review.categories.length > 0 ? (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {review.categories.map((cat) => (
-                  <RatingChip
-                    key={`${review.id}-${cat.category}`}
-                    rating={(cat.rating ?? null) as Parameters<typeof RatingChip>[0]["rating"]}
-                    label={cat.category.split("_").map((w) => w[0] + w.slice(1).toLowerCase()).join(" ")}
-                    variant="outline"
-                    size="xs"
-                  />
-                ))}
-              </div>
-            ) : null}
-          </li>
-        ))}
-      </ul>
     </section>
   );
 }

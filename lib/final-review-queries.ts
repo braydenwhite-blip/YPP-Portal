@@ -395,6 +395,105 @@ export async function getApplicationStatus(
 }
 
 /**
+ * Audit chain for the rescind/audit drawer (Phase 2E §13).
+ *
+ * Returns every chair decision plus rescind events for an application,
+ * newest-first. Bridges the `InstructorApplicationChairDecision` table and
+ * the `CHAIR_DECISION_RESCINDED` timeline events into a single chronological
+ * stream so the drawer renders one list.
+ */
+export type AuditDecisionEntry = {
+  id: string;
+  action: ChairDecisionAction;
+  decidedAt: string;
+  supersededAt: string | null;
+  rationale: string | null;
+  comparisonNotes: string | null;
+  chairName: string | null;
+  chairId: string | null;
+};
+
+export type AuditRescindEntry = {
+  id: string;
+  rescindedAt: string;
+  rescindedAction: ChairDecisionAction | null;
+  reason: string | null;
+  actorName: string | null;
+  rescindedDecisionId: string | null;
+};
+
+export type AuditChain = {
+  decisions: AuditDecisionEntry[];
+  rescinds: AuditRescindEntry[];
+};
+
+export async function getDecisionAuditChain(
+  applicationId: string
+): Promise<AuditChain> {
+  const [decisions, rescinds] = await Promise.all([
+    prisma.instructorApplicationChairDecision.findMany({
+      where: { applicationId },
+      orderBy: { decidedAt: "desc" },
+      take: 20,
+      select: {
+        id: true,
+        action: true,
+        decidedAt: true,
+        supersededAt: true,
+        rationale: true,
+        comparisonNotes: true,
+        chair: { select: { id: true, name: true } },
+      },
+    }),
+    prisma.instructorApplicationTimelineEvent.findMany({
+      where: { applicationId, kind: "CHAIR_DECISION_RESCINDED" },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: {
+        id: true,
+        createdAt: true,
+        payload: true,
+        actor: { select: { name: true } },
+      },
+    }),
+  ]);
+
+  return {
+    decisions: decisions.map((d) => ({
+      id: d.id,
+      action: d.action,
+      decidedAt: d.decidedAt.toISOString(),
+      supersededAt: toIso(d.supersededAt),
+      rationale: d.rationale,
+      comparisonNotes: d.comparisonNotes,
+      chairName: d.chair?.name ?? null,
+      chairId: d.chair?.id ?? null,
+    })),
+    rescinds: rescinds.map((r) => {
+      const payload = (r.payload ?? {}) as {
+        rescindedAction?: unknown;
+        reason?: unknown;
+        rescindedDecisionId?: unknown;
+      };
+      return {
+        id: r.id,
+        rescindedAt: r.createdAt.toISOString(),
+        rescindedAction:
+          typeof payload.rescindedAction === "string"
+            ? (payload.rescindedAction as ChairDecisionAction)
+            : null,
+        reason: typeof payload.reason === "string" ? payload.reason : null,
+        actorName: r.actor?.name ?? null,
+        rescindedDecisionId:
+          typeof payload.rescindedDecisionId === "string"
+            ? payload.rescindedDecisionId
+            : null,
+      };
+    }),
+  };
+}
+
+/**
  * Last 10 NOTIFICATION_FAILED / NOTIFICATION_RESENT timeline events for a
  * given application — drives the cockpit's notification failure banner +
  * diagnostic drawer. (§11.6)

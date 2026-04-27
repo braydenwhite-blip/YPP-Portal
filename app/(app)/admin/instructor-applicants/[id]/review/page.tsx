@@ -10,6 +10,7 @@ import {
   getApplicationForFinalReview,
   getChairDraft,
   getChairQueueNeighbors,
+  getDecisionAuditChain,
   getNotificationSnapshot,
 } from "@/lib/final-review-queries";
 import { prisma } from "@/lib/prisma";
@@ -42,27 +43,38 @@ export default async function FinalReviewCockpitPage({
   }
 
   const { id } = await params;
-  const [application, queue, draft, notificationSnapshot, recentEvent, supersededCount] =
-    await Promise.all([
-      getApplicationForFinalReview(id),
-      getChairQueueNeighbors(id),
-      getChairDraft(id, actor.id),
-      getNotificationSnapshot(id),
-      prisma.instructorApplicationTimelineEvent.findFirst({
-        where: {
-          applicationId: id,
-          createdAt: {
-            gte: new Date(
-              Date.now() - RECENT_TIMELINE_WINDOW_DAYS * 24 * 60 * 60 * 1000
-            ),
-          },
+  const [
+    application,
+    queue,
+    draft,
+    notificationSnapshot,
+    auditChain,
+    recentEvent,
+    supersededCount,
+    actorAdminSubtypes,
+  ] = await Promise.all([
+    getApplicationForFinalReview(id),
+    getChairQueueNeighbors(id),
+    getChairDraft(id, actor.id),
+    getNotificationSnapshot(id),
+    getDecisionAuditChain(id),
+    prisma.instructorApplicationTimelineEvent.findFirst({
+      where: {
+        applicationId: id,
+        createdAt: {
+          gte: new Date(Date.now() - RECENT_TIMELINE_WINDOW_DAYS * 24 * 60 * 60 * 1000),
         },
-        select: { id: true },
-      }),
-      prisma.instructorApplicationChairDecision.count({
-        where: { applicationId: id, supersededAt: { not: null } },
-      }),
-    ]);
+      },
+      select: { id: true },
+    }),
+    prisma.instructorApplicationChairDecision.count({
+      where: { applicationId: id, supersededAt: { not: null } },
+    }),
+    prisma.userAdminSubtype.findMany({
+      where: { userId: actor.id },
+      select: { subtype: true },
+    }),
+  ]);
 
   if (!application) {
     notFound();
@@ -73,6 +85,7 @@ export default async function FinalReviewCockpitPage({
       application.applicant.chapterId &&
       actor.chapterId !== application.applicant.chapterId
   );
+  const isSuperAdmin = actorAdminSubtypes.some((s) => s.subtype === "SUPER_ADMIN");
 
   return (
     <FinalReviewCockpit
@@ -80,9 +93,11 @@ export default async function FinalReviewCockpitPage({
       queue={queue}
       initialDraft={draft}
       notificationSnapshot={notificationSnapshot}
+      auditChain={auditChain}
       isCrossChapter={isCrossChapter}
       hasRecentTimelineActivity={Boolean(recentEvent)}
       hasPriorSupersededDecision={supersededCount > 0}
+      isSuperAdmin={isSuperAdmin}
       actorId={actor.id}
     />
   );

@@ -29,6 +29,8 @@ export interface ApplicantSnapshotBarProps {
   readiness: ReadinessSignals;
   queue: QueueNeighbors;
   latestDecision: { action: ChairDecisionAction; decidedAt: string } | null;
+  canRescind?: boolean;
+  onRescindClick?: () => void;
   routeBuilder: (id: string) => string;
 }
 
@@ -37,6 +39,8 @@ export default function ApplicantSnapshotBar({
   readiness,
   queue,
   latestDecision,
+  canRescind,
+  onRescindClick,
   routeBuilder,
 }: ApplicantSnapshotBarProps) {
   const isDecided = application.status !== "CHAIR_REVIEW";
@@ -77,6 +81,8 @@ export default function ApplicantSnapshotBar({
           <ApplicantStatusBanner
             status={application.status}
             latestDecision={latestDecision}
+            canRescind={canRescind}
+            onRescindClick={onRescindClick}
           />
         ) : (
           <DecisionReadinessMeter signals={readiness} compact />
