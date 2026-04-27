@@ -169,34 +169,41 @@ export async function confirmPostedInterviewSlot(formData: FormData) {
   if (slot.status !== "POSTED") {
     throw new Error("This slot is no longer available");
   }
-
-  const existingConfirmed = await prisma.instructorInterviewSlot.findFirst({
-    where: {
-      gateId: gate.id,
-      status: "CONFIRMED",
-    },
-    select: { id: true },
-  });
-  if (existingConfirmed) {
-    throw new Error("You already have a confirmed interview slot");
+  if (slot.scheduledAt.getTime() <= Date.now()) {
+    throw new Error("This slot has already passed and can no longer be confirmed.");
   }
 
-  await prisma.$transaction([
-    prisma.instructorInterviewSlot.update({
-      where: { id: slot.id },
+  await prisma.$transaction(async (tx) => {
+    const existingConfirmed = await tx.instructorInterviewSlot.findFirst({
+      where: {
+        gateId: gate.id,
+        status: "CONFIRMED",
+      },
+      select: { id: true },
+    });
+    if (existingConfirmed) {
+      throw new Error("You already have a confirmed interview slot");
+    }
+
+    const claimed = await tx.instructorInterviewSlot.updateMany({
+      where: { id: slot.id, status: "POSTED" },
       data: {
         status: "CONFIRMED",
         confirmedAt: new Date(),
       },
-    }),
-    prisma.instructorInterviewGate.update({
+    });
+    if (claimed.count === 0) {
+      throw new Error("This slot is no longer available");
+    }
+
+    await tx.instructorInterviewGate.update({
       where: { id: gate.id },
       data: {
         status: "SCHEDULED",
         scheduledAt: slot.scheduledAt,
       },
-    }),
-  ]);
+    });
+  });
 
   if (slot.createdById !== instructorId) {
     await createSystemNotification(
@@ -228,6 +235,7 @@ function parsePreferredSlots(raw: string): PreferredSlot[] {
     throw new Error("Preferred slots must include at least one option");
   }
 
+  const now = Date.now();
   const normalized: PreferredSlot[] = [];
   for (const entry of parsed) {
     if (!entry || typeof entry !== "object") {
@@ -237,12 +245,22 @@ function parsePreferredSlots(raw: string): PreferredSlot[] {
     const start = String((entry as { start?: unknown }).start ?? "").trim();
     const end = String((entry as { end?: unknown }).end ?? "").trim();
 
-    if (!start || isNaN(new Date(start).getTime())) {
+    const startMs = start ? new Date(start).getTime() : NaN;
+    if (!start || isNaN(startMs)) {
       throw new Error("Preferred slot start time is invalid");
     }
+    if (startMs <= now) {
+      throw new Error("Preferred slot start time must be in the future");
+    }
 
-    if (end && isNaN(new Date(end).getTime())) {
-      throw new Error("Preferred slot end time is invalid");
+    if (end) {
+      const endMs = new Date(end).getTime();
+      if (isNaN(endMs)) {
+        throw new Error("Preferred slot end time is invalid");
+      }
+      if (endMs <= startMs) {
+        throw new Error("Preferred slot end time must be after the start time");
+      }
     }
 
     normalized.push({
@@ -256,17 +274,28 @@ function parsePreferredSlots(raw: string): PreferredSlot[] {
 
 function parsePreferredSlotsFromInputs(formData: FormData): PreferredSlot[] {
   const slots: PreferredSlot[] = [];
+  const now = Date.now();
 
   for (let i = 1; i <= 3; i += 1) {
     const start = getString(formData, `preferredStart${i}`, false);
     const end = getString(formData, `preferredEnd${i}`, false);
 
     if (!start) continue;
-    if (isNaN(new Date(start).getTime())) {
+    const startMs = new Date(start).getTime();
+    if (isNaN(startMs)) {
       throw new Error(`Preferred slot ${i} start time is invalid`);
     }
-    if (end && isNaN(new Date(end).getTime())) {
-      throw new Error(`Preferred slot ${i} end time is invalid`);
+    if (startMs <= now) {
+      throw new Error(`Preferred slot ${i} start time must be in the future`);
+    }
+    if (end) {
+      const endMs = new Date(end).getTime();
+      if (isNaN(endMs)) {
+        throw new Error(`Preferred slot ${i} end time is invalid`);
+      }
+      if (endMs <= startMs) {
+        throw new Error(`Preferred slot ${i} end time must be after the start time`);
+      }
     }
 
     slots.push({
@@ -280,12 +309,16 @@ function parsePreferredSlotsFromInputs(formData: FormData): PreferredSlot[] {
 
 function parseBulkScheduledAtValues(formData: FormData, keys: string[]) {
   const values: Date[] = [];
+  const now = Date.now();
   for (const key of keys) {
     const raw = getString(formData, key, false);
     if (!raw) continue;
     const parsed = new Date(raw);
     if (isNaN(parsed.getTime())) {
       throw new Error(`Invalid ${key} date value`);
+    }
+    if (parsed.getTime() <= now) {
+      throw new Error(`${key} must be in the future`);
     }
     values.push(parsed);
   }
@@ -405,6 +438,9 @@ export async function postInterviewSlot(formData: FormData) {
 
   if (isNaN(scheduledAt.getTime())) {
     throw new Error("Invalid scheduled date");
+  }
+  if (scheduledAt.getTime() <= Date.now()) {
+    throw new Error("Scheduled time must be in the future.");
   }
 
   await assertReviewerCanManageInstructor(session.user.id, instructorId);
@@ -526,6 +562,9 @@ export async function acceptInterviewAvailabilityRequest(formData: FormData) {
   if (isNaN(scheduledAt.getTime())) {
     throw new Error("Invalid scheduled date");
   }
+  if (scheduledAt.getTime() <= Date.now()) {
+    throw new Error("Scheduled time must be in the future.");
+  }
 
   const request = await prisma.instructorInterviewAvailabilityRequest.findUnique({
     where: { id: requestId },
@@ -556,54 +595,73 @@ export async function acceptInterviewAvailabilityRequest(formData: FormData) {
   }
   assertGateCanSchedule(gate.status);
 
-  const existingConfirmed = await prisma.instructorInterviewSlot.findFirst({
-    where: {
-      gateId: request.gateId,
-      status: "CONFIRMED",
-    },
-    select: { id: true },
-  });
-  if (existingConfirmed) {
-    throw new Error("Instructor already has a confirmed interview slot");
-  }
-
   try {
-    await prisma.$transaction([
-      prisma.instructorInterviewAvailabilityRequest.update({
-        where: { id: requestId },
+    await prisma.$transaction(async (tx) => {
+      const claimed = await tx.instructorInterviewAvailabilityRequest.updateMany({
+        where: { id: requestId, status: "PENDING" },
         data: {
           status: "ACCEPTED",
           reviewedById: session.user.id,
           reviewedAt: new Date(),
         },
-      }),
-      prisma.instructorInterviewSlot.upsert({
+      });
+      if (claimed.count === 0) {
+        throw new Error("Request is no longer pending");
+      }
+
+      const existingConfirmed = await tx.instructorInterviewSlot.findFirst({
+        where: {
+          gateId: request.gateId,
+          status: "CONFIRMED",
+        },
+        select: { id: true },
+      });
+      if (existingConfirmed) {
+        throw new Error("Instructor already has a confirmed interview slot");
+      }
+
+      const existingSlot = await tx.instructorInterviewSlot.findUnique({
         where: {
           gateId_scheduledAt: {
             gateId: request.gateId,
             scheduledAt,
           },
         },
-        create: {
-          gateId: request.gateId,
-          createdById: session.user.id,
-          source: "INSTRUCTOR_REQUESTED",
-          status: "CONFIRMED",
-          scheduledAt,
-          duration,
-          meetingLink: meetingLink || null,
-          notes: notes || null,
-          confirmedAt: new Date(),
-        },
-        update: {
-          status: "CONFIRMED",
-          duration,
-          meetingLink: meetingLink || null,
-          notes: notes || null,
-          confirmedAt: new Date(),
-        },
-      }),
-      prisma.instructorInterviewAvailabilityRequest.updateMany({
+        select: { id: true, status: true },
+      });
+
+      if (existingSlot && existingSlot.status === "CANCELLED") {
+        throw new Error("A cancelled slot exists at that time. Choose a different time.");
+      }
+
+      if (existingSlot) {
+        await tx.instructorInterviewSlot.update({
+          where: { id: existingSlot.id },
+          data: {
+            status: "CONFIRMED",
+            duration,
+            meetingLink: meetingLink || null,
+            notes: notes || null,
+            confirmedAt: new Date(),
+          },
+        });
+      } else {
+        await tx.instructorInterviewSlot.create({
+          data: {
+            gateId: request.gateId,
+            createdById: session.user.id,
+            source: "INSTRUCTOR_REQUESTED",
+            status: "CONFIRMED",
+            scheduledAt,
+            duration,
+            meetingLink: meetingLink || null,
+            notes: notes || null,
+            confirmedAt: new Date(),
+          },
+        });
+      }
+
+      await tx.instructorInterviewAvailabilityRequest.updateMany({
         where: {
           gateId: request.gateId,
           status: "PENDING",
@@ -615,15 +673,16 @@ export async function acceptInterviewAvailabilityRequest(formData: FormData) {
           reviewedAt: new Date(),
           reviewNotes: "A different availability request was accepted.",
         },
-      }),
-      prisma.instructorInterviewGate.update({
+      });
+
+      await tx.instructorInterviewGate.update({
         where: { id: request.gateId },
         data: {
           status: "SCHEDULED",
           scheduledAt,
         },
-      }),
-    ]);
+      });
+    });
   } catch (error) {
     if (isInstructorSlotUniqueError(error)) {
       throw new Error("A slot at that date/time already exists. Choose a different time.");
