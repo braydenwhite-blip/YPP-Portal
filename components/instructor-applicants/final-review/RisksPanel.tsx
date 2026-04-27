@@ -84,7 +84,7 @@ export default function RisksPanel({
         padding: 16,
         display: "flex",
         flexDirection: "column",
-        gap: 10,
+        gap: 8,
       }}
     >
       <p
@@ -139,14 +139,14 @@ export default function RisksPanel({
               <span style={{ fontSize: 11, fontWeight: 500 }}>{isOpen ? "Hide" : "Show"}</span>
             </button>
             {isOpen ? (
-              <ul style={{ listStyle: "none", padding: 0, margin: "8px 0 0", display: "flex", flexDirection: "column", gap: 6 }}>
+              <ul style={{ listStyle: "none", padding: 0, margin: "8px 0 0", display: "flex", flexDirection: "column", gap: 8 }}>
                 {items.map((warning) => {
                   const acked = acknowledgements[warning.key] === true;
                   return (
                     <li
                       key={warning.key}
                       style={{
-                        padding: "8px 10px",
+                        padding: "8px 12px",
                         borderRadius: 10,
                         background: "var(--cockpit-surface-strong, #faf8ff)",
                         border: "1px solid var(--cockpit-line, rgba(71,85,105,0.14))",

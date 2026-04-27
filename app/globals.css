@@ -9894,7 +9894,7 @@ select.input {
 
 .final-review-cockpit .signal-panel {
   position: sticky;
-  top: 88px;
+  top: 80px;
   display: flex;
   flex-direction: column;
   gap: 16px;

@@ -215,7 +215,7 @@ export default function DraftRationaleField({
   return (
     <div
       className="draft-rationale-field"
-      style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}
+      style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}
     >
       <div
         role="tablist"
@@ -241,7 +241,7 @@ export default function DraftRationaleField({
               aria-selected={active}
               onClick={() => setActiveTab(tab)}
               style={{
-                padding: "4px 10px",
+                padding: "4px 8px",
                 background: active ? "var(--cockpit-surface, #fff)" : "transparent",
                 border: active
                   ? "1px solid var(--cockpit-line, rgba(71,85,105,0.18))"
@@ -281,7 +281,7 @@ export default function DraftRationaleField({
         rows={3}
         style={{
           width: "100%",
-          padding: 10,
+          padding: 12,
           fontSize: 13,
           lineHeight: 1.45,
           borderRadius: 10,
