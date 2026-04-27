@@ -11969,3 +11969,20 @@ select.input {
   border: 1px dashed var(--iv-border-strong);
 }
 
+/* --- Locked review notice (read-only view) --- */
+
+.iv-locked-notice {
+  margin-bottom: 8px;
+}
+
+.iv-locked-notice-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.iv-locked-notice-row > div {
+  flex: 1;
+  min-width: 0;
+}
+

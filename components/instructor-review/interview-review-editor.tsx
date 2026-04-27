@@ -10,6 +10,7 @@ import {
   type InstructorReviewCategoryValue,
   type ProgressRatingValue,
 } from "@/lib/instructor-review-config";
+import { StatusBadge } from "@/components/interviews/ui";
 import { KeyboardHelp } from "@/components/instructor-review/live/KeyboardHelp";
 import { SaveChip } from "@/components/instructor-review/live/SaveChip";
 import { SubmitDockShell } from "@/components/instructor-review/live/SubmitDock";
@@ -720,10 +721,22 @@ export default function InterviewReviewEditor({
         <input type="hidden" name="questionResponsesJson" value={questionPayload} />
 
         {!canEdit ? (
-          <div className="review-editor-notice">
-            <p>
-              This interview review is locked because it has already been submitted. An admin can still edit it if needed.
-            </p>
+          <div
+            className="iv-card iv-card-tone-success iv-card-body iv-locked-notice"
+            role="status"
+          >
+            <div className="iv-locked-notice-row">
+              <StatusBadge tone="completed">Submitted</StatusBadge>
+              <div>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>
+                  Review locked &mdash; read-only view
+                </p>
+                <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--muted)" }}>
+                  Your submitted scorecard, notes, and recommendation are below for reference. An
+                  admin can unlock this for edits if anything needs to change.
+                </p>
+              </div>
+            </div>
           </div>
         ) : null}
 
