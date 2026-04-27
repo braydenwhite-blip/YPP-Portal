@@ -11182,3 +11182,381 @@ select.input {
   min-width: 240px;
 }
 
+/* --- Pre-interview brief card --- */
+
+.iv-brief {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 20px 24px;
+}
+
+.iv-brief-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.iv-brief-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.iv-brief-name {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.iv-brief-eyebrow {
+  font-size: var(--iv-type-kicker-size);
+  font-weight: 700;
+  letter-spacing: var(--iv-type-kicker-tracking);
+  text-transform: uppercase;
+  color: var(--iv-accent-ink);
+}
+
+.iv-brief-subjects {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.iv-brief-subject {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--iv-info-surface);
+  border: 1px solid var(--iv-info-border);
+  color: var(--iv-info-ink);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.iv-brief-confidentiality {
+  font-size: 12px;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.iv-brief-slot {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--iv-success-border);
+  background: var(--iv-success-surface);
+  color: var(--iv-success-ink);
+}
+
+.iv-brief-slot.is-warning {
+  background: var(--iv-warning-surface);
+  border-color: var(--iv-warning-border);
+  color: var(--iv-warning-ink);
+}
+
+.iv-brief-slot-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.7);
+  color: inherit;
+  flex-shrink: 0;
+  font-weight: 700;
+}
+
+.iv-brief-slot-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.iv-brief-slot-label {
+  font-size: var(--iv-type-kicker-size);
+  font-weight: 700;
+  letter-spacing: var(--iv-type-kicker-tracking);
+  text-transform: uppercase;
+}
+
+.iv-brief-slot-time {
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.iv-brief-slot-meta {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.iv-brief-slot-meta a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 600;
+}
+
+.iv-brief-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.iv-brief-section-label {
+  font-size: var(--iv-type-kicker-size);
+  font-weight: 700;
+  letter-spacing: var(--iv-type-kicker-tracking);
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0;
+}
+
+.iv-brief-plan {
+  background: var(--iv-surface-tinted);
+  border: 1px solid var(--iv-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.iv-brief-plan-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.iv-brief-plan-field-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.iv-brief-plan-field-value {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+.iv-brief-plan-field-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.iv-brief-quote {
+  margin: 0;
+  padding: 12px 14px 12px 16px;
+  border-left: 3px solid var(--iv-accent);
+  background: var(--iv-accent-tint);
+  border-radius: 0 12px 12px 0;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--iv-accent-ink);
+}
+
+.iv-brief-doc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.iv-brief-doc {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--iv-line-faint);
+  background: var(--iv-surface);
+}
+
+.iv-brief-doc.is-uploaded {
+  border-color: var(--iv-success-border);
+  background: var(--iv-success-surface);
+}
+
+.iv-brief-doc-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.iv-brief-doc-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.iv-brief-doc.is-uploaded .iv-brief-doc-name {
+  color: var(--iv-success-ink);
+}
+
+.iv-brief-doc-meta {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.iv-brief-doc-missing {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+.iv-brief-video {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--iv-accent-tint);
+  border: 1px solid rgba(107, 33, 200, 0.18);
+  color: var(--iv-accent-ink);
+}
+
+.iv-brief-video-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--iv-accent);
+  color: #fff;
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.iv-brief-video-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.iv-brief-video-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.iv-brief-video-helper {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+/* --- Cockpit interviewer callout (sleeker re-skin) --- */
+
+.iv-cockpit-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-radius: 14px;
+  border: 1px solid var(--iv-accent);
+  background: linear-gradient(180deg, var(--iv-accent-tint) 0%, #ffffff 100%);
+  box-shadow: var(--iv-shadow-card);
+  flex-wrap: wrap;
+}
+
+.iv-cockpit-callout-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.iv-cockpit-callout-kicker {
+  font-size: var(--iv-type-kicker-size);
+  font-weight: 700;
+  letter-spacing: var(--iv-type-kicker-tracking);
+  text-transform: uppercase;
+  color: var(--iv-accent-ink);
+}
+
+.iv-cockpit-callout-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.iv-cockpit-callout-helper {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* --- Cockpit interview-review chip row (rich rubric) --- */
+
+.iv-cockpit-review-card {
+  border: 1px solid var(--iv-border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  background: var(--iv-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.iv-cockpit-review-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.iv-cockpit-review-author {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.iv-cockpit-review-summary {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.iv-cockpit-review-edit {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--iv-accent-ink);
+  text-decoration: none;
+}
+
+.iv-cockpit-review-edit:hover {
+  text-decoration: underline;
+}
+

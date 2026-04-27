@@ -438,42 +438,42 @@ export default async function ApplicantCockpitPage({
                 </div>
                 <div className="cockpit-stack">
                   {application.interviewReviews.map((review) => {
-                    const recOpt = PROGRESS_RATING_OPTIONS.find((o) => o.value === review.overallRating);
+                    const recOpt = PROGRESS_RATING_OPTIONS.find(
+                      (o) => o.value === review.overallRating
+                    );
                     return (
-                      <div
-                        key={review.id}
-                        className="cockpit-review-card"
-                      >
-                        <div className="cockpit-review-card-header">
-                          <strong>{review.reviewer.name ?? "Interviewer"}</strong>
-                          {recOpt && (
+                      <article key={review.id} className="iv-cockpit-review-card">
+                        <header className="iv-cockpit-review-header">
+                          <span className="iv-cockpit-review-author">
+                            {review.reviewer.name ?? "Interviewer"}
+                          </span>
+                          {recOpt ? (
                             <span
                               className="cockpit-score-chip"
                               style={{ background: recOpt.bg, color: recOpt.color }}
+                              aria-label={`Overall rating ${recOpt.shortLabel}`}
                             >
                               {recOpt.shortLabel}
                             </span>
-                          )}
-                          {review.recommendation && (
-                            <span className="pill pill-info pill-small">
+                          ) : null}
+                          {review.recommendation ? (
+                            <span className="iv-status-badge is-info">
                               {review.recommendation.replace(/_/g, " ")}
                             </span>
-                          )}
-                        </div>
-                        {review.summary && (
-                          <p className="cockpit-prose cockpit-prose-small">
-                            {review.summary}
-                          </p>
-                        )}
-                        {actorIsInterviewer && review.reviewerId === actor.id && (
+                          ) : null}
+                        </header>
+                        {review.summary ? (
+                          <p className="iv-cockpit-review-summary">{review.summary}</p>
+                        ) : null}
+                        {actorIsInterviewer && review.reviewerId === actor.id ? (
                           <Link
                             href={`/applications/instructor/${id}/interview`}
-                            className="cockpit-text-link"
+                            className="iv-cockpit-review-edit"
                           >
-                            Edit my review
+                            Edit my review →
                           </Link>
-                        )}
-                      </div>
+                        ) : null}
+                      </article>
                     );
                   })}
                 </div>
@@ -481,22 +481,22 @@ export default async function ApplicantCockpitPage({
             )}
 
             {actorIsInterviewer && (
-              <div
-                className="cockpit-panel cockpit-panel-compact cockpit-workspace-callout"
-              >
-                <div>
-                  <p className="cockpit-callout-title">Interviewer Workspace</p>
-                  <p className="cockpit-muted">
-                    Pre-interview brief, materials, and evaluation form.
+              <aside className="iv-cockpit-callout" aria-label="Interviewer workspace">
+                <div className="iv-cockpit-callout-text">
+                  <span className="iv-cockpit-callout-kicker">Run the interview</span>
+                  <p className="iv-cockpit-callout-title">Open Interviewer Workspace</p>
+                  <p className="iv-cockpit-callout-helper">
+                    Live question runner, pre-interview brief, autosave, and the rubric all in one
+                    place.
                   </p>
                 </div>
                 <Link
                   href={`/applications/instructor/${id}/interview`}
-                  className="button outline cockpit-inline-button"
+                  className="button cockpit-inline-button"
                 >
-                  Open
+                  Open Workspace →
                 </Link>
-              </div>
+              </aside>
             )}
 
             {/* Full Timeline */}
