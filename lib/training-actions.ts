@@ -572,7 +572,14 @@ function parseQuizOptions(raw: string): string[] {
 
   const deduped = Array.from(new Set(parsedOptions));
   if (deduped.length < 2) {
-    throw new Error("Quiz questions must have at least 2 options.");
+    if (parsedOptions.length >= 2 && deduped.length < parsedOptions.length) {
+      throw new Error(
+        "Quiz questions must have at least 2 distinct options. Remove duplicate options and try again."
+      );
+    }
+    throw new Error(
+      "Quiz questions must have at least 2 options. Provide options as a JSON array, comma-separated, or one per line."
+    );
   }
   return deduped;
 }
@@ -1055,12 +1062,20 @@ export async function submitTrainingQuizAttempt(formData: FormData) {
     }
   }
 
+  const results = module.quizQuestions.map((question) => {
+    const userAnswer = answersJson[question.id] ?? null;
+    return {
+      questionId: question.id,
+      correctAnswer: question.correctAnswer,
+      userAnswer,
+      correct: userAnswer !== null && userAnswer === question.correctAnswer,
+    };
+  });
+
   let scorePct = scorePctRaw ? Number(scorePctRaw) : NaN;
 
   if (!Number.isFinite(scorePct)) {
-    const correct = module.quizQuestions.filter(
-      (question) => answersJson[question.id] === question.correctAnswer
-    ).length;
+    const correct = results.filter((r) => r.correct).length;
     scorePct = Math.round((correct / module.quizQuestions.length) * 100);
   }
 
@@ -1084,7 +1099,7 @@ export async function submitTrainingQuizAttempt(formData: FormData) {
   revalidatePath("/admin/training");
   revalidatePath(`/training/${moduleId}`);
 
-  return { passed, scorePct, passScorePct: module.passScorePct };
+  return { passed, scorePct, passScorePct: module.passScorePct, results };
 }
 
 export async function submitTrainingEvidence(formData: FormData) {
