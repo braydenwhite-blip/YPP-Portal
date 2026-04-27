@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { canSeeChairQueue, getHiringActor } from "@/lib/chapter-hiring-permissions";
 import {
-  isFinalReviewV2Enabled,
+  isFinalReviewV2EnabledForChapter,
   isInstructorApplicantWorkflowV1Enabled,
 } from "@/lib/feature-flags";
 import {
@@ -26,11 +26,6 @@ export default async function FinalReviewCockpitPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  if (!isFinalReviewV2Enabled()) {
-    const { id } = await params;
-    redirect(`/admin/instructor-applicants/chair-queue/${id}`);
-  }
-
   const session = await getSession();
   if (!session?.user?.id) redirect("/signin");
 
@@ -81,6 +76,12 @@ export default async function FinalReviewCockpitPage({
 
   if (!application) {
     notFound();
+  }
+
+  // Per-chapter rollout gate: route falls back to the legacy chair workspace
+  // if the cockpit isn't enabled for this applicant's chapter.
+  if (!isFinalReviewV2EnabledForChapter(application.applicant.chapterId)) {
+    redirect(`/admin/instructor-applicants/chair-queue/${id}`);
   }
 
   const isCrossChapter = Boolean(

@@ -29,6 +29,7 @@ import {
   type InterviewSignal,
 } from "@/lib/final-review-warnings";
 import { useCommitDecision } from "@/lib/use-commit-decision";
+import { trackCockpitEvent } from "@/lib/cockpit-analytics";
 
 import { FinalReviewProvider, useFinalReviewContext } from "./FinalReviewContext";
 import ApplicantSnapshotBar from "./ApplicantSnapshotBar";
@@ -125,6 +126,15 @@ function CockpitInner({
 
   const commit = useCommitDecision();
 
+  // Entry-point telemetry — fires once per applicant view.
+  useEffect(() => {
+    trackCockpitEvent("final_review.viewed", {
+      applicationId: application.id,
+      actorId,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only fire on app id change
+  }, [application.id]);
+
   const readiness = useMemo(
     () =>
       computeReadinessSignals({
@@ -210,6 +220,12 @@ function CockpitInner({
     if (readOnly) return;
     setCommitErrorDismissed(false);
     setPendingAction(action);
+    trackCockpitEvent("final_review.decision_intent", {
+      applicationId: application.id,
+      actorId,
+      action,
+      draftLength: draft.rationale.trim().length,
+    });
   }
 
   function handleConfirm(payload: DecisionConfirmPayload) {
@@ -236,6 +252,12 @@ function CockpitInner({
   // React to commit lifecycle.
   useEffect(() => {
     if (commit.state.status === "success") {
+      trackCockpitEvent("final_review.commit_succeeded", {
+        applicationId: application.id,
+        actorId,
+        action: commit.state.action,
+        idempotencyKey: commit.state.idempotencyKey,
+      });
       setToastDecided(commit.state.action);
       setToastOpen(true);
       setPendingAction(null);
@@ -244,8 +266,16 @@ function CockpitInner({
       setStaleModalAcknowledged(false);
       setCommitErrorDismissed(false);
       router.refresh();
+    } else if (commit.state.status === "error") {
+      trackCockpitEvent("final_review.commit_failed", {
+        applicationId: application.id,
+        actorId,
+        action: commit.state.action,
+        kind: commit.state.kind,
+        code: commit.state.code,
+      });
     }
-  }, [commit.state, router]);
+  }, [commit.state, router, application.id, actorId]);
 
   // Prefetch next applicant once we know there's one to advance to.
   useEffect(() => {
