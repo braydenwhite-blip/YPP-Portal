@@ -104,78 +104,73 @@ export default async function InterviewerWorkspacePage({
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
-      <div style={{ padding: "12px 24px", borderBottom: "1px solid #e5e7eb" }}>
-        <Link
-          href={`/applications/instructor/${id}`}
-          style={{ fontSize: 13, color: "var(--muted)", textDecoration: "none" }}
-        >
-          ← Back to Applicant Workspace
-        </Link>
+      <div className="iv-live-topbar">
+        <div className="iv-live-topbar-left">
+          <Link href={`/applications/instructor/${id}`} className="iv-live-topbar-back">
+            ← Back to Applicant
+          </Link>
+          <span className="iv-live-topbar-title">Live Interview Workspace</span>
+        </div>
+        <div className="iv-live-topbar-right">
+          <Link
+            href="#section-pre-brief"
+            className="button outline small"
+            style={{ textDecoration: "none" }}
+          >
+            View brief
+          </Link>
+        </div>
       </div>
 
-      <div style={{ maxWidth: 1180, margin: "0 auto", padding: "24px 24px 60px" }}>
-        {/* Live interview workspace */}
-        <div className="card" style={{ padding: "24px 28px", marginBottom: 24 }}>
-          <h2 style={{ margin: "0 0 4px", fontSize: 20, fontWeight: 700 }}>Live Interview Workspace</h2>
-          <p style={{ margin: "0 0 20px", fontSize: 13, color: "var(--muted)" }}>
-            Run the interview, save live notes as you go, and submit the final evaluation when the
-            conversation is complete. Once the required review set is in, the applicant is routed
-            to the Chair Queue automatically.
-          </p>
-
-          {workspace ? (
-            <InterviewReviewEditor
-              action={saveInstructorInterviewReviewAction as (fd: FormData) => void}
-              liveDraftAction={saveInstructorInterviewLiveDraftAction}
-              applicationId={id}
-              returnTo={`/applications/instructor/${id}`}
-              initialReview={workspace.myReview}
-              canEdit={workspace.myReview?.status !== "SUBMITTED" || actorIsAdmin}
-              isLeadReviewer={workspace.myReview?.isLeadReview ?? false}
-              canFinalizeRecommendation={workspace.canFinalizeRecommendation}
-              questionBank={workspace.questionBank}
-            />
-          ) : (
-            <div
-              style={{
-                padding: "20px",
-                background: "#fffbeb",
-                border: "1px solid #fde68a",
-                borderRadius: 8,
-                fontSize: 13,
-                color: "#b45309",
-              }}
-            >
-              Interview evaluation is not yet available. The applicant must be in the interview
-              stage first.
-            </div>
-          )}
-        </div>
-
-        {/* Pre-interview brief (collapsible, collapsed by default) */}
-        <details className="interview-brief-collapsible">
-          <summary
-            className="card"
-            style={{
-              cursor: "pointer",
-              padding: "16px 28px",
-              fontSize: 15,
-              fontWeight: 700,
-              color: "var(--cockpit-ink, #1f1147)",
-              listStyle: "revert",
-            }}
+      <div className="iv-live-content">
+        {workspace ? (
+          <InterviewReviewEditor
+            action={saveInstructorInterviewReviewAction as (fd: FormData) => void}
+            liveDraftAction={saveInstructorInterviewLiveDraftAction}
+            applicationId={id}
+            returnTo={`/applications/instructor/${id}`}
+            initialReview={workspace.myReview}
+            canEdit={workspace.myReview?.status !== "SUBMITTED" || actorIsAdmin}
+            isLeadReviewer={workspace.myReview?.isLeadReview ?? false}
+            canFinalizeRecommendation={workspace.canFinalizeRecommendation}
+            questionBank={workspace.questionBank}
+          />
+        ) : (
+          <div
+            className="iv-card iv-card-tone-warning iv-card-body"
+            role="status"
+            style={{ fontSize: 13 }}
           >
-            Show Pre-Interview Brief (initial review)
-          </summary>
-          <div style={{ marginTop: 12 }}>
+            Interview evaluation is not yet available. The applicant must be in the interview stage
+            first.
+          </div>
+        )}
+
+        {/* Pre-interview brief — sibling, always available, collapsed by default */}
+        <section id="section-pre-brief" aria-labelledby="section-pre-brief-heading">
+          <details className="interview-brief-collapsible">
+            <summary
+              className="iv-card iv-card-body"
+              style={{
+                cursor: "pointer",
+                fontSize: 14,
+                fontWeight: 700,
+                color: "var(--text)",
+                listStyle: "revert",
+                marginBottom: 12,
+              }}
+              id="section-pre-brief-heading"
+            >
+              Pre-Interview Brief (initial review)
+            </summary>
             <InterviewerBriefCard
               application={application}
               documents={application.documents}
               confirmedSlots={application.offeredSlots}
               reviewerNote={reviewerNote}
             />
-          </div>
-        </details>
+          </details>
+        </section>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 import {
   INSTRUCTOR_INTERVIEW_RECOMMENDATION_OPTIONS,
@@ -10,6 +10,14 @@ import {
   type InstructorReviewCategoryValue,
   type ProgressRatingValue,
 } from "@/lib/instructor-review-config";
+import { KeyboardHelp } from "@/components/instructor-review/live/KeyboardHelp";
+import { SaveChip } from "@/components/instructor-review/live/SaveChip";
+import { SubmitDockShell } from "@/components/instructor-review/live/SubmitDock";
+import {
+  useKeyboardShortcuts,
+  type Shortcut,
+} from "@/components/instructor-review/live/use-keyboard-shortcuts";
+import { useInterviewTimer } from "@/components/instructor-review/live/use-interview-timer";
 
 type CategoryState = {
   category: InstructorReviewCategoryValue;
@@ -291,9 +299,13 @@ export default function InterviewReviewEditor({
   const [saveStatus, setSaveStatus] = useState<"idle" | "dirty" | "saving" | "saved" | "error">("idle");
   const [saveMessage, setSaveMessage] = useState("");
   const [missingFields, setMissingFields] = useState<string[]>([]);
+  const [focusMode, setFocusMode] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const timer = useInterviewTimer(false);
   const mountedRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveSeqRef = useRef(0);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const questionPayload = useMemo(
     () =>
@@ -526,6 +538,100 @@ export default function InterviewReviewEditor({
     }
   }
 
+  const jumpTo = useCallback(
+    (direction: "next" | "prev" | "next-unanswered") => {
+      if (questions.length === 0) return;
+      const currentIndex = questions.findIndex(
+        (question) => question.localId === activeQuestionId
+      );
+      if (direction === "next") {
+        const nextIndex = currentIndex < 0 ? 0 : Math.min(currentIndex + 1, questions.length - 1);
+        setActiveQuestionId(questions[nextIndex].localId);
+        return;
+      }
+      if (direction === "prev") {
+        const prevIndex = currentIndex < 0 ? 0 : Math.max(currentIndex - 1, 0);
+        setActiveQuestionId(questions[prevIndex].localId);
+        return;
+      }
+      const startSearch = currentIndex < 0 ? 0 : currentIndex + 1;
+      let target = questions
+        .slice(startSearch)
+        .find((question) => question.status === "UNTOUCHED");
+      if (!target) {
+        target = questions.find((question) => question.status === "UNTOUCHED");
+      }
+      if (target) setActiveQuestionId(target.localId);
+    },
+    [activeQuestionId, questions]
+  );
+
+  const nextUnansweredCount = useMemo(
+    () => questions.filter((question) => question.status === "UNTOUCHED").length,
+    [questions]
+  );
+
+  const submitForm = useCallback((intent: "save" | "submit") => {
+    const form = formRef.current;
+    if (!form) return;
+    const button = document.createElement("button");
+    button.type = "submit";
+    button.name = "intent";
+    button.value = intent;
+    button.style.display = "none";
+    form.appendChild(button);
+    button.click();
+    form.removeChild(button);
+  }, []);
+
+  const shortcuts = useMemo<Shortcut[]>(() => {
+    if (!canEdit) {
+      return [
+        { key: "?", handler: () => setHelpOpen((value) => !value) },
+      ];
+    }
+    return [
+      { key: "?", handler: () => setHelpOpen((value) => !value) },
+      { key: "j", handler: () => jumpTo("next") },
+      { key: "k", handler: () => jumpTo("prev") },
+      { key: "n", handler: () => jumpTo("next-unanswered") },
+      {
+        key: "a",
+        handler: () => {
+          if (activeQuestion) setQuestionStatus(activeQuestion.localId, "ASKED");
+        },
+      },
+      {
+        key: "s",
+        handler: () => {
+          if (activeQuestion) setQuestionStatus(activeQuestion.localId, "SKIPPED");
+        },
+      },
+      { key: "f", handler: () => setFocusMode((value) => !value) },
+      { key: "t", handler: () => timer.toggle() },
+      {
+        key: "s",
+        meta: true,
+        allowInTyping: true,
+        handler: (event) => {
+          event.preventDefault();
+          submitForm("save");
+        },
+      },
+      {
+        key: "Enter",
+        meta: true,
+        allowInTyping: true,
+        handler: (event) => {
+          event.preventDefault();
+          submitForm("submit");
+        },
+      },
+    ];
+  }, [activeQuestion, canEdit, jumpTo, submitForm, timer]);
+
+  useKeyboardShortcuts(shortcuts);
+
   function collectMissingFields(): string[] {
     const missing: string[] = [];
 
@@ -590,54 +696,110 @@ export default function InterviewReviewEditor({
   }
 
   return (
-    <form action={action} onSubmit={handleFormSubmit} className="live-interview-workspace">
-      <input type="hidden" name="applicationId" value={applicationId} />
-      <input type="hidden" name="returnTo" value={returnTo} />
-      <input type="hidden" name="categoriesJson" value={categoryPayload} />
-      <input type="hidden" name="questionResponsesJson" value={questionPayload} />
+    <div className={`iv-live-shell${focusMode ? " is-focus-mode" : ""}`}>
+      <form
+        ref={formRef}
+        action={action}
+        onSubmit={handleFormSubmit}
+        className={`live-interview-workspace iv-live-content${focusMode ? " is-focus-mode" : ""}`}
+        style={{ padding: 0, maxWidth: "none" }}
+      >
+        <input type="hidden" name="applicationId" value={applicationId} />
+        <input type="hidden" name="returnTo" value={returnTo} />
+        <input type="hidden" name="categoriesJson" value={categoryPayload} />
+        <input type="hidden" name="questionResponsesJson" value={questionPayload} />
 
-      {!canEdit ? (
-        <div className="review-editor-notice">
-          <p>
-            This interview review is locked because it has already been submitted. An admin can still edit it if needed.
-          </p>
-        </div>
-      ) : null}
+        {!canEdit ? (
+          <div className="review-editor-notice">
+            <p>
+              This interview review is locked because it has already been submitted. An admin can still edit it if needed.
+            </p>
+          </div>
+        ) : null}
 
-      {missingFields.length > 0 ? (
-        <div className="review-editor-missing" role="alert">
-          <h3>Just a few things to finish before submitting</h3>
-          <p>
-            Save the draft any time. When you&apos;re ready to submit, please fill in:
-          </p>
-          <ul>
-            {missingFields.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+        {missingFields.length > 0 ? (
+          <div className="review-editor-missing iv-validation-summary" role="alert">
+            <h3>Just a few things to finish before submitting</h3>
+            <p>
+              Save the draft any time. When you&apos;re ready to submit, please fill in:
+            </p>
+            <ul>
+              {missingFields.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
-      <section className="live-interview-hero">
-        <div>
-          <span className="cockpit-section-kicker">During-interview workflow</span>
-          <h2>Live Question Runner</h2>
-          <p>
-            Move through questions, capture notes while answers are fresh, tag signals, and save as you go.
-          </p>
-        </div>
-        <div className={`live-save-chip is-${saveStatus}`} aria-live="polite">
-          <span>{saveStatus === "idle" ? "Ready" : saveMessage}</span>
-          <button
-            type="button"
-            className="button small outline"
-            disabled={!canEdit || saveStatus === "saving"}
-            onClick={() => void runLiveSave("manual")}
-          >
-            Save Now
-          </button>
-        </div>
-      </section>
+        <section className="live-interview-hero">
+          <div>
+            <span className="cockpit-section-kicker">During-interview workflow</span>
+            <h2>Live Question Runner</h2>
+            <p>
+              Move through questions, capture notes while answers are fresh, tag signals, and save as you go.
+            </p>
+          </div>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className="iv-live-jump-button"
+              onClick={() => jumpTo("next-unanswered")}
+              disabled={!canEdit || nextUnansweredCount === 0}
+              aria-label="Jump to next unanswered question"
+              title="Press N"
+            >
+              Next unanswered
+              {nextUnansweredCount > 0 ? (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minWidth: 20,
+                    height: 18,
+                    padding: "0 6px",
+                    borderRadius: 999,
+                    background: "rgba(255,255,255,0.25)",
+                    fontSize: 11,
+                    fontWeight: 700,
+                  }}
+                >
+                  {nextUnansweredCount}
+                </span>
+              ) : null}
+            </button>
+            <button
+              type="button"
+              className={`iv-timer-chip${timer.running ? " is-running" : ""}`}
+              onClick={timer.toggle}
+              aria-label={timer.running ? "Pause interview timer" : "Start interview timer"}
+              title="Press T"
+              style={{ cursor: "pointer", border: "1px solid var(--iv-border)" }}
+            >
+              <span aria-hidden="true">⏱</span>
+              <span>{timer.label}</span>
+            </button>
+            <button
+              type="button"
+              className={`iv-focus-mode-button${focusMode ? " is-active" : ""}`}
+              onClick={() => setFocusMode((value) => !value)}
+              aria-pressed={focusMode}
+              title="Press F"
+            >
+              {focusMode ? "Exit Focus" : "Focus Mode"}
+            </button>
+            <button
+              type="button"
+              className="iv-live-help-button"
+              onClick={() => setHelpOpen(true)}
+              aria-label="Show keyboard shortcuts"
+              title="Press ?"
+            >
+              ?
+            </button>
+            <SaveChip status={saveStatus} message={saveMessage} />
+          </div>
+        </section>
 
       <section className="live-interview-grid">
         <aside className="live-progress-rail" aria-label="Interview progress">
@@ -1132,21 +1294,47 @@ export default function InterviewReviewEditor({
         <input type="hidden" name="flagForLeadership" value={flagForLeadership ? "true" : "false"} />
       </section>
 
-      <div className="review-editor-actions">
-        <button
-          className="button secondary"
-          type="submit"
-          name="intent"
-          value="save"
-          disabled={!canEdit}
-          formNoValidate
-        >
-          Save Draft
-        </button>
-        <button className="button" type="submit" name="intent" value="submit" disabled={!canEdit}>
-          Submit Interview Review
-        </button>
-      </div>
-    </form>
+        <SubmitDockShell
+          status={
+            <>
+              <SaveChip status={saveStatus} message={saveMessage} />
+              {missingFields.length > 0 ? (
+                <span className="iv-live-submit-dock-warning">
+                  {missingFields.length} required {missingFields.length === 1 ? "field" : "fields"} left
+                </span>
+              ) : (
+                <span className="iv-live-submit-dock-status-strong">Ready to submit</span>
+              )}
+            </>
+          }
+          actions={
+            <>
+              <button
+                className="button secondary"
+                type="submit"
+                name="intent"
+                value="save"
+                disabled={!canEdit}
+                formNoValidate
+                aria-label="Save draft"
+              >
+                Save Draft
+              </button>
+              <button
+                className="button"
+                type="submit"
+                name="intent"
+                value="submit"
+                disabled={!canEdit}
+                aria-label="Submit interview review"
+              >
+                Submit Interview Review
+              </button>
+            </>
+          }
+        />
+      </form>
+      <KeyboardHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
+    </div>
   );
 }

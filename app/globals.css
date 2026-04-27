@@ -11560,3 +11560,304 @@ select.input {
   text-decoration: underline;
 }
 
+/* ==========================================================================
+   Live Interview Workspace upgrades
+   Composes with the existing .live-* / .review-* layer (unchanged).
+   ========================================================================== */
+
+.iv-live-shell {
+  min-height: 100vh;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+
+.iv-live-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--iv-border);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  flex-wrap: wrap;
+}
+
+.iv-live-topbar-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.iv-live-topbar-back {
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.iv-live-topbar-back:hover {
+  color: var(--iv-accent-ink);
+}
+
+.iv-live-topbar-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.iv-live-topbar-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.iv-live-content {
+  flex: 1;
+  max-width: 1240px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 24px 96px; /* leave room for sticky submit dock */
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.iv-live-content.is-focus-mode {
+  max-width: 920px;
+}
+
+/* When focus mode is on, hide the progress rail. */
+.iv-live-shell.is-focus-mode .live-progress-rail {
+  display: none;
+}
+
+.iv-live-shell.is-focus-mode .live-interview-grid {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.iv-live-shell.is-focus-mode .live-question-card {
+  border-color: var(--iv-accent);
+  box-shadow: var(--iv-shadow-card-raised);
+}
+
+.iv-live-shell.is-focus-mode .live-notes-input {
+  min-height: 220px;
+}
+
+/* Jump-to-next button */
+.iv-live-jump-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--iv-accent);
+  background: var(--iv-accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: filter 150ms;
+}
+
+.iv-live-jump-button:hover:not(:disabled) {
+  filter: brightness(0.94);
+}
+
+.iv-live-jump-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.iv-live-jump-button:focus-visible {
+  outline: 2px solid var(--ypp-purple-400);
+  outline-offset: 2px;
+}
+
+/* Keyboard help popover */
+.iv-live-help-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid var(--iv-border);
+  background: var(--iv-surface);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 150ms;
+}
+
+.iv-live-help-button:hover {
+  background: var(--iv-accent-tint);
+  color: var(--iv-accent-ink);
+  border-color: var(--iv-accent);
+}
+
+.iv-live-help-button:focus-visible {
+  outline: 2px solid var(--ypp-purple-400);
+  outline-offset: 2px;
+}
+
+.iv-live-help-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  backdrop-filter: blur(2px);
+}
+
+.iv-live-help-panel {
+  width: 100%;
+  max-width: 480px;
+  background: var(--iv-surface);
+  border: 1px solid var(--iv-border);
+  border-radius: 16px;
+  box-shadow: var(--iv-shadow-card-raised);
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.iv-live-help-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.iv-live-help-panel h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.iv-live-help-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  row-gap: 10px;
+  column-gap: 14px;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.iv-live-help-list dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.iv-live-help-list dd {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text);
+}
+
+/* Sticky submit dock at the bottom of the workspace */
+.iv-live-submit-dock {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid var(--iv-border);
+  box-shadow: var(--iv-shadow-dock);
+  padding: 12px 24px;
+  z-index: 35;
+}
+
+.iv-live-submit-dock-inner {
+  max-width: 1240px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 16px;
+}
+
+.iv-live-submit-dock-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.iv-live-submit-dock-status-strong {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.iv-live-submit-dock-warning {
+  color: var(--iv-warning-accent);
+  font-weight: 600;
+}
+
+.iv-live-submit-dock-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 720px) {
+  .iv-live-submit-dock-inner {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .iv-live-submit-dock-actions {
+    justify-content: stretch;
+  }
+}
+
+/* Additional polish to the existing live-progress alerts (composes) */
+.live-progress-alerts span {
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Custom rating-grid wrapper (when used inside the live workspace) */
+.iv-live-overall-eval {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Brief sibling card (always visible above the workspace, not hidden in details) */
+.iv-live-brief-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+@media (min-width: 1100px) {
+  .iv-live-brief-grid.has-brief {
+    grid-template-columns: minmax(0, 2.4fr) minmax(280px, 1fr);
+  }
+}
+
