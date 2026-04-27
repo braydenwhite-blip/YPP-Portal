@@ -8,6 +8,7 @@ import {
   InstructorApplicationStatus,
   ApprovalStatus,
   ChairDecisionAction,
+  Prisma,
   StructuredReviewStatus,
 } from "@prisma/client";
 import {
@@ -1794,13 +1795,53 @@ export async function forceSendToChair(
  * REQUEST_SECOND_INTERVIEW reverts status to INTERVIEW_SCHEDULED.
  */
 export type ChairDecideResult =
-  | { success: true; error?: undefined; code?: undefined; context?: undefined }
+  | {
+      success: true;
+      replayed?: boolean;
+      decidedAt?: string;
+      error?: undefined;
+      code?: undefined;
+      context?: undefined;
+    }
   | {
       success: false;
       error?: string;
       code?: string;
       context?: Record<string, unknown>;
     };
+
+const IDEMPOTENCY_REPLAY_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+interface DecisionConditionInput {
+  id?: string;
+  label?: unknown;
+  ownerId?: unknown;
+  dueAt?: unknown;
+}
+
+function parseConditions(raw: unknown): { ok: true; value: unknown[] } | { ok: false; error: string; code: string } {
+  if (raw == null || raw === "") return { ok: true, value: [] };
+  if (typeof raw !== "string") {
+    return { ok: false, error: "Conditions must be JSON.", code: "CONDITION_LABEL_INVALID" };
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return {
+        ok: false,
+        error: "Conditions must be an array.",
+        code: "CONDITION_LABEL_INVALID",
+      };
+    }
+    return { ok: true, value: parsed };
+  } catch {
+    return {
+      ok: false,
+      error: "Conditions JSON could not be parsed.",
+      code: "CONDITION_LABEL_INVALID",
+    };
+  }
+}
 
 export async function chairDecide(formData: FormData): Promise<ChairDecideResult> {
   try {
@@ -1811,6 +1852,8 @@ export async function chairDecide(formData: FormData): Promise<ChairDecideResult
 
     const applicationId = String(formData.get("applicationId") ?? "").trim();
     const actionRaw = String(formData.get("action") ?? "").trim();
+    const idempotencyKey = String(formData.get("idempotencyKey") ?? "").trim() || null;
+    const conditionsRaw = formData.get("conditions");
     const rationale = String(formData.get("rationale") ?? "").trim() || null;
     const comparisonNotes = String(formData.get("comparisonNotes") ?? "").trim() || null;
     if (!applicationId || !actionRaw) {
@@ -1826,7 +1869,35 @@ export async function chairDecide(formData: FormData): Promise<ChairDecideResult
       return { success: false, error: "Invalid chair action.", code: "VALIDATION" };
     }
     const action = actionRaw as ChairDecisionAction;
-    if ((action === "REQUEST_INFO" || action === "REJECT") && !rationale) {
+
+    // Server-enforced idempotency replay (Phase 8 §16). If the same client
+    // key already produced a SUCCESS row within the replay window, return
+    // the prior result instead of running the transaction again.
+    if (idempotencyKey) {
+      const prior = await prisma.chairDecisionCommitAttempt.findUnique({
+        where: { idempotencyKey },
+        select: {
+          result: true,
+          decidedAt: true,
+          chairId: true,
+          createdAt: true,
+        },
+      });
+      if (prior && prior.chairId === session.user.id && prior.result === "SUCCESS") {
+        const fresh =
+          Date.now() - prior.createdAt.getTime() < IDEMPOTENCY_REPLAY_WINDOW_MS;
+        if (fresh) {
+          return {
+            success: true,
+            replayed: true,
+            decidedAt: prior.decidedAt?.toISOString(),
+          };
+        }
+      }
+    }
+
+    const requiresRationale = action === "REJECT" || action === "REQUEST_INFO";
+    if (requiresRationale && !rationale) {
       return {
         success: false,
         error:
@@ -1836,6 +1907,55 @@ export async function chairDecide(formData: FormData): Promise<ChairDecideResult
         code: action === "REJECT" ? "REJECT_REASON_REQUIRED" : "RATIONALE_TOO_LONG",
         context: { field: "rationale" },
       };
+    }
+
+    let conditionsValue: unknown[] | null = null;
+    if (action === "APPROVE_WITH_CONDITIONS") {
+      const parsed = parseConditions(conditionsRaw);
+      if (!parsed.ok) {
+        return {
+          success: false,
+          error: parsed.error,
+          code: parsed.code,
+          context: { field: "conditions" },
+        };
+      }
+      if (parsed.value.length === 0) {
+        return {
+          success: false,
+          error: "Add at least one condition before approving with conditions.",
+          code: "CONDITIONS_REQUIRED",
+          context: { field: "conditions" },
+        };
+      }
+      if (parsed.value.length > 10) {
+        return {
+          success: false,
+          error: "A maximum of 10 conditions is allowed.",
+          code: "TOO_MANY_CONDITIONS",
+          context: { field: "conditions" },
+        };
+      }
+      for (let i = 0; i < parsed.value.length; i++) {
+        const candidate = parsed.value[i] as DecisionConditionInput;
+        if (typeof candidate?.label !== "string" || candidate.label.trim().length === 0) {
+          return {
+            success: false,
+            error: "Every condition needs a label.",
+            code: "CONDITION_LABEL_INVALID",
+            context: { field: "conditions", fieldIndex: i },
+          };
+        }
+        if (candidate.label.length > 300) {
+          return {
+            success: false,
+            error: "Condition labels must be 300 characters or fewer.",
+            code: "CONDITION_LABEL_TOO_LONG",
+            context: { field: "conditions", fieldIndex: i },
+          };
+        }
+      }
+      conditionsValue = parsed.value;
     }
 
     if (rationale && rationale.length > 10_000) {
@@ -1914,12 +2034,16 @@ export async function chairDecide(formData: FormData): Promise<ChairDecideResult
 
     const statusByAction: Partial<Record<ChairDecisionAction, InstructorApplicationStatus>> = {
       APPROVE: InstructorApplicationStatus.APPROVED,
+      APPROVE_WITH_CONDITIONS: InstructorApplicationStatus.APPROVED,
       REJECT: InstructorApplicationStatus.REJECTED,
       HOLD: InstructorApplicationStatus.ON_HOLD,
+      WAITLIST: InstructorApplicationStatus.WAITLISTED,
       REQUEST_INFO: InstructorApplicationStatus.INFO_REQUESTED,
       REQUEST_SECOND_INTERVIEW: InstructorApplicationStatus.INTERVIEW_SCHEDULED,
     };
     const newStatus = statusByAction[action]!;
+    const grantsInstructorRole =
+      action === "APPROVE" || action === "APPROVE_WITH_CONDITIONS";
 
     let approvalRollback:
       | {
@@ -1949,11 +2073,24 @@ export async function chairDecide(formData: FormData): Promise<ChairDecideResult
       });
 
       await tx.instructorApplicationChairDecision.create({
-        data: { applicationId, chairId: actor.id, action, rationale, comparisonNotes, decidedAt: now },
+        data: {
+          applicationId,
+          chairId: actor.id,
+          action,
+          rationale,
+          comparisonNotes,
+          conditions:
+            conditionsValue !== null
+              ? (conditionsValue as Prisma.InputJsonValue)
+              : undefined,
+          decidedAt: now,
+        },
       });
 
       const appUpdateData: Record<string, unknown> = { status: newStatus };
-      if (action === "APPROVE") appUpdateData.approvedAt = now;
+      if (action === "APPROVE" || action === "APPROVE_WITH_CONDITIONS") {
+        appUpdateData.approvedAt = now;
+      }
       if (action === "REJECT") {
         appUpdateData.rejectedAt = now;
         appUpdateData.rejectionReason = rationale;
@@ -1967,8 +2104,11 @@ export async function chairDecide(formData: FormData): Promise<ChairDecideResult
         appUpdateData.chairQueuedAt = null;
         appUpdateData.interviewScheduledAt = null;
       }
+      if (action === "WAITLIST") {
+        appUpdateData.chairQueuedAt = null;
+      }
 
-      if (action === "APPROVE") {
+      if (grantsInstructorRole) {
         const [applicantUser, existingInstructorRole, existingApproval] = await Promise.all([
           tx.user.findUnique({
             where: { id: app.applicantId },
@@ -2145,6 +2285,35 @@ export async function chairDecide(formData: FormData): Promise<ChairDecideResult
       });
     }
 
+    // Clear the chair's draft now that we've committed — the dock should
+    // not warm-cache stale rationale on the next visit.
+    try {
+      await prisma.instructorApplicationChairDraft.deleteMany({
+        where: { applicationId, chairId: actor.id },
+      });
+    } catch (clearErr) {
+      console.error("[chairDecide] failed to clear chair draft", clearErr);
+    }
+
+    if (idempotencyKey) {
+      try {
+        await prisma.chairDecisionCommitAttempt.upsert({
+          where: { idempotencyKey },
+          update: { result: "SUCCESS", decidedAt: now, errorCode: null, errorMessage: null },
+          create: {
+            idempotencyKey,
+            applicationId,
+            chairId: actor.id,
+            action,
+            result: "SUCCESS",
+            decidedAt: now,
+          },
+        });
+      } catch (recErr) {
+        console.error("[chairDecide] failed to record commit attempt", recErr);
+      }
+    }
+
     trackApplicantEvent("applicant.chair.decided", {
       applicationId,
       actorId: actor.id,
@@ -2155,28 +2324,69 @@ export async function chairDecide(formData: FormData): Promise<ChairDecideResult
     revalidatePath(`/applications/instructor/${applicationId}`);
     revalidatePath("/admin/instructor-applicants");
     revalidatePath("/admin/instructor-applicants/chair-queue");
-    return { success: true };
+    return { success: true, decidedAt: now.toISOString() };
   } catch (error) {
     console.error("[chairDecide]", error);
+    let resultCode: string | null = null;
+    let result: ChairDecideResult;
     if (error instanceof ApplicantWorkflowError) {
-      return {
+      resultCode = error.code;
+      result = {
         success: false,
         error: error.message,
         code: error.code,
         context: error.context,
       };
+    } else {
+      const message = error instanceof Error ? error.message : "Something went wrong.";
+      if (/40P01|deadlock detected/i.test(message)) {
+        resultCode = "DEADLOCK_DETECTED";
+        result = {
+          success: false,
+          error: "Database deadlock detected — try again.",
+          code: "DEADLOCK_DETECTED",
+        };
+      } else {
+        result = { success: false, error: message };
+      }
     }
-    const message = error instanceof Error ? error.message : "Something went wrong.";
-    // Postgres deadlock signature: error code "40P01" (Prisma surfaces this as
-    // the wrapped message). Treat as transient so the client can auto-retry.
-    if (/40P01|deadlock detected/i.test(message)) {
-      return {
-        success: false,
-        error: "Database deadlock detected — try again.",
-        code: "DEADLOCK_DETECTED",
-      };
+
+    // Record the failed attempt so retries with the same idempotency key
+    // can still proceed freshly without mistakenly being treated as a
+    // SUCCESS replay.
+    const idempotencyKeyTail = String(formData.get("idempotencyKey") ?? "").trim() || null;
+    const failingActionRaw = String(formData.get("action") ?? "").trim();
+    const validActionsTail = Object.values(ChairDecisionAction) as string[];
+    if (idempotencyKeyTail && validActionsTail.includes(failingActionRaw)) {
+      const session = await getSession();
+      const actorId = session?.user?.id ?? null;
+      const applicationId = String(formData.get("applicationId") ?? "").trim();
+      if (actorId && applicationId) {
+        try {
+          await prisma.chairDecisionCommitAttempt.upsert({
+            where: { idempotencyKey: idempotencyKeyTail },
+            update: {
+              result: "FAILED",
+              errorCode: resultCode,
+              errorMessage: result.error ?? null,
+            },
+            create: {
+              idempotencyKey: idempotencyKeyTail,
+              applicationId,
+              chairId: actorId,
+              action: failingActionRaw as ChairDecisionAction,
+              result: "FAILED",
+              errorCode: resultCode,
+              errorMessage: result.error ?? null,
+            },
+          });
+        } catch (recErr) {
+          console.error("[chairDecide] failed to record failing commit attempt", recErr);
+        }
+      }
     }
-    return { success: false, error: message };
+
+    return result;
   }
 }
 

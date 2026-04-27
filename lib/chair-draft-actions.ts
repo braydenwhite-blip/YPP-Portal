@@ -13,6 +13,7 @@
 
 import { getSession } from "@/lib/auth-supabase";
 import { getHiringActor, assertCanActAsChair } from "@/lib/chapter-hiring-permissions";
+import { prisma } from "@/lib/prisma";
 
 const RATIONALE_HARD_LIMIT = 10_000;
 
@@ -44,7 +45,24 @@ export async function saveChairDraft(formData: FormData): Promise<SaveChairDraft
     const actor = await getHiringActor(session.user.id);
     assertCanActAsChair(actor);
 
-    return { success: true, savedAt: new Date().toISOString() };
+    const saved = await prisma.instructorApplicationChairDraft.upsert({
+      where: {
+        applicationId_chairId: {
+          applicationId,
+          chairId: actor.id,
+        },
+      },
+      update: { rationale, comparisonNotes },
+      create: {
+        applicationId,
+        chairId: actor.id,
+        rationale,
+        comparisonNotes,
+      },
+      select: { savedAt: true },
+    });
+
+    return { success: true, savedAt: saved.savedAt.toISOString() };
   } catch (error) {
     console.error("[saveChairDraft]", error);
     return { success: false, error: "Could not save draft — try again." };

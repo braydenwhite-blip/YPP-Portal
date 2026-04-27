@@ -20,8 +20,11 @@ import { AlertTriangleIcon } from "./cockpit-icons";
 
 const HEADLINE: Record<ChairDecisionAction, (n: string, c: string | null) => string> = {
   APPROVE: (n, c) => `Approve ${n}${c ? ` for the ${c} chapter` : ""}.`,
+  APPROVE_WITH_CONDITIONS: (n, c) =>
+    `Approve ${n} with conditions${c ? ` for the ${c} chapter` : ""}.`,
   REJECT: (n) => `Reject ${n}.`,
   HOLD: (n) => `Place ${n} on hold.`,
+  WAITLIST: (n) => `Waitlist ${n}.`,
   REQUEST_INFO: (n) => `Request more information from ${n}.`,
   REQUEST_SECOND_INTERVIEW: (n) => `Send ${n} back for a second interview.`,
 };
@@ -29,9 +32,13 @@ const HEADLINE: Record<ChairDecisionAction, (n: string, c: string | null) => str
 const CONSEQUENCES: Record<ChairDecisionAction, string> = {
   APPROVE:
     "Grants the INSTRUCTOR role, enrolls the applicant in training, and sends the approval email.",
+  APPROVE_WITH_CONDITIONS:
+    "Grants the INSTRUCTOR role and records the listed conditions in the audit chain. The approval email is sent.",
   REJECT:
     "Sets the application status to REJECTED and sends a rejection email using the selected reason code.",
   HOLD: "Sets the application status to ON_HOLD. No email is sent automatically.",
+  WAITLIST:
+    "Sets the application status to WAITLISTED. No email is sent — coordinate offline if a slot opens up.",
   REQUEST_INFO:
     "Sets the application status to INFO_REQUESTED and emails the applicant your follow-up note.",
   REQUEST_SECOND_INTERVIEW:

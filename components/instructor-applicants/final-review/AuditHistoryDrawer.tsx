@@ -20,24 +20,30 @@ type StreamEntry =
 
 const ACTION_LABEL: Record<ChairDecisionAction, string> = {
   APPROVE: "Approved",
+  APPROVE_WITH_CONDITIONS: "Approved with conditions",
   REJECT: "Rejected",
   HOLD: "Placed on hold",
+  WAITLIST: "Waitlisted",
   REQUEST_INFO: "Requested info",
   REQUEST_SECOND_INTERVIEW: "Sent to second interview",
 };
 
 const ACTION_ICON: Record<ChairDecisionAction, (props: { size?: number }) => JSX.Element> = {
   APPROVE: CheckIcon,
+  APPROVE_WITH_CONDITIONS: CheckIcon,
   REJECT: XIcon,
   HOLD: PauseIcon,
+  WAITLIST: ClockIcon,
   REQUEST_INFO: HelpCircleIcon,
   REQUEST_SECOND_INTERVIEW: RotateCwIcon,
 };
 
 const ACTION_TONE: Record<ChairDecisionAction, { fg: string; bg: string }> = {
   APPROVE: { fg: "#15803d", bg: "rgba(22, 163, 74, 0.1)" },
+  APPROVE_WITH_CONDITIONS: { fg: "#15803d", bg: "rgba(22, 163, 74, 0.08)" },
   REJECT: { fg: "#b91c1c", bg: "rgba(239, 68, 68, 0.1)" },
   HOLD: { fg: "#a16207", bg: "rgba(234, 179, 8, 0.1)" },
+  WAITLIST: { fg: "#a16207", bg: "rgba(234, 179, 8, 0.08)" },
   REQUEST_INFO: { fg: "#1d4ed8", bg: "rgba(59, 130, 246, 0.1)" },
   REQUEST_SECOND_INTERVIEW: { fg: "var(--ypp-purple-700, #5a1da8)", bg: "rgba(107, 33, 200, 0.1)" },
 };

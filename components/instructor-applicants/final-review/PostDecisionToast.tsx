@@ -14,8 +14,10 @@ import { ArrowRightIcon, CheckIcon, XIcon } from "./cockpit-icons";
 
 const ACTION_LABEL: Record<ChairDecisionAction, string> = {
   APPROVE: "Approved",
+  APPROVE_WITH_CONDITIONS: "Approved with conditions",
   REJECT: "Rejected",
   HOLD: "Placed on hold",
+  WAITLIST: "Waitlisted",
   REQUEST_INFO: "Requested info",
   REQUEST_SECOND_INTERVIEW: "Sent to second interview",
 };

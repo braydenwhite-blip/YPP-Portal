@@ -18,6 +18,9 @@ import type { ReadinessSignals } from "@/lib/readiness-signals";
 import type { FinalReviewWarning } from "@/lib/final-review-warnings";
 import DecisionSummaryCard from "./DecisionSummaryCard";
 import RejectReasonCodePicker, { type RejectReasonCode } from "./RejectReasonCodePicker";
+import ApproveWithConditionsEditor, {
+  type DecisionCondition,
+} from "./ApproveWithConditionsEditor";
 import ConfirmModalRisks from "./ConfirmModalRisks";
 
 export interface DecisionConfirmPayload {
@@ -26,6 +29,7 @@ export interface DecisionConfirmPayload {
   comparisonNotes: string;
   rejectReasonCode?: RejectReasonCode;
   rejectFreeText?: string;
+  conditions?: DecisionCondition[];
 }
 
 export interface DecisionConfirmModalProps {
@@ -73,12 +77,14 @@ export default function DecisionConfirmModal(props: DecisionConfirmModalProps) {
 
   const [reasonCode, setReasonCode] = useState<RejectReasonCode | null>(null);
   const [reasonFreeText, setReasonFreeText] = useState<string>("");
+  const [conditions, setConditions] = useState<DecisionCondition[]>([]);
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!open) {
       setReasonCode(null);
       setReasonFreeText("");
+      setConditions([]);
     }
   }, [open]);
 
@@ -100,15 +106,18 @@ export default function DecisionConfirmModal(props: DecisionConfirmModalProps) {
 
   const requiresReason = action === "REJECT";
   const requiresRationale = action === "REJECT" || action === "REQUEST_INFO";
+  const requiresConditions = action === "APPROVE_WITH_CONDITIONS";
 
   const reasonOk =
     !requiresReason ||
     (reasonCode !== null && (reasonCode !== "OTHER" || reasonFreeText.trim().length > 0));
   const rationaleOk = !requiresRationale || rationale.trim().length > 0;
+  const conditionsOk = !requiresConditions || conditions.length > 0;
   const allHighRiskAcknowledged = props.warnings
     .filter((w) => w.severity === "HIGH_RISK")
     .every((w) => props.acknowledgements[w.key] === true);
-  const canConfirm = reasonOk && rationaleOk && allHighRiskAcknowledged && !submitting;
+  const canConfirm =
+    reasonOk && rationaleOk && conditionsOk && allHighRiskAcknowledged && !submitting;
 
   function handleConfirm() {
     if (!canConfirm) return;
@@ -118,6 +127,7 @@ export default function DecisionConfirmModal(props: DecisionConfirmModalProps) {
       comparisonNotes,
       rejectReasonCode: reasonCode ?? undefined,
       rejectFreeText: reasonCode === "OTHER" ? reasonFreeText.trim() : undefined,
+      conditions: requiresConditions ? conditions : undefined,
     });
   }
 
@@ -194,6 +204,12 @@ export default function DecisionConfirmModal(props: DecisionConfirmModalProps) {
                   setReasonCode(code);
                   setReasonFreeText(free);
                 }}
+              />
+            ) : null}
+            {requiresConditions ? (
+              <ApproveWithConditionsEditor
+                conditions={conditions}
+                onChange={setConditions}
               />
             ) : null}
             {requiresRationale && rationale.trim().length === 0 ? (

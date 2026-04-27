@@ -46,6 +46,22 @@ const CONFIG: ActionConfig[] = [
     baseTone: "primary",
   },
   {
+    action: "APPROVE_WITH_CONDITIONS",
+    label: "Approve w/ conditions",
+    description:
+      "Approve with conditions. Grants instructor role and records the conditions on the audit chain.",
+    icon: CheckIcon,
+    baseTone: "primary-alt",
+  },
+  {
+    action: "WAITLIST",
+    label: "Waitlist",
+    description:
+      "Waitlist the applicant. Sets status to WAITLISTED and removes them from the chair queue.",
+    icon: ClockIcon,
+    baseTone: "secondary",
+  },
+  {
     action: "HOLD",
     label: "Hold",
     description: "Hold. Sets status to ON_HOLD without notifying the applicant.",
@@ -81,16 +97,25 @@ const CONFIG: ActionConfig[] = [
 export default function DecisionButtons({
   hasRedFlags,
   hasMajorityReject,
+  hasMixedConsensus,
   draftMeetsRequirements,
   pending,
   pendingAction,
   onChoose,
 }: DecisionButtonsProps) {
   const rejectIsPrimary = hasRedFlags || hasMajorityReject;
+  const conditionalIsPrimary = !rejectIsPrimary && hasMixedConsensus;
 
   function toneFor(cfg: ActionConfig): ActionTone {
     if (cfg.action === "APPROVE") {
-      return rejectIsPrimary ? "secondary" : "primary";
+      if (rejectIsPrimary) return "secondary";
+      if (conditionalIsPrimary) return "primary-alt";
+      return "primary";
+    }
+    if (cfg.action === "APPROVE_WITH_CONDITIONS") {
+      if (rejectIsPrimary) return "secondary";
+      if (conditionalIsPrimary) return "primary";
+      return "primary-alt";
     }
     if (cfg.action === "REJECT") {
       return rejectIsPrimary ? "primary" : "destructive";

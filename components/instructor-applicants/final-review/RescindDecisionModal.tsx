@@ -15,8 +15,10 @@ import { AlertTriangleIcon } from "./cockpit-icons";
 
 const ACTION_LABEL: Record<ChairDecisionAction, string> = {
   APPROVE: "Approval",
+  APPROVE_WITH_CONDITIONS: "Approval with conditions",
   REJECT: "Rejection",
   HOLD: "Hold",
+  WAITLIST: "Waitlist",
   REQUEST_INFO: "Info request",
   REQUEST_SECOND_INTERVIEW: "Second interview",
 };

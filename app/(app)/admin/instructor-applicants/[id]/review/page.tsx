@@ -12,6 +12,7 @@ import {
   getChairQueueNeighbors,
   getDecisionAuditChain,
   getNotificationSnapshot,
+  getReviewSignalsForApplication,
 } from "@/lib/final-review-queries";
 import { prisma } from "@/lib/prisma";
 import FinalReviewCockpit from "@/components/instructor-applicants/final-review/FinalReviewCockpit";
@@ -49,6 +50,7 @@ export default async function FinalReviewCockpitPage({
     draft,
     notificationSnapshot,
     auditChain,
+    reviewSignals,
     recentEvent,
     supersededCount,
     actorAdminSubtypes,
@@ -58,6 +60,7 @@ export default async function FinalReviewCockpitPage({
     getChairDraft(id, actor.id),
     getNotificationSnapshot(id),
     getDecisionAuditChain(id),
+    getReviewSignalsForApplication(id),
     prisma.instructorApplicationTimelineEvent.findFirst({
       where: {
         applicationId: id,
@@ -94,6 +97,7 @@ export default async function FinalReviewCockpitPage({
       initialDraft={draft}
       notificationSnapshot={notificationSnapshot}
       auditChain={auditChain}
+      reviewSignals={reviewSignals}
       isCrossChapter={isCrossChapter}
       hasRecentTimelineActivity={Boolean(recentEvent)}
       hasPriorSupersededDecision={supersededCount > 0}

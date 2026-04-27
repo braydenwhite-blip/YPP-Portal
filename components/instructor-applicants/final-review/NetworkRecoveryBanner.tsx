@@ -25,8 +25,10 @@ export interface NetworkRecoveryBannerProps {
 
 const ACTION_LABEL: Record<ChairDecisionAction, string> = {
   APPROVE: "approve",
+  APPROVE_WITH_CONDITIONS: "approve with conditions",
   REJECT: "reject",
   HOLD: "hold",
+  WAITLIST: "waitlist",
   REQUEST_INFO: "request info on",
   REQUEST_SECOND_INTERVIEW: "send to second interview",
 };

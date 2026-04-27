@@ -37,6 +37,7 @@ export interface CommitDecisionInput {
   comparisonNotes: string;
   rejectReasonCode?: string;
   rejectFreeText?: string;
+  conditions?: Array<{ id: string; label: string; source: "preset" | "custom"; presetId?: string }>;
   overrideWarnings?: boolean;
 }
 
@@ -145,6 +146,9 @@ export function useCommitDecision(): UseCommitDecisionReturn {
       formData.set("idempotencyKey", key);
       if (input.overrideWarnings) {
         formData.set("overrideWarnings", "true");
+      }
+      if (input.action === "APPROVE_WITH_CONDITIONS" && input.conditions) {
+        formData.set("conditions", JSON.stringify(input.conditions));
       }
       formData.set("attempt", String(attempt));
       return chairDecide(formData);

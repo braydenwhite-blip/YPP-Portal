@@ -16,8 +16,11 @@ export interface EmailPreviewSnippetProps {
 
 const SUBJECT: Record<ChairDecisionAction, string | null> = {
   APPROVE: "Welcome to YPP — instructor application approved",
+  APPROVE_WITH_CONDITIONS:
+    "Welcome to YPP — instructor application approved with conditions",
   REJECT: "An update on your YPP instructor application",
   HOLD: "Update on your YPP instructor application",
+  WAITLIST: null,
   REQUEST_INFO: "We need a little more information about your application",
   REQUEST_SECOND_INTERVIEW: "Round two — let's chat again",
 };
@@ -39,6 +42,8 @@ function buildBody(props: EmailPreviewSnippetProps): string {
   switch (action) {
     case "APPROVE":
       return `Hi ${applicantDisplayName},\n\nWe're delighted to welcome you to the Youth Passion Project instructor team. Onboarding details are on the way; the next step is the training module.\n\n${rationale.trim() ? `Notes from your chair: ${rationale.trim()}\n\n` : ""}— The YPP Hiring Team`;
+    case "APPROVE_WITH_CONDITIONS":
+      return `Hi ${applicantDisplayName},\n\nWelcome to YPP — your application has been approved with a few specific conditions the chair team has set. ${rationale.trim() ? `\n\nNotes from your chair: ${rationale.trim()}` : ""}\n\nDetails on each condition follow in a separate onboarding note.\n\n— The YPP Hiring Team`;
     case "REJECT": {
       const intro = rejectReasonCode ? REASON_INTRO[rejectReasonCode] ?? REASON_INTRO.OTHER : REASON_INTRO.OTHER;
       const free = rejectFreeText?.trim() ?? rationale.trim();
@@ -46,6 +51,8 @@ function buildBody(props: EmailPreviewSnippetProps): string {
     }
     case "HOLD":
       return `Hi ${applicantDisplayName},\n\nYour application is on hold while the chair team gathers more context. ${rationale.trim() ? rationale.trim() + "\n\n" : ""}We'll be in touch soon.\n\n— The YPP Hiring Team`;
+    case "WAITLIST":
+      return `Hi ${applicantDisplayName},\n\nThanks for your interest. The chair team has placed your application on the waitlist while we evaluate openings. We'll reach out if a slot becomes available.\n\n— The YPP Hiring Team`;
     case "REQUEST_INFO":
       return `Hi ${applicantDisplayName},\n\nWe'd like to learn a little more about your application. ${rationale.trim() || "Please reply with the additional details we requested."}\n\n— The YPP Hiring Team`;
     case "REQUEST_SECOND_INTERVIEW":

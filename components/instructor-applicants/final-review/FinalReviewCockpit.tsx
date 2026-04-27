@@ -20,6 +20,7 @@ import type {
   ChairDraftSnapshot,
   NotificationSnapshot,
   AuditChain,
+  ReviewSignalThread,
 } from "@/lib/final-review-queries";
 import { getApplicationStatus } from "@/lib/final-review-queries";
 import { computeReadinessSignals } from "@/lib/readiness-signals";
@@ -52,6 +53,7 @@ import RescindDecisionModal from "./RescindDecisionModal";
 import AuditHistoryDrawer from "./AuditHistoryDrawer";
 import ScoreMatrix from "./ScoreMatrix";
 import ActivityFeed from "./ActivityFeed";
+import ReviewSignalFeed from "./ReviewSignalFeed";
 import PinnedSignalsRail from "./PinnedSignalsRail";
 import RecommendationBadge from "@/components/instructor-applicants/shared/RecommendationBadge";
 import ReviewerIdentityChip from "@/components/instructor-applicants/shared/ReviewerIdentityChip";
@@ -63,6 +65,7 @@ export interface FinalReviewCockpitProps {
   initialDraft: ChairDraftSnapshot;
   notificationSnapshot: NotificationSnapshot;
   auditChain: AuditChain;
+  reviewSignals: ReviewSignalThread[];
   isCrossChapter: boolean;
   hasRecentTimelineActivity: boolean;
   hasPriorSupersededDecision: boolean;
@@ -91,6 +94,7 @@ function CockpitInner({
   initialDraft,
   notificationSnapshot,
   auditChain,
+  reviewSignals,
   isCrossChapter,
   hasRecentTimelineActivity,
   hasPriorSupersededDecision,
@@ -218,6 +222,7 @@ function CockpitInner({
         comparisonNotes: payload.comparisonNotes,
         rejectReasonCode: payload.rejectReasonCode,
         rejectFreeText: payload.rejectFreeText,
+        conditions: payload.conditions,
         // Any HIGH_RISK warning that's been ack'd is implicitly an override.
         overrideWarnings: warnings
           .filter((w) => w.severity === "HIGH_RISK")
@@ -314,6 +319,11 @@ function CockpitInner({
               )}
             />
             <ActivityFeed application={application} />
+            <ReviewSignalFeed
+              applicationId={application.id}
+              threads={reviewSignals}
+              currentUserId={actorId}
+            />
             <CockpitReviewerNote application={application} />
             <CockpitMaterialsCard application={application} />
             <AuditHistoryDrawer chain={auditChain} initiallyOpen={readOnly} />

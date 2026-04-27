@@ -367,16 +367,27 @@ export async function getChairQueueNeighbors(
 }
 
 /**
- * Returns the chair's draft for an application. Phase 1 ships without the
- * `InstructorApplicationChairDraft` table; the cockpit's `DraftRationaleField`
- * uses the localStorage warm cache as the source of truth until the table
- * ships in a follow-up migration.
+ * Returns the chair's draft for an application. Phase 8 wires this to the
+ * `InstructorApplicationChairDraft` table introduced in §16. The cockpit's
+ * localStorage warm cache still acts as a recovery layer if the chair is
+ * mid-edit when the network drops.
  */
 export async function getChairDraft(
-  _applicationId: string,
-  _chairId: string
+  applicationId: string,
+  chairId: string
 ): Promise<ChairDraftSnapshot> {
-  return { rationale: "", comparisonNotes: "", savedAt: null };
+  const row = await prisma.instructorApplicationChairDraft.findUnique({
+    where: { applicationId_chairId: { applicationId, chairId } },
+    select: { rationale: true, comparisonNotes: true, savedAt: true },
+  });
+  if (!row) {
+    return { rationale: "", comparisonNotes: "", savedAt: null };
+  }
+  return {
+    rationale: row.rationale,
+    comparisonNotes: row.comparisonNotes,
+    savedAt: row.savedAt.toISOString(),
+  };
 }
 
 /**
@@ -426,6 +437,112 @@ export type AuditChain = {
   decisions: AuditDecisionEntry[];
   rescinds: AuditRescindEntry[];
 };
+
+export type ReviewSignalSummary = {
+  id: string;
+  applicationId: string;
+  authorId: string;
+  authorName: string | null;
+  kind: "COMMENT" | "PIN_NOTE" | "HIGHLIGHT" | "CONCERN" | "CONSENSUS_NOTE";
+  sentiment: "STRONG_HIRE" | "HIRE" | "MIXED" | "CONCERN" | "REJECT" | null;
+  body: string;
+  pinned: boolean;
+  pinnedAt: string | null;
+  pinnedByName: string | null;
+  resolvedAt: string | null;
+  resolvedByName: string | null;
+  parentId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  mentions: Array<{
+    userId: string;
+    userName: string | null;
+    acknowledgedAt: string | null;
+  }>;
+};
+
+export interface ReviewSignalThread {
+  root: ReviewSignalSummary;
+  replies: ReviewSignalSummary[];
+}
+
+export async function getReviewSignalsForApplication(
+  applicationId: string
+): Promise<ReviewSignalThread[]> {
+  const signals = await prisma.reviewSignal.findMany({
+    where: { applicationId },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      applicationId: true,
+      authorId: true,
+      author: { select: { id: true, name: true } },
+      kind: true,
+      sentiment: true,
+      body: true,
+      pinned: true,
+      pinnedAt: true,
+      pinnedBy: { select: { id: true, name: true } },
+      resolvedAt: true,
+      resolvedBy: { select: { id: true, name: true } },
+      parentId: true,
+      createdAt: true,
+      updatedAt: true,
+      mentions: {
+        select: {
+          userId: true,
+          acknowledgedAt: true,
+          user: { select: { id: true, name: true } },
+        },
+      },
+    },
+  });
+
+  function toSummary(s: (typeof signals)[number]): ReviewSignalSummary {
+    return {
+      id: s.id,
+      applicationId: s.applicationId,
+      authorId: s.authorId,
+      authorName: s.author?.name ?? null,
+      kind: s.kind,
+      sentiment: s.sentiment,
+      body: s.body,
+      pinned: s.pinned,
+      pinnedAt: toIso(s.pinnedAt),
+      pinnedByName: s.pinnedBy?.name ?? null,
+      resolvedAt: toIso(s.resolvedAt),
+      resolvedByName: s.resolvedBy?.name ?? null,
+      parentId: s.parentId,
+      createdAt: s.createdAt.toISOString(),
+      updatedAt: s.updatedAt.toISOString(),
+      mentions: s.mentions.map((m) => ({
+        userId: m.userId,
+        userName: m.user?.name ?? null,
+        acknowledgedAt: toIso(m.acknowledgedAt),
+      })),
+    };
+  }
+
+  const byParent = new Map<string, ReviewSignalSummary[]>();
+  const roots: ReviewSignalSummary[] = [];
+  for (const signal of signals) {
+    const summary = toSummary(signal);
+    if (signal.parentId) {
+      const list = byParent.get(signal.parentId) ?? [];
+      list.push(summary);
+      byParent.set(signal.parentId, list);
+    } else {
+      roots.push(summary);
+    }
+  }
+  return roots
+    .sort(
+      (a, b) =>
+        Number(b.pinned) - Number(a.pinned) ||
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
+    .map((root) => ({ root, replies: byParent.get(root.id) ?? [] }));
+}
 
 export async function getDecisionAuditChain(
   applicationId: string

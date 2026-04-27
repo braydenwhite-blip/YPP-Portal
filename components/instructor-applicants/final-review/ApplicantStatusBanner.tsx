@@ -7,8 +7,10 @@ import type { ChairDecisionAction, InstructorApplicationStatus } from "@prisma/c
 
 const ACTION_LABEL: Record<ChairDecisionAction, string> = {
   APPROVE: "Approved",
+  APPROVE_WITH_CONDITIONS: "Approved with conditions",
   REJECT: "Rejected",
   HOLD: "On hold",
+  WAITLIST: "Waitlisted",
   REQUEST_INFO: "Info requested",
   REQUEST_SECOND_INTERVIEW: "Sent to second interview",
 };
