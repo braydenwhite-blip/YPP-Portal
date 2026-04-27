@@ -300,7 +300,7 @@ export default async function InstructorTrainingPage({
     }
   }
 
-  const moduleCards = modules.map((module) => {
+  const moduleCards: ModuleCard[] = modules.map((module) => {
     const assignment = assignmentByModule.get(module.id);
     const progress = videoByModule.get(module.id);
     const latestQuiz = latestQuizByModule.get(module.id);
@@ -603,67 +603,67 @@ export default async function InstructorTrainingPage({
           Watch each module video to completion. Quiz-required modules also need a passing score.
         </p>
 
-        {/* Kanban columns */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginTop: 16 }}>
-          {/* Not Started */}
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--border)", display: "inline-block" }} />
-              <span style={{ fontWeight: 600, fontSize: 13 }}>
-                Not Started ({moduleCards.filter((c) => !c.fullyComplete && c.assignment?.status !== "IN_PROGRESS").length})
-              </span>
-            </div>
-            <div style={{ display: "grid", gap: 10 }}>
-              {moduleCards
-                .filter((c) => !c.fullyComplete && c.assignment?.status !== "IN_PROGRESS")
-                .map((card) => (
-                  <KanbanCard key={card.module.id} card={card} readinessCheckPassed={readinessCheckPassed} readinessCheckModuleId={readinessCheckModuleId} />
-                ))}
-              {moduleCards.filter((c) => !c.fullyComplete && c.assignment?.status !== "IN_PROGRESS").length === 0 && (
-                <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>None</p>
-              )}
-            </div>
-          </div>
-
-          {/* In Progress */}
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#6366f1", display: "inline-block" }} />
-              <span style={{ fontWeight: 600, fontSize: 13 }}>
-                In Progress ({moduleCards.filter((c) => !c.fullyComplete && c.assignment?.status === "IN_PROGRESS").length})
-              </span>
-            </div>
-            <div style={{ display: "grid", gap: 10 }}>
-              {moduleCards
-                .filter((c) => !c.fullyComplete && c.assignment?.status === "IN_PROGRESS")
-                .map((card) => (
-                  <KanbanCard key={card.module.id} card={card} readinessCheckPassed={readinessCheckPassed} readinessCheckModuleId={readinessCheckModuleId} />
-                ))}
-              {moduleCards.filter((c) => !c.fullyComplete && c.assignment?.status === "IN_PROGRESS").length === 0 && (
-                <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>None yet</p>
-              )}
-            </div>
-          </div>
-
-          {/* Complete */}
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#16a34a", display: "inline-block" }} />
-              <span style={{ fontWeight: 600, fontSize: 13 }}>
-                Complete ({moduleCards.filter((c) => c.fullyComplete).length})
-              </span>
-            </div>
-            <div style={{ display: "grid", gap: 10 }}>
-              {moduleCards
-                .filter((c) => c.fullyComplete)
-                .map((card) => (
-                  <KanbanCard key={card.module.id} card={card} readinessCheckPassed={readinessCheckPassed} readinessCheckModuleId={readinessCheckModuleId} />
-                ))}
-              {moduleCards.filter((c) => c.fullyComplete).length === 0 && (
-                <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>None yet</p>
-              )}
-            </div>
-          </div>
+        {/* Kanban columns — collapse to a single column on narrow screens */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+            gap: 16,
+            marginTop: 16,
+          }}
+        >
+          {(() => {
+            const notStarted = moduleCards.filter(
+              (c) => !c.fullyComplete && c.assignment?.status !== "IN_PROGRESS"
+            );
+            const inProgress = moduleCards.filter(
+              (c) => !c.fullyComplete && c.assignment?.status === "IN_PROGRESS"
+            );
+            const complete = moduleCards.filter((c) => c.fullyComplete);
+            const columns: {
+              key: string;
+              label: string;
+              dotColor: string;
+              cards: ModuleCard[];
+              empty: string;
+            }[] = [
+              { key: "not-started", label: "Not Started", dotColor: "var(--border)", cards: notStarted, empty: "None" },
+              { key: "in-progress", label: "In Progress", dotColor: "#6366f1", cards: inProgress, empty: "None yet" },
+              { key: "complete", label: "Complete", dotColor: "#16a34a", cards: complete, empty: "None yet" },
+            ];
+            return columns.map((column) => (
+              <div key={column.key}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                  <span
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: "50%",
+                      background: column.dotColor,
+                      display: "inline-block",
+                    }}
+                  />
+                  <span style={{ fontWeight: 600, fontSize: 13 }}>
+                    {column.label} ({column.cards.length})
+                  </span>
+                </div>
+                <div style={{ display: "grid", gap: 10 }}>
+                  {column.cards.length === 0 ? (
+                    <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>{column.empty}</p>
+                  ) : (
+                    column.cards.map((card) => (
+                      <KanbanCard
+                        key={card.module.id}
+                        card={card}
+                        readinessCheckPassed={readinessCheckPassed}
+                        readinessCheckModuleId={readinessCheckModuleId}
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
+            ));
+          })()}
         </div>
       </div>
     </div>
