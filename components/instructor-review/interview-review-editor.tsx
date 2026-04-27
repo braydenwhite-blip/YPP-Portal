@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 import {
   INSTRUCTOR_INTERVIEW_RECOMMENDATION_OPTIONS,
@@ -10,6 +10,15 @@ import {
   type InstructorReviewCategoryValue,
   type ProgressRatingValue,
 } from "@/lib/instructor-review-config";
+import { StatusBadge } from "@/components/interviews/ui";
+import { KeyboardHelp } from "@/components/instructor-review/live/KeyboardHelp";
+import { SaveChip } from "@/components/instructor-review/live/SaveChip";
+import { SubmitDockShell } from "@/components/instructor-review/live/SubmitDock";
+import {
+  useKeyboardShortcuts,
+  type Shortcut,
+} from "@/components/instructor-review/live/use-keyboard-shortcuts";
+import { useInterviewTimer } from "@/components/instructor-review/live/use-interview-timer";
 
 type CategoryState = {
   category: InstructorReviewCategoryValue;
@@ -147,6 +156,16 @@ const TAG_OPTIONS: Array<{ value: AnswerTag; label: string; tone: string }> = [
   { value: "HIGH_POTENTIAL", label: "High Potential", tone: "success" },
   { value: "NEEDS_COACHING", label: "Needs Coaching", tone: "warning" },
 ];
+
+const RECOMMENDATION_TONES: Record<
+  InstructorInterviewRecommendationValue,
+  { color: string; bg: string }
+> = {
+  ACCEPT: { color: "#166534", bg: "#dcfce7" },
+  ACCEPT_WITH_SUPPORT: { color: "#1e40af", bg: "#dbeafe" },
+  HOLD: { color: "#92400e", bg: "#fef3c7" },
+  REJECT: { color: "#991b1b", bg: "#fee2e2" },
+};
 
 function RequiredStar() {
   return (
@@ -291,9 +310,31 @@ export default function InterviewReviewEditor({
   const [saveStatus, setSaveStatus] = useState<"idle" | "dirty" | "saving" | "saved" | "error">("idle");
   const [saveMessage, setSaveMessage] = useState("");
   const [missingFields, setMissingFields] = useState<string[]>([]);
+  const [focusMode, setFocusMode] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const timer = useInterviewTimer(false);
   const mountedRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveSeqRef = useRef(0);
+  const formRef = useRef<HTMLFormElement>(null);
+  const questionCardRef = useRef<HTMLElement>(null);
+  const initialQuestionRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (initialQuestionRef.current === null) {
+      initialQuestionRef.current = activeQuestionId;
+      return;
+    }
+    if (initialQuestionRef.current === activeQuestionId) return;
+    initialQuestionRef.current = activeQuestionId;
+    const node = questionCardRef.current;
+    if (!node) return;
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    node.scrollIntoView({
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+      block: "start",
+    });
+  }, [activeQuestionId]);
 
   const questionPayload = useMemo(
     () =>
@@ -526,6 +567,100 @@ export default function InterviewReviewEditor({
     }
   }
 
+  const jumpTo = useCallback(
+    (direction: "next" | "prev" | "next-unanswered") => {
+      if (questions.length === 0) return;
+      const currentIndex = questions.findIndex(
+        (question) => question.localId === activeQuestionId
+      );
+      if (direction === "next") {
+        const nextIndex = currentIndex < 0 ? 0 : Math.min(currentIndex + 1, questions.length - 1);
+        setActiveQuestionId(questions[nextIndex].localId);
+        return;
+      }
+      if (direction === "prev") {
+        const prevIndex = currentIndex < 0 ? 0 : Math.max(currentIndex - 1, 0);
+        setActiveQuestionId(questions[prevIndex].localId);
+        return;
+      }
+      const startSearch = currentIndex < 0 ? 0 : currentIndex + 1;
+      let target = questions
+        .slice(startSearch)
+        .find((question) => question.status === "UNTOUCHED");
+      if (!target) {
+        target = questions.find((question) => question.status === "UNTOUCHED");
+      }
+      if (target) setActiveQuestionId(target.localId);
+    },
+    [activeQuestionId, questions]
+  );
+
+  const nextUnansweredCount = useMemo(
+    () => questions.filter((question) => question.status === "UNTOUCHED").length,
+    [questions]
+  );
+
+  const submitForm = useCallback((intent: "save" | "submit") => {
+    const form = formRef.current;
+    if (!form) return;
+    const button = document.createElement("button");
+    button.type = "submit";
+    button.name = "intent";
+    button.value = intent;
+    button.style.display = "none";
+    form.appendChild(button);
+    button.click();
+    form.removeChild(button);
+  }, []);
+
+  const shortcuts = useMemo<Shortcut[]>(() => {
+    if (!canEdit) {
+      return [
+        { key: "?", handler: () => setHelpOpen((value) => !value) },
+      ];
+    }
+    return [
+      { key: "?", handler: () => setHelpOpen((value) => !value) },
+      { key: "j", handler: () => jumpTo("next") },
+      { key: "k", handler: () => jumpTo("prev") },
+      { key: "n", handler: () => jumpTo("next-unanswered") },
+      {
+        key: "a",
+        handler: () => {
+          if (activeQuestion) setQuestionStatus(activeQuestion.localId, "ASKED");
+        },
+      },
+      {
+        key: "s",
+        handler: () => {
+          if (activeQuestion) setQuestionStatus(activeQuestion.localId, "SKIPPED");
+        },
+      },
+      { key: "f", handler: () => setFocusMode((value) => !value) },
+      { key: "t", handler: () => timer.toggle() },
+      {
+        key: "s",
+        meta: true,
+        allowInTyping: true,
+        handler: (event) => {
+          event.preventDefault();
+          submitForm("save");
+        },
+      },
+      {
+        key: "Enter",
+        meta: true,
+        allowInTyping: true,
+        handler: (event) => {
+          event.preventDefault();
+          submitForm("submit");
+        },
+      },
+    ];
+  }, [activeQuestion, canEdit, jumpTo, submitForm, timer]);
+
+  useKeyboardShortcuts(shortcuts);
+
   function collectMissingFields(): string[] {
     const missing: string[] = [];
 
@@ -590,54 +725,122 @@ export default function InterviewReviewEditor({
   }
 
   return (
-    <form action={action} onSubmit={handleFormSubmit} className="live-interview-workspace">
-      <input type="hidden" name="applicationId" value={applicationId} />
-      <input type="hidden" name="returnTo" value={returnTo} />
-      <input type="hidden" name="categoriesJson" value={categoryPayload} />
-      <input type="hidden" name="questionResponsesJson" value={questionPayload} />
+    <div className={`iv-live-shell${focusMode ? " is-focus-mode" : ""}`}>
+      <form
+        ref={formRef}
+        action={action}
+        onSubmit={handleFormSubmit}
+        className={`live-interview-workspace iv-live-content${focusMode ? " is-focus-mode" : ""}`}
+        style={{ padding: 0, maxWidth: "none" }}
+      >
+        <input type="hidden" name="applicationId" value={applicationId} />
+        <input type="hidden" name="returnTo" value={returnTo} />
+        <input type="hidden" name="categoriesJson" value={categoryPayload} />
+        <input type="hidden" name="questionResponsesJson" value={questionPayload} />
 
-      {!canEdit ? (
-        <div className="review-editor-notice">
-          <p>
-            This interview review is locked because it has already been submitted. An admin can still edit it if needed.
-          </p>
-        </div>
-      ) : null}
-
-      {missingFields.length > 0 ? (
-        <div className="review-editor-missing" role="alert">
-          <h3>Just a few things to finish before submitting</h3>
-          <p>
-            Save the draft any time. When you&apos;re ready to submit, please fill in:
-          </p>
-          <ul>
-            {missingFields.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      <section className="live-interview-hero">
-        <div>
-          <span className="cockpit-section-kicker">During-interview workflow</span>
-          <h2>Live Question Runner</h2>
-          <p>
-            Move through questions, capture notes while answers are fresh, tag signals, and save as you go.
-          </p>
-        </div>
-        <div className={`live-save-chip is-${saveStatus}`} aria-live="polite">
-          <span>{saveStatus === "idle" ? "Ready" : saveMessage}</span>
-          <button
-            type="button"
-            className="button small outline"
-            disabled={!canEdit || saveStatus === "saving"}
-            onClick={() => void runLiveSave("manual")}
+        {!canEdit ? (
+          <div
+            className="iv-card iv-card-tone-success iv-card-body iv-locked-notice"
+            role="status"
           >
-            Save Now
-          </button>
-        </div>
-      </section>
+            <div className="iv-locked-notice-row">
+              <StatusBadge tone="completed">Submitted</StatusBadge>
+              <div>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>
+                  Review locked &mdash; read-only view
+                </p>
+                <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--muted)" }}>
+                  Your submitted scorecard, notes, and recommendation are below for reference. An
+                  admin can unlock this for edits if anything needs to change.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {missingFields.length > 0 ? (
+          <div className="review-editor-missing iv-validation-summary" role="alert">
+            <h3>Just a few things to finish before submitting</h3>
+            <p>
+              Save the draft any time. When you&apos;re ready to submit, please fill in:
+            </p>
+            <ul>
+              {missingFields.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <section className="live-interview-hero">
+          <div>
+            <span className="cockpit-section-kicker">During-interview workflow</span>
+            <h2>Live Question Runner</h2>
+            <p>
+              Move through questions, capture notes while answers are fresh, tag signals, and save as you go.
+            </p>
+          </div>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className="iv-live-jump-button"
+              onClick={() => jumpTo("next-unanswered")}
+              disabled={!canEdit || nextUnansweredCount === 0}
+              aria-label="Jump to next unanswered question"
+              title="Press N"
+            >
+              Next unanswered
+              {nextUnansweredCount > 0 ? (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minWidth: 20,
+                    height: 18,
+                    padding: "0 6px",
+                    borderRadius: 999,
+                    background: "rgba(255,255,255,0.25)",
+                    fontSize: 11,
+                    fontWeight: 700,
+                  }}
+                >
+                  {nextUnansweredCount}
+                </span>
+              ) : null}
+            </button>
+            <button
+              type="button"
+              className={`iv-timer-chip${timer.running ? " is-running" : ""}`}
+              onClick={timer.toggle}
+              aria-label={timer.running ? "Pause interview timer" : "Start interview timer"}
+              title="Press T"
+              style={{ cursor: "pointer", border: "1px solid var(--iv-border)" }}
+            >
+              <span aria-hidden="true">⏱</span>
+              <span>{timer.label}</span>
+            </button>
+            <button
+              type="button"
+              className={`iv-focus-mode-button${focusMode ? " is-active" : ""}`}
+              onClick={() => setFocusMode((value) => !value)}
+              aria-pressed={focusMode}
+              title="Press F"
+            >
+              {focusMode ? "Exit Focus" : "Focus Mode"}
+            </button>
+            <button
+              type="button"
+              className="iv-live-help-button"
+              onClick={() => setHelpOpen(true)}
+              aria-label="Show keyboard shortcuts"
+              title="Press ?"
+            >
+              ?
+            </button>
+            <SaveChip status={saveStatus} message={saveMessage} />
+          </div>
+        </section>
 
       <section className="live-interview-grid">
         <aside className="live-progress-rail" aria-label="Interview progress">
@@ -706,7 +909,10 @@ export default function InterviewReviewEditor({
         </aside>
 
         {activeQuestion ? (
-          <article className={`live-question-card ${statusClass(activeQuestion.status)}`}>
+          <article
+            ref={questionCardRef}
+            className={`live-question-card ${statusClass(activeQuestion.status)}`}
+          >
             <div className="live-question-card-header">
               <div>
                 <span className="cockpit-section-kicker">
@@ -965,30 +1171,42 @@ export default function InterviewReviewEditor({
         <input type="hidden" name="curriculumFeedback" value={curriculumFeedback} />
 
         {showRecommendation ? (
-          <label className="form-row">
-            <span>
+          <div className="form-row" role="group" aria-labelledby="iv-rec-label">
+            <span id="iv-rec-label">
               Final recommendation
               <RequiredStar />
             </span>
-            <select
-              className="input"
-              name="recommendation"
-              value={recommendation}
-              onChange={(event) =>
-                setRecommendation(
-                  event.target.value as InstructorInterviewRecommendationValue | ""
-                )
-              }
-              disabled={!canEdit}
-            >
-              <option value="">Choose the final recommendation</option>
-              {INSTRUCTOR_INTERVIEW_RECOMMENDATION_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+            <input type="hidden" name="recommendation" value={recommendation} />
+            <div className="iv-recommendation-grid">
+              {INSTRUCTOR_INTERVIEW_RECOMMENDATION_OPTIONS.map((option) => {
+                const tone = RECOMMENDATION_TONES[option.value];
+                const selected = recommendation === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    disabled={!canEdit}
+                    onClick={() =>
+                      setRecommendation(
+                        selected ? "" : (option.value as InstructorInterviewRecommendationValue)
+                      )
+                    }
+                    aria-pressed={selected}
+                    className={`iv-recommendation-option${selected ? " is-selected" : ""}`}
+                    style={
+                      {
+                        "--rec-color": tone.color,
+                        "--rec-bg": tone.bg,
+                      } as CSSProperties
+                    }
+                  >
+                    <span className="iv-recommendation-option-title">{option.label}</span>
+                    <span className="iv-recommendation-option-helper">{option.description}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         ) : (
           <div className="review-editor-callout">
             Your interview evaluation will inform the lead reviewer&apos;s final recommendation.
@@ -1001,6 +1219,34 @@ export default function InterviewReviewEditor({
         <div>
           <h2>Interview Categories</h2>
           <p>Use the same category language from the application review so interview signals stack naturally.</p>
+        </div>
+
+        <div className="iv-category-recap" role="status" aria-label="Category rating recap">
+          <span className="iv-category-recap-label">Coverage</span>
+          {INSTRUCTOR_REVIEW_CATEGORIES.map((category) => {
+            const current = categories.find((entry) => entry.category === category.key);
+            const ratingOption = current?.rating
+              ? PROGRESS_RATING_OPTIONS.find((o) => o.value === current.rating)
+              : null;
+            return (
+              <span
+                key={category.key}
+                className={`iv-category-recap-chip${ratingOption ? " is-set" : " is-unset"}`}
+                style={
+                  ratingOption
+                    ? ({
+                        "--recap-color": ratingOption.color,
+                        "--recap-bg": ratingOption.bg,
+                      } as CSSProperties)
+                    : undefined
+                }
+                title={ratingOption ? `${category.label}: ${ratingOption.shortLabel}` : `${category.label}: not yet rated`}
+              >
+                <span className="iv-category-recap-chip-dot" aria-hidden="true" />
+                {category.label}
+              </span>
+            );
+          })}
         </div>
 
         {INSTRUCTOR_REVIEW_CATEGORIES.map((category) => {
@@ -1132,21 +1378,47 @@ export default function InterviewReviewEditor({
         <input type="hidden" name="flagForLeadership" value={flagForLeadership ? "true" : "false"} />
       </section>
 
-      <div className="review-editor-actions">
-        <button
-          className="button secondary"
-          type="submit"
-          name="intent"
-          value="save"
-          disabled={!canEdit}
-          formNoValidate
-        >
-          Save Draft
-        </button>
-        <button className="button" type="submit" name="intent" value="submit" disabled={!canEdit}>
-          Submit Interview Review
-        </button>
-      </div>
-    </form>
+        <SubmitDockShell
+          status={
+            <>
+              <SaveChip status={saveStatus} message={saveMessage} />
+              {missingFields.length > 0 ? (
+                <span className="iv-live-submit-dock-warning">
+                  {missingFields.length} required {missingFields.length === 1 ? "field" : "fields"} left
+                </span>
+              ) : (
+                <span className="iv-live-submit-dock-status-strong">Ready to submit</span>
+              )}
+            </>
+          }
+          actions={
+            <>
+              <button
+                className="button secondary"
+                type="submit"
+                name="intent"
+                value="save"
+                disabled={!canEdit}
+                formNoValidate
+                aria-label="Save draft"
+              >
+                Save Draft
+              </button>
+              <button
+                className="button"
+                type="submit"
+                name="intent"
+                value="submit"
+                disabled={!canEdit}
+                aria-label="Submit interview review"
+              >
+                Submit Interview Review
+              </button>
+            </>
+          }
+        />
+      </form>
+      <KeyboardHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
+    </div>
   );
 }

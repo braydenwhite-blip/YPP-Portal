@@ -402,10 +402,33 @@ export async function getInterviewCommandCenterData(
     blocked: filtered.filter((task) => task.stage === "BLOCKED"),
   };
 
+  const now = new Date();
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+  const endOfToday = new Date(startOfToday);
+  endOfToday.setDate(endOfToday.getDate() + 1);
+  const startOfWeek = new Date(startOfToday);
+  startOfWeek.setDate(startOfWeek.getDate() - 6);
+
+  const isSameDay = (d: Date | null | undefined) =>
+    !!d && d.getTime() >= startOfToday.getTime() && d.getTime() < endOfToday.getTime();
+  const isThisWeek = (d: Date | null | undefined) =>
+    !!d && d.getTime() >= startOfWeek.getTime();
+
+  const kpis = {
+    needsAction: sections.needsAction.length,
+    scheduledTotal: sections.scheduled.length,
+    scheduledToday: sections.scheduled.filter((task) => isSameDay(task.timestamps?.scheduledAt))
+      .length,
+    completedThisWeek: sections.completed.filter((task) => isThisWeek(task.timestamps?.completedAt))
+      .length,
+  };
+
   return {
     filters,
     tasks: filtered,
     sections,
+    kpis,
     viewer: {
       userId: input.userId,
       chapterId: user.chapterId,

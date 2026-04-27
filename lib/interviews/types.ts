@@ -107,10 +107,18 @@ export type InterviewHubSections = {
   blocked: InterviewTask[];
 };
 
+export type InterviewHubKpis = {
+  needsAction: number;
+  scheduledTotal: number;
+  scheduledToday: number;
+  completedThisWeek: number;
+};
+
 export type InterviewCommandCenterData = {
   filters: InterviewHubFilters;
   tasks: InterviewTask[];
   sections: InterviewHubSections;
+  kpis: InterviewHubKpis;
   viewer: {
     userId: string;
     chapterId: string | null;
