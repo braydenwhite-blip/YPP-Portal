@@ -9965,3 +9965,1011 @@ select.input {
   white-space: nowrap;
   border: 0;
 }
+
+/* ==========================================================================
+   Interviewer View (.iv-*) — premium UI layer for the interviewer surfaces.
+   Additive only: no existing selectors are overridden.
+   Consumed by components/interviews/* and the live interview workspace.
+   ========================================================================== */
+
+:root {
+  /* Surfaces */
+  --iv-surface: #ffffff;
+  --iv-surface-raised: #ffffff;
+  --iv-surface-tinted: #fbfaff;
+  --iv-surface-muted: #f6f4fb;
+  --iv-border: rgba(71, 85, 105, 0.16);
+  --iv-border-strong: rgba(71, 85, 105, 0.28);
+  --iv-line-faint: rgba(71, 85, 105, 0.08);
+
+  /* Semantic surfaces */
+  --iv-success-surface: #f0fdf4;
+  --iv-success-border: #bbf7d0;
+  --iv-success-ink: #166534;
+  --iv-success-accent: #16a34a;
+
+  --iv-warning-surface: #fffbeb;
+  --iv-warning-border: #fde68a;
+  --iv-warning-ink: #92400e;
+  --iv-warning-accent: #b45309;
+
+  --iv-info-surface: #eff6ff;
+  --iv-info-border: #bfdbfe;
+  --iv-info-ink: #1e40af;
+  --iv-info-accent: #2563eb;
+
+  --iv-danger-surface: #fef2f2;
+  --iv-danger-border: #fecaca;
+  --iv-danger-ink: #991b1b;
+  --iv-danger-accent: #dc2626;
+
+  --iv-neutral-surface: #f5f5f4;
+  --iv-neutral-border: #e7e5e4;
+  --iv-neutral-ink: #44403c;
+
+  /* Accent (purple) — composes with existing --ypp-purple-* tokens */
+  --iv-accent: var(--ypp-purple-600);
+  --iv-accent-soft: var(--ypp-purple-100);
+  --iv-accent-ink: var(--ypp-purple-700);
+  --iv-accent-tint: var(--ypp-purple-50);
+
+  /* Shadows */
+  --iv-shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04),
+                    0 4px 16px rgba(59, 15, 110, 0.06);
+  --iv-shadow-card-raised: 0 2px 4px rgba(15, 23, 42, 0.06),
+                           0 12px 32px rgba(59, 15, 110, 0.10);
+  --iv-shadow-dock: 0 -8px 24px rgba(59, 15, 110, 0.12);
+  --iv-shadow-toast: 0 8px 24px rgba(59, 15, 110, 0.18);
+
+  /* Type scale helpers */
+  --iv-type-kicker-size: 11px;
+  --iv-type-kicker-tracking: 0.08em;
+}
+
+/* --- Page / layout primitives --- */
+
+.iv-page {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.iv-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.iv-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.iv-section + .iv-section {
+  margin-top: 20px;
+}
+
+.iv-section-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.iv-section-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.iv-section-header-kicker {
+  font-size: var(--iv-type-kicker-size);
+  font-weight: 700;
+  letter-spacing: var(--iv-type-kicker-tracking);
+  text-transform: uppercase;
+  color: var(--iv-accent-ink);
+}
+
+.iv-section-header h2,
+.iv-section-header .iv-section-header-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.25;
+}
+
+.iv-section-header-helper {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.iv-section-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* --- Cards --- */
+
+.iv-card {
+  background: var(--iv-surface);
+  border: 1px solid var(--iv-border);
+  border-radius: 14px;
+  box-shadow: var(--iv-shadow-card);
+  overflow: hidden;
+}
+
+.iv-card-raised {
+  box-shadow: var(--iv-shadow-card-raised);
+}
+
+.iv-card-accent {
+  border-left: 3px solid var(--iv-accent);
+}
+
+.iv-card-tone-success {
+  background: var(--iv-success-surface);
+  border-color: var(--iv-success-border);
+}
+
+.iv-card-tone-warning {
+  background: var(--iv-warning-surface);
+  border-color: var(--iv-warning-border);
+}
+
+.iv-card-tone-info {
+  background: var(--iv-info-surface);
+  border-color: var(--iv-info-border);
+}
+
+.iv-card-tone-danger {
+  background: var(--iv-danger-surface);
+  border-color: var(--iv-danger-border);
+}
+
+.iv-card-tone-neutral {
+  background: var(--iv-neutral-surface);
+  border-color: var(--iv-neutral-border);
+}
+
+.iv-card-interactive {
+  cursor: pointer;
+  transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.iv-card-interactive:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--iv-shadow-card-raised);
+  border-color: var(--iv-accent);
+}
+
+.iv-card-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--iv-line-faint);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.iv-card-body {
+  padding: 16px 20px;
+}
+
+.iv-card-footer {
+  padding: 10px 20px;
+  background: var(--iv-surface-tinted);
+  border-top: 1px solid var(--iv-line-faint);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* --- Status badge --- */
+
+.iv-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.iv-status-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.iv-status-badge.is-needs-action {
+  color: var(--iv-accent-ink);
+  background: var(--iv-accent-soft);
+  border-color: rgba(107, 33, 200, 0.2);
+}
+
+.iv-status-badge.is-scheduled {
+  color: var(--iv-info-ink);
+  background: var(--iv-info-surface);
+  border-color: var(--iv-info-border);
+}
+
+.iv-status-badge.is-completed {
+  color: var(--iv-success-ink);
+  background: var(--iv-success-surface);
+  border-color: var(--iv-success-border);
+}
+
+.iv-status-badge.is-blocked {
+  color: var(--iv-danger-ink);
+  background: var(--iv-danger-surface);
+  border-color: var(--iv-danger-border);
+}
+
+.iv-status-badge.is-info {
+  color: var(--iv-info-ink);
+  background: var(--iv-info-surface);
+  border-color: var(--iv-info-border);
+}
+
+.iv-status-badge.is-warning {
+  color: var(--iv-warning-ink);
+  background: var(--iv-warning-surface);
+  border-color: var(--iv-warning-border);
+}
+
+.iv-status-badge.is-neutral {
+  color: var(--iv-neutral-ink);
+  background: var(--iv-neutral-surface);
+  border-color: var(--iv-neutral-border);
+}
+
+/* --- KPI strip --- */
+
+.iv-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.iv-kpi-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  background: var(--iv-surface);
+  border: 1px solid var(--iv-border);
+  border-radius: 12px;
+  transition: border-color 150ms, box-shadow 150ms, transform 150ms;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  font-family: inherit;
+}
+
+.iv-kpi-tile:hover {
+  border-color: var(--iv-accent);
+  transform: translateY(-1px);
+  box-shadow: var(--iv-shadow-card);
+}
+
+.iv-kpi-tile:focus-visible {
+  outline: 2px solid var(--ypp-purple-400);
+  outline-offset: 2px;
+}
+
+.iv-kpi-tile.is-active {
+  border-color: var(--iv-accent);
+  background: var(--iv-accent-tint);
+}
+
+.iv-kpi-tile-label {
+  font-size: var(--iv-type-kicker-size);
+  font-weight: 700;
+  letter-spacing: var(--iv-type-kicker-tracking);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.iv-kpi-tile-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.iv-kpi-tile-helper {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.iv-kpi-tile-accent-needs-action .iv-kpi-tile-value { color: var(--iv-accent-ink); }
+.iv-kpi-tile-accent-scheduled .iv-kpi-tile-value    { color: var(--iv-info-ink); }
+.iv-kpi-tile-accent-warning .iv-kpi-tile-value      { color: var(--iv-warning-accent); }
+.iv-kpi-tile-accent-success .iv-kpi-tile-value      { color: var(--iv-success-ink); }
+
+/* --- Filter chips & segmented control --- */
+
+.iv-filter-chip-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.iv-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--iv-border);
+  background: var(--iv-surface);
+  color: var(--muted);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: inherit;
+  line-height: 1.4;
+}
+
+.iv-filter-chip:hover {
+  background: var(--iv-accent-tint);
+  border-color: var(--iv-accent);
+  color: var(--iv-accent-ink);
+}
+
+.iv-filter-chip:focus-visible {
+  outline: 2px solid var(--ypp-purple-400);
+  outline-offset: 2px;
+}
+
+.iv-filter-chip.is-selected {
+  background: var(--iv-accent-soft);
+  color: var(--iv-accent-ink);
+  border-color: var(--iv-accent);
+  font-weight: 600;
+}
+
+.iv-filter-chip-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  padding: 0 6px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.06);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.iv-filter-chip.is-selected .iv-filter-chip-count {
+  background: rgba(107, 33, 200, 0.18);
+  color: var(--iv-accent-ink);
+}
+
+.iv-segmented {
+  display: inline-flex;
+  background: var(--iv-surface);
+  border: 1px solid var(--iv-border);
+  border-radius: 10px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.iv-segmented > a,
+.iv-segmented > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  text-decoration: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 150ms;
+}
+
+.iv-segmented > a:hover,
+.iv-segmented > button:hover {
+  color: var(--iv-accent-ink);
+}
+
+.iv-segmented > a:focus-visible,
+.iv-segmented > button:focus-visible {
+  outline: 2px solid var(--ypp-purple-400);
+  outline-offset: 2px;
+}
+
+.iv-segmented > a.is-selected,
+.iv-segmented > button.is-selected {
+  background: var(--iv-accent-soft);
+  color: var(--iv-accent-ink);
+  font-weight: 600;
+}
+
+/* --- Filter group label --- */
+
+.iv-filter-label {
+  font-size: var(--iv-type-kicker-size);
+  font-weight: 700;
+  letter-spacing: var(--iv-type-kicker-tracking);
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 6px;
+}
+
+.iv-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.iv-filter-row + .iv-filter-row {
+  margin-top: 10px;
+}
+
+/* --- Empty state --- */
+
+.iv-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px 24px;
+  border: 1px dashed var(--iv-border-strong);
+  border-radius: 14px;
+  background: var(--iv-surface-tinted);
+  text-align: center;
+}
+
+.iv-empty-state-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--iv-accent-soft);
+  color: var(--iv-accent-ink);
+  margin-bottom: 4px;
+}
+
+.iv-empty-state-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.iv-empty-state-helper {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  max-width: 480px;
+}
+
+.iv-empty-state-action {
+  margin-top: 8px;
+}
+
+/* --- Meta list (label / value rows) --- */
+
+.iv-meta-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  row-gap: 8px;
+  column-gap: 16px;
+  margin: 0;
+}
+
+.iv-meta-list dt {
+  font-size: var(--iv-type-kicker-size);
+  font-weight: 700;
+  letter-spacing: var(--iv-type-kicker-tracking);
+  text-transform: uppercase;
+  color: var(--muted);
+  align-self: center;
+}
+
+.iv-meta-list dd {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+/* --- Sticky dock --- */
+
+.iv-sticky-dock {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-top: 1px solid var(--iv-border);
+  box-shadow: var(--iv-shadow-dock);
+  padding: 12px 24px;
+  z-index: 40;
+}
+
+.iv-submit-dock {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: center;
+}
+
+.iv-submit-dock-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.iv-submit-dock-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 720px) {
+  .iv-submit-dock {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .iv-submit-dock-actions {
+    justify-content: stretch;
+  }
+}
+
+/* --- Save chip / Timer chip / Focus mode --- */
+
+.iv-save-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--iv-border);
+  background: var(--iv-surface);
+  color: var(--muted);
+  transition: background 150ms, border-color 150ms, color 150ms;
+}
+
+.iv-save-chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.iv-save-chip.is-saved {
+  color: var(--iv-success-ink);
+  background: var(--iv-success-surface);
+  border-color: var(--iv-success-border);
+}
+
+.iv-save-chip.is-saving {
+  color: var(--iv-info-ink);
+  background: var(--iv-info-surface);
+  border-color: var(--iv-info-border);
+}
+
+.iv-save-chip.is-saving .iv-save-chip-dot {
+  animation: iv-pulse 1.2s ease-in-out infinite;
+}
+
+.iv-save-chip.is-dirty {
+  color: var(--iv-warning-accent);
+  background: var(--iv-warning-surface);
+  border-color: var(--iv-warning-border);
+}
+
+.iv-save-chip.is-error {
+  color: var(--iv-danger-ink);
+  background: var(--iv-danger-surface);
+  border-color: var(--iv-danger-border);
+}
+
+@keyframes iv-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iv-save-chip.is-saving .iv-save-chip-dot { animation: none; }
+}
+
+.iv-timer-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font: 600 13px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--iv-surface-tinted);
+  border: 1px solid var(--iv-border);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.iv-timer-chip.is-running {
+  color: var(--iv-accent-ink);
+  border-color: var(--iv-accent);
+  background: var(--iv-accent-tint);
+}
+
+.iv-focus-mode-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--iv-border);
+  background: var(--iv-surface);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 150ms;
+  font-family: inherit;
+}
+
+.iv-focus-mode-button:hover {
+  background: var(--iv-accent-tint);
+  color: var(--iv-accent-ink);
+  border-color: var(--iv-accent);
+}
+
+.iv-focus-mode-button.is-active {
+  background: var(--iv-accent);
+  color: #fff;
+  border-color: var(--iv-accent);
+}
+
+.iv-focus-mode-button:focus-visible {
+  outline: 2px solid var(--ypp-purple-400);
+  outline-offset: 2px;
+}
+
+/* --- Question nav (live workspace) --- */
+
+.iv-question-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.iv-question-nav-item {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--text);
+  transition: background 120ms, border-color 120ms;
+}
+
+.iv-question-nav-item:hover {
+  background: var(--iv-accent-tint);
+}
+
+.iv-question-nav-item:focus-visible {
+  outline: 2px solid var(--ypp-purple-400);
+  outline-offset: 2px;
+}
+
+.iv-question-nav-item.is-active {
+  background: var(--iv-accent-soft);
+  border-color: var(--iv-accent);
+}
+
+.iv-question-nav-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: var(--iv-surface-muted);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.iv-question-nav-item.is-asked .iv-question-nav-index {
+  background: var(--iv-success-surface);
+  color: var(--iv-success-ink);
+}
+
+.iv-question-nav-item.is-skipped .iv-question-nav-index {
+  background: var(--iv-neutral-surface);
+  color: var(--iv-neutral-ink);
+  text-decoration: line-through;
+}
+
+.iv-question-nav-item.is-active .iv-question-nav-index {
+  background: var(--iv-accent);
+  color: #fff;
+}
+
+.iv-question-nav-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.iv-question-nav-label-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.iv-question-nav-label-helper {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.iv-question-nav-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.iv-question-nav-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--iv-accent);
+}
+
+/* --- Tag chips (toggleable) --- */
+
+.iv-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--iv-border);
+  background: var(--iv-surface);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 150ms;
+  font-family: inherit;
+}
+
+.iv-tag-chip:hover {
+  border-color: var(--iv-accent);
+}
+
+.iv-tag-chip:focus-visible {
+  outline: 2px solid var(--ypp-purple-400);
+  outline-offset: 2px;
+}
+
+.iv-tag-chip:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.iv-tag-chip.is-selected {
+  font-weight: 600;
+  border-width: 1px;
+}
+
+.iv-tag-chip.tone-success.is-selected {
+  background: var(--iv-success-surface);
+  color: var(--iv-success-ink);
+  border-color: var(--iv-success-border);
+}
+
+.iv-tag-chip.tone-warning.is-selected {
+  background: var(--iv-warning-surface);
+  color: var(--iv-warning-ink);
+  border-color: var(--iv-warning-border);
+}
+
+.iv-tag-chip.tone-danger.is-selected {
+  background: var(--iv-danger-surface);
+  color: var(--iv-danger-ink);
+  border-color: var(--iv-danger-border);
+}
+
+.iv-tag-chip.tone-info.is-selected {
+  background: var(--iv-info-surface);
+  color: var(--iv-info-ink);
+  border-color: var(--iv-info-border);
+}
+
+/* --- Rating grid (Red / Yellow / Green / Purple) --- */
+
+.iv-rating-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .iv-rating-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.iv-rating-option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 2px solid var(--iv-border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: var(--iv-surface);
+  text-align: left;
+  transition: all 150ms;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--text);
+}
+
+.iv-rating-option:hover {
+  border-color: var(--iv-border-strong);
+}
+
+.iv-rating-option:focus-visible {
+  outline: 2px solid var(--ypp-purple-400);
+  outline-offset: 2px;
+}
+
+.iv-rating-option.is-selected {
+  border-color: var(--rating-color, var(--iv-accent));
+  background: var(--rating-bg, var(--iv-accent-tint));
+}
+
+.iv-rating-option-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--rating-color, var(--text));
+}
+
+.iv-rating-option-helper {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.iv-rating-option:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* --- Kbd hint --- */
+
+.iv-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid var(--iv-border-strong);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: var(--iv-surface);
+  font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--gray-700);
+  vertical-align: 1px;
+}
+
+.iv-kbd-group {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.iv-kbd-group .iv-kbd-plus {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* --- Validation summary --- */
+
+.iv-validation-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--iv-warning-surface);
+  border: 1px solid var(--iv-warning-border);
+  border-radius: 12px;
+  color: var(--iv-warning-ink);
+}
+
+.iv-validation-summary h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--iv-warning-accent);
+}
+
+.iv-validation-summary p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.iv-validation-summary ul {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+/* --- Help tooltip / hint cluster --- */
+
+.iv-hint-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* --- Visually-hidden helper (alias of .sr-only) --- */
+/* (Reuses existing .sr-only — no duplicate definition needed.) */
+
