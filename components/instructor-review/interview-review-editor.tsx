@@ -156,6 +156,16 @@ const TAG_OPTIONS: Array<{ value: AnswerTag; label: string; tone: string }> = [
   { value: "NEEDS_COACHING", label: "Needs Coaching", tone: "warning" },
 ];
 
+const RECOMMENDATION_TONES: Record<
+  InstructorInterviewRecommendationValue,
+  { color: string; bg: string }
+> = {
+  ACCEPT: { color: "#166534", bg: "#dcfce7" },
+  ACCEPT_WITH_SUPPORT: { color: "#1e40af", bg: "#dbeafe" },
+  HOLD: { color: "#92400e", bg: "#fef3c7" },
+  REJECT: { color: "#991b1b", bg: "#fee2e2" },
+};
+
 function RequiredStar() {
   return (
     <span className="required-star" aria-hidden="true">
@@ -1127,30 +1137,42 @@ export default function InterviewReviewEditor({
         <input type="hidden" name="curriculumFeedback" value={curriculumFeedback} />
 
         {showRecommendation ? (
-          <label className="form-row">
-            <span>
+          <div className="form-row" role="group" aria-labelledby="iv-rec-label">
+            <span id="iv-rec-label">
               Final recommendation
               <RequiredStar />
             </span>
-            <select
-              className="input"
-              name="recommendation"
-              value={recommendation}
-              onChange={(event) =>
-                setRecommendation(
-                  event.target.value as InstructorInterviewRecommendationValue | ""
-                )
-              }
-              disabled={!canEdit}
-            >
-              <option value="">Choose the final recommendation</option>
-              {INSTRUCTOR_INTERVIEW_RECOMMENDATION_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+            <input type="hidden" name="recommendation" value={recommendation} />
+            <div className="iv-recommendation-grid">
+              {INSTRUCTOR_INTERVIEW_RECOMMENDATION_OPTIONS.map((option) => {
+                const tone = RECOMMENDATION_TONES[option.value];
+                const selected = recommendation === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    disabled={!canEdit}
+                    onClick={() =>
+                      setRecommendation(
+                        selected ? "" : (option.value as InstructorInterviewRecommendationValue)
+                      )
+                    }
+                    aria-pressed={selected}
+                    className={`iv-recommendation-option${selected ? " is-selected" : ""}`}
+                    style={
+                      {
+                        "--rec-color": tone.color,
+                        "--rec-bg": tone.bg,
+                      } as CSSProperties
+                    }
+                  >
+                    <span className="iv-recommendation-option-title">{option.label}</span>
+                    <span className="iv-recommendation-option-helper">{option.description}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         ) : (
           <div className="review-editor-callout">
             Your interview evaluation will inform the lead reviewer&apos;s final recommendation.
@@ -1163,6 +1185,34 @@ export default function InterviewReviewEditor({
         <div>
           <h2>Interview Categories</h2>
           <p>Use the same category language from the application review so interview signals stack naturally.</p>
+        </div>
+
+        <div className="iv-category-recap" role="status" aria-label="Category rating recap">
+          <span className="iv-category-recap-label">Coverage</span>
+          {INSTRUCTOR_REVIEW_CATEGORIES.map((category) => {
+            const current = categories.find((entry) => entry.category === category.key);
+            const ratingOption = current?.rating
+              ? PROGRESS_RATING_OPTIONS.find((o) => o.value === current.rating)
+              : null;
+            return (
+              <span
+                key={category.key}
+                className={`iv-category-recap-chip${ratingOption ? " is-set" : " is-unset"}`}
+                style={
+                  ratingOption
+                    ? ({
+                        "--recap-color": ratingOption.color,
+                        "--recap-bg": ratingOption.bg,
+                      } as CSSProperties)
+                    : undefined
+                }
+                title={ratingOption ? `${category.label}: ${ratingOption.shortLabel}` : `${category.label}: not yet rated`}
+              >
+                <span className="iv-category-recap-chip-dot" aria-hidden="true" />
+                {category.label}
+              </span>
+            );
+          })}
         </div>
 
         {INSTRUCTOR_REVIEW_CATEGORIES.map((category) => {

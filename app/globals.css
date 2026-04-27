@@ -11861,3 +11861,111 @@ select.input {
   }
 }
 
+/* --- Recommendation grid (replaces the dropdown for the final pick) --- */
+
+.iv-recommendation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.iv-recommendation-option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 2px solid var(--iv-border);
+  background: var(--iv-surface);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: var(--text);
+  transition: all 150ms;
+}
+
+.iv-recommendation-option:hover:not(:disabled) {
+  border-color: var(--iv-border-strong);
+}
+
+.iv-recommendation-option:focus-visible {
+  outline: 2px solid var(--ypp-purple-400);
+  outline-offset: 2px;
+}
+
+.iv-recommendation-option:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.iv-recommendation-option.is-selected {
+  border-color: var(--rec-color, var(--iv-accent));
+  background: var(--rec-bg, var(--iv-accent-tint));
+}
+
+.iv-recommendation-option-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--rec-color, var(--text));
+}
+
+.iv-recommendation-option-helper {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+/* --- Category recap row --- */
+
+.iv-category-recap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--iv-surface-tinted);
+  border: 1px solid var(--iv-border);
+}
+
+.iv-category-recap-label {
+  font-size: var(--iv-type-kicker-size);
+  font-weight: 700;
+  letter-spacing: var(--iv-type-kicker-tracking);
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-right: 4px;
+  align-self: center;
+}
+
+.iv-category-recap-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--iv-border);
+  background: var(--iv-surface);
+  color: var(--muted);
+}
+
+.iv-category-recap-chip.is-set {
+  border-color: var(--recap-color, var(--iv-border));
+  color: var(--recap-color, var(--text));
+  background: var(--recap-bg, var(--iv-surface));
+}
+
+.iv-category-recap-chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.iv-category-recap-chip.is-unset .iv-category-recap-chip-dot {
+  background: transparent;
+  border: 1px dashed var(--iv-border-strong);
+}
+
