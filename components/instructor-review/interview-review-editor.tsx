@@ -317,6 +317,24 @@ export default function InterviewReviewEditor({
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveSeqRef = useRef(0);
   const formRef = useRef<HTMLFormElement>(null);
+  const questionCardRef = useRef<HTMLElement>(null);
+  const initialQuestionRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (initialQuestionRef.current === null) {
+      initialQuestionRef.current = activeQuestionId;
+      return;
+    }
+    if (initialQuestionRef.current === activeQuestionId) return;
+    initialQuestionRef.current = activeQuestionId;
+    const node = questionCardRef.current;
+    if (!node) return;
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    node.scrollIntoView({
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+      block: "start",
+    });
+  }, [activeQuestionId]);
 
   const questionPayload = useMemo(
     () =>
@@ -891,7 +909,10 @@ export default function InterviewReviewEditor({
         </aside>
 
         {activeQuestion ? (
-          <article className={`live-question-card ${statusClass(activeQuestion.status)}`}>
+          <article
+            ref={questionCardRef}
+            className={`live-question-card ${statusClass(activeQuestion.status)}`}
+          >
             <div className="live-question-card-header">
               <div>
                 <span className="cockpit-section-kicker">

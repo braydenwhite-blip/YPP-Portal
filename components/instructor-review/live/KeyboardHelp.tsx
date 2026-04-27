@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { Kbd } from "@/components/interviews/ui";
 
 type ShortcutEntry = { keys: Array<string | { mod: true; key: string }>; description: string };
@@ -22,6 +23,18 @@ function isMod(key: ShortcutEntry["keys"][number]): key is { mod: true; key: str
 }
 
 export function KeyboardHelp({ open, onClose }: { open: boolean; onClose: () => void }) {
+  useEffect(() => {
+    if (!open) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        onClose();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
   if (!open) return null;
   return (
     <div

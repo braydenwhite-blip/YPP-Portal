@@ -11986,3 +11986,62 @@ select.input {
   min-width: 0;
 }
 
+/* --- Phase 7 polish: responsive + a11y --- */
+
+@media (max-width: 720px) {
+  .iv-page {
+    padding: 16px 14px;
+    gap: 16px;
+  }
+
+  .iv-live-content {
+    padding: 16px 14px 96px;
+  }
+
+  .iv-live-topbar {
+    padding: 8px 14px;
+  }
+
+  .iv-live-submit-dock {
+    padding: 10px 14px;
+  }
+
+  .iv-toolbar {
+    gap: 12px;
+  }
+
+  .iv-section-header h2,
+  .iv-section-header .iv-section-header-title {
+    font-size: 16px;
+  }
+}
+
+.iv-task-card-disclosure-summary:focus-visible {
+  outline: 2px solid var(--ypp-purple-400);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iv-card-interactive,
+  .iv-kpi-tile {
+    transition: none;
+  }
+
+  .iv-card-interactive:hover,
+  .iv-kpi-tile:hover {
+    transform: none;
+  }
+
+  .iv-filter-chip,
+  .iv-segmented > a,
+  .iv-segmented > button,
+  .iv-tag-chip,
+  .iv-rating-option,
+  .iv-recommendation-option,
+  .iv-focus-mode-button,
+  .iv-save-chip {
+    transition: none;
+  }
+}
+
