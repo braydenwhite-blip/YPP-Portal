@@ -19,6 +19,11 @@ import {
 import { createOrUpdateStudioLaunchPackage } from "@/lib/curriculum-draft-launch-actions";
 import { syncInstructorGrowthSignalsForInstructor } from "@/lib/instructor-growth-service";
 import { canAccessTrainingLearnerActions } from "@/lib/training-access";
+import {
+  computeQuizAttemptResult,
+  parseQuizAnswers,
+  QuizSubmissionError,
+} from "@/lib/training-quiz-scoring";
 
 async function requireAuth() {
   const session = await getSession();
@@ -1023,7 +1028,6 @@ export async function submitTrainingQuizAttempt(formData: FormData) {
   const userId = session.user.id;
 
   const moduleId = getString(formData, "moduleId");
-  const scorePctRaw = getString(formData, "scorePct", false);
   const answersRaw = getString(formData, "answers", false);
 
   const module = await prisma.trainingModule.findUnique({
@@ -1052,32 +1056,23 @@ export async function submitTrainingQuizAttempt(formData: FormData) {
     throw new Error("No quiz questions are configured for this module yet.");
   }
 
-  let answersJson: Record<string, string> = {};
-  if (answersRaw) {
-    try {
-      const parsed = JSON.parse(answersRaw) as Record<string, string>;
-      answersJson = parsed && typeof parsed === "object" ? parsed : {};
-    } catch {
-      answersJson = {};
+  // Score is computed server-side from stored correctAnswer values. Any
+  // `scorePct` the client may have included is intentionally ignored — the
+  // only inputs we trust are the moduleId and the submitted answers map.
+  let answersJson: Record<string, string>;
+  try {
+    answersJson = parseQuizAnswers(answersRaw);
+  } catch (err) {
+    if (err instanceof QuizSubmissionError) {
+      throw new Error(err.message);
     }
+    throw err;
   }
 
-  const results = module.quizQuestions.map((question) => {
-    const userAnswer = answersJson[question.id] ?? null;
-    return {
-      questionId: question.id,
-      correctAnswer: question.correctAnswer,
-      userAnswer,
-      correct: userAnswer !== null && userAnswer === question.correctAnswer,
-    };
-  });
-
-  let scorePct = scorePctRaw ? Number(scorePctRaw) : NaN;
-
-  if (!Number.isFinite(scorePct)) {
-    const correct = results.filter((r) => r.correct).length;
-    scorePct = Math.round((correct / module.quizQuestions.length) * 100);
-  }
+  const { results, scorePct } = computeQuizAttemptResult(
+    module.quizQuestions,
+    answersJson
+  );
 
   const passed = scorePct >= module.passScorePct;
 
@@ -1087,7 +1082,7 @@ export async function submitTrainingQuizAttempt(formData: FormData) {
       userId,
       scorePct,
       passed,
-      answers: Object.keys(answersJson).length > 0 ? answersJson : undefined,
+      answers: answersJson,
     },
   });
 
