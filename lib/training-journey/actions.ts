@@ -26,6 +26,7 @@ import { hasApprovedInstructorTrainingAccess } from "@/lib/training-access";
 import { checkRateLimit } from "@/lib/rate-limit-redis";
 import { scoreBeat, BeatValidationError } from "@/lib/training-journey/scoring";
 import { getBadgeForContentKey } from "@/lib/training-journey/client-contracts";
+import { findUnsubmittedReflectionBeats } from "@/lib/training-journey/reflection-readiness";
 import type {
   BeatSubmitInput,
   BeatSubmitResult,
@@ -391,6 +392,27 @@ export async function completeInteractiveJourney(
         };
       }
     }
+  }
+
+  // Reflection presence gate. Reflection beats have scoringWeight: 0 and
+  // are excluded from the scored-beat loop above and from the score
+  // denominator below. Without this presence check, a learner could
+  // complete a journey while skipping every reflection prompt. We don't
+  // grade the reflection here — the per-kind scorer already enforces
+  // minLength/maxLength at submit time. We only check that the latest
+  // attempt's text is non-empty after trimming.
+  const unsubmittedReflectionBeats = findUnsubmittedReflectionBeats({
+    beats: journey.beats,
+    isVisible,
+    latestByBeatId,
+  });
+  if (unsubmittedReflectionBeats.length > 0) {
+    return {
+      ok: false,
+      code: "JOURNEY_NOT_READY",
+      message:
+        "Please write a reflection for every reflection prompt before completing the journey.",
+    };
   }
 
   // 8. Compute completion metrics (over visible scored beats only)
