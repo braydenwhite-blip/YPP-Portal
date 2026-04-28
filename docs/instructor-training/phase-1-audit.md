@@ -120,9 +120,18 @@ YPP-Portal. No code was modified during Phase 1.
    `answersJson`; ignore any client-provided `scorePct`.
 2. **Video completion trusts `completed=true` from the client with no
    watched-seconds threshold** — `requestedCompleted = formData.get("completed") === "true"`
-   flips the row to completed. *Direction:* **Rework** — require
-   `watchedSeconds ≥ videoDuration × 0.9` (or similar) in addition to the
-   client signal; or compute completion server-side.
+   flips the row to completed.
+
+   > **Product update (post-audit): training videos are deprecated.**
+   > The required training path going forward is the interactive
+   > portal-based modules (journeys + Studio output). This finding is
+   > therefore **no longer a priority integrity fix**. The legacy video
+   > completion code should be classified and cleaned up under WS2
+   > (canonical completion model) or WS6 (cleanup) rather than hardened
+   > as if videos still gate training.
+
+   *Direction (revised):* **Hide / deprecate** — leave the legacy code in
+   place for now; do not invest in watched-seconds enforcement.
 
 ### High
 
@@ -263,8 +272,11 @@ structure alone:
 
 ## 9. Top Shipping Risks (as-is)
 
-1. **Quiz / video completion can be spoofed (Critical)** — fastest path to
-   a "trained" instructor who hasn't actually trained.
+1. **Quiz completion could be spoofed (Critical — fixed in commit `a7db9b4`)** —
+   was the fastest path to a "trained" instructor who hadn't actually
+   trained. Video completion was also spoofable, but training videos are
+   now deprecated and the legacy code is no longer prioritized for
+   hardening; it will be classified under WS2 / WS6.
 2. **Studio capstone passes on submission (High)** — instructors can submit
    a stub plan and clear the gate.
 3. **Reviewers fly blind on training (High)** — interviews aren't informed
@@ -282,10 +294,13 @@ structure alone:
 
 Seven small, sequenced workstreams, each shippable as its own PR:
 
-1. **Pass / completion integrity** — server-side quiz scoring; watched-seconds
-   video gate; reflection-must-be-submitted.
-2. **Canonical completion path** — interactive-journey first-class; video-only
-   marked supplementary or migrated.
+1. **Pass / completion integrity** — server-side quiz scoring (shipped);
+   reflection / required-response gating. Video completion is no longer
+   prioritized — training videos are deprecated; legacy video code is
+   reviewed under WS2 / WS6.
+2. **Canonical completion path** — interactive-journey first-class;
+   video / legacy academy paths classified as deprecated and either
+   hidden, migrated, or removed once usage is confirmed.
 3. **Studio capstone semantics** — require approval, not just submission, for
    readiness; expose "in review" as a distinct state.
 4. **Training-evidence visibility** — surface module completion + journey

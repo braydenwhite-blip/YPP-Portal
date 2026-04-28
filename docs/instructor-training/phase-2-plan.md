@@ -18,6 +18,12 @@ The portal's purple / green / yellow / red rating system is only used in
 interview review, admin readiness signals, and applicant risk summaries. It
 does not appear in training UI.
 
+**Product correction (post-audit): training videos are deprecated.** The
+required training path is the interactive portal-based modules (interactive
+journeys + Lesson Design Studio output). The Phase 1 audit's video
+completion finding is no longer a priority integrity fix; legacy video
+code is classified under WS2 / WS6 rather than hardened.
+
 The strategy is incremental:
 
 - **Fix integrity first** so every later improvement rests on data that
@@ -46,57 +52,54 @@ subsystems.
 
 ### Workstream 1: Completion Integrity
 
-**Goal:** Make module completion impossible to spoof from the client.
+**Goal:** Make module completion impossible to spoof from the client on
+the **required** training path (interactive journeys).
 
-**Problem from Phase 1:** Findings #1 (quiz score is client-trusted), #2
-(video completion is client-asserted with no watched-seconds threshold),
-#5 (reflection beats are unscored and ungated).
+**Problem from Phase 1:** Findings #1 (quiz score is client-trusted) and
+#5 (reflection beats are unscored and ungated). Finding #2 (video
+completion is client-asserted) is **deprioritized** — training videos are
+deprecated; legacy video code is classified under WS2 / WS6.
 
 **Product Decision:**
 - Quiz pass is computed **server-side only** from the submitted answers
   vs. stored `correctAnswer`. Client-supplied `scorePct` is ignored.
-- Video completion requires both an explicit "ended" signal **and**
-  server-verified `watchedSeconds ≥ videoDuration × 0.9`.
+  *(Shipped — commit `a7db9b4`.)*
 - Reflection beats remain unscored, but a non-empty submission is
   **required** for the journey to be considered complete.
 
 Training stays pass / complete. No grades, no colors, no public scores.
+Video completion is **not** part of this workstream's scope.
 
 **Likely Files Involved:**
-- `lib/training-actions.ts` — `submitTrainingQuizAttempt`,
-  `updateVideoProgress`, `syncAssignmentFromArtifacts`.
+- `lib/training-actions.ts` — `submitTrainingQuizAttempt` (shipped).
 - `lib/training-journey/actions.ts` — `completeInteractiveJourney`
   readiness check (add reflection-submission requirement when a reflection
-  beat exists in the visible set).
-- Tests under `tests/lib/training-journey/*` plus a new test file for the
-  quiz/video integrity changes.
+  beat is in the visible set).
+- `lib/training-journey/kinds/reflection.ts` and its scorer — confirm a
+  non-empty submission is the gate signal.
+- Tests under `tests/lib/training-journey/*`.
 
 **Implementation Shape:**
 - In `submitTrainingQuizAttempt`: drop the `scorePctRaw` early-return;
-  always compute from `answersJson`. Reject submissions with missing or
-  malformed `answersJson`.
-- In `updateVideoProgress`: gate the persisted `completed` boolean on
-  `watchedSeconds ≥ Math.floor(videoDuration * 0.9)` when `videoDuration`
-  is known.
+  always compute from `answersJson` *(shipped)*.
 - In `completeInteractiveJourney`: in the readiness loop, if a beat kind
   is `REFLECTION` and visible, require its latest attempt to exist with
-  non-empty text.
+  a non-empty submission. Reflections remain ungraded.
 
 **Validation Steps:**
-- Unit tests: `scorePct=100` with all-wrong answers → recorded as failed;
-  short watched time + `completed=true` → not marked complete; empty
-  reflection on a visible reflection beat → `JOURNEY_NOT_READY`.
-- `npm run typecheck`, `npm run lint`, `npm run test`.
-- Manual QA: walk through one academy module and one interactive journey
-  end-to-end as a learner.
+- Unit tests: `scorePct=100` with all-wrong answers → recorded as failed
+  *(shipped)*; empty reflection on a visible reflection beat →
+  `JOURNEY_NOT_READY`; non-empty reflection → journey can complete.
+- `npm run typecheck`, `npm run test`.
+- Manual QA: complete one interactive journey end-to-end as a learner.
 
-**Risk Level:** Medium. Touches the canonical completion paths used by
-readiness everywhere. Strong test coverage required.
+**Risk Level:** Medium. Touches the canonical completion path. Strong
+test coverage required.
 
-**Commit Scope:** One PR, ideally split into three commits or three small
-PRs (quiz / video / reflection).
+**Commit Scope:** Two small PRs total — quiz (shipped) + reflection
+gating (next).
 
-**Stop Condition:** All three integrity tests green, existing tests still
+**Stop Condition:** Both integrity tests green, existing tests still
 pass, manual end-to-end completion still works for honest submissions.
 
 ---
@@ -110,12 +113,16 @@ completion paths.
 academy paths both write to `TrainingAssignment.status`).
 
 **Product Decision:**
-- Interactive-journey is the **canonical** path for new required modules.
-- Video-only or video-plus-quiz modules are still allowed but classified
-  as **supplementary**: they may exist as required modules only when a
-  reviewer explicitly opts in, and the admin form must surface that they
-  cannot rely on as much rigor as a journey.
-- Existing required video-only modules are not migrated automatically.
+- Interactive-journey is the **canonical** required path.
+- Video-based modules are **deprecated**: they must not be used as
+  required training going forward. Existing required video-only modules
+  are not migrated automatically, but the admin form should clearly mark
+  the video path as legacy/deprecated and discourage new video-required
+  modules.
+- Once usage is confirmed in WS6, legacy video-completion code paths
+  (`updateVideoProgress`, `videoReady` branch in
+  `syncAssignmentFromArtifacts`, `student-training` revalidations) should
+  be hidden, removed, or quarantined rather than hardened.
 
 **Likely Files Involved:**
 - `lib/training-actions.ts` — `assertValidModuleConfiguration` adds a
@@ -389,8 +396,44 @@ meaning something — this PR is what makes that true.
 > **Status:** Shipped as commit `a7db9b4` —
 > `fix: compute training quiz scores server-side`. Helper extracted to
 > `lib/training-quiz-scoring.ts`; 14 unit tests added at
-> `tests/lib/training-quiz-scoring.test.ts`. WS1 video and reflection
-> follow-ups remain pending.
+> `tests/lib/training-quiz-scoring.test.ts`.
+
+### Recommended Next Implementation PR
+
+**WS1 PR-2 — Reflection / required-response gating.**
+
+**Exact objective:** In `completeInteractiveJourney`
+(`lib/training-journey/actions.ts`), require any visible `REFLECTION` beat
+to have a non-empty submission before the journey can be marked complete.
+Reflections remain ungraded. Training stays pass / complete; no scoring
+UI is added.
+
+**Likely files:**
+- `lib/training-journey/actions.ts` — extend the readiness loop.
+- `lib/training-journey/kinds/reflection.ts` and its scorer — confirm or
+  expose a "submitted" predicate (response text non-empty after trim).
+- `tests/lib/training-journey/kinds/reflection.test.ts` and a small test
+  in `tests/lib/training-journey/` covering the journey-readiness
+  behavior.
+
+**Acceptance criteria:**
+- A journey with a visible reflection beat and no attempt → `JOURNEY_NOT_READY`.
+- A journey with a visible reflection beat whose latest attempt has empty
+  / whitespace-only text → `JOURNEY_NOT_READY`.
+- A journey with a visible reflection beat whose latest attempt has
+  meaningful text → completion proceeds (subject to the existing
+  `passScorePct` check on scored beats).
+- A reflection beat that is **not visible** (filtered out by `showWhen`)
+  does not gate completion.
+- No grading or scoring of reflection text is introduced.
+
+**Why next:** Closes the second remaining click-through path on the
+required training path (the first being quiz scoring, now fixed). Small
+diff, isolated to journey completion logic, no UI change required.
+
+> **Out of scope:** video completion (deprecated), Studio capstone
+> semantics (WS3), reviewer evidence (WS4), admin triage (WS5), naming
+> cleanup (WS6), content audit (WS7).
 
 ## 5. What Not To Do
 
@@ -414,7 +457,10 @@ meaning something — this PR is what makes that true.
 
 ## 6. Final Checkpoint
 
-- Phase 2 plan complete.
+- Phase 2 plan complete (with post-audit correction: training videos are
+  deprecated and the video integrity track has been removed from WS1).
 - WS1 PR-1 shipped (commit `a7db9b4`).
-- Remaining: WS1 video + reflection, then WS3 / WS2 / WS6 / WS4 / WS5 / WS7
-  per the dependency table.
+- Recommended next: **WS1 PR-2 — reflection / required-response gating**.
+- Then: WS3 / WS2 / WS6 / WS4 / WS5 / WS7 per the dependency table.
+  Legacy video code is classified and cleaned up under WS2 / WS6, not
+  hardened.
