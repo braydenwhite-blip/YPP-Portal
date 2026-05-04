@@ -335,8 +335,9 @@ export async function completeInteractiveJourney(
   // score denominator — otherwise users would be penalised for taking different
   // paths through a BRANCHING_SCENARIO tree (plan §4 Module 3: "denominator
   // only counts beats the user actually saw").
+  const journeyBeats = journey.beats;
   const sourceKeyToBeatId = new Map<string, string>(
-    journey.beats.map((b) => [b.sourceKey, b.id])
+    journeyBeats.map((b) => [b.sourceKey, b.id])
   );
 
   type ShowWhen =
@@ -344,6 +345,7 @@ export async function completeInteractiveJourney(
     | { ancestorSourceKey: string; in: string[] }
     | { ancestorSourceKey: string; notEquals: string };
 
+  function isVisible(beat: (typeof journeyBeats)[number]): boolean {
   function isVisible(beat: NonNullable<typeof journey>["beats"][number]): boolean {
     const predicate = beat.showWhen as ShowWhen | null | undefined;
     if (!predicate) return true;
@@ -366,7 +368,7 @@ export async function completeInteractiveJourney(
     return false;
   }
 
-  const visibleScoredBeats = journey.beats.filter(
+  const visibleScoredBeats = journeyBeats.filter(
     (b) => b.scoringWeight > 0 && isVisible(b)
   );
 
@@ -449,7 +451,7 @@ export async function completeInteractiveJourney(
   }, 0);
 
   // visitedBeatCount: beats with at least one attempt
-  const visitedBeatCount = journey.beats.filter((beat) =>
+  const visitedBeatCount = journeyBeats.filter((beat) =>
     latestByBeatId.has(beat.id)
   ).length;
 
@@ -636,6 +638,7 @@ export async function resumeInteractiveJourney(
       attemptNumber: attempt.attemptNumber,
       correct: attempt.correct,
       score: attempt.score,
+      response: attempt.response,
       response: attempt.response ?? null,
     });
   }
