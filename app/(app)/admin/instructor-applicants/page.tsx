@@ -9,7 +9,8 @@ import {
   getChairQueue,
 } from "@/lib/instructor-applicant-board-queries";
 import InstructorApplicantsCommandCenter from "@/components/instructor-applicants/InstructorApplicantsCommandCenter";
-import PipelineFunnelChart, { FunnelCounts } from "@/components/instructor-applicants/PipelineFunnelChart";
+import ApplicantPipelineOverview from "@/components/instructor-applicants/ApplicantPipelineOverview";
+import { type FunnelCounts } from "@/components/instructor-applicants/PipelineFunnelChart";
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
 
 const DEMO_PIPELINE_TAKE = 48;
@@ -285,26 +286,15 @@ export default async function AdminInstructorApplicantsPage({
         </div>
       </div>
 
-      <div className="grid four applicant-command-kpis">
-        <div className="card kpi applicant-command-kpi">
-          <div className="kpi-value">{newCount}</div>
-          <div className="kpi-label">New Applications</div>
-        </div>
-        <div className="card kpi applicant-command-kpi">
-          <div className="kpi-value">{toReviewCount}</div>
-          <div className="kpi-label">Needs Review</div>
-        </div>
-        <div className="card kpi applicant-command-kpi">
-          <div className="kpi-value">{toInterviewCount}</div>
-          <div className="kpi-label">In Interview Stage</div>
-        </div>
-        <div className="card kpi applicant-command-kpi">
-          <div className="kpi-value">{postInterviewCount}</div>
-          <div className="kpi-label">Post-Interview</div>
-        </div>
-      </div>
-
-      <PipelineFunnelChart counts={funnelCounts} />
+      <ApplicantPipelineOverview
+        filteredCounts={{
+          newApplications: newCount,
+          needsReview: toReviewCount,
+          interviewStage: toInterviewCount,
+          postInterview: postInterviewCount,
+        }}
+        funnelCounts={funnelCounts}
+      />
 
       <InstructorApplicantsCommandCenter
         scope={isAdmin ? "global" : "chapter"}

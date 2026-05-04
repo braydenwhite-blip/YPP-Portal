@@ -8603,36 +8603,95 @@ select.input {
   padding: 4px 0 0;
 }
 
-.applicant-command-kpis {
-  margin: 20px 0;
-}
+/* ─── Applicant pipeline analytics (admin / chapter command pages) ───────── */
 
-.applicant-command-kpi {
-  position: relative;
-  overflow: hidden;
-  border-radius: 8px;
+.applicant-pipeline-overview {
+  margin: 14px 0 20px;
+  padding: 14px 16px 16px;
   border-color: rgba(71, 85, 105, 0.12);
 }
 
-.applicant-command-kpi::after {
-  content: "";
-  position: absolute;
-  inset: auto 16px 0 16px;
-  height: 3px;
-  border-radius: 999px 999px 0 0;
-  background: linear-gradient(90deg, #6b21c8, #0f766e, #b45309);
+.applicant-pipeline-overview-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
 }
 
-.applicant-command-kpi .kpi-value {
-  color: var(--ypp-purple-800);
-  font-family: var(--font-playfair), Georgia, serif;
-  font-size: 34px;
+.applicant-pipeline-overview-row + .applicant-pipeline-overview-row {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.applicant-pipeline-overview-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+.applicant-pipeline-overview-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(71, 85, 105, 0.12);
+  background: rgba(71, 85, 105, 0.03);
+  white-space: nowrap;
+}
+
+.applicant-pipeline-overview-pill-strong {
+  background: rgba(107, 33, 200, 0.06);
+  border-color: rgba(107, 33, 200, 0.18);
+  font-weight: 750;
+}
+
+.applicant-pipeline-overview-pill-label {
+  color: var(--muted);
+}
+
+.applicant-pipeline-overview-pill-value {
   font-weight: 800;
-  line-height: 1;
+  color: var(--ypp-ink);
 }
 
-.applicant-command-kpi .kpi-label {
-  margin-top: 7px;
+.pipeline-funnel-embedded {
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.pipeline-funnel-embedded-title {
+  margin: 14px 0 4px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ypp-ink);
+}
+
+.pipeline-funnel-embedded-hint {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.pipeline-funnel-embedded .pipeline-funnel-divider {
+  margin: 12px 0 10px;
+}
+
+.pipeline-funnel-embedded .pipeline-funnel-row {
+  font-size: 12.5px;
+  gap: 8px;
+}
+
+.pipeline-funnel-embedded .pipeline-funnel-bar-wrap {
+  height: 10px;
 }
 
 /* ─── Pipeline Funnel Chart ─────────────────────────────────────────── */
@@ -9797,10 +9856,6 @@ select.input {
   .applicant-command .kanban-column-body {
     min-height: 96px;
     max-height: none;
-  }
-
-  .applicant-command-kpis.grid.four {
-    grid-template-columns: 1fr;
   }
 
   .applicant-command-select,
