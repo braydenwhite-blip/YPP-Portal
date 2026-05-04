@@ -123,6 +123,61 @@ export type InterviewNoteInput = z.infer<typeof interviewNoteSchema>;
 // INSTRUCTOR APPLICATION SCHEMA
 // ============================================
 
+// ============================================
+// SUMMER WORKSHOP INSTRUCTOR — workshop outline
+// ============================================
+//
+// Lighter, structured submission used in place of the full
+// curriculum capstone for Summer Workshop applicants.
+// See docs/summer-workshop-instructor-plan.md §4.2.
+
+export const workshopOutlineSchema = z.object({
+  title: z
+    .string()
+    .min(3, "Please give your workshop a short title.")
+    .max(150, "Workshop title should be under 150 characters."),
+  ageRange: z
+    .string()
+    .min(2, "Please indicate the age range (e.g. 'Grades 6–8' or 'ages 11–14').")
+    .max(60, "Age range should be under 60 characters."),
+  durationMinutes: z
+    .number({ invalid_type_error: "Please enter the workshop duration in minutes." })
+    .int()
+    .min(15, "Workshops should be at least 15 minutes.")
+    .max(240, "Workshops should be under 4 hours."),
+  learningGoals: z
+    .array(z.string().min(2).max(200))
+    .min(1, "Please list at least one learning goal.")
+    .max(5, "Keep it to 5 learning goals or fewer."),
+  activityFlow: z
+    .string()
+    .min(30, "Please sketch the activity flow in at least 30 characters.")
+    .max(2000, "Activity flow should be under 2,000 characters."),
+  materialsNeeded: z
+    .array(z.string().min(1).max(120))
+    .max(20, "Keep it to 20 materials or fewer.")
+    .optional()
+    .default([]),
+  engagementHook: z
+    .string()
+    .min(10, "Please describe how you'll grab attention in the first few minutes.")
+    .max(800, "Engagement hook should be under 800 characters."),
+  adaptationNotes: z
+    .string()
+    .min(10, "Please describe how you'd adapt to mixed energy or skill levels.")
+    .max(800, "Adaptation notes should be under 800 characters."),
+});
+
+export type WorkshopOutlineInput = z.infer<typeof workshopOutlineSchema>;
+
+// ============================================
+// INSTRUCTOR APPLICATION SCHEMA
+// ============================================
+//
+// Standard track is the existing strict schema. For the Summer Workshop
+// Instructor track, several heavy fields (motivation essay, full course
+// outline, first-class plan) are relaxed and a workshop outline is required.
+
 export const instructorApplicationSchema = z.object({
   // Personal Information
   legalName: z
@@ -212,6 +267,38 @@ export const instructorApplicationSchema = z.object({
 });
 
 export type InstructorApplicationInput = z.infer<typeof instructorApplicationSchema>;
+
+// ============================================
+// SUMMER WORKSHOP INSTRUCTOR APPLICATION SCHEMA
+// ============================================
+//
+// Lighter variant for the Summer Workshop track:
+//   - motivation, courseOutline, firstClassPlan are NOT required
+//   - teachingExperience minimum length is relaxed
+//   - a structured workshopOutline is required instead
+// Everything else (contact info, availability, location, school) matches
+// the standard track to keep reviewer cognitive load low.
+
+export const summerWorkshopInstructorApplicationSchema = instructorApplicationSchema.extend({
+  // Relax the heaviest essay fields.
+  teachingExperience: z
+    .string()
+    .min(30, "Please briefly describe your teaching or mentoring experience (at least 30 characters).")
+    .max(2500, "Teaching experience should be under 2,500 characters."),
+  motivation: z.string().max(2000).optional().or(z.literal("")),
+  // Course planning fields are optional for summer workshop applicants —
+  // they submit a workshop outline instead.
+  courseIdea: z.string().max(500).optional().or(z.literal("")),
+  textbook: z.string().max(500).optional().or(z.literal("")),
+  courseOutline: z.string().max(2000).optional().or(z.literal("")),
+  firstClassPlan: z.string().max(2000).optional().or(z.literal("")),
+  // Required: the structured workshop outline.
+  workshopOutline: workshopOutlineSchema,
+});
+
+export type SummerWorkshopInstructorApplicationInput = z.infer<
+  typeof summerWorkshopInstructorApplicationSchema
+>;
 
 // ============================================
 // HELPERS

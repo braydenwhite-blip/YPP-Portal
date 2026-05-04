@@ -2,12 +2,18 @@
 
 import { prisma } from "@/lib/prisma";
 import { createServiceClient } from "@/lib/supabase/server";
-import { InstructorApplicationStatus, RoleType } from "@prisma/client";
+import { InstructorApplicationStatus, RoleType, ApplicationTrack, InstructorSubtype } from "@prisma/client";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { syncInstructorApplicationWorkflow } from "@/lib/workflow";
 import { findDefaultInitialReviewerForChapter } from "@/lib/instructor-application-defaults";
-import { instructorApplicationSchema, type InstructorApplicationInput } from "@/lib/application-schemas";
+import {
+  instructorApplicationSchema,
+  summerWorkshopInstructorApplicationSchema,
+  type InstructorApplicationInput,
+  type SummerWorkshopInstructorApplicationInput,
+} from "@/lib/application-schemas";
 import { pickFormFields, type SignupFormState } from "@/lib/signup-form-utils";
+import { SUMMER_WORKSHOP_TIMELINE_KINDS } from "@/lib/summer-workshop";
 
 type FormState = SignupFormState;
 
@@ -99,13 +105,57 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
       return { status: "error", message: "Password must contain at least one letter and one number.", fields: pickFormFields(formData) };
     }
 
-    let instructorApplicationInput: InstructorApplicationInput | null = null;
+    let instructorApplicationInput:
+      | InstructorApplicationInput
+      | SummerWorkshopInstructorApplicationInput
+      | null = null;
+
+    // Track selection: applicants choose either standard or summer workshop.
+    // Default to standard for any unrecognized value, preserving legacy behavior.
+    const applicationTrackRaw = getString(formData, "applicationTrack", false).toUpperCase();
+    const applicationTrack: ApplicationTrack =
+      applicationTrackRaw === "SUMMER_WORKSHOP_INSTRUCTOR"
+        ? ApplicationTrack.SUMMER_WORKSHOP_INSTRUCTOR
+        : ApplicationTrack.STANDARD_INSTRUCTOR;
+    const isSummerWorkshop = applicationTrack === ApplicationTrack.SUMMER_WORKSHOP_INSTRUCTOR;
 
     if (primaryRole === RoleType.APPLICANT) {
       const graduationYearRaw = getString(formData, "graduationYear", false);
       const hoursPerWeekRaw = getString(formData, "hoursPerWeek", false);
 
-      const validation = instructorApplicationSchema.safeParse({
+      // Workshop outline payload (only used by summer workshop track).
+      // Inputs come from the form as flat scalars + comma-separated lists; we
+      // shape them here into the structure validated by `workshopOutlineSchema`.
+      const durationMinutesRaw = getString(formData, "workshopDurationMinutes", false);
+      const learningGoalsRaw = getString(formData, "workshopLearningGoals", false);
+      const materialsRaw = getString(formData, "workshopMaterialsNeeded", false);
+      const workshopOutlinePayload = isSummerWorkshop
+        ? {
+            title: getString(formData, "workshopTitle", false),
+            ageRange: getString(formData, "workshopAgeRange", false),
+            durationMinutes: durationMinutesRaw ? parseInt(durationMinutesRaw, 10) : undefined,
+            learningGoals: learningGoalsRaw
+              ? learningGoalsRaw
+                  .split("\n")
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+              : [],
+            activityFlow: getString(formData, "workshopActivityFlow", false),
+            materialsNeeded: materialsRaw
+              ? materialsRaw
+                  .split("\n")
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+              : [],
+            engagementHook: getString(formData, "workshopEngagementHook", false),
+            adaptationNotes: getString(formData, "workshopAdaptationNotes", false),
+          }
+        : undefined;
+
+      const schema = isSummerWorkshop
+        ? summerWorkshopInstructorApplicationSchema
+        : instructorApplicationSchema;
+      const validation = schema.safeParse({
         legalName: getString(formData, "legalName", false),
         preferredFirstName: getString(formData, "preferredFirstName", false),
         phoneNumber: getString(formData, "phoneNumber", false),
@@ -130,6 +180,7 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
         availability: getString(formData, "availability", false),
         hoursPerWeek: hoursPerWeekRaw ? parseInt(hoursPerWeekRaw, 10) : undefined,
         preferredStartDate: getString(formData, "preferredStartDate", false),
+        ...(isSummerWorkshop ? { workshopOutline: workshopOutlinePayload } : {}),
       });
 
       if (!validation.success) {
@@ -217,20 +268,46 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
           firstClassPlan: instructorApplicationInput.firstClassPlan || null,
           hoursPerWeek: instructorApplicationInput.hoursPerWeek,
           preferredStartDate: instructorApplicationInput.preferredStartDate || null,
-          timeline: defaultInitialReviewer
-            ? {
-                create: {
-                  kind: "REVIEWER_ASSIGNED",
-                  actorId: null,
-                  payload: {
-                    reviewerId: defaultInitialReviewer.id,
-                    previousReviewerId: null,
-                    defaultAssignment: true,
-                    reason: "chapter_president_default",
-                  },
-                },
-              }
-            : undefined,
+          applicationTrack,
+          instructorSubtype: isSummerWorkshop
+            ? InstructorSubtype.SUMMER_WORKSHOP
+            : InstructorSubtype.STANDARD,
+          workshopOutline:
+            isSummerWorkshop && "workshopOutline" in instructorApplicationInput
+              ? (instructorApplicationInput.workshopOutline as object)
+              : undefined,
+          timeline: {
+            create: [
+              ...(defaultInitialReviewer
+                ? [
+                    {
+                      kind: "REVIEWER_ASSIGNED",
+                      actorId: null,
+                      payload: {
+                        reviewerId: defaultInitialReviewer.id,
+                        previousReviewerId: null,
+                        defaultAssignment: true,
+                        reason: "chapter_president_default",
+                      },
+                    },
+                  ]
+                : []),
+              {
+                kind: SUMMER_WORKSHOP_TIMELINE_KINDS.TRACK_SELECTED,
+                actorId: null,
+                payload: { applicationTrack },
+              },
+              ...(isSummerWorkshop
+                ? [
+                    {
+                      kind: SUMMER_WORKSHOP_TIMELINE_KINDS.WORKSHOP_OUTLINE_SUBMITTED,
+                      actorId: null,
+                      payload: { source: "application_submission" },
+                    },
+                  ]
+                : []),
+            ],
+          },
         },
       });
       await syncInstructorApplicationWorkflow(application.id);
