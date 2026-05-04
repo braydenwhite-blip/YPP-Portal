@@ -25,6 +25,8 @@ type PipelineCardApp = {
     role: string;
     interviewer: { id: string; name: string | null };
   }>;
+  applicationTrack?: string;
+  instructorSubtype?: string;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -109,6 +111,17 @@ export default function ApplicantPipelineCard({
             >
               {statusLabel}
             </span>
+
+            {app.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR" && (
+              <span
+                className="pill pill-small applicant-card-meta-pill"
+                title="Summer Workshop Instructor applicant"
+                aria-label="Summer Workshop Instructor applicant"
+                style={{ background: "#f5f3ff", color: "#6b21c8", border: "1px solid #ddd6fe", fontWeight: 700, letterSpacing: "0.04em" }}
+              >
+                SW
+              </span>
+            )}
 
             {app.interviewScheduledAt && (
               <span

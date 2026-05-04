@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
+import { ApplicationTrack } from "@prisma/client";
 import { isInstructorApplicantWorkflowV1Enabled } from "@/lib/feature-flags";
 import { canSeeChairQueue } from "@/lib/chapter-hiring-permissions";
 import {
@@ -75,6 +76,15 @@ export default async function AdminInstructorApplicantsPage({
   const overdueOnly = resolvedParams.overdueOnly === "1";
   const myCasesOnly = resolvedParams.myCasesOnly === "1";
 
+  // Subtype filter: ?track=summer_workshop | standard. Omit/invalid = all.
+  const applicationTrackParam = (resolvedParams.track as string | undefined)?.toLowerCase();
+  const applicationTrackFilter: ApplicationTrack | undefined =
+    applicationTrackParam === "summer_workshop"
+      ? ApplicationTrack.SUMMER_WORKSHOP_INSTRUCTOR
+      : applicationTrackParam === "standard"
+      ? ApplicationTrack.STANDARD_INSTRUCTOR
+      : undefined;
+
   const effectiveChapterId = isAdmin ? filterChapterId : chapterId;
   const scope = isAdmin ? "admin" : "chapter";
 
@@ -87,6 +97,7 @@ export default async function AdminInstructorApplicantsPage({
     materialsMissing,
     overdueOnly,
     myCasesActorId: myCasesOnly ? session!.user.id : undefined,
+    applicationTrack: applicationTrackFilter,
   };
 
   const loadChapters = () =>
@@ -209,6 +220,9 @@ export default async function AdminInstructorApplicantsPage({
       updatedAt: (app.updatedAt as Date | null)?.toISOString() ?? null,
       overdue: app.overdue as boolean | undefined,
       subjectsOfInterest: app.subjectsOfInterest as string | null,
+      applicationTrack: (app.applicationTrack as string) ?? "STANDARD_INSTRUCTOR",
+      instructorSubtype: (app.instructorSubtype as string) ?? "STANDARD",
+      workshopOutlinePresent: !!app.workshopOutline,
       applicant: {
         id: app.applicant.id as string,
         name: app.applicant.name as string | null,
@@ -250,6 +264,9 @@ export default async function AdminInstructorApplicantsPage({
     interviewerAssignments: [] as Array<{ id: string; role: string; interviewer: { id: string; name: string | null } }>,
     overdue: false,
     applicationReviews: [] as Array<{ summary: string | null; nextStep: string | null; overallRating: string | null }>,
+    applicationTrack: (app as { applicationTrack?: string }).applicationTrack ?? "STANDARD_INSTRUCTOR",
+    instructorSubtype: (app as { instructorSubtype?: string }).instructorSubtype ?? "STANDARD",
+    workshopOutlinePresent: !!(app as { workshopOutline?: unknown }).workshopOutline,
   }));
 
   const newCount = pipelineResult.columns.new.length;

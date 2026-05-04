@@ -31,6 +31,8 @@ import {
 import { PROGRESS_RATING_OPTIONS } from "@/lib/instructor-review-config";
 import NotificationFailureBanner from "@/components/instructor-applicants/NotificationFailureBanner";
 import ReviewSubmissionWarningsBanner from "@/components/instructor-applicants/ReviewSubmissionWarningsBanner";
+import WorkshopOutlinePanel from "@/components/instructor-applicants/WorkshopOutlinePanel";
+import type { WorkshopOutline } from "@/lib/summer-workshop";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +50,9 @@ async function fetchCockpitData(applicationId: string) {
       textbook: true,
       courseOutline: true,
       firstClassPlan: true,
+      applicationTrack: true,
+      instructorSubtype: true,
+      workshopOutline: true,
       legalName: true,
       preferredFirstName: true,
       schoolName: true,
@@ -320,6 +325,13 @@ export default async function ApplicantCockpitPage({
                 )}
               </dl>
             </section>
+
+            {/* Workshop Outline (Summer Workshop Instructor track only) */}
+            {application.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR" && (
+              <WorkshopOutlinePanel
+                outline={(application.workshopOutline as WorkshopOutline | null) ?? null}
+              />
+            )}
 
             {/* Motivation */}
             <section id="section-motivation" className="cockpit-panel">
