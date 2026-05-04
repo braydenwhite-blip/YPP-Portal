@@ -32,7 +32,8 @@ import { PROGRESS_RATING_OPTIONS } from "@/lib/instructor-review-config";
 import NotificationFailureBanner from "@/components/instructor-applicants/NotificationFailureBanner";
 import ReviewSubmissionWarningsBanner from "@/components/instructor-applicants/ReviewSubmissionWarningsBanner";
 import WorkshopOutlinePanel from "@/components/instructor-applicants/WorkshopOutlinePanel";
-import type { WorkshopOutline } from "@/lib/summer-workshop";
+import PromoteToFullInstructorButton from "@/components/instructor-applicants/PromoteToFullInstructorButton";
+import type { PromotionEligibility, WorkshopOutline } from "@/lib/summer-workshop";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,7 @@ async function fetchCockpitData(applicationId: string) {
       applicationTrack: true,
       instructorSubtype: true,
       workshopOutline: true,
+      promotionEligibility: true,
       legalName: true,
       preferredFirstName: true,
       schoolName: true,
@@ -332,6 +334,29 @@ export default async function ApplicantCockpitPage({
                 outline={(application.workshopOutline as WorkshopOutline | null) ?? null}
               />
             )}
+
+            {/* Promote to Full Instructor (admins/chairs, summer workshop subtype only) */}
+            {application.instructorSubtype === "SUMMER_WORKSHOP" &&
+              (isAdmin(actor) || isHiringChair(actor)) && (
+                <section className="cockpit-panel">
+                  <div className="cockpit-section-heading">
+                    <span className="cockpit-section-kicker">Subtype</span>
+                    <h2>Promotion</h2>
+                  </div>
+                  <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 12px", lineHeight: 1.55 }}>
+                    This applicant is on the Summer Workshop Instructor track. Promotion flips
+                    the subtype to Standard Instructor and preserves all history; outstanding
+                    requirements (e.g. Lesson Design Studio) become follow-ups, not waivers.
+                  </p>
+                  <PromoteToFullInstructorButton
+                    applicationId={application.id}
+                    applicantName={application.applicant.name ?? application.applicant.email}
+                    promotionEligibility={
+                      (application.promotionEligibility as PromotionEligibility | null) ?? null
+                    }
+                  />
+                </section>
+              )}
 
             {/* Motivation */}
             <section id="section-motivation" className="cockpit-panel">
