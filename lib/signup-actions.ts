@@ -152,10 +152,7 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
           }
         : undefined;
 
-      const schema = isSummerWorkshop
-        ? summerWorkshopInstructorApplicationSchema
-        : instructorApplicationSchema;
-      const validation = schema.safeParse({
+      const sharedPayload = {
         legalName: getString(formData, "legalName", false),
         preferredFirstName: getString(formData, "preferredFirstName", false),
         phoneNumber: getString(formData, "phoneNumber", false),
@@ -180,8 +177,13 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
         availability: getString(formData, "availability", false),
         hoursPerWeek: hoursPerWeekRaw ? parseInt(hoursPerWeekRaw, 10) : undefined,
         preferredStartDate: getString(formData, "preferredStartDate", false),
-        ...(isSummerWorkshop ? { workshopOutline: workshopOutlinePayload } : {}),
-      });
+      };
+      const validation = isSummerWorkshop
+        ? summerWorkshopInstructorApplicationSchema.safeParse({
+            ...sharedPayload,
+            workshopOutline: workshopOutlinePayload,
+          })
+        : instructorApplicationSchema.safeParse(sharedPayload);
 
       if (!validation.success) {
         return {
