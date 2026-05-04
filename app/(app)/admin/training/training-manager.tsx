@@ -10,6 +10,7 @@ import {
 import { useRouter } from "next/navigation";
 import SortableModuleList from "./sortable-module-list";
 import ModuleForm from "./module-form";
+import LearnerProgressView, { type LearnerProgressRow } from "./learner-progress";
 
 // ------------------------------------
 // Types
@@ -102,13 +103,17 @@ export default function TrainingManager({
   modules,
   instructors,
   students,
+  learnerProgress,
+  requiredModuleCount,
 }: {
   modules: Module[];
   instructors: Instructor[];
   students: Instructor[];
+  learnerProgress: LearnerProgressRow[];
+  requiredModuleCount: number;
 }) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"modules" | "json">("modules");
+  const [activeTab, setActiveTab] = useState<"modules" | "progress" | "json">("modules");
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -266,15 +271,23 @@ export default function TrainingManager({
             All Modules ({modules.length})
           </button>
           <button
+            className={`admin-training-tab ${activeTab === "progress" ? "active" : ""}`}
+            onClick={() => setActiveTab("progress")}
+          >
+            Learner Progress ({learnerProgress.length})
+          </button>
+          <button
             className={`admin-training-tab ${activeTab === "json" ? "active" : ""}`}
             onClick={() => setActiveTab("json")}
           >
             JSON Sync
           </button>
         </div>
-        <button className="button small" onClick={openCreate} style={{ flexShrink: 0 }}>
-          + New Module
-        </button>
+        {activeTab === "modules" ? (
+          <button className="button small" onClick={openCreate} style={{ flexShrink: 0 }}>
+            + New Module
+          </button>
+        ) : null}
       </div>
 
       {/* Modules tab */}
@@ -284,6 +297,14 @@ export default function TrainingManager({
           instructors={instructors}
           students={students}
           onEdit={openEdit}
+        />
+      )}
+
+      {/* Learner Progress tab */}
+      {activeTab === "progress" && (
+        <LearnerProgressView
+          rows={learnerProgress}
+          requiredModuleCount={requiredModuleCount}
         />
       )}
 

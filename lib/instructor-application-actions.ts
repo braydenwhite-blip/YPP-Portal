@@ -8,6 +8,7 @@ import {
   InstructorApplicationStatus,
   ApprovalStatus,
   ChairDecisionAction,
+  Prisma,
   StructuredReviewStatus,
 } from "@prisma/client";
 import {
@@ -1793,34 +1794,189 @@ export async function forceSendToChair(
  * APPROVE runs atomically with existing syncInstructorApplicationWorkflow.
  * REQUEST_SECOND_INTERVIEW reverts status to INTERVIEW_SCHEDULED.
  */
-export async function chairDecide(formData: FormData): Promise<{ success: boolean; error?: string }> {
+export type ChairDecideResult =
+  | {
+      success: true;
+      replayed?: boolean;
+      decidedAt?: string;
+      error?: undefined;
+      code?: undefined;
+      context?: undefined;
+    }
+  | {
+      success: false;
+      error?: string;
+      code?: string;
+      context?: Record<string, unknown>;
+    };
+
+const IDEMPOTENCY_REPLAY_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+interface DecisionConditionInput {
+  id?: string;
+  label?: unknown;
+  ownerId?: unknown;
+  dueAt?: unknown;
+}
+
+function parseConditions(raw: unknown): { ok: true; value: unknown[] } | { ok: false; error: string; code: string } {
+  if (raw == null || raw === "") return { ok: true, value: [] };
+  if (typeof raw !== "string") {
+    return { ok: false, error: "Conditions must be JSON.", code: "CONDITION_LABEL_INVALID" };
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return {
+        ok: false,
+        error: "Conditions must be an array.",
+        code: "CONDITION_LABEL_INVALID",
+      };
+    }
+    return { ok: true, value: parsed };
+  } catch {
+    return {
+      ok: false,
+      error: "Conditions JSON could not be parsed.",
+      code: "CONDITION_LABEL_INVALID",
+    };
+  }
+}
+
+export async function chairDecide(formData: FormData): Promise<ChairDecideResult> {
   try {
     const session = await getSession();
-    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+    if (!session?.user?.id) {
+      return { success: false, error: "Unauthorized", code: "UNAUTHORIZED" };
+    }
 
     const applicationId = String(formData.get("applicationId") ?? "").trim();
     const actionRaw = String(formData.get("action") ?? "").trim();
+    const idempotencyKey = String(formData.get("idempotencyKey") ?? "").trim() || null;
+    const conditionsRaw = formData.get("conditions");
     const rationale = String(formData.get("rationale") ?? "").trim() || null;
     const comparisonNotes = String(formData.get("comparisonNotes") ?? "").trim() || null;
-    if (!applicationId || !actionRaw) return { success: false, error: "Missing required fields." };
+    if (!applicationId || !actionRaw) {
+      return {
+        success: false,
+        error: "Missing required fields.",
+        code: "VALIDATION",
+      };
+    }
 
     const validActions = Object.values(ChairDecisionAction) as string[];
     if (!validActions.includes(actionRaw)) {
-      return { success: false, error: "Invalid chair action." };
+      return { success: false, error: "Invalid chair action.", code: "VALIDATION" };
     }
     const action = actionRaw as ChairDecisionAction;
-    if ((action === "REQUEST_INFO" || action === "REJECT") && !rationale) {
+
+    // Server-enforced idempotency replay (Phase 8 §16). If the same client
+    // key already produced a SUCCESS row within the replay window, return
+    // the prior result instead of running the transaction again.
+    if (idempotencyKey) {
+      const prior = await prisma.chairDecisionCommitAttempt.findUnique({
+        where: { idempotencyKey },
+        select: {
+          result: true,
+          decidedAt: true,
+          chairId: true,
+          createdAt: true,
+        },
+      });
+      if (prior && prior.chairId === session.user.id && prior.result === "SUCCESS") {
+        const fresh =
+          Date.now() - prior.createdAt.getTime() < IDEMPOTENCY_REPLAY_WINDOW_MS;
+        if (fresh) {
+          return {
+            success: true,
+            replayed: true,
+            decidedAt: prior.decidedAt?.toISOString(),
+          };
+        }
+      }
+    }
+
+    const requiresRationale = action === "REJECT" || action === "REQUEST_INFO";
+    if (requiresRationale && !rationale) {
       return {
         success: false,
         error:
           action === "REQUEST_INFO"
             ? "Add the information request before sending it to the applicant."
             : "Add a rejection reason before rejecting the application.",
+        code: action === "REJECT" ? "REJECT_REASON_REQUIRED" : "RATIONALE_TOO_LONG",
+        context: { field: "rationale" },
+      };
+    }
+
+    let conditionsValue: unknown[] | null = null;
+    if (action === "APPROVE_WITH_CONDITIONS") {
+      const parsed = parseConditions(conditionsRaw);
+      if (!parsed.ok) {
+        return {
+          success: false,
+          error: parsed.error,
+          code: parsed.code,
+          context: { field: "conditions" },
+        };
+      }
+      if (parsed.value.length === 0) {
+        return {
+          success: false,
+          error: "Add at least one condition before approving with conditions.",
+          code: "CONDITIONS_REQUIRED",
+          context: { field: "conditions" },
+        };
+      }
+      if (parsed.value.length > 10) {
+        return {
+          success: false,
+          error: "A maximum of 10 conditions is allowed.",
+          code: "TOO_MANY_CONDITIONS",
+          context: { field: "conditions" },
+        };
+      }
+      for (let i = 0; i < parsed.value.length; i++) {
+        const candidate = parsed.value[i] as DecisionConditionInput;
+        if (typeof candidate?.label !== "string" || candidate.label.trim().length === 0) {
+          return {
+            success: false,
+            error: "Every condition needs a label.",
+            code: "CONDITION_LABEL_INVALID",
+            context: { field: "conditions", fieldIndex: i },
+          };
+        }
+        if (candidate.label.length > 300) {
+          return {
+            success: false,
+            error: "Condition labels must be 300 characters or fewer.",
+            code: "CONDITION_LABEL_TOO_LONG",
+            context: { field: "conditions", fieldIndex: i },
+          };
+        }
+      }
+      conditionsValue = parsed.value;
+    }
+
+    if (rationale && rationale.length > 10_000) {
+      return {
+        success: false,
+        error: "Rationale exceeds the 10 000 character limit.",
+        code: "RATIONALE_TOO_LONG",
+        context: { field: "rationale", length: rationale.length },
       };
     }
 
     const actor = await getHiringActor(session.user.id);
-    assertCanActAsChair(actor);
+    try {
+      assertCanActAsChair(actor);
+    } catch (authErr) {
+      return {
+        success: false,
+        error: authErr instanceof Error ? authErr.message : "Unauthorized",
+        code: "UNAUTHORIZED",
+      };
+    }
 
     const app = await prisma.instructorApplication.findUnique({
       where: { id: applicationId },
@@ -1836,21 +1992,58 @@ export async function chairDecide(formData: FormData): Promise<{ success: boolea
         },
       },
     });
-    if (!app) return { success: false, error: "Application not found." };
+    if (!app) {
+      return {
+        success: false,
+        error: "Application not found.",
+        code: "APPLICATION_NOT_FOUND",
+      };
+    }
     if (app.status !== InstructorApplicationStatus.CHAIR_REVIEW) {
-      return { success: false, error: "Chair decisions can only be made when the application is in CHAIR_REVIEW status." };
+      // Surface who won the race so the StaleClickRecoveryModal has data
+      // to render without a separate lookup.
+      const latestDecision = await prisma.instructorApplicationChairDecision.findFirst({
+        where: { applicationId, supersededAt: null },
+        orderBy: { decidedAt: "desc" },
+        select: {
+          action: true,
+          decidedAt: true,
+          rationale: true,
+          chair: { select: { id: true, name: true } },
+        },
+      });
+      return {
+        success: false,
+        error:
+          "Chair decisions can only be made when the application is in CHAIR_REVIEW status.",
+        code: "STATUS_CHANGED",
+        context: latestDecision
+          ? {
+              currentStatus: app.status,
+              winnerChairName: latestDecision.chair?.name ?? null,
+              winnerAction: latestDecision.action,
+              winnerDecidedAt: latestDecision.decidedAt.toISOString(),
+              winnerRationalePreview:
+                (latestDecision.rationale ?? "").slice(0, 240) || null,
+            }
+          : { currentStatus: app.status },
+      };
     }
 
     const now = new Date();
 
     const statusByAction: Partial<Record<ChairDecisionAction, InstructorApplicationStatus>> = {
       APPROVE: InstructorApplicationStatus.APPROVED,
+      APPROVE_WITH_CONDITIONS: InstructorApplicationStatus.APPROVED,
       REJECT: InstructorApplicationStatus.REJECTED,
       HOLD: InstructorApplicationStatus.ON_HOLD,
+      WAITLIST: InstructorApplicationStatus.WAITLISTED,
       REQUEST_INFO: InstructorApplicationStatus.INFO_REQUESTED,
       REQUEST_SECOND_INTERVIEW: InstructorApplicationStatus.INTERVIEW_SCHEDULED,
     };
     const newStatus = statusByAction[action]!;
+    const grantsInstructorRole =
+      action === "APPROVE" || action === "APPROVE_WITH_CONDITIONS";
 
     let approvalRollback:
       | {
@@ -1880,11 +2073,24 @@ export async function chairDecide(formData: FormData): Promise<{ success: boolea
       });
 
       await tx.instructorApplicationChairDecision.create({
-        data: { applicationId, chairId: actor.id, action, rationale, comparisonNotes, decidedAt: now },
+        data: {
+          applicationId,
+          chairId: actor.id,
+          action,
+          rationale,
+          comparisonNotes,
+          conditions:
+            conditionsValue !== null
+              ? (conditionsValue as Prisma.InputJsonValue)
+              : undefined,
+          decidedAt: now,
+        },
       });
 
       const appUpdateData: Record<string, unknown> = { status: newStatus };
-      if (action === "APPROVE") appUpdateData.approvedAt = now;
+      if (action === "APPROVE" || action === "APPROVE_WITH_CONDITIONS") {
+        appUpdateData.approvedAt = now;
+      }
       if (action === "REJECT") {
         appUpdateData.rejectedAt = now;
         appUpdateData.rejectionReason = rationale;
@@ -1898,8 +2104,11 @@ export async function chairDecide(formData: FormData): Promise<{ success: boolea
         appUpdateData.chairQueuedAt = null;
         appUpdateData.interviewScheduledAt = null;
       }
+      if (action === "WAITLIST") {
+        appUpdateData.chairQueuedAt = null;
+      }
 
-      if (action === "APPROVE") {
+      if (grantsInstructorRole) {
         const [applicantUser, existingInstructorRole, existingApproval] = await Promise.all([
           tx.user.findUnique({
             where: { id: app.applicantId },
@@ -2009,6 +2218,12 @@ export async function chairDecide(formData: FormData): Promise<{ success: boolea
         return {
           success: false,
           error: "Onboarding sync failed — decision was reversed. Please try again.",
+          code: "SYNC_ROLLBACK",
+          context: {
+            rolledBackAction: action,
+            reversedAt: rollbackNow.toISOString(),
+            reason: syncError instanceof Error ? syncError.message : String(syncError),
+          },
         };
       }
     }
@@ -2070,6 +2285,35 @@ export async function chairDecide(formData: FormData): Promise<{ success: boolea
       });
     }
 
+    // Clear the chair's draft now that we've committed — the dock should
+    // not warm-cache stale rationale on the next visit.
+    try {
+      await prisma.instructorApplicationChairDraft.deleteMany({
+        where: { applicationId, chairId: actor.id },
+      });
+    } catch (clearErr) {
+      console.error("[chairDecide] failed to clear chair draft", clearErr);
+    }
+
+    if (idempotencyKey) {
+      try {
+        await prisma.chairDecisionCommitAttempt.upsert({
+          where: { idempotencyKey },
+          update: { result: "SUCCESS", decidedAt: now, errorCode: null, errorMessage: null },
+          create: {
+            idempotencyKey,
+            applicationId,
+            chairId: actor.id,
+            action,
+            result: "SUCCESS",
+            decidedAt: now,
+          },
+        });
+      } catch (recErr) {
+        console.error("[chairDecide] failed to record commit attempt", recErr);
+      }
+    }
+
     trackApplicantEvent("applicant.chair.decided", {
       applicationId,
       actorId: actor.id,
@@ -2080,10 +2324,69 @@ export async function chairDecide(formData: FormData): Promise<{ success: boolea
     revalidatePath(`/applications/instructor/${applicationId}`);
     revalidatePath("/admin/instructor-applicants");
     revalidatePath("/admin/instructor-applicants/chair-queue");
-    return { success: true };
+    return { success: true, decidedAt: now.toISOString() };
   } catch (error) {
     console.error("[chairDecide]", error);
-    return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
+    let resultCode: string | null = null;
+    let result: ChairDecideResult;
+    if (error instanceof ApplicantWorkflowError) {
+      resultCode = error.code;
+      result = {
+        success: false,
+        error: error.message,
+        code: error.code,
+        context: error.context,
+      };
+    } else {
+      const message = error instanceof Error ? error.message : "Something went wrong.";
+      if (/40P01|deadlock detected/i.test(message)) {
+        resultCode = "DEADLOCK_DETECTED";
+        result = {
+          success: false,
+          error: "Database deadlock detected — try again.",
+          code: "DEADLOCK_DETECTED",
+        };
+      } else {
+        result = { success: false, error: message };
+      }
+    }
+
+    // Record the failed attempt so retries with the same idempotency key
+    // can still proceed freshly without mistakenly being treated as a
+    // SUCCESS replay.
+    const idempotencyKeyTail = String(formData.get("idempotencyKey") ?? "").trim() || null;
+    const failingActionRaw = String(formData.get("action") ?? "").trim();
+    const validActionsTail = Object.values(ChairDecisionAction) as string[];
+    if (idempotencyKeyTail && validActionsTail.includes(failingActionRaw)) {
+      const session = await getSession();
+      const actorId = session?.user?.id ?? null;
+      const applicationId = String(formData.get("applicationId") ?? "").trim();
+      if (actorId && applicationId) {
+        try {
+          await prisma.chairDecisionCommitAttempt.upsert({
+            where: { idempotencyKey: idempotencyKeyTail },
+            update: {
+              result: "FAILED",
+              errorCode: resultCode,
+              errorMessage: result.error ?? null,
+            },
+            create: {
+              idempotencyKey: idempotencyKeyTail,
+              applicationId,
+              chairId: actorId,
+              action: failingActionRaw as ChairDecisionAction,
+              result: "FAILED",
+              errorCode: resultCode,
+              errorMessage: result.error ?? null,
+            },
+          });
+        } catch (recErr) {
+          console.error("[chairDecide] failed to record failing commit attempt", recErr);
+        }
+      }
+    }
+
+    return result;
   }
 }
 
@@ -2179,6 +2482,165 @@ export async function resendChairDecisionEmail(
   } catch (error) {
     console.error("[resendChairDecisionEmail]", error);
     return { ok: false, error: error instanceof Error ? error.message : "Something went wrong." };
+  }
+}
+
+/**
+ * Rescind the most recent non-superseded chair decision (Phase 2E §13).
+ *
+ * SUPER_ADMIN-only. The decision row is marked superseded; the application's
+ * status is reverted to CHAIR_REVIEW so the chair queue can re-evaluate. For
+ * a rescind on an APPROVE we also revoke the granted INSTRUCTOR role and
+ * remove the auto-created InstructorApproval row — same compensator pattern
+ * the SYNC_ROLLBACK path uses inside `chairDecide()`.
+ *
+ * The whole operation runs inside a single transaction so the audit
+ * timeline always lines up with the user's role state.
+ */
+export async function rescindChairDecision(
+  formData: FormData
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+    const applicationId = String(formData.get("applicationId") ?? "").trim();
+    const reason = String(formData.get("reason") ?? "").trim();
+    if (!applicationId) return { success: false, error: "Missing applicationId." };
+    if (!reason) {
+      return {
+        success: false,
+        error: "Add a rescind reason — it's recorded in the audit trail.",
+      };
+    }
+    if (reason.length > 2_000) {
+      return { success: false, error: "Rescind reason exceeds the 2 000 character limit." };
+    }
+
+    // RBAC: SUPER_ADMIN only. Pull the actor's adminSubtypes inline to avoid
+    // adding a heavy helper to the request path.
+    const actorRow = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        id: true,
+        adminSubtypes: { select: { subtype: true } },
+      },
+    });
+    if (!actorRow) return { success: false, error: "Actor not found." };
+    const isSuper = actorRow.adminSubtypes.some((s) => s.subtype === "SUPER_ADMIN");
+    if (!isSuper) {
+      return {
+        success: false,
+        error: "Only Super Admins can rescind chair decisions.",
+      };
+    }
+
+    const app = await prisma.instructorApplication.findUnique({
+      where: { id: applicationId },
+      select: {
+        status: true,
+        applicantId: true,
+        chairDecisions: {
+          where: { supersededAt: null },
+          orderBy: { decidedAt: "desc" },
+          take: 1,
+          select: {
+            id: true,
+            action: true,
+            decidedAt: true,
+            chair: { select: { id: true, name: true } },
+          },
+        },
+      },
+    });
+    if (!app) return { success: false, error: "Application not found." };
+    const latest = app.chairDecisions[0];
+    if (!latest) {
+      return {
+        success: false,
+        error: "No active chair decision to rescind.",
+      };
+    }
+
+    const wasApprove = latest.action === "APPROVE";
+    const now = new Date();
+
+    await prisma.$transaction(async (tx) => {
+      await tx.instructorApplicationChairDecision.update({
+        where: { id: latest.id },
+        data: { supersededAt: now },
+      });
+
+      // Revert status to CHAIR_REVIEW so the queue picks the applicant back up.
+      await tx.instructorApplication.update({
+        where: { id: applicationId },
+        data: {
+          status: InstructorApplicationStatus.CHAIR_REVIEW,
+          chairQueuedAt: now,
+          approvedAt: null,
+          rejectedAt: null,
+          rejectionReason: null,
+          infoRequest: null,
+        },
+      });
+
+      if (wasApprove) {
+        // Compensator: revoke the INSTRUCTOR role grant. Mirror of the
+        // SYNC_ROLLBACK compensator at the bottom of chairDecide().
+        const existingApproval = await tx.instructorApproval.findFirst({
+          where: { instructorId: app.applicantId },
+          select: { id: true, status: true },
+        });
+        await tx.userRole.deleteMany({
+          where: { userId: app.applicantId, role: RoleType.INSTRUCTOR },
+        });
+        // If the auto-created approval is still in TRAINING_IN_PROGRESS we drop
+        // it; if a real human has progressed it, leave the row but mark it as
+        // rescinded via timeline (don't lose history).
+        if (existingApproval && existingApproval.status === ApprovalStatus.TRAINING_IN_PROGRESS) {
+          await tx.instructorApproval.delete({ where: { id: existingApproval.id } });
+        }
+        await tx.user.update({
+          where: { id: app.applicantId },
+          data: { primaryRole: RoleType.APPLICANT },
+        });
+      }
+
+      await tx.instructorApplicationTimelineEvent.create({
+        data: {
+          applicationId,
+          kind: "CHAIR_DECISION_RESCINDED",
+          actorId: session.user.id,
+          payload: {
+            rescindedDecisionId: latest.id,
+            rescindedAction: latest.action,
+            rescindedDecidedAt: latest.decidedAt.toISOString(),
+            originalChairId: latest.chair?.id ?? null,
+            originalChairName: latest.chair?.name ?? null,
+            rescindedAt: now.toISOString(),
+            reason,
+          },
+        },
+      });
+    });
+
+    trackApplicantEvent("applicant.chair.rescinded", {
+      applicationId,
+      actorId: session.user.id,
+      chapterId: null,
+      status: String(InstructorApplicationStatus.CHAIR_REVIEW),
+      meta: { rescindedAction: latest.action },
+    });
+    revalidatePath(`/applications/instructor/${applicationId}`);
+    revalidatePath("/admin/instructor-applicants");
+    revalidatePath("/admin/instructor-applicants/chair-queue");
+    return { success: true };
+  } catch (error) {
+    console.error("[rescindChairDecision]", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Something went wrong.",
+    };
   }
 }
 

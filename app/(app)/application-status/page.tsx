@@ -26,6 +26,7 @@ function instructorStatusLabel(status: InstructorApplicationStatus): string {
     case "APPROVED": return "Approved";
     case "REJECTED": return "Not Accepted";
     case "WITHDRAWN": return "Withdrawn";
+    case "WAITLISTED": return "Waitlisted";
     default: {
       const exhaustiveCheck: never = status;
       return exhaustiveCheck;

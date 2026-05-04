@@ -15,6 +15,7 @@ import {
   getTrainingAccessRedirect,
   hasApprovedInstructorTrainingAccess,
 } from "@/lib/training-access";
+import { READINESS_CHECK_MODULE_KEY } from "@/lib/lesson-design-studio-gate";
 
 function formatDateTime(value: Date | string | null | undefined) {
   if (!value) return "-";
@@ -36,8 +37,17 @@ type ModuleCard = {
   configurationIssue: string | null;
 };
 
-function KanbanCard({ card }: { card: ModuleCard }) {
+function KanbanCard({
+  card,
+  readinessCheckPassed,
+  readinessCheckModuleId,
+}: {
+  card: ModuleCard;
+  readinessCheckPassed: boolean;
+  readinessCheckModuleId: string | null;
+}) {
   const isLDS = card.module.contentKey === LESSON_DESIGN_STUDIO_MODULE_KEY;
+  const ldsLocked = isLDS && !readinessCheckPassed;
   return (
     <div
       style={{
@@ -45,6 +55,7 @@ function KanbanCard({ card }: { card: ModuleCard }) {
         borderRadius: 10,
         padding: 12,
         background: card.fullyComplete ? "#f0fdf4" : "var(--surface)",
+        opacity: ldsLocked ? 0.6 : 1,
       }}
     >
       <p style={{ margin: "0 0 4px", fontWeight: 600, fontSize: 14 }}>{card.module.title}</p>
@@ -70,6 +81,15 @@ function KanbanCard({ card }: { card: ModuleCard }) {
         </div>
       ) : null}
 
+      {ldsLocked ? (
+        <span
+          className="pill pill-small"
+          style={{ marginBottom: 10, display: "inline-block" }}
+        >
+          Complete Readiness Check to unlock
+        </span>
+      ) : null}
+
       {card.module.requiresQuiz ? (
         <span className={`pill pill-small ${card.quizReady ? "pill-success" : ""}`} style={{ marginBottom: 10, display: "inline-block" }}>
           Quiz {card.quizReady ? "Passed" : "Required"}
@@ -86,22 +106,53 @@ function KanbanCard({ card }: { card: ModuleCard }) {
         </p>
       ) : null}
 
-      <Link
-        href={isLDS ? "/instructor/lesson-design-studio?entry=training" : `/training/${card.module.id}`}
-        className="button small"
-        style={{ textDecoration: "none", fontSize: 12 }}
-      >
-        {isLDS ? "Open Studio" : card.fullyComplete ? "Review" : "Open module"}
-      </Link>
+      {ldsLocked ? (
+        readinessCheckModuleId ? (
+          <Link
+            href={`/training/${readinessCheckModuleId}`}
+            className="button small"
+            style={{ textDecoration: "none", fontSize: 12 }}
+          >
+            Open Readiness Check
+          </Link>
+        ) : (
+          <button
+            type="button"
+            className="button small"
+            disabled
+            aria-disabled="true"
+            style={{ fontSize: 12, cursor: "not-allowed" }}
+            title="Complete the Readiness Check to unlock the Lesson Design Studio."
+          >
+            Locked
+          </button>
+        )
+      ) : (
+        <Link
+          href={isLDS ? "/instructor/lesson-design-studio?entry=training" : `/training/${card.module.id}`}
+          className="button small"
+          style={{ textDecoration: "none", fontSize: 12 }}
+        >
+          {isLDS ? "Open Studio" : card.fullyComplete ? "Review" : "Open module"}
+        </Link>
+      )}
     </div>
   );
 }
 
-export default async function InstructorTrainingPage() {
+export default async function InstructorTrainingPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }
+  const sp = (await searchParams) ?? {};
+  const lockedParamRaw = sp.locked;
+  const lockedParam = Array.isArray(lockedParamRaw) ? lockedParamRaw[0] : lockedParamRaw;
+  const showLdsLockedBanner = lockedParam === "lesson-design-studio";
 
   const roles = session.user.roles ?? [];
   const canAccessTraining = hasApprovedInstructorTrainingAccess(roles);
@@ -249,7 +300,7 @@ export default async function InstructorTrainingPage() {
     }
   }
 
-  const moduleCards = modules.map((module) => {
+  const moduleCards: ModuleCard[] = modules.map((module) => {
     const assignment = assignmentByModule.get(module.id);
     const progress = videoByModule.get(module.id);
     const latestQuiz = latestQuizByModule.get(module.id);
@@ -301,6 +352,16 @@ export default async function InstructorTrainingPage() {
     (request) => request.status === "PENDING"
   );
 
+  // Single source of truth for the LDS gate. `readiness.lessonDesignStudioGate`
+  // is computed inside `buildInstructorReadinessFromSnapshot` and shared with
+  // the server-side hard gate on the LDS route via `getLessonDesignStudioGateStatus`.
+  const readinessCheckPassed = readiness.lessonDesignStudioGate.unlocked;
+  const readinessCheckModuleId =
+    readiness.lessonDesignStudioGate.unlocked
+      ? moduleCards.find((c) => c.module.contentKey === READINESS_CHECK_MODULE_KEY)
+          ?.module.id ?? null
+      : readiness.lessonDesignStudioGate.readinessCheckModuleId;
+
   const moduleWeight = readiness.requiredModulesCount;
   const doneModuleWeight = readiness.academyModulesComplete
     ? moduleWeight
@@ -327,6 +388,37 @@ export default async function InstructorTrainingPage() {
           <p className="page-subtitle">Complete all required modules to unlock offering approval readiness and the interview gate.</p>
         </div>
       </div>
+
+      {showLdsLockedBanner && !readinessCheckPassed ? (
+        <div
+          className="card"
+          role="status"
+          style={{
+            marginBottom: 16,
+            borderColor: "#f59e0b",
+            background: "#fffbeb",
+          }}
+        >
+          <p style={{ margin: 0, fontSize: 13, color: "#92400e" }}>
+            <strong>Lesson Design Studio is locked.</strong>{" "}
+            Complete the Readiness Check first
+            {readinessCheckModuleId ? (
+              <>
+                {" — "}
+                <Link
+                  href={`/training/${readinessCheckModuleId}`}
+                  className="link"
+                >
+                  open it now
+                </Link>
+                .
+              </>
+            ) : (
+              "."
+            )}
+          </p>
+        </div>
+      ) : null}
 
       {/* Roadmap progress bar */}
       <div className="card" style={{ marginBottom: 20 }}>
@@ -511,67 +603,67 @@ export default async function InstructorTrainingPage() {
           Watch each module video to completion. Quiz-required modules also need a passing score.
         </p>
 
-        {/* Kanban columns */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginTop: 16 }}>
-          {/* Not Started */}
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--border)", display: "inline-block" }} />
-              <span style={{ fontWeight: 600, fontSize: 13 }}>
-                Not Started ({moduleCards.filter((c) => !c.fullyComplete && c.assignment?.status !== "IN_PROGRESS").length})
-              </span>
-            </div>
-            <div style={{ display: "grid", gap: 10 }}>
-              {moduleCards
-                .filter((c) => !c.fullyComplete && c.assignment?.status !== "IN_PROGRESS")
-                .map((card) => (
-                  <KanbanCard key={card.module.id} card={card} />
-                ))}
-              {moduleCards.filter((c) => !c.fullyComplete && c.assignment?.status !== "IN_PROGRESS").length === 0 && (
-                <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>None</p>
-              )}
-            </div>
-          </div>
-
-          {/* In Progress */}
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#6366f1", display: "inline-block" }} />
-              <span style={{ fontWeight: 600, fontSize: 13 }}>
-                In Progress ({moduleCards.filter((c) => !c.fullyComplete && c.assignment?.status === "IN_PROGRESS").length})
-              </span>
-            </div>
-            <div style={{ display: "grid", gap: 10 }}>
-              {moduleCards
-                .filter((c) => !c.fullyComplete && c.assignment?.status === "IN_PROGRESS")
-                .map((card) => (
-                  <KanbanCard key={card.module.id} card={card} />
-                ))}
-              {moduleCards.filter((c) => !c.fullyComplete && c.assignment?.status === "IN_PROGRESS").length === 0 && (
-                <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>None yet</p>
-              )}
-            </div>
-          </div>
-
-          {/* Complete */}
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#16a34a", display: "inline-block" }} />
-              <span style={{ fontWeight: 600, fontSize: 13 }}>
-                Complete ({moduleCards.filter((c) => c.fullyComplete).length})
-              </span>
-            </div>
-            <div style={{ display: "grid", gap: 10 }}>
-              {moduleCards
-                .filter((c) => c.fullyComplete)
-                .map((card) => (
-                  <KanbanCard key={card.module.id} card={card} />
-                ))}
-              {moduleCards.filter((c) => c.fullyComplete).length === 0 && (
-                <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>None yet</p>
-              )}
-            </div>
-          </div>
+        {/* Kanban columns — collapse to a single column on narrow screens */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+            gap: 16,
+            marginTop: 16,
+          }}
+        >
+          {(() => {
+            const notStarted = moduleCards.filter(
+              (c) => !c.fullyComplete && c.assignment?.status !== "IN_PROGRESS"
+            );
+            const inProgress = moduleCards.filter(
+              (c) => !c.fullyComplete && c.assignment?.status === "IN_PROGRESS"
+            );
+            const complete = moduleCards.filter((c) => c.fullyComplete);
+            const columns: {
+              key: string;
+              label: string;
+              dotColor: string;
+              cards: ModuleCard[];
+              empty: string;
+            }[] = [
+              { key: "not-started", label: "Not Started", dotColor: "var(--border)", cards: notStarted, empty: "None" },
+              { key: "in-progress", label: "In Progress", dotColor: "#6366f1", cards: inProgress, empty: "None yet" },
+              { key: "complete", label: "Complete", dotColor: "#16a34a", cards: complete, empty: "None yet" },
+            ];
+            return columns.map((column) => (
+              <div key={column.key}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                  <span
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: "50%",
+                      background: column.dotColor,
+                      display: "inline-block",
+                    }}
+                  />
+                  <span style={{ fontWeight: 600, fontSize: 13 }}>
+                    {column.label} ({column.cards.length})
+                  </span>
+                </div>
+                <div style={{ display: "grid", gap: 10 }}>
+                  {column.cards.length === 0 ? (
+                    <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>{column.empty}</p>
+                  ) : (
+                    column.cards.map((card) => (
+                      <KanbanCard
+                        key={card.module.id}
+                        card={card}
+                        readinessCheckPassed={readinessCheckPassed}
+                        readinessCheckModuleId={readinessCheckModuleId}
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
+            ));
+          })()}
         </div>
       </div>
     </div>

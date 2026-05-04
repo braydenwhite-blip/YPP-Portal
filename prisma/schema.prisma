@@ -322,6 +322,7 @@ enum InstructorApplicationStatus {
   APPROVED
   REJECTED
   ON_HOLD
+  WAITLISTED
   WITHDRAWN
 }
 
@@ -368,8 +369,10 @@ enum InterviewerAssignmentRole {
 
 enum ChairDecisionAction {
   APPROVE
+  APPROVE_WITH_CONDITIONS
   REJECT
   HOLD
+  WAITLIST
   REQUEST_INFO
   REQUEST_SECOND_INTERVIEW
 }
@@ -1105,6 +1108,12 @@ model User {
   interviewerAssignedByAssignments InstructorApplicationInterviewer[]    @relation("InterviewerAssignedBy")
   applicantDocumentsUploaded       ApplicantDocument[]                   @relation("ApplicantDocUploader")
   chairDecisionsMade               InstructorApplicationChairDecision[]  @relation("ChairDecisions")
+  chairDrafts                      InstructorApplicationChairDraft[]     @relation("ChairDrafts")
+  chairDecisionCommitAttempts      ChairDecisionCommitAttempt[]          @relation("ChairDecisionCommitAttempts")
+  reviewSignalsAuthored            ReviewSignal[]                        @relation("ReviewSignalAuthor")
+  reviewSignalsPinned              ReviewSignal[]                        @relation("ReviewSignalPinnedBy")
+  reviewSignalsResolved            ReviewSignal[]                        @relation("ReviewSignalResolvedBy")
+  reviewSignalMentions             ReviewSignalMention[]                 @relation("ReviewSignalMentionedUser")
   applicantTimelineEvents          InstructorApplicationTimelineEvent[]  @relation("TimelineActor")
   reviewsLastEdited                InstructorApplicationReview[]         @relation("ReviewLastEditor")
   reviewRevisionsMade              InstructorApplicationReviewRevision[] @relation("ReviewRevisionEditor")
@@ -1681,6 +1690,9 @@ model InstructorApplication {
   interviewerAssignments  InstructorApplicationInterviewer[]
   documents               ApplicantDocument[]
   chairDecisions          InstructorApplicationChairDecision[]
+  chairDrafts             InstructorApplicationChairDraft[]
+  chairCommitAttempts     ChairDecisionCommitAttempt[]
+  reviewSignals           ReviewSignal[]
   timeline                InstructorApplicationTimelineEvent[]
 
   // --- Notification failure tracking ---
@@ -1938,11 +1950,51 @@ model InstructorApplicationChairDecision {
   action          ChairDecisionAction
   rationale       String?
   comparisonNotes String?
+  conditions      Json?
   decidedAt       DateTime              @default(now())
   supersededAt    DateTime?
 
   @@index([applicationId, decidedAt])
   @@index([chairId])
+}
+
+/// Persisted draft rationale per (application, chair). The cockpit's
+/// DraftRationaleField autosaves into this table via saveChairDraft().
+/// One row per (applicationId, chairId).
+model InstructorApplicationChairDraft {
+  id              String                @id @default(cuid())
+  applicationId   String
+  application     InstructorApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  chairId         String
+  chair           User                  @relation("ChairDrafts", fields: [chairId], references: [id], onDelete: Cascade)
+  rationale       String                @default("")
+  comparisonNotes String                @default("")
+  savedAt         DateTime              @default(now()) @updatedAt
+
+  @@unique([applicationId, chairId])
+  @@index([chairId])
+}
+
+/// Records every chairDecide() commit attempt keyed by client-generated
+/// idempotency key. Lets the server detect replays after a network drop and
+/// return the prior result instead of double-committing.
+model ChairDecisionCommitAttempt {
+  id                String                @id @default(cuid())
+  idempotencyKey    String                @unique
+  applicationId     String
+  application       InstructorApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  chairId           String
+  chair             User                  @relation("ChairDecisionCommitAttempts", fields: [chairId], references: [id], onDelete: Cascade)
+  action            ChairDecisionAction
+  result            String                // "SUCCESS" | "FAILED"
+  decidedAt         DateTime?
+  errorCode         String?
+  errorMessage      String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  @@index([applicationId, createdAt])
+  @@index([chairId, createdAt])
 }
 
 model InstructorApplicationTimelineEvent {
@@ -1957,6 +2009,71 @@ model InstructorApplicationTimelineEvent {
 
   @@index([applicationId, createdAt])
   @@index([actorId])
+}
+
+enum ReviewSignalKind {
+  COMMENT
+  PIN_NOTE
+  HIGHLIGHT
+  CONCERN
+  CONSENSUS_NOTE
+}
+
+enum ReviewSignalSentiment {
+  STRONG_HIRE
+  HIRE
+  MIXED
+  CONCERN
+  REJECT
+}
+
+/// Unified reviewer/chair signal for the Final Review Cockpit (§15).
+/// Generalises threaded comments, pinned notes, highlights, and chair
+/// observations into one stream so the cockpit's feed, pinned rail, and
+/// audit drawer all read from the same shape.
+model ReviewSignal {
+  id              String                  @id @default(cuid())
+  applicationId   String
+  application     InstructorApplication   @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  authorId        String
+  author          User                    @relation("ReviewSignalAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  kind            ReviewSignalKind        @default(COMMENT)
+  sentiment       ReviewSignalSentiment?
+  body            String
+  pinned          Boolean                 @default(false)
+  pinnedAt        DateTime?
+  pinnedById      String?
+  pinnedBy        User?                   @relation("ReviewSignalPinnedBy", fields: [pinnedById], references: [id])
+  parentId        String?
+  parent          ReviewSignal?           @relation("ReviewSignalReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies         ReviewSignal[]          @relation("ReviewSignalReplies")
+  mentions        ReviewSignalMention[]   @relation("ReviewSignalMentions")
+  resolvedAt      DateTime?
+  resolvedById    String?
+  resolvedBy      User?                   @relation("ReviewSignalResolvedBy", fields: [resolvedById], references: [id])
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@index([applicationId, createdAt])
+  @@index([applicationId, pinned])
+  @@index([authorId])
+  @@index([parentId])
+}
+
+/// @mention edge between a `ReviewSignal` and a mentioned user. Drives the
+/// notification fan-out in `lib/notifications.ts` via the new
+/// REVIEW_MENTION notification type. Composite primary key prevents
+/// duplicate mentions on the same signal.
+model ReviewSignalMention {
+  signalId    String
+  signal      ReviewSignal @relation("ReviewSignalMentions", fields: [signalId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User         @relation("ReviewSignalMentionedUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime     @default(now())
+  acknowledgedAt DateTime?
+
+  @@id([signalId, userId])
+  @@index([userId, acknowledgedAt])
 }
 
 model TrainingCheckpoint {

@@ -184,5 +184,8 @@ export function validateSubmittedQuestionResponses(
     if (!question.notes) {
       throw new Error("Every asked interview question must include interviewer notes before submission.");
     }
+    if (!question.rating) {
+      throw new Error("Every asked interview question must include a live score before submission.");
+    }
   }
 }
