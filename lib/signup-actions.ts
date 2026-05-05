@@ -14,6 +14,7 @@ import {
 } from "@/lib/application-schemas";
 import { pickFormFields, type SignupFormState } from "@/lib/signup-form-utils";
 import { SUMMER_WORKSHOP_TIMELINE_KINDS } from "@/lib/summer-workshop";
+import { isRegularInstructorEnabled } from "@/lib/feature-flags";
 
 type FormState = SignupFormState;
 
@@ -113,10 +114,17 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
     // Track selection: applicants choose either standard or summer workshop.
     // Default to standard for any unrecognized value, preserving legacy behavior.
     const applicationTrackRaw = getString(formData, "applicationTrack", false).toUpperCase();
-    const applicationTrack: ApplicationTrack =
+    let applicationTrack: ApplicationTrack =
       applicationTrackRaw === "SUMMER_WORKSHOP_INSTRUCTOR"
         ? ApplicationTrack.SUMMER_WORKSHOP_INSTRUCTOR
         : ApplicationTrack.STANDARD_INSTRUCTOR;
+
+    // Temporary gate: while the regular Instructor program is paused, all
+    // new applications are routed to the Summer Workshop track regardless
+    // of any (cached or crafted) form value. Reversible via env flag.
+    if (!isRegularInstructorEnabled()) {
+      applicationTrack = ApplicationTrack.SUMMER_WORKSHOP_INSTRUCTOR;
+    }
     const isSummerWorkshop = applicationTrack === ApplicationTrack.SUMMER_WORKSHOP_INSTRUCTOR;
 
     if (primaryRole === RoleType.APPLICANT) {
