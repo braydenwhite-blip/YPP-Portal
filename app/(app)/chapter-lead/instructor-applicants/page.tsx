@@ -7,6 +7,8 @@ import {
   getArchivedApplications,
 } from "@/lib/instructor-applicant-board-queries";
 import InstructorApplicantsCommandCenter from "@/components/instructor-applicants/InstructorApplicantsCommandCenter";
+import ApplicantPipelineOverview from "@/components/instructor-applicants/ApplicantPipelineOverview";
+import { type FunnelCounts } from "@/components/instructor-applicants/PipelineFunnelChart";
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
 
 const DEMO_PIPELINE_TAKE = 48;
@@ -101,6 +103,7 @@ export default async function ChapterLeadInstructorApplicantsPage({
   let archiveResult: Awaited<ReturnType<typeof getArchivedApplications>>;
   let reviewerUsers: Awaited<ReturnType<typeof loadReviewerUsers>>;
   let interviewerUsers: Awaited<ReturnType<typeof loadInterviewerUsers>>;
+  let funnelCounts: FunnelCounts = {};
 
   if (hiringDemoMode) {
     [pipelineResult, reviewerUsers] = await Promise.all([
@@ -115,7 +118,16 @@ export default async function ChapterLeadInstructorApplicantsPage({
     archiveResult = { items: [], total: 0, skip: 0, take: 0 };
     interviewerUsers = reviewerUsers;
   } else {
-    [pipelineResult, archiveResult, reviewerUsers, interviewerUsers] = await Promise.all([
+    const funnelGroupBy =
+      chapterId != null
+        ? prisma.instructorApplication.groupBy({
+            by: ["status"],
+            _count: true,
+            where: { archivedAt: null, applicant: { chapterId } },
+          })
+        : Promise.resolve([] as Awaited<ReturnType<typeof prisma.instructorApplication.groupBy>>);
+
+    const [pipelineRes, archiveRes, reviewerRes, interviewerRes, funnelRes] = await Promise.all([
       getApplicantPipeline({
         scope: "chapter",
         chapterId,
@@ -124,7 +136,14 @@ export default async function ChapterLeadInstructorApplicantsPage({
       getArchivedApplications({ scope: "chapter", chapterId }),
       loadReviewerUsers(),
       loadInterviewerUsers(),
+      funnelGroupBy,
     ]);
+
+    pipelineResult = pipelineRes;
+    archiveResult = archiveRes;
+    reviewerUsers = reviewerRes;
+    interviewerUsers = interviewerRes;
+    funnelCounts = Object.fromEntries(funnelRes.map((row) => [row.status, row._count])) as FunnelCounts;
   }
 
   const pipelineApps = (Object.values(pipelineResult.columns).flat() as any[]);
@@ -200,24 +219,15 @@ export default async function ChapterLeadInstructorApplicantsPage({
         </div>
       </div>
 
-      <div className="grid four applicant-command-kpis">
-        <div className="card kpi applicant-command-kpi">
-          <div className="kpi-value">{newCount}</div>
-          <div className="kpi-label">New Applications</div>
-        </div>
-        <div className="card kpi applicant-command-kpi">
-          <div className="kpi-value">{toReviewCount}</div>
-          <div className="kpi-label">Needs Review</div>
-        </div>
-        <div className="card kpi applicant-command-kpi">
-          <div className="kpi-value">{toInterviewCount}</div>
-          <div className="kpi-label">In Interview Stage</div>
-        </div>
-        <div className="card kpi applicant-command-kpi">
-          <div className="kpi-value">{postInterviewCount}</div>
-          <div className="kpi-label">Post-Interview</div>
-        </div>
-      </div>
+      <ApplicantPipelineOverview
+        filteredCounts={{
+          newApplications: newCount,
+          needsReview: toReviewCount,
+          interviewStage: toInterviewCount,
+          postInterview: postInterviewCount,
+        }}
+        funnelCounts={funnelCounts}
+      />
 
       <InstructorApplicantsCommandCenter
         scope="chapter"
