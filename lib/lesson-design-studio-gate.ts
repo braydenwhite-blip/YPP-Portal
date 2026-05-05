@@ -17,7 +17,9 @@
  * route hard-gate all share one decision source.
  */
 
-export const READINESS_CHECK_MODULE_KEY = "academy_readiness_check_005";
+// Re-exported from the central training constants module so consumers can
+// continue importing this name from either location during migration.
+export { READINESS_CHECK_MODULE_KEY } from "@/lib/training-constants";
 
 export type LessonDesignStudioGateReason =
   | "READY"

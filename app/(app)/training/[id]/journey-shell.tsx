@@ -16,6 +16,7 @@ import { useState, useEffect, useCallback } from "react";
 
 import type { JourneySnapshot, JourneyCompletionSummary } from "@/lib/training-journey/client-contracts";
 import { submitBeatAttempt, completeInteractiveJourney, resumeInteractiveJourney } from "@/lib/training-journey/actions";
+import { READINESS_CHECK_MODULE_KEY } from "@/lib/training-constants";
 
 import { MotionProvider } from "@/components/training/journey/MotionProvider";
 import { JourneyIntro } from "@/components/training/journey/JourneyIntro";
@@ -42,6 +43,7 @@ type Phase = "intro" | "player" | "complete";
 export function JourneyShell({
   snapshot,
   backHref,
+  backLabel,
   nextModule,
 }: JourneyShellProps) {
   // Determine initial phase: skip straight to "complete" if already passed.
@@ -123,7 +125,10 @@ export function JourneyShell({
           estimatedMinutes={snapshot.estimatedMinutes}
           beatCount={snapshot.beats.length}
           backHref={backHref}
+          backLabel={backLabel}
           mode={introMode}
+          strictMode={snapshot.strictMode}
+          passScorePct={snapshot.passScorePct}
           onStart={() => setPhase("player")}
         />
       )}
@@ -150,6 +155,12 @@ export function JourneyShell({
           title={snapshot.title}
           backHref={backHref}
           nextModule={nextModule}
+          unlocksLessonDesignStudio={
+            // Readiness Check is the LDS gate — surface that connection
+            // explicitly so learners know what they just unlocked.
+            snapshot.contentKey === READINESS_CHECK_MODULE_KEY &&
+            resolvedCompletion.passed === true
+          }
         />
       )}
     </MotionProvider>

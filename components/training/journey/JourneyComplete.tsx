@@ -28,6 +28,12 @@ export type JourneyCompleteProps = {
   title: string;
   backHref: string;
   nextModule: { id: string; title: string } | null;
+  /**
+   * When the just-completed module is the Readiness Check (M5), pass this so
+   * the success screen surfaces a clear LDS-unlock CTA instead of just "next
+   * module". Use `null` when the gate is irrelevant or the journey is not M5.
+   */
+  unlocksLessonDesignStudio?: boolean;
 };
 
 export function JourneyComplete({
@@ -35,6 +41,7 @@ export function JourneyComplete({
   title,
   backHref,
   nextModule,
+  unlocksLessonDesignStudio = false,
 }: JourneyCompleteProps) {
   const { variants, reduced } = useJourneyMotion();
 
@@ -130,27 +137,79 @@ export function JourneyComplete({
         <div style={{ marginBottom: 20 }}>
           <p style={{ margin: "0 0 6px", fontSize: 15, color: "var(--ypp-ink)" }}>
             <strong>{firstTryCount}</strong> of <strong>{totalBeats}</strong> correct on the first try
+            {typeof completion.scorePct === "number" ? (
+              <span style={{ color: "var(--muted)" }}> · score {completion.scorePct}%</span>
+            ) : null}
           </p>
           <p style={{ margin: 0, fontSize: 15, color: "var(--ypp-purple)" }}>
             +{completion.xpEarned} XP earned
           </p>
         </div>
 
-        {/* CTAs */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
-          <motion.div {...ctaAnimateProps}>
-            <Link href={backHref} className="button" style={{ display: "block", textAlign: "center" }}>
-              Back to Academy
-            </Link>
-          </motion.div>
+        {/* What's next? — explicit guidance instead of leaving the user wondering */}
+        {unlocksLessonDesignStudio || nextModule ? (
+          <p
+            style={{
+              margin: "0 0 16px",
+              fontSize: 13,
+              color: "var(--muted)",
+              lineHeight: 1.5,
+            }}
+          >
+            {unlocksLessonDesignStudio ? (
+              <>
+                <strong style={{ color: "var(--ypp-purple)" }}>
+                  Lesson Design Studio is unlocked.
+                </strong>{" "}
+                Build your capstone curriculum next.
+              </>
+            ) : (
+              <>Next up: {nextModule!.title}.</>
+            )}
+          </p>
+        ) : null}
 
-          {nextModule && (
+        {/* CTAs — primary CTA leads forward, "Back to Academy" is the secondary action */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
+          {unlocksLessonDesignStudio ? (
+            <motion.div {...ctaAnimateProps}>
+              <Link
+                href="/instructor/lesson-design-studio?entry=training"
+                className="button"
+                style={{ display: "block", textAlign: "center" }}
+              >
+                Open Lesson Design Studio
+              </Link>
+            </motion.div>
+          ) : nextModule ? (
+            <motion.div {...ctaAnimateProps}>
+              <Link
+                href={`/training/${nextModule.id}`}
+                className="button"
+                style={{ display: "block", textAlign: "center" }}
+              >
+                Start next module: {nextModule.title}
+              </Link>
+            </motion.div>
+          ) : (
+            <motion.div {...ctaAnimateProps}>
+              <Link
+                href={backHref}
+                className="button"
+                style={{ display: "block", textAlign: "center" }}
+              >
+                Back to Academy
+              </Link>
+            </motion.div>
+          )}
+
+          {(unlocksLessonDesignStudio || nextModule) && (
             <Link
-              href={`/training/${nextModule.id}`}
+              href={backHref}
               className="button secondary"
               style={{ display: "block", textAlign: "center" }}
             >
-              Start next module: {nextModule.title}
+              Back to Academy
             </Link>
           )}
         </div>
