@@ -97,7 +97,7 @@ const KANBAN_COLUMNS: KanbanColumnDef[] = [
   {
     id: "decided",
     title: "Decided",
-    statuses: ["APPROVED", "REJECTED", "ON_HOLD"],
+    statuses: ["APPROVED", "REJECTED", "ON_HOLD", "WAITLISTED"],
     color: "#71717a",
   },
 ];
@@ -122,6 +122,7 @@ const COLUMN_FOR_STATUS: Record<string, string> = {
   APPROVED: "decided",
   REJECTED: "decided",
   ON_HOLD: "decided",
+  WAITLISTED: "decided",
 };
 
 // Build a flattened column def that handles derived "INTERVIEW_SCHEDULED_READY" logic
@@ -132,7 +133,7 @@ const EXTENDED_COLUMNS: KanbanColumnDef[] = [
   { id: "ready_for_interview", title: "Ready for Interview", statuses: ["INTERVIEW_SCHEDULED_READY"], color: "#059669" },
   { id: "post_interview", title: "Post-Interview", statuses: ["INTERVIEW_COMPLETED"], color: "#4338ca" },
   { id: "chair_review", title: "Chair Review", statuses: ["CHAIR_REVIEW"], color: "#b45309" },
-  { id: "decided", title: "Decided (30d)", statuses: ["APPROVED", "REJECTED", "ON_HOLD"], color: "#71717a" },
+  { id: "decided", title: "Decided (30d)", statuses: ["APPROVED", "REJECTED", "ON_HOLD", "WAITLISTED"], color: "#71717a" },
 ];
 
 type TabValue = "pipeline" | "chair_queue" | "archive";

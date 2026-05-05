@@ -27,7 +27,7 @@ export default async function FinalReviewCockpitPage({
   params: Promise<{ id: string }>;
 }) {
   const session = await getSession();
-  if (!session?.user?.id) redirect("/signin");
+  if (!session?.user?.id) redirect("/login");
 
   if (!isInstructorApplicantWorkflowV1Enabled()) {
     redirect("/admin/instructor-applicants");

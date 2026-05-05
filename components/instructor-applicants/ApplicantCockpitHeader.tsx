@@ -12,7 +12,7 @@ const STEPS: Step[] = [
   { label: "Under Review", statuses: ["UNDER_REVIEW", "INFO_REQUESTED"] },
   { label: "Interview", statuses: ["PRE_APPROVED", "INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED"] },
   { label: "Chair Review", statuses: ["CHAIR_REVIEW"] },
-  { label: "Decision", statuses: ["APPROVED", "REJECTED", "ON_HOLD", "WITHDRAWN"] },
+  { label: "Decision", statuses: ["APPROVED", "REJECTED", "ON_HOLD", "WITHDRAWN", "WAITLISTED"] },
 ];
 
 function getStepIndex(status: InstructorApplicationStatus): number {
@@ -32,6 +32,7 @@ function StatusPill({ status }: { status: InstructorApplicationStatus }) {
     REJECTED: { label: "Not Accepted", cls: "pill-declined" },
     ON_HOLD: { label: "On Hold", cls: "pill-pending" },
     WITHDRAWN: { label: "Withdrawn", cls: "pill-declined" },
+    WAITLISTED: { label: "Waitlisted", cls: "pill-pending" },
   };
   const { label, cls } = map[status] ?? { label: status, cls: "" };
   return <span className={`pill cockpit-hero-status ${cls}`}>{label}</span>;

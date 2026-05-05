@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ChairQueuePage() {
   const session = await getSession();
-  if (!session?.user?.id) redirect("/signin");
+  if (!session?.user?.id) redirect("/login");
 
   if (!isInstructorApplicantWorkflowV1Enabled()) {
     redirect("/admin/instructor-applicants");

@@ -310,6 +310,14 @@ export default async function ApplicationStatusPage() {
                 </p>
               </>
             )}
+            {instructorApp.status === "WAITLISTED" && (
+              <>
+                <h3 className="section-title">Waitlisted</h3>
+                <p style={{ color: "var(--muted)", fontSize: 14 }}>
+                  Thanks for your interest. Your application is on our waitlist while we evaluate openings. We&apos;ll reach out if a spot opens up — no further action is needed from you right now.
+                </p>
+              </>
+            )}
             {instructorApp.status === "APPROVED" && (
               <>
                 <h3 className="section-title" style={{ color: "#16a34a" }}>Approved!</h3>
