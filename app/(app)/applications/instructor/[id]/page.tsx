@@ -13,7 +13,11 @@ import {
   isChapterLead,
   canSeeChairQueue,
 } from "@/lib/chapter-hiring-permissions";
-import { isInstructorApplicantWorkflowV1Enabled } from "@/lib/feature-flags";
+import {
+  canBypassInstructorGate,
+  isInstructorApplicantWorkflowV1Enabled,
+  isRegularInstructorEnabled,
+} from "@/lib/feature-flags";
 import { getCandidateReviewers, getCandidateInterviewers } from "@/lib/instructor-applicant-board-queries";
 import ApplicantCockpitHeader from "@/components/instructor-applicants/ApplicantCockpitHeader";
 import ApplicantCockpitSidebar from "@/components/instructor-applicants/ApplicantCockpitSidebar";
@@ -165,13 +169,13 @@ export default async function ApplicantCockpitPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ notice?: string; reviewWarnings?: string }>;
+  searchParams: Promise<{ notice?: string; reviewWarnings?: string; adminPreview?: string }>;
 }) {
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
   const { id } = await params;
-  const { notice, reviewWarnings } = await searchParams;
+  const { notice, reviewWarnings, adminPreview } = await searchParams;
 
   if (!isInstructorApplicantWorkflowV1Enabled()) {
     redirect("/admin/instructor-applicants");
@@ -180,6 +184,21 @@ export default async function ApplicantCockpitPage({
   const application = await fetchCockpitData(id);
   if (!application) notFound();
   if (!application.applicant) notFound();
+
+  // Temporary gate: standard-track instructor applications are hidden while
+  // the regular Instructor program is paused. Summer Workshop applications
+  // remain accessible. Admins (and `?adminPreview=1`) bypass.
+  if (
+    !isRegularInstructorEnabled() &&
+    application.applicationTrack !== "SUMMER_WORKSHOP_INSTRUCTOR" &&
+    !canBypassInstructorGate({
+      roles: session.user.roles,
+      primaryRole: session.user.primaryRole,
+      adminPreviewParam: adminPreview ?? null,
+    })
+  ) {
+    redirect("/applications/summer-workshop");
+  }
   const currentInterviewerAssignments = application.interviewerAssignments.filter(
     (assignment) => assignment.round === application.interviewRound
   );

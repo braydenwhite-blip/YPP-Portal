@@ -14,6 +14,10 @@ import {
   shouldApplyStudentV1NavFilter,
 } from "@/lib/navigation/student-v1-allowlist";
 import {
+  isRegularInstructorEnabled,
+  isRegularInstructorGatedPath,
+} from "@/lib/feature-flags";
+import {
   applyStudentMinimalSidebarLayout,
   studentMinimalLinkOrderIndex,
 } from "@/lib/navigation/student-v1-nav-layout";
@@ -495,6 +499,17 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
       }
 
       if (ALWAYS_HIDDEN_HREFS.has(item.href)) return false;
+
+      // Temporary gate: hide regular Instructor navigation while paused.
+      // Admin sidebars stay intact so admins can keep managing applicants.
+      if (
+        !isRegularInstructorEnabled() &&
+        !roles.includes("ADMIN") &&
+        primaryRole !== "ADMIN" &&
+        isRegularInstructorGatedPath(item.href)
+      ) {
+        return false;
+      }
       if (input.studentHasChapter && item.href === "/join-chapter") return false;
       if (!hasRoleAccess(item, roles)) return false;
       if (item.hideForPrimaryRoles?.includes(primaryRole)) return false;

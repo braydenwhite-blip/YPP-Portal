@@ -23,6 +23,16 @@ const SECTION_LABELS = ["Account", "Profile", "School", "Teaching", "Availabilit
 
 type ApplicationTrackOption = "STANDARD_INSTRUCTOR" | "SUMMER_WORKSHOP_INSTRUCTOR";
 
+/**
+ * Mirrors the server-side `isRegularInstructorEnabled()` flag for use in
+ * client components. Set `NEXT_PUBLIC_ENABLE_REGULAR_INSTRUCTOR=true` to
+ * restore the standard Instructor track in the signup UI. The server-side
+ * flag in `lib/feature-flags.ts` is the source of truth — this only
+ * controls visibility of the radio.
+ */
+const REGULAR_INSTRUCTOR_ENABLED =
+  process.env.NEXT_PUBLIC_ENABLE_REGULAR_INSTRUCTOR === "true";
+
 const HEAR_ABOUT_OPTIONS = [
   "Word of mouth",
   "TikTok",
@@ -182,16 +192,20 @@ export default function InstructorSignupPage() {
 
   const [hearAbout, setHearAbout] = useState(() => field(d, "hearAboutYPPOption", sf) ?? "");
   const [hearAboutDetail, setHearAboutDetail] = useState(() => field(d, "hearAboutYPPDetail", sf) ?? "");
-  const [applicationTrack, setApplicationTrack] = useState<ApplicationTrackOption>(
-    () => (field(d, "applicationTrack", sf) as ApplicationTrackOption | undefined) ?? "STANDARD_INSTRUCTOR"
-  );
+  const [applicationTrack, setApplicationTrack] = useState<ApplicationTrackOption>(() => {
+    const fromState = field(d, "applicationTrack", sf) as ApplicationTrackOption | undefined;
+    if (!REGULAR_INSTRUCTOR_ENABLED) return "SUMMER_WORKSHOP_INSTRUCTOR";
+    return fromState ?? "STANDARD_INSTRUCTOR";
+  });
   const isSummerWorkshop = applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR";
 
   useEffect(() => {
     setHearAbout(field(d, "hearAboutYPPOption", sf) ?? "");
     setHearAboutDetail(field(d, "hearAboutYPPDetail", sf) ?? "");
     setApplicationTrack(
-      (field(d, "applicationTrack", sf) as ApplicationTrackOption | undefined) ?? "STANDARD_INSTRUCTOR"
+      !REGULAR_INSTRUCTOR_ENABLED
+        ? "SUMMER_WORKSHOP_INSTRUCTOR"
+        : (field(d, "applicationTrack", sf) as ApplicationTrackOption | undefined) ?? "STANDARD_INSTRUCTOR"
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formKey, sf]);
@@ -246,6 +260,26 @@ export default function InstructorSignupPage() {
         </p>
 
         {/* Track selector */}
+        {!REGULAR_INSTRUCTOR_ENABLED ? (
+          <div style={{ marginBottom: 24 }}>
+            <input type="hidden" name="applicationTrack" value="SUMMER_WORKSHOP_INSTRUCTOR" />
+            <div
+              style={{
+                padding: "12px 14px",
+                borderRadius: 10,
+                background: "#f5f3ff",
+                border: "1px solid #ddd6fe",
+                fontSize: 13,
+                lineHeight: 1.5,
+                color: "#5b21b6",
+              }}
+            >
+              <strong>Full Instructor Program coming soon.</strong> Right now we&apos;re
+              only accepting Summer Workshop Instructor applications — short workshops
+              at camps with a path to full Instructor later.
+            </div>
+          </div>
+        ) : (
         <div style={{ marginBottom: 24 }}>
           <div style={SECTION_STYLE}>What are you applying for?</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -291,6 +325,7 @@ export default function InstructorSignupPage() {
             })}
           </div>
         </div>
+        )}
 
         {resumeBanner && (
           <div style={{ marginBottom: 20, padding: "12px 16px", borderRadius: 10, background: "#f5f3ff", border: "1px solid #ddd6fe", fontSize: 13, lineHeight: 1.5 }}>
