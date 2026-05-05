@@ -19,7 +19,10 @@ import {
 import { createOrUpdateStudioLaunchPackage } from "@/lib/curriculum-draft-launch-actions";
 import { syncInstructorGrowthSignalsForInstructor } from "@/lib/instructor-growth-service";
 import { canAccessTrainingLearnerActions } from "@/lib/training-access";
-import { TRACKABLE_REQUIRED_VIDEO_PROVIDERS } from "@/lib/training-constants";
+import {
+  getDraftIdFromEvidenceUrl,
+  TRACKABLE_REQUIRED_VIDEO_PROVIDERS,
+} from "@/lib/training-constants";
 import {
   computeQuizAttemptResult,
   parseQuizAnswers,
@@ -160,17 +163,6 @@ function getNumber(formData: FormData, key: string, fallback = 0) {
   if (!raw || String(raw).trim() === "") return fallback;
   const parsed = Number(raw);
   return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-function getDraftIdFromEvidenceUrl(fileUrl: string | null | undefined) {
-  if (!fileUrl) return null;
-
-  try {
-    const url = new URL(fileUrl, "https://studio.local");
-    return url.searchParams.get("draftId");
-  } catch {
-    return null;
-  }
 }
 
 function buildStudioReviewRubric(formData: FormData) {

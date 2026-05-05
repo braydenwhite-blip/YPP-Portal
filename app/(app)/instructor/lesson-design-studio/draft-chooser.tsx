@@ -221,8 +221,20 @@ export function DraftChooser({
 
         {drafts.length === 0 ? (
           <div className="lds-chooser-empty">
-            <h3>No curricula yet</h3>
-            <p>Start your first curriculum to begin shaping the course map, sessions, and readiness checks.</p>
+            <h3>Start your first curriculum</h3>
+            <p>
+              The Studio walks you through it in four steps:
+            </p>
+            <ol style={{ margin: "8px 0 12px", paddingLeft: 20, lineHeight: 1.7 }}>
+              <li><strong>Course map</strong> — title, age group, duration, outcomes.</li>
+              <li><strong>Sessions</strong> — week-by-week plans with activities and timing.</li>
+              <li><strong>Readiness</strong> — a short self-check that mirrors how reviewers grade you.</li>
+              <li><strong>Review &amp; launch</strong> — submit for review, export, and prep for class.</li>
+            </ol>
+            <p style={{ fontSize: 13, color: "var(--muted)" }}>
+              You can jump back and forth between steps — nothing locks until you submit.
+              Use the &quot;Start Blank Curriculum&quot; button above to begin.
+            </p>
           </div>
         ) : (
           <div className="lds-draft-grid">

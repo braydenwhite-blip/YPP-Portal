@@ -23,7 +23,9 @@ export const M5_READINESS_CHECK: CurriculumDefinition = {
   journey: {
     estimatedMinutes: 9,
     strictMode: true,
-    version: 1,
+    // v2 (audit pass): tightened FILL_IN_BLANK patterns on the "readiness
+    // line" beat so vague answers ("the goal", "the plan") no longer pass.
+    version: 2,
   },
   beats: [
     // -------------------------------------------------------------------------
@@ -397,42 +399,45 @@ export const M5_READINESS_CHECK: CurriculumDefinition = {
       kind: "FILL_IN_BLANK",
       title: "The readiness line",
       prompt:
-        "Complete the sentence: 'I'm ready to teach today because I can name ______.' Type one short phrase.",
+        "Complete the sentence: 'I'm ready to teach today because I can name ______.' Type one short phrase that points to a specific learning goal or what each student is working on.",
       scoringWeight: 10,
       scoringRule: "exact",
       config: {
         prompt:
-          "Complete the sentence: 'I'm ready to teach today because I can name ______.' Type one short phrase.",
+          "Complete the sentence: 'I'm ready to teach today because I can name ______.' Type one short phrase that points to a specific learning goal or what each student is working on.",
         acceptedAnswers: [
           "today's learning goal",
-          "the learning goal",
-          "the goal for today",
-          "today's goal",
-          "the goal and the first activity",
-          "the goal and warm-up",
-          "the goal and how I'll open",
-          "what students will learn",
+          "the learning goal for today",
+          "today's specific learning goal",
+          "the learning goal and the first activity",
+          "the learning goal and the warm-up",
+          "the learning goal and how I'll open",
+          "what each student will learn today",
           "what each student is working on",
           "where each student left off",
         ],
+        // Patterns require an explicit anchor — "learning goal" OR "what/where each
+        // student" — so vague answers ("the goal", "today's plan", "how I feel")
+        // do not pass. The phrase still has to communicate a concrete signal of
+        // readiness, which is the whole point of the beat.
         acceptedPatterns: [
-          "today.?s? (learning )?goal",
-          "the (learning )?goal( for today)?",
-          "what (students|each student) (will|is|are)",
-          "where (each )?student",
+          "today.?s? (specific )?learning goal",
+          "the (specific )?learning goal( for today)?",
+          "what (each )?student (will|is|are) (learn|work|do)",
+          "where (each )?student left off",
         ],
         caseSensitive: false,
         correctFeedback: {
           tone: "correct",
           headline: "That's the line.",
-          body: "If you can name today's goal in one sentence, the rest of the prep tends to fall into place.",
+          body: "If you can name today's learning goal in one sentence, the rest of the prep tends to fall into place.",
         },
         incorrectFeedback: {
           default: {
             tone: "incorrect",
             headline: "Aim narrower.",
-            body: "Readiness is concrete. The strongest answers name today's specific learning goal or what each student is working on — not vibes or general preparedness.",
-            hint: "Name today's learning goal in one short phrase.",
+            body: "Readiness is concrete. The strongest answers name today's specific learning goal or what each student is working on — not vibes, generalities, or 'the plan'.",
+            hint: "Try a phrase that includes 'learning goal' or 'what each student is working on'.",
           },
         },
       },

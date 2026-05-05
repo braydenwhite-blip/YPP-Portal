@@ -40,3 +40,27 @@ export function isTrackableVideoProvider(
 ): boolean {
   return provider != null && TRACKABLE_REQUIRED_VIDEO_PROVIDERS.has(provider);
 }
+
+// ---------------------------------------------------------------------------
+// Evidence URL → curriculum draft id
+// ---------------------------------------------------------------------------
+
+/**
+ * The Lesson Design Studio submits evidence by writing a self-referential URL
+ * back into TrainingEvidenceSubmission.fileUrl with `?draftId=…` so the
+ * reviewer's approval can also flip the underlying CurriculumDraft.
+ *
+ * Centralized so the parser cannot drift between the server action that
+ * applies the side-effect and the reviewer UI that surfaces the preview link.
+ */
+export function getDraftIdFromEvidenceUrl(
+  fileUrl: string | null | undefined
+): string | null {
+  if (!fileUrl) return null;
+  try {
+    const url = new URL(fileUrl, "https://studio.local");
+    return url.searchParams.get("draftId");
+  } catch {
+    return null;
+  }
+}
