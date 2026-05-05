@@ -21,6 +21,8 @@ const initialState: SignupFormState = { status: "idle" as const, message: "" };
 
 const SECTION_LABELS = ["Account", "Profile", "School", "Teaching", "Availability"] as const;
 
+type ApplicationTrackOption = "STANDARD_INSTRUCTOR" | "SUMMER_WORKSHOP_INSTRUCTOR";
+
 const HEAR_ABOUT_OPTIONS = [
   "Word of mouth",
   "TikTok",
@@ -180,10 +182,17 @@ export default function InstructorSignupPage() {
 
   const [hearAbout, setHearAbout] = useState(() => field(d, "hearAboutYPPOption", sf) ?? "");
   const [hearAboutDetail, setHearAboutDetail] = useState(() => field(d, "hearAboutYPPDetail", sf) ?? "");
+  const [applicationTrack, setApplicationTrack] = useState<ApplicationTrackOption>(
+    () => (field(d, "applicationTrack", sf) as ApplicationTrackOption | undefined) ?? "STANDARD_INSTRUCTOR"
+  );
+  const isSummerWorkshop = applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR";
 
   useEffect(() => {
     setHearAbout(field(d, "hearAboutYPPOption", sf) ?? "");
     setHearAboutDetail(field(d, "hearAboutYPPDetail", sf) ?? "");
+    setApplicationTrack(
+      (field(d, "applicationTrack", sf) as ApplicationTrackOption | undefined) ?? "STANDARD_INSTRUCTOR"
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formKey, sf]);
 
@@ -227,10 +236,61 @@ export default function InstructorSignupPage() {
 
       {/* Page body */}
       <div style={{ maxWidth: 820, margin: "0 auto", padding: "40px 32px 80px" }}>
-        <h1 style={{ fontSize: 26, fontWeight: 700, margin: "0 0 8px" }}>Apply to become a YPP instructor.</h1>
-        <p style={{ fontSize: 14, color: "var(--muted)", margin: "0 0 28px", lineHeight: 1.6 }}>
-          Share your background, availability, and a rough class plan so the review team can understand what you want to teach and whether an interview is the right next step.
+        <h1 style={{ fontSize: 26, fontWeight: 700, margin: "0 0 8px" }}>
+          {isSummerWorkshop ? "Apply to be a YPP Summer Workshop Instructor." : "Apply to become a YPP instructor."}
+        </h1>
+        <p style={{ fontSize: 14, color: "var(--muted)", margin: "0 0 24px", lineHeight: 1.6 }}>
+          {isSummerWorkshop
+            ? "Summer Workshop Instructors run short workshops at camps. You won't design a full course at this stage — share a single workshop outline so we can see how you'd run a session. Strong workshop instructors can later be promoted to full Instructor."
+            : "Share your background, availability, and a rough class plan so the review team can understand what you want to teach and whether an interview is the right next step."}
         </p>
+
+        {/* Track selector */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={SECTION_STYLE}>What are you applying for?</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            {(
+              [
+                {
+                  value: "STANDARD_INSTRUCTOR" as const,
+                  title: "Standard Instructor",
+                  blurb: "Design and teach a full YPP course. Includes a curriculum review and the full training pathway.",
+                },
+                {
+                  value: "SUMMER_WORKSHOP_INSTRUCTOR" as const,
+                  title: "Summer Workshop Instructor",
+                  blurb: "Run short workshops at camps. Shorter application, lighter onboarding, and a possible path to full Instructor later.",
+                },
+              ]
+            ).map((opt) => {
+              const selected = applicationTrack === opt.value;
+              return (
+                <label
+                  key={opt.value}
+                  style={{
+                    display: "block",
+                    padding: 14,
+                    borderRadius: 10,
+                    border: selected ? "2px solid #6b21c8" : "1px solid var(--border)",
+                    background: selected ? "#f5f3ff" : "var(--background)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="applicationTrack"
+                    value={opt.value}
+                    checked={selected}
+                    onChange={() => setApplicationTrack(opt.value)}
+                    style={{ marginRight: 8 }}
+                  />
+                  <span style={{ fontWeight: 700, fontSize: 14 }}>{opt.title}</span>
+                  <p style={{ fontSize: 12, color: "var(--muted)", margin: "6px 0 0", lineHeight: 1.5 }}>{opt.blurb}</p>
+                </label>
+              );
+            })}
+          </div>
+        </div>
 
         {resumeBanner && (
           <div style={{ marginBottom: 20, padding: "12px 16px", borderRadius: 10, background: "#f5f3ff", border: "1px solid #ddd6fe", fontSize: 13, lineHeight: 1.5 }}>
@@ -454,63 +514,179 @@ export default function InstructorSignupPage() {
 
           {/* ── 4. Teaching application ── */}
           <div data-signup-section="4">
-            <div style={SECTION_STYLE}>Teaching application</div>
+            <div style={SECTION_STYLE}>{isSummerWorkshop ? "Workshop application" : "Teaching application"}</div>
 
             <label className="form-label">
               Teaching or mentoring experience
-              <textarea className="input" name="teachingExperience" rows={4} required defaultValue={field(d, "teachingExperience", sf)} />
+              <textarea className="input" name="teachingExperience" rows={isSummerWorkshop ? 3 : 4} required defaultValue={field(d, "teachingExperience", sf)} />
+              {isSummerWorkshop && (
+                <span style={HELPER}>
+                  A short paragraph is fine — focus on classroom, camp, tutoring, or coaching experience.
+                </span>
+              )}
             </label>
 
-            <label className="form-label">
-              What class would you like to teach?
-              <input
-                className="input"
-                name="courseIdea"
-                placeholder="e.g. Personal finance for middle school students"
-                required
-                defaultValue={field(d, "courseIdea", sf) ?? field(d, "textbook", sf)}
-              />
-              <span style={HELPER}>
-                Give the review team a clear title or short description of the class you want to lead.
-              </span>
-            </label>
+            {!isSummerWorkshop && (
+              <>
+                <label className="form-label">
+                  What class would you like to teach?
+                  <input
+                    className="input"
+                    name="courseIdea"
+                    placeholder="e.g. Personal finance for middle school students"
+                    required
+                    defaultValue={field(d, "courseIdea", sf) ?? field(d, "textbook", sf)}
+                  />
+                  <span style={HELPER}>
+                    Give the review team a clear title or short description of the class you want to lead.
+                  </span>
+                </label>
+
+                <label className="form-label">
+                  Rough course outline
+                  <textarea
+                    className="input"
+                    name="courseOutline"
+                    rows={5}
+                    required
+                    placeholder={
+                      "List the main topics or units across the full course. Bullet points are great.\n\nExample:\n- Week 1: What is personal finance?\n- Week 2: Budgeting basics\n- Week 3: Saving and investing\n..."
+                    }
+                    defaultValue={field(d, "courseOutline", sf)}
+                  />
+                  <span style={HELPER}>
+                    Share the main topics you would expect to cover. This should be professional enough to review, but it is still only an early outline.
+                  </span>
+                </label>
+
+                <label className="form-label">
+                  First-session sketch
+                  <textarea
+                    className="input"
+                    name="firstClassPlan"
+                    rows={5}
+                    required
+                    placeholder={
+                      "Walk us through how you'd run your very first session.\n\nExample:\n- Open with an icebreaker (5 min)\n- Introduce the course and yourself (10 min)\n- Teach the first concept with examples (20 min)\n- Q&A and wrap-up (10 min)"
+                    }
+                    defaultValue={field(d, "firstClassPlan", sf)}
+                  />
+                  <span style={HELPER}>
+                    Describe how you would open the first session, what you would teach first, and how you would close.
+                  </span>
+                </label>
+              </>
+            )}
+
+            {isSummerWorkshop && (
+              <div style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", marginTop: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Workshop Outline</div>
+                <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 14px", lineHeight: 1.5 }}>
+                  Sketch one short workshop you'd run at a camp. This replaces the full course outline — you do not need to design a multi-week curriculum.
+                </p>
+
+                <label className="form-label">
+                  Workshop title
+                  <input
+                    className="input"
+                    name="workshopTitle"
+                    placeholder="e.g. Intro to Public Speaking"
+                    required
+                    defaultValue={field(d, "workshopTitle", sf)}
+                  />
+                </label>
+
+                <div className="grid two">
+                  <label className="form-label">
+                    Age range
+                    <input
+                      className="input"
+                      name="workshopAgeRange"
+                      placeholder="e.g. Grades 6–8"
+                      required
+                      defaultValue={field(d, "workshopAgeRange", sf)}
+                    />
+                  </label>
+                  <label className="form-label">
+                    Duration (minutes)
+                    <input
+                      className="input"
+                      name="workshopDurationMinutes"
+                      type="number"
+                      min={15}
+                      max={240}
+                      placeholder="e.g. 45"
+                      required
+                      defaultValue={field(d, "workshopDurationMinutes", sf)}
+                    />
+                  </label>
+                </div>
+
+                <label className="form-label">
+                  Learning goals
+                  <textarea
+                    className="input"
+                    name="workshopLearningGoals"
+                    rows={3}
+                    required
+                    placeholder={"One per line. 1–3 short bullets are great.\nExample:\n- Identify a persuasive opening\n- Practice eye contact\n- Deliver a 60-second talk"}
+                    defaultValue={field(d, "workshopLearningGoals", sf)}
+                  />
+                  <span style={HELPER}>One per line.</span>
+                </label>
+
+                <label className="form-label">
+                  Activity flow
+                  <textarea
+                    className="input"
+                    name="workshopActivityFlow"
+                    rows={4}
+                    required
+                    placeholder={"Bullet the rough flow of the workshop.\nExample:\n- Hook (5 min)\n- Mini-lesson (10 min)\n- Activity (20 min)\n- Share-outs (10 min)"}
+                    defaultValue={field(d, "workshopActivityFlow", sf)}
+                  />
+                </label>
+
+                <label className="form-label">
+                  Materials needed
+                  <textarea
+                    className="input"
+                    name="workshopMaterialsNeeded"
+                    rows={2}
+                    placeholder={"Optional. One per line.\nExample:\n- Index cards\n- Markers"}
+                    defaultValue={field(d, "workshopMaterialsNeeded", sf)}
+                  />
+                  <span style={HELPER}>Optional. One per line.</span>
+                </label>
+
+                <label className="form-label">
+                  Engagement hook
+                  <textarea
+                    className="input"
+                    name="workshopEngagementHook"
+                    rows={3}
+                    required
+                    placeholder="How will you grab attention in the first 5 minutes?"
+                    defaultValue={field(d, "workshopEngagementHook", sf)}
+                  />
+                </label>
+
+                <label className="form-label">
+                  Adapting on the fly
+                  <textarea
+                    className="input"
+                    name="workshopAdaptationNotes"
+                    rows={3}
+                    required
+                    placeholder="If energy or skill levels are mixed, how do you adapt?"
+                    defaultValue={field(d, "workshopAdaptationNotes", sf)}
+                  />
+                </label>
+              </div>
+            )}
 
             <label className="form-label">
-              Rough course outline
-              <textarea
-                className="input"
-                name="courseOutline"
-                rows={5}
-                required
-                placeholder={
-                  "List the main topics or units across the full course. Bullet points are great.\n\nExample:\n- Week 1: What is personal finance?\n- Week 2: Budgeting basics\n- Week 3: Saving and investing\n..."
-                }
-                defaultValue={field(d, "courseOutline", sf)}
-              />
-              <span style={HELPER}>
-                Share the main topics you would expect to cover. This should be professional enough to review, but it is still only an early outline.
-              </span>
-            </label>
-
-            <label className="form-label">
-              First-session sketch
-              <textarea
-                className="input"
-                name="firstClassPlan"
-                rows={5}
-                required
-                placeholder={
-                  "Walk us through how you'd run your very first session.\n\nExample:\n- Open with an icebreaker (5 min)\n- Introduce the course and yourself (10 min)\n- Teach the first concept with examples (20 min)\n- Q&A and wrap-up (10 min)"
-                }
-                defaultValue={field(d, "firstClassPlan", sf)}
-              />
-              <span style={HELPER}>
-                Describe how you would open the first session, what you would teach first, and how you would close.
-              </span>
-            </label>
-
-            <label className="form-label">
-              Optional written motivation
+              {isSummerWorkshop ? "Optional motivation" : "Optional written motivation"}
               <textarea className="input" name="motivation" rows={3} defaultValue={field(d, "motivation", sf)} />
             </label>
           </div>
@@ -556,7 +732,7 @@ export default function InstructorSignupPage() {
           )}
 
           <button className="button" type="submit" style={{ marginTop: 24, width: "100%" }}>
-            Submit Application
+            {isSummerWorkshop ? "Submit Workshop Instructor Application" : "Submit Application"}
           </button>
         </form>
 

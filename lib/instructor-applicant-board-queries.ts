@@ -7,7 +7,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
-import { InstructorApplicationStatus } from "@prisma/client";
+import { InstructorApplicationStatus, ApplicationTrack } from "@prisma/client";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -19,6 +19,11 @@ export type PipelineFilters = {
   materialsMissing?: boolean;
   overdueOnly?: boolean;
   myCasesActorId?: string;
+  /**
+   * Optional filter on `applicationTrack`. Omit (or pass undefined) to show
+   * applicants from both tracks. Used by the new admin board filter chip.
+   */
+  applicationTrack?: ApplicationTrack;
 };
 
 export type DerivedColumn =
@@ -45,6 +50,9 @@ const PIPELINE_SELECT = {
   chairQueuedAt: true,
   createdAt: true,
   updatedAt: true,
+  applicationTrack: true,
+  instructorSubtype: true,
+  workshopOutline: true,
   applicant: {
     select: {
       id: true,
@@ -185,6 +193,10 @@ export async function getApplicantPipeline({
     where.status = {
       in: ["INTERVIEW_SCHEDULED", "PRE_APPROVED"] as InstructorApplicationStatus[],
     };
+  }
+
+  if (filters.applicationTrack) {
+    where.applicationTrack = filters.applicationTrack;
   }
 
   if (filters.myCasesActorId) {
@@ -430,6 +442,9 @@ export async function getArchivedApplications({
         archivedAt: true,
         updatedAt: true,
         subjectsOfInterest: true,
+        applicationTrack: true,
+        instructorSubtype: true,
+        workshopOutline: true,
         applicant: {
           select: { id: true, name: true, chapterId: true, chapter: { select: { name: true } } },
         },

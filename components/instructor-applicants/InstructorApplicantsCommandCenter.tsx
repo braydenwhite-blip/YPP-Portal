@@ -35,6 +35,9 @@ type PipelineApp = {
   }>;
   chairDecision?: { action: string; decidedAt: Date | string } | null;
   updatedAt: Date | string;
+  applicationTrack?: string;
+  instructorSubtype?: string;
+  workshopOutlinePresent?: boolean;
 };
 
 type FilterUser = { id: string; name: string | null; email: string };
@@ -163,6 +166,15 @@ export default function InstructorApplicantsCommandCenter({
     router.replace(`?${params.toString()}`, { scroll: false });
   }
 
+  // Track filter ("track" URL param). Values: "" (all) | "standard" | "summer_workshop".
+  const activeTrack = (searchParams.get("track") ?? "").toLowerCase();
+  function setTrackFilter(value: "" | "standard" | "summer_workshop") {
+    const params = new URLSearchParams(searchParams.toString());
+    if (!value) params.delete("track");
+    else params.set("track", value);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }
+
   // Enrich apps with derived status for kanban column mapping
   const kanbanItems = useMemo(
     () =>
@@ -226,6 +238,43 @@ export default function InstructorApplicantsCommandCenter({
       {/* Pipeline tab */}
       {activeTab === "pipeline" && (
         <div role="tabpanel" aria-label="Pipeline view" className="applicant-command-panel">
+          {/* Applicant type filter (Standard / Summer Workshop) */}
+          <div
+            role="group"
+            aria-label="Filter by applicant type"
+            style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}
+          >
+            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Type
+            </span>
+            {([
+              { value: "", label: "All" },
+              { value: "standard", label: "Standard" },
+              { value: "summer_workshop", label: "Summer Workshop" },
+            ] as const).map((opt) => {
+              const active = activeTrack === opt.value;
+              return (
+                <button
+                  key={opt.value || "all"}
+                  type="button"
+                  onClick={() => setTrackFilter(opt.value)}
+                  aria-pressed={active}
+                  style={{
+                    fontSize: 12,
+                    padding: "4px 10px",
+                    borderRadius: 999,
+                    border: active ? "1px solid #6b21c8" : "1px solid var(--border)",
+                    background: active ? "#f5f3ff" : "var(--background)",
+                    color: active ? "#6b21c8" : "var(--foreground)",
+                    cursor: "pointer",
+                    fontWeight: active ? 700 : 500,
+                  }}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
           <ApplicantCommandFilters
             isAdmin={isAdmin}
             chapters={chapters}

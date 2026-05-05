@@ -200,6 +200,22 @@ export default async function InstructorTrainingPage({
     availabilityRequests: [],
   };
 
+  // Look up the instructor's subtype (summer workshop vs standard) so we can
+  // route them to the lighter onboarding when applicable.
+  // Best-effort: if the application can't be loaded, fall back to STANDARD.
+  const instructorSubtype = await withPrismaFallback(
+    "instructor-training:subtype",
+    async () => {
+      const app = await prisma.instructorApplication.findUnique({
+        where: { applicantId: instructorId },
+        select: { instructorSubtype: true },
+      });
+      return app?.instructorSubtype ?? "STANDARD";
+    },
+    "STANDARD" as const
+  );
+  const isSummerWorkshopInstructor = instructorSubtype === "SUMMER_WORKSHOP";
+
   const [
     modules,
     assignments,
@@ -300,7 +316,14 @@ export default async function InstructorTrainingPage({
     }
   }
 
-  const moduleCards: ModuleCard[] = modules.map((module) => {
+  // Summer workshop instructors don't need the Lesson Design Studio capstone
+  // at this stage — they run pre-scoped workshops, not full curriculum.
+  // Filter the LDS module out of their training feed (plan §8).
+  const visibleModules = isSummerWorkshopInstructor
+    ? modules.filter((m) => m.contentKey !== LESSON_DESIGN_STUDIO_MODULE_KEY)
+    : modules;
+
+  const moduleCards: ModuleCard[] = visibleModules.map((module) => {
     const assignment = assignmentByModule.get(module.id);
     const progress = videoByModule.get(module.id);
     const latestQuiz = latestQuizByModule.get(module.id);
@@ -388,6 +411,26 @@ export default async function InstructorTrainingPage({
           <p className="page-subtitle">Complete all required modules to unlock offering approval readiness and the interview gate.</p>
         </div>
       </div>
+
+      {isSummerWorkshopInstructor && (
+        <div
+          className="card"
+          role="status"
+          style={{
+            marginBottom: 16,
+            borderColor: "#a78bfa",
+            background: "#f5f3ff",
+          }}
+        >
+          <p style={{ margin: 0, fontSize: 13, color: "#5b21b6", lineHeight: 1.55 }}>
+            <strong>Summer Workshop Instructor track.</strong>{" "}
+            You're on the lighter onboarding path: core expectations,
+            safety/professionalism, workshop delivery basics, and engagement tactics for camp
+            settings. The Lesson Design Studio capstone is not required at this stage and is
+            hidden — it becomes a follow-up if you're later promoted to full Instructor.
+          </p>
+        </div>
+      )}
 
       {showLdsLockedBanner && !readinessCheckPassed ? (
         <div

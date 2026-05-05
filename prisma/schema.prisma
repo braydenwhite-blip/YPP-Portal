@@ -326,6 +326,22 @@ enum InstructorApplicationStatus {
   WITHDRAWN
 }
 
+/// Subtype on the instructor side. `STANDARD` is the default and represents
+/// the existing full instructor pathway. `SUMMER_WORKSHOP` is a lightweight
+/// short-term camp/workshop instructor that can later be promoted to STANDARD.
+enum InstructorSubtype {
+  STANDARD
+  SUMMER_WORKSHOP
+}
+
+/// Application track chosen by the applicant. Drives form variant + admin
+/// filter. Mirrors `InstructorSubtype` so the discriminator stays consistent
+/// between the application stage and the post-acceptance instructor record.
+enum ApplicationTrack {
+  STANDARD_INSTRUCTOR
+  SUMMER_WORKSHOP_INSTRUCTOR
+}
+
 enum StructuredReviewStatus {
   DRAFT
   SUBMITTED
@@ -1100,6 +1116,7 @@ model User {
   instructorApplication            InstructorApplication?                @relation("InstructorApplications")
   instructorApplicationsReviewed   InstructorApplication[]               @relation("InstructorApplicationReviews")
   instructorApplicationsAssignedBy InstructorApplication[]               @relation("InstructorApplicationReviewerAssignedBy")
+  instructorApplicationsSubtypeChangedBy InstructorApplication[]         @relation("InstructorApplicationSubtypeChangedBy")
   instructorApplicationReviews     InstructorApplicationReview[]         @relation("InstructorApplicationStructuredReviews")
   instructorInterviewReviews       InstructorInterviewReview[]           @relation("InstructorInterviewStructuredReviews")
   offeredInterviewSlots            OfferedInterviewSlot[]                @relation("OfferedInterviewSlots")
@@ -1699,6 +1716,19 @@ model InstructorApplication {
   lastNotificationError   String?   @db.Text
   lastNotificationErrorAt DateTime?
 
+  // --- Summer Workshop Instructor pathway (subtype, additive) ---
+  // `applicationTrack` is set at submission and drives form variant + admin filter.
+  // `instructorSubtype` is the post-acceptance subtype on the instructor side.
+  // `workshopOutline` is a structured JSON payload required for summer workshop applicants.
+  // `promotionEligibility` tracks readiness to be promoted from summer workshop -> standard.
+  applicationTrack       ApplicationTrack  @default(STANDARD_INSTRUCTOR)
+  instructorSubtype      InstructorSubtype @default(STANDARD)
+  workshopOutline        Json?
+  promotionEligibility   Json?
+  subtypeChangedAt       DateTime?
+  subtypeChangedById     String?
+  subtypeChangedBy       User?             @relation("InstructorApplicationSubtypeChangedBy", fields: [subtypeChangedById], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1711,6 +1741,8 @@ model InstructorApplication {
   @@index([chairQueuedAt])
   @@index([archivedAt])
   @@index([interviewRound])
+  @@index([applicationTrack])
+  @@index([instructorSubtype])
 }
 
 model InstructorApplicationReview {

@@ -38,6 +38,7 @@ import {
   parseInterviewQuestionResponses,
   type LiveQuestionResponsePayload,
 } from "@/lib/instructor-interview-live";
+import { SUMMER_WORKSHOP_INTERVIEW_PROMPTS } from "@/lib/summer-workshop";
 
 type ReviewCategoryPayload = {
   category: InstructorReviewCategoryValue;
@@ -673,6 +674,14 @@ export async function getInstructorInterviewReviewWorkspace(applicationId: strin
     myReview?.curriculumDraftId ?? null
   );
 
+  // Append summer-workshop-specific interview prompts when the applicant is
+  // on the SUMMER_WORKSHOP_INSTRUCTOR track. Standard applicants never see
+  // these prompts (plan §7).
+  const augmentedQuestionBank =
+    application.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR"
+      ? [...questionBank, ...SUMMER_WORKSHOP_INTERVIEW_PROMPTS]
+      : questionBank;
+
   return {
     actor,
     application,
@@ -680,7 +689,7 @@ export async function getInstructorInterviewReviewWorkspace(applicationId: strin
     selectedDraftId,
     reviews,
     myReview,
-    questionBank,
+    questionBank: augmentedQuestionBank,
     applicationReviews,
     isLeadReviewer:
       application.reviewerId === session.user.id ||

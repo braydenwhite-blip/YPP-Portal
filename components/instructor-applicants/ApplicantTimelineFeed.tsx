@@ -86,6 +86,20 @@ function eventLabel(kind: string, payload: Record<string, unknown>): string {
       return `Notification delivery failed${payload.emailKind ? ` (${String(payload.emailKind).replace(/_/g, " ")})` : ""}`;
     case "NOTIFICATION_RESENT":
       return `Notification resent${payload.emailKind ? ` (${String(payload.emailKind).replace(/_/g, " ")})` : ""}`;
+    case "TRACK_SELECTED":
+      return `Application track selected${payload.applicationTrack ? `: ${String(payload.applicationTrack).replace(/_/g, " ").toLowerCase()}` : ""}`;
+    case "WORKSHOP_OUTLINE_SUBMITTED":
+      return "Workshop outline submitted";
+    case "WORKSHOP_OUTLINE_UPDATED":
+      return "Workshop outline updated";
+    case "PROMOTION_FLAGGED":
+      return "Flagged for promotion to full Instructor";
+    case "PROMOTED_TO_STANDARD":
+      return "Promoted to full Instructor";
+    case "DEMOTED_TO_SUMMER_WORKSHOP":
+      return "Subtype changed to Summer Workshop";
+    case "SUBTYPE_CHANGED":
+      return `Subtype changed${payload.from && payload.to ? ` (${String(payload.from)} → ${String(payload.to)})` : ""}`;
     default:
       return kind.replace(/_/g, " ");
   }
