@@ -567,11 +567,11 @@ export default async function MentorshipProgramAdminPage({
           system ranks candidates, but you still make the call.
         </p>
         <MatchingPanel
-          key={`${lane}-${focus}-${supportRole}-${searchParams.menteeId ?? "all"}`}
+          key={`${lane}-${focus}-${supportRole}-${resolvedSearchParams.menteeId ?? "all"}`}
           initialLane={lane}
           initialSupportRole={supportRole}
-          initialMenteeId={searchParams.menteeId}
-          autoRun={focus === "matching" || Boolean(searchParams.menteeId)}
+          initialMenteeId={resolvedSearchParams.menteeId}
+          autoRun={focus === "matching" || Boolean(resolvedSearchParams.menteeId)}
         />
       </section>
 

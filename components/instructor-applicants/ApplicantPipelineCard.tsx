@@ -42,6 +42,7 @@ const STATUS_LABELS: Record<string, string> = {
   REJECTED: "Rejected",
   ON_HOLD: "On Hold",
   WITHDRAWN: "Withdrawn",
+  WAITLISTED: "Waitlisted",
 };
 
 interface ApplicantPipelineCardProps {

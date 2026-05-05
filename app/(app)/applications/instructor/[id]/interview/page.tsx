@@ -24,7 +24,7 @@ export default async function InterviewerWorkspacePage({
   params: Promise<{ id: string }>;
 }) {
   const session = await getSession();
-  if (!session?.user?.id) redirect("/signin");
+  if (!session?.user?.id) redirect("/login");
 
   const { id } = await params;
 

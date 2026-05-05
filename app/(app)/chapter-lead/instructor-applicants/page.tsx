@@ -174,6 +174,9 @@ export default async function ChapterLeadInstructorApplicantsPage({
       chairDecision: app.chairDecision
         ? { action: app.chairDecision.action as string, decidedAt: (app.chairDecision.decidedAt as Date).toISOString() }
         : null,
+      applicationTrack: (app.applicationTrack as string) ?? "STANDARD_INSTRUCTOR",
+      instructorSubtype: (app.instructorSubtype as string) ?? "STANDARD",
+      workshopOutlinePresent: !!app.workshopOutline,
     };
   }
 
@@ -199,6 +202,9 @@ export default async function ChapterLeadInstructorApplicantsPage({
     interviewerAssignments: [] as Array<{ id: string; role: string; interviewer: { id: string; name: string | null } }>,
     overdue: false,
     applicationReviews: [] as Array<{ summary: string | null; nextStep: string | null; overallRating: string | null }>,
+    applicationTrack: (app as { applicationTrack?: string }).applicationTrack ?? "STANDARD_INSTRUCTOR",
+    instructorSubtype: (app as { instructorSubtype?: string }).instructorSubtype ?? "STANDARD",
+    workshopOutlinePresent: !!(app as { workshopOutline?: unknown }).workshopOutline,
   }));
 
   const newCount = pipelineResult.columns.new.length;

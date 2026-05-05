@@ -637,7 +637,6 @@ export async function resumeInteractiveJourney(
       attemptNumber: attempt.attemptNumber,
       correct: attempt.correct,
       score: attempt.score,
-      response: attempt.response,
       response: attempt.response ?? null,
     });
   }

@@ -168,7 +168,7 @@ export default async function ApplicantCockpitPage({
   searchParams: Promise<{ notice?: string; reviewWarnings?: string }>;
 }) {
   const session = await getSession();
-  if (!session?.user?.id) redirect("/signin");
+  if (!session?.user?.id) redirect("/login");
 
   const { id } = await params;
   const { notice, reviewWarnings } = await searchParams;
