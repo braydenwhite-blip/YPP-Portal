@@ -706,7 +706,9 @@ export default async function InstructorTrainingPage({
         <div style={{ marginTop: 16 }}>
           <h4 style={{ marginBottom: 8 }}>Posted Interview Slots</h4>
           {postedSlots.length === 0 ? (
-            <p style={{ color: "var(--muted)", marginTop: 0 }}>No posted slots right now.</p>
+            <p style={{ color: "var(--muted)", marginTop: 0, fontSize: 14 }}>
+              No posted slots right now. Request preferred times below — your chapter lead will post matching slots when available.
+            </p>
           ) : (
             <div style={{ display: "grid", gap: 10 }}>
               {postedSlots.map((slot) => (
