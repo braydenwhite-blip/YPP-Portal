@@ -346,7 +346,6 @@ export async function completeInteractiveJourney(
     | { ancestorSourceKey: string; notEquals: string };
 
   function isVisible(beat: (typeof journeyBeats)[number]): boolean {
-  function isVisible(beat: NonNullable<typeof journey>["beats"][number]): boolean {
     const predicate = beat.showWhen as ShowWhen | null | undefined;
     if (!predicate) return true;
     const ancestorId = sourceKeyToBeatId.get(predicate.ancestorSourceKey);
