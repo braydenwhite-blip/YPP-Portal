@@ -43,7 +43,7 @@ test("@smoke approved instructor completes Module 1 end-to-end", async ({
   await expect(
     page.getByRole("heading", { name: /the ypp standard/i })
   ).toBeVisible();
-  await page.getByRole("button", { name: /^(start|resume)$/i }).click();
+  await page.getByRole("button", { name: /^(start|resume|let.s begin|pick up where you left off|review|walk through it again)$/i }).click();
 
   // ── Beat 1: CONCEPT_REVEAL — visit all three panels ──────────────────────
   await expect(
@@ -53,7 +53,7 @@ test("@smoke approved instructor completes Module 1 end-to-end", async ({
     await page.getByRole("tab", { name: tabName }).click();
   }
   await page.getByRole("button", { name: /^check$/i }).click();
-  await page.getByRole("button", { name: /^(next|finish)$/i }).click();
+  await page.getByRole("button", { name: /^(next|next beat|finish|finish module)$/i }).click();
 
   // ── Beat 2: COMPARE — Recap B is correct ─────────────────────────────────
   await expect(
@@ -61,7 +61,7 @@ test("@smoke approved instructor completes Module 1 end-to-end", async ({
   ).toBeVisible();
   await page.getByRole("radio", { name: /recap b/i }).click();
   await page.getByRole("button", { name: /^check$/i }).click();
-  await page.getByRole("button", { name: /^(next|finish)$/i }).click();
+  await page.getByRole("button", { name: /^(next|next beat|finish|finish module)$/i }).click();
 
   // ── Beat 3: SCENARIO_CHOICE — same-day specific reply ────────────────────
   await expect(
@@ -71,7 +71,7 @@ test("@smoke approved instructor completes Module 1 end-to-end", async ({
     .getByRole("radio", { name: /reply same day with two concrete observations/i })
     .click();
   await page.getByRole("button", { name: /^check$/i }).click();
-  await page.getByRole("button", { name: /^(next|finish)$/i }).click();
+  await page.getByRole("button", { name: /^(next|next beat|finish|finish module)$/i }).click();
 
   // ── Beat 4: MULTI_SELECT — the three red flags ───────────────────────────
   await expect(
@@ -85,7 +85,7 @@ test("@smoke approved instructor completes Module 1 end-to-end", async ({
     await page.getByRole("checkbox", { name: optionName }).click();
   }
   await page.getByRole("button", { name: /^check$/i }).click();
-  await page.getByRole("button", { name: /^(next|finish)$/i }).click();
+  await page.getByRole("button", { name: /^(next|next beat|finish|finish module)$/i }).click();
 
   // ── Beat 5: SPOT_THE_MISTAKE — "winging the rest" ────────────────────────
   await expect(
@@ -96,7 +96,7 @@ test("@smoke approved instructor completes Module 1 end-to-end", async ({
     .first()
     .click();
   await page.getByRole("button", { name: /^check$/i }).click();
-  await page.getByRole("button", { name: /^(next|finish)$/i }).click();
+  await page.getByRole("button", { name: /^(next|next beat|finish|finish module)$/i }).click();
 
   // ── Beat 6: SCENARIO_CHOICE — cover the session ──────────────────────────
   await expect(
@@ -106,7 +106,7 @@ test("@smoke approved instructor completes Module 1 end-to-end", async ({
     .getByRole("radio", { name: /offer to cover the session yourself/i })
     .click();
   await page.getByRole("button", { name: /^check$/i }).click();
-  await page.getByRole("button", { name: /^(next|finish)$/i }).click();
+  await page.getByRole("button", { name: /^(next|next beat|finish|finish module)$/i }).click();
 
   // ── Beat 7: REFLECTION — unscored, just needs ≥40 chars ──────────────────
   await expect(
@@ -118,7 +118,7 @@ test("@smoke approved instructor completes Module 1 end-to-end", async ({
       "Follow Through is the hardest — I tend to improvise; I'll block 15 minutes after every class to send the recap."
     );
   await page.getByRole("button", { name: /^check$/i }).click();
-  await page.getByRole("button", { name: /^(next|finish)$/i }).click();
+  await page.getByRole("button", { name: /^(next|next beat|finish|finish module)$/i }).click();
 
   // ── Beat 8: CONCEPT_REVEAL completion trigger — two panels ───────────────
   await expect(
@@ -129,7 +129,7 @@ test("@smoke approved instructor completes Module 1 end-to-end", async ({
   }
   await page.getByRole("button", { name: /^check$/i }).click();
   // Final beat → "Finish" → triggers completeJourneyAction.
-  await page.getByRole("button", { name: /^(next|finish)$/i }).click();
+  await page.getByRole("button", { name: /^(next|next beat|finish|finish module)$/i }).click();
 
   // ── Completion screen ────────────────────────────────────────────────────
   await expect(

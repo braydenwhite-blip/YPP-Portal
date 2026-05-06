@@ -90,14 +90,16 @@ export function BeatActions({
       label = "Check";
       onClick = onCheck;
       disabled = !canSubmit;
-      ariaLabel = canSubmit ? "Check your answer" : "Check your answer (select an answer first)";
+      ariaLabel = canSubmit
+        ? "Check your answer"
+        : "Pick an answer first, then check";
       break;
 
     case "checking":
       label = (
         <>
           <Spinner />
-          Checking…
+          Reading the room…
         </>
       );
       onClick = () => {};
@@ -106,7 +108,7 @@ export function BeatActions({
       break;
 
     case "correct":
-      label = isLastBeat ? "Finish" : "Next";
+      label = isLastBeat ? "Finish module" : "Next beat";
       onClick = onNext;
       disabled = false;
       ariaLabel = isLastBeat ? "Finish the module" : "Go to the next beat";
@@ -114,13 +116,13 @@ export function BeatActions({
 
     case "incorrect":
       if (strictMode) {
-        label = "Next";
+        label = "Move on";
         onClick = onNext;
-        ariaLabel = "Go to the next beat";
+        ariaLabel = "Continue to the next beat";
       } else {
         label = "Try again";
         onClick = onRetry;
-        ariaLabel = "Try the question again";
+        ariaLabel = "Take another shot at this one";
       }
       disabled = false;
       break;
