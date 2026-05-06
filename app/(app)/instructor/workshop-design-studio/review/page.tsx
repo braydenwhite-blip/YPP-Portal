@@ -52,16 +52,21 @@ export default async function WorkshopReviewSubmitPage() {
   }
 
   const template = submission.templateId
-    ? await prisma.workshopProposalTemplate.findUnique({
-        where: { id: submission.templateId },
-        select: {
-          id: true,
-          title: true,
-          category: true,
-          targetAgeRange: true,
-          estimatedMinutes: true,
-        },
-      })
+    ? await withPrismaFallback(
+        "workshop-review:template",
+        () =>
+          prisma.workshopProposalTemplate.findUnique({
+            where: { id: submission.templateId as string },
+            select: {
+              id: true,
+              title: true,
+              category: true,
+              targetAgeRange: true,
+              estimatedMinutes: true,
+            },
+          }),
+        null
+      )
     : null;
 
   const editable = isSubmissionEditable(submission.status);

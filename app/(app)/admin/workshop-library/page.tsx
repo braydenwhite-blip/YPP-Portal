@@ -53,7 +53,7 @@ export default async function AdminWorkshopLibraryPage() {
     approved: templates.filter((t) => t.status === "APPROVED").length,
     draft: templates.filter((t) => t.status === "DRAFT").length,
     archived: templates.filter((t) => t.status === "ARCHIVED").length,
-    submissions: templates.reduce((s, t) => s + t._count.submissions, 0),
+    submissions: templates.reduce((s, t) => s + (t._count?.submissions ?? 0), 0),
   };
 
   return (
@@ -198,8 +198,8 @@ export default async function AdminWorkshopLibraryPage() {
                           color: "var(--muted)",
                         }}
                       >
-                        {t._count.submissions} applicant
-                        {t._count.submissions === 1 ? "" : "s"} chose this ·
+                        {t._count?.submissions ?? 0} applicant
+                        {(t._count?.submissions ?? 0) === 1 ? "" : "s"} chose this ·
                         Updated {new Date(t.updatedAt).toLocaleDateString()}
                         {t.updatedBy ? ` by ${t.updatedBy.name}` : ""}
                       </p>
