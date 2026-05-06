@@ -1205,6 +1205,13 @@ model User {
   interactiveBeatAttempts       InteractiveBeatAttempt[]
   interactiveJourneyCompletions InteractiveJourneyCompletion[]
 
+  // Summer Workshop Instructor pathway
+  workshopProposalTemplatesCreated  WorkshopProposalTemplate[]   @relation("WorkshopProposalTemplatesCreated")
+  workshopProposalTemplatesUpdated  WorkshopProposalTemplate[]   @relation("WorkshopProposalTemplatesUpdated")
+  workshopProposalSubmissions       WorkshopProposalSubmission[] @relation("WorkshopProposalSubmissionsAuthored")
+  workshopProposalSubmissionsReviewed WorkshopProposalSubmission[] @relation("WorkshopProposalSubmissionsReviewed")
+  workshopProposalReviews           WorkshopProposalReview[]     @relation("WorkshopProposalReviewsAuthored")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -10704,4 +10711,200 @@ model InteractiveJourneyCompletion {
 
   @@unique([journeyId, userId])
   @@index([userId, completedAt])
+}
+
+// ============================================
+// SUMMER WORKSHOP INSTRUCTOR — WORKSHOP PROPOSALS
+// ============================================
+//
+// Summer Workshop Instructor applicants finish the same training journeys as
+// standard applicants but submit a one-off "workshop proposal" instead of a
+// full Lesson Design Studio curriculum.
+//
+// Two source paths share one submission table:
+//   * CUSTOM_DESIGN     — applicant authored their own outline in the
+//                         Workshop Design Studio (data lives in `customWorkshop`)
+//   * TEMPLATE_SELECTION — applicant picked one of the admin-curated templates
+//                         in the library and answered the reflection
+//                         questionnaire (the template id + reflection answers
+//                         live on the same row)
+//
+// The naming "WorkshopProposal*" intentionally avoids the existing
+// `WorkshopSeries`/`WorkshopSession`/`WorkshopEnrollment` models, which
+// describe student-facing curriculum content and are unrelated.
+
+/// Lifecycle of an admin-authored workshop template that applicants can pick.
+enum WorkshopProposalTemplateStatus {
+  DRAFT
+  APPROVED
+  ARCHIVED
+}
+
+/// Difficulty scale aligned with the rest of the academy. Mirrors the
+/// CourseConfig difficulty levels so reviewers see consistent labels.
+enum WorkshopProposalDifficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+/// Where the proposal data came from. Drives applicant + reviewer UI.
+enum WorkshopProposalSourceType {
+  CUSTOM_DESIGN
+  TEMPLATE_SELECTION
+}
+
+/// Reviewer-facing lifecycle of an applicant's submission.
+enum WorkshopProposalSubmissionStatus {
+  DRAFT
+  SUBMITTED
+  IN_REVIEW
+  CHANGES_REQUESTED
+  APPROVED
+  REJECTED
+}
+
+/// Per-reviewer overall recommendation. Aggregates above into the parent
+/// submission's status when the reviewer commits a decision.
+enum WorkshopProposalReviewRecommendation {
+  APPROVE
+  REQUEST_CHANGES
+  REJECT
+}
+
+/// Admin-curated workshop in the library. Only `APPROVED` rows are visible
+/// to applicants; `DRAFT` and `ARCHIVED` are hidden in the picker.
+model WorkshopProposalTemplate {
+  id                 String                          @id @default(cuid())
+  title              String
+  category           String
+  /// Free-text age range like "Grades 6–8" or "Ages 10–12".
+  targetAgeRange     String
+  /// Estimated workshop length in minutes. 60 by default.
+  estimatedMinutes   Int                             @default(60)
+  description        String                          @db.Text
+  /// Bullet list rendered as ordered learning objectives.
+  learningObjectives String[]                        @default([])
+  /// Free-form activity plan (markdown allowed). Step-by-step facilitation guide.
+  activityPlan       String                          @db.Text
+  /// Materials checklist; each entry is a single line item.
+  materials          String[]                        @default([])
+  difficulty         WorkshopProposalDifficulty      @default(BEGINNER)
+  tags               String[]                        @default([])
+  status             WorkshopProposalTemplateStatus  @default(DRAFT)
+
+  createdById        String
+  createdBy          User                            @relation("WorkshopProposalTemplatesCreated", fields: [createdById], references: [id])
+  updatedById        String?
+  updatedBy          User?                           @relation("WorkshopProposalTemplatesUpdated", fields: [updatedById], references: [id])
+
+  submissions        WorkshopProposalSubmission[]    @relation("WorkshopProposalSubmissionTemplate")
+
+  createdAt          DateTime                        @default(now())
+  updatedAt          DateTime                        @updatedAt
+  archivedAt         DateTime?
+
+  @@index([status])
+  @@index([category])
+  @@index([difficulty])
+}
+
+/// Applicant's workshop proposal — either their own design or a selected
+/// template + reflection. One submission per applicant; subsequent revisions
+/// update the same row so the audit trail (reviews, history) stays anchored.
+model WorkshopProposalSubmission {
+  id              String                              @id @default(cuid())
+  authorId        String
+  author          User                                @relation("WorkshopProposalSubmissionsAuthored", fields: [authorId], references: [id])
+  /// Optional pointer to the InstructorApplication for cohort/track context.
+  /// Stored loosely (no FK) because the application id may not exist yet
+  /// when an applicant resumes a draft.
+  applicationId   String?
+
+  sourceType      WorkshopProposalSourceType
+
+  /// CUSTOM_DESIGN payload. Shape:
+  ///   {
+  ///     title, targetAgeGroup, lengthMinutes, category, learningObjective,
+  ///     materials[], openingHook, mainActivity, participationPlan,
+  ///     wrapUp, backupPlan
+  ///   }
+  customWorkshop  Json?
+
+  /// TEMPLATE_SELECTION pointer. Snapshotting the template id is enough —
+  /// the template is read-fresh at view time so reviewers always see the
+  /// current admin copy plus the applicant's reflection.
+  templateId      String?
+  template        WorkshopProposalTemplate?           @relation("WorkshopProposalSubmissionTemplate", fields: [templateId], references: [id], onDelete: SetNull)
+
+  /// Reflection answers (always required). Shape:
+  ///   {
+  ///     whyChosen, audienceAdaptation, hardestPart, engagementPlan
+  ///   }
+  reflection      Json?
+
+  status          WorkshopProposalSubmissionStatus    @default(DRAFT)
+
+  submittedAt     DateTime?
+  /// Set when ANY reviewer first opens the submission with intent to score.
+  inReviewAt      DateTime?
+  reviewedAt      DateTime?
+  /// Latest reviewer who committed a decision. Older decisions stay in
+  /// `reviews` for the audit trail.
+  reviewedById    String?
+  reviewedBy      User?                               @relation("WorkshopProposalSubmissionsReviewed", fields: [reviewedById], references: [id])
+
+  /// Applicant-facing feedback summary from the latest committed decision.
+  applicantFeedback String?                           @db.Text
+  /// Internal-only reviewer notes (not shown to applicant).
+  internalNotes     String?                           @db.Text
+
+  reviews         WorkshopProposalReview[]            @relation("WorkshopProposalReviewSubmission")
+
+  createdAt       DateTime                            @default(now())
+  updatedAt       DateTime                            @updatedAt
+
+  @@unique([authorId])
+  @@index([status])
+  @@index([sourceType])
+  @@index([templateId])
+  @@index([reviewedById])
+}
+
+/// Per-reviewer scored review of a submission. Multiple reviewers can score
+/// the same submission; each row is preserved as audit history. The active
+/// "decision" surfaces on `WorkshopProposalSubmission.status` when a reviewer
+/// commits.
+model WorkshopProposalReview {
+  id                       String                                @id @default(cuid())
+  submissionId             String
+  submission               WorkshopProposalSubmission            @relation("WorkshopProposalReviewSubmission", fields: [submissionId], references: [id], onDelete: Cascade)
+  reviewerId               String
+  reviewer                 User                                  @relation("WorkshopProposalReviewsAuthored", fields: [reviewerId], references: [id])
+
+  /// 1–5 ratings, nullable so an in-progress draft review can save partial work.
+  clarityRating            Int?
+  engagementRating         Int?
+  feasibilityRating        Int?
+  ageAppropriatenessRating Int?
+  preparednessRating       Int?
+  /// 1–5 alignment with YPP values rating.
+  alignmentRating          Int?
+
+  overallRecommendation    WorkshopProposalReviewRecommendation?
+
+  applicantFeedback        String?                               @db.Text
+  internalNote             String?                               @db.Text
+
+  /// True when the reviewer has clicked "commit decision". Drafts (committed
+  /// = false) are ignored when computing submission status.
+  committed                Boolean                               @default(false)
+  committedAt              DateTime?
+
+  createdAt                DateTime                              @default(now())
+  updatedAt                DateTime                              @updatedAt
+
+  @@index([submissionId])
+  @@index([reviewerId])
+  @@index([overallRecommendation])
 }

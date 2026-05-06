@@ -5,6 +5,7 @@ import {
   READINESS_CHECK_MODULE_KEY,
   type LessonDesignStudioGateStatus,
 } from "@/lib/lesson-design-studio-gate";
+import type { InstructorSubtype } from "@prisma/client";
 
 type NextAction = {
   title: string;
@@ -22,13 +23,24 @@ export type MissingRequirement = {
 export type InstructorReadiness = {
   instructorId: string;
   featureEnabled: boolean;
+  /** Effective applicant subtype. STANDARD applicants finish with the LDS
+   *  capstone; SUMMER_WORKSHOP applicants finish with a workshop submission.
+   *  Defaults to STANDARD when no application row exists (pre-existing
+   *  instructors approved before the subtype field was introduced). */
+  instructorSubtype: InstructorSubtype;
   requiredModulesCount: number;
   completedRequiredModules: number;
-  /** All required academy modules marked complete (video/checkpoint/quiz/evidence). */
+  /** All required academy modules marked complete. */
   academyModulesComplete: boolean;
-  /** Lesson Design Studio package submitted or approved (v1 capstone after 3 video modules). */
+  /**
+   * Capstone gate satisfied. The semantics depend on the subtype:
+   *   * STANDARD       → Lesson Design Studio draft submitted or approved.
+   *   * SUMMER_WORKSHOP → Workshop proposal submitted (any non-DRAFT status).
+   * Renamed from a pure "studioCapstoneComplete" but kept stable so
+   * downstream consumers don't break.
+   */
   studioCapstoneComplete: boolean;
-  /** Academy modules complete and studio capstone satisfied (full training lane). */
+  /** Academy modules complete and the subtype-appropriate capstone done. */
   trainingComplete: boolean;
   interviewStatus: string;
   interviewOutcome: string | null;
@@ -38,7 +50,10 @@ export type InstructorReadiness = {
   legacyExemptOfferingCount: number;
   missingRequirements: MissingRequirement[];
   nextAction: NextAction;
-  /** Whether this instructor can open the Lesson Design Studio capstone. */
+  /** Whether this instructor can open the Lesson Design Studio capstone.
+   *  For SUMMER_WORKSHOP subtype this is always returned as `unlocked: false`
+   *  with a `WRONG_SUBTYPE`-style reason so existing UI shows them the
+   *  workshop CTA instead. */
   lessonDesignStudioGate: LessonDesignStudioGateStatus;
 };
 
@@ -98,6 +113,7 @@ export function buildFallbackInstructorReadiness(
   return {
     instructorId,
     featureEnabled: false,
+    instructorSubtype: "STANDARD",
     requiredModulesCount: 0,
     completedRequiredModules: 0,
     academyModulesComplete: true,
@@ -151,6 +167,7 @@ export function buildInstructorReadinessFromSnapshot({
   interviewGate,
   legacyExemptOfferingCount,
   studioCapstoneComplete,
+  instructorSubtype = "STANDARD",
   roles = [],
 }: {
   instructorId: string;
@@ -160,10 +177,21 @@ export function buildInstructorReadinessFromSnapshot({
   assignments: InstructorTrainingAssignment[];
   interviewGate: InstructorInterviewGateSnapshot | null;
   legacyExemptOfferingCount: number;
+  /**
+   * Combined subtype-aware capstone signal:
+   *   * STANDARD applicants — true once a CurriculumDraft is SUBMITTED or
+   *     APPROVED.
+   *   * SUMMER_WORKSHOP applicants — true once their WorkshopProposalSubmission
+   *     leaves DRAFT (i.e. they've clicked Submit at least once).
+   * Caller (getInstructorReadinessMany) is responsible for computing this
+   * from the right table per applicant.
+   */
   studioCapstoneComplete: boolean;
+  instructorSubtype?: InstructorSubtype;
   /** Roles for THIS instructor (drives the LDS reviewer-bypass branch). */
   roles?: string[];
 }): InstructorReadiness {
+  const isSummerWorkshop = instructorSubtype === "SUMMER_WORKSHOP";
   const moduleConfigIssueById = new Map<string, string>();
   for (const trainingModule of requiredModules) {
     const requiredCheckpointCount = trainingModule.checkpoints.length;
@@ -260,13 +288,23 @@ export function buildInstructorReadinessFromSnapshot({
     });
   }
   if (!studioCapstoneComplete) {
-    missingRequirements.push({
-      code: "STUDIO_CAPSTONE_REQUIRED",
-      title: "Submit Lesson Design Studio capstone",
-      detail:
-        "Submit or receive approval for a Lesson Design Studio package before requesting offering approval.",
-      href: LESSON_DESIGN_STUDIO_HREF,
-    });
+    if (isSummerWorkshop) {
+      missingRequirements.push({
+        code: "WORKSHOP_SUBMISSION_REQUIRED",
+        title: "Submit your workshop",
+        detail:
+          "Design or pick a workshop in the Workshop Design Studio and submit it for review.",
+        href: "/instructor/workshop-design-studio",
+      });
+    } else {
+      missingRequirements.push({
+        code: "STUDIO_CAPSTONE_REQUIRED",
+        title: "Submit Lesson Design Studio capstone",
+        detail:
+          "Submit or receive approval for a Lesson Design Studio package before requesting offering approval.",
+        href: LESSON_DESIGN_STUDIO_HREF,
+      });
+    }
   }
   if (interviewRequired && !interviewPassed) {
     missingRequirements.push({
@@ -314,6 +352,7 @@ export function buildInstructorReadinessFromSnapshot({
   return {
     instructorId,
     featureEnabled,
+    instructorSubtype,
     requiredModulesCount: requiredModules.length,
     completedRequiredModules,
     academyModulesComplete,
@@ -402,6 +441,21 @@ export async function getInstructorReadinessMany(
           where: { userId: { in: uniqueInstructorIds } },
           select: { userId: true, role: true },
         }),
+        // Subtype lookup — read from the InstructorApplication row. Default
+        // to STANDARD when no application exists (e.g. legacy instructors).
+        prisma.instructorApplication.findMany({
+          where: { applicantId: { in: uniqueInstructorIds } },
+          select: { applicantId: true, instructorSubtype: true },
+        }),
+        // Workshop proposal submission — counts as the SUMMER_WORKSHOP capstone
+        // once the applicant has submitted at least once (any non-DRAFT status).
+        prisma.workshopProposalSubmission.findMany({
+          where: {
+            authorId: { in: uniqueInstructorIds },
+            status: { not: "DRAFT" },
+          },
+          select: { authorId: true },
+        }),
       ]),
     null
   );
@@ -420,6 +474,8 @@ export async function getInstructorReadinessMany(
     grandfatheredOfferingCounts,
     submittedOrApprovedDrafts,
     userRoles,
+    applicationSubtypes,
+    workshopSubmittedAuthors,
   ] = readinessData;
 
   const assignmentsByInstructor = new Map<string, InstructorTrainingAssignment[]>();
@@ -446,6 +502,12 @@ export async function getInstructorReadinessMany(
   const instructorsWithSubmittedCapstone = new Set(
     submittedOrApprovedDrafts.map((draft) => draft.authorId)
   );
+  const instructorsWithSubmittedWorkshop = new Set(
+    workshopSubmittedAuthors.map((row) => row.authorId)
+  );
+  const subtypeByInstructor = new Map<string, InstructorSubtype>(
+    applicationSubtypes.map((row) => [row.applicantId, row.instructorSubtype])
+  );
 
   const rolesByInstructor = new Map<string, string[]>();
   for (const row of userRoles) {
@@ -458,6 +520,14 @@ export async function getInstructorReadinessMany(
   }
 
   for (const instructorId of uniqueInstructorIds) {
+    const subtype = subtypeByInstructor.get(instructorId) ?? "STANDARD";
+    // Subtype-aware capstone: SW applicants finish via the workshop
+    // submission table; STANDARD applicants finish via CurriculumDraft.
+    const capstoneDone =
+      subtype === "SUMMER_WORKSHOP"
+        ? instructorsWithSubmittedWorkshop.has(instructorId)
+        : instructorsWithSubmittedCapstone.has(instructorId);
+
     readinessByInstructor.set(
       instructorId,
       buildInstructorReadinessFromSnapshot({
@@ -469,7 +539,8 @@ export async function getInstructorReadinessMany(
         interviewGate: interviewGateByInstructor.get(instructorId) ?? null,
         legacyExemptOfferingCount:
           legacyExemptOfferingCountByInstructor.get(instructorId) ?? 0,
-        studioCapstoneComplete: instructorsWithSubmittedCapstone.has(instructorId),
+        studioCapstoneComplete: capstoneDone,
+        instructorSubtype: subtype,
         roles: rolesByInstructor.get(instructorId) ?? [],
       })
     );

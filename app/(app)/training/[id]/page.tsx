@@ -7,6 +7,8 @@ import {
   getTrainingAccessRedirect,
   hasApprovedInstructorTrainingAccess,
 } from "@/lib/training-access";
+import { READINESS_CHECK_MODULE_KEY } from "@/lib/training-constants";
+import { isSummerWorkshopApplicant } from "@/lib/workshop-proposal-access";
 import { serializeBeatForClient } from "@/lib/training-journey/serialize";
 import type { JourneyAttemptSummary } from "@/lib/training-journey/client-contracts";
 import { getBadgeForContentKey } from "@/lib/training-journey/client-contracts";
@@ -20,6 +22,45 @@ import TrainingModuleClient from "./client";
 function isInteractiveJourneyEnabled(): boolean {
   const v = process.env.ENABLE_INTERACTIVE_TRAINING_JOURNEY;
   return v !== "false" && v !== "0" && v !== "no";
+}
+
+/**
+ * Narrow the Prisma JsonValue shape for `moduleBreakdown` to a flat
+ * `Record<string, number>`. Any unexpected shape (legacy migration, partial
+ * write, manual DB edit) becomes `null` instead of crashing the client.
+ */
+function safeModuleBreakdown(value: unknown): Record<string, number> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+/**
+ * Narrow the Prisma JsonValue shape for `personalizedTips`. Drops any rows
+ * missing the expected fields rather than letting the client render `undefined`.
+ */
+function safePersonalizedTips(
+  value: unknown
+): { module: string; tip: string }[] | null {
+  if (!Array.isArray(value)) return null;
+  const out: { module: string; tip: string }[] = [];
+  for (const row of value) {
+    if (
+      row &&
+      typeof row === "object" &&
+      typeof (row as { module?: unknown }).module === "string" &&
+      typeof (row as { tip?: unknown }).tip === "string"
+    ) {
+      out.push({
+        module: (row as { module: string }).module,
+        tip: (row as { tip: string }).tip,
+      });
+    }
+  }
+  return out.length > 0 ? out : null;
 }
 
 export default async function TrainingModulePage({
@@ -117,19 +158,23 @@ export default async function TrainingModulePage({
       }),
     ]);
 
-    // Mark IN_PROGRESS on first view (non-fatal; fire-and-forget).
-    // Use upsert: create the row if missing, otherwise leave status alone
-    // (do not downgrade a COMPLETE assignment that may exist from a prior visit).
+    // Mark IN_PROGRESS on first view. Awaited so we don't race a downstream
+    // page that reads the assignment immediately after this redirect, but
+    // wrapped so a transient DB blip never tanks the journey render.
     if (!completion) {
-      prisma.trainingAssignment
-        .upsert({
+      try {
+        await prisma.trainingAssignment.upsert({
           where: { userId_moduleId: { userId: learnerId, moduleId: id } },
           create: { userId: learnerId, moduleId: id, status: "IN_PROGRESS" },
           update: {},
-        })
-        .catch(() => {
-          // Non-fatal — do not block the render
         });
+      } catch (err) {
+        console.warn("[training-module] failed to seed IN_PROGRESS assignment", {
+          userId: learnerId,
+          moduleId: id,
+          err,
+        });
+      }
     }
 
     // Build latest-per-beat map (sorted desc by attemptNumber so first hit = latest)
@@ -185,15 +230,20 @@ export default async function TrainingModulePage({
           firstTryCorrectCount: completion.firstTryCorrectCount,
           xpEarned: completion.xpEarned,
           visitedBeatCount: completion.visitedBeatCount,
-          moduleBreakdown:
-            (completion.moduleBreakdown as Record<string, number> | null) ?? null,
-          personalizedTips:
-            (completion.personalizedTips as { module: string; tip: string }[] | null) ??
-            null,
+          moduleBreakdown: safeModuleBreakdown(completion.moduleBreakdown),
+          personalizedTips: safePersonalizedTips(completion.personalizedTips),
           completedAt: completion.completedAt.toISOString(),
           badgeKey: getBadgeForContentKey(journeyModule.contentKey ?? null),
         }
       : null;
+
+    // Subtype-aware capstone signal — only relevant when the just-finished
+    // journey is the Readiness Check (M5). For SW applicants we route to
+    // the Workshop Design Studio; for STANDARD applicants we route to LDS.
+    const isReadinessCheck = journeyModule.contentKey === READINESS_CHECK_MODULE_KEY;
+    const summerWorkshop = isReadinessCheck
+      ? await isSummerWorkshopApplicant(learnerId)
+      : false;
 
     return (
       <JourneyShell
@@ -214,6 +264,8 @@ export default async function TrainingModulePage({
         backHref={academyHref}
         backLabel={academyLabel}
         nextModule={nextModule ?? null}
+        unlocksLessonDesignStudio={isReadinessCheck && !summerWorkshop}
+        unlocksWorkshopSubmission={isReadinessCheck && summerWorkshop}
       />
     );
   }

@@ -20,6 +20,10 @@ import { createOrUpdateStudioLaunchPackage } from "@/lib/curriculum-draft-launch
 import { syncInstructorGrowthSignalsForInstructor } from "@/lib/instructor-growth-service";
 import { canAccessTrainingLearnerActions } from "@/lib/training-access";
 import {
+  getDraftIdFromEvidenceUrl,
+  TRACKABLE_REQUIRED_VIDEO_PROVIDERS,
+} from "@/lib/training-constants";
+import {
   computeQuizAttemptResult,
   parseQuizAnswers,
   QuizSubmissionError,
@@ -52,7 +56,49 @@ async function requireAdminOrChapterLead() {
 }
 
 async function syncTrainingGrowth(userId: string) {
-  await syncInstructorGrowthSignalsForInstructor(userId).catch(() => null);
+  await syncInstructorGrowthSignalsForInstructor(userId).catch((err) => {
+    // Growth sync is non-critical; log but never block the action.
+    console.warn("[training] syncTrainingGrowth failed", { userId, error: err });
+    return null;
+  });
+}
+
+/**
+ * Asserts the learner has an active TrainingAssignment for the given module.
+ * Auto-creates the assignment for instructors/students whose access is implied
+ * by role (e.g. an approved INSTRUCTOR opening a freshly-imported module that
+ * hasn't been bulk-assigned yet) — but never short-circuits the auth check.
+ *
+ * This is the single ownership-boundary helper for learner-side training
+ * actions. Without it, any authenticated learner could submit progress for
+ * any moduleId.
+ */
+async function assertModuleAccessibleForLearner(userId: string, moduleId: string) {
+  const [module, assignment] = await Promise.all([
+    prisma.trainingModule.findUnique({
+      where: { id: moduleId },
+      select: { id: true },
+    }),
+    prisma.trainingAssignment.findUnique({
+      where: { userId_moduleId: { userId, moduleId } },
+      select: { id: true },
+    }),
+  ]);
+
+  if (!module) {
+    throw new Error("Training module not found");
+  }
+
+  if (!assignment) {
+    // Self-enroll: upsert ensures no race with a concurrent action creating
+    // the same assignment row. NOT_STARTED is the safe initial state — the
+    // sync-from-artifacts flow will promote it as evidence accumulates.
+    await prisma.trainingAssignment.upsert({
+      where: { userId_moduleId: { userId, moduleId } },
+      create: { userId, moduleId, status: "NOT_STARTED" },
+      update: {},
+    });
+  }
 }
 
 async function requireTrainingLearner() {
@@ -119,17 +165,6 @@ function getNumber(formData: FormData, key: string, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function getDraftIdFromEvidenceUrl(fileUrl: string | null | undefined) {
-  if (!fileUrl) return null;
-
-  try {
-    const url = new URL(fileUrl, "https://studio.local");
-    return url.searchParams.get("draftId");
-  } catch {
-    return null;
-  }
-}
-
 function buildStudioReviewRubric(formData: FormData) {
   const fallback = emptyReviewRubric();
   return normalizeReviewRubric({
@@ -163,23 +198,26 @@ function buildStudioReviewRubric(formData: FormData) {
 
 type ModuleValidationInput = {
   required: boolean;
+  type?: TrainingModuleType | null;
   videoUrl: string | null;
   videoProvider: VideoProvider | null;
   requiresQuiz: boolean;
   requiresEvidence: boolean;
   requiredCheckpointCount: number;
   quizQuestionCount: number;
+  hasInteractiveJourney?: boolean;
 };
-
-const TRACKABLE_REQUIRED_VIDEO_PROVIDERS = new Set<VideoProvider>([
-  "YOUTUBE",
-  "VIMEO",
-  "CUSTOM",
-]);
 
 function getModuleConfigurationIssues(input: ModuleValidationInput): string[] {
   const issues: string[] = [];
+  // Interactive-journey modules are inherently actionable: the journey itself
+  // is the requirement. The legacy "must have video / quiz / evidence /
+  // checkpoint" rule predates the interactive curriculum and would incorrectly
+  // flag every modern module as misconfigured.
+  const isInteractiveJourney =
+    input.type === "INTERACTIVE_JOURNEY" || input.hasInteractiveJourney === true;
   const hasActionablePath =
+    isInteractiveJourney ||
     Boolean(input.videoUrl) ||
     input.requiredCheckpointCount > 0 ||
     input.requiresQuiz ||
@@ -187,7 +225,7 @@ function getModuleConfigurationIssues(input: ModuleValidationInput): string[] {
 
   if (input.required && !hasActionablePath) {
     issues.push(
-      "Required modules must include at least one actionable requirement: video, required checkpoint, quiz, or evidence."
+      "Required modules must include at least one actionable requirement: interactive journey, video, required checkpoint, quiz, or evidence."
     );
   }
 
@@ -269,6 +307,7 @@ async function syncAssignmentFromArtifacts(userId: string, moduleId: string) {
     where: { id: moduleId },
     select: {
       id: true,
+      type: true,
       required: true,
       videoUrl: true,
       videoProvider: true,
@@ -276,6 +315,9 @@ async function syncAssignmentFromArtifacts(userId: string, moduleId: string) {
       requiresEvidence: true,
       passScorePct: true,
       quizQuestions: {
+        select: { id: true },
+      },
+      interactiveJourney: {
         select: { id: true },
       },
     },
@@ -286,46 +328,70 @@ async function syncAssignmentFromArtifacts(userId: string, moduleId: string) {
   }
 
   const quizQuestionCount = module.quizQuestions.length;
+  const hasInteractiveJourney = module.interactiveJourney !== null;
   const moduleConfigurationIssues = getModuleConfigurationIssues({
     required: module.required,
+    type: module.type,
     videoUrl: module.videoUrl,
     videoProvider: module.videoProvider,
     requiresQuiz: module.requiresQuiz,
     requiresEvidence: module.requiresEvidence,
     requiredCheckpointCount: 0,
     quizQuestionCount,
+    hasInteractiveJourney,
   });
   const configurationIssue = moduleConfigurationIssues[0] ?? null;
 
-  const [videoProgress, passedQuizAttempt, approvedEvidenceCount, quizAttemptCount] =
-    await Promise.all([
-      prisma.videoProgress.findUnique({
-        where: {
-          userId_moduleId: { userId, moduleId },
-        },
-        select: {
-          watchedSeconds: true,
-          completed: true,
-        },
-      }),
-      prisma.trainingQuizAttempt.findFirst({
-        where: {
-          userId,
-          moduleId,
-          passed: true,
-        },
-        orderBy: { attemptedAt: "desc" },
-        select: { id: true },
-      }),
-      prisma.trainingEvidenceSubmission.count({
-        where: {
-          userId,
-          moduleId,
-          status: "APPROVED",
-        },
-      }),
-      prisma.trainingQuizAttempt.count({ where: { userId, moduleId } }),
-    ]);
+  const [
+    videoProgress,
+    passedQuizAttempt,
+    approvedEvidenceCount,
+    quizAttemptCount,
+    journeyState,
+  ] = await Promise.all([
+    prisma.videoProgress.findUnique({
+      where: {
+        userId_moduleId: { userId, moduleId },
+      },
+      select: {
+        watchedSeconds: true,
+        completed: true,
+      },
+    }),
+    prisma.trainingQuizAttempt.findFirst({
+      where: {
+        userId,
+        moduleId,
+        passed: true,
+      },
+      orderBy: { attemptedAt: "desc" },
+      select: { id: true },
+    }),
+    prisma.trainingEvidenceSubmission.count({
+      where: {
+        userId,
+        moduleId,
+        status: "APPROVED",
+      },
+    }),
+    prisma.trainingQuizAttempt.count({ where: { userId, moduleId } }),
+    hasInteractiveJourney && module.interactiveJourney
+      ? Promise.all([
+          prisma.interactiveJourneyCompletion.findUnique({
+            where: {
+              journeyId_userId: {
+                journeyId: module.interactiveJourney.id,
+                userId,
+              },
+            },
+            select: { passed: true, completedAt: true },
+          }),
+          prisma.interactiveBeatAttempt.count({
+            where: { userId, beat: { journeyId: module.interactiveJourney.id } },
+          }),
+        ]).then(([completion, attemptCount]) => ({ completion, attemptCount }))
+      : Promise.resolve({ completion: null, attemptCount: 0 }),
+  ]);
 
   const hasVideoProgress = (videoProgress?.watchedSeconds ?? 0) > 0;
   // Video completes when the player fires the "ended" event (forceComplete=true).
@@ -335,10 +401,21 @@ async function syncAssignmentFromArtifacts(userId: string, moduleId: string) {
   const checkpointsReady = true; // Goals are now purely informational — they no longer gate completion.
   const quizReady = !module.requiresQuiz || (quizQuestionCount > 0 && Boolean(passedQuizAttempt));
   const evidenceReady = !module.requiresEvidence || approvedEvidenceCount > 0;
+  // Interactive-journey readiness: if the module has a journey, completion
+  // requires the learner to have passed it. Modules without a journey ignore
+  // this gate entirely.
+  const journeyReady =
+    !hasInteractiveJourney || journeyState.completion?.passed === true;
 
   const isComplete =
-    !configurationIssue && videoReady && checkpointsReady && quizReady && evidenceReady;
-  const hasAnyProgress = hasVideoProgress || quizAttemptCount > 0;
+    !configurationIssue &&
+    videoReady &&
+    checkpointsReady &&
+    quizReady &&
+    evidenceReady &&
+    journeyReady;
+  const hasAnyProgress =
+    hasVideoProgress || quizAttemptCount > 0 || journeyState.attemptCount > 0;
 
   const nextStatus: TrainingStatus = isComplete
     ? "COMPLETE"
@@ -384,14 +461,172 @@ export async function syncTrainingAssignmentFromArtifacts(userId: string, module
 }
 
 async function syncAssignmentsForModule(moduleId: string) {
-  const assignments = await prisma.trainingAssignment.findMany({
-    where: { moduleId },
-    select: { userId: true },
+  // Bulk path: fetch the module + every learner's artifact summary once,
+  // then update assignments in a single transaction. Replaces the prior
+  // N×5-query fan-out, which became a hotspot for chapters with hundreds
+  // of instructors when an admin edited a module.
+  const [module, assignments] = await Promise.all([
+    prisma.trainingModule.findUnique({
+      where: { id: moduleId },
+      select: {
+        id: true,
+        type: true,
+        required: true,
+        videoUrl: true,
+        videoProvider: true,
+        requiresQuiz: true,
+        requiresEvidence: true,
+        passScorePct: true,
+        quizQuestions: { select: { id: true } },
+        interactiveJourney: { select: { id: true } },
+      },
+    }),
+    prisma.trainingAssignment.findMany({
+      where: { moduleId },
+      select: { id: true, userId: true, status: true },
+    }),
+  ]);
+
+  if (!module || assignments.length === 0) return;
+
+  const userIds = assignments.map((a) => a.userId);
+  const quizQuestionCount = module.quizQuestions.length;
+  const hasInteractiveJourney = module.interactiveJourney !== null;
+  const journeyId = module.interactiveJourney?.id ?? null;
+
+  const configurationIssue =
+    getModuleConfigurationIssues({
+      required: module.required,
+      type: module.type,
+      videoUrl: module.videoUrl,
+      videoProvider: module.videoProvider,
+      requiresQuiz: module.requiresQuiz,
+      requiresEvidence: module.requiresEvidence,
+      requiredCheckpointCount: 0,
+      quizQuestionCount,
+      hasInteractiveJourney,
+    })[0] ?? null;
+
+  const [
+    videoProgress,
+    passedQuizUserIds,
+    approvedEvidenceUserIds,
+    anyQuizAttempts,
+    passedJourneyUserIds,
+    journeyAttemptUserIds,
+  ] = await Promise.all([
+    prisma.videoProgress.findMany({
+      where: { moduleId, userId: { in: userIds } },
+      select: { userId: true, watchedSeconds: true, completed: true },
+    }),
+    prisma.trainingQuizAttempt
+      .findMany({
+        where: { moduleId, userId: { in: userIds }, passed: true },
+        select: { userId: true },
+        distinct: ["userId"],
+      })
+      .then((rows) => new Set(rows.map((r) => r.userId))),
+    prisma.trainingEvidenceSubmission
+      .findMany({
+        where: { moduleId, userId: { in: userIds }, status: "APPROVED" },
+        select: { userId: true },
+        distinct: ["userId"],
+      })
+      .then((rows) => new Set(rows.map((r) => r.userId))),
+    prisma.trainingQuizAttempt
+      .findMany({
+        where: { moduleId, userId: { in: userIds } },
+        select: { userId: true },
+        distinct: ["userId"],
+      })
+      .then((rows) => new Set(rows.map((r) => r.userId))),
+    journeyId
+      ? prisma.interactiveJourneyCompletion
+          .findMany({
+            where: { journeyId, userId: { in: userIds }, passed: true },
+            select: { userId: true },
+          })
+          .then((rows) => new Set(rows.map((r) => r.userId)))
+      : Promise.resolve(new Set<string>()),
+    journeyId
+      ? prisma.interactiveBeatAttempt
+          .findMany({
+            where: { userId: { in: userIds }, beat: { journeyId } },
+            select: { userId: true },
+            distinct: ["userId"],
+          })
+          .then((rows) => new Set(rows.map((r) => r.userId)))
+      : Promise.resolve(new Set<string>()),
+  ]);
+
+  const videoByUser = new Map(videoProgress.map((vp) => [vp.userId, vp]));
+
+  const usersNewlyCompleted: string[] = [];
+  const updates = assignments.flatMap((assignment) => {
+    const vp = videoByUser.get(assignment.userId);
+    const hasVideoProgress = (vp?.watchedSeconds ?? 0) > 0;
+    const videoReady = !module.videoUrl || vp?.completed === true;
+    const quizReady =
+      !module.requiresQuiz ||
+      (quizQuestionCount > 0 && passedQuizUserIds.has(assignment.userId));
+    const evidenceReady =
+      !module.requiresEvidence || approvedEvidenceUserIds.has(assignment.userId);
+    const journeyReady =
+      !hasInteractiveJourney || passedJourneyUserIds.has(assignment.userId);
+
+    const isComplete =
+      !configurationIssue &&
+      videoReady &&
+      quizReady &&
+      evidenceReady &&
+      journeyReady;
+    const hasAnyProgress =
+      hasVideoProgress ||
+      anyQuizAttempts.has(assignment.userId) ||
+      journeyAttemptUserIds.has(assignment.userId);
+
+    const nextStatus: TrainingStatus = isComplete
+      ? "COMPLETE"
+      : hasAnyProgress || Boolean(configurationIssue)
+        ? "IN_PROGRESS"
+        : "NOT_STARTED";
+
+    if (isComplete && assignment.status !== "COMPLETE") {
+      usersNewlyCompleted.push(assignment.userId);
+    }
+
+    if (nextStatus === assignment.status && !isComplete) {
+      // No-op: nothing to update. The completedAt stamp is locked once set.
+      return [];
+    }
+
+    return [
+      prisma.trainingAssignment.update({
+        where: { id: assignment.id },
+        data: {
+          status: nextStatus,
+          completedAt: isComplete ? new Date() : null,
+        },
+      }),
+    ];
   });
 
-  await Promise.all(
-    assignments.map((assignment) => syncAssignmentFromArtifacts(assignment.userId, moduleId))
-  );
+  if (updates.length > 0) {
+    await prisma.$transaction(updates);
+  }
+
+  // Side-effects (cert issuance, growth sync) — only for users newly crossing
+  // the COMPLETE threshold. These are intentionally outside the transaction
+  // so a failed certificate render can never roll back assignment progress.
+  for (const userId of usersNewlyCompleted) {
+    await checkAndIssueTrainingCompletion(userId);
+    await syncTrainingGrowth(userId);
+    onProgressEvent({
+      type: "TRAINING_MODULE_COMPLETED",
+      userId,
+      metadata: { moduleId },
+    }).catch(() => {});
+  }
 }
 
 // ============================================
@@ -866,6 +1101,8 @@ export async function updateVideoProgress(formData: FormData) {
     throw new Error("Invalid lastPosition value");
   }
 
+  await assertModuleAccessibleForLearner(userId, moduleId);
+
   const [module, existingProgress] = await Promise.all([
     prisma.trainingModule.findUnique({
       where: { id: moduleId },
@@ -917,6 +1154,15 @@ export async function updateVideoProgress(formData: FormData) {
   const completed =
     Boolean(existingProgress?.completed) || requestedCompleted;
 
+  // Preserve the original completedAt if the row was already completed —
+  // we never want to bump the timestamp on a re-render. If the row is
+  // freshly being marked complete, stamp now. Otherwise null.
+  const completedAt = completed
+    ? (existingProgress?.completed
+        ? undefined // leave existing timestamp untouched
+        : new Date())
+    : null;
+
   await prisma.videoProgress.upsert({
     where: {
       userId_moduleId: { userId, moduleId },
@@ -933,7 +1179,7 @@ export async function updateVideoProgress(formData: FormData) {
       watchedSeconds,
       lastPosition,
       completed,
-      completedAt: completed ? new Date() : undefined,
+      completedAt,
     },
   });
 
@@ -990,6 +1236,8 @@ export async function setTrainingCheckpointCompletion(formData: FormData) {
     throw new Error("Checkpoint not found");
   }
 
+  await assertModuleAccessibleForLearner(userId, checkpoint.moduleId);
+
   if (completed) {
     await prisma.trainingCheckpointCompletion.upsert({
       where: {
@@ -1001,7 +1249,7 @@ export async function setTrainingCheckpointCompletion(formData: FormData) {
         notes: notes || null,
       },
       update: {
-        notes: notes || undefined,
+        notes: notes || null,
         completedAt: new Date(),
       },
     });
@@ -1029,6 +1277,8 @@ export async function submitTrainingQuizAttempt(formData: FormData) {
 
   const moduleId = getString(formData, "moduleId");
   const answersRaw = getString(formData, "answers", false);
+
+  await assertModuleAccessibleForLearner(userId, moduleId);
 
   const module = await prisma.trainingModule.findUnique({
     where: { id: moduleId },
@@ -1108,6 +1358,8 @@ export async function submitTrainingEvidence(formData: FormData) {
   if (!fileUrl) {
     throw new Error("Missing evidence file URL");
   }
+
+  await assertModuleAccessibleForLearner(userId, moduleId);
 
   await prisma.trainingEvidenceSubmission.create({
     data: {
@@ -1272,6 +1524,10 @@ export async function updateTrainingStatus(formData: FormData) {
   const assignmentId = getString(formData, "assignmentId");
   const status = getString(formData, "status") as TrainingStatus;
 
+  if (!["NOT_STARTED", "IN_PROGRESS", "COMPLETE"].includes(status)) {
+    throw new Error("Invalid training status");
+  }
+
   const assignment = await prisma.trainingAssignment.findUnique({
     where: { id: assignmentId },
   });
@@ -1280,11 +1536,16 @@ export async function updateTrainingStatus(formData: FormData) {
     throw new Error("Assignment not found");
   }
 
-  if (assignment.userId !== userId && !roles.includes("ADMIN")) {
+  const isAdmin = roles.includes("ADMIN");
+  if (assignment.userId !== userId && !isAdmin) {
     throw new Error("Unauthorized");
   }
 
-  if (status === "COMPLETE" && !roles.includes("ADMIN")) {
+  // Self-promote to COMPLETE is not allowed: learners cannot bypass
+  // checkpoints/quiz/evidence by flipping the status. Re-derive from
+  // artifacts instead — that path will only land on COMPLETE if every
+  // requirement is genuinely satisfied.
+  if (status === "COMPLETE" && !isAdmin) {
     await syncAssignmentFromArtifacts(assignment.userId, assignment.moduleId);
   } else {
     await prisma.trainingAssignment.update({
@@ -1315,17 +1576,21 @@ export async function deleteTrainingModule(formData: FormData) {
 
   const moduleId = getString(formData, "moduleId");
 
-  await prisma.trainingCheckpointCompletion.deleteMany({
-    where: { checkpoint: { moduleId } },
-  });
-  await prisma.trainingCheckpoint.deleteMany({ where: { moduleId } });
-  await prisma.trainingQuizAttempt.deleteMany({ where: { moduleId } });
-  await prisma.trainingQuizQuestion.deleteMany({ where: { moduleId } });
-  await prisma.trainingEvidenceSubmission.deleteMany({ where: { moduleId } });
-  await prisma.videoProgress.deleteMany({ where: { moduleId } });
-  await prisma.trainingAssignment.deleteMany({ where: { moduleId } });
-
-  await prisma.trainingModule.delete({ where: { id: moduleId } });
+  // All-or-nothing: cascade child deletes inside a single transaction so a
+  // mid-failure can never leave orphan checkpoints / attempts / progress
+  // pointing at a deleted module.
+  await prisma.$transaction([
+    prisma.trainingCheckpointCompletion.deleteMany({
+      where: { checkpoint: { moduleId } },
+    }),
+    prisma.trainingCheckpoint.deleteMany({ where: { moduleId } }),
+    prisma.trainingQuizAttempt.deleteMany({ where: { moduleId } }),
+    prisma.trainingQuizQuestion.deleteMany({ where: { moduleId } }),
+    prisma.trainingEvidenceSubmission.deleteMany({ where: { moduleId } }),
+    prisma.videoProgress.deleteMany({ where: { moduleId } }),
+    prisma.trainingAssignment.deleteMany({ where: { moduleId } }),
+    prisma.trainingModule.delete({ where: { id: moduleId } }),
+  ]);
 
   revalidatePath("/admin");
   revalidatePath("/admin/training");

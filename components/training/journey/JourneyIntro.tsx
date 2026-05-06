@@ -21,7 +21,10 @@ export type JourneyIntroProps = {
   estimatedMinutes: number;
   beatCount: number;
   backHref: string;
+  backLabel?: string;
   mode: "start" | "resume" | "review";
+  strictMode?: boolean;
+  passScorePct?: number;
   onStart: () => void;
 };
 
@@ -37,7 +40,10 @@ export function JourneyIntro({
   estimatedMinutes,
   beatCount,
   backHref,
+  backLabel = "Academy",
   mode,
+  strictMode = false,
+  passScorePct,
   onStart,
 }: JourneyIntroProps) {
   const { variants } = useJourneyMotion();
@@ -57,7 +63,7 @@ export function JourneyIntro({
           marginBottom: 24,
         }}
       >
-        ← Academy
+        ← {backLabel}
       </Link>
 
       {/* Hero card — single fadeUp animation on mount */}
@@ -85,14 +91,53 @@ export function JourneyIntro({
         </p>
 
         {/* Info chips */}
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 28 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: strictMode ? 16 : 28 }}>
           <span className="pill pill-purple" style={{ fontSize: 13 }}>
             {estimatedMinutes} min
           </span>
           <span className="pill pill-purple" style={{ fontSize: 13 }}>
             {beatCount} {beatCount === 1 ? "activity" : "activities"}
           </span>
+          {typeof passScorePct === "number" ? (
+            <span className="pill pill-purple" style={{ fontSize: 13 }}>
+              {passScorePct}% to pass
+            </span>
+          ) : null}
+          {strictMode ? (
+            <span
+              className="pill pill-small"
+              style={{
+                fontSize: 13,
+                background: "#fef3c7",
+                color: "#92400e",
+                border: "1px solid #fcd34d",
+              }}
+            >
+              Strict mode · one attempt per activity
+            </span>
+          ) : null}
         </div>
+
+        {/* Strict-mode explainer — only shown for high-stakes journeys */}
+        {strictMode && mode === "start" ? (
+          <div
+            role="status"
+            style={{
+              background: "#fffbeb",
+              border: "1px solid #fcd34d",
+              borderRadius: 8,
+              padding: "10px 12px",
+              marginBottom: 20,
+              fontSize: 13,
+              color: "#78350f",
+              lineHeight: 1.55,
+            }}
+          >
+            <strong>Heads up:</strong> this is a readiness assessment. Each
+            activity scores on your <em>first</em> attempt — there are no
+            retries inside the journey. Take your time on each question.
+          </div>
+        ) : null}
 
         {/* CTA */}
         <button
@@ -102,6 +147,12 @@ export function JourneyIntro({
         >
           {CTA_LABEL[mode]}
         </button>
+
+        {mode === "review" ? (
+          <p style={{ margin: "12px 0 0", fontSize: 12, color: "var(--muted)", textAlign: "center" }}>
+            You&rsquo;ve already completed this — review answers and feedback.
+          </p>
+        ) : null}
       </motion.div>
     </div>
   );

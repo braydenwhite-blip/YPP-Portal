@@ -3,6 +3,7 @@
 import { KanbanBoard, KanbanDetailPanel, PanelToast, useToast, type KanbanColumnDef } from "@/components/kanban";
 import { updateEvidenceStatus } from "@/lib/readiness-kanban-actions";
 import { reviewTrainingEvidence } from "@/lib/training-actions";
+import { getDraftIdFromEvidenceUrl } from "@/lib/training-constants";
 import { useRef, useTransition } from "react";
 
 /* ── Types ─────────────────────────────────────────── */
@@ -46,14 +47,6 @@ function statusColor(status: string): string {
 function formatDate(d: string | null | undefined): string {
   if (!d) return "-";
   return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
-
-function getDraftIdFromEvidenceUrl(fileUrl: string): string | null {
-  try {
-    return new URL(fileUrl, "https://studio.local").searchParams.get("draftId");
-  } catch {
-    return null;
-  }
 }
 
 /* ── Card ─────────────────────────────────────────── */

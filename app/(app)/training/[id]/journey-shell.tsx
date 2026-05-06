@@ -16,6 +16,7 @@ import { useState, useEffect, useCallback } from "react";
 
 import type { JourneySnapshot, JourneyCompletionSummary } from "@/lib/training-journey/client-contracts";
 import { submitBeatAttempt, completeInteractiveJourney, resumeInteractiveJourney } from "@/lib/training-journey/actions";
+import { READINESS_CHECK_MODULE_KEY } from "@/lib/training-constants";
 
 import { MotionProvider } from "@/components/training/journey/MotionProvider";
 import { JourneyIntro } from "@/components/training/journey/JourneyIntro";
@@ -31,6 +32,13 @@ export type JourneyShellProps = {
   backHref: string;
   backLabel: string;
   nextModule: { id: string; title: string } | null;
+  /**
+   * Subtype-aware capstone signal. The training page resolves the user's
+   * applicant subtype and tells the shell which capstone unlocks when this
+   * journey is the Readiness Check. Both flags should never be true at once.
+   */
+  unlocksLessonDesignStudio?: boolean;
+  unlocksWorkshopSubmission?: boolean;
 };
 
 type Phase = "intro" | "player" | "complete";
@@ -42,7 +50,10 @@ type Phase = "intro" | "player" | "complete";
 export function JourneyShell({
   snapshot,
   backHref,
+  backLabel,
   nextModule,
+  unlocksLessonDesignStudio: unlocksLdsProp,
+  unlocksWorkshopSubmission: unlocksWorkshopProp,
 }: JourneyShellProps) {
   // Determine initial phase: skip straight to "complete" if already passed.
   const initialPhase: Phase =
@@ -123,7 +134,10 @@ export function JourneyShell({
           estimatedMinutes={snapshot.estimatedMinutes}
           beatCount={snapshot.beats.length}
           backHref={backHref}
+          backLabel={backLabel}
           mode={introMode}
+          strictMode={snapshot.strictMode}
+          passScorePct={snapshot.passScorePct}
           onStart={() => setPhase("player")}
         />
       )}
@@ -150,6 +164,22 @@ export function JourneyShell({
           title={snapshot.title}
           backHref={backHref}
           nextModule={nextModule}
+          unlocksLessonDesignStudio={
+            // Readiness Check is the capstone gate. Trust the explicit flag
+            // from the server when provided; fall back to the legacy "STANDARD
+            // applicant + just passed M5" signal.
+            unlocksLdsProp ??
+            (snapshot.contentKey === READINESS_CHECK_MODULE_KEY &&
+              resolvedCompletion.passed === true &&
+              !unlocksWorkshopProp)
+          }
+          unlocksWorkshopSubmission={
+            unlocksWorkshopProp ??
+            (snapshot.contentKey === READINESS_CHECK_MODULE_KEY &&
+              resolvedCompletion.passed === true &&
+              !unlocksLdsProp &&
+              false /* default false: server must opt SW applicants in */)
+          }
         />
       )}
     </MotionProvider>

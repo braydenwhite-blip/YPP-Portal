@@ -15,26 +15,37 @@ import {
   getTrainingAccessRedirect,
   hasApprovedInstructorTrainingAccess,
 } from "@/lib/training-access";
-import { READINESS_CHECK_MODULE_KEY } from "@/lib/lesson-design-studio-gate";
+import {
+  LESSON_DESIGN_STUDIO_MODULE_KEY,
+  READINESS_CHECK_MODULE_KEY,
+  TRACKABLE_REQUIRED_VIDEO_PROVIDERS,
+} from "@/lib/training-constants";
 
 function formatDateTime(value: Date | string | null | undefined) {
   if (!value) return "-";
   return new Date(value).toLocaleString();
 }
 
-const TRACKABLE_REQUIRED_VIDEO_PROVIDERS = new Set(["YOUTUBE", "VIMEO", "CUSTOM"]);
-const LESSON_DESIGN_STUDIO_MODULE_KEY = "academy_lesson_studio_004";
-
 type ModuleCard = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   module: any;
   assignment: { status: string } | undefined;
   latestQuiz: { scorePct: number; attemptedAt: Date } | undefined;
+  /** Interactive-journey progress: beats answered correctly / total scored beats. */
+  journeyProgress: {
+    isInteractive: boolean;
+    correctBeats: number;
+    totalBeats: number;
+    scorePct: number | null;
+    passed: boolean;
+  };
   videoReady: boolean;
   quizReady: boolean;
   fullyComplete: boolean;
-  videoProgressPct: number;
+  /** Unified completion percentage for the card progress bar (journey-aware). */
+  progressPct: number;
   configurationIssue: string | null;
+  estimatedMinutes: number | null;
 };
 
 function KanbanCard({
@@ -48,6 +59,17 @@ function KanbanCard({
 }) {
   const isLDS = card.module.contentKey === LESSON_DESIGN_STUDIO_MODULE_KEY;
   const ldsLocked = isLDS && !readinessCheckPassed;
+  const isJourney = card.journeyProgress.isInteractive;
+  const cta = ldsLocked
+    ? null
+    : isLDS
+      ? { label: "Open Studio", href: "/instructor/lesson-design-studio?entry=training" }
+      : card.fullyComplete
+        ? { label: "Review", href: `/training/${card.module.id}` }
+        : card.assignment?.status === "IN_PROGRESS"
+          ? { label: "Continue", href: `/training/${card.module.id}` }
+          : { label: "Start module", href: `/training/${card.module.id}` };
+
   return (
     <div
       style={{
@@ -56,56 +78,93 @@ function KanbanCard({
         padding: 12,
         background: card.fullyComplete ? "#f0fdf4" : "var(--surface)",
         opacity: ldsLocked ? 0.6 : 1,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
       }}
     >
-      <p style={{ margin: "0 0 4px", fontWeight: 600, fontSize: 14 }}>{card.module.title}</p>
-      <p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--muted)", lineHeight: 1.4 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+        <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>{card.module.title}</p>
+        {card.estimatedMinutes ? (
+          <span style={{ fontSize: 11, color: "var(--muted)", whiteSpace: "nowrap" }}>
+            {card.estimatedMinutes} min
+          </span>
+        ) : null}
+      </div>
+      <p style={{ margin: 0, fontSize: 12, color: "var(--muted)", lineHeight: 1.45 }}>
         {card.module.description}
       </p>
 
-      {/* Progress bar */}
+      {/* Progress bar — only for trackable modules (journeys + legacy videos) */}
       {!isLDS ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-          <div style={{ flex: 1, height: 4, background: "var(--border)", borderRadius: 2 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
+          <div
+            style={{ flex: 1, height: 4, background: "var(--border)", borderRadius: 2 }}
+            role="progressbar"
+            aria-valuenow={card.progressPct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`${card.module.title} progress`}
+          >
             <div
               style={{
                 height: "100%",
-                width: `${card.videoProgressPct}%`,
+                width: `${card.progressPct}%`,
                 background: card.fullyComplete ? "#16a34a" : "#6366f1",
                 borderRadius: 2,
                 transition: "width 0.3s ease",
               }}
             />
           </div>
-          <span style={{ fontSize: 11, color: "var(--muted)" }}>{card.videoProgressPct}%</span>
+          <span style={{ fontSize: 11, color: "var(--muted)", minWidth: 36, textAlign: "right" }}>
+            {isJourney
+              ? `${card.journeyProgress.correctBeats}/${card.journeyProgress.totalBeats}`
+              : `${card.progressPct}%`}
+          </span>
         </div>
       ) : null}
 
-      {ldsLocked ? (
-        <span
-          className="pill pill-small"
-          style={{ marginBottom: 10, display: "inline-block" }}
-        >
-          Complete Readiness Check to unlock
-        </span>
-      ) : null}
-
-      {card.module.requiresQuiz ? (
-        <span className={`pill pill-small ${card.quizReady ? "pill-success" : ""}`} style={{ marginBottom: 10, display: "inline-block" }}>
-          Quiz {card.quizReady ? "Passed" : "Required"}
-        </span>
-      ) : null}
+      {/* Status pills */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {ldsLocked ? (
+          <span className="pill pill-small">Complete Readiness Check to unlock</span>
+        ) : null}
+        {card.fullyComplete ? (
+          <span className="pill pill-small pill-success">Complete</span>
+        ) : isJourney && card.journeyProgress.scorePct !== null ? (
+          <span
+            className={`pill pill-small ${card.journeyProgress.passed ? "pill-success" : ""}`}
+            title={card.journeyProgress.passed ? "Journey passed" : "Below pass score — retake to complete"}
+          >
+            Score {card.journeyProgress.scorePct}%
+          </span>
+        ) : null}
+        {card.module.requiresQuiz ? (
+          <span className={`pill pill-small ${card.quizReady ? "pill-success" : ""}`}>
+            Quiz {card.quizReady ? "Passed" : "Required"}
+          </span>
+        ) : null}
+      </div>
 
       {card.configurationIssue ? (
-        <p style={{ margin: "0 0 8px", fontSize: 11, color: "#b45309" }}>{card.configurationIssue}</p>
+        <p style={{ margin: 0, fontSize: 11, color: "#b45309" }} role="status">
+          {card.configurationIssue}
+        </p>
       ) : null}
 
-      {card.latestQuiz ? (
-        <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--muted)" }}>
+      {/* Quiz retake hint when the user attempted but didn't pass */}
+      {card.latestQuiz && !card.quizReady ? (
+        <p style={{ margin: 0, fontSize: 11, color: "#b45309" }}>
+          Last quiz: {card.latestQuiz.scorePct}% · {formatDateTime(card.latestQuiz.attemptedAt)}
+          {" — retake to pass."}
+        </p>
+      ) : card.latestQuiz ? (
+        <p style={{ margin: 0, fontSize: 11, color: "var(--muted)" }}>
           Quiz: {card.latestQuiz.scorePct}% · {formatDateTime(card.latestQuiz.attemptedAt)}
         </p>
       ) : null}
 
+      {/* CTA */}
       {ldsLocked ? (
         readinessCheckModuleId ? (
           <Link
@@ -127,15 +186,15 @@ function KanbanCard({
             Locked
           </button>
         )
-      ) : (
+      ) : cta ? (
         <Link
-          href={isLDS ? "/instructor/lesson-design-studio?entry=training" : `/training/${card.module.id}`}
+          href={cta.href}
           className="button small"
           style={{ textDecoration: "none", fontSize: 12 }}
         >
-          {isLDS ? "Open Studio" : card.fullyComplete ? "Review" : "Open module"}
+          {cta.label}
         </Link>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -153,6 +212,7 @@ export default async function InstructorTrainingPage({
   const lockedParamRaw = sp.locked;
   const lockedParam = Array.isArray(lockedParamRaw) ? lockedParamRaw[0] : lockedParamRaw;
   const showLdsLockedBanner = lockedParam === "lesson-design-studio";
+  const showWorkshopLockedBanner = lockedParam === "workshop-design-studio";
 
   const roles = session.user.roles ?? [];
   const canAccessTraining = hasApprovedInstructorTrainingAccess(roles);
@@ -216,11 +276,31 @@ export default async function InstructorTrainingPage({
   );
   const isSummerWorkshopInstructor = instructorSubtype === "SUMMER_WORKSHOP";
 
+  // Promotion signal: STANDARD applicants who already have a workshop
+  // submission row were promoted from SUMMER_WORKSHOP. Surface a one-time
+  // banner explaining that their workshop is preserved and that the LDS
+  // capstone is the next step.
+  const previousWorkshopSubmission =
+    !isSummerWorkshopInstructor
+      ? await withPrismaFallback(
+          "instructor-training:promoted-from-sw",
+          () =>
+            prisma.workshopProposalSubmission.findUnique({
+              where: { authorId: instructorId },
+              select: { id: true, status: true, submittedAt: true },
+            }),
+          null
+        )
+      : null;
+  const wasPromotedFromSummerWorkshop = previousWorkshopSubmission !== null;
+
   const [
     modules,
     assignments,
     videoProgress,
     quizAttempts,
+    journeyCompletions,
+    journeyBeatAttempts,
     interviewGate,
     readiness,
     trainingCertificate,
@@ -233,6 +313,16 @@ export default async function InstructorTrainingPage({
           include: {
             quizQuestions: {
               select: { id: true },
+            },
+            interactiveJourney: {
+              select: {
+                id: true,
+                estimatedMinutes: true,
+                beats: {
+                  where: { removedAt: null, scoringWeight: { gt: 0 } },
+                  select: { id: true },
+                },
+              },
             },
           },
         }),
@@ -270,6 +360,37 @@ export default async function InstructorTrainingPage({
             passed: true,
             scorePct: true,
             attemptedAt: true,
+          },
+        }),
+      []
+    ),
+    withPrismaFallback(
+      "instructor-training:journey-completions",
+      () =>
+        prisma.interactiveJourneyCompletion.findMany({
+          where: { userId: instructorId },
+          select: {
+            journeyId: true,
+            scorePct: true,
+            passed: true,
+            firstTryCorrectCount: true,
+            visitedBeatCount: true,
+          },
+        }),
+      []
+    ),
+    withPrismaFallback(
+      "instructor-training:journey-beat-attempts",
+      () =>
+        prisma.interactiveBeatAttempt.findMany({
+          where: { userId: instructorId },
+          select: {
+            beatId: true,
+            correct: true,
+            attemptNumber: true,
+            beat: {
+              select: { journeyId: true, scoringWeight: true },
+            },
           },
         }),
       []
@@ -316,6 +437,23 @@ export default async function InstructorTrainingPage({
     }
   }
 
+  // Journey progress lookups: keep only the latest correct attempt per beat,
+  // then group by journeyId so we can show "X of Y beats correct" on the card.
+  const journeyCompletionByJourneyId = new Map(
+    journeyCompletions.map((completion) => [completion.journeyId, completion])
+  );
+  const correctBeatsByJourneyId = new Map<string, Set<string>>();
+  for (const attempt of journeyBeatAttempts) {
+    if (!attempt.correct || attempt.beat.scoringWeight <= 0) continue;
+    const journeyId = attempt.beat.journeyId;
+    let beatSet = correctBeatsByJourneyId.get(journeyId);
+    if (!beatSet) {
+      beatSet = new Set<string>();
+      correctBeatsByJourneyId.set(journeyId, beatSet);
+    }
+    beatSet.add(attempt.beatId);
+  }
+
   // Summer workshop instructors don't need the Lesson Design Studio capstone
   // at this stage — they run pre-scoped workshops, not full curriculum.
   // Filter the LDS module out of their training feed (plan §8).
@@ -328,9 +466,29 @@ export default async function InstructorTrainingPage({
     const progress = videoByModule.get(module.id);
     const latestQuiz = latestQuizByModule.get(module.id);
 
+    const journey = module.interactiveJourney;
+    const isInteractive = journey !== null;
+    const totalScoredBeats = journey?.beats.length ?? 0;
+    const correctBeats = journey
+      ? (correctBeatsByJourneyId.get(journey.id)?.size ?? 0)
+      : 0;
+    const journeyCompletion = journey
+      ? journeyCompletionByJourneyId.get(journey.id)
+      : undefined;
+
+    // Configuration issues — re-derive client-side using the central rules.
+    // INTERACTIVE_JOURNEY modules with a journey row are always actionable.
     let configurationIssue: string | null = null;
     if (module.requiresQuiz && module.quizQuestions.length === 0) {
       configurationIssue = "Quiz is required but no quiz questions are configured for this module.";
+    } else if (
+      module.required &&
+      !isInteractive &&
+      !module.videoUrl &&
+      !module.requiresQuiz &&
+      !module.requiresEvidence
+    ) {
+      configurationIssue = "This required module has no actionable steps configured yet. Ask an admin to set it up.";
     } else if (
       module.required &&
       module.videoUrl &&
@@ -340,32 +498,55 @@ export default async function InstructorTrainingPage({
       configurationIssue = "Required module video provider must be YOUTUBE, VIMEO, or CUSTOM so watch tracking can count.";
     }
 
-    // Video completes when the player fires the "ended" event.
+    // Per-channel readiness gates.
     const videoReady = !module.videoUrl || progress?.completed === true;
     const quizReady =
       !module.requiresQuiz ||
       (module.quizQuestions.length > 0 && passedQuizModuleIds.has(module.id));
-    const fullyComplete = !configurationIssue && videoReady && quizReady;
+    const journeyReady = !isInteractive || journeyCompletion?.passed === true;
+    const fullyComplete = !configurationIssue && videoReady && quizReady && journeyReady;
 
-    // Progress bar: use actual watch percentage for in-progress feedback.
-    const videoDuration = module.videoDuration ?? null;
-    const videoProgressPct = fullyComplete
-      ? 100
-      : videoDuration && videoDuration > 0
-        ? Math.min(99, Math.round(((progress?.watchedSeconds ?? 0) / videoDuration) * 100))
-        : (progress?.watchedSeconds ?? 0) > 0
-          ? 30
+    // Unified progress percentage: prefer journey beat-completion when the
+    // module is interactive (no videos in current curriculum), otherwise
+    // fall back to legacy video watch percentage.
+    let progressPct: number;
+    if (fullyComplete) {
+      progressPct = 100;
+    } else if (isInteractive) {
+      progressPct =
+        totalScoredBeats > 0
+          ? Math.min(99, Math.round((correctBeats / totalScoredBeats) * 100))
           : 0;
+    } else {
+      const videoDuration = module.videoDuration ?? null;
+      progressPct =
+        videoDuration && videoDuration > 0
+          ? Math.min(99, Math.round(((progress?.watchedSeconds ?? 0) / videoDuration) * 100))
+          : (progress?.watchedSeconds ?? 0) > 0
+            ? 30
+            : 0;
+    }
+
+    const estimatedMinutes =
+      journey?.estimatedMinutes ?? module.estimatedMinutes ?? null;
 
     return {
       module,
       assignment,
       latestQuiz,
+      journeyProgress: {
+        isInteractive,
+        correctBeats,
+        totalBeats: totalScoredBeats,
+        scorePct: journeyCompletion?.scorePct ?? null,
+        passed: journeyCompletion?.passed === true,
+      },
       videoReady,
       quizReady,
       fullyComplete,
-      videoProgressPct,
+      progressPct,
       configurationIssue,
+      estimatedMinutes,
     };
   });
   const postedSlots = interviewGate.slots.filter((slot) => slot.status === "POSTED");
@@ -408,7 +589,7 @@ export default async function InstructorTrainingPage({
         <div>
           <p className="badge">Step 1 of Your Instructor Pathway</p>
           <h1 className="page-title">Instructor Training Academy</h1>
-          <p className="page-subtitle">Complete all required modules to unlock offering approval readiness and the interview gate.</p>
+          <p className="page-subtitle">Work through every required module — short interactive journeys with practice, feedback, and a readiness check — to unlock the interview gate and offering approval.</p>
         </div>
       </div>
 
@@ -424,15 +605,44 @@ export default async function InstructorTrainingPage({
         >
           <p style={{ margin: 0, fontSize: 13, color: "#5b21b6", lineHeight: 1.55 }}>
             <strong>Summer Workshop Instructor track.</strong>{" "}
-            You're on the lighter onboarding path: core expectations,
-            safety/professionalism, workshop delivery basics, and engagement tactics for camp
-            settings. The Lesson Design Studio capstone is not required at this stage and is
-            hidden — it becomes a follow-up if you're later promoted to full Instructor.
+            Complete required training, then submit a workshop in the{" "}
+            <Link href="/instructor/workshop-design-studio" className="link">
+              Workshop Design Studio
+            </Link>
+            . You can either design your own workshop or pick one from the
+            approved library — both submit into the same review queue. The
+            Lesson Design Studio capstone is hidden on this track and becomes
+            a follow-up only if you&rsquo;re later promoted to full Instructor.
           </p>
         </div>
       )}
 
-      {showLdsLockedBanner && !readinessCheckPassed ? (
+      {wasPromotedFromSummerWorkshop ? (
+        <div
+          className="card"
+          role="status"
+          style={{
+            marginBottom: 16,
+            borderColor: "#16a34a",
+            background: "#f0fdf4",
+          }}
+        >
+          <p style={{ margin: 0, fontSize: 14, color: "#14532d", lineHeight: 1.55 }}>
+            <strong>Promoted to full Instructor.</strong>{" "}
+            Your existing workshop submission is preserved and reviewers can
+            still see it. The next step on the standard track is the{" "}
+            <Link
+              href="/instructor/lesson-design-studio?entry=training"
+              className="link"
+            >
+              Lesson Design Studio capstone
+            </Link>
+            {" — "}finish that to clear training and unlock offering approval.
+          </p>
+        </div>
+      ) : null}
+
+      {showLdsLockedBanner && !readinessCheckPassed && !isSummerWorkshopInstructor ? (
         <div
           className="card"
           role="status"
@@ -444,6 +654,37 @@ export default async function InstructorTrainingPage({
         >
           <p style={{ margin: 0, fontSize: 13, color: "#92400e" }}>
             <strong>Lesson Design Studio is locked.</strong>{" "}
+            Complete the Readiness Check first
+            {readinessCheckModuleId ? (
+              <>
+                {" — "}
+                <Link
+                  href={`/training/${readinessCheckModuleId}`}
+                  className="link"
+                >
+                  open it now
+                </Link>
+                .
+              </>
+            ) : (
+              "."
+            )}
+          </p>
+        </div>
+      ) : null}
+
+      {showWorkshopLockedBanner && !readinessCheckPassed && isSummerWorkshopInstructor ? (
+        <div
+          className="card"
+          role="status"
+          style={{
+            marginBottom: 16,
+            borderColor: "#f59e0b",
+            background: "#fffbeb",
+          }}
+        >
+          <p style={{ margin: 0, fontSize: 13, color: "#92400e" }}>
+            <strong>Workshop Design Studio is locked.</strong>{" "}
             Complete the Readiness Check first
             {readinessCheckModuleId ? (
               <>
@@ -502,6 +743,56 @@ export default async function InstructorTrainingPage({
         </div>
       </div>
 
+      {isSummerWorkshopInstructor ? (
+        <div
+          className="card"
+          style={{
+            marginBottom: 20,
+            borderColor: readinessCheckPassed ? "#16a34a" : "var(--border)",
+            background: readinessCheckPassed ? "#f0fdf4" : "var(--surface)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "start",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <h3 style={{ marginBottom: 6 }}>Workshop Submission</h3>
+              <p style={{ margin: 0, fontSize: 14, color: "var(--muted)" }}>
+                {readinessCheckPassed
+                  ? "Training complete. Design or pick a workshop in the Workshop Design Studio and submit it for review."
+                  : "Unlocks once you finish the Readiness Check. Then design your own workshop or pick one from the approved library."}
+              </p>
+            </div>
+            {readinessCheckPassed ? (
+              <Link
+                href="/instructor/workshop-design-studio"
+                className="button small"
+                style={{ textDecoration: "none", whiteSpace: "nowrap" }}
+              >
+                Open Workshop Studio
+              </Link>
+            ) : (
+              <button
+                type="button"
+                className="button small"
+                disabled
+                aria-disabled="true"
+                style={{ cursor: "not-allowed", whiteSpace: "nowrap" }}
+                title="Complete the Readiness Check to unlock the Workshop Design Studio."
+              >
+                Locked
+              </button>
+            )}
+          </div>
+        </div>
+      ) : null}
+
       <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start" }}>
           <div>
@@ -544,7 +835,9 @@ export default async function InstructorTrainingPage({
         <div style={{ marginTop: 16 }}>
           <h4 style={{ marginBottom: 8 }}>Posted Interview Slots</h4>
           {postedSlots.length === 0 ? (
-            <p style={{ color: "var(--muted)", marginTop: 0 }}>No posted slots right now.</p>
+            <p style={{ color: "var(--muted)", marginTop: 0, fontSize: 14 }}>
+              No posted slots right now. Request preferred times below — your chapter lead will post matching slots when available.
+            </p>
           ) : (
             <div style={{ display: "grid", gap: 10 }}>
               {postedSlots.map((slot) => (
@@ -643,7 +936,7 @@ export default async function InstructorTrainingPage({
       <div style={{ marginBottom: 24 }}>
         <h3 style={{ marginBottom: 4 }}>Academy Modules</h3>
         <p style={{ marginTop: 0, color: "var(--muted)", fontSize: 14 }}>
-          Watch each module video to completion. Quiz-required modules also need a passing score.
+          Each module is an interactive journey: read, practice, get feedback, then pass a short check. Modules unlock the next step in your pathway.
         </p>
 
         {/* Kanban columns — collapse to a single column on narrow screens */}
@@ -663,6 +956,9 @@ export default async function InstructorTrainingPage({
               (c) => !c.fullyComplete && c.assignment?.status === "IN_PROGRESS"
             );
             const complete = moduleCards.filter((c) => c.fullyComplete);
+            const firstAvailable = moduleCards.find(
+              (c) => !c.fullyComplete && c.assignment?.status !== "IN_PROGRESS"
+            );
             const columns: {
               key: string;
               label: string;
@@ -670,9 +966,29 @@ export default async function InstructorTrainingPage({
               cards: ModuleCard[];
               empty: string;
             }[] = [
-              { key: "not-started", label: "Not Started", dotColor: "var(--border)", cards: notStarted, empty: "None" },
-              { key: "in-progress", label: "In Progress", dotColor: "#6366f1", cards: inProgress, empty: "None yet" },
-              { key: "complete", label: "Complete", dotColor: "#16a34a", cards: complete, empty: "None yet" },
+              {
+                key: "not-started",
+                label: "Not Started",
+                dotColor: "var(--border)",
+                cards: notStarted,
+                empty: "Every module is in progress or complete — nice work.",
+              },
+              {
+                key: "in-progress",
+                label: "In Progress",
+                dotColor: "#6366f1",
+                cards: inProgress,
+                empty: firstAvailable
+                  ? `Open "${firstAvailable.module.title}" to begin.`
+                  : "Nothing started yet — pick up Module 1 from the left.",
+              },
+              {
+                key: "complete",
+                label: "Complete",
+                dotColor: "#16a34a",
+                cards: complete,
+                empty: "Finish a module to see it here.",
+              },
             ];
             return columns.map((column) => (
               <div key={column.key}>
