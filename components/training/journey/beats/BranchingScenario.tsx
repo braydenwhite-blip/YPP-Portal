@@ -3,28 +3,25 @@
 /**
  * BranchingScenario — scenario-framed single-choice beat.
  *
+ * Adds two interaction layers on top of the radiogroup:
+ *   1. A "scene" framing card (handled by CSS) makes the scenario read like
+ *      a comic panel rather than a paragraph.
+ *   2. A "your-move" lock-in strip that animates in once an option is picked,
+ *      giving the moment between selection and Check some weight: the user
+ *      sees their decision committed, builds tension, then submits.
+ *
  * Config shape (client-safe — correctOptionId/feedback stripped server-side):
  *   rootPrompt: string
  *   options: { id, label, leadsToChildSourceKey: string | null }[]
  *
- * Displays config.rootPrompt as a styled scenario framing block above the
- * options. Options are rendered as a radiogroup identical to ScenarioChoice.
- * Options where leadsToChildSourceKey is non-null show a ⤷ indicator to hint
- * that the choice leads to a follow-up scenario.
- *
- * This component ONLY captures the user's root choice. Navigation to child
- * beats and showWhen evaluation are handled entirely by JourneyPlayer.
- *
  * Response shape: { selectedOptionId: string }
- * Non-null when: one option is selected.
  *
- * Keyboard: ArrowDown/ArrowUp navigate; Space/Enter select (copied from
- * ScenarioChoice — known-good pattern).
- *
+ * Keyboard: ArrowDown/ArrowUp navigate; Space/Enter select.
  * readOnly disables all options.
  */
 
 import { useState, useRef, useCallback, useId } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import type { ClientBeat } from "@/lib/training-journey/types";
 
 // ---------------------------------------------------------------------------
@@ -98,6 +95,8 @@ export function BranchingScenario({ beat, response, onResponseChange, readOnly }
     [readOnly, options, handleSelect]
   );
 
+  const selectedOption = options.find((o) => o.id === selected);
+
   return (
     <div
       className={[
@@ -108,20 +107,11 @@ export function BranchingScenario({ beat, response, onResponseChange, readOnly }
         .join(" ")}
     >
       {/* Scenario framing block */}
-      <div
-        className="branching-scenario__root-prompt"
-        style={{
-          padding: "16px",
-          background: "var(--ypp-blush, #fdf6f0)",
-          borderLeft: "4px solid var(--ypp-purple)",
-          borderRadius: "var(--radius-md)",
-          marginBottom: "20px",
-        }}
-      >
+      <div className="branching-scenario__root-prompt">
         {config.rootPrompt}
       </div>
 
-      {/* Radio group — same pattern as ScenarioChoice */}
+      {/* Radio group */}
       <div
         role="radiogroup"
         aria-labelledby={`${groupId}-label`}
@@ -188,6 +178,28 @@ export function BranchingScenario({ beat, response, onResponseChange, readOnly }
           );
         })}
       </div>
+
+      {/* Lock-in strip — appears once an option is selected, builds tension */}
+      <AnimatePresence>
+        {selectedOption && !readOnly ? (
+          <motion.div
+            key="lockin"
+            className="decision-lockin"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 4 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            aria-hidden="true"
+          >
+            <span className="decision-lockin__bullet" />
+            <span className="decision-lockin__label">
+              Your move:&nbsp;
+              <strong>{selectedOption.label}</strong>
+            </span>
+            <span className="decision-lockin__cta">Hit Check to see how it plays out →</span>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }
