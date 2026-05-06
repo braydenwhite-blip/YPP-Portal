@@ -29,10 +29,11 @@ export default async function SummerWorkshopLandingPage() {
   // them straight to it instead of forcing a new signup attempt.
   const existingApp = userId
     ? await withPrismaFallback(
+        "summer-workshop-landing:existing-app",
         () =>
           prisma.instructorApplication.findFirst({
             where: {
-              applicantUserId: userId,
+              applicantId: userId,
               applicationTrack: "SUMMER_WORKSHOP_INSTRUCTOR",
             },
             select: { id: true, status: true },
