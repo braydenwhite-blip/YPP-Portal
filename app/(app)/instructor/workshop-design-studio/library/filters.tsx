@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { difficultyLabel } from "@/lib/workshop-proposal-constants";
 import type { WorkshopProposalDifficulty } from "@prisma/client";
 
@@ -26,11 +26,19 @@ export function LibraryFilters({
 }: LibraryFiltersProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hasAny = useMemo(
     () => Boolean(currentSearch || currentCategory || currentDifficulty),
     [currentSearch, currentCategory, currentDifficulty]
   );
+
+  // Cancel any pending debounce on unmount so we don't stomp on a navigation.
+  useEffect(() => {
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, []);
 
   function update(patch: Record<string, string>) {
     const params = new URLSearchParams(searchParams?.toString() ?? "");
@@ -39,6 +47,11 @@ export function LibraryFilters({
       else params.set(k, v);
     }
     router.replace(`?${params.toString()}`);
+  }
+
+  function debouncedUpdateSearch(value: string) {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => update({ q: value }), 200);
   }
 
   return (
@@ -59,15 +72,7 @@ export function LibraryFilters({
           type="search"
           defaultValue={currentSearch}
           placeholder="Title, topic, tag…"
-          onChange={(e) => {
-            const value = e.target.value;
-            // tiny debounce so we don't replace history on every keystroke
-            window.clearTimeout((window as unknown as { __wsfTimer?: number }).__wsfTimer);
-            (window as unknown as { __wsfTimer?: number }).__wsfTimer = window.setTimeout(
-              () => update({ q: value }),
-              200
-            );
-          }}
+          onChange={(e) => debouncedUpdateSearch(e.target.value)}
         />
       </label>
       <label style={{ display: "grid", gap: 4, flex: "1 1 160px", minWidth: 140 }}>

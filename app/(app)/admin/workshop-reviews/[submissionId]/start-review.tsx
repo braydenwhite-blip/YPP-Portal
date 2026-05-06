@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { startWorkshopReview } from "@/lib/workshop-proposal-actions";
 import type { WorkshopProposalSubmissionStatus } from "@prisma/client";
@@ -16,10 +16,12 @@ export function StartReviewBanner({
 }: StartReviewBannerProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   if (status !== "SUBMITTED") return null;
 
   function handleStart() {
+    setError(null);
     const fd = new FormData();
     fd.set("submissionId", submissionId);
     startTransition(async () => {
@@ -27,7 +29,9 @@ export function StartReviewBanner({
         await startWorkshopReview(fd);
         router.refresh();
       } catch (err) {
-        alert(err instanceof Error ? err.message : "Could not start review.");
+        setError(
+          err instanceof Error ? err.message : "Could not start review."
+        );
       }
     });
   }
@@ -64,6 +68,14 @@ export function StartReviewBanner({
           {isPending ? "Starting…" : "Start review"}
         </button>
       </div>
+      {error ? (
+        <p
+          role="alert"
+          style={{ margin: "8px 0 0", fontSize: 12, color: "#dc2626" }}
+        >
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

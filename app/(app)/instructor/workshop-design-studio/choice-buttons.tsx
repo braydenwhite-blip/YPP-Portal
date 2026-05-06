@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { chooseWorkshopPath } from "@/lib/workshop-proposal-actions";
 import type { WorkshopProposalSourceType } from "@prisma/client";
 
@@ -18,22 +19,25 @@ export function ChooseWorkshopPathButtons({
   continueHref,
   disabled = false,
 }: ChooseWorkshopPathButtonsProps) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const isCurrent = currentSource === path;
 
   function handleSelect() {
     if (disabled) return;
+    setError(null);
     const fd = new FormData();
     fd.set("sourceType", path);
     startTransition(async () => {
       try {
         await chooseWorkshopPath(fd);
-        window.location.href = continueHref;
+        router.push(continueHref);
+        router.refresh();
       } catch (err) {
-        // Surface the action's error to the user — server validates again.
-        const message =
-          err instanceof Error ? err.message : "Could not switch paths.";
-        alert(message);
+        setError(
+          err instanceof Error ? err.message : "Could not switch paths."
+        );
       }
     });
   }
@@ -52,14 +56,28 @@ export function ChooseWorkshopPathButtons({
   }
 
   return (
-    <button
-      type="button"
-      className="button secondary"
-      onClick={handleSelect}
-      disabled={disabled || isPending}
-      style={{ marginTop: 8 }}
-    >
-      {isPending ? "Switching…" : "Pick this path"}
-    </button>
+    <div style={{ marginTop: 8 }}>
+      <button
+        type="button"
+        className="button secondary"
+        onClick={handleSelect}
+        disabled={disabled || isPending}
+      >
+        {isPending ? "Switching…" : "Pick this path"}
+      </button>
+      {error ? (
+        <p
+          role="alert"
+          style={{
+            margin: "8px 0 0",
+            fontSize: 12,
+            color: "#dc2626",
+            lineHeight: 1.4,
+          }}
+        >
+          {error}
+        </p>
+      ) : null}
+    </div>
   );
 }

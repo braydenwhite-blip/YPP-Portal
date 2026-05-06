@@ -15,7 +15,11 @@ import { getOrCreateApplicantSubmission } from "@/lib/workshop-proposal-actions"
 import { ChooseWorkshopPathButtons } from "./choice-buttons";
 import { ReviewerFeedbackCard } from "./reviewer-feedback";
 
-export default async function WorkshopDesignStudioPage() {
+export default async function WorkshopDesignStudioPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
@@ -34,6 +38,8 @@ export default async function WorkshopDesignStudioPage() {
 
   // Reviewers previewing the studio see a read-only view (no submission row).
   const isReviewerPreview = gate.reason === "REVIEWER_BYPASS";
+  const sp = (await searchParams) ?? {};
+  const justSubmitted = sp.submitted === "1";
 
   const submission = isReviewerPreview
     ? null
@@ -82,6 +88,33 @@ export default async function WorkshopDesignStudioPage() {
           <p style={{ margin: 0, fontSize: 13, color: "#5b21b6" }}>
             <strong>Reviewer preview.</strong> You&rsquo;re looking at the
             applicant view. Use the admin reviews page to score submissions.
+          </p>
+        </div>
+      ) : null}
+
+      {justSubmitted && submission && submission.status !== "DRAFT" ? (
+        <div
+          className="card"
+          role="status"
+          style={{
+            marginBottom: 16,
+            borderColor: "#16a34a",
+            background: "#f0fdf4",
+          }}
+        >
+          <p style={{ margin: 0, fontWeight: 600, color: "#14532d" }}>
+            Workshop submitted — thanks!
+          </p>
+          <p
+            style={{
+              margin: "6px 0 0",
+              fontSize: 13,
+              color: "#166534",
+              lineHeight: 1.55,
+            }}
+          >
+            A reviewer will read it next. You&rsquo;ll see their feedback here
+            and on your application status page once they finish.
           </p>
         </div>
       ) : null}
@@ -212,24 +245,39 @@ export default async function WorkshopDesignStudioPage() {
             {new Date(submission.updatedAt).toLocaleString()}
           </p>
           <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-            <Link
-              href={
-                submission.sourceType === "CUSTOM_DESIGN"
-                  ? "/instructor/workshop-design-studio/design"
-                  : "/instructor/workshop-design-studio/library"
-              }
-              className="button small"
-              style={{ textDecoration: "none" }}
-            >
-              {editable ? "Continue editing" : "Review your submission"}
-            </Link>
-            <Link
-              href="/instructor/workshop-design-studio/review"
-              className="button small secondary"
-              style={{ textDecoration: "none" }}
-            >
-              Open review &amp; submit
-            </Link>
+            {editable ? (
+              <>
+                <Link
+                  href={
+                    submission.sourceType === "CUSTOM_DESIGN"
+                      ? "/instructor/workshop-design-studio/design"
+                      : "/instructor/workshop-design-studio/library"
+                  }
+                  className="button small"
+                  style={{ textDecoration: "none" }}
+                >
+                  Continue editing
+                </Link>
+                <Link
+                  href="/instructor/workshop-design-studio/review"
+                  className="button small secondary"
+                  style={{ textDecoration: "none" }}
+                >
+                  Open review &amp; submit
+                </Link>
+              </>
+            ) : (
+              // Submission is locked (in review, approved, rejected). Send them
+              // to the review page — that's the read-only summary; the design
+              // and library pages would just show a "locked" banner.
+              <Link
+                href="/instructor/workshop-design-studio/review"
+                className="button small"
+                style={{ textDecoration: "none" }}
+              >
+                View your submission
+              </Link>
+            )}
           </div>
           {submission.reviewedAt ? (
             <ReviewerFeedbackCard

@@ -77,6 +77,39 @@ describe("evaluateLessonDesignStudioGateFromAssignment", () => {
       readinessCheckModuleId: "m5-id",
     });
   });
+
+  it("SUMMER_WORKSHOP subtype → WRONG_SUBTYPE (not READINESS_CHECK_REQUIRED)", () => {
+    expect(
+      evaluateLessonDesignStudioGateFromAssignment({
+        roles: ["INSTRUCTOR"],
+        readinessCheckModuleId: "m5-id",
+        readinessCheckAssignmentStatus: "COMPLETE",
+        instructorSubtype: "SUMMER_WORKSHOP",
+      })
+    ).toEqual({ unlocked: false, reason: "WRONG_SUBTYPE" });
+  });
+
+  it("STANDARD subtype unaffected by new branch", () => {
+    expect(
+      evaluateLessonDesignStudioGateFromAssignment({
+        roles: ["INSTRUCTOR"],
+        readinessCheckModuleId: "m5-id",
+        readinessCheckAssignmentStatus: "COMPLETE",
+        instructorSubtype: "STANDARD",
+      })
+    ).toEqual({ unlocked: true, reason: "READY" });
+  });
+
+  it("admin still bypasses even with SUMMER_WORKSHOP subtype (preview)", () => {
+    expect(
+      evaluateLessonDesignStudioGateFromAssignment({
+        roles: ["ADMIN"],
+        readinessCheckModuleId: "m5-id",
+        readinessCheckAssignmentStatus: null,
+        instructorSubtype: "SUMMER_WORKSHOP",
+      })
+    ).toEqual({ unlocked: true, reason: "REVIEWER_BYPASS" });
+  });
 });
 
 describe("getLessonDesignStudioGateStatus", () => {

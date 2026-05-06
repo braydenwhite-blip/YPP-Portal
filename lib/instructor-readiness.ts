@@ -334,6 +334,7 @@ export function buildInstructorReadinessFromSnapshot({
     roles,
     readinessCheckModuleId: readinessCheckModule?.id ?? null,
     readinessCheckAssignmentStatus: readinessCheckAssignment?.status ?? null,
+    instructorSubtype,
   });
   const nextAction =
     missingRequirements[0]

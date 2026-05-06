@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
+import { withPrismaFallback } from "@/lib/prisma-guard";
 import {
   difficultyLabel,
   submissionStatusLabel,
@@ -21,20 +22,26 @@ export default async function EditWorkshopTemplatePage({
   const roles = session.user.roles ?? [];
   if (!roles.includes("ADMIN")) redirect("/");
 
-  const template = await prisma.workshopProposalTemplate.findUnique({
-    where: { id },
-    include: {
-      submissions: {
-        orderBy: { updatedAt: "desc" },
-        take: 12,
+  const template = await withPrismaFallback(
+    "admin-workshop-library-detail:template",
+    () =>
+      prisma.workshopProposalTemplate.findUnique({
+        where: { id },
         include: {
-          author: { select: { id: true, name: true, email: true } },
+          submissions: {
+            orderBy: { updatedAt: "desc" },
+            take: 12,
+            include: {
+              author: { select: { id: true, name: true, email: true } },
+            },
+          },
+          _count: { select: { submissions: true } },
         },
-      },
-      _count: { select: { submissions: true } },
-    },
-  });
+      }),
+    null
+  );
   if (!template) notFound();
+  const submissionCount = template._count?.submissions ?? 0;
 
   return (
     <div>
@@ -93,9 +100,9 @@ export default async function EditWorkshopTemplatePage({
         <aside className="card" style={{ alignSelf: "start" }}>
           <h3 style={{ marginTop: 0 }}>Applicant selections</h3>
           <p style={{ fontSize: 13, color: "var(--muted)", marginTop: 0 }}>
-            {template._count.submissions === 0
+            {submissionCount === 0
               ? "No applicants have picked this workshop yet."
-              : `${template._count.submissions} applicant${template._count.submissions === 1 ? "" : "s"} chose this template.`}
+              : `${submissionCount} applicant${submissionCount === 1 ? "" : "s"} chose this template.`}
           </p>
           {template.submissions.length > 0 ? (
             <ul

@@ -39,10 +39,15 @@ export default async function WorkshopReviewsPage() {
   // so the gate never silently widens.
   const reviewerChapterId = isAdmin
     ? null
-    : (await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { chapterId: true },
-      }))?.chapterId ?? null;
+    : (await withPrismaFallback(
+        "workshop-reviews:reviewer-chapter",
+        () =>
+          prisma.user.findUnique({
+            where: { id: session.user.id },
+            select: { chapterId: true },
+          }),
+        null
+      ))?.chapterId ?? null;
 
   // Hide DRAFT submissions — those are still being authored.
   const submissions = await withPrismaFallback(

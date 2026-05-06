@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
+import { withPrismaFallback } from "@/lib/prisma-guard";
 import {
   difficultyLabel,
   isSubmissionReviewable,
@@ -77,45 +78,55 @@ export default async function WorkshopReviewDetailPage({
     redirect("/");
   }
 
-  const submission = await prisma.workshopProposalSubmission.findUnique({
-    where: { id: submissionId },
-    include: {
-      author: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          chapterId: true,
-          chapter: { select: { name: true } },
-          instructorApplication: {
+  const submission = await withPrismaFallback(
+    "workshop-review-detail:submission",
+    () =>
+      prisma.workshopProposalSubmission.findUnique({
+        where: { id: submissionId },
+        include: {
+          author: {
             select: {
-              applicationTrack: true,
-              instructorSubtype: true,
-              workshopOutline: true,
+              id: true,
+              name: true,
+              email: true,
+              chapterId: true,
+              chapter: { select: { name: true } },
+              instructorApplication: {
+                select: {
+                  applicationTrack: true,
+                  instructorSubtype: true,
+                  workshopOutline: true,
+                },
+              },
+            },
+          },
+          template: true,
+          reviews: {
+            where: { committed: true },
+            orderBy: { committedAt: "desc" },
+            include: {
+              reviewer: { select: { id: true, name: true, email: true } },
             },
           },
         },
-      },
-      template: true,
-      reviews: {
-        where: { committed: true },
-        orderBy: { committedAt: "desc" },
-        include: {
-          reviewer: { select: { id: true, name: true, email: true } },
-        },
-      },
-    },
-  });
+      }),
+    null
+  );
 
   if (!submission) notFound();
 
   // Chapter-scoped reviewer guard: chapter leads can only open submissions
   // from their own chapter. Admins bypass.
   if (!isAdmin && isChapterLead) {
-    const reviewer = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { chapterId: true },
-    });
+    const reviewer = await withPrismaFallback(
+      "workshop-review-detail:reviewer-chapter",
+      () =>
+        prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { chapterId: true },
+        }),
+      null
+    );
     if (
       !reviewer?.chapterId ||
       !submission.author.chapterId ||
@@ -136,10 +147,15 @@ export default async function WorkshopReviewDetailPage({
   );
 
   // Compute training progress for the applicant — reviewers want context.
-  const trainingAssignments = await prisma.trainingAssignment.findMany({
-    where: { userId: submission.authorId },
-    select: { status: true, module: { select: { required: true, title: true } } },
-  });
+  const trainingAssignments = await withPrismaFallback(
+    "workshop-review-detail:training-assignments",
+    () =>
+      prisma.trainingAssignment.findMany({
+        where: { userId: submission.authorId },
+        select: { status: true, module: { select: { required: true, title: true } } },
+      }),
+    [] as { status: string; module: { required: boolean; title: string } }[]
+  );
   const requiredCount = trainingAssignments.filter((a) => a.module.required).length;
   const completedRequired = trainingAssignments.filter(
     (a) => a.module.required && a.status === "COMPLETE"

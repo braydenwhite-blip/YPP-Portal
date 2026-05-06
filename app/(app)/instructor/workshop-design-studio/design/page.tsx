@@ -8,10 +8,7 @@ import {
   isSubmissionEditable,
   submissionStatusLabel,
 } from "@/lib/workshop-proposal-constants";
-import {
-  customWorkshopIssues,
-  normalizeCustomWorkshop,
-} from "@/lib/workshop-proposal-validation";
+import { normalizeCustomWorkshop } from "@/lib/workshop-proposal-validation";
 import { getOrCreateApplicantSubmission } from "@/lib/workshop-proposal-actions";
 import { CustomWorkshopForm } from "./form";
 
@@ -52,7 +49,6 @@ export default async function WorkshopDesignPage() {
     submission.sourceType === "CUSTOM_DESIGN"
       ? normalizeCustomWorkshop(submission.customWorkshop)
       : { ...EMPTY_CUSTOM_WORKSHOP };
-  const issues = customWorkshopIssues(initialPayload);
 
   return (
     <div>
@@ -96,11 +92,7 @@ export default async function WorkshopDesignPage() {
         </div>
       ) : null}
 
-      <CustomWorkshopForm
-        initial={initialPayload}
-        initialIssues={issues}
-        editable={editable}
-      />
+      <CustomWorkshopForm initial={initialPayload} editable={editable} />
     </div>
   );
 }

@@ -106,6 +106,23 @@ export default async function WorkshopLibraryPage({
         </div>
       </div>
 
+      {gate.reason === "REVIEWER_BYPASS" ? (
+        <div
+          className="card"
+          role="status"
+          style={{
+            marginBottom: 16,
+            borderColor: "#a78bfa",
+            background: "#f5f3ff",
+          }}
+        >
+          <p style={{ margin: 0, fontSize: 13, color: "#5b21b6" }}>
+            <strong>Reviewer preview.</strong> You&rsquo;re seeing the
+            applicant library. Picking a workshop is disabled.
+          </p>
+        </div>
+      ) : null}
+
       <LibraryFilters
         categories={allCategories}
         currentSearch={search}

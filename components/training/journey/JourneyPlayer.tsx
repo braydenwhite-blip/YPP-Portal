@@ -281,6 +281,23 @@ export function JourneyPlayer({
   }, []);
 
   const currentBeat = beats.find((b) => b.sourceKey === currentSourceKey) ?? beats[0];
+  // Defensive: an empty `beats` array means the journey has no published
+  // content. Render a friendly notice instead of crashing on undefined.
+  if (!currentBeat) {
+    return (
+      <div className="journey-player">
+        <div className="journey-empty" role="status" style={{ padding: 32, textAlign: "center" }}>
+          <p style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+            This journey isn&apos;t ready yet.
+          </p>
+          <p style={{ fontSize: 14, color: "var(--muted)" }}>
+            No content has been published for this module. Try again soon, or
+            return to the training hub.
+          </p>
+        </div>
+      </div>
+    );
+  }
   const isFirstBeat = getPrevVisibleBeat(currentSourceKey, beats) === null;
   const isReadOnly = phase === "correct";
 

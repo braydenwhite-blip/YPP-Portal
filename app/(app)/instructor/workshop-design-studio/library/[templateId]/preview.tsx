@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { selectWorkshopTemplate } from "@/lib/workshop-proposal-actions";
 
@@ -20,19 +20,22 @@ export function TemplatePreviewSelect({
 }: TemplatePreviewSelectProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   function handleSelect() {
     if (!editable || isReviewerPreview) return;
+    setError(null);
     const fd = new FormData();
     fd.set("templateId", templateId);
     startTransition(async () => {
       try {
         await selectWorkshopTemplate(fd);
         router.push("/instructor/workshop-design-studio/review");
+        router.refresh();
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Could not pick this workshop.";
-        alert(message);
+        setError(
+          err instanceof Error ? err.message : "Could not pick this workshop."
+        );
       }
     });
   }
@@ -81,6 +84,19 @@ export function TemplatePreviewSelect({
               : "Pick this workshop"}
         </button>
       )}
+      {error ? (
+        <p
+          role="alert"
+          style={{
+            margin: "10px 0 0",
+            fontSize: 12,
+            color: "#dc2626",
+            lineHeight: 1.4,
+          }}
+        >
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }
