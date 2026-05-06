@@ -98,6 +98,32 @@ export default async function AdminWorkshopLibraryPage() {
         </div>
       </div>
 
+      {counts.total === 0 ? (
+        <div
+          className="card"
+          style={{
+            textAlign: "center",
+            padding: 32,
+            background: "var(--surface)",
+            border: "1px dashed var(--border)",
+          }}
+        >
+          <h3 style={{ marginTop: 0 }}>No workshop templates yet</h3>
+          <p style={{ color: "var(--muted)", marginTop: 0 }}>
+            Templates appear in the applicant library only after you set their
+            status to <strong>Approved</strong>. Start with one well-scoped
+            workshop and iterate from there.
+          </p>
+          <Link
+            href="/admin/workshop-library/new"
+            className="button"
+            style={{ textDecoration: "none", marginTop: 8 }}
+          >
+            Create the first template
+          </Link>
+        </div>
+      ) : null}
+
       <div
         style={{
           display: "grid",

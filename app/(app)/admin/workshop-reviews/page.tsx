@@ -197,16 +197,31 @@ export default async function WorkshopReviewsPage() {
                         {sourceTypeLabel(s.sourceType)}
                         {s.template ? ` · ${s.template.title}` : ""}
                       </p>
-                      <span
-                        className={`pill pill-small${
-                          submissionStatusTone(s.status) === "success"
-                            ? " pill-success"
-                            : ""
-                        }`}
-                        style={{ marginTop: 8, display: "inline-block" }}
-                      >
-                        {submissionStatusLabel(s.status)}
-                      </span>
+                      {(() => {
+                        const tone = submissionStatusTone(s.status);
+                        const toneStyle: Record<typeof tone, { bg: string; fg: string }> = {
+                          neutral: { bg: "var(--surface-alt, #f3f4f6)", fg: "var(--ink, #111827)" },
+                          info:    { bg: "#eff6ff", fg: "#1d4ed8" },
+                          warn:    { bg: "#fffbeb", fg: "#92400e" },
+                          success: { bg: "#dcfce7", fg: "#166534" },
+                          danger:  { bg: "#fef2f2", fg: "#991b1b" },
+                        };
+                        const palette = toneStyle[tone];
+                        return (
+                          <span
+                            className="pill pill-small"
+                            style={{
+                              marginTop: 8,
+                              display: "inline-block",
+                              background: palette.bg,
+                              color: palette.fg,
+                              border: "1px solid currentColor",
+                            }}
+                          >
+                            {submissionStatusLabel(s.status)}
+                          </span>
+                        );
+                      })()}
                       {s.submittedAt ? (
                         <p
                           style={{
