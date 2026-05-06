@@ -7,23 +7,28 @@
  *   imageUrl: string
  *   regions: { id, label, shape: "rect", x, y, width, height }[]  (coords in [0,1])
  *   hint?: string
+ *   altText?: string   — descriptive alt text for the image (falls back to beat.prompt)
  *
  * Response shape: { x: number; y: number }
  * The x/y values are the normalized center of the selected region.
  * Non-null when: any region has been selected.
  *
  * Visual side: image with absolutely-positioned overlay zones (aria-hidden,
- * tabIndex={-1}). Clicking an overlay selects that region.
+ * tabIndex={-1}). Clicking an overlay selects that region. Overlays show hover
+ * and selected states via CSS classes. cursor: crosshair on hover.
  *
- * Accessible alternate list (MANDATORY per plan §11 R7): a <ul> alongside the
- * image where each region is a role="radio" button. Screen-reader users answer
+ * Accessible alternate list (MANDATORY per plan §11 R7): a radiogroup alongside the
+ * image where each region is a proper radio button. Screen-reader users answer
  * exclusively via this list. The overlays are visual affordances only and are
  * NOT in the tab order.
+ *
+ * Mobile: hit areas enlarged via CSS padding and min-height on both overlays
+ * and list buttons. On pointer:coarse the overlays get extra padding.
  *
  * readOnly disables all buttons and overlays.
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useId } from "react";
 import type { ClientBeat } from "@/lib/training-journey/types";
 
 // ---------------------------------------------------------------------------
@@ -44,6 +49,8 @@ type HotspotConfig = {
   imageUrl: string;
   regions: HotspotRegion[];
   hint?: string;
+  /** Accessible description of the image. Falls back to beat.prompt. */
+  altText?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -96,8 +103,10 @@ export function Hotspot({ beat, response, onResponseChange, readOnly }: Props) {
   const config = beat.config as HotspotConfig;
   const regions = config.regions ?? [];
   const hint = config.hint;
+  const imageAlt = config.altText ?? "";
 
   const [imgError, setImgError] = useState(false);
+  const groupId = useId();
 
   // Derive the selected region id from the current response on every render.
   // We don't need local state for the selection — the response prop is the
@@ -118,29 +127,40 @@ export function Hotspot({ beat, response, onResponseChange, readOnly }: Props) {
         .filter(Boolean)
         .join(" ")}
     >
+      {hint && (
+        <p className="hotspot__hint" id={`${groupId}-hint`}>
+          {hint}
+        </p>
+      )}
+
       {/* ------------------------------------------------------------------ */}
       {/* Image with absolutely-positioned click overlays                     */}
       {/* ------------------------------------------------------------------ */}
       <div
         className="hotspot__image-container"
-        style={{ position: "relative", display: "inline-block" }}
       >
         {imgError ? (
-          <div className="hotspot__image-fallback" role="img" aria-label={beat.prompt}>
-            Image could not be loaded. Use the list below to answer.
+          <div
+            className="hotspot__image-fallback"
+            role="img"
+            aria-label={imageAlt || beat.prompt}
+          >
+            <p>Image could not be loaded.</p>
+            <p>Use the list below to select a region.</p>
           </div>
         ) : (
           <img
             src={config.imageUrl}
-            alt=""
+            alt={imageAlt}
             className="hotspot__image"
             onError={() => setImgError(true)}
-            style={{ display: "block", maxWidth: "100%", height: "auto" }}
           />
         )}
 
-        {/* Visual overlay zones — aria-hidden; NOT in tab order */}
-        {regions.map((region) => {
+        {/* Visual overlay zones — aria-hidden; NOT in tab order.
+            The min 44×44px hit area is enforced in CSS. On pointer:coarse
+            (touch) the overlays are enlarged further. */}
+        {!imgError && regions.map((region) => {
           const isSelected = activeId === region.id;
           return (
             <div
@@ -160,9 +180,6 @@ export function Hotspot({ beat, response, onResponseChange, readOnly }: Props) {
                 top: `${region.y * 100}%`,
                 width: `${region.width * 100}%`,
                 height: `${region.height * 100}%`,
-                cursor: readOnly ? "default" : "pointer",
-                pointerEvents: readOnly ? "none" : "auto",
-                boxSizing: "border-box",
               }}
               onClick={() => handleSelect(region)}
             />
@@ -173,43 +190,57 @@ export function Hotspot({ beat, response, onResponseChange, readOnly }: Props) {
       {/* ------------------------------------------------------------------ */}
       {/* Accessible alternate list — canonical input for screen-reader users */}
       {/* ------------------------------------------------------------------ */}
-      <ul
-        className="hotspot__alt-list"
-        aria-label={beat.prompt}
+      <div
         role="radiogroup"
+        aria-labelledby={`${groupId}-list-label`}
+        aria-describedby={hint ? `${groupId}-hint` : undefined}
         aria-disabled={readOnly}
+        className="hotspot__alt-group"
       >
-        {regions.map((region) => {
-          const isSelected = activeId === region.id;
-          return (
-            <li key={region.id}>
-              <button
-                type="button"
-                role="radio"
-                aria-checked={isSelected}
-                aria-disabled={readOnly}
-                disabled={readOnly}
-                className={[
-                  "hotspot__alt-option",
-                  isSelected ? "hotspot__alt-option--selected" : "",
-                  readOnly ? "hotspot__alt-option--readonly" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                onClick={() => handleSelect(region)}
-              >
-                {region.label}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-
-      {hint && (
-        <p className="hotspot__hint" aria-live="polite">
-          {hint}
+        <p
+          id={`${groupId}-list-label`}
+          className="hotspot__alt-label"
+        >
+          Select a region:
         </p>
-      )}
+
+        <ul className="hotspot__alt-list" role="presentation">
+          {regions.map((region) => {
+            const isSelected = activeId === region.id;
+            return (
+              <li key={region.id} role="presentation">
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  aria-disabled={readOnly}
+                  disabled={readOnly}
+                  className={[
+                    "hotspot__alt-option",
+                    isSelected ? "hotspot__alt-option--selected" : "",
+                    readOnly ? "hotspot__alt-option--readonly" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  onClick={() => handleSelect(region)}
+                >
+                  {/* Visual check indicator */}
+                  <span
+                    className={[
+                      "hotspot__alt-indicator",
+                      isSelected ? "hotspot__alt-indicator--selected" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    aria-hidden="true"
+                  />
+                  {region.label}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </div>
   );
 }

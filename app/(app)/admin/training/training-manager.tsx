@@ -44,6 +44,16 @@ interface ModuleQuizQuestion {
   sortOrder: number;
 }
 
+interface InteractiveJourneySummary {
+  id: string;
+  estimatedMinutes: number;
+  passScorePct: number;
+  strictMode: boolean;
+  version: number;
+  beatCount: number;
+  completionCount: number;
+}
+
 interface Module {
   id: string;
   contentKey: string | null;
@@ -66,6 +76,7 @@ interface Module {
   quizQuestions: ModuleQuizQuestion[];
   assignmentCount: number;
   assignments: Assignment[];
+  interactiveJourney?: InteractiveJourneySummary | null;
 }
 
 interface Instructor {
@@ -114,6 +125,7 @@ export default function TrainingManager({
 }) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"modules" | "progress" | "json">("modules");
+  const [moduleFilter, setModuleFilter] = useState<"all" | "journeys" | "legacy">("all");
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -231,6 +243,10 @@ export default function TrainingManager({
   }
 
   const editingModule = editingModuleId ? (modules.find((m) => m.id === editingModuleId) ?? null) : null;
+  const interactiveJourneyCount = modules.filter(
+    (m) => m.type === "INTERACTIVE_JOURNEY"
+  ).length;
+  const legacyCount = modules.length - interactiveJourneyCount;
 
   return (
     <div>
@@ -241,16 +257,16 @@ export default function TrainingManager({
           <div className="kpi-label">Total Modules</div>
         </div>
         <div className="card">
+          <div className="kpi">{interactiveJourneyCount}</div>
+          <div className="kpi-label">Interactive Journeys</div>
+        </div>
+        <div className="card">
+          <div className="kpi">{legacyCount}</div>
+          <div className="kpi-label">Legacy (video / quiz)</div>
+        </div>
+        <div className="card">
           <div className="kpi">{modules.filter((m) => m.required).length}</div>
           <div className="kpi-label">Required</div>
-        </div>
-        <div className="card">
-          <div className="kpi">{instructors.length}</div>
-          <div className="kpi-label">Instructors</div>
-        </div>
-        <div className="card">
-          <div className="kpi">{students.length}</div>
-          <div className="kpi-label">Students</div>
         </div>
       </div>
 
@@ -292,12 +308,51 @@ export default function TrainingManager({
 
       {/* Modules tab */}
       {activeTab === "modules" && (
-        <SortableModuleList
-          modules={modules}
-          instructors={instructors}
-          students={students}
-          onEdit={openEdit}
-        />
+        <>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              margin: "12px 0",
+            }}
+          >
+            <button
+              type="button"
+              className={`button small ${moduleFilter === "all" ? "" : "outline"}`}
+              onClick={() => setModuleFilter("all")}
+            >
+              All ({modules.length})
+            </button>
+            <button
+              type="button"
+              className={`button small ${moduleFilter === "journeys" ? "" : "outline"}`}
+              onClick={() => setModuleFilter("journeys")}
+            >
+              Instructor Training Journeys ({interactiveJourneyCount})
+            </button>
+            <button
+              type="button"
+              className={`button small ${moduleFilter === "legacy" ? "" : "outline"}`}
+              onClick={() => setModuleFilter("legacy")}
+            >
+              Legacy modules ({legacyCount})
+            </button>
+          </div>
+          <SortableModuleList
+            modules={
+              moduleFilter === "journeys"
+                ? modules.filter((m) => m.type === "INTERACTIVE_JOURNEY")
+                : moduleFilter === "legacy"
+                ? modules.filter((m) => m.type !== "INTERACTIVE_JOURNEY")
+                : modules
+            }
+            instructors={instructors}
+            students={students}
+            onEdit={openEdit}
+            disableReorder={moduleFilter !== "all"}
+          />
+        </>
       )}
 
       {/* Learner Progress tab */}

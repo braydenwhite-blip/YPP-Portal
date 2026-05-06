@@ -65,6 +65,16 @@ interface ModuleQuizQuestion {
   sortOrder: number;
 }
 
+interface InteractiveJourneySummary {
+  id: string;
+  estimatedMinutes: number;
+  passScorePct: number;
+  strictMode: boolean;
+  version: number;
+  beatCount: number;
+  completionCount: number;
+}
+
 interface Module {
   id: string;
   contentKey: string | null;
@@ -87,6 +97,7 @@ interface Module {
   quizQuestions: ModuleQuizQuestion[];
   assignmentCount: number;
   assignments: Assignment[];
+  interactiveJourney?: InteractiveJourneySummary | null;
 }
 
 interface Instructor {
@@ -100,6 +111,9 @@ interface SortableModuleListProps {
   instructors: Instructor[];
   students: Instructor[];
   onEdit: (moduleId: string) => void;
+  /** When true, drag-to-reorder is disabled (e.g. filtered views where
+   *  partial reorders would corrupt the global sortOrder). */
+  disableReorder?: boolean;
 }
 
 // ------------------------------------
@@ -111,6 +125,15 @@ const MODULE_TYPE_PILL: Record<string, string> = {
   SCENARIO_PRACTICE: "pill-info",
   CURRICULUM_REVIEW: "pill-pathway",
   RESOURCE: "pill-success",
+  INTERACTIVE_JOURNEY: "pill-purple",
+};
+
+const MODULE_TYPE_LABEL: Record<string, string> = {
+  WORKSHOP: "Workshop",
+  SCENARIO_PRACTICE: "Scenario Practice",
+  CURRICULUM_REVIEW: "Curriculum Review",
+  RESOURCE: "Resource",
+  INTERACTIVE_JOURNEY: "Interactive Journey",
 };
 
 // ------------------------------------
@@ -216,14 +239,16 @@ function SortableModuleCard({
   instructors,
   students,
   onEdit,
+  disableReorder,
 }: {
   mod: Module;
   instructors: Instructor[];
   students: Instructor[];
   onEdit: (id: string) => void;
+  disableReorder: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: mod.id });
+    useSortable({ id: mod.id, disabled: disableReorder });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -241,6 +266,9 @@ function SortableModuleCard({
   const unassignedStudents = students.filter((s) => !assignedLearnerIds.has(s.id));
   const requiredCheckpointCount = mod.checkpoints.filter((c) => c.required).length;
   const typePill = MODULE_TYPE_PILL[mod.type] ?? "pill-declined";
+  const typeLabel = MODULE_TYPE_LABEL[mod.type] ?? mod.type.replace(/_/g, " ");
+  const isInteractiveJourney = mod.type === "INTERACTIVE_JOURNEY";
+  const journey = mod.interactiveJourney ?? null;
 
   return (
     <div ref={setNodeRef} style={style} className="admin-training-module-card">
@@ -248,11 +276,13 @@ function SortableModuleCard({
         {/* Drag handle — separate from the expand button */}
         <button
           className="drag-handle"
-          {...attributes}
-          {...listeners}
-          aria-label="Drag to reorder"
+          {...(disableReorder ? {} : attributes)}
+          {...(disableReorder ? {} : listeners)}
+          aria-label={disableReorder ? "Reordering disabled while filtered" : "Drag to reorder"}
           type="button"
-          title="Drag to reorder"
+          title={disableReorder ? "Switch to All to reorder" : "Drag to reorder"}
+          disabled={disableReorder}
+          style={disableReorder ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
         >
           ⠿
         </button>
@@ -272,12 +302,20 @@ function SortableModuleCard({
               {mod.required ? "Required" : "Optional"}
             </span>
             <span className={`pill pill-small ${typePill}`}>
-              {mod.type.replace(/_/g, " ")}
+              {typeLabel}
             </span>
             {mod.estimatedMinutes && (
               <span className="pill pill-small" style={{ color: "var(--muted)" }}>
                 ⏱ {mod.estimatedMinutes} min
               </span>
+            )}
+            {isInteractiveJourney && journey && (
+              <span className="pill pill-small pill-info">
+                {journey.beatCount} beat{journey.beatCount === 1 ? "" : "s"}
+              </span>
+            )}
+            {isInteractiveJourney && journey?.strictMode && (
+              <span className="pill pill-small pill-pathway">Strict mode</span>
             )}
           </div>
           {mod.contentKey && (
@@ -319,16 +357,33 @@ function SortableModuleCard({
         <div className="admin-training-module-body">
           {/* Status row */}
           <div className="admin-training-meta-row" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <span className={`pill pill-small ${mod.videoUrl ? "pill-success" : "pill-pending"}`}>
-              Video {mod.videoUrl ? "Configured" : "Not set"}
-            </span>
-            <span className={`pill pill-small ${mod.checkpoints.length > 0 ? "pill-success" : "pill-pending"}`}>
-              Goals: {mod.checkpoints.length}
-            </span>
-            <span className={`pill pill-small ${mod.requiresQuiz ? "pill-pathway" : "pill-pending"}`}>
-              Quiz {mod.requiresQuiz ? `On (${mod.quizQuestions.length} Qs)` : "Off"}
-            </span>
-            <span className="pill pill-small">Pass: {mod.passScorePct}%</span>
+            {isInteractiveJourney ? (
+              <>
+                <span className={`pill pill-small ${journey ? "pill-success" : "pill-pending"}`}>
+                  Journey {journey ? `Linked (v${journey.version})` : "Missing"}
+                </span>
+                <span className="pill pill-small pill-info">
+                  Beats: {journey?.beatCount ?? 0}
+                </span>
+                <span className="pill pill-small">Pass: {journey?.passScorePct ?? mod.passScorePct}%</span>
+                <span className="pill pill-small pill-success">
+                  Completions: {journey?.completionCount ?? 0}
+                </span>
+              </>
+            ) : (
+              <>
+                <span className={`pill pill-small ${mod.videoUrl ? "pill-success" : "pill-pending"}`}>
+                  Video {mod.videoUrl ? "Configured" : "Not set"}
+                </span>
+                <span className={`pill pill-small ${mod.checkpoints.length > 0 ? "pill-success" : "pill-pending"}`}>
+                  Goals: {mod.checkpoints.length}
+                </span>
+                <span className={`pill pill-small ${mod.requiresQuiz ? "pill-pathway" : "pill-pending"}`}>
+                  Quiz {mod.requiresQuiz ? `On (${mod.quizQuestions.length} Qs)` : "Off"}
+                </span>
+                <span className="pill pill-small">Pass: {mod.passScorePct}%</span>
+              </>
+            )}
           </div>
 
           {/* Action buttons */}
@@ -340,10 +395,22 @@ function SortableModuleCard({
             >
               Edit Module
             </button>
-            <form action={cloneTrainingModule} style={{ display: "inline" }}>
-              <input type="hidden" name="moduleId" value={mod.id} />
-              <button className="button small outline" type="submit">Clone</button>
-            </form>
+            {isInteractiveJourney && (
+              <a
+                className="button small outline"
+                href={`/training/${mod.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Preview Journey ↗
+              </a>
+            )}
+            {!isInteractiveJourney && (
+              <form action={cloneTrainingModule} style={{ display: "inline" }}>
+                <input type="hidden" name="moduleId" value={mod.id} />
+                <button className="button small outline" type="submit">Clone</button>
+              </form>
+            )}
             <form action={bulkAssignModuleToInstructors} style={{ display: "inline" }}>
               <input type="hidden" name="moduleId" value={mod.id} />
               <button className="button small" type="submit">Assign All Instructors</button>
@@ -356,7 +423,10 @@ function SortableModuleCard({
               action={deleteTrainingModule}
               style={{ display: "inline" }}
               onSubmit={(e) => {
-                if (!confirm(`Delete "${mod.title}"? This will remove all assignments too.`)) {
+                const extra = isInteractiveJourney
+                  ? " The journey, all beats, and every learner attempt for this module will be removed."
+                  : "";
+                if (!confirm(`Delete "${mod.title}"? This will remove all assignments too.${extra}`)) {
                   e.preventDefault();
                 }
               }}
@@ -366,7 +436,31 @@ function SortableModuleCard({
             </form>
           </div>
 
-          {/* Module Goals */}
+          {isInteractiveJourney && (
+            <div
+              className="card"
+              style={{
+                background: "var(--ypp-blush, #fdf6f0)",
+                borderLeft: "4px solid var(--ypp-purple)",
+                marginBottom: 16,
+                fontSize: 13,
+              }}
+            >
+              <p style={{ margin: 0, fontWeight: 600 }}>Authored content</p>
+              <p style={{ margin: "6px 0 0", color: "var(--muted)" }}>
+                This is an interactive instructor-training journey. Beat content
+                lives in <code>lib/training-curriculum/</code> and is upserted by
+                <code> npm run training:import</code>. Use{" "}
+                <strong>Edit Module</strong> here to change metadata (title,
+                sort order, required flag) and <strong>Delete</strong> to remove
+                the module + journey + all attempts. Beats are read-only from
+                the admin UI by design.
+              </p>
+            </div>
+          )}
+
+          {/* Module Goals — hidden for interactive journeys (authored in TS) */}
+          {!isInteractiveJourney && (
           <div style={{ marginBottom: 16 }}>
             <h4 style={{ marginBottom: 8 }}>Module Goals</h4>
             <p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--muted)" }}>
@@ -440,8 +534,10 @@ function SortableModuleCard({
               <button className="button small" type="submit">Add goal</button>
             </form>
           </div>
+          )}
 
-          {/* Quiz Questions */}
+          {/* Quiz Questions — hidden for interactive journeys */}
+          {!isInteractiveJourney && (
           <div style={{ marginBottom: 16 }}>
             <h4 style={{ marginBottom: 8 }}>Quiz Questions</h4>
             {mod.quizQuestions.length === 0 ? (
@@ -467,6 +563,7 @@ function SortableModuleCard({
             )}
             <NewQuizQuestionForm moduleId={mod.id} nextSortOrder={mod.quizQuestions.length + 1} />
           </div>
+          )}
 
           {/* Assign instructors */}
           {unassignedInstructors.length > 0 && (
@@ -557,6 +654,7 @@ export default function SortableModuleList({
   instructors,
   students,
   onEdit,
+  disableReorder = false,
 }: SortableModuleListProps) {
   const [items, setItems] = useState(modules);
   const [, startTransition] = useTransition();
@@ -574,6 +672,7 @@ export default function SortableModuleList({
   );
 
   function handleDragEnd(event: DragEndEvent) {
+    if (disableReorder) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
@@ -614,6 +713,7 @@ export default function SortableModuleList({
               instructors={instructors}
               students={students}
               onEdit={onEdit}
+              disableReorder={disableReorder}
             />
           ))}
         </div>

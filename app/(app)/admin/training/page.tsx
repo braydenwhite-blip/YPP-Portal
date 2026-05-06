@@ -26,6 +26,16 @@ export default async function AdminTrainingPage() {
               user: { select: { id: true, name: true, email: true } },
             },
           },
+          interactiveJourney: {
+            select: {
+              id: true,
+              estimatedMinutes: true,
+              passScorePct: true,
+              strictMode: true,
+              version: true,
+              _count: { select: { beats: true, completions: true } },
+            },
+          },
           _count: {
             select: { assignments: true },
           },
@@ -118,6 +128,17 @@ export default async function AdminTrainingPage() {
       status: a.status,
       completedAt: a.completedAt?.toISOString() ?? null,
     })),
+    interactiveJourney: m.interactiveJourney
+      ? {
+          id: m.interactiveJourney.id,
+          estimatedMinutes: m.interactiveJourney.estimatedMinutes,
+          passScorePct: m.interactiveJourney.passScorePct,
+          strictMode: m.interactiveJourney.strictMode,
+          version: m.interactiveJourney.version,
+          beatCount: m.interactiveJourney._count.beats,
+          completionCount: m.interactiveJourney._count.completions,
+        }
+      : null,
   }));
 
     // Build per-user latest quiz attempt and video progress lookups for the

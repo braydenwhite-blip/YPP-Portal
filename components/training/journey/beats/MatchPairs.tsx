@@ -18,11 +18,20 @@
  * plus the currently assigned one. Selecting an option updates pairs the same
  * way the drag handler does.
  *
+ * Tap-to-pair (mobile alternative):
+ *   - Tap a right chip to "select" it (pendingRightId state).
+ *   - Then tap a left slot to complete the pair.
+ *   - A clear visual "active/waiting" state on the selected chip guides users.
+ *   - Tapping the same chip again deselects it (cancel).
+ *
  * ARIA:
  *   - Left column: role="list", each slot role="listitem"
  *   - Each slot aria-label includes current match state.
  *   - Right chips pool: role="list", chips role="listitem"
- *   - Select fallback: aria-label per slot.
+ *   - Select fallback: aria-label per slot (always visible to keyboard users).
+ *   - Paired slots show aria-pressed="true" equivalent via the select value.
+ *
+ * Mobile: columns stack vertically via CSS. Touch targets ≥44px.
  *
  * Config shape (client-safe — correctPairs/feedback stripped):
  *   leftItems: { id: string; label: string }[]
@@ -89,9 +98,11 @@ type RightChipProps = {
   label: string;
   isPlaced: boolean;
   readOnly: boolean;
+  isPending: boolean;
+  onTap: (id: string) => void;
 };
 
-function RightChip({ id, label, isPlaced, readOnly }: RightChipProps) {
+function RightChip({ id, label, isPlaced, readOnly, isPending, onTap }: RightChipProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id,
     disabled: readOnly || isPlaced,
@@ -103,6 +114,7 @@ function RightChip({ id, label, isPlaced, readOnly }: RightChipProps) {
   const className = [
     "match-pairs__chip",
     isDragging ? "match-pairs__chip--dragging" : "",
+    isPending ? "match-pairs__chip--pending" : "",
     readOnly ? "match-pairs__chip--readonly" : "",
   ]
     .filter(Boolean)
@@ -114,9 +126,14 @@ function RightChip({ id, label, isPlaced, readOnly }: RightChipProps) {
       {...attributes}
       {...listeners}
       role="listitem"
-      aria-label={label}
       className={className}
+      onClick={() => { if (!readOnly) onTap(id); }}
+      aria-label={`${label}${isPending ? " — selected, tap a slot on the left to pair" : ". Drag or tap to select."}`}
+      aria-pressed={isPending}
     >
+      {isPending && (
+        <span className="match-pairs__chip-pending-dot" aria-hidden="true" />
+      )}
       {label}
     </div>
   );
@@ -132,8 +149,10 @@ type LeftSlotProps = {
   allRightItems: PairItem[];
   pairedRightIds: Set<string>;
   onSelectChange: (leftId: string, rightId: string | null) => void;
+  onTapSlot: (leftId: string) => void;
   readOnly: boolean;
   groupId: string;
+  hasPendingRight: boolean;
 };
 
 function LeftSlot({
@@ -142,19 +161,26 @@ function LeftSlot({
   allRightItems,
   pairedRightIds,
   onSelectChange,
+  onTapSlot,
   readOnly,
   groupId,
+  hasPendingRight,
 }: LeftSlotProps) {
   const { isOver, setNodeRef } = useDroppable({ id: leftItem.id });
 
-  const slotAriaLabel = `Match for: ${leftItem.label}. Currently matched with: ${
-    pairedRight ? pairedRight.label : "not yet matched"
+  const slotAriaLabel = `Match slot for: ${leftItem.label}. ${
+    pairedRight
+      ? `Currently matched with: ${pairedRight.label}.`
+      : hasPendingRight
+      ? "Tap to pair the selected option here."
+      : "Not yet matched."
   }`;
 
   const slotClassName = [
     "match-pairs__slot",
     isOver ? "match-pairs__slot--over" : "",
     pairedRight ? "match-pairs__slot--filled" : "",
+    hasPendingRight && !pairedRight ? "match-pairs__slot--receptive" : "",
     readOnly ? "match-pairs__slot--readonly" : "",
   ]
     .filter(Boolean)
@@ -173,36 +199,50 @@ function LeftSlot({
       role="listitem"
       aria-label={slotAriaLabel}
       className={slotClassName}
+      // Tap-to-pair: clicking slot while a chip is pending pairs them.
+      onClick={() => { if (!readOnly && hasPendingRight) onTapSlot(leftItem.id); }}
     >
       <span className="match-pairs__slot-label">{leftItem.label}</span>
 
       <div className="match-pairs__slot-drop-area">
         {pairedRight ? (
-          // Paired chip rendered inside the slot.
+          // Paired chip rendered inside the slot with a match indicator.
           <div
             className="match-pairs__chip match-pairs__chip--placed"
-            aria-label={pairedRight.label}
+            aria-label={`Paired with: ${pairedRight.label}`}
           >
+            <span className="match-pairs__placed-check" aria-hidden="true">✓</span>
             {pairedRight.label}
             {!readOnly && (
               <button
                 type="button"
                 className="match-pairs__chip-remove"
-                aria-label={`Remove ${pairedRight.label} from ${leftItem.label}`}
-                onClick={() => onSelectChange(leftItem.id, null)}
+                aria-label={`Remove "${pairedRight.label}" from "${leftItem.label}"`}
+                onClick={(e) => {
+                  e.stopPropagation(); // don't trigger tap-to-pair
+                  onSelectChange(leftItem.id, null);
+                }}
               >
                 ×
               </button>
             )}
           </div>
         ) : (
-          <span className="match-pairs__slot-placeholder" aria-hidden="true">
-            Drop here
+          <span
+            className={[
+              "match-pairs__slot-placeholder",
+              hasPendingRight ? "match-pairs__slot-placeholder--receptive" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            aria-hidden="true"
+          >
+            {hasPendingRight ? "Tap to place here" : "Drop here"}
           </span>
         )}
       </div>
 
-      {/* Select fallback for keyboard / mobile users */}
+      {/* Select fallback for keyboard / screen-reader users — always visible */}
       {!readOnly && (
         <div className="match-pairs__select-wrapper">
           <label htmlFor={selectId} className="sr-only">
@@ -212,7 +252,6 @@ function LeftSlot({
             id={selectId}
             className="match-pairs__select"
             value={pairedRight?.id ?? ""}
-            aria-label={`Choose option for ${leftItem.label}`}
             onChange={(e) => {
               const val = e.target.value;
               onSelectChange(leftItem.id, val === "" ? null : val);
@@ -241,6 +280,9 @@ export function MatchPairs({ beat, response, onResponseChange, readOnly }: Props
   const rightItems = config.rightItems ?? [];
 
   const [pairs, setPairs] = useState<Pair[]>(response?.pairs ?? []);
+
+  // pendingRightId: the chip selected via tap-to-pair (null = none active)
+  const [pendingRightId, setPendingRightId] = useState<string | null>(null);
 
   const groupId = useId();
 
@@ -271,9 +313,31 @@ export function MatchPairs({ beat, response, onResponseChange, readOnly }: Props
     [onResponseChange]
   );
 
+  // Tap-to-pair handlers
+  const handleChipTap = useCallback(
+    (rightId: string) => {
+      if (readOnly) return;
+      // Toggle: tapping the already-pending chip deselects it.
+      setPendingRightId((prev) => (prev === rightId ? null : rightId));
+    },
+    [readOnly]
+  );
+
+  const handleSlotTap = useCallback(
+    (leftId: string) => {
+      if (readOnly || !pendingRightId) return;
+      applyPairUpdate(leftId, pendingRightId);
+      setPendingRightId(null);
+    },
+    [readOnly, pendingRightId, applyPairUpdate]
+  );
+
   const sensors = useSensors(
     useSensor(MouseSensor),
-    useSensor(TouchSensor),
+    useSensor(TouchSensor, {
+      // Require a brief press to distinguish tap-selection from drag initiation.
+      activationConstraint: { delay: 200, tolerance: 6 },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -288,6 +352,8 @@ export function MatchPairs({ beat, response, onResponseChange, readOnly }: Props
       // Verify over target is actually a left slot id.
       if (!leftById.has(leftId)) return;
       applyPairUpdate(leftId, rightId);
+      // Clear any tap-to-pair pending state after a drag completes.
+      setPendingRightId(null);
     },
     [leftById, applyPairUpdate]
   );
@@ -297,6 +363,8 @@ export function MatchPairs({ beat, response, onResponseChange, readOnly }: Props
     ...leftItems.map((l) => [l.id, l.label] as [string, string]),
     ...rightItems.map((r) => [r.id, r.label] as [string, string]),
   ]);
+
+  const allMatched = leftItems.every((l) => pairsByLeft.has(l.id));
 
   return (
     <div
@@ -308,6 +376,20 @@ export function MatchPairs({ beat, response, onResponseChange, readOnly }: Props
         <p className="match-pairs__hint">{config.hint}</p>
       )}
 
+      {!readOnly && (
+        <p className="match-pairs__instructions" aria-live="polite">
+          {pendingRightId
+            ? `"${labelById.get(pendingRightId)}" selected — tap a slot on the left to pair it, or tap it again to cancel.`
+            : "Drag items from the right to match them on the left, or use the dropdowns."}
+        </p>
+      )}
+
+      {allMatched && !readOnly && (
+        <p className="match-pairs__all-matched" aria-live="polite">
+          All pairs matched. Check your answers when ready.
+        </p>
+      )}
+
       <DndContext
         sensors={sensors}
         onDragEnd={handleDragEnd}
@@ -315,38 +397,35 @@ export function MatchPairs({ beat, response, onResponseChange, readOnly }: Props
           announcements: {
             onDragStart({ active }) {
               const label = labelById.get(String(active.id)) ?? String(active.id);
-              return `Picked up ${label}. Drag over a slot and release to match it.`;
+              return `Picked up "${label}". Drag over a slot and release to match it.`;
             },
             onDragOver({ active, over }) {
               if (!over) return;
               const chipLabel = labelById.get(String(active.id)) ?? String(active.id);
               const slotLabel = labelById.get(String(over.id)) ?? String(over.id);
-              return `${chipLabel} is over slot: ${slotLabel}.`;
+              return `"${chipLabel}" is over slot: "${slotLabel}".`;
             },
             onDragEnd({ active, over }) {
               if (!over) {
                 const label = labelById.get(String(active.id)) ?? String(active.id);
-                return `Dropped ${label}. No match made.`;
+                return `Dropped "${label}". No match made.`;
               }
               const chipLabel = labelById.get(String(active.id)) ?? String(active.id);
               const slotLabel = labelById.get(String(over.id)) ?? String(over.id);
-              return `Matched ${chipLabel} with ${slotLabel}.`;
+              return `Matched "${chipLabel}" with "${slotLabel}".`;
             },
             onDragCancel({ active }) {
               const label = labelById.get(String(active.id)) ?? String(active.id);
-              return `Matching cancelled. ${label} returned to the pool.`;
+              return `Matching cancelled. "${label}" returned to the pool.`;
             },
           },
         }}
       >
-        <div
-          className="match-pairs__grid"
-          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}
-        >
+        <div className="match-pairs__grid">
           {/* Left column: droppable slots */}
           <div
             role="list"
-            aria-label="Match targets — drop a chip onto each slot"
+            aria-label="Match targets — pair each item with an option from the right"
             className="match-pairs__left-column"
           >
             {leftItems.map((leftItem) => {
@@ -360,8 +439,10 @@ export function MatchPairs({ beat, response, onResponseChange, readOnly }: Props
                   allRightItems={rightItems}
                   pairedRightIds={placedRightIds}
                   onSelectChange={applyPairUpdate}
+                  onTapSlot={handleSlotTap}
                   readOnly={readOnly}
                   groupId={groupId}
+                  hasPendingRight={pendingRightId !== null}
                 />
               );
             })}
@@ -370,7 +451,7 @@ export function MatchPairs({ beat, response, onResponseChange, readOnly }: Props
           {/* Right column: draggable chips (unplaced only) */}
           <div
             role="list"
-            aria-label="Available options — drag a chip to a slot on the left"
+            aria-label="Available options — drag or tap a chip, then tap a slot on the left"
             className="match-pairs__right-column"
           >
             {rightItems.map((rightItem) => (
@@ -380,14 +461,24 @@ export function MatchPairs({ beat, response, onResponseChange, readOnly }: Props
                 label={rightItem.label}
                 isPlaced={placedRightIds.has(rightItem.id)}
                 readOnly={readOnly}
+                isPending={pendingRightId === rightItem.id}
+                onTap={handleChipTap}
               />
             ))}
-            {/* Placeholder when all chips are placed */}
-            {rightItems.every((r) => placedRightIds.has(r.id)) && (
-              <p className="match-pairs__all-placed" aria-live="polite">
-                All options matched.
-              </p>
-            )}
+            {/* Show placed items as greyed-out in the right column for reference */}
+            {rightItems
+              .filter((r) => placedRightIds.has(r.id))
+              .map((r) => (
+                <div
+                  key={`placed-${r.id}`}
+                  role="listitem"
+                  className="match-pairs__chip match-pairs__chip--placed-away"
+                  aria-label={`${r.label} — already matched`}
+                >
+                  <span className="match-pairs__placed-check" aria-hidden="true">✓</span>
+                  {r.label}
+                </div>
+              ))}
           </div>
         </div>
       </DndContext>

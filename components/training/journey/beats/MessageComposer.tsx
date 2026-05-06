@@ -16,6 +16,13 @@
  * Only then is a non-null response emitted; otherwise null disables Check.
  *
  * Live preview: concatenates selected snippet labels in pool order, space-joined.
+ *
+ * UX improvements:
+ * - Each pool has a prominent section heading (h3) and a "required" indicator.
+ * - Selected snippets show a visible selected state: border, checkmark, bg.
+ * - The preview panel updates live and is always visible with a placeholder.
+ * - On mobile, pools stack vertically; snippets wrap within each pool.
+ * - Keyboard: Tab between pools, arrow keys within a radio pool, Enter/Space select.
  */
 
 import { useState, useRef, useCallback, useId } from "react";
@@ -61,10 +68,34 @@ type Props = {
 // ---------------------------------------------------------------------------
 
 function hintText(min: number, max: number): string {
-  if (min === max) return `Pick ${min}`;
-  if (min === 1 && max === 1) return "Pick 1";
+  if (min === max && min === 1) return "Pick 1 (required)";
+  if (min === max) return `Pick ${min} (required)`;
   if (min <= 1) return `Pick up to ${max}`;
-  return `Pick ${min}–${max}`;
+  return `Pick ${min}–${max} (required)`;
+}
+
+// ---------------------------------------------------------------------------
+// CheckIcon — used inside selected snippets
+// ---------------------------------------------------------------------------
+
+function CheckIcon() {
+  return (
+    <svg
+      className="message-composer__check-icon"
+      aria-hidden="true"
+      focusable="false"
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="2,7 5.5,10.5 12,3" />
+    </svg>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -76,7 +107,9 @@ type SingleSelectPoolProps = {
   selectedIds: string[];
   onSelect: (poolId: string, snippetId: string) => void;
   readOnly: boolean;
-  legendId: string;
+  groupId: string;
+  isRequired: boolean;
+  isSatisfied: boolean;
 };
 
 function SingleSelectPool({
@@ -84,7 +117,9 @@ function SingleSelectPool({
   selectedIds,
   onSelect,
   readOnly,
-  legendId,
+  groupId,
+  isRequired,
+  isSatisfied,
 }: SingleSelectPoolProps) {
   const snippetRefs = useRef<(HTMLDivElement | null)[]>([]);
   const selectedId = selectedIds[0] ?? null;
@@ -114,7 +149,9 @@ function SingleSelectPool({
   return (
     <div
       role="radiogroup"
-      aria-labelledby={legendId}
+      aria-labelledby={`${groupId}-heading`}
+      aria-required={isRequired}
+      className="message-composer__snippets"
     >
       {pool.snippets.map((snippet, index) => {
         const isSelected = selectedId === snippet.id;
@@ -138,7 +175,8 @@ function SingleSelectPool({
             onClick={() => { if (!readOnly) onSelect(pool.poolId, snippet.id); }}
             onKeyDown={(e) => handleKeyDown(e, index)}
           >
-            {snippet.label}
+            {isSelected && <CheckIcon />}
+            <span className="message-composer__snippet-label">{snippet.label}</span>
           </div>
         );
       })}
@@ -156,7 +194,9 @@ type MultiSelectPoolProps = {
   selectedIds: string[];
   onToggle: (poolId: string, snippetId: string) => void;
   readOnly: boolean;
-  legendId: string;
+  groupId: string;
+  isRequired: boolean;
+  isSatisfied: boolean;
   overLimitMsg: string | null;
   overLimitRegionId: string;
 };
@@ -167,7 +207,7 @@ function MultiSelectPool({
   selectedIds,
   onToggle,
   readOnly,
-  legendId,
+  groupId,
   overLimitMsg,
   overLimitRegionId,
 }: MultiSelectPoolProps) {
@@ -176,10 +216,12 @@ function MultiSelectPool({
   return (
     <div
       role="group"
-      aria-labelledby={legendId}
+      aria-labelledby={`${groupId}-heading`}
+      className="message-composer__snippets"
     >
       {pool.snippets.map((snippet) => {
         const isChecked = selectedSet.has(snippet.id);
+        const isAtMax = selectedIds.length >= max && !isChecked;
 
         return (
           <button
@@ -187,12 +229,13 @@ function MultiSelectPool({
             type="button"
             role="checkbox"
             aria-checked={isChecked}
-            aria-disabled={readOnly}
+            aria-disabled={readOnly || isAtMax}
             disabled={readOnly}
             className={[
               "message-composer__snippet",
               isChecked ? "message-composer__snippet--selected" : "",
               readOnly ? "message-composer__snippet--readonly" : "",
+              isAtMax ? "message-composer__snippet--at-max" : "",
             ]
               .filter(Boolean)
               .join(" ")}
@@ -204,7 +247,8 @@ function MultiSelectPool({
               }
             }}
           >
-            {snippet.label}
+            {isChecked && <CheckIcon />}
+            <span className="message-composer__snippet-label">{snippet.label}</span>
           </button>
         );
       })}
@@ -315,7 +359,7 @@ export function MessageComposer({ beat, response, onResponseChange, readOnly }: 
         } else {
           // Would exceed max — flash message, do nothing
           if (current.length >= max) {
-            const msg = `You've already picked ${max} for this section`;
+            const msg = `Maximum ${max} selection${max === 1 ? "" : "s"} for this section`;
             setOverLimitMsgs((prevMsgs) => {
               const nextMsgs = new Map(prevMsgs);
               nextMsgs.set(poolId, msg);
@@ -379,28 +423,48 @@ export function MessageComposer({ beat, response, onResponseChange, readOnly }: 
         const min = pool.minSelections ?? 1;
         const max = pool.maxSelections ?? 1;
         const isMulti = max > 1;
-        const legendId = `${baseId}-pool-${poolIndex}-legend`;
-        const overLimitRegionId = `${baseId}-pool-${poolIndex}-overlimit`;
+        const isRequired = min >= 1;
         const selectedIds = selections.get(pool.poolId) ?? [];
+        const isSatisfied = selectedIds.length >= min;
         const overLimitMsg = overLimitMsgs.get(pool.poolId) ?? null;
+        const overLimitRegionId = `${baseId}-pool-${poolIndex}-overlimit`;
+        const poolGroupId = `${baseId}-pool-${poolIndex}`;
 
         return (
-          <fieldset
+          <section
             key={pool.poolId}
-            className="message-composer__pool"
-            style={{
-              border: "1px solid var(--ypp-line-soft)",
-              borderRadius: "var(--radius-md)",
-              padding: "12px 14px",
-              marginBottom: "16px",
-            }}
+            className={[
+              "message-composer__pool",
+              isSatisfied ? "message-composer__pool--satisfied" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            aria-labelledby={`${poolGroupId}-heading`}
           >
-            <legend
-              id={legendId}
-              style={{ fontWeight: 600, padding: "0 8px" }}
+            {/* Pool heading with required badge */}
+            <h3
+              id={`${poolGroupId}-heading`}
+              className="message-composer__pool-heading"
             >
               {pool.label}
-            </legend>
+              {isRequired && !isSatisfied && !readOnly && (
+                <span
+                  className="message-composer__required-badge"
+                  aria-label="required"
+                >
+                  Required
+                </span>
+              )}
+              {isSatisfied && (
+                <span
+                  className="message-composer__satisfied-badge"
+                  aria-label="selection made"
+                >
+                  <CheckIcon />
+                </span>
+              )}
+            </h3>
+
             <p className="message-composer__hint" aria-hidden="true">
               {hintText(min, max)}
             </p>
@@ -412,7 +476,9 @@ export function MessageComposer({ beat, response, onResponseChange, readOnly }: 
                 selectedIds={selectedIds}
                 onToggle={handleMultiToggle}
                 readOnly={readOnly}
-                legendId={legendId}
+                groupId={poolGroupId}
+                isRequired={isRequired}
+                isSatisfied={isSatisfied}
                 overLimitMsg={overLimitMsg}
                 overLimitRegionId={overLimitRegionId}
               />
@@ -422,24 +488,36 @@ export function MessageComposer({ beat, response, onResponseChange, readOnly }: 
                 selectedIds={selectedIds}
                 onSelect={handleSingleSelect}
                 readOnly={readOnly}
-                legendId={legendId}
+                groupId={poolGroupId}
+                isRequired={isRequired}
+                isSatisfied={isSatisfied}
               />
             )}
-          </fieldset>
+          </section>
         );
       })}
 
+      {/* Live preview — always rendered to prevent layout shift */}
       <div
-        className="message-composer__preview"
+        className={[
+          "message-composer__preview",
+          previewText ? "message-composer__preview--has-content" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
         aria-live="polite"
         aria-label="Your message preview"
-        style={{ padding: "14px 16px" }}
+        aria-atomic="false"
       >
-        <p className="message-composer__preview-heading" aria-hidden="true">
-          Your message preview
+        <p className="message-composer__preview-heading">
+          Message preview
         </p>
         <p className="message-composer__preview-text">
-          {previewText || " "}
+          {previewText || (
+            <span className="message-composer__preview-placeholder" aria-hidden="true">
+              Your composed message will appear here as you make selections above.
+            </span>
+          )}
         </p>
       </div>
     </div>
