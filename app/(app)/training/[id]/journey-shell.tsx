@@ -22,6 +22,7 @@ import { MotionProvider } from "@/components/training/journey/MotionProvider";
 import { JourneyIntro } from "@/components/training/journey/JourneyIntro";
 import { JourneyPlayer } from "@/components/training/journey/JourneyPlayer";
 import { JourneyComplete } from "@/components/training/journey/JourneyComplete";
+import "@/components/training/journey/journey.css";
 
 // ---------------------------------------------------------------------------
 // Types
