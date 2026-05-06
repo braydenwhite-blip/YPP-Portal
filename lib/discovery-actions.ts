@@ -14,48 +14,6 @@ export type TryItSessionView = {
   isSample: boolean;
 };
 
-const FALLBACK_TRY_IT_SESSIONS: TryItSessionView[] = [
-  {
-    id: "sample-art",
-    passionId: "ARTS",
-    passionName: "Arts & Visual Creation",
-    title: "Try-It: Visual Arts Fundamentals",
-    description: "Explore drawing, painting, and visual storytelling with a beginner-friendly activity.",
-    videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    duration: 15,
-    thumbnailUrl: null,
-    materialsNeeded: "Paper, pencil, and colors (optional)",
-    presenter: "YPP Arts Team",
-    isSample: true,
-  },
-  {
-    id: "sample-stem",
-    passionId: "STEM",
-    passionName: "Science & Technology",
-    title: "Try-It: STEM Challenge Sprint",
-    description: "Get hands-on with rapid problem solving and engineering-style thinking.",
-    videoUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
-    duration: 18,
-    thumbnailUrl: null,
-    materialsNeeded: "Notebook and simple household materials",
-    presenter: "YPP STEM Team",
-    isSample: true,
-  },
-  {
-    id: "sample-music",
-    passionId: "MUSIC",
-    passionName: "Music",
-    title: "Try-It: Rhythm and Songwriting Basics",
-    description: "Experiment with rhythm, lyrics, and simple composition in one short session.",
-    videoUrl: "https://www.youtube.com/watch?v=5NV6Rdv1a3I",
-    duration: 14,
-    thumbnailUrl: null,
-    materialsNeeded: "Phone voice notes or a notebook",
-    presenter: "YPP Music Team",
-    isSample: true,
-  },
-];
-
 function titleCaseFromKey(value: string): string {
   return value
     .toLowerCase()
@@ -82,7 +40,7 @@ export async function getTryItSessions(): Promise<TryItSessionView[]> {
   ]);
 
   if (sessions.length === 0) {
-    return FALLBACK_TRY_IT_SESSIONS;
+    return [];
   }
 
   const passionById = new Map(passions.map((p) => [p.id, p.name]));

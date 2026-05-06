@@ -23,11 +23,29 @@ import { DURATIONS, EASE } from "@/lib/training-journey/motion";
 import { useJourneyMotion } from "./MotionProvider";
 import { ConfettiBurst } from "./ConfettiBurst";
 
+export type SessionPeakMoment = {
+  studentName: string;
+  quote?: string;
+  bodyLanguage?: string;
+  consequence?: string;
+  tone: "correct" | "partial" | "incorrect" | "noted";
+};
+
 export type JourneyCompleteProps = {
   completion: JourneyCompletionSummary;
   title: string;
   backHref: string;
   nextModule: { id: string; title: string } | null;
+  /**
+   * When the just-completed module is the Readiness Check (M5), pass these so
+   * the success screen surfaces the right capstone CTA. They are mutually
+   * exclusive — the server picks one based on the applicant's subtype.
+   */
+  unlocksLessonDesignStudio?: boolean;
+  unlocksWorkshopSubmission?: boolean;
+  /** Optional "moment of the run" pulled from the strongest student reaction
+   *  during the session. Surfaced as a callback line above the score summary. */
+  peakMoment?: SessionPeakMoment | null;
 };
 
 export function JourneyComplete({
@@ -35,6 +53,9 @@ export function JourneyComplete({
   title,
   backHref,
   nextModule,
+  unlocksLessonDesignStudio = false,
+  unlocksWorkshopSubmission = false,
+  peakMoment = null,
 }: JourneyCompleteProps) {
   const { variants, reduced } = useJourneyMotion();
 
@@ -51,6 +72,24 @@ export function JourneyComplete({
   const badgeLabel = completion.badgeKey ?? "Completed";
   const firstTryCount = completion.firstTryCorrectCount;
   const totalBeats = completion.visitedBeatCount;
+
+  // Pick a warm headline based on first-try ratio so the celebration screen
+  // feels less canned. All variants stay within "good job" territory — we
+  // don't punish a bumpier path.
+  const ratio = totalBeats > 0 ? firstTryCount / totalBeats : 0;
+  const headline =
+    ratio >= 0.9
+      ? "Smooth run."
+      : ratio >= 0.6
+      ? "Nicely done."
+      : "That's a wrap.";
+
+  const subline =
+    ratio >= 0.9
+      ? "You read the room and made the right calls. That instinct is what keeps a workshop alive."
+      : ratio >= 0.6
+      ? "Solid moves on most of these. Worth re-reading the ones you missed — they tend to repeat in the wild."
+      : "You worked through every beat — that's the whole point. Skim the feedback and the patterns will start clicking.";
 
   // Badge animation: spring pop in full-motion, opacity fade in reduced-motion.
   const badgeVariants = reduced
@@ -102,9 +141,12 @@ export function JourneyComplete({
         {/* Module title */}
         <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 8 }}>{title}</p>
 
-        <h1 style={{ margin: "0 0 24px", fontSize: 28, fontWeight: 700, color: "var(--ypp-ink)" }}>
-          You&rsquo;re done!
+        <h1 style={{ margin: "0 0 8px", fontSize: 28, fontWeight: 700, color: "var(--ypp-ink)" }}>
+          {headline}
         </h1>
+        <p style={{ margin: "0 0 24px", fontSize: 14, lineHeight: 1.6, color: "var(--text-secondary, #3d2f4d)" }}>
+          {subline}
+        </p>
 
         {/* Badge reveal (hero motion — one per screen, plan §6 Principle 3) */}
         <motion.div
@@ -126,31 +168,120 @@ export function JourneyComplete({
           🏅 {badgeLabel}
         </motion.div>
 
+        {/* Moment of the run — single most-impactful student reaction this
+            session. Reads like a callback. */}
+        {peakMoment ? (
+          <div className="journey-complete-moment" data-tone={peakMoment.tone}>
+            <span className="journey-complete-moment__label">
+              Moment of the run
+            </span>
+            {peakMoment.quote ? (
+              <p className="journey-complete-moment__quote">
+                &ldquo;{peakMoment.quote}&rdquo;
+              </p>
+            ) : null}
+            <p className="journey-complete-moment__cap">
+              <strong>{peakMoment.studentName}</strong>
+              {peakMoment.consequence ? ` — ${peakMoment.consequence}` : null}
+            </p>
+          </div>
+        ) : null}
+
         {/* Score summary */}
         <div style={{ marginBottom: 20 }}>
           <p style={{ margin: "0 0 6px", fontSize: 15, color: "var(--ypp-ink)" }}>
-            <strong>{firstTryCount}</strong> of <strong>{totalBeats}</strong> correct on the first try
+            Nailed <strong>{firstTryCount}</strong> of <strong>{totalBeats}</strong> on the first try
+            {typeof completion.scorePct === "number" ? (
+              <span style={{ color: "var(--muted)" }}> · {completion.scorePct}% score</span>
+            ) : null}
           </p>
-          <p style={{ margin: 0, fontSize: 15, color: "var(--ypp-purple)" }}>
-            +{completion.xpEarned} XP earned
+          <p style={{ margin: 0, fontSize: 15, color: "var(--ypp-purple)", fontWeight: 600 }}>
+            +{completion.xpEarned} XP banked
           </p>
         </div>
 
-        {/* CTAs */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
-          <motion.div {...ctaAnimateProps}>
-            <Link href={backHref} className="button" style={{ display: "block", textAlign: "center" }}>
-              Back to Academy
-            </Link>
-          </motion.div>
+        {/* What's next? — explicit guidance instead of leaving the user wondering */}
+        {unlocksLessonDesignStudio || unlocksWorkshopSubmission || nextModule ? (
+          <p
+            style={{
+              margin: "0 0 16px",
+              fontSize: 13,
+              color: "var(--muted)",
+              lineHeight: 1.5,
+            }}
+          >
+            {unlocksWorkshopSubmission ? (
+              <>
+                <strong style={{ color: "var(--ypp-purple)" }}>
+                  Workshop submission is unlocked.
+                </strong>{" "}
+                Design your own workshop or pick one from the approved
+                library next.
+              </>
+            ) : unlocksLessonDesignStudio ? (
+              <>
+                <strong style={{ color: "var(--ypp-purple)" }}>
+                  Lesson Design Studio is unlocked.
+                </strong>{" "}
+                Build your capstone curriculum next.
+              </>
+            ) : (
+              <>Next up: {nextModule!.title}.</>
+            )}
+          </p>
+        ) : null}
 
-          {nextModule && (
+        {/* CTAs — primary CTA leads forward, "Back to Academy" is the secondary action */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
+          {unlocksWorkshopSubmission ? (
+            <motion.div {...ctaAnimateProps}>
+              <Link
+                href="/instructor/workshop-design-studio"
+                className="button"
+                style={{ display: "block", textAlign: "center" }}
+              >
+                Open Workshop Design Studio
+              </Link>
+            </motion.div>
+          ) : unlocksLessonDesignStudio ? (
+            <motion.div {...ctaAnimateProps}>
+              <Link
+                href="/instructor/lesson-design-studio?entry=training"
+                className="button"
+                style={{ display: "block", textAlign: "center" }}
+              >
+                Open Lesson Design Studio
+              </Link>
+            </motion.div>
+          ) : nextModule ? (
+            <motion.div {...ctaAnimateProps}>
+              <Link
+                href={`/training/${nextModule.id}`}
+                className="button"
+                style={{ display: "block", textAlign: "center" }}
+              >
+                Start next module: {nextModule.title}
+              </Link>
+            </motion.div>
+          ) : (
+            <motion.div {...ctaAnimateProps}>
+              <Link
+                href={backHref}
+                className="button"
+                style={{ display: "block", textAlign: "center" }}
+              >
+                Back to Academy
+              </Link>
+            </motion.div>
+          )}
+
+          {(unlocksLessonDesignStudio || unlocksWorkshopSubmission || nextModule) && (
             <Link
-              href={`/training/${nextModule.id}`}
+              href={backHref}
               className="button secondary"
               style={{ display: "block", textAlign: "center" }}
             >
-              Start next module: {nextModule.title}
+              Back to Academy
             </Link>
           )}
         </div>

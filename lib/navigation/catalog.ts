@@ -551,6 +551,15 @@ export const NAV_CATALOG: NavLink[] = [
 
   ...groupLinks("Chapters", 900, [
     {
+      href: "/chapter/hub",
+      label: "Chapter Hub",
+      icon: "🏘",
+      dashboardDescription: "Open one page with every chapter tool and directory link.",
+      dashboardPriority: 1,
+      coreEligible: true,
+      searchAliases: ["Chapter", "Chapter tools", "Chapter directory", "Members", "Channels", "Leaderboard"],
+    },
+    {
       href: "/chapters",
       label: "Find a Chapter",
       icon: "🔍",
@@ -660,7 +669,7 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/admin/chapters",
-      label: "Chapter directory",
+      label: "Chapter Directory",
       icon: "🏢",
       roles: ADMIN_ONLY,
       dashboardDescription: "Manage chapters, membership, and network-wide chapter settings in one place.",
@@ -870,6 +879,22 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardDescription: "Review and approve instructor-submitted curricula before they go live.",
       dashboardPriority: 8,
       dashboardBadgeKey: "pending_curriculum_review",
+    },
+    {
+      href: "/admin/workshop-library",
+      label: "Workshop Library",
+      icon: "🎒",
+      roles: ADMIN_ONLY,
+      dashboardDescription: "Curate the workshops Summer Workshop applicants can pick from.",
+      dashboardPriority: 9,
+    },
+    {
+      href: "/admin/workshop-reviews",
+      label: "Workshop Reviews",
+      icon: "🧐",
+      roles: ["ADMIN", "CHAPTER_PRESIDENT"] as NavRole[],
+      dashboardDescription: "Score Summer Workshop Instructor proposals and committed decisions.",
+      dashboardPriority: 9,
     },
   ]),
 

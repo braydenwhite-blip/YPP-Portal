@@ -2216,12 +2216,28 @@ export async function createInterviewAvailabilityRule(formData: FormData) {
   ensureViewerCanManageInterviewer(viewer, interviewer);
 
   const dayOfWeek = Number(getString(formData, "dayOfWeek"));
+  if (!Number.isInteger(dayOfWeek) || dayOfWeek < 0 || dayOfWeek > 6) {
+    throw new Error("Day of week must be between 0 (Sunday) and 6 (Saturday).");
+  }
   const startTime = getString(formData, "startTime");
   const endTime = getString(formData, "endTime");
+  const timeFormat = /^([01]\d|2[0-3]):[0-5]\d$/;
+  if (!timeFormat.test(startTime) || !timeFormat.test(endTime)) {
+    throw new Error("Start and end time must be in HH:mm format.");
+  }
+  if (startTime >= endTime) {
+    throw new Error("End time must be after start time.");
+  }
   const timezone = getString(formData, "timezone", false) || "America/New_York";
   const scope = (getString(formData, "scope", false) || "ALL") as InterviewAvailabilityScope;
   const slotDuration = getNumber(formData, "slotDuration", 30);
   const bufferMinutes = getNumber(formData, "bufferMinutes", 10);
+  if (slotDuration <= 0) {
+    throw new Error("Slot duration must be greater than zero.");
+  }
+  if (bufferMinutes < 0) {
+    throw new Error("Buffer minutes cannot be negative.");
+  }
   const meetingLink = getString(formData, "meetingLink", false) || null;
   const locationLabel = getString(formData, "locationLabel", false) || null;
 
@@ -2626,6 +2642,9 @@ export async function bookInterviewWorkflowSlot(formData: FormData) {
   const note = getString(formData, "note", false) || null;
 
   if (!scheduledAt) throw new Error("A valid interview time is required.");
+  if (scheduledAt.getTime() <= Date.now()) {
+    throw new Error("Interview time must be in the future.");
+  }
 
   if (domain === "HIRING") {
     const application = await prisma.application.findUnique({
@@ -3004,6 +3023,9 @@ export async function confirmInterviewReschedule(formData: FormData) {
   const note = getString(formData, "note", false) || "Interview reschedule confirmed.";
 
   if (!scheduledAt) throw new Error("A valid interview time is required.");
+  if (scheduledAt.getTime() <= Date.now()) {
+    throw new Error("Interview time must be in the future.");
+  }
 
   const request = await prisma.interviewSchedulingRequest.findUnique({
     where: { id: requestId },

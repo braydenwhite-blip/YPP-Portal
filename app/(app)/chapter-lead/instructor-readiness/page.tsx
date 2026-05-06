@@ -9,18 +9,11 @@ import {
 import { reviewTrainingEvidence } from "@/lib/training-actions";
 import { getInstructorReadinessMany } from "@/lib/instructor-readiness";
 import { withPrismaFallback } from "@/lib/prisma-guard";
+import { getDraftIdFromEvidenceUrl } from "@/lib/training-constants";
 
 function formatDate(value: Date | string | null | undefined) {
   if (!value) return "-";
   return new Date(value).toLocaleString();
-}
-
-function getDraftIdFromEvidenceUrl(fileUrl: string) {
-  try {
-    return new URL(fileUrl, "https://studio.local").searchParams.get("draftId");
-  } catch {
-    return null;
-  }
 }
 
 export default async function ChapterLeadInstructorReadinessPage() {

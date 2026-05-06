@@ -7,86 +7,22 @@ export default async function WorkshopSeriesPage() {
     redirect("/login");
   }
 
-  // Sample workshop series - in production, fetch from database
-  const workshopSeries = [
-    {
-      id: "1",
-      title: "Watercolor Fundamentals Series",
-      passion: "Visual Arts",
-      difficulty: "BEGINNER",
-      totalSessions: 4,
-      estimatedHours: 6,
-      thumbnailUrl: "🎨",
-      instructor: "Sarah Martinez",
-      description: "Master the basics of watercolor painting in this comprehensive 4-week series",
-      learningOutcomes: [
-        "Understand color mixing and theory",
-        "Master wet-on-wet and wet-on-dry techniques",
-        "Create stunning gradients and washes",
-        "Complete your first watercolor landscape"
-      ],
-      enrolled: false,
-      studentsEnrolled: 45
-    },
-    {
-      id: "2",
-      title: "Basketball Skills Bootcamp",
-      passion: "Sports",
-      difficulty: "INTERMEDIATE",
-      totalSessions: 6,
-      estimatedHours: 9,
-      thumbnailUrl: "🏀",
-      instructor: "Coach Mike Johnson",
-      description: "Level up your game with advanced dribbling, shooting, and defensive techniques",
-      learningOutcomes: [
-        "Perfect your shooting form",
-        "Advanced dribbling combinations",
-        "Defensive positioning and footwork",
-        "Game strategy and basketball IQ"
-      ],
-      enrolled: true,
-      progress: 3,
-      studentsEnrolled: 62
-    },
-    {
-      id: "3",
-      title: "Creative Writing Workshop",
-      passion: "Writing",
-      difficulty: "INTERMEDIATE",
-      totalSessions: 5,
-      estimatedHours: 7.5,
-      thumbnailUrl: "✍️",
-      instructor: "Dr. Emily Chen",
-      description: "Develop your unique voice and craft compelling stories from start to finish",
-      learningOutcomes: [
-        "Find your authentic writing voice",
-        "Build engaging characters",
-        "Master plot structure and pacing",
-        "Receive peer and instructor feedback"
-      ],
-      enrolled: false,
-      studentsEnrolled: 38
-    },
-    {
-      id: "4",
-      title: "Music Production Basics",
-      passion: "Music",
-      difficulty: "BEGINNER",
-      totalSessions: 8,
-      estimatedHours: 12,
-      thumbnailUrl: "🎵",
-      instructor: "Alex Rivera",
-      description: "Learn to produce your own music from scratch using digital audio workstations",
-      learningOutcomes: [
-        "Navigate DAW software confidently",
-        "Record and edit audio",
-        "Create beats and melodies",
-        "Mix and master your first track"
-      ],
-      enrolled: false,
-      studentsEnrolled: 71
-    }
-  ];
+  /** Populated from the database when workshop series are configured. */
+  const workshopSeries: Array<{
+    id: string;
+    title: string;
+    passion: string;
+    difficulty: string;
+    totalSessions: number;
+    estimatedHours: number;
+    thumbnailUrl: string;
+    instructor: string;
+    description: string;
+    learningOutcomes: string[];
+    enrolled: boolean;
+    progress?: number;
+    studentsEnrolled: number;
+  }> = [];
 
   return (
     <div>
@@ -105,6 +41,8 @@ export default async function WorkshopSeriesPage() {
         </p>
       </div>
 
+      {workshopSeries.length > 0 ? (
+        <>
       {/* Filter and Sort */}
       <div className="card" style={{ marginBottom: 28 }}>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
@@ -242,6 +180,15 @@ export default async function WorkshopSeriesPage() {
           </div>
         ))}
       </div>
+        </>
+      ) : (
+        <div className="card" style={{ textAlign: "center", padding: 40 }}>
+          <h3 style={{ marginBottom: 12 }}>No workshop series yet</h3>
+          <p style={{ color: "var(--text-secondary)" }}>
+            Workshop listings will appear here once they are published in the portal.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

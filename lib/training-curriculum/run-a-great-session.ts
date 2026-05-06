@@ -32,6 +32,7 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
     estimatedMinutes: 8,
     strictMode: false,
     version: 1,
+    showCohortIntro: true,
   },
   beats: [
     // -------------------------------------------------------------------------
@@ -151,6 +152,17 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
           tone: "correct",
           headline: "That's the move.",
           body: "'I don't get it' is a starting point, not a verdict. Diagnosing which part is unclear lets you target the explanation — a different angle costs 60 seconds and saves the session.",
+          mentorAside: "Watch what unlocks.",
+          studentReaction: {
+            studentName: "Priya",
+            archetype: "nervous",
+            mood: "engaged",
+            quote: "It was the part where you flipped the second fraction.",
+            bodyLanguage: "leans forward, finger on the screen",
+          },
+          peerRipple: "Maya nods — she had the same question. Diego unmutes to add one too.",
+          consequence: "Priya names the actual gap. The whole room benefits.",
+          roomDelta: { engagement: 1, clarity: 2 },
         },
         incorrectFeedback: {
           "repeat-verbatim": {
@@ -158,12 +170,29 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
             headline: "Same words won't land differently.",
             body: "Repeating verbatim assumes the student just wasn't listening. Most confusion is about a specific step — find it first.",
             hint: "Ask 'Which part lost you?' before you re-explain anything.",
+            studentReaction: {
+              studentName: "Priya",
+              archetype: "nervous",
+              mood: "shutdown",
+              bodyLanguage: "tries to follow but stops taking notes",
+            },
+            peerRipple: "Two other students glance at the chat — they're lost too.",
+            consequence: "Priya stops asking. The confusion goes underground.",
+            roomDelta: { clarity: -2 },
           },
           "skip-ahead": {
             tone: "incorrect",
             headline: "Confusion compounds.",
             body: "Moving past confusion means building today's next step on a shaky foundation. It's faster to re-ground now than to untangle it at the end.",
             hint: "One well-placed question buys you the rest of the session.",
+            studentReaction: {
+              studentName: "Priya",
+              archetype: "nervous",
+              mood: "checked-out",
+              bodyLanguage: "starts copying notes she doesn't understand",
+            },
+            consequence: "Priya falls behind quietly. The next concept will land in pieces.",
+            roomDelta: { clarity: -2, engagement: -1 },
           },
           "assign-homework": {
             tone: "incorrect",
@@ -353,6 +382,18 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
           tone: "correct",
           headline: "Extend, don't fill.",
           body: "Extra time is a teaching opportunity. A harder application deepens the same learning goal — students stretch without losing the thread of the session.",
+          mentorAside: "Read the room first.",
+          studentReaction: {
+            studentName: "Tasha",
+            archetype: "overconfident",
+            mood: "energized",
+            quote: "Wait — can we try it with three variables?",
+            bodyLanguage: "already typing the next problem before you finish",
+          },
+          peerRipple: "Jaden grins. Even Maya has her camera on. The room's fizzing.",
+          consequence: "You stretch them, and they stretch back. Best 15 minutes of the week.",
+          ambientLine: "The room exhales — you can feel it shift.",
+          roomDelta: { engagement: 2, energy: 2 },
         },
         incorrectFeedback: {
           "end-early": {
@@ -360,6 +401,15 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
             headline: "Early endings waste learning time.",
             body: "Ending early signals that the extra 15 minutes weren't worth protecting. Students benefit from every minute — give them something harder to do with what they just learned.",
             hint: "What would extend today's concept rather than conclude it?",
+            studentReaction: {
+              studentName: "Jaden",
+              archetype: "curious",
+              mood: "frustrated",
+              bodyLanguage: "had a question ready, lets it go",
+            },
+            peerRipple: "Tasha shrugs. Two students were just hitting their stride.",
+            consequence: "You give back time the students didn't want.",
+            roomDelta: { engagement: -1, energy: -1 },
           },
           "repeat-material": {
             tone: "incorrect",

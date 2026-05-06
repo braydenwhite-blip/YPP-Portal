@@ -39,6 +39,7 @@
     "training:import": "tsx scripts/import-training-academy-content.mjs",
     "training:export": "tsx scripts/export-training-academy-content.mjs",
     "training:sync": "npm run training:validate && npm run training:import",
+    "training:verify": "node scripts/verify-training-curriculum-import.mjs",
     "backfill:email-verified": "node scripts/backfill-email-verified.mjs",
     "backfill:mentorship-redesign": "node scripts/backfill-mentorship-redesign.mjs",
     "migrate:users:validate-csv": "node scripts/import-users-from-csv.mjs"

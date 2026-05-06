@@ -13,7 +13,11 @@ import {
   isChapterLead,
   canSeeChairQueue,
 } from "@/lib/chapter-hiring-permissions";
-import { isInstructorApplicantWorkflowV1Enabled } from "@/lib/feature-flags";
+import {
+  canBypassInstructorGate,
+  isInstructorApplicantWorkflowV1Enabled,
+  isRegularInstructorEnabled,
+} from "@/lib/feature-flags";
 import { getCandidateReviewers, getCandidateInterviewers } from "@/lib/instructor-applicant-board-queries";
 import ApplicantCockpitHeader from "@/components/instructor-applicants/ApplicantCockpitHeader";
 import ApplicantCockpitSidebar from "@/components/instructor-applicants/ApplicantCockpitSidebar";
@@ -31,6 +35,9 @@ import {
 import { PROGRESS_RATING_OPTIONS } from "@/lib/instructor-review-config";
 import NotificationFailureBanner from "@/components/instructor-applicants/NotificationFailureBanner";
 import ReviewSubmissionWarningsBanner from "@/components/instructor-applicants/ReviewSubmissionWarningsBanner";
+import WorkshopOutlinePanel from "@/components/instructor-applicants/WorkshopOutlinePanel";
+import PromoteToFullInstructorButton from "@/components/instructor-applicants/PromoteToFullInstructorButton";
+import type { PromotionEligibility, WorkshopOutline } from "@/lib/summer-workshop";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +55,10 @@ async function fetchCockpitData(applicationId: string) {
       textbook: true,
       courseOutline: true,
       firstClassPlan: true,
+      applicationTrack: true,
+      instructorSubtype: true,
+      workshopOutline: true,
+      promotionEligibility: true,
       legalName: true,
       preferredFirstName: true,
       schoolName: true,
@@ -158,13 +169,13 @@ export default async function ApplicantCockpitPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ notice?: string; reviewWarnings?: string }>;
+  searchParams: Promise<{ notice?: string; reviewWarnings?: string; adminPreview?: string }>;
 }) {
   const session = await getSession();
-  if (!session?.user?.id) redirect("/signin");
+  if (!session?.user?.id) redirect("/login");
 
   const { id } = await params;
-  const { notice, reviewWarnings } = await searchParams;
+  const { notice, reviewWarnings, adminPreview } = await searchParams;
 
   if (!isInstructorApplicantWorkflowV1Enabled()) {
     redirect("/admin/instructor-applicants");
@@ -173,6 +184,21 @@ export default async function ApplicantCockpitPage({
   const application = await fetchCockpitData(id);
   if (!application) notFound();
   if (!application.applicant) notFound();
+
+  // Temporary gate: standard-track instructor applications are hidden while
+  // the regular Instructor program is paused. Summer Workshop applications
+  // remain accessible. Admins (and `?adminPreview=1`) bypass.
+  if (
+    !isRegularInstructorEnabled() &&
+    application.applicationTrack !== "SUMMER_WORKSHOP_INSTRUCTOR" &&
+    !canBypassInstructorGate({
+      roles: session.user.roles,
+      primaryRole: session.user.primaryRole,
+      adminPreviewParam: adminPreview ?? null,
+    })
+  ) {
+    redirect("/applications/summer-workshop");
+  }
   const currentInterviewerAssignments = application.interviewerAssignments.filter(
     (assignment) => assignment.round === application.interviewRound
   );
@@ -321,6 +347,36 @@ export default async function ApplicantCockpitPage({
               </dl>
             </section>
 
+            {/* Workshop Outline (Summer Workshop Instructor track only) */}
+            {application.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR" && (
+              <WorkshopOutlinePanel
+                outline={(application.workshopOutline as WorkshopOutline | null) ?? null}
+              />
+            )}
+
+            {/* Promote to Full Instructor (admins/chairs, summer workshop subtype only) */}
+            {application.instructorSubtype === "SUMMER_WORKSHOP" &&
+              (isAdmin(actor) || isHiringChair(actor)) && (
+                <section className="cockpit-panel">
+                  <div className="cockpit-section-heading">
+                    <span className="cockpit-section-kicker">Subtype</span>
+                    <h2>Promotion</h2>
+                  </div>
+                  <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 12px", lineHeight: 1.55 }}>
+                    This applicant is on the Summer Workshop Instructor track. Promotion flips
+                    the subtype to Standard Instructor and preserves all history; outstanding
+                    requirements (e.g. Lesson Design Studio) become follow-ups, not waivers.
+                  </p>
+                  <PromoteToFullInstructorButton
+                    applicationId={application.id}
+                    applicantName={application.applicant.name ?? application.applicant.email}
+                    promotionEligibility={
+                      (application.promotionEligibility as PromotionEligibility | null) ?? null
+                    }
+                  />
+                </section>
+              )}
+
             {/* Motivation */}
             <section id="section-motivation" className="cockpit-panel">
               <div className="cockpit-section-heading">
@@ -438,42 +494,42 @@ export default async function ApplicantCockpitPage({
                 </div>
                 <div className="cockpit-stack">
                   {application.interviewReviews.map((review) => {
-                    const recOpt = PROGRESS_RATING_OPTIONS.find((o) => o.value === review.overallRating);
+                    const recOpt = PROGRESS_RATING_OPTIONS.find(
+                      (o) => o.value === review.overallRating
+                    );
                     return (
-                      <div
-                        key={review.id}
-                        className="cockpit-review-card"
-                      >
-                        <div className="cockpit-review-card-header">
-                          <strong>{review.reviewer.name ?? "Interviewer"}</strong>
-                          {recOpt && (
+                      <article key={review.id} className="iv-cockpit-review-card">
+                        <header className="iv-cockpit-review-header">
+                          <span className="iv-cockpit-review-author">
+                            {review.reviewer.name ?? "Interviewer"}
+                          </span>
+                          {recOpt ? (
                             <span
                               className="cockpit-score-chip"
                               style={{ background: recOpt.bg, color: recOpt.color }}
+                              aria-label={`Overall rating ${recOpt.shortLabel}`}
                             >
                               {recOpt.shortLabel}
                             </span>
-                          )}
-                          {review.recommendation && (
-                            <span className="pill pill-info pill-small">
+                          ) : null}
+                          {review.recommendation ? (
+                            <span className="iv-status-badge is-info">
                               {review.recommendation.replace(/_/g, " ")}
                             </span>
-                          )}
-                        </div>
-                        {review.summary && (
-                          <p className="cockpit-prose cockpit-prose-small">
-                            {review.summary}
-                          </p>
-                        )}
-                        {actorIsInterviewer && review.reviewerId === actor.id && (
+                          ) : null}
+                        </header>
+                        {review.summary ? (
+                          <p className="iv-cockpit-review-summary">{review.summary}</p>
+                        ) : null}
+                        {actorIsInterviewer && review.reviewerId === actor.id ? (
                           <Link
                             href={`/applications/instructor/${id}/interview`}
-                            className="cockpit-text-link"
+                            className="iv-cockpit-review-edit"
                           >
-                            Edit my review
+                            Edit my review →
                           </Link>
-                        )}
-                      </div>
+                        ) : null}
+                      </article>
                     );
                   })}
                 </div>
@@ -481,22 +537,22 @@ export default async function ApplicantCockpitPage({
             )}
 
             {actorIsInterviewer && (
-              <div
-                className="cockpit-panel cockpit-panel-compact cockpit-workspace-callout"
-              >
-                <div>
-                  <p className="cockpit-callout-title">Interviewer Workspace</p>
-                  <p className="cockpit-muted">
-                    Pre-interview brief, materials, and evaluation form.
+              <aside className="iv-cockpit-callout" aria-label="Interviewer workspace">
+                <div className="iv-cockpit-callout-text">
+                  <span className="iv-cockpit-callout-kicker">Run the interview</span>
+                  <p className="iv-cockpit-callout-title">Open Interviewer Workspace</p>
+                  <p className="iv-cockpit-callout-helper">
+                    Live question runner, pre-interview brief, autosave, and the rubric all in one
+                    place.
                   </p>
                 </div>
                 <Link
                   href={`/applications/instructor/${id}/interview`}
-                  className="button outline cockpit-inline-button"
+                  className="button cockpit-inline-button"
                 >
-                  Open
+                  Open Workspace →
                 </Link>
-              </div>
+              </aside>
             )}
 
             {/* Full Timeline */}

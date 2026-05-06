@@ -26,12 +26,15 @@ const STATUS_LABELS: Record<string, string> = {
   REJECTED: "Rejected",
   ON_HOLD: "On Hold",
   WITHDRAWN: "Withdrawn",
+  WAITLISTED: "Waitlisted",
 };
 
 const DECISION_LABELS: Record<string, string> = {
   APPROVE: "Approved",
+  APPROVE_WITH_CONDITIONS: "Approved (conditions)",
   REJECT: "Rejected",
   HOLD: "On Hold",
+  WAITLIST: "Waitlisted",
   REQUEST_INFO: "Info Requested",
   REQUEST_SECOND_INTERVIEW: "2nd Interview",
 };

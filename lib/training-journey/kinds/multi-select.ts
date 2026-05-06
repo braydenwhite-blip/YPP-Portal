@@ -1,24 +1,7 @@
 import { z } from "zod";
 import type { BeatKindModule, BeatFeedback } from "../types";
+import { FEEDBACK_SCHEMA } from "../feedback-schema";
 
-// ---------------------------------------------------------------------------
-// Local Zod schema for BeatFeedback
-// ---------------------------------------------------------------------------
-
-const FEEDBACK_SCHEMA: z.ZodType<BeatFeedback> = z.object({
-  tone: z.enum(["correct", "partial", "incorrect", "noted"]),
-  headline: z.string(),
-  body: z.string(),
-  hint: z.string().optional(),
-  callouts: z
-    .array(
-      z.object({
-        label: z.string(),
-        target: z.union([z.string(), z.number()]),
-      })
-    )
-    .optional(),
-});
 
 // ---------------------------------------------------------------------------
 // Config + Response schemas

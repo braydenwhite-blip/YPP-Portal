@@ -182,7 +182,7 @@ export default async function InstructorReadinessPage() {
     ...gate,
     scheduledAt: gate.scheduledAt?.toISOString() ?? null,
     completedAt: gate.completedAt?.toISOString() ?? null,
-    reviewedAt: (gate as any).reviewedAt?.toISOString?.() ?? null,
+    reviewedAt: gate.reviewedAt?.toISOString() ?? null,
     updatedAt: gate.updatedAt.toISOString(),
     createdAt: gate.createdAt.toISOString(),
     slots: gate.slots.map((slot) => ({

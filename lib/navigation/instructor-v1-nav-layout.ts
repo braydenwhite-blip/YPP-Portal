@@ -13,6 +13,7 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
   "/": { group: "Start Here", label: "Home", icon: "🏠" },
   "/instructor-training": { group: "Progress", label: "Instructor Training", icon: "🎓" },
   "/instructor/lesson-design-studio": { group: "Progress", label: "Lesson Design Studio", icon: "🎨" },
+  "/instructor/workshop-design-studio": { group: "Progress", label: "Workshop Design Studio", icon: "🎒" },
   "/attendance": { group: "People & Support", label: "Attendance", icon: "📋" },
   "/instructor/parent-feedback": { group: "People & Support", label: "Parent Feedback", icon: "💬" },
   "/feedback/anonymous": { group: "People & Support", label: "Anonymous Feedback", icon: "🛡️" },
@@ -30,6 +31,7 @@ const SIDEBAR_BY_HREF: Record<string, { group: NavGroup; label: string; icon: st
 export const INSTRUCTOR_SIDEBAR_LINK_ORDER: string[] = [
   "/instructor-training",
   "/instructor/lesson-design-studio",
+  "/instructor/workshop-design-studio",
   "/attendance",
   "/instructor/parent-feedback",
   "/feedback/anonymous",

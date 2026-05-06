@@ -559,7 +559,9 @@ export default async function InstructorWorkspacePage({
                 <div>
                   <h3 style={{ margin: 0 }}>Step 1 — Complete Training Academy</h3>
                   <p style={{ marginTop: 6, marginBottom: 0, color: "var(--text-secondary)", fontSize: 14 }}>
-                    Finish video modules and the Lesson Design Studio capstone to unlock your interview gate and offering approval requests.
+                    {readiness.instructorSubtype === "SUMMER_WORKSHOP"
+                      ? "Finish required interactive training, then submit a workshop in the Workshop Design Studio — design your own or pick one from the approved library."
+                      : "Finish required interactive training and the Lesson Design Studio capstone to unlock your interview gate and offering approval requests."}
                   </p>
                 </div>
                 <span

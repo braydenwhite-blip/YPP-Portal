@@ -12,6 +12,7 @@ export type ApplicantTelemetryEvent =
   | "applicant.reviewer.assigned"
   | "applicant.interviewer.assigned"
   | "applicant.chair.decided"
+  | "applicant.chair.rescinded"
   | "applicant.status.auto_advanced"
   | "applicant.materials.ready";
 

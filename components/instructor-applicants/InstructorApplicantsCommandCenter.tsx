@@ -35,6 +35,9 @@ type PipelineApp = {
   }>;
   chairDecision?: { action: string; decidedAt: Date | string } | null;
   updatedAt: Date | string;
+  applicationTrack?: string;
+  instructorSubtype?: string;
+  workshopOutlinePresent?: boolean;
 };
 
 type FilterUser = { id: string; name: string | null; email: string };
@@ -94,7 +97,7 @@ const KANBAN_COLUMNS: KanbanColumnDef[] = [
   {
     id: "decided",
     title: "Decided",
-    statuses: ["APPROVED", "REJECTED", "ON_HOLD"],
+    statuses: ["APPROVED", "REJECTED", "ON_HOLD", "WAITLISTED"],
     color: "#71717a",
   },
 ];
@@ -119,6 +122,7 @@ const COLUMN_FOR_STATUS: Record<string, string> = {
   APPROVED: "decided",
   REJECTED: "decided",
   ON_HOLD: "decided",
+  WAITLISTED: "decided",
 };
 
 // Build a flattened column def that handles derived "INTERVIEW_SCHEDULED_READY" logic
@@ -129,7 +133,7 @@ const EXTENDED_COLUMNS: KanbanColumnDef[] = [
   { id: "ready_for_interview", title: "Ready for Interview", statuses: ["INTERVIEW_SCHEDULED_READY"], color: "#059669" },
   { id: "post_interview", title: "Post-Interview", statuses: ["INTERVIEW_COMPLETED"], color: "#4338ca" },
   { id: "chair_review", title: "Chair Review", statuses: ["CHAIR_REVIEW"], color: "#b45309" },
-  { id: "decided", title: "Decided (30d)", statuses: ["APPROVED", "REJECTED", "ON_HOLD"], color: "#71717a" },
+  { id: "decided", title: "Decided (30d)", statuses: ["APPROVED", "REJECTED", "ON_HOLD", "WAITLISTED"], color: "#71717a" },
 ];
 
 type TabValue = "pipeline" | "chair_queue" | "archive";
@@ -160,6 +164,15 @@ export default function InstructorApplicantsCommandCenter({
     } else {
       params.set("tab", tab);
     }
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }
+
+  // Track filter ("track" URL param). Values: "" (all) | "standard" | "summer_workshop".
+  const activeTrack = (searchParams.get("track") ?? "").toLowerCase();
+  function setTrackFilter(value: "" | "standard" | "summer_workshop") {
+    const params = new URLSearchParams(searchParams.toString());
+    if (!value) params.delete("track");
+    else params.set("track", value);
     router.replace(`?${params.toString()}`, { scroll: false });
   }
 
@@ -226,6 +239,43 @@ export default function InstructorApplicantsCommandCenter({
       {/* Pipeline tab */}
       {activeTab === "pipeline" && (
         <div role="tabpanel" aria-label="Pipeline view" className="applicant-command-panel">
+          {/* Applicant type filter (Standard / Summer Workshop) */}
+          <div
+            role="group"
+            aria-label="Filter by applicant type"
+            style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}
+          >
+            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Type
+            </span>
+            {([
+              { value: "", label: "All" },
+              { value: "standard", label: "Standard" },
+              { value: "summer_workshop", label: "Summer Workshop" },
+            ] as const).map((opt) => {
+              const active = activeTrack === opt.value;
+              return (
+                <button
+                  key={opt.value || "all"}
+                  type="button"
+                  onClick={() => setTrackFilter(opt.value)}
+                  aria-pressed={active}
+                  style={{
+                    fontSize: 12,
+                    padding: "4px 10px",
+                    borderRadius: 999,
+                    border: active ? "1px solid #6b21c8" : "1px solid var(--border)",
+                    background: active ? "#f5f3ff" : "var(--background)",
+                    color: active ? "#6b21c8" : "var(--foreground)",
+                    cursor: "pointer",
+                    fontWeight: active ? 700 : 500,
+                  }}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
           <ApplicantCommandFilters
             isAdmin={isAdmin}
             chapters={chapters}
