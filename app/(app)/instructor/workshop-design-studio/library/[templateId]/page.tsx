@@ -32,9 +32,14 @@ export default async function WorkshopTemplatePreviewPage({
   }
 
   const [template, submission] = await Promise.all([
-    prisma.workshopProposalTemplate.findUnique({
-      where: { id: templateId },
-    }),
+    withPrismaFallback(
+      "workshop-template-preview:template",
+      () =>
+        prisma.workshopProposalTemplate.findUnique({
+          where: { id: templateId },
+        }),
+      null
+    ),
     gate.reason === "REVIEWER_BYPASS"
       ? Promise.resolve(null)
       : withPrismaFallback(
@@ -78,6 +83,24 @@ export default async function WorkshopTemplatePreviewPage({
           </p>
         </div>
       </div>
+
+      {gate.reason === "REVIEWER_BYPASS" && template.status !== "APPROVED" ? (
+        <div
+          className="card"
+          role="status"
+          style={{
+            marginBottom: 16,
+            borderColor: "#f59e0b",
+            background: "#fffbeb",
+          }}
+        >
+          <p style={{ margin: 0, fontSize: 13, color: "#92400e" }}>
+            <strong>Not visible to applicants.</strong> This template&rsquo;s
+            status is {template.status.toLowerCase()}. Set it to{" "}
+            <strong>Approved</strong> in the admin library to publish.
+          </p>
+        </div>
+      ) : null}
 
       <div
         style={{
