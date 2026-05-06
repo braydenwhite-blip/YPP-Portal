@@ -131,11 +131,16 @@ export type ClientJourneyCompletion = {
 
 /** Shape authors write in `correctFeedback` / `incorrectFeedback`.
  *
- *  Optional simulation fields (`studentReaction`, `consequence`, `roomDelta`)
- *  let a beat behave like a teaching simulation rather than a quiz: the
- *  renderer reveals the student/room reaction first, then the mentor's
- *  analysis a beat later. All optional — existing curriculum content
- *  continues to render as before. */
+ *  Optional simulation fields (`studentReaction`, `consequence`, `roomDelta`,
+ *  `peerRipple`, `mentorAside`, `ambientLine`, `recoveryPrompt`) let a beat
+ *  behave like a teaching simulation rather than a quiz. The renderer phases
+ *  them in cinematically:
+ *
+ *    mentorAside  →  studentReaction + peerRipple + consequence  →
+ *      ambientLine (with coach typing dots)  →  mentor analysis
+ *      [+ recoveryPrompt on incorrect, when authored]
+ *
+ *  All optional — existing curriculum content continues to render as before. */
 export type BeatFeedback = {
   tone: "correct" | "partial" | "incorrect" | "noted";
   headline: string;
@@ -177,6 +182,43 @@ export type BeatFeedback = {
     engagement?: number;
     clarity?: number;
     energy?: number;
+  };
+
+  /** A short social-ripple line: how OTHER students react to the move.
+   *  Rendered as a quiet aside under the focal student card. Use the present
+   *  tense ("Two cameras flicker on.", "Diego shifts in his seat."). */
+  peerRipple?: string;
+
+  /** Optional pre-reaction mentor quip — shown BEFORE the room reaction lands,
+   *  to add pacing variety. Keep it short (≤8 words): "Watch this." /
+   *  "Hold this for a second." / "OK — pause here." */
+  mentorAside?: string;
+
+  /** Atmospheric line shown between room reaction and mentor analysis,
+   *  paired with a brief "coach typing" indicator. Use to give pauses weight:
+   *  "The room holds its breath." / "A long pause stretches." */
+  ambientLine?: string;
+
+  /** Inline recovery beat shown ONLY on incorrect feedback. After the mentor
+   *  analysis, the learner is asked one quick "what do you do now?" question
+   *  with 2-3 light options. Each option carries a one-line reaction. The
+   *  user's pick is purely cosmetic (does NOT change scoring) — it exists to
+   *  give failures the feel of a recoverable moment, not a dead end. */
+  recoveryPrompt?: {
+    question: string;
+    options: {
+      id: string;
+      label: string;
+      /** What the room/mentor does in response to this recovery move. */
+      reaction: string;
+      /** Optional small nudge on room state when this recovery move is
+       *  picked. Same shape as roomDelta. */
+      roomDelta?: {
+        engagement?: number;
+        clarity?: number;
+        energy?: number;
+      };
+    }[];
   };
 };
 
