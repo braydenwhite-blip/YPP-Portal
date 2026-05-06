@@ -37,6 +37,7 @@ import { useJourneyMotion } from "./MotionProvider";
 import { JourneyProgress } from "./JourneyProgress";
 import { BeatRenderer } from "./beats/BeatRenderer";
 import { BeatActions } from "./beats/BeatActions";
+import { RoomMeters, type RoomState } from "./RoomMeters";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -212,6 +213,17 @@ export function JourneyPlayer({
   const [xpToast, setXpToast] = useState<{ id: number; amount: number; bonus?: string } | null>(null);
   const xpToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Live workshop state. Starts at a moderate baseline and accumulates
+  // roomDelta values as beats return them. The HUD stays invisible until at
+  // least one beat in the session has actually emitted a delta — that way
+  // legacy modules without consequence data don't show inert meters.
+  const [room, setRoom] = useState<RoomState>({
+    engagement: 60,
+    clarity: 70,
+    energy: 60,
+  });
+  const [roomActive, setRoomActive] = useState(false);
+
   const currentBeat = beats.find((b) => b.sourceKey === currentSourceKey) ?? beats[0];
   const isFirstBeat = getPrevVisibleBeat(currentSourceKey, beats) === null;
   const isReadOnly = phase === "correct";
@@ -281,6 +293,28 @@ export function JourneyPlayer({
     });
 
     setFeedback(result.feedback);
+
+    // Apply roomDelta from the feedback to the live workshop state. Each axis
+    // is interpreted as "shift by N * 8 percentage points" so a delta of +1
+    // on engagement nudges the bar by ~8%, +2 by ~16%. Matches authoring
+    // intuition: small numbers, visible-but-not-jarring movement.
+    const delta = result.feedback.roomDelta;
+    if (delta) {
+      setRoomActive(true);
+      setRoom((prev) => {
+        const shift = (axis: keyof RoomState) => {
+          const d = delta[axis] ?? 0;
+          if (d === 0) return prev[axis];
+          const next = prev[axis] + d * 8;
+          return next < 0 ? 0 : next > 100 ? 100 : next;
+        };
+        return {
+          engagement: shift("engagement"),
+          clarity: shift("clarity"),
+          energy: shift("energy"),
+        };
+      });
+    }
 
     if (result.correct || strictMode) {
       setPhase("correct");
@@ -502,6 +536,10 @@ export function JourneyPlayer({
           Exit
         </Link>
       </div>
+
+      {/* Live workshop meters — only rendered once a beat has emitted any
+          roomDelta this session. */}
+      <RoomMeters state={room} active={roomActive} />
 
       {/* XP toast — fires after a correct check, auto-clears after ~1.1s */}
       {xpToast ? (
