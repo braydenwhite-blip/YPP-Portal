@@ -8,8 +8,22 @@
  * sees one tight follow-up question with 2-3 quick moves; picking one
  * shows a short reaction line and (optionally) nudges the room HUD.
  *
- * The pick does NOT change the underlying score — the parent beat is
- * already locked. This is purely an immersion / emotional-payoff layer.
+ * ──────────────────────────────────────────────────────────────────────
+ * COSMETIC CONTRACT
+ * ──────────────────────────────────────────────────────────────────────
+ *  • Picks are NOT persisted (no server round-trip, no attempt row).
+ *  • Picks do NOT change the parent beat's score — it's already locked.
+ *  • Per-option `roomDelta` is applied to the live HUD state only;
+ *    it does NOT flow into stored room state.
+ *  • Single-shot — once the user has picked, the other options become
+ *    disabled. No "undo".
+ *
+ *  See the matching contract block in
+ *  `lib/training-journey/types.ts → BeatFeedback.recoveryPrompt`.
+ *
+ *  If you find yourself wanting to persist the pick or have it influence
+ *  scoring, stop and revisit the contract — the design intentionally
+ *  treats this layer as an emotional/UX beat, not a re-attempt path.
  */
 
 import { useState } from "react";

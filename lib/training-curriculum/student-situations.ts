@@ -23,6 +23,7 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
     estimatedMinutes: 7,
     strictMode: false,
     version: 1,
+    showCohortIntro: true,
   },
   beats: [
     // -------------------------------------------------------------------------

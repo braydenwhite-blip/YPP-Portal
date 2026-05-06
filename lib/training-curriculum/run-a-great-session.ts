@@ -32,6 +32,7 @@ export const M2_RUN_A_GREAT_SESSION: CurriculumDefinition = {
     estimatedMinutes: 8,
     strictMode: false,
     version: 1,
+    showCohortIntro: true,
   },
   beats: [
     // -------------------------------------------------------------------------

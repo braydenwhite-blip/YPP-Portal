@@ -778,6 +778,20 @@
   letter-spacing: -0.01em;
 }
 
+/* Static ambient fallback shown under reduced-motion when the typing
+   phase is skipped — keeps the atmospheric beat visible. */
+.coach-ambient-static {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--ypp-ink);
+  background: rgba(255, 255, 255, 0.6);
+  border-left: 2px solid var(--ypp-purple-200);
+  border-radius: var(--radius-sm);
+  letter-spacing: -0.01em;
+}
+
 /* ----- Peer ripple (room-reaction social aside) -------------------------- */
 
 .room-reaction__ripple {

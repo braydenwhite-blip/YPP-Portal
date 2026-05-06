@@ -325,7 +325,7 @@ export function BeatFeedback({ feedback, onRecoveryRoomDelta }: BeatFeedbackProp
         ) : null}
       </AnimatePresence>
 
-      {/* ── Phase 1.5: coach typing + ambient line ── */}
+      {/* ── Phase 1.5a: coach typing dots (animated motion only) ── */}
       <AnimatePresence>
         {showTyping ? (
           <motion.div
@@ -350,6 +350,16 @@ export function BeatFeedback({ feedback, onRecoveryRoomDelta }: BeatFeedbackProp
           </motion.div>
         ) : null}
       </AnimatePresence>
+
+      {/* ── Phase 1.5b: ambient line (reduced-motion fallback) ──
+          Under reduced motion the typing phase is skipped, so the
+          ambient line wouldn't render at all. Re-mount it next to the
+          coach card so the atmospheric beat survives reduced motion. */}
+      {reduced && ambientLine && showCoach ? (
+        <p className="coach-ambient-static" data-tone={feedback.tone}>
+          {ambientLine}
+        </p>
+      ) : null}
 
       {/* ── Phase 2: mentor analysis ── */}
       <AnimatePresence>

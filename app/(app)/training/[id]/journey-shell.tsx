@@ -44,14 +44,6 @@ export type JourneyShellProps = {
 
 type Phase = "intro" | "player" | "complete";
 
-// Modules whose intro screen surfaces the recurring student cohort. Keeps the
-// "who's in the room" panel scoped to simulation-heavy curriculum so quizzy
-// modules don't get a misleading roster.
-const SIMULATION_HEAVY_MODULES: ReadonlySet<string> = new Set([
-  "academy_student_situations_003",
-  "academy_run_a_great_session_002",
-]);
-
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -154,7 +146,7 @@ export function JourneyShell({
           mode={introMode}
           strictMode={snapshot.strictMode}
           passScorePct={snapshot.passScorePct}
-          showCohort={SIMULATION_HEAVY_MODULES.has(snapshot.contentKey ?? "")}
+          showCohort={snapshot.showCohortIntro === true}
           onStart={() => setPhase("player")}
         />
       )}

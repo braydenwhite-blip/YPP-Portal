@@ -70,6 +70,10 @@ export type JourneySnapshot = {
   resumeBeatSourceKey: string | null;
   /** Set when a completion row exists for this user + journey. */
   completion: JourneyCompletionSummary | null;
+  /** Authoring flag — when true, the intro screen surfaces the recurring
+   *  student cohort panel. Sourced from CurriculumDefinition.journey on the
+   *  server side; defaults to false for legacy modules. */
+  showCohortIntro?: boolean;
 };
 
 export type JourneyCompletionSummary = {

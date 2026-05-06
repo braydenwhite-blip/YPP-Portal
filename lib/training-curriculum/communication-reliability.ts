@@ -22,6 +22,7 @@ export const M4_COMMUNICATION_RELIABILITY: CurriculumDefinition = {
     estimatedMinutes: 6,
     strictMode: false,
     version: 1,
+    showCohortIntro: true,
   },
   beats: [
     // -------------------------------------------------------------------------
@@ -194,6 +195,10 @@ export const M4_COMMUNICATION_RELIABILITY: CurriculumDefinition = {
           tone: "correct",
           headline: "Solid late message.",
           body: "You opened with a genuine apology and gave a precise arrival time. Parents and students can plan around that — a vague 'soon' cannot.",
+          mentorAside: "Watch the chat.",
+          peerRipple: "Two parents react with thumbs-up. Tasha's mom replies: 'No worries, see you at 4:10.'",
+          consequence: "The class waits calmly. You arrive to a room that's already warm.",
+          roomDelta: { engagement: 1, energy: 1 },
         },
         incorrectFeedback: {
           default: {
@@ -201,6 +206,9 @@ export const M4_COMMUNICATION_RELIABILITY: CurriculumDefinition = {
             headline: "Not quite right.",
             body: "A strong late message owns the delay without excuses and gives a specific time, not a vague promise. Check which pool pushed a banned tag or left a required tag missing.",
             hint: "Use an apologetic opener, a clock-precise ETA, and a neutral close.",
+            peerRipple: "Two parents reply asking when class actually starts. The room sits empty waiting for you.",
+            consequence: "You arrive to a flat room. Trust takes a small dent.",
+            roomDelta: { engagement: -1, energy: -1 },
           },
         },
       },
@@ -417,6 +425,16 @@ export const M4_COMMUNICATION_RELIABILITY: CurriculumDefinition = {
           tone: "correct",
           headline: "One message, three parts.",
           body: "Apology + brief context + specific makeup plan in a single message is the YPP move. It owns the miss and closes the loop without making the parent chase you for next steps.",
+          mentorAside: "This is how trust survives a miss.",
+          studentReaction: {
+            studentName: "Diego's dad",
+            mood: "engaged",
+            quote: "Thanks for getting on top of this — Thursday works.",
+            bodyLanguage: "replies within ten minutes",
+          },
+          consequence: "You repaired in one message what would've taken three to recover.",
+          ambientLine: "A small click — the relationship just held.",
+          roomDelta: { clarity: 2, engagement: 1 },
         },
         incorrectFeedback: {
           "wait-for-parent": {
@@ -424,18 +442,54 @@ export const M4_COMMUNICATION_RELIABILITY: CurriculumDefinition = {
             headline: "Don't wait.",
             body: "Every hour you wait, the parent's frustration grows. Proactive beats reactive every time — send the message now.",
             hint: "No surprises means you reach out first.",
+            studentReaction: {
+              studentName: "Diego's dad",
+              mood: "frustrated",
+              bodyLanguage: "drafts an email to your chapter lead",
+            },
+            peerRipple: "Your chapter lead pings you: 'Just got a complaint — what happened?'",
+            consequence: "The miss became an escalation. The repair just got harder.",
+            roomDelta: { clarity: -2, engagement: -1 },
+            recoveryPrompt: {
+              question: "The lead's now in the loop. What's your move now?",
+              options: [
+                {
+                  id: "own-it-now",
+                  label: "Send the parent the right message right now: own it + specific makeup.",
+                  reaction: "Diego's dad replies: 'Thanks for the directness — Thursday is fine.' You held the relationship.",
+                  roomDelta: { clarity: 1 },
+                },
+                {
+                  id: "let-lead-handle",
+                  label: "Let the chapter lead handle it from here.",
+                  reaction: "The lead writes the message instead. You lose the relationship by half a notch.",
+                  roomDelta: { clarity: -1 },
+                },
+              ],
+            },
           },
           "email-lead": {
             tone: "incorrect",
             headline: "Your relationship, your responsibility.",
             body: "Looping in your chapter lead is fine, but the parent message is yours to send. Delegating it signals you're avoiding accountability.",
             hint: "You know the family. Write the message yourself, then loop in your lead.",
+            peerRipple: "Your chapter lead writes back: 'Sure, I can — but is everything okay?'",
+            consequence: "The lead now thinks you're shaky on accountability.",
+            roomDelta: { clarity: -1 },
           },
           "apology-only": {
             tone: "incorrect",
             headline: "Apology without a plan isn't enough.",
             body: "Saying sorry without offering a specific makeup time leaves the family hanging. Give them a concrete next step in the same message.",
             hint: "Add a specific makeup time — 'I can do Thursday at 4 pm' — to the apology.",
+            studentReaction: {
+              studentName: "Diego's dad",
+              mood: "confused",
+              quote: "Thanks for the apology — when's the makeup?",
+              bodyLanguage: "still waiting for a plan",
+            },
+            consequence: "You sent half the message. He has to chase you for the rest.",
+            roomDelta: { clarity: -1 },
           },
           default: {
             tone: "incorrect",

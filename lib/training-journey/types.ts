@@ -201,9 +201,29 @@ export type BeatFeedback = {
 
   /** Inline recovery beat shown ONLY on incorrect feedback. After the mentor
    *  analysis, the learner is asked one quick "what do you do now?" question
-   *  with 2-3 light options. Each option carries a one-line reaction. The
-   *  user's pick is purely cosmetic (does NOT change scoring) — it exists to
-   *  give failures the feel of a recoverable moment, not a dead end. */
+   *  with 2-3 light options. Each option carries a one-line reaction.
+   *
+   *  ──────────────────────────────────────────────────────────────────────
+   *  COSMETIC CONTRACT — read this before persisting recovery picks.
+   *  ──────────────────────────────────────────────────────────────────────
+   *  The user's pick on a recoveryPrompt is INTENTIONALLY ephemeral and
+   *  cosmetic-only:
+   *
+   *    1. The pick is NOT persisted on the InteractiveBeatAttempt row.
+   *       The parent beat is already locked (incorrect) by the time the
+   *       prompt renders — recoveryPrompt is a UX layer, not a re-attempt.
+   *    2. The pick does NOT change the score. Resubmitting the parent
+   *       beat would still need to use the kind module's normal scoring
+   *       path; recovery picks bypass that on purpose.
+   *    3. The optional `roomDelta` per option is applied to the live HUD
+   *       state in the JourneyPlayer (via onRecoveryRoomDelta) but is
+   *       NOT propagated to a stored room state — the meters reset on
+   *       the next session.
+   *
+   *  If the design ever pivots toward persisted recovery scoring, this
+   *  contract must be revisited together with the attempts schema, the
+   *  client-contracts BeatSubmitInput shape, and the kind scorers. Until
+   *  then: nothing about a recovery pick survives a page reload. */
   recoveryPrompt?: {
     question: string;
     options: {
@@ -212,7 +232,7 @@ export type BeatFeedback = {
       /** What the room/mentor does in response to this recovery move. */
       reaction: string;
       /** Optional small nudge on room state when this recovery move is
-       *  picked. Same shape as roomDelta. */
+       *  picked. Same shape as roomDelta. Applied to the live HUD only. */
       roomDelta?: {
         engagement?: number;
         clarity?: number;
