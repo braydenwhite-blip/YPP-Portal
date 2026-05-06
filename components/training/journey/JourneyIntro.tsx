@@ -14,6 +14,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useJourneyMotion } from "./MotionProvider";
+import { COHORT } from "@/lib/training-curriculum/cohort";
 
 export type JourneyIntroProps = {
   title: string;
@@ -25,7 +26,19 @@ export type JourneyIntroProps = {
   mode: "start" | "resume" | "review";
   strictMode?: boolean;
   passScorePct?: number;
+  /** When true, shows a "Who's in the room" panel with the recurring cohort
+   *  before the start CTA. Used by the simulation-heavy modules. */
+  showCohort?: boolean;
   onStart: () => void;
+};
+
+const ARCHETYPE_EMOJI: Record<string, string> = {
+  shy: "🫥",
+  overconfident: "😎",
+  distracted: "🌀",
+  nervous: "😬",
+  curious: "🤔",
+  resistant: "😶",
 };
 
 const CTA_LABEL: Record<JourneyIntroProps["mode"], string> = {
@@ -50,6 +63,7 @@ export function JourneyIntro({
   mode,
   strictMode = false,
   passScorePct,
+  showCohort = false,
   onStart,
 }: JourneyIntroProps) {
   const { variants } = useJourneyMotion();
@@ -142,6 +156,27 @@ export function JourneyIntro({
             <strong>Heads up — this one counts.</strong> Your first answer on
             each beat is the one we score, so don&rsquo;t rush. There&rsquo;s
             no time pressure; think it through.
+          </div>
+        ) : null}
+
+        {/* "Who's in the room" panel — recurring cohort, only shown when
+            the journey is simulation-heavy. */}
+        {showCohort && mode !== "review" ? (
+          <div className="cohort-panel" aria-label="Students in this room">
+            <p className="cohort-panel__label">Who&rsquo;s in the room</p>
+            <ul className="cohort-panel__list">
+              {COHORT.map((student) => (
+                <li key={student.name} className="cohort-panel__item">
+                  <span className="cohort-panel__avatar" aria-hidden="true">
+                    {ARCHETYPE_EMOJI[student.archetype] ?? "🙂"}
+                  </span>
+                  <span className="cohort-panel__copy">
+                    <span className="cohort-panel__name">{student.name}</span>
+                    <span className="cohort-panel__thumb">{student.thumbnail}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
         ) : null}
 

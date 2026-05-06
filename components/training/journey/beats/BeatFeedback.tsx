@@ -1,36 +1,38 @@
 "use client";
 
 /**
- * BeatFeedback — two-phase teaching simulation feedback.
+ * BeatFeedback — cinematic teaching simulation feedback.
  *
- *   Phase 1 (immediate): "What happened in the room"
- *     - studentReaction card (avatar + body language + optional quote)
- *     - one-line consequence ("Maya re-engages", "The room goes quiet")
+ * Phasing (when fields are authored — every phase is optional and skipped
+ * gracefully if absent):
  *
- *   Phase 2 (~520ms later): Coach analysis
- *     - mentor avatar + byline
- *     - opener + headline + body
- *     - hint + callouts
+ *   1. Mentor aside       (≈ immediately) ─ short coach quip before the room
+ *      reacts ("Watch this." / "Hold this for a beat.")
+ *   2. Room reaction      (≈ 180 ms)      ─ focal student card +
+ *      bodyLanguage + optional quote, plus a peer-ripple line for how the
+ *      rest of the room moves.
+ *   3. Consequence line   (same phase)    ─ "Maya re-engages." style.
+ *   4. Coach typing       (≈ 460 ms)      ─ three-dot indicator in the
+ *      mentor avatar slot. If `ambientLine` is authored it shows here as
+ *      atmospheric subtitle ("The room holds its breath.").
+ *   5. Mentor analysis    (≈ 760 ms)      ─ opener + headline + body +
+ *      hint + callouts.
+ *   6. Recovery prompt    (after analysis) ─ ONLY on incorrect feedback,
+ *      ONLY when authored. A single follow-up "what do you do now?" with
+ *      2-3 quick options. Pick → see room reaction → mentor accepts. Purely
+ *      cosmetic for scoring; existential for the *feeling* of recoverability.
  *
- * If the feedback has no studentReaction/consequence (legacy content), Phase 1
- * is skipped and the mentor analysis renders immediately — same UX as before.
- *
- * Reduced-motion: phases reveal back-to-back with no springs; no transition
- * delay since users with reduced-motion preferences typically also expect
- * immediate information.
- *
- * Accessibility: aria-live="polite" on the wrapper. Announcements are batched
- * via aria-atomic so the screen reader hears the room reaction + analysis as
- * one coherent moment, not two interruptions.
+ * Reduced-motion: phases collapse to a single 100ms reveal; no springs.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { BeatFeedback as BeatFeedbackType } from "@/lib/training-journey/types";
 import { useJourneyMotion } from "@/components/training/journey/MotionProvider";
+import { RecoveryPrompt } from "./RecoveryPrompt";
 
 // ---------------------------------------------------------------------------
-// Mentor voice — small rotating list of warm, human openers, picked
+// Mentor voice — wider rotating list of warm, human openers, picked
 // deterministically so the same beat always gets the same opener.
 // ---------------------------------------------------------------------------
 
@@ -40,17 +42,29 @@ const POSITIVE_OPENERS = [
   "Good instinct.",
   "Yes — exactly that.",
   "You picked it up.",
+  "Clean move.",
+  "That's the read I wanted.",
+  "Steady.",
 ];
 
-const PARTIAL_OPENERS = ["Almost there.", "Close — a tweak.", "Right idea."];
+const PARTIAL_OPENERS = [
+  "Almost there.",
+  "Close — a tweak.",
+  "Right idea.",
+  "The shape is right.",
+  "Most of the way.",
+];
 
 const INCORRECT_OPENERS = [
   "Worth a closer look.",
   "Let's rewind a beat.",
   "Try this lens.",
+  "Pause here for a sec.",
+  "Stick with me.",
+  "Not quite — here's why.",
 ];
 
-const NOTED_OPENERS = ["Logged.", "Got it.", "Thanks for that."];
+const NOTED_OPENERS = ["Logged.", "Got it.", "Thanks for that.", "Noted."];
 
 function hashStr(s: string): number {
   let h = 0;
@@ -100,12 +114,45 @@ const MOOD_LABEL: Record<
   frustrated: "frustrated",
 };
 
+// Default ambient lines used when consequence is dramatic but author didn't
+// supply an `ambientLine`. Picked by the absolute magnitude of roomDelta sum.
+function inferAmbientLine(feedback: BeatFeedbackType): string | null {
+  if (feedback.ambientLine) return feedback.ambientLine;
+  const d = feedback.roomDelta;
+  if (!d) return null;
+  const total =
+    Math.abs(d.engagement ?? 0) +
+    Math.abs(d.clarity ?? 0) +
+    Math.abs(d.energy ?? 0);
+  if (total < 3) return null;
+
+  // Tone-aware atmospheric defaults.
+  if (feedback.tone === "correct") {
+    return total >= 5
+      ? "The room exhales. You feel it shift."
+      : "A small click — the room leans in.";
+  }
+  if (feedback.tone === "incorrect" || feedback.tone === "partial") {
+    return total >= 5
+      ? "The room cools. The silence has weight."
+      : "A pause stretches. You feel it land.";
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
 type BeatFeedbackProps = {
   feedback: BeatFeedbackType;
+  /** Parent player can listen for room-state nudges from a recovery pick.
+   *  Optional — used for HUD updates only, doesn't affect scoring. */
+  onRecoveryRoomDelta?: (delta: {
+    engagement?: number;
+    clarity?: number;
+    energy?: number;
+  }) => void;
 };
 
 function isPositiveTone(tone: BeatFeedbackType["tone"]): boolean {
@@ -116,7 +163,7 @@ function isPositiveTone(tone: BeatFeedbackType["tone"]): boolean {
 // Component
 // ---------------------------------------------------------------------------
 
-export function BeatFeedback({ feedback }: BeatFeedbackProps) {
+export function BeatFeedback({ feedback, onRecoveryRoomDelta }: BeatFeedbackProps) {
   const { variants, reduced } = useJourneyMotion();
   const regionRef = useRef<HTMLDivElement>(null);
 
@@ -124,16 +171,64 @@ export function BeatFeedback({ feedback }: BeatFeedbackProps) {
     () => pickOpener(feedback.tone, feedback.headline),
     [feedback.tone, feedback.headline]
   );
+  const ambientLine = useMemo(() => inferAmbientLine(feedback), [feedback]);
 
+  const hasAside = Boolean(feedback.mentorAside);
   const hasReaction = Boolean(feedback.studentReaction || feedback.consequence);
-  const [showCoach, setShowCoach] = useState(!hasReaction);
+  const hasAmbient = Boolean(ambientLine);
 
-  // Reveal mentor analysis after the room reaction has had a moment to land.
+  const [showAside, setShowAside] = useState(!hasAside);
+  const [showReaction, setShowReaction] = useState(!hasAside && !hasReaction);
+  const [showTyping, setShowTyping] = useState(false);
+  const [showCoach, setShowCoach] = useState(!hasAside && !hasReaction && !hasAmbient);
+
+  // Reveal timeline. Each phase has its own timer so the choreography reads
+  // as deliberate pacing, not a stutter. Reduced-motion users skip straight
+  // to coach analysis after a single tick.
   useEffect(() => {
-    if (!hasReaction) return;
-    const id = setTimeout(() => setShowCoach(true), reduced ? 100 : 520);
-    return () => clearTimeout(id);
-  }, [hasReaction, reduced]);
+    if (reduced) {
+      setShowAside(true);
+      setShowReaction(true);
+      setShowCoach(true);
+      return;
+    }
+    const timers: ReturnType<typeof setTimeout>[] = [];
+
+    if (hasAside) {
+      // Aside lands at t=0. Reaction follows it.
+      setShowAside(true);
+      if (hasReaction) {
+        timers.push(setTimeout(() => setShowReaction(true), 380));
+      }
+    } else if (hasReaction) {
+      // No aside — reaction lands first.
+      timers.push(setTimeout(() => setShowReaction(true), 80));
+    }
+
+    // Coach typing dots before the analysis card. Slightly delayed when there's
+    // a reaction or an ambient line so the room beat has time to land.
+    const typingDelay = hasAside
+      ? hasReaction
+        ? 720
+        : 420
+      : hasReaction
+      ? 520
+      : 60;
+    timers.push(setTimeout(() => setShowTyping(true), typingDelay));
+
+    // Coach card reveal — dots vanish, analysis fades in.
+    const coachDelay = typingDelay + (hasAmbient ? 720 : 320);
+    timers.push(
+      setTimeout(() => {
+        setShowTyping(false);
+        setShowCoach(true);
+      }, coachDelay)
+    );
+
+    return () => {
+      timers.forEach(clearTimeout);
+    };
+  }, [reduced, hasAside, hasReaction, hasAmbient]);
 
   useEffect(() => {
     if (showCoach && isPositiveTone(feedback.tone)) {
@@ -141,6 +236,9 @@ export function BeatFeedback({ feedback }: BeatFeedbackProps) {
       return () => clearTimeout(id);
     }
   }, [showCoach, feedback.tone]);
+
+  const showRecovery =
+    showCoach && feedback.tone === "incorrect" && Boolean(feedback.recoveryPrompt);
 
   return (
     <div
@@ -152,9 +250,29 @@ export function BeatFeedback({ feedback }: BeatFeedbackProps) {
       tabIndex={-1}
       data-tone={feedback.tone}
     >
+      {/* ── Phase 0: mentor aside ── */}
+      <AnimatePresence>
+        {showAside && feedback.mentorAside ? (
+          <motion.div
+            key="aside"
+            className="mentor-aside"
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: reduced ? 0.1 : 0.26, ease: [0.22, 1, 0.36, 1] }}
+            aria-label={`Mentor aside: ${feedback.mentorAside}`}
+          >
+            <span className="mentor-aside__avatar" aria-hidden="true">
+              MJ
+            </span>
+            <span className="mentor-aside__text">{feedback.mentorAside}</span>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
       {/* ── Phase 1: room reaction ── */}
       <AnimatePresence>
-        {hasReaction ? (
+        {showReaction && hasReaction ? (
           <motion.div
             key="reaction"
             className="room-reaction"
@@ -196,8 +314,38 @@ export function BeatFeedback({ feedback }: BeatFeedbackProps) {
               </p>
             ) : null}
 
+            {feedback.peerRipple ? (
+              <p className="room-reaction__ripple">{feedback.peerRipple}</p>
+            ) : null}
+
             {feedback.consequence ? (
               <p className="room-reaction__consequence">{feedback.consequence}</p>
+            ) : null}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      {/* ── Phase 1.5: coach typing + ambient line ── */}
+      <AnimatePresence>
+        {showTyping ? (
+          <motion.div
+            key="typing"
+            className="coach-typing"
+            data-tone={feedback.tone}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -2 }}
+            transition={{ duration: reduced ? 0.1 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+            aria-hidden="true"
+          >
+            <span className="coach-typing__avatar">MJ</span>
+            <span className="coach-typing__dots" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </span>
+            {ambientLine ? (
+              <span className="coach-typing__ambient">{ambientLine}</span>
             ) : null}
           </motion.div>
         ) : null}
@@ -256,6 +404,14 @@ export function BeatFeedback({ feedback }: BeatFeedbackProps) {
           </motion.div>
         ) : null}
       </AnimatePresence>
+
+      {/* ── Phase 3: recovery prompt (incorrect only, when authored) ── */}
+      {showRecovery && feedback.recoveryPrompt ? (
+        <RecoveryPrompt
+          prompt={feedback.recoveryPrompt}
+          onRoomDelta={onRecoveryRoomDelta}
+        />
+      ) : null}
     </div>
   );
 }

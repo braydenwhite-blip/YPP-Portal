@@ -40,6 +40,41 @@ import { BeatActions } from "./beats/BeatActions";
 import { RoomMeters, type RoomState } from "./RoomMeters";
 
 // ---------------------------------------------------------------------------
+// "Moment of the session" — captured for the completion overlay
+// ---------------------------------------------------------------------------
+
+export type PeakMoment = {
+  weight: number;
+  studentName: string;
+  quote?: string;
+  bodyLanguage?: string;
+  consequence?: string;
+  tone: BeatFeedback["tone"];
+};
+
+function pickPeakMoment(feedback: BeatFeedback): PeakMoment | null {
+  const reaction = feedback.studentReaction;
+  if (!reaction && !feedback.consequence) return null;
+  const d = feedback.roomDelta;
+  const magnitude =
+    Math.abs(d?.engagement ?? 0) +
+    Math.abs(d?.clarity ?? 0) +
+    Math.abs(d?.energy ?? 0);
+  // A correct moment with a big positive delta beats a partial; equal
+  // magnitudes let the more recent moment win on tie-break.
+  const weight = magnitude * 10 + (feedback.tone === "correct" ? 1 : 0);
+  if (weight === 0 && !reaction?.quote) return null;
+  return {
+    weight,
+    studentName: reaction?.studentName ?? "the room",
+    quote: reaction?.quote,
+    bodyLanguage: reaction?.bodyLanguage,
+    consequence: feedback.consequence,
+    tone: feedback.tone,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -52,7 +87,7 @@ export type JourneyPlayerProps = {
   userAttempts: JourneyAttemptSummary[];
   passScorePct: number;
   title: string;
-  onComplete: (result: JourneyCompletionSummary) => void;
+  onComplete: (result: JourneyCompletionSummary, peakMoment: PeakMoment | null) => void;
   submitBeatAction: (input: BeatSubmitInput) => Promise<BeatSubmitResult>;
   completeJourneyAction: (input: CompleteJourneyInput) => Promise<CompleteJourneyResult>;
 };
@@ -224,6 +259,27 @@ export function JourneyPlayer({
   });
   const [roomActive, setRoomActive] = useState(false);
 
+  // Captured peak moment from the session — surfaced on completion.
+  const [peakMoment, setPeakMoment] = useState<PeakMoment | null>(null);
+
+  // Shared room-delta applier used by both submit-feedback and recovery picks.
+  const applyRoomDelta = useCallback((delta: NonNullable<BeatFeedback["roomDelta"]>) => {
+    setRoomActive(true);
+    setRoom((prev) => {
+      const shift = (axis: keyof RoomState) => {
+        const d = delta[axis] ?? 0;
+        if (d === 0) return prev[axis];
+        const next = prev[axis] + d * 8;
+        return next < 0 ? 0 : next > 100 ? 100 : next;
+      };
+      return {
+        engagement: shift("engagement"),
+        clarity: shift("clarity"),
+        energy: shift("energy"),
+      };
+    });
+  }, []);
+
   const currentBeat = beats.find((b) => b.sourceKey === currentSourceKey) ?? beats[0];
   const isFirstBeat = getPrevVisibleBeat(currentSourceKey, beats) === null;
   const isReadOnly = phase === "correct";
@@ -298,21 +354,18 @@ export function JourneyPlayer({
     // is interpreted as "shift by N * 8 percentage points" so a delta of +1
     // on engagement nudges the bar by ~8%, +2 by ~16%. Matches authoring
     // intuition: small numbers, visible-but-not-jarring movement.
-    const delta = result.feedback.roomDelta;
-    if (delta) {
-      setRoomActive(true);
-      setRoom((prev) => {
-        const shift = (axis: keyof RoomState) => {
-          const d = delta[axis] ?? 0;
-          if (d === 0) return prev[axis];
-          const next = prev[axis] + d * 8;
-          return next < 0 ? 0 : next > 100 ? 100 : next;
-        };
-        return {
-          engagement: shift("engagement"),
-          clarity: shift("clarity"),
-          energy: shift("energy"),
-        };
+    if (result.feedback.roomDelta) {
+      applyRoomDelta(result.feedback.roomDelta);
+    }
+
+    // Capture the strongest "moment of the session" so the completion screen
+    // can surface a real callback line. Bigger absolute deltas win; if equal,
+    // the most recent wins (so endgame moments rise to the top).
+    const peakMoment = pickPeakMoment(result.feedback);
+    if (peakMoment) {
+      setPeakMoment((prev) => {
+        if (!prev) return peakMoment;
+        return peakMoment.weight >= prev.weight ? peakMoment : prev;
       });
     }
 
@@ -373,7 +426,7 @@ export function JourneyPlayer({
         return;
       }
 
-      onComplete(result.completion);
+      onComplete(result.completion, peakMoment);
       return;
     }
 
@@ -584,7 +637,7 @@ export function JourneyPlayer({
                   setFinalizeError(result.message);
                   return;
                 }
-                onComplete(result.completion);
+                onComplete(result.completion, peakMoment);
               } else {
                 setErrorMessage(null);
               }
@@ -646,6 +699,7 @@ export function JourneyPlayer({
               onResponseChange={setCurrentResponse}
               feedback={feedback}
               readOnly={isReadOnly}
+              onRecoveryRoomDelta={applyRoomDelta}
             />
           </motion.div>
         </AnimatePresence>

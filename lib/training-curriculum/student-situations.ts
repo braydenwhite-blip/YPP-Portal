@@ -129,6 +129,7 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
           tone: "correct",
           headline: "Notice, then shrink the step.",
           body: "Saying 'I can see this one's tough — let's try just the first step together' re-opens the door without putting her on the spot.",
+          mentorAside: "Watch her shoulders.",
           studentReaction: {
             studentName: "Maya",
             archetype: "shy",
@@ -136,7 +137,9 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
             quote: "Okay… maybe just step one?",
             bodyLanguage: "shoulders drop a little, looks back at the screen",
           },
+          peerRipple: "Two cameras flicker on. Tasha unmutes, ready to jump in.",
           consequence: "Maya re-engages and tries the first step.",
+          ambientLine: "The room exhales — you can feel it lean back in.",
           roomDelta: { engagement: 2, clarity: 1 },
         },
         incorrectFeedback: {
@@ -145,6 +148,7 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
             headline: "Answers don't restart learning.",
             body: "Handing Maya the answer ends the moment but skips the move that gets her back in. Name it and offer a smaller step.",
             hint: "What's the smallest step she could take next?",
+            mentorAside: "Hold this for a second.",
             studentReaction: {
               studentName: "Maya",
               archetype: "shy",
@@ -152,22 +156,66 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
               quote: "Mm.",
               bodyLanguage: "writes the answer down without looking up",
             },
+            peerRipple: "Diego stops typing. The room reads it: thinking is over.",
             consequence: "Maya copies the answer. The thinking stops.",
             roomDelta: { engagement: -1, clarity: -2 },
+            recoveryPrompt: {
+              question: "Maya already wrote the answer down. What now?",
+              options: [
+                {
+                  id: "circle-back",
+                  label: "Circle back: 'Walk me through how that got us there.'",
+                  reaction: "Maya hesitates, then re-traces step one out loud. The thinking restarts.",
+                  roomDelta: { clarity: 1, engagement: 1 },
+                },
+                {
+                  id: "next-problem",
+                  label: "Move on. Catch the next one with her.",
+                  reaction: "She stays quiet. The pattern holds for the next problem.",
+                  roomDelta: { engagement: -1 },
+                },
+                {
+                  id: "private-checkin",
+                  label: "DM her: 'You good? Want me to slow down?'",
+                  reaction: "She types back: 'Yeah, sorry. I'm with you.' Camera tilts up a little.",
+                  roomDelta: { engagement: 1 },
+                },
+              ],
+            },
           },
           "wait-silently": {
             tone: "incorrect",
             headline: "Silence deepens shutdown.",
             body: "Long waits read as judgment when a student is already frozen. Speak first, but lower the bar.",
             hint: "Acknowledge what you see, then make the next ask easier.",
+            mentorAside: "Listen to that pause.",
             studentReaction: {
               studentName: "Maya",
               archetype: "shy",
               mood: "shutdown",
               bodyLanguage: "stares at her hands; the silence stretches",
             },
+            peerRipple: "Priya glances at her own camera. Tasha mutes.",
             consequence: "The silence pulls Maya further out of the room.",
+            ambientLine: "The pause stretches. You can feel the room cool.",
             roomDelta: { engagement: -2, energy: -1 },
+            recoveryPrompt: {
+              question: "Six seconds in. The silence is holding. What now?",
+              options: [
+                {
+                  id: "name-it-late",
+                  label: "Break it: 'I can see that one's tough — let's just try step one.'",
+                  reaction: "Maya nods slowly. The room releases the breath it was holding.",
+                  roomDelta: { engagement: 2, energy: 1 },
+                },
+                {
+                  id: "rephrase",
+                  label: "Rephrase the question more concretely.",
+                  reaction: "Maya stays quiet, but Jaden tries it. The room moves on without her.",
+                  roomDelta: { clarity: 1, engagement: -1 },
+                },
+              ],
+            },
           },
           "skip-her": {
             tone: "incorrect",
@@ -180,8 +228,27 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
               mood: "shutdown",
               bodyLanguage: "leans back, gaze drifts off-screen",
             },
+            peerRipple: "Jaden answers fast. Maya's camera angle drops.",
             consequence: "Maya checks out for the rest of the segment.",
+            ambientLine: "The room cools. You feel the weight of skipping her.",
             roomDelta: { engagement: -2, clarity: -1, energy: -1 },
+            recoveryPrompt: {
+              question: "Five minutes later, Maya hasn't unmuted. What now?",
+              options: [
+                {
+                  id: "private-checkin",
+                  label: "DM her quietly: 'Hey — easy one for you next?'",
+                  reaction: "She types: 'ok 🙂'. The camera comes back.",
+                  roomDelta: { engagement: 1 },
+                },
+                {
+                  id: "low-stakes-ask",
+                  label: "Pull her back with a yes/no question on the next problem.",
+                  reaction: "She answers in one word, but she answers. That's the door back.",
+                  roomDelta: { engagement: 1 },
+                },
+              ],
+            },
           },
           default: {
             tone: "incorrect",
@@ -225,6 +292,7 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
           tone: "correct",
           headline: "Pull him in with a small ask.",
           body: "A specific, easy question gives Diego a way back into the work without making it a referendum on his behavior.",
+          mentorAside: "Watch this.",
           studentReaction: {
             studentName: "Diego",
             archetype: "distracted",
@@ -232,7 +300,9 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
             quote: "Oh — yeah, I think it's the second one?",
             bodyLanguage: "sits up, eyes back on the problem",
           },
+          peerRipple: "Tasha jumps in to back him up. Jaden grins. The energy shifts.",
           consequence: "Diego is back in. The room follows.",
+          ambientLine: "A small click — the room leans in.",
           roomDelta: { engagement: 2, energy: 1 },
         },
         incorrectFeedback: {
@@ -241,14 +311,34 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
             headline: "Calling him out shuts him down further.",
             body: "Public commentary on quietness creates more silence, not less. Pull him in with a real question instead.",
             hint: "Ask him something — don't tell him about himself.",
+            mentorAside: "Hold this for a second.",
             studentReaction: {
               studentName: "Diego",
               archetype: "distracted",
               mood: "shutdown",
               bodyLanguage: "looks down, chat goes quiet",
             },
-            consequence: "Diego retreats. Two other cameras turn off.",
+            peerRipple: "Two other cameras turn off. Priya tucks her hands away.",
+            consequence: "Diego retreats. The room's energy cracks.",
+            ambientLine: "The room cools fast. You feel everyone reading you.",
             roomDelta: { engagement: -2, energy: -1 },
+            recoveryPrompt: {
+              question: "Three cameras down. The room's watching. What now?",
+              options: [
+                {
+                  id: "name-and-reset",
+                  label: "Acknowledge it: 'My fault — that came out sharper than I meant.'",
+                  reaction: "Diego's camera tilts up a little. The temperature comes back up.",
+                  roomDelta: { engagement: 1, energy: 1 },
+                },
+                {
+                  id: "barrel-on",
+                  label: "Pretend it didn't happen and keep teaching.",
+                  reaction: "The room stays quiet. Cameras come back, slowly, but the energy is gone.",
+                  roomDelta: { energy: -1 },
+                },
+              ],
+            },
           },
           "ignore-keep-going": {
             tone: "incorrect",
@@ -261,22 +351,60 @@ export const M3_STUDENT_SITUATIONS: CurriculumDefinition = {
               mood: "checked-out",
               bodyLanguage: "still nodding, eyes on a different tab",
             },
+            peerRipple: "Tasha checks her phone. Jaden mirrors Diego's posture.",
             consequence: "Diego drifts further. The minutes are gone.",
             roomDelta: { clarity: -1, energy: -1 },
+            recoveryPrompt: {
+              question: "Four minutes later, Diego still hasn't spoken. What now?",
+              options: [
+                {
+                  id: "specific-question",
+                  label: "Ask him: 'Diego — which step felt off to you?'",
+                  reaction: "He blinks, scans the screen. 'Uh… step three?' He's back.",
+                  roomDelta: { engagement: 2 },
+                },
+                {
+                  id: "private-nudge",
+                  label: "DM him: 'Still with me?'",
+                  reaction: "'yeah sorry 🙏'. He unmutes a minute later.",
+                  roomDelta: { engagement: 1 },
+                },
+              ],
+            },
           },
           "lecture-engagement": {
             tone: "incorrect",
             headline: "Don't stop class for a meta-talk.",
             body: "A lecture about participation costs class time and embarrasses Diego. Re-engage him with the actual content.",
             hint: "Re-engage through the work, not around it.",
+            mentorAside: "Pause here for a sec.",
             studentReaction: {
               studentName: "Diego",
               archetype: "distracted",
               mood: "frustrated",
               bodyLanguage: "stares at the corner of the screen",
             },
+            peerRipple: "Maya looks down. Priya goes still. Jaden checks the time.",
             consequence: "The whole room flattens. Nobody volunteers next.",
+            ambientLine: "The temperature drops. You can hear it in the silence.",
             roomDelta: { engagement: -2, energy: -2 },
+            recoveryPrompt: {
+              question: "The room's flat. You burned three minutes. What now?",
+              options: [
+                {
+                  id: "pivot-to-work",
+                  label: "Pivot fast: 'OK — back to the problem. Jaden, what'd you try?'",
+                  reaction: "Jaden answers. The room recovers slowly. You bought it back.",
+                  roomDelta: { engagement: 1, energy: 1 },
+                },
+                {
+                  id: "double-down",
+                  label: "Double down: 'I just need everyone present here.'",
+                  reaction: "Three more cameras turn off. The class is yours, but no one's home.",
+                  roomDelta: { engagement: -2, energy: -1 },
+                },
+              ],
+            },
           },
           default: {
             tone: "incorrect",
