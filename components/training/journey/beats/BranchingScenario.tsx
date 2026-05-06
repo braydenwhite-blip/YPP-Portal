@@ -6,6 +6,8 @@
  * Config shape (client-safe — correctOptionId/feedback stripped server-side):
  *   rootPrompt: string
  *   options: { id, label, leadsToChildSourceKey: string | null }[]
+ *   breadcrumb?: string[]   — path of choices already made (set by player for
+ *                             child beats when navigating into a branch).
  *
  * Displays config.rootPrompt as a styled scenario framing block above the
  * options. Options are rendered as a radiogroup identical to ScenarioChoice.
@@ -40,6 +42,8 @@ type BranchingOption = {
 type BranchingScenarioConfig = {
   rootPrompt: string;
   options: BranchingOption[];
+  /** Breadcrumb path of prior choices shown when deep in a branch. */
+  breadcrumb?: string[];
 };
 
 // ---------------------------------------------------------------------------
@@ -60,12 +64,14 @@ type Props = {
 export function BranchingScenario({ beat, response, onResponseChange, readOnly }: Props) {
   const config = beat.config as BranchingScenarioConfig;
   const options = config.options ?? [];
+  const breadcrumb = config.breadcrumb ?? [];
 
   const [selected, setSelected] = useState<string | null>(
     response?.selectedOptionId ?? null
   );
 
   const groupId = useId();
+  const promptId = useId();
   const optionRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const handleSelect = useCallback(
@@ -98,6 +104,11 @@ export function BranchingScenario({ beat, response, onResponseChange, readOnly }
     [readOnly, options, handleSelect]
   );
 
+  // Find the label of the currently selected option for the "you chose" breadcrumb.
+  const selectedLabel = selected
+    ? options.find((o) => o.id === selected)?.label
+    : null;
+
   return (
     <div
       className={[
@@ -107,87 +118,119 @@ export function BranchingScenario({ beat, response, onResponseChange, readOnly }
         .filter(Boolean)
         .join(" ")}
     >
+      {/* Breadcrumb — shows path of choices when deep in a branch */}
+      {breadcrumb.length > 0 && (
+        <nav
+          className="branching-scenario__breadcrumb"
+          aria-label="Your path through this scenario"
+        >
+          <ol className="branching-scenario__breadcrumb-list">
+            {breadcrumb.map((crumb, i) => (
+              <li key={i} className="branching-scenario__breadcrumb-item">
+                {crumb}
+              </li>
+            ))}
+          </ol>
+        </nav>
+      )}
+
+      {/* "You chose X" inline note when an answer is selected in readOnly/review */}
+      {readOnly && selectedLabel && (
+        <p className="branching-scenario__you-chose" aria-live="polite">
+          <span aria-hidden="true">You chose: </span>
+          <strong>{selectedLabel}</strong>
+        </p>
+      )}
+
       {/* Scenario framing block */}
       <div
+        id={promptId}
         className="branching-scenario__root-prompt"
-        style={{
-          padding: "16px",
-          background: "var(--ypp-blush, #fdf6f0)",
-          borderLeft: "4px solid var(--ypp-purple)",
-          borderRadius: "var(--radius-md)",
-          marginBottom: "20px",
-        }}
       >
         {config.rootPrompt}
       </div>
 
       {/* Radio group — same pattern as ScenarioChoice */}
-      <div
-        role="radiogroup"
-        aria-labelledby={`${groupId}-label`}
-        aria-disabled={readOnly}
+      <fieldset
         className={[
-          "branching-scenario__options",
-          readOnly ? "branching-scenario__options--readonly" : "",
+          "branching-scenario__fieldset",
+          readOnly ? "branching-scenario__fieldset--readonly" : "",
         ]
           .filter(Boolean)
           .join(" ")}
+        disabled={readOnly}
       >
-        <span id={`${groupId}-label`} className="sr-only">
-          {beat.prompt}
-        </span>
+        <legend className="sr-only">{beat.prompt}</legend>
 
-        {options.map((option, index) => {
-          const isSelected = selected === option.id;
-          const hasBranch = option.leadsToChildSourceKey !== null;
+        <div
+          role="radiogroup"
+          aria-labelledby={`${groupId}-label`}
+          aria-describedby={promptId}
+          aria-disabled={readOnly}
+          className={[
+            "branching-scenario__options",
+            readOnly ? "branching-scenario__options--readonly" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          <span id={`${groupId}-label`} className="sr-only">
+            {beat.prompt}
+          </span>
 
-          return (
-            <div
-              key={option.id}
-              ref={(el) => { optionRefs.current[index] = el; }}
-              role="radio"
-              aria-checked={isSelected}
-              aria-disabled={readOnly}
-              tabIndex={
-                readOnly
-                  ? -1
-                  : isSelected || (selected === null && index === 0)
-                  ? 0
-                  : -1
-              }
-              className={[
-                "branching-scenario__option",
-                isSelected ? "branching-scenario__option--selected" : "",
-                readOnly ? "branching-scenario__option--readonly" : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              onClick={() => handleSelect(option.id)}
-              onKeyDown={(e) => handleKeyDown(e, index)}
-            >
-              <span
+          {options.map((option, index) => {
+            const isSelected = selected === option.id;
+            const hasBranch = option.leadsToChildSourceKey !== null;
+
+            return (
+              <div
+                key={option.id}
+                ref={(el) => { optionRefs.current[index] = el; }}
+                role="radio"
+                aria-checked={isSelected}
+                aria-disabled={readOnly}
+                tabIndex={
+                  readOnly
+                    ? -1
+                    : isSelected || (selected === null && index === 0)
+                    ? 0
+                    : -1
+                }
                 className={[
-                  "branching-scenario__indicator",
-                  isSelected ? "branching-scenario__indicator--selected" : "",
+                  "branching-scenario__option",
+                  isSelected ? "branching-scenario__option--selected" : "",
+                  readOnly ? "branching-scenario__option--readonly" : "",
+                  hasBranch ? "branching-scenario__option--has-branch" : "",
                 ]
                   .filter(Boolean)
                   .join(" ")}
-                aria-hidden="true"
-              />
-              <span className="branching-scenario__label">{option.label}</span>
-              {hasBranch && (
+                onClick={() => handleSelect(option.id)}
+                onKeyDown={(e) => handleKeyDown(e, index)}
+              >
                 <span
-                  className="branching-scenario__branch-hint"
-                  aria-label="leads to a follow-up scenario"
-                  title="leads to a follow-up scenario"
-                >
-                  {" "}⤷
-                </span>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                  className={[
+                    "branching-scenario__indicator",
+                    isSelected ? "branching-scenario__indicator--selected" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  aria-hidden="true"
+                />
+                <span className="branching-scenario__label">{option.label}</span>
+                {hasBranch && (
+                  <span
+                    className="branching-scenario__branch-hint"
+                    aria-label="leads to a follow-up scenario"
+                    title="Choosing this will show a follow-up question"
+                  >
+                    ⤷
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </fieldset>
     </div>
   );
 }
