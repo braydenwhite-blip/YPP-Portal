@@ -61,6 +61,24 @@ export function JourneyComplete({
   const firstTryCount = completion.firstTryCorrectCount;
   const totalBeats = completion.visitedBeatCount;
 
+  // Pick a warm headline based on first-try ratio so the celebration screen
+  // feels less canned. All variants stay within "good job" territory — we
+  // don't punish a bumpier path.
+  const ratio = totalBeats > 0 ? firstTryCount / totalBeats : 0;
+  const headline =
+    ratio >= 0.9
+      ? "Smooth run."
+      : ratio >= 0.6
+      ? "Nicely done."
+      : "That's a wrap.";
+
+  const subline =
+    ratio >= 0.9
+      ? "You read the room and made the right calls. That instinct is what keeps a workshop alive."
+      : ratio >= 0.6
+      ? "Solid moves on most of these. Worth re-reading the ones you missed — they tend to repeat in the wild."
+      : "You worked through every beat — that's the whole point. Skim the feedback and the patterns will start clicking.";
+
   // Badge animation: spring pop in full-motion, opacity fade in reduced-motion.
   const badgeVariants = reduced
     ? {
@@ -111,9 +129,12 @@ export function JourneyComplete({
         {/* Module title */}
         <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 8 }}>{title}</p>
 
-        <h1 style={{ margin: "0 0 24px", fontSize: 28, fontWeight: 700, color: "var(--ypp-ink)" }}>
-          You&rsquo;re done!
+        <h1 style={{ margin: "0 0 8px", fontSize: 28, fontWeight: 700, color: "var(--ypp-ink)" }}>
+          {headline}
         </h1>
+        <p style={{ margin: "0 0 24px", fontSize: 14, lineHeight: 1.6, color: "var(--text-secondary, #3d2f4d)" }}>
+          {subline}
+        </p>
 
         {/* Badge reveal (hero motion — one per screen, plan §6 Principle 3) */}
         <motion.div
@@ -138,13 +159,13 @@ export function JourneyComplete({
         {/* Score summary */}
         <div style={{ marginBottom: 20 }}>
           <p style={{ margin: "0 0 6px", fontSize: 15, color: "var(--ypp-ink)" }}>
-            <strong>{firstTryCount}</strong> of <strong>{totalBeats}</strong> correct on the first try
+            Nailed <strong>{firstTryCount}</strong> of <strong>{totalBeats}</strong> on the first try
             {typeof completion.scorePct === "number" ? (
-              <span style={{ color: "var(--muted)" }}> · score {completion.scorePct}%</span>
+              <span style={{ color: "var(--muted)" }}> · {completion.scorePct}% score</span>
             ) : null}
           </p>
-          <p style={{ margin: 0, fontSize: 15, color: "var(--ypp-purple)" }}>
-            +{completion.xpEarned} XP earned
+          <p style={{ margin: 0, fontSize: 15, color: "var(--ypp-purple)", fontWeight: 600 }}>
+            +{completion.xpEarned} XP banked
           </p>
         </div>
 

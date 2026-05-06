@@ -129,13 +129,55 @@ export type ClientJourneyCompletion = {
 // Scoring contract (Phase 2)
 // ---------------------------------------------------------------------------
 
-/** Shape authors write in `correctFeedback` / `incorrectFeedback`. */
+/** Shape authors write in `correctFeedback` / `incorrectFeedback`.
+ *
+ *  Optional simulation fields (`studentReaction`, `consequence`, `roomDelta`)
+ *  let a beat behave like a teaching simulation rather than a quiz: the
+ *  renderer reveals the student/room reaction first, then the mentor's
+ *  analysis a beat later. All optional — existing curriculum content
+ *  continues to render as before. */
 export type BeatFeedback = {
   tone: "correct" | "partial" | "incorrect" | "noted";
   headline: string;
   body: string;
   hint?: string;
   callouts?: { label: string; target: string | number }[];
+
+  /** A specific student's reaction to the move the learner just made.
+   *  Rendered as a small card with avatar + body language + optional quote
+   *  before the coach analysis. */
+  studentReaction?: {
+    studentName: string;
+    archetype?:
+      | "shy"
+      | "overconfident"
+      | "distracted"
+      | "nervous"
+      | "curious"
+      | "resistant";
+    quote?: string;
+    bodyLanguage?: string;
+    mood?:
+      | "shutdown"
+      | "engaged"
+      | "confused"
+      | "checked-out"
+      | "energized"
+      | "frustrated";
+  };
+
+  /** One-line "what happened in the room" headline shown above the mentor
+   *  analysis. Use the present tense ("Maya re-engages.", "The room goes
+   *  quiet."). */
+  consequence?: string;
+
+  /** Net effect on room state for the session HUD. Each axis is an integer
+   *  delta in roughly [-2, +2]; the player clamps the running totals. */
+  roomDelta?: {
+    engagement?: number;
+    clarity?: number;
+    energy?: number;
+  };
 };
 
 /** Minimum shape a scorer needs. The kind-specific `config` is narrowed by the

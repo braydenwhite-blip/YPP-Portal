@@ -3,23 +3,18 @@
 /**
  * ScenarioChoice — radio-style single-choice component.
  *
- * Each option is a clickable card with an outlined circle indicator.
- * Selected card: --ypp-purple border + --ypp-purple-50 background + 1px inset ring.
+ * Adds a "decision lock-in" strip that animates in once an option is picked,
+ * giving the moment between selection and Check some weight.
  *
  * ARIA: role="radiogroup" on parent, role="radio" + aria-checked on each option.
  * Keyboard: ArrowDown / ArrowUp navigate; Space / Enter select.
- * readOnly: all options get aria-disabled; pointer-events disabled via class.
  *
  * Response shape: { selectedOptionId: string }
- * Non-null when: one option is selected.
  */
 
 import { useState, useRef, useCallback, useId } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import type { ClientBeat } from "@/lib/training-journey/types";
-
-// ---------------------------------------------------------------------------
-// Config shape (client-safe)
-// ---------------------------------------------------------------------------
 
 type ScenarioOption = {
   id: string;
@@ -30,20 +25,12 @@ type ScenarioChoiceConfig = {
   options: ScenarioOption[];
 };
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 type ScenarioChoiceProps = {
   beat: ClientBeat & { config: unknown };
   response: { selectedOptionId: string } | null;
   onResponseChange: (next: { selectedOptionId: string } | null) => void;
   readOnly: boolean;
 };
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function ScenarioChoice({
   beat,
@@ -91,53 +78,78 @@ export function ScenarioChoice({
     [readOnly, options, handleSelect]
   );
 
+  const selectedOption = options.find((o) => o.id === selected);
+
   return (
-    <div
-      role="radiogroup"
-      aria-labelledby={`${groupId}-label`}
-      aria-disabled={readOnly}
-      className={["scenario-choice", readOnly ? "scenario-choice--readonly" : ""]
-        .filter(Boolean)
-        .join(" ")}
-    >
-      <span id={`${groupId}-label`} className="sr-only">
-        {beat.prompt}
-      </span>
+    <div className="scenario-choice-wrap">
+      <div
+        role="radiogroup"
+        aria-labelledby={`${groupId}-label`}
+        aria-disabled={readOnly}
+        className={["scenario-choice", readOnly ? "scenario-choice--readonly" : ""]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        <span id={`${groupId}-label`} className="sr-only">
+          {beat.prompt}
+        </span>
 
-      {options.map((option, index) => {
-        const isSelected = selected === option.id;
+        {options.map((option, index) => {
+          const isSelected = selected === option.id;
 
-        return (
-          <div
-            key={option.id}
-            ref={(el) => { optionRefs.current[index] = el; }}
-            role="radio"
-            aria-checked={isSelected}
-            aria-disabled={readOnly}
-            tabIndex={readOnly ? -1 : isSelected || (selected === null && index === 0) ? 0 : -1}
-            className={[
-              "scenario-choice__option",
-              isSelected ? "scenario-choice__option--selected" : "",
-              readOnly ? "scenario-choice__option--readonly" : "",
-            ]
-              .filter(Boolean)
-              .join(" ")}
-            onClick={() => handleSelect(option.id)}
-            onKeyDown={(e) => handleKeyDown(e, index)}
-          >
-            <span
+          return (
+            <div
+              key={option.id}
+              ref={(el) => { optionRefs.current[index] = el; }}
+              role="radio"
+              aria-checked={isSelected}
+              aria-disabled={readOnly}
+              tabIndex={readOnly ? -1 : isSelected || (selected === null && index === 0) ? 0 : -1}
               className={[
-                "scenario-choice__indicator",
-                isSelected ? "scenario-choice__indicator--selected" : "",
+                "scenario-choice__option",
+                isSelected ? "scenario-choice__option--selected" : "",
+                readOnly ? "scenario-choice__option--readonly" : "",
               ]
                 .filter(Boolean)
                 .join(" ")}
-              aria-hidden="true"
-            />
-            <span className="scenario-choice__label">{option.label}</span>
-          </div>
-        );
-      })}
+              onClick={() => handleSelect(option.id)}
+              onKeyDown={(e) => handleKeyDown(e, index)}
+            >
+              <span
+                className={[
+                  "scenario-choice__indicator",
+                  isSelected ? "scenario-choice__indicator--selected" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                aria-hidden="true"
+              />
+              <span className="scenario-choice__label">{option.label}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      <AnimatePresence>
+        {selectedOption && !readOnly ? (
+          <motion.div
+            key="lockin"
+            className="decision-lockin"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 4 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            aria-hidden="true"
+          >
+            <span className="decision-lockin__bullet" />
+            <span className="decision-lockin__label">
+              Your move:&nbsp;
+              <strong>{selectedOption.label}</strong>
+            </span>
+            <span className="decision-lockin__cta">Hit Check to see how it plays out →</span>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }

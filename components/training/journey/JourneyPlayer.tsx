@@ -37,6 +37,7 @@ import { useJourneyMotion } from "./MotionProvider";
 import { JourneyProgress } from "./JourneyProgress";
 import { BeatRenderer } from "./beats/BeatRenderer";
 import { BeatActions } from "./beats/BeatActions";
+import { RoomMeters, type RoomState } from "./RoomMeters";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -205,6 +206,24 @@ export function JourneyPlayer({
   // Beat start time for timeMs measurement
   const beatStartTimeRef = useRef<number>(Date.now());
 
+  // Momentum: streak of consecutive correct beats this session, plus a
+  // floating "+N XP" toast that fires on each correct check.
+  const [streak, setStreak] = useState(0);
+  const [streakPulse, setStreakPulse] = useState(false);
+  const [xpToast, setXpToast] = useState<{ id: number; amount: number; bonus?: string } | null>(null);
+  const xpToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Live workshop state. Starts at a moderate baseline and accumulates
+  // roomDelta values as beats return them. The HUD stays invisible until at
+  // least one beat in the session has actually emitted a delta — that way
+  // legacy modules without consequence data don't show inert meters.
+  const [room, setRoom] = useState<RoomState>({
+    engagement: 60,
+    clarity: 70,
+    energy: 60,
+  });
+  const [roomActive, setRoomActive] = useState(false);
+
   const currentBeat = beats.find((b) => b.sourceKey === currentSourceKey) ?? beats[0];
   const isFirstBeat = getPrevVisibleBeat(currentSourceKey, beats) === null;
   const isReadOnly = phase === "correct";
@@ -217,6 +236,13 @@ export function JourneyPlayer({
     setErrorMessage(null);
     beatStartTimeRef.current = Date.now();
   }, [currentSourceKey]);
+
+  // Clear any pending XP toast timer on unmount.
+  useEffect(() => {
+    return () => {
+      if (xpToastTimerRef.current) clearTimeout(xpToastTimerRef.current);
+    };
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Action handlers
@@ -268,12 +294,64 @@ export function JourneyPlayer({
 
     setFeedback(result.feedback);
 
+    // Apply roomDelta from the feedback to the live workshop state. Each axis
+    // is interpreted as "shift by N * 8 percentage points" so a delta of +1
+    // on engagement nudges the bar by ~8%, +2 by ~16%. Matches authoring
+    // intuition: small numbers, visible-but-not-jarring movement.
+    const delta = result.feedback.roomDelta;
+    if (delta) {
+      setRoomActive(true);
+      setRoom((prev) => {
+        const shift = (axis: keyof RoomState) => {
+          const d = delta[axis] ?? 0;
+          if (d === 0) return prev[axis];
+          const next = prev[axis] + d * 8;
+          return next < 0 ? 0 : next > 100 ? 100 : next;
+        };
+        return {
+          engagement: shift("engagement"),
+          clarity: shift("clarity"),
+          energy: shift("energy"),
+        };
+      });
+    }
+
     if (result.correct || strictMode) {
       setPhase("correct");
+
+      // Momentum / XP toast — fire only on a real correct (not a strictMode
+      // pass-through where the answer was wrong). attemptNumber === 1 means
+      // first try, which earns a small bonus call-out.
+      if (result.correct) {
+        const isFirstTry = result.attemptNumber === 1;
+        const nextStreak = isFirstTry ? streak + 1 : 0;
+        setStreak(nextStreak);
+        setStreakPulse(true);
+        setTimeout(() => setStreakPulse(false), 500);
+
+        const baseXp = 10;
+        const bonus =
+          nextStreak >= 4
+            ? "On fire 🔥"
+            : nextStreak === 3
+            ? "Three in a row"
+            : isFirstTry
+            ? "First try"
+            : undefined;
+
+        if (xpToastTimerRef.current) clearTimeout(xpToastTimerRef.current);
+        const id = Date.now();
+        setXpToast({ id, amount: baseXp, bonus });
+        xpToastTimerRef.current = setTimeout(() => {
+          setXpToast((curr) => (curr && curr.id === id ? null : curr));
+        }, 1100);
+      }
     } else {
       setPhase("incorrect");
+      // Break streak on a wrong answer.
+      if (streak > 0) setStreak(0);
     }
-  }, [currentResponse, phase, submitBeatAction, moduleId, currentBeat, strictMode]);
+  }, [currentResponse, phase, submitBeatAction, moduleId, currentBeat, strictMode, streak]);
 
   const handleNext = useCallback(async () => {
     if (phase !== "correct") return;
@@ -430,9 +508,22 @@ export function JourneyPlayer({
           />
         </div>
 
+        {/* Streak chip — only visible once the user has earned ≥2 in a row */}
+        {streak >= 2 ? (
+          <span
+            className="journey-streak"
+            data-pulse={streakPulse ? "true" : undefined}
+            aria-label={`Streak of ${streak} correct in a row`}
+          >
+            <span className="journey-streak__flame" aria-hidden="true">🔥</span>
+            <span>{streak}</span>
+          </span>
+        ) : null}
+
         {/* Exit link */}
         <Link
           href="/instructor-training"
+          className="journey-topbar__exit"
           style={{
             fontSize: 13,
             color: "var(--muted)",
@@ -445,6 +536,22 @@ export function JourneyPlayer({
           Exit
         </Link>
       </div>
+
+      {/* Live workshop meters — only rendered once a beat has emitted any
+          roomDelta this session. */}
+      <RoomMeters state={room} active={roomActive} />
+
+      {/* XP toast — fires after a correct check, auto-clears after ~1.1s */}
+      {xpToast ? (
+        <div
+          key={xpToast.id}
+          className="journey-xp-toast"
+          role="status"
+          aria-live="polite"
+        >
+          +{xpToast.amount} XP{xpToast.bonus ? ` · ${xpToast.bonus}` : ""}
+        </div>
+      ) : null}
 
       {/* ── Error banner ── */}
       {(errorMessage || finalizeError) && (

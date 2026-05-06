@@ -29,9 +29,15 @@ export type JourneyIntroProps = {
 };
 
 const CTA_LABEL: Record<JourneyIntroProps["mode"], string> = {
-  start: "Start",
-  resume: "Resume",
-  review: "Review",
+  start: "Let's begin",
+  resume: "Pick up where you left off",
+  review: "Walk through it again",
+};
+
+const SUB_COPY: Record<JourneyIntroProps["mode"], string | null> = {
+  start: "Quick scenarios, real classroom moments. No long lectures.",
+  resume: "Same module, same progress. Welcome back.",
+  review: null,
 };
 
 export function JourneyIntro({
@@ -133,9 +139,9 @@ export function JourneyIntro({
               lineHeight: 1.55,
             }}
           >
-            <strong>Heads up:</strong> this is a readiness assessment. Each
-            activity scores on your <em>first</em> attempt — there are no
-            retries inside the journey. Take your time on each question.
+            <strong>Heads up — this one counts.</strong> Your first answer on
+            each beat is the one we score, so don&rsquo;t rush. There&rsquo;s
+            no time pressure; think it through.
           </div>
         ) : null}
 
@@ -148,9 +154,15 @@ export function JourneyIntro({
           {CTA_LABEL[mode]}
         </button>
 
+        {SUB_COPY[mode] ? (
+          <p style={{ margin: "12px 0 0", fontSize: 12, color: "var(--muted)", textAlign: "center" }}>
+            {SUB_COPY[mode]}
+          </p>
+        ) : null}
+
         {mode === "review" ? (
           <p style={{ margin: "12px 0 0", fontSize: 12, color: "var(--muted)", textAlign: "center" }}>
-            You&rsquo;ve already completed this — review answers and feedback.
+            Already cleared this one — feel free to revisit any beat.
           </p>
         ) : null}
       </motion.div>
