@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { commitWorkshopReview } from "@/lib/workshop-proposal-actions";
 import { recommendationLabel } from "@/lib/workshop-proposal-constants";
@@ -32,15 +32,19 @@ export function ReviewDecisionForm({
 }: ReviewDecisionFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   function handle(formData: FormData) {
+    setError(null);
     formData.set("submissionId", submissionId);
     startTransition(async () => {
       try {
         await commitWorkshopReview(formData);
         router.refresh();
       } catch (err) {
-        alert(err instanceof Error ? err.message : "Could not save review.");
+        setError(
+          err instanceof Error ? err.message : "Could not save review."
+        );
       }
     });
   }
@@ -144,6 +148,14 @@ export function ReviewDecisionForm({
             ? "Committing…"
             : "Commit decision"}
       </button>
+      {error ? (
+        <p
+          role="alert"
+          style={{ margin: 0, fontSize: 12, color: "#dc2626" }}
+        >
+          {error}
+        </p>
+      ) : null}
     </form>
   );
 }

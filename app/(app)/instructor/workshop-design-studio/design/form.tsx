@@ -11,7 +11,6 @@ import { saveCustomWorkshopDraft } from "@/lib/workshop-proposal-actions";
 
 type CustomWorkshopFormProps = {
   initial: CustomWorkshopPayload;
-  initialIssues: string[];
   editable: boolean;
 };
 
