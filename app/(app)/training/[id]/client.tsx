@@ -173,7 +173,15 @@ export default function TrainingModuleClient({
   const router = useRouter();
   const [quizAnswers, setQuizAnswers] = useState<Record<string, string>>({});
   const [quizFeedback, setQuizFeedback] = useState<string | null>(null);
+  const [quizResults, setQuizResults] = useState<Record<
+    string,
+    { correctAnswer: string; userAnswer: string | null; correct: boolean }
+  > | null>(null);
+  const [quizPassed, setQuizPassed] = useState<boolean | null>(null);
   const [isPending, startTransition] = useTransition();
+  const allQuizAnswered =
+    module.quizQuestions.length > 0 &&
+    module.quizQuestions.every((q) => Boolean(quizAnswers[q.id]));
 
   const hasPassedQuiz = quizAttempts.some((attempt) => attempt.passed);
 
@@ -228,6 +236,18 @@ export default function TrainingModuleClient({
 
   function setQuizAnswer(questionId: string, answer: string) {
     setQuizAnswers((prev) => ({ ...prev, [questionId]: answer }));
+    if (quizResults) {
+      setQuizResults(null);
+      setQuizFeedback(null);
+      setQuizPassed(null);
+    }
+  }
+
+  function retakeQuiz() {
+    setQuizAnswers({});
+    setQuizResults(null);
+    setQuizFeedback(null);
+    setQuizPassed(null);
   }
 
   function submitQuiz() {
@@ -238,6 +258,20 @@ export default function TrainingModuleClient({
         formData.set("answers", JSON.stringify(quizAnswers));
         const result = await submitTrainingQuizAttempt(formData);
 
+        const resultsByQuestion: Record<
+          string,
+          { correctAnswer: string; userAnswer: string | null; correct: boolean }
+        > = {};
+        for (const r of result.results) {
+          resultsByQuestion[r.questionId] = {
+            correctAnswer: r.correctAnswer,
+            userAnswer: r.userAnswer,
+            correct: r.correct,
+          };
+        }
+        setQuizResults(resultsByQuestion);
+        setQuizPassed(result.passed);
+
         setQuizFeedback(
           result.passed
             ? `Passed with ${result.scorePct}% (required: ${result.passScorePct}%).`
@@ -246,6 +280,8 @@ export default function TrainingModuleClient({
 
         router.refresh();
       } catch (error) {
+        setQuizResults(null);
+        setQuizPassed(null);
         setQuizFeedback(error instanceof Error ? error.message : "Quiz submission failed.");
       }
     });
@@ -591,44 +627,142 @@ export default function TrainingModuleClient({
             </p>
           ) : (
             <div style={{ display: "grid", gap: 14 }}>
-              {module.quizQuestions.map((question, index) => (
-                <div key={question.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
-                  <p style={{ margin: 0, fontWeight: 600 }}>{index + 1}. {question.question}</p>
-                  {question.explanation ? (
-                    <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--muted)" }}>
-                      Why this matters: {question.explanation}
-                    </p>
-                  ) : null}
-                  <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
-                    {question.options.map((option, optionIndex) => {
-                      const optionId = `${question.id}-${optionIndex}`;
-                      return (
-                        <label key={optionId} htmlFor={optionId} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                          <input
-                            id={optionId}
-                            type="radio"
-                            name={`q-${question.id}`}
-                            value={option}
-                            checked={quizAnswers[question.id] === option}
-                            onChange={() => setQuizAnswer(question.id, option)}
-                          />
-                          <span>{option}</span>
-                        </label>
-                      );
-                    })}
+              {module.quizQuestions.map((question, index) => {
+                const result = quizResults?.[question.id] ?? null;
+                const showFeedback = result !== null;
+                return (
+                  <div
+                    key={question.id}
+                    style={{
+                      border: "1px solid var(--border)",
+                      borderRadius: 10,
+                      padding: 12,
+                      borderColor: showFeedback
+                        ? result.correct
+                          ? "#16a34a"
+                          : "#dc2626"
+                        : "var(--border)",
+                      background: showFeedback
+                        ? result.correct
+                          ? "#f0fdf4"
+                          : "#fef2f2"
+                        : "transparent",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "start" }}>
+                      <p style={{ margin: 0, fontWeight: 600 }}>{index + 1}. {question.question}</p>
+                      {showFeedback ? (
+                        <span
+                          className={`pill pill-small ${result.correct ? "pill-success" : ""}`}
+                          style={{
+                            flexShrink: 0,
+                            background: result.correct ? undefined : "#fecaca",
+                            color: result.correct ? undefined : "#991b1b",
+                          }}
+                        >
+                          {result.correct ? "Correct" : "Incorrect"}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
+                      {question.options.map((option, optionIndex) => {
+                        const optionId = `${question.id}-${optionIndex}`;
+                        const isCorrectOption = showFeedback && option === result.correctAnswer;
+                        const isUserChoice = showFeedback && option === result.userAnswer;
+                        return (
+                          <label
+                            key={optionId}
+                            htmlFor={optionId}
+                            style={{
+                              display: "flex",
+                              gap: 8,
+                              alignItems: "center",
+                              padding: "4px 6px",
+                              borderRadius: 6,
+                              background: isCorrectOption
+                                ? "#dcfce7"
+                                : isUserChoice && !result.correct
+                                  ? "#fee2e2"
+                                  : "transparent",
+                            }}
+                          >
+                            <input
+                              id={optionId}
+                              type="radio"
+                              name={`q-${question.id}`}
+                              value={option}
+                              checked={quizAnswers[question.id] === option}
+                              onChange={() => setQuizAnswer(question.id, option)}
+                              disabled={showFeedback}
+                            />
+                            <span>{option}</span>
+                            {isCorrectOption ? (
+                              <span style={{ marginLeft: "auto", fontSize: 12, color: "#166534", fontWeight: 600 }}>
+                                Correct answer
+                              </span>
+                            ) : null}
+                          </label>
+                        );
+                      })}
+                    </div>
+                    {showFeedback && question.explanation ? (
+                      <p
+                        style={{
+                          margin: "10px 0 0",
+                          fontSize: 13,
+                          color: "var(--muted)",
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        <strong style={{ color: "var(--text-primary, #111)" }}>Why:</strong>{" "}
+                        {question.explanation}
+                      </p>
+                    ) : null}
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <button type="button" className="button small" onClick={submitQuiz} disabled={isPending}>
-                  {isPending ? "Submitting..." : "Submit quiz"}
-                </button>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                {quizResults ? (
+                  <button
+                    type="button"
+                    className="button small"
+                    onClick={retakeQuiz}
+                    disabled={isPending}
+                  >
+                    {quizPassed ? "Retake quiz" : "Try again"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="button small"
+                    onClick={submitQuiz}
+                    disabled={isPending || !allQuizAnswered}
+                    title={!allQuizAnswered ? "Answer every question to submit." : undefined}
+                  >
+                    {isPending ? "Submitting..." : "Submit quiz"}
+                  </button>
+                )}
+                {!quizResults && !allQuizAnswered ? (
+                  <span style={{ fontSize: 12, color: "var(--muted)" }}>
+                    {module.quizQuestions.length - Object.keys(quizAnswers).length} question
+                    {module.quizQuestions.length - Object.keys(quizAnswers).length === 1 ? "" : "s"} remaining
+                  </span>
+                ) : null}
                 {hasPassedQuiz ? <span className="pill pill-small pill-success">Passed</span> : null}
               </div>
 
               {quizFeedback ? (
-                <p style={{ marginTop: 0, fontSize: 13 }}>{quizFeedback}</p>
+                <p
+                  style={{
+                    marginTop: 0,
+                    fontSize: 13,
+                    fontWeight: quizPassed === false ? 600 : 400,
+                    color: quizPassed === false ? "#991b1b" : quizPassed ? "#166534" : undefined,
+                  }}
+                >
+                  {quizFeedback}
+                </p>
               ) : null}
             </div>
           )}

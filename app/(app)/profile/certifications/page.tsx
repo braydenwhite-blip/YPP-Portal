@@ -7,87 +7,34 @@ export default async function CertificationsPage() {
     redirect("/login");
   }
 
-  // Sample certifications - in production, fetch from database
-  const earnedCertifications = [
-    {
-      id: "1",
-      name: "Watercolor Fundamentals",
-      passion: "Visual Arts",
-      level: "BEGINNER",
-      earnedDate: "2024-02-28",
-      badgeUrl: "🎨",
-      verificationCode: "YPP-WC-2024-4821",
-      certificateUrl: "/certificates/cert-1.pdf",
-      isPinned: true
-    },
-    {
-      id: "2",
-      name: "Basketball Skills Mastery",
-      passion: "Sports",
-      level: "INTERMEDIATE",
-      earnedDate: "2024-01-15",
-      badgeUrl: "🏀",
-      verificationCode: "YPP-BS-2024-3692",
-      certificateUrl: "/certificates/cert-2.pdf",
-      isPinned: true
-    },
-    {
-      id: "3",
-      name: "Creative Writing Essentials",
-      passion: "Writing",
-      level: "BEGINNER",
-      earnedDate: "2023-12-10",
-      badgeUrl: "✍️",
-      verificationCode: "YPP-CW-2023-7214",
-      certificateUrl: "/certificates/cert-3.pdf",
-      isPinned: false
-    }
-  ];
+  /** Populated from the database when certification records exist. */
+  const earnedCertifications: Array<{
+    id: string;
+    name: string;
+    passion: string;
+    level: string;
+    earnedDate: string;
+    badgeUrl: string;
+    verificationCode: string;
+    certificateUrl: string;
+    isPinned: boolean;
+  }> = [];
 
-  const availableCertifications = [
-    {
-      id: "4",
-      name: "Advanced Watercolor Techniques",
-      passion: "Visual Arts",
-      level: "INTERMEDIATE",
-      requirements: [
-        "Complete Watercolor Fundamentals",
-        "Submit 5 advanced paintings",
-        "Score 85%+ on technique quiz"
-      ],
-      badgeUrl: "🎨",
-      estimatedTime: "6-8 weeks",
-      progress: 60
-    },
-    {
-      id: "5",
-      name: "Music Production Certified",
-      passion: "Music",
-      level: "INTERMEDIATE",
-      requirements: [
-        "Complete 8-session workshop series",
-        "Produce 3 original tracks",
-        "Pass final production assessment"
-      ],
-      badgeUrl: "🎵",
-      estimatedTime: "10-12 weeks",
-      progress: 0
-    },
-    {
-      id: "6",
-      name: "Photography Portfolio",
-      passion: "Visual Arts",
-      level: "ADVANCED",
-      requirements: [
-        "Create 20-piece portfolio",
-        "Master lighting and composition",
-        "Complete photo essay project"
-      ],
-      badgeUrl: "📷",
-      estimatedTime: "12-16 weeks",
-      progress: 15
-    }
-  ];
+  const availableCertifications: Array<{
+    id: string;
+    name: string;
+    passion: string;
+    level: string;
+    requirements: string[];
+    badgeUrl: string;
+    estimatedTime: string;
+    progress: number;
+  }> = [];
+
+  const passionAreasCount = new Set([
+    ...earnedCertifications.map((c) => c.passion),
+    ...availableCertifications.map((c) => c.passion),
+  ]).size;
 
   const getLevelColor = (level: string) => {
     switch (level) {
@@ -124,7 +71,7 @@ export default async function CertificationsPage() {
           <div className="kpi-label">Certifications Earned</div>
         </div>
         <div className="card">
-          <div className="kpi">4</div>
+          <div className="kpi">{passionAreasCount}</div>
           <div className="kpi-label">Passion Areas</div>
         </div>
         <div className="card">
@@ -227,6 +174,13 @@ export default async function CertificationsPage() {
         <div className="section-title" style={{ marginBottom: 20 }}>
           Available Certifications
         </div>
+        {availableCertifications.length === 0 ? (
+          <div className="card" style={{ textAlign: "center", padding: 40 }}>
+            <p style={{ color: "var(--text-secondary)", margin: 0 }}>
+              No certification tracks are published yet. Check back later or ask an admin to enable programs.
+            </p>
+          </div>
+        ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {availableCertifications.map((cert) => (
             <div key={cert.id} className="card">
@@ -298,6 +252,7 @@ export default async function CertificationsPage() {
             </div>
           ))}
         </div>
+        )}
       </div>
     </div>
   );

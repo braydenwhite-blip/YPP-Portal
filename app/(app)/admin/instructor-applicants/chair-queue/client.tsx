@@ -59,10 +59,5 @@ export default function ChairQueueClientWrapper({
 }: {
   initialApplications: QueueItem[];
 }) {
-  function handleRefresh() {
-    // In a full implementation, re-fetch; for now just reload the page
-    window.location.reload();
-  }
-
-  return <ChairQueueBoard applications={initialApplications} onRefresh={handleRefresh} />;
+  return <ChairQueueBoard applications={initialApplications} />;
 }

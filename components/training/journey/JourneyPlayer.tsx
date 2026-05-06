@@ -37,6 +37,42 @@ import { useJourneyMotion } from "./MotionProvider";
 import { JourneyProgress } from "./JourneyProgress";
 import { BeatRenderer } from "./beats/BeatRenderer";
 import { BeatActions } from "./beats/BeatActions";
+import { RoomMeters, type RoomState } from "./RoomMeters";
+
+// ---------------------------------------------------------------------------
+// "Moment of the session" — captured for the completion overlay
+// ---------------------------------------------------------------------------
+
+export type PeakMoment = {
+  weight: number;
+  studentName: string;
+  quote?: string;
+  bodyLanguage?: string;
+  consequence?: string;
+  tone: BeatFeedback["tone"];
+};
+
+function pickPeakMoment(feedback: BeatFeedback): PeakMoment | null {
+  const reaction = feedback.studentReaction;
+  if (!reaction && !feedback.consequence) return null;
+  const d = feedback.roomDelta;
+  const magnitude =
+    Math.abs(d?.engagement ?? 0) +
+    Math.abs(d?.clarity ?? 0) +
+    Math.abs(d?.energy ?? 0);
+  // A correct moment with a big positive delta beats a partial; equal
+  // magnitudes let the more recent moment win on tie-break.
+  const weight = magnitude * 10 + (feedback.tone === "correct" ? 1 : 0);
+  if (weight === 0 && !reaction?.quote) return null;
+  return {
+    weight,
+    studentName: reaction?.studentName ?? "the room",
+    quote: reaction?.quote,
+    bodyLanguage: reaction?.bodyLanguage,
+    consequence: feedback.consequence,
+    tone: feedback.tone,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -51,7 +87,7 @@ export type JourneyPlayerProps = {
   userAttempts: JourneyAttemptSummary[];
   passScorePct: number;
   title: string;
-  onComplete: (result: JourneyCompletionSummary) => void;
+  onComplete: (result: JourneyCompletionSummary, peakMoment: PeakMoment | null) => void;
   submitBeatAction: (input: BeatSubmitInput) => Promise<BeatSubmitResult>;
   completeJourneyAction: (input: CompleteJourneyInput) => Promise<CompleteJourneyResult>;
 };
@@ -205,6 +241,45 @@ export function JourneyPlayer({
   // Beat start time for timeMs measurement
   const beatStartTimeRef = useRef<number>(Date.now());
 
+  // Momentum: streak of consecutive correct beats this session, plus a
+  // floating "+N XP" toast that fires on each correct check.
+  const [streak, setStreak] = useState(0);
+  const [streakPulse, setStreakPulse] = useState(false);
+  const [xpToast, setXpToast] = useState<{ id: number; amount: number; bonus?: string } | null>(null);
+  const xpToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Live workshop state. Starts at a moderate baseline and accumulates
+  // roomDelta values as beats return them. The HUD stays invisible until at
+  // least one beat in the session has actually emitted a delta — that way
+  // legacy modules without consequence data don't show inert meters.
+  const [room, setRoom] = useState<RoomState>({
+    engagement: 60,
+    clarity: 70,
+    energy: 60,
+  });
+  const [roomActive, setRoomActive] = useState(false);
+
+  // Captured peak moment from the session — surfaced on completion.
+  const [peakMoment, setPeakMoment] = useState<PeakMoment | null>(null);
+
+  // Shared room-delta applier used by both submit-feedback and recovery picks.
+  const applyRoomDelta = useCallback((delta: NonNullable<BeatFeedback["roomDelta"]>) => {
+    setRoomActive(true);
+    setRoom((prev) => {
+      const shift = (axis: keyof RoomState) => {
+        const d = delta[axis] ?? 0;
+        if (d === 0) return prev[axis];
+        const next = prev[axis] + d * 8;
+        return next < 0 ? 0 : next > 100 ? 100 : next;
+      };
+      return {
+        engagement: shift("engagement"),
+        clarity: shift("clarity"),
+        energy: shift("energy"),
+      };
+    });
+  }, []);
+
   const currentBeat = beats.find((b) => b.sourceKey === currentSourceKey) ?? beats[0];
   const isFirstBeat = getPrevVisibleBeat(currentSourceKey, beats) === null;
   const isReadOnly = phase === "correct";
@@ -217,6 +292,13 @@ export function JourneyPlayer({
     setErrorMessage(null);
     beatStartTimeRef.current = Date.now();
   }, [currentSourceKey]);
+
+  // Clear any pending XP toast timer on unmount.
+  useEffect(() => {
+    return () => {
+      if (xpToastTimerRef.current) clearTimeout(xpToastTimerRef.current);
+    };
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Action handlers
@@ -268,12 +350,61 @@ export function JourneyPlayer({
 
     setFeedback(result.feedback);
 
+    // Apply roomDelta from the feedback to the live workshop state. Each axis
+    // is interpreted as "shift by N * 8 percentage points" so a delta of +1
+    // on engagement nudges the bar by ~8%, +2 by ~16%. Matches authoring
+    // intuition: small numbers, visible-but-not-jarring movement.
+    if (result.feedback.roomDelta) {
+      applyRoomDelta(result.feedback.roomDelta);
+    }
+
+    // Capture the strongest "moment of the session" so the completion screen
+    // can surface a real callback line. Bigger absolute deltas win; if equal,
+    // the most recent wins (so endgame moments rise to the top).
+    const peakMoment = pickPeakMoment(result.feedback);
+    if (peakMoment) {
+      setPeakMoment((prev) => {
+        if (!prev) return peakMoment;
+        return peakMoment.weight >= prev.weight ? peakMoment : prev;
+      });
+    }
+
     if (result.correct || strictMode) {
       setPhase("correct");
+
+      // Momentum / XP toast — fire only on a real correct (not a strictMode
+      // pass-through where the answer was wrong). attemptNumber === 1 means
+      // first try, which earns a small bonus call-out.
+      if (result.correct) {
+        const isFirstTry = result.attemptNumber === 1;
+        const nextStreak = isFirstTry ? streak + 1 : 0;
+        setStreak(nextStreak);
+        setStreakPulse(true);
+        setTimeout(() => setStreakPulse(false), 500);
+
+        const baseXp = 10;
+        const bonus =
+          nextStreak >= 4
+            ? "On fire 🔥"
+            : nextStreak === 3
+            ? "Three in a row"
+            : isFirstTry
+            ? "First try"
+            : undefined;
+
+        if (xpToastTimerRef.current) clearTimeout(xpToastTimerRef.current);
+        const id = Date.now();
+        setXpToast({ id, amount: baseXp, bonus });
+        xpToastTimerRef.current = setTimeout(() => {
+          setXpToast((curr) => (curr && curr.id === id ? null : curr));
+        }, 1100);
+      }
     } else {
       setPhase("incorrect");
+      // Break streak on a wrong answer.
+      if (streak > 0) setStreak(0);
     }
-  }, [currentResponse, phase, submitBeatAction, moduleId, currentBeat, strictMode]);
+  }, [currentResponse, phase, submitBeatAction, moduleId, currentBeat, strictMode, streak]);
 
   const handleNext = useCallback(async () => {
     if (phase !== "correct") return;
@@ -295,7 +426,7 @@ export function JourneyPlayer({
         return;
       }
 
-      onComplete(result.completion);
+      onComplete(result.completion, peakMoment);
       return;
     }
 
@@ -430,9 +561,22 @@ export function JourneyPlayer({
           />
         </div>
 
+        {/* Streak chip — only visible once the user has earned ≥2 in a row */}
+        {streak >= 2 ? (
+          <span
+            className="journey-streak"
+            data-pulse={streakPulse ? "true" : undefined}
+            aria-label={`Streak of ${streak} correct in a row`}
+          >
+            <span className="journey-streak__flame" aria-hidden="true">🔥</span>
+            <span>{streak}</span>
+          </span>
+        ) : null}
+
         {/* Exit link */}
         <Link
           href="/instructor-training"
+          className="journey-topbar__exit"
           style={{
             fontSize: 13,
             color: "var(--muted)",
@@ -445,6 +589,22 @@ export function JourneyPlayer({
           Exit
         </Link>
       </div>
+
+      {/* Live workshop meters — only rendered once a beat has emitted any
+          roomDelta this session. */}
+      <RoomMeters state={room} active={roomActive} />
+
+      {/* XP toast — fires after a correct check, auto-clears after ~1.1s */}
+      {xpToast ? (
+        <div
+          key={xpToast.id}
+          className="journey-xp-toast"
+          role="status"
+          aria-live="polite"
+        >
+          +{xpToast.amount} XP{xpToast.bonus ? ` · ${xpToast.bonus}` : ""}
+        </div>
+      ) : null}
 
       {/* ── Error banner ── */}
       {(errorMessage || finalizeError) && (
@@ -477,7 +637,7 @@ export function JourneyPlayer({
                   setFinalizeError(result.message);
                   return;
                 }
-                onComplete(result.completion);
+                onComplete(result.completion, peakMoment);
               } else {
                 setErrorMessage(null);
               }
@@ -539,6 +699,7 @@ export function JourneyPlayer({
               onResponseChange={setCurrentResponse}
               feedback={feedback}
               readOnly={isReadOnly}
+              onRecoveryRoomDelta={applyRoomDelta}
             />
           </motion.div>
         </AnimatePresence>

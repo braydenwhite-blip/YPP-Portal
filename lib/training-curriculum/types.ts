@@ -61,6 +61,17 @@ export type CurriculumJourneyMeta = {
   estimatedMinutes: number;
   strictMode: boolean;
   version: number;
+  /**
+   * When true, the JourneyIntro renders the recurring student cohort panel
+   * before the start CTA. Use on simulation-heavy modules where the
+   * cohort names recur in feedback content. Defaults to false.
+   *
+   * NOTE: this lives in authoring metadata (not the DB) on purpose — it
+   * affects only the intro screen, never scoring or attempt persistence.
+   * The page component reads it from CURRICULUM_REGISTRY by contentKey
+   * when building the JourneySnapshot.
+   */
+  showCohortIntro?: boolean;
 };
 
 export type CurriculumDefinition = {

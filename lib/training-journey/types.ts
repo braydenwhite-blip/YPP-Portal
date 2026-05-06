@@ -129,13 +129,117 @@ export type ClientJourneyCompletion = {
 // Scoring contract (Phase 2)
 // ---------------------------------------------------------------------------
 
-/** Shape authors write in `correctFeedback` / `incorrectFeedback`. */
+/** Shape authors write in `correctFeedback` / `incorrectFeedback`.
+ *
+ *  Optional simulation fields (`studentReaction`, `consequence`, `roomDelta`,
+ *  `peerRipple`, `mentorAside`, `ambientLine`, `recoveryPrompt`) let a beat
+ *  behave like a teaching simulation rather than a quiz. The renderer phases
+ *  them in cinematically:
+ *
+ *    mentorAside  →  studentReaction + peerRipple + consequence  →
+ *      ambientLine (with coach typing dots)  →  mentor analysis
+ *      [+ recoveryPrompt on incorrect, when authored]
+ *
+ *  All optional — existing curriculum content continues to render as before. */
 export type BeatFeedback = {
   tone: "correct" | "partial" | "incorrect" | "noted";
   headline: string;
   body: string;
   hint?: string;
   callouts?: { label: string; target: string | number }[];
+
+  /** A specific student's reaction to the move the learner just made.
+   *  Rendered as a small card with avatar + body language + optional quote
+   *  before the coach analysis. */
+  studentReaction?: {
+    studentName: string;
+    archetype?:
+      | "shy"
+      | "overconfident"
+      | "distracted"
+      | "nervous"
+      | "curious"
+      | "resistant";
+    quote?: string;
+    bodyLanguage?: string;
+    mood?:
+      | "shutdown"
+      | "engaged"
+      | "confused"
+      | "checked-out"
+      | "energized"
+      | "frustrated";
+  };
+
+  /** One-line "what happened in the room" headline shown above the mentor
+   *  analysis. Use the present tense ("Maya re-engages.", "The room goes
+   *  quiet."). */
+  consequence?: string;
+
+  /** Net effect on room state for the session HUD. Each axis is an integer
+   *  delta in roughly [-2, +2]; the player clamps the running totals. */
+  roomDelta?: {
+    engagement?: number;
+    clarity?: number;
+    energy?: number;
+  };
+
+  /** A short social-ripple line: how OTHER students react to the move.
+   *  Rendered as a quiet aside under the focal student card. Use the present
+   *  tense ("Two cameras flicker on.", "Diego shifts in his seat."). */
+  peerRipple?: string;
+
+  /** Optional pre-reaction mentor quip — shown BEFORE the room reaction lands,
+   *  to add pacing variety. Keep it short (≤8 words): "Watch this." /
+   *  "Hold this for a second." / "OK — pause here." */
+  mentorAside?: string;
+
+  /** Atmospheric line shown between room reaction and mentor analysis,
+   *  paired with a brief "coach typing" indicator. Use to give pauses weight:
+   *  "The room holds its breath." / "A long pause stretches." */
+  ambientLine?: string;
+
+  /** Inline recovery beat shown ONLY on incorrect feedback. After the mentor
+   *  analysis, the learner is asked one quick "what do you do now?" question
+   *  with 2-3 light options. Each option carries a one-line reaction.
+   *
+   *  ──────────────────────────────────────────────────────────────────────
+   *  COSMETIC CONTRACT — read this before persisting recovery picks.
+   *  ──────────────────────────────────────────────────────────────────────
+   *  The user's pick on a recoveryPrompt is INTENTIONALLY ephemeral and
+   *  cosmetic-only:
+   *
+   *    1. The pick is NOT persisted on the InteractiveBeatAttempt row.
+   *       The parent beat is already locked (incorrect) by the time the
+   *       prompt renders — recoveryPrompt is a UX layer, not a re-attempt.
+   *    2. The pick does NOT change the score. Resubmitting the parent
+   *       beat would still need to use the kind module's normal scoring
+   *       path; recovery picks bypass that on purpose.
+   *    3. The optional `roomDelta` per option is applied to the live HUD
+   *       state in the JourneyPlayer (via onRecoveryRoomDelta) but is
+   *       NOT propagated to a stored room state — the meters reset on
+   *       the next session.
+   *
+   *  If the design ever pivots toward persisted recovery scoring, this
+   *  contract must be revisited together with the attempts schema, the
+   *  client-contracts BeatSubmitInput shape, and the kind scorers. Until
+   *  then: nothing about a recovery pick survives a page reload. */
+  recoveryPrompt?: {
+    question: string;
+    options: {
+      id: string;
+      label: string;
+      /** What the room/mentor does in response to this recovery move. */
+      reaction: string;
+      /** Optional small nudge on room state when this recovery move is
+       *  picked. Same shape as roomDelta. Applied to the live HUD only. */
+      roomDelta?: {
+        engagement?: number;
+        clarity?: number;
+        energy?: number;
+      };
+    }[];
+  };
 };
 
 /** Minimum shape a scorer needs. The kind-specific `config` is narrowed by the

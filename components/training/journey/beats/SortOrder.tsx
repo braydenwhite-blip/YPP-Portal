@@ -144,6 +144,8 @@ function SortableItem({ id, label, index, total, readOnly, reduced, hintId }: So
     <div
       ref={setNodeRef}
       style={style}
+      {...attributes}
+      {...listeners}
       role="listitem"
       aria-label={`Item ${index + 1} of ${total}: ${label}`}
       aria-describedby={!readOnly ? hintId : undefined}

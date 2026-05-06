@@ -3191,5 +3191,257 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
       nextStep: "Once you choose an item, use the linked page or tool to finish the next step and then return here if you need another option."
     },
     placement: "bottom-left"
+  },
+  // ---------------------------------------------------------------------
+  // Workshop pathway (Summer Workshop Instructor)
+  // ---------------------------------------------------------------------
+  {
+    pattern: "/instructor/workshop-design-studio",
+    title: "Workshop Design Studio",
+    content: {
+      purpose:
+        "This page lets Summer Workshop applicants choose between designing their own workshop or picking one from the approved library.",
+      firstStep:
+        "Pick the path that fits — design your own if you have an idea, or open the library to browse approved templates.",
+      nextStep:
+        "After picking a path, you'll author or select a workshop, finish the reflection, and submit it for reviewer approval."
+    }
+  },
+  {
+    pattern: "/instructor/workshop-design-studio/design",
+    title: "Design Your Workshop",
+    content: {
+      purpose:
+        "This page is the authoring form for your custom workshop outline — title, audience, hook, activity, wrap-up, and backup plan.",
+      firstStep:
+        "Fill in title, target age, length, and category first; the rest of the form unlocks once those are in place.",
+      nextStep:
+        "When the live blocker list is empty, head to the review and submit page to send it for review."
+    }
+  },
+  {
+    pattern: "/instructor/workshop-design-studio/library",
+    title: "Approved Workshop Library",
+    content: {
+      purpose:
+        "This page is the searchable, filterable library of admin-approved workshops you can pick instead of designing your own.",
+      firstStep:
+        "Use the search and filters to narrow the list, then open a workshop's preview to read the full plan before picking it.",
+      nextStep:
+        "After picking a workshop, you'll answer four reflection questions and submit it for reviewer approval."
+    }
+  },
+  {
+    pattern: "/instructor/workshop-design-studio/library/[templateId]",
+    title: "Workshop Preview",
+    content: {
+      purpose:
+        "This page shows the full plan for an approved workshop you're considering — description, objectives, activity plan, and materials.",
+      firstStep:
+        "Read the full plan and confirm you'd be comfortable teaching it before clicking 'Pick this workshop'.",
+      nextStep:
+        "Picking the workshop sets it as your submission and routes you to the reflection form."
+    }
+  },
+  {
+    pattern: "/instructor/workshop-design-studio/review",
+    title: "Workshop Review & Submit",
+    content: {
+      purpose:
+        "This page is the final review and reflection form before you submit your workshop proposal for reviewer approval.",
+      firstStep:
+        "Skim your design (or selected template) and answer the four reflection questions in detail.",
+      nextStep:
+        "When validation clears, click Submit. Reviewers will see your workshop and reflection and either approve, request changes, or reject."
+    }
+  },
+  {
+    pattern: "/admin/workshop-library",
+    title: "Workshop Library",
+    content: {
+      purpose:
+        "This admin page curates the workshop templates that Summer Workshop applicants can pick from. Only Approved templates appear in the applicant library.",
+      firstStep:
+        "Open an existing draft to keep iterating, or click 'New workshop' to start a fresh template.",
+      nextStep:
+        "Move a template to Approved when it's ready for applicants. Archived templates are hidden but preserve applicant selections."
+    }
+  },
+  {
+    pattern: "/admin/workshop-library/new",
+    title: "New Workshop Template",
+    content: {
+      purpose:
+        "This admin page creates a new workshop template that Summer Workshop applicants can pick from.",
+      firstStep:
+        "Save as Draft while you iterate; switch the status to Approved when the template is publish-ready.",
+      nextStep:
+        "Once approved, the template appears in the applicant library and applicants can pick it."
+    }
+  },
+  {
+    pattern: "/admin/workshop-library/[id]",
+    title: "Edit Workshop Template",
+    content: {
+      purpose:
+        "This admin page edits a workshop template and shows which applicants have picked it.",
+      firstStep:
+        "Update the template fields, or use the status actions to publish, archive, or restore it.",
+      nextStep:
+        "Open an applicant selection from the sidebar to jump to that submission's review page."
+    }
+  },
+  {
+    pattern: "/admin/workshop-reviews",
+    title: "Workshop Reviews",
+    content: {
+      purpose:
+        "This reviewer page is the queue of Summer Workshop Instructor proposals awaiting review or already decided.",
+      firstStep:
+        "Open the leftmost column ('New submissions') and click into the oldest submission first.",
+      nextStep:
+        "On the detail page, score the six rubric axes and commit a recommendation — Approve, Request changes, or Reject."
+    }
+  },
+  {
+    pattern: "/admin/workshop-reviews/[submissionId]",
+    title: "Workshop Submission Review",
+    content: {
+      purpose:
+        "This reviewer page shows a single workshop submission — the full proposal, the applicant's reflection, training context, and the review form.",
+      firstStep:
+        "Click 'Start review' on a new submission to lock the applicant's edits and signal to other reviewers that you're on it.",
+      nextStep:
+        "Score each axis 1–5, write applicant-facing feedback, and commit a recommendation. The decision sets the submission's status and frees the applicant if changes are requested."
+    }
+  },
+  // ---------------------------------------------------------------------
+  // Pre-existing pages missing from the registry (housekeeping)
+  // ---------------------------------------------------------------------
+  {
+    pattern: "/help",
+    title: "Help",
+    content: {
+      purpose: "This page collects in-product help and quick reference links.",
+      firstStep: "Skim the help index to find the topic that matches what you're trying to do.",
+      nextStep: "Follow the linked workspace or article for step-by-step instructions."
+    }
+  },
+  {
+    pattern: "/not-rolled-out",
+    title: "Not Rolled Out",
+    content: {
+      purpose: "This page shows when a feature isn't enabled for your account or chapter yet.",
+      firstStep: "Read the explanation so you know whether the feature is coming or simply not in your tier.",
+      nextStep: "Follow the suggested action — return to your dashboard or check back when the rollout reaches you."
+    }
+  },
+  {
+    pattern: "/admin/instructor-applicants/[id]/review",
+    title: "Instructor Applicant Review",
+    content: {
+      purpose: "This admin page is the structured review workspace for an instructor applicant.",
+      firstStep: "Open the applicant's materials, then walk through the rubric scoring section by section.",
+      nextStep: "Save your scores and notes; the chair queue picks up applicants ready for a decision."
+    }
+  },
+  {
+    pattern: "/admin/instructor-applicants/chair-queue",
+    title: "Chair Decision Queue",
+    content: {
+      purpose: "This admin page is the chair's queue of instructor applicants awaiting a final decision.",
+      firstStep: "Sort by status or due date and pick up the oldest item that's ready for a decision.",
+      nextStep: "Open an applicant to draft and commit a chair decision, which closes their application file."
+    }
+  },
+  {
+    pattern: "/admin/instructor-applicants/chair-queue/[applicationId]",
+    title: "Chair Decision Workspace",
+    content: {
+      purpose: "This admin page shows everything the chair needs to commit a decision on a single applicant.",
+      firstStep: "Read the materials, scores, and review history before drafting the decision.",
+      nextStep: "Commit the decision when you're ready; this notifies the applicant and closes their workflow."
+    }
+  },
+  {
+    pattern: "/admin/mentorship",
+    title: "Mentorship Admin",
+    content: {
+      purpose: "This admin page manages mentorships, pairings, and program-wide signals.",
+      firstStep: "Use the filters or KPI cards to find pairings that need attention right now.",
+      nextStep: "Open a mentorship to adjust the pair, log a signal, or follow up on a check-in."
+    }
+  },
+  {
+    pattern: "/applications/instructor/[id]",
+    title: "Instructor Application Detail",
+    content: {
+      purpose: "This page shows the full detail of a single instructor application.",
+      firstStep: "Skim the applicant's materials, scores, and timeline before deciding what to do next.",
+      nextStep: "Use the inline actions or the linked review/interview workspaces to advance the application."
+    }
+  },
+  {
+    pattern: "/applications/instructor/[id]/interview",
+    title: "Applicant Interview",
+    content: {
+      purpose: "This page is the interview workspace for a specific applicant.",
+      firstStep: "Open the structured prompts and use them to guide the conversation as you take notes.",
+      nextStep: "Save your notes and recommendation; the chair queue picks the applicant up next."
+    }
+  },
+  {
+    pattern: "/chapter/hub",
+    title: "Chapter Hub",
+    content: {
+      purpose: "This page is the chapter's at-a-glance overview of leadership, programs, and key signals.",
+      firstStep: "Skim the hub cards to spot anything that needs attention before opening a deeper workspace.",
+      nextStep: "Click into a card or linked tool to take the action it surfaces."
+    }
+  },
+  {
+    pattern: "/instructor/lesson-design-studio/[draftId]/[step]",
+    title: "Lesson Design Studio Step",
+    content: {
+      purpose: "This page is one step of the guided Lesson Design Studio flow for a curriculum draft.",
+      firstStep: "Finish the inputs on this step before moving forward; the studio shows live blockers as you type.",
+      nextStep: "When the step's inputs look complete, the studio routes you to the next phase automatically."
+    }
+  },
+  {
+    pattern: "/instructor-growth",
+    title: "Instructor Growth",
+    content: {
+      purpose: "This page surfaces growth signals, recent reviews, and recommended next steps for the instructor.",
+      firstStep: "Skim the growth summary and reviews list to see what reviewers are noticing.",
+      nextStep: "Pick the recommended next step or jump into a related workspace to act on it."
+    }
+  },
+  {
+    pattern: "/instructor-growth/[instructorId]",
+    title: "Instructor Growth Profile",
+    content: {
+      purpose: "This page shows another instructor's growth profile — useful for reviewers and chapter leads.",
+      firstStep: "Skim the growth summary and signal history to understand the instructor's trajectory.",
+      nextStep: "If you spot a follow-up, link out to the relevant review, mentorship, or training workspace."
+    }
+  },
+  {
+    pattern: "/instructor-growth/review",
+    title: "Instructor Growth Review",
+    content: {
+      purpose: "This reviewer page coordinates instructor growth reviews — signals, recommendations, and decisions.",
+      firstStep: "Pick the instructor at the top of the queue and open their profile alongside the review form.",
+      nextStep: "Commit your review and any signals; the system routes the next reviewer or closes the cycle."
+    }
+  },
+  {
+    pattern: "/my-classes/assignments",
+    title: "My Class Assignments",
+    content: {
+      purpose: "This page lists assignments across your active classes so you can grade or follow up in one place.",
+      firstStep: "Sort or filter to find the assignments closest to a deadline.",
+      nextStep: "Open an assignment to grade, leave feedback, or send a reminder."
+    }
   }
 ];

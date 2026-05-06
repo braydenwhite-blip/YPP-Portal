@@ -322,7 +322,24 @@ enum InstructorApplicationStatus {
   APPROVED
   REJECTED
   ON_HOLD
+  WAITLISTED
   WITHDRAWN
+}
+
+/// Subtype on the instructor side. `STANDARD` is the default and represents
+/// the existing full instructor pathway. `SUMMER_WORKSHOP` is a lightweight
+/// short-term camp/workshop instructor that can later be promoted to STANDARD.
+enum InstructorSubtype {
+  STANDARD
+  SUMMER_WORKSHOP
+}
+
+/// Application track chosen by the applicant. Drives form variant + admin
+/// filter. Mirrors `InstructorSubtype` so the discriminator stays consistent
+/// between the application stage and the post-acceptance instructor record.
+enum ApplicationTrack {
+  STANDARD_INSTRUCTOR
+  SUMMER_WORKSHOP_INSTRUCTOR
 }
 
 enum StructuredReviewStatus {
@@ -368,8 +385,10 @@ enum InterviewerAssignmentRole {
 
 enum ChairDecisionAction {
   APPROVE
+  APPROVE_WITH_CONDITIONS
   REJECT
   HOLD
+  WAITLIST
   REQUEST_INFO
   REQUEST_SECOND_INTERVIEW
 }
@@ -1097,6 +1116,7 @@ model User {
   instructorApplication            InstructorApplication?                @relation("InstructorApplications")
   instructorApplicationsReviewed   InstructorApplication[]               @relation("InstructorApplicationReviews")
   instructorApplicationsAssignedBy InstructorApplication[]               @relation("InstructorApplicationReviewerAssignedBy")
+  instructorApplicationsSubtypeChangedBy InstructorApplication[]         @relation("InstructorApplicationSubtypeChangedBy")
   instructorApplicationReviews     InstructorApplicationReview[]         @relation("InstructorApplicationStructuredReviews")
   instructorInterviewReviews       InstructorInterviewReview[]           @relation("InstructorInterviewStructuredReviews")
   offeredInterviewSlots            OfferedInterviewSlot[]                @relation("OfferedInterviewSlots")
@@ -1105,6 +1125,12 @@ model User {
   interviewerAssignedByAssignments InstructorApplicationInterviewer[]    @relation("InterviewerAssignedBy")
   applicantDocumentsUploaded       ApplicantDocument[]                   @relation("ApplicantDocUploader")
   chairDecisionsMade               InstructorApplicationChairDecision[]  @relation("ChairDecisions")
+  chairDrafts                      InstructorApplicationChairDraft[]     @relation("ChairDrafts")
+  chairDecisionCommitAttempts      ChairDecisionCommitAttempt[]          @relation("ChairDecisionCommitAttempts")
+  reviewSignalsAuthored            ReviewSignal[]                        @relation("ReviewSignalAuthor")
+  reviewSignalsPinned              ReviewSignal[]                        @relation("ReviewSignalPinnedBy")
+  reviewSignalsResolved            ReviewSignal[]                        @relation("ReviewSignalResolvedBy")
+  reviewSignalMentions             ReviewSignalMention[]                 @relation("ReviewSignalMentionedUser")
   applicantTimelineEvents          InstructorApplicationTimelineEvent[]  @relation("TimelineActor")
   reviewsLastEdited                InstructorApplicationReview[]         @relation("ReviewLastEditor")
   reviewRevisionsMade              InstructorApplicationReviewRevision[] @relation("ReviewRevisionEditor")
@@ -1178,6 +1204,13 @@ model User {
   // Interactive Training Journey
   interactiveBeatAttempts       InteractiveBeatAttempt[]
   interactiveJourneyCompletions InteractiveJourneyCompletion[]
+
+  // Summer Workshop Instructor pathway
+  workshopProposalTemplatesCreated  WorkshopProposalTemplate[]   @relation("WorkshopProposalTemplatesCreated")
+  workshopProposalTemplatesUpdated  WorkshopProposalTemplate[]   @relation("WorkshopProposalTemplatesUpdated")
+  workshopProposalSubmissions       WorkshopProposalSubmission[] @relation("WorkshopProposalSubmissionsAuthored")
+  workshopProposalSubmissionsReviewed WorkshopProposalSubmission[] @relation("WorkshopProposalSubmissionsReviewed")
+  workshopProposalReviews           WorkshopProposalReview[]     @relation("WorkshopProposalReviewsAuthored")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1681,11 +1714,27 @@ model InstructorApplication {
   interviewerAssignments  InstructorApplicationInterviewer[]
   documents               ApplicantDocument[]
   chairDecisions          InstructorApplicationChairDecision[]
+  chairDrafts             InstructorApplicationChairDraft[]
+  chairCommitAttempts     ChairDecisionCommitAttempt[]
+  reviewSignals           ReviewSignal[]
   timeline                InstructorApplicationTimelineEvent[]
 
   // --- Notification failure tracking ---
   lastNotificationError   String?   @db.Text
   lastNotificationErrorAt DateTime?
+
+  // --- Summer Workshop Instructor pathway (subtype, additive) ---
+  // `applicationTrack` is set at submission and drives form variant + admin filter.
+  // `instructorSubtype` is the post-acceptance subtype on the instructor side.
+  // `workshopOutline` is a structured JSON payload required for summer workshop applicants.
+  // `promotionEligibility` tracks readiness to be promoted from summer workshop -> standard.
+  applicationTrack       ApplicationTrack  @default(STANDARD_INSTRUCTOR)
+  instructorSubtype      InstructorSubtype @default(STANDARD)
+  workshopOutline        Json?
+  promotionEligibility   Json?
+  subtypeChangedAt       DateTime?
+  subtypeChangedById     String?
+  subtypeChangedBy       User?             @relation("InstructorApplicationSubtypeChangedBy", fields: [subtypeChangedById], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1699,6 +1748,8 @@ model InstructorApplication {
   @@index([chairQueuedAt])
   @@index([archivedAt])
   @@index([interviewRound])
+  @@index([applicationTrack])
+  @@index([instructorSubtype])
 }
 
 model InstructorApplicationReview {
@@ -1938,11 +1989,51 @@ model InstructorApplicationChairDecision {
   action          ChairDecisionAction
   rationale       String?
   comparisonNotes String?
+  conditions      Json?
   decidedAt       DateTime              @default(now())
   supersededAt    DateTime?
 
   @@index([applicationId, decidedAt])
   @@index([chairId])
+}
+
+/// Persisted draft rationale per (application, chair). The cockpit's
+/// DraftRationaleField autosaves into this table via saveChairDraft().
+/// One row per (applicationId, chairId).
+model InstructorApplicationChairDraft {
+  id              String                @id @default(cuid())
+  applicationId   String
+  application     InstructorApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  chairId         String
+  chair           User                  @relation("ChairDrafts", fields: [chairId], references: [id], onDelete: Cascade)
+  rationale       String                @default("")
+  comparisonNotes String                @default("")
+  savedAt         DateTime              @default(now()) @updatedAt
+
+  @@unique([applicationId, chairId])
+  @@index([chairId])
+}
+
+/// Records every chairDecide() commit attempt keyed by client-generated
+/// idempotency key. Lets the server detect replays after a network drop and
+/// return the prior result instead of double-committing.
+model ChairDecisionCommitAttempt {
+  id                String                @id @default(cuid())
+  idempotencyKey    String                @unique
+  applicationId     String
+  application       InstructorApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  chairId           String
+  chair             User                  @relation("ChairDecisionCommitAttempts", fields: [chairId], references: [id], onDelete: Cascade)
+  action            ChairDecisionAction
+  result            String                // "SUCCESS" | "FAILED"
+  decidedAt         DateTime?
+  errorCode         String?
+  errorMessage      String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  @@index([applicationId, createdAt])
+  @@index([chairId, createdAt])
 }
 
 model InstructorApplicationTimelineEvent {
@@ -1957,6 +2048,71 @@ model InstructorApplicationTimelineEvent {
 
   @@index([applicationId, createdAt])
   @@index([actorId])
+}
+
+enum ReviewSignalKind {
+  COMMENT
+  PIN_NOTE
+  HIGHLIGHT
+  CONCERN
+  CONSENSUS_NOTE
+}
+
+enum ReviewSignalSentiment {
+  STRONG_HIRE
+  HIRE
+  MIXED
+  CONCERN
+  REJECT
+}
+
+/// Unified reviewer/chair signal for the Final Review Cockpit (§15).
+/// Generalises threaded comments, pinned notes, highlights, and chair
+/// observations into one stream so the cockpit's feed, pinned rail, and
+/// audit drawer all read from the same shape.
+model ReviewSignal {
+  id              String                  @id @default(cuid())
+  applicationId   String
+  application     InstructorApplication   @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  authorId        String
+  author          User                    @relation("ReviewSignalAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  kind            ReviewSignalKind        @default(COMMENT)
+  sentiment       ReviewSignalSentiment?
+  body            String
+  pinned          Boolean                 @default(false)
+  pinnedAt        DateTime?
+  pinnedById      String?
+  pinnedBy        User?                   @relation("ReviewSignalPinnedBy", fields: [pinnedById], references: [id])
+  parentId        String?
+  parent          ReviewSignal?           @relation("ReviewSignalReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies         ReviewSignal[]          @relation("ReviewSignalReplies")
+  mentions        ReviewSignalMention[]   @relation("ReviewSignalMentions")
+  resolvedAt      DateTime?
+  resolvedById    String?
+  resolvedBy      User?                   @relation("ReviewSignalResolvedBy", fields: [resolvedById], references: [id])
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@index([applicationId, createdAt])
+  @@index([applicationId, pinned])
+  @@index([authorId])
+  @@index([parentId])
+}
+
+/// @mention edge between a `ReviewSignal` and a mentioned user. Drives the
+/// notification fan-out in `lib/notifications.ts` via the new
+/// REVIEW_MENTION notification type. Composite primary key prevents
+/// duplicate mentions on the same signal.
+model ReviewSignalMention {
+  signalId    String
+  signal      ReviewSignal @relation("ReviewSignalMentions", fields: [signalId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User         @relation("ReviewSignalMentionedUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime     @default(now())
+  acknowledgedAt DateTime?
+
+  @@id([signalId, userId])
+  @@index([userId, acknowledgedAt])
 }
 
 model TrainingCheckpoint {
@@ -10555,4 +10711,200 @@ model InteractiveJourneyCompletion {
 
   @@unique([journeyId, userId])
   @@index([userId, completedAt])
+}
+
+// ============================================
+// SUMMER WORKSHOP INSTRUCTOR — WORKSHOP PROPOSALS
+// ============================================
+//
+// Summer Workshop Instructor applicants finish the same training journeys as
+// standard applicants but submit a one-off "workshop proposal" instead of a
+// full Lesson Design Studio curriculum.
+//
+// Two source paths share one submission table:
+//   * CUSTOM_DESIGN     — applicant authored their own outline in the
+//                         Workshop Design Studio (data lives in `customWorkshop`)
+//   * TEMPLATE_SELECTION — applicant picked one of the admin-curated templates
+//                         in the library and answered the reflection
+//                         questionnaire (the template id + reflection answers
+//                         live on the same row)
+//
+// The naming "WorkshopProposal*" intentionally avoids the existing
+// `WorkshopSeries`/`WorkshopSession`/`WorkshopEnrollment` models, which
+// describe student-facing curriculum content and are unrelated.
+
+/// Lifecycle of an admin-authored workshop template that applicants can pick.
+enum WorkshopProposalTemplateStatus {
+  DRAFT
+  APPROVED
+  ARCHIVED
+}
+
+/// Difficulty scale aligned with the rest of the academy. Mirrors the
+/// CourseConfig difficulty levels so reviewers see consistent labels.
+enum WorkshopProposalDifficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+/// Where the proposal data came from. Drives applicant + reviewer UI.
+enum WorkshopProposalSourceType {
+  CUSTOM_DESIGN
+  TEMPLATE_SELECTION
+}
+
+/// Reviewer-facing lifecycle of an applicant's submission.
+enum WorkshopProposalSubmissionStatus {
+  DRAFT
+  SUBMITTED
+  IN_REVIEW
+  CHANGES_REQUESTED
+  APPROVED
+  REJECTED
+}
+
+/// Per-reviewer overall recommendation. Aggregates above into the parent
+/// submission's status when the reviewer commits a decision.
+enum WorkshopProposalReviewRecommendation {
+  APPROVE
+  REQUEST_CHANGES
+  REJECT
+}
+
+/// Admin-curated workshop in the library. Only `APPROVED` rows are visible
+/// to applicants; `DRAFT` and `ARCHIVED` are hidden in the picker.
+model WorkshopProposalTemplate {
+  id                 String                          @id @default(cuid())
+  title              String
+  category           String
+  /// Free-text age range like "Grades 6–8" or "Ages 10–12".
+  targetAgeRange     String
+  /// Estimated workshop length in minutes. 60 by default.
+  estimatedMinutes   Int                             @default(60)
+  description        String                          @db.Text
+  /// Bullet list rendered as ordered learning objectives.
+  learningObjectives String[]                        @default([])
+  /// Free-form activity plan (markdown allowed). Step-by-step facilitation guide.
+  activityPlan       String                          @db.Text
+  /// Materials checklist; each entry is a single line item.
+  materials          String[]                        @default([])
+  difficulty         WorkshopProposalDifficulty      @default(BEGINNER)
+  tags               String[]                        @default([])
+  status             WorkshopProposalTemplateStatus  @default(DRAFT)
+
+  createdById        String
+  createdBy          User                            @relation("WorkshopProposalTemplatesCreated", fields: [createdById], references: [id])
+  updatedById        String?
+  updatedBy          User?                           @relation("WorkshopProposalTemplatesUpdated", fields: [updatedById], references: [id])
+
+  submissions        WorkshopProposalSubmission[]    @relation("WorkshopProposalSubmissionTemplate")
+
+  createdAt          DateTime                        @default(now())
+  updatedAt          DateTime                        @updatedAt
+  archivedAt         DateTime?
+
+  @@index([status])
+  @@index([category])
+  @@index([difficulty])
+}
+
+/// Applicant's workshop proposal — either their own design or a selected
+/// template + reflection. One submission per applicant; subsequent revisions
+/// update the same row so the audit trail (reviews, history) stays anchored.
+model WorkshopProposalSubmission {
+  id              String                              @id @default(cuid())
+  authorId        String
+  author          User                                @relation("WorkshopProposalSubmissionsAuthored", fields: [authorId], references: [id])
+  /// Optional pointer to the InstructorApplication for cohort/track context.
+  /// Stored loosely (no FK) because the application id may not exist yet
+  /// when an applicant resumes a draft.
+  applicationId   String?
+
+  sourceType      WorkshopProposalSourceType
+
+  /// CUSTOM_DESIGN payload. Shape:
+  ///   {
+  ///     title, targetAgeGroup, lengthMinutes, category, learningObjective,
+  ///     materials[], openingHook, mainActivity, participationPlan,
+  ///     wrapUp, backupPlan
+  ///   }
+  customWorkshop  Json?
+
+  /// TEMPLATE_SELECTION pointer. Snapshotting the template id is enough —
+  /// the template is read-fresh at view time so reviewers always see the
+  /// current admin copy plus the applicant's reflection.
+  templateId      String?
+  template        WorkshopProposalTemplate?           @relation("WorkshopProposalSubmissionTemplate", fields: [templateId], references: [id], onDelete: SetNull)
+
+  /// Reflection answers (always required). Shape:
+  ///   {
+  ///     whyChosen, audienceAdaptation, hardestPart, engagementPlan
+  ///   }
+  reflection      Json?
+
+  status          WorkshopProposalSubmissionStatus    @default(DRAFT)
+
+  submittedAt     DateTime?
+  /// Set when ANY reviewer first opens the submission with intent to score.
+  inReviewAt      DateTime?
+  reviewedAt      DateTime?
+  /// Latest reviewer who committed a decision. Older decisions stay in
+  /// `reviews` for the audit trail.
+  reviewedById    String?
+  reviewedBy      User?                               @relation("WorkshopProposalSubmissionsReviewed", fields: [reviewedById], references: [id])
+
+  /// Applicant-facing feedback summary from the latest committed decision.
+  applicantFeedback String?                           @db.Text
+  /// Internal-only reviewer notes (not shown to applicant).
+  internalNotes     String?                           @db.Text
+
+  reviews         WorkshopProposalReview[]            @relation("WorkshopProposalReviewSubmission")
+
+  createdAt       DateTime                            @default(now())
+  updatedAt       DateTime                            @updatedAt
+
+  @@unique([authorId])
+  @@index([status])
+  @@index([sourceType])
+  @@index([templateId])
+  @@index([reviewedById])
+}
+
+/// Per-reviewer scored review of a submission. Multiple reviewers can score
+/// the same submission; each row is preserved as audit history. The active
+/// "decision" surfaces on `WorkshopProposalSubmission.status` when a reviewer
+/// commits.
+model WorkshopProposalReview {
+  id                       String                                @id @default(cuid())
+  submissionId             String
+  submission               WorkshopProposalSubmission            @relation("WorkshopProposalReviewSubmission", fields: [submissionId], references: [id], onDelete: Cascade)
+  reviewerId               String
+  reviewer                 User                                  @relation("WorkshopProposalReviewsAuthored", fields: [reviewerId], references: [id])
+
+  /// 1–5 ratings, nullable so an in-progress draft review can save partial work.
+  clarityRating            Int?
+  engagementRating         Int?
+  feasibilityRating        Int?
+  ageAppropriatenessRating Int?
+  preparednessRating       Int?
+  /// 1–5 alignment with YPP values rating.
+  alignmentRating          Int?
+
+  overallRecommendation    WorkshopProposalReviewRecommendation?
+
+  applicantFeedback        String?                               @db.Text
+  internalNote             String?                               @db.Text
+
+  /// True when the reviewer has clicked "commit decision". Drafts (committed
+  /// = false) are ignored when computing submission status.
+  committed                Boolean                               @default(false)
+  committedAt              DateTime?
+
+  createdAt                DateTime                              @default(now())
+  updatedAt                DateTime                              @updatedAt
+
+  @@index([submissionId])
+  @@index([reviewerId])
+  @@index([overallRecommendation])
 }

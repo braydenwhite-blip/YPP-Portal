@@ -21,6 +21,7 @@ import {
   rejectInstructorApplication,
   requestMoreInfo,
   scheduleInterview,
+  sendToChair,
 } from "@/lib/instructor-application-actions";
 import { maybeAutoAdvanceAfterInterviewReview } from "@/lib/instructor-interview-actions";
 import {
@@ -37,6 +38,7 @@ import {
   parseInterviewQuestionResponses,
   type LiveQuestionResponsePayload,
 } from "@/lib/instructor-interview-live";
+import { SUMMER_WORKSHOP_INTERVIEW_PROMPTS } from "@/lib/summer-workshop";
 
 type ReviewCategoryPayload = {
   category: InstructorReviewCategoryValue;
@@ -672,6 +674,14 @@ export async function getInstructorInterviewReviewWorkspace(applicationId: strin
     myReview?.curriculumDraftId ?? null
   );
 
+  // Append summer-workshop-specific interview prompts when the applicant is
+  // on the SUMMER_WORKSHOP_INSTRUCTOR track. Standard applicants never see
+  // these prompts (plan §7).
+  const augmentedQuestionBank =
+    application.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR"
+      ? [...questionBank, ...SUMMER_WORKSHOP_INTERVIEW_PROMPTS]
+      : questionBank;
+
   return {
     actor,
     application,
@@ -679,7 +689,7 @@ export async function getInstructorInterviewReviewWorkspace(applicationId: strin
     selectedDraftId,
     reviews,
     myReview,
-    questionBank,
+    questionBank: augmentedQuestionBank,
     applicationReviews,
     isLeadReviewer:
       application.reviewerId === session.user.id ||
@@ -1257,33 +1267,30 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
 
   if (intent === "submit") {
     // V1 workflow: if there are active interviewer assignments, use auto-advance
-    // (all-reviews-submitted → INTERVIEW_COMPLETED → CHAIR_REVIEW) instead of
-    // the old lead-reviewer-decides-directly path.
+    // (all-reviews-submitted → INTERVIEW_COMPLETED → CHAIR_REVIEW).
+    // Older interviews without active assignments should still route through
+    // Chair review instead of skipping straight to a final decision.
+    const currentRound = application.interviewRound ?? 1;
+    const hasActiveCurrentRoundAssignments = application.interviewerAssignments.some(
+      (assignment) => assignment.round == null || assignment.round === currentRound
+    );
     const autoAdvanced = await maybeAutoAdvanceAfterInterviewReview(applicationId, actor.id);
 
-    if (!autoAdvanced && isLeadReviewer && canFinalizeRecommendation && recommendation) {
-      // Legacy / no-interviewer-assignment path — keep original behavior
+    if (
+      !autoAdvanced &&
+      !hasActiveCurrentRoundAssignments &&
+      isLeadReviewer &&
+      canFinalizeRecommendation &&
+      recommendation
+    ) {
       await markInterviewCompleted(applicationId, actor.id, summary ?? overallNotes ?? undefined);
-
-      if (recommendation === "ACCEPT") {
-        await approveInstructorApplication(applicationId, actor.id, summary ?? overallNotes ?? undefined);
-      } else if (recommendation === "ACCEPT_WITH_SUPPORT") {
-        await holdInstructorApplication(
-          applicationId,
-          actor.id,
-          revisionRequirements ?? curriculumFeedback ?? summary ?? overallNotes ?? undefined
-        );
-      } else if (recommendation === "HOLD") {
-        await holdInstructorApplication(
-          applicationId,
-          actor.id,
-          summary ?? overallNotes ?? curriculumFeedback ?? undefined
-        );
-      } else if (recommendation === "REJECT") {
-        await rejectInstructorApplication(
-          applicationId,
-          actor.id,
-          applicantMessage ?? summary ?? "The interview review did not result in approval."
+      const chairFormData = new FormData();
+      chairFormData.set("applicationId", applicationId);
+      const chairResult = await sendToChair(chairFormData);
+      if (!chairResult.success) {
+        throw new Error(
+          chairResult.error ??
+            "The interview review was submitted, but the application could not be routed to chair review."
         );
       }
     } else if (!autoAdvanced) {

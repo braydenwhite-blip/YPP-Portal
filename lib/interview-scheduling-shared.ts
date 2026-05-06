@@ -215,6 +215,8 @@ export function generateInterviewSlots({
       if (day.getDay() !== rule.dayOfWeek) continue;
 
       for (const slot of buildRuleSlotsForDay(rule, day)) {
+        if (slot.startsAt < rangeStart) continue;
+
         const blocked = activeOverrides.some(
           (override) =>
             override.type === "BLOCKED" &&

@@ -123,12 +123,10 @@ function RightChip({ id, label, isPlaced, readOnly, isPending, onTap }: RightChi
   return (
     <div
       ref={setNodeRef}
-      role="listitem"
-      className={className}
       {...attributes}
       {...listeners}
-      // Tap handler for mobile tap-to-pair pattern.
-      // The dnd-kit listeners handle drag; onClick handles the tap selection.
+      role="listitem"
+      className={className}
       onClick={() => { if (!readOnly) onTap(id); }}
       aria-label={`${label}${isPending ? " — selected, tap a slot on the left to pair" : ". Drag or tap to select."}`}
       aria-pressed={isPending}

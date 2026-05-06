@@ -22,6 +22,7 @@ export const M1_YPP_STANDARD: CurriculumDefinition = {
     estimatedMinutes: 6,
     strictMode: false,
     version: 1,
+    showCohortIntro: true,
   },
   beats: [
     // -------------------------------------------------------------------------
@@ -134,6 +135,16 @@ export const M1_YPP_STANDARD: CurriculumDefinition = {
           tone: "correct",
           headline: "That's Follow Through.",
           body: "A 24-hour reply with two specific observations and a next step is what the Standard asks for — parents trust specifics, not reassurance.",
+          mentorAside: "Watch what specifics buy you.",
+          studentReaction: {
+            studentName: "Maya's mom",
+            mood: "engaged",
+            quote: "Wow — thank you for noticing that. That's so helpful.",
+            bodyLanguage: "replies within the hour",
+          },
+          peerRipple: "She forwards your note to her co-parent. Trust just compounded.",
+          consequence: "You buy 6 months of parent trust in 4 sentences.",
+          roomDelta: { engagement: 1, clarity: 2 },
         },
         incorrectFeedback: {
           delay: {
@@ -141,18 +152,52 @@ export const M1_YPP_STANDARD: CurriculumDefinition = {
             headline: "Stalling isn't neutral.",
             body: "'I'll get back to you' reads as avoidance. YPP expects a reply within 24 hours with something specific — even a short one.",
             hint: "Reply today. Even two sentences with specifics beats a delayed update.",
+            studentReaction: {
+              studentName: "Maya's mom",
+              mood: "frustrated",
+              bodyLanguage: "doesn't reply for two days",
+            },
+            consequence: "The parent's confidence drops a notch. You don't see it yet.",
+            roomDelta: { clarity: -1 },
+            recoveryPrompt: {
+              question: "Three days later, no reply has gone out. What now?",
+              options: [
+                {
+                  id: "send-now",
+                  label: "Send a real specific update right now, late or not.",
+                  reaction: "She replies the same day: 'Thank you — really helpful.' You bought it back.",
+                  roomDelta: { clarity: 1 },
+                },
+                {
+                  id: "wait-for-class",
+                  label: "Wait until after the next class so you have more to share.",
+                  reaction: "She emails the chapter lead instead: 'Has my child's teacher gone quiet?'",
+                  roomDelta: { clarity: -2 },
+                },
+              ],
+            },
           },
           generic: {
             tone: "incorrect",
             headline: "Too generic.",
             body: "'Doing well' tells the parent nothing. The Standard asks for specifics a parent can act on.",
             hint: "Name one thing the student did well and one thing they're working on.",
+            studentReaction: {
+              studentName: "Maya's mom",
+              mood: "confused",
+              quote: "Okay, thanks 🙂",
+              bodyLanguage: "follow-up email arrives Monday: 'Could you give me a bit more detail?'",
+            },
+            consequence: "She still doesn't know how Maya's actually doing.",
+            roomDelta: { clarity: -1 },
           },
           forward: {
             tone: "incorrect",
             headline: "Not your chapter lead's job.",
             body: "Parent communication is the instructor's responsibility. Escalate only if there's a real issue — not to avoid writing the email.",
             hint: "You know the student best. Write two sentences and send it.",
+            peerRipple: "Your chapter lead pings you back: 'Is everything okay? You usually answer these.'",
+            consequence: "You add work to your lead's plate AND look unsure of yourself.",
           },
           default: {
             tone: "incorrect",
@@ -317,6 +362,11 @@ export const M1_YPP_STANDARD: CurriculumDefinition = {
           tone: "correct",
           headline: "Peer Show Up.",
           body: "Covering protects the students first, then loops in the chapter lead after. The Standard applies peer-to-peer, not just instructor-to-student.",
+          mentorAside: "Watch what this earns you.",
+          peerRipple: "The other instructor messages back: 'I owe you one — sending the plan now.'",
+          consequence: "The students get a class. Two instructors get tighter.",
+          ambientLine: "A small click — the team just tightened by one notch.",
+          roomDelta: { engagement: 2, energy: 1 },
         },
         incorrectFeedback: {
           silent: {
@@ -324,6 +374,25 @@ export const M1_YPP_STANDARD: CurriculumDefinition = {
             headline: "Students come first.",
             body: "Silence here costs a family a session. If you can cover, cover — and tell your chapter lead what happened after.",
             hint: "What does the student need in the next 30 minutes?",
+            consequence: "The class doesn't happen. Two parents email the chapter lead.",
+            roomDelta: { engagement: -2, clarity: -1 },
+            recoveryPrompt: {
+              question: "It's 3 minutes to class start. Still nothing in motion. What now?",
+              options: [
+                {
+                  id: "jump-in",
+                  label: "Jump in — message the parents 'sub coming on' and open the room.",
+                  reaction: "You hit the link with 30 seconds to spare. The class happens.",
+                  roomDelta: { engagement: 2 },
+                },
+                {
+                  id: "ping-lead",
+                  label: "Ping the chapter lead and let them figure it out.",
+                  reaction: "They cover, but the class starts 15 minutes late. The room cools.",
+                  roomDelta: { energy: -1 },
+                },
+              ],
+            },
           },
           scold: {
             tone: "incorrect",

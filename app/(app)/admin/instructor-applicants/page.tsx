@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
+import { ApplicationTrack } from "@prisma/client";
 import { isInstructorApplicantWorkflowV1Enabled } from "@/lib/feature-flags";
 import { canSeeChairQueue } from "@/lib/chapter-hiring-permissions";
 import {
@@ -9,7 +10,8 @@ import {
   getChairQueue,
 } from "@/lib/instructor-applicant-board-queries";
 import InstructorApplicantsCommandCenter from "@/components/instructor-applicants/InstructorApplicantsCommandCenter";
-import PipelineFunnelChart, { FunnelCounts } from "@/components/instructor-applicants/PipelineFunnelChart";
+import ApplicantPipelineOverview from "@/components/instructor-applicants/ApplicantPipelineOverview";
+import { type FunnelCounts } from "@/components/instructor-applicants/PipelineFunnelChart";
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
 
 const DEMO_PIPELINE_TAKE = 48;
@@ -75,6 +77,15 @@ export default async function AdminInstructorApplicantsPage({
   const overdueOnly = resolvedParams.overdueOnly === "1";
   const myCasesOnly = resolvedParams.myCasesOnly === "1";
 
+  // Subtype filter: ?track=summer_workshop | standard. Omit/invalid = all.
+  const applicationTrackParam = (resolvedParams.track as string | undefined)?.toLowerCase();
+  const applicationTrackFilter: ApplicationTrack | undefined =
+    applicationTrackParam === "summer_workshop"
+      ? ApplicationTrack.SUMMER_WORKSHOP_INSTRUCTOR
+      : applicationTrackParam === "standard"
+      ? ApplicationTrack.STANDARD_INSTRUCTOR
+      : undefined;
+
   const effectiveChapterId = isAdmin ? filterChapterId : chapterId;
   const scope = isAdmin ? "admin" : "chapter";
 
@@ -87,6 +98,7 @@ export default async function AdminInstructorApplicantsPage({
     materialsMissing,
     overdueOnly,
     myCasesActorId: myCasesOnly ? session!.user.id : undefined,
+    applicationTrack: applicationTrackFilter,
   };
 
   const loadChapters = () =>
@@ -209,6 +221,9 @@ export default async function AdminInstructorApplicantsPage({
       updatedAt: (app.updatedAt as Date | null)?.toISOString() ?? null,
       overdue: app.overdue as boolean | undefined,
       subjectsOfInterest: app.subjectsOfInterest as string | null,
+      applicationTrack: (app.applicationTrack as string) ?? "STANDARD_INSTRUCTOR",
+      instructorSubtype: (app.instructorSubtype as string) ?? "STANDARD",
+      workshopOutlinePresent: !!app.workshopOutline,
       applicant: {
         id: app.applicant.id as string,
         name: app.applicant.name as string | null,
@@ -250,6 +265,9 @@ export default async function AdminInstructorApplicantsPage({
     interviewerAssignments: [] as Array<{ id: string; role: string; interviewer: { id: string; name: string | null } }>,
     overdue: false,
     applicationReviews: [] as Array<{ summary: string | null; nextStep: string | null; overallRating: string | null }>,
+    applicationTrack: (app as { applicationTrack?: string }).applicationTrack ?? "STANDARD_INSTRUCTOR",
+    instructorSubtype: (app as { instructorSubtype?: string }).instructorSubtype ?? "STANDARD",
+    workshopOutlinePresent: !!(app as { workshopOutline?: unknown }).workshopOutline,
   }));
 
   const newCount = pipelineResult.columns.new.length;
@@ -285,26 +303,15 @@ export default async function AdminInstructorApplicantsPage({
         </div>
       </div>
 
-      <div className="grid four applicant-command-kpis">
-        <div className="card kpi applicant-command-kpi">
-          <div className="kpi-value">{newCount}</div>
-          <div className="kpi-label">New Applications</div>
-        </div>
-        <div className="card kpi applicant-command-kpi">
-          <div className="kpi-value">{toReviewCount}</div>
-          <div className="kpi-label">Needs Review</div>
-        </div>
-        <div className="card kpi applicant-command-kpi">
-          <div className="kpi-value">{toInterviewCount}</div>
-          <div className="kpi-label">In Interview Stage</div>
-        </div>
-        <div className="card kpi applicant-command-kpi">
-          <div className="kpi-value">{postInterviewCount}</div>
-          <div className="kpi-label">Post-Interview</div>
-        </div>
-      </div>
-
-      <PipelineFunnelChart counts={funnelCounts} />
+      <ApplicantPipelineOverview
+        filteredCounts={{
+          newApplications: newCount,
+          needsReview: toReviewCount,
+          interviewStage: toInterviewCount,
+          postInterview: postInterviewCount,
+        }}
+        funnelCounts={funnelCounts}
+      />
 
       <InstructorApplicantsCommandCenter
         scope={isAdmin ? "global" : "chapter"}

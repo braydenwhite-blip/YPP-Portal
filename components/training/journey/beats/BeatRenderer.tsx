@@ -48,6 +48,13 @@ export type BeatRendererProps = {
   onResponseChange: (next: unknown | null) => void;
   feedback: BeatFeedback | null;
   readOnly: boolean;
+  /** Optional handler invoked when a learner picks a `recoveryPrompt` option;
+   *  parent player can apply the option's `roomDelta` to the live HUD. */
+  onRecoveryRoomDelta?: (delta: {
+    engagement?: number;
+    clarity?: number;
+    energy?: number;
+  }) => void;
 };
 
 // ---------------------------------------------------------------------------
@@ -82,6 +89,7 @@ export function BeatRenderer({
   onResponseChange,
   feedback,
   readOnly,
+  onRecoveryRoomDelta,
 }: BeatRendererProps) {
   // Track whether we need to suppress re-logging for the same kind in this render.
   const bodyRef = useRef<React.ReactNode>(null);
@@ -259,7 +267,12 @@ export function BeatRenderer({
   return (
     <BeatShell kind={beat.kind} title={beat.title} prompt={beat.prompt}>
       {body}
-      {feedback ? <BeatFeedbackPanel feedback={feedback} /> : null}
+      {feedback ? (
+        <BeatFeedbackPanel
+          feedback={feedback}
+          onRecoveryRoomDelta={onRecoveryRoomDelta}
+        />
+      ) : null}
     </BeatShell>
   );
 }

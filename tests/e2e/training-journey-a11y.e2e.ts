@@ -45,7 +45,7 @@ test("@a11y Beat 2 (Compare) completable via keyboard only", async ({ page }) =>
 
   // Enter intro → player
   await page
-    .getByRole("button", { name: /^(start|resume)$/i })
+    .getByRole("button", { name: /^(start|resume|let.s begin|pick up where you left off|review|walk through it again)$/i })
     .focus();
   await page.keyboard.press("Enter");
 
@@ -67,7 +67,7 @@ test("@a11y Beat 2 (Compare) completable via keyboard only", async ({ page }) =>
   const checkBtn = page.getByRole("button", { name: /^check$/i });
   await checkBtn.focus();
   await page.keyboard.press("Enter");
-  const nextBtn = page.getByRole("button", { name: /^(next|finish)$/i });
+  const nextBtn = page.getByRole("button", { name: /^(next|next beat|finish|finish module)$/i });
   await nextBtn.focus();
   await page.keyboard.press("Enter");
 
@@ -99,7 +99,7 @@ test("@a11y Reduced-motion does not block beat advance", async ({ page }) => {
     .getByRole("link", { name: /the ypp standard/i })
     .first()
     .click();
-  await page.getByRole("button", { name: /^(start|resume)$/i }).click();
+  await page.getByRole("button", { name: /^(start|resume|let.s begin|pick up where you left off|review|walk through it again)$/i }).click();
 
   // On Beat 1, once all three tabs are visited the Check button becomes enabled
   for (const tabName of [/prepare/i, /show up/i, /follow through/i]) {
@@ -108,7 +108,7 @@ test("@a11y Reduced-motion does not block beat advance", async ({ page }) => {
 
   const t0 = Date.now();
   await page.getByRole("button", { name: /^check$/i }).click();
-  await page.getByRole("button", { name: /^(next|finish)$/i }).click();
+  await page.getByRole("button", { name: /^(next|next beat|finish|finish module)$/i }).click();
   // Beat 2 should be interactive within a reasonable reduced-motion window
   // (DURATIONS.instant = 0.001s in REDUCED_VARIANTS; reality is bound by
   // server RTT, not animation time).
