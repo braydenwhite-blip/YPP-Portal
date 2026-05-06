@@ -42,21 +42,37 @@ function clampPct(n: number): number {
   return Math.round(n);
 }
 
+type FlashDirection = "up" | "down" | "up-strong" | "down-strong";
+
+const STRONG_DELTA_THRESHOLD = 12; // ≥ 12 percentage points → "wow" shimmer
+
+function levelState(value: number): "critical" | "hot" | null {
+  if (value < 25) return "critical";
+  if (value > 90) return "hot";
+  return null;
+}
+
 export function RoomMeters({ state, active }: RoomMetersProps) {
   const prevRef = useRef<RoomState>(state);
-  const [flash, setFlash] = useState<Partial<Record<keyof RoomState, "up" | "down">>>({});
+  const [flash, setFlash] = useState<Partial<Record<keyof RoomState, FlashDirection>>>({});
 
   useEffect(() => {
     const prev = prevRef.current;
     const next: typeof flash = {};
     (Object.keys(state) as (keyof RoomState)[]).forEach((k) => {
-      if (state[k] > prev[k]) next[k] = "up";
-      else if (state[k] < prev[k]) next[k] = "down";
+      const diff = state[k] - prev[k];
+      if (diff > 0) {
+        next[k] = diff >= STRONG_DELTA_THRESHOLD ? "up-strong" : "up";
+      } else if (diff < 0) {
+        next[k] = -diff >= STRONG_DELTA_THRESHOLD ? "down-strong" : "down";
+      }
     });
     prevRef.current = state;
     if (Object.keys(next).length === 0) return;
     setFlash(next);
-    const id = setTimeout(() => setFlash({}), 700);
+    // "Strong" flashes hold a touch longer so the shimmer lands.
+    const hold = Object.values(next).some((d) => d?.endsWith("strong")) ? 950 : 700;
+    const id = setTimeout(() => setFlash({}), hold);
     return () => clearTimeout(id);
   }, [state]);
 
@@ -71,12 +87,14 @@ export function RoomMeters({ state, active }: RoomMetersProps) {
       {METERS.map(({ key, label, emoji }) => {
         const value = clampPct(state[key]);
         const dir = flash[key];
+        const lvl = levelState(value);
         return (
           <div
             key={key}
             className="room-meters__row"
             data-flash={dir}
-            aria-label={`${label} ${value}%`}
+            data-state={lvl ?? undefined}
+            aria-label={`${label} ${value}%${lvl === "critical" ? " — critical" : ""}`}
           >
             <span className="room-meters__label" aria-hidden="true">
               <span className="room-meters__emoji">{emoji}</span>

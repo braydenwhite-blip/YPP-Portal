@@ -23,6 +23,14 @@ import { DURATIONS, EASE } from "@/lib/training-journey/motion";
 import { useJourneyMotion } from "./MotionProvider";
 import { ConfettiBurst } from "./ConfettiBurst";
 
+export type SessionPeakMoment = {
+  studentName: string;
+  quote?: string;
+  bodyLanguage?: string;
+  consequence?: string;
+  tone: "correct" | "partial" | "incorrect" | "noted";
+};
+
 export type JourneyCompleteProps = {
   completion: JourneyCompletionSummary;
   title: string;
@@ -35,6 +43,9 @@ export type JourneyCompleteProps = {
    */
   unlocksLessonDesignStudio?: boolean;
   unlocksWorkshopSubmission?: boolean;
+  /** Optional "moment of the run" pulled from the strongest student reaction
+   *  during the session. Surfaced as a callback line above the score summary. */
+  peakMoment?: SessionPeakMoment | null;
 };
 
 export function JourneyComplete({
@@ -44,6 +55,7 @@ export function JourneyComplete({
   nextModule,
   unlocksLessonDesignStudio = false,
   unlocksWorkshopSubmission = false,
+  peakMoment = null,
 }: JourneyCompleteProps) {
   const { variants, reduced } = useJourneyMotion();
 
@@ -155,6 +167,25 @@ export function JourneyComplete({
         >
           🏅 {badgeLabel}
         </motion.div>
+
+        {/* Moment of the run — single most-impactful student reaction this
+            session. Reads like a callback. */}
+        {peakMoment ? (
+          <div className="journey-complete-moment" data-tone={peakMoment.tone}>
+            <span className="journey-complete-moment__label">
+              Moment of the run
+            </span>
+            {peakMoment.quote ? (
+              <p className="journey-complete-moment__quote">
+                &ldquo;{peakMoment.quote}&rdquo;
+              </p>
+            ) : null}
+            <p className="journey-complete-moment__cap">
+              <strong>{peakMoment.studentName}</strong>
+              {peakMoment.consequence ? ` — ${peakMoment.consequence}` : null}
+            </p>
+          </div>
+        ) : null}
 
         {/* Score summary */}
         <div style={{ marginBottom: 20 }}>

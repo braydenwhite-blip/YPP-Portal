@@ -1,45 +1,7 @@
 import { z } from "zod";
 import type { BeatKindModule, BeatFeedback } from "../types";
+import { FEEDBACK_SCHEMA } from "../feedback-schema";
 
-// ---------------------------------------------------------------------------
-// Local Zod schema for BeatFeedback
-// ---------------------------------------------------------------------------
-
-const FEEDBACK_SCHEMA: z.ZodType<BeatFeedback> = z.object({
-  tone: z.enum(["correct", "partial", "incorrect", "noted"]),
-  headline: z.string(),
-  body: z.string(),
-  hint: z.string().optional(),
-  callouts: z
-    .array(
-      z.object({
-        label: z.string(),
-        target: z.union([z.string(), z.number()]),
-      })
-    )
-    .optional(),
-  studentReaction: z
-    .object({
-      studentName: z.string(),
-      archetype: z
-        .enum(["shy", "overconfident", "distracted", "nervous", "curious", "resistant"])
-        .optional(),
-      quote: z.string().optional(),
-      bodyLanguage: z.string().optional(),
-      mood: z
-        .enum(["shutdown", "engaged", "confused", "checked-out", "energized", "frustrated"])
-        .optional(),
-    })
-    .optional(),
-  consequence: z.string().optional(),
-  roomDelta: z
-    .object({
-      engagement: z.number().optional(),
-      clarity: z.number().optional(),
-      energy: z.number().optional(),
-    })
-    .optional(),
-});
 
 // ---------------------------------------------------------------------------
 // Config + Response schemas

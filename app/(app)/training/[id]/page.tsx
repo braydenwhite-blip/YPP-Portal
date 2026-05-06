@@ -12,6 +12,7 @@ import { isSummerWorkshopApplicant } from "@/lib/workshop-proposal-access";
 import { serializeBeatForClient } from "@/lib/training-journey/serialize";
 import type { JourneyAttemptSummary } from "@/lib/training-journey/client-contracts";
 import { getBadgeForContentKey } from "@/lib/training-journey/client-contracts";
+import { getCurriculum } from "@/lib/training-curriculum";
 import { JourneyShell } from "./journey-shell";
 import TrainingModuleClient from "./client";
 
@@ -245,6 +246,14 @@ export default async function TrainingModulePage({
       ? await isSummerWorkshopApplicant(learnerId)
       : false;
 
+    // Authoring-side cohort flag — server reads it from the curriculum
+    // registry by contentKey so it stays in source-of-truth metadata
+    // without needing a Prisma column.
+    const curriculumDef = journeyModule.contentKey
+      ? getCurriculum(journeyModule.contentKey)
+      : undefined;
+    const showCohortIntro = curriculumDef?.journey.showCohortIntro === true;
+
     return (
       <JourneyShell
         snapshot={{
@@ -260,6 +269,7 @@ export default async function TrainingModulePage({
           userAttempts,
           resumeBeatSourceKey,
           completion: completionSummary,
+          showCohortIntro,
         }}
         backHref={academyHref}
         backLabel={academyLabel}

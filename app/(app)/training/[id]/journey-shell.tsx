@@ -20,7 +20,7 @@ import { READINESS_CHECK_MODULE_KEY } from "@/lib/training-constants";
 
 import { MotionProvider } from "@/components/training/journey/MotionProvider";
 import { JourneyIntro } from "@/components/training/journey/JourneyIntro";
-import { JourneyPlayer } from "@/components/training/journey/JourneyPlayer";
+import { JourneyPlayer, type PeakMoment } from "@/components/training/journey/JourneyPlayer";
 import { JourneyComplete } from "@/components/training/journey/JourneyComplete";
 import "@/components/training/journey/journey.css";
 
@@ -65,6 +65,9 @@ export function JourneyShell({
   // Completion state written during this visit (takes priority over snapshot.completion)
   const [completionState, setCompletionState] =
     useState<JourneyCompletionSummary | null>(null);
+
+  // Peak moment captured by the player — only available for THIS run.
+  const [peakMoment, setPeakMoment] = useState<PeakMoment | null>(null);
 
   // Active resume key — may be refreshed on window focus
   const [resumeBeatSourceKey, setResumeBeatSourceKey] = useState<string | null>(
@@ -111,10 +114,14 @@ export function JourneyShell({
   // Completion handler (called by JourneyPlayer after completeJourneyAction)
   // ---------------------------------------------------------------------------
 
-  const handleComplete = useCallback((result: JourneyCompletionSummary) => {
-    setCompletionState(result);
-    setPhase("complete");
-  }, []);
+  const handleComplete = useCallback(
+    (result: JourneyCompletionSummary, moment: PeakMoment | null) => {
+      setCompletionState(result);
+      setPeakMoment(moment);
+      setPhase("complete");
+    },
+    []
+  );
 
   // ---------------------------------------------------------------------------
   // Resolved completion (this visit takes priority over snapshot)
@@ -139,6 +146,7 @@ export function JourneyShell({
           mode={introMode}
           strictMode={snapshot.strictMode}
           passScorePct={snapshot.passScorePct}
+          showCohort={snapshot.showCohortIntro === true}
           onStart={() => setPhase("player")}
         />
       )}
@@ -165,6 +173,7 @@ export function JourneyShell({
           title={snapshot.title}
           backHref={backHref}
           nextModule={nextModule}
+          peakMoment={peakMoment}
           unlocksLessonDesignStudio={
             // Readiness Check is the capstone gate. Trust the explicit flag
             // from the server when provided; fall back to the legacy "STANDARD
