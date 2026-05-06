@@ -29,11 +29,12 @@ export type JourneyCompleteProps = {
   backHref: string;
   nextModule: { id: string; title: string } | null;
   /**
-   * When the just-completed module is the Readiness Check (M5), pass this so
-   * the success screen surfaces a clear LDS-unlock CTA instead of just "next
-   * module". Use `null` when the gate is irrelevant or the journey is not M5.
+   * When the just-completed module is the Readiness Check (M5), pass these so
+   * the success screen surfaces the right capstone CTA. They are mutually
+   * exclusive — the server picks one based on the applicant's subtype.
    */
   unlocksLessonDesignStudio?: boolean;
+  unlocksWorkshopSubmission?: boolean;
 };
 
 export function JourneyComplete({
@@ -42,6 +43,7 @@ export function JourneyComplete({
   backHref,
   nextModule,
   unlocksLessonDesignStudio = false,
+  unlocksWorkshopSubmission = false,
 }: JourneyCompleteProps) {
   const { variants, reduced } = useJourneyMotion();
 
@@ -147,7 +149,7 @@ export function JourneyComplete({
         </div>
 
         {/* What's next? — explicit guidance instead of leaving the user wondering */}
-        {unlocksLessonDesignStudio || nextModule ? (
+        {unlocksLessonDesignStudio || unlocksWorkshopSubmission || nextModule ? (
           <p
             style={{
               margin: "0 0 16px",
@@ -156,7 +158,15 @@ export function JourneyComplete({
               lineHeight: 1.5,
             }}
           >
-            {unlocksLessonDesignStudio ? (
+            {unlocksWorkshopSubmission ? (
+              <>
+                <strong style={{ color: "var(--ypp-purple)" }}>
+                  Workshop submission is unlocked.
+                </strong>{" "}
+                Design your own workshop or pick one from the approved
+                library next.
+              </>
+            ) : unlocksLessonDesignStudio ? (
               <>
                 <strong style={{ color: "var(--ypp-purple)" }}>
                   Lesson Design Studio is unlocked.
@@ -171,7 +181,17 @@ export function JourneyComplete({
 
         {/* CTAs — primary CTA leads forward, "Back to Academy" is the secondary action */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
-          {unlocksLessonDesignStudio ? (
+          {unlocksWorkshopSubmission ? (
+            <motion.div {...ctaAnimateProps}>
+              <Link
+                href="/instructor/workshop-design-studio"
+                className="button"
+                style={{ display: "block", textAlign: "center" }}
+              >
+                Open Workshop Design Studio
+              </Link>
+            </motion.div>
+          ) : unlocksLessonDesignStudio ? (
             <motion.div {...ctaAnimateProps}>
               <Link
                 href="/instructor/lesson-design-studio?entry=training"
@@ -203,7 +223,7 @@ export function JourneyComplete({
             </motion.div>
           )}
 
-          {(unlocksLessonDesignStudio || nextModule) && (
+          {(unlocksLessonDesignStudio || unlocksWorkshopSubmission || nextModule) && (
             <Link
               href={backHref}
               className="button secondary"

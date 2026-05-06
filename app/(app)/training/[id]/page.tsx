@@ -7,6 +7,8 @@ import {
   getTrainingAccessRedirect,
   hasApprovedInstructorTrainingAccess,
 } from "@/lib/training-access";
+import { READINESS_CHECK_MODULE_KEY } from "@/lib/training-constants";
+import { isSummerWorkshopApplicant } from "@/lib/workshop-proposal-access";
 import { serializeBeatForClient } from "@/lib/training-journey/serialize";
 import type { JourneyAttemptSummary } from "@/lib/training-journey/client-contracts";
 import { getBadgeForContentKey } from "@/lib/training-journey/client-contracts";
@@ -235,6 +237,14 @@ export default async function TrainingModulePage({
         }
       : null;
 
+    // Subtype-aware capstone signal — only relevant when the just-finished
+    // journey is the Readiness Check (M5). For SW applicants we route to
+    // the Workshop Design Studio; for STANDARD applicants we route to LDS.
+    const isReadinessCheck = journeyModule.contentKey === READINESS_CHECK_MODULE_KEY;
+    const summerWorkshop = isReadinessCheck
+      ? await isSummerWorkshopApplicant(learnerId)
+      : false;
+
     return (
       <JourneyShell
         snapshot={{
@@ -254,6 +264,8 @@ export default async function TrainingModulePage({
         backHref={academyHref}
         backLabel={academyLabel}
         nextModule={nextModule ?? null}
+        unlocksLessonDesignStudio={isReadinessCheck && !summerWorkshop}
+        unlocksWorkshopSubmission={isReadinessCheck && summerWorkshop}
       />
     );
   }

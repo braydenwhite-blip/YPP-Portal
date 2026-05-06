@@ -32,6 +32,13 @@ export type JourneyShellProps = {
   backHref: string;
   backLabel: string;
   nextModule: { id: string; title: string } | null;
+  /**
+   * Subtype-aware capstone signal. The training page resolves the user's
+   * applicant subtype and tells the shell which capstone unlocks when this
+   * journey is the Readiness Check. Both flags should never be true at once.
+   */
+  unlocksLessonDesignStudio?: boolean;
+  unlocksWorkshopSubmission?: boolean;
 };
 
 type Phase = "intro" | "player" | "complete";
@@ -45,6 +52,8 @@ export function JourneyShell({
   backHref,
   backLabel,
   nextModule,
+  unlocksLessonDesignStudio: unlocksLdsProp,
+  unlocksWorkshopSubmission: unlocksWorkshopProp,
 }: JourneyShellProps) {
   // Determine initial phase: skip straight to "complete" if already passed.
   const initialPhase: Phase =
@@ -156,10 +165,20 @@ export function JourneyShell({
           backHref={backHref}
           nextModule={nextModule}
           unlocksLessonDesignStudio={
-            // Readiness Check is the LDS gate — surface that connection
-            // explicitly so learners know what they just unlocked.
-            snapshot.contentKey === READINESS_CHECK_MODULE_KEY &&
-            resolvedCompletion.passed === true
+            // Readiness Check is the capstone gate. Trust the explicit flag
+            // from the server when provided; fall back to the legacy "STANDARD
+            // applicant + just passed M5" signal.
+            unlocksLdsProp ??
+            (snapshot.contentKey === READINESS_CHECK_MODULE_KEY &&
+              resolvedCompletion.passed === true &&
+              !unlocksWorkshopProp)
+          }
+          unlocksWorkshopSubmission={
+            unlocksWorkshopProp ??
+            (snapshot.contentKey === READINESS_CHECK_MODULE_KEY &&
+              resolvedCompletion.passed === true &&
+              !unlocksLdsProp &&
+              false /* default false: server must opt SW applicants in */)
           }
         />
       )}

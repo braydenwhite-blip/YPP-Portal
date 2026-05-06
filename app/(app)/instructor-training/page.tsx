@@ -212,6 +212,7 @@ export default async function InstructorTrainingPage({
   const lockedParamRaw = sp.locked;
   const lockedParam = Array.isArray(lockedParamRaw) ? lockedParamRaw[0] : lockedParamRaw;
   const showLdsLockedBanner = lockedParam === "lesson-design-studio";
+  const showWorkshopLockedBanner = lockedParam === "workshop-design-studio";
 
   const roles = session.user.roles ?? [];
   const canAccessTraining = hasApprovedInstructorTrainingAccess(roles);
@@ -586,15 +587,19 @@ export default async function InstructorTrainingPage({
         >
           <p style={{ margin: 0, fontSize: 13, color: "#5b21b6", lineHeight: 1.55 }}>
             <strong>Summer Workshop Instructor track.</strong>{" "}
-            You're on the lighter onboarding path: core expectations,
-            safety/professionalism, workshop delivery basics, and engagement tactics for camp
-            settings. The Lesson Design Studio capstone is not required at this stage and is
-            hidden — it becomes a follow-up if you're later promoted to full Instructor.
+            Complete required training, then submit a workshop in the{" "}
+            <Link href="/instructor/workshop-design-studio" className="link">
+              Workshop Design Studio
+            </Link>
+            . You can either design your own workshop or pick one from the
+            approved library — both submit into the same review queue. The
+            Lesson Design Studio capstone is hidden on this track and becomes
+            a follow-up only if you&rsquo;re later promoted to full Instructor.
           </p>
         </div>
       )}
 
-      {showLdsLockedBanner && !readinessCheckPassed ? (
+      {showLdsLockedBanner && !readinessCheckPassed && !isSummerWorkshopInstructor ? (
         <div
           className="card"
           role="status"
@@ -606,6 +611,37 @@ export default async function InstructorTrainingPage({
         >
           <p style={{ margin: 0, fontSize: 13, color: "#92400e" }}>
             <strong>Lesson Design Studio is locked.</strong>{" "}
+            Complete the Readiness Check first
+            {readinessCheckModuleId ? (
+              <>
+                {" — "}
+                <Link
+                  href={`/training/${readinessCheckModuleId}`}
+                  className="link"
+                >
+                  open it now
+                </Link>
+                .
+              </>
+            ) : (
+              "."
+            )}
+          </p>
+        </div>
+      ) : null}
+
+      {showWorkshopLockedBanner && !readinessCheckPassed && isSummerWorkshopInstructor ? (
+        <div
+          className="card"
+          role="status"
+          style={{
+            marginBottom: 16,
+            borderColor: "#f59e0b",
+            background: "#fffbeb",
+          }}
+        >
+          <p style={{ margin: 0, fontSize: 13, color: "#92400e" }}>
+            <strong>Workshop Design Studio is locked.</strong>{" "}
             Complete the Readiness Check first
             {readinessCheckModuleId ? (
               <>
@@ -663,6 +699,56 @@ export default async function InstructorTrainingPage({
           <p style={{ marginTop: 8, fontSize: 12, color: "var(--muted)" }}>{readiness.nextAction.detail}</p>
         </div>
       </div>
+
+      {isSummerWorkshopInstructor ? (
+        <div
+          className="card"
+          style={{
+            marginBottom: 20,
+            borderColor: readinessCheckPassed ? "#16a34a" : "var(--border)",
+            background: readinessCheckPassed ? "#f0fdf4" : "var(--surface)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "start",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <h3 style={{ marginBottom: 6 }}>Workshop Submission</h3>
+              <p style={{ margin: 0, fontSize: 14, color: "var(--muted)" }}>
+                {readinessCheckPassed
+                  ? "Training complete. Design or pick a workshop in the Workshop Design Studio and submit it for review."
+                  : "Unlocks once you finish the Readiness Check. Then design your own workshop or pick one from the approved library."}
+              </p>
+            </div>
+            {readinessCheckPassed ? (
+              <Link
+                href="/instructor/workshop-design-studio"
+                className="button small"
+                style={{ textDecoration: "none", whiteSpace: "nowrap" }}
+              >
+                Open Workshop Studio
+              </Link>
+            ) : (
+              <button
+                type="button"
+                className="button small"
+                disabled
+                aria-disabled="true"
+                style={{ cursor: "not-allowed", whiteSpace: "nowrap" }}
+                title="Complete the Readiness Check to unlock the Workshop Design Studio."
+              >
+                Locked
+              </button>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start" }}>
