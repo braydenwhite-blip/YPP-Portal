@@ -276,6 +276,24 @@ export default async function InstructorTrainingPage({
   );
   const isSummerWorkshopInstructor = instructorSubtype === "SUMMER_WORKSHOP";
 
+  // Promotion signal: STANDARD applicants who already have a workshop
+  // submission row were promoted from SUMMER_WORKSHOP. Surface a one-time
+  // banner explaining that their workshop is preserved and that the LDS
+  // capstone is the next step.
+  const previousWorkshopSubmission =
+    !isSummerWorkshopInstructor
+      ? await withPrismaFallback(
+          "instructor-training:promoted-from-sw",
+          () =>
+            prisma.workshopProposalSubmission.findUnique({
+              where: { authorId: instructorId },
+              select: { id: true, status: true, submittedAt: true },
+            }),
+          null
+        )
+      : null;
+  const wasPromotedFromSummerWorkshop = previousWorkshopSubmission !== null;
+
   const [
     modules,
     assignments,
@@ -598,6 +616,31 @@ export default async function InstructorTrainingPage({
           </p>
         </div>
       )}
+
+      {wasPromotedFromSummerWorkshop ? (
+        <div
+          className="card"
+          role="status"
+          style={{
+            marginBottom: 16,
+            borderColor: "#16a34a",
+            background: "#f0fdf4",
+          }}
+        >
+          <p style={{ margin: 0, fontSize: 14, color: "#14532d", lineHeight: 1.55 }}>
+            <strong>Promoted to full Instructor.</strong>{" "}
+            Your existing workshop submission is preserved and reviewers can
+            still see it. The next step on the standard track is the{" "}
+            <Link
+              href="/instructor/lesson-design-studio?entry=training"
+              className="link"
+            >
+              Lesson Design Studio capstone
+            </Link>
+            {" — "}finish that to clear training and unlock offering approval.
+          </p>
+        </div>
+      ) : null}
 
       {showLdsLockedBanner && !readinessCheckPassed && !isSummerWorkshopInstructor ? (
         <div

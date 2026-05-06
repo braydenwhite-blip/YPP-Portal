@@ -14,8 +14,53 @@ import {
   normalizeCustomWorkshop,
   normalizeReflection,
 } from "@/lib/workshop-proposal-validation";
+import type { WorkshopOutline } from "@/lib/summer-workshop";
 import { ReviewDecisionForm } from "./review-form";
 import { StartReviewBanner } from "./start-review";
+
+/**
+ * Normalize the legacy `InstructorApplication.workshopOutline` JSON column
+ * (collected at signup time, before the WorkshopProposalSubmission flow
+ * existed) into a typed read-only shape. The new submission table is the
+ * source of truth for review; this is purely informational context.
+ */
+function normalizeLegacyWorkshopOutline(
+  value: unknown
+): WorkshopOutline | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Record<string, unknown>;
+  const asString = (x: unknown) => (typeof x === "string" ? x.trim() : "");
+  const asStringArray = (x: unknown) =>
+    Array.isArray(x)
+      ? x.filter((s): s is string => typeof s === "string").map((s) => s.trim()).filter(Boolean)
+      : [];
+  const asPositiveInt = (x: unknown) => {
+    const n = Number(x);
+    return Number.isFinite(n) && n > 0 ? Math.round(n) : 0;
+  };
+  const outline: WorkshopOutline = {
+    title: asString(v.title),
+    ageRange: asString(v.ageRange),
+    durationMinutes: asPositiveInt(v.durationMinutes),
+    learningGoals: asStringArray(v.learningGoals),
+    activityFlow: asString(v.activityFlow),
+    materialsNeeded: asStringArray(v.materialsNeeded),
+    engagementHook: asString(v.engagementHook),
+    adaptationNotes: asString(v.adaptationNotes),
+  };
+  // Only return the outline if it contains some signal; an empty Json object
+  // has nothing useful to render.
+  const hasSignal =
+    outline.title ||
+    outline.ageRange ||
+    outline.durationMinutes ||
+    outline.learningGoals.length > 0 ||
+    outline.activityFlow ||
+    outline.materialsNeeded.length > 0 ||
+    outline.engagementHook ||
+    outline.adaptationNotes;
+  return hasSignal ? outline : null;
+}
 
 export default async function WorkshopReviewDetailPage({
   params,
@@ -86,6 +131,9 @@ export default async function WorkshopReviewDetailPage({
       ? normalizeCustomWorkshop(submission.customWorkshop)
       : null;
   const reflection = normalizeReflection(submission.reflection);
+  const legacyOutline = normalizeLegacyWorkshopOutline(
+    submission.author.instructorApplication?.workshopOutline ?? null
+  );
 
   // Compute training progress for the applicant — reviewers want context.
   const trainingAssignments = await prisma.trainingAssignment.findMany({
@@ -309,6 +357,91 @@ export default async function WorkshopReviewDetailPage({
               a={reflection.engagementPlan}
             />
           </Section>
+
+          {legacyOutline ? (
+            <Section title="Original signup outline (legacy)">
+              <p
+                style={{
+                  margin: "0 0 12px",
+                  fontSize: 12,
+                  color: "var(--muted)",
+                  lineHeight: 1.5,
+                }}
+              >
+                Captured during the applicant&rsquo;s signup, before the
+                Workshop Design Studio existed. Read-only — the submission
+                above is the source of truth for review.
+              </p>
+              <div
+                style={{
+                  border: "1px solid var(--border)",
+                  borderRadius: 10,
+                  padding: 12,
+                  background: "var(--surface-alt, #fafafa)",
+                  display: "grid",
+                  gap: 10,
+                  fontSize: 13,
+                }}
+              >
+                {legacyOutline.title ? (
+                  <p style={{ margin: 0 }}>
+                    <strong>Title:</strong> {legacyOutline.title}
+                  </p>
+                ) : null}
+                {legacyOutline.ageRange || legacyOutline.durationMinutes ? (
+                  <p style={{ margin: 0, color: "var(--muted)" }}>
+                    {legacyOutline.ageRange ? legacyOutline.ageRange : ""}
+                    {legacyOutline.ageRange && legacyOutline.durationMinutes
+                      ? " · "
+                      : ""}
+                    {legacyOutline.durationMinutes
+                      ? `${legacyOutline.durationMinutes} min`
+                      : ""}
+                  </p>
+                ) : null}
+                {legacyOutline.learningGoals.length > 0 ? (
+                  <div>
+                    <strong>Learning goals:</strong>
+                    <ul style={{ paddingLeft: 18, margin: "4px 0 0" }}>
+                      {legacyOutline.learningGoals.map((g, i) => (
+                        <li key={i}>{g}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                {legacyOutline.activityFlow ? (
+                  <div>
+                    <strong>Activity flow:</strong>
+                    <p style={{ whiteSpace: "pre-wrap", margin: "4px 0 0" }}>
+                      {legacyOutline.activityFlow}
+                    </p>
+                  </div>
+                ) : null}
+                {legacyOutline.materialsNeeded.length > 0 ? (
+                  <div>
+                    <strong>Materials:</strong>
+                    <ul style={{ paddingLeft: 18, margin: "4px 0 0" }}>
+                      {legacyOutline.materialsNeeded.map((m, i) => (
+                        <li key={i}>{m}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                {legacyOutline.engagementHook ? (
+                  <p style={{ margin: 0 }}>
+                    <strong>Engagement hook:</strong>{" "}
+                    {legacyOutline.engagementHook}
+                  </p>
+                ) : null}
+                {legacyOutline.adaptationNotes ? (
+                  <p style={{ margin: 0 }}>
+                    <strong>Adaptation notes:</strong>{" "}
+                    {legacyOutline.adaptationNotes}
+                  </p>
+                ) : null}
+              </div>
+            </Section>
+          ) : null}
 
           {submission.reviews.length > 0 ? (
             <Section title="Review history">
