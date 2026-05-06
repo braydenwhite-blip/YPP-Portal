@@ -25,11 +25,23 @@ export type LessonDesignStudioGateReason =
   | "READY"
   | "REVIEWER_BYPASS"
   | "READINESS_CHECK_NOT_IMPORTED"
-  | "READINESS_CHECK_REQUIRED";
+  | "READINESS_CHECK_REQUIRED"
+  | "WRONG_SUBTYPE";
 
 export type LessonDesignStudioGateStatus =
-  | { unlocked: true; reason: Exclude<LessonDesignStudioGateReason, "READINESS_CHECK_REQUIRED"> }
-  | { unlocked: false; reason: "READINESS_CHECK_REQUIRED"; readinessCheckModuleId: string };
+  | {
+      unlocked: true;
+      reason: Exclude<
+        LessonDesignStudioGateReason,
+        "READINESS_CHECK_REQUIRED" | "WRONG_SUBTYPE"
+      >;
+    }
+  | {
+      unlocked: false;
+      reason: "READINESS_CHECK_REQUIRED";
+      readinessCheckModuleId: string;
+    }
+  | { unlocked: false; reason: "WRONG_SUBTYPE" };
 
 type RoleLike = string | null | undefined;
 
@@ -71,9 +83,15 @@ export function evaluateLessonDesignStudioGateFromAssignment(opts: {
   roles: RoleLike[];
   readinessCheckModuleId: string | null | undefined;
   readinessCheckAssignmentStatus: string | null | undefined;
+  /** Optional — when provided, SUMMER_WORKSHOP users get WRONG_SUBTYPE instead
+   *  of a misleading "Readiness Check required" message. Reviewers still bypass. */
+  instructorSubtype?: "STANDARD" | "SUMMER_WORKSHOP" | null | undefined;
 }): LessonDesignStudioGateStatus {
   if (isReviewer(opts.roles)) {
     return { unlocked: true, reason: "REVIEWER_BYPASS" };
+  }
+  if (opts.instructorSubtype === "SUMMER_WORKSHOP") {
+    return { unlocked: false, reason: "WRONG_SUBTYPE" };
   }
   if (!opts.readinessCheckModuleId) {
     return { unlocked: true, reason: "READINESS_CHECK_NOT_IMPORTED" };

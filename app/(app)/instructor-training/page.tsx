@@ -559,12 +559,14 @@ export default async function InstructorTrainingPage({
   // Single source of truth for the LDS gate. `readiness.lessonDesignStudioGate`
   // is computed inside `buildInstructorReadinessFromSnapshot` and shared with
   // the server-side hard gate on the LDS route via `getLessonDesignStudioGateStatus`.
-  const readinessCheckPassed = readiness.lessonDesignStudioGate.unlocked;
-  const readinessCheckModuleId =
-    readiness.lessonDesignStudioGate.unlocked
-      ? moduleCards.find((c) => c.module.contentKey === READINESS_CHECK_MODULE_KEY)
-          ?.module.id ?? null
-      : readiness.lessonDesignStudioGate.readinessCheckModuleId;
+  const ldsGate = readiness.lessonDesignStudioGate;
+  const readinessCheckPassed = ldsGate.unlocked;
+  const readinessCheckModuleId = ldsGate.unlocked
+    ? moduleCards.find((c) => c.module.contentKey === READINESS_CHECK_MODULE_KEY)
+        ?.module.id ?? null
+    : ldsGate.reason === "READINESS_CHECK_REQUIRED"
+      ? ldsGate.readinessCheckModuleId
+      : null;
 
   const moduleWeight = readiness.requiredModulesCount;
   const doneModuleWeight = readiness.academyModulesComplete
