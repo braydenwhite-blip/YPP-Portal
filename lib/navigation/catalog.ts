@@ -880,6 +880,22 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 8,
       dashboardBadgeKey: "pending_curriculum_review",
     },
+    {
+      href: "/admin/workshop-library",
+      label: "Workshop Library",
+      icon: "🎒",
+      roles: ADMIN_ONLY,
+      dashboardDescription: "Curate the workshops Summer Workshop applicants can pick from.",
+      dashboardPriority: 9,
+    },
+    {
+      href: "/admin/workshop-reviews",
+      label: "Workshop Reviews",
+      icon: "🧐",
+      roles: ["ADMIN", "CHAPTER_PRESIDENT"] as NavRole[],
+      dashboardDescription: "Score Summer Workshop Instructor proposals and committed decisions.",
+      dashboardPriority: 9,
+    },
   ]),
 
   ...groupLinks("Admin Reports", 1300, [

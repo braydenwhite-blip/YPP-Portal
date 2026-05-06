@@ -26,7 +26,9 @@ export default async function WorkshopReviewDetailPage({
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
   const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT")) {
+  const isAdmin = roles.includes("ADMIN");
+  const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
+  if (!isAdmin && !isChapterLead) {
     redirect("/");
   }
 
@@ -38,11 +40,13 @@ export default async function WorkshopReviewDetailPage({
           id: true,
           name: true,
           email: true,
+          chapterId: true,
           chapter: { select: { name: true } },
           instructorApplication: {
             select: {
               applicationTrack: true,
               instructorSubtype: true,
+              workshopOutline: true,
             },
           },
         },
@@ -59,6 +63,23 @@ export default async function WorkshopReviewDetailPage({
   });
 
   if (!submission) notFound();
+
+  // Chapter-scoped reviewer guard: chapter leads can only open submissions
+  // from their own chapter. Admins bypass.
+  if (!isAdmin && isChapterLead) {
+    const reviewer = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { chapterId: true },
+    });
+    if (
+      !reviewer?.chapterId ||
+      !submission.author.chapterId ||
+      reviewer.chapterId !== submission.author.chapterId
+    ) {
+      // Don't leak existence of out-of-chapter submissions — show 404.
+      notFound();
+    }
+  }
 
   const custom =
     submission.sourceType === "CUSTOM_DESIGN"

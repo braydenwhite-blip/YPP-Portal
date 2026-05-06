@@ -26,19 +26,40 @@ export default async function WorkshopReviewsPage() {
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
   const roles = session.user.roles ?? [];
-  if (!roles.includes("ADMIN") && !roles.includes("CHAPTER_PRESIDENT")) {
+  const isAdmin = roles.includes("ADMIN");
+  const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
+  if (!isAdmin && !isChapterLead) {
     redirect("/");
   }
+
+  // Chapter scope for chapter leads. Mirrors the
+  // assertReviewerCanReviewSubmission rule in workshop-proposal-actions.ts:
+  // chapter leads see only authors in their own chapter; admins see all.
+  // We fail closed (empty queue) if a chapter lead has no chapter assigned,
+  // so the gate never silently widens.
+  const reviewerChapterId = isAdmin
+    ? null
+    : (await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { chapterId: true },
+      }))?.chapterId ?? null;
 
   // Hide DRAFT submissions — those are still being authored.
   const submissions = await withPrismaFallback(
     "workshop-reviews:list",
     () =>
       prisma.workshopProposalSubmission.findMany({
-        where: { status: { not: "DRAFT" } },
+        where: {
+          status: { not: "DRAFT" },
+          ...(isAdmin
+            ? {}
+            : reviewerChapterId
+              ? { author: { chapterId: reviewerChapterId } }
+              : { id: "__no_match__" /* fail closed */ }),
+        },
         orderBy: [{ submittedAt: "asc" }, { updatedAt: "desc" }],
         include: {
-          author: { select: { id: true, name: true, email: true } },
+          author: { select: { id: true, name: true, email: true, chapterId: true } },
           template: { select: { id: true, title: true } },
         },
       }),

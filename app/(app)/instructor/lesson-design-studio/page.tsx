@@ -13,6 +13,7 @@ import {
   getStudioEntryContextFromSearchParams,
 } from "@/lib/lesson-design-studio";
 import { getLessonDesignStudioGateStatus } from "@/lib/lesson-design-studio-gate";
+import { isSummerWorkshopApplicant } from "@/lib/workshop-proposal-access";
 import { DraftChooser } from "./draft-chooser";
 import "./studio.css";
 
@@ -32,6 +33,20 @@ export default async function CurriculumBuilderStudioPage({
     roles.includes("APPLICANT");
 
   if (!hasAccess) redirect("/");
+
+  // Subtype routing: Summer Workshop applicants belong in the Workshop Design
+  // Studio, not LDS. Reviewers (ADMIN / CHAPTER_PRESIDENT) bypass — they may
+  // be previewing the LDS regardless of their own subtype. INSTRUCTOR is
+  // intentionally not bypassed: a promoted SW instructor's subtype flips to
+  // STANDARD via promoteToFullInstructor before they reach LDS.
+  const isReviewer =
+    roles.includes("ADMIN") || roles.includes("CHAPTER_PRESIDENT");
+  if (!isReviewer) {
+    const onWorkshopTrack = await isSummerWorkshopApplicant(session.user.id);
+    if (onWorkshopTrack) {
+      redirect("/instructor/workshop-design-studio");
+    }
+  }
 
   const gate = await getLessonDesignStudioGateStatus(session.user.id, roles);
   if (!gate.unlocked) {

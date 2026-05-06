@@ -57,6 +57,61 @@ async function requireReviewer() {
   return session;
 }
 
+/**
+ * Chapter-scoped reviewer guard. Mirrors the
+ * `assertReviewerCanManageInstructor` pattern in `training-actions.ts`:
+ *   * ADMIN — passes for any submission.
+ *   * CHAPTER_PRESIDENT — only passes if the submission's author and the
+ *     reviewer share a `chapterId`. If either side is missing a chapter, we
+ *     fail closed (chapter data must be reliable for this gate to be safe).
+ *
+ * Throws on failure so the action never silently writes to a submission the
+ * reviewer shouldn't see.
+ */
+async function assertReviewerCanReviewSubmission(
+  reviewerId: string,
+  submissionAuthorId: string
+) {
+  const [reviewer, author] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: reviewerId },
+      select: {
+        chapterId: true,
+        roles: { select: { role: true } },
+      },
+    }),
+    prisma.user.findUnique({
+      where: { id: submissionAuthorId },
+      select: { chapterId: true },
+    }),
+  ]);
+
+  if (!reviewer || !author) {
+    throw new Error("Reviewer or applicant not found");
+  }
+
+  const reviewerRoles = reviewer.roles.map((r) => r.role);
+  const isAdmin = reviewerRoles.includes("ADMIN");
+  const isChapterLead = reviewerRoles.includes("CHAPTER_PRESIDENT");
+
+  if (!isAdmin && !isChapterLead) {
+    throw new Error("Unauthorized — reviewer access required");
+  }
+
+  if (isChapterLead && !isAdmin) {
+    if (!reviewer.chapterId || !author.chapterId) {
+      throw new Error(
+        "Chapter Presidents can only review applicants in their own chapter."
+      );
+    }
+    if (reviewer.chapterId !== author.chapterId) {
+      throw new Error(
+        "Chapter Presidents can only review applicants in their own chapter."
+      );
+    }
+  }
+}
+
 function getString(formData: FormData, key: string, required = true): string {
   const value = formData.get(key);
   if (required && (!value || String(value).trim() === "")) {
@@ -485,9 +540,10 @@ export async function startWorkshopReview(formData: FormData) {
 
   const submission = await prisma.workshopProposalSubmission.findUnique({
     where: { id: submissionId },
-    select: { id: true, status: true },
+    select: { id: true, status: true, authorId: true },
   });
   if (!submission) throw new Error("Submission not found");
+  await assertReviewerCanReviewSubmission(session.user.id, submission.authorId);
   if (!isSubmissionReviewable(submission.status)) {
     throw new Error("This submission isn't open for review.");
   }
@@ -540,6 +596,7 @@ export async function commitWorkshopReview(formData: FormData) {
     select: { id: true, status: true, authorId: true },
   });
   if (!submission) throw new Error("Submission not found");
+  await assertReviewerCanReviewSubmission(reviewerId, submission.authorId);
   if (!isSubmissionReviewable(submission.status)) {
     throw new Error("This submission isn't open for review.");
   }

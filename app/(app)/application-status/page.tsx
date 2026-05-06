@@ -321,12 +321,34 @@ export default async function ApplicationStatusPage() {
             {instructorApp.status === "APPROVED" && (
               <>
                 <h3 className="section-title" style={{ color: "#16a34a" }}>Approved!</h3>
-                <p style={{ color: "var(--muted)", fontSize: 14, marginBottom: 16 }}>
-                  Your instructor application has been approved. Continue your studio journey in instructor training.
-                </p>
-                <Link href="/instructor-training" className="button" style={{ display: "inline-block", textDecoration: "none" }}>
-                  Start Instructor Training
-                </Link>
+                {instructorApp.instructorSubtype === "SUMMER_WORKSHOP" ? (
+                  <>
+                    <p style={{ color: "var(--muted)", fontSize: 14, marginBottom: 16 }}>
+                      You&rsquo;re approved on the Summer Workshop Instructor track. Finish required training, then submit a workshop in the Workshop Design Studio — design your own or pick from the approved library.
+                    </p>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <Link href="/instructor-training" className="button" style={{ textDecoration: "none" }}>
+                        Start Instructor Training
+                      </Link>
+                      <Link
+                        href="/instructor/workshop-design-studio"
+                        className="button secondary"
+                        style={{ textDecoration: "none" }}
+                      >
+                        Open Workshop Design Studio
+                      </Link>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p style={{ color: "var(--muted)", fontSize: 14, marginBottom: 16 }}>
+                      Your instructor application has been approved. Continue your studio journey in instructor training.
+                    </p>
+                    <Link href="/instructor-training" className="button" style={{ display: "inline-block", textDecoration: "none" }}>
+                      Start Instructor Training
+                    </Link>
+                  </>
+                )}
               </>
             )}
             {instructorApp.status === "REJECTED" && (
