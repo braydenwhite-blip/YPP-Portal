@@ -1,28 +1,37 @@
 "use client";
 
 /**
- * BeatFeedback — mentor-style feedback card shown after a beat is submitted.
+ * BeatFeedback — two-phase teaching simulation feedback.
  *
- * Adds a small "Coach" byline + avatar so the panel reads as a person reacting,
- * not a flat verdict. Headlines lightly vary across attempts so users don't see
- * "That's the move" every single time. Reduced-motion safe via the existing
- * MotionProvider variants.
+ *   Phase 1 (immediate): "What happened in the room"
+ *     - studentReaction card (avatar + body language + optional quote)
+ *     - one-line consequence ("Maya re-engages", "The room goes quiet")
  *
- * Accessibility:
- *   - aria-live="polite" + aria-atomic="true" so screen readers announce on mount.
- *   - On positive tone, the panel is focused after 100 ms so the announcement
- *     is caught even when focus is elsewhere.
+ *   Phase 2 (~520ms later): Coach analysis
+ *     - mentor avatar + byline
+ *     - opener + headline + body
+ *     - hint + callouts
+ *
+ * If the feedback has no studentReaction/consequence (legacy content), Phase 1
+ * is skipped and the mentor analysis renders immediately — same UX as before.
+ *
+ * Reduced-motion: phases reveal back-to-back with no springs; no transition
+ * delay since users with reduced-motion preferences typically also expect
+ * immediate information.
+ *
+ * Accessibility: aria-live="polite" on the wrapper. Announcements are batched
+ * via aria-atomic so the screen reader hears the room reaction + analysis as
+ * one coherent moment, not two interruptions.
  */
 
-import { useEffect, useMemo, useRef } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import type { BeatFeedback as BeatFeedbackType } from "@/lib/training-journey/types";
 import { useJourneyMotion } from "@/components/training/journey/MotionProvider";
 
 // ---------------------------------------------------------------------------
-// Mentor voice — small rotating list of warm, human openers.
-// We pick deterministically based on the headline so the same beat always
-// gets the same opener (no flicker, no unwanted novelty between renders).
+// Mentor voice — small rotating list of warm, human openers, picked
+// deterministically so the same beat always gets the same opener.
 // ---------------------------------------------------------------------------
 
 const POSITIVE_OPENERS = [
@@ -33,11 +42,7 @@ const POSITIVE_OPENERS = [
   "You picked it up.",
 ];
 
-const PARTIAL_OPENERS = [
-  "Almost there.",
-  "Close — a tweak.",
-  "Right idea.",
-];
+const PARTIAL_OPENERS = ["Almost there.", "Close — a tweak.", "Right idea."];
 
 const INCORRECT_OPENERS = [
   "Worth a closer look.",
@@ -45,11 +50,7 @@ const INCORRECT_OPENERS = [
   "Try this lens.",
 ];
 
-const NOTED_OPENERS = [
-  "Logged.",
-  "Got it.",
-  "Thanks for that.",
-];
+const NOTED_OPENERS = ["Logged.", "Got it.", "Thanks for that."];
 
 function hashStr(s: string): number {
   let h = 0;
@@ -70,16 +71,42 @@ function pickOpener(tone: BeatFeedbackType["tone"], seed: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// Student archetype → emoji + accent. Kept small on purpose — these read as
+// avatars, not characters. Avoid skin-tone emoji to dodge representation
+// landmines; abstract faces only.
+// ---------------------------------------------------------------------------
+
+const ARCHETYPE_VISUALS: Record<
+  NonNullable<NonNullable<BeatFeedbackType["studentReaction"]>["archetype"]>,
+  { emoji: string; label: string }
+> = {
+  shy: { emoji: "🫥", label: "shy" },
+  overconfident: { emoji: "😎", label: "overconfident" },
+  distracted: { emoji: "🌀", label: "distracted" },
+  nervous: { emoji: "😬", label: "nervous" },
+  curious: { emoji: "🤔", label: "curious" },
+  resistant: { emoji: "😶", label: "resistant" },
+};
+
+const MOOD_LABEL: Record<
+  NonNullable<NonNullable<BeatFeedbackType["studentReaction"]>["mood"]>,
+  string
+> = {
+  shutdown: "shutting down",
+  engaged: "engaged",
+  confused: "confused",
+  "checked-out": "checked out",
+  energized: "energized",
+  frustrated: "frustrated",
+};
+
+// ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
 type BeatFeedbackProps = {
   feedback: BeatFeedbackType;
 };
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 function isPositiveTone(tone: BeatFeedbackType["tone"]): boolean {
   return tone === "correct" || tone === "noted";
@@ -90,7 +117,7 @@ function isPositiveTone(tone: BeatFeedbackType["tone"]): boolean {
 // ---------------------------------------------------------------------------
 
 export function BeatFeedback({ feedback }: BeatFeedbackProps) {
-  const { variants } = useJourneyMotion();
+  const { variants, reduced } = useJourneyMotion();
   const regionRef = useRef<HTMLDivElement>(null);
 
   const opener = useMemo(
@@ -98,61 +125,137 @@ export function BeatFeedback({ feedback }: BeatFeedbackProps) {
     [feedback.tone, feedback.headline]
   );
 
+  const hasReaction = Boolean(feedback.studentReaction || feedback.consequence);
+  const [showCoach, setShowCoach] = useState(!hasReaction);
+
+  // Reveal mentor analysis after the room reaction has had a moment to land.
   useEffect(() => {
-    if (isPositiveTone(feedback.tone)) {
-      const id = setTimeout(() => {
-        regionRef.current?.focus();
-      }, 100);
+    if (!hasReaction) return;
+    const id = setTimeout(() => setShowCoach(true), reduced ? 100 : 520);
+    return () => clearTimeout(id);
+  }, [hasReaction, reduced]);
+
+  useEffect(() => {
+    if (showCoach && isPositiveTone(feedback.tone)) {
+      const id = setTimeout(() => regionRef.current?.focus(), 100);
       return () => clearTimeout(id);
     }
-  }, [feedback.tone]);
+  }, [showCoach, feedback.tone]);
 
   return (
-    <motion.div
+    <div
       ref={regionRef}
-      className="beat-feedback"
-      data-tone={feedback.tone}
+      className="beat-feedback-stack"
       role="status"
       aria-live="polite"
       aria-atomic="true"
       tabIndex={-1}
-      variants={variants.fadeUp}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
+      data-tone={feedback.tone}
     >
-      <div className="beat-feedback__top">
-        <span className="beat-feedback__avatar" aria-hidden="true">
-          MJ
-        </span>
-        <span className="beat-feedback__byline">
-          <span className="beat-feedback__byline-name">Coach Mara</span>
-          <span className="beat-feedback__byline-role">Workshop lead</span>
-        </span>
-      </div>
+      {/* ── Phase 1: room reaction ── */}
+      <AnimatePresence>
+        {hasReaction ? (
+          <motion.div
+            key="reaction"
+            className="room-reaction"
+            data-tone={feedback.tone}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: reduced ? 0.1 : 0.32, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {feedback.studentReaction ? (
+              <div className="room-reaction__student">
+                <span className="room-reaction__avatar" aria-hidden="true">
+                  {feedback.studentReaction.archetype
+                    ? ARCHETYPE_VISUALS[feedback.studentReaction.archetype].emoji
+                    : "🙂"}
+                </span>
+                <div className="room-reaction__bio">
+                  <span className="room-reaction__name">
+                    {feedback.studentReaction.studentName}
+                    {feedback.studentReaction.mood ? (
+                      <span className="room-reaction__mood">
+                        {" · "}
+                        {MOOD_LABEL[feedback.studentReaction.mood]}
+                      </span>
+                    ) : null}
+                  </span>
+                  {feedback.studentReaction.bodyLanguage ? (
+                    <span className="room-reaction__body-lang">
+                      {feedback.studentReaction.bodyLanguage}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
 
-      <h3 className="beat-feedback__headline">
-        <span className="beat-feedback__opener">{opener} </span>
-        {feedback.headline}
-      </h3>
+            {feedback.studentReaction?.quote ? (
+              <p className="room-reaction__quote">
+                &ldquo;{feedback.studentReaction.quote}&rdquo;
+              </p>
+            ) : null}
 
-      <p className="beat-feedback__body">{feedback.body}</p>
+            {feedback.consequence ? (
+              <p className="room-reaction__consequence">{feedback.consequence}</p>
+            ) : null}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
-      {feedback.hint && (
-        <p className="beat-feedback__hint">
-          <strong>Try this:</strong> {feedback.hint}
-        </p>
-      )}
+      {/* ── Phase 2: mentor analysis ── */}
+      <AnimatePresence>
+        {showCoach ? (
+          <motion.div
+            key="coach"
+            className="beat-feedback"
+            data-tone={feedback.tone}
+            variants={variants.fadeUp}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+          >
+            <div className="beat-feedback__top">
+              <span className="beat-feedback__avatar" aria-hidden="true">
+                MJ
+              </span>
+              <span className="beat-feedback__byline">
+                <span className="beat-feedback__byline-name">Coach Mara</span>
+                <span className="beat-feedback__byline-role">Workshop lead</span>
+              </span>
+            </div>
 
-      {feedback.callouts && feedback.callouts.length > 0 && (
-        <ul className="beat-feedback__callouts" aria-label="Feedback callouts">
-          {feedback.callouts.map((callout) => (
-            <li key={String(callout.target)} className="beat-feedback__callout">
-              {callout.label}
-            </li>
-          ))}
-        </ul>
-      )}
-    </motion.div>
+            <h3 className="beat-feedback__headline">
+              <span className="beat-feedback__opener">{opener} </span>
+              {feedback.headline}
+            </h3>
+
+            <p className="beat-feedback__body">{feedback.body}</p>
+
+            {feedback.hint && (
+              <p className="beat-feedback__hint">
+                <strong>Try this:</strong> {feedback.hint}
+              </p>
+            )}
+
+            {feedback.callouts && feedback.callouts.length > 0 && (
+              <ul
+                className="beat-feedback__callouts"
+                aria-label="Feedback callouts"
+              >
+                {feedback.callouts.map((callout) => (
+                  <li
+                    key={String(callout.target)}
+                    className="beat-feedback__callout"
+                  >
+                    {callout.label}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
   );
 }

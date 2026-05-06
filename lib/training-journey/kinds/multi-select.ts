@@ -18,6 +18,27 @@ const FEEDBACK_SCHEMA: z.ZodType<BeatFeedback> = z.object({
       })
     )
     .optional(),
+  studentReaction: z
+    .object({
+      studentName: z.string(),
+      archetype: z
+        .enum(["shy", "overconfident", "distracted", "nervous", "curious", "resistant"])
+        .optional(),
+      quote: z.string().optional(),
+      bodyLanguage: z.string().optional(),
+      mood: z
+        .enum(["shutdown", "engaged", "confused", "checked-out", "energized", "frustrated"])
+        .optional(),
+    })
+    .optional(),
+  consequence: z.string().optional(),
+  roomDelta: z
+    .object({
+      engagement: z.number().optional(),
+      clarity: z.number().optional(),
+      energy: z.number().optional(),
+    })
+    .optional(),
 });
 
 // ---------------------------------------------------------------------------
