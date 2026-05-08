@@ -309,6 +309,7 @@ export default async function InstructorTrainingPage({
       "instructor-training:modules",
       () =>
         prisma.trainingModule.findMany({
+          where: { archivedAt: null },
           orderBy: { sortOrder: "asc" },
           include: {
             quizQuestions: {

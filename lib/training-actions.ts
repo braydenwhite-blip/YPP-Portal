@@ -1672,6 +1672,59 @@ export async function cloneTrainingModule(formData: FormData) {
   revalidatePath("/student-training");
 }
 
+export async function archiveTrainingModule(formData: FormData) {
+  await requireAdmin();
+
+  const moduleId = getString(formData, "moduleId");
+
+  await prisma.trainingModule.update({
+    where: { id: moduleId },
+    data: { archivedAt: new Date() },
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/training");
+  revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
+}
+
+export async function unarchiveTrainingModule(formData: FormData) {
+  await requireAdmin();
+
+  const moduleId = getString(formData, "moduleId");
+
+  await prisma.trainingModule.update({
+    where: { id: moduleId },
+    data: { archivedAt: null },
+  });
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/training");
+  revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
+}
+
+export async function inlineUpdateTrainingModule(formData: FormData) {
+  await requireAdmin();
+
+  const moduleId = getString(formData, "moduleId");
+  const title = getString(formData, "title");
+  const description = getString(formData, "description");
+  const required = formData.get("required") === "on";
+
+  await prisma.trainingModule.update({
+    where: { id: moduleId },
+    data: { title, description, required },
+  });
+
+  await syncAssignmentsForModule(moduleId);
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/training");
+  revalidatePath("/instructor-training");
+  revalidatePath("/student-training");
+}
+
 export async function reorderTrainingModules(formData: FormData) {
   await requireAdmin();
 

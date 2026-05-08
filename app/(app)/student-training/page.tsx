@@ -32,7 +32,7 @@ export default async function StudentTrainingPage() {
         "student-training:assignments",
         () =>
           prisma.trainingAssignment.findMany({
-            where: { userId: learnerId },
+            where: { userId: learnerId, module: { archivedAt: null } },
             include: {
               module: {
                 include: {

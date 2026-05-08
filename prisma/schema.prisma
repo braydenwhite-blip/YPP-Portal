@@ -1558,8 +1558,11 @@ model TrainingModule {
   quizAttempts        TrainingQuizAttempt[]
   evidenceSubmissions TrainingEvidenceSubmission[]
   interactiveJourney  InteractiveJourney?
+  archivedAt          DateTime?
   createdAt           DateTime                     @default(now())
   updatedAt           DateTime                     @updatedAt
+
+  @@index([archivedAt])
 }
 
 enum VideoProvider {

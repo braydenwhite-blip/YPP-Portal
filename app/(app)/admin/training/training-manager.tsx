@@ -44,6 +44,26 @@ interface ModuleQuizQuestion {
   sortOrder: number;
 }
 
+interface ModuleVideo {
+  id: string;
+  title: string;
+  description: string | null;
+  videoUrl: string;
+  videoProvider: string;
+  videoDuration: number;
+  sortOrder: number;
+  isSupplementary: boolean;
+}
+
+interface ModuleResource {
+  id: string;
+  title: string;
+  description: string | null;
+  resourceUrl: string;
+  resourceType: string;
+  sortOrder: number;
+}
+
 interface Module {
   id: string;
   contentKey: string | null;
@@ -54,6 +74,7 @@ interface Module {
   type: string;
   required: boolean;
   sortOrder: number;
+  archivedAt: string | null;
   videoUrl: string | null;
   videoProvider: string | null;
   videoDuration: number | null;
@@ -62,6 +83,8 @@ interface Module {
   requiresEvidence: boolean;
   passScorePct: number;
   estimatedMinutes: number | null;
+  videos: ModuleVideo[];
+  resources: ModuleResource[];
   checkpoints: ModuleCheckpoint[];
   quizQuestions: ModuleQuizQuestion[];
   assignmentCount: number;
@@ -114,6 +137,13 @@ export default function TrainingManager({
 }) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"modules" | "progress" | "json">("modules");
+  const [showArchived, setShowArchived] = useState(false);
+
+  const visibleModules = showArchived
+    ? modules.filter((m) => m.archivedAt !== null)
+    : modules.filter((m) => m.archivedAt === null);
+  const archivedCount = modules.filter((m) => m.archivedAt !== null).length;
+  const activeCount = modules.length - archivedCount;
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -261,6 +291,25 @@ export default function TrainingManager({
         </p>
       </div>
 
+      {activeTab === "modules" && (
+        <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className={`button small ${showArchived ? "outline" : ""}`}
+            onClick={() => setShowArchived(false)}
+          >
+            Active ({activeCount})
+          </button>
+          <button
+            type="button"
+            className={`button small ${showArchived ? "" : "outline"}`}
+            onClick={() => setShowArchived(true)}
+          >
+            Archived ({archivedCount})
+          </button>
+        </div>
+      )}
+
       {/* Tab bar + New Module button */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <div className="admin-training-tabs" style={{ marginBottom: 0, flex: 1 }}>
@@ -293,10 +342,11 @@ export default function TrainingManager({
       {/* Modules tab */}
       {activeTab === "modules" && (
         <SortableModuleList
-          modules={modules}
+          modules={visibleModules}
           instructors={instructors}
           students={students}
           onEdit={openEdit}
+          showingArchived={showArchived}
         />
       )}
 
