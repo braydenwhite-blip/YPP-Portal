@@ -17,6 +17,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
+  archiveTrainingModule,
   assignTrainingToUser,
   bulkAssignModuleToInstructors,
   bulkAssignModuleToStudents,
@@ -26,12 +27,16 @@ import {
   deleteTrainingCheckpoint,
   deleteTrainingModule,
   deleteTrainingQuizQuestion,
+  inlineUpdateTrainingModule,
   markTrainingComplete,
   reorderTrainingModules,
+  unarchiveTrainingModule,
   updateTrainingCheckpoint,
   updateTrainingQuizQuestion,
 } from "@/lib/training-actions";
 import QuizOptionBuilder from "./quiz-option-builder";
+import MarkdownEditor from "./markdown-editor";
+import { ResourceEditor, VideoEditor, type ModuleResource, type ModuleVideo } from "./media-editor";
 
 // ------------------------------------
 // Shared types (mirrored from training-manager.tsx)
@@ -75,6 +80,7 @@ interface Module {
   type: string;
   required: boolean;
   sortOrder: number;
+  archivedAt: string | null;
   videoUrl: string | null;
   videoProvider: string | null;
   videoDuration: number | null;
@@ -83,6 +89,8 @@ interface Module {
   requiresEvidence: boolean;
   passScorePct: number;
   estimatedMinutes: number | null;
+  videos: ModuleVideo[];
+  resources: ModuleResource[];
   checkpoints: ModuleCheckpoint[];
   quizQuestions: ModuleQuizQuestion[];
   assignmentCount: number;
@@ -100,6 +108,7 @@ interface SortableModuleListProps {
   instructors: Instructor[];
   students: Instructor[];
   onEdit: (moduleId: string) => void;
+  showingArchived?: boolean;
 }
 
 // ------------------------------------
@@ -232,6 +241,8 @@ function SortableModuleCard({
   };
 
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isInlineEditing, setIsInlineEditing] = useState(false);
+  const isArchived = mod.archivedAt !== null;
 
   const completedCount = mod.assignments.filter((a) => a.status === "COMPLETE").length;
   const inProgressCount = mod.assignments.filter((a) => a.status === "IN_PROGRESS").length;
@@ -268,6 +279,11 @@ function SortableModuleCard({
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <span className="admin-training-module-order">#{mod.sortOrder}</span>
             <span style={{ fontWeight: 600, fontSize: 15 }}>{mod.title}</span>
+            {isArchived && (
+              <span className="pill pill-small pill-pending" title={`Archived ${new Date(mod.archivedAt!).toLocaleDateString()}`}>
+                Archived
+              </span>
+            )}
             <span className={`pill pill-small ${mod.required ? "pill-purple" : "pill-declined"}`}>
               {mod.required ? "Required" : "Optional"}
             </span>
@@ -336,14 +352,41 @@ function SortableModuleCard({
             <button
               className="button small outline"
               type="button"
+              onClick={() => setIsInlineEditing((v) => !v)}
+              aria-expanded={isInlineEditing}
+            >
+              {isInlineEditing ? "Cancel inline edit" : "Quick edit"}
+            </button>
+            <button
+              className="button small outline"
+              type="button"
               onClick={() => onEdit(mod.id)}
             >
-              Edit Module
+              Full editor
             </button>
             <form action={cloneTrainingModule} style={{ display: "inline" }}>
               <input type="hidden" name="moduleId" value={mod.id} />
-              <button className="button small outline" type="submit">Clone</button>
+              <button className="button small outline" type="submit">Duplicate</button>
             </form>
+            {isArchived ? (
+              <form action={unarchiveTrainingModule} style={{ display: "inline" }}>
+                <input type="hidden" name="moduleId" value={mod.id} />
+                <button className="button small" type="submit">Unarchive</button>
+              </form>
+            ) : (
+              <form
+                action={archiveTrainingModule}
+                style={{ display: "inline" }}
+                onSubmit={(e) => {
+                  if (!confirm(`Archive "${mod.title}"? Learners will no longer see it. You can unarchive later.`)) {
+                    e.preventDefault();
+                  }
+                }}
+              >
+                <input type="hidden" name="moduleId" value={mod.id} />
+                <button className="button small outline" type="submit">Archive</button>
+              </form>
+            )}
             <form action={bulkAssignModuleToInstructors} style={{ display: "inline" }}>
               <input type="hidden" name="moduleId" value={mod.id} />
               <button className="button small" type="submit">Assign All Instructors</button>
@@ -365,6 +408,71 @@ function SortableModuleCard({
               <button className="button small danger" type="submit">Delete</button>
             </form>
           </div>
+
+          {/* Inline edit panel */}
+          {isInlineEditing && (
+            <form
+              action={async (formData) => {
+                await inlineUpdateTrainingModule(formData);
+                setIsInlineEditing(false);
+              }}
+              className="form-grid"
+              style={{
+                border: "1px solid var(--border)",
+                borderRadius: 10,
+                padding: 12,
+                marginBottom: 16,
+                background: "var(--ypp-blush, #f3ecff)",
+              }}
+            >
+              <input type="hidden" name="moduleId" value={mod.id} />
+              <p style={{ margin: 0, fontSize: 12, color: "var(--muted)" }}>
+                Quick edit: title, description (markdown), and required flag. For all other fields, use the full editor.
+              </p>
+              <label className="form-row">
+                Title
+                <input className="input" name="title" defaultValue={mod.title} required />
+              </label>
+              <div className="form-row">
+                <span>Description</span>
+                <MarkdownEditor
+                  name="description"
+                  defaultValue={mod.description}
+                  rows={6}
+                  required
+                  placeholder="What will learners get out of this module?"
+                />
+              </div>
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 14,
+                  cursor: "pointer",
+                }}
+              >
+                <input type="checkbox" name="required" defaultChecked={mod.required} />
+                Required module
+              </label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="button small" type="submit">Save changes</button>
+                <button
+                  className="button small outline"
+                  type="button"
+                  onClick={() => setIsInlineEditing(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Videos */}
+          <VideoEditor moduleId={mod.id} videos={mod.videos} />
+
+          {/* Resources */}
+          <ResourceEditor moduleId={mod.id} resources={mod.resources} />
 
           {/* Module Goals */}
           <div style={{ marginBottom: 16 }}>

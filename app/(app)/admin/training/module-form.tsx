@@ -6,6 +6,7 @@ import {
   updateTrainingModule,
 } from "@/lib/training-actions";
 import { TrainingModuleType, VideoProvider } from "@prisma/client";
+import MarkdownEditor from "./markdown-editor";
 
 interface Module {
   id: string;
@@ -115,18 +116,19 @@ export default function ModuleForm({ module, onClose, nextSortOrder }: ModuleFor
         </select>
       </label>
 
-      <label className="form-row">
-        Description <span style={{ color: "#dc2626" }}>*</span>
-        <textarea
-          className="input"
+      <div className="form-row">
+        <span>
+          Description <span style={{ color: "#dc2626" }}>*</span>
+        </span>
+        <MarkdownEditor
           name="description"
-          rows={3}
-          required
-          placeholder="What will learners get out of this module?"
           defaultValue={module?.description ?? ""}
+          rows={4}
+          required
           disabled={isPending}
+          placeholder="What will learners get out of this module?"
         />
-      </label>
+      </div>
 
       {/* Materials */}
       <div className="module-form-section">

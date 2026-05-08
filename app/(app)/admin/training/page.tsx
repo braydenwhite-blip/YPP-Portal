@@ -21,6 +21,12 @@ export default async function AdminTrainingPage() {
           quizQuestions: {
             orderBy: { sortOrder: "asc" },
           },
+          videos: {
+            orderBy: { sortOrder: "asc" },
+          },
+          resources: {
+            orderBy: { sortOrder: "asc" },
+          },
           assignments: {
             include: {
               user: { select: { id: true, name: true, email: true } },
@@ -71,6 +77,7 @@ export default async function AdminTrainingPage() {
     type: m.type,
     required: m.required,
     sortOrder: m.sortOrder,
+    archivedAt: m.archivedAt?.toISOString() ?? null,
     videoUrl: m.videoUrl,
     videoProvider: m.videoProvider,
     videoDuration: m.videoDuration,
@@ -79,6 +86,24 @@ export default async function AdminTrainingPage() {
     requiresEvidence: m.requiresEvidence,
     passScorePct: m.passScorePct,
     estimatedMinutes: m.estimatedMinutes,
+    videos: m.videos.map((v) => ({
+      id: v.id,
+      title: v.title,
+      description: v.description,
+      videoUrl: v.videoUrl,
+      videoProvider: v.videoProvider,
+      videoDuration: v.videoDuration,
+      sortOrder: v.sortOrder,
+      isSupplementary: v.isSupplementary,
+    })),
+    resources: m.resources.map((r) => ({
+      id: r.id,
+      title: r.title,
+      description: r.description,
+      resourceUrl: r.resourceUrl,
+      resourceType: r.resourceType,
+      sortOrder: r.sortOrder,
+    })),
     checkpoints: m.checkpoints.map((checkpoint) => ({
       id: checkpoint.id,
       contentKey: checkpoint.contentKey,
