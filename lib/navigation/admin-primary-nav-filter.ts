@@ -10,6 +10,12 @@ const ADMIN_PRIMARY_HIDDEN_GROUPS = new Set<NavGroup>([
 
 const OPPORTUNITIES_KEEP_ONLY = new Set(["/positions"]);
 
+/** Hrefs in otherwise-hidden Admin groups that all primary-role admins should see in the sidebar. */
+const ADMIN_PRIMARY_GROUP_KEEP_HREFS = new Set<string>([
+  "/admin/training",
+  "/admin/bulk-users",
+]);
+
 const PEOPLE_SUPPORT_HIDDEN_FOR_ADMIN_PRIMARY = new Set<string>([
   "/peer-recognition",
   "/my-program/gr",
@@ -72,7 +78,10 @@ export function applyAdminPrimarySidebarFilter(
   const hasAdminSubtype = adminSubtypes.length > 0;
 
   return links.filter((item) => {
-    if (ADMIN_PRIMARY_HIDDEN_GROUPS.has(item.group)) return hasAdminSubtype;
+    if (ADMIN_PRIMARY_HIDDEN_GROUPS.has(item.group)) {
+      if (ADMIN_PRIMARY_GROUP_KEEP_HREFS.has(item.href)) return true;
+      return hasAdminSubtype;
+    }
     if (item.group === "Challenges" || item.group === "Projects") return false;
     if (item.group === "Opportunities" && !OPPORTUNITIES_KEEP_ONLY.has(item.href)) {
       return false;

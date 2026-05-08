@@ -56,7 +56,12 @@ const ALWAYS_HIDDEN_HREFS = new Set([
 ]);
 
 /** Shown in the primary admin sidebar without subtype gating (full RBAC still applies on the page). */
-const ADMIN_NAV_UNIVERSAL_HREFS = new Set<string>(["/admin/reflections", "/admin/chapters"]);
+const ADMIN_NAV_UNIVERSAL_HREFS = new Set<string>([
+  "/admin/reflections",
+  "/admin/chapters",
+  "/admin/training",
+  "/admin/bulk-users",
+]);
 
 const ADMIN_LINKS_BY_SUBTYPE = {
   SUPER_ADMIN: [
@@ -137,6 +142,8 @@ const GROUP_ORDER_BY_ROLE: RoleGroupOrder = {
   ADMIN: [
     "Start Here",
     "Learning",
+    "Admin People",
+    "Admin Content",
     "Progress",
     "People & Support",
     "Chapters",
