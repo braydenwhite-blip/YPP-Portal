@@ -17,6 +17,9 @@ type OfferingCardRecord = {
   enrollmentOpen: boolean;
   introVideoUrl: string | null;
   chapterId: string | null;
+  zoomLink: string | null;
+  locationName: string | null;
+  locationAddress: string | null;
   template: {
     description: string;
     interestArea: string;
@@ -73,6 +76,9 @@ export type StudentClassCard = {
   chapterId: string | null;
   chapterLabel: string | null;
   isPartnerChapter: boolean;
+  zoomLink: string | null;
+  locationName: string | null;
+  locationAddress: string | null;
   template: {
     interestArea: string;
     difficultyLevel: string;
@@ -216,6 +222,9 @@ function mapOfferingCard(
     chapterId: offering.chapterId,
     chapterLabel: formatChapterLabel(offering.chapter),
     isPartnerChapter: Boolean(userChapterId && offering.chapterId && offering.chapterId !== userChapterId),
+    zoomLink: offering.zoomLink,
+    locationName: offering.locationName,
+    locationAddress: offering.locationAddress,
     template: {
       interestArea: offering.template.interestArea,
       difficultyLevel: offering.template.difficultyLevel,
