@@ -183,13 +183,35 @@ export default async function ApplicationStatusPage() {
       </div>
 
       {/* Instructor Application */}
-      {instructorApp && (
+      {instructorApp && (() => {
+        const isSummerWorkshopApp =
+          instructorApp.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR";
+        const trackTitle = isSummerWorkshopApp
+          ? "Summer Workshop Instructor Application"
+          : "Instructor Application";
+        return (
         <div style={{ marginBottom: 32 }}>
           <div className="application-status-heading-row">
             <span className="badge" style={{ background: statusColor(instructorApp.status), color: "white" }}>
               {instructorStatusLabel(instructorApp.status)}
             </span>
-            <h2 className="application-status-card-title">Instructor Application</h2>
+            <h2 className="application-status-card-title">{trackTitle}</h2>
+            {isSummerWorkshopApp && (
+              <span
+                className="pill"
+                style={{
+                  background: "#f5f3ff",
+                  color: "#6b21c8",
+                  border: "1px solid #ddd6fe",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: "0.04em",
+                }}
+                title="Summer Workshop track — lighter onboarding than the full Instructor program"
+              >
+                Summer Workshop
+              </span>
+            )}
             <span className="application-status-date">
               Applied {new Date(instructorApp.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
             </span>
@@ -205,7 +227,9 @@ export default async function ApplicationStatusPage() {
                   Your application is in the queue. We typically send a first update within <strong>3–5 business days</strong>. If you need anything sooner, contact your chapter.
                 </p>
                 <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 8 }}>
-                  Review is about understanding how you teach — not a scored exam. The interview, when scheduled, is a two-way conversation, not a test.
+                  {isSummerWorkshopApp
+                    ? "This is a lighter review than the full Instructor program — reviewers focus on whether you can safely and effectively run a short workshop at a camp. The interview, if scheduled, is a quick two-way conversation."
+                    : "Review is about understanding how you teach — not a scored exam. The interview, when scheduled, is a two-way conversation, not a test."}
                 </p>
               </>
             )}
@@ -216,7 +240,9 @@ export default async function ApplicationStatusPage() {
                   {instructorApp.reviewer ? `${instructorApp.reviewer.name} is` : "A reviewer is"} currently evaluating your application.
                 </p>
                 <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 8 }}>
-                  We are looking for fit and clarity, not perfection. If we move forward, you will be invited to a short interview — a two-way discussion, not an audition.
+                  {isSummerWorkshopApp
+                    ? "Reviewers are reading your workshop outline and looking for clarity, safety, and fit for an in-person camp session — not a perfect plan. They may invite you to a short conversation."
+                    : "We are looking for fit and clarity, not perfection. If we move forward, you will be invited to a short interview — a two-way discussion, not an audition."}
                 </p>
               </>
             )}
@@ -551,7 +577,8 @@ export default async function ApplicationStatusPage() {
             </div>
           )}
         </div>
-      )}
+        );
+      })()}
 
       {/* Chapter President Application */}
       {cpApp && (
