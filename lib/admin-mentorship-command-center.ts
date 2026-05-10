@@ -8,6 +8,7 @@ import {
 import { REVIEW_STATUS_META } from "@/lib/mentorship-review-helpers";
 import {
   ADMIN_MENTORSHIP_LANES,
+  SHOW_STUDENT_MENTORSHIP_LANE,
   getAdminMentorshipLaneForUser,
   getSupportRoleGapLabels,
   getSupportRoleLabel,
@@ -188,7 +189,9 @@ export async function getAdminMentorshipCommandCenterData() {
     prisma.user.findMany({
       where: {
         OR: [
-          { roles: { some: { role: "STUDENT" } } },
+          ...(SHOW_STUDENT_MENTORSHIP_LANE
+            ? [{ roles: { some: { role: "STUDENT" as const } } }]
+            : []),
           { primaryRole: { in: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] } },
         ],
       },
@@ -308,7 +311,8 @@ export async function getAdminMentorshipCommandCenterData() {
         lane,
         chapterName: user.chapter?.name ?? null,
       };
-    });
+    })
+    .filter((mentee) => ADMIN_MENTORSHIP_LANES.includes(mentee.lane));
 
   const circleSummaries: CommandCenterCircleSummary[] = mentorships.map(
     (mentorship) => {

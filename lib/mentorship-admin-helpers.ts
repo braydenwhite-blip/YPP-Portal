@@ -4,6 +4,11 @@ import { SUPPORT_ROLE_META } from "@/lib/mentorship-hub";
 
 export type AdminMentorshipLane = "STUDENTS" | "INSTRUCTORS" | "LEADERSHIP";
 
+// Mentorship is currently launched for instructors only. Flip this to true
+// when student mentorship ships to re-expose the Students lane on admin
+// surfaces. Keep it `false` for production.
+export const SHOW_STUDENT_MENTORSHIP_LANE = false;
+
 export const ADMIN_MENTORSHIP_LANE_META: Record<
   AdminMentorshipLane,
   {
@@ -43,9 +48,17 @@ export const ADMIN_MENTORSHIP_LANE_META: Record<
   },
 };
 
-export const ADMIN_MENTORSHIP_LANES = Object.keys(
+const ALL_ADMIN_MENTORSHIP_LANES = Object.keys(
   ADMIN_MENTORSHIP_LANE_META
 ) as AdminMentorshipLane[];
+
+export const ADMIN_MENTORSHIP_LANES: AdminMentorshipLane[] =
+  SHOW_STUDENT_MENTORSHIP_LANE
+    ? ALL_ADMIN_MENTORSHIP_LANES
+    : ALL_ADMIN_MENTORSHIP_LANES.filter((lane) => lane !== "STUDENTS");
+
+export const DEFAULT_ADMIN_MENTORSHIP_LANE: AdminMentorshipLane =
+  ADMIN_MENTORSHIP_LANES[0] ?? "INSTRUCTORS";
 
 export function parseAdminMentorshipLane(
   raw?: string | null
@@ -58,7 +71,7 @@ export function parseAdminMentorshipLane(
     }
   }
 
-  return "STUDENTS";
+  return DEFAULT_ADMIN_MENTORSHIP_LANE;
 }
 
 export function getAdminMentorshipLaneForUser(params: {

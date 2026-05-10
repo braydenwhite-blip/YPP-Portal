@@ -12,11 +12,24 @@ import ReviewApprovalsBoard from "@/app/(app)/admin/mentorship-program/review-ap
 import GoalsPanel from "@/app/(app)/admin/mentorship-program/goals-panel";
 import ChairsPanel from "@/app/(app)/admin/mentorship-program/chairs-panel";
 import { getMentorCapacityStatus } from "@/lib/mentorship-access";
+import {
+  getAdminMentorshipActionQueue,
+  getInstructorMentorshipOpsSummary,
+  getMentorWorkload,
+  getOverdueCheckInQueue,
+  getStalledGoalQueue,
+  getUnassignedInstructorQueue,
+} from "@/lib/instructor-mentorship-ops";
 
-export const metadata = { title: "Mentorship Admin — YPP Portal" };
+export const metadata = { title: "Instructor Mentorship Admin — YPP Portal" };
 
 const TABS = [
   { key: "pulse", label: "Pulse" },
+  { key: "needs-action", label: "Needs Action" },
+  { key: "unassigned", label: "Unassigned" },
+  { key: "workload", label: "Workload" },
+  { key: "gr", label: "G&R" },
+  { key: "check-ins", label: "Check-ins" },
   { key: "approvals", label: "Approvals" },
   { key: "pairings", label: "Pairings" },
   { key: "goals", label: "Goals" },
@@ -26,7 +39,17 @@ const TABS = [
 type Tab = (typeof TABS)[number]["key"];
 
 function parseTab(raw?: string): Tab {
-  if (raw === "approvals" || raw === "pairings" || raw === "goals" || raw === "committees") {
+  if (
+    raw === "needs-action" ||
+    raw === "unassigned" ||
+    raw === "workload" ||
+    raw === "gr" ||
+    raw === "check-ins" ||
+    raw === "approvals" ||
+    raw === "pairings" ||
+    raw === "goals" ||
+    raw === "committees"
+  ) {
     return raw;
   }
   return "pulse";
@@ -144,22 +167,36 @@ export default async function AdminMentorshipPage({
 
   const tab = parseTab(searchParams.tab);
 
-  const [data, goalReviews, monthlyReviews] = await Promise.all([
+  const [data, goalReviews, monthlyReviews, opsSummary] = await Promise.all([
     getAdminMentorshipCommandCenterData(),
     tab === "approvals" ? getMentorshipGoalReviews() : Promise.resolve([]),
     tab === "approvals" ? getMentorshipMonthlyReviews() : Promise.resolve([]),
+    tab === "pulse" || tab === "needs-action"
+      ? getInstructorMentorshipOpsSummary()
+      : Promise.resolve(null),
   ]);
 
   const pulseData = tab === "pulse" ? await getPulseData() : null;
   const pairingsData = tab === "pairings" ? await getPairingsData() : null;
+  const needsActionItems =
+    tab === "needs-action" ? await getAdminMentorshipActionQueue() : null;
+  const unassignedQueue =
+    tab === "unassigned" ? await getUnassignedInstructorQueue() : null;
+  const workloadRows = tab === "workload" ? await getMentorWorkload() : null;
+  const stalledGoals = tab === "gr" ? await getStalledGoalQueue() : null;
+  const overdueCheckIns =
+    tab === "check-ins" ? await getOverdueCheckInQueue() : null;
 
   return (
     <div>
       <div className="topbar">
         <div>
-          <p className="badge">Admin · Mentorship</p>
-          <h1 className="page-title">Mentorship Oversight</h1>
-          <p className="page-subtitle">Program health, approvals, pairings, goals, and committees.</p>
+          <p className="badge">Admin · Instructor Mentorship</p>
+          <h1 className="page-title">Instructor Mentorship Oversight</h1>
+          <p className="page-subtitle">
+            Program health, approvals, pairings, goals, and committees for the
+            instructor mentorship program.
+          </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Link href="/admin/mentorship-program" className="button secondary small">
@@ -210,7 +247,49 @@ export default async function AdminMentorshipPage({
           >
             <div className="card">
               <p className="kpi">{pulseData.activeCount}</p>
-              <p className="kpi-label">Active pairings</p>
+              <p className="kpi-label">Active instructor mentorships</p>
+            </div>
+            <div className="card">
+              <p
+                className="kpi"
+                style={{
+                  color:
+                    (opsSummary?.unassignedInstructors ?? 0) > 0
+                      ? "#d97706"
+                      : undefined,
+                }}
+              >
+                {opsSummary?.unassignedInstructors ?? 0}
+              </p>
+              <p className="kpi-label">Instructors without a mentor</p>
+            </div>
+            <div className="card">
+              <p
+                className="kpi"
+                style={{
+                  color:
+                    (opsSummary?.overdueCheckIns ?? 0) > 0
+                      ? "#d97706"
+                      : undefined,
+                }}
+              >
+                {opsSummary?.overdueCheckIns ?? 0}
+              </p>
+              <p className="kpi-label">Overdue check-ins</p>
+            </div>
+            <div className="card">
+              <p
+                className="kpi"
+                style={{
+                  color:
+                    (opsSummary?.stalledGoals ?? 0) > 0
+                      ? "#d97706"
+                      : undefined,
+                }}
+              >
+                {opsSummary?.stalledGoals ?? 0}
+              </p>
+              <p className="kpi-label">Stalled goals</p>
             </div>
             <div className="card">
               <p className="kpi" style={{ color: pulseData.pendingChairCount > 0 ? "#d97706" : undefined }}>
@@ -229,11 +308,46 @@ export default async function AdminMentorshipPage({
               <p className="kpi-label">Reflection completion this cycle</p>
             </div>
             <div className="card">
-              <p className="kpi" style={{ color: pulseData.overCapacityMentors.length > 0 ? "#ef4444" : undefined }}>
-                {pulseData.overCapacityMentors.length}
+              <p
+                className="kpi"
+                style={{
+                  color:
+                    (opsSummary?.mentorsOverCapacity ?? 0) > 0
+                      ? "#ef4444"
+                      : (opsSummary?.mentorsAtOrOverCapacity ?? 0) > 0
+                      ? "#d97706"
+                      : undefined,
+                }}
+              >
+                {opsSummary?.mentorsAtOrOverCapacity ?? 0}
               </p>
-              <p className="kpi-label">Mentors over capacity (3+)</p>
+              <p className="kpi-label">
+                Mentors at / over capacity (3+)
+              </p>
             </div>
+          </div>
+
+          <div
+            className="card"
+            style={{
+              marginBottom: 20,
+              display: "flex",
+              gap: 12,
+              flexWrap: "wrap",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <div>
+              <strong>Need a single action queue?</strong>
+              <p style={{ margin: "4px 0 0", color: "var(--muted)", fontSize: 13 }}>
+                The Needs Action tab combines unassigned instructors, overdue
+                check-ins, stalled goals, and pending reviews in priority order.
+              </p>
+            </div>
+            <Link href="/admin/mentorship?tab=needs-action" className="button primary small">
+              Open Needs Action queue →
+            </Link>
           </div>
 
           {/* Rating distribution fairness check */}
@@ -324,6 +438,382 @@ export default async function AdminMentorshipPage({
                 ))}
               </div>
             </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Needs Action tab ─────────────────────── */}
+      {tab === "needs-action" && needsActionItems && (
+        <div>
+          <div className="card" style={{ marginBottom: 20 }}>
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>
+              Items needing admin attention ({needsActionItems.length})
+            </div>
+            <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
+              Sorted by urgency. Top items: instructors without a mentor, then
+              relationships missing a Goals & Resources doc, overdue check-ins,
+              stalled goals, and pending chair approvals.
+            </p>
+          </div>
+          {needsActionItems.length === 0 ? (
+            <div
+              style={{
+                padding: 24,
+                borderRadius: "var(--radius-md)",
+                border: "1px dashed var(--border)",
+                color: "var(--muted)",
+                textAlign: "center",
+              }}
+            >
+              Nothing needs admin attention right now. Nice work.
+            </div>
+          ) : (
+            <div style={{ display: "grid", gap: 12 }}>
+              {needsActionItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="card"
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 16,
+                    flexWrap: "wrap",
+                    borderLeft:
+                      item.kind === "UNASSIGNED_INSTRUCTOR"
+                        ? "3px solid #ef4444"
+                        : item.kind === "NO_GOALS"
+                        ? "3px solid #d97706"
+                        : item.kind === "OVERDUE_CHECK_IN"
+                        ? "3px solid #f59e0b"
+                        : item.kind === "STALLED_GOAL"
+                        ? "3px solid #f59e0b"
+                        : "3px solid #3b82f6",
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 240 }}>
+                    <strong>{item.title}</strong>
+                    <p style={{ margin: "6px 0 8px", color: "var(--muted)", fontSize: 13 }}>
+                      {item.detail}
+                    </p>
+                    <span className="pill pill-small">{item.kind.replace(/_/g, " ")}</span>
+                  </div>
+                  <div style={{ alignSelf: "center" }}>
+                    <Link href={item.href} className="button primary small">
+                      {item.emphasis}
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Unassigned instructors tab ──────────── */}
+      {tab === "unassigned" && unassignedQueue && (
+        <div>
+          <div className="card" style={{ marginBottom: 20 }}>
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>
+              Instructors waiting for a mentor ({unassignedQueue.length})
+            </div>
+            <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
+              Active instructors with no current mentorship pairing. Use the
+              Assign action to open the matching panel pre-filtered for that
+              instructor.
+            </p>
+          </div>
+          {unassignedQueue.length === 0 ? (
+            <div
+              style={{
+                padding: 24,
+                borderRadius: "var(--radius-md)",
+                border: "1px dashed var(--border)",
+                color: "var(--muted)",
+                textAlign: "center",
+              }}
+            >
+              All active instructors are mentored. Nothing to do here.
+            </div>
+          ) : (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Instructor</th>
+                  <th>Chapter</th>
+                  <th>Joined</th>
+                  <th>Reason</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {unassignedQueue.map((row) => (
+                  <tr key={row.id}>
+                    <td>
+                      <strong>{row.name}</strong>
+                      <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                        {row.email}
+                      </div>
+                    </td>
+                    <td>{row.chapterName ?? "—"}</td>
+                    <td>{new Date(row.joinedAt).toLocaleDateString()}</td>
+                    <td>{row.reason}</td>
+                    <td>
+                      <Link
+                        href={`/admin/mentorship-program?focus=matching&menteeId=${row.id}&supportRole=PRIMARY_MENTOR`}
+                        className="button primary small"
+                      >
+                        Assign mentor
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* ── Mentor workload tab ─────────────────── */}
+      {tab === "workload" && workloadRows && (
+        <div>
+          <div className="card" style={{ marginBottom: 20 }}>
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>
+              Mentor workload ({workloadRows.length})
+            </div>
+            <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
+              Active mentees per mentor, plus overdue check-in count, stalled
+              goal count, and last activity timestamp. Soft cap is 3 mentees.
+            </p>
+          </div>
+          {workloadRows.length === 0 ? (
+            <div
+              style={{
+                padding: 24,
+                borderRadius: "var(--radius-md)",
+                border: "1px dashed var(--border)",
+                color: "var(--muted)",
+                textAlign: "center",
+              }}
+            >
+              No mentors with active assignments yet.
+            </div>
+          ) : (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Mentor</th>
+                  <th>Active mentees</th>
+                  <th>Overdue check-ins</th>
+                  <th>Stalled goals</th>
+                  <th>Last activity</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {workloadRows.map((row) => (
+                  <tr
+                    key={row.id}
+                    style={
+                      row.isOverCapacity
+                        ? { background: "#fef2f2" }
+                        : row.isAtCapacity
+                        ? { background: "#fffbeb" }
+                        : undefined
+                    }
+                  >
+                    <td>
+                      <strong>{row.name}</strong>
+                      <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                        {row.email}
+                      </div>
+                    </td>
+                    <td>
+                      {row.activeMenteeCount} / {row.capacity}
+                    </td>
+                    <td
+                      style={{
+                        color: row.overdueCheckIns > 0 ? "#d97706" : undefined,
+                      }}
+                    >
+                      {row.overdueCheckIns}
+                    </td>
+                    <td
+                      style={{
+                        color: row.stalledGoals > 0 ? "#d97706" : undefined,
+                      }}
+                    >
+                      {row.stalledGoals}
+                    </td>
+                    <td>
+                      {row.lastActivityAt
+                        ? new Date(row.lastActivityAt).toLocaleDateString()
+                        : "—"}
+                    </td>
+                    <td>
+                      {row.warning ? (
+                        <span
+                          className={`pill pill-small ${
+                            row.isOverCapacity ? "pill-declined" : "pill-pending"
+                          }`}
+                        >
+                          {row.warning}
+                        </span>
+                      ) : (
+                        <span className="pill pill-small pill-success">OK</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* ── G&R oversight tab ──────────────────── */}
+      {tab === "gr" && stalledGoals && (
+        <div>
+          <div className="card" style={{ marginBottom: 20 }}>
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>
+              Stalled or overdue G&amp;R goals ({stalledGoals.length})
+            </div>
+            <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
+              Active goals that are past due, marked blocked, or have not been
+              updated in 30+ days. Sorted by due date.
+            </p>
+          </div>
+          {stalledGoals.length === 0 ? (
+            <div
+              style={{
+                padding: 24,
+                borderRadius: "var(--radius-md)",
+                border: "1px dashed var(--border)",
+                color: "var(--muted)",
+                textAlign: "center",
+              }}
+            >
+              No stalled goals across active instructor mentorships.
+            </div>
+          ) : (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Goal</th>
+                  <th>Instructor</th>
+                  <th>Mentor</th>
+                  <th>Status</th>
+                  <th>Due</th>
+                  <th>Reason</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {stalledGoals.map((row) => (
+                  <tr key={row.goalId}>
+                    <td>
+                      <strong>{row.goalTitle}</strong>
+                    </td>
+                    <td>{row.menteeName}</td>
+                    <td>{row.mentorName}</td>
+                    <td>
+                      <span className="pill pill-small">
+                        {row.progressState.replace(/_/g, " ")}
+                      </span>
+                    </td>
+                    <td>
+                      {row.dueDate
+                        ? new Date(row.dueDate).toLocaleDateString()
+                        : "—"}
+                    </td>
+                    <td>{row.reason}</td>
+                    <td>
+                      <Link
+                        href={`/admin/mentorship/relationships/${row.mentorshipId}`}
+                        className="button secondary small"
+                      >
+                        Open
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* ── Check-in oversight tab ─────────────── */}
+      {tab === "check-ins" && overdueCheckIns && (
+        <div>
+          <div className="card" style={{ marginBottom: 20 }}>
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>
+              Overdue check-ins ({overdueCheckIns.length})
+            </div>
+            <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
+              Active mentorships with no completed session in the last 30 days
+              and no upcoming scheduled session. Oldest start dates first.
+            </p>
+          </div>
+          {overdueCheckIns.length === 0 ? (
+            <div
+              style={{
+                padding: 24,
+                borderRadius: "var(--radius-md)",
+                border: "1px dashed var(--border)",
+                color: "var(--muted)",
+                textAlign: "center",
+              }}
+            >
+              All active mentorships have a recent or upcoming session.
+            </div>
+          ) : (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Instructor</th>
+                  <th>Mentor</th>
+                  <th>Last activity</th>
+                  <th>Days since</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {overdueCheckIns.map((row) => (
+                  <tr key={row.mentorshipId}>
+                    <td>
+                      <strong>{row.menteeName}</strong>
+                      <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                        {row.menteeRole.replace(/_/g, " ")}
+                      </div>
+                    </td>
+                    <td>{row.mentorName}</td>
+                    <td>
+                      {row.lastActivityAt
+                        ? new Date(row.lastActivityAt).toLocaleDateString()
+                        : "Never"}
+                    </td>
+                    <td
+                      style={{
+                        color:
+                          (row.daysSinceActivity ?? 0) > 60
+                            ? "#ef4444"
+                            : "#d97706",
+                      }}
+                    >
+                      {row.daysSinceActivity ?? "—"}
+                    </td>
+                    <td>
+                      <Link
+                        href={`/admin/mentorship/relationships/${row.mentorshipId}`}
+                        className="button secondary small"
+                      >
+                        Open
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
       )}

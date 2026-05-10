@@ -131,19 +131,19 @@ export default async function MentorshipProgramAdminPage({
     <div>
       <div className="topbar">
         <div>
-          <p className="badge">Admin</p>
-          <h1 className="page-title">Mentorship Command Center</h1>
+          <p className="badge">Admin · Instructor Mentorship</p>
+          <h1 className="page-title">Instructor Mentorship Command Center</h1>
           <p className="page-subtitle">
             One place to watch risk, build shortlists, staff support circles,
-            and keep review routing clean across students, instructors, and
-            leadership.
+            and keep review routing clean for the instructor mentorship
+            program.
           </p>
         </div>
       </div>
 
       <MentorshipGuideCard
         title="How This Command Center Works"
-        intro="This page is organized around the real admin jobs in the mentorship system so you can move from signal to action without switching between separate products."
+        intro="This page is organized around the real admin jobs in the instructor mentorship system so you can move from signal to action without switching between separate products."
         items={[
           {
             label: "Queue / Watchlist",
