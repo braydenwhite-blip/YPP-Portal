@@ -48,6 +48,8 @@ interface Props {
     schoolName: string | null;
     graduationYear: number | null;
     interviewRound: number;
+    isReapplication?: boolean;
+    previousApplicationId?: string | null;
     reviewer: { id: string; name: string | null } | null;
     interviewerAssignments: Array<{
       id: string;
@@ -108,6 +110,15 @@ export default function ApplicantCockpitHeader({ application }: Props) {
                 {s}
               </span>
             ))}
+            {application.isReapplication && (
+              <span
+                className="pill cockpit-hero-chip"
+                style={{ background: "#fef3c7", color: "#92400e", borderColor: "#fde68a" }}
+                title="This applicant submitted a previous application"
+              >
+                Re-application
+              </span>
+            )}
             <StatusPill status={application.status} />
           </div>
           {(application.schoolName || application.graduationYear) && (

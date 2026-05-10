@@ -224,6 +224,8 @@ export default async function AdminInstructorApplicantsPage({
       applicationTrack: (app.applicationTrack as string) ?? "STANDARD_INSTRUCTOR",
       instructorSubtype: (app.instructorSubtype as string) ?? "STANDARD",
       workshopOutlinePresent: !!app.workshopOutline,
+      isReapplication: !!app.isReapplication,
+      previousApplicationId: (app.previousApplicationId as string | null) ?? null,
       applicant: {
         id: app.applicant.id as string,
         name: app.applicant.name as string | null,

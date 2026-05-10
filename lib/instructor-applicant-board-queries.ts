@@ -53,6 +53,8 @@ const PIPELINE_SELECT = {
   applicationTrack: true,
   instructorSubtype: true,
   workshopOutline: true,
+  isReapplication: true,
+  previousApplicationId: true,
   applicant: {
     select: {
       id: true,

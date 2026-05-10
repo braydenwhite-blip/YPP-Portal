@@ -64,6 +64,8 @@ async function fetchCockpitData(applicationId: string) {
       schoolName: true,
       graduationYear: true,
       subjectsOfInterest: true,
+      isReapplication: true,
+      previousApplicationId: true,
       reviewerId: true,
       interviewRound: true,
       reviewerAssignedAt: true,
@@ -334,6 +336,33 @@ export default async function ApplicantCockpitPage({
 
       <div className="applicant-cockpit-container">
         <ApplicantCockpitHeader application={application} />
+
+        {application.isReapplication && application.previousApplicationId && (
+          <div
+            role="note"
+            style={{
+              marginTop: 12,
+              padding: "10px 14px",
+              borderRadius: 10,
+              background: "#fef3c7",
+              border: "1px solid #fde68a",
+              fontSize: 13,
+              color: "#78350f",
+              lineHeight: 1.55,
+            }}
+          >
+            This is a re-application. The applicant&apos;s prior submission is on
+            file —{" "}
+            <Link
+              href={`/applications/instructor/${application.previousApplicationId}?adminPreview=1`}
+              className="link"
+              style={{ color: "#78350f", textDecoration: "underline" }}
+            >
+              open the previous application
+            </Link>{" "}
+            for context.
+          </div>
+        )}
 
         {application.lastNotificationError && (
           <NotificationFailureBanner

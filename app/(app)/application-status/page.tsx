@@ -475,6 +475,34 @@ export default async function ApplicationStatusPage() {
           {!["APPROVED", "REJECTED", "WITHDRAWN"].includes(instructorApp.status) && (
             <WithdrawForm />
           )}
+
+          {/* Re-apply when the latest application is closed (terminal) */}
+          {["REJECTED", "WITHDRAWN"].includes(instructorApp.status) && (
+            <div
+              style={{
+                marginTop: 16,
+                padding: "12px 14px",
+                borderRadius: 10,
+                background: "#f5f3ff",
+                border: "1px solid #ddd6fe",
+                fontSize: 13,
+                color: "#5b21b6",
+                lineHeight: 1.55,
+              }}
+            >
+              You can submit a new application — we&apos;ll pre-fill it with what
+              you had before, and flag it as a re-application for the review team.
+              <div style={{ marginTop: 10 }}>
+                <Link
+                  href="/applications/instructor/new"
+                  className="button"
+                  style={{ fontSize: 13, padding: "8px 14px", textDecoration: "none" }}
+                >
+                  Start a new application
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
