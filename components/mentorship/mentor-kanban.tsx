@@ -12,7 +12,7 @@ export function MentorKanban({ active, inactive, total }: Props) {
     return (
       <div className="card" style={{ textAlign: "center", padding: 24 }}>
         <p style={{ color: "var(--muted)" }}>
-          You have no active mentees yet. Mentees appear here once matched by your program admin.
+          You are not currently mentoring any instructors. Instructor mentees appear here once chapter leadership pairs you with one.
         </p>
       </div>
     );
