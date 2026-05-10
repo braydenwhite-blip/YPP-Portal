@@ -641,6 +641,38 @@ function getString(formData: FormData, key: string, required = true) {
   return value ? String(value).trim() : "";
 }
 
+const CHAPTER_NAME_MIN = 2;
+const CHAPTER_NAME_MAX = 80;
+const CHAPTER_FIELD_MAX = 120;
+const CHAPTER_NOTES_MAX = 2000;
+
+function validateChapterInputs(input: {
+  name: string;
+  city: string;
+  region: string;
+  partnerSchool: string;
+  programNotes: string;
+}) {
+  if (input.name.length < CHAPTER_NAME_MIN || input.name.length > CHAPTER_NAME_MAX) {
+    throw new Error(
+      `Chapter name must be between ${CHAPTER_NAME_MIN} and ${CHAPTER_NAME_MAX} characters.`
+    );
+  }
+  for (const [key, max] of [
+    ["city", CHAPTER_FIELD_MAX],
+    ["region", CHAPTER_FIELD_MAX],
+    ["partnerSchool", CHAPTER_FIELD_MAX],
+  ] as const) {
+    const value = input[key];
+    if (value && value.length > max) {
+      throw new Error(`${key} must be ${max} characters or fewer.`);
+    }
+  }
+  if (input.programNotes && input.programNotes.length > CHAPTER_NOTES_MAX) {
+    throw new Error(`Program notes must be ${CHAPTER_NOTES_MAX} characters or fewer.`);
+  }
+}
+
 export async function createChapter(formData: FormData) {
   await requireAdmin();
 
@@ -649,6 +681,18 @@ export async function createChapter(formData: FormData) {
   const region = getString(formData, "region", false);
   const partnerSchool = getString(formData, "partnerSchool", false);
   const programNotes = getString(formData, "programNotes", false);
+
+  validateChapterInputs({ name, city, region, partnerSchool, programNotes });
+
+  // Friendly duplicate check (slug uniqueness is enforced too, but this gives
+  // admins a clearer error than a crashed server action).
+  const duplicate = await prisma.chapter.findFirst({
+    where: { name: { equals: name, mode: "insensitive" } },
+    select: { id: true },
+  });
+  if (duplicate) {
+    throw new Error(`A chapter named "${name}" already exists.`);
+  }
 
   await prisma.chapter.create({
     data: {
@@ -675,6 +719,19 @@ export async function updateChapter(formData: FormData) {
   const partnerSchool = getString(formData, "partnerSchool", false);
   const programNotes = getString(formData, "programNotes", false);
 
+  validateChapterInputs({ name, city, region, partnerSchool, programNotes });
+
+  const duplicate = await prisma.chapter.findFirst({
+    where: {
+      name: { equals: name, mode: "insensitive" },
+      id: { not: id },
+    },
+    select: { id: true },
+  });
+  if (duplicate) {
+    throw new Error(`Another chapter named "${name}" already exists.`);
+  }
+
   await prisma.chapter.update({
     where: { id },
     data: {
@@ -689,6 +746,7 @@ export async function updateChapter(formData: FormData) {
 
   revalidatePath("/admin/chapters");
   revalidatePath("/chapters");
+  revalidatePath(`/admin/chapters/${id}`);
 }
 
 export async function deleteChapter(formData: FormData) {

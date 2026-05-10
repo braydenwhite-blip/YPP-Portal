@@ -310,8 +310,33 @@ export async function leaveChapter() {
   const session = await getSession();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
-  await prisma.user.update({
+  const user = await prisma.user.findUnique({
     where: { id: session.user.id },
+    select: {
+      id: true,
+      chapterId: true,
+      primaryRole: true,
+      roles: { select: { role: true } },
+    },
+  });
+
+  if (!user?.chapterId) {
+    return { success: true };
+  }
+
+  // Prevent users with chapter-bound leadership roles from silently orphaning
+  // their role. They must be reassigned by an admin instead.
+  const isChapterPresident =
+    user.primaryRole === "CHAPTER_PRESIDENT" ||
+    user.roles.some((r) => r.role === "CHAPTER_PRESIDENT");
+  if (isChapterPresident) {
+    throw new Error(
+      "Chapter presidents cannot leave their chapter directly. Contact an admin to reassign your role."
+    );
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
     data: { chapterId: null },
   });
 

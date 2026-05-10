@@ -11,12 +11,12 @@ export default async function AdminCPApplicantsPage() {
   const roles = session?.user?.roles ?? [];
   if (!roles.includes("ADMIN")) redirect("/");
 
-  // Fetch all applications and reviewers in parallel
-  const [applications, reviewerUsers] = await Promise.all([
+  // Fetch all applications, reviewers, and chapters in parallel
+  const [applications, reviewerUsers, allChapters] = await Promise.all([
     prisma.chapterPresidentApplication.findMany({
       include: {
         applicant: { select: { id: true, name: true, email: true, chapter: { select: { name: true } } } },
-        chapter: { select: { name: true } },
+        chapter: { select: { id: true, name: true } },
         reviewer: { select: { name: true } },
         customResponses: { include: { field: { select: { label: true, fieldType: true } } } },
       },
@@ -31,6 +31,10 @@ export default async function AdminCPApplicantsPage() {
         },
       },
       select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.chapter.findMany({
+      select: { id: true, name: true, city: true, region: true },
       orderBy: { name: "asc" },
     }),
   ]);
@@ -101,6 +105,7 @@ export default async function AdminCPApplicantsPage() {
       <CPKanbanBoard
         applications={serialized as any}
         reviewers={reviewerUsers}
+        chapters={allChapters}
       />
     </div>
   );

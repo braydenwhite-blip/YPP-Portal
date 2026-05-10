@@ -1,10 +1,12 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
+import { prisma } from "@/lib/prisma";
 import { getStudentChapterJourneyData } from "@/lib/chapter-pathway-journey";
 import { getMyChapterHomeData } from "@/lib/chapter-member-actions";
 import { getChapterGamificationSummary } from "@/lib/chapter-gamification-actions";
 import { FallbackRequestButton } from "./fallback-request-button";
+import { LeaveChapterButton } from "./leave-chapter-button";
 
 function formatDateRange(startDate: Date, endDate: Date) {
   const formatter = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
@@ -65,6 +67,24 @@ export default async function MyChapterPage() {
   const { chapter, members, channels, recentAnnouncements, myEnrollments } = homeData;
   const roles = new Set(session.user.roles ?? []);
   const canReviewFallbacks = roles.has("ADMIN") || roles.has("STAFF") || roles.has("CHAPTER_PRESIDENT");
+  const isCurrentUserChapterPresident = roles.has("CHAPTER_PRESIDENT");
+
+  // Fetch chapter leadership separately so it always shows up (the 12-member
+  // cap on the directory list can omit presidents when chapters are large).
+  const leaders = chapter?.id
+    ? await prisma.user.findMany({
+        where: {
+          chapterId: chapter.id,
+          OR: [
+            { primaryRole: "CHAPTER_PRESIDENT" },
+            { roles: { some: { role: "CHAPTER_PRESIDENT" } } },
+          ],
+        },
+        select: { id: true, name: true, email: true },
+        orderBy: { name: "asc" },
+        take: 5,
+      })
+    : [];
 
   // Get pathway data if available
   const localPathways = journey?.activeLocalPathways ?? [];
@@ -156,6 +176,81 @@ export default async function MyChapterPage() {
       <div className="grid two" style={{ alignItems: "start" }}>
         {/* Left Column: Community & Activity */}
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {/* Chapter Leadership */}
+          <div className="card">
+            <h3 style={{ margin: 0 }}>Chapter Leadership</h3>
+            {leaders.length === 0 ? (
+              <p
+                style={{
+                  marginTop: 8,
+                  fontSize: 13,
+                  color: "var(--muted)",
+                }}
+              >
+                No chapter president yet. Interested in leading this chapter?{" "}
+                <Link href="/chapter/apply" className="link">
+                  Apply to be the president →
+                </Link>
+              </p>
+            ) : (
+              <ul
+                style={{
+                  marginTop: 12,
+                  paddingLeft: 0,
+                  listStyle: "none",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                }}
+              >
+                {leaders.map((leader) => (
+                  <li
+                    key={leader.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "6px 0",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: "50%",
+                        background: ROLE_COLORS.CHAPTER_PRESIDENT,
+                        color: "white",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 13,
+                        fontWeight: 700,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {leader.name.charAt(0)}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>
+                        {leader.name}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--muted)" }}>
+                        Chapter President
+                      </div>
+                    </div>
+                    <Link
+                      href={`/messages?to=${leader.id}`}
+                      className="button outline small"
+                      style={{ fontSize: 11 }}
+                    >
+                      Message
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
           {/* Announcements */}
           {recentAnnouncements.length > 0 && (
             <div className="card">
@@ -401,11 +496,29 @@ export default async function MyChapterPage() {
 
           {/* Upcoming Events */}
           <div className="card">
-            <h3 style={{ margin: 0 }}>Upcoming Events</h3>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <h3 style={{ margin: 0 }}>Upcoming Events</h3>
+              <Link
+                href="/my-chapter/calendar"
+                style={{ fontSize: 12, color: "var(--ypp-purple)" }}
+              >
+                Calendar →
+              </Link>
+            </div>
             {(!chapter?.events || chapter.events.length === 0) ? (
               <div style={{ marginTop: 10, textAlign: "center", padding: "12px 0" }}>
-                <p style={{ color: "var(--muted)", fontSize: 13, margin: 0 }}>
-                  No upcoming events — check back soon!
+                <p style={{ color: "var(--muted)", fontSize: 13, margin: "0 0 4px" }}>
+                  No upcoming events scheduled.
+                </p>
+                <p style={{ color: "var(--muted)", fontSize: 12, margin: 0 }}>
+                  Most chapter events happen in person — your chapter president
+                  will share new events here.
                 </p>
               </div>
             ) : (
@@ -432,11 +545,11 @@ export default async function MyChapterPage() {
                         {new Date(event.startDate).toLocaleDateString("en-US", { month: "short" })}
                       </span>
                     </div>
-                    <div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
                       <p style={{ fontWeight: 600, fontSize: 14, margin: 0 }}>{event.title}</p>
                       <p style={{ color: "var(--muted)", fontSize: 12, margin: 0 }}>
                         {event.eventType}
-                        {event.location ? ` · ${event.location}` : ""}
+                        {event.location ? ` · 📍 ${event.location}` : " · Location TBD"}
                       </p>
                     </div>
                   </div>
@@ -608,6 +721,9 @@ export default async function MyChapterPage() {
                 Explore other chapters →
               </Link>
             </div>
+            {!isCurrentUserChapterPresident && chapter && (
+              <LeaveChapterButton chapterName={chapter.name} />
+            )}
           </div>
         </div>
       </div>

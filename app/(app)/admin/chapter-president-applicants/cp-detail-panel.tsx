@@ -7,10 +7,11 @@ import {
   statusLabel,
   formatDate,
 } from "@/components/kanban/kanban-utils";
-import type { CPApp, Reviewer } from "./kanban-board";
+import type { CPApp, ChapterOption, Reviewer } from "./kanban-board";
 import {
   saveCPScoresAndNotes,
   assignCPReviewer,
+  assignCPApplicationChapter,
 } from "@/lib/cp-application-kanban-actions";
 import { reviewCPApplicationAction } from "@/lib/chapter-president-application-actions";
 
@@ -65,14 +66,21 @@ function ScoreBar({
 export default function CPDetailPanel({
   app,
   reviewers,
+  chapters = [],
   onClose,
   onUpdate,
 }: {
   app: CPApp;
   reviewers: Reviewer[];
+  chapters?: ChapterOption[];
   onClose: () => void;
   onUpdate: (updated: Partial<CPApp> & { id: string }) => void;
 }) {
+  const initialChapterId = app.chapter?.id || app.chapterId || "";
+  const [assignedChapterId, setAssignedChapterId] = useState<string>(initialChapterId);
+  const [assigningChapter, setAssigningChapter] = useState(false);
+  const [chapterError, setChapterError] = useState<string | null>(null);
+
   const [scores, setScores] = useState({
     scoreLeadership: app.scoreLeadership,
     scoreVision: app.scoreVision,
@@ -99,7 +107,9 @@ export default function CPDetailPanel({
     setInterviewSummary(app.interviewSummary || "");
     setNotes(app.reviewerNotes || "");
     setSelectedReviewer(app.reviewerId || "");
-  }, [app.id, app.scoreLeadership, app.scoreVision, app.scoreOrganization, app.scoreCommunication, app.scoreFit, app.interviewSummary, app.reviewerNotes, app.reviewerId]);
+    setAssignedChapterId(app.chapter?.id || app.chapterId || "");
+    setChapterError(null);
+  }, [app.id, app.scoreLeadership, app.scoreVision, app.scoreOrganization, app.scoreCommunication, app.scoreFit, app.interviewSummary, app.reviewerNotes, app.reviewerId, app.chapter?.id, app.chapterId]);
 
   // Save scores & notes
   async function handleSaveScores() {
@@ -126,6 +136,39 @@ export default function CPDetailPanel({
         onUpdate({ id: app.id, reviewerId: app.reviewerId, reviewer: app.reviewer });
       }
     });
+  }
+
+  // Assign chapter to applicant (admin-only flow; required before approval)
+  async function handleAssignChapter(nextChapterId: string) {
+    setChapterError(null);
+    setAssigningChapter(true);
+    const previous = assignedChapterId;
+    setAssignedChapterId(nextChapterId);
+
+    const result = await assignCPApplicationChapter(
+      app.id,
+      nextChapterId === "" ? null : nextChapterId
+    );
+
+    if (result.success) {
+      const matchedChapter = chapters.find((c) => c.id === nextChapterId);
+      onUpdate({
+        id: app.id,
+        chapterId: nextChapterId === "" ? null : nextChapterId,
+        chapter: matchedChapter
+          ? { id: matchedChapter.id, name: matchedChapter.name }
+          : null,
+      });
+      toast.show(
+        nextChapterId === ""
+          ? "Chapter cleared"
+          : `Chapter assigned: ${chapters.find((c) => c.id === nextChapterId)?.name ?? ""}`
+      );
+    } else {
+      setAssignedChapterId(previous);
+      setChapterError(result.error || "Failed to assign chapter");
+    }
+    setAssigningChapter(false);
   }
 
   // Quick actions (status changes via form)
@@ -190,20 +233,51 @@ export default function CPDetailPanel({
               <div className="slideout-field-value">{app.phoneNumber}</div>
             </div>
           )}
-          {chapterName && (
-            <div className="slideout-field">
-              <div className="slideout-field-label">Chapter</div>
-              <div className="slideout-field-value">{chapterName}</div>
+          <div className="slideout-field" style={{ gridColumn: "1 / -1" }}>
+            <div className="slideout-field-label">
+              Chapter Assignment
+              {!assignedChapterId && (
+                <span style={{ marginLeft: 8, color: "#d97706", fontWeight: 500 }}>
+                  · Required before approval
+                </span>
+              )}
             </div>
-          )}
-          {!chapterName && (
-            <div className="slideout-field">
-              <div className="slideout-field-label">Chapter</div>
-              <div className="slideout-field-value" style={{ color: "#d97706" }}>
-                New Chapter Proposal
+            <select
+              className="input"
+              value={assignedChapterId}
+              onChange={(e) => handleAssignChapter(e.target.value)}
+              disabled={assigningChapter || isFinal}
+              style={{ maxWidth: 360, marginTop: 4 }}
+            >
+              <option value="">— No chapter assigned (proposal) —</option>
+              {chapters.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                  {c.city ? ` — ${c.city}${c.region ? ", " + c.region : ""}` : ""}
+                </option>
+              ))}
+            </select>
+            {chapterError && (
+              <div style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>
+                {chapterError}
               </div>
-            </div>
-          )}
+            )}
+            {!assignedChapterId && chapterName && (
+              <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                Applicant&apos;s current chapter: <strong>{chapterName}</strong>
+              </div>
+            )}
+            {!assignedChapterId && !chapterName && (
+              <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                Applicant submitted as a new-chapter proposal. Pick the chapter
+                they&apos;ll lead, or create one in{" "}
+                <a href="/admin/chapters" className="link">
+                  Admin → Chapters
+                </a>{" "}
+                first.
+              </div>
+            )}
+          </div>
           {(app.city || app.stateProvince) && (
             <div className="slideout-field">
               <div className="slideout-field-label">Location</div>
@@ -533,8 +607,9 @@ export default function CPDetailPanel({
                 <button
                   className="button"
                   onClick={() => handleAction("approve")}
-                  disabled={saving}
-                  style={{ fontSize: 12, background: "#16a34a" }}
+                  disabled={saving || !assignedChapterId}
+                  title={!assignedChapterId ? "Assign a chapter before approving" : undefined}
+                  style={{ fontSize: 12, background: !assignedChapterId ? "#9ca3af" : "#16a34a" }}
                 >
                   Approve (Final)
                 </button>
@@ -560,8 +635,9 @@ export default function CPDetailPanel({
                     if (!confirm("Approve this application without completing the full interview flow?")) return;
                     handleAction("approve");
                   }}
-                  disabled={saving}
-                  style={{ fontSize: 12, background: "#16a34a" }}
+                  disabled={saving || !assignedChapterId}
+                  title={!assignedChapterId ? "Assign a chapter before approving" : undefined}
+                  style={{ fontSize: 12, background: !assignedChapterId ? "#9ca3af" : "#16a34a" }}
                 >
                   Approve
                 </button>

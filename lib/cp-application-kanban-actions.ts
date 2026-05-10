@@ -131,3 +131,47 @@ export async function assignCPReviewer(
     return { success: false, error: error instanceof Error ? error.message : "Something went wrong." };
   }
 }
+
+export async function assignCPApplicationChapter(
+  applicationId: string,
+  chapterId: string | null
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireAdmin();
+
+    if (chapterId) {
+      const chapter = await prisma.chapter.findUnique({
+        where: { id: chapterId },
+        select: { id: true },
+      });
+      if (!chapter) return { success: false, error: "Chapter not found." };
+    }
+
+    const application = await prisma.chapterPresidentApplication.findUnique({
+      where: { id: applicationId },
+      select: { id: true, status: true, applicantId: true },
+    });
+    if (!application) return { success: false, error: "Application not found." };
+
+    if (application.status === "APPROVED") {
+      return {
+        success: false,
+        error: "Cannot reassign chapter for an already approved application.",
+      };
+    }
+
+    await prisma.chapterPresidentApplication.update({
+      where: { id: applicationId },
+      data: { chapterId: chapterId ?? null },
+    });
+
+    revalidatePath("/admin/chapter-president-applicants");
+    return { success: true };
+  } catch (error) {
+    console.error("[assignCPApplicationChapter]", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Something went wrong.",
+    };
+  }
+}
