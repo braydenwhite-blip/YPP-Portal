@@ -328,6 +328,10 @@ const CHAIR_QUEUE_SELECT = {
   chairQueuedAt: true,
   materialsReadyAt: true,
   interviewRound: true,
+  applicationTrack: true,
+  instructorSubtype: true,
+  workshopOutline: true,
+  promotionEligibility: true,
   applicant: {
     select: {
       id: true,

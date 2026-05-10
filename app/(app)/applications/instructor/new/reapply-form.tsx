@@ -300,7 +300,9 @@ export default function ReapplyForm({ isSummerWorkshop, prefill }: Props) {
               Workshop Outline
             </div>
             <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 14px", lineHeight: 1.5 }}>
-              Sketch one short workshop you&apos;d run at a camp. Replaces the full course outline.
+              Sketch one short workshop you&apos;d run at a camp. Replaces the full
+              course outline. Most workshops are in person — use the materials
+              section to note space, supply, or safety needs.
             </p>
 
             <label className="form-label">
@@ -368,7 +370,10 @@ export default function ReapplyForm({ isSummerWorkshop, prefill }: Props) {
                 rows={2}
                 defaultValue={get("workshopMaterialsNeeded")}
               />
-              <span style={HELPER}>One per line.</span>
+              <span style={HELPER}>
+                One per line. Include supplies, space requirements, or any
+                safety considerations.
+              </span>
             </label>
 
             <label className="form-label">

@@ -38,6 +38,9 @@ type PipelineApp = {
   applicationTrack?: string;
   instructorSubtype?: string;
   workshopOutlinePresent?: boolean;
+  workshopTitle?: string | null;
+  workshopAgeRange?: string | null;
+  workshopDurationMinutes?: number | null;
 };
 
 type FilterUser = { id: string; name: string | null; email: string };

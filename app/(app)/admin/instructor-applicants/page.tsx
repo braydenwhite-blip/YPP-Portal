@@ -230,6 +230,11 @@ export default async function AdminInstructorApplicantsPage({
 
   // Serialize dates for client components
   function serializeApp(app: any) {
+    const outline = (app.workshopOutline as {
+      title?: string;
+      ageRange?: string;
+      durationMinutes?: number;
+    } | null) ?? null;
     return {
       id: app.id as string,
       status: app.status as string,
@@ -243,6 +248,9 @@ export default async function AdminInstructorApplicantsPage({
       applicationTrack: (app.applicationTrack as string) ?? "STANDARD_INSTRUCTOR",
       instructorSubtype: (app.instructorSubtype as string) ?? "STANDARD",
       workshopOutlinePresent: !!app.workshopOutline,
+      workshopTitle: outline?.title ?? null,
+      workshopAgeRange: outline?.ageRange ?? null,
+      workshopDurationMinutes: outline?.durationMinutes ?? null,
       isReapplication: !!app.isReapplication,
       previousApplicationId: (app.previousApplicationId as string | null) ?? null,
       applicant: {
@@ -265,31 +273,39 @@ export default async function AdminInstructorApplicantsPage({
   }
 
   const serializedPipeline = pipelineApps.map(serializeApp);
-  const serializedArchive = archiveResult.items.map((app) => ({
-    id: app.id,
-    status: app.status,
-    archivedAt: app.archivedAt?.toISOString() ?? null,
-    updatedAt: app.updatedAt.toISOString(),
-    subjectsOfInterest: app.subjectsOfInterest ?? null,
-    applicant: {
-      id: app.applicant.id,
-      name: app.applicant.name,
-      email: "",
-      chapter: app.applicant.chapter ?? null,
-    },
-    reviewer: app.reviewer ?? null,
-    chairDecision: app.chairDecision
-      ? { action: app.chairDecision.action, decidedAt: app.chairDecision.decidedAt.toISOString() }
-      : null,
-    materialsReadyAt: null as string | null,
-    interviewScheduledAt: null as string | null,
-    interviewerAssignments: [] as Array<{ id: string; role: string; interviewer: { id: string; name: string | null } }>,
-    overdue: false,
-    applicationReviews: [] as Array<{ summary: string | null; nextStep: string | null; overallRating: string | null }>,
-    applicationTrack: (app as { applicationTrack?: string }).applicationTrack ?? "STANDARD_INSTRUCTOR",
-    instructorSubtype: (app as { instructorSubtype?: string }).instructorSubtype ?? "STANDARD",
-    workshopOutlinePresent: !!(app as { workshopOutline?: unknown }).workshopOutline,
-  }));
+  const serializedArchive = archiveResult.items.map((app) => {
+    const archiveOutline = (app as {
+      workshopOutline?: { title?: string; ageRange?: string; durationMinutes?: number };
+    }).workshopOutline ?? null;
+    return {
+      id: app.id,
+      status: app.status,
+      archivedAt: app.archivedAt?.toISOString() ?? null,
+      updatedAt: app.updatedAt.toISOString(),
+      subjectsOfInterest: app.subjectsOfInterest ?? null,
+      applicant: {
+        id: app.applicant.id,
+        name: app.applicant.name,
+        email: "",
+        chapter: app.applicant.chapter ?? null,
+      },
+      reviewer: app.reviewer ?? null,
+      chairDecision: app.chairDecision
+        ? { action: app.chairDecision.action, decidedAt: app.chairDecision.decidedAt.toISOString() }
+        : null,
+      materialsReadyAt: null as string | null,
+      interviewScheduledAt: null as string | null,
+      interviewerAssignments: [] as Array<{ id: string; role: string; interviewer: { id: string; name: string | null } }>,
+      overdue: false,
+      applicationReviews: [] as Array<{ summary: string | null; nextStep: string | null; overallRating: string | null }>,
+      applicationTrack: (app as { applicationTrack?: string }).applicationTrack ?? "STANDARD_INSTRUCTOR",
+      instructorSubtype: (app as { instructorSubtype?: string }).instructorSubtype ?? "STANDARD",
+      workshopOutlinePresent: !!archiveOutline,
+      workshopTitle: archiveOutline?.title ?? null,
+      workshopAgeRange: archiveOutline?.ageRange ?? null,
+      workshopDurationMinutes: archiveOutline?.durationMinutes ?? null,
+    };
+  });
 
   const newCount = pipelineResult.columns.new.length;
   const toReviewCount = pipelineResult.columns.needs_review.length;

@@ -72,6 +72,9 @@ export async function GET(request: Request) {
       rejectedAt: true,
       archivedAt: true,
       lastNotificationError: true,
+      applicationTrack: true,
+      instructorSubtype: true,
+      workshopOutline: true,
       applicant: {
         select: {
           name: true,
@@ -97,6 +100,11 @@ export async function GET(request: Request) {
   const header = csvRow([
     "id",
     "status",
+    "applicationTrack",
+    "instructorSubtype",
+    "workshopTitle",
+    "workshopAgeRange",
+    "workshopDurationMinutes",
     "createdAt",
     "updatedAt",
     "legalName",
@@ -117,10 +125,20 @@ export async function GET(request: Request) {
     "interviewReviewCount",
   ]);
 
-  const rows = applications.map((app) =>
-    csvRow([
+  const rows = applications.map((app) => {
+    const outline = (app.workshopOutline as {
+      title?: string;
+      ageRange?: string;
+      durationMinutes?: number;
+    } | null) ?? null;
+    return csvRow([
       app.id,
       app.status,
+      app.applicationTrack,
+      app.instructorSubtype,
+      outline?.title ?? "",
+      outline?.ageRange ?? "",
+      outline?.durationMinutes ?? "",
       app.createdAt.toISOString(),
       app.updatedAt.toISOString(),
       app.legalName,
@@ -139,8 +157,8 @@ export async function GET(request: Request) {
       app.lastNotificationError ? "yes" : "no",
       app.applicationReviews.length,
       app.interviewReviews.length,
-    ])
-  );
+    ]);
+  });
 
   const csv = [header, ...rows].join("\n");
   const filename = `instructor-applicants-${new Date().toISOString().split("T")[0]}.csv`;
