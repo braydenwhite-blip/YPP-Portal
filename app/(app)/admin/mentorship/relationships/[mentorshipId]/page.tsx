@@ -248,13 +248,26 @@ export default async function AdminMentorshipRelationshipDetailPage({
         </div>
 
         <div className="card">
-          <div className="section-title" style={{ marginBottom: 8 }}>
-            Status
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 8,
+              marginBottom: 8,
+            }}
+          >
+            <div className="section-title" style={{ margin: 0 }}>
+              Status
+            </div>
+            <span className={`pill pill-small ${statusToneClass}`}>
+              Currently {mentorship.status}
+            </span>
           </div>
           <p style={{ margin: "0 0 12px", color: "var(--muted)", fontSize: 13 }}>
             Pause when the relationship is on hold but not ending. Mark
             complete when the engagement is closed. Reactivate to resume from
-            paused.
+            paused. Saving without changing the status is a no-op.
           </p>
           <form
             action={setProgramMentorshipStatus}

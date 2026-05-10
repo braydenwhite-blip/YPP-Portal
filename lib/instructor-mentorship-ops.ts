@@ -26,6 +26,7 @@ const INSTRUCTOR_MENTORSHIP_TYPE_FILTER = SHOW_STUDENT_MENTORSHIP_LANE
 
 const STALE_SESSION_DAYS = 30;
 const STALE_GOAL_NO_UPDATE_DAYS = 30;
+export const ADMIN_QUEUE_PAGE_SIZE = 200;
 
 // Primary roles that the admin instructor-mentorship surfaces treat as
 // eligible mentees. INSTRUCTOR + LEADERSHIP roles match the visible lanes
@@ -392,7 +393,7 @@ export async function getOverdueCheckInQueue(): Promise<OverdueCheckInRow[]> {
       },
     },
     orderBy: { startDate: "asc" },
-    take: 200,
+    take: ADMIN_QUEUE_PAGE_SIZE,
   });
 
   return mentorships.map((mentorship) => {
@@ -477,7 +478,7 @@ export async function getStalledGoalQueue(): Promise<StalledGoalRow[]> {
       },
     },
     orderBy: [{ dueDate: "asc" }],
-    take: 200,
+    take: ADMIN_QUEUE_PAGE_SIZE,
   });
 
   return goals.map((goal) => {

@@ -15,6 +15,7 @@ import ChairsPanel from "@/app/(app)/admin/mentorship-program/chairs-panel";
 import { SHOW_STUDENT_MENTORSHIP_LANE } from "@/lib/mentorship-admin-helpers";
 import { FULL_PROGRAM_MENTOR_CAP } from "@/lib/mentorship-canonical";
 import {
+  ADMIN_QUEUE_PAGE_SIZE,
   getAdminMentorshipActionQueue,
   getInstructorMentorshipOpsSummary,
   getMentorWorkload,
@@ -680,11 +681,15 @@ export default async function AdminMentorshipPage({
         <div>
           <div className="card" style={{ marginBottom: 20 }}>
             <div style={{ fontWeight: 700, marginBottom: 6 }}>
-              Stalled or overdue G&amp;R goals ({stalledGoals.length})
+              Stalled or overdue G&amp;R goals ({stalledGoals.length}
+              {stalledGoals.length === ADMIN_QUEUE_PAGE_SIZE ? "+" : ""})
             </div>
             <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
               Active goals that are past due, marked blocked, or have not been
               updated in 30+ days. Sorted by due date.
+              {stalledGoals.length === ADMIN_QUEUE_PAGE_SIZE
+                ? ` Showing the first ${ADMIN_QUEUE_PAGE_SIZE} — resolve these and reload to see more.`
+                : ""}
             </p>
           </div>
           {stalledGoals.length === 0 ? (
@@ -752,11 +757,15 @@ export default async function AdminMentorshipPage({
         <div>
           <div className="card" style={{ marginBottom: 20 }}>
             <div style={{ fontWeight: 700, marginBottom: 6 }}>
-              Overdue check-ins ({overdueCheckIns.length})
+              Overdue check-ins ({overdueCheckIns.length}
+              {overdueCheckIns.length === ADMIN_QUEUE_PAGE_SIZE ? "+" : ""})
             </div>
             <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
               Active mentorships with no completed session in the last 30 days
               and no upcoming scheduled session. Oldest start dates first.
+              {overdueCheckIns.length === ADMIN_QUEUE_PAGE_SIZE
+                ? ` Showing the first ${ADMIN_QUEUE_PAGE_SIZE} — resolve these and reload to see more.`
+                : ""}
             </p>
           </div>
           {overdueCheckIns.length === 0 ? (
