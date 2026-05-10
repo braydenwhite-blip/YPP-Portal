@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import AdminMentorMatchPage from "@/app/(app)/admin/mentor-match/page";
 import AdminMentorshipRelationshipDetailPage from "@/app/(app)/admin/mentorship/relationships/[mentorshipId]/page";
+import { ADMIN_MENTORSHIP_PAGE_TITLE } from "@/app/(app)/admin/mentorship/page";
 import { prisma } from "@/lib/prisma";
 
 function installRelationshipDetailStubs() {
@@ -31,6 +32,14 @@ function makeRedirectThrow() {
     throw new RedirectError(to);
   });
 }
+
+describe("/admin/mentorship heading", () => {
+  it("exposes a stable title for nightly smoke tests to assert", () => {
+    expect(ADMIN_MENTORSHIP_PAGE_TITLE).toBe(
+      "Instructor Mentorship Oversight"
+    );
+  });
+});
 
 describe("/admin/mentor-match admin gate", () => {
   beforeEach(() => {
