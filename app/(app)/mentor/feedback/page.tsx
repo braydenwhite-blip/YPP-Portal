@@ -3,6 +3,10 @@ import { getSession } from "@/lib/auth-supabase";
 import Link from "next/link";
 import { MentorshipGuideCard } from "@/components/mentorship-guide-card";
 import { getMyFeedbackRequests } from "@/lib/feedback-actions";
+import {
+  feedbackPortalSubtitle,
+  feedbackPortalEmptyState,
+} from "@/lib/mentor-feedback-copy";
 import { RequestFeedbackForm, RespondForm, HelpfulButton } from "./client";
 
 const FEEDBACK_PORTAL_GUIDE_ITEMS = [
@@ -74,11 +78,7 @@ export default async function MentorFeedbackPage() {
             &larr; Support Hub
           </Link>
           <h1 className="page-title">Feedback Portal</h1>
-          <p className="page-subtitle">
-            {isMentor
-              ? "Review submitted work from students and provide personalized notes and resources."
-              : "Submit your work for review and receive personalized feedback from experienced mentors."}
-          </p>
+          <p className="page-subtitle">{feedbackPortalSubtitle(isMentor)}</p>
         </div>
         {isStudent && <RequestFeedbackForm />}
       </div>
@@ -322,11 +322,7 @@ export default async function MentorFeedbackPage() {
       {requests.length === 0 && (
         <div className="card" style={{ textAlign: "center", padding: 40 }}>
           <h3>No feedback requests yet</h3>
-          <p style={{ color: "var(--text-secondary)" }}>
-            {isMentor
-              ? "When students submit work for review, their requests will appear here."
-              : "Submit your work for review to get personalized feedback from experienced mentors."}
-          </p>
+          <p style={{ color: "var(--text-secondary)" }}>{feedbackPortalEmptyState(isMentor)}</p>
         </div>
       )}
     </div>
