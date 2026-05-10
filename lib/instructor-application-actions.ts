@@ -106,13 +106,25 @@ export async function notifyReviewersOfNewApplication(applicantId: string) {
   });
   chapterPresidents.forEach((u) => u.email && emailSet.add(u.email));
 
-  // 2. Hiring chair (HIRING_ADMIN default owner)
-  const hiringChair = await prisma.userAdminSubtype.findFirst({
+  // 2. Hiring chairs — every active user with the HIRING_CHAIR role.
+  // Cross-chapter: HIRING_CHAIR is global by product decision.
+  const hiringChairs = await prisma.user.findMany({
+    where: {
+      roles: { some: { role: RoleType.HIRING_CHAIR } },
+      archivedAt: null,
+    },
+    select: { email: true },
+  });
+  hiringChairs.forEach((u) => u.email && emailSet.add(u.email));
+
+  // 3. HIRING_ADMIN default owner — preserved so existing intake operations
+  // keep getting notified during/after the chair role rollout.
+  const hiringAdminOwner = await prisma.userAdminSubtype.findFirst({
     where: { subtype: "HIRING_ADMIN", isDefaultOwner: true },
     include: { user: { select: { email: true } } },
     orderBy: { createdAt: "asc" },
   });
-  if (hiringChair?.user?.email) emailSet.add(hiringChair.user.email);
+  if (hiringAdminOwner?.user?.email) emailSet.add(hiringAdminOwner.user.email);
 
   const emails = Array.from(emailSet).filter(Boolean) as string[];
   if (!emails.length) return;

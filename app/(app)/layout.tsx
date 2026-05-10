@@ -15,6 +15,7 @@ import { ensureAutoUnlockAndGetSections } from "@/lib/unlock-request-cache";
 import { getVisibleNavGroups } from "@/lib/unlock-nav-groups";
 import { withPrismaFallback } from "@/lib/prisma-guard";
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
+import { getChairQueueBadgeCount } from "@/lib/hiring-chair-badge";
 
 // Force runtime rendering so `next build` doesn't try to prerender pages that
 // require auth/database access (which can fail in build environments).
@@ -85,25 +86,35 @@ export default async function AppLayout({
   // Award tier comes from session (see getSessionUser) — avoids an extra user query here.
   const awardTier = getHighestAwardTier(session?.user?.awards ?? []);
 
-  let badges: { notifications?: number; messages?: number; approvals?: number } = {};
+  let badges: {
+    notifications?: number;
+    messages?: number;
+    approvals?: number;
+    chairQueueCount?: number;
+  } = {};
   let enabledFeatureKeysArray: string[] | undefined;
   let unlockedSectionsArray: string[] | undefined;
   let recentlyUnlockedGroupsArray: string[] | undefined;
   if (shouldLoadShellMetadata && userId) {
-    const unreadNotifications = await getUnreadNotificationCountCached(userId);
-    const unreadMessages = await getUnreadDirectMessageCountCached(userId);
+    const [unreadNotifications, unreadMessages, chairQueueCount, enabledFeatureKeys] =
+      await Promise.all([
+        getUnreadNotificationCountCached(userId),
+        getUnreadDirectMessageCountCached(userId),
+        getChairQueueBadgeCount(roles),
+        getEnabledFeatureKeysForUserCached(
+          userId,
+          session.user.chapterId ?? null,
+          rolesToSortedCsv(roles),
+          primaryRole,
+        ).catch(() => [] as string[]),
+      ]);
     const pendingApprovals = 0;
-    const enabledFeatureKeys = await getEnabledFeatureKeysForUserCached(
-      userId,
-      session.user.chapterId ?? null,
-      rolesToSortedCsv(roles),
-      primaryRole,
-    ).catch(() => []);
 
     badges = {
       notifications: unreadNotifications || undefined,
       messages: unreadMessages || undefined,
       approvals: pendingApprovals || undefined,
+      chairQueueCount: chairQueueCount || undefined,
     };
     enabledFeatureKeysArray = enabledFeatureKeys;
 

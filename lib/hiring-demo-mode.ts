@@ -52,6 +52,10 @@ export function getHiringDemoHomeHref(input: {
     return "/admin/instructor-applicants";
   }
 
+  if (roles.has("HIRING_CHAIR")) {
+    return "/admin/instructor-applicants/chair-queue";
+  }
+
   if (roles.has("CHAPTER_PRESIDENT")) {
     return "/chapter-lead/instructor-applicants";
   }

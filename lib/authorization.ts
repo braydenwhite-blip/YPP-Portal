@@ -13,10 +13,10 @@ export const RoleTypeSchema = z.enum([
   "STUDENT",
   "MENTOR",
   "CHAPTER_PRESIDENT",
-  "CHAPTER_PRESIDENT",
   "STAFF",
   "PARENT",
   "APPLICANT",
+  "HIRING_CHAIR",
 ]);
 
 /** Parse and validate a single role string from user input. Throws on invalid value. */
