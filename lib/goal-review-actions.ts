@@ -1134,6 +1134,17 @@ export async function getChairQueueEnriched() {
   const session = await getSession();
   if (!session?.user?.id) return null;
 
+  const roles = session.user.roles ?? [];
+  const isAdmin = roles.includes("ADMIN");
+
+  if (!isAdmin) {
+    const chairAssignments = await prisma.mentorCommitteeChair.findMany({
+      where: { userId: session.user.id, isActive: true },
+      select: { id: true },
+    });
+    if (chairAssignments.length === 0) return null;
+  }
+
   const reviews = await prisma.mentorGoalReview.findMany({
     where: { status: "PENDING_CHAIR_APPROVAL" },
     orderBy: { createdAt: "asc" },
@@ -1175,6 +1186,18 @@ export async function getChairQueueEnriched() {
 export async function getReviewCompletionStatus() {
   const session = await getSession();
   if (!session?.user?.id) return null;
+
+  const roles = session.user.roles ?? [];
+  const isAdmin = roles.includes("ADMIN");
+  const isChapterLead = roles.includes("CHAPTER_PRESIDENT");
+
+  if (!isAdmin && !isChapterLead) {
+    const chairAssignments = await prisma.mentorCommitteeChair.findMany({
+      where: { userId: session.user.id, isActive: true },
+      select: { id: true },
+    });
+    if (chairAssignments.length === 0) return null;
+  }
 
   const cycleStart = new Date();
   cycleStart.setDate(1);
