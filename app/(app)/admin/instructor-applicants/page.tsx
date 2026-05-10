@@ -220,6 +220,7 @@ export default async function AdminInstructorApplicantsPage({
       archivedAt: (app.archivedAt as Date | null)?.toISOString() ?? null,
       updatedAt: (app.updatedAt as Date | null)?.toISOString() ?? null,
       overdue: app.overdue as boolean | undefined,
+      awaitingSlots: app.awaitingSlots as boolean | undefined,
       subjectsOfInterest: app.subjectsOfInterest as string | null,
       applicationTrack: (app.applicationTrack as string) ?? "STANDARD_INSTRUCTOR",
       instructorSubtype: (app.instructorSubtype as string) ?? "STANDARD",
