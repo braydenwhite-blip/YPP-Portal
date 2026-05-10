@@ -574,8 +574,8 @@ export async function getAdminMentorshipActionQueue(): Promise<AdminActionItem[]
       kind: "NO_GOALS",
       title: `${row.mentee.name} has no active G&R`,
       detail: `Mentor: ${row.mentor.name}`,
-      emphasis: "Create G&R",
-      href: `/mentorship/mentees/${row.menteeId}`,
+      emphasis: "Open relationship",
+      href: `/admin/mentorship/relationships/${row.id}`,
       priority: 1,
     });
   }
@@ -587,7 +587,7 @@ export async function getAdminMentorshipActionQueue(): Promise<AdminActionItem[]
       title: `${row.menteeName} has no recent check-in`,
       detail: `Mentor: ${row.mentorName} · ${row.daysSinceActivity ?? "?"} days since activity`,
       emphasis: "Open relationship",
-      href: `/mentorship/mentees/${row.menteeId}`,
+      href: `/admin/mentorship/relationships/${row.mentorshipId}`,
       priority: 2,
     });
   }
@@ -599,7 +599,7 @@ export async function getAdminMentorshipActionQueue(): Promise<AdminActionItem[]
       title: `Stalled goal: ${row.goalTitle}`,
       detail: `${row.menteeName} (mentor: ${row.mentorName}) · ${row.reason}`,
       emphasis: "Review goal",
-      href: `/mentorship/mentees/${row.menteeId}`,
+      href: `/admin/mentorship/relationships/${row.mentorshipId}`,
       priority: 3,
     });
   }
