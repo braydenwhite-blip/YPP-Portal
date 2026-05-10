@@ -11,10 +11,21 @@
  * helper's gate as defense in depth.
  */
 
+import { MentorshipType } from "@prisma/client";
+
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { FULL_PROGRAM_MENTOR_CAP } from "@/lib/mentorship-canonical";
-import { ADMIN_MENTORSHIP_LANES } from "@/lib/mentorship-admin-helpers";
+import {
+  ADMIN_MENTORSHIP_LANES,
+  SHOW_STUDENT_MENTORSHIP_LANE,
+} from "@/lib/mentorship-admin-helpers";
+
+// Single boundary for "instructor mentorship vs student mentorship". Until
+// student mentorship launches we exclude STUDENT from every helper here.
+const INSTRUCTOR_MENTORSHIP_TYPE_FILTER = SHOW_STUDENT_MENTORSHIP_LANE
+  ? undefined
+  : { not: MentorshipType.STUDENT };
 
 const STALE_SESSION_DAYS = 30;
 const STALE_GOAL_NO_UPDATE_DAYS = 30;
@@ -69,7 +80,7 @@ export async function getInstructorMentorshipOpsSummary(): Promise<InstructorMen
     recentlyActive,
   ] = await Promise.all([
     prisma.mentorship.count({
-      where: { status: "ACTIVE", type: { not: "STUDENT" } },
+      where: { status: "ACTIVE", type: INSTRUCTOR_MENTORSHIP_TYPE_FILTER },
     }),
     prisma.user.count({
       where: {
@@ -79,13 +90,13 @@ export async function getInstructorMentorshipOpsSummary(): Promise<InstructorMen
     }),
     prisma.mentorship.groupBy({
       by: ["mentorId"],
-      where: { status: "ACTIVE", type: { not: "STUDENT" } },
+      where: { status: "ACTIVE", type: INSTRUCTOR_MENTORSHIP_TYPE_FILTER },
       _count: { id: true },
     }),
     prisma.mentorship.count({
       where: {
         status: "ACTIVE",
-        type: { not: "STUDENT" },
+        type: INSTRUCTOR_MENTORSHIP_TYPE_FILTER,
         sessions: {
           none: {
             OR: [
@@ -109,7 +120,7 @@ export async function getInstructorMentorshipOpsSummary(): Promise<InstructorMen
           },
         ],
         document: {
-          mentorship: { status: "ACTIVE", type: { not: "STUDENT" } },
+          mentorship: { status: "ACTIVE", type: INSTRUCTOR_MENTORSHIP_TYPE_FILTER },
         },
       },
     }),
@@ -119,7 +130,7 @@ export async function getInstructorMentorshipOpsSummary(): Promise<InstructorMen
     prisma.mentorship.count({
       where: {
         status: "ACTIVE",
-        type: { not: "STUDENT" },
+        type: INSTRUCTOR_MENTORSHIP_TYPE_FILTER,
         grDocuments: {
           none: { status: { in: ["ACTIVE", "PENDING_APPROVAL"] } },
         },
@@ -128,7 +139,7 @@ export async function getInstructorMentorshipOpsSummary(): Promise<InstructorMen
     prisma.mentorship.count({
       where: {
         status: "ACTIVE",
-        type: { not: "STUDENT" },
+        type: INSTRUCTOR_MENTORSHIP_TYPE_FILTER,
         sessions: { some: { completedAt: { gte: staleSessionCutoff } } },
       },
     }),
@@ -242,7 +253,7 @@ export async function getMentorWorkload(): Promise<MentorWorkloadRow[]> {
       name: true,
       email: true,
       mentorPairs: {
-        where: { status: "ACTIVE", type: { not: "STUDENT" } },
+        where: { status: "ACTIVE", type: INSTRUCTOR_MENTORSHIP_TYPE_FILTER },
         select: {
           id: true,
           sessions: {
@@ -357,7 +368,7 @@ export async function getOverdueCheckInQueue(): Promise<OverdueCheckInRow[]> {
   const mentorships = await prisma.mentorship.findMany({
     where: {
       status: "ACTIVE",
-      type: { not: "STUDENT" },
+      type: INSTRUCTOR_MENTORSHIP_TYPE_FILTER,
       sessions: {
         none: {
           OR: [
@@ -439,7 +450,7 @@ export async function getStalledGoalQueue(): Promise<StalledGoalRow[]> {
         },
       ],
       document: {
-        mentorship: { status: "ACTIVE", type: { not: "STUDENT" } },
+        mentorship: { status: "ACTIVE", type: INSTRUCTOR_MENTORSHIP_TYPE_FILTER },
       },
     },
     select: {
@@ -539,7 +550,7 @@ export async function getAdminMentorshipActionQueue(): Promise<AdminActionItem[]
       prisma.mentorship.findMany({
         where: {
           status: "ACTIVE",
-          type: { not: "STUDENT" },
+          type: INSTRUCTOR_MENTORSHIP_TYPE_FILTER,
           grDocuments: {
             none: { status: { in: ["ACTIVE", "PENDING_APPROVAL"] } },
           },

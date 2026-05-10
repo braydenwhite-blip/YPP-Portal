@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { MentorshipType } from "@prisma/client";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { getAdminMentorshipCommandCenterData } from "@/lib/admin-mentorship-command-center";
@@ -11,7 +12,7 @@ import GoalReviewsBoard from "@/app/(app)/admin/mentorship-program/goal-reviews-
 import ReviewApprovalsBoard from "@/app/(app)/admin/mentorship-program/review-approvals-board";
 import GoalsPanel from "@/app/(app)/admin/mentorship-program/goals-panel";
 import ChairsPanel from "@/app/(app)/admin/mentorship-program/chairs-panel";
-import { getMentorCapacityStatus } from "@/lib/mentorship-access";
+import { SHOW_STUDENT_MENTORSHIP_LANE } from "@/lib/mentorship-admin-helpers";
 import {
   getAdminMentorshipActionQueue,
   getInstructorMentorshipOpsSummary,
@@ -55,6 +56,13 @@ function parseTab(raw?: string): Tab {
   return "pulse";
 }
 
+// Match the lane filter on `lib/admin-mentorship-command-center.ts`:
+// student mentorship is hidden until launch, so we exclude STUDENT-typed
+// mentorships from every pulse metric.
+const MENTORSHIP_TYPE_FILTER = SHOW_STUDENT_MENTORSHIP_LANE
+  ? undefined
+  : { not: MentorshipType.STUDENT };
+
 async function getPulseData() {
   const now = new Date();
   const cycleStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -67,10 +75,28 @@ async function getPulseData() {
     ratingBreakdown,
     mentorCapacityWarnings,
   ] = await Promise.all([
-    prisma.mentorship.count({ where: { status: "ACTIVE" } }),
-    prisma.mentorGoalReview.count({ where: { status: "PENDING_CHAIR_APPROVAL" } }),
-    prisma.mentorship.count({ where: { status: "ACTIVE", cycleStage: "REFLECTION_DUE" } }),
-    prisma.monthlySelfReflection.count({ where: { cycleMonth: { gte: cycleStart } } }),
+    prisma.mentorship.count({
+      where: { status: "ACTIVE", type: MENTORSHIP_TYPE_FILTER },
+    }),
+    prisma.mentorGoalReview.count({
+      where: {
+        status: "PENDING_CHAIR_APPROVAL",
+        mentorship: { type: MENTORSHIP_TYPE_FILTER },
+      },
+    }),
+    prisma.mentorship.count({
+      where: {
+        status: "ACTIVE",
+        cycleStage: "REFLECTION_DUE",
+        type: MENTORSHIP_TYPE_FILTER,
+      },
+    }),
+    prisma.monthlySelfReflection.count({
+      where: {
+        cycleMonth: { gte: cycleStart },
+        mentorship: { type: MENTORSHIP_TYPE_FILTER },
+      },
+    }),
     prisma.goalReviewRating.groupBy({
       by: ["rating"],
       _count: true,
@@ -78,16 +104,22 @@ async function getPulseData() {
         review: {
           createdAt: { gte: new Date(now.getFullYear(), now.getMonth() - 3, 1) },
           status: "APPROVED",
+          mentorship: { type: MENTORSHIP_TYPE_FILTER },
         },
       },
     }),
     prisma.user.findMany({
-      where: { roles: { some: { role: "MENTOR" } } },
+      where: {
+        OR: [
+          { roles: { some: { role: "MENTOR" } } },
+          { mentorPairs: { some: { status: "ACTIVE" } } },
+        ],
+      },
       select: {
         id: true,
         name: true,
         mentorPairs: {
-          where: { status: "ACTIVE" },
+          where: { status: "ACTIVE", type: MENTORSHIP_TYPE_FILTER },
           select: { id: true },
         },
       },
@@ -124,14 +156,22 @@ async function getPulseData() {
 }
 
 async function getPairingsData() {
+  // Anyone with the MENTOR role *or* who currently has an active mentee
+  // counts here — instructors mentoring instructors is a launch use case
+  // and they may not also carry the explicit MENTOR role.
   const mentors = await prisma.user.findMany({
-    where: { roles: { some: { role: "MENTOR" } } },
+    where: {
+      OR: [
+        { roles: { some: { role: "MENTOR" } } },
+        { mentorPairs: { some: { status: "ACTIVE" } } },
+      ],
+    },
     select: {
       id: true,
       name: true,
       email: true,
       mentorPairs: {
-        where: { status: "ACTIVE" },
+        where: { status: "ACTIVE", type: MENTORSHIP_TYPE_FILTER },
         select: {
           id: true,
           cycleStage: true,
@@ -142,18 +182,20 @@ async function getPairingsData() {
     orderBy: { name: "asc" },
   });
 
-  return mentors.map((m) => ({
-    id: m.id,
-    name: m.name ?? m.email,
-    menteeCount: m.mentorPairs.length,
-    mentees: m.mentorPairs.map((link) => ({
-      name: link.mentee.name ?? "",
-      role: link.mentee.primaryRole ?? "",
-      stage: link.cycleStage,
-    })),
-    isAtCapacity: m.mentorPairs.length >= 3,
-    isOverCapacity: m.mentorPairs.length > 3,
-  }));
+  return mentors
+    .filter((m) => m.mentorPairs.length > 0)
+    .map((m) => ({
+      id: m.id,
+      name: m.name ?? m.email,
+      menteeCount: m.mentorPairs.length,
+      mentees: m.mentorPairs.map((link) => ({
+        name: link.mentee.name ?? "",
+        role: link.mentee.primaryRole ?? "",
+        stage: link.cycleStage,
+      })),
+      isAtCapacity: m.mentorPairs.length >= 3,
+      isOverCapacity: m.mentorPairs.length > 3,
+    }));
 }
 
 export default async function AdminMentorshipPage({
