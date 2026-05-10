@@ -2815,11 +2815,56 @@ const APPLICANT_EDIT_OPEN_STATUSES: InstructorApplicationStatus[] = [
 ];
 
 /**
+ * Form-field names used by the Summer Workshop outline editor in the
+ * applicant's My Application view. Mirrors the signup/reapply form so the
+ * shape stays consistent across entry points.
+ */
+const WORKSHOP_OUTLINE_FORM_FIELDS = [
+  "workshopTitle",
+  "workshopAgeRange",
+  "workshopDurationMinutes",
+  "workshopLearningGoals",
+  "workshopActivityFlow",
+  "workshopMaterialsNeeded",
+  "workshopEngagementHook",
+  "workshopAdaptationNotes",
+] as const;
+
+function buildWorkshopOutlineFromForm(formData: FormData) {
+  const get = (k: string) => {
+    const v = formData.get(k);
+    return v == null ? "" : String(v).trim();
+  };
+  const durationRaw = get("workshopDurationMinutes");
+  const goalsRaw = get("workshopLearningGoals");
+  const materialsRaw = get("workshopMaterialsNeeded");
+  return {
+    title: get("workshopTitle"),
+    ageRange: get("workshopAgeRange"),
+    durationMinutes: durationRaw ? parseInt(durationRaw, 10) : undefined,
+    learningGoals: goalsRaw
+      ? goalsRaw.split("\n").map((s) => s.trim()).filter(Boolean)
+      : [],
+    activityFlow: get("workshopActivityFlow"),
+    materialsNeeded: materialsRaw
+      ? materialsRaw.split("\n").map((s) => s.trim()).filter(Boolean)
+      : [],
+    engagementHook: get("workshopEngagementHook"),
+    adaptationNotes: get("workshopAdaptationNotes"),
+  };
+}
+
+/**
  * Applicant-initiated edit. Allowed only on the most recent active
  * application, only in non-final statuses, and only on the safelist of
  * editable fields. Each edit records a timeline event capturing both
  * the previous and the new value so reviewers can see the diff and the
  * original answer is never lost.
+ *
+ * Summer Workshop applicants may also update the structured workshop
+ * outline; we validate the full outline (so partial edits cannot leave
+ * required fields blank) and surface a `WORKSHOP_OUTLINE_UPDATED`
+ * timeline event on change.
  */
 export async function editInstructorApplicationFields(
   prevState: FormState,
@@ -2877,6 +2922,37 @@ export async function editInstructorApplicationFields(
       }
     }
 
+    // Workshop outline edits — only honored for Summer Workshop applicants.
+    // We accept the edit only when at least one outline field arrived, so
+    // non-SW edits don't accidentally clobber the JSON column.
+    let nextWorkshopOutline: Record<string, unknown> | null = null;
+    let outlineChanged = false;
+    const submittedOutlineFields = WORKSHOP_OUTLINE_FORM_FIELDS.some((f) =>
+      formData.has(f)
+    );
+    if (
+      submittedOutlineFields &&
+      application.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR"
+    ) {
+      const { workshopOutlineSchema } = await import("@/lib/application-schemas");
+      const candidate = buildWorkshopOutlineFromForm(formData);
+      const parsed = workshopOutlineSchema.safeParse(candidate);
+      if (!parsed.success) {
+        return {
+          status: "error",
+          message:
+            parsed.error.issues[0]?.message ??
+            "Please review your workshop outline and try again.",
+        };
+      }
+      nextWorkshopOutline = parsed.data as Record<string, unknown>;
+      const prevOutline = (application.workshopOutline as Record<string, unknown> | null) ?? null;
+      if (JSON.stringify(prevOutline) !== JSON.stringify(nextWorkshopOutline)) {
+        outlineChanged = true;
+        changed["workshopOutline"] = { from: prevOutline, to: nextWorkshopOutline };
+      }
+    }
+
     if (Object.keys(changed).length === 0) {
       return { status: "success", message: "No changes." };
     }
@@ -2884,7 +2960,12 @@ export async function editInstructorApplicationFields(
     await prisma.$transaction(async (tx) => {
       await tx.instructorApplication.update({
         where: { id: application.id },
-        data: incoming as Prisma.InstructorApplicationUpdateInput,
+        data: {
+          ...(incoming as Prisma.InstructorApplicationUpdateInput),
+          ...(outlineChanged && nextWorkshopOutline
+            ? { workshopOutline: nextWorkshopOutline as Prisma.InputJsonValue }
+            : {}),
+        },
       });
       await tx.instructorApplicationTimelineEvent.create({
         data: {
@@ -2894,6 +2975,16 @@ export async function editInstructorApplicationFields(
           payload: JSON.parse(JSON.stringify({ changed })) as Prisma.InputJsonValue,
         },
       });
+      if (outlineChanged) {
+        await tx.instructorApplicationTimelineEvent.create({
+          data: {
+            applicationId: application.id,
+            kind: "WORKSHOP_OUTLINE_UPDATED",
+            actorId: session.user.id,
+            payload: { source: "applicant_edit" },
+          },
+        });
+      }
     });
 
     revalidatePath("/application-status");

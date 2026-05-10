@@ -15,6 +15,17 @@ function EditSubmit() {
   );
 }
 
+type WorkshopOutlineValues = {
+  title: string;
+  ageRange: string;
+  durationMinutes: number | null;
+  learningGoals: string[];
+  activityFlow: string;
+  materialsNeeded: string[];
+  engagementHook: string;
+  adaptationNotes: string;
+} | null;
+
 interface Props {
   /** Track determines which fields are visible. */
   isSummerWorkshop: boolean;
@@ -35,9 +46,15 @@ interface Props {
     stateProvince: string | null;
     zipCode: string | null;
   };
+  /** Existing workshop outline (Summer Workshop track only). */
+  workshopOutline?: WorkshopOutlineValues;
 }
 
-export default function ApplicantEditForm({ isSummerWorkshop, values }: Props) {
+export default function ApplicantEditForm({
+  isSummerWorkshop,
+  values,
+  workshopOutline,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [state, action] = useFormState(editInstructorApplicationFields, initialState);
 
@@ -149,6 +166,115 @@ export default function ApplicantEditForm({ isSummerWorkshop, values }: Props) {
             />
           </label>
         </>
+      )}
+
+      {isSummerWorkshop && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: 14,
+            borderRadius: 10,
+            border: "1px solid var(--border)",
+            background: "var(--background)",
+          }}
+        >
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>
+            Workshop outline
+          </div>
+          <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 10px", lineHeight: 1.5 }}>
+            Update the short workshop you&rsquo;d run at a camp. Most workshops are
+            in person — note any space, materials, or safety needs in the relevant
+            sections so reviewers can plan logistics.
+          </p>
+
+          <label className="form-label">
+            Workshop title
+            <input
+              className="input"
+              name="workshopTitle"
+              defaultValue={workshopOutline?.title ?? ""}
+            />
+          </label>
+
+          <div className="grid two">
+            <label className="form-label">
+              Age range
+              <input
+                className="input"
+                name="workshopAgeRange"
+                defaultValue={workshopOutline?.ageRange ?? ""}
+                placeholder="e.g. Grades 6–8"
+              />
+            </label>
+            <label className="form-label">
+              Duration (minutes)
+              <input
+                className="input"
+                name="workshopDurationMinutes"
+                type="number"
+                min={15}
+                max={240}
+                defaultValue={workshopOutline?.durationMinutes ?? ""}
+              />
+            </label>
+          </div>
+
+          <label className="form-label">
+            Learning goals
+            <textarea
+              className="input"
+              name="workshopLearningGoals"
+              rows={3}
+              defaultValue={(workshopOutline?.learningGoals ?? []).join("\n")}
+            />
+            <span style={{ display: "block", fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+              One per line.
+            </span>
+          </label>
+
+          <label className="form-label">
+            Activity flow
+            <textarea
+              className="input"
+              name="workshopActivityFlow"
+              rows={4}
+              defaultValue={workshopOutline?.activityFlow ?? ""}
+            />
+          </label>
+
+          <label className="form-label">
+            Materials needed (incl. supplies, space requirements, safety notes)
+            <textarea
+              className="input"
+              name="workshopMaterialsNeeded"
+              rows={3}
+              defaultValue={(workshopOutline?.materialsNeeded ?? []).join("\n")}
+            />
+            <span style={{ display: "block", fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+              One per line. Optional but useful for the review team.
+            </span>
+          </label>
+
+          <label className="form-label">
+            Engagement hook
+            <textarea
+              className="input"
+              name="workshopEngagementHook"
+              rows={3}
+              defaultValue={workshopOutline?.engagementHook ?? ""}
+            />
+          </label>
+
+          <label className="form-label">
+            Adapting on the fly
+            <textarea
+              className="input"
+              name="workshopAdaptationNotes"
+              rows={3}
+              defaultValue={workshopOutline?.adaptationNotes ?? ""}
+            />
+          </label>
+        </div>
       )}
 
       <label className="form-label">

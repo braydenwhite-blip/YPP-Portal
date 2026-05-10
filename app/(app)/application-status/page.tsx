@@ -477,25 +477,45 @@ export default async function ApplicationStatusPage() {
           {!["CHAIR_REVIEW", "ON_HOLD", "WAITLISTED", "APPROVED", "REJECTED", "WITHDRAWN"].includes(
             instructorApp.status
           ) && (
-            <ApplicantEditForm
-              isSummerWorkshop={instructorApp.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR"}
-              values={{
-                motivation: instructorApp.motivation,
-                teachingExperience: instructorApp.teachingExperience,
-                availability: instructorApp.availability,
-                hoursPerWeek: instructorApp.hoursPerWeek,
-                preferredStartDate: instructorApp.preferredStartDate,
-                subjectsOfInterest: instructorApp.subjectsOfInterest,
-                courseIdea: instructorApp.courseIdea,
-                courseOutline: instructorApp.courseOutline,
-                firstClassPlan: instructorApp.firstClassPlan,
-                preferredFirstName: instructorApp.preferredFirstName,
-                phoneNumber: instructorApp.phoneNumber,
-                city: instructorApp.city,
-                stateProvince: instructorApp.stateProvince,
-                zipCode: instructorApp.zipCode,
-              }}
-            />
+            (() => {
+              const editOutline =
+                (instructorApp.workshopOutline as WorkshopOutline | null) ?? null;
+              return (
+                <ApplicantEditForm
+                  isSummerWorkshop={instructorApp.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR"}
+                  values={{
+                    motivation: instructorApp.motivation,
+                    teachingExperience: instructorApp.teachingExperience,
+                    availability: instructorApp.availability,
+                    hoursPerWeek: instructorApp.hoursPerWeek,
+                    preferredStartDate: instructorApp.preferredStartDate,
+                    subjectsOfInterest: instructorApp.subjectsOfInterest,
+                    courseIdea: instructorApp.courseIdea,
+                    courseOutline: instructorApp.courseOutline,
+                    firstClassPlan: instructorApp.firstClassPlan,
+                    preferredFirstName: instructorApp.preferredFirstName,
+                    phoneNumber: instructorApp.phoneNumber,
+                    city: instructorApp.city,
+                    stateProvince: instructorApp.stateProvince,
+                    zipCode: instructorApp.zipCode,
+                  }}
+                  workshopOutline={
+                    editOutline
+                      ? {
+                          title: editOutline.title ?? "",
+                          ageRange: editOutline.ageRange ?? "",
+                          durationMinutes: editOutline.durationMinutes ?? null,
+                          learningGoals: editOutline.learningGoals ?? [],
+                          activityFlow: editOutline.activityFlow ?? "",
+                          materialsNeeded: editOutline.materialsNeeded ?? [],
+                          engagementHook: editOutline.engagementHook ?? "",
+                          adaptationNotes: editOutline.adaptationNotes ?? "",
+                        }
+                      : null
+                  }
+                />
+              );
+            })()
           )}
 
           {/* Withdraw — applicants control their own data */}
