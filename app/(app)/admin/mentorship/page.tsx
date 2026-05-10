@@ -13,6 +13,7 @@ import ReviewApprovalsBoard from "@/app/(app)/admin/mentorship-program/review-ap
 import GoalsPanel from "@/app/(app)/admin/mentorship-program/goals-panel";
 import ChairsPanel from "@/app/(app)/admin/mentorship-program/chairs-panel";
 import { SHOW_STUDENT_MENTORSHIP_LANE } from "@/lib/mentorship-admin-helpers";
+import { FULL_PROGRAM_MENTOR_CAP } from "@/lib/mentorship-canonical";
 import {
   getAdminMentorshipActionQueue,
   getInstructorMentorshipOpsSummary,
@@ -137,7 +138,9 @@ async function getPulseData() {
     ((ratingMap["ABOVE_AND_BEYOND"] ?? 0) / total > 0.4 ||
       (ratingMap["BEHIND_SCHEDULE"] ?? 0) / total > 0.5);
 
-  const overCapacityMentors = mentorCapacityWarnings.filter((m) => m.mentorPairs.length > 3);
+  const overCapacityMentors = mentorCapacityWarnings.filter(
+    (m) => m.mentorPairs.length > FULL_PROGRAM_MENTOR_CAP
+  );
 
   return {
     activeCount,
@@ -193,8 +196,8 @@ async function getPairingsData() {
         role: link.mentee.primaryRole ?? "",
         stage: link.cycleStage,
       })),
-      isAtCapacity: m.mentorPairs.length >= 3,
-      isOverCapacity: m.mentorPairs.length > 3,
+      isAtCapacity: m.mentorPairs.length >= FULL_PROGRAM_MENTOR_CAP,
+      isOverCapacity: m.mentorPairs.length > FULL_PROGRAM_MENTOR_CAP,
     }));
 }
 

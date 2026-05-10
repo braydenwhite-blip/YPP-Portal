@@ -16,10 +16,7 @@ import { MentorshipType } from "@prisma/client";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { FULL_PROGRAM_MENTOR_CAP } from "@/lib/mentorship-canonical";
-import {
-  ADMIN_MENTORSHIP_LANES,
-  SHOW_STUDENT_MENTORSHIP_LANE,
-} from "@/lib/mentorship-admin-helpers";
+import { SHOW_STUDENT_MENTORSHIP_LANE } from "@/lib/mentorship-admin-helpers";
 
 // Single boundary for "instructor mentorship vs student mentorship". Until
 // student mentorship launches we exclude STUDENT from every helper here.
@@ -29,13 +26,6 @@ const INSTRUCTOR_MENTORSHIP_TYPE_FILTER = SHOW_STUDENT_MENTORSHIP_LANE
 
 const STALE_SESSION_DAYS = 30;
 const STALE_GOAL_NO_UPDATE_DAYS = 30;
-
-export const INSTRUCTOR_OPS_PRIMARY_ROLES = [
-  "INSTRUCTOR",
-  "CHAPTER_PRESIDENT",
-  "ADMIN",
-  "STAFF",
-] as const;
 
 async function requireAdminForOps() {
   const session = await getSession();
@@ -629,9 +619,3 @@ export async function getAdminMentorshipActionQueue(): Promise<AdminActionItem[]
 
   return items.sort((left, right) => left.priority - right.priority);
 }
-
-export const __TEST_ONLY__ = {
-  STALE_SESSION_DAYS,
-  STALE_GOAL_NO_UPDATE_DAYS,
-  ADMIN_MENTORSHIP_LANES,
-};
