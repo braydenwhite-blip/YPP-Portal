@@ -26,12 +26,17 @@ import {
 } from "@/lib/journey-editor/beat-defaults";
 import type { InteractiveBeatKind } from "@/lib/journey-editor/types";
 
+import { BeatEditorModal } from "./beat-editor-modal";
+
 export interface BeatRow {
   id: string;
   sourceKey: string;
   kind: InteractiveBeatKind;
   title: string;
+  prompt: string;
   sortOrder: number;
+  scoringWeight: number;
+  config: unknown;
 }
 
 interface BeatsTabProps {
@@ -46,6 +51,7 @@ export function BeatsTab(props: BeatsTabProps) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [editingBeatId, setEditingBeatId] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -161,6 +167,7 @@ export function BeatsTab(props: BeatsTabProps) {
                   beat={b}
                   index={idx + 1}
                   onRemove={() => handleRemove(b.id)}
+                  onEdit={() => setEditingBeatId(b.id)}
                 />
               ))}
             </ul>
@@ -169,6 +176,26 @@ export function BeatsTab(props: BeatsTabProps) {
       )}
 
       {error ? <p className="form-error">{error}</p> : null}
+
+      {editingBeatId
+        ? (() => {
+            const b = beatById.get(editingBeatId);
+            if (!b) return null;
+            return (
+              <BeatEditorModal
+                beat={{
+                  id: b.id,
+                  kind: b.kind,
+                  title: b.title,
+                  prompt: b.prompt,
+                  scoringWeight: b.scoringWeight,
+                  config: b.config,
+                }}
+                onClose={() => setEditingBeatId(null)}
+              />
+            );
+          })()
+        : null}
 
       <form className="add-beat-form" action={(fd) => handleAdd(fd)}>
         <h3>Add a beat</h3>
@@ -203,6 +230,7 @@ function SortableBeatRow(props: {
   beat: BeatRow;
   index: number;
   onRemove: () => void;
+  onEdit: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: props.beat.id,
@@ -223,7 +251,7 @@ function SortableBeatRow(props: {
       >
         ⋮⋮
       </button>
-      <div className="beat-row-body">
+      <button type="button" className="beat-row-body" onClick={props.onEdit}>
         <div className="beat-row-line">
           <strong>{props.index}.</strong> <span className="beat-kind-pill">{props.beat.kind}</span>{" "}
           {props.beat.title}
@@ -231,7 +259,7 @@ function SortableBeatRow(props: {
         <div className="beat-row-meta muted">
           <code>{props.beat.sourceKey}</code>
         </div>
-      </div>
+      </button>
       <button type="button" className="btn btn-danger-ghost" onClick={props.onRemove}>
         Remove
       </button>

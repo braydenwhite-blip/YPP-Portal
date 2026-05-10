@@ -44,7 +44,10 @@ export default async function AdminJourneyDetailPage({
           sourceKey: true,
           kind: true,
           title: true,
+          prompt: true,
           sortOrder: true,
+          scoringWeight: true,
+          config: true,
         },
       })
     : [];
@@ -89,7 +92,10 @@ export default async function AdminJourneyDetailPage({
           sourceKey: b.sourceKey,
           kind: b.kind,
           title: b.title,
+          prompt: b.prompt,
           sortOrder: b.sortOrder,
+          scoringWeight: b.scoringWeight,
+          config: b.config,
         }))}
         assignments={journey.assignments}
         auditLog={journey.auditLogs.map((a) => ({
