@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 
 import { getSession } from "@/lib/auth-supabase";
-import { canSeeChairQueue, getHiringActor } from "@/lib/chapter-hiring-permissions";
+import { canSeeChairQueue, getHiringActor, isAdmin } from "@/lib/chapter-hiring-permissions";
 import {
   isFinalReviewV2EnabledForChapter,
   isInstructorApplicantWorkflowV1Enabled,
@@ -29,13 +29,13 @@ export default async function FinalReviewCockpitPage({
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
 
-  if (!isInstructorApplicantWorkflowV1Enabled()) {
-    redirect("/admin/instructor-applicants");
-  }
-
   const actor = await getHiringActor(session.user.id);
   if (!canSeeChairQueue(actor)) {
-    redirect("/admin/instructor-applicants");
+    redirect("/");
+  }
+
+  if (!isInstructorApplicantWorkflowV1Enabled()) {
+    redirect(isAdmin(actor) ? "/admin/instructor-applicants" : "/");
   }
 
   const { id } = await params;
