@@ -84,33 +84,49 @@ export default async function MenteesPage({ searchParams }: PageProps) {
       <div>
         <div className="topbar">
           <div>
+            <Link href="/mentorship" style={{ color: "var(--muted)", fontSize: 13 }}>
+              &larr; Instructor Mentorship
+            </Link>
             <p className="badge">Mentorship</p>
-            <h1 className="page-title">My Mentees</h1>
+            <h1 className="page-title">Instructors I Mentor</h1>
             <p className="page-subtitle">
-              Each card is a mentee; columns track the monthly cycle. Click a card to open their workspace.
+              Each card is an instructor you mentor; columns track the monthly
+              cycle. Click a card to open their workspace.
             </p>
           </div>
           <div
             className="badge"
             style={{ background: "#e0e7ff", color: "#3730a3" }}
           >
-            {total} mentee{total !== 1 ? "s" : ""}
+            {total} instructor mentee{total !== 1 ? "s" : ""}
           </div>
         </div>
 
-        <MentorshipGuideCard
-          title="How To Read The Kanban"
-          intro="Columns are the monthly cycle, left to right. Focus on the leftmost columns that still have cards — those are waiting on you."
-          items={MENTEES_GUIDE_ITEMS}
-        />
+        {total === 0 ? (
+          <div className="card" style={{ textAlign: "center", padding: "2.5rem 1.5rem" }}>
+            <h3 style={{ marginTop: 0 }}>You are not currently mentoring any instructors.</h3>
+            <p style={{ color: "var(--muted)", maxWidth: 480, margin: "0 auto" }}>
+              When chapter leadership pairs you with an instructor mentee,
+              they'll appear here so you can run their monthly cycle.
+            </p>
+          </div>
+        ) : (
+          <>
+            <MentorshipGuideCard
+              title="How To Read The Kanban"
+              intro="Columns are the monthly cycle, left to right. Focus on the leftmost columns that still have cards — those are waiting on you."
+              items={MENTEES_GUIDE_ITEMS}
+            />
 
-        <MentorKanban active={active} inactive={inactive} total={total} />
+            <MentorKanban active={active} inactive={inactive} total={total} />
 
-        <p style={{ textAlign: "center", marginTop: 24, fontSize: "0.8rem" }}>
-          <Link href="/mentorship/mentees?view=list" className="muted">
-            Prefer the list view?
-          </Link>
-        </p>
+            <p style={{ textAlign: "center", marginTop: 24, fontSize: "0.8rem" }}>
+              <Link href="/mentorship/mentees?view=list" className="muted">
+                Prefer the list view?
+              </Link>
+            </p>
+          </>
+        )}
       </div>
     );
   }
@@ -295,8 +311,11 @@ export default async function MenteesPage({ searchParams }: PageProps) {
     <div>
       <div className="topbar">
         <div>
+          <Link href="/mentorship" style={{ color: "var(--muted)", fontSize: 13 }}>
+            &larr; Instructor Mentorship
+          </Link>
           <p className="badge">Mentorship</p>
-          <h1 className="page-title">My Mentees (list view)</h1>
+          <h1 className="page-title">Instructors I Mentor (list view)</h1>
           <p className="page-subtitle">
             Classic list layout. <Link href="/mentorship/mentees">Switch to Kanban →</Link>
           </p>
@@ -305,7 +324,7 @@ export default async function MenteesPage({ searchParams }: PageProps) {
           className="badge"
           style={{ background: "#e0e7ff", color: "#3730a3" }}
         >
-          {mentees.length} mentee{mentees.length !== 1 ? "s" : ""}
+          {mentees.length} instructor mentee{mentees.length !== 1 ? "s" : ""}
         </div>
       </div>
 
@@ -314,7 +333,7 @@ export default async function MenteesPage({ searchParams }: PageProps) {
           <p style={{ color: "var(--muted)" }}>
             {isAdmin
               ? "No users have goals assigned yet. Assign goals from the Admin Goals page."
-              : "No mentees assigned yet. Your chapter president will pair you with mentees."}
+              : "You are not currently mentoring any instructors. Chapter leadership pairs mentors with mentees."}
           </p>
         </div>
       ) : (
