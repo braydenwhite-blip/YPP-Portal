@@ -375,6 +375,185 @@ export async function endProgramMentorship(formData: FormData) {
   revalidatePath("/admin/mentorship-program");
 }
 
+/**
+ * Reassign an instructor's primary mentor in one shot. Ends the current
+ * active relationship (status = COMPLETE) and creates a fresh mentorship
+ * with the new mentor. Admin only.
+ */
+export async function reassignProgramMentor(formData: FormData) {
+  const session = await requireAdmin();
+  const mentorshipId = getString(formData, "mentorshipId");
+  const newMentorId = getString(formData, "newMentorId");
+  const reason = getString(formData, "reason", false);
+
+  const existing = await prisma.mentorship.findUniqueOrThrow({
+    where: { id: mentorshipId },
+    select: {
+      id: true,
+      status: true,
+      mentorId: true,
+      menteeId: true,
+      mentor: { select: { name: true } },
+      mentee: {
+        select: {
+          id: true,
+          name: true,
+          primaryRole: true,
+          chapterId: true,
+          chapter: { select: { name: true } },
+        },
+      },
+    },
+  });
+
+  if (existing.status !== "ACTIVE") {
+    throw new Error("Only active mentorships can be reassigned");
+  }
+
+  if (newMentorId === existing.mentorId) {
+    throw new Error("New mentor must differ from current mentor");
+  }
+
+  if (newMentorId === existing.menteeId) {
+    throw new Error("Mentor and mentee cannot be the same person");
+  }
+
+  const newMentor = await prisma.user.findUniqueOrThrow({
+    where: { id: newMentorId },
+    select: { id: true, name: true },
+  });
+
+  const programGroup = getMentorshipProgramGroupForRole(
+    existing.mentee.primaryRole
+  );
+  const governanceMode = getGovernanceModeForProgramGroup(programGroup);
+  const track = await resolveCanonicalTrackForMentee({
+    primaryRole: existing.mentee.primaryRole,
+    chapterId: existing.mentee.chapterId,
+    chapterName: existing.mentee.chapter?.name ?? null,
+  });
+  const chairId = await resolveMentorshipChairId({
+    trackId: track.id,
+    primaryRole: existing.mentee.primaryRole,
+  });
+
+  await enforceFullProgramMentorCapacity({
+    mentorId: newMentor.id,
+    programGroup,
+    governanceMode,
+  });
+
+  const reasonSuffix = reason ? ` — Reason: ${reason}` : "";
+
+  const created = await prisma.$transaction(async (tx) => {
+    await tx.mentorship.update({
+      where: { id: existing.id },
+      data: {
+        status: MentorshipStatus.COMPLETE,
+        endDate: new Date(),
+        notes: reason
+          ? `Reassigned to ${newMentor.name}${reasonSuffix}`
+          : `Reassigned to ${newMentor.name}`,
+      },
+    });
+
+    await tx.mentorshipCircleMember.updateMany({
+      where: { mentorshipId: existing.id },
+      data: { isActive: false },
+    });
+
+    return tx.mentorship.create({
+      data: {
+        mentorId: newMentor.id,
+        menteeId: existing.menteeId,
+        type: getMentorshipTypeForProgramGroup(programGroup),
+        programGroup,
+        governanceMode,
+        status: MentorshipStatus.ACTIVE,
+        trackId: track.id,
+        chairId,
+        notes: reason
+          ? `Reassigned from ${existing.mentor.name}${reasonSuffix}`
+          : `Reassigned from ${existing.mentor.name}`,
+      },
+    });
+  });
+
+  await logAuditEvent({
+    action: AuditAction.MENTORSHIP_UPDATED,
+    actorId: session.user.id,
+    targetType: "Mentorship",
+    targetId: existing.id,
+    description: `Mentorship reassigned: ${existing.mentor.name} -> ${newMentor.name} for ${existing.mentee.name}${reasonSuffix}`,
+  });
+
+  await ensureMentorshipSupportCircle(created.id);
+
+  revalidatePath("/admin/mentorship");
+  revalidatePath("/admin/mentorship-program");
+  revalidatePath(`/mentorship/mentees/${existing.menteeId}`);
+}
+
+/**
+ * Update the lifecycle status of a mentorship: PAUSED, ACTIVE (resume), or
+ * COMPLETE. Admin only. Ends circle membership if marking COMPLETE.
+ */
+export async function setProgramMentorshipStatus(formData: FormData) {
+  const session = await requireAdmin();
+  const mentorshipId = getString(formData, "mentorshipId");
+  const statusRaw = getString(formData, "status");
+  const reason = getString(formData, "reason", false);
+
+  if (!Object.values(MentorshipStatus).includes(statusRaw as MentorshipStatus)) {
+    throw new Error("Invalid status");
+  }
+  const newStatus = statusRaw as MentorshipStatus;
+
+  const existing = await prisma.mentorship.findUniqueOrThrow({
+    where: { id: mentorshipId },
+    select: {
+      id: true,
+      status: true,
+      menteeId: true,
+      mentor: { select: { name: true } },
+      mentee: { select: { name: true } },
+    },
+  });
+
+  if (existing.status === newStatus) {
+    return;
+  }
+
+  await prisma.mentorship.update({
+    where: { id: mentorshipId },
+    data: {
+      status: newStatus,
+      endDate:
+        newStatus === MentorshipStatus.COMPLETE ? new Date() : null,
+      notes: reason ? reason : undefined,
+    },
+  });
+
+  if (newStatus === MentorshipStatus.COMPLETE) {
+    await prisma.mentorshipCircleMember.updateMany({
+      where: { mentorshipId },
+      data: { isActive: false },
+    });
+  }
+
+  await logAuditEvent({
+    action: AuditAction.MENTORSHIP_UPDATED,
+    actorId: session.user.id,
+    targetType: "Mentorship",
+    targetId: mentorshipId,
+    description: `Mentorship ${existing.mentor.name} -> ${existing.mentee.name} status changed: ${existing.status} → ${newStatus}${reason ? ` — ${reason}` : ""}`,
+  });
+
+  revalidatePath("/admin/mentorship");
+  revalidatePath("/admin/mentorship-program");
+  revalidatePath(`/mentorship/mentees/${existing.menteeId}`);
+}
+
 export async function assignCommitteeChair(formData: FormData) {
   const session = await requireAdmin();
   const userId = getString(formData, "userId");
