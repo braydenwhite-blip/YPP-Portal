@@ -1183,22 +1183,32 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
 
   const submissionWarnings: string[] = [];
   if (intent === "submit") {
+    // Hard requirements — the editor's submit dock enforces these client-side
+    // and the auto-advance flow assumes a SUBMITTED review represents complete
+    // signal. Block server-side too so a hand-rolled POST cannot bypass.
+    const hardErrors: string[] = [];
+    if (!overallRating) {
+      hardErrors.push("Overall interview evaluation is missing.");
+    }
+    if (canFinalizeRecommendation && !recommendation) {
+      hardErrors.push("Pick a recommendation before submitting.");
+    }
+    if (recommendation === "ACCEPT_WITH_SUPPORT" && !revisionRequirements) {
+      hardErrors.push("Required support notes are missing for an 'Accept with Support' outcome.");
+    }
+    if (recommendation === "REJECT" && !applicantMessage) {
+      hardErrors.push("Write an applicant-facing message before recommending Reject.");
+    }
+    if (hardErrors.length > 0) {
+      throw new Error(hardErrors.join(" "));
+    }
+
+    // Soft warnings — surfaced to the reviewer as a banner on the cockpit but
+    // the review still commits.
     submissionWarnings.push(
       ...collectCategoryWarnings(categories, INSTRUCTOR_REVIEW_CATEGORIES, { requireNotes: true })
     );
     submissionWarnings.push(...collectQuestionResponseWarnings(questionResponses));
-    if (!overallRating) {
-      submissionWarnings.push("Overall interview evaluation is missing.");
-    }
-    if (canFinalizeRecommendation && !recommendation) {
-      submissionWarnings.push("No recommendation was chosen — the interview outcome will remain open.");
-    }
-    if (recommendation === "ACCEPT_WITH_SUPPORT" && !revisionRequirements) {
-      submissionWarnings.push("Required support notes are missing for an 'Accept with Support' outcome.");
-    }
-    if (recommendation === "REJECT" && !applicantMessage) {
-      submissionWarnings.push("No applicant-facing rejection reason was written.");
-    }
   }
 
   await prisma.$transaction(async (tx) => {

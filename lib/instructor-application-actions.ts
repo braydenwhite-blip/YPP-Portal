@@ -1635,9 +1635,11 @@ export async function sendToChair(formData: FormData): Promise<{ success: boolea
     const activeInterviewerIds = app.interviewerAssignments
       .filter((assignment) => assignment.round === app.interviewRound)
       .map((a) => a.interviewerId);
+    // Any SUBMITTED review counts; the editor's submit gate already requires
+    // a recommendation when one is allowed to be chosen.
     const submittedReviewerIds = new Set(
       app.interviewReviews
-        .filter((review) => review.round === app.interviewRound && review.recommendation)
+        .filter((review) => review.round === app.interviewRound)
         .map((r) => r.reviewerId)
     );
     const missingReviews = activeInterviewerIds.filter((id) => !submittedReviewerIds.has(id));
