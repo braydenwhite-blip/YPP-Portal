@@ -1055,7 +1055,15 @@ export async function publishClassOffering(id: string) {
 // ENROLLMENT ACTIONS
 // ============================================
 
-export async function enrollInClass(offeringId: string) {
+export type EnrollInClassResult = {
+  success: true;
+  waitlisted: boolean;
+  alreadyEnrolled: boolean;
+  status: "ENROLLED" | "WAITLISTED";
+  waitlistPosition: number | null;
+};
+
+export async function enrollInClass(offeringId: string): Promise<EnrollInClassResult> {
   const session = await requireAuth();
   const studentId = session.user.id;
 
@@ -1101,28 +1109,37 @@ export async function enrollInClass(offeringId: string) {
     }
   }
 
-  // Check if already enrolled
+  // Check if already enrolled (idempotent: surface friendly state instead of throwing)
   const existingEnrollment = await prisma.classEnrollment.findUnique({
     where: { studentId_offeringId: { studentId, offeringId } },
   });
 
-  if (existingEnrollment && existingEnrollment.status === "ENROLLED") {
-    throw new Error("Already enrolled in this class");
+  if (
+    existingEnrollment &&
+    (existingEnrollment.status === "ENROLLED" || existingEnrollment.status === "WAITLISTED")
+  ) {
+    return {
+      success: true,
+      waitlisted: existingEnrollment.status === "WAITLISTED",
+      alreadyEnrolled: true,
+      status: existingEnrollment.status,
+      waitlistPosition: existingEnrollment.waitlistPosition,
+    };
   }
 
-  // Check capacity
   const enrolledCount = offering.enrollments.length;
   const isWaitlisted = enrolledCount >= offering.capacity;
+  const waitlistPosition = isWaitlisted ? enrolledCount - offering.capacity + 1 : null;
 
   if (existingEnrollment) {
-    // Re-enroll (previously dropped)
+    // Re-enroll (previously dropped or completed)
     await prisma.classEnrollment.update({
       where: { id: existingEnrollment.id },
       data: {
         status: isWaitlisted ? "WAITLISTED" : "ENROLLED",
         enrolledAt: new Date(),
         droppedAt: null,
-        waitlistPosition: isWaitlisted ? enrolledCount - offering.capacity + 1 : null,
+        waitlistPosition,
       },
     });
   } else {
@@ -1131,13 +1148,19 @@ export async function enrollInClass(offeringId: string) {
         studentId,
         offeringId,
         status: isWaitlisted ? "WAITLISTED" : "ENROLLED",
-        waitlistPosition: isWaitlisted ? enrolledCount - offering.capacity + 1 : null,
+        waitlistPosition,
       },
     });
   }
 
   revalidateStudentClassSurfaces(offeringId);
-  return { success: true, waitlisted: isWaitlisted };
+  return {
+    success: true,
+    waitlisted: isWaitlisted,
+    alreadyEnrolled: false,
+    status: isWaitlisted ? "WAITLISTED" : "ENROLLED",
+    waitlistPosition,
+  };
 }
 
 /**
