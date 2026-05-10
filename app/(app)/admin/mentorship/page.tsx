@@ -306,7 +306,7 @@ export default async function AdminMentorshipPage({
               >
                 {opsSummary?.unassignedInstructors ?? 0}
               </p>
-              <p className="kpi-label">Instructors without a mentor</p>
+              <p className="kpi-label">Mentees without a mentor</p>
             </div>
             <div className="card">
               <p
@@ -559,12 +559,12 @@ export default async function AdminMentorshipPage({
         <div>
           <div className="card" style={{ marginBottom: 20 }}>
             <div style={{ fontWeight: 700, marginBottom: 6 }}>
-              Instructors waiting for a mentor ({unassignedQueue.length})
+              Mentees waiting for a mentor ({unassignedQueue.length})
             </div>
             <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
-              Active instructors with no current mentorship pairing. Use the
-              Assign action to open the matching panel pre-filtered for that
-              instructor.
+              Instructors and leadership users with no current mentorship
+              pairing. Use the Assign action to open the matching panel
+              pre-filtered for that mentee.
             </p>
           </div>
           {unassignedQueue.length === 0 ? (
@@ -577,13 +577,13 @@ export default async function AdminMentorshipPage({
                 textAlign: "center",
               }}
             >
-              All active instructors are mentored. Nothing to do here.
+              Every eligible mentee already has a mentor. Nothing to do here.
             </div>
           ) : (
             <table className="table">
               <thead>
                 <tr>
-                  <th>Instructor</th>
+                  <th>Mentee</th>
                   <th>Chapter</th>
                   <th>Joined</th>
                   <th>Reason</th>
@@ -744,7 +744,7 @@ export default async function AdminMentorshipPage({
               <thead>
                 <tr>
                   <th>Goal</th>
-                  <th>Instructor</th>
+                  <th>Mentee</th>
                   <th>Mentor</th>
                   <th>Status</th>
                   <th>Due</th>
@@ -815,7 +815,7 @@ export default async function AdminMentorshipPage({
             <table className="table">
               <thead>
                 <tr>
-                  <th>Instructor</th>
+                  <th>Mentee</th>
                   <th>Mentor</th>
                   <th>Last activity</th>
                   <th>Days since</th>

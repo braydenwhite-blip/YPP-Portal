@@ -27,6 +27,17 @@ const INSTRUCTOR_MENTORSHIP_TYPE_FILTER = SHOW_STUDENT_MENTORSHIP_LANE
 const STALE_SESSION_DAYS = 30;
 const STALE_GOAL_NO_UPDATE_DAYS = 30;
 
+// Primary roles that the admin instructor-mentorship surfaces treat as
+// eligible mentees. INSTRUCTOR + LEADERSHIP roles match the visible lanes
+// on /admin/mentorship-program (Instructors and Leadership). STUDENT is
+// intentionally excluded because student mentorship is not yet launched.
+const ELIGIBLE_MENTEE_PRIMARY_ROLES = [
+  "INSTRUCTOR",
+  "CHAPTER_PRESIDENT",
+  "ADMIN",
+  "STAFF",
+] as const;
+
 async function requireAdminForOps() {
   const session = await getSession();
   if (!session?.user?.id) {
@@ -41,6 +52,7 @@ async function requireAdminForOps() {
 
 export interface InstructorMentorshipOpsSummary {
   activeRelationships: number;
+  /** Eligible mentees (instructors + leadership) with no active mentor. */
   unassignedInstructors: number;
   mentorsAtOrOverCapacity: number;
   mentorsOverCapacity: number;
@@ -74,7 +86,7 @@ export async function getInstructorMentorshipOpsSummary(): Promise<InstructorMen
     }),
     prisma.user.count({
       where: {
-        primaryRole: { in: ["INSTRUCTOR"] },
+        primaryRole: { in: [...ELIGIBLE_MENTEE_PRIMARY_ROLES] },
         menteePairs: { none: { status: "ACTIVE" } },
       },
     }),
@@ -170,7 +182,7 @@ export async function getUnassignedInstructorQueue(): Promise<UnassignedInstruct
 
   const instructors = await prisma.user.findMany({
     where: {
-      primaryRole: "INSTRUCTOR",
+      primaryRole: { in: [...ELIGIBLE_MENTEE_PRIMARY_ROLES] },
       menteePairs: { none: { status: "ACTIVE" } },
     },
     select: {
