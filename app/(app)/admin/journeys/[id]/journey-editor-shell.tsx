@@ -6,8 +6,9 @@ import { createDraftFromPublished, updateJourneyMeta } from "@/lib/journey-edito
 
 import { BeatsTab, type BeatRow } from "./beats-tab";
 import { GatesTab, type GateRow } from "./gates-tab";
+import { PreviewTab } from "./preview-tab";
 
-type Tab = "overview" | "beats" | "gates" | "assignments" | "versions";
+type Tab = "overview" | "beats" | "gates" | "preview" | "assignments" | "versions";
 
 export interface JourneyEditorShellProps {
   canPublish: boolean;
@@ -54,6 +55,9 @@ export function JourneyEditorShell(props: JourneyEditorShellProps) {
         <TabButton current={tab} setTab={setTab} value="gates">
           Gates {draftVersion ? `(${draftVersion.gateCount})` : ""}
         </TabButton>
+        <TabButton current={tab} setTab={setTab} value="preview">
+          Preview
+        </TabButton>
         <TabButton current={tab} setTab={setTab} value="assignments">
           Assignments ({props.assignments.length})
         </TabButton>
@@ -87,6 +91,16 @@ export function JourneyEditorShell(props: JourneyEditorShellProps) {
             beatRefs={props.beatRefs}
             knownModuleRefs={props.knownModuleRefs}
             canEdit={props.canPublish}
+          />
+        ) : null}
+        {tab === "preview" ? (
+          <PreviewTab
+            journey={props.journey}
+            draftVersion={draftVersion ?? null}
+            beats={props.draftBeats}
+            gates={props.draftGates}
+            assignments={props.assignments}
+            knownModuleContentKeys={props.knownModuleRefs.map((r) => r.replace(/^module:/, ""))}
           />
         ) : null}
         {tab === "assignments" ? (
