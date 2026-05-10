@@ -162,11 +162,17 @@ export async function getApplicantPipeline({
   chapterId,
   filters = {},
   take,
+  includeOrphans = true,
 }: {
   scope: PipelineScope;
   chapterId?: string;
   filters?: PipelineFilters;
   take?: number;
+  /**
+   * When scope === "chapter", also surface orphan applicants (applicantChapterId === null).
+   * These are owned by the global admin queue but every CP can view/triage them.
+   */
+  includeOrphans?: boolean;
 }): Promise<{ columns: Record<DerivedColumn, typeof applications[number][]> }> {
   // Defense in depth: chapter scope without a chapter id must not leak across chapters.
   if (scope === "chapter" && !chapterId) {
@@ -190,7 +196,9 @@ export async function getApplicantPipeline({
   };
 
   if (scope === "chapter" && chapterId) {
-    where.applicant = { chapterId };
+    where.applicant = includeOrphans
+      ? { OR: [{ chapterId }, { chapterId: null }] }
+      : { chapterId };
   }
 
   if (filters.reviewerId) {
@@ -348,10 +356,12 @@ function buildChairQueueWhere({
   scope,
   chapterId,
   applicationId,
+  includeOrphans = true,
 }: {
   scope: PipelineScope;
   chapterId?: string;
   applicationId?: string;
+  includeOrphans?: boolean;
 }) {
   const where: Record<string, unknown> = {
     status: "CHAIR_REVIEW" as InstructorApplicationStatus,
@@ -362,7 +372,9 @@ function buildChairQueueWhere({
   }
 
   if (scope === "chapter" && chapterId) {
-    where.applicant = { chapterId };
+    where.applicant = includeOrphans
+      ? { OR: [{ chapterId }, { chapterId: null }] }
+      : { chapterId };
   }
 
   return where;
@@ -434,12 +446,14 @@ export async function getArchivedApplications({
   since,
   skip = 0,
   take = 50,
+  includeOrphans = true,
 }: {
   scope: PipelineScope;
   chapterId?: string;
   since?: Date;
   skip?: number;
   take?: number;
+  includeOrphans?: boolean;
 }) {
   if (scope === "chapter" && !chapterId) {
     return { items: [], total: 0, skip, take };
@@ -453,7 +467,9 @@ export async function getArchivedApplications({
   };
 
   if (scope === "chapter" && chapterId) {
-    where.applicant = { chapterId };
+    where.applicant = includeOrphans
+      ? { OR: [{ chapterId }, { chapterId: null }] }
+      : { chapterId };
   }
 
   if (since) {
