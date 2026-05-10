@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useFormState } from "react-dom";
+import { useFormState, useFormStatus } from "react-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import BrandLockup from "@/components/brand-lockup";
@@ -18,6 +18,22 @@ import { signUp } from "@/lib/signup-actions";
 import type { SignupFormState } from "@/lib/signup-form-utils";
 
 const initialState: SignupFormState = { status: "idle" as const, message: "" };
+
+/** Submit button bound to the parent <form>'s pending state via useFormStatus. */
+function SubmitButton({ label }: { label: string }) {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      className="button"
+      type="submit"
+      style={{ marginTop: 24, width: "100%" }}
+      disabled={pending}
+      aria-disabled={pending}
+    >
+      {pending ? "Submitting…" : label}
+    </button>
+  );
+}
 
 const SECTION_LABELS = ["Account", "Profile", "School", "Teaching", "Availability"] as const;
 
@@ -766,9 +782,9 @@ export default function InstructorSignupPage() {
             </div>
           )}
 
-          <button className="button" type="submit" style={{ marginTop: 24, width: "100%" }}>
-            {isSummerWorkshop ? "Submit Workshop Instructor Application" : "Submit Application"}
-          </button>
+          <SubmitButton
+            label={isSummerWorkshop ? "Submit Workshop Instructor Application" : "Submit Application"}
+          />
         </form>
 
         <div className="login-help" style={{ marginTop: 24 }}>
