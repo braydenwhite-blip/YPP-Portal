@@ -201,6 +201,17 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
         };
       }
 
+      // When the applicant picks "Other" we require a non-empty
+      // `countryOther` — otherwise the row would store the literal string
+      // "Other" as the country.
+      if (validation.data.country === "Other" && !validation.data.countryOther?.trim()) {
+        return {
+          status: "error",
+          message: "Please specify your country.",
+          fields: pickFormFields(formData),
+        };
+      }
+
       instructorApplicationInput = validation.data;
     }
 
@@ -530,6 +541,13 @@ export async function submitInstructorApplicationForExistingUser(
       return {
         status: "error",
         message: validation.error.issues[0]?.message || "Please review your application and try again.",
+        fields: pickFormFields(formData),
+      };
+    }
+    if (validation.data.country === "Other" && !validation.data.countryOther?.trim()) {
+      return {
+        status: "error",
+        message: "Please specify your country.",
         fields: pickFormFields(formData),
       };
     }
