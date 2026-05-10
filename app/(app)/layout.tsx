@@ -151,6 +151,20 @@ export default async function AppLayout({
   const instructorFullPortalExplorer = process.env.INSTRUCTOR_FULL_PORTAL_EXPLORER === "true";
   const studentHasChapter = Boolean(session?.user?.chapterId);
 
+  // Resolve the user's instructor subtype (most recent application) so
+  // SUMMER_WORKSHOP-approved users keep workshop studio + training links
+  // visible while the regular instructor program is paused.
+  const instructorSubtype = userId
+    ? await prisma.instructorApplication
+        .findFirst({
+          where: { applicantId: userId },
+          orderBy: { createdAt: "desc" },
+          select: { instructorSubtype: true },
+        })
+        .then((row) => row?.instructorSubtype ?? null)
+        .catch(() => null)
+    : null;
+
   return (
     <AppShell
       userName={session?.user?.name}
@@ -166,6 +180,7 @@ export default async function AppLayout({
       studentHasChapter={studentHasChapter}
       instructorFullPortalExplorer={instructorFullPortalExplorer}
       hiringDemoMode={hiringDemoMode}
+      instructorSubtype={instructorSubtype}
     >
       {children}
     </AppShell>

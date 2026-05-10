@@ -16,6 +16,7 @@ import {
 import {
   isRegularInstructorEnabled,
   isRegularInstructorGatedPath,
+  isSummerWorkshopPermittedPath,
 } from "@/lib/feature-flags";
 import {
   applyStudentMinimalSidebarLayout,
@@ -264,6 +265,12 @@ export interface ResolveNavInput {
   instructorFullPortalExplorer?: boolean;
   /** Demo-only: narrow the left sidebar to the hiring surfaces for the active role. */
   hiringDemoMode?: boolean;
+  /**
+   * Instructor subtype — when SUMMER_WORKSHOP, SW-permitted hrefs in
+   * `SUMMER_WORKSHOP_PERMITTED_HREF_PREFIXES` stay visible even with the
+   * regular instructor program paused.
+   */
+  instructorSubtype?: string | null;
 }
 
 function toNavRole(value: string | null | undefined): NavRole | null {
@@ -509,11 +516,17 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
 
       // Temporary gate: hide regular Instructor navigation while paused.
       // Admin sidebars stay intact so admins can keep managing applicants.
+      // SW-subtype users keep the workshop studio + training links so the
+      // post-approval onboarding path actually works.
       if (
         !isRegularInstructorEnabled() &&
         !roles.includes("ADMIN") &&
         primaryRole !== "ADMIN" &&
-        isRegularInstructorGatedPath(item.href)
+        isRegularInstructorGatedPath(item.href) &&
+        !(
+          input.instructorSubtype === "SUMMER_WORKSHOP" &&
+          isSummerWorkshopPermittedPath(item.href)
+        )
       ) {
         return false;
       }
