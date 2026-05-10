@@ -10,6 +10,7 @@ import CPInfoResponseForm from "./cp-info-response-form";
 import AvailabilityForm from "./availability-form";
 import SlotPickerForm from "./slot-picker-form";
 import WithdrawForm from "./withdraw-form";
+import ApplicantEditForm from "./edit-form";
 import Link from "next/link";
 import InstructorApplicationMotivationResponse from "@/components/instructor-application-motivation-response";
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
@@ -470,6 +471,32 @@ export default async function ApplicationStatusPage() {
               })()}
             </div>
           </details>
+
+          {/* Edit — applicants can update most fields while review is open
+              (CHAIR_REVIEW + terminal statuses are locked server-side). */}
+          {!["CHAIR_REVIEW", "ON_HOLD", "WAITLISTED", "APPROVED", "REJECTED", "WITHDRAWN"].includes(
+            instructorApp.status
+          ) && (
+            <ApplicantEditForm
+              isSummerWorkshop={instructorApp.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR"}
+              values={{
+                motivation: instructorApp.motivation,
+                teachingExperience: instructorApp.teachingExperience,
+                availability: instructorApp.availability,
+                hoursPerWeek: instructorApp.hoursPerWeek,
+                preferredStartDate: instructorApp.preferredStartDate,
+                subjectsOfInterest: instructorApp.subjectsOfInterest,
+                courseIdea: instructorApp.courseIdea,
+                courseOutline: instructorApp.courseOutline,
+                firstClassPlan: instructorApp.firstClassPlan,
+                preferredFirstName: instructorApp.preferredFirstName,
+                phoneNumber: instructorApp.phoneNumber,
+                city: instructorApp.city,
+                stateProvince: instructorApp.stateProvince,
+                zipCode: instructorApp.zipCode,
+              }}
+            />
+          )}
 
           {/* Withdraw — applicants control their own data */}
           {!["APPROVED", "REJECTED", "WITHDRAWN"].includes(instructorApp.status) && (
