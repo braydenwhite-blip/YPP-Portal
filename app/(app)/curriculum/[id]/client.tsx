@@ -5,6 +5,13 @@ import { enrollInClass, dropClass } from "@/lib/class-management-actions";
 import { useRouter } from "next/navigation";
 import { requestPathwayFallback } from "@/lib/pathway-fallback-actions";
 import type { PathwayFallbackRequestStatus } from "@prisma/client";
+import { EnrollmentConfirmation } from "./enrollment-confirmation";
+
+type ConfirmationState = {
+  status: "ENROLLED" | "WAITLISTED";
+  alreadyEnrolled: boolean;
+  waitlistPosition: number | null;
+};
 
 export function ClassDetailClient({
   offeringId,
@@ -12,6 +19,11 @@ export function ClassDetailClient({
   interestArea,
   learnerFitLabel,
   deliveryMode,
+  meetingDays,
+  meetingTime,
+  startDate,
+  hasZoomLink,
+  hasLocation,
   isEnrolled,
   isWaitlisted,
   isFull,
@@ -29,6 +41,11 @@ export function ClassDetailClient({
   interestArea: string;
   learnerFitLabel: string;
   deliveryMode: string;
+  meetingDays: string[];
+  meetingTime: string;
+  startDate: string | null;
+  hasZoomLink: boolean;
+  hasLocation: boolean;
   isEnrolled: boolean;
   isWaitlisted: boolean;
   isFull: boolean;
@@ -52,19 +69,20 @@ export function ClassDetailClient({
   const [fitNote, setFitNote] = useState("");
   const [scheduleConfirmed, setScheduleConfirmed] = useState(false);
   const [fitConfirmed, setFitConfirmed] = useState(false);
+  const [confirmation, setConfirmation] = useState<ConfirmationState | null>(null);
 
   async function runEnrollment() {
+    if (loading) return;
     setLoading(true);
     setFeedback(null);
     try {
       const result = await enrollInClass(offeringId);
       setShowFitCheck(false);
-      if (result.waitlisted) {
-        setFeedback({
-          text: "Class is full. You have been added to the waitlist.",
-          tone: "waitlist",
-        });
-      }
+      setConfirmation({
+        status: result.status,
+        alreadyEnrolled: result.alreadyEnrolled,
+        waitlistPosition: result.waitlistPosition,
+      });
       router.refresh();
     } catch (err) {
       setFeedback({
@@ -148,6 +166,21 @@ export function ClassDetailClient({
 
   return (
     <div>
+      <EnrollmentConfirmation
+        open={confirmation !== null}
+        onClose={() => setConfirmation(null)}
+        status={confirmation?.status ?? "ENROLLED"}
+        alreadyEnrolled={confirmation?.alreadyEnrolled ?? false}
+        classTitle={title}
+        deliveryMode={deliveryMode}
+        meetingDays={meetingDays}
+        meetingTime={meetingTime}
+        startDate={startDate}
+        hasZoomLink={hasZoomLink}
+        hasLocation={hasLocation}
+        waitlistPosition={confirmation?.waitlistPosition ?? null}
+      />
+
       {feedback && (
         <div style={{
           padding: "8px 12px",
