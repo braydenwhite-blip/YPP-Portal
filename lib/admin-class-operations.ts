@@ -527,11 +527,69 @@ export async function adminUpdateEnrollmentStatus(formData: FormData) {
 
 export type AdminClassOperationsListItem = Awaited<
   ReturnType<typeof getAdminClassOperationsList>
->[number];
+>["items"][number];
 
-export async function getAdminClassOperationsList() {
+export type AdminClassListCursor = {
+  updatedAt: string; // ISO string
+  id: string;
+};
+
+const ADMIN_CLASS_LIST_DEFAULT_LIMIT = 100;
+const ADMIN_CLASS_LIST_MAX_LIMIT = 200;
+
+function parseCursor(raw: string | null | undefined): AdminClassListCursor | null {
+  if (!raw) return null;
+  try {
+    const decoded = JSON.parse(
+      Buffer.from(raw, "base64url").toString("utf-8"),
+    );
+    if (
+      decoded &&
+      typeof decoded === "object" &&
+      typeof decoded.updatedAt === "string" &&
+      typeof decoded.id === "string"
+    ) {
+      return decoded as AdminClassListCursor;
+    }
+  } catch {
+    // fall through
+  }
+  return null;
+}
+
+function encodeCursor(cursor: AdminClassListCursor): string {
+  return Buffer.from(JSON.stringify(cursor), "utf-8").toString("base64url");
+}
+
+export async function getAdminClassOperationsList(args?: {
+  cursor?: string | null;
+  limit?: number;
+}) {
   await requireAdmin();
+  const limit = Math.min(
+    Math.max(args?.limit ?? ADMIN_CLASS_LIST_DEFAULT_LIMIT, 1),
+    ADMIN_CLASS_LIST_MAX_LIMIT,
+  );
+  const cursor = parseCursor(args?.cursor);
+
+  // Cursor encodes (updatedAt, id) so ties break deterministically.
+  // Prisma's compound cursor support requires a unique compound index, which
+  // ClassOffering does not have on (updatedAt, id), so fall back to
+  // expressing the keyset condition manually.
+  const cursorWhere = cursor
+    ? {
+        OR: [
+          { updatedAt: { lt: new Date(cursor.updatedAt) } },
+          {
+            updatedAt: new Date(cursor.updatedAt),
+            id: { gt: cursor.id },
+          },
+        ],
+      }
+    : undefined;
+
   const offerings = await prisma.classOffering.findMany({
+    where: cursorWhere,
     select: {
       id: true,
       title: true,
@@ -575,20 +633,29 @@ export async function getAdminClassOperationsList() {
         },
       },
     },
-    orderBy: [{ updatedAt: "desc" }],
+    orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+    take: limit + 1, // peek one past the page so we know if there's more
   });
 
-  // Compute waitlisted counts in a separate aggregate to avoid N+1.
-  const waitlistedCounts = await prisma.classEnrollment.groupBy({
-    by: ["offeringId"],
-    where: { status: "WAITLISTED" },
-    _count: { _all: true },
-  });
+  const hasMore = offerings.length > limit;
+  const pageItems = hasMore ? offerings.slice(0, limit) : offerings;
+
+  const offeringIds = pageItems.map((o) => o.id);
+
+  // Aggregate waitlist counts only for the page we returned. Avoids the
+  // O(table-size) sweep the previous unpaginated path issued.
+  const waitlistedCounts = offeringIds.length
+    ? await prisma.classEnrollment.groupBy({
+        by: ["offeringId"],
+        where: { status: "WAITLISTED", offeringId: { in: offeringIds } },
+        _count: { _all: true },
+      })
+    : [];
   const waitlistByOffering = new Map(
     waitlistedCounts.map((row) => [row.offeringId, row._count._all]),
   );
 
-  return offerings.map((offering) => {
+  const items = pageItems.map((offering) => {
     const confirmedCount = offering._count.enrollments;
     const waitlistedCount = waitlistByOffering.get(offering.id) ?? 0;
     const isPublic = isOfferingPubliclyVisible(offering);
@@ -610,6 +677,17 @@ export async function getAdminClassOperationsList() {
       actionFlags: reasons,
     };
   });
+
+  let nextCursor: string | null = null;
+  if (hasMore) {
+    const last = pageItems[pageItems.length - 1];
+    nextCursor = encodeCursor({
+      updatedAt: last.updatedAt.toISOString(),
+      id: last.id,
+    });
+  }
+
+  return { items, nextCursor, limit };
 }
 
 function computeActionFlags(args: {
