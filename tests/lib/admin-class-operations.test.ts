@@ -14,8 +14,10 @@ import {
   adminPromoteFromWaitlist,
   adminUpdateEnrollmentStatus,
   adminReassignInstructor,
+  adminUpdateLogistics,
   getAdminProposalQueue,
   getAdminClassRoster,
+  getAdminClassOperationsList,
 } from "@/lib/admin-class-operations";
 
 vi.mock("@/lib/authorization", () => ({
@@ -147,8 +149,13 @@ describe("admin-class-operations permissions", () => {
           makeForm({ offeringId: "x", instructorId: "u" }),
         ),
     ],
+    [
+      "adminUpdateLogistics",
+      () => adminUpdateLogistics(makeForm({ offeringId: "x" })),
+    ],
     ["getAdminProposalQueue", () => getAdminProposalQueue()],
     ["getAdminClassRoster", () => getAdminClassRoster("x")],
+    ["getAdminClassOperationsList", () => getAdminClassOperationsList()],
   ])("%s rejects non-admin callers", async (_name, action) => {
     vi.mocked(authorization.requireAnyRole).mockRejectedValue(
       new Error("Insufficient role: requires one of ADMIN"),
@@ -554,6 +561,173 @@ describe("adminReassignInstructor", () => {
     expect(prisma.classOffering.update).toHaveBeenCalledWith({
       where: { id: "o1" },
       data: { instructorId: "u-new" },
+    });
+  });
+});
+
+/* ────────────────────────────────────────────────────────────
+ * adminUpdateLogistics
+ * ──────────────────────────────────────────────────────────── */
+
+describe("adminUpdateLogistics", () => {
+  beforeEach(() => {
+    vi.mocked(authorization.requireAnyRole).mockResolvedValue(adminUser());
+  });
+
+  it("no-ops when nothing changed", async () => {
+    vi.mocked(prisma.classOffering.findUnique).mockResolvedValue({
+      id: "o1",
+      room: "Studio B",
+      arrivalInstructions: "Sign in at front desk.",
+      materialsList: ["sketchbook", "pencils"],
+    } as any);
+
+    const fd = new FormData();
+    fd.set("offeringId", "o1");
+    fd.set("room", "Studio B");
+    fd.set("arrivalInstructions", "Sign in at front desk.");
+    fd.set("materialsList", "sketchbook\npencils");
+
+    const result = await adminUpdateLogistics(fd);
+    expect(result).toMatchObject({ unchanged: true });
+    expect(prisma.classOffering.update).not.toHaveBeenCalled();
+    expect(prisma.classOfferingTimelineEvent.create).not.toHaveBeenCalled();
+  });
+
+  it("writes the diff and journals a NOTE timeline entry when fields change", async () => {
+    vi.mocked(prisma.classOffering.findUnique).mockResolvedValue({
+      id: "o1",
+      room: null,
+      arrivalInstructions: null,
+      materialsList: [],
+    } as any);
+    vi.mocked(prisma.classOfferingTimelineEvent.create).mockResolvedValue(
+      {} as any,
+    );
+
+    const fd = new FormData();
+    fd.set("offeringId", "o1");
+    fd.set("room", "Studio B");
+    fd.set("arrivalInstructions", "Sign in at front desk.");
+    fd.set("materialsList", "sketchbook\npencils\n  \nwater bottle");
+
+    await adminUpdateLogistics(fd);
+
+    expect(prisma.classOffering.update).toHaveBeenCalledWith({
+      where: { id: "o1" },
+      data: {
+        room: "Studio B",
+        arrivalInstructions: "Sign in at front desk.",
+        materialsList: ["sketchbook", "pencils", "water bottle"],
+      },
+    });
+
+    const journalArgs = vi.mocked(prisma.classOfferingTimelineEvent.create).mock
+      .calls[0][0] as any;
+    expect(journalArgs.data.kind).toBe("NOTE");
+    expect(Object.keys(journalArgs.data.payload)).toEqual(
+      expect.arrayContaining(["room", "arrivalInstructions", "materialsList"]),
+    );
+  });
+});
+
+/* ────────────────────────────────────────────────────────────
+ * getAdminClassOperationsList — pagination
+ * ──────────────────────────────────────────────────────────── */
+
+describe("getAdminClassOperationsList pagination", () => {
+  beforeEach(() => {
+    vi.mocked(authorization.requireAnyRole).mockResolvedValue(adminUser());
+    vi.mocked(prisma.classEnrollment.groupBy).mockResolvedValue([] as any);
+  });
+
+  function makeOfferingRow(idx: number) {
+    return {
+      id: `o-${idx}`,
+      title: `Class ${idx}`,
+      status: "DRAFT",
+      enrollmentOpen: false,
+      startDate: new Date("2030-01-01"),
+      endDate: new Date("2030-04-01"),
+      meetingDays: [],
+      meetingTime: "16:00-18:00",
+      deliveryMode: "IN_PERSON",
+      locationName: "X",
+      locationAddress: "Y",
+      zoomLink: null,
+      capacity: 10,
+      grandfatheredTrainingExemption: false,
+      semester: null,
+      createdAt: new Date("2030-01-01"),
+      updatedAt: new Date(2030, 0, 1, 0, 0, idx),
+      instructor: { id: "u1", name: "I", email: "i@x" },
+      chapter: null,
+      template: null,
+      approval: null,
+      _count: { enrollments: 0, sessions: 0 },
+    };
+  }
+
+  it("requests limit+1 rows so it can detect more pages", async () => {
+    vi.mocked(prisma.classOffering.findMany).mockResolvedValue([] as any);
+    await getAdminClassOperationsList({ limit: 50 });
+    const call = vi.mocked(prisma.classOffering.findMany).mock.calls[0][0] as any;
+    expect(call.take).toBe(51);
+    expect(call.orderBy).toEqual([{ updatedAt: "desc" }, { id: "asc" }]);
+  });
+
+  it("returns nextCursor when more pages exist, and trims the peek row from items", async () => {
+    const rows = Array.from({ length: 4 }, (_, i) => makeOfferingRow(i));
+    vi.mocked(prisma.classOffering.findMany).mockResolvedValue(rows as any);
+
+    const page = await getAdminClassOperationsList({ limit: 3 });
+    expect(page.items).toHaveLength(3);
+    expect(page.nextCursor).toBeTruthy();
+  });
+
+  it("returns null cursor when fewer than limit+1 rows are returned", async () => {
+    const rows = Array.from({ length: 2 }, (_, i) => makeOfferingRow(i));
+    vi.mocked(prisma.classOffering.findMany).mockResolvedValue(rows as any);
+
+    const page = await getAdminClassOperationsList({ limit: 3 });
+    expect(page.items).toHaveLength(2);
+    expect(page.nextCursor).toBeNull();
+  });
+
+  it("decodes a cursor and applies the keyset filter on the next page", async () => {
+    vi.mocked(prisma.classOffering.findMany).mockResolvedValue([] as any);
+    const cursor = Buffer.from(
+      JSON.stringify({ updatedAt: "2030-01-01T00:00:00.000Z", id: "o-9" }),
+      "utf-8",
+    ).toString("base64url");
+
+    await getAdminClassOperationsList({ cursor });
+
+    const call = vi.mocked(prisma.classOffering.findMany).mock.calls[0][0] as any;
+    expect(call.where.OR).toEqual([
+      { updatedAt: { lt: new Date("2030-01-01T00:00:00.000Z") } },
+      { updatedAt: new Date("2030-01-01T00:00:00.000Z"), id: { gt: "o-9" } },
+    ]);
+  });
+
+  it("ignores a malformed cursor (treats as first page)", async () => {
+    vi.mocked(prisma.classOffering.findMany).mockResolvedValue([] as any);
+    await getAdminClassOperationsList({ cursor: "not-a-cursor" });
+    const call = vi.mocked(prisma.classOffering.findMany).mock.calls[0][0] as any;
+    expect(call.where).toBeUndefined();
+  });
+
+  it("scopes the waitlist groupBy to the page's offering IDs", async () => {
+    const rows = [makeOfferingRow(1), makeOfferingRow(2)];
+    vi.mocked(prisma.classOffering.findMany).mockResolvedValue(rows as any);
+
+    await getAdminClassOperationsList({ limit: 50 });
+
+    const groupCall = vi.mocked(prisma.classEnrollment.groupBy).mock
+      .calls[0][0] as any;
+    expect(groupCall.where).toMatchObject({
+      status: "WAITLISTED",
+      offeringId: { in: ["o-1", "o-2"] },
     });
   });
 });
