@@ -416,7 +416,7 @@ export default async function MyClassesPage({
                       </div>
                     </div>
 
-                    <div style={{ minWidth: 180 }}>
+                    <div style={{ minWidth: 200, display: "flex", flexDirection: "column", gap: 8 }}>
                       {enrollment.offering.nextSession ? (
                         <div
                           style={{
@@ -449,6 +449,50 @@ export default async function MyClassesPage({
                           }}
                         >
                           Upcoming sessions will appear here once the class schedule is active.
+                        </div>
+                      )}
+
+                      {enrollment.offering.zoomLink ? (
+                        <a
+                          href={enrollment.offering.zoomLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(event) => event.stopPropagation()}
+                          className="button primary"
+                          style={{ fontSize: 13, textAlign: "center" }}
+                        >
+                          Join Zoom
+                        </a>
+                      ) : enrollment.offering.locationName ? (
+                        <div
+                          style={{
+                            padding: "8px 10px",
+                            borderRadius: 10,
+                            background: "var(--gray-50, #f8fafc)",
+                            border: "1px solid var(--border)",
+                            fontSize: 12,
+                            color: "var(--text-secondary)",
+                          }}
+                        >
+                          <div style={{ fontWeight: 600, color: "var(--text)" }}>
+                            {enrollment.offering.locationName}
+                          </div>
+                          {enrollment.offering.locationAddress ? (
+                            <div style={{ marginTop: 2 }}>{enrollment.offering.locationAddress}</div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            padding: "8px 10px",
+                            borderRadius: 10,
+                            background: "#fffbeb",
+                            color: "#92400e",
+                            fontSize: 12,
+                            border: "1px solid #fde68a",
+                          }}
+                        >
+                          Access details coming soon — your instructor will share the link or location before the first session.
                         </div>
                       )}
                     </div>

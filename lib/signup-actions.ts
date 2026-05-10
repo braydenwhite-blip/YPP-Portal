@@ -201,15 +201,43 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
         };
       }
 
+      // When the applicant picks "Other" we require a non-empty
+      // `countryOther` — otherwise the row would store the literal string
+      // "Other" as the country.
+      if (validation.data.country === "Other" && !validation.data.countryOther?.trim()) {
+        return {
+          status: "error",
+          message: "Please specify your country.",
+          fields: pickFormFields(formData),
+        };
+      }
+
       instructorApplicationInput = validation.data;
     }
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
-      // M2: Generic message to prevent user enumeration
+      // M2: We previously returned a generic "if this email is not already
+      // registered…" success message here, which silently swallowed the
+      // applicant's typed application — they saw "success" but no row was
+      // created, no email arrived, and no auto-login fired.
+      //
+      // For applicants we surface a dedicated state so the client can render
+      // a clear "you already have an account, sign in to continue" UI with
+      // a magic-link option. Their typed answers stay in the local draft so
+      // the form repopulates after they sign in. We continue to avoid
+      // confirming/denying the password.
+      if (primaryRole === RoleType.APPLICANT) {
+        return {
+          status: "error",
+          message: "ACCOUNT_EXISTS_SIGNIN_REQUIRED",
+          fields: pickFormFields(formData),
+        };
+      }
       return {
         status: "success",
-        message: "If this email is not already registered, your account has been created. Please check your email or try signing in."
+        message:
+          "If this email is not already registered, your account has been created. Please check your email or try signing in.",
       };
     }
 
@@ -231,20 +259,33 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
       return { status: "error", message: "Something went wrong creating your account. Please try again." };
     }
 
-    const newUser = await upsertPortalUser({
-      name,
-      email,
-      phone,
-      primaryRole,
-      chapterId,
-      supabaseAuthId: authData.user.id,
-    });
+    let newUser: Awaited<ReturnType<typeof upsertPortalUser>> | null = null;
+    try {
+      newUser = await upsertPortalUser({
+        name,
+        email,
+        phone,
+        primaryRole,
+        chapterId,
+        supabaseAuthId: authData.user.id,
+      });
+    } catch (portalErr) {
+      console.error("[Signup] Portal user upsert failed — rolling back Supabase user", portalErr);
+      try {
+        await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      } catch (rollbackErr) {
+        console.error("[Signup] Supabase rollback also failed:", rollbackErr);
+      }
+      return { status: "error", message: "Something went wrong creating your account. Please try again." };
+    }
 
     // If applicant, create the InstructorApplication record with all fields
     if (primaryRole === RoleType.APPLICANT && instructorApplicationInput) {
       const defaultInitialReviewer = await findDefaultInitialReviewerForChapter(chapterId || null);
       const defaultReviewerAssignedAt = defaultInitialReviewer ? new Date() : null;
-      const application = await prisma.instructorApplication.create({
+      let application: { id: string };
+      try {
+        application = await prisma.instructorApplication.create({
         data: {
           applicantId: newUser.id,
           status: defaultInitialReviewer
@@ -319,7 +360,30 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
             ],
           },
         },
+        select: { id: true },
       });
+      } catch (appErr) {
+        // Couldn't write the application row. Roll back the just-created
+        // Supabase auth user + portal User so the applicant can retry from
+        // a clean state instead of being stuck in the "existing user"
+        // branch on their next attempt.
+        console.error("[Signup] Application create failed — rolling back account", appErr);
+        try {
+          await prisma.user.delete({ where: { id: newUser.id } });
+        } catch (e) {
+          console.error("[Signup] Portal user rollback failed:", e);
+        }
+        try {
+          await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+        } catch (e) {
+          console.error("[Signup] Supabase rollback failed:", e);
+        }
+        return {
+          status: "error",
+          message: "We couldn't save your application. Please try again — your answers are kept on this device.",
+          fields: pickFormFields(formData),
+        };
+      }
       await syncInstructorApplicationWorkflow(application.id);
     }
 
@@ -358,6 +422,260 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
       status: "error",
       message: "Something went wrong. Please try again."
     };
+  }
+}
+
+/**
+ * Submit a new instructor application for a user who's already signed in.
+ * Used for the re-application flow: a user with a prior closed application
+ * (REJECTED/WITHDRAWN/APPROVED) lands at /applications/instructor/new and
+ * fills out the same form, but skips account creation.
+ *
+ * The new application is chained to the most recent prior closed
+ * application via `previousApplicationId` and flagged with
+ * `isReapplication = true` so reviewers see context.
+ */
+export async function submitInstructorApplicationForExistingUser(
+  prevState: FormState,
+  formData: FormData
+): Promise<FormState> {
+  try {
+    const { getSession } = await import("@/lib/auth-supabase");
+    const session = await getSession();
+    if (!session?.user?.id) {
+      return { status: "error", message: "You need to be signed in to apply." };
+    }
+
+    const userRow = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, name: true, email: true, chapterId: true },
+    });
+    if (!userRow) {
+      return { status: "error", message: "User not found." };
+    }
+
+    // Block if there's already an open application — re-apply is only for
+    // users whose previous application is fully closed.
+    const openApp = await prisma.instructorApplication.findFirst({
+      where: {
+        applicantId: userRow.id,
+        status: { notIn: ["APPROVED", "REJECTED", "WITHDRAWN"] },
+      },
+      select: { id: true },
+    });
+    if (openApp) {
+      return {
+        status: "error",
+        message: "You already have an open application. Withdraw it first if you want to re-apply.",
+      };
+    }
+
+    // Track gating mirrors signUp().
+    const applicationTrackRaw = getString(formData, "applicationTrack", false).toUpperCase();
+    let applicationTrack: ApplicationTrack =
+      applicationTrackRaw === "SUMMER_WORKSHOP_INSTRUCTOR"
+        ? ApplicationTrack.SUMMER_WORKSHOP_INSTRUCTOR
+        : ApplicationTrack.STANDARD_INSTRUCTOR;
+    if (!isRegularInstructorEnabled()) {
+      applicationTrack = ApplicationTrack.SUMMER_WORKSHOP_INSTRUCTOR;
+    }
+    const isSummerWorkshop = applicationTrack === ApplicationTrack.SUMMER_WORKSHOP_INSTRUCTOR;
+
+    // Build the same payload signUp() uses, then validate.
+    const graduationYearRaw = getString(formData, "graduationYear", false);
+    const hoursPerWeekRaw = getString(formData, "hoursPerWeek", false);
+    const durationMinutesRaw = getString(formData, "workshopDurationMinutes", false);
+    const learningGoalsRaw = getString(formData, "workshopLearningGoals", false);
+    const materialsRaw = getString(formData, "workshopMaterialsNeeded", false);
+    const workshopOutlinePayload = isSummerWorkshop
+      ? {
+          title: getString(formData, "workshopTitle", false),
+          ageRange: getString(formData, "workshopAgeRange", false),
+          durationMinutes: durationMinutesRaw ? parseInt(durationMinutesRaw, 10) : undefined,
+          learningGoals: learningGoalsRaw
+            ? learningGoalsRaw.split("\n").map((s) => s.trim()).filter(Boolean)
+            : [],
+          activityFlow: getString(formData, "workshopActivityFlow", false),
+          materialsNeeded: materialsRaw
+            ? materialsRaw.split("\n").map((s) => s.trim()).filter(Boolean)
+            : [],
+          engagementHook: getString(formData, "workshopEngagementHook", false),
+          adaptationNotes: getString(formData, "workshopAdaptationNotes", false),
+        }
+      : undefined;
+
+    const sharedPayload = {
+      legalName: getString(formData, "legalName", false),
+      preferredFirstName: getString(formData, "preferredFirstName", false),
+      phoneNumber: getString(formData, "phoneNumber", false),
+      dateOfBirth: getString(formData, "dateOfBirth", false),
+      hearAboutYPP: getString(formData, "hearAboutYPP", false),
+      city: getString(formData, "city", false),
+      stateProvince: getString(formData, "stateProvince", false),
+      zipCode: getString(formData, "zipCode", false),
+      country: getString(formData, "country", false) || "United States",
+      countryOther: getString(formData, "countryOther", false),
+      schoolName: getString(formData, "schoolName", false),
+      graduationYear: graduationYearRaw ? parseInt(graduationYearRaw, 10) : undefined,
+      subjectsOfInterest: getString(formData, "subjectsOfInterest", false),
+      motivation: getString(formData, "motivation", false),
+      motivationVideoUrl: getString(formData, "motivationVideoUrl", false),
+      teachingExperience: getString(formData, "teachingExperience", false),
+      referralEmails: getString(formData, "referralEmails", false),
+      courseIdea: getString(formData, "courseIdea", false) || getString(formData, "textbook", false),
+      textbook: getString(formData, "textbook", false),
+      courseOutline: getString(formData, "courseOutline", false),
+      firstClassPlan: getString(formData, "firstClassPlan", false),
+      availability: getString(formData, "availability", false),
+      hoursPerWeek: hoursPerWeekRaw ? parseInt(hoursPerWeekRaw, 10) : undefined,
+      preferredStartDate: getString(formData, "preferredStartDate", false),
+    };
+
+    const validation = isSummerWorkshop
+      ? summerWorkshopInstructorApplicationSchema.safeParse({
+          ...sharedPayload,
+          workshopOutline: workshopOutlinePayload,
+        })
+      : instructorApplicationSchema.safeParse(sharedPayload);
+    if (!validation.success) {
+      return {
+        status: "error",
+        message: validation.error.issues[0]?.message || "Please review your application and try again.",
+        fields: pickFormFields(formData),
+      };
+    }
+    if (validation.data.country === "Other" && !validation.data.countryOther?.trim()) {
+      return {
+        status: "error",
+        message: "Please specify your country.",
+        fields: pickFormFields(formData),
+      };
+    }
+    const input = validation.data;
+
+    // Find the most recent prior application to chain to.
+    const priorApp = await prisma.instructorApplication.findFirst({
+      where: { applicantId: userRow.id },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    });
+
+    const defaultInitialReviewer = await findDefaultInitialReviewerForChapter(userRow.chapterId);
+    const defaultReviewerAssignedAt = defaultInitialReviewer ? new Date() : null;
+
+    const application = await prisma.instructorApplication.create({
+      data: {
+        applicantId: userRow.id,
+        status: defaultInitialReviewer
+          ? InstructorApplicationStatus.UNDER_REVIEW
+          : InstructorApplicationStatus.SUBMITTED,
+        reviewerId: defaultInitialReviewer?.id,
+        reviewerAssignedAt: defaultReviewerAssignedAt,
+        isReapplication: !!priorApp,
+        previousApplicationId: priorApp?.id ?? null,
+        motivation: input.motivation || null,
+        motivationVideoUrl: input.motivationVideoUrl || null,
+        teachingExperience: input.teachingExperience,
+        availability: input.availability,
+        legalName: input.legalName,
+        preferredFirstName: input.preferredFirstName,
+        phoneNumber: input.phoneNumber || null,
+        dateOfBirth: input.dateOfBirth || null,
+        hearAboutYPP: input.hearAboutYPP || null,
+        city: input.city,
+        stateProvince: input.stateProvince,
+        zipCode: input.zipCode,
+        country:
+          input.country === "Other"
+            ? input.countryOther || "Other"
+            : input.country,
+        schoolName: input.schoolName,
+        graduationYear: input.graduationYear,
+        subjectsOfInterest: input.subjectsOfInterest || null,
+        referralEmails: input.referralEmails || null,
+        courseIdea: input.courseIdea,
+        textbook: input.textbook || input.courseIdea || null,
+        courseOutline: input.courseOutline || null,
+        firstClassPlan: input.firstClassPlan || null,
+        hoursPerWeek: input.hoursPerWeek,
+        preferredStartDate: input.preferredStartDate || null,
+        applicationTrack,
+        instructorSubtype: isSummerWorkshop
+          ? InstructorSubtype.SUMMER_WORKSHOP
+          : InstructorSubtype.STANDARD,
+        workshopOutline:
+          isSummerWorkshop && "workshopOutline" in input
+            ? (input.workshopOutline as object)
+            : undefined,
+        timeline: {
+          create: [
+            ...(defaultInitialReviewer
+              ? [
+                  {
+                    kind: "REVIEWER_ASSIGNED",
+                    actorId: null,
+                    payload: {
+                      reviewerId: defaultInitialReviewer.id,
+                      previousReviewerId: null,
+                      defaultAssignment: true,
+                      reason: "chapter_president_default",
+                    },
+                  },
+                ]
+              : []),
+            {
+              kind: SUMMER_WORKSHOP_TIMELINE_KINDS.TRACK_SELECTED,
+              actorId: null,
+              payload: { applicationTrack },
+            },
+            ...(isSummerWorkshop
+              ? [
+                  {
+                    kind: SUMMER_WORKSHOP_TIMELINE_KINDS.WORKSHOP_OUTLINE_SUBMITTED,
+                    actorId: null,
+                    payload: { source: "reapplication_submission" },
+                  },
+                ]
+              : []),
+            ...(priorApp
+              ? [
+                  {
+                    kind: "REAPPLICATION_SUBMITTED",
+                    actorId: userRow.id,
+                    payload: { previousApplicationId: priorApp.id },
+                  },
+                ]
+              : []),
+          ],
+        },
+      },
+      select: { id: true },
+    });
+
+    await syncInstructorApplicationWorkflow(application.id);
+
+    try {
+      const { notifyReviewersOfNewApplication } = await import("@/lib/instructor-application-actions");
+      await notifyReviewersOfNewApplication(userRow.id);
+    } catch (e) {
+      console.error("[submitInstructorApplicationForExistingUser] notify failed:", e);
+    }
+    try {
+      const { sendInstructorApplicationSubmittedEmail } = await import("@/lib/email");
+      const { toAbsoluteAppUrl } = await import("@/lib/public-app-url");
+      await sendInstructorApplicationSubmittedEmail({
+        to: userRow.email,
+        applicantName: userRow.name,
+        statusUrl: toAbsoluteAppUrl("/application-status"),
+      });
+    } catch (e) {
+      console.error("[submitInstructorApplicationForExistingUser] email failed:", e);
+    }
+
+    return { status: "success", message: "APPLICATION_SUBMITTED" };
+  } catch (error) {
+    console.error("[submitInstructorApplicationForExistingUser]", error);
+    return { status: "error", message: "Something went wrong. Please try again." };
   }
 }
 

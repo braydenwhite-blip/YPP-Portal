@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useFormState } from "react-dom";
+import { useFormState, useFormStatus } from "react-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import BrandLockup from "@/components/brand-lockup";
@@ -18,6 +18,22 @@ import { signUp } from "@/lib/signup-actions";
 import type { SignupFormState } from "@/lib/signup-form-utils";
 
 const initialState: SignupFormState = { status: "idle" as const, message: "" };
+
+/** Submit button bound to the parent <form>'s pending state via useFormStatus. */
+function SubmitButton({ label }: { label: string }) {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      className="button"
+      type="submit"
+      style={{ marginTop: 24, width: "100%" }}
+      disabled={pending}
+      aria-disabled={pending}
+    >
+      {pending ? "Submitting…" : label}
+    </button>
+  );
+}
 
 const SECTION_LABELS = ["Account", "Profile", "School", "Teaching", "Availability"] as const;
 
@@ -225,9 +241,22 @@ export default function InstructorSignupPage() {
             <>
               <h1 className="page-title" style={{ fontSize: 20, marginTop: 20 }}>Application submitted!</h1>
               <p className="page-subtitle" style={{ fontSize: 13 }}>{autoLoginError}</p>
-              <Link href="/login?callbackUrl=/application-status" className="button" style={{ marginTop: 12, display: "inline-block" }}>
-                Sign in
-              </Link>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 16, alignItems: "center" }}>
+                <Link
+                  href={`/login?callbackUrl=/application-status${emailRef.current ? `&email=${encodeURIComponent(emailRef.current)}` : ""}`}
+                  className="button"
+                  style={{ display: "inline-block", textDecoration: "none" }}
+                >
+                  Sign in with my password
+                </Link>
+                <Link
+                  href={`/magic-link?callbackUrl=/application-status${emailRef.current ? `&email=${encodeURIComponent(emailRef.current)}` : ""}`}
+                  className="button secondary"
+                  style={{ display: "inline-block", textDecoration: "none" }}
+                >
+                  Email me a sign-in link
+                </Link>
+              </div>
             </>
           ) : (
             <>
@@ -617,7 +646,11 @@ export default function InstructorSignupPage() {
               <div style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", marginTop: 12 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Workshop Outline</div>
                 <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 14px", lineHeight: 1.5 }}>
-                  Sketch one short workshop you'd run at a camp. This replaces the full course outline — you do not need to design a multi-week curriculum.
+                  Sketch one short workshop you&apos;d run at a camp. This replaces the
+                  full course outline — you do not need to design a multi-week
+                  curriculum. Most workshops happen in person, so use the
+                  &ldquo;Materials needed&rdquo; section to flag any space, supplies, or
+                  safety needs the review team should plan around.
                 </p>
 
                 <label className="form-label">
@@ -760,15 +793,51 @@ export default function InstructorSignupPage() {
             </label>
           </div>
 
-          {state.message && state.message !== "APPLICATION_SUBMITTED" && (
+          {state.status === "error" && state.message === "ACCOUNT_EXISTS_SIGNIN_REQUIRED" ? (
+            <div
+              role="alert"
+              style={{
+                marginTop: 16,
+                padding: "14px 16px",
+                borderRadius: 10,
+                background: "#fef3c7",
+                border: "1px solid #fde68a",
+                fontSize: 13,
+                lineHeight: 1.55,
+                color: "#78350f",
+              }}
+            >
+              <strong style={{ display: "block", marginBottom: 4 }}>
+                You already have an account with this email.
+              </strong>
+              We&apos;ve kept everything you typed on this device. Sign in and we&apos;ll
+              take you to a page where you can finish or update your application.
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+                <Link
+                  href="/login?callbackUrl=/applications/instructor/new"
+                  className="button"
+                  style={{ fontSize: 13, padding: "8px 14px", textDecoration: "none" }}
+                >
+                  Sign in to continue
+                </Link>
+                <Link
+                  href="/magic-link?callbackUrl=/applications/instructor/new"
+                  className="button secondary"
+                  style={{ fontSize: 13, padding: "8px 14px", textDecoration: "none" }}
+                >
+                  Email me a sign-in link
+                </Link>
+              </div>
+            </div>
+          ) : state.message && state.message !== "APPLICATION_SUBMITTED" ? (
             <div className={state.status === "error" ? "form-error" : "form-success"} style={{ marginTop: 16 }}>
               {state.message}
             </div>
-          )}
+          ) : null}
 
-          <button className="button" type="submit" style={{ marginTop: 24, width: "100%" }}>
-            {isSummerWorkshop ? "Submit Workshop Instructor Application" : "Submit Application"}
-          </button>
+          <SubmitButton
+            label={isSummerWorkshop ? "Submit Workshop Instructor Application" : "Submit Application"}
+          />
         </form>
 
         <div className="login-help" style={{ marginTop: 24 }}>

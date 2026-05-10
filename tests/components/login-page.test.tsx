@@ -86,16 +86,21 @@ describe("LoginPage", () => {
     await user.click(screen.getByRole("button", { name: "Sign In" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/api/auth/local-password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: "e2e.instructor.blocked.alpha@ypp.test",
-          password: "CodexE2E!2026",
-        }),
-      });
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/auth/local-password",
+        // The login page also passes an AbortSignal for in-flight cancellation;
+        // match by shape so the assertion stays stable.
+        expect.objectContaining({
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: "e2e.instructor.blocked.alpha@ypp.test",
+            password: "CodexE2E!2026",
+          }),
+        })
+      );
       expect(navigationMocks.navigateToAuthDestination).toHaveBeenCalledWith("/");
     });
   });

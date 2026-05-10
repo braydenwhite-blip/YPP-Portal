@@ -177,6 +177,42 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/admin/classes",
+    title: "Class Operations",
+    content: {
+      purpose: "Central admin view of every class proposal, draft, published class, and roster across all chapters.",
+      firstStep: "Use the summary cards or tabs to find what needs attention — proposals awaiting review, classes approved but not yet published, or classes with logistics gaps.",
+      nextStep: "Open a class to review its proposal, finalize logistics, publish it, or jump straight to its roster."
+    }
+  },
+  {
+    pattern: "/admin/classes/[id]",
+    title: "Admin Class Detail",
+    content: {
+      purpose: "Operational detail page for a single class — schedule, location, capacity, approval status, and admin publishing controls.",
+      firstStep: "Confirm the schedule, instructor, in-person location or meeting link, and capacity before publishing or making changes.",
+      nextStep: "Use the publishing controls to publish, unpublish, close enrollment, cancel, or mark the class completed once review is done."
+    }
+  },
+  {
+    pattern: "/admin/classes/[id]/review",
+    title: "Class Proposal Review",
+    content: {
+      purpose: "Reviewer detail for a class proposal — see the full proposal context and decide whether to approve, request revisions, or reject.",
+      firstStep: "Read the proposal, the instructor's notes, and any prior reviewer notes so you can give a clear decision.",
+      nextStep: "Approve to clear the proposal for publishing, request revisions with specific feedback, or reject with a reason for the audit trail."
+    }
+  },
+  {
+    pattern: "/admin/classes/[id]/roster",
+    title: "Admin Class Roster",
+    content: {
+      purpose: "Roster view of a single class — confirmed students, waitlist, drops, and completions, plus parent/guardian contact for each student.",
+      firstStep: "Scan the confirmed list against capacity, then check the waitlist and any duplicates flagged in the table.",
+      nextStep: "Promote from the waitlist, move students between confirmed and waitlisted, or drop a student — every change preserves an audit trail on the enrollment record."
+    }
+  },
+  {
     pattern: "/admin/curricula",
     title: "Curriculum Review Queue",
     content: {
@@ -3382,12 +3418,30 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/applications/instructor/new",
+    title: "Re-apply as an Instructor",
+    content: {
+      purpose: "This page lets a previous applicant submit a new instructor application after a prior outcome.",
+      firstStep: "Review what changed since your last application — coursework, teaching practice, or mentor support.",
+      nextStep: "Fill in the updated form and submit; the review team will see this is a re-application."
+    }
+  },
+  {
     pattern: "/applications/instructor/[id]/interview",
     title: "Applicant Interview",
     content: {
       purpose: "This page is the interview workspace for a specific applicant.",
       firstStep: "Open the structured prompts and use them to guide the conversation as you take notes.",
       nextStep: "Save your notes and recommendation; the chair queue picks the applicant up next."
+    }
+  },
+  {
+    pattern: "/applications/summer-workshop",
+    title: "Summer Workshop Applications",
+    content: {
+      purpose: "This page lists Summer Workshop Instructor applications and their status.",
+      firstStep: "Skim the queue and pick an applicant whose materials are ready.",
+      nextStep: "Open an applicant to review materials, schedule an interview, or record a decision."
     }
   },
   {

@@ -141,48 +141,14 @@ async function main() {
     });
   }
 
-  for (const beat of BEATS) {
-    const existing = await prisma.interactiveBeat.findFirst({
-      where: { journeyVersionId: version.id, sourceKey: beat.sourceKey },
-    });
-    if (existing) {
-      await prisma.interactiveBeat.update({
-        where: { id: existing.id },
-        data: {
-          title: beat.title,
-          prompt: beat.prompt,
-          sortOrder: beat.sortOrder,
-          kind: beat.kind,
-          config: beat.config,
-          schemaVersion: 1,
-          removedAt: null,
-        },
-      });
-    } else {
-      // The legacy `journeyId` FK on InteractiveBeat is non-nullable, but the
-      // sample journey has no matching InteractiveJourney. We point it at a
-      // synthetic journeyId == version.id so the FK row is satisfied via the
-      // editor-side journeyVersionId. (The legacy journeyId is unused for
-      // editor-only journeys; the runtime resolver in Commit 12 reads via
-      // journeyVersionId.)
-      await prisma.$executeRawUnsafe(
-        `INSERT INTO "InteractiveBeat" (
-           "id","journeyId","journeyVersionId","sourceKey","sortOrder","kind",
-           "title","prompt","config","schemaVersion","scoringWeight","createdAt","updatedAt"
-         ) VALUES (
-           gen_random_uuid()::text, $1, $1, $2, $3, $4::"InteractiveBeatKind",
-           $5, $6, $7::jsonb, 1, 10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-         )`,
-        version.id,
-        beat.sourceKey,
-        beat.sortOrder,
-        beat.kind,
-        beat.title,
-        beat.prompt,
-        JSON.stringify(beat.config),
-      );
-    }
-  }
+  // Beats are NOT seeded here. The legacy `InteractiveBeat.journeyId`
+  // column is non-nullable and FKs to InteractiveJourney, which only
+  // exists for module-bound journeys. The sample journey is intentionally
+  // module-free so admins can practice authoring against a clean slate.
+  // To populate beats, bind the journey to a TrainingModule via the
+  // editor and use the Add Beat UI; that path resolves the InteractiveJourney
+  // FK correctly. The runtime resolver bridge in Commit 12 will remove
+  // the legacy journeyId requirement entirely.
 
   await prisma.journeyAssignmentRule.upsert({
     where: {

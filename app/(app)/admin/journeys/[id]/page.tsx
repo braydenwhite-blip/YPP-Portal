@@ -23,7 +23,7 @@ export default async function AdminJourneyDetailPage({
         orderBy: { versionNumber: "desc" },
         include: { _count: { select: { beats: true, gates: true } } },
       },
-      assignments: { select: { audience: true, autoEnroll: true } },
+      assignmentRules: { select: { audience: true, autoEnroll: true } },
       auditLogs: {
         orderBy: { createdAt: "desc" },
         take: 5,
@@ -114,7 +114,7 @@ export default async function AdminJourneyDetailPage({
         draftGates={draftGates}
         beatRefs={draftBeats.map((b) => `beat:${b.sourceKey}`)}
         knownModuleRefs={knownModuleRefs}
-        assignments={journey.assignments}
+        assignments={journey.assignmentRules}
         auditLog={journey.auditLogs.map((a) => ({
           id: a.id,
           action: a.action,

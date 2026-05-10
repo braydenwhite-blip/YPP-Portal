@@ -1067,9 +1067,14 @@ export async function maybeAutoAdvanceAfterInterviewReview(
   // If no V1 interviewer assignments, fall through to old behavior
   if (activeInterviewerIds.length === 0) return false;
 
+  // A SUBMITTED review counts as "done" for the purpose of auto-advance even
+  // if no recommendation was chosen. The submit-time validation in the editor
+  // already enforces a recommendation when the reviewer is allowed to choose
+  // one; older reviews submitted before that gate existed should not block
+  // the application forever.
   const submittedIds = new Set(
     app.interviewReviews
-      .filter((review) => review.round === currentRound && review.recommendation)
+      .filter((review) => review.round === currentRound)
       .map((r) => r.reviewerId)
   );
   const allSubmitted = activeInterviewerIds.every((id) => submittedIds.has(id));

@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { formatScheduleDateTime } from "@/lib/scheduling/shared";
 
@@ -12,6 +11,10 @@ type DrawerApp = {
   updatedAt?: Date | string;
   overdue?: boolean;
   subjectsOfInterest: string | null;
+  applicationTrack?: string;
+  workshopTitle?: string | null;
+  workshopAgeRange?: string | null;
+  workshopDurationMinutes?: number | null;
   applicant: {
     id: string;
     name: string | null;
@@ -34,10 +37,6 @@ type DrawerApp = {
 interface ApplicantQuickDrawerProps {
   app: DrawerApp;
   onClose: () => void;
-  canAssignReviewer?: boolean;
-  canAssignInterviewer?: boolean;
-  reviewerPickerSlot?: ReactNode;
-  interviewerPickerSlot?: ReactNode;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -57,11 +56,7 @@ const STATUS_LABELS: Record<string, string> = {
 export default function ApplicantQuickDrawer({
   app,
   onClose,
-  reviewerPickerSlot,
-  interviewerPickerSlot,
 }: ApplicantQuickDrawerProps) {
-  const [activeSection, setActiveSection] = useState<"summary" | "reviewer" | "interviewer">("summary");
-
   const leadInterviewer = app.interviewerAssignments.find((a) => a.role === "LEAD");
   const secondInterviewer = app.interviewerAssignments.find((a) => a.role === "SECOND");
   const leadReview = app.applicationReviews?.[0];
@@ -91,6 +86,21 @@ export default function ApplicantQuickDrawer({
               >
                 {STATUS_LABELS[app.status] ?? app.status.replace(/_/g, " ")}
               </span>
+              {app.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR" && (
+                <span
+                  className="pill pill-small"
+                  title="Summer Workshop Instructor applicant"
+                  style={{
+                    background: "#f5f3ff",
+                    color: "#6b21c8",
+                    border: "1px solid #ddd6fe",
+                    fontWeight: 700,
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  Summer Workshop
+                </span>
+              )}
               {app.overdue && (
                 <span className="pill pill-attention pill-small">Overdue</span>
               )}
@@ -106,31 +116,8 @@ export default function ApplicantQuickDrawer({
           </button>
         </div>
 
-        {/* Tab nav */}
-        <div
-          role="tablist"
-          aria-label="Applicant sections"
-          className="applicant-quick-drawer-tabs"
-        >
-          {(["summary", "reviewer", "interviewer"] as const).map((tab) => (
-            <button
-              key={tab}
-              role="tab"
-              type="button"
-              aria-selected={activeSection === tab}
-              onClick={() => setActiveSection(tab)}
-              className="applicant-quick-drawer-tab"
-              data-active={activeSection === tab}
-            >
-              {tab === "reviewer" ? "Reviewer" : tab === "interviewer" ? "Interviewers" : "Summary"}
-            </button>
-          ))}
-        </div>
-
         {/* Body */}
         <div className="slideout-body">
-          {activeSection === "summary" && (
-            <>
               {/* Key details */}
               <div className="slideout-section">
                 <div className="slideout-section-title">Quick glance</div>
@@ -159,6 +146,37 @@ export default function ApplicantQuickDrawer({
                   </div>
                 </div>
               </div>
+
+              {/* Workshop summary (Summer Workshop track) */}
+              {app.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR" && (
+                <div className="slideout-section">
+                  <div className="slideout-section-title">Workshop</div>
+                  {app.workshopTitle ? (
+                    <>
+                      <div className="slideout-field-value">
+                        <strong>{app.workshopTitle}</strong>
+                      </div>
+                      <div
+                        className="slideout-field-value"
+                        style={{ fontSize: 13, color: "var(--muted)", marginTop: 2 }}
+                      >
+                        {[
+                          app.workshopAgeRange,
+                          app.workshopDurationMinutes
+                            ? `${app.workshopDurationMinutes} min`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ") || "Details in full workspace"}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="applicant-card-unassigned">
+                      No workshop outline submitted
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Subjects */}
               {app.subjectsOfInterest && (
@@ -223,32 +241,6 @@ export default function ApplicantQuickDrawer({
                   Open full workspace
                 </Link>
               </div>
-            </>
-          )}
-
-          {activeSection === "reviewer" && (
-            <div className="slideout-section">
-              <div className="slideout-section-title">
-                {app.reviewer ? "Reassign Reviewer" : "Assign Reviewer"}
-              </div>
-              {reviewerPickerSlot ?? (
-                <p style={{ fontSize: 13, color: "var(--muted)" }}>
-                  Reviewer assignment not available here.
-                </p>
-              )}
-            </div>
-          )}
-
-          {activeSection === "interviewer" && (
-            <div className="slideout-section">
-              <div className="slideout-section-title">Assign Interviewers</div>
-              {interviewerPickerSlot ?? (
-                <p style={{ fontSize: 13, color: "var(--muted)" }}>
-                  Interviewer assignment not available here.
-                </p>
-              )}
-            </div>
-          )}
         </div>
       </div>
     </>

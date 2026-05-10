@@ -38,6 +38,9 @@ type PipelineApp = {
   applicationTrack?: string;
   instructorSubtype?: string;
   workshopOutlinePresent?: boolean;
+  workshopTitle?: string | null;
+  workshopAgeRange?: string | null;
+  workshopDurationMinutes?: number | null;
 };
 
 type FilterUser = { id: string; name: string | null; email: string };
@@ -95,9 +98,21 @@ const KANBAN_COLUMNS: KanbanColumnDef[] = [
     color: "#b45309",
   },
   {
+    id: "on_hold",
+    title: "On Hold",
+    statuses: ["ON_HOLD"],
+    color: "#a16207",
+  },
+  {
+    id: "waitlisted",
+    title: "Waitlisted",
+    statuses: ["WAITLISTED"],
+    color: "#7c3aed",
+  },
+  {
     id: "decided",
     title: "Decided",
-    statuses: ["APPROVED", "REJECTED", "ON_HOLD", "WAITLISTED"],
+    statuses: ["APPROVED", "REJECTED"],
     color: "#71717a",
   },
 ];
@@ -121,8 +136,8 @@ const COLUMN_FOR_STATUS: Record<string, string> = {
   CHAIR_REVIEW: "chair_review",
   APPROVED: "decided",
   REJECTED: "decided",
-  ON_HOLD: "decided",
-  WAITLISTED: "decided",
+  ON_HOLD: "on_hold",
+  WAITLISTED: "waitlisted",
 };
 
 // Build a flattened column def that handles derived "INTERVIEW_SCHEDULED_READY" logic
@@ -133,7 +148,9 @@ const EXTENDED_COLUMNS: KanbanColumnDef[] = [
   { id: "ready_for_interview", title: "Ready for Interview", statuses: ["INTERVIEW_SCHEDULED_READY"], color: "#059669" },
   { id: "post_interview", title: "Post-Interview", statuses: ["INTERVIEW_COMPLETED"], color: "#4338ca" },
   { id: "chair_review", title: "Chair Review", statuses: ["CHAIR_REVIEW"], color: "#b45309" },
-  { id: "decided", title: "Decided (30d)", statuses: ["APPROVED", "REJECTED", "ON_HOLD", "WAITLISTED"], color: "#71717a" },
+  { id: "on_hold", title: "On Hold", statuses: ["ON_HOLD"], color: "#a16207" },
+  { id: "waitlisted", title: "Waitlisted", statuses: ["WAITLISTED"], color: "#7c3aed" },
+  { id: "decided", title: "Decided (30d)", statuses: ["APPROVED", "REJECTED"], color: "#71717a" },
 ];
 
 type TabValue = "pipeline" | "chair_queue" | "archive";

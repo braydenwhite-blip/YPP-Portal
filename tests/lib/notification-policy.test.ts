@@ -74,8 +74,9 @@ describe("shouldSendAssignmentNotification — debounce key includes interviewer
 
 describe("notification policy", () => {
   it("marks urgent alerts for email and future sms delivery", () => {
+    // Peer-to-peer MESSAGE alerts stay portal-only (no SMS at 3am); the rest
+    // of the urgent bucket goes by email + future SMS.
     for (const type of [
-      NotificationType.MESSAGE,
       NotificationType.ATTENDANCE,
       NotificationType.CLASS_REMINDER,
       NotificationType.SYSTEM,

@@ -208,7 +208,12 @@ export function assertCanViewApplicant(
   if (isAdmin(actor) || isHiringChair(actor)) return;
 
   if (isChapterLead(actor)) {
+    // Same-chapter CPs always view their own chapter's applicants.
     if (actor.chapterId && actor.chapterId === application.applicantChapterId) return;
+    // Orphan applicants (no chapter assignment) belong to the global admin
+    // queue. Let any Chapter President view them so they can triage and
+    // escalate; management actions still require ADMIN/HIRING_CHAIR.
+    if (application.applicantChapterId === null) return;
     throw new Error("Chapter Presidents can only view applicants in their own chapter.");
   }
 

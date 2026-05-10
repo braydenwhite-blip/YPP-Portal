@@ -9,9 +9,12 @@ import InfoResponseForm from "./info-response-form";
 import CPInfoResponseForm from "./cp-info-response-form";
 import AvailabilityForm from "./availability-form";
 import SlotPickerForm from "./slot-picker-form";
+import WithdrawForm from "./withdraw-form";
+import ApplicantEditForm from "./edit-form";
 import Link from "next/link";
 import InstructorApplicationMotivationResponse from "@/components/instructor-application-motivation-response";
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
+import type { WorkshopOutline } from "@/lib/summer-workshop";
 
 function instructorStatusLabel(status: InstructorApplicationStatus): string {
   switch (status) {
@@ -110,9 +113,14 @@ export default async function ApplicationStatusPage() {
   const primaryRole = session.user.primaryRole;
   const hiringDemoMode = isHiringDemoModeEnabled();
 
+  // Re-application: a user can have multiple InstructorApplication rows over
+  // time, but only one non-terminal row at any given moment. Surface the
+  // most recent record (live or last closed) so the applicant always sees
+  // their current status, including the prior outcome before they re-apply.
   const loadInstructorApplication = () =>
-    prisma.instructorApplication.findUnique({
+    prisma.instructorApplication.findFirst({
       where: { applicantId: session.user.id },
+      orderBy: { createdAt: "desc" },
       include: {
         reviewer: { select: { name: true } },
         availabilityWindows: true,
@@ -175,13 +183,35 @@ export default async function ApplicationStatusPage() {
       </div>
 
       {/* Instructor Application */}
-      {instructorApp && (
+      {instructorApp && (() => {
+        const isSummerWorkshopApp =
+          instructorApp.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR";
+        const trackTitle = isSummerWorkshopApp
+          ? "Summer Workshop Instructor Application"
+          : "Instructor Application";
+        return (
         <div style={{ marginBottom: 32 }}>
           <div className="application-status-heading-row">
             <span className="badge" style={{ background: statusColor(instructorApp.status), color: "white" }}>
               {instructorStatusLabel(instructorApp.status)}
             </span>
-            <h2 className="application-status-card-title">Instructor Application</h2>
+            <h2 className="application-status-card-title">{trackTitle}</h2>
+            {isSummerWorkshopApp && (
+              <span
+                className="pill"
+                style={{
+                  background: "#f5f3ff",
+                  color: "#6b21c8",
+                  border: "1px solid #ddd6fe",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: "0.04em",
+                }}
+                title="Summer Workshop track — lighter onboarding than the full Instructor program"
+              >
+                Summer Workshop
+              </span>
+            )}
             <span className="application-status-date">
               Applied {new Date(instructorApp.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
             </span>
@@ -197,7 +227,9 @@ export default async function ApplicationStatusPage() {
                   Your application is in the queue. We typically send a first update within <strong>3–5 business days</strong>. If you need anything sooner, contact your chapter.
                 </p>
                 <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 8 }}>
-                  Review is about understanding how you teach — not a scored exam. The interview, when scheduled, is a two-way conversation, not a test.
+                  {isSummerWorkshopApp
+                    ? "This is a lighter review than the full Instructor program — reviewers focus on whether you can safely and effectively run a short workshop at a camp. The interview, if scheduled, is a quick two-way conversation."
+                    : "Review is about understanding how you teach — not a scored exam. The interview, when scheduled, is a two-way conversation, not a test."}
                 </p>
               </>
             )}
@@ -208,7 +240,9 @@ export default async function ApplicationStatusPage() {
                   {instructorApp.reviewer ? `${instructorApp.reviewer.name} is` : "A reviewer is"} currently evaluating your application.
                 </p>
                 <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 8 }}>
-                  We are looking for fit and clarity, not perfection. If we move forward, you will be invited to a short interview — a two-way discussion, not an audition.
+                  {isSummerWorkshopApp
+                    ? "Reviewers are reading your workshop outline and looking for clarity, safety, and fit for an in-person camp session — not a perfect plan. They may invite you to a short conversation."
+                    : "We are looking for fit and clarity, not perfection. If we move forward, you will be invited to a short interview — a two-way discussion, not an audition."}
                 </p>
               </>
             )}
@@ -411,10 +445,140 @@ export default async function ApplicationStatusPage() {
                   <p style={{ fontSize: 14, margin: 0, whiteSpace: "pre-wrap" }}>{instructorApp.firstClassPlan}</p>
                 </div>
               )}
+              {(() => {
+                const outline = (instructorApp.workshopOutline as WorkshopOutline | null) ?? null;
+                if (!outline || !outline.title) return null;
+                return (
+                  <div style={{ marginTop: 16, padding: 12, borderRadius: 8, background: "var(--surface-2)" }}>
+                    <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 8px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                      Workshop outline you submitted
+                    </p>
+                    <p style={{ fontSize: 14, margin: "0 0 6px" }}><strong>{outline.title}</strong></p>
+                    <p style={{ fontSize: 13, margin: "0 0 8px", color: "var(--muted)" }}>
+                      {outline.ageRange}
+                      {outline.durationMinutes ? ` · ${outline.durationMinutes} minutes` : ""}
+                    </p>
+                    {outline.learningGoals?.length ? (
+                      <div style={{ marginTop: 8 }}>
+                        <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 4px", fontWeight: 600 }}>Learning goals</p>
+                        <ul style={{ fontSize: 13, margin: "0 0 0 18px", padding: 0 }}>
+                          {outline.learningGoals.map((g, i) => <li key={i} style={{ marginBottom: 2 }}>{g}</li>)}
+                        </ul>
+                      </div>
+                    ) : null}
+                    {outline.activityFlow ? (
+                      <div style={{ marginTop: 8 }}>
+                        <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 4px", fontWeight: 600 }}>Activity flow</p>
+                        <p style={{ fontSize: 13, margin: 0, whiteSpace: "pre-wrap" }}>{outline.activityFlow}</p>
+                      </div>
+                    ) : null}
+                    {outline.engagementHook ? (
+                      <div style={{ marginTop: 8 }}>
+                        <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 4px", fontWeight: 600 }}>Engagement hook</p>
+                        <p style={{ fontSize: 13, margin: 0, whiteSpace: "pre-wrap" }}>{outline.engagementHook}</p>
+                      </div>
+                    ) : null}
+                    {outline.adaptationNotes ? (
+                      <div style={{ marginTop: 8 }}>
+                        <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 4px", fontWeight: 600 }}>Adapting on the fly</p>
+                        <p style={{ fontSize: 13, margin: 0, whiteSpace: "pre-wrap" }}>{outline.adaptationNotes}</p>
+                      </div>
+                    ) : null}
+                    {outline.materialsNeeded?.length ? (
+                      <div style={{ marginTop: 8 }}>
+                        <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 4px", fontWeight: 600 }}>Materials</p>
+                        <ul style={{ fontSize: 13, margin: "0 0 0 18px", padding: 0 }}>
+                          {outline.materialsNeeded.map((m, i) => <li key={i} style={{ marginBottom: 2 }}>{m}</li>)}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })()}
             </div>
           </details>
+
+          {/* Edit — applicants can update most fields while review is open
+              (CHAIR_REVIEW + terminal statuses are locked server-side). */}
+          {!["CHAIR_REVIEW", "ON_HOLD", "WAITLISTED", "APPROVED", "REJECTED", "WITHDRAWN"].includes(
+            instructorApp.status
+          ) && (
+            (() => {
+              const editOutline =
+                (instructorApp.workshopOutline as WorkshopOutline | null) ?? null;
+              return (
+                <ApplicantEditForm
+                  isSummerWorkshop={instructorApp.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR"}
+                  values={{
+                    motivation: instructorApp.motivation,
+                    teachingExperience: instructorApp.teachingExperience,
+                    availability: instructorApp.availability,
+                    hoursPerWeek: instructorApp.hoursPerWeek,
+                    preferredStartDate: instructorApp.preferredStartDate,
+                    subjectsOfInterest: instructorApp.subjectsOfInterest,
+                    courseIdea: instructorApp.courseIdea,
+                    courseOutline: instructorApp.courseOutline,
+                    firstClassPlan: instructorApp.firstClassPlan,
+                    preferredFirstName: instructorApp.preferredFirstName,
+                    phoneNumber: instructorApp.phoneNumber,
+                    city: instructorApp.city,
+                    stateProvince: instructorApp.stateProvince,
+                    zipCode: instructorApp.zipCode,
+                  }}
+                  workshopOutline={
+                    editOutline
+                      ? {
+                          title: editOutline.title ?? "",
+                          ageRange: editOutline.ageRange ?? "",
+                          durationMinutes: editOutline.durationMinutes ?? null,
+                          learningGoals: editOutline.learningGoals ?? [],
+                          activityFlow: editOutline.activityFlow ?? "",
+                          materialsNeeded: editOutline.materialsNeeded ?? [],
+                          engagementHook: editOutline.engagementHook ?? "",
+                          adaptationNotes: editOutline.adaptationNotes ?? "",
+                        }
+                      : null
+                  }
+                />
+              );
+            })()
+          )}
+
+          {/* Withdraw — applicants control their own data */}
+          {!["APPROVED", "REJECTED", "WITHDRAWN"].includes(instructorApp.status) && (
+            <WithdrawForm />
+          )}
+
+          {/* Re-apply when the latest application is closed (terminal) */}
+          {["REJECTED", "WITHDRAWN"].includes(instructorApp.status) && (
+            <div
+              style={{
+                marginTop: 16,
+                padding: "12px 14px",
+                borderRadius: 10,
+                background: "#f5f3ff",
+                border: "1px solid #ddd6fe",
+                fontSize: 13,
+                color: "#5b21b6",
+                lineHeight: 1.55,
+              }}
+            >
+              You can submit a new application — we&apos;ll pre-fill it with what
+              you had before, and flag it as a re-application for the review team.
+              <div style={{ marginTop: 10 }}>
+                <Link
+                  href="/applications/instructor/new"
+                  className="button"
+                  style={{ fontSize: 13, padding: "8px 14px", textDecoration: "none" }}
+                >
+                  Start a new application
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+        );
+      })()}
 
       {/* Chapter President Application */}
       {cpApp && (

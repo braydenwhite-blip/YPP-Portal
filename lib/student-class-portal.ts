@@ -4,6 +4,7 @@ import {
   getClassTemplateCapabilities,
   getClassTemplateSelect,
 } from "@/lib/class-template-compat";
+import { publicOfferingWhere } from "@/lib/class-visibility";
 
 type OfferingCardRecord = {
   id: string;
@@ -17,6 +18,9 @@ type OfferingCardRecord = {
   enrollmentOpen: boolean;
   introVideoUrl: string | null;
   chapterId: string | null;
+  zoomLink: string | null;
+  locationName: string | null;
+  locationAddress: string | null;
   template: {
     description: string;
     interestArea: string;
@@ -73,6 +77,9 @@ export type StudentClassCard = {
   chapterId: string | null;
   chapterLabel: string | null;
   isPartnerChapter: boolean;
+  zoomLink: string | null;
+  locationName: string | null;
+  locationAddress: string | null;
   template: {
     interestArea: string;
     difficultyLevel: string;
@@ -216,6 +223,9 @@ function mapOfferingCard(
     chapterId: offering.chapterId,
     chapterLabel: formatChapterLabel(offering.chapter),
     isPartnerChapter: Boolean(userChapterId && offering.chapterId && offering.chapterId !== userChapterId),
+    zoomLink: offering.zoomLink,
+    locationName: offering.locationName,
+    locationAddress: offering.locationAddress,
     template: {
       interestArea: offering.template.interestArea,
       difficultyLevel: offering.template.difficultyLevel,
@@ -372,19 +382,20 @@ export async function getRecommendedClassOfferings(
       .map((enrollment) => normalizeInterestArea(enrollment.offering.template.interestArea)),
   );
 
-  const offerings = await getOfferingCards({
-    status: { in: ["PUBLISHED", "IN_PROGRESS"] },
-    ...(excludedOfferingIds.size > 0
-      ? { id: { notIn: [...excludedOfferingIds] } }
-      : {}),
-    ...(options?.interestArea
-      ? {
-          template: {
-            interestArea: options.interestArea,
-          },
-        }
-      : {}),
-  });
+  const offerings = await getOfferingCards(
+    publicOfferingWhere({
+      ...(excludedOfferingIds.size > 0
+        ? { id: { notIn: [...excludedOfferingIds] } }
+        : {}),
+      ...(options?.interestArea
+        ? {
+            template: {
+              interestArea: options.interestArea,
+            },
+          }
+        : {}),
+    }),
+  );
 
   const scoredCards = offerings
     .map((offering) => {
@@ -532,21 +543,23 @@ export async function getStudentClassOpportunityContext(
     : null;
 
   const sameStepAlternatives = offering.pathwayStep?.id
-    ? await getOfferingCards({
-        id: { not: offeringId },
-        status: { in: ["PUBLISHED", "IN_PROGRESS"] },
-        pathwayStepId: offering.pathwayStep.id,
-      })
+    ? await getOfferingCards(
+        publicOfferingWhere({
+          id: { not: offeringId },
+          pathwayStepId: offering.pathwayStep.id,
+        }),
+      )
     : [];
 
-  const sameAreaAlternatives = await getOfferingCards({
-    id: { not: offeringId },
-    status: { in: ["PUBLISHED", "IN_PROGRESS"] },
-    template: {
-      interestArea: offering.template.interestArea,
-      difficultyLevel: offering.template.difficultyLevel,
-    },
-  });
+  const sameAreaAlternatives = await getOfferingCards(
+    publicOfferingWhere({
+      id: { not: offeringId },
+      template: {
+        interestArea: offering.template.interestArea,
+        difficultyLevel: offering.template.difficultyLevel,
+      },
+    }),
+  );
 
   const recommended = await getRecommendedClassOfferings(userId, {
     excludeOfferingId: offeringId,

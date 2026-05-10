@@ -48,6 +48,9 @@ interface Props {
     schoolName: string | null;
     graduationYear: number | null;
     interviewRound: number;
+    applicationTrack?: string | null;
+    isReapplication?: boolean;
+    previousApplicationId?: string | null;
     reviewer: { id: string; name: string | null } | null;
     interviewerAssignments: Array<{
       id: string;
@@ -103,11 +106,28 @@ export default function ApplicantCockpitHeader({ application }: Props) {
                 {application.applicant.chapter.name}
               </span>
             )}
+            {application.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR" && (
+              <span
+                className="pill pill-attention cockpit-hero-chip"
+                title="This applicant is on the Summer Workshop Instructor track"
+              >
+                Summer Workshop
+              </span>
+            )}
             {subjects.map((s) => (
               <span key={s} className="pill pill-info cockpit-hero-chip">
                 {s}
               </span>
             ))}
+            {application.isReapplication && (
+              <span
+                className="pill cockpit-hero-chip"
+                style={{ background: "#fef3c7", color: "#92400e", borderColor: "#fde68a" }}
+                title="This applicant submitted a previous application"
+              >
+                Re-application
+              </span>
+            )}
             <StatusPill status={application.status} />
           </div>
           {(application.schoolName || application.graduationYear) && (

@@ -98,7 +98,10 @@ export default async function ChapterLeadDashboardPage() {
 
       <div style={{ marginBottom: 28 }}>
         <div className="section-title">Active Courses</div>
-        <div style={{ marginBottom: 10 }}>
+        <div style={{ marginBottom: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <a href="/chapter-lead/instructor-applicants" className="button small">
+            Review Instructor Applicants
+          </a>
           <a href="/chapter-lead/instructor-readiness" className="button small outline">
             Open Instructor Readiness
           </a>

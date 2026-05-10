@@ -332,10 +332,34 @@ export default async function CurriculumPage({
 
       {offerings.length === 0 ? (
         <div className="card">
-          <h3>No Classes Found</h3>
+          <h3>
+            {params.search || params.interest || params.level || params.mode || params.semester
+              ? "No classes match those filters"
+              : "No classes open right now"}
+          </h3>
           <p style={{ color: "var(--text-secondary)", marginTop: 8 }}>
-            No classes match your filters. Try adjusting your search or check back later for new offerings.
+            {params.search || params.interest || params.level || params.mode || params.semester
+              ? "Try clearing a filter or broadening your search."
+              : "Check back soon — new classes are posted regularly. In the meantime, you can review the classes you're already in or explore your pathway."}
           </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+            {(params.search || params.interest || params.level || params.mode || params.semester) && (
+              <Link href="/curriculum" className="button primary">
+                Clear filters
+              </Link>
+            )}
+            {isStudent && (
+              <Link href="/my-classes" className="button secondary">
+                View your classes
+              </Link>
+            )}
+            <Link href="/pathways" className="button secondary">
+              Explore pathways
+            </Link>
+            <Link href="/help" className="button secondary">
+              Contact YPP
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="grid two">

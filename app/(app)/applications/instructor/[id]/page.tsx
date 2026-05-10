@@ -64,6 +64,8 @@ async function fetchCockpitData(applicationId: string) {
       schoolName: true,
       graduationYear: true,
       subjectsOfInterest: true,
+      isReapplication: true,
+      previousApplicationId: true,
       reviewerId: true,
       interviewRound: true,
       reviewerAssignedAt: true,
@@ -152,6 +154,7 @@ async function fetchCockpitData(applicationId: string) {
         select: {
           id: true,
           reviewerId: true,
+          round: true,
           overallRating: true,
           recommendation: true,
           summary: true,
@@ -178,12 +181,39 @@ export default async function ApplicantCockpitPage({
   const { notice, reviewWarnings, adminPreview } = await searchParams;
 
   if (!isInstructorApplicantWorkflowV1Enabled()) {
-    redirect("/admin/instructor-applicants");
+    // Admins/chairs go to the admin board; applicants and other roles get
+    // the applicant-facing status page (the admin board redirects them to
+    // home, which is jarring).
+    if (
+      canBypassInstructorGate({
+        roles: session.user.roles,
+        primaryRole: session.user.primaryRole,
+        adminPreviewParam: null,
+      })
+    ) {
+      redirect("/admin/instructor-applicants");
+    }
+    redirect("/application-status");
   }
 
   const application = await fetchCockpitData(id);
   if (!application) notFound();
   if (!application.applicant) notFound();
+
+  // Privacy: applicants must NOT see the reviewer cockpit (reviewer notes,
+  // internal timeline, interview reviewer summaries). Send them to the
+  // applicant-facing status page instead. Admins still pass through with
+  // ?adminPreview=1 if they need to spot-check.
+  if (
+    application.applicant.id === session.user.id &&
+    !canBypassInstructorGate({
+      roles: session.user.roles,
+      primaryRole: session.user.primaryRole,
+      adminPreviewParam: adminPreview ?? null,
+    })
+  ) {
+    redirect("/application-status");
+  }
 
   // Temporary gate: standard-track instructor applications are hidden while
   // the regular Instructor program is paused. Summer Workshop applications
@@ -201,6 +231,12 @@ export default async function ApplicantCockpitPage({
   }
   const currentInterviewerAssignments = application.interviewerAssignments.filter(
     (assignment) => assignment.round === application.interviewRound
+  );
+  // Only show interview reviews that belong to the current interview round.
+  // If a chair triggered REQUEST_SECOND_INTERVIEW, prior-round reviews would
+  // otherwise mingle with current-round signal and confuse the CP/chair.
+  const currentInterviewReviews = application.interviewReviews.filter(
+    (review) => review.round == null || review.round === application.interviewRound
   );
   const leadInterviewerAssignment =
     currentInterviewerAssignments.find((assignment) => assignment.role === "LEAD") ?? null;
@@ -259,6 +295,11 @@ export default async function ApplicantCockpitPage({
     actorIsAdmin ||
     (isChapterLead(actor) && actor.chapterId === application.applicant.chapterId) ||
     actorIsReviewer;
+  // Same-chapter Chapter Presidents can route a completed interview to the
+  // chair queue themselves (the server action already authorizes this via
+  // assertCanManageApplication; we only need to surface the button).
+  const canSendToChair =
+    !actorIsAdmin && isChapterLead(actor) && actor.chapterId === application.applicant.chapterId;
   const canPostSlots = actorIsAdmin || actorIsLeadInterviewer;
   const canSendInterviewTimes =
     canPostSlots &&
@@ -307,6 +348,33 @@ export default async function ApplicantCockpitPage({
 
       <div className="applicant-cockpit-container">
         <ApplicantCockpitHeader application={application} />
+
+        {application.isReapplication && application.previousApplicationId && (
+          <div
+            role="note"
+            style={{
+              marginTop: 12,
+              padding: "10px 14px",
+              borderRadius: 10,
+              background: "#fef3c7",
+              border: "1px solid #fde68a",
+              fontSize: 13,
+              color: "#78350f",
+              lineHeight: 1.55,
+            }}
+          >
+            This is a re-application. The applicant&apos;s prior submission is on
+            file —{" "}
+            <Link
+              href={`/applications/instructor/${application.previousApplicationId}?adminPreview=1`}
+              className="link"
+              style={{ color: "#78350f", textDecoration: "underline" }}
+            >
+              open the previous application
+            </Link>{" "}
+            for context.
+          </div>
+        )}
 
         {application.lastNotificationError && (
           <NotificationFailureBanner
@@ -486,14 +554,14 @@ export default async function ApplicantCockpitPage({
             </InterviewSchedulingInlinePanel>
 
             {/* Interview Reviews summary */}
-            {application.interviewReviews.length > 0 && (
+            {currentInterviewReviews.length > 0 && (
               <section id="section-interview-reviews" className="cockpit-panel">
                 <div className="cockpit-section-heading">
                   <span className="cockpit-section-kicker">Interview signal</span>
                   <h2>Interview Reviews</h2>
                 </div>
                 <div className="cockpit-stack">
-                  {application.interviewReviews.map((review) => {
+                  {currentInterviewReviews.map((review) => {
                     const recOpt = PROGRESS_RATING_OPTIONS.find(
                       (o) => o.value === review.overallRating
                     );
@@ -596,6 +664,7 @@ export default async function ApplicantCockpitPage({
         isAssignedInterviewer={actorIsInterviewer}
         isAssignedLeadInterviewer={actorIsLeadInterviewer}
         canActAsChair={canActAsChairBool}
+        canSendToChair={canSendToChair}
         isAdmin={actorIsAdmin}
         hidden={isHidden}
       />

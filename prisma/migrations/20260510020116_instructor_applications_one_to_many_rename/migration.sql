@@ -1,0 +1,17 @@
+-- Migration: instructor_applications_one_to_many_rename
+--
+-- Schema-only / Prisma-client-only change. The previous migration
+-- (`20260510020006_instructor_application_reapply`) already dropped the
+-- UNIQUE constraint on `InstructorApplication.applicantId`, which is the
+-- only database-level change needed.
+--
+-- This migration is a no-op SQL placeholder that records the companion
+-- Prisma client rename:
+--   * `User.instructorApplication`  (one-to-one, optional) →
+--     `User.instructorApplications` (one-to-many, array)
+--
+-- Prisma rejects a `@relation` to a non-unique scalar on the "one" side, so
+-- once the UNIQUE was dropped we had to flip the User side to one-to-many.
+-- No table, column, index, or constraint changes — keeping a migration
+-- file solely so `prisma migrate status` matches the schema.
+SELECT 1;

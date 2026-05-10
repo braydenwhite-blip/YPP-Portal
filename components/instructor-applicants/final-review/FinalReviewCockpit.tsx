@@ -59,6 +59,7 @@ import PinnedSignalsRail from "./PinnedSignalsRail";
 import RecommendationBadge from "@/components/instructor-applicants/shared/RecommendationBadge";
 import ReviewerIdentityChip from "@/components/instructor-applicants/shared/ReviewerIdentityChip";
 import { AlertTriangleIcon } from "./cockpit-icons";
+import PromoteToFullInstructorButton from "@/components/instructor-applicants/PromoteToFullInstructorButton";
 
 export interface FinalReviewCockpitProps {
   application: SerializedApplicationForReview;
@@ -308,6 +309,39 @@ function CockpitInner({
         background: "var(--cockpit-canvas, #f7f5fb)",
       }}
     >
+      {application.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR" && (
+        <div
+          role="status"
+          aria-label="Summer Workshop Instructor applicant"
+          style={{
+            padding: "8px 24px",
+            background: "#f5f3ff",
+            borderBottom: "1px solid #ddd6fe",
+            color: "#5b21b6",
+            fontSize: 12,
+            fontWeight: 600,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.06em",
+              padding: "2px 8px",
+              borderRadius: 999,
+              background: "#6b21c8",
+              color: "#fff",
+            }}
+          >
+            SW
+          </span>
+          Summer Workshop Instructor — lighter pathway. Review focuses on the
+          single workshop outline below; full course materials are not required.
+        </div>
+      )}
       <ApplicantSnapshotBar
         application={{
           id: application.id,
@@ -355,7 +389,14 @@ function CockpitInner({
               currentUserId={actorId}
             />
             <CockpitReviewerNote application={application} />
-            <CockpitMaterialsCard application={application} />
+            {application.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR" ? (
+              <CockpitSummerWorkshopCard
+                application={application}
+                applicantDisplayName={displayName}
+              />
+            ) : (
+              <CockpitMaterialsCard application={application} />
+            )}
             <AuditHistoryDrawer chain={auditChain} initiallyOpen={readOnly} />
           </FeedbackPanel>
           <SignalPanel>
@@ -816,6 +857,216 @@ function CockpitMaterialsCard({
           {application.courseIdea?.trim() || application.textbook?.trim() || "Not provided"}
         </dd>
       </dl>
+    </section>
+  );
+}
+
+function CockpitSummerWorkshopCard({
+  application,
+  applicantDisplayName,
+}: {
+  application: SerializedApplicationForReview;
+  applicantDisplayName: string;
+}) {
+  const outline = application.workshopOutline;
+  const isStillSummerWorkshop = application.instructorSubtype === "SUMMER_WORKSHOP";
+  return (
+    <section
+      style={{
+        background: "var(--cockpit-surface, #fff)",
+        border: "1px solid var(--cockpit-line, rgba(71,85,105,0.18))",
+        borderRadius: 16,
+        padding: 20,
+      }}
+      aria-label="Summer Workshop submission"
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 8,
+          flexWrap: "wrap",
+        }}
+      >
+        <p
+          style={{
+            margin: 0,
+            fontSize: 11,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            color: "var(--ink-muted, #6b5f7a)",
+          }}
+        >
+          Summer Workshop submission
+        </p>
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: "0.04em",
+            background: "#f5f3ff",
+            color: "#6b21c8",
+            border: "1px solid #ddd6fe",
+            padding: "2px 8px",
+            borderRadius: 999,
+          }}
+          title="Lighter pathway than the full Instructor program"
+        >
+          LIGHTER REVIEW
+        </span>
+      </div>
+      <p
+        style={{
+          margin: "0 0 12px",
+          fontSize: 12,
+          color: "var(--ink-muted, #6b5f7a)",
+          lineHeight: 1.5,
+        }}
+      >
+        Summer Workshop applicants run a single short workshop at a camp — review
+        focuses on safety, pacing, and age-appropriateness. They have not been
+        asked to design a full multi-week course.
+      </p>
+
+      {!outline ? (
+        <p
+          style={{
+            margin: 0,
+            padding: "10px 12px",
+            borderRadius: 8,
+            background: "#fffbeb",
+            border: "1px solid #fde68a",
+            color: "#92400e",
+            fontSize: 13,
+          }}
+        >
+          No workshop outline on file. The applicant did not submit one — proceed
+          with extra caution and consider asking them to share the outline before
+          a final decision.
+        </p>
+      ) : (
+        <dl
+          style={{
+            margin: 0,
+            display: "grid",
+            gridTemplateColumns: "minmax(120px, max-content) 1fr",
+            gap: "8px 16px",
+            fontSize: 13,
+          }}
+        >
+          <dt style={{ fontWeight: 600 }}>Title</dt>
+          <dd style={{ margin: 0 }}>
+            {outline.title || (
+              <span style={{ color: "var(--ink-muted, #6b5f7a)" }}>Not provided</span>
+            )}
+          </dd>
+
+          <dt style={{ fontWeight: 600 }}>Audience</dt>
+          <dd style={{ margin: 0 }}>
+            {outline.ageRange || (
+              <span style={{ color: "var(--ink-muted, #6b5f7a)" }}>Not provided</span>
+            )}
+          </dd>
+
+          <dt style={{ fontWeight: 600 }}>Length</dt>
+          <dd style={{ margin: 0 }}>
+            {outline.durationMinutes
+              ? `${outline.durationMinutes} minutes`
+              : (
+                <span style={{ color: "var(--ink-muted, #6b5f7a)" }}>Not provided</span>
+              )}
+          </dd>
+
+          <dt style={{ fontWeight: 600 }}>Learning goals</dt>
+          <dd style={{ margin: 0 }}>
+            {outline.learningGoals.length === 0 ? (
+              <span style={{ color: "var(--ink-muted, #6b5f7a)" }}>Not provided</span>
+            ) : (
+              <ul style={{ margin: 0, paddingLeft: 18 }}>
+                {outline.learningGoals.map((g, i) => (
+                  <li key={i}>{g}</li>
+                ))}
+              </ul>
+            )}
+          </dd>
+
+          <dt style={{ fontWeight: 600 }}>Activity flow</dt>
+          <dd style={{ margin: 0, whiteSpace: "pre-wrap" }}>
+            {outline.activityFlow || (
+              <span style={{ color: "var(--ink-muted, #6b5f7a)" }}>Not provided</span>
+            )}
+          </dd>
+
+          <dt style={{ fontWeight: 600 }}>Engagement hook</dt>
+          <dd style={{ margin: 0, whiteSpace: "pre-wrap" }}>
+            {outline.engagementHook || (
+              <span style={{ color: "var(--ink-muted, #6b5f7a)" }}>Not provided</span>
+            )}
+          </dd>
+
+          <dt style={{ fontWeight: 600 }}>Adapting on the fly</dt>
+          <dd style={{ margin: 0, whiteSpace: "pre-wrap" }}>
+            {outline.adaptationNotes || (
+              <span style={{ color: "var(--ink-muted, #6b5f7a)" }}>Not provided</span>
+            )}
+          </dd>
+
+          <dt style={{ fontWeight: 600 }}>Materials / space / safety</dt>
+          <dd style={{ margin: 0 }}>
+            {outline.materialsNeeded.length === 0 ? (
+              <span style={{ color: "var(--ink-muted, #6b5f7a)" }}>None listed</span>
+            ) : (
+              <ul style={{ margin: 0, paddingLeft: 18 }}>
+                {outline.materialsNeeded.map((m, i) => (
+                  <li key={i}>{m}</li>
+                ))}
+              </ul>
+            )}
+          </dd>
+        </dl>
+      )}
+
+      {isStillSummerWorkshop && (
+        <div
+          style={{
+            marginTop: 16,
+            paddingTop: 16,
+            borderTop: "1px solid var(--cockpit-line, rgba(71,85,105,0.18))",
+          }}
+        >
+          <p
+            style={{
+              margin: "0 0 8px",
+              fontSize: 11,
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              color: "var(--ink-muted, #6b5f7a)",
+            }}
+          >
+            Promote to full Instructor
+          </p>
+          <p
+            style={{
+              margin: "0 0 10px",
+              fontSize: 12,
+              color: "var(--ink-muted, #6b5f7a)",
+              lineHeight: 1.5,
+            }}
+          >
+            Optional. Promotion flips this applicant&rsquo;s subtype from Summer
+            Workshop to Standard Instructor and preserves all history. Do not use
+            this as the sole approval — make the chair decision below first.
+          </p>
+          <PromoteToFullInstructorButton
+            applicationId={application.id}
+            applicantName={applicantDisplayName}
+            promotionEligibility={application.promotionEligibility}
+          />
+        </div>
+      )}
     </section>
   );
 }

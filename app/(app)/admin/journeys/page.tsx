@@ -24,7 +24,7 @@ export default async function AdminJourneysPage() {
           updatedAt: true,
         },
       },
-      assignments: { select: { audience: true } },
+      assignmentRules: { select: { audience: true } },
       _count: { select: { versions: true } },
     },
   });
@@ -73,9 +73,9 @@ export default async function AdminJourneysPage() {
                     <td>{latest ? `v${latest.versionNumber}` : "—"}</td>
                     <td>{latest ? <StatusPill status={latest.status} /> : "—"}</td>
                     <td>
-                      {j.assignments.length === 0
+                      {j.assignmentRules.length === 0
                         ? "—"
-                        : j.assignments.map((a) => a.audience).join(", ")}
+                        : j.assignmentRules.map((a) => a.audience).join(", ")}
                     </td>
                     <td>{new Date(j.updatedAt).toLocaleDateString()}</td>
                     <td>

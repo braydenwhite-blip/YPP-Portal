@@ -30,5 +30,20 @@ describe("demo mode middleware allowlist", () => {
     expect(getHiringDemoHomeHref({ primaryRole: "CHAPTER_PRESIDENT" })).toBe(
       "/chapter-lead/instructor-applicants"
     );
+    expect(getHiringDemoHomeHref({ primaryRole: "HIRING_CHAIR" })).toBe(
+      "/admin/instructor-applicants/chair-queue"
+    );
+    expect(
+      getHiringDemoHomeHref({ primaryRole: null, roles: ["HIRING_CHAIR"] })
+    ).toBe("/admin/instructor-applicants/chair-queue");
+  });
+
+  it("admin takes priority over HIRING_CHAIR for the demo home", () => {
+    expect(
+      getHiringDemoHomeHref({
+        primaryRole: "ADMIN",
+        roles: ["ADMIN", "HIRING_CHAIR"],
+      })
+    ).toBe("/admin/instructor-applicants");
   });
 });

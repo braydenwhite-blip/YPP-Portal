@@ -17,6 +17,7 @@ import {
 import { getLegacyLearnerFitCopy } from "@/lib/learner-fit";
 import { syncCurriculumApprovalWorkflow } from "@/lib/workflow";
 import { syncInstructorGrowthSignalsForInstructor } from "@/lib/instructor-growth-service";
+import { publicOfferingWhere } from "@/lib/class-visibility";
 
 type WeeklyTopic = {
   week?: number;
@@ -1055,7 +1056,15 @@ export async function publishClassOffering(id: string) {
 // ENROLLMENT ACTIONS
 // ============================================
 
-export async function enrollInClass(offeringId: string) {
+export type EnrollInClassResult = {
+  success: true;
+  waitlisted: boolean;
+  alreadyEnrolled: boolean;
+  status: "ENROLLED" | "WAITLISTED";
+  waitlistPosition: number | null;
+};
+
+export async function enrollInClass(offeringId: string): Promise<EnrollInClassResult> {
   const session = await requireAuth();
   const studentId = session.user.id;
 
@@ -1069,6 +1078,7 @@ export async function enrollInClass(offeringId: string) {
   const offering = await prisma.classOffering.findUnique({
     where: { id: offeringId },
     include: {
+      approval: { select: { status: true } },
       enrollments: { where: { status: "ENROLLED" } },
       _count: { select: { enrollments: true } },
     },
@@ -1078,6 +1088,14 @@ export async function enrollInClass(offeringId: string) {
   if (!offering.enrollmentOpen) throw new Error("Enrollment is closed");
   if (offering.status !== "PUBLISHED" && offering.status !== "IN_PROGRESS") {
     throw new Error("Class is not accepting enrollment");
+  }
+  // Defense-in-depth: never let students enroll in a class that has not
+  // cleared admin review, even if the status field reads PUBLISHED.
+  const isApprovedForSignup =
+    offering.grandfatheredTrainingExemption ||
+    offering.approval?.status === "APPROVED";
+  if (!isApprovedForSignup) {
+    throw new Error("Class is not yet approved for enrollment.");
   }
 
   if (
@@ -1101,28 +1119,37 @@ export async function enrollInClass(offeringId: string) {
     }
   }
 
-  // Check if already enrolled
+  // Check if already enrolled (idempotent: surface friendly state instead of throwing)
   const existingEnrollment = await prisma.classEnrollment.findUnique({
     where: { studentId_offeringId: { studentId, offeringId } },
   });
 
-  if (existingEnrollment && existingEnrollment.status === "ENROLLED") {
-    throw new Error("Already enrolled in this class");
+  if (
+    existingEnrollment &&
+    (existingEnrollment.status === "ENROLLED" || existingEnrollment.status === "WAITLISTED")
+  ) {
+    return {
+      success: true,
+      waitlisted: existingEnrollment.status === "WAITLISTED",
+      alreadyEnrolled: true,
+      status: existingEnrollment.status,
+      waitlistPosition: existingEnrollment.waitlistPosition,
+    };
   }
 
-  // Check capacity
   const enrolledCount = offering.enrollments.length;
   const isWaitlisted = enrolledCount >= offering.capacity;
+  const waitlistPosition = isWaitlisted ? enrolledCount - offering.capacity + 1 : null;
 
   if (existingEnrollment) {
-    // Re-enroll (previously dropped)
+    // Re-enroll (previously dropped or completed)
     await prisma.classEnrollment.update({
       where: { id: existingEnrollment.id },
       data: {
         status: isWaitlisted ? "WAITLISTED" : "ENROLLED",
         enrolledAt: new Date(),
         droppedAt: null,
-        waitlistPosition: isWaitlisted ? enrolledCount - offering.capacity + 1 : null,
+        waitlistPosition,
       },
     });
   } else {
@@ -1131,13 +1158,19 @@ export async function enrollInClass(offeringId: string) {
         studentId,
         offeringId,
         status: isWaitlisted ? "WAITLISTED" : "ENROLLED",
-        waitlistPosition: isWaitlisted ? enrolledCount - offering.capacity + 1 : null,
+        waitlistPosition,
       },
     });
   }
 
   revalidateStudentClassSurfaces(offeringId);
-  return { success: true, waitlisted: isWaitlisted };
+  return {
+    success: true,
+    waitlisted: isWaitlisted,
+    alreadyEnrolled: false,
+    status: isWaitlisted ? "WAITLISTED" : "ENROLLED",
+    waitlistPosition,
+  };
 }
 
 /**
@@ -1389,7 +1422,7 @@ export async function getClassCatalog(filters?: {
 }) {
   const capabilities = await getClassTemplateCapabilities();
   const where: Record<string, unknown> = {
-    status: { in: ["PUBLISHED", "IN_PROGRESS"] },
+    ...publicOfferingWhere(),
   };
 
   if (filters?.interestArea) {

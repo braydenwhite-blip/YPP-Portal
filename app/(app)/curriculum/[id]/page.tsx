@@ -288,6 +288,16 @@ export default async function ClassDetailPage({
               interestArea={offering.template.interestArea}
               learnerFitLabel={learnerFit.label}
               deliveryMode={offering.deliveryMode.replace("_", " ")}
+              meetingDays={offering.meetingDays}
+              meetingTime={offering.meetingTime}
+              startDate={new Date(offering.startDate).toLocaleDateString("en-US", {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
+              hasZoomLink={Boolean(offering.zoomLink)}
+              hasLocation={Boolean(offering.locationName)}
               isEnrolled={isEnrolled}
               isWaitlisted={isWaitlisted}
               isFull={spotsLeft <= 0}

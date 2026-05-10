@@ -10,6 +10,7 @@ type PipelineCardApp = {
   updatedAt?: Date | string;
   overdue?: boolean;
   stuck?: boolean;
+  awaitingSlots?: boolean;
   subjectsOfInterest: string | null;
   applicant: {
     name: string | null;
@@ -27,6 +28,9 @@ type PipelineCardApp = {
   }>;
   applicationTrack?: string;
   instructorSubtype?: string;
+  workshopTitle?: string | null;
+  workshopAgeRange?: string | null;
+  workshopDurationMinutes?: number | null;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -146,6 +150,32 @@ export default function ApplicantPipelineCard({
               <span className="pill pill-purple pill-small kanban-card-chapter">{app.applicant.chapter.name}</span>
             </div>
           )}
+
+          {app.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR" && app.workshopTitle && (
+            <div
+              className="applicant-card-workshop-line"
+              title={`Workshop: ${app.workshopTitle}${
+                app.workshopAgeRange ? ` · ${app.workshopAgeRange}` : ""
+              }${
+                app.workshopDurationMinutes ? ` · ${app.workshopDurationMinutes}m` : ""
+              }`}
+              style={{
+                marginTop: 4,
+                fontSize: 12,
+                color: "var(--muted)",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              <strong style={{ color: "var(--foreground)", fontWeight: 600 }}>
+                Workshop:
+              </strong>{" "}
+              {app.workshopTitle}
+              {app.workshopAgeRange ? ` · ${app.workshopAgeRange}` : ""}
+              {app.workshopDurationMinutes ? ` · ${app.workshopDurationMinutes}m` : ""}
+            </div>
+          )}
         </div>
         {ratingOption && (
           <span
@@ -181,6 +211,15 @@ export default function ApplicantPipelineCard({
             title="INTERVIEW_COMPLETED for more than 7 days - use Force to Chair to unblock"
           >
             Stuck
+          </span>
+        )}
+        {app.awaitingSlots && (
+          <span
+            className="pill pill-attention pill-small"
+            aria-label="Lead interviewer has not yet offered times"
+            title="No interview times offered after 5+ days - lead interviewer needs to send slots"
+          >
+            Awaiting slots
           </span>
         )}
       </div>

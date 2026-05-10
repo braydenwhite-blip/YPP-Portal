@@ -158,9 +158,9 @@ export function MentorDashboard({ columns, inactive, total }: Props) {
   if (total === 0) {
     return (
       <div className="card" style={{ textAlign: "center", padding: "2.5rem 1.5rem" }}>
-        <h3 style={{ marginTop: 0 }}>No active mentees yet</h3>
+        <h3 style={{ marginTop: 0 }}>You are not currently mentoring any instructors.</h3>
         <p style={{ color: "var(--muted)", margin: 0 }}>
-          Mentees appear here once matched by your program admin.
+          Instructor mentees appear here once chapter leadership pairs you with one.
         </p>
       </div>
     );

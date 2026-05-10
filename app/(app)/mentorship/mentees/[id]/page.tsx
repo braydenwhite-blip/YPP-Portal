@@ -100,11 +100,11 @@ export default async function MenteeDetailPage({
       <div className="topbar">
         <div>
           <Link href="/mentorship/mentees" style={{ color: "var(--muted)", fontSize: 13 }}>
-            &larr; Back to Support Circles
+            &larr; Instructors I Mentor
           </Link>
           <h1 className="page-title">{workspace.mentee.name}</h1>
           <p className="page-subtitle">
-            The full support-circle workspace: people, sessions, action plan, requests, resources, and progress signals.
+            Full mentee workspace: people, sessions, action plan, requests, resources, and progress signals.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -152,7 +152,7 @@ export default async function MenteeDetailPage({
         <section className="card" style={{ marginBottom: 24, borderLeft: "4px solid var(--gray-300, #d1d5db)" }}>
           <strong>No active mentorship yet</strong>
           <p style={{ margin: "8px 0 0", color: "var(--muted)" }}>
-            You can still review this student&apos;s history, requests, and progress signals below. Session logging, action items, and monthly reviews stay disabled until an active mentor or support circle is assigned.
+            You can still review this mentee&apos;s history, requests, and progress signals below. Session logging, action items, and monthly reviews stay disabled until an active mentor or support circle is assigned.
           </p>
         </section>
       ) : null}
@@ -268,7 +268,7 @@ export default async function MenteeDetailPage({
           <div className="section-title">Recognition Snapshot</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <div>
-              <strong>Student wins:</strong> {recognition.badgeCount} badge
+              <strong>Recent wins:</strong> {recognition.badgeCount} badge
               {recognition.badgeCount === 1 ? "" : "s"}, {recognition.awardCount} award
               {recognition.awardCount === 1 ? "" : "s"}, {recognition.certificateCount} certificate
               {recognition.certificateCount === 1 ? "" : "s"}
@@ -455,7 +455,7 @@ export default async function MenteeDetailPage({
                     title: "Session Notes",
                     guidance:
                       "Use notes to capture what actually happened, especially if you are logging a session after the fact.",
-                    example: "Student finished draft one, needs examples before next meeting.",
+                    example: "Mentee finished draft one, needs examples before next meeting.",
                   }}
                 />
                 <textarea name="notes" className="input" rows={3} placeholder="Add notes if this session is already complete." />

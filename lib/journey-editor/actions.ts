@@ -34,6 +34,43 @@ import { validateDraft } from "./validation";
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*$/;
 const SOURCE_KEY_RE = /^[a-z0-9][a-z0-9_\-]*$/;
 
+/**
+ * Map a granular action label to the persisted JourneyAuditAction enum.
+ * The original label is preserved inside `diff.kind` so timeline reads
+ * keep their resolution without expanding the enum schema.
+ */
+type GranularAction =
+  | "CREATE"
+  | "UPDATE_META"
+  | "CREATE_DRAFT"
+  | "ADD_BEAT"
+  | "REMOVE_BEAT"
+  | "REORDER_BEATS"
+  | "UPDATE_BEAT"
+  | "SET_GATES"
+  | "PUBLISH"
+  | "ROLLBACK";
+
+const ACTION_TO_ENUM: Record<
+  GranularAction,
+  "CREATE" | "UPDATE" | "PUBLISH" | "ROLLBACK" | "GATE_CHANGE"
+> = {
+  CREATE: "CREATE",
+  UPDATE_META: "UPDATE",
+  CREATE_DRAFT: "CREATE",
+  ADD_BEAT: "UPDATE",
+  REMOVE_BEAT: "UPDATE",
+  REORDER_BEATS: "UPDATE",
+  UPDATE_BEAT: "UPDATE",
+  SET_GATES: "GATE_CHANGE",
+  PUBLISH: "PUBLISH",
+  ROLLBACK: "ROLLBACK",
+};
+
+function auditDiff(kind: GranularAction, detail: object | null = null): object {
+  return detail ? { kind, ...detail } : { kind };
+}
+
 const CreateJourneyInput = z.object({
   slug: z.string().regex(SLUG_RE, "Slug must be lowercase letters, digits, and hyphens."),
   title: z.string().min(3, "Title must be at least 3 characters."),
@@ -72,8 +109,8 @@ export async function createJourney(input: CreateJourneyInput) {
       data: {
         journeyId: j.id,
         actorId: editor.id,
-        action: "CREATE",
-        diff: { slug: parsed.slug, title: parsed.title } as object,
+        action: ACTION_TO_ENUM.CREATE,
+        diff: auditDiff("CREATE", { slug: parsed.slug, title: parsed.title }),
       },
     });
     return j;
@@ -117,8 +154,8 @@ export async function updateJourneyMeta(input: z.infer<typeof UpdateJourneyMetaI
       data: {
         journeyId: parsed.journeyId,
         actorId: editor.id,
-        action: "UPDATE_META",
-        diff: {
+        action: ACTION_TO_ENUM.UPDATE_META,
+        diff: auditDiff("UPDATE_META", {
           before: {
             slug: before.slug,
             title: before.title,
@@ -129,7 +166,7 @@ export async function updateJourneyMeta(input: z.infer<typeof UpdateJourneyMetaI
             title: parsed.title,
             description: parsed.description ?? null,
           },
-        } as object,
+        }),
       },
     });
   });
@@ -182,8 +219,8 @@ export async function createDraftFromPublished(
         journeyId: parsed.journeyId,
         journeyVersionId: next.id,
         actorId: editor.id,
-        action: "CREATE_DRAFT",
-        diff: { fromVersion: latest?.versionNumber ?? null } as object,
+        action: ACTION_TO_ENUM.CREATE_DRAFT,
+        diff: auditDiff("CREATE_DRAFT", { fromVersion: latest?.versionNumber ?? null }),
       },
     });
 
@@ -214,10 +251,31 @@ export async function addBeat(input: z.infer<typeof AddBeatInput>) {
   return prisma.$transaction(async (tx) => {
     const version = await tx.journeyVersion.findUnique({
       where: { id: parsed.versionId },
-      select: { id: true, journeyId: true, status: true },
+      select: { id: true, journeyId: true, status: true, moduleId: true },
     });
     if (!version) throw new Error("Version not found.");
     if (version.status !== "DRAFT") throw new Error("Cannot edit a non-DRAFT version.");
+
+    // The legacy `InteractiveBeat.journeyId` column is non-nullable and FKs
+    // to InteractiveJourney.id. For backfilled journeys we look up the
+    // sibling InteractiveJourney via the version's moduleId. Editor-only
+    // journeys (no module bound yet) cannot add beats until the resolver
+    // bridge in Commit 12 — surface a clear error instead of corrupting
+    // the FK.
+    if (!version.moduleId) {
+      throw new Error(
+        "This journey is not bound to a TrainingModule yet. Bind a module on the Overview tab before adding beats.",
+      );
+    }
+    const interactiveJourney = await tx.interactiveJourney.findUnique({
+      where: { moduleId: version.moduleId },
+      select: { id: true },
+    });
+    if (!interactiveJourney) {
+      throw new Error(
+        "No runtime InteractiveJourney exists for this module. Run `npm run training:import` first.",
+      );
+    }
 
     const dup = await tx.interactiveBeat.findFirst({
       where: { journeyVersionId: parsed.versionId, sourceKey: parsed.sourceKey },
@@ -234,18 +292,15 @@ export async function addBeat(input: z.infer<typeof AddBeatInput>) {
 
     const defaults = BEAT_DEFAULTS[parsed.kind];
 
-    // Insert via raw SQL because the legacy `journeyId` column is non-nullable.
-    // Editor-only journeys have no sibling InteractiveJourney row; we satisfy
-    // the FK by stamping `journeyId = journeyVersionId` (the runtime resolver
-    // in Commit 12 reads via journeyVersionId, never the legacy column).
     const id = await tx.$queryRawUnsafe<{ id: string }[]>(
       `INSERT INTO "InteractiveBeat" (
          "id","journeyId","journeyVersionId","sourceKey","sortOrder","kind",
          "title","prompt","config","schemaVersion","scoringWeight","createdAt","updatedAt"
        ) VALUES (
-         gen_random_uuid()::text, $1, $1, $2, $3, $4::"InteractiveBeatKind",
-         $5, $6, $7::jsonb, 1, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+         gen_random_uuid()::text, $1, $2, $3, $4, $5::"InteractiveBeatKind",
+         $6, $7, $8::jsonb, 1, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
        ) RETURNING "id"`,
+      interactiveJourney.id,
       parsed.versionId,
       parsed.sourceKey,
       nextSortOrder,
@@ -261,8 +316,8 @@ export async function addBeat(input: z.infer<typeof AddBeatInput>) {
         journeyId: version.journeyId,
         journeyVersionId: version.id,
         actorId: editor.id,
-        action: "ADD_BEAT",
-        diff: { sourceKey: parsed.sourceKey, kind: parsed.kind } as object,
+        action: ACTION_TO_ENUM.ADD_BEAT,
+        diff: auditDiff("ADD_BEAT", { sourceKey: parsed.sourceKey, kind: parsed.kind }),
       },
     });
 
@@ -307,8 +362,8 @@ export async function removeBeat(input: z.infer<typeof RemoveBeatInput>) {
         journeyId: beat.journeyVersion.journeyId,
         journeyVersionId: beat.journeyVersionId,
         actorId: editor.id,
-        action: "REMOVE_BEAT",
-        diff: { sourceKey: beat.sourceKey } as object,
+        action: ACTION_TO_ENUM.REMOVE_BEAT,
+        diff: auditDiff("REMOVE_BEAT", { sourceKey: beat.sourceKey }),
       },
     });
 
@@ -369,8 +424,8 @@ export async function reorderBeats(input: z.infer<typeof ReorderBeatsInput>) {
         journeyId: version.journeyId,
         journeyVersionId: version.id,
         actorId: editor.id,
-        action: "REORDER_BEATS",
-        diff: { count: parsed.orderedBeatIds.length } as object,
+        action: ACTION_TO_ENUM.REORDER_BEATS,
+        diff: auditDiff("REORDER_BEATS", { count: parsed.orderedBeatIds.length }),
       },
     });
 
@@ -441,8 +496,8 @@ export async function updateDraftBeat(input: z.infer<typeof UpdateDraftBeatInput
         journeyId: beat.journeyVersion.journeyId,
         journeyVersionId: beat.journeyVersionId,
         actorId: editor.id,
-        action: "UPDATE_BEAT",
-        diff: { beatId: parsed.beatId } as object,
+        action: ACTION_TO_ENUM.UPDATE_BEAT,
+        diff: auditDiff("UPDATE_BEAT", { beatId: parsed.beatId }),
       },
     });
 
@@ -497,8 +552,8 @@ export async function setGates(input: z.infer<typeof SetGatesInput>) {
         journeyId: version.journeyId,
         journeyVersionId: version.id,
         actorId: editor.id,
-        action: "SET_GATES",
-        diff: { count: parsed.gates.length } as object,
+        action: ACTION_TO_ENUM.SET_GATES,
+        diff: auditDiff("SET_GATES", { count: parsed.gates.length }),
       },
     });
 
@@ -620,8 +675,8 @@ export async function publishVersion(input: z.infer<typeof PublishVersionInput>)
         journeyId: version.journeyId,
         journeyVersionId: version.id,
         actorId: editor.id,
-        action: "PUBLISH",
-        diff: { versionNumber: version.versionNumber } as object,
+        action: ACTION_TO_ENUM.PUBLISH,
+        diff: auditDiff("PUBLISH", { versionNumber: version.versionNumber }),
       },
     });
 
@@ -677,11 +732,11 @@ export async function rollbackToVersion(input: z.infer<typeof RollbackToVersionI
         journeyId: target.journeyId,
         journeyVersionId: target.id,
         actorId: editor.id,
-        action: "ROLLBACK",
-        diff: {
+        action: ACTION_TO_ENUM.ROLLBACK,
+        diff: auditDiff("ROLLBACK", {
           to: target.versionNumber,
           from: previouslyPublished?.versionNumber ?? null,
-        } as object,
+        }),
       },
     });
 

@@ -46,8 +46,11 @@ function isReviewer(roles: RoleLike[]): boolean {
  * `null` as STANDARD by convention.
  */
 export async function getApplicantSubtypeForUser(userId: string) {
-  const app = await prisma.instructorApplication.findUnique({
+  // Re-application: a user can have multiple rows; the subtype is always
+  // defined by the most recent application.
+  const app = await prisma.instructorApplication.findFirst({
     where: { applicantId: userId },
+    orderBy: { createdAt: "desc" },
     select: {
       applicationTrack: true,
       instructorSubtype: true,

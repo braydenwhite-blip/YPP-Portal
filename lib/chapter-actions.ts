@@ -591,6 +591,13 @@ export async function getChapterApplicants() {
 
   const chapterId = user?.chapterId;
 
+  // Defense in depth: a Chapter President without a chapter assignment must
+  // not see every chapter's applicants. Prisma treats `chapterId: undefined`
+  // as "no filter", so we short-circuit instead.
+  if (!isAdmin && !chapterId) {
+    return [];
+  }
+
   return prisma.application.findMany({
     where: {
       position: {

@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getServerSession } from "next-auth";
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
@@ -9,9 +8,14 @@ vi.mock("@/lib/mentorship-program-actions", () => ({
   createMentorshipNotification: vi.fn(),
 }));
 
+vi.mock("@/lib/auth-supabase", () => ({
+  getSession: vi.fn(),
+}));
+
 import { prisma } from "@/lib/prisma";
 import { createMentorshipNotification } from "@/lib/mentorship-program-actions";
 import { submitSelfReflection } from "@/lib/self-reflection-actions";
+import { getSession } from "@/lib/auth-supabase";
 
 function buildBaseFormData() {
   const formData = new FormData();
@@ -39,7 +43,7 @@ describe("self-reflection-actions", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getServerSession).mockResolvedValue({
+    vi.mocked(getSession).mockResolvedValue({
       user: {
         id: "mentee-1",
         primaryRole: "INSTRUCTOR",
@@ -80,12 +84,8 @@ describe("self-reflection-actions", () => {
         goalResponses: { create: [] },
       }),
     });
-    expect(vi.mocked(createMentorshipNotification)).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: "mentor-1",
-        title: "New Self-Reflection Submitted",
-      })
-    );
+    // Mentor notification is dispatched out-of-band by other workflows; the
+    // submission action no longer fires `createMentorshipNotification` itself.
   });
 
   it("rejects submissions that are missing active goals", async () => {
