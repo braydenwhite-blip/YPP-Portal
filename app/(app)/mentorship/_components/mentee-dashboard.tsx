@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getGoalsForMentee } from "@/lib/mentorship-gr-binding";
 import { MENTORSHIP_RESOURCE_TYPE_META } from "@/lib/mentorship-hub";
+import { nextActionForInstructorMentee } from "@/lib/instructor-mentee-next-action";
 
 const TIER_THRESHOLDS = [
   { tier: "BRONZE", pts: 175, label: "Bronze", color: "#92400e", bg: "#fef3c7" },
@@ -93,76 +94,6 @@ async function loadMenteeDashboardData(userId: string) {
   return { mentorship, pointSummary, goals, resources };
 }
 
-function nextActionFor(params: {
-  hasMentor: boolean;
-  cycleStage: string | null;
-  kickoffCompletedAt: Date | null;
-  hasGoals: boolean;
-  hasReleasedReview: boolean;
-}): { label: string; detail: string; href: string | null } {
-  const { hasMentor, cycleStage, kickoffCompletedAt, hasGoals, hasReleasedReview } = params;
-  if (!hasMentor) {
-    return {
-      label: "Wait for mentor assignment",
-      detail: "Reach out to your chapter leadership if you expected one to be assigned.",
-      href: null,
-    };
-  }
-  if (!kickoffCompletedAt && cycleStage === "KICKOFF_PENDING") {
-    return {
-      label: "Schedule your kickoff with your mentor",
-      detail: "The monthly review cycle starts after your kickoff is complete.",
-      href: "/mentorship",
-    };
-  }
-  if (cycleStage === "REFLECTION_DUE" || cycleStage === "KICKOFF_PENDING") {
-    return {
-      label: "Submit this month's reflection",
-      detail: "Your mentor needs your reflection to write your monthly review.",
-      href: "/my-program/reflect",
-    };
-  }
-  if (cycleStage === "REFLECTION_SUBMITTED") {
-    return {
-      label: "Reflection submitted — your mentor is reviewing it",
-      detail: "You'll see feedback below once they release the review.",
-      href: null,
-    };
-  }
-  if (cycleStage === "CHANGES_REQUESTED") {
-    return {
-      label: "Update your reflection — changes requested",
-      detail: "Your mentor asked for revisions before they finalize this month's review.",
-      href: "/my-program/reflect",
-    };
-  }
-  if (cycleStage === "REVIEW_SUBMITTED") {
-    return {
-      label: "Review pending chair approval",
-      detail: "Your mentor's review is with the chair for sign-off.",
-      href: null,
-    };
-  }
-  if (cycleStage === "APPROVED" && hasReleasedReview) {
-    return {
-      label: "Read your latest review",
-      detail: "Your mentor's feedback for this month is below — use it to plan next month.",
-      href: null,
-    };
-  }
-  if (!hasGoals) {
-    return {
-      label: "Set this month's goals with your mentor",
-      detail: "Once goals are in place, your reflection and review cycle will begin.",
-      href: null,
-    };
-  }
-  return {
-    label: "Stay on track with your goals",
-    detail: "Keep working through this month's goals so your next reflection has clear progress to share.",
-    href: null,
-  };
-}
 
 function AwardBar({ totalPoints, currentTier }: { totalPoints: number; currentTier: string | null }) {
   const nextTier = TIER_THRESHOLDS.find((t) => t.pts > totalPoints);
@@ -251,7 +182,7 @@ export async function MenteeDashboard({ userId }: Props) {
     mentorship.cycleStage !== "REFLECTION_DUE" &&
     mentorship.cycleStage !== "KICKOFF_PENDING";
 
-  const nextAction = nextActionFor({
+  const nextAction = nextActionForInstructorMentee({
     hasMentor: true,
     cycleStage: mentorship.cycleStage ?? null,
     kickoffCompletedAt: mentorship.kickoffCompletedAt ?? null,
