@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { MentorshipType } from "@prisma/client";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { getAdminMentorshipCommandCenterData } from "@/lib/admin-mentorship-command-center";
@@ -11,8 +12,10 @@ import GoalReviewsBoard from "@/app/(app)/admin/mentorship-program/goal-reviews-
 import ReviewApprovalsBoard from "@/app/(app)/admin/mentorship-program/review-approvals-board";
 import GoalsPanel from "@/app/(app)/admin/mentorship-program/goals-panel";
 import ChairsPanel from "@/app/(app)/admin/mentorship-program/chairs-panel";
-import { getMentorCapacityStatus } from "@/lib/mentorship-access";
+import { SHOW_STUDENT_MENTORSHIP_LANE } from "@/lib/mentorship-admin-helpers";
+import { FULL_PROGRAM_MENTOR_CAP } from "@/lib/mentorship-canonical";
 import {
+  ADMIN_QUEUE_PAGE_SIZE,
   getAdminMentorshipActionQueue,
   getInstructorMentorshipOpsSummary,
   getMentorWorkload,
@@ -20,6 +23,8 @@ import {
   getStalledGoalQueue,
   getUnassignedInstructorQueue,
 } from "@/lib/instructor-mentorship-ops";
+
+export const ADMIN_MENTORSHIP_PAGE_TITLE = "Instructor Mentorship Oversight";
 
 export const metadata = { title: "Instructor Mentorship Admin — YPP Portal" };
 
@@ -31,7 +36,6 @@ const TABS = [
   { key: "gr", label: "G&R" },
   { key: "check-ins", label: "Check-ins" },
   { key: "approvals", label: "Approvals" },
-  { key: "pairings", label: "Pairings" },
   { key: "goals", label: "Goals" },
   { key: "committees", label: "Committees" },
 ] as const;
@@ -46,14 +50,24 @@ function parseTab(raw?: string): Tab {
     raw === "gr" ||
     raw === "check-ins" ||
     raw === "approvals" ||
-    raw === "pairings" ||
     raw === "goals" ||
     raw === "committees"
   ) {
     return raw;
   }
+  // "pairings" was folded into "workload" — silently redirect legacy links.
+  if (raw === "pairings") {
+    return "workload";
+  }
   return "pulse";
 }
+
+// Match the lane filter on `lib/admin-mentorship-command-center.ts`:
+// student mentorship is hidden until launch, so we exclude STUDENT-typed
+// mentorships from every pulse metric.
+const MENTORSHIP_TYPE_FILTER = SHOW_STUDENT_MENTORSHIP_LANE
+  ? undefined
+  : { not: MentorshipType.STUDENT };
 
 async function getPulseData() {
   const now = new Date();
@@ -67,10 +81,28 @@ async function getPulseData() {
     ratingBreakdown,
     mentorCapacityWarnings,
   ] = await Promise.all([
-    prisma.mentorship.count({ where: { status: "ACTIVE" } }),
-    prisma.mentorGoalReview.count({ where: { status: "PENDING_CHAIR_APPROVAL" } }),
-    prisma.mentorship.count({ where: { status: "ACTIVE", cycleStage: "REFLECTION_DUE" } }),
-    prisma.monthlySelfReflection.count({ where: { cycleMonth: { gte: cycleStart } } }),
+    prisma.mentorship.count({
+      where: { status: "ACTIVE", type: MENTORSHIP_TYPE_FILTER },
+    }),
+    prisma.mentorGoalReview.count({
+      where: {
+        status: "PENDING_CHAIR_APPROVAL",
+        mentorship: { type: MENTORSHIP_TYPE_FILTER },
+      },
+    }),
+    prisma.mentorship.count({
+      where: {
+        status: "ACTIVE",
+        cycleStage: "REFLECTION_DUE",
+        type: MENTORSHIP_TYPE_FILTER,
+      },
+    }),
+    prisma.monthlySelfReflection.count({
+      where: {
+        cycleMonth: { gte: cycleStart },
+        mentorship: { type: MENTORSHIP_TYPE_FILTER },
+      },
+    }),
     prisma.goalReviewRating.groupBy({
       by: ["rating"],
       _count: true,
@@ -78,16 +110,22 @@ async function getPulseData() {
         review: {
           createdAt: { gte: new Date(now.getFullYear(), now.getMonth() - 3, 1) },
           status: "APPROVED",
+          mentorship: { type: MENTORSHIP_TYPE_FILTER },
         },
       },
     }),
     prisma.user.findMany({
-      where: { roles: { some: { role: "MENTOR" } } },
+      where: {
+        OR: [
+          { roles: { some: { role: "MENTOR" } } },
+          { mentorPairs: { some: { status: "ACTIVE" } } },
+        ],
+      },
       select: {
         id: true,
         name: true,
         mentorPairs: {
-          where: { status: "ACTIVE" },
+          where: { status: "ACTIVE", type: MENTORSHIP_TYPE_FILTER },
           select: { id: true },
         },
       },
@@ -105,7 +143,9 @@ async function getPulseData() {
     ((ratingMap["ABOVE_AND_BEYOND"] ?? 0) / total > 0.4 ||
       (ratingMap["BEHIND_SCHEDULE"] ?? 0) / total > 0.5);
 
-  const overCapacityMentors = mentorCapacityWarnings.filter((m) => m.mentorPairs.length > 3);
+  const overCapacityMentors = mentorCapacityWarnings.filter(
+    (m) => m.mentorPairs.length > FULL_PROGRAM_MENTOR_CAP
+  );
 
   return {
     activeCount,
@@ -121,39 +161,6 @@ async function getPulseData() {
         ? Math.round((reflectionsSubmittedCount / activeCount) * 100)
         : 0,
   };
-}
-
-async function getPairingsData() {
-  const mentors = await prisma.user.findMany({
-    where: { roles: { some: { role: "MENTOR" } } },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      mentorPairs: {
-        where: { status: "ACTIVE" },
-        select: {
-          id: true,
-          cycleStage: true,
-          mentee: { select: { name: true, primaryRole: true } },
-        },
-      },
-    },
-    orderBy: { name: "asc" },
-  });
-
-  return mentors.map((m) => ({
-    id: m.id,
-    name: m.name ?? m.email,
-    menteeCount: m.mentorPairs.length,
-    mentees: m.mentorPairs.map((link) => ({
-      name: link.mentee.name ?? "",
-      role: link.mentee.primaryRole ?? "",
-      stage: link.cycleStage,
-    })),
-    isAtCapacity: m.mentorPairs.length >= 3,
-    isOverCapacity: m.mentorPairs.length > 3,
-  }));
 }
 
 export default async function AdminMentorshipPage({
@@ -177,7 +184,6 @@ export default async function AdminMentorshipPage({
   ]);
 
   const pulseData = tab === "pulse" ? await getPulseData() : null;
-  const pairingsData = tab === "pairings" ? await getPairingsData() : null;
   const needsActionItems =
     tab === "needs-action" ? await getAdminMentorshipActionQueue() : null;
   const unassignedQueue =
@@ -192,7 +198,7 @@ export default async function AdminMentorshipPage({
       <div className="topbar">
         <div>
           <p className="badge">Admin · Instructor Mentorship</p>
-          <h1 className="page-title">Instructor Mentorship Oversight</h1>
+          <h1 className="page-title">{ADMIN_MENTORSHIP_PAGE_TITLE}</h1>
           <p className="page-subtitle">
             Program health, approvals, pairings, goals, and committees for the
             instructor mentorship program.
@@ -261,7 +267,7 @@ export default async function AdminMentorshipPage({
               >
                 {opsSummary?.unassignedInstructors ?? 0}
               </p>
-              <p className="kpi-label">Instructors without a mentor</p>
+              <p className="kpi-label">Mentees without a mentor</p>
             </div>
             <div className="card">
               <p
@@ -514,12 +520,12 @@ export default async function AdminMentorshipPage({
         <div>
           <div className="card" style={{ marginBottom: 20 }}>
             <div style={{ fontWeight: 700, marginBottom: 6 }}>
-              Instructors waiting for a mentor ({unassignedQueue.length})
+              Mentees waiting for a mentor ({unassignedQueue.length})
             </div>
             <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
-              Active instructors with no current mentorship pairing. Use the
-              Assign action to open the matching panel pre-filtered for that
-              instructor.
+              Instructors and leadership users with no current mentorship
+              pairing. Use the Assign action to open the matching panel
+              pre-filtered for that mentee.
             </p>
           </div>
           {unassignedQueue.length === 0 ? (
@@ -532,13 +538,13 @@ export default async function AdminMentorshipPage({
                 textAlign: "center",
               }}
             >
-              All active instructors are mentored. Nothing to do here.
+              Every eligible mentee already has a mentor. Nothing to do here.
             </div>
           ) : (
             <table className="table">
               <thead>
                 <tr>
-                  <th>Instructor</th>
+                  <th>Mentee</th>
                   <th>Chapter</th>
                   <th>Joined</th>
                   <th>Reason</th>
@@ -675,11 +681,15 @@ export default async function AdminMentorshipPage({
         <div>
           <div className="card" style={{ marginBottom: 20 }}>
             <div style={{ fontWeight: 700, marginBottom: 6 }}>
-              Stalled or overdue G&amp;R goals ({stalledGoals.length})
+              Stalled or overdue G&amp;R goals ({stalledGoals.length}
+              {stalledGoals.length === ADMIN_QUEUE_PAGE_SIZE ? "+" : ""})
             </div>
             <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
               Active goals that are past due, marked blocked, or have not been
               updated in 30+ days. Sorted by due date.
+              {stalledGoals.length === ADMIN_QUEUE_PAGE_SIZE
+                ? ` Showing the first ${ADMIN_QUEUE_PAGE_SIZE} — resolve these and reload to see more.`
+                : ""}
             </p>
           </div>
           {stalledGoals.length === 0 ? (
@@ -699,7 +709,7 @@ export default async function AdminMentorshipPage({
               <thead>
                 <tr>
                   <th>Goal</th>
-                  <th>Instructor</th>
+                  <th>Mentee</th>
                   <th>Mentor</th>
                   <th>Status</th>
                   <th>Due</th>
@@ -747,11 +757,15 @@ export default async function AdminMentorshipPage({
         <div>
           <div className="card" style={{ marginBottom: 20 }}>
             <div style={{ fontWeight: 700, marginBottom: 6 }}>
-              Overdue check-ins ({overdueCheckIns.length})
+              Overdue check-ins ({overdueCheckIns.length}
+              {overdueCheckIns.length === ADMIN_QUEUE_PAGE_SIZE ? "+" : ""})
             </div>
             <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
               Active mentorships with no completed session in the last 30 days
               and no upcoming scheduled session. Oldest start dates first.
+              {overdueCheckIns.length === ADMIN_QUEUE_PAGE_SIZE
+                ? ` Showing the first ${ADMIN_QUEUE_PAGE_SIZE} — resolve these and reload to see more.`
+                : ""}
             </p>
           </div>
           {overdueCheckIns.length === 0 ? (
@@ -770,7 +784,7 @@ export default async function AdminMentorshipPage({
             <table className="table">
               <thead>
                 <tr>
-                  <th>Instructor</th>
+                  <th>Mentee</th>
                   <th>Mentor</th>
                   <th>Last activity</th>
                   <th>Days since</th>
@@ -834,64 +848,6 @@ export default async function AdminMentorshipPage({
               Track monthly reviews from draft through chair approval.
             </p>
             <ReviewApprovalsBoard reviews={monthlyReviews} />
-          </div>
-        </div>
-      )}
-
-      {/* ── Pairings tab ──────────────────────────── */}
-      {tab === "pairings" && pairingsData && (
-        <div>
-          <div style={{ marginBottom: 16 }}>
-            <Link href="/admin/mentorship-program?focus=matching" className="button primary small">
-              Open matching panel →
-            </Link>
-          </div>
-          <div style={{ display: "grid", gap: 12 }}>
-            {pairingsData.length === 0 && (
-              <p style={{ color: "var(--muted)" }}>No active mentors found.</p>
-            )}
-            {pairingsData.map((mentor) => (
-              <div
-                key={mentor.id}
-                className="card"
-                style={{
-                  borderLeft: mentor.isOverCapacity
-                    ? "3px solid #ef4444"
-                    : mentor.isAtCapacity
-                    ? "3px solid #f59e0b"
-                    : "3px solid #22c55e",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
-                  <strong>{mentor.name}</strong>
-                  <span
-                    style={{
-                      fontSize: "0.75rem",
-                      padding: "2px 9px",
-                      borderRadius: 999,
-                      background: mentor.isOverCapacity ? "#fef2f2" : mentor.isAtCapacity ? "#fffbeb" : "#f0fdf4",
-                      color: mentor.isOverCapacity ? "#ef4444" : mentor.isAtCapacity ? "#92400e" : "#166534",
-                      fontWeight: 700,
-                      border: `1px solid ${mentor.isOverCapacity ? "#fecaca" : mentor.isAtCapacity ? "#fde68a" : "#bbf7d0"}`,
-                    }}
-                  >
-                    {mentor.menteeCount} / 3 mentees
-                  </span>
-                </div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {mentor.mentees.map((m, i) => (
-                    <span key={i} className="pill" style={{ fontSize: "0.7rem" }}>
-                      {m.name || "—"} · {m.role.replace(/_/g, " ")}
-                    </span>
-                  ))}
-                  {mentor.menteeCount === 0 && (
-                    <span style={{ fontSize: "0.73rem", color: "var(--muted)", fontStyle: "italic" }}>
-                      No active mentees
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       )}

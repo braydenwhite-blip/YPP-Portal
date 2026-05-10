@@ -2,6 +2,7 @@ import {
   MentorshipActionItemStatus,
   MentorshipRequestStatus,
   MentorshipReviewStatus,
+  MentorshipType,
   type SupportRole,
 } from "@prisma/client";
 
@@ -17,6 +18,12 @@ import {
 } from "@/lib/mentorship-admin-helpers";
 import { prisma } from "@/lib/prisma";
 import { MENTORSHIP_LEGACY_ROOT_SELECT } from "@/lib/mentorship-read-fragments";
+
+// Mentorships included in the admin command center. Student mentorship is
+// not yet launched, so STUDENT is excluded everywhere on this surface.
+const ADMIN_MENTORSHIP_TYPE_FILTER = SHOW_STUDENT_MENTORSHIP_LANE
+  ? undefined
+  : { not: MentorshipType.STUDENT };
 
 function startOfMonth(date = new Date()) {
   return new Date(date.getFullYear(), date.getMonth(), 1);
@@ -123,7 +130,7 @@ export async function getAdminMentorshipCommandCenterData() {
     publishedResources,
   ] = await Promise.all([
     prisma.mentorship.findMany({
-      where: { status: "ACTIVE" },
+      where: { status: "ACTIVE", type: ADMIN_MENTORSHIP_TYPE_FILTER },
       select: {
         ...MENTORSHIP_LEGACY_ROOT_SELECT,
         mentor: {
@@ -272,6 +279,9 @@ export async function getAdminMentorshipCommandCenterData() {
     prisma.monthlyGoalReview.groupBy({
       by: ["status"],
       _count: { id: true },
+      where: {
+        mentorship: { type: ADMIN_MENTORSHIP_TYPE_FILTER },
+      },
     }),
     prisma.monthlyGoalReview.count({
       where: {
@@ -280,6 +290,7 @@ export async function getAdminMentorshipCommandCenterData() {
           gte: currentMonth,
           lt: nextMonth,
         },
+        mentorship: { type: ADMIN_MENTORSHIP_TYPE_FILTER },
       },
     }),
     prisma.mentorshipResource.count({

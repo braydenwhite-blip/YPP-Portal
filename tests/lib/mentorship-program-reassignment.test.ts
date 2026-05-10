@@ -81,6 +81,7 @@ const ACTIVE_MENTORSHIP = {
   status: "ACTIVE",
   mentorId: "mentor-old",
   menteeId: "mentee-1",
+  notes: "Existing governance note about review routing.",
   mentor: { name: "Old Mentor" },
   mentee: {
     id: "mentee-1",
@@ -164,6 +165,51 @@ describe("reassignProgramMentor", () => {
           "Mentorship reassigned: Old Mentor -> New Mentor"
         ),
       })
+    );
+  });
+
+  it("appends to mentorship notes instead of overwriting them on reassign", async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      user: { id: "admin-1", roles: ["ADMIN"] },
+    } as any);
+    (prisma as any).mentorship.findUniqueOrThrow.mockResolvedValue(
+      ACTIVE_MENTORSHIP
+    );
+
+    const fd = new FormData();
+    fd.set("mentorshipId", "ms-1");
+    fd.set("newMentorId", "mentor-new");
+
+    await reassignProgramMentor(fd);
+
+    const updateCall = vi
+      .mocked((prisma as any).mentorship.update)
+      .mock.calls.find((c: any) => c[0]?.where?.id === "ms-1");
+    expect(updateCall).toBeTruthy();
+    const newNotes = updateCall![0].data.notes as string;
+    expect(newNotes).toContain(
+      "Existing governance note about review routing."
+    );
+    expect(newNotes).toContain("Reassigned to New Mentor");
+  });
+
+  it("re-runs the capacity check inside the transaction", async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      user: { id: "admin-1", roles: ["ADMIN"] },
+    } as any);
+    (prisma as any).mentorship.findUniqueOrThrow.mockResolvedValue(
+      ACTIVE_MENTORSHIP
+    );
+
+    const fd = new FormData();
+    fd.set("mentorshipId", "ms-1");
+    fd.set("newMentorId", "mentor-new");
+
+    await reassignProgramMentor(fd);
+
+    // One pre-flight check + one inside the transaction = 2 calls.
+    expect(vi.mocked(enforceFullProgramMentorCapacity)).toHaveBeenCalledTimes(
+      2
     );
   });
 
@@ -282,5 +328,34 @@ describe("setProgramMentorshipStatus", () => {
     expect((prisma as any).mentorshipCircleMember.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { mentorshipId: "ms-1" } })
     );
+  });
+
+  it("appends to mentorship notes on a status change instead of overwriting", async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      user: { id: "admin-1", roles: ["ADMIN"] },
+    } as any);
+    (prisma as any).mentorship.findUniqueOrThrow.mockResolvedValue({
+      id: "ms-1",
+      status: "ACTIVE",
+      menteeId: "mentee-1",
+      notes: "Original mentor cadence: weekly Tuesdays.",
+      mentor: { name: "M" },
+      mentee: { name: "N" },
+    });
+
+    const fd = new FormData();
+    fd.set("mentorshipId", "ms-1");
+    fd.set("status", "PAUSED");
+    fd.set("reason", "Mentor on leave");
+    await setProgramMentorshipStatus(fd);
+
+    const call = vi
+      .mocked((prisma as any).mentorship.update)
+      .mock.calls.find((c: any) => c[0]?.where?.id === "ms-1");
+    expect(call).toBeTruthy();
+    const notes = call![0].data.notes as string;
+    expect(notes).toContain("Original mentor cadence: weekly Tuesdays.");
+    expect(notes).toContain("Status ACTIVE → PAUSED");
+    expect(notes).toContain("Mentor on leave");
   });
 });
