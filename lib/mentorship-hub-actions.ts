@@ -966,6 +966,22 @@ export async function markKickoffComplete(
     throw new Error("Unauthorized");
   }
 
+  // Only the mentor or chair on this pairing (or admin) may mark kickoff
+  // complete. Without this check any role with canSupport could close out
+  // any pairing's kickoff and advance its cycle stage.
+  if (!flags.isAdmin) {
+    const pairing = await prisma.mentorship.findUnique({
+      where: { id: mentorshipId },
+      select: { mentorId: true, chairId: true },
+    });
+    if (!pairing) {
+      throw new Error("Mentorship not found");
+    }
+    if (pairing.mentorId !== session.user.id && pairing.chairId !== session.user.id) {
+      throw new Error("Unauthorized");
+    }
+  }
+
   await prisma.mentorship.update({
     where: { id: mentorshipId },
     data: {
