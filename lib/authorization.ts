@@ -149,3 +149,25 @@ export async function requireAnyAdminSubtype(
   }
   return sessionUser;
 }
+
+/**
+ * Journey Editor access. ADMIN or CONTENT_ADMIN can edit and publish;
+ * STAFF can view in read-only mode. Anyone else throws Unauthorized.
+ *
+ * Used by `app/(app)/admin/journeys/**` routes and
+ * `lib/journey-editor/actions.ts` server actions.
+ */
+export async function requireJourneyEditor(): Promise<
+  SessionUser & { canPublish: boolean }
+> {
+  const sessionUser = await requireSessionUser();
+  const isAdmin = hasRole(sessionUser.roles, "ADMIN");
+  const isContentAdmin = hasAdminSubtype(sessionUser.adminSubtypes, "CONTENT_ADMIN");
+  const isStaff = hasRole(sessionUser.roles, "STAFF");
+
+  if (!isAdmin && !isContentAdmin && !isStaff) {
+    throw new Error("Unauthorized");
+  }
+
+  return { ...sessionUser, canPublish: isAdmin || isContentAdmin };
+}
