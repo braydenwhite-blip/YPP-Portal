@@ -232,44 +232,44 @@ export async function MenteeDashboard({ userId }: Props) {
         </div>
       </div>
 
-      {/* Reflection CTA */}
-      <div
-        className="card"
-        style={{
-          borderLeft: reflectionDue
-            ? "4px solid #f59e0b"
-            : reflectionSubmitted
-            ? "4px solid #22c55e"
-            : "4px solid var(--border)",
-          background: reflectionDue ? "#fffbeb" : undefined,
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <div>
-            <div style={{ fontWeight: 700, marginBottom: 4 }}>Monthly Reflection</div>
+      {/* Monthly reflection status (action lives in the Next-Action card above) */}
+      {(reflectionDue || (reflectionSubmitted && latestReflection)) && (
+        <div
+          className="card"
+          style={{
+            borderLeft: reflectionDue
+              ? "4px solid #f59e0b"
+              : "4px solid #22c55e",
+            background: reflectionDue ? "#fffbeb" : undefined,
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Monthly Reflection</div>
+              {reflectionDue && (
+                <p style={{ margin: 0, fontSize: 13, color: "#92400e" }}>
+                  Your reflection for this month is due. Complete it so your mentor can review your progress.
+                </p>
+              )}
+              {reflectionSubmitted && latestReflection && (
+                <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
+                  Submitted {new Date(latestReflection.submittedAt!).toLocaleDateString()} — your mentor is reviewing it.
+                </p>
+              )}
+            </div>
             {reflectionDue && (
-              <p style={{ margin: 0, fontSize: 13, color: "#92400e" }}>
-                Your reflection for this month is due. Complete it so your mentor can review your progress.
-              </p>
+              <Link href="/my-program/reflect" className="button primary small">
+                Submit Reflection →
+              </Link>
             )}
             {reflectionSubmitted && latestReflection && (
-              <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
-                Submitted {new Date(latestReflection.submittedAt!).toLocaleDateString()} — your mentor is reviewing it.
-              </p>
+              <Link href={`/my-program/reflect/${latestReflection.id}`} className="button secondary small">
+                View Reflection
+              </Link>
             )}
           </div>
-          {reflectionDue && (
-            <Link href="/mentorship-program/reviews" className="button primary small">
-              Submit Reflection →
-            </Link>
-          )}
-          {reflectionSubmitted && (
-            <Link href="/mentorship-program/reviews" className="button secondary small">
-              View Reflection
-            </Link>
-          )}
         </div>
-      </div>
+      )}
 
       {/* This month's goals */}
       {goals.length === 0 ? (
