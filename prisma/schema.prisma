@@ -1113,7 +1113,9 @@ model User {
   pathwayStepUnlocks          PathwayStepUnlock[]       @relation("PathwayStepUnlocks")
 
   // Instructor Application Relations
-  instructorApplication            InstructorApplication?                @relation("InstructorApplications")
+  // One-to-many: a user may have multiple applications over time (re-apply
+  // path). The "active" application is the most recent non-terminal row.
+  instructorApplications           InstructorApplication[]               @relation("InstructorApplications")
   instructorApplicationsReviewed   InstructorApplication[]               @relation("InstructorApplicationReviews")
   instructorApplicationsAssignedBy InstructorApplication[]               @relation("InstructorApplicationReviewerAssignedBy")
   instructorApplicationsSubtypeChangedBy InstructorApplication[]         @relation("InstructorApplicationSubtypeChangedBy")
@@ -1626,9 +1628,22 @@ model InstructorApprovalLevel {
 
 model InstructorApplication {
   id          String                      @id @default(cuid())
-  applicantId String                      @unique
+  // Re-application enabled — same user may have multiple applications over
+  // time (one terminal record per cycle). Applicant code paths must filter
+  // by `status` to find the *active* application; admin code paths can
+  // surface history via the `previousApplicationId` chain.
+  applicantId String
   applicant   User                        @relation("InstructorApplications", fields: [applicantId], references: [id])
   status      InstructorApplicationStatus @default(SUBMITTED)
+
+  // --- Re-application chain ---
+  // True when this row was created after a prior closed application from
+  // the same applicant. `previousApplicationId` points at the most recent
+  // closed application; reviewers can walk the chain via repeated lookups.
+  isReapplication        Boolean  @default(false)
+  previousApplicationId  String?
+  previousApplication    InstructorApplication?  @relation("InstructorApplicationReapplyChain", fields: [previousApplicationId], references: [id])
+  reapplications         InstructorApplication[] @relation("InstructorApplicationReapplyChain")
 
   // --- Core application responses ---
   motivation         String? @db.Text

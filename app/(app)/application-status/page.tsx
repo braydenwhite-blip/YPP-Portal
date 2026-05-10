@@ -112,9 +112,14 @@ export default async function ApplicationStatusPage() {
   const primaryRole = session.user.primaryRole;
   const hiringDemoMode = isHiringDemoModeEnabled();
 
+  // Re-application: a user can have multiple InstructorApplication rows over
+  // time, but only one non-terminal row at any given moment. Surface the
+  // most recent record (live or last closed) so the applicant always sees
+  // their current status, including the prior outcome before they re-apply.
   const loadInstructorApplication = () =>
-    prisma.instructorApplication.findUnique({
+    prisma.instructorApplication.findFirst({
       where: { applicantId: session.user.id },
+      orderBy: { createdAt: "desc" },
       include: {
         reviewer: { select: { name: true } },
         availabilityWindows: true,

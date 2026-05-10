@@ -510,8 +510,15 @@ export async function submitInfoResponse(
 
     const response = getString(formData, "applicantResponse");
 
-    const application = await prisma.instructorApplication.findUnique({
-      where: { applicantId: session.user.id },
+    // Re-application: scope to the active (most recent non-terminal) row so
+    // an applicant who already re-applied doesn't accidentally respond on a
+    // prior closed application.
+    const application = await prisma.instructorApplication.findFirst({
+      where: {
+        applicantId: session.user.id,
+        status: InstructorApplicationStatus.INFO_REQUESTED,
+      },
+      orderBy: { createdAt: "desc" },
     });
     if (!application) return { status: "error", message: "Application not found." };
     if (application.applicantId !== session.user.id) {
