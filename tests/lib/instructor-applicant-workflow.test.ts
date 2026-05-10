@@ -140,21 +140,43 @@ describe("Risk 2 — maybeAutoAdvanceAfterInterviewReview", () => {
     expect(mockTransaction).not.toHaveBeenCalled();
   });
 
-  it("does not auto-advance until every current-round submission has a recommendation", async () => {
+  it("auto-advances when every current-round assignee has SUBMITTED, even if a legacy review lacks a recommendation", async () => {
+    // Submit-time validation now blocks recommendation-less submissions when
+    // the reviewer can finalize one, so a SUBMITTED review without a
+    // recommendation can only be a legacy/admin row. Counting any SUBMITTED
+    // review prevents the application from getting stuck forever in that case.
     mockFindUnique.mockResolvedValueOnce({
       status: "INTERVIEW_SCHEDULED",
       interviewRound: 1,
+      chairQueuedAt: null,
+      applicant: { name: "Bob Applicant", email: "applicant@example.com" },
       interviewerAssignments: [{ interviewerId: "bob", round: 1 }],
       interviewReviews: [{ reviewerId: "bob", status: "SUBMITTED", round: 1, recommendation: null }],
     });
+
+    mockTransaction.mockImplementationOnce(async (fn: (tx: unknown) => Promise<unknown>) => {
+      const fakeTx = {
+        instructorApplication: {
+          updateMany: vi
+            .fn()
+            .mockResolvedValueOnce({ count: 1 })
+            .mockResolvedValueOnce({ count: 1 }),
+        },
+        instructorApplicationTimelineEvent: { create: vi.fn().mockResolvedValue({}) },
+      };
+      return fn(fakeTx);
+    });
+
+    const { syncInstructorApplicationWorkflow } = await import("@/lib/workflow");
+    vi.mocked(syncInstructorApplicationWorkflow).mockResolvedValue(undefined as never);
 
     const { maybeAutoAdvanceAfterInterviewReview } = await import(
       "@/lib/instructor-interview-actions"
     );
     const advanced = await maybeAutoAdvanceAfterInterviewReview("app-1", "actor-1");
 
-    expect(advanced).toBe(false);
-    expect(mockTransaction).not.toHaveBeenCalled();
+    expect(advanced).toBe(true);
+    expect(mockTransaction).toHaveBeenCalledTimes(1);
   });
 
   it("ignores prior-round recommendations when a second interview round is active", async () => {
