@@ -454,14 +454,33 @@ export async function scheduleInterview(
   });
   if (!application) throw new Error("Application not found");
 
-  await prisma.instructorApplication.update({
-    where: { id: applicationId },
-    data: {
-      status: InstructorApplicationStatus.INTERVIEW_SCHEDULED,
-      reviewerId,
-      interviewScheduledAt: scheduledAt,
-      reviewerNotes: notes ?? null,
-    },
+  const previousScheduledAt = application.interviewScheduledAt ?? null;
+  const isReschedule =
+    previousScheduledAt && previousScheduledAt.getTime() !== scheduledAt.getTime();
+
+  await prisma.$transaction(async (tx) => {
+    await tx.instructorApplication.update({
+      where: { id: applicationId },
+      data: {
+        status: InstructorApplicationStatus.INTERVIEW_SCHEDULED,
+        reviewerId,
+        interviewScheduledAt: scheduledAt,
+        reviewerNotes: notes ?? null,
+      },
+    });
+    await tx.instructorApplicationTimelineEvent.create({
+      data: {
+        applicationId,
+        kind: isReschedule ? "INTERVIEW_RESCHEDULED" : "INTERVIEW_SCHEDULED",
+        actorId: reviewerId,
+        payload: {
+          scheduledAt: scheduledAt.toISOString(),
+          ...(previousScheduledAt
+            ? { previousScheduledAt: previousScheduledAt.toISOString() }
+            : {}),
+        },
+      },
+    });
   });
 
   const { getBaseUrl } = await import("@/lib/portal-auth-utils");
@@ -481,6 +500,7 @@ export async function scheduleInterview(
   await syncInstructorApplicationWorkflow(applicationId);
   revalidatePath("/admin/instructor-applicants");
   revalidatePath("/chapter-lead/instructor-applicants");
+  revalidatePath(`/applications/instructor/${applicationId}`);
   revalidatePath("/application-status");
 }
 
@@ -840,6 +860,7 @@ export async function assignReviewer(
     });
     revalidatePath("/admin/instructor-applicants");
     revalidatePath("/chapter-lead/instructor-applicants");
+    revalidatePath(`/applications/instructor/${applicationId}`);
     return { success: true };
   } catch (error) {
     console.error("[assignReviewer]", error);
