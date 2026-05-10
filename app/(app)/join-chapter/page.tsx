@@ -26,8 +26,9 @@ export default async function JoinChapterPage() {
       <div style={{ textAlign: "center", maxWidth: 600, margin: "0 auto 32px" }}>
         <h1>Join a Chapter</h1>
         <p style={{ color: "var(--muted)", fontSize: 15, lineHeight: 1.6 }}>
-          Chapters are local communities where you learn, grow, and build with
-          other passionate young people. Pick a chapter to get started.
+          Chapters are local YPP communities. Most classes and events happen in
+          person, so pick a chapter near you to get the most out of it. You can
+          always switch later.
         </p>
         <p style={{ marginTop: 12 }}>
           <Link href="/chapters" style={{ color: "var(--ypp-purple)", fontSize: 14 }}>

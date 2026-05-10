@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
 import DataTable from "@/components/data-table";
 
 interface ChapterData {
@@ -19,57 +19,111 @@ interface ChapterData {
   openPositions: number;
   activeAnnouncements: number;
   createdAt: string;
+  health: "healthy" | "warming" | "at-risk";
+  healthReason: string;
 }
 
-export default function ChapterTable({
-  chapters
-}: {
-  chapters: ChapterData[];
-}) {
+const HEALTH_STYLES: Record<
+  ChapterData["health"],
+  { label: string; bg: string; color: string }
+> = {
+  healthy: { label: "Healthy", bg: "#16a34a1A", color: "#16a34a" },
+  warming: { label: "Warming", bg: "#d977061A", color: "#d97706" },
+  "at-risk": { label: "At-risk", bg: "#dc26261A", color: "#dc2626" },
+};
+
+export default function ChapterTable({ chapters }: { chapters: ChapterData[] }) {
   const columns = [
-    { key: "name", label: "Chapter" },
-    { key: "city", label: "City" },
-    { key: "region", label: "Region" },
+    {
+      key: "name",
+      label: "Chapter",
+      render: (item: ChapterData) => (
+        <Link
+          href={`/admin/chapters/${item.id}`}
+          className="link"
+          style={{ fontWeight: 600 }}
+        >
+          {item.name}
+        </Link>
+      ),
+    },
+    {
+      key: "city",
+      label: "Location",
+      render: (item: ChapterData) =>
+        [item.city, item.region].filter(Boolean).join(", ") || "—",
+    },
+    {
+      key: "leadCount",
+      label: "President",
+      render: (item: ChapterData) =>
+        item.leadCount > 0 ? (
+          <span className="pill pill-success">{item.leadCount}</span>
+        ) : (
+          <span
+            className="pill"
+            style={{ background: "#fef3c7", color: "#92400e" }}
+            title="No president assigned"
+          >
+            None
+          </span>
+        ),
+    },
     {
       key: "totalUsers",
-      label: "Users",
-      render: (item: ChapterData) => (
-        <span className="pill">{item.totalUsers}</span>
-      )
-    },
-    {
-      key: "instructorCount",
-      label: "Instructors",
-      render: (item: ChapterData) => item.instructorCount
-    },
-    {
-      key: "studentCount",
-      label: "Students",
-      render: (item: ChapterData) => item.studentCount
+      label: "Members",
+      render: (item: ChapterData) => <span className="pill">{item.totalUsers}</span>,
     },
     {
       key: "coursesCount",
       label: "Courses",
-      render: (item: ChapterData) => item.coursesCount
+      render: (item: ChapterData) => item.coursesCount,
     },
     {
       key: "openPositions",
       label: "Open Positions",
-      render: (item: ChapterData) => item.openPositions > 0 ? (
-        <span className="pill pill-success">{item.openPositions}</span>
-      ) : "0"
-    }
+      render: (item: ChapterData) =>
+        item.openPositions > 0 ? (
+          <span className="pill pill-success">{item.openPositions}</span>
+        ) : (
+          "0"
+        ),
+    },
+    {
+      key: "health",
+      label: "Health",
+      render: (item: ChapterData) => {
+        const s = HEALTH_STYLES[item.health];
+        return (
+          <span
+            className="pill"
+            style={{ background: s.bg, color: s.color, fontWeight: 600 }}
+            title={item.healthReason}
+          >
+            {s.label}
+          </span>
+        );
+      },
+    },
   ];
 
   const filterOptions = [
     {
       key: "region",
       label: "All Regions",
-      options: [...new Set(chapters.map(c => c.region).filter(Boolean))].map(r => ({
-        value: r,
-        label: r
-      }))
-    }
+      options: [...new Set(chapters.map((c) => c.region).filter(Boolean))].map(
+        (r) => ({ value: r, label: r })
+      ),
+    },
+    {
+      key: "health",
+      label: "All Health States",
+      options: [
+        { value: "healthy", label: "Healthy" },
+        { value: "warming", label: "Warming" },
+        { value: "at-risk", label: "At-risk" },
+      ],
+    },
   ];
 
   return (
@@ -79,6 +133,15 @@ export default function ChapterTable({
       searchKeys={["name", "city", "region", "partnerSchool"]}
       filterOptions={filterOptions}
       exportFilename="chapters"
+      actions={(item) => (
+        <Link
+          href={`/admin/chapters/${item.id}`}
+          className="button secondary"
+          style={{ fontSize: 11 }}
+        >
+          Open
+        </Link>
+      )}
     />
   );
 }

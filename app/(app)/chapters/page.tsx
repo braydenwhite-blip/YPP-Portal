@@ -24,7 +24,7 @@ export default async function ChaptersPage() {
           <p className="badge">Chapter Network</p>
           <h1 className="page-title">Find Your Chapter</h1>
           <p style={{ color: "var(--muted)", marginTop: 4, fontSize: 14 }}>
-            Join a chapter near you and become part of a local community of learners and leaders.
+            Chapters are local YPP communities. Find a chapter in your city, meet other students in person, and join classes near you.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>

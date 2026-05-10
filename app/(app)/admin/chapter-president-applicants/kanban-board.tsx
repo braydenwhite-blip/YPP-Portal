@@ -25,7 +25,8 @@ export type CPApp = {
     email: string;
     chapter: { name: string } | null;
   };
-  chapter: { name: string } | null;
+  chapter: { id?: string; name: string } | null;
+  chapterId?: string | null;
   reviewer: { name: string } | null;
   reviewerId: string | null;
   scoreLeadership: number | null;
@@ -84,6 +85,13 @@ export type CPApp = {
 export type Reviewer = {
   id: string;
   name: string;
+};
+
+export type ChapterOption = {
+  id: string;
+  name: string;
+  city?: string | null;
+  region?: string | null;
 };
 
 /* ── Column definitions ────────────────────────────── */
@@ -207,9 +215,11 @@ function DragOverlayCard({ app }: { app: CPApp }) {
 export default function CPKanbanBoard({
   applications,
   reviewers,
+  chapters = [],
 }: {
   applications: CPApp[];
   reviewers: Reviewer[];
+  chapters?: ChapterOption[];
 }) {
   return (
     <KanbanBoard<CPApp>
@@ -242,6 +252,7 @@ export default function CPKanbanBoard({
         <CPDetailPanel
           app={app}
           reviewers={reviewers}
+          chapters={chapters}
           onClose={onClose}
           onUpdate={onUpdate}
         />
