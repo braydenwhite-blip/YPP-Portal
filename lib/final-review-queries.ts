@@ -74,6 +74,26 @@ export type SerializedApplicationForReview = {
   chairQueuedAt: string | null;
   materialsReadyAt: string | null;
   interviewRound: number | null;
+  applicationTrack: string | null;
+  instructorSubtype: string | null;
+  workshopOutline: {
+    title: string;
+    ageRange: string;
+    durationMinutes: number;
+    learningGoals: string[];
+    activityFlow: string;
+    materialsNeeded: string[];
+    engagementHook: string;
+    adaptationNotes: string;
+  } | null;
+  promotionEligibility: {
+    workshopsCompleted: number;
+    reviewerNotesPositive: boolean;
+    outstandingRequirements: string[];
+    flaggedForPromotion: boolean;
+    flaggedAt: string | null;
+    flaggedBy: string | null;
+  } | null;
   applicant: {
     id: string;
     name: string | null;
@@ -145,6 +165,16 @@ function serializeApplication(
   app: RawChairQueueItem
 ): SerializedApplicationForReview {
   const reviewerNote = app.applicationReviews[0] ?? null;
+  const rawOutline = (app as { workshopOutline?: unknown }).workshopOutline;
+  const outline =
+    rawOutline && typeof rawOutline === "object"
+      ? (rawOutline as Partial<NonNullable<SerializedApplicationForReview["workshopOutline"]>>)
+      : null;
+  const rawEligibility = (app as { promotionEligibility?: unknown }).promotionEligibility;
+  const eligibility =
+    rawEligibility && typeof rawEligibility === "object"
+      ? (rawEligibility as Partial<NonNullable<SerializedApplicationForReview["promotionEligibility"]>>)
+      : null;
   return {
     id: app.id,
     status: app.status,
@@ -161,6 +191,52 @@ function serializeApplication(
     chairQueuedAt: toIso(app.chairQueuedAt),
     materialsReadyAt: toIso(app.materialsReadyAt),
     interviewRound: app.interviewRound,
+    applicationTrack: ((app as { applicationTrack?: string }).applicationTrack ?? null) as string | null,
+    instructorSubtype: ((app as { instructorSubtype?: string }).instructorSubtype ?? null) as string | null,
+    workshopOutline: outline
+      ? {
+          title: typeof outline.title === "string" ? outline.title : "",
+          ageRange: typeof outline.ageRange === "string" ? outline.ageRange : "",
+          durationMinutes:
+            typeof outline.durationMinutes === "number" ? outline.durationMinutes : 0,
+          learningGoals: Array.isArray(outline.learningGoals)
+            ? outline.learningGoals.filter((g): g is string => typeof g === "string")
+            : [],
+          activityFlow: typeof outline.activityFlow === "string" ? outline.activityFlow : "",
+          materialsNeeded: Array.isArray(outline.materialsNeeded)
+            ? outline.materialsNeeded.filter((m): m is string => typeof m === "string")
+            : [],
+          engagementHook:
+            typeof outline.engagementHook === "string" ? outline.engagementHook : "",
+          adaptationNotes:
+            typeof outline.adaptationNotes === "string" ? outline.adaptationNotes : "",
+        }
+      : null,
+    promotionEligibility: eligibility
+      ? {
+          workshopsCompleted:
+            typeof eligibility.workshopsCompleted === "number"
+              ? eligibility.workshopsCompleted
+              : 0,
+          reviewerNotesPositive:
+            typeof eligibility.reviewerNotesPositive === "boolean"
+              ? eligibility.reviewerNotesPositive
+              : false,
+          outstandingRequirements: Array.isArray(eligibility.outstandingRequirements)
+            ? eligibility.outstandingRequirements.filter(
+                (r): r is string => typeof r === "string"
+              )
+            : [],
+          flaggedForPromotion:
+            typeof eligibility.flaggedForPromotion === "boolean"
+              ? eligibility.flaggedForPromotion
+              : false,
+          flaggedAt:
+            typeof eligibility.flaggedAt === "string" ? eligibility.flaggedAt : null,
+          flaggedBy:
+            typeof eligibility.flaggedBy === "string" ? eligibility.flaggedBy : null,
+        }
+      : null,
     applicant: {
       id: app.applicant.id,
       name: app.applicant.name,
@@ -255,6 +331,10 @@ export async function getApplicationForFinalReview(
         chairQueuedAt: true,
         materialsReadyAt: true,
         interviewRound: true,
+        applicationTrack: true,
+        instructorSubtype: true,
+        workshopOutline: true,
+        promotionEligibility: true,
         applicant: {
           select: {
             id: true,
