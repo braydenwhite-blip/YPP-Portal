@@ -212,8 +212,8 @@ export default async function AdminMentorshipRelationshipDetailPage({
           </div>
           <p style={{ margin: "0 0 12px", color: "var(--muted)", fontSize: 13 }}>
             Ends the current mentorship and creates a fresh one with the new
-            mentor. The previous mentor's circle role is deactivated and the
-            change is recorded in the audit log.
+            mentor. The previous mentor&apos;s circle role is deactivated and
+            the change is recorded in the audit log.
           </p>
           <form action={reassignProgramMentor} className="form-grid">
             <input type="hidden" name="mentorshipId" value={mentorship.id} />
