@@ -7,6 +7,7 @@ import { ensureSupabaseAuthUser, updateSupabasePortalUser } from "@/lib/portal-a
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
+import { publicOfferingWhere } from "@/lib/class-visibility";
 import {
   parseOptionalPhone,
   parseRequiredDateOfBirth,
@@ -898,11 +899,10 @@ export async function getAvailableClassOfferings(studentId: string) {
   const enrolledOfferingIds = new Set(existingEnrollments.map((e) => e.offeringId));
 
   const offerings = await prisma.classOffering.findMany({
-    where: {
+    where: publicOfferingWhere({
       enrollmentOpen: true,
       startDate: { gt: new Date() },
-      status: { in: ["PUBLISHED", "ENROLLING_OPEN"] as any[] },
-    },
+    }),
     select: {
       id: true,
       title: true,
@@ -973,11 +973,25 @@ export async function enrollChildInClassOffering(formData: FormData) {
   // Verify offering is open and has capacity
   const offering = await prisma.classOffering.findUnique({
     where: { id: offeringId },
-    include: { _count: { select: { enrollments: true } } },
+    include: {
+      approval: { select: { status: true } },
+      _count: { select: { enrollments: { where: { status: "ENROLLED" } } } },
+    },
   });
 
   if (!offering) throw new Error("Class not found");
   if (!offering.enrollmentOpen) throw new Error("Enrollment is not open for this class");
+  if (offering.status !== "PUBLISHED" && offering.status !== "IN_PROGRESS") {
+    throw new Error("Class is not accepting enrollment");
+  }
+  // Defense-in-depth: parents must not be able to enroll a child in any
+  // class that has not cleared admin review, even if status reads PUBLISHED.
+  const isApprovedForSignup =
+    offering.grandfatheredTrainingExemption ||
+    offering.approval?.status === "APPROVED";
+  if (!isApprovedForSignup) {
+    throw new Error("Class is not yet approved for enrollment.");
+  }
   if (offering._count.enrollments >= offering.capacity) {
     throw new Error("This class is full");
   }

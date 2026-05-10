@@ -27,6 +27,8 @@ export async function requestPathwayFallback(input: {
         pathwayStepId: true,
         templateId: true,
         status: true,
+        grandfatheredTrainingExemption: true,
+        approval: { select: { status: true } },
       },
     }),
     prisma.pathwayStep.findUnique({
@@ -43,6 +45,14 @@ export async function requestPathwayFallback(input: {
     throw new Error("Student not found.");
   }
   if (!offering || (offering.status !== "PUBLISHED" && offering.status !== "IN_PROGRESS")) {
+    throw new Error("That partner-chapter offering is not open right now.");
+  }
+  // Defense-in-depth: do not let students request a fallback against an
+  // offering that has not cleared admin review.
+  const offeringApproved =
+    offering.grandfatheredTrainingExemption ||
+    offering.approval?.status === "APPROVED";
+  if (!offeringApproved) {
     throw new Error("That partner-chapter offering is not open right now.");
   }
   if (!step || step.pathwayId !== input.pathwayId) {
