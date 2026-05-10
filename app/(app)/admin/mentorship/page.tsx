@@ -28,6 +28,8 @@ const TABS = [
   { key: "needs-action", label: "Needs Action" },
   { key: "unassigned", label: "Unassigned" },
   { key: "workload", label: "Workload" },
+  { key: "gr", label: "G&R" },
+  { key: "check-ins", label: "Check-ins" },
   { key: "approvals", label: "Approvals" },
   { key: "pairings", label: "Pairings" },
   { key: "goals", label: "Goals" },
@@ -41,6 +43,8 @@ function parseTab(raw?: string): Tab {
     raw === "needs-action" ||
     raw === "unassigned" ||
     raw === "workload" ||
+    raw === "gr" ||
+    raw === "check-ins" ||
     raw === "approvals" ||
     raw === "pairings" ||
     raw === "goals" ||
@@ -179,6 +183,9 @@ export default async function AdminMentorshipPage({
   const unassignedQueue =
     tab === "unassigned" ? await getUnassignedInstructorQueue() : null;
   const workloadRows = tab === "workload" ? await getMentorWorkload() : null;
+  const stalledGoals = tab === "gr" ? await getStalledGoalQueue() : null;
+  const overdueCheckIns =
+    tab === "check-ins" ? await getOverdueCheckInQueue() : null;
 
   return (
     <div>
@@ -654,6 +661,154 @@ export default async function AdminMentorshipPage({
                       ) : (
                         <span className="pill pill-small pill-success">OK</span>
                       )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* ── G&R oversight tab ──────────────────── */}
+      {tab === "gr" && stalledGoals && (
+        <div>
+          <div className="card" style={{ marginBottom: 20 }}>
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>
+              Stalled or overdue G&amp;R goals ({stalledGoals.length})
+            </div>
+            <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
+              Active goals that are past due, marked blocked, or have not been
+              updated in 30+ days. Sorted by due date.
+            </p>
+          </div>
+          {stalledGoals.length === 0 ? (
+            <div
+              style={{
+                padding: 24,
+                borderRadius: "var(--radius-md)",
+                border: "1px dashed var(--border)",
+                color: "var(--muted)",
+                textAlign: "center",
+              }}
+            >
+              No stalled goals across active instructor mentorships.
+            </div>
+          ) : (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Goal</th>
+                  <th>Instructor</th>
+                  <th>Mentor</th>
+                  <th>Status</th>
+                  <th>Due</th>
+                  <th>Reason</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {stalledGoals.map((row) => (
+                  <tr key={row.goalId}>
+                    <td>
+                      <strong>{row.goalTitle}</strong>
+                    </td>
+                    <td>{row.menteeName}</td>
+                    <td>{row.mentorName}</td>
+                    <td>
+                      <span className="pill pill-small">
+                        {row.progressState.replace(/_/g, " ")}
+                      </span>
+                    </td>
+                    <td>
+                      {row.dueDate
+                        ? new Date(row.dueDate).toLocaleDateString()
+                        : "—"}
+                    </td>
+                    <td>{row.reason}</td>
+                    <td>
+                      <Link
+                        href={`/admin/mentorship/relationships/${row.mentorshipId}`}
+                        className="button secondary small"
+                      >
+                        Open
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* ── Check-in oversight tab ─────────────── */}
+      {tab === "check-ins" && overdueCheckIns && (
+        <div>
+          <div className="card" style={{ marginBottom: 20 }}>
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>
+              Overdue check-ins ({overdueCheckIns.length})
+            </div>
+            <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
+              Active mentorships with no completed session in the last 30 days
+              and no upcoming scheduled session. Oldest start dates first.
+            </p>
+          </div>
+          {overdueCheckIns.length === 0 ? (
+            <div
+              style={{
+                padding: 24,
+                borderRadius: "var(--radius-md)",
+                border: "1px dashed var(--border)",
+                color: "var(--muted)",
+                textAlign: "center",
+              }}
+            >
+              All active mentorships have a recent or upcoming session.
+            </div>
+          ) : (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Instructor</th>
+                  <th>Mentor</th>
+                  <th>Last activity</th>
+                  <th>Days since</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {overdueCheckIns.map((row) => (
+                  <tr key={row.mentorshipId}>
+                    <td>
+                      <strong>{row.menteeName}</strong>
+                      <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                        {row.menteeRole.replace(/_/g, " ")}
+                      </div>
+                    </td>
+                    <td>{row.mentorName}</td>
+                    <td>
+                      {row.lastActivityAt
+                        ? new Date(row.lastActivityAt).toLocaleDateString()
+                        : "Never"}
+                    </td>
+                    <td
+                      style={{
+                        color:
+                          (row.daysSinceActivity ?? 0) > 60
+                            ? "#ef4444"
+                            : "#d97706",
+                      }}
+                    >
+                      {row.daysSinceActivity ?? "—"}
+                    </td>
+                    <td>
+                      <Link
+                        href={`/admin/mentorship/relationships/${row.mentorshipId}`}
+                        className="button secondary small"
+                      >
+                        Open
+                      </Link>
                     </td>
                   </tr>
                 ))}
