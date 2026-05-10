@@ -10,6 +10,7 @@ import {
   adminCancelClassOffering,
   adminMarkClassCompleted,
   adminUpdateCapacity,
+  adminReassignInstructor,
 } from "@/lib/admin-class-operations";
 
 export const dynamic = "force-dynamic";
@@ -113,6 +114,26 @@ export default async function AdminClassDetailPage({
             </p>
             <p style={{ marginTop: 4, color: "var(--text-secondary)" }}>
               {detail.chapter?.name ?? "No chapter"}
+            </p>
+            <form action={adminReassignInstructor} style={inlineForm}>
+              <input type="hidden" name="offeringId" value={detail.id} />
+              <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                Reassign to (instructor user ID)
+              </label>
+              <input
+                name="instructorId"
+                className="input"
+                placeholder="user_..."
+                style={{ fontFamily: "monospace", fontSize: 12 }}
+              />
+              <button type="submit" className="button" style={{ fontSize: 12 }}>
+                Reassign instructor
+              </button>
+            </form>
+            <p style={{ marginTop: 4, fontSize: 11, color: "var(--text-secondary)" }}>
+              The new user must have the INSTRUCTOR role. Reassignment does not
+              re-validate readiness — use only when the original instructor is
+              unreachable.
             </p>
           </Section>
 

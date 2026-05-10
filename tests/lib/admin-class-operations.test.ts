@@ -13,6 +13,7 @@ import {
   adminUpdateCapacity,
   adminPromoteFromWaitlist,
   adminUpdateEnrollmentStatus,
+  adminReassignInstructor,
   getAdminProposalQueue,
   getAdminClassRoster,
 } from "@/lib/admin-class-operations";
@@ -138,6 +139,13 @@ describe("admin-class-operations permissions", () => {
     [
       "adminUpdateEnrollmentStatus",
       () => adminUpdateEnrollmentStatus(makeForm({ enrollmentId: "e1", status: "ENROLLED" })),
+    ],
+    [
+      "adminReassignInstructor",
+      () =>
+        adminReassignInstructor(
+          makeForm({ offeringId: "x", instructorId: "u" }),
+        ),
     ],
     ["getAdminProposalQueue", () => getAdminProposalQueue()],
     ["getAdminClassRoster", () => getAdminClassRoster("x")],
@@ -470,6 +478,83 @@ describe("adminUpdateEnrollmentStatus", () => {
     const call = vi.mocked(prisma.classEnrollment.update).mock.calls[0][0] as any;
     expect(call.data.status).toBe("COMPLETED");
     expect(call.data.completedAt).toBeInstanceOf(Date);
+  });
+});
+
+/* ────────────────────────────────────────────────────────────
+ * adminReassignInstructor
+ * ──────────────────────────────────────────────────────────── */
+
+describe("adminReassignInstructor", () => {
+  beforeEach(() => {
+    vi.mocked(authorization.requireAnyRole).mockResolvedValue(adminUser());
+    vi.mocked(prisma.classOffering.findUnique).mockResolvedValue({
+      id: "o1",
+      status: "DRAFT",
+      capacity: 10,
+      enrollmentOpen: false,
+      grandfatheredTrainingExemption: false,
+      instructorId: "old",
+      title: "x",
+      deliveryMode: "IN_PERSON",
+      locationName: "X",
+      locationAddress: "Y",
+      zoomLink: null,
+      chapterId: null,
+      approval: null,
+    } as any);
+  });
+
+  it("rejects when the new instructor user does not exist", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
+    await expect(
+      adminReassignInstructor(
+        makeForm({ offeringId: "o1", instructorId: "missing" }),
+      ),
+    ).rejects.toThrow(/Instructor not found/);
+  });
+
+  it("rejects when the new user lacks the INSTRUCTOR role", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      id: "u-student",
+      name: "Student",
+      roles: [{ role: "STUDENT" }],
+    } as any);
+    await expect(
+      adminReassignInstructor(
+        makeForm({ offeringId: "o1", instructorId: "u-student" }),
+      ),
+    ).rejects.toThrow(/INSTRUCTOR role/);
+  });
+
+  it("accepts an ADMIN as a valid reassign target (admins can substitute teach)", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      id: "u-admin",
+      name: "Other Admin",
+      roles: [{ role: "ADMIN" }],
+    } as any);
+    await adminReassignInstructor(
+      makeForm({ offeringId: "o1", instructorId: "u-admin" }),
+    );
+    expect(prisma.classOffering.update).toHaveBeenCalledWith({
+      where: { id: "o1" },
+      data: { instructorId: "u-admin" },
+    });
+  });
+
+  it("updates instructorId for a valid INSTRUCTOR user", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      id: "u-new",
+      name: "New",
+      roles: [{ role: "INSTRUCTOR" }],
+    } as any);
+    await adminReassignInstructor(
+      makeForm({ offeringId: "o1", instructorId: "u-new" }),
+    );
+    expect(prisma.classOffering.update).toHaveBeenCalledWith({
+      where: { id: "o1" },
+      data: { instructorId: "u-new" },
+    });
   });
 });
 

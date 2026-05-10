@@ -265,6 +265,46 @@ export async function adminPromoteFromWaitlist(formData: FormData) {
 }
 
 /**
+ * Reassign a class offering to a different instructor. Requires the new
+ * user to hold the INSTRUCTOR role. Does not re-validate readiness — admin
+ * is intentionally trusted here for emergency reassignments (e.g. the
+ * original instructor is unreachable two days before class).
+ */
+export async function adminReassignInstructor(formData: FormData) {
+  await requireAdmin();
+  const offeringId = getString(formData, "offeringId");
+  const newInstructorId = getString(formData, "instructorId");
+
+  const newInstructor = await prisma.user.findUnique({
+    where: { id: newInstructorId },
+    select: {
+      id: true,
+      name: true,
+      roles: { select: { role: true } },
+    },
+  });
+  if (!newInstructor) {
+    throw new Error("Instructor not found.");
+  }
+  const newRoles = newInstructor.roles.map((r) => r.role);
+  if (!newRoles.includes("INSTRUCTOR") && !newRoles.includes("ADMIN")) {
+    throw new Error(
+      "The selected user does not have the INSTRUCTOR role.",
+    );
+  }
+
+  await loadOfferingOrThrow(offeringId);
+
+  await prisma.classOffering.update({
+    where: { id: offeringId },
+    data: { instructorId: newInstructorId },
+  });
+
+  revalidateAdminClassSurfaces(offeringId);
+  return { success: true };
+}
+
+/**
  * Move a roster entry between enrollment statuses. Supports
  * confirmed → waitlisted, waitlisted → confirmed, and either → dropped.
  */
@@ -410,7 +450,6 @@ function computeActionFlags(args: {
     capacity: number;
     enrollmentOpen: boolean;
     startDate: Date;
-    instructor: { id: string } | null;
     chapter: { id: string } | null;
     deliveryMode: string;
     locationName: string | null;
@@ -426,7 +465,6 @@ function computeActionFlags(args: {
   needsReview: boolean;
   needsRevision: boolean;
   approvedNotPublished: boolean;
-  missingInstructor: boolean;
   missingLocation: boolean;
   missingMeetingLink: boolean;
   noEnrollments: boolean;
@@ -446,7 +484,9 @@ function computeActionFlags(args: {
     needsRevision: offering.approval?.status === "CHANGES_REQUESTED",
     approvedNotPublished:
       isApproved && offering.status === "DRAFT",
-    missingInstructor: !offering.instructor,
+    // ClassOffering.instructorId is non-nullable in the schema, so a
+    // "missing instructor" flag is dead code. Reassignment is exposed via
+    // the per-class adminReassignInstructor action instead.
     missingLocation:
       offering.deliveryMode === "IN_PERSON" &&
       (!offering.locationName || !offering.locationAddress),

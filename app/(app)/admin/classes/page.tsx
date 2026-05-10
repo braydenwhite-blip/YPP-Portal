@@ -53,8 +53,7 @@ export default async function AdminClassesPage({
     missingLogistics: operations.filter(
       (o) =>
         o.actionFlags.missingLocation ||
-        o.actionFlags.missingMeetingLink ||
-        o.actionFlags.missingInstructor,
+        o.actionFlags.missingMeetingLink,
     ).length,
     cancelled: operations.filter((o) => o.actionFlags.isCancelled).length,
     completed: operations.filter((o) => o.actionFlags.isCompleted).length,
