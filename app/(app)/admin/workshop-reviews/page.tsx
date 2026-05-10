@@ -8,7 +8,11 @@ import {
   submissionStatusLabel,
   submissionStatusTone,
 } from "@/lib/workshop-proposal-constants";
-import type { WorkshopProposalSubmissionStatus } from "@prisma/client";
+import type {
+  WorkshopProposalSourceType,
+  WorkshopProposalSubmissionStatus,
+} from "@prisma/client";
+import { ReviewQueueFilters } from "./filters";
 
 const COLUMNS: {
   status: WorkshopProposalSubmissionStatus;
@@ -22,7 +26,30 @@ const COLUMNS: {
   { status: "REJECTED",          label: "Rejected",          dotColor: "#71717a" },
 ];
 
-export default async function WorkshopReviewsPage() {
+type SearchParams = Record<string, string | string[] | undefined>;
+
+function pickString(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value[0] ?? "";
+  return value ?? "";
+}
+
+const VALID_STATUS_FILTER = new Set<WorkshopProposalSubmissionStatus>([
+  "SUBMITTED",
+  "IN_REVIEW",
+  "CHANGES_REQUESTED",
+  "APPROVED",
+  "REJECTED",
+]);
+const VALID_SOURCE_FILTER = new Set<WorkshopProposalSourceType>([
+  "CUSTOM_DESIGN",
+  "TEMPLATE_SELECTION",
+]);
+
+export default async function WorkshopReviewsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<SearchParams>;
+}) {
   const session = await getSession();
   if (!session?.user?.id) redirect("/login");
   const roles = session.user.roles ?? [];
@@ -31,6 +58,21 @@ export default async function WorkshopReviewsPage() {
   if (!isAdmin && !isChapterLead) {
     redirect("/");
   }
+
+  const sp = (await searchParams) ?? {};
+  const search = pickString(sp.q).trim().toLowerCase();
+  const statusParam = pickString(sp.status).trim().toUpperCase();
+  const sourceParam = pickString(sp.source).trim().toUpperCase();
+  const statusFilter = VALID_STATUS_FILTER.has(
+    statusParam as WorkshopProposalSubmissionStatus
+  )
+    ? (statusParam as WorkshopProposalSubmissionStatus)
+    : "";
+  const sourceFilter = VALID_SOURCE_FILTER.has(
+    sourceParam as WorkshopProposalSourceType
+  )
+    ? (sourceParam as WorkshopProposalSourceType)
+    : "";
 
   // Chapter scope for chapter leads. Mirrors the
   // assertReviewerCanReviewSubmission rule in workshop-proposal-actions.ts:
@@ -71,13 +113,8 @@ export default async function WorkshopReviewsPage() {
     []
   );
 
-  const grouped = new Map<WorkshopProposalSubmissionStatus, typeof submissions>();
-  for (const col of COLUMNS) grouped.set(col.status, []);
-  for (const s of submissions) {
-    const list = grouped.get(s.status);
-    if (list) list.push(s);
-  }
-
+  // Counts come from the unfiltered set so the KPI tiles reflect the queue
+  // as a whole, not the current view.
   const counts = {
     total: submissions.length,
     awaitingReview: submissions.filter(
@@ -90,6 +127,37 @@ export default async function WorkshopReviewsPage() {
       (s) => s.status === "CHANGES_REQUESTED"
     ).length,
   };
+
+  // Apply the user's filters in-memory. Volumes here are small (per-chapter
+  // or admin-wide queue of proposals) so a Prisma round-trip per filter
+  // change is unnecessary; this also keeps the column counts in step with
+  // the search box without a second query.
+  const visible = submissions.filter((s) => {
+    if (statusFilter && s.status !== statusFilter) return false;
+    if (sourceFilter && s.sourceType !== sourceFilter) return false;
+    if (search) {
+      const haystack = [
+        s.author.name ?? "",
+        s.author.email ?? "",
+        s.template?.title ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      if (!haystack.includes(search)) return false;
+    }
+    return true;
+  });
+
+  const visibleColumns = statusFilter
+    ? COLUMNS.filter((c) => c.status === statusFilter)
+    : COLUMNS;
+
+  const grouped = new Map<WorkshopProposalSubmissionStatus, typeof submissions>();
+  for (const col of visibleColumns) grouped.set(col.status, []);
+  for (const s of visible) {
+    const list = grouped.get(s.status);
+    if (list) list.push(s);
+  }
 
   return (
     <div>
@@ -125,6 +193,14 @@ export default async function WorkshopReviewsPage() {
         </div>
       </div>
 
+      <ReviewQueueFilters
+        currentSearch={search}
+        currentStatus={statusFilter}
+        currentSource={sourceFilter}
+        totalVisible={visible.length}
+        totalAll={submissions.length}
+      />
+
       <div
         style={{
           display: "grid",
@@ -132,7 +208,7 @@ export default async function WorkshopReviewsPage() {
           gap: 16,
         }}
       >
-        {COLUMNS.map((col) => {
+        {visibleColumns.map((col) => {
           const list = grouped.get(col.status) ?? [];
           return (
             <div key={col.status}>

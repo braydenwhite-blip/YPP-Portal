@@ -5,6 +5,10 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   type CustomWorkshopPayload,
   EMPTY_CUSTOM_WORKSHOP,
+  MAX_WORKSHOP_CAPACITY,
+  MIN_WORKSHOP_CAPACITY,
+  WORKSHOP_FORMATS,
+  workshopFormatLabel,
 } from "@/lib/workshop-proposal-constants";
 import { customWorkshopIssues } from "@/lib/workshop-proposal-validation";
 import { saveCustomWorkshopDraft } from "@/lib/workshop-proposal-actions";
@@ -51,6 +55,11 @@ export function CustomWorkshopForm({
       fd.set("participationPlan", payload.participationPlan);
       fd.set("wrapUp", payload.wrapUp);
       fd.set("backupPlan", payload.backupPlan);
+      fd.set("format", payload.format);
+      fd.set("locationNotes", payload.locationNotes);
+      fd.set("capacity", String(payload.capacity || ""));
+      fd.set("availability", payload.availability);
+      fd.set("safetyNotes", payload.safetyNotes);
       startTransition(async () => {
         try {
           await saveCustomWorkshopDraft(fd);
@@ -222,6 +231,121 @@ export function CustomWorkshopForm({
             onChange={(e) => patch("backupPlan", e.target.value)}
           />
         </Field>
+
+        <div
+          style={{
+            marginTop: 8,
+            paddingTop: 16,
+            borderTop: "1px dashed var(--border)",
+            display: "grid",
+            gap: 16,
+          }}
+        >
+          <div>
+            <h3 style={{ margin: "0 0 4px", fontSize: 16 }}>Logistics</h3>
+            <p
+              style={{
+                margin: 0,
+                fontSize: 13,
+                color: "var(--muted)",
+                lineHeight: 1.5,
+              }}
+            >
+              Where this would actually happen. Most Summer Workshops are
+              in person, so reviewers want to see you&rsquo;ve thought through
+              the room, the group size, and safety.
+            </p>
+          </div>
+
+          <Field
+            label="Workshop format"
+            hint="Pick one. Most Summer Workshops are in person."
+          >
+            <select
+              className="input"
+              value={payload.format}
+              disabled={!editable}
+              onChange={(e) =>
+                patch(
+                  "format",
+                  (e.target.value as CustomWorkshopPayload["format"]) || ""
+                )
+              }
+            >
+              <option value="">Choose a format…</option>
+              {WORKSHOP_FORMATS.map((f) => (
+                <option key={f} value={f}>
+                  {workshopFormatLabel(f)}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          {payload.format === "VIRTUAL" ? null : (
+            <Field
+              label="Location"
+              hint="Where would you run this? Be specific — venue, room, indoor/outdoor."
+            >
+              <textarea
+                className="input"
+                rows={2}
+                value={payload.locationNotes}
+                disabled={!editable}
+                onChange={(e) => patch("locationNotes", e.target.value)}
+                placeholder="e.g. Roosevelt Middle School cafeteria, Brooklyn — or your nearest YPP chapter space"
+              />
+            </Field>
+          )}
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <Field
+              label="Capacity"
+              hint={`Max students per session (${MIN_WORKSHOP_CAPACITY}–${MAX_WORKSHOP_CAPACITY}).`}
+            >
+              <input
+                type="number"
+                min={MIN_WORKSHOP_CAPACITY}
+                max={MAX_WORKSHOP_CAPACITY}
+                className="input"
+                value={payload.capacity || ""}
+                disabled={!editable}
+                onChange={(e) =>
+                  patch("capacity", Number(e.target.value) || 0)
+                }
+                placeholder="e.g. 12"
+              />
+            </Field>
+            <Field
+              label="Availability"
+              hint="Dates or windows you can run it (e.g. 'Saturdays in July')."
+            >
+              <input
+                type="text"
+                className="input"
+                value={payload.availability}
+                disabled={!editable}
+                onChange={(e) => patch("availability", e.target.value)}
+                placeholder="Saturdays in July 2026"
+              />
+            </Field>
+          </div>
+
+          {payload.format === "VIRTUAL" ? null : (
+            <Field
+              label="Safety & supervision notes"
+              hint="Anything sharp, hot, allergenic, or messy? Adult supervision plan? Emergency exit?"
+            >
+              <textarea
+                className="input"
+                rows={3}
+                value={payload.safetyNotes}
+                disabled={!editable}
+                onChange={(e) => patch("safetyNotes", e.target.value)}
+                placeholder="Scissors used in pairs, supervised. Snack break is nut-free. One adult chaperone in the room at all times."
+              />
+            </Field>
+          )}
+        </div>
       </div>
 
       <aside style={{ position: "sticky", top: 16, alignSelf: "start" }}>

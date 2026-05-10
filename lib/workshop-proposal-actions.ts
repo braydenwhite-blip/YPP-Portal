@@ -423,6 +423,11 @@ export async function saveCustomWorkshopDraft(formData: FormData) {
     participationPlan: getString(formData, "participationPlan", false),
     wrapUp: getString(formData, "wrapUp", false),
     backupPlan: getString(formData, "backupPlan", false),
+    format: getString(formData, "format", false),
+    locationNotes: getString(formData, "locationNotes", false),
+    capacity: getNumber(formData, "capacity", 0),
+    availability: getString(formData, "availability", false),
+    safetyNotes: getString(formData, "safetyNotes", false),
   });
 
   await prisma.workshopProposalSubmission.update({

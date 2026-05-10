@@ -102,24 +102,54 @@ export default async function WorkshopDesignStudioPage({
             background: "#f0fdf4",
           }}
         >
-          <p style={{ margin: 0, fontWeight: 600, color: "#14532d" }}>
-            Workshop submitted — thanks!
+          <p style={{ margin: 0, fontWeight: 700, color: "#14532d", fontSize: 15 }}>
+            Workshop submitted — nice work.
           </p>
           <p
             style={{
-              margin: "6px 0 0",
+              margin: "8px 0 12px",
               fontSize: 13,
               color: "#166534",
               lineHeight: 1.55,
             }}
           >
-            A reviewer will read it next. You&rsquo;ll see their feedback here
-            and on your application status page once they finish.
+            Here&rsquo;s what happens next:
           </p>
+          <ol
+            style={{
+              margin: 0,
+              paddingLeft: 18,
+              fontSize: 13,
+              color: "#166534",
+              lineHeight: 1.7,
+            }}
+          >
+            <li>
+              A YPP reviewer reads your proposal — usually within a few days.
+            </li>
+            <li>
+              You may get an email asking small follow-up questions.
+            </li>
+            <li>
+              You&rsquo;ll see their decision and feedback here, and on{" "}
+              <Link
+                href="/application-status"
+                className="link"
+                style={{ color: "#15803d" }}
+              >
+                your application status page
+              </Link>
+              .
+            </li>
+            <li>
+              If approved, an admin will reach out about scheduling and
+              location for the workshop you&rsquo;d run this summer.
+            </li>
+          </ol>
         </div>
       ) : null}
 
-      {submission && submission.status !== "DRAFT" ? (
+      {submission && submission.status !== "DRAFT" && !justSubmitted ? (
         <div
           className="card"
           role="status"
@@ -155,6 +185,18 @@ export default async function WorkshopDesignStudioPage({
             <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--muted)" }}>
               Your submission is with a reviewer. You&rsquo;ll see their
               feedback here once they finish.
+            </p>
+          ) : null}
+          {submission.status === "CHANGES_REQUESTED" ? (
+            <p style={{ margin: "8px 0 0", fontSize: 13, color: "#92400e" }}>
+              Your submission is unlocked. Address the feedback above, then
+              submit again.
+            </p>
+          ) : null}
+          {submission.status === "APPROVED" ? (
+            <p style={{ margin: "8px 0 0", fontSize: 13, color: "#15803d" }}>
+              You&rsquo;re approved as a Summer Workshop Instructor. An admin
+              will follow up about scheduling and location.
             </p>
           ) : null}
         </div>

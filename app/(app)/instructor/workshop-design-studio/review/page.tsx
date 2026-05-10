@@ -8,6 +8,7 @@ import {
   isSubmissionEditable,
   sourceTypeLabel,
   submissionStatusLabel,
+  workshopFormatLabel,
 } from "@/lib/workshop-proposal-constants";
 import {
   customWorkshopIssues,
@@ -145,6 +146,28 @@ export default async function WorkshopReviewSubmitPage() {
               {custom.targetAgeGroup || "Age group missing"} · {custom.lengthMinutes || "?"} min
               · {custom.category || "Category missing"}
             </p>
+            <p
+              style={{
+                margin: "4px 0 0",
+                fontSize: 13,
+                color: "var(--muted)",
+              }}
+            >
+              {workshopFormatLabel(custom.format)}
+              {custom.capacity ? ` · capacity ${custom.capacity}` : ""}
+              {custom.availability ? ` · ${custom.availability}` : ""}
+            </p>
+            {custom.locationNotes ? (
+              <p
+                style={{
+                  margin: "4px 0 0",
+                  fontSize: 13,
+                  color: "var(--muted)",
+                }}
+              >
+                Location: {custom.locationNotes}
+              </p>
+            ) : null}
             <Link
               href="/instructor/workshop-design-studio/design"
               className="link"

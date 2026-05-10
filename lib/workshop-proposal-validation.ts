@@ -12,11 +12,15 @@ import {
   CustomWorkshopPayload,
   EMPTY_CUSTOM_WORKSHOP,
   EMPTY_REFLECTION,
+  MAX_WORKSHOP_CAPACITY,
   MAX_WORKSHOP_LENGTH_MIN,
   MIN_LEARNING_OBJECTIVE_CHARS,
   MIN_MAIN_ACTIVITY_CHARS,
   MIN_REFLECTION_CHARS,
+  MIN_WORKSHOP_CAPACITY,
   MIN_WORKSHOP_LENGTH_MIN,
+  WORKSHOP_FORMATS,
+  WorkshopFormat,
   WorkshopReflectionPayload,
 } from "@/lib/workshop-proposal-constants";
 
@@ -41,6 +45,13 @@ function asPositiveInt(value: unknown): number {
   return Number.isFinite(n) && n > 0 ? Math.round(n) : 0;
 }
 
+function asWorkshopFormat(value: unknown): WorkshopFormat | "" {
+  if (typeof value !== "string") return "";
+  return (WORKSHOP_FORMATS as readonly string[]).includes(value)
+    ? (value as WorkshopFormat)
+    : "";
+}
+
 export function normalizeCustomWorkshop(value: unknown): CustomWorkshopPayload {
   if (!value || typeof value !== "object") return { ...EMPTY_CUSTOM_WORKSHOP };
   const v = value as Record<string, unknown>;
@@ -56,6 +67,11 @@ export function normalizeCustomWorkshop(value: unknown): CustomWorkshopPayload {
     participationPlan: asString(v.participationPlan).trim(),
     wrapUp: asString(v.wrapUp).trim(),
     backupPlan: asString(v.backupPlan).trim(),
+    format: asWorkshopFormat(v.format),
+    locationNotes: asString(v.locationNotes).trim(),
+    capacity: asPositiveInt(v.capacity),
+    availability: asString(v.availability).trim(),
+    safetyNotes: asString(v.safetyNotes).trim(),
   };
 }
 
@@ -107,6 +123,39 @@ export function customWorkshopIssues(payload: CustomWorkshopPayload): string[] {
   if (!payload.participationPlan) issues.push("Student participation plan is required.");
   if (!payload.wrapUp) issues.push("Wrap-up / takeaway is required.");
   if (!payload.backupPlan) issues.push("Backup plan is required — what do you do if the room is quiet or confused?");
+  if (!payload.format) {
+    issues.push("Pick a workshop format (in person, virtual, or hybrid).");
+  }
+  // Location is required for any in-person/hybrid workshop and unnecessary
+  // for virtual; gating it this way avoids forcing virtual proposals to
+  // type "n/a".
+  if (
+    (payload.format === "IN_PERSON" || payload.format === "HYBRID") &&
+    !payload.locationNotes
+  ) {
+    issues.push("Location is required for in-person and hybrid workshops.");
+  }
+  if (
+    payload.capacity < MIN_WORKSHOP_CAPACITY ||
+    payload.capacity > MAX_WORKSHOP_CAPACITY
+  ) {
+    issues.push(
+      `Capacity must be between ${MIN_WORKSHOP_CAPACITY} and ${MAX_WORKSHOP_CAPACITY} students.`
+    );
+  }
+  if (!payload.availability) {
+    issues.push(
+      "Availability is required — when can you actually run this workshop?"
+    );
+  }
+  if (
+    (payload.format === "IN_PERSON" || payload.format === "HYBRID") &&
+    !payload.safetyNotes
+  ) {
+    issues.push(
+      "Safety notes are required for in-person and hybrid workshops."
+    );
+  }
   return issues;
 }
 
