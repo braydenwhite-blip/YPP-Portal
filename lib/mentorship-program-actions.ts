@@ -375,10 +375,21 @@ export async function endProgramMentorship(formData: FormData) {
   revalidatePath("/admin/mentorship-program");
 }
 
+function appendNote(existingNote: string | null | undefined, line: string) {
+  const stamped = `[${new Date().toISOString().slice(0, 10)}] ${line}`;
+  if (!existingNote || existingNote.trim() === "") {
+    return stamped;
+  }
+  return `${existingNote.trimEnd()}\n${stamped}`;
+}
+
 /**
  * Reassign an instructor's primary mentor in one shot. Ends the current
  * active relationship (status = COMPLETE) and creates a fresh mentorship
  * with the new mentor. Admin only.
+ *
+ * The capacity check is repeated inside the transaction so two concurrent
+ * reassignments cannot push the same mentor past FULL_PROGRAM_MENTOR_CAP.
  */
 export async function reassignProgramMentor(formData: FormData) {
   const session = await requireAdmin();
@@ -393,6 +404,7 @@ export async function reassignProgramMentor(formData: FormData) {
       status: true,
       mentorId: true,
       menteeId: true,
+      notes: true,
       mentor: { select: { name: true } },
       mentee: {
         select: {
@@ -437,6 +449,8 @@ export async function reassignProgramMentor(formData: FormData) {
     primaryRole: existing.mentee.primaryRole,
   });
 
+  // Pre-flight check for fast feedback. The authoritative check is the
+  // identical call inside the transaction below.
   await enforceFullProgramMentorCapacity({
     mentorId: newMentor.id,
     programGroup,
@@ -446,14 +460,23 @@ export async function reassignProgramMentor(formData: FormData) {
   const reasonSuffix = reason ? ` — Reason: ${reason}` : "";
 
   const created = await prisma.$transaction(async (tx) => {
+    // Re-check inside the transaction to close the race window between
+    // the pre-flight check and the actual mentorship.create below.
+    await enforceFullProgramMentorCapacity({
+      mentorId: newMentor.id,
+      programGroup,
+      governanceMode,
+    });
+
     await tx.mentorship.update({
       where: { id: existing.id },
       data: {
         status: MentorshipStatus.COMPLETE,
         endDate: new Date(),
-        notes: reason
-          ? `Reassigned to ${newMentor.name}${reasonSuffix}`
-          : `Reassigned to ${newMentor.name}`,
+        notes: appendNote(
+          existing.notes,
+          `Reassigned to ${newMentor.name}${reasonSuffix}`
+        ),
       },
     });
 
@@ -472,9 +495,10 @@ export async function reassignProgramMentor(formData: FormData) {
         status: MentorshipStatus.ACTIVE,
         trackId: track.id,
         chairId,
-        notes: reason
-          ? `Reassigned from ${existing.mentor.name}${reasonSuffix}`
-          : `Reassigned from ${existing.mentor.name}`,
+        notes: appendNote(
+          null,
+          `Reassigned from ${existing.mentor.name}${reasonSuffix}`
+        ),
       },
     });
   });
@@ -491,6 +515,8 @@ export async function reassignProgramMentor(formData: FormData) {
 
   revalidatePath("/admin/mentorship");
   revalidatePath("/admin/mentorship-program");
+  revalidatePath(`/admin/mentorship/relationships/${existing.id}`);
+  revalidatePath(`/admin/mentorship/relationships/${created.id}`);
   revalidatePath(`/mentorship/mentees/${existing.menteeId}`);
 }
 
@@ -515,6 +541,7 @@ export async function setProgramMentorshipStatus(formData: FormData) {
       id: true,
       status: true,
       menteeId: true,
+      notes: true,
       mentor: { select: { name: true } },
       mentee: { select: { name: true } },
     },
@@ -524,13 +551,15 @@ export async function setProgramMentorshipStatus(formData: FormData) {
     return;
   }
 
+  const transitionLine = `Status ${existing.status} → ${newStatus}${reason ? ` — ${reason}` : ""}`;
+
   await prisma.mentorship.update({
     where: { id: mentorshipId },
     data: {
       status: newStatus,
       endDate:
         newStatus === MentorshipStatus.COMPLETE ? new Date() : null,
-      notes: reason ? reason : undefined,
+      notes: appendNote(existing.notes, transitionLine),
     },
   });
 
@@ -551,6 +580,7 @@ export async function setProgramMentorshipStatus(formData: FormData) {
 
   revalidatePath("/admin/mentorship");
   revalidatePath("/admin/mentorship-program");
+  revalidatePath(`/admin/mentorship/relationships/${mentorshipId}`);
   revalidatePath(`/mentorship/mentees/${existing.menteeId}`);
 }
 
