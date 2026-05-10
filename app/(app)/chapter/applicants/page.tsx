@@ -7,6 +7,8 @@ export default async function ChapterApplicantsPage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
+  // getChapterApplicants() short-circuits to [] for CPs without a chapter; this
+  // page just renders the resulting empty state instead of leaking other chapters.
   const applications = await getChapterApplicants();
 
   // Group by status

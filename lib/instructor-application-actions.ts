@@ -96,15 +96,19 @@ export async function notifyReviewersOfNewApplication(applicantId: string) {
 
   const emailSet = new Set<string>();
 
-  // 1. Chapter president(s) for the applicant's chapter
-  const chapterPresidents = await prisma.user.findMany({
-    where: {
-      roles: { some: { role: RoleType.CHAPTER_PRESIDENT } },
-      ...(applicant.chapterId ? { chapterId: applicant.chapterId } : {}),
-    },
-    select: { email: true },
-  });
-  chapterPresidents.forEach((u) => u.email && emailSet.add(u.email));
+  // 1. Chapter president(s) for the applicant's chapter.
+  //    Applicants without a chapter are owned by the global hiring chair (below);
+  //    do NOT fan out to every CP in the system in that case.
+  if (applicant.chapterId) {
+    const chapterPresidents = await prisma.user.findMany({
+      where: {
+        roles: { some: { role: RoleType.CHAPTER_PRESIDENT } },
+        chapterId: applicant.chapterId,
+      },
+      select: { email: true },
+    });
+    chapterPresidents.forEach((u) => u.email && emailSet.add(u.email));
+  }
 
   // 2. Hiring chair (HIRING_ADMIN default owner)
   const hiringChair = await prisma.userAdminSubtype.findFirst({

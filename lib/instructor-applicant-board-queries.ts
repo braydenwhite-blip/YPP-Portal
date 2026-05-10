@@ -168,6 +168,21 @@ export async function getApplicantPipeline({
   filters?: PipelineFilters;
   take?: number;
 }): Promise<{ columns: Record<DerivedColumn, typeof applications[number][]> }> {
+  // Defense in depth: chapter scope without a chapter id must not leak across chapters.
+  if (scope === "chapter" && !chapterId) {
+    const empty: Record<DerivedColumn, never[]> = {
+      new: [],
+      needs_review: [],
+      interview_prep: [],
+      ready_for_interview: [],
+      post_interview: [],
+      chair_review: [],
+      decided: [],
+      archive: [],
+    };
+    return { columns: empty as unknown as Record<DerivedColumn, typeof applications[number][]> };
+  }
+
   const where: Record<string, unknown> = {
     // Exclude already-archived items from the main pipeline
     archivedAt: null,
@@ -190,9 +205,14 @@ export async function getApplicantPipeline({
 
   if (filters.materialsMissing) {
     where.materialsReadyAt = null;
-    where.status = {
-      in: ["INTERVIEW_SCHEDULED", "PRE_APPROVED"] as InstructorApplicationStatus[],
-    };
+    where.AND = [
+      ...((where.AND as unknown[]) ?? []),
+      {
+        status: {
+          in: ["INTERVIEW_SCHEDULED", "PRE_APPROVED"] as InstructorApplicationStatus[],
+        },
+      },
+    ];
   }
 
   if (filters.applicationTrack) {
@@ -373,6 +393,9 @@ export async function getChairQueue({
   scope: PipelineScope;
   chapterId?: string;
 }) {
+  if (scope === "chapter" && !chapterId) {
+    return [];
+  }
   const applications = await prisma.instructorApplication.findMany({
     where: buildChairQueueWhere({ scope, chapterId }),
     select: CHAIR_QUEUE_SELECT,
@@ -418,6 +441,10 @@ export async function getArchivedApplications({
   skip?: number;
   take?: number;
 }) {
+  if (scope === "chapter" && !chapterId) {
+    return { items: [], total: 0, skip, take };
+  }
+
   const where: Record<string, unknown> = {
     OR: [
       { archivedAt: { not: null } },
