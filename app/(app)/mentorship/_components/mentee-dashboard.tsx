@@ -28,7 +28,17 @@ const RATING_COLOR: Record<string, string> = {
 type Props = { userId: string };
 
 async function loadMenteeDashboardData(userId: string) {
-  const [mentorship, pointSummary, goals, resources] = await Promise.all([
+  const resourceSelect = {
+    id: true,
+    type: true,
+    title: true,
+    description: true,
+    url: true,
+    createdBy: { select: { name: true } },
+    mentee: { select: { id: true, name: true } },
+  } as const;
+
+  const [mentorship, pointSummary, goals, resourcesToMe, resourcesByMe] = await Promise.all([
     prisma.mentorship.findFirst({
       where: { menteeId: userId, status: "ACTIVE" },
       select: {
@@ -80,18 +90,27 @@ async function loadMenteeDashboardData(userId: string) {
       },
       orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
       take: 4,
-      select: {
-        id: true,
-        type: true,
-        title: true,
-        description: true,
-        url: true,
-        createdBy: { select: { name: true } },
+      select: resourceSelect,
+    }),
+    // Resources this user authored that are tied to a specific mentee
+    // (i.e. recommended in their capacity as a mentor). Excludes generic
+    // library entries with no mentee/mentorship link.
+    prisma.mentorshipResource.findMany({
+      where: {
+        isPublished: true,
+        createdById: userId,
+        OR: [
+          { menteeId: { not: null } },
+          { mentorshipId: { not: null } },
+        ],
       },
+      orderBy: [{ createdAt: "desc" }],
+      take: 4,
+      select: resourceSelect,
     }),
   ]);
 
-  return { mentorship, pointSummary, goals, resources };
+  return { mentorship, pointSummary, goals, resourcesToMe, resourcesByMe };
 }
 
 
@@ -156,7 +175,7 @@ function AwardBar({ totalPoints, currentTier }: { totalPoints: number; currentTi
 }
 
 export async function MenteeDashboard({ userId }: Props) {
-  const { mentorship, pointSummary, goals, resources } = await loadMenteeDashboardData(userId);
+  const { mentorship, pointSummary, goals, resourcesToMe, resourcesByMe } = await loadMenteeDashboardData(userId);
 
   if (!mentorship) {
     return (
@@ -343,7 +362,7 @@ export async function MenteeDashboard({ userId }: Props) {
             Browse all →
           </Link>
         </div>
-        {resources.length === 0 ? (
+        {resourcesToMe.length === 0 ? (
           <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
             No resources have been recommended to you yet. Items your mentor
             attaches to your Goals & Resources or sends you directly will show
@@ -351,7 +370,7 @@ export async function MenteeDashboard({ userId }: Props) {
           </p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {resources.map((resource) => (
+            {resourcesToMe.map((resource) => (
               <div
                 key={resource.id}
                 style={{
@@ -390,6 +409,56 @@ export async function MenteeDashboard({ userId }: Props) {
           </div>
         )}
       </div>
+
+      {/* Resources I recommended as a mentor — only shown when there are any */}
+      {resourcesByMe.length > 0 && (
+        <div className="card">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+            <div style={{ fontWeight: 700 }}>Resources I Recommended As Mentor</div>
+            <Link href="/mentorship/mentees" className="muted" style={{ fontSize: 12 }}>
+              Open my mentees →
+            </Link>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {resourcesByMe.map((resource) => (
+              <div
+                key={resource.id}
+                style={{
+                  padding: "0.6rem 0.8rem",
+                  background: "var(--surface-alt)",
+                  borderRadius: "var(--radius-md, 8px)",
+                  borderLeft: "3px solid #0f766e",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>
+                    {resource.url ? (
+                      <a href={resource.url} target="_blank" rel="noreferrer" className="link">
+                        {resource.title}
+                      </a>
+                    ) : (
+                      resource.title
+                    )}
+                  </div>
+                  <span className="pill" style={{ fontSize: "0.68rem" }}>
+                    {MENTORSHIP_RESOURCE_TYPE_META[resource.type]?.label ?? resource.type}
+                  </span>
+                </div>
+                {resource.description && (
+                  <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--muted)" }}>
+                    {resource.description}
+                  </p>
+                )}
+                {resource.mentee?.name && (
+                  <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--muted)" }}>
+                    Sent to {resource.mentee.name}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Latest feedback */}
       {latestApprovedReview && (
