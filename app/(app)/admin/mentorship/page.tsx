@@ -13,7 +13,7 @@ import GoalsPanel from "@/app/(app)/admin/mentorship-program/goals-panel";
 import ChairsPanel from "@/app/(app)/admin/mentorship-program/chairs-panel";
 import { getMentorCapacityStatus } from "@/lib/mentorship-access";
 
-export const metadata = { title: "Mentorship Admin — YPP Portal" };
+export const metadata = { title: "Instructor Mentorship Admin — YPP Portal" };
 
 const TABS = [
   { key: "pulse", label: "Pulse" },
@@ -157,9 +157,12 @@ export default async function AdminMentorshipPage({
     <div>
       <div className="topbar">
         <div>
-          <p className="badge">Admin · Mentorship</p>
-          <h1 className="page-title">Mentorship Oversight</h1>
-          <p className="page-subtitle">Program health, approvals, pairings, goals, and committees.</p>
+          <p className="badge">Admin · Instructor Mentorship</p>
+          <h1 className="page-title">Instructor Mentorship Oversight</h1>
+          <p className="page-subtitle">
+            Program health, approvals, pairings, goals, and committees for the
+            instructor mentorship program.
+          </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Link href="/admin/mentorship-program" className="button secondary small">

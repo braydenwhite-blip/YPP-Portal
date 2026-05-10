@@ -11,15 +11,17 @@ import {
 
 describe("mentorship-admin-helpers", () => {
   describe("parseAdminMentorshipLane", () => {
-    it("accepts known lane query values", () => {
-      expect(parseAdminMentorshipLane("students")).toBe("STUDENTS");
+    it("accepts visible lane query values", () => {
       expect(parseAdminMentorshipLane("instructors")).toBe("INSTRUCTORS");
       expect(parseAdminMentorshipLane("leadership")).toBe("LEADERSHIP");
     });
 
-    it("falls back to students for unknown values", () => {
-      expect(parseAdminMentorshipLane("something-else")).toBe("STUDENTS");
-      expect(parseAdminMentorshipLane(undefined)).toBe("STUDENTS");
+    it("falls back to instructors when the student lane is hidden", () => {
+      // Student mentorship is not yet launched, so the students lane is
+      // hidden and any unknown / hidden value resolves to instructors.
+      expect(parseAdminMentorshipLane("students")).toBe("INSTRUCTORS");
+      expect(parseAdminMentorshipLane("something-else")).toBe("INSTRUCTORS");
+      expect(parseAdminMentorshipLane(undefined)).toBe("INSTRUCTORS");
     });
   });
 

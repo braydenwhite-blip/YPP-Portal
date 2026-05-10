@@ -14,7 +14,7 @@ test("@nightly admin can review readiness, mentorship, and legacy compatibility 
 
   await page.goto("/admin/mentorship-program");
   await expect(
-    page.getByRole("heading", { name: "Mentorship Program" })
+    page.getByRole("heading", { name: "Instructor Mentorship Command Center" })
   ).toBeVisible();
 
   await page.goto("/admin/instructor-applicants");
