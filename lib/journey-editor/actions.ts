@@ -442,3 +442,59 @@ export async function updateDraftBeat(input: z.infer<typeof UpdateDraftBeatInput
     revalidatePath(`/admin/journeys/${beat.journeyVersion.journeyId}`);
   });
 }
+
+// ============================================================================
+// Gates
+// ============================================================================
+
+const GateInput = z.object({
+  kind: z.enum(["READINESS_CHECK", "BEAT_COMPLETE", "MODULE_COMPLETE", "SCORE_THRESHOLD"]),
+  targetRef: z.string().regex(/^(beat|module):[A-Za-z0-9_\-]+$/),
+  requiredRef: z.string().regex(/^(beat|module):[A-Za-z0-9_\-]+$/),
+  threshold: z.number().int().min(0).max(100).nullable().optional(),
+});
+
+const SetGatesInput = z.object({
+  versionId: z.string().min(1),
+  gates: z.array(GateInput),
+});
+
+export async function setGates(input: z.infer<typeof SetGatesInput>) {
+  const editor = await requireJourneyEditor();
+  if (!editor.canPublish) throw new Error("Unauthorized.");
+  const parsed = SetGatesInput.parse(input);
+
+  await prisma.$transaction(async (tx) => {
+    const version = await tx.journeyVersion.findUnique({
+      where: { id: parsed.versionId },
+      select: { id: true, journeyId: true, status: true },
+    });
+    if (!version) throw new Error("Version not found.");
+    if (version.status !== "DRAFT") throw new Error("Cannot edit gates on a non-DRAFT version.");
+
+    await tx.journeyGate.deleteMany({ where: { journeyVersionId: parsed.versionId } });
+    if (parsed.gates.length > 0) {
+      await tx.journeyGate.createMany({
+        data: parsed.gates.map((g) => ({
+          journeyVersionId: parsed.versionId,
+          kind: g.kind,
+          targetRef: g.targetRef,
+          requiredRef: g.requiredRef,
+          threshold: g.threshold ?? null,
+        })),
+      });
+    }
+
+    await tx.journeyAuditLog.create({
+      data: {
+        journeyId: version.journeyId,
+        journeyVersionId: version.id,
+        actorId: editor.id,
+        action: "SET_GATES",
+        diff: { count: parsed.gates.length } as object,
+      },
+    });
+
+    revalidatePath(`/admin/journeys/${version.journeyId}`);
+  });
+}

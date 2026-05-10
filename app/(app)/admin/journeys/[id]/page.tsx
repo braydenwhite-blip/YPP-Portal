@@ -35,6 +35,20 @@ export default async function AdminJourneyDetailPage({
   if (!journey) notFound();
 
   const draft = journey.versions.find((v) => v.status === "DRAFT");
+  const draftGates = draft
+    ? await prisma.journeyGate.findMany({
+        where: { journeyVersionId: draft.id },
+        select: { id: true, kind: true, targetRef: true, requiredRef: true, threshold: true },
+      })
+    : [];
+  const knownModules = await prisma.trainingModule.findMany({
+    where: { contentKey: { not: null }, archivedAt: null },
+    select: { contentKey: true },
+  });
+  const knownModuleRefs = knownModules
+    .map((m) => m.contentKey)
+    .filter((k): k is string => Boolean(k))
+    .map((k) => `module:${k}`);
   const draftBeats = draft
     ? await prisma.interactiveBeat.findMany({
         where: { journeyVersionId: draft.id, removedAt: null },
@@ -97,6 +111,9 @@ export default async function AdminJourneyDetailPage({
           scoringWeight: b.scoringWeight,
           config: b.config,
         }))}
+        draftGates={draftGates}
+        beatRefs={draftBeats.map((b) => `beat:${b.sourceKey}`)}
+        knownModuleRefs={knownModuleRefs}
         assignments={journey.assignments}
         auditLog={journey.auditLogs.map((a) => ({
           id: a.id,
