@@ -333,6 +333,82 @@ export async function adminPromoteFromWaitlist(formData: FormData) {
 }
 
 /**
+ * Admin updates the in-person logistics fields (room, arrival
+ * instructions, materials list) without touching schedule or instructor
+ * assignment. Stored as a single timeline entry per save with a diff
+ * payload.
+ */
+export async function adminUpdateLogistics(formData: FormData) {
+  const actor = await requireAdmin();
+  const offeringId = getString(formData, "offeringId");
+  const room = getString(formData, "room", false) || null;
+  const arrivalInstructions =
+    getString(formData, "arrivalInstructions", false) || null;
+  // Accept either repeated `materialsList` form fields or a single newline-
+  // separated textarea value. Both shapes flatten to the same trimmed list.
+  const materialsList = formData
+    .getAll("materialsList")
+    .flatMap((value) => String(value).split(/\r?\n/))
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+
+  const offering = await prisma.classOffering.findUnique({
+    where: { id: offeringId },
+    select: {
+      id: true,
+      room: true,
+      arrivalInstructions: true,
+      materialsList: true,
+    },
+  });
+  if (!offering) {
+    throw new Error("Class offering not found.");
+  }
+
+  const changedFields: Record<
+    string,
+    { from: string | string[] | null; to: string | string[] | null }
+  > = {};
+  if (offering.room !== room) {
+    changedFields.room = { from: offering.room, to: room };
+  }
+  if (offering.arrivalInstructions !== arrivalInstructions) {
+    changedFields.arrivalInstructions = {
+      from: offering.arrivalInstructions,
+      to: arrivalInstructions,
+    };
+  }
+  const before = (offering.materialsList ?? []).join("|");
+  const after = materialsList.join("|");
+  if (before !== after) {
+    changedFields.materialsList = {
+      from: offering.materialsList,
+      to: materialsList,
+    };
+  }
+
+  if (Object.keys(changedFields).length === 0) {
+    return { success: true, unchanged: true };
+  }
+
+  await prisma.classOffering.update({
+    where: { id: offeringId },
+    data: { room, arrivalInstructions, materialsList },
+  });
+
+  await recordOfferingTimeline({
+    offeringId,
+    actorId: actor.id,
+    kind: "NOTE",
+    summary: `Updated logistics: ${Object.keys(changedFields).join(", ")}.`,
+    payload: changedFields,
+  });
+
+  revalidateAdminClassSurfaces(offeringId);
+  return { success: true };
+}
+
+/**
  * Reassign a class offering to a different instructor. Requires the new
  * user to hold the INSTRUCTOR role. Does not re-validate readiness — admin
  * is intentionally trusted here for emergency reassignments (e.g. the
