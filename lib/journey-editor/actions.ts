@@ -23,6 +23,13 @@ import { prisma } from "@/lib/prisma";
 import { BEAT_CONFIG_SCHEMAS } from "@/lib/training-journey/schemas";
 
 import { BEAT_DEFAULTS, EDITOR_SUPPORTED_KINDS } from "./beat-defaults";
+import type {
+  BeatDraft,
+  GateDraft,
+  JourneyAssignmentDraft,
+  JourneyDraft,
+} from "./types";
+import { validateDraft } from "./validation";
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*$/;
 const SOURCE_KEY_RE = /^[a-z0-9][a-z0-9_\-]*$/;
@@ -496,5 +503,189 @@ export async function setGates(input: z.infer<typeof SetGatesInput>) {
     });
 
     revalidatePath(`/admin/journeys/${version.journeyId}`);
+  });
+}
+
+// ============================================================================
+// Publish / rollback
+// ============================================================================
+
+const PublishVersionInput = z.object({
+  versionId: z.string().min(1),
+});
+
+export async function publishVersion(input: z.infer<typeof PublishVersionInput>) {
+  const editor = await requireJourneyEditor();
+  if (!editor.canPublish) throw new Error("Unauthorized.");
+  const parsed = PublishVersionInput.parse(input);
+
+  await prisma.$transaction(async (tx) => {
+    const version = await tx.journeyVersion.findUnique({
+      where: { id: parsed.versionId },
+      include: {
+        journey: { select: { id: true, slug: true, title: true, description: true } },
+        beats: { where: { removedAt: null }, orderBy: { sortOrder: "asc" } },
+        gates: true,
+      },
+    });
+    if (!version) throw new Error("Version not found.");
+    if (version.status !== "DRAFT") {
+      throw new Error("Only DRAFT versions can be published.");
+    }
+
+    const assignments = await tx.journeyAssignmentRule.findMany({
+      where: { journeyId: version.journeyId },
+      select: { audience: true, autoEnroll: true },
+    });
+    const knownModules = await tx.trainingModule.findMany({
+      where: { contentKey: { not: null }, archivedAt: null },
+      select: { contentKey: true },
+    });
+
+    const draft: JourneyDraft = {
+      journeyId: version.journeyId,
+      versionId: version.id,
+      versionNumber: version.versionNumber,
+      status: "DRAFT",
+      meta: {
+        slug: version.journey.slug,
+        title: version.journey.title,
+        description: version.journey.description,
+        estimatedMinutes: version.estimatedMinutes,
+        passScorePct: version.passScorePct,
+        strictMode: version.strictMode,
+        moduleId: version.moduleId,
+      },
+      beats: version.beats.map<BeatDraft>((b) => ({
+        id: b.id,
+        sourceKey: b.sourceKey,
+        kind: b.kind,
+        title: b.title,
+        prompt: b.prompt,
+        mediaUrl: b.mediaUrl,
+        sortOrder: b.sortOrder,
+        parentBeatId: b.parentBeatId,
+        showWhen: b.showWhen as object | null,
+        scoringWeight: b.scoringWeight,
+        scoringRule: b.scoringRule,
+        schemaVersion: b.schemaVersion,
+        removedAt: b.removedAt ? b.removedAt.toISOString() : null,
+        config: b.config,
+      })),
+      gates: version.gates.map<GateDraft>((g) => ({
+        id: g.id,
+        kind: g.kind,
+        targetRef: g.targetRef,
+        requiredRef: g.requiredRef,
+        threshold: g.threshold,
+      })),
+      assignments: assignments.map<JourneyAssignmentDraft>((a) => ({
+        audience: a.audience,
+        autoEnroll: a.autoEnroll,
+      })),
+    };
+
+    const result = validateDraft(draft, {
+      knownModuleContentKeys: knownModules
+        .map((m) => m.contentKey)
+        .filter((k): k is string => Boolean(k)),
+      forPublish: true,
+    });
+    if (!result.ok) {
+      throw new Error(
+        `Cannot publish: ${result.errors.length} validation issue(s). First: ${result.errors[0].message}`,
+      );
+    }
+
+    await tx.journeyVersion.updateMany({
+      where: {
+        journeyId: version.journeyId,
+        status: "PUBLISHED",
+        NOT: { id: version.id },
+      },
+      data: { status: "ARCHIVED" },
+    });
+
+    await tx.journeyVersion.update({
+      where: { id: version.id },
+      data: {
+        status: "PUBLISHED",
+        publishedAt: new Date(),
+        publishedById: editor.id,
+      },
+    });
+
+    await tx.journeyAuditLog.create({
+      data: {
+        journeyId: version.journeyId,
+        journeyVersionId: version.id,
+        actorId: editor.id,
+        action: "PUBLISH",
+        diff: { versionNumber: version.versionNumber } as object,
+      },
+    });
+
+    revalidatePath("/admin/journeys");
+    revalidatePath(`/admin/journeys/${version.journeyId}`);
+  });
+}
+
+const RollbackToVersionInput = z.object({
+  targetVersionId: z.string().min(1),
+});
+
+export async function rollbackToVersion(input: z.infer<typeof RollbackToVersionInput>) {
+  const editor = await requireJourneyEditor();
+  if (!editor.canPublish) throw new Error("Unauthorized.");
+  const parsed = RollbackToVersionInput.parse(input);
+
+  await prisma.$transaction(async (tx) => {
+    const target = await tx.journeyVersion.findUnique({
+      where: { id: parsed.targetVersionId },
+      select: { id: true, journeyId: true, status: true, versionNumber: true },
+    });
+    if (!target) throw new Error("Target version not found.");
+    if (target.status === "DRAFT") {
+      throw new Error(
+        "Rollback target must be a previously PUBLISHED or ARCHIVED version, not a DRAFT.",
+      );
+    }
+
+    const previouslyPublished = await tx.journeyVersion.findFirst({
+      where: { journeyId: target.journeyId, status: "PUBLISHED" },
+      select: { id: true, versionNumber: true },
+    });
+
+    if (previouslyPublished && previouslyPublished.id !== target.id) {
+      await tx.journeyVersion.update({
+        where: { id: previouslyPublished.id },
+        data: { status: "ARCHIVED" },
+      });
+    }
+
+    await tx.journeyVersion.update({
+      where: { id: target.id },
+      data: {
+        status: "PUBLISHED",
+        publishedAt: new Date(),
+        publishedById: editor.id,
+      },
+    });
+
+    await tx.journeyAuditLog.create({
+      data: {
+        journeyId: target.journeyId,
+        journeyVersionId: target.id,
+        actorId: editor.id,
+        action: "ROLLBACK",
+        diff: {
+          to: target.versionNumber,
+          from: previouslyPublished?.versionNumber ?? null,
+        } as object,
+      },
+    });
+
+    revalidatePath("/admin/journeys");
+    revalidatePath(`/admin/journeys/${target.journeyId}`);
   });
 }

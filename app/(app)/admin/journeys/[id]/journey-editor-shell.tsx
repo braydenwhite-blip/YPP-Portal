@@ -2,7 +2,12 @@
 
 import { useState, useTransition } from "react";
 
-import { createDraftFromPublished, updateJourneyMeta } from "@/lib/journey-editor/actions";
+import {
+  createDraftFromPublished,
+  publishVersion,
+  rollbackToVersion,
+  updateJourneyMeta,
+} from "@/lib/journey-editor/actions";
 
 import { BeatsTab, type BeatRow } from "./beats-tab";
 import { GatesTab, type GateRow } from "./gates-tab";
@@ -107,7 +112,11 @@ export function JourneyEditorShell(props: JourneyEditorShellProps) {
           <PlaceholderPanel label="Audience assignment editor — Commit 13." />
         ) : null}
         {tab === "versions" ? (
-          <VersionsTab versions={props.versions} auditLog={props.auditLog} />
+          <VersionsTab
+            versions={props.versions}
+            auditLog={props.auditLog}
+            canPublish={props.canPublish}
+          />
         ) : null}
       </div>
     </section>
@@ -247,11 +256,44 @@ function OverviewTab(props: {
 function VersionsTab(props: {
   versions: JourneyEditorShellProps["versions"];
   auditLog: JourneyEditorShellProps["auditLog"];
+  canPublish: boolean;
 }) {
+  const [pending, startTransition] = useTransition();
+  const [message, setMessage] = useState<string | null>(null);
+
+  function handlePublish(versionId: string) {
+    if (!confirm("Publish this draft? Any currently-published version will be archived.")) return;
+    setMessage(null);
+    startTransition(async () => {
+      try {
+        await publishVersion({ versionId });
+        setMessage("Published.");
+      } catch (e) {
+        setMessage(e instanceof Error ? e.message : "Publish failed.");
+      }
+    });
+  }
+
+  function handleRollback(targetVersionId: string, versionNumber: number) {
+    if (!confirm(`Roll back to v${versionNumber}? The current PUBLISHED version will be archived.`)) {
+      return;
+    }
+    setMessage(null);
+    startTransition(async () => {
+      try {
+        await rollbackToVersion({ targetVersionId });
+        setMessage(`Rolled back to v${versionNumber}.`);
+      } catch (e) {
+        setMessage(e instanceof Error ? e.message : "Rollback failed.");
+      }
+    });
+  }
+
   return (
     <div className="grid-2col">
       <div className="card">
         <h2>Versions</h2>
+        {message ? <p className="muted">{message}</p> : null}
         <table className="admin-table">
           <thead>
             <tr>
@@ -260,6 +302,7 @@ function VersionsTab(props: {
               <th>Beats</th>
               <th>Gates</th>
               <th>Updated</th>
+              <th />
             </tr>
           </thead>
           <tbody>
@@ -270,6 +313,26 @@ function VersionsTab(props: {
                 <td>{v.beatCount}</td>
                 <td>{v.gateCount}</td>
                 <td>{new Date(v.updatedAt).toLocaleString()}</td>
+                <td>
+                  {props.canPublish && v.status === "DRAFT" ? (
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={() => handlePublish(v.id)}
+                      disabled={pending}
+                    >
+                      Publish
+                    </button>
+                  ) : null}
+                  {props.canPublish && v.status === "ARCHIVED" ? (
+                    <button
+                      className="btn btn-sm"
+                      onClick={() => handleRollback(v.id, v.versionNumber)}
+                      disabled={pending}
+                    >
+                      Roll back here
+                    </button>
+                  ) : null}
+                </td>
               </tr>
             ))}
           </tbody>
