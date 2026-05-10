@@ -6,20 +6,56 @@
  *      both create ENROLLED rows, leaving the offering over-capacity.
  *   2. Two concurrent drops both promote the same waitlisted student.
  *
- * These helpers wrap each mutation in an interactive Prisma transaction so
- * the count and the write happen together. Postgres' default Read Committed
- * isolation still permits a small window, but the transaction at least
- * scopes the window to a single connection and prevents long-running
- * inter-call drift. For full correctness a future change should set
- * `isolationLevel: 'Serializable'` on these transactions, which Prisma
- * supports via the second arg to $transaction.
- *
- * Waitlist position is computed as max(waitlistPosition) + 1 over existing
- * waitlisted rows — the previous formula `(enrolledCount - capacity + 1)`
- * collided when re-enrolling against an existing waitlist.
+ * Each helper wraps its read+write in `prisma.$transaction` with
+ * `isolationLevel: 'Serializable'`. Postgres detects the serialization
+ * conflict and aborts one of the racing transactions with SQLSTATE 40001,
+ * which Prisma surfaces as `P2034`. `runSerializable` retries up to three
+ * times with brief backoff; if every retry loses, the call surfaces an
+ * error to the caller. Waitlist position is computed as
+ * `max(waitlistPosition) + 1` over existing WAITLISTED rows.
  */
 
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+
+const MAX_SERIALIZABLE_RETRIES = 3;
+
+function isSerializationFailure(error: unknown): boolean {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    return error.code === "P2034";
+  }
+  // Some drivers wrap the SQLSTATE differently. Accept the raw code too.
+  if (error && typeof error === "object" && "code" in error) {
+    const code = (error as { code: unknown }).code;
+    return code === "P2034" || code === "40001";
+  }
+  return false;
+}
+
+async function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function runSerializable<T>(
+  callback: (tx: Prisma.TransactionClient) => Promise<T>,
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < MAX_SERIALIZABLE_RETRIES; attempt += 1) {
+    try {
+      return await prisma.$transaction(callback, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      });
+    } catch (error) {
+      lastError = error;
+      if (!isSerializationFailure(error)) {
+        throw error;
+      }
+      // Brief jittered backoff before retry: 25ms, 75ms, 175ms.
+      await sleep(25 * (2 ** attempt - 1) + Math.floor(Math.random() * 25));
+    }
+  }
+  throw lastError;
+}
 
 type SeatResult = {
   enrollmentId: string;
@@ -43,7 +79,7 @@ export async function takeSeatRaceSafe(args: {
 }): Promise<SeatResult> {
   const { offeringId, studentId } = args;
 
-  return prisma.$transaction(async (tx) => {
+  return runSerializable(async (tx) => {
     const offering = await tx.classOffering.findUnique({
       where: { id: offeringId },
       select: { id: true, capacity: true },
@@ -132,7 +168,7 @@ export async function dropAndPromoteRaceSafe(args: {
 }): Promise<{ dropped: boolean; promotedEnrollmentId: string | null }> {
   const { offeringId, studentId } = args;
 
-  return prisma.$transaction(async (tx) => {
+  return runSerializable(async (tx) => {
     const enrollment = await tx.classEnrollment.findUnique({
       where: { studentId_offeringId: { studentId, offeringId } },
       select: { id: true, status: true },
@@ -193,7 +229,7 @@ export async function promoteNextWaitlistedRaceSafe(args: {
 }): Promise<{ promoted: boolean; enrollmentId: string | null }> {
   const { offeringId } = args;
 
-  return prisma.$transaction(async (tx) => {
+  return runSerializable(async (tx) => {
     const offering = await tx.classOffering.findUnique({
       where: { id: offeringId },
       select: { capacity: true },

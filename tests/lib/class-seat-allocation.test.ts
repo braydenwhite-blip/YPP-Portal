@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   takeSeatRaceSafe,
@@ -6,8 +7,92 @@ import {
   promoteNextWaitlistedRaceSafe,
 } from "@/lib/class-seat-allocation";
 
+// Default $transaction implementation: invoke the callback against the
+// shared prisma mock. Re-assigned in beforeEach so that tests which
+// override it via `mockRejectedValue` don't leak into the next test.
+const defaultTxImpl = async (arg: unknown) => {
+  if (typeof arg === "function") {
+    return (arg as (tx: unknown) => Promise<unknown>)(prisma);
+  }
+  if (Array.isArray(arg)) {
+    return Promise.all(arg);
+  }
+  return arg;
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(prisma.$transaction).mockImplementation(defaultTxImpl as any);
+});
+
+describe("isolation level + retry", () => {
+  it("requests Serializable isolation on every transaction", async () => {
+    vi.mocked(prisma.classOffering.findUnique).mockResolvedValue({
+      capacity: 5,
+    } as any);
+    vi.mocked(prisma.classEnrollment.count).mockResolvedValue(2);
+    vi.mocked(prisma.classEnrollment.findFirst).mockResolvedValue(null);
+
+    await promoteNextWaitlistedRaceSafe({ offeringId: "o1" });
+
+    const txCall = vi.mocked(prisma.$transaction).mock.calls[0];
+    expect(txCall[1]).toMatchObject({
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    });
+  });
+
+  it("retries up to 3 times on P2034 (serialization failure)", async () => {
+    const p2034 = new Prisma.PrismaClientKnownRequestError(
+      "could not serialize access",
+      { code: "P2034", clientVersion: "5.x" } as any,
+    );
+    const txMock = vi.mocked(prisma.$transaction);
+
+    // Override $transaction so it rejects with P2034 twice, succeeds the third time.
+    txMock
+      .mockRejectedValueOnce(p2034)
+      .mockRejectedValueOnce(p2034)
+      .mockImplementationOnce(async (arg: unknown) => {
+        if (typeof arg === "function") {
+          return (arg as (tx: unknown) => Promise<unknown>)(prisma);
+        }
+        return arg;
+      });
+
+    vi.mocked(prisma.classOffering.findUnique).mockResolvedValue({
+      capacity: 5,
+    } as any);
+    vi.mocked(prisma.classEnrollment.count).mockResolvedValue(2);
+    vi.mocked(prisma.classEnrollment.findFirst).mockResolvedValue(null);
+
+    const result = await promoteNextWaitlistedRaceSafe({ offeringId: "o1" });
+    expect(result).toEqual({ promoted: false, enrollmentId: null });
+    expect(txMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("surfaces the error after 3 failed retries", async () => {
+    const p2034 = new Prisma.PrismaClientKnownRequestError(
+      "could not serialize access",
+      { code: "P2034", clientVersion: "5.x" } as any,
+    );
+    vi.mocked(prisma.$transaction).mockRejectedValue(p2034);
+
+    await expect(
+      promoteNextWaitlistedRaceSafe({ offeringId: "o1" }),
+    ).rejects.toThrow(/serialize/);
+    expect(prisma.$transaction).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not retry non-serialization errors", async () => {
+    vi.mocked(prisma.$transaction).mockRejectedValueOnce(
+      new Error("boom — totally unrelated"),
+    );
+
+    await expect(
+      promoteNextWaitlistedRaceSafe({ offeringId: "o1" }),
+    ).rejects.toThrow(/boom/);
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("takeSeatRaceSafe", () => {
