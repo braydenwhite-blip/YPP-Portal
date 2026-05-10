@@ -154,6 +154,7 @@ async function fetchCockpitData(applicationId: string) {
         select: {
           id: true,
           reviewerId: true,
+          round: true,
           overallRating: true,
           recommendation: true,
           summary: true,
@@ -231,6 +232,12 @@ export default async function ApplicantCockpitPage({
   const currentInterviewerAssignments = application.interviewerAssignments.filter(
     (assignment) => assignment.round === application.interviewRound
   );
+  // Only show interview reviews that belong to the current interview round.
+  // If a chair triggered REQUEST_SECOND_INTERVIEW, prior-round reviews would
+  // otherwise mingle with current-round signal and confuse the CP/chair.
+  const currentInterviewReviews = application.interviewReviews.filter(
+    (review) => review.round == null || review.round === application.interviewRound
+  );
   const leadInterviewerAssignment =
     currentInterviewerAssignments.find((assignment) => assignment.role === "LEAD") ?? null;
   const secondInterviewerAssignment =
@@ -288,6 +295,11 @@ export default async function ApplicantCockpitPage({
     actorIsAdmin ||
     (isChapterLead(actor) && actor.chapterId === application.applicant.chapterId) ||
     actorIsReviewer;
+  // Same-chapter Chapter Presidents can route a completed interview to the
+  // chair queue themselves (the server action already authorizes this via
+  // assertCanManageApplication; we only need to surface the button).
+  const canSendToChair =
+    !actorIsAdmin && isChapterLead(actor) && actor.chapterId === application.applicant.chapterId;
   const canPostSlots = actorIsAdmin || actorIsLeadInterviewer;
   const canSendInterviewTimes =
     canPostSlots &&
@@ -542,14 +554,14 @@ export default async function ApplicantCockpitPage({
             </InterviewSchedulingInlinePanel>
 
             {/* Interview Reviews summary */}
-            {application.interviewReviews.length > 0 && (
+            {currentInterviewReviews.length > 0 && (
               <section id="section-interview-reviews" className="cockpit-panel">
                 <div className="cockpit-section-heading">
                   <span className="cockpit-section-kicker">Interview signal</span>
                   <h2>Interview Reviews</h2>
                 </div>
                 <div className="cockpit-stack">
-                  {application.interviewReviews.map((review) => {
+                  {currentInterviewReviews.map((review) => {
                     const recOpt = PROGRESS_RATING_OPTIONS.find(
                       (o) => o.value === review.overallRating
                     );
@@ -652,6 +664,7 @@ export default async function ApplicantCockpitPage({
         isAssignedInterviewer={actorIsInterviewer}
         isAssignedLeadInterviewer={actorIsLeadInterviewer}
         canActAsChair={canActAsChairBool}
+        canSendToChair={canSendToChair}
         isAdmin={actorIsAdmin}
         hidden={isHidden}
       />

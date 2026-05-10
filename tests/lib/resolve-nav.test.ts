@@ -1,7 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { resolveNavActiveHref, resolveNavModel } from "@/lib/navigation/resolve-nav";
 import { INSTRUCTOR_V1_ALLOWED_HREFS } from "@/lib/navigation/instructor-v1-allowlist";
 import { STUDENT_V1_ALLOWED_HREFS } from "@/lib/navigation/student-v1-allowlist";
+
+// The regular Instructor program is paused in production; enable it for the
+// nav-shape tests so the assertions cover the un-gated catalog.
+const ORIGINAL_ENABLE_REGULAR_INSTRUCTOR = process.env.ENABLE_REGULAR_INSTRUCTOR;
+beforeAll(() => {
+  process.env.ENABLE_REGULAR_INSTRUCTOR = "true";
+});
+afterAll(() => {
+  if (ORIGINAL_ENABLE_REGULAR_INSTRUCTOR === undefined) {
+    delete process.env.ENABLE_REGULAR_INSTRUCTOR;
+  } else {
+    process.env.ENABLE_REGULAR_INSTRUCTOR = ORIGINAL_ENABLE_REGULAR_INSTRUCTOR;
+  }
+});
 
 function hrefs(model: ReturnType<typeof resolveNavModel>) {
   return model.visible.map((item) => item.href);
@@ -60,7 +74,9 @@ describe("resolveNavModel", () => {
     expect(visibleHrefs).toContain("/calendar");
     expect(visibleHrefs).toContain("/my-program");
     expect(visibleHrefs).toContain("/messages");
-    expect(visibleHrefs).toContain("/chapters");
+    // `/chapters` (Find a Chapter) is consolidated into the Chapter Hub and
+    // intentionally hidden from the sidebar — see ALWAYS_HIDDEN_HREFS.
+    expect(visibleHrefs).not.toContain("/chapters");
     expect(visibleHrefs).toContain("/notifications");
     expect(visibleHrefs).toContain("/settings/personalization");
 
@@ -143,7 +159,11 @@ describe("resolveNavModel", () => {
     expect(hrefs(model)).not.toContain("/interviews");
   });
 
-  it("hides Join a chapter when the user is already assigned to a chapter", () => {
+  it("hides Join a chapter regardless of chapter assignment (consolidated under Chapter Hub)", () => {
+    // `/join-chapter` is in ALWAYS_HIDDEN_HREFS — the destination still works
+    // by URL but the sidebar surfaces Chapter Hub instead. The studentHasChapter
+    // gate is preserved in resolve-nav for if/when product reverts that
+    // consolidation, but for now the link should never appear in either branch.
     const withJoin = resolveNavModel({
       roles: ["STUDENT"],
       primaryRole: "STUDENT",
@@ -152,7 +172,7 @@ describe("resolveNavModel", () => {
       enabledFeatureKeys: new Set(),
       studentFullPortalExplorer: true,
     });
-    expect(hrefs(withJoin)).toContain("/join-chapter");
+    expect(hrefs(withJoin)).not.toContain("/join-chapter");
 
     const withoutJoin = resolveNavModel({
       roles: ["STUDENT"],

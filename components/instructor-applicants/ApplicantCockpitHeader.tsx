@@ -48,6 +48,7 @@ interface Props {
     schoolName: string | null;
     graduationYear: number | null;
     interviewRound: number;
+    applicationTrack?: string | null;
     isReapplication?: boolean;
     previousApplicationId?: string | null;
     reviewer: { id: string; name: string | null } | null;
@@ -103,6 +104,14 @@ export default function ApplicantCockpitHeader({ application }: Props) {
             {application.applicant.chapter && (
               <span className="pill pill-purple cockpit-hero-chip">
                 {application.applicant.chapter.name}
+              </span>
+            )}
+            {application.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR" && (
+              <span
+                className="pill pill-attention cockpit-hero-chip"
+                title="This applicant is on the Summer Workshop Instructor track"
+              >
+                Summer Workshop
               </span>
             )}
             {subjects.map((s) => (

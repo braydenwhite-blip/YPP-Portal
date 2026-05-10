@@ -51,6 +51,26 @@ export default async function ChapterLeadInstructorApplicantsPage({
   });
   const chapterId = user?.chapterId ?? undefined;
 
+  // Chapter Presidents without a chapter assignment see nothing — global admins
+  // own no-chapter applicants. The downstream queries also short-circuit, but
+  // we render a friendly state here so the CP isn't staring at an empty board.
+  if (isChapterPresident && !isAdmin && !chapterId) {
+    return (
+      <div className="page-shell">
+        <div className="page-header">
+          <div>
+            <span className="badge">Chapter President</span>
+            <h1 className="page-title">Instructor Applicants</h1>
+            <p className="page-subtitle">
+              No chapter is assigned to your account yet, so there are no applicants to show. Ask
+              an administrator to link your account to a chapter.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const resolvedParams = await searchParams;
   const reviewerId = (resolvedParams.reviewerId as string) || undefined;
   const interviewerId = (resolvedParams.interviewerId as string) || undefined;
@@ -66,38 +86,45 @@ export default async function ChapterLeadInstructorApplicantsPage({
     myCasesActorId: myCasesOnly ? session!.user.id : undefined,
   };
 
+  // The "filter by reviewer/interviewer" dropdown only needs people who could
+  // realistically own work in this chapter's pipeline. We require chapterId to
+  // avoid `chapterId: undefined` collapsing to "no filter".
   const loadReviewerUsers = () =>
-    prisma.user.findMany({
-      where: {
-        chapterId: chapterId ?? undefined,
-        OR: [
-          { roles: { some: { role: "ADMIN" } } },
-          { roles: { some: { role: "CHAPTER_PRESIDENT" } } },
-        ],
-      },
-      select: { id: true, name: true, email: true },
-      orderBy: { name: "asc" },
-      take: hiringDemoMode ? DEMO_FILTER_TAKE : undefined,
-    });
+    chapterId
+      ? prisma.user.findMany({
+          where: {
+            chapterId,
+            OR: [
+              { roles: { some: { role: "ADMIN" } } },
+              { roles: { some: { role: "CHAPTER_PRESIDENT" } } },
+            ],
+          },
+          select: { id: true, name: true, email: true },
+          orderBy: { name: "asc" },
+          take: hiringDemoMode ? DEMO_FILTER_TAKE : undefined,
+        })
+      : Promise.resolve([] as Array<{ id: string; name: string | null; email: string }>);
 
   const loadInterviewerUsers = () =>
-    prisma.user.findMany({
-      where: {
-        chapterId: chapterId ?? undefined,
-        OR: [
-          { roles: { some: { role: "ADMIN" } } },
-          { roles: { some: { role: "CHAPTER_PRESIDENT" } } },
-          {
-            featureGateRulesTargeted: {
-              some: { featureKey: "INTERVIEWER", enabled: true },
-            },
+    chapterId
+      ? prisma.user.findMany({
+          where: {
+            chapterId,
+            OR: [
+              { roles: { some: { role: "ADMIN" } } },
+              { roles: { some: { role: "CHAPTER_PRESIDENT" } } },
+              {
+                featureGateRulesTargeted: {
+                  some: { featureKey: "INTERVIEWER", enabled: true },
+                },
+              },
+            ],
           },
-        ],
-      },
-      select: { id: true, name: true, email: true },
-      orderBy: { name: "asc" },
-      take: hiringDemoMode ? DEMO_FILTER_TAKE : undefined,
-    });
+          select: { id: true, name: true, email: true },
+          orderBy: { name: "asc" },
+          take: hiringDemoMode ? DEMO_FILTER_TAKE : undefined,
+        })
+      : Promise.resolve([] as Array<{ id: string; name: string | null; email: string }>);
 
   let pipelineResult: Awaited<ReturnType<typeof getApplicantPipeline>>;
   let archiveResult: Awaited<ReturnType<typeof getArchivedApplications>>;

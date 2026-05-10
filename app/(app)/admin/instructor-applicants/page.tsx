@@ -67,6 +67,24 @@ export default async function AdminInstructorApplicantsPage({
     });
     chapterId = user?.chapterId ?? undefined;
     actor.chapterId = user?.chapterId ?? null;
+
+    // A CP without a chapter assignment must not see other chapters' data.
+    if (!chapterId) {
+      return (
+        <div className="page-shell">
+          <div className="page-header">
+            <div>
+              <span className="badge">Chapter President</span>
+              <h1 className="page-title">Instructor Applicants</h1>
+              <p className="page-subtitle">
+                No chapter is assigned to your account yet, so there are no applicants to show.
+                Ask an administrator to link your account to a chapter.
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
   }
 
   // Parse filters from URL

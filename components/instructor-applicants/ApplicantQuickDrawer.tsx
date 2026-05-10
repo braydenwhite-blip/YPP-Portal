@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { formatScheduleDateTime } from "@/lib/scheduling/shared";
 
@@ -34,10 +33,6 @@ type DrawerApp = {
 interface ApplicantQuickDrawerProps {
   app: DrawerApp;
   onClose: () => void;
-  canAssignReviewer?: boolean;
-  canAssignInterviewer?: boolean;
-  reviewerPickerSlot?: ReactNode;
-  interviewerPickerSlot?: ReactNode;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -57,11 +52,7 @@ const STATUS_LABELS: Record<string, string> = {
 export default function ApplicantQuickDrawer({
   app,
   onClose,
-  reviewerPickerSlot,
-  interviewerPickerSlot,
 }: ApplicantQuickDrawerProps) {
-  const [activeSection, setActiveSection] = useState<"summary" | "reviewer" | "interviewer">("summary");
-
   const leadInterviewer = app.interviewerAssignments.find((a) => a.role === "LEAD");
   const secondInterviewer = app.interviewerAssignments.find((a) => a.role === "SECOND");
   const leadReview = app.applicationReviews?.[0];
@@ -106,31 +97,8 @@ export default function ApplicantQuickDrawer({
           </button>
         </div>
 
-        {/* Tab nav */}
-        <div
-          role="tablist"
-          aria-label="Applicant sections"
-          className="applicant-quick-drawer-tabs"
-        >
-          {(["summary", "reviewer", "interviewer"] as const).map((tab) => (
-            <button
-              key={tab}
-              role="tab"
-              type="button"
-              aria-selected={activeSection === tab}
-              onClick={() => setActiveSection(tab)}
-              className="applicant-quick-drawer-tab"
-              data-active={activeSection === tab}
-            >
-              {tab === "reviewer" ? "Reviewer" : tab === "interviewer" ? "Interviewers" : "Summary"}
-            </button>
-          ))}
-        </div>
-
         {/* Body */}
         <div className="slideout-body">
-          {activeSection === "summary" && (
-            <>
               {/* Key details */}
               <div className="slideout-section">
                 <div className="slideout-section-title">Quick glance</div>
@@ -223,32 +191,6 @@ export default function ApplicantQuickDrawer({
                   Open full workspace
                 </Link>
               </div>
-            </>
-          )}
-
-          {activeSection === "reviewer" && (
-            <div className="slideout-section">
-              <div className="slideout-section-title">
-                {app.reviewer ? "Reassign Reviewer" : "Assign Reviewer"}
-              </div>
-              {reviewerPickerSlot ?? (
-                <p style={{ fontSize: 13, color: "var(--muted)" }}>
-                  Reviewer assignment not available here.
-                </p>
-              )}
-            </div>
-          )}
-
-          {activeSection === "interviewer" && (
-            <div className="slideout-section">
-              <div className="slideout-section-title">Assign Interviewers</div>
-              {interviewerPickerSlot ?? (
-                <p style={{ fontSize: 13, color: "var(--muted)" }}>
-                  Interviewer assignment not available here.
-                </p>
-              )}
-            </div>
-          )}
         </div>
       </div>
     </>

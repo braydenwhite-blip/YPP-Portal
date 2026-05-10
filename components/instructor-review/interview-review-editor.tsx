@@ -60,13 +60,6 @@ type ReviewSnapshot = {
   overallRating: ProgressRatingValue | null;
   recommendation: InstructorInterviewRecommendationValue | null;
   summary: string | null;
-  overallNotes: string | null;
-  demeanorNotes: string | null;
-  maturityNotes: string | null;
-  communicationNotes: string | null;
-  professionalismNotes: string | null;
-  followUpItems: string | null;
-  curriculumFeedback: string | null;
   revisionRequirements: string | null;
   applicantMessage: string | null;
   flagForLeadership: boolean;
@@ -118,13 +111,6 @@ type LiveDraftInput = {
   overallRating: string | null;
   recommendation: string | null;
   summary: string | null;
-  overallNotes: string | null;
-  demeanorNotes: string | null;
-  maturityNotes: string | null;
-  communicationNotes: string | null;
-  professionalismNotes: string | null;
-  followUpItems: string | null;
-  curriculumFeedback: string | null;
   revisionRequirements: string | null;
   applicantMessage: string | null;
   flagForLeadership: boolean;
@@ -282,13 +268,6 @@ export default function InterviewReviewEditor({
     initialReview?.recommendation ?? ""
   );
   const [summary, setSummary] = useState(initialReview?.summary ?? "");
-  const [overallNotes] = useState(initialReview?.overallNotes ?? "");
-  const [demeanorNotes] = useState(initialReview?.demeanorNotes ?? "");
-  const [maturityNotes] = useState(initialReview?.maturityNotes ?? "");
-  const [communicationNotes] = useState(initialReview?.communicationNotes ?? "");
-  const [professionalismNotes] = useState(initialReview?.professionalismNotes ?? "");
-  const [followUpItems] = useState(initialReview?.followUpItems ?? "");
-  const [curriculumFeedback] = useState(initialReview?.curriculumFeedback ?? "");
   const [revisionRequirements, setRevisionRequirements] = useState(
     initialReview?.revisionRequirements ?? ""
   );
@@ -328,8 +307,11 @@ export default function InterviewReviewEditor({
     if (initialQuestionRef.current === activeQuestionId) return;
     initialQuestionRef.current = activeQuestionId;
     const node = questionCardRef.current;
-    if (!node) return;
-    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!node || typeof node.scrollIntoView !== "function") return;
+    const prefersReducedMotion =
+      typeof window !== "undefined" && typeof window.matchMedia === "function"
+        ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        : false;
     node.scrollIntoView({
       behavior: prefersReducedMotion ? "auto" : "smooth",
       block: "start",
@@ -380,13 +362,6 @@ export default function InterviewReviewEditor({
       overallRating: overallRating || null,
       recommendation: recommendation || null,
       summary: summary || null,
-      overallNotes: overallNotes || null,
-      demeanorNotes: demeanorNotes || null,
-      maturityNotes: maturityNotes || null,
-      communicationNotes: communicationNotes || null,
-      professionalismNotes: professionalismNotes || null,
-      followUpItems: followUpItems || null,
-      curriculumFeedback: curriculumFeedback || null,
       revisionRequirements: revisionRequirements || null,
       applicantMessage: applicantMessage || null,
       flagForLeadership,
@@ -395,15 +370,8 @@ export default function InterviewReviewEditor({
       applicationId,
       applicantMessage,
       categoryPayload,
-      communicationNotes,
-      curriculumFeedback,
-      demeanorNotes,
       flagForLeadership,
-      followUpItems,
-      maturityNotes,
-      overallNotes,
       overallRating,
-      professionalismNotes,
       questionPayload,
       recommendation,
       revisionRequirements,
@@ -1162,13 +1130,6 @@ export default function InterviewReviewEditor({
           })}
         </div>
         <input type="hidden" name="overallRating" value={overallRating} />
-        <input type="hidden" name="overallNotes" value={overallNotes} />
-        <input type="hidden" name="demeanorNotes" value={demeanorNotes} />
-        <input type="hidden" name="maturityNotes" value={maturityNotes} />
-        <input type="hidden" name="communicationNotes" value={communicationNotes} />
-        <input type="hidden" name="professionalismNotes" value={professionalismNotes} />
-        <input type="hidden" name="followUpItems" value={followUpItems} />
-        <input type="hidden" name="curriculumFeedback" value={curriculumFeedback} />
 
         {showRecommendation ? (
           <div className="form-row" role="group" aria-labelledby="iv-rec-label">

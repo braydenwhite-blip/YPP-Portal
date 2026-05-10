@@ -280,6 +280,7 @@ async function ensureStudentUserFromIntake(params: {
     };
   }
 
+  let studentUserCreated = false;
   if (!existingUser) {
     const authUser = await ensureSupabaseAuthUser({
       name: intakeCase.studentName,
@@ -293,7 +294,9 @@ async function ensureStudentUserFromIntake(params: {
         passwordHash: authUser.passwordHash,
         primaryRole: RoleType.STUDENT,
         chapterId: intakeCase.chapterId,
-        emailVerified: new Date(),
+        // Leave emailVerified null so the verification email below has a real
+        // claim to make; it stamps emailVerified when the student visits the
+        // magic link.
         supabaseAuthId: authUser.supabaseAuthId,
         roles: {
           create: [{ role: RoleType.STUDENT }],
@@ -312,6 +315,7 @@ async function ensureStudentUserFromIntake(params: {
     });
 
     studentUserId = newStudent.id;
+    studentUserCreated = true;
   } else {
     studentUserId = existingUser.id;
 
@@ -366,6 +370,7 @@ async function ensureStudentUserFromIntake(params: {
 
   return {
     studentUserId,
+    studentUserCreated,
   };
 }
 
@@ -761,9 +766,19 @@ export async function approveStudentIntakeCase(formData: FormData) {
     throw new Error("Only submitted or in-review cases can be approved.");
   }
 
-  const { studentUserId } = await ensureStudentUserFromIntake({
+  const { studentUserId, studentUserCreated } = await ensureStudentUserFromIntake({
     intakeCase,
   });
+
+  // Newly minted student accounts need to verify their email before they can
+  // sign in. Fire-and-forget so an email transport hiccup doesn't block the
+  // rest of the approval pipeline.
+  if (studentUserCreated) {
+    const { sendVerificationEmail } = await import("@/lib/email-verification-actions");
+    await sendVerificationEmail(studentUserId).catch((err) => {
+      console.error("[approveStudentIntakeCase] verification email failed:", err);
+    });
+  }
 
   await upsertApprovedParentLink({
     parentId: intakeCase.parentId,

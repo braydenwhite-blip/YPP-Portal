@@ -96,15 +96,19 @@ export async function notifyReviewersOfNewApplication(applicantId: string) {
 
   const emailSet = new Set<string>();
 
-  // 1. Chapter president(s) for the applicant's chapter
-  const chapterPresidents = await prisma.user.findMany({
-    where: {
-      roles: { some: { role: RoleType.CHAPTER_PRESIDENT } },
-      ...(applicant.chapterId ? { chapterId: applicant.chapterId } : {}),
-    },
-    select: { email: true },
-  });
-  chapterPresidents.forEach((u) => u.email && emailSet.add(u.email));
+  // 1. Chapter president(s) for the applicant's chapter.
+  //    Applicants without a chapter are owned by the global hiring chair (below);
+  //    do NOT fan out to every CP in the system in that case.
+  if (applicant.chapterId) {
+    const chapterPresidents = await prisma.user.findMany({
+      where: {
+        roles: { some: { role: RoleType.CHAPTER_PRESIDENT } },
+        chapterId: applicant.chapterId,
+      },
+      select: { email: true },
+    });
+    chapterPresidents.forEach((u) => u.email && emailSet.add(u.email));
+  }
 
   // 2. Hiring chairs — every active user with the HIRING_CHAIR role.
   // Cross-chapter: HIRING_CHAIR is global by product decision.
@@ -462,14 +466,33 @@ export async function scheduleInterview(
   });
   if (!application) throw new Error("Application not found");
 
-  await prisma.instructorApplication.update({
-    where: { id: applicationId },
-    data: {
-      status: InstructorApplicationStatus.INTERVIEW_SCHEDULED,
-      reviewerId,
-      interviewScheduledAt: scheduledAt,
-      reviewerNotes: notes ?? null,
-    },
+  const previousScheduledAt = application.interviewScheduledAt ?? null;
+  const isReschedule =
+    previousScheduledAt && previousScheduledAt.getTime() !== scheduledAt.getTime();
+
+  await prisma.$transaction(async (tx) => {
+    await tx.instructorApplication.update({
+      where: { id: applicationId },
+      data: {
+        status: InstructorApplicationStatus.INTERVIEW_SCHEDULED,
+        reviewerId,
+        interviewScheduledAt: scheduledAt,
+        reviewerNotes: notes ?? null,
+      },
+    });
+    await tx.instructorApplicationTimelineEvent.create({
+      data: {
+        applicationId,
+        kind: isReschedule ? "INTERVIEW_RESCHEDULED" : "INTERVIEW_SCHEDULED",
+        actorId: reviewerId,
+        payload: {
+          scheduledAt: scheduledAt.toISOString(),
+          ...(previousScheduledAt
+            ? { previousScheduledAt: previousScheduledAt.toISOString() }
+            : {}),
+        },
+      },
+    });
   });
 
   const { getBaseUrl } = await import("@/lib/portal-auth-utils");
@@ -489,6 +512,7 @@ export async function scheduleInterview(
   await syncInstructorApplicationWorkflow(applicationId);
   revalidatePath("/admin/instructor-applicants");
   revalidatePath("/chapter-lead/instructor-applicants");
+  revalidatePath(`/applications/instructor/${applicationId}`);
   revalidatePath("/application-status");
 }
 
@@ -771,6 +795,7 @@ export async function assignReviewer(
     });
     revalidatePath("/admin/instructor-applicants");
     revalidatePath("/chapter-lead/instructor-applicants");
+    revalidatePath(`/applications/instructor/${applicationId}`);
     return { success: true };
   } catch (error) {
     console.error("[assignReviewer]", error);
@@ -1650,9 +1675,11 @@ export async function sendToChair(formData: FormData): Promise<{ success: boolea
     const activeInterviewerIds = app.interviewerAssignments
       .filter((assignment) => assignment.round === app.interviewRound)
       .map((a) => a.interviewerId);
+    // Any SUBMITTED review counts; the editor's submit gate already requires
+    // a recommendation when one is allowed to be chosen.
     const submittedReviewerIds = new Set(
       app.interviewReviews
-        .filter((review) => review.round === app.interviewRound && review.recommendation)
+        .filter((review) => review.round === app.interviewRound)
         .map((r) => r.reviewerId)
     );
     const missingReviews = activeInterviewerIds.filter((id) => !submittedReviewerIds.has(id));

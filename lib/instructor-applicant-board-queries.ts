@@ -192,12 +192,35 @@ export async function getApplicantPipeline({
   chapterId,
   filters = {},
   take,
+  includeOrphans = true,
 }: {
   scope: PipelineScope;
   chapterId?: string;
   filters?: PipelineFilters;
   take?: number;
+  /**
+   * When scope === "chapter", also surface orphan applicants (applicantChapterId === null).
+   * These are owned by the global admin queue but every CP can view/triage them.
+   */
+  includeOrphans?: boolean;
 }): Promise<{ columns: Record<DerivedColumn, typeof applications[number][]> }> {
+  // Defense in depth: chapter scope without a chapter id must not leak across chapters.
+  if (scope === "chapter" && !chapterId) {
+    const empty: Record<DerivedColumn, never[]> = {
+      new: [],
+      needs_review: [],
+      interview_prep: [],
+      ready_for_interview: [],
+      post_interview: [],
+      chair_review: [],
+      decided: [],
+      on_hold: [],
+      waitlisted: [],
+      archive: [],
+    };
+    return { columns: empty as unknown as Record<DerivedColumn, typeof applications[number][]> };
+  }
+
   const where: Record<string, unknown> = {
     // Exclude already-archived items from the main pipeline
     archivedAt: null,
@@ -205,7 +228,9 @@ export async function getApplicantPipeline({
   };
 
   if (scope === "chapter" && chapterId) {
-    where.applicant = { chapterId };
+    where.applicant = includeOrphans
+      ? { OR: [{ chapterId }, { chapterId: null }] }
+      : { chapterId };
   }
 
   if (filters.reviewerId) {
@@ -220,9 +245,14 @@ export async function getApplicantPipeline({
 
   if (filters.materialsMissing) {
     where.materialsReadyAt = null;
-    where.status = {
-      in: ["INTERVIEW_SCHEDULED", "PRE_APPROVED"] as InstructorApplicationStatus[],
-    };
+    where.AND = [
+      ...((where.AND as unknown[]) ?? []),
+      {
+        status: {
+          in: ["INTERVIEW_SCHEDULED", "PRE_APPROVED"] as InstructorApplicationStatus[],
+        },
+      },
+    ];
   }
 
   if (filters.applicationTrack) {
@@ -361,10 +391,12 @@ function buildChairQueueWhere({
   scope,
   chapterId,
   applicationId,
+  includeOrphans = true,
 }: {
   scope: PipelineScope;
   chapterId?: string;
   applicationId?: string;
+  includeOrphans?: boolean;
 }) {
   const where: Record<string, unknown> = {
     status: "CHAIR_REVIEW" as InstructorApplicationStatus,
@@ -375,7 +407,9 @@ function buildChairQueueWhere({
   }
 
   if (scope === "chapter" && chapterId) {
-    where.applicant = { chapterId };
+    where.applicant = includeOrphans
+      ? { OR: [{ chapterId }, { chapterId: null }] }
+      : { chapterId };
   }
 
   return where;
@@ -406,6 +440,9 @@ export async function getChairQueue({
   scope: PipelineScope;
   chapterId?: string;
 }) {
+  if (scope === "chapter" && !chapterId) {
+    return [];
+  }
   const applications = await prisma.instructorApplication.findMany({
     where: buildChairQueueWhere({ scope, chapterId }),
     select: CHAIR_QUEUE_SELECT,
@@ -444,13 +481,19 @@ export async function getArchivedApplications({
   since,
   skip = 0,
   take = 50,
+  includeOrphans = true,
 }: {
   scope: PipelineScope;
   chapterId?: string;
   since?: Date;
   skip?: number;
   take?: number;
+  includeOrphans?: boolean;
 }) {
+  if (scope === "chapter" && !chapterId) {
+    return { items: [], total: 0, skip, take };
+  }
+
   const where: Record<string, unknown> = {
     OR: [
       { archivedAt: { not: null } },
@@ -459,7 +502,9 @@ export async function getArchivedApplications({
   };
 
   if (scope === "chapter" && chapterId) {
-    where.applicant = { chapterId };
+    where.applicant = includeOrphans
+      ? { OR: [{ chapterId }, { chapterId: null }] }
+      : { chapterId };
   }
 
   if (since) {

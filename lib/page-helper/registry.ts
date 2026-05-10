@@ -3418,12 +3418,30 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/applications/instructor/new",
+    title: "Re-apply as an Instructor",
+    content: {
+      purpose: "This page lets a previous applicant submit a new instructor application after a prior outcome.",
+      firstStep: "Review what changed since your last application — coursework, teaching practice, or mentor support.",
+      nextStep: "Fill in the updated form and submit; the review team will see this is a re-application."
+    }
+  },
+  {
     pattern: "/applications/instructor/[id]/interview",
     title: "Applicant Interview",
     content: {
       purpose: "This page is the interview workspace for a specific applicant.",
       firstStep: "Open the structured prompts and use them to guide the conversation as you take notes.",
       nextStep: "Save your notes and recommendation; the chair queue picks the applicant up next."
+    }
+  },
+  {
+    pattern: "/applications/summer-workshop",
+    title: "Summer Workshop Applications",
+    content: {
+      purpose: "This page lists Summer Workshop Instructor applications and their status.",
+      firstStep: "Skim the queue and pick an applicant whose materials are ready.",
+      nextStep: "Open an applicant to review materials, schedule an interview, or record a decision."
     }
   },
   {

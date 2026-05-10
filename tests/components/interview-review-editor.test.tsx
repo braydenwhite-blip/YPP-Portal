@@ -93,7 +93,9 @@ describe("InterviewReviewEditor live runner", () => {
     const liveDraftAction = renderEditor();
 
     fireEvent.click(screen.getByRole("button", { name: "Mark Asked" }));
-    fireEvent.change(screen.getByLabelText("Notes on candidate answer"), {
+    // Required-field label includes a RequiredStar span, so textContent is
+    // "Notes on candidate answer*" — match by prefix instead of exact text.
+    fireEvent.change(screen.getByLabelText(/Notes on candidate answer/), {
       target: { value: "Candidate gave a strong student-centered example." },
     });
 

@@ -1874,13 +1874,6 @@ model InstructorInterviewReview {
   overallRating        ProgressStatus?
   recommendation       InstructorInterviewRecommendation?
   summary              String?                               @db.Text
-  overallNotes         String?                               @db.Text
-  demeanorNotes        String?                               @db.Text
-  maturityNotes        String?                               @db.Text
-  communicationNotes   String?                               @db.Text
-  professionalismNotes String?                               @db.Text
-  followUpItems        String?                               @db.Text
-  curriculumFeedback   String?                               @db.Text
   revisionRequirements String?                               @db.Text
   applicantMessage     String?                               @db.Text
   flagForLeadership    Boolean                               @default(false)

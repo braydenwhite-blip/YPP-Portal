@@ -15,6 +15,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // ─── Shared mock handles ───────────────────────────────────────────────────────
 
 const mockFindUnique = vi.fn();
+const mockFindFirst = vi.fn();
 const mockUserFindUnique = vi.fn();
 const mockUpdate = vi.fn();
 const mockTimelineCreate = vi.fn();
@@ -23,7 +24,11 @@ const mockInterviewerFindUnique = vi.fn();
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    instructorApplication: { findUnique: mockFindUnique, update: mockUpdate },
+    instructorApplication: {
+      findUnique: mockFindUnique,
+      findFirst: mockFindFirst,
+      update: mockUpdate,
+    },
     instructorApplicationInterviewer: { findUnique: mockInterviewerFindUnique, update: vi.fn() },
     instructorApplicationTimelineEvent: { create: mockTimelineCreate },
     user: { findUnique: mockUserFindUnique, update: vi.fn() },
@@ -580,7 +585,7 @@ describe("INFO_RESPONSE_RECEIVED timeline event — submitInfoResponse()", () =>
 
     const responseText = "Here are my transcripts.";
 
-    mockFindUnique.mockResolvedValueOnce({
+    mockFindFirst.mockResolvedValueOnce({
       id: "app-1",
       applicantId: "applicant-1",
       status: "INFO_REQUESTED",
@@ -614,7 +619,7 @@ describe("INFO_RESPONSE_RECEIVED timeline event — submitInfoResponse()", () =>
 
     const responseText = "Private applicant data that must not be stored in the payload.";
 
-    mockFindUnique.mockResolvedValueOnce({
+    mockFindFirst.mockResolvedValueOnce({
       id: "app-1",
       applicantId: "applicant-1",
       status: "INFO_REQUESTED",
@@ -641,7 +646,7 @@ describe("INFO_RESPONSE_RECEIVED timeline event — submitInfoResponse()", () =>
       user: { id: "applicant-1", roles: [], email: "applicant@test.com" },
     } as never);
 
-    mockFindUnique.mockResolvedValueOnce({
+    mockFindFirst.mockResolvedValueOnce({
       id: "app-1",
       applicantId: "applicant-1",
       status: "INFO_REQUESTED",
