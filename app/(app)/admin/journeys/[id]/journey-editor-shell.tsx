@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 
 import { createDraftFromPublished, updateJourneyMeta } from "@/lib/journey-editor/actions";
 
+import { BeatsTab, type BeatRow } from "./beats-tab";
+
 type Tab = "overview" | "beats" | "gates" | "assignments" | "versions";
 
 export interface JourneyEditorShellProps {
@@ -22,6 +24,7 @@ export interface JourneyEditorShellProps {
     gateCount: number;
     updatedAt: string;
   }>;
+  draftBeats: BeatRow[];
   assignments: Array<{ audience: string; autoEnroll: boolean }>;
   auditLog: Array<{
     id: string;
@@ -64,7 +67,14 @@ export function JourneyEditorShell(props: JourneyEditorShellProps) {
             publishedVersion={publishedVersion}
           />
         ) : null}
-        {tab === "beats" ? <PlaceholderPanel label="Beats editor — Commit 7." /> : null}
+        {tab === "beats" ? (
+          <BeatsTab
+            versionId={draftVersion?.id ?? null}
+            versionStatus={draftVersion?.status ?? null}
+            beats={props.draftBeats}
+            canEdit={props.canPublish}
+          />
+        ) : null}
         {tab === "gates" ? <PlaceholderPanel label="Gate builder — Commit 9." /> : null}
         {tab === "assignments" ? (
           <PlaceholderPanel label="Audience assignment editor — Commit 13." />

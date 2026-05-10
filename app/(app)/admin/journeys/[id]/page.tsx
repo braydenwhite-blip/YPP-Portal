@@ -34,6 +34,21 @@ export default async function AdminJourneyDetailPage({
 
   if (!journey) notFound();
 
+  const draft = journey.versions.find((v) => v.status === "DRAFT");
+  const draftBeats = draft
+    ? await prisma.interactiveBeat.findMany({
+        where: { journeyVersionId: draft.id, removedAt: null },
+        orderBy: { sortOrder: "asc" },
+        select: {
+          id: true,
+          sourceKey: true,
+          kind: true,
+          title: true,
+          sortOrder: true,
+        },
+      })
+    : [];
+
   return (
     <main className="admin-page">
       <header className="admin-page-header">
@@ -68,6 +83,13 @@ export default async function AdminJourneyDetailPage({
           beatCount: v._count.beats,
           gateCount: v._count.gates,
           updatedAt: v.updatedAt.toISOString(),
+        }))}
+        draftBeats={draftBeats.map((b) => ({
+          id: b.id,
+          sourceKey: b.sourceKey,
+          kind: b.kind,
+          title: b.title,
+          sortOrder: b.sortOrder,
         }))}
         assignments={journey.assignments}
         auditLog={journey.auditLogs.map((a) => ({

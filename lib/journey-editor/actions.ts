@@ -20,8 +20,12 @@ import { z } from "zod";
 
 import { requireJourneyEditor } from "@/lib/authorization";
 import { prisma } from "@/lib/prisma";
+import { BEAT_CONFIG_SCHEMAS } from "@/lib/training-journey/schemas";
+
+import { BEAT_DEFAULTS, EDITOR_SUPPORTED_KINDS } from "./beat-defaults";
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*$/;
+const SOURCE_KEY_RE = /^[a-z0-9][a-z0-9_\-]*$/;
 
 const CreateJourneyInput = z.object({
   slug: z.string().regex(SLUG_RE, "Slug must be lowercase letters, digits, and hyphens."),
@@ -181,4 +185,260 @@ export async function createDraftFromPublished(
 
   revalidatePath(`/admin/journeys/${parsed.journeyId}`);
   return { versionId: draft.id, versionNumber: draft.versionNumber };
+}
+
+// ============================================================================
+// Beat mutations (DRAFT only)
+// ============================================================================
+
+const AddBeatInput = z.object({
+  versionId: z.string().min(1),
+  kind: z.enum(EDITOR_SUPPORTED_KINDS),
+  sourceKey: z
+    .string()
+    .regex(SOURCE_KEY_RE, "sourceKey must be lowercase letters/digits/hyphens/underscores."),
+});
+
+export async function addBeat(input: z.infer<typeof AddBeatInput>) {
+  const editor = await requireJourneyEditor();
+  if (!editor.canPublish) throw new Error("Unauthorized.");
+  const parsed = AddBeatInput.parse(input);
+
+  return prisma.$transaction(async (tx) => {
+    const version = await tx.journeyVersion.findUnique({
+      where: { id: parsed.versionId },
+      select: { id: true, journeyId: true, status: true },
+    });
+    if (!version) throw new Error("Version not found.");
+    if (version.status !== "DRAFT") throw new Error("Cannot edit a non-DRAFT version.");
+
+    const dup = await tx.interactiveBeat.findFirst({
+      where: { journeyVersionId: parsed.versionId, sourceKey: parsed.sourceKey },
+      select: { id: true },
+    });
+    if (dup) throw new Error(`A beat with sourceKey "${parsed.sourceKey}" already exists.`);
+
+    const last = await tx.interactiveBeat.findFirst({
+      where: { journeyVersionId: parsed.versionId },
+      orderBy: { sortOrder: "desc" },
+      select: { sortOrder: true },
+    });
+    const nextSortOrder = (last?.sortOrder ?? 0) + 1;
+
+    const defaults = BEAT_DEFAULTS[parsed.kind];
+
+    // Insert via raw SQL because the legacy `journeyId` column is non-nullable.
+    // Editor-only journeys have no sibling InteractiveJourney row; we satisfy
+    // the FK by stamping `journeyId = journeyVersionId` (the runtime resolver
+    // in Commit 12 reads via journeyVersionId, never the legacy column).
+    const id = await tx.$queryRawUnsafe<{ id: string }[]>(
+      `INSERT INTO "InteractiveBeat" (
+         "id","journeyId","journeyVersionId","sourceKey","sortOrder","kind",
+         "title","prompt","config","schemaVersion","scoringWeight","createdAt","updatedAt"
+       ) VALUES (
+         gen_random_uuid()::text, $1, $1, $2, $3, $4::"InteractiveBeatKind",
+         $5, $6, $7::jsonb, 1, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+       ) RETURNING "id"`,
+      parsed.versionId,
+      parsed.sourceKey,
+      nextSortOrder,
+      parsed.kind,
+      defaults.title,
+      defaults.prompt,
+      JSON.stringify(defaults.config),
+      defaults.scoringWeight,
+    );
+
+    await tx.journeyAuditLog.create({
+      data: {
+        journeyId: version.journeyId,
+        journeyVersionId: version.id,
+        actorId: editor.id,
+        action: "ADD_BEAT",
+        diff: { sourceKey: parsed.sourceKey, kind: parsed.kind } as object,
+      },
+    });
+
+    revalidatePath(`/admin/journeys/${version.journeyId}`);
+    return { beatId: id[0]?.id ?? null };
+  });
+}
+
+const RemoveBeatInput = z.object({
+  beatId: z.string().min(1),
+});
+
+export async function removeBeat(input: z.infer<typeof RemoveBeatInput>) {
+  const editor = await requireJourneyEditor();
+  if (!editor.canPublish) throw new Error("Unauthorized.");
+  const parsed = RemoveBeatInput.parse(input);
+
+  await prisma.$transaction(async (tx) => {
+    const beat = await tx.interactiveBeat.findUnique({
+      where: { id: parsed.beatId },
+      select: {
+        id: true,
+        journeyVersionId: true,
+        sourceKey: true,
+        journeyVersion: { select: { journeyId: true, status: true } },
+      },
+    });
+    if (!beat?.journeyVersionId || !beat.journeyVersion) {
+      throw new Error("Beat not found or not part of an editor draft.");
+    }
+    if (beat.journeyVersion.status !== "DRAFT") {
+      throw new Error("Cannot remove a beat from a non-DRAFT version.");
+    }
+
+    await tx.interactiveBeat.update({
+      where: { id: beat.id },
+      data: { removedAt: new Date() },
+    });
+
+    await tx.journeyAuditLog.create({
+      data: {
+        journeyId: beat.journeyVersion.journeyId,
+        journeyVersionId: beat.journeyVersionId,
+        actorId: editor.id,
+        action: "REMOVE_BEAT",
+        diff: { sourceKey: beat.sourceKey } as object,
+      },
+    });
+
+    revalidatePath(`/admin/journeys/${beat.journeyVersion.journeyId}`);
+  });
+}
+
+const ReorderBeatsInput = z.object({
+  versionId: z.string().min(1),
+  orderedBeatIds: z.array(z.string()).min(1),
+});
+
+export async function reorderBeats(input: z.infer<typeof ReorderBeatsInput>) {
+  const editor = await requireJourneyEditor();
+  if (!editor.canPublish) throw new Error("Unauthorized.");
+  const parsed = ReorderBeatsInput.parse(input);
+
+  await prisma.$transaction(async (tx) => {
+    const version = await tx.journeyVersion.findUnique({
+      where: { id: parsed.versionId },
+      select: { id: true, journeyId: true, status: true },
+    });
+    if (!version) throw new Error("Version not found.");
+    if (version.status !== "DRAFT") throw new Error("Cannot reorder a non-DRAFT version.");
+
+    const liveBeats = await tx.interactiveBeat.findMany({
+      where: { journeyVersionId: parsed.versionId, removedAt: null },
+      select: { id: true },
+    });
+    const liveIds = new Set(liveBeats.map((b) => b.id));
+    if (
+      parsed.orderedBeatIds.length !== liveIds.size ||
+      parsed.orderedBeatIds.some((id) => !liveIds.has(id))
+    ) {
+      throw new Error(
+        "orderedBeatIds must contain exactly the live beats of this draft.",
+      );
+    }
+
+    // Two-pass renumber to dodge the UNIQUE(journeyVersionId, sortOrder) index:
+    // first move every beat to a high temporary range, then settle into 1..N.
+    const TEMP_OFFSET = 100_000;
+    for (let i = 0; i < parsed.orderedBeatIds.length; i += 1) {
+      await tx.interactiveBeat.update({
+        where: { id: parsed.orderedBeatIds[i] },
+        data: { sortOrder: TEMP_OFFSET + i },
+      });
+    }
+    for (let i = 0; i < parsed.orderedBeatIds.length; i += 1) {
+      await tx.interactiveBeat.update({
+        where: { id: parsed.orderedBeatIds[i] },
+        data: { sortOrder: i + 1 },
+      });
+    }
+
+    await tx.journeyAuditLog.create({
+      data: {
+        journeyId: version.journeyId,
+        journeyVersionId: version.id,
+        actorId: editor.id,
+        action: "REORDER_BEATS",
+        diff: { count: parsed.orderedBeatIds.length } as object,
+      },
+    });
+
+    revalidatePath(`/admin/journeys/${version.journeyId}`);
+  });
+}
+
+// ============================================================================
+// Beat config update
+// ============================================================================
+
+const UpdateDraftBeatInput = z.object({
+  beatId: z.string().min(1),
+  title: z.string().min(1).optional(),
+  prompt: z.string().min(1).optional(),
+  config: z.unknown().optional(),
+  scoringWeight: z.number().int().min(0).max(100).optional(),
+});
+
+export async function updateDraftBeat(input: z.infer<typeof UpdateDraftBeatInput>) {
+  const editor = await requireJourneyEditor();
+  if (!editor.canPublish) throw new Error("Unauthorized.");
+  const parsed = UpdateDraftBeatInput.parse(input);
+
+  await prisma.$transaction(async (tx) => {
+    const beat = await tx.interactiveBeat.findUnique({
+      where: { id: parsed.beatId },
+      select: {
+        id: true,
+        kind: true,
+        journeyVersionId: true,
+        journeyVersion: { select: { journeyId: true, status: true } },
+      },
+    });
+    if (!beat?.journeyVersionId || !beat.journeyVersion) {
+      throw new Error("Beat not found or not part of an editor draft.");
+    }
+    if (beat.journeyVersion.status !== "DRAFT") {
+      throw new Error("Cannot edit a non-DRAFT beat.");
+    }
+
+    if (parsed.config !== undefined) {
+      const schema = BEAT_CONFIG_SCHEMAS[beat.kind];
+      const result = schema.safeParse(parsed.config);
+      if (!result.success) {
+        throw new Error(
+          `Invalid config for ${beat.kind}: ${result.error.issues.map((i) => i.message).join("; ")}`,
+        );
+      }
+    }
+
+    await tx.interactiveBeat.update({
+      where: { id: parsed.beatId },
+      data: {
+        ...(parsed.title !== undefined ? { title: parsed.title } : {}),
+        ...(parsed.prompt !== undefined ? { prompt: parsed.prompt } : {}),
+        ...(parsed.config !== undefined
+          ? { config: parsed.config as object }
+          : {}),
+        ...(parsed.scoringWeight !== undefined
+          ? { scoringWeight: parsed.scoringWeight }
+          : {}),
+      },
+    });
+
+    await tx.journeyAuditLog.create({
+      data: {
+        journeyId: beat.journeyVersion.journeyId,
+        journeyVersionId: beat.journeyVersionId,
+        actorId: editor.id,
+        action: "UPDATE_BEAT",
+        diff: { beatId: parsed.beatId } as object,
+      },
+    });
+
+    revalidatePath(`/admin/journeys/${beat.journeyVersion.journeyId}`);
+  });
 }
