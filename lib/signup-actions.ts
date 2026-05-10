@@ -248,20 +248,33 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
       return { status: "error", message: "Something went wrong creating your account. Please try again." };
     }
 
-    const newUser = await upsertPortalUser({
-      name,
-      email,
-      phone,
-      primaryRole,
-      chapterId,
-      supabaseAuthId: authData.user.id,
-    });
+    let newUser: Awaited<ReturnType<typeof upsertPortalUser>> | null = null;
+    try {
+      newUser = await upsertPortalUser({
+        name,
+        email,
+        phone,
+        primaryRole,
+        chapterId,
+        supabaseAuthId: authData.user.id,
+      });
+    } catch (portalErr) {
+      console.error("[Signup] Portal user upsert failed — rolling back Supabase user", portalErr);
+      try {
+        await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      } catch (rollbackErr) {
+        console.error("[Signup] Supabase rollback also failed:", rollbackErr);
+      }
+      return { status: "error", message: "Something went wrong creating your account. Please try again." };
+    }
 
     // If applicant, create the InstructorApplication record with all fields
     if (primaryRole === RoleType.APPLICANT && instructorApplicationInput) {
       const defaultInitialReviewer = await findDefaultInitialReviewerForChapter(chapterId || null);
       const defaultReviewerAssignedAt = defaultInitialReviewer ? new Date() : null;
-      const application = await prisma.instructorApplication.create({
+      let application: { id: string };
+      try {
+        application = await prisma.instructorApplication.create({
         data: {
           applicantId: newUser.id,
           status: defaultInitialReviewer
@@ -336,7 +349,30 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
             ],
           },
         },
+        select: { id: true },
       });
+      } catch (appErr) {
+        // Couldn't write the application row. Roll back the just-created
+        // Supabase auth user + portal User so the applicant can retry from
+        // a clean state instead of being stuck in the "existing user"
+        // branch on their next attempt.
+        console.error("[Signup] Application create failed — rolling back account", appErr);
+        try {
+          await prisma.user.delete({ where: { id: newUser.id } });
+        } catch (e) {
+          console.error("[Signup] Portal user rollback failed:", e);
+        }
+        try {
+          await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+        } catch (e) {
+          console.error("[Signup] Supabase rollback failed:", e);
+        }
+        return {
+          status: "error",
+          message: "We couldn't save your application. Please try again — your answers are kept on this device.",
+          fields: pickFormFields(formData),
+        };
+      }
       await syncInstructorApplicationWorkflow(application.id);
     }
 
