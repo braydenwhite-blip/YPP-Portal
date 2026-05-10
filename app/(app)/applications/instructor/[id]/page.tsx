@@ -178,12 +178,39 @@ export default async function ApplicantCockpitPage({
   const { notice, reviewWarnings, adminPreview } = await searchParams;
 
   if (!isInstructorApplicantWorkflowV1Enabled()) {
-    redirect("/admin/instructor-applicants");
+    // Admins/chairs go to the admin board; applicants and other roles get
+    // the applicant-facing status page (the admin board redirects them to
+    // home, which is jarring).
+    if (
+      canBypassInstructorGate({
+        roles: session.user.roles,
+        primaryRole: session.user.primaryRole,
+        adminPreviewParam: null,
+      })
+    ) {
+      redirect("/admin/instructor-applicants");
+    }
+    redirect("/application-status");
   }
 
   const application = await fetchCockpitData(id);
   if (!application) notFound();
   if (!application.applicant) notFound();
+
+  // Privacy: applicants must NOT see the reviewer cockpit (reviewer notes,
+  // internal timeline, interview reviewer summaries). Send them to the
+  // applicant-facing status page instead. Admins still pass through with
+  // ?adminPreview=1 if they need to spot-check.
+  if (
+    application.applicant.id === session.user.id &&
+    !canBypassInstructorGate({
+      roles: session.user.roles,
+      primaryRole: session.user.primaryRole,
+      adminPreviewParam: adminPreview ?? null,
+    })
+  ) {
+    redirect("/application-status");
+  }
 
   // Temporary gate: standard-track instructor applications are hidden while
   // the regular Instructor program is paused. Summer Workshop applications
