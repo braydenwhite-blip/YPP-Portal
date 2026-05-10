@@ -11,6 +11,10 @@ type DrawerApp = {
   updatedAt?: Date | string;
   overdue?: boolean;
   subjectsOfInterest: string | null;
+  applicationTrack?: string;
+  workshopTitle?: string | null;
+  workshopAgeRange?: string | null;
+  workshopDurationMinutes?: number | null;
   applicant: {
     id: string;
     name: string | null;
@@ -82,6 +86,21 @@ export default function ApplicantQuickDrawer({
               >
                 {STATUS_LABELS[app.status] ?? app.status.replace(/_/g, " ")}
               </span>
+              {app.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR" && (
+                <span
+                  className="pill pill-small"
+                  title="Summer Workshop Instructor applicant"
+                  style={{
+                    background: "#f5f3ff",
+                    color: "#6b21c8",
+                    border: "1px solid #ddd6fe",
+                    fontWeight: 700,
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  Summer Workshop
+                </span>
+              )}
               {app.overdue && (
                 <span className="pill pill-attention pill-small">Overdue</span>
               )}
@@ -127,6 +146,37 @@ export default function ApplicantQuickDrawer({
                   </div>
                 </div>
               </div>
+
+              {/* Workshop summary (Summer Workshop track) */}
+              {app.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR" && (
+                <div className="slideout-section">
+                  <div className="slideout-section-title">Workshop</div>
+                  {app.workshopTitle ? (
+                    <>
+                      <div className="slideout-field-value">
+                        <strong>{app.workshopTitle}</strong>
+                      </div>
+                      <div
+                        className="slideout-field-value"
+                        style={{ fontSize: 13, color: "var(--muted)", marginTop: 2 }}
+                      >
+                        {[
+                          app.workshopAgeRange,
+                          app.workshopDurationMinutes
+                            ? `${app.workshopDurationMinutes} min`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ") || "Details in full workspace"}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="applicant-card-unassigned">
+                      No workshop outline submitted
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Subjects */}
               {app.subjectsOfInterest && (
