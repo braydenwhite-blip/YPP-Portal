@@ -6,6 +6,7 @@ import ContextTrail from "@/components/context-trail";
 import { buildContextTrail } from "@/lib/context-trail";
 import { formatEnum } from "@/lib/format-utils";
 import { updateMentorshipActionItemStatus } from "@/lib/mentorship-hub-actions";
+import { getInstructorMentorshipMembership } from "@/lib/mentorship-access";
 import { getMyProgramHubData } from "@/lib/my-program-portal";
 import { DeadlineChip } from "@/components/mentorship/deadline-chip";
 import { ReviewSpine } from "@/components/mentorship/review-spine";
@@ -90,6 +91,12 @@ export default async function MyProgramPage({
         ? { href: "/mentor/resources" as const, label: "Browse Resources" as const }
         : { href: "/mentor/ask" as const, label: "Ask A Mentor" as const };
 
+  // Surface a dedicated "Open Mentorship" button when the user is an
+  // instructor mentor or mentee. The default instructor sidebar does not
+  // include /mentorship, so this is the only door for instructors.
+  const mentorshipMembership = await getInstructorMentorshipMembership(session.user.id);
+  const showMentorshipLink = mentorshipMembership.isMentee || mentorshipMembership.isMentor;
+
   return (
     <div>
       <div className="topbar">
@@ -104,6 +111,15 @@ export default async function MyProgramPage({
           <Link href={hub.primaryAction.href} className="button primary small">
             {hub.primaryAction.label}
           </Link>
+          {showMentorshipLink && (
+            <Link href="/mentorship" className="button secondary small">
+              {mentorshipMembership.isMentor && mentorshipMembership.isMentee
+                ? "Open Mentorship"
+                : mentorshipMembership.isMentor
+                  ? "Instructors I Mentor"
+                  : "My Mentorship"}
+            </Link>
+          )}
           <Link href={topbarMentorSecondary.href} className="button secondary small">
             {topbarMentorSecondary.label}
           </Link>
