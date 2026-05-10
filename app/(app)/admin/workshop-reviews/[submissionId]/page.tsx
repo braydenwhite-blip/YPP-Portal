@@ -10,6 +10,7 @@ import {
   sourceTypeLabel,
   submissionStatusLabel,
   submissionStatusTone,
+  workshopFormatLabel,
 } from "@/lib/workshop-proposal-constants";
 import {
   normalizeCustomWorkshop,
@@ -287,6 +288,75 @@ export default async function WorkshopReviewDetailPage({
                   {custom.category}
                 </p>
               </Section>
+
+              <Section title="Logistics">
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                    gap: 12,
+                    marginBottom: custom.locationNotes || custom.safetyNotes ? 12 : 0,
+                  }}
+                >
+                  <LogisticsCell
+                    label="Format"
+                    value={workshopFormatLabel(custom.format)}
+                    missing={!custom.format}
+                  />
+                  <LogisticsCell
+                    label="Capacity"
+                    value={custom.capacity ? `${custom.capacity} students` : ""}
+                    missing={!custom.capacity}
+                  />
+                  <LogisticsCell
+                    label="Availability"
+                    value={custom.availability}
+                    missing={!custom.availability}
+                  />
+                </div>
+                {custom.locationNotes ? (
+                  <div style={{ marginBottom: 8 }}>
+                    <p
+                      style={{
+                        margin: "0 0 2px",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "var(--muted)",
+                      }}
+                    >
+                      Location
+                    </p>
+                    <p style={{ whiteSpace: "pre-wrap", margin: 0 }}>
+                      {custom.locationNotes}
+                    </p>
+                  </div>
+                ) : custom.format && custom.format !== "VIRTUAL" ? (
+                  <p style={{ margin: 0, fontSize: 13, color: "#b45309" }}>
+                    Location not provided.
+                  </p>
+                ) : null}
+                {custom.safetyNotes ? (
+                  <div style={{ marginTop: 8 }}>
+                    <p
+                      style={{
+                        margin: "0 0 2px",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "var(--muted)",
+                      }}
+                    >
+                      Safety &amp; supervision
+                    </p>
+                    <p style={{ whiteSpace: "pre-wrap", margin: 0 }}>
+                      {custom.safetyNotes}
+                    </p>
+                  </div>
+                ) : custom.format && custom.format !== "VIRTUAL" ? (
+                  <p style={{ margin: 0, fontSize: 13, color: "#b45309" }}>
+                    Safety notes not provided.
+                  </p>
+                ) : null}
+              </Section>
               <Section title="Learning objective">
                 <p style={{ whiteSpace: "pre-wrap", margin: 0 }}>
                   {custom.learningObjective}
@@ -542,6 +612,42 @@ export default async function WorkshopReviewDetailPage({
           />
         </aside>
       </div>
+    </div>
+  );
+}
+
+function LogisticsCell({
+  label,
+  value,
+  missing,
+}: {
+  label: string;
+  value: string;
+  missing: boolean;
+}) {
+  return (
+    <div>
+      <p
+        style={{
+          margin: "0 0 2px",
+          fontSize: 12,
+          fontWeight: 600,
+          color: "var(--muted)",
+          textTransform: "uppercase",
+          letterSpacing: 0.4,
+        }}
+      >
+        {label}
+      </p>
+      <p
+        style={{
+          margin: 0,
+          fontSize: 14,
+          color: missing ? "#b45309" : "inherit",
+        }}
+      >
+        {missing ? "Missing" : value}
+      </p>
     </div>
   );
 }

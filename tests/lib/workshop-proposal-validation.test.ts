@@ -32,6 +32,11 @@ const completeCustomWorkshop = (
   participationPlan: "Pairs of two. Each pair tests publicly so the group can see the result.",
   wrapUp: "One-sentence answer: what's the strongest shape?",
   backupPlan: "If the room is shy, run a teacher-led demo of the iteration step before pair work.",
+  format: "IN_PERSON",
+  locationNotes: "Roosevelt Middle School cafeteria, indoor.",
+  capacity: 12,
+  availability: "Saturdays in July 2026",
+  safetyNotes: "Scissors used in pairs, supervised. One adult in the room.",
   ...overrides,
 });
 
@@ -70,6 +75,27 @@ describe("normalizeCustomWorkshop", () => {
 
   it("coerces non-numeric lengthMinutes to 0", () => {
     expect(normalizeCustomWorkshop({ lengthMinutes: "abc" }).lengthMinutes).toBe(0);
+  });
+
+  it("only accepts known workshop format strings", () => {
+    expect(normalizeCustomWorkshop({ format: "IN_PERSON" }).format).toBe("IN_PERSON");
+    expect(normalizeCustomWorkshop({ format: "VIRTUAL" }).format).toBe("VIRTUAL");
+    expect(normalizeCustomWorkshop({ format: "HYBRID" }).format).toBe("HYBRID");
+    expect(normalizeCustomWorkshop({ format: "bogus" }).format).toBe("");
+    expect(normalizeCustomWorkshop({ format: 5 }).format).toBe("");
+  });
+
+  it("normalizes capacity and trims logistics text", () => {
+    const out = normalizeCustomWorkshop({
+      capacity: "24",
+      locationNotes: "  Cafeteria  ",
+      availability: "  July  ",
+      safetyNotes: "  Adult chaperone  ",
+    });
+    expect(out.capacity).toBe(24);
+    expect(out.locationNotes).toBe("Cafeteria");
+    expect(out.availability).toBe("July");
+    expect(out.safetyNotes).toBe("Adult chaperone");
   });
 });
 
@@ -121,6 +147,69 @@ describe("customWorkshopIssues", () => {
     expect(
       issues.find((i) => i.toLowerCase().includes("learning objective"))
     ).toBeDefined();
+  });
+
+  it("requires a workshop format", () => {
+    const issues = customWorkshopIssues(
+      completeCustomWorkshop({ format: "" })
+    );
+    expect(
+      issues.find((i) => i.toLowerCase().includes("workshop format"))
+    ).toBeDefined();
+  });
+
+  it("requires location and safety notes for in-person workshops", () => {
+    const issues = customWorkshopIssues(
+      completeCustomWorkshop({
+        format: "IN_PERSON",
+        locationNotes: "",
+        safetyNotes: "",
+      })
+    );
+    expect(issues.find((i) => i.toLowerCase().includes("location"))).toBeDefined();
+    expect(issues.find((i) => i.toLowerCase().includes("safety"))).toBeDefined();
+  });
+
+  it("does not require location or safety notes for virtual workshops", () => {
+    const issues = customWorkshopIssues(
+      completeCustomWorkshop({
+        format: "VIRTUAL",
+        locationNotes: "",
+        safetyNotes: "",
+      })
+    );
+    expect(issues.find((i) => i.toLowerCase().includes("location"))).toBeUndefined();
+    expect(issues.find((i) => i.toLowerCase().includes("safety"))).toBeUndefined();
+  });
+
+  it("requires location and safety notes for hybrid workshops", () => {
+    const issues = customWorkshopIssues(
+      completeCustomWorkshop({
+        format: "HYBRID",
+        locationNotes: "",
+        safetyNotes: "",
+      })
+    );
+    expect(issues.find((i) => i.toLowerCase().includes("location"))).toBeDefined();
+    expect(issues.find((i) => i.toLowerCase().includes("safety"))).toBeDefined();
+  });
+
+  it("rejects out-of-range capacity", () => {
+    const tooSmall = customWorkshopIssues(
+      completeCustomWorkshop({ capacity: 0 })
+    );
+    expect(tooSmall.find((i) => i.toLowerCase().includes("capacity"))).toBeDefined();
+    const tooLarge = customWorkshopIssues(
+      completeCustomWorkshop({ capacity: 9999 })
+    );
+    expect(tooLarge.find((i) => i.toLowerCase().includes("capacity"))).toBeDefined();
+  });
+
+  it("requires availability", () => {
+    const issues = customWorkshopIssues(
+      completeCustomWorkshop({ availability: "" })
+    );
+    expect(issues.find((i) => i.toLowerCase().includes("availability"))).toBeDefined();
   });
 });
 

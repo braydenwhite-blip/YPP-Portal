@@ -19,10 +19,42 @@ import type {
 // ---------------------------------------------------------------------------
 
 /**
+ * Workshop format. Summer Workshops are "mostly in-person"; the field is
+ * required so reviewers see logistics expectations up front instead of
+ * inferring them from a free-text address blob.
+ */
+export type WorkshopFormat = "IN_PERSON" | "VIRTUAL" | "HYBRID";
+
+export const WORKSHOP_FORMATS: WorkshopFormat[] = [
+  "IN_PERSON",
+  "VIRTUAL",
+  "HYBRID",
+];
+
+export function workshopFormatLabel(format: WorkshopFormat | "" | null | undefined): string {
+  switch (format) {
+    case "IN_PERSON":
+      return "In person";
+    case "VIRTUAL":
+      return "Virtual";
+    case "HYBRID":
+      return "Hybrid (in person + virtual)";
+    default:
+      return "Not specified";
+  }
+}
+
+/**
  * Shape stored in `WorkshopProposalSubmission.customWorkshop` (Json).
  * Mirrors the Workshop Design Studio form fields. Nullable strings stay as
  * empty strings so the form can autosave incomplete drafts without losing
  * the user's typing.
+ *
+ * The `format` / `locationNotes` / `capacity` / `availability` / `safetyNotes`
+ * fields capture the in-person logistics admins need to make a real call.
+ * They live on the same JSON blob (no schema change required) and default
+ * to empty for legacy rows authored before they existed; validation only
+ * blocks the submit button, so existing drafts keep loading cleanly.
  */
 export type CustomWorkshopPayload = {
   title: string;
@@ -36,6 +68,11 @@ export type CustomWorkshopPayload = {
   participationPlan: string;
   wrapUp: string;
   backupPlan: string;
+  format: WorkshopFormat | "";
+  locationNotes: string;
+  capacity: number;
+  availability: string;
+  safetyNotes: string;
 };
 
 export const EMPTY_CUSTOM_WORKSHOP: CustomWorkshopPayload = {
@@ -50,6 +87,11 @@ export const EMPTY_CUSTOM_WORKSHOP: CustomWorkshopPayload = {
   participationPlan: "",
   wrapUp: "",
   backupPlan: "",
+  format: "",
+  locationNotes: "",
+  capacity: 0,
+  availability: "",
+  safetyNotes: "",
 };
 
 // ---------------------------------------------------------------------------
@@ -80,6 +122,10 @@ export const MIN_MAIN_ACTIVITY_CHARS = 80;
 export const MIN_REFLECTION_CHARS = 40;
 export const MIN_WORKSHOP_LENGTH_MIN = 15;
 export const MAX_WORKSHOP_LENGTH_MIN = 240;
+/// Capacity ceiling for a single workshop session — anything bigger almost
+/// certainly needs to be split into multiple sessions.
+export const MIN_WORKSHOP_CAPACITY = 1;
+export const MAX_WORKSHOP_CAPACITY = 60;
 
 // ---------------------------------------------------------------------------
 // Status labels (single source of truth for human copy)
