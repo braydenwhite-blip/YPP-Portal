@@ -9,6 +9,7 @@ import InfoResponseForm from "./info-response-form";
 import CPInfoResponseForm from "./cp-info-response-form";
 import AvailabilityForm from "./availability-form";
 import SlotPickerForm from "./slot-picker-form";
+import WithdrawInstructorApplicationForm from "./withdraw-instructor-application-form";
 import Link from "next/link";
 import InstructorApplicationMotivationResponse from "@/components/instructor-application-motivation-response";
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
@@ -371,6 +372,12 @@ export default async function ApplicationStatusPage() {
                 <p style={{ fontSize: 14, margin: 0 }}>{instructorApp.reviewerNotes}</p>
               </div>
             )}
+            {/* Applicant-driven withdrawal: only shown while still in flight. */}
+            {instructorApp.status !== "APPROVED" &&
+              instructorApp.status !== "REJECTED" &&
+              instructorApp.status !== "WITHDRAWN" && (
+                <WithdrawInstructorApplicationForm />
+              )}
           </div>
 
           <details className="card">

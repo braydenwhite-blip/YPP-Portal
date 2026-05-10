@@ -569,6 +569,90 @@ export async function submitInfoResponse(
 }
 
 /**
+ * Applicant-driven withdrawal of their own V1 instructor application. Allowed
+ * up to (and including) CHAIR_REVIEW; once a final decision lands the row
+ * cannot be withdrawn (it would already be APPROVED/REJECTED).
+ */
+const WITHDRAWABLE_STATUSES: InstructorApplicationStatus[] = [
+  InstructorApplicationStatus.SUBMITTED,
+  InstructorApplicationStatus.UNDER_REVIEW,
+  InstructorApplicationStatus.INFO_REQUESTED,
+  InstructorApplicationStatus.PRE_APPROVED,
+  InstructorApplicationStatus.INTERVIEW_SCHEDULED,
+  InstructorApplicationStatus.INTERVIEW_COMPLETED,
+  InstructorApplicationStatus.ON_HOLD,
+  InstructorApplicationStatus.WAITLISTED,
+  InstructorApplicationStatus.CHAIR_REVIEW,
+];
+
+export async function withdrawInstructorApplication(
+  prevState: FormState,
+  formData: FormData
+): Promise<FormState> {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) return { status: "error", message: "Unauthorized" };
+
+    const reason = getString(formData, "reason", false) || null;
+
+    const application = await prisma.instructorApplication.findUnique({
+      where: { applicantId: session.user.id },
+      select: { id: true, status: true, applicantId: true },
+    });
+    if (!application) {
+      return { status: "error", message: "We couldn't find your application." };
+    }
+    if (application.applicantId !== session.user.id) {
+      return { status: "error", message: "Unauthorized." };
+    }
+    if (!WITHDRAWABLE_STATUSES.includes(application.status)) {
+      return {
+        status: "error",
+        message:
+          application.status === "WITHDRAWN"
+            ? "Your application is already withdrawn."
+            : "This application has already reached a final decision and can't be withdrawn.",
+      };
+    }
+
+    const now = new Date();
+    await prisma.$transaction(async (tx) => {
+      await tx.instructorApplication.update({
+        where: { id: application.id },
+        data: {
+          status: InstructorApplicationStatus.WITHDRAWN,
+          archivedAt: now,
+          // Clear any pending info-request return-state so a re-application
+          // can't accidentally inherit it.
+          infoRequestReturnStatus: null,
+        },
+      });
+      await tx.instructorApplicationTimelineEvent.create({
+        data: {
+          applicationId: application.id,
+          kind: "WITHDRAWN",
+          actorId: session.user.id,
+          payload: reason ? { reason: reason.slice(0, 500) } : {},
+        },
+      });
+    });
+
+    await syncInstructorApplicationWorkflow(application.id);
+    revalidatePath("/admin/instructor-applicants");
+    revalidatePath("/admin/instructor-applicants/chair-queue");
+    revalidatePath("/chapter-lead/instructor-applicants");
+    revalidatePath("/application-status");
+    return {
+      status: "success",
+      message: "Your application has been withdrawn. Reach out if you change your mind.",
+    };
+  } catch (error) {
+    console.error("[withdrawInstructorApplication]", error);
+    return { status: "error", message: "Something went wrong. Please try again." };
+  }
+}
+
+/**
  * Direct form action wrapper for server components (no prevState).
  */
 export async function reviewInstructorApplicationAction(formData: FormData): Promise<void> {
