@@ -1,7 +1,14 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import AppShell from "@/components/app-shell";
 import SessionUnavailablePage from "@/components/session-unavailable-page";
 import { getSession } from "@/lib/auth-supabase";
+import {
+  PREVIEW_COOKIE_NAME,
+  isAdminBypassRole,
+  isPublicGateEnabled,
+  verifyPreviewToken,
+} from "@/lib/public-gate";
 import {
   getEnabledFeatureKeysForUserCached,
   rolesToSortedCsv,
@@ -162,6 +169,20 @@ export default async function AppLayout({
   const instructorFullPortalExplorer = process.env.INSTRUCTOR_FULL_PORTAL_EXPLORER === "true";
   const studentHasChapter = Boolean(session?.user?.chapterId);
 
+  // Public portal gate: an admin (auto-bypass) or a tester with a valid
+  // signed preview cookie sees the full portal exactly as before. Every
+  // other authenticated user sees the focused Summer Workshop experience
+  // and a sidebar trimmed to the public-allowed routes.
+  const publicGateEnabled = isPublicGateEnabled();
+  const isAdmin = isAdminBypassRole({ roles, primaryRole });
+  const cookieStore = await cookies();
+  const previewToken = cookieStore.get(PREVIEW_COOKIE_NAME)?.value ?? null;
+  const previewActive = previewToken ? await verifyPreviewToken(previewToken) : false;
+  // The gate is "active" for this user only if they don't have an
+  // override path. Admins get a transparent bypass; preview-cookie
+  // testers get the same bypass.
+  const publicGateActive = publicGateEnabled && !isAdmin && !previewActive;
+
   // Resolve the user's instructor subtype (most recent application) so
   // SUMMER_WORKSHOP-approved users keep workshop studio + training links
   // visible while the regular instructor program is paused.
@@ -192,6 +213,8 @@ export default async function AppLayout({
       instructorFullPortalExplorer={instructorFullPortalExplorer}
       hiringDemoMode={hiringDemoMode}
       instructorSubtype={instructorSubtype}
+      publicGateActive={publicGateActive}
+      previewModeActive={previewActive}
     >
       {children}
     </AppShell>

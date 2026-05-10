@@ -78,6 +78,7 @@ export default function Nav({
   instructorFullPortalExplorer,
   hiringDemoMode,
   instructorSubtype,
+  publicGateActive,
 }: {
   roles?: string[];
   adminSubtypes?: string[];
@@ -96,6 +97,8 @@ export default function Nav({
   hiringDemoMode?: boolean;
   /** SUMMER_WORKSHOP keeps the workshop studio + training links visible. */
   instructorSubtype?: string | null;
+  /** Public portal gate is active for this user (no admin/preview bypass). */
+  publicGateActive?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -114,6 +117,7 @@ export default function Nav({
         instructorFullPortalExplorer,
         hiringDemoMode,
         instructorSubtype,
+        publicGateActive,
       }),
     [
       adminSubtypes,
@@ -128,6 +132,7 @@ export default function Nav({
       instructorFullPortalExplorer,
       hiringDemoMode,
       instructorSubtype,
+      publicGateActive,
     ],
   );
 

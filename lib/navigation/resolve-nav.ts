@@ -18,6 +18,7 @@ import {
   isRegularInstructorGatedPath,
   isSummerWorkshopPermittedPath,
 } from "@/lib/feature-flags";
+import { isAllowedPublicPath } from "@/lib/public-gate";
 import {
   applyStudentMinimalSidebarLayout,
   studentMinimalLinkOrderIndex,
@@ -271,6 +272,14 @@ export interface ResolveNavInput {
    * regular instructor program paused.
    */
   instructorSubtype?: string | null;
+  /**
+   * Public portal gate. When true, the nav is restricted to the public
+   * Summer Workshop application + proposal flows. Testers in preview
+   * mode and admins (via admin auto-grant) bypass this filter — by the
+   * time we reach the nav resolver the layout has already cleared the
+   * gate flag for them.
+   */
+  publicGateActive?: boolean;
 }
 
 function toNavRole(value: string | null | undefined): NavRole | null {
@@ -513,6 +522,16 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
       }
 
       if (ALWAYS_HIDDEN_HREFS.has(item.href)) return false;
+
+      // Public portal gate: when only Summer Workshop applications +
+      // proposals are public, hide every nav link that points to a
+      // surface the middleware would redirect to /locked. This keeps
+      // the sidebar focused for normal users — admins and testers in
+      // preview mode see the full nav (the layout passes
+      // publicGateActive=false for them).
+      if (input.publicGateActive && !isAllowedPublicPath(item.href)) {
+        return false;
+      }
 
       // Temporary gate: hide regular Instructor navigation while paused.
       // Admin sidebars stay intact so admins can keep managing applicants.

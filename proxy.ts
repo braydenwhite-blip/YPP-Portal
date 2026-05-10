@@ -3,6 +3,13 @@ import type { NextRequest } from "next/server";
 import { createMiddlewareClient } from "@/lib/supabase/middleware";
 import { LEGACY_AUTH_COOKIE_NAME, verifyLegacySessionToken } from "@/lib/legacy-auth";
 import { isDemoAllowedPathname, isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
+import {
+  LOCKED_PATH,
+  PREVIEW_COOKIE_NAME,
+  isAllowedPublicPath,
+  isPublicGateEnabled,
+  verifyPreviewToken,
+} from "@/lib/public-gate";
 
 // Supabase SSR writes session data into cookies of the form `sb-<ref>-auth-token`
 // and may chunk large JWTs across `<name>.0`, `<name>.1`, … When the refresh
@@ -37,6 +44,9 @@ const PUBLIC_PATHS = [
   "/incubator/launches",
   "/auth/callback",
   "/auth/confirm",
+  // Internal preview unlock — reachable without login so testers can
+  // enter the passcode before authenticating.
+  "/preview",
 ];
 
 function isPublicPath(pathname: string) {
@@ -197,6 +207,27 @@ export async function proxy(request: NextRequest) {
       const dest = request.nextUrl.clone();
       dest.pathname = "/not-rolled-out";
       return NextResponse.redirect(dest);
+    }
+  }
+
+  // Public portal gate: while only Summer Workshop applications and
+  // proposals are public, redirect any non-allowed surface to /locked
+  // unless the visitor presents a valid signed preview cookie. Admins
+  // are bounced from /locked to /api/preview/admin-grant which auto-
+  // issues the cookie — so they never see the locked page in practice.
+  if (isPublicGateEnabled() && isAuthenticated && pathname !== LOCKED_PATH) {
+    if (!isAllowedPublicPath(pathname)) {
+      const previewCookie = request.cookies.get(PREVIEW_COOKIE_NAME)?.value ?? null;
+      const previewValid = previewCookie ? await verifyPreviewToken(previewCookie) : false;
+      if (!previewValid) {
+        const dest = request.nextUrl.clone();
+        dest.pathname = LOCKED_PATH;
+        dest.search = "";
+        if (pathname && pathname !== "/") {
+          dest.searchParams.set("from", pathname);
+        }
+        return NextResponse.redirect(dest);
+      }
     }
   }
 
