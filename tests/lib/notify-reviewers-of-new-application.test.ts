@@ -132,9 +132,9 @@ describe("notifyReviewersOfNewApplication", () => {
       chapterId: null,
     });
 
-    userFindMany
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([{ email: "shared@example.com" }]);
+    // No-chapter applicant: CP fan-out is skipped, so only the HIRING_CHAIR
+    // findMany runs.
+    userFindMany.mockResolvedValueOnce([{ email: "shared@example.com" }]);
     subtypeFindFirst.mockResolvedValueOnce({
       user: { email: "shared@example.com" },
     });
@@ -152,9 +152,9 @@ describe("notifyReviewersOfNewApplication", () => {
       chapterId: null,
     });
 
-    userFindMany
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([{ email: "chair@example.com" }]);
+    // No-chapter applicant: CP fan-out is skipped, so only the HIRING_CHAIR
+    // findMany runs.
+    userFindMany.mockResolvedValueOnce([{ email: "chair@example.com" }]);
     subtypeFindFirst.mockResolvedValueOnce(null);
 
     await notifyReviewersOfNewApplication("user-1");

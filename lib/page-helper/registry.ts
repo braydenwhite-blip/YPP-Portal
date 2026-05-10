@@ -3382,6 +3382,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/applications/instructor/new",
+    title: "Re-apply as an Instructor",
+    content: {
+      purpose: "This page lets a previous applicant submit a new instructor application after a prior outcome.",
+      firstStep: "Review what changed since your last application — coursework, teaching practice, or mentor support.",
+      nextStep: "Fill in the updated form and submit; the review team will see this is a re-application."
+    }
+  },
+  {
     pattern: "/applications/instructor/[id]/interview",
     title: "Applicant Interview",
     content: {
