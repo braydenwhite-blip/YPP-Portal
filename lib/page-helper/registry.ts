@@ -3391,6 +3391,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/applications/summer-workshop",
+    title: "Summer Workshop Applications",
+    content: {
+      purpose: "This page lists Summer Workshop Instructor applications and their status.",
+      firstStep: "Skim the queue and pick an applicant whose materials are ready.",
+      nextStep: "Open an applicant to review materials, schedule an interview, or record a decision."
+    }
+  },
+  {
     pattern: "/chapter/hub",
     title: "Chapter Hub",
     content: {

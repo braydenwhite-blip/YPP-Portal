@@ -307,8 +307,11 @@ export default function InterviewReviewEditor({
     if (initialQuestionRef.current === activeQuestionId) return;
     initialQuestionRef.current = activeQuestionId;
     const node = questionCardRef.current;
-    if (!node) return;
-    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!node || typeof node.scrollIntoView !== "function") return;
+    const prefersReducedMotion =
+      typeof window !== "undefined" && typeof window.matchMedia === "function"
+        ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        : false;
     node.scrollIntoView({
       behavior: prefersReducedMotion ? "auto" : "smooth",
       block: "start",
