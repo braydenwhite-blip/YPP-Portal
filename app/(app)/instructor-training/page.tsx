@@ -266,8 +266,11 @@ export default async function InstructorTrainingPage({
   const instructorSubtype = await withPrismaFallback(
     "instructor-training:subtype",
     async () => {
-      const app = await prisma.instructorApplication.findUnique({
+      // Re-application: prefer the most recent non-terminal row, fall back
+      // to the latest record (which may be a closed prior application).
+      const app = await prisma.instructorApplication.findFirst({
         where: { applicantId: instructorId },
+        orderBy: { createdAt: "desc" },
         select: { instructorSubtype: true },
       });
       return app?.instructorSubtype ?? "STANDARD";

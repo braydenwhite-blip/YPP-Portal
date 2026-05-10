@@ -29,6 +29,8 @@ import {
   getHiringDemoHomeHref,
   isHiringDemoModeEnabled,
 } from "@/lib/hiring-demo-mode";
+import HiringChairHome from "@/components/dashboard/hiring-chair-home";
+import { getHiringChairHomeData } from "@/lib/hiring-chair-home";
 
 function isMissingTableError(error: unknown) {
   return (
@@ -378,6 +380,28 @@ export default async function OverviewPage() {
       roles,
       adminSubtypes,
     });
+  }
+
+  if (roles.includes("HIRING_CHAIR")) {
+    const todayDateLabel = new Intl.DateTimeFormat("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    }).format(new Date());
+    const [chairData, unreadNotifications, unreadMessages] = await Promise.all([
+      getHiringChairHomeData(session.user.id),
+      getUnreadNotificationCountCached(session.user.id).catch(() => 0),
+      getUnreadDirectMessageCountCached(session.user.id).catch(() => 0),
+    ]);
+    return (
+      <HiringChairHome
+        firstName={firstNameFromDisplay(session.user.name?.trim() || "there")}
+        todayDateLabel={todayDateLabel}
+        data={chairData}
+        unreadNotifications={unreadNotifications}
+        unreadMessages={unreadMessages}
+      />
+    );
   }
 
   if (!isUnifiedAllToolsDashboardEnabled()) {

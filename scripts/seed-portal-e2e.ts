@@ -1060,28 +1060,32 @@ async function main() {
     },
   });
 
-  await prisma.instructorApplication.upsert({
+  // Re-application: applicantId is no longer @unique, so use findFirst+create
+  // to keep the seed idempotent across runs.
+  const existingLegacyApp = await prisma.instructorApplication.findFirst({
     where: { applicantId: legacyApplicant.id },
-    create: {
-      applicantId: legacyApplicant.id,
-      status: "INFO_REQUESTED",
-      motivation: "Legacy compatibility testing for the old instructor application path.",
-      teachingExperience: "Facilitated clubs and tutoring programs.",
-      availability: "Weekday afternoons",
-      reviewerId: admin.id,
-      infoRequest: "Please add one more example of teaching experience.",
-      applicantResponse: "I also led a robotics camp last summer.",
-    },
-    update: {
-      status: "INFO_REQUESTED",
-      motivation: "Legacy compatibility testing for the old instructor application path.",
-      teachingExperience: "Facilitated clubs and tutoring programs.",
-      availability: "Weekday afternoons",
-      reviewerId: admin.id,
-      infoRequest: "Please add one more example of teaching experience.",
-      applicantResponse: "I also led a robotics camp last summer.",
-    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true },
   });
+  const legacyAppPayload = {
+    status: "INFO_REQUESTED" as const,
+    motivation: "Legacy compatibility testing for the old instructor application path.",
+    teachingExperience: "Facilitated clubs and tutoring programs.",
+    availability: "Weekday afternoons",
+    reviewerId: admin.id,
+    infoRequest: "Please add one more example of teaching experience.",
+    applicantResponse: "I also led a robotics camp last summer.",
+  };
+  if (existingLegacyApp) {
+    await prisma.instructorApplication.update({
+      where: { id: existingLegacyApp.id },
+      data: legacyAppPayload,
+    });
+  } else {
+    await prisma.instructorApplication.create({
+      data: { applicantId: legacyApplicant.id, ...legacyAppPayload },
+    });
+  }
 
   console.log("Portal E2E seed ready.");
   console.log(`Admin login: e2e.admin@ypp.test / ${E2E_PASSWORD}`);

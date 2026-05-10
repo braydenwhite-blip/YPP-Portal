@@ -10,6 +10,7 @@ type PipelineCardApp = {
   updatedAt?: Date | string;
   overdue?: boolean;
   stuck?: boolean;
+  awaitingSlots?: boolean;
   subjectsOfInterest: string | null;
   applicant: {
     name: string | null;
@@ -181,6 +182,15 @@ export default function ApplicantPipelineCard({
             title="INTERVIEW_COMPLETED for more than 7 days - use Force to Chair to unblock"
           >
             Stuck
+          </span>
+        )}
+        {app.awaitingSlots && (
+          <span
+            className="pill pill-attention pill-small"
+            aria-label="Lead interviewer has not yet offered times"
+            title="No interview times offered after 5+ days - lead interviewer needs to send slots"
+          >
+            Awaiting slots
           </span>
         )}
       </div>

@@ -77,6 +77,7 @@ export default function Nav({
   studentHasChapter,
   instructorFullPortalExplorer,
   hiringDemoMode,
+  instructorSubtype,
 }: {
   roles?: string[];
   adminSubtypes?: string[];
@@ -93,6 +94,8 @@ export default function Nav({
   studentHasChapter?: boolean;
   instructorFullPortalExplorer?: boolean;
   hiringDemoMode?: boolean;
+  /** SUMMER_WORKSHOP keeps the workshop studio + training links visible. */
+  instructorSubtype?: string | null;
 }) {
   const pathname = usePathname();
 
@@ -110,6 +113,7 @@ export default function Nav({
         studentHasChapter,
         instructorFullPortalExplorer,
         hiringDemoMode,
+        instructorSubtype,
       }),
     [
       adminSubtypes,
@@ -123,6 +127,7 @@ export default function Nav({
       studentHasChapter,
       instructorFullPortalExplorer,
       hiringDemoMode,
+      instructorSubtype,
     ],
   );
 

@@ -25,8 +25,15 @@ export default async function SummerWorkshopLandingPage() {
     redirect("/applications");
   }
 
-  // If the user already has a Summer Workshop application in flight, take
-  // them straight to it instead of forcing a new signup attempt.
+  // If the user already has a Summer Workshop application in flight, send
+  // them to the applicant-facing status page (NOT the reviewer cockpit).
+  // Terminal applications (approved/rejected/withdrawn) fall through so the
+  // user can start a re-application from this landing page.
+  const TERMINAL_STATUSES: Array<"APPROVED" | "REJECTED" | "WITHDRAWN"> = [
+    "APPROVED",
+    "REJECTED",
+    "WITHDRAWN",
+  ];
   const existingApp = userId
     ? await withPrismaFallback(
         "summer-workshop-landing:existing-app",
@@ -43,11 +50,15 @@ export default async function SummerWorkshopLandingPage() {
       )
     : null;
 
-  if (existingApp) {
-    redirect(`/applications/instructor/${existingApp.id}`);
+  if (existingApp && !TERMINAL_STATUSES.includes(existingApp.status as typeof TERMINAL_STATUSES[number])) {
+    redirect("/application-status");
   }
 
   const summerOpen = isSummerWorkshopInstructorEnabled();
+  const isReapplying =
+    !!existingApp &&
+    TERMINAL_STATUSES.includes(existingApp.status as typeof TERMINAL_STATUSES[number]);
+  const applyHref = userId ? "/applications/instructor/new" : "/signup/instructor";
 
   return (
     <div style={{ maxWidth: 720, margin: "48px auto", padding: "0 24px" }}>
@@ -75,13 +86,33 @@ export default async function SummerWorkshopLandingPage() {
       </p>
 
       {summerOpen ? (
-        <Link
-          href="/signup/instructor"
-          className="button"
-          style={{ display: "inline-block", padding: "12px 20px", fontSize: 14, fontWeight: 600 }}
-        >
-          Apply as Summer Workshop Instructor
-        </Link>
+        <>
+          {isReapplying && (
+            <div
+              style={{
+                padding: "10px 14px",
+                borderRadius: 10,
+                background: "#fef3c7",
+                border: "1px solid #fde68a",
+                fontSize: 13,
+                color: "#92400e",
+                marginBottom: 16,
+              }}
+            >
+              Your previous application is closed. You can submit a new one — it will be
+              flagged as a re-application so the review team has full context.
+            </div>
+          )}
+          <Link
+            href={applyHref}
+            className="button"
+            style={{ display: "inline-block", padding: "12px 20px", fontSize: 14, fontWeight: 600 }}
+          >
+            {isReapplying
+              ? "Start a New Workshop Instructor Application"
+              : "Apply as Summer Workshop Instructor"}
+          </Link>
+        </>
       ) : (
         <p style={{ fontSize: 14, color: "var(--muted)" }}>
           Applications are temporarily closed. Please check back soon.

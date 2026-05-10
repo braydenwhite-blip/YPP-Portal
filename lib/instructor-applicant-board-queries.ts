@@ -33,6 +33,8 @@ export type DerivedColumn =
   | "ready_for_interview"
   | "post_interview"
   | "chair_review"
+  | "on_hold"
+  | "waitlisted"
   | "decided"
   | "archive";
 
@@ -53,6 +55,11 @@ const PIPELINE_SELECT = {
   applicationTrack: true,
   instructorSubtype: true,
   workshopOutline: true,
+  isReapplication: true,
+  previousApplicationId: true,
+  offeredSlots: {
+    select: { id: true, scheduledAt: true, confirmedAt: true },
+  },
   applicant: {
     select: {
       id: true,
@@ -118,9 +125,12 @@ function getDerivedColumn(app: {
       return "post_interview";
     case "CHAIR_REVIEW":
       return "chair_review";
+    case "ON_HOLD":
+      return "on_hold";
+    case "WAITLISTED":
+      return "waitlisted";
     case "APPROVED":
     case "REJECTED":
-    case "ON_HOLD":
       return "decided";
     default:
       return "decided";
@@ -149,6 +159,26 @@ function isStuck(app: {
 }): boolean {
   if (app.status !== "INTERVIEW_COMPLETED") return false;
   return Date.now() - app.updatedAt.getTime() > STUCK_THRESHOLD_MS;
+}
+
+/** 5-day threshold for "lead interviewer hasn't offered times yet". */
+const NO_SLOTS_OFFERED_THRESHOLD_MS = 5 * 24 * 60 * 60 * 1000;
+
+/**
+ * Stuck-scheduling detector: applicant has been moved to INTERVIEW_SCHEDULED
+ * but no slots have been offered (and none confirmed) within the threshold.
+ * Distinct from `isStuck` (which fires post-interview).
+ */
+function isAwaitingSlots(app: {
+  status: InstructorApplicationStatus;
+  interviewScheduledAt: Date | null;
+  updatedAt: Date;
+  offeredSlots: Array<{ scheduledAt: Date; confirmedAt: Date | null }>;
+}): boolean {
+  if (app.status !== "INTERVIEW_SCHEDULED") return false;
+  if (app.interviewScheduledAt) return false; // applicant already confirmed
+  if (app.offeredSlots.length > 0) return false; // slots offered, ball in applicant's court
+  return Date.now() - app.updatedAt.getTime() > NO_SLOTS_OFFERED_THRESHOLD_MS;
 }
 
 // ─── Pipeline query ───────────────────────────────────────────────────────────
@@ -184,6 +214,8 @@ export async function getApplicantPipeline({
       post_interview: [],
       chair_review: [],
       decided: [],
+      on_hold: [],
+      waitlisted: [],
       archive: [],
     };
     return { columns: empty as unknown as Record<DerivedColumn, typeof applications[number][]> };
@@ -252,6 +284,8 @@ export async function getApplicantPipeline({
     ready_for_interview: [],
     post_interview: [],
     chair_review: [],
+    on_hold: [],
+    waitlisted: [],
     decided: [],
     archive: [],
   };
@@ -266,6 +300,7 @@ export async function getApplicantPipeline({
       chairDecision: app.chairDecisions[0] ?? null,
       overdue: isOverdue(app),
       stuck: isStuck(app),
+      awaitingSlots: isAwaitingSlots(app),
     };
 
     if (filters.overdueOnly && !enriched.overdue) continue;
