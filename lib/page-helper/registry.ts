@@ -177,6 +177,42 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/admin/classes",
+    title: "Class Operations",
+    content: {
+      purpose: "Central admin view of every class proposal, draft, published class, and roster across all chapters.",
+      firstStep: "Use the summary cards or tabs to find what needs attention — proposals awaiting review, classes approved but not yet published, or classes with logistics gaps.",
+      nextStep: "Open a class to review its proposal, finalize logistics, publish it, or jump straight to its roster."
+    }
+  },
+  {
+    pattern: "/admin/classes/[id]",
+    title: "Admin Class Detail",
+    content: {
+      purpose: "Operational detail page for a single class — schedule, location, capacity, approval status, and admin publishing controls.",
+      firstStep: "Confirm the schedule, instructor, in-person location or meeting link, and capacity before publishing or making changes.",
+      nextStep: "Use the publishing controls to publish, unpublish, close enrollment, cancel, or mark the class completed once review is done."
+    }
+  },
+  {
+    pattern: "/admin/classes/[id]/review",
+    title: "Class Proposal Review",
+    content: {
+      purpose: "Reviewer detail for a class proposal — see the full proposal context and decide whether to approve, request revisions, or reject.",
+      firstStep: "Read the proposal, the instructor's notes, and any prior reviewer notes so you can give a clear decision.",
+      nextStep: "Approve to clear the proposal for publishing, request revisions with specific feedback, or reject with a reason for the audit trail."
+    }
+  },
+  {
+    pattern: "/admin/classes/[id]/roster",
+    title: "Admin Class Roster",
+    content: {
+      purpose: "Roster view of a single class — confirmed students, waitlist, drops, and completions, plus parent/guardian contact for each student.",
+      firstStep: "Scan the confirmed list against capacity, then check the waitlist and any duplicates flagged in the table.",
+      nextStep: "Promote from the waitlist, move students between confirmed and waitlisted, or drop a student — every change preserves an audit trail on the enrollment record."
+    }
+  },
+  {
     pattern: "/admin/curricula",
     title: "Curriculum Review Queue",
     content: {

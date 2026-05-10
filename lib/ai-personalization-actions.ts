@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { LEVELS } from "@/lib/xp-config";
+import { publicOfferingWhere } from "@/lib/class-visibility";
 
 type LearningPathMilestone = {
   week: number;
@@ -89,10 +90,9 @@ export async function generateLearningPath(formData: FormData) {
 
   // Find recommended classes
   const recommendedClasses = await prisma.classOffering.findMany({
-    where: {
-      status: { in: ["PUBLISHED", "IN_PROGRESS"] },
+    where: publicOfferingWhere({
       template: { interestArea: passionArea },
-    },
+    }),
     select: { id: true },
     take: 5,
     orderBy: { startDate: "asc" },

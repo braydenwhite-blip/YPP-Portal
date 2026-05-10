@@ -17,6 +17,7 @@ import {
 import { getLegacyLearnerFitCopy } from "@/lib/learner-fit";
 import { syncCurriculumApprovalWorkflow } from "@/lib/workflow";
 import { syncInstructorGrowthSignalsForInstructor } from "@/lib/instructor-growth-service";
+import { publicOfferingWhere } from "@/lib/class-visibility";
 
 type WeeklyTopic = {
   week?: number;
@@ -1077,6 +1078,7 @@ export async function enrollInClass(offeringId: string): Promise<EnrollInClassRe
   const offering = await prisma.classOffering.findUnique({
     where: { id: offeringId },
     include: {
+      approval: { select: { status: true } },
       enrollments: { where: { status: "ENROLLED" } },
       _count: { select: { enrollments: true } },
     },
@@ -1086,6 +1088,14 @@ export async function enrollInClass(offeringId: string): Promise<EnrollInClassRe
   if (!offering.enrollmentOpen) throw new Error("Enrollment is closed");
   if (offering.status !== "PUBLISHED" && offering.status !== "IN_PROGRESS") {
     throw new Error("Class is not accepting enrollment");
+  }
+  // Defense-in-depth: never let students enroll in a class that has not
+  // cleared admin review, even if the status field reads PUBLISHED.
+  const isApprovedForSignup =
+    offering.grandfatheredTrainingExemption ||
+    offering.approval?.status === "APPROVED";
+  if (!isApprovedForSignup) {
+    throw new Error("Class is not yet approved for enrollment.");
   }
 
   if (
@@ -1412,7 +1422,7 @@ export async function getClassCatalog(filters?: {
 }) {
   const capabilities = await getClassTemplateCapabilities();
   const where: Record<string, unknown> = {
-    status: { in: ["PUBLISHED", "IN_PROGRESS"] },
+    ...publicOfferingWhere(),
   };
 
   if (filters?.interestArea) {
