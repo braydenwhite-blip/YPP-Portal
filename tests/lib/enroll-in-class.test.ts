@@ -31,8 +31,10 @@ type MockedPrisma = typeof prisma & {
   };
   classEnrollment: {
     findUnique: ReturnType<typeof vi.fn>;
+    findFirst: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
+    count: ReturnType<typeof vi.fn>;
   };
   pathwayFallbackRequest: {
     findFirst: ReturnType<typeof vi.fn>;
@@ -49,6 +51,8 @@ function buildOffering(overrides: Partial<Record<string, unknown>> = {}) {
     enrollmentOpen: true,
     status: "PUBLISHED",
     chapterId: "chapter-1",
+    grandfatheredTrainingExemption: false,
+    approval: { status: "APPROVED" },
     enrollments: [],
     _count: { enrollments: { _all: 0 } },
     ...overrides,
@@ -61,9 +65,20 @@ function ensureClassEnrollmentMock() {
   if (!prismaMock.classEnrollment) {
     (prismaMock as unknown as { classEnrollment: unknown }).classEnrollment = {
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      count: vi.fn(),
     };
+  } else {
+    // Augment the shared mock with the entries the seat-allocation helper
+    // requires, without clobbering ones already wired.
+    if (!prismaMock.classEnrollment.findFirst) {
+      prismaMock.classEnrollment.findFirst = vi.fn();
+    }
+    if (!prismaMock.classEnrollment.count) {
+      prismaMock.classEnrollment.count = vi.fn();
+    }
   }
   if (!prismaMock.pathwayFallbackRequest) {
     (prismaMock as unknown as { pathwayFallbackRequest: unknown }).pathwayFallbackRequest = {
@@ -92,6 +107,7 @@ describe("enrollInClass — student-facing signup flow", () => {
   it("enrolls a brand-new student into an open class", async () => {
     prismaMock.classOffering.findUnique.mockResolvedValue(buildOffering());
     prismaMock.classEnrollment.findUnique.mockResolvedValue(null);
+    prismaMock.classEnrollment.count.mockResolvedValue(0);
     prismaMock.classEnrollment.create.mockResolvedValue({ id: "enroll-1" });
 
     const result = await enrollInClass("offering-1");
@@ -103,24 +119,25 @@ describe("enrollInClass — student-facing signup flow", () => {
       status: "ENROLLED",
       waitlistPosition: null,
     });
-    expect(prismaMock.classEnrollment.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        studentId: "student-1",
-        offeringId: "offering-1",
-        status: "ENROLLED",
-        waitlistPosition: null,
+    expect(prismaMock.classEnrollment.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          studentId: "student-1",
+          offeringId: "offering-1",
+          status: "ENROLLED",
+          waitlistPosition: null,
+        }),
       }),
-    });
+    );
   });
 
   it("places the student on the waitlist when the class is at capacity", async () => {
     prismaMock.classOffering.findUnique.mockResolvedValue(
-      buildOffering({
-        capacity: 2,
-        enrollments: [{ id: "e-a" }, { id: "e-b" }],
-      }),
+      buildOffering({ capacity: 2 }),
     );
     prismaMock.classEnrollment.findUnique.mockResolvedValue(null);
+    prismaMock.classEnrollment.count.mockResolvedValue(2);
+    prismaMock.classEnrollment.findFirst.mockResolvedValue(null);
     prismaMock.classEnrollment.create.mockResolvedValue({ id: "enroll-2" });
 
     const result = await enrollInClass("offering-1");
@@ -132,12 +149,14 @@ describe("enrollInClass — student-facing signup flow", () => {
       status: "WAITLISTED",
       waitlistPosition: 1,
     });
-    expect(prismaMock.classEnrollment.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        status: "WAITLISTED",
-        waitlistPosition: 1,
+    expect(prismaMock.classEnrollment.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "WAITLISTED",
+          waitlistPosition: 1,
+        }),
       }),
-    });
+    );
   });
 
   it("treats a duplicate signup attempt as a friendly already-enrolled result", async () => {
@@ -168,6 +187,7 @@ describe("enrollInClass — student-facing signup flow", () => {
       status: "DROPPED",
       waitlistPosition: null,
     });
+    prismaMock.classEnrollment.count.mockResolvedValue(0);
     prismaMock.classEnrollment.update.mockResolvedValue({ id: "enroll-old" });
 
     const result = await enrollInClass("offering-1");
@@ -175,13 +195,15 @@ describe("enrollInClass — student-facing signup flow", () => {
     expect(result.success).toBe(true);
     expect(result.alreadyEnrolled).toBe(false);
     expect(result.status).toBe("ENROLLED");
-    expect(prismaMock.classEnrollment.update).toHaveBeenCalledWith({
-      where: { id: "enroll-old" },
-      data: expect.objectContaining({
-        status: "ENROLLED",
-        droppedAt: null,
+    expect(prismaMock.classEnrollment.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "enroll-old" },
+        data: expect.objectContaining({
+          status: "ENROLLED",
+          droppedAt: null,
+        }),
       }),
-    });
+    );
     expect(prismaMock.classEnrollment.create).not.toHaveBeenCalled();
   });
 
