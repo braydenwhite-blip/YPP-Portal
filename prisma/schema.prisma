@@ -755,6 +755,7 @@ model User {
   teachingPermissionGrants                 InstructorTeachingPermission[]           @relation("TeachingPermissionGrants")
   offeringApprovalRequests                 ClassOfferingApproval[]                  @relation("ClassOfferingApprovalRequests")
   offeringApprovalReviews                  ClassOfferingApproval[]                  @relation("ClassOfferingApprovalReviews")
+  offeringTimelineActions                  ClassOfferingTimelineEvent[]             @relation("ClassOfferingTimelineActor")
   interviewGate                            InstructorInterviewGate?                 @relation("InstructorInterviewGateOwner")
   interviewGateReviews                     InstructorInterviewGate[]                @relation("InstructorInterviewGateReviews")
   interviewSlotsCreated                    InstructorInterviewSlot[]                @relation("InstructorInterviewSlotsCreated")
@@ -6845,6 +6846,9 @@ model ClassOffering {
   deliveryMode    DeliveryMode @default(VIRTUAL)
   locationName    String? // Physical location name
   locationAddress String?
+  room                String? // In-person room or studio (e.g. "Studio B")
+  arrivalInstructions String? @db.Text // What students/parents should do on arrival
+  materialsList       String[] @default([]) // Required/recommended materials per session
   zoomLink        String?
   meetingId       String? // Zoom/Teams meeting ID
 
@@ -6878,6 +6882,7 @@ model ClassOffering {
   announcements    ClassAnnouncement[]
   fallbackRequests PathwayFallbackRequest[]
   approval         ClassOfferingApproval?
+  timeline         ClassOfferingTimelineEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -6888,6 +6893,44 @@ model ClassOffering {
   @@index([status])
   @@index([chapterId])
   @@index([pathwayStepId])
+}
+
+enum ClassOfferingTimelineKind {
+  PROPOSAL_SUBMITTED
+  PROPOSAL_APPROVED
+  PROPOSAL_CHANGES_REQUESTED
+  PROPOSAL_REJECTED
+  PUBLISHED
+  UNPUBLISHED
+  ENROLLMENT_OPENED
+  ENROLLMENT_CLOSED
+  CANCELLED
+  COMPLETED
+  CAPACITY_CHANGED
+  INSTRUCTOR_REASSIGNED
+  WAITLIST_PROMOTION
+  ENROLLMENT_STATUS_CHANGED
+  NOTE
+}
+
+// Append-only audit log for admin actions on a ClassOffering. Surfaced on
+// the admin class detail page so reviewers can answer "who approved this
+// and when" without grepping logs.
+model ClassOfferingTimelineEvent {
+  id         String                    @id @default(cuid())
+  offeringId String
+  offering   ClassOffering             @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  actorId    String?
+  actor      User?                     @relation("ClassOfferingTimelineActor", fields: [actorId], references: [id], onDelete: SetNull)
+  kind       ClassOfferingTimelineKind
+  // Human-readable one-liner; the payload carries machine-readable detail.
+  summary    String?
+  payload    Json?
+  createdAt  DateTime                  @default(now())
+
+  @@index([offeringId, createdAt])
+  @@index([kind, createdAt])
+  @@index([actorId])
 }
 
 model ClassOfferingApproval {

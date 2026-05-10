@@ -73,8 +73,13 @@ describe("enrollInClass — defense in depth", () => {
       _count: { enrollments: 0 },
     } as any);
     vi.mocked(prisma.classEnrollment.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.classEnrollment.count).mockResolvedValue(0);
+    vi.mocked(prisma.classEnrollment.create).mockResolvedValue({
+      id: "e-new",
+    } as any);
 
     const result = await enrollInClass("o1");
     expect(result.success).toBe(true);
+    expect(result.waitlisted).toBe(false);
   });
 });

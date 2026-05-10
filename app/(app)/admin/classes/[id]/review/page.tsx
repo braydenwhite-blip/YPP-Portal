@@ -131,12 +131,31 @@ export default async function AdminClassReviewPage({
                     : undefined
                 }
               />
+              <Cell label="Room" value={detail.room || "—"} />
               <Cell label="Days" value={detail.meetingDays.join(", ") || "—"} />
               <Cell label="Time" value={detail.meetingTime || "—"} />
               <Cell label="Timezone" value={detail.timezone} />
               <Cell label="First session" value={detail.startDate.toLocaleString()} />
               <Cell label="Last session" value={detail.endDate.toLocaleString()} />
             </Grid>
+            {detail.arrivalInstructions && (
+              <div style={{ marginTop: 10, fontSize: 13 }}>
+                <strong>Arrival instructions:</strong>{" "}
+                <span style={{ whiteSpace: "pre-line" }}>
+                  {detail.arrivalInstructions}
+                </span>
+              </div>
+            )}
+            {Array.isArray(detail.materialsList) && detail.materialsList.length > 0 && (
+              <div style={{ marginTop: 10, fontSize: 13 }}>
+                <strong>Materials:</strong>
+                <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
+                  {detail.materialsList.map((item: string, idx: number) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {(detail.deliveryMode === "VIRTUAL" || detail.deliveryMode === "HYBRID") && (
               <p style={{ marginTop: 8, fontSize: 13 }}>
                 <strong>Meeting link:</strong>{" "}

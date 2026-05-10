@@ -9,6 +9,7 @@ import {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { deliverBulkNotifications } from "@/lib/notification-delivery";
+import { APPROVED_OFFERING_OR } from "@/lib/class-visibility";
 
 const DAY_TO_INDEX: Record<string, number> = {
   SUNDAY: 0,
@@ -855,6 +856,9 @@ export async function buildChapterPublicProfile(slug: string) {
       where: {
         chapterId: chapter.id,
         status: { in: ["PUBLISHED", "IN_PROGRESS", "COMPLETED"] },
+        // Defense-in-depth: never list unapproved offerings on the chapter's
+        // public summary, even past-COMPLETED ones.
+        OR: APPROVED_OFFERING_OR,
       },
       orderBy: { startDate: "asc" },
       take: 6,

@@ -10,7 +10,10 @@ import {
   adminCancelClassOffering,
   adminMarkClassCompleted,
   adminUpdateCapacity,
+  adminUpdateLogistics,
+  adminReassignInstructor,
 } from "@/lib/admin-class-operations";
+import { getOfferingTimeline } from "@/lib/class-offering-timeline";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +29,10 @@ export default async function AdminClassDetailPage({
   }
 
   const { id } = await params;
-  const detail = await getAdminClassDetail(id);
+  const [detail, timeline] = await Promise.all([
+    getAdminClassDetail(id),
+    getOfferingTimeline(id, 25),
+  ]);
   if (!detail) notFound();
 
   const approvalStatus = detail.approval?.status ?? "NOT_REQUESTED";
@@ -114,6 +120,26 @@ export default async function AdminClassDetailPage({
             <p style={{ marginTop: 4, color: "var(--text-secondary)" }}>
               {detail.chapter?.name ?? "No chapter"}
             </p>
+            <form action={adminReassignInstructor} style={inlineForm}>
+              <input type="hidden" name="offeringId" value={detail.id} />
+              <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                Reassign to (instructor user ID)
+              </label>
+              <input
+                name="instructorId"
+                className="input"
+                placeholder="user_..."
+                style={{ fontFamily: "monospace", fontSize: 12 }}
+              />
+              <button type="submit" className="button" style={{ fontSize: 12 }}>
+                Reassign instructor
+              </button>
+            </form>
+            <p style={{ marginTop: 4, fontSize: 11, color: "var(--text-secondary)" }}>
+              The new user must have the INSTRUCTOR role. Reassignment does not
+              re-validate readiness — use only when the original instructor is
+              unreachable.
+            </p>
           </Section>
 
           <Section title="Schedule">
@@ -144,6 +170,7 @@ export default async function AdminClassDetailPage({
                     : undefined
                 }
               />
+              <Cell label="Room" value={detail.room || "—"} />
             </Row>
             {detail.deliveryMode === "IN_PERSON" && (
               <Row>
@@ -163,8 +190,81 @@ export default async function AdminClassDetailPage({
                 />
               </Row>
             )}
-            {detail.deliveryMode !== "IN_PERSON" && (
+            {detail.arrivalInstructions ? (
+              <NoteBlock label="Arrival instructions" body={detail.arrivalInstructions} />
+            ) : (
               <p style={{ marginTop: 6, fontSize: 12, color: "var(--text-secondary)" }}>
+                No arrival instructions on file. Add them below so families know where to
+                go.
+              </p>
+            )}
+            {Array.isArray(detail.materialsList) && detail.materialsList.length > 0 ? (
+              <div style={{ marginTop: 10 }}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "var(--text-secondary)",
+                    textTransform: "uppercase",
+                    marginBottom: 4,
+                  }}
+                >
+                  Materials
+                </div>
+                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>
+                  {detail.materialsList.map((item: string, idx: number) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            <form action={adminUpdateLogistics} style={stackedForm}>
+              <input type="hidden" name="offeringId" value={detail.id} />
+              <h3
+                className="section-title"
+                style={{ margin: "16px 0 6px", fontSize: 13 }}
+              >
+                Update logistics
+              </h3>
+              <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                Room (optional)
+                <input
+                  name="room"
+                  className="input"
+                  defaultValue={detail.room ?? ""}
+                  placeholder="e.g. Studio B"
+                />
+              </label>
+              <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                Arrival instructions
+                <textarea
+                  name="arrivalInstructions"
+                  className="input"
+                  rows={3}
+                  defaultValue={detail.arrivalInstructions ?? ""}
+                  placeholder="Enter through the back gate; sign in at the front desk."
+                />
+              </label>
+              <label style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                Materials (one per line)
+                <textarea
+                  name="materialsList"
+                  className="input"
+                  rows={3}
+                  defaultValue={(detail.materialsList ?? []).join("\n")}
+                  placeholder={"Sketchbook\nGraphite pencils\nWater bottle"}
+                />
+              </label>
+              <button type="submit" className="button" style={{ fontSize: 13 }}>
+                Save logistics
+              </button>
+              <p style={{ margin: 0, fontSize: 11, color: "var(--text-secondary)" }}>
+                Each save is journaled to the class timeline.
+              </p>
+            </form>
+
+            {detail.deliveryMode !== "IN_PERSON" && (
+              <p style={{ marginTop: 10, fontSize: 12, color: "var(--text-secondary)" }}>
                 Online links are optional for in-person classes — most YPP classes meet in
                 person.
               </p>
@@ -328,6 +428,45 @@ export default async function AdminClassDetailPage({
             <p style={{ margin: 0, fontSize: 13 }}>
               <strong>Announcements:</strong> {detail._count.announcements}
             </p>
+          </Section>
+
+          <Section title="Timeline">
+            {timeline.length === 0 ? (
+              <p style={{ margin: 0, fontSize: 13, color: "var(--text-secondary)" }}>
+                No admin actions on this class yet.
+              </p>
+            ) : (
+              <ul
+                style={{
+                  margin: 0,
+                  padding: 0,
+                  listStyle: "none",
+                  display: "grid",
+                  gap: 10,
+                }}
+              >
+                {timeline.map((event) => (
+                  <li
+                    key={event.id}
+                    style={{
+                      borderLeft: "3px solid var(--ypp-purple, #6b21c8)",
+                      paddingLeft: 10,
+                    }}
+                  >
+                    <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                      {event.createdAt.toLocaleString()} ·{" "}
+                      {event.actor?.name ?? "System"}
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>
+                      {event.kind.replace(/_/g, " ")}
+                    </div>
+                    {event.summary && (
+                      <div style={{ fontSize: 13 }}>{event.summary}</div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
           </Section>
         </aside>
       </div>

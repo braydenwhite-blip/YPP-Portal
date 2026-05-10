@@ -7,7 +7,7 @@ import {
 } from "@/lib/admin-class-operations";
 import ClassOperationsList from "./class-operations-list";
 
-type SearchParams = { tab?: string };
+type SearchParams = { tab?: string; cursor?: string };
 
 export const dynamic = "force-dynamic";
 
@@ -24,12 +24,16 @@ export default async function AdminClassesPage({
 
   const params = (await searchParams) ?? {};
   const tab = params.tab ?? "operations";
+  const cursor = params.cursor ?? null;
 
-  const [operations, proposals] = await Promise.all([
-    getAdminClassOperationsList(),
+  const [operationsPage, proposals] = await Promise.all([
+    getAdminClassOperationsList({ cursor }),
     getAdminProposalQueue(),
   ]);
+  const operations = operationsPage.items;
 
+  // Counts reflect the current page only — admins paginate through the list
+  // when there are more than ADMIN_CLASS_LIST_DEFAULT_LIMIT classes.
   const counts = {
     needsReview: proposals.filter((p) =>
       p.approval?.status === "REQUESTED" || p.approval?.status === "UNDER_REVIEW",
@@ -53,12 +57,22 @@ export default async function AdminClassesPage({
     missingLogistics: operations.filter(
       (o) =>
         o.actionFlags.missingLocation ||
-        o.actionFlags.missingMeetingLink ||
-        o.actionFlags.missingInstructor,
+        o.actionFlags.missingMeetingLink,
     ).length,
     cancelled: operations.filter((o) => o.actionFlags.isCancelled).length,
     completed: operations.filter((o) => o.actionFlags.isCompleted).length,
   };
+
+  function tabHref(value: string) {
+    return `?tab=${value}`;
+  }
+  function nextPageHref() {
+    if (!operationsPage.nextCursor) return null;
+    const search = new URLSearchParams();
+    search.set("tab", tab);
+    search.set("cursor", operationsPage.nextCursor);
+    return `?${search.toString()}`;
+  }
 
   return (
     <div>
@@ -102,6 +116,24 @@ export default async function AdminClassesPage({
       </nav>
 
       <ClassOperationsList tab={tab} operations={operations} proposals={proposals} />
+
+      {nextPageHref() && tab !== "review" && (
+        <div style={{ marginTop: 16, textAlign: "center" }}>
+          <Link href={nextPageHref()!} className="button" style={{ fontSize: 13 }}>
+            Load older classes →
+          </Link>
+          <p
+            style={{
+              marginTop: 6,
+              fontSize: 11,
+              color: "var(--text-secondary)",
+            }}
+          >
+            Showing {operations.length} of many. Pagination is by last
+            updated, descending.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

@@ -73,8 +73,7 @@ function filterByTab(
       return operations.filter(
         (o) =>
           o.actionFlags.missingLocation ||
-          o.actionFlags.missingMeetingLink ||
-          o.actionFlags.missingInstructor,
+          o.actionFlags.missingMeetingLink,
       );
     case "archive":
       return operations.filter(
@@ -183,7 +182,6 @@ function OperationsRow({ offering }: { offering: AdminClassOperationsListItem })
     flags.needsReview ||
     flags.needsRevision ||
     flags.approvedNotPublished ||
-    flags.missingInstructor ||
     flags.missingLocation ||
     flags.missingMeetingLink ||
     flags.startsWithin7Days ||
@@ -236,7 +234,6 @@ function OperationsRow({ offering }: { offering: AdminClassOperationsListItem })
           {flags.needsReview && <FlagPill tone="warn">Awaiting review</FlagPill>}
           {flags.needsRevision && <FlagPill tone="warn">Revision requested</FlagPill>}
           {flags.approvedNotPublished && <FlagPill tone="info">Approved · not published</FlagPill>}
-          {flags.missingInstructor && <FlagPill tone="bad">No instructor</FlagPill>}
           {flags.missingLocation && <FlagPill tone="bad">Missing location</FlagPill>}
           {flags.missingMeetingLink && <FlagPill tone="bad">Missing meeting link</FlagPill>}
           {flags.startsWithin7Days && <FlagPill tone="warn">Starts within 7 days</FlagPill>}

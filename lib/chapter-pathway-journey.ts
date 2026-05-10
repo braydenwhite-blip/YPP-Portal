@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { APPROVED_OFFERING_OR } from "@/lib/class-visibility";
 
 const ACTIVE_OFFERING_STATUSES = ["PUBLISHED", "IN_PROGRESS"] as const;
 const ACTIVE_ENROLLMENT_STATUSES = new Set(["ENROLLED", "WAITLISTED", "COMPLETED"]);
@@ -315,15 +316,25 @@ export async function getStudentChapterJourneyData(
       : prisma.classOffering.findMany({
           where: {
             status: { in: [...ACTIVE_OFFERING_STATUSES] },
-            OR: [
-              stepIds.length > 0 ? { pathwayStepId: { in: stepIds } } : undefined,
-              templateIds.length > 0
-                ? {
-                    pathwayStepId: null,
-                    templateId: { in: templateIds },
-                  }
-                : undefined,
-            ].filter(Boolean) as Array<Record<string, unknown>>,
+            // Defense-in-depth: a chapter pathway journey must not advertise
+            // an offering that is technically PUBLISHED but has not cleared
+            // admin review.
+            OR: APPROVED_OFFERING_OR,
+            AND: [
+              {
+                OR: [
+                  stepIds.length > 0
+                    ? { pathwayStepId: { in: stepIds } }
+                    : undefined,
+                  templateIds.length > 0
+                    ? {
+                        pathwayStepId: null,
+                        templateId: { in: templateIds },
+                      }
+                    : undefined,
+                ].filter(Boolean) as Array<Record<string, unknown>>,
+              },
+            ],
           },
           include: {
             chapter: {
