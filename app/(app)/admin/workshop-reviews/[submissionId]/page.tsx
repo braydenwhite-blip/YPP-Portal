@@ -91,7 +91,14 @@ export default async function WorkshopReviewDetailPage({
               email: true,
               chapterId: true,
               chapter: { select: { name: true } },
-              instructorApplication: {
+              instructorApplications: {
+                where: {
+                  status: {
+                    notIn: ["REJECTED", "WITHDRAWN"],
+                  },
+                },
+                orderBy: { createdAt: "desc" },
+                take: 1,
                 select: {
                   applicationTrack: true,
                   instructorSubtype: true,
@@ -142,8 +149,13 @@ export default async function WorkshopReviewDetailPage({
       ? normalizeCustomWorkshop(submission.customWorkshop)
       : null;
   const reflection = normalizeReflection(submission.reflection);
+  // After the re-application schema change, `instructorApplications` is a
+  // newest-first list (we `take: 1`); pull the active row out for legacy
+  // callers below.
+  const activeInstructorApplication =
+    submission.author.instructorApplications[0] ?? null;
   const legacyOutline = normalizeLegacyWorkshopOutline(
-    submission.author.instructorApplication?.workshopOutline ?? null
+    activeInstructorApplication?.workshopOutline ?? null
   );
 
   // Compute training progress for the applicant — reviewers want context.
@@ -208,7 +220,7 @@ export default async function WorkshopReviewDetailPage({
         </div>
         <div className="card">
           <div className="kpi">
-            {submission.author.instructorApplication?.instructorSubtype === "SUMMER_WORKSHOP"
+            {activeInstructorApplication?.instructorSubtype === "SUMMER_WORKSHOP"
               ? "Summer Workshop"
               : "Standard"}
           </div>
@@ -224,7 +236,7 @@ export default async function WorkshopReviewDetailPage({
         </div>
       </div>
 
-      {submission.author.instructorApplication?.instructorSubtype !== "SUMMER_WORKSHOP" ? (
+      {activeInstructorApplication?.instructorSubtype !== "SUMMER_WORKSHOP" ? (
         <div
           className="card"
           role="alert"
@@ -236,7 +248,7 @@ export default async function WorkshopReviewDetailPage({
         >
           <p style={{ margin: 0, fontSize: 13, color: "#7f1d1d" }}>
             <strong>Heads up.</strong> This applicant&rsquo;s subtype is{" "}
-            <strong>{submission.author.instructorApplication?.instructorSubtype ?? "unknown"}</strong>,
+            <strong>{activeInstructorApplication?.instructorSubtype ?? "unknown"}</strong>,
             not SUMMER_WORKSHOP. They shouldn&rsquo;t have a workshop submission
             — flag this to admin if it looks wrong.
           </p>

@@ -103,11 +103,19 @@ function buildCsp(nonce: string): string {
   ].join("; ");
 }
 
-function applySecurityHeaders(response: NextResponse): NextResponse {
+function applySecurityHeaders(response: NextResponse, pathname?: string): NextResponse {
   const nonce = generateNonce();
 
   // Forward nonce to server components via request header
   response.headers.set("x-nonce", nonce);
+
+  // Forward the request pathname so layouts/RSCs can read it via `headers()`.
+  // Layouts don't get `params.pathname` in Next.js, but they can call
+  // `headers().get("x-pathname")` to make routing-aware decisions
+  // (e.g. SW-subtype bypass on /instructor/workshop-design-studio).
+  if (pathname) {
+    response.headers.set("x-pathname", pathname);
+  }
 
   // Set dynamic nonce-based CSP on every response
   response.headers.set("Content-Security-Policy", buildCsp(nonce));
@@ -124,7 +132,7 @@ export async function proxy(request: NextRequest) {
   const isPublic = isPublicPath(pathname);
 
   if (isPublic && !isLogin && !isSignup) {
-    return applySecurityHeaders(NextResponse.next({ request }));
+    return applySecurityHeaders(NextResponse.next({ request }), pathname);
   }
 
   // Create Supabase client and refresh session
@@ -192,7 +200,7 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  return applySecurityHeaders(response);
+  return applySecurityHeaders(response, pathname);
 }
 
 export const config = {

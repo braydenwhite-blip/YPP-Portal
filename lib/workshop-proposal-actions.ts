@@ -345,8 +345,14 @@ export async function getOrCreateApplicantSubmission() {
   const roles = session.user.roles ?? [];
   await assertApplicantCanWriteSubmission(userId, roles);
 
-  const application = await prisma.instructorApplication.findUnique({
-    where: { applicantId: userId },
+  // Re-application: link the workshop submission to the applicant's most
+  // recent active application.
+  const application = await prisma.instructorApplication.findFirst({
+    where: {
+      applicantId: userId,
+      status: { notIn: ["REJECTED", "WITHDRAWN"] },
+    },
+    orderBy: { createdAt: "desc" },
     select: { id: true },
   });
   return resolveApplicantSubmission(userId, application?.id ?? null);

@@ -47,9 +47,31 @@ export const REGULAR_INSTRUCTOR_GATED_HREF_PREFIXES: readonly string[] = [
   // redirect is handled inside the application detail page itself.
 ];
 
+/**
+ * Sub-prefixes of the gated list that *Summer Workshop* approved instructors
+ * (subtype = SUMMER_WORKSHOP) are allowed into even while the regular
+ * instructor program is paused. They need access to:
+ *   - `/instructor/workshop-design-studio` to design and submit workshops
+ *   - `/instructor-training` to complete required training
+ * Other `/instructor/*` paths (curriculum builder, etc.) stay gated for
+ * everyone except admins, since those are Standard-track surfaces.
+ */
+export const SUMMER_WORKSHOP_PERMITTED_HREF_PREFIXES: readonly string[] = [
+  "/instructor/workshop-design-studio",
+  "/instructor-training",
+];
+
 /** Single source of truth for "is this path gated by the regular instructor flag?" */
 export function isRegularInstructorGatedPath(pathname: string): boolean {
   return REGULAR_INSTRUCTOR_GATED_HREF_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
+}
+
+/** Whether the path is reachable by a SUMMER_WORKSHOP-subtype user even
+ *  when the regular instructor program is paused. */
+export function isSummerWorkshopPermittedPath(pathname: string): boolean {
+  return SUMMER_WORKSHOP_PERMITTED_HREF_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
 }
@@ -58,17 +80,33 @@ export function isRegularInstructorGatedPath(pathname: string): boolean {
  * Admin override: admins can always reach gated areas. A `?adminPreview=1`
  * query param is also accepted so reviewers can spot-check without an
  * elevated role.
+ *
+ * Optionally accepts the user's `instructorSubtype` and the target
+ * `pathname`. SUMMER_WORKSHOP-subtype users bypass the gate for paths in
+ * `SUMMER_WORKSHOP_PERMITTED_HREF_PREFIXES` (workshop studio + training).
  */
 export function canBypassInstructorGate(opts: {
   roles?: readonly string[] | null;
   primaryRole?: string | null;
   adminPreviewParam?: string | null;
+  instructorSubtype?: string | null;
+  pathname?: string | null;
 }): boolean {
   const roles = opts.roles ?? [];
   if (roles.includes("ADMIN") || roles.includes("SUPER_ADMIN")) return true;
   if (opts.primaryRole === "ADMIN" || opts.primaryRole === "SUPER_ADMIN") return true;
   const preview = (opts.adminPreviewParam ?? "").toLowerCase();
   if (preview === "1" || preview === "true" || preview === "yes") return true;
+
+  // Summer Workshop subtype: allow the workshop studio + required training
+  // surfaces even while the regular instructor program is paused.
+  if (
+    opts.instructorSubtype === "SUMMER_WORKSHOP" &&
+    opts.pathname &&
+    isSummerWorkshopPermittedPath(opts.pathname)
+  ) {
+    return true;
+  }
   return false;
 }
 

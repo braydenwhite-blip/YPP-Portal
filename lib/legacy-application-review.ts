@@ -21,7 +21,10 @@ export type LegacyApplicationReviewAction =
   | "resume_from_hold";
 
 function isFinalStatus(status: LegacyApplicationStatus) {
-  return status === "APPROVED" || status === "REJECTED";
+  // WITHDRAWN is applicant-initiated and equally terminal — reviewers must
+  // not re-open a withdrawn application via "schedule interview" or
+  // "request info" actions.
+  return status === "APPROVED" || status === "REJECTED" || status === "WITHDRAWN";
 }
 
 export function getLegacyApplicationTransitionError(input: {
@@ -31,6 +34,9 @@ export function getLegacyApplicationTransitionError(input: {
   const { status, action } = input;
 
   if (isFinalStatus(status)) {
+    if (status === "WITHDRAWN") {
+      return "This application has been withdrawn by the applicant.";
+    }
     return "This application is already finalized.";
   }
 

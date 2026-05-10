@@ -8,9 +8,11 @@
 
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
+import { prisma } from "@/lib/prisma";
 import {
   canBypassInstructorGate,
   isRegularInstructorEnabled,
+  isSummerWorkshopPermittedPath,
 } from "@/lib/feature-flags";
 
 const GATE_DESTINATION = "/applications/summer-workshop";
@@ -18,11 +20,32 @@ const GATE_DESTINATION = "/applications/summer-workshop";
 export type InstructorGateOptions = {
   /** Optional searchParams from the calling page — used for `?adminPreview=1`. */
   adminPreview?: string | string[] | null;
+  /**
+   * Optional URL pathname for the route being gated. When provided and
+   * the path is in `SUMMER_WORKSHOP_PERMITTED_HREF_PREFIXES`, an applicant
+   * whose latest application is on the SUMMER_WORKSHOP track is allowed
+   * through (workshop studio + required training).
+   */
+  pathname?: string | null;
 };
 
 function readAdminPreview(value: InstructorGateOptions["adminPreview"]): string | null {
   if (Array.isArray(value)) return value[0] ?? null;
   return value ?? null;
+}
+
+async function lookupInstructorSubtype(userId: string | null | undefined) {
+  if (!userId) return null;
+  try {
+    const app = await prisma.instructorApplication.findFirst({
+      where: { applicantId: userId },
+      orderBy: { createdAt: "desc" },
+      select: { instructorSubtype: true },
+    });
+    return app?.instructorSubtype ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -38,8 +61,24 @@ export async function enforceInstructorGate(
   const roles = session?.user?.roles ?? [];
   const primaryRole = session?.user?.primaryRole ?? null;
   const adminPreview = readAdminPreview(options.adminPreview);
+  const pathname = options.pathname ?? null;
 
-  if (canBypassInstructorGate({ roles, primaryRole, adminPreviewParam: adminPreview })) {
+  // Only do the subtype lookup when both the path is SW-permitted AND we
+  // have a session — otherwise it's wasted work.
+  const instructorSubtype =
+    pathname && isSummerWorkshopPermittedPath(pathname) && session?.user?.id
+      ? await lookupInstructorSubtype(session.user.id)
+      : null;
+
+  if (
+    canBypassInstructorGate({
+      roles,
+      primaryRole,
+      adminPreviewParam: adminPreview,
+      instructorSubtype,
+      pathname,
+    })
+  ) {
     return;
   }
 
@@ -51,9 +90,16 @@ export function enforceInstructorGateWithSession(opts: {
   roles?: readonly string[] | null;
   primaryRole?: string | null;
   adminPreview?: string | null;
+  instructorSubtype?: string | null;
+  pathname?: string | null;
 }): void {
   if (isRegularInstructorEnabled()) return;
-  if (canBypassInstructorGate({ ...opts, adminPreviewParam: opts.adminPreview ?? null })) {
+  if (
+    canBypassInstructorGate({
+      ...opts,
+      adminPreviewParam: opts.adminPreview ?? null,
+    })
+  ) {
     return;
   }
   redirect(GATE_DESTINATION);

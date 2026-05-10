@@ -22,6 +22,7 @@ export default function AppShell({
   studentHasChapter,
   instructorFullPortalExplorer,
   hiringDemoMode,
+  instructorSubtype,
 }: {
   children: React.ReactNode;
   userName?: string | null;
@@ -38,6 +39,8 @@ export default function AppShell({
   studentHasChapter?: boolean;
   instructorFullPortalExplorer?: boolean;
   hiringDemoMode?: boolean;
+  /** SUMMER_WORKSHOP keeps the workshop studio + training links visible. */
+  instructorSubtype?: string | null;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const sidebarId = "portal-sidebar";
@@ -126,6 +129,7 @@ export default function AppShell({
             studentHasChapter={studentHasChapter}
             instructorFullPortalExplorer={instructorFullPortalExplorer}
             hiringDemoMode={hiringDemoMode}
+            instructorSubtype={instructorSubtype}
           />
         </div>
 

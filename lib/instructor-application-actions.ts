@@ -522,8 +522,15 @@ export async function submitInfoResponse(
 
     const response = getString(formData, "applicantResponse");
 
-    const application = await prisma.instructorApplication.findUnique({
-      where: { applicantId: session.user.id },
+    // Re-application: scope to the active (most recent non-terminal) row so
+    // an applicant who already re-applied doesn't accidentally respond on a
+    // prior closed application.
+    const application = await prisma.instructorApplication.findFirst({
+      where: {
+        applicantId: session.user.id,
+        status: InstructorApplicationStatus.INFO_REQUESTED,
+      },
+      orderBy: { createdAt: "desc" },
     });
     if (!application) return { status: "error", message: "Application not found." };
     if (application.applicantId !== session.user.id) {
@@ -2739,4 +2746,219 @@ export async function autoArchiveTerminalApplications(): Promise<{ archived: num
   }
 
   return { archived };
+}
+
+/**
+ * Fields the applicant can edit after submission. Identity fields
+ * (legalName, dateOfBirth, schoolName) and admin/reviewer-controlled
+ * fields are intentionally excluded.
+ */
+const APPLICANT_EDITABLE_FIELDS = [
+  "preferredFirstName",
+  "phoneNumber",
+  "city",
+  "stateProvince",
+  "zipCode",
+  "country",
+  "subjectsOfInterest",
+  "motivation",
+  "teachingExperience",
+  "availability",
+  "hoursPerWeek",
+  "preferredStartDate",
+  "courseIdea",
+  "textbook",
+  "courseOutline",
+  "firstClassPlan",
+] as const;
+type ApplicantEditableField = typeof APPLICANT_EDITABLE_FIELDS[number];
+
+/**
+ * Statuses where an applicant can still edit their answers. Once a chair
+ * has the file (CHAIR_REVIEW) or a final decision is recorded, edits are
+ * blocked — applicants can withdraw and re-apply if they need to.
+ */
+const APPLICANT_EDIT_OPEN_STATUSES: InstructorApplicationStatus[] = [
+  InstructorApplicationStatus.SUBMITTED,
+  InstructorApplicationStatus.UNDER_REVIEW,
+  InstructorApplicationStatus.INFO_REQUESTED,
+  InstructorApplicationStatus.PRE_APPROVED,
+  InstructorApplicationStatus.INTERVIEW_SCHEDULED,
+  InstructorApplicationStatus.INTERVIEW_COMPLETED,
+];
+
+/**
+ * Applicant-initiated edit. Allowed only on the most recent active
+ * application, only in non-final statuses, and only on the safelist of
+ * editable fields. Each edit records a timeline event capturing both
+ * the previous and the new value so reviewers can see the diff and the
+ * original answer is never lost.
+ */
+export async function editInstructorApplicationFields(
+  prevState: FormState,
+  formData: FormData
+): Promise<FormState> {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) return { status: "error", message: "Unauthorized" };
+
+    const application = await prisma.instructorApplication.findFirst({
+      where: { applicantId: session.user.id },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!application) return { status: "error", message: "No application to edit." };
+    if (application.applicantId !== session.user.id) {
+      return { status: "error", message: "Unauthorized." };
+    }
+    if (!APPLICANT_EDIT_OPEN_STATUSES.includes(application.status)) {
+      return {
+        status: "error",
+        message:
+          "Your application is past the editing window. Withdraw and re-apply if you need to make changes.",
+      };
+    }
+
+    const incoming: Partial<Record<ApplicantEditableField, string | number | null>> = {};
+    for (const field of APPLICANT_EDITABLE_FIELDS) {
+      if (!formData.has(field)) continue;
+      const raw = formData.get(field);
+      if (raw == null) continue;
+      const str = String(raw).trim();
+
+      if (field === "hoursPerWeek") {
+        if (str === "") {
+          incoming[field] = null;
+        } else {
+          const n = parseInt(str, 10);
+          if (!Number.isFinite(n) || n < 1 || n > 40) {
+            return { status: "error", message: "Hours per week must be 1–40." };
+          }
+          incoming[field] = n;
+        }
+      } else {
+        incoming[field] = str === "" ? null : str;
+      }
+    }
+
+    const changed: Record<string, { from: unknown; to: unknown }> = {};
+    for (const field of APPLICANT_EDITABLE_FIELDS) {
+      if (!(field in incoming)) continue;
+      const prev = (application as Record<string, unknown>)[field] ?? null;
+      const next = incoming[field] ?? null;
+      if (prev !== next) {
+        changed[field] = { from: prev, to: next };
+      }
+    }
+
+    if (Object.keys(changed).length === 0) {
+      return { status: "success", message: "No changes." };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.instructorApplication.update({
+        where: { id: application.id },
+        data: incoming as Prisma.InstructorApplicationUpdateInput,
+      });
+      await tx.instructorApplicationTimelineEvent.create({
+        data: {
+          applicationId: application.id,
+          kind: "APPLICANT_EDITED",
+          actorId: session.user.id,
+          payload: JSON.parse(JSON.stringify({ changed })) as Prisma.InputJsonValue,
+        },
+      });
+    });
+
+    revalidatePath("/application-status");
+    revalidatePath(`/applications/instructor/${application.id}`);
+    revalidatePath("/admin/instructor-applicants");
+    return { status: "success", message: "Application updated." };
+  } catch (error) {
+    console.error("[editInstructorApplicationFields]", error);
+    return { status: "error", message: "Something went wrong. Please try again." };
+  }
+}
+
+/**
+ * Applicant-initiated withdraw. Allowed in any non-terminal status —
+ * applicants control their own data and can pull out at any point until
+ * the chair has finalised the decision.
+ *
+ * Records the optional reason in the timeline so reviewers can see why
+ * the application was withdrawn (and whether the applicant signalled
+ * intent to re-apply later).
+ */
+const NON_TERMINAL_STATUSES_FOR_WITHDRAW: InstructorApplicationStatus[] = [
+  InstructorApplicationStatus.SUBMITTED,
+  InstructorApplicationStatus.UNDER_REVIEW,
+  InstructorApplicationStatus.INFO_REQUESTED,
+  InstructorApplicationStatus.PRE_APPROVED,
+  InstructorApplicationStatus.INTERVIEW_SCHEDULED,
+  InstructorApplicationStatus.INTERVIEW_COMPLETED,
+  InstructorApplicationStatus.CHAIR_REVIEW,
+  InstructorApplicationStatus.ON_HOLD,
+  InstructorApplicationStatus.WAITLISTED,
+];
+
+export async function withdrawInstructorApplication(
+  prevState: FormState,
+  formData: FormData
+): Promise<FormState> {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) return { status: "error", message: "Unauthorized" };
+
+    const reason = String(formData.get("reason") ?? "").trim();
+    if (reason.length > 2_000) {
+      return { status: "error", message: "Withdraw reason must be 2,000 characters or fewer." };
+    }
+
+    const application = await prisma.instructorApplication.findFirst({
+      where: { applicantId: session.user.id, status: { not: InstructorApplicationStatus.WITHDRAWN } },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, applicantId: true, status: true },
+    });
+    if (!application) {
+      return { status: "error", message: "No active application found." };
+    }
+    if (!NON_TERMINAL_STATUSES_FOR_WITHDRAW.includes(application.status)) {
+      return {
+        status: "error",
+        message:
+          application.status === InstructorApplicationStatus.APPROVED
+            ? "Approved applications cannot be withdrawn from here."
+            : application.status === InstructorApplicationStatus.REJECTED
+              ? "This application has already been closed."
+              : "This application cannot be withdrawn right now.",
+      };
+    }
+
+    const now = new Date();
+    await prisma.$transaction(async (tx) => {
+      await tx.instructorApplication.update({
+        where: { id: application.id },
+        data: { status: InstructorApplicationStatus.WITHDRAWN },
+      });
+      await tx.instructorApplicationTimelineEvent.create({
+        data: {
+          applicationId: application.id,
+          kind: "APPLICANT_WITHDREW",
+          actorId: session.user.id,
+          payload: {
+            previousStatus: application.status,
+            reason: reason ? reason.slice(0, 500) : null,
+          },
+        },
+      });
+    });
+
+    await syncInstructorApplicationWorkflow(application.id);
+    revalidatePath("/admin/instructor-applicants");
+    revalidatePath("/chapter-lead/instructor-applicants");
+    revalidatePath("/application-status");
+    return { status: "success", message: "Application withdrawn." };
+  } catch (error) {
+    console.error("[withdrawInstructorApplication]", error);
+    return { status: "error", message: "Something went wrong. Please try again." };
+  }
 }

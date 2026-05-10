@@ -9,9 +9,12 @@ import InfoResponseForm from "./info-response-form";
 import CPInfoResponseForm from "./cp-info-response-form";
 import AvailabilityForm from "./availability-form";
 import SlotPickerForm from "./slot-picker-form";
+import WithdrawForm from "./withdraw-form";
+import ApplicantEditForm from "./edit-form";
 import Link from "next/link";
 import InstructorApplicationMotivationResponse from "@/components/instructor-application-motivation-response";
 import { isHiringDemoModeEnabled } from "@/lib/hiring-demo-mode";
+import type { WorkshopOutline } from "@/lib/summer-workshop";
 
 function instructorStatusLabel(status: InstructorApplicationStatus): string {
   switch (status) {
@@ -110,9 +113,14 @@ export default async function ApplicationStatusPage() {
   const primaryRole = session.user.primaryRole;
   const hiringDemoMode = isHiringDemoModeEnabled();
 
+  // Re-application: a user can have multiple InstructorApplication rows over
+  // time, but only one non-terminal row at any given moment. Surface the
+  // most recent record (live or last closed) so the applicant always sees
+  // their current status, including the prior outcome before they re-apply.
   const loadInstructorApplication = () =>
-    prisma.instructorApplication.findUnique({
+    prisma.instructorApplication.findFirst({
       where: { applicantId: session.user.id },
+      orderBy: { createdAt: "desc" },
       include: {
         reviewer: { select: { name: true } },
         availabilityWindows: true,
@@ -411,8 +419,117 @@ export default async function ApplicationStatusPage() {
                   <p style={{ fontSize: 14, margin: 0, whiteSpace: "pre-wrap" }}>{instructorApp.firstClassPlan}</p>
                 </div>
               )}
+              {(() => {
+                const outline = (instructorApp.workshopOutline as WorkshopOutline | null) ?? null;
+                if (!outline || !outline.title) return null;
+                return (
+                  <div style={{ marginTop: 16, padding: 12, borderRadius: 8, background: "var(--surface-2)" }}>
+                    <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 8px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                      Workshop outline you submitted
+                    </p>
+                    <p style={{ fontSize: 14, margin: "0 0 6px" }}><strong>{outline.title}</strong></p>
+                    <p style={{ fontSize: 13, margin: "0 0 8px", color: "var(--muted)" }}>
+                      {outline.ageRange}
+                      {outline.durationMinutes ? ` · ${outline.durationMinutes} minutes` : ""}
+                    </p>
+                    {outline.learningGoals?.length ? (
+                      <div style={{ marginTop: 8 }}>
+                        <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 4px", fontWeight: 600 }}>Learning goals</p>
+                        <ul style={{ fontSize: 13, margin: "0 0 0 18px", padding: 0 }}>
+                          {outline.learningGoals.map((g, i) => <li key={i} style={{ marginBottom: 2 }}>{g}</li>)}
+                        </ul>
+                      </div>
+                    ) : null}
+                    {outline.activityFlow ? (
+                      <div style={{ marginTop: 8 }}>
+                        <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 4px", fontWeight: 600 }}>Activity flow</p>
+                        <p style={{ fontSize: 13, margin: 0, whiteSpace: "pre-wrap" }}>{outline.activityFlow}</p>
+                      </div>
+                    ) : null}
+                    {outline.engagementHook ? (
+                      <div style={{ marginTop: 8 }}>
+                        <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 4px", fontWeight: 600 }}>Engagement hook</p>
+                        <p style={{ fontSize: 13, margin: 0, whiteSpace: "pre-wrap" }}>{outline.engagementHook}</p>
+                      </div>
+                    ) : null}
+                    {outline.adaptationNotes ? (
+                      <div style={{ marginTop: 8 }}>
+                        <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 4px", fontWeight: 600 }}>Adapting on the fly</p>
+                        <p style={{ fontSize: 13, margin: 0, whiteSpace: "pre-wrap" }}>{outline.adaptationNotes}</p>
+                      </div>
+                    ) : null}
+                    {outline.materialsNeeded?.length ? (
+                      <div style={{ marginTop: 8 }}>
+                        <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 4px", fontWeight: 600 }}>Materials</p>
+                        <ul style={{ fontSize: 13, margin: "0 0 0 18px", padding: 0 }}>
+                          {outline.materialsNeeded.map((m, i) => <li key={i} style={{ marginBottom: 2 }}>{m}</li>)}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })()}
             </div>
           </details>
+
+          {/* Edit — applicants can update most fields while review is open
+              (CHAIR_REVIEW + terminal statuses are locked server-side). */}
+          {!["CHAIR_REVIEW", "ON_HOLD", "WAITLISTED", "APPROVED", "REJECTED", "WITHDRAWN"].includes(
+            instructorApp.status
+          ) && (
+            <ApplicantEditForm
+              isSummerWorkshop={instructorApp.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR"}
+              values={{
+                motivation: instructorApp.motivation,
+                teachingExperience: instructorApp.teachingExperience,
+                availability: instructorApp.availability,
+                hoursPerWeek: instructorApp.hoursPerWeek,
+                preferredStartDate: instructorApp.preferredStartDate,
+                subjectsOfInterest: instructorApp.subjectsOfInterest,
+                courseIdea: instructorApp.courseIdea,
+                courseOutline: instructorApp.courseOutline,
+                firstClassPlan: instructorApp.firstClassPlan,
+                preferredFirstName: instructorApp.preferredFirstName,
+                phoneNumber: instructorApp.phoneNumber,
+                city: instructorApp.city,
+                stateProvince: instructorApp.stateProvince,
+                zipCode: instructorApp.zipCode,
+              }}
+            />
+          )}
+
+          {/* Withdraw — applicants control their own data */}
+          {!["APPROVED", "REJECTED", "WITHDRAWN"].includes(instructorApp.status) && (
+            <WithdrawForm />
+          )}
+
+          {/* Re-apply when the latest application is closed (terminal) */}
+          {["REJECTED", "WITHDRAWN"].includes(instructorApp.status) && (
+            <div
+              style={{
+                marginTop: 16,
+                padding: "12px 14px",
+                borderRadius: 10,
+                background: "#f5f3ff",
+                border: "1px solid #ddd6fe",
+                fontSize: 13,
+                color: "#5b21b6",
+                lineHeight: 1.55,
+              }}
+            >
+              You can submit a new application — we&apos;ll pre-fill it with what
+              you had before, and flag it as a re-application for the review team.
+              <div style={{ marginTop: 10 }}>
+                <Link
+                  href="/applications/instructor/new"
+                  className="button"
+                  style={{ fontSize: 13, padding: "8px 14px", textDecoration: "none" }}
+                >
+                  Start a new application
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
