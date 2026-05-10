@@ -23,6 +23,8 @@ export default function AppShell({
   instructorFullPortalExplorer,
   hiringDemoMode,
   instructorSubtype,
+  publicGateActive,
+  previewModeActive,
 }: {
   children: React.ReactNode;
   userName?: string | null;
@@ -41,6 +43,10 @@ export default function AppShell({
   hiringDemoMode?: boolean;
   /** SUMMER_WORKSHOP keeps the workshop studio + training links visible. */
   instructorSubtype?: string | null;
+  /** Public portal gate is active for this user (no admin/preview bypass). */
+  publicGateActive?: boolean;
+  /** User is browsing in internal preview mode — show the indicator bar. */
+  previewModeActive?: boolean;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const sidebarId = "portal-sidebar";
@@ -130,6 +136,7 @@ export default function AppShell({
             instructorFullPortalExplorer={instructorFullPortalExplorer}
             hiringDemoMode={hiringDemoMode}
             instructorSubtype={instructorSubtype}
+            publicGateActive={publicGateActive}
           />
         </div>
 
@@ -152,7 +159,37 @@ export default function AppShell({
         </div>
       </aside>
 
-      <main>{children}</main>
+      <main>
+        {previewModeActive && (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              padding: "8px 16px",
+              background: "#f5f3ff",
+              borderBottom: "1px solid #ddd6fe",
+              color: "#5b21b6",
+              fontSize: 12,
+              fontWeight: 600,
+              letterSpacing: 0.4,
+              textTransform: "uppercase",
+            }}
+          >
+            <span>Internal preview mode — full portal unlocked on this device</span>
+            <a
+              href="/api/preview/exit?next=/"
+              style={{ color: "#5b21b6", textDecoration: "underline", fontWeight: 600 }}
+            >
+              Exit preview
+            </a>
+          </div>
+        )}
+        {children}
+      </main>
       <PageHelperFab
         primaryRole={(primaryRole as PageHelperRole | null | undefined) ?? undefined}
         roles={roles}

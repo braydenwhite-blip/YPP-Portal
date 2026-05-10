@@ -31,6 +31,15 @@ import {
 } from "@/lib/hiring-demo-mode";
 import HiringChairHome from "@/components/dashboard/hiring-chair-home";
 import { getHiringChairHomeData } from "@/lib/hiring-chair-home";
+import { cookies } from "next/headers";
+import {
+  PREVIEW_COOKIE_NAME,
+  SUMMER_WORKSHOP_APPLY_HREF,
+  SUMMER_WORKSHOP_PROPOSE_HREF,
+  isAdminBypassRole,
+  isPublicGateEnabled,
+  verifyPreviewToken,
+} from "@/lib/public-gate";
 
 function isMissingTableError(error: unknown) {
   return (
@@ -353,6 +362,87 @@ async function renderAdminWorkflowHome(params: {
   );
 }
 
+function PublicSummerWorkshopHome({ firstName }: { firstName: string }) {
+  return (
+    <div style={{ maxWidth: 720, margin: "32px auto 64px", padding: "0 24px" }}>
+      <div
+        style={{
+          padding: "10px 14px",
+          borderRadius: 10,
+          background: "#f5f3ff",
+          border: "1px solid #ddd6fe",
+          fontSize: 12,
+          color: "#5b21b6",
+          marginBottom: 24,
+          letterSpacing: 0.4,
+          textTransform: "uppercase",
+          fontWeight: 600,
+        }}
+      >
+        Now open: Summer Workshop season
+      </div>
+      <h1 style={{ fontSize: 30, fontWeight: 700, margin: "0 0 12px" }}>
+        Welcome{firstName ? `, ${firstName}` : ""} 👋
+      </h1>
+      <p style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.6, margin: "0 0 28px" }}>
+        We&apos;re focused on running an excellent Summer Workshop season this
+        year. Two flows are open today — applying to teach a workshop, and
+        proposing the workshop you&apos;d run. Everything else is still being
+        polished and will roll out as it&apos;s ready.
+      </p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
+        <Link
+          href={SUMMER_WORKSHOP_APPLY_HREF}
+          className="card"
+          style={{
+            display: "block",
+            padding: "20px 22px",
+            borderRadius: 12,
+            border: "1px solid var(--border, #e5e7eb)",
+            textDecoration: "none",
+            color: "inherit",
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#6b21c8", marginBottom: 6, letterSpacing: 0.3, textTransform: "uppercase" }}>
+            Apply
+          </div>
+          <h2 style={{ margin: "0 0 6px", fontSize: 18 }}>Summer Workshop Application</h2>
+          <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
+            Tell us who you are and why you&apos;d like to teach a Summer Workshop.
+          </p>
+        </Link>
+        <Link
+          href={SUMMER_WORKSHOP_PROPOSE_HREF}
+          className="card"
+          style={{
+            display: "block",
+            padding: "20px 22px",
+            borderRadius: 12,
+            border: "1px solid var(--border, #e5e7eb)",
+            textDecoration: "none",
+            color: "inherit",
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#6b21c8", marginBottom: 6, letterSpacing: 0.3, textTransform: "uppercase" }}>
+            Propose
+          </div>
+          <h2 style={{ margin: "0 0 6px", fontSize: 18 }}>Summer Workshop Proposal</h2>
+          <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
+            Open the Workshop Design Studio and submit a proposed workshop outline.
+          </p>
+        </Link>
+      </div>
+      <p style={{ marginTop: 28, fontSize: 13, color: "var(--muted)" }}>
+        Already applied?{" "}
+        <Link href="/application-status" style={{ color: "#6b21c8" }}>
+          Check your application status
+        </Link>
+        .
+      </p>
+    </div>
+  );
+}
+
 export default async function OverviewPage() {
   const session = await getSession();
 
@@ -364,6 +454,26 @@ export default async function OverviewPage() {
   const adminSubtypes = normalizeAdminSubtypes(
     ((session.user as { adminSubtypes?: string[] }).adminSubtypes ?? [])
   );
+
+  // Public portal gate: when only Summer Workshop applications and
+  // proposals are public, the dashboard becomes a focused two-card
+  // landing instead of the full role-based home. Admins (auto-bypass)
+  // and testers in preview mode skip this and see the regular home.
+  if (isPublicGateEnabled()) {
+    const isAdmin = isAdminBypassRole({ roles, primaryRole: session.user.primaryRole ?? null });
+    if (!isAdmin) {
+      const cookieStore = await cookies();
+      const previewToken = cookieStore.get(PREVIEW_COOKIE_NAME)?.value ?? null;
+      const previewActive = previewToken ? await verifyPreviewToken(previewToken) : false;
+      if (!previewActive) {
+        return (
+          <PublicSummerWorkshopHome
+            firstName={firstNameFromDisplay(session.user.name ?? "")}
+          />
+        );
+      }
+    }
+  }
 
   if (isHiringDemoModeEnabled()) {
     redirect(
