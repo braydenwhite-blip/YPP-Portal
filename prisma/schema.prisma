@@ -1558,6 +1558,8 @@ model TrainingModule {
   quizAttempts        TrainingQuizAttempt[]
   evidenceSubmissions TrainingEvidenceSubmission[]
   interactiveJourney  InteractiveJourney?
+  // Editor-side versions that bind to this module (latest PUBLISHED is canonical).
+  journeyVersions     JourneyVersion[]
   archivedAt          DateTime?
   createdAt           DateTime                     @default(now())
   updatedAt           DateTime                     @updatedAt
@@ -10659,13 +10661,20 @@ model InteractiveBeat {
 
   attempts InteractiveBeatAttempt[]
 
+  // Journey-editor versioning: every beat belongs to exactly one
+  // JourneyVersion (snapshot). Nullable today for backfill compatibility;
+  // future migrations may tighten to NOT NULL once all beats are versioned.
+  journeyVersionId String?
+  journeyVersion   JourneyVersion? @relation(fields: [journeyVersionId], references: [id], onDelete: Cascade)
+
   removedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([journeyId, sourceKey])
-  @@unique([journeyId, sortOrder])
+  @@unique([journeyVersionId, sortOrder])
+  @@index([journeyId, sortOrder])
   @@index([parentBeatId])
 }
 
@@ -10709,11 +10718,143 @@ model InteractiveJourneyCompletion {
   moduleBreakdown  Json?
   personalizedTips Json?
 
+  // Journey-editor versioning: completions captured against a specific
+  // JourneyVersion stay readable even after a newer version publishes.
+  // Nullable for backfill of completions that pre-date versioning.
+  journeyVersionId String?
+  journeyVersion   JourneyVersion? @relation(fields: [journeyVersionId], references: [id], onDelete: SetNull)
+
   completedAt DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@unique([journeyId, userId])
   @@index([userId, completedAt])
+  @@index([journeyVersionId])
+}
+
+// ============================================
+// JOURNEY EDITOR (versioning, gates, assignments, audit)
+// ============================================
+//
+// Layered above InteractiveJourney to support admin draft/publish workflows.
+// Each `JourneyVersion` is an immutable snapshot when PUBLISHED; learner
+// progress (InteractiveBeatAttempt, InteractiveJourneyCompletion) points
+// at specific snapshots so re-publishing never invalidates prior progress.
+// Plan: docs/admin-journey-editor-plan.md.
+
+enum JourneyVersionStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum JourneyAudienceRole {
+  STUDENT
+  INSTRUCTOR
+  CHAPTER_PRESIDENT
+  CHAPTER_LEAD
+  LEADERSHIP
+  SUMMER_WORKSHOP_INSTRUCTOR
+  MENTOR
+}
+
+enum JourneyGateKind {
+  READINESS_CHECK
+  BEAT_COMPLETE
+  MODULE_COMPLETE
+  SCORE_THRESHOLD
+}
+
+model Journey {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  title       String
+  description String?   @db.Text
+  archivedAt  DateTime?
+
+  versions    JourneyVersion[]
+  assignments JourneyAssignmentRule[]
+  auditLogs   JourneyAuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([archivedAt])
+}
+
+model JourneyVersion {
+  id            String               @id @default(cuid())
+  journeyId     String
+  journey       Journey              @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+
+  versionNumber Int
+  status        JourneyVersionStatus @default(DRAFT)
+  notes         String?              @db.Text
+
+  estimatedMinutes Int     @default(0)
+  passScorePct     Int     @default(80)
+  strictMode       Boolean @default(false)
+
+  moduleId String?
+  module   TrainingModule? @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+
+  publishedAt   DateTime?
+  publishedById String?
+  createdById   String?
+
+  beats       InteractiveBeat[]
+  gates       JourneyGate[]
+  completions InteractiveJourneyCompletion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([journeyId, versionNumber])
+  @@index([status, journeyId])
+  @@index([moduleId])
+}
+
+model JourneyGate {
+  id               String         @id @default(cuid())
+  journeyVersionId String
+  journeyVersion   JourneyVersion @relation(fields: [journeyVersionId], references: [id], onDelete: Cascade)
+
+  kind        JourneyGateKind
+  targetRef   String
+  requiredRef String
+  threshold   Int?
+
+  createdAt DateTime @default(now())
+
+  @@index([journeyVersionId])
+}
+
+model JourneyAssignmentRule {
+  id        String  @id @default(cuid())
+  journeyId String
+  journey   Journey @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+
+  audience   JourneyAudienceRole
+  autoEnroll Boolean             @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@unique([journeyId, audience])
+}
+
+model JourneyAuditLog {
+  id               String  @id @default(cuid())
+  journeyId        String
+  journey          Journey @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  journeyVersionId String?
+  actorId          String?
+  action           String
+  diff             Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([journeyId, createdAt])
+  @@index([actorId, createdAt])
 }
 
 // ============================================
