@@ -113,6 +113,52 @@ See §2 of this file for the new Prisma models. Migration strategy:
    `JourneyVersion` (PUBLISHED, v1) and copy beats' `journeyVersionId`.
 3. Leave `journeyId` on beats untouched; both pointers coexist.
 
+### 4.1 Commit 2 schema choices (landed 2026-05-10)
+
+Migration: `prisma/migrations/20260510120000_add_journey_versioning_schema`.
+
+- New enums: `JourneyVersionStatus`, `JourneyAudienceRole`, `JourneyGateKind`,
+  `JourneyAuditAction`. Mirrors the editor-local types in
+  `lib/journey-editor/types.ts`.
+- New tables: `Journey`, `JourneyVersion`, `JourneyGate`,
+  `JourneyAssignmentRule`, `JourneyAuditLog`.
+- `JourneyVersion` carries the per-version meta (`moduleId`,
+  `estimatedMinutes`, `passScorePct`, `strictMode`, `notes`) so a republish
+  with different settings does not mutate prior snapshots.
+- `JourneyVersion.moduleId` is **per-version, nullable, SetNull on module
+  delete**. Lets a future re-binding preserve snapshot history.
+- `Journey.slug` is `@unique`. Backfill derives slug from
+  `TrainingModule.contentKey` when present, otherwise `journey-<id>`. The
+  defensive disambiguation pass renames any collision to `<slug>-<id>`.
+- `JourneyAuditLog.actorId` is nullable so the system-generated audit row
+  for the v1 PUBLISHED backfill can be attributed to "system" if/when we
+  start writing one (this commit does not write one — kept zero-row to
+  avoid coupling backfill to a system user id).
+- `InteractiveBeat`:
+  - Added nullable `journeyVersionId`. Backfilled to the v1 PUBLISHED
+    snapshot for every existing beat. Legacy `journeyId` is preserved.
+  - **Dropped `@@unique([journeyId, sortOrder])`** — drag-reorder is
+    impossible with a hard unique constraint. Replaced with
+    `@@index([journeyId, sortOrder])` and `@@index([journeyVersionId,
+    sortOrder])`. Sort-order uniqueness is now a validation-time check
+    in `lib/journey-editor/validation.ts` (Commit 3).
+  - Added `@@unique([journeyVersionId, sourceKey])` so per-version
+    sourceKey uniqueness is enforced. Postgres composite-unique indexes
+    do not collide on NULLs, so legacy rows (`journeyVersionId IS NULL`)
+    keep working.
+  - Kept legacy `@@unique([journeyId, sourceKey])` so the existing
+    `npm run training:import` script remains a no-op upsert target.
+- `InteractiveJourneyCompletion`: added nullable `journeyVersionId`,
+  backfilled, indexed. Resolver in Commit 12 will set this on every new
+  completion.
+- Backfill is idempotent (`INSERT ... ON CONFLICT DO NOTHING`, `UPDATE
+  ... WHERE journeyVersionId IS NULL`). Re-running the migration is a
+  no-op. Backfill re-uses each `InteractiveJourney.id` as the
+  `Journey.id` and `JourneyVersion.id` so a re-run is deterministic and
+  cross-environment lookups by id stay stable.
+- No learner attempts (`InteractiveBeatAttempt`) are touched; they FK to
+  `InteractiveBeat.id`, which is now part of a frozen v1 snapshot.
+
 Versioning:
 - Edit creates/uses a DRAFT version.
 - Publish: validate → set `status=PUBLISHED`, increment `versionNumber`,
@@ -185,7 +231,7 @@ test per rule plus a known-good fixture.
 | 0a | Remove legacy WORKSHOP/SCENARIO_PRACTICE seed modules from `prisma/seed.ts` | ✅ landed |
 | 0b | Idempotent archive script for legacy modules already in DBs | ✅ landed |
 | 1 | Audit + plan doc (this file) and `lib/journey-editor/types.ts` stub | ✅ landed |
-| 2 | Prisma additions: Journey/JourneyVersion/JourneyGate/JourneyAssignmentRule/JourneyAuditLog + backfill migration | ⏳ next |
+| 2 | Prisma additions: Journey/JourneyVersion/JourneyGate/JourneyAssignmentRule/JourneyAuditLog + backfill migration | ✅ landed |
 | 3 | `lib/journey-editor/validation.ts` + vitest unit tests | ⏳ |
 | 4 | Sample-journey fixture + `prisma/seed.journey-editor.ts` | ⏳ |
 | 5 | `/admin/journeys` list page | ⏳ |
