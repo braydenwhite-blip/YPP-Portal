@@ -206,10 +206,27 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
-      // M2: Generic message to prevent user enumeration
+      // M2: We previously returned a generic "if this email is not already
+      // registered…" success message here, which silently swallowed the
+      // applicant's typed application — they saw "success" but no row was
+      // created, no email arrived, and no auto-login fired.
+      //
+      // For applicants we surface a dedicated state so the client can render
+      // a clear "you already have an account, sign in to continue" UI with
+      // a magic-link option. Their typed answers stay in the local draft so
+      // the form repopulates after they sign in. We continue to avoid
+      // confirming/denying the password.
+      if (primaryRole === RoleType.APPLICANT) {
+        return {
+          status: "error",
+          message: "ACCOUNT_EXISTS_SIGNIN_REQUIRED",
+          fields: pickFormFields(formData),
+        };
+      }
       return {
         status: "success",
-        message: "If this email is not already registered, your account has been created. Please check your email or try signing in."
+        message:
+          "If this email is not already registered, your account has been created. Please check your email or try signing in.",
       };
     }
 

@@ -776,11 +776,47 @@ export default function InstructorSignupPage() {
             </label>
           </div>
 
-          {state.message && state.message !== "APPLICATION_SUBMITTED" && (
+          {state.status === "error" && state.message === "ACCOUNT_EXISTS_SIGNIN_REQUIRED" ? (
+            <div
+              role="alert"
+              style={{
+                marginTop: 16,
+                padding: "14px 16px",
+                borderRadius: 10,
+                background: "#fef3c7",
+                border: "1px solid #fde68a",
+                fontSize: 13,
+                lineHeight: 1.55,
+                color: "#78350f",
+              }}
+            >
+              <strong style={{ display: "block", marginBottom: 4 }}>
+                You already have an account with this email.
+              </strong>
+              We&apos;ve kept everything you typed on this device. Sign in and we&apos;ll
+              take you to a page where you can finish or update your application.
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+                <Link
+                  href="/login?callbackUrl=/applications/instructor/new"
+                  className="button"
+                  style={{ fontSize: 13, padding: "8px 14px", textDecoration: "none" }}
+                >
+                  Sign in to continue
+                </Link>
+                <Link
+                  href="/magic-link?callbackUrl=/applications/instructor/new"
+                  className="button secondary"
+                  style={{ fontSize: 13, padding: "8px 14px", textDecoration: "none" }}
+                >
+                  Email me a sign-in link
+                </Link>
+              </div>
+            </div>
+          ) : state.message && state.message !== "APPLICATION_SUBMITTED" ? (
             <div className={state.status === "error" ? "form-error" : "form-success"} style={{ marginTop: 16 }}>
               {state.message}
             </div>
-          )}
+          ) : null}
 
           <SubmitButton
             label={isSummerWorkshop ? "Submit Workshop Instructor Application" : "Submit Application"}
