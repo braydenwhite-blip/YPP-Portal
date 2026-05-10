@@ -380,10 +380,9 @@ describe("adminPromoteFromWaitlist", () => {
 
   it("refuses when class is at capacity", async () => {
     vi.mocked(prisma.classOffering.findUnique).mockResolvedValue({
-      id: "o1",
       capacity: 5,
-      _count: { enrollments: 5 },
     } as any);
+    vi.mocked(prisma.classEnrollment.count).mockResolvedValue(5);
 
     await expect(
       adminPromoteFromWaitlist(makeForm({ offeringId: "o1" })),
@@ -392,10 +391,9 @@ describe("adminPromoteFromWaitlist", () => {
 
   it("returns promoted=false when waitlist is empty", async () => {
     vi.mocked(prisma.classOffering.findUnique).mockResolvedValue({
-      id: "o1",
       capacity: 5,
-      _count: { enrollments: 2 },
     } as any);
+    vi.mocked(prisma.classEnrollment.count).mockResolvedValue(2);
     vi.mocked(prisma.classEnrollment.findFirst).mockResolvedValue(null);
 
     const result = await adminPromoteFromWaitlist(makeForm({ offeringId: "o1" }));
@@ -405,10 +403,9 @@ describe("adminPromoteFromWaitlist", () => {
 
   it("promotes the next waitlisted student to ENROLLED", async () => {
     vi.mocked(prisma.classOffering.findUnique).mockResolvedValue({
-      id: "o1",
       capacity: 5,
-      _count: { enrollments: 2 },
     } as any);
+    vi.mocked(prisma.classEnrollment.count).mockResolvedValue(2);
     vi.mocked(prisma.classEnrollment.findFirst).mockResolvedValue({
       id: "e-next",
     } as any);

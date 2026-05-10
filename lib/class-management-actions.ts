@@ -18,6 +18,10 @@ import { getLegacyLearnerFitCopy } from "@/lib/learner-fit";
 import { syncCurriculumApprovalWorkflow } from "@/lib/workflow";
 import { syncInstructorGrowthSignalsForInstructor } from "@/lib/instructor-growth-service";
 import { publicOfferingWhere } from "@/lib/class-visibility";
+import {
+  takeSeatRaceSafe,
+  dropAndPromoteRaceSafe,
+} from "@/lib/class-seat-allocation";
 
 type WeeklyTopic = {
   week?: number;
@@ -1119,57 +1123,18 @@ export async function enrollInClass(offeringId: string): Promise<EnrollInClassRe
     }
   }
 
-  // Check if already enrolled (idempotent: surface friendly state instead of throwing)
-  const existingEnrollment = await prisma.classEnrollment.findUnique({
-    where: { studentId_offeringId: { studentId, offeringId } },
-  });
-
-  if (
-    existingEnrollment &&
-    (existingEnrollment.status === "ENROLLED" || existingEnrollment.status === "WAITLISTED")
-  ) {
-    return {
-      success: true,
-      waitlisted: existingEnrollment.status === "WAITLISTED",
-      alreadyEnrolled: true,
-      status: existingEnrollment.status,
-      waitlistPosition: existingEnrollment.waitlistPosition,
-    };
-  }
-
-  const enrolledCount = offering.enrollments.length;
-  const isWaitlisted = enrolledCount >= offering.capacity;
-  const waitlistPosition = isWaitlisted ? enrolledCount - offering.capacity + 1 : null;
-
-  if (existingEnrollment) {
-    // Re-enroll (previously dropped or completed)
-    await prisma.classEnrollment.update({
-      where: { id: existingEnrollment.id },
-      data: {
-        status: isWaitlisted ? "WAITLISTED" : "ENROLLED",
-        enrolledAt: new Date(),
-        droppedAt: null,
-        waitlistPosition,
-      },
-    });
-  } else {
-    await prisma.classEnrollment.create({
-      data: {
-        studentId,
-        offeringId,
-        status: isWaitlisted ? "WAITLISTED" : "ENROLLED",
-        waitlistPosition,
-      },
-    });
-  }
+  // Race-safe seat allocation (Serializable + retry on P2034). Returns
+  // alreadyActive when the student is already ENROLLED or WAITLISTED so we
+  // can surface the friendly idempotent response shape callers depend on.
+  const result = await takeSeatRaceSafe({ offeringId, studentId });
 
   revalidateStudentClassSurfaces(offeringId);
   return {
     success: true,
-    waitlisted: isWaitlisted,
-    alreadyEnrolled: false,
-    status: isWaitlisted ? "WAITLISTED" : "ENROLLED",
-    waitlistPosition,
+    waitlisted: result.waitlisted,
+    alreadyEnrolled: result.alreadyActive,
+    status: result.status,
+    waitlistPosition: result.waitlistPosition,
   };
 }
 
@@ -1184,81 +1149,20 @@ export async function enrollStudentInOffering(
 ): Promise<{ success: boolean; waitlisted: boolean; skipped: boolean }> {
   await requireInstructor();
 
-  const offering = await prisma.classOffering.findUnique({
-    where: { id: offeringId },
-    include: { enrollments: { where: { status: "ENROLLED" } } },
-  });
-
-  if (!offering) throw new Error("Class offering not found");
-
-  // Idempotent: skip if already actively enrolled
-  const existing = await prisma.classEnrollment.findUnique({
-    where: { studentId_offeringId: { studentId, offeringId } },
-  });
-
-  if (existing && (existing.status === "ENROLLED" || existing.status === "WAITLISTED")) {
-    return { success: true, waitlisted: existing.status === "WAITLISTED", skipped: true };
-  }
-
-  const enrolledCount = offering.enrollments.length;
-  const isWaitlisted = enrolledCount >= offering.capacity;
-
-  if (existing) {
-    await prisma.classEnrollment.update({
-      where: { id: existing.id },
-      data: {
-        status: isWaitlisted ? "WAITLISTED" : "ENROLLED",
-        enrolledAt: new Date(),
-        droppedAt: null,
-        waitlistPosition: isWaitlisted ? enrolledCount - offering.capacity + 1 : null,
-      },
-    });
-  } else {
-    await prisma.classEnrollment.create({
-      data: {
-        studentId,
-        offeringId,
-        status: isWaitlisted ? "WAITLISTED" : "ENROLLED",
-        waitlistPosition: isWaitlisted ? enrolledCount - offering.capacity + 1 : null,
-      },
-    });
-  }
-
+  const result = await takeSeatRaceSafe({ offeringId, studentId });
   revalidateStudentClassSurfaces(offeringId);
-  return { success: true, waitlisted: isWaitlisted, skipped: false };
+  return {
+    success: true,
+    waitlisted: result.waitlisted,
+    skipped: result.alreadyActive,
+  };
 }
 
 export async function dropClass(offeringId: string) {
   const session = await requireAuth();
   const studentId = session.user.id;
 
-  const enrollment = await prisma.classEnrollment.findUnique({
-    where: { studentId_offeringId: { studentId, offeringId } },
-  });
-
-  if (!enrollment) throw new Error("Not enrolled in this class");
-
-  await prisma.classEnrollment.update({
-    where: { id: enrollment.id },
-    data: {
-      status: "DROPPED",
-      droppedAt: new Date(),
-    },
-  });
-
-  // If someone was waitlisted, promote them
-  const nextWaitlisted = await prisma.classEnrollment.findFirst({
-    where: { offeringId, status: "WAITLISTED" },
-    orderBy: { waitlistPosition: "asc" },
-  });
-
-  if (nextWaitlisted) {
-    await prisma.classEnrollment.update({
-      where: { id: nextWaitlisted.id },
-      data: { status: "ENROLLED", waitlistPosition: null },
-    });
-  }
-
+  await dropAndPromoteRaceSafe({ offeringId, studentId });
   revalidateStudentClassSurfaces(offeringId);
   return { success: true };
 }

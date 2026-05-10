@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
 import { revalidatePath } from "next/cache";
 import { publicOfferingWhere } from "@/lib/class-visibility";
+import { takeSeatRaceSafe } from "@/lib/class-seat-allocation";
 import {
   parseOptionalPhone,
   parseRequiredDateOfBirth,
@@ -996,19 +997,10 @@ export async function enrollChildInClassOffering(formData: FormData) {
     throw new Error("This class is full");
   }
 
-  // Check if already enrolled
-  const existing = await prisma.classEnrollment.findFirst({
-    where: { studentId, offeringId },
-  });
-  if (existing) throw new Error("Student is already enrolled in this class");
-
-  await prisma.classEnrollment.create({
-    data: {
-      studentId,
-      offeringId,
-      status: "ENROLLED",
-    },
-  });
+  const result = await takeSeatRaceSafe({ offeringId, studentId });
+  if (result.alreadyActive) {
+    throw new Error("Student is already enrolled in this class");
+  }
 
   revalidatePath("/parent");
   revalidatePath(`/parent/${studentId}`);

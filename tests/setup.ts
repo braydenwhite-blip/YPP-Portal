@@ -62,91 +62,105 @@ vi.mock("@/lib/supabase/server", () => ({
   })),
 }));
 
-// Mock Prisma
-vi.mock("@/lib/prisma", () => ({
-  prisma: {
-    user: {
-      findUnique: vi.fn(),
-      findFirst: vi.fn(),
-      findMany: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-    },
-    userRole: {
-      upsert: vi.fn(),
-    },
-    userProfile: {
-      upsert: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-    },
-    parentStudent: {
-      findFirst: vi.fn(),
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      upsert: vi.fn(),
-      updateMany: vi.fn(),
-      count: vi.fn(),
-      delete: vi.fn(),
-    },
-    chapter: {
-      findUnique: vi.fn(),
-      findMany: vi.fn(),
-    },
-    course: {
-      findUnique: vi.fn(),
-      findMany: vi.fn(),
-    },
-    classOffering: {
-      findUnique: vi.fn(),
-      findFirst: vi.fn(),
-      findMany: vi.fn(),
-      update: vi.fn(),
-    },
-    classOfferingApproval: {
-      upsert: vi.fn(),
-      findUnique: vi.fn(),
-      update: vi.fn(),
-    },
-    classEnrollment: {
-      findUnique: vi.fn(),
-      findFirst: vi.fn(),
-      findMany: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      count: vi.fn(),
-      groupBy: vi.fn(),
-    },
-    enrollment: {
-      findFirst: vi.fn(),
-    },
-    specialProgram: {
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-    },
-    specialProgramEnrollment: {
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-      create: vi.fn(),
-      delete: vi.fn(),
-    },
-    programSession: {
-      create: vi.fn(),
-      delete: vi.fn(),
-    },
-    mentorship: {
-      findFirst: vi.fn(),
-    },
-    application: {
-      findUnique: vi.fn(),
-    },
+// Mock Prisma. The $transaction mock invokes the callback with the same
+// prisma mock instance so transactional code can be tested with the
+// model-level mocks already in place. For non-callback usage
+// ($transaction([...]) array form), it just resolves the array.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const prismaMock: any = {
+  user: {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
   },
-}));
+  userRole: {
+    upsert: vi.fn(),
+  },
+  userProfile: {
+    upsert: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+  },
+  parentStudent: {
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    findUnique: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    upsert: vi.fn(),
+    updateMany: vi.fn(),
+    count: vi.fn(),
+    delete: vi.fn(),
+  },
+  chapter: {
+    findUnique: vi.fn(),
+    findMany: vi.fn(),
+  },
+  course: {
+    findUnique: vi.fn(),
+    findMany: vi.fn(),
+  },
+  classOffering: {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    update: vi.fn(),
+  },
+  classOfferingApproval: {
+    upsert: vi.fn(),
+    findUnique: vi.fn(),
+    update: vi.fn(),
+  },
+  classEnrollment: {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    count: vi.fn(),
+    groupBy: vi.fn(),
+  },
+  enrollment: {
+    findFirst: vi.fn(),
+  },
+  specialProgram: {
+    findMany: vi.fn(),
+    findUnique: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+  },
+  specialProgramEnrollment: {
+    findMany: vi.fn(),
+    findUnique: vi.fn(),
+    create: vi.fn(),
+    delete: vi.fn(),
+  },
+  programSession: {
+    create: vi.fn(),
+    delete: vi.fn(),
+  },
+  mentorship: {
+    findFirst: vi.fn(),
+  },
+  application: {
+    findUnique: vi.fn(),
+  },
+};
+
+prismaMock.$transaction = vi.fn(async (arg: unknown) => {
+  if (typeof arg === "function") {
+    return (arg as (tx: unknown) => Promise<unknown>)(prismaMock);
+  }
+  if (Array.isArray(arg)) {
+    return Promise.all(arg);
+  }
+  return arg;
+});
+
+vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }));
 
 // Set up environment variables for tests
 process.env.NODE_ENV = "test";

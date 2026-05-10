@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/authorization-helpers";
 import { isOfferingPubliclyVisible } from "@/lib/class-visibility";
+import { promoteNextWaitlistedRaceSafe } from "@/lib/class-seat-allocation";
 
 /**
  * Admin-only class operations.
@@ -258,37 +259,9 @@ export async function adminPromoteFromWaitlist(formData: FormData) {
   await requireAdmin();
   const offeringId = getString(formData, "offeringId");
 
-  const offering = await prisma.classOffering.findUnique({
-    where: { id: offeringId },
-    select: {
-      id: true,
-      capacity: true,
-      _count: { select: { enrollments: { where: { status: "ENROLLED" } } } },
-    },
-  });
-  if (!offering) throw new Error("Class offering not found.");
-
-  if (offering._count.enrollments >= offering.capacity) {
-    throw new Error("Class is already at capacity.");
-  }
-
-  const next = await prisma.classEnrollment.findFirst({
-    where: { offeringId, status: "WAITLISTED" },
-    orderBy: [{ waitlistPosition: "asc" }, { enrolledAt: "asc" }],
-    select: { id: true },
-  });
-
-  if (!next) {
-    return { success: true, promoted: false };
-  }
-
-  await prisma.classEnrollment.update({
-    where: { id: next.id },
-    data: { status: "ENROLLED", waitlistPosition: null },
-  });
-
+  const result = await promoteNextWaitlistedRaceSafe({ offeringId });
   revalidateAdminClassSurfaces(offeringId);
-  return { success: true, promoted: true };
+  return { success: true, promoted: result.promoted };
 }
 
 /**
