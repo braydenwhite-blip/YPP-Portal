@@ -6,6 +6,7 @@ import {
   getInstructorMentorshipMembership,
 } from "@/lib/mentorship-access";
 import { getSimplifiedMentorKanban } from "@/lib/mentorship-kanban-actions";
+import { getMentorshipPendingActionCount } from "@/lib/mentorship-notifications";
 import { MentorDashboard } from "./_components/mentor-dashboard";
 import { MenteeDashboard } from "./_components/mentee-dashboard";
 
@@ -51,10 +52,13 @@ export default async function MentorshipPage() {
   }
 
   // Mentor data is only loaded when the user actually has mentees.
-  let mentorBlock: Awaited<ReturnType<typeof getSimplifiedMentorKanban>> | null = null;
-  if (showMentorSection) {
-    mentorBlock = await getSimplifiedMentorKanban();
-  }
+  // Pending-action count rolls up unread mentorship notifications across
+  // both mentee and mentor surfaces.
+  const [mentorBlockResult, pendingActionCount] = await Promise.all([
+    showMentorSection ? getSimplifiedMentorKanban() : Promise.resolve(null),
+    getMentorshipPendingActionCount(userId),
+  ]);
+  const mentorBlock = mentorBlockResult;
 
   const pendingReview =
     mentorBlock?.columns.find((c) => c.key === "READY_FOR_REVIEW")?.cards.length ?? 0;
@@ -76,6 +80,22 @@ export default async function MentorshipPage() {
           <p className="badge">Mentorship</p>
           <h1 className="page-title">Instructor Mentorship</h1>
           <p className="page-subtitle">{subtitle}</p>
+          {pendingActionCount > 0 && (
+            <Link
+              href="/notifications"
+              className="pill"
+              style={{
+                marginTop: 8,
+                display: "inline-block",
+                background: "#fef3c7",
+                color: "#92400e",
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
+            >
+              {pendingActionCount} mentorship update{pendingActionCount === 1 ? "" : "s"} unread →
+            </Link>
+          )}
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {roles.includes("ADMIN") && (
