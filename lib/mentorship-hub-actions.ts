@@ -989,6 +989,21 @@ export async function setMentorTag(
     throw new Error("Unauthorized");
   }
 
+  // Tighten: only the mentor on this pairing (or admin) may tag it. Without
+  // this check any role with canSupport could mutate any pairing's tag.
+  if (!flags.isAdmin) {
+    const pairing = await prisma.mentorship.findUnique({
+      where: { id: mentorshipId },
+      select: { mentorId: true, chairId: true },
+    });
+    if (!pairing) {
+      throw new Error("Mentorship not found");
+    }
+    if (pairing.mentorId !== session.user.id && pairing.chairId !== session.user.id) {
+      throw new Error("Unauthorized");
+    }
+  }
+
   await prisma.mentorship.update({
     where: { id: mentorshipId },
     data: { mentorTag: tag },

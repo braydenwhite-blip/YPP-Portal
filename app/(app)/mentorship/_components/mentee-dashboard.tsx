@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getGoalsForMentee } from "@/lib/mentorship-gr-binding";
+import { MENTORSHIP_RESOURCE_TYPE_META } from "@/lib/mentorship-hub";
+import { nextActionForInstructorMentee } from "@/lib/instructor-mentee-next-action";
 
 const TIER_THRESHOLDS = [
   { tier: "BRONZE", pts: 175, label: "Bronze", color: "#92400e", bg: "#fef3c7" },
@@ -26,13 +28,14 @@ const RATING_COLOR: Record<string, string> = {
 type Props = { userId: string };
 
 async function loadMenteeDashboardData(userId: string) {
-  const [mentorship, pointSummary, goals] = await Promise.all([
+  const [mentorship, pointSummary, goals, resources] = await Promise.all([
     prisma.mentorship.findFirst({
       where: { menteeId: userId, status: "ACTIVE" },
       select: {
         id: true,
         cycleStage: true,
         kickoffCompletedAt: true,
+        kickoffScheduledAt: true,
         mentor: { select: { id: true, name: true, email: true } },
         selfReflections: {
           orderBy: { cycleNumber: "desc" },
@@ -67,10 +70,30 @@ async function loadMenteeDashboardData(userId: string) {
       select: { totalPoints: true, currentTier: true },
     }),
     getGoalsForMentee(userId),
+    prisma.mentorshipResource.findMany({
+      where: {
+        isPublished: true,
+        OR: [
+          { menteeId: userId },
+          { mentorship: { menteeId: userId } },
+        ],
+      },
+      orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
+      take: 4,
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        description: true,
+        url: true,
+        createdBy: { select: { name: true } },
+      },
+    }),
   ]);
 
-  return { mentorship, pointSummary, goals };
+  return { mentorship, pointSummary, goals, resources };
 }
+
 
 function AwardBar({ totalPoints, currentTier }: { totalPoints: number; currentTier: string | null }) {
   const nextTier = TIER_THRESHOLDS.find((t) => t.pts > totalPoints);
@@ -133,14 +156,16 @@ function AwardBar({ totalPoints, currentTier }: { totalPoints: number; currentTi
 }
 
 export async function MenteeDashboard({ userId }: Props) {
-  const { mentorship, pointSummary, goals } = await loadMenteeDashboardData(userId);
+  const { mentorship, pointSummary, goals, resources } = await loadMenteeDashboardData(userId);
 
   if (!mentorship) {
     return (
       <div className="card" style={{ textAlign: "center", padding: "2.5rem 1.5rem" }}>
-        <h3 style={{ marginTop: 0 }}>No active mentorship</h3>
+        <h3 style={{ marginTop: 0 }}>No mentor assigned yet</h3>
         <p style={{ color: "var(--muted)", maxWidth: 480, margin: "0 auto" }}>
-          You have not been assigned a mentor yet. Reach out to your chapter leadership for more information.
+          You haven't been paired with an instructor mentor yet. Reach out to
+          your chapter leadership and they can match you. Once paired, your
+          goals, reflections, and feedback will appear here.
         </p>
       </div>
     );
@@ -157,8 +182,40 @@ export async function MenteeDashboard({ userId }: Props) {
     mentorship.cycleStage !== "REFLECTION_DUE" &&
     mentorship.cycleStage !== "KICKOFF_PENDING";
 
+  const nextAction = nextActionForInstructorMentee({
+    hasMentor: true,
+    cycleStage: mentorship.cycleStage ?? null,
+    kickoffCompletedAt: mentorship.kickoffCompletedAt ?? null,
+    hasGoals: goals.length > 0,
+    hasReleasedReview: !!latestApprovedReview?.releasedToMenteeAt,
+  });
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* Next action card */}
+      <div
+        className="card"
+        style={{
+          borderLeft: "4px solid var(--ypp-purple, #6b21c8)",
+          background: "var(--ypp-purple-50, #faf5ff)",
+        }}
+      >
+        <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1, color: "var(--muted)", marginBottom: 4 }}>
+          Your next step
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{nextAction.label}</div>
+            <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>{nextAction.detail}</p>
+          </div>
+          {nextAction.href && (
+            <Link href={nextAction.href} className="button primary small" style={{ whiteSpace: "nowrap" }}>
+              Take action →
+            </Link>
+          )}
+        </div>
+      </div>
+
       {/* Mentor card */}
       <div className="card" style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div>
@@ -215,7 +272,17 @@ export async function MenteeDashboard({ userId }: Props) {
       </div>
 
       {/* This month's goals */}
-      {goals.length > 0 && (
+      {goals.length === 0 ? (
+        <div className="card">
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>This Month's Goals</div>
+          <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
+            No goals are set yet. Your mentor will work with you to add goals to
+            your Goals & Resources document — once they're in place, they'll
+            appear here with your progress and any ratings from your last
+            review.
+          </p>
+        </div>
+      ) : (
         <div className="card">
           <div style={{ fontWeight: 700, marginBottom: 12 }}>This Month's Goals</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -267,6 +334,62 @@ export async function MenteeDashboard({ userId }: Props) {
           </div>
         </div>
       )}
+
+      {/* Resources recommended to you */}
+      <div className="card">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+          <div style={{ fontWeight: 700 }}>Resources Recommended To You</div>
+          <Link href="/mentor/resources" className="muted" style={{ fontSize: 12 }}>
+            Browse all →
+          </Link>
+        </div>
+        {resources.length === 0 ? (
+          <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
+            No resources have been recommended to you yet. Items your mentor
+            attaches to your Goals & Resources or sends you directly will show
+            up here.
+          </p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {resources.map((resource) => (
+              <div
+                key={resource.id}
+                style={{
+                  padding: "0.6rem 0.8rem",
+                  background: "var(--surface-alt)",
+                  borderRadius: "var(--radius-md, 8px)",
+                  borderLeft: "3px solid var(--ypp-purple, #6b21c8)",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>
+                    {resource.url ? (
+                      <a href={resource.url} target="_blank" rel="noreferrer" className="link">
+                        {resource.title}
+                      </a>
+                    ) : (
+                      resource.title
+                    )}
+                  </div>
+                  <span className="pill" style={{ fontSize: "0.68rem" }}>
+                    {MENTORSHIP_RESOURCE_TYPE_META[resource.type]?.label ?? resource.type}
+                  </span>
+                </div>
+                {resource.description && (
+                  <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--muted)" }}>
+                    {resource.description}
+                  </p>
+                )}
+                {resource.createdBy?.name && (
+                  <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--muted)" }}>
+                    Recommended by {resource.createdBy.name}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Latest feedback */}
       {latestApprovedReview && (

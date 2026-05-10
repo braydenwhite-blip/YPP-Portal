@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  getInstructorMentorshipMembership,
   getMentorshipAccessibleMenteeIds,
   hasMentorshipMenteeAccess,
 } from "@/lib/mentorship-access";
@@ -10,6 +11,7 @@ describe("mentorship-access", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (prisma.mentorship as any).findMany = vi.fn();
+    (prisma.mentorship as any).count = vi.fn();
     (prisma as any).mentorshipCircleMember = {
       findMany: vi.fn(),
     };
@@ -62,5 +64,62 @@ describe("mentorship-access", () => {
     await expect(
       hasMentorshipMenteeAccess("lead-1", ["CHAPTER_PRESIDENT"], "mentee-2")
     ).resolves.toBe(false);
+  });
+});
+
+describe("getInstructorMentorshipMembership", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (prisma.mentorship as any).findFirst = vi.fn();
+    (prisma.mentorship as any).count = vi.fn();
+  });
+
+  it("reports mentee-only when user has an active mentee pairing and no mentor pairings", async () => {
+    (prisma.mentorship as any).findFirst.mockResolvedValue({ id: "m-1" });
+    (prisma.mentorship as any).count.mockResolvedValue(0);
+
+    const result = await getInstructorMentorshipMembership("user-1");
+
+    expect(result).toEqual({ isMentee: true, isMentor: false, menteeCount: 0 });
+  });
+
+  it("reports mentor-only when user mentors others but has no mentor of their own", async () => {
+    (prisma.mentorship as any).findFirst.mockResolvedValue(null);
+    (prisma.mentorship as any).count.mockResolvedValue(2);
+
+    const result = await getInstructorMentorshipMembership("user-2");
+
+    expect(result).toEqual({ isMentee: false, isMentor: true, menteeCount: 2 });
+  });
+
+  it("reports both when user is a mentee and also mentors others", async () => {
+    (prisma.mentorship as any).findFirst.mockResolvedValue({ id: "m-2" });
+    (prisma.mentorship as any).count.mockResolvedValue(3);
+
+    const result = await getInstructorMentorshipMembership("user-3");
+
+    expect(result.isMentee).toBe(true);
+    expect(result.isMentor).toBe(true);
+    expect(result.menteeCount).toBe(3);
+  });
+
+  it("reports neither when there is no relationship in either direction", async () => {
+    (prisma.mentorship as any).findFirst.mockResolvedValue(null);
+    (prisma.mentorship as any).count.mockResolvedValue(0);
+
+    const result = await getInstructorMentorshipMembership("user-4");
+
+    expect(result).toEqual({ isMentee: false, isMentor: false, menteeCount: 0 });
+  });
+
+  it("does not consider role array — derives mentor membership purely from DB", async () => {
+    // Simulates an INSTRUCTOR-only role user who is assigned as a mentor on a
+    // pairing. Old role-based check would have hidden the mentor view.
+    (prisma.mentorship as any).findFirst.mockResolvedValue(null);
+    (prisma.mentorship as any).count.mockResolvedValue(1);
+
+    const result = await getInstructorMentorshipMembership("instructor-mentor");
+
+    expect(result.isMentor).toBe(true);
   });
 });
