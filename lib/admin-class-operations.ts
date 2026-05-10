@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/authorization-helpers";
 import { isOfferingPubliclyVisible } from "@/lib/class-visibility";
 import { promoteNextWaitlistedRaceSafe } from "@/lib/class-seat-allocation";
+import { recordOfferingTimeline } from "@/lib/class-offering-timeline";
 
 /**
  * Admin-only class operations.
@@ -85,7 +86,7 @@ async function loadOfferingOrThrow(offeringId: string) {
  * action only flips the offering live. Refuses to publish without approval.
  */
 export async function adminPublishClassOffering(formData: FormData) {
-  await requireAdmin();
+  const actor = await requireAdmin();
   const offeringId = getString(formData, "offeringId");
   const offering = await loadOfferingOrThrow(offeringId);
 
@@ -124,6 +125,14 @@ export async function adminPublishClassOffering(formData: FormData) {
     data: { status: "PUBLISHED", enrollmentOpen: true },
   });
 
+  await recordOfferingTimeline({
+    offeringId,
+    actorId: actor.id,
+    kind: "PUBLISHED",
+    summary: "Published and opened for enrollment.",
+    payload: { previousStatus: offering.status },
+  });
+
   revalidateAdminClassSurfaces(offeringId);
   return { success: true };
 }
@@ -133,7 +142,7 @@ export async function adminPublishClassOffering(formData: FormData) {
  * existing rosters are preserved, but enrollment immediately closes.
  */
 export async function adminUnpublishClassOffering(formData: FormData) {
-  await requireAdmin();
+  const actor = await requireAdmin();
   const offeringId = getString(formData, "offeringId");
   const offering = await loadOfferingOrThrow(offeringId);
 
@@ -151,12 +160,20 @@ export async function adminUnpublishClassOffering(formData: FormData) {
     data: { status: "DRAFT", enrollmentOpen: false },
   });
 
+  await recordOfferingTimeline({
+    offeringId,
+    actorId: actor.id,
+    kind: "UNPUBLISHED",
+    summary: "Returned to draft and closed enrollment.",
+    payload: { previousStatus: offering.status },
+  });
+
   revalidateAdminClassSurfaces(offeringId);
   return { success: true };
 }
 
 export async function adminCloseEnrollment(formData: FormData) {
-  await requireAdmin();
+  const actor = await requireAdmin();
   const offeringId = getString(formData, "offeringId");
   await loadOfferingOrThrow(offeringId);
 
@@ -165,12 +182,19 @@ export async function adminCloseEnrollment(formData: FormData) {
     data: { enrollmentOpen: false },
   });
 
+  await recordOfferingTimeline({
+    offeringId,
+    actorId: actor.id,
+    kind: "ENROLLMENT_CLOSED",
+    summary: "Closed enrollment.",
+  });
+
   revalidateAdminClassSurfaces(offeringId);
   return { success: true };
 }
 
 export async function adminReopenEnrollment(formData: FormData) {
-  await requireAdmin();
+  const actor = await requireAdmin();
   const offeringId = getString(formData, "offeringId");
   const offering = await loadOfferingOrThrow(offeringId);
 
@@ -185,12 +209,19 @@ export async function adminReopenEnrollment(formData: FormData) {
     data: { enrollmentOpen: true },
   });
 
+  await recordOfferingTimeline({
+    offeringId,
+    actorId: actor.id,
+    kind: "ENROLLMENT_OPENED",
+    summary: "Reopened enrollment.",
+  });
+
   revalidateAdminClassSurfaces(offeringId);
   return { success: true };
 }
 
 export async function adminCancelClassOffering(formData: FormData) {
-  await requireAdmin();
+  const actor = await requireAdmin();
   const offeringId = getString(formData, "offeringId");
   const offering = await loadOfferingOrThrow(offeringId);
 
@@ -206,12 +237,20 @@ export async function adminCancelClassOffering(formData: FormData) {
     data: { status: "CANCELLED", enrollmentOpen: false },
   });
 
+  await recordOfferingTimeline({
+    offeringId,
+    actorId: actor.id,
+    kind: "CANCELLED",
+    summary: "Cancelled the class.",
+    payload: { previousStatus: offering.status },
+  });
+
   revalidateAdminClassSurfaces(offeringId);
   return { success: true };
 }
 
 export async function adminMarkClassCompleted(formData: FormData) {
-  await requireAdmin();
+  const actor = await requireAdmin();
   const offeringId = getString(formData, "offeringId");
   const offering = await loadOfferingOrThrow(offeringId);
 
@@ -229,22 +268,42 @@ export async function adminMarkClassCompleted(formData: FormData) {
     data: { status: "COMPLETED", enrollmentOpen: false },
   });
 
+  await recordOfferingTimeline({
+    offeringId,
+    actorId: actor.id,
+    kind: "COMPLETED",
+    summary: "Marked completed.",
+    payload: { previousStatus: offering.status },
+  });
+
   revalidateAdminClassSurfaces(offeringId);
   return { success: true };
 }
 
 export async function adminUpdateCapacity(formData: FormData) {
-  await requireAdmin();
+  const actor = await requireAdmin();
   const offeringId = getString(formData, "offeringId");
   const capacity = getInt(formData, "capacity");
   if (capacity == null || capacity < 1) {
     throw new Error("Capacity must be a positive whole number.");
   }
-  await loadOfferingOrThrow(offeringId);
+  const offering = await loadOfferingOrThrow(offeringId);
+
+  if (offering.capacity === capacity) {
+    return { success: true, unchanged: true };
+  }
 
   await prisma.classOffering.update({
     where: { id: offeringId },
     data: { capacity },
+  });
+
+  await recordOfferingTimeline({
+    offeringId,
+    actorId: actor.id,
+    kind: "CAPACITY_CHANGED",
+    summary: `Capacity changed from ${offering.capacity} to ${capacity}.`,
+    payload: { from: offering.capacity, to: capacity },
   });
 
   revalidateAdminClassSurfaces(offeringId);
@@ -256,10 +315,19 @@ export async function adminUpdateCapacity(formData: FormData) {
  * there is no one waiting or the class is already at capacity.
  */
 export async function adminPromoteFromWaitlist(formData: FormData) {
-  await requireAdmin();
+  const actor = await requireAdmin();
   const offeringId = getString(formData, "offeringId");
 
   const result = await promoteNextWaitlistedRaceSafe({ offeringId });
+  if (result.promoted) {
+    await recordOfferingTimeline({
+      offeringId,
+      actorId: actor.id,
+      kind: "WAITLIST_PROMOTION",
+      summary: "Promoted next waitlisted student to enrolled.",
+      payload: { enrollmentId: result.enrollmentId },
+    });
+  }
   revalidateAdminClassSurfaces(offeringId);
   return { success: true, promoted: result.promoted };
 }
@@ -271,7 +339,7 @@ export async function adminPromoteFromWaitlist(formData: FormData) {
  * original instructor is unreachable two days before class).
  */
 export async function adminReassignInstructor(formData: FormData) {
-  await requireAdmin();
+  const actor = await requireAdmin();
   const offeringId = getString(formData, "offeringId");
   const newInstructorId = getString(formData, "instructorId");
 
@@ -293,11 +361,23 @@ export async function adminReassignInstructor(formData: FormData) {
     );
   }
 
-  await loadOfferingOrThrow(offeringId);
+  const offering = await loadOfferingOrThrow(offeringId);
+
+  if (offering.instructorId === newInstructorId) {
+    return { success: true, unchanged: true };
+  }
 
   await prisma.classOffering.update({
     where: { id: offeringId },
     data: { instructorId: newInstructorId },
+  });
+
+  await recordOfferingTimeline({
+    offeringId,
+    actorId: actor.id,
+    kind: "INSTRUCTOR_REASSIGNED",
+    summary: `Reassigned instructor to ${newInstructor.name}.`,
+    payload: { from: offering.instructorId, to: newInstructorId },
   });
 
   revalidateAdminClassSurfaces(offeringId);
@@ -309,7 +389,7 @@ export async function adminReassignInstructor(formData: FormData) {
  * confirmed → waitlisted, waitlisted → confirmed, and either → dropped.
  */
 export async function adminUpdateEnrollmentStatus(formData: FormData) {
-  await requireAdmin();
+  const actor = await requireAdmin();
   const enrollmentId = getString(formData, "enrollmentId");
   const nextStatus = getString(formData, "status");
   const allowed = new Set(["ENROLLED", "WAITLISTED", "DROPPED", "COMPLETED"]);
@@ -319,7 +399,7 @@ export async function adminUpdateEnrollmentStatus(formData: FormData) {
 
   const enrollment = await prisma.classEnrollment.findUnique({
     where: { id: enrollmentId },
-    select: { id: true, offeringId: true, status: true },
+    select: { id: true, offeringId: true, status: true, studentId: true },
   });
   if (!enrollment) throw new Error("Enrollment not found.");
 
@@ -344,6 +424,19 @@ export async function adminUpdateEnrollmentStatus(formData: FormData) {
   await prisma.classEnrollment.update({
     where: { id: enrollmentId },
     data,
+  });
+
+  await recordOfferingTimeline({
+    offeringId: enrollment.offeringId,
+    actorId: actor.id,
+    kind: "ENROLLMENT_STATUS_CHANGED",
+    summary: `Enrollment ${enrollment.status} → ${nextStatus}.`,
+    payload: {
+      enrollmentId,
+      studentId: enrollment.studentId,
+      from: enrollment.status,
+      to: nextStatus,
+    },
   });
 
   revalidateAdminClassSurfaces(enrollment.offeringId);

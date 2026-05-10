@@ -114,6 +114,10 @@ const prismaMock: any = {
     findUnique: vi.fn(),
     update: vi.fn(),
   },
+  classOfferingTimelineEvent: {
+    create: vi.fn(),
+    findMany: vi.fn(),
+  },
   classEnrollment: {
     findUnique: vi.fn(),
     findFirst: vi.fn(),

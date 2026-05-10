@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
 import { getInstructorReadiness } from "@/lib/instructor-readiness";
+import { recordOfferingTimeline } from "@/lib/class-offering-timeline";
 
 async function requireSession() {
   const session = await getSession();
@@ -140,6 +141,14 @@ export async function requestOfferingApproval(formData: FormData) {
     },
   });
 
+  await recordOfferingTimeline({
+    offeringId,
+    actorId: session.user.id,
+    kind: "PROPOSAL_SUBMITTED",
+    summary: "Submitted proposal for admin review.",
+    payload: requestNotes ? { notes: requestNotes } : null,
+  });
+
   revalidateOfferingApprovalSurfaces(offeringId);
 }
 
@@ -180,6 +189,14 @@ export async function approveOfferingApproval(formData: FormData) {
     },
   });
 
+  await recordOfferingTimeline({
+    offeringId,
+    actorId: session.user.id,
+    kind: "PROPOSAL_APPROVED",
+    summary: "Approved the proposal.",
+    payload: reviewNotes ? { notes: reviewNotes } : null,
+  });
+
   revalidateOfferingApprovalSurfaces(offeringId);
 }
 
@@ -215,6 +232,20 @@ export async function requestOfferingApprovalRevision(formData: FormData) {
       reviewNotes: reviewNotes || null,
       reviewedAt: new Date(),
     },
+  });
+
+  await recordOfferingTimeline({
+    offeringId,
+    actorId: session.user.id,
+    kind:
+      statusRaw === "REJECTED"
+        ? "PROPOSAL_REJECTED"
+        : "PROPOSAL_CHANGES_REQUESTED",
+    summary:
+      statusRaw === "REJECTED"
+        ? "Rejected the proposal."
+        : "Requested revisions on the proposal.",
+    payload: reviewNotes ? { notes: reviewNotes } : null,
   });
 
   revalidateOfferingApprovalSurfaces(offeringId);
