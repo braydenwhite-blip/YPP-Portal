@@ -20,6 +20,9 @@ interface Props {
   isAssignedInterviewer: boolean;
   isAssignedLeadInterviewer: boolean;
   canActAsChair: boolean;
+  /** Same-chapter Chapter Presidents can route an interview-completed
+   *  application to chair review themselves. */
+  canSendToChair?: boolean;
   isAdmin: boolean;
   hidden?: boolean;
 }
@@ -32,6 +35,7 @@ export default function ApplicantNextActionBar({
   isAssignedInterviewer,
   isAssignedLeadInterviewer,
   canActAsChair,
+  canSendToChair = false,
   isAdmin,
   hidden = false,
 }: Props) {
@@ -42,6 +46,7 @@ export default function ApplicantNextActionBar({
 
   const { status } = application;
   const hasLead = application.interviewerAssignments.some((a) => a.role === "LEAD" && !a.removedAt);
+  const canRouteToChair = canActAsChair || canSendToChair;
 
   // Derive the single most important next action
   let action: { label: string; description: string; handler?: () => void; href?: string } | null = null;
@@ -89,10 +94,12 @@ export default function ApplicantNextActionBar({
       description: "The applicant has not picked a time yet. Send a fresh set if needed.",
       href: "#section-scheduling",
     };
-  } else if (status === "INTERVIEW_COMPLETED" && canActAsChair) {
+  } else if (status === "INTERVIEW_COMPLETED" && canRouteToChair) {
     action = {
       label: "Send to Chair",
-      description: "All interviews are complete. Send this application to the chair queue.",
+      description: canActAsChair
+        ? "All interviews are complete. Send this application to the chair queue."
+        : "Interviews are complete — route this application to the hiring chair to make the final decision.",
       handler: () => {
         startTransition(async () => {
           const fd = new FormData();
@@ -102,11 +109,23 @@ export default function ApplicantNextActionBar({
         });
       },
     };
+  } else if (status === "INTERVIEW_COMPLETED") {
+    // Show a "waiting on..." nudge so reviewers/CPs know why nothing has advanced.
+    action = {
+      label: "Waiting on chair review",
+      description:
+        "All interviewer reviews aren't in yet, or the application is queued for the hiring chair. Nothing more to do from this view.",
+    };
   } else if (status === "CHAIR_REVIEW" && canActAsChair) {
     action = {
       label: "Make Decision",
       description: "Open the full chair review workspace and record your decision.",
       href: `/admin/instructor-applicants/chair-queue/${application.id}`,
+    };
+  } else if (status === "CHAIR_REVIEW") {
+    action = {
+      label: "Awaiting chair decision",
+      description: "This application is in the hiring chair's queue. You'll be notified when a decision is recorded.",
     };
   }
 
@@ -136,7 +155,15 @@ export default function ApplicantNextActionBar({
         <a href={action.href} className="button applicant-next-action-button">
           {action.label}
         </a>
-      ) : null}
+      ) : (
+        <span
+          className="pill pill-pending applicant-next-action-button"
+          aria-live="polite"
+          style={{ display: "inline-flex", alignItems: "center" }}
+        >
+          Waiting
+        </span>
+      )}
     </div>
   );
 }

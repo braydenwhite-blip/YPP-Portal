@@ -259,6 +259,11 @@ export default async function ApplicantCockpitPage({
     actorIsAdmin ||
     (isChapterLead(actor) && actor.chapterId === application.applicant.chapterId) ||
     actorIsReviewer;
+  // Same-chapter Chapter Presidents can route a completed interview to the
+  // chair queue themselves (the server action already authorizes this via
+  // assertCanManageApplication; we only need to surface the button).
+  const canSendToChair =
+    !actorIsAdmin && isChapterLead(actor) && actor.chapterId === application.applicant.chapterId;
   const canPostSlots = actorIsAdmin || actorIsLeadInterviewer;
   const canSendInterviewTimes =
     canPostSlots &&
@@ -596,6 +601,7 @@ export default async function ApplicantCockpitPage({
         isAssignedInterviewer={actorIsInterviewer}
         isAssignedLeadInterviewer={actorIsLeadInterviewer}
         canActAsChair={canActAsChairBool}
+        canSendToChair={canSendToChair}
         isAdmin={actorIsAdmin}
         hidden={isHidden}
       />
