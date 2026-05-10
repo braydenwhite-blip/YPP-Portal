@@ -241,9 +241,22 @@ export default function InstructorSignupPage() {
             <>
               <h1 className="page-title" style={{ fontSize: 20, marginTop: 20 }}>Application submitted!</h1>
               <p className="page-subtitle" style={{ fontSize: 13 }}>{autoLoginError}</p>
-              <Link href="/login?callbackUrl=/application-status" className="button" style={{ marginTop: 12, display: "inline-block" }}>
-                Sign in
-              </Link>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 16, alignItems: "center" }}>
+                <Link
+                  href={`/login?callbackUrl=/application-status${emailRef.current ? `&email=${encodeURIComponent(emailRef.current)}` : ""}`}
+                  className="button"
+                  style={{ display: "inline-block", textDecoration: "none" }}
+                >
+                  Sign in with my password
+                </Link>
+                <Link
+                  href={`/magic-link?callbackUrl=/application-status${emailRef.current ? `&email=${encodeURIComponent(emailRef.current)}` : ""}`}
+                  className="button secondary"
+                  style={{ display: "inline-block", textDecoration: "none" }}
+                >
+                  Email me a sign-in link
+                </Link>
+              </div>
             </>
           ) : (
             <>
