@@ -970,13 +970,6 @@ export async function saveInstructorInterviewLiveDraftAction(input: {
   overallRating?: string | null;
   recommendation?: string | null;
   summary?: string | null;
-  overallNotes?: string | null;
-  demeanorNotes?: string | null;
-  maturityNotes?: string | null;
-  communicationNotes?: string | null;
-  professionalismNotes?: string | null;
-  followUpItems?: string | null;
-  curriculumFeedback?: string | null;
   revisionRequirements?: string | null;
   applicantMessage?: string | null;
   curriculumDraftId?: string | null;
@@ -994,13 +987,6 @@ export async function saveInstructorInterviewLiveDraftAction(input: {
     const categories = parseCategories(input.categoriesJson ?? "[]");
     const questionResponses = parseInterviewQuestionResponses(input.questionResponsesJson ?? "[]");
     const summary = normalizeNullableText(input.summary);
-    const overallNotes = normalizeNullableText(input.overallNotes);
-    const demeanorNotes = normalizeNullableText(input.demeanorNotes);
-    const maturityNotes = normalizeNullableText(input.maturityNotes);
-    const communicationNotes = normalizeNullableText(input.communicationNotes);
-    const professionalismNotes = normalizeNullableText(input.professionalismNotes);
-    const followUpItems = normalizeNullableText(input.followUpItems);
-    const curriculumFeedback = normalizeNullableText(input.curriculumFeedback);
     const revisionRequirements = normalizeNullableText(input.revisionRequirements);
     const applicantMessage = normalizeNullableText(input.applicantMessage);
     const curriculumDraftId = normalizeNullableText(input.curriculumDraftId);
@@ -1066,13 +1052,6 @@ export async function saveInstructorInterviewLiveDraftAction(input: {
           overallRating,
           recommendation,
           summary,
-          overallNotes,
-          demeanorNotes,
-          maturityNotes,
-          communicationNotes,
-          professionalismNotes,
-          followUpItems,
-          curriculumFeedback,
           revisionRequirements,
           applicantMessage,
           flagForLeadership,
@@ -1085,13 +1064,6 @@ export async function saveInstructorInterviewLiveDraftAction(input: {
           overallRating,
           recommendation,
           summary,
-          overallNotes,
-          demeanorNotes,
-          maturityNotes,
-          communicationNotes,
-          professionalismNotes,
-          followUpItems,
-          curriculumFeedback,
           revisionRequirements,
           applicantMessage,
           flagForLeadership,
@@ -1129,13 +1101,6 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
   const categories = parseCategories(getString(formData, "categoriesJson"));
   const questionResponses = parseInterviewQuestionResponses(getString(formData, "questionResponsesJson"));
   const summary = normalizeNullableText(getString(formData, "summary", false));
-  const overallNotes = normalizeNullableText(getString(formData, "overallNotes", false));
-  const demeanorNotes = normalizeNullableText(getString(formData, "demeanorNotes", false));
-  const maturityNotes = normalizeNullableText(getString(formData, "maturityNotes", false));
-  const communicationNotes = normalizeNullableText(getString(formData, "communicationNotes", false));
-  const professionalismNotes = normalizeNullableText(getString(formData, "professionalismNotes", false));
-  const followUpItems = normalizeNullableText(getString(formData, "followUpItems", false));
-  const curriculumFeedback = normalizeNullableText(getString(formData, "curriculumFeedback", false));
   const revisionRequirements = normalizeNullableText(getString(formData, "revisionRequirements", false));
   const applicantMessage = normalizeNullableText(getString(formData, "applicantMessage", false));
   const curriculumDraftId = normalizeNullableText(getString(formData, "curriculumDraftId", false));
@@ -1233,13 +1198,6 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
         overallRating,
         recommendation,
         summary,
-        overallNotes,
-        demeanorNotes,
-        maturityNotes,
-        communicationNotes,
-        professionalismNotes,
-        followUpItems,
-        curriculumFeedback,
         revisionRequirements,
         applicantMessage,
         flagForLeadership,
@@ -1255,13 +1213,6 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
         overallRating,
         recommendation,
         summary,
-        overallNotes,
-        demeanorNotes,
-        maturityNotes,
-        communicationNotes,
-        professionalismNotes,
-        followUpItems,
-        curriculumFeedback,
         revisionRequirements,
         applicantMessage,
         flagForLeadership,
@@ -1293,7 +1244,7 @@ export async function saveInstructorInterviewReviewAction(formData: FormData) {
       canFinalizeRecommendation &&
       recommendation
     ) {
-      await markInterviewCompleted(applicationId, actor.id, summary ?? overallNotes ?? undefined);
+      await markInterviewCompleted(applicationId, actor.id, summary ?? undefined);
       const chairFormData = new FormData();
       chairFormData.set("applicationId", applicationId);
       const chairResult = await sendToChair(chairFormData);
