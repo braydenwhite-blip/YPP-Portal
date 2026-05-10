@@ -33,6 +33,8 @@ export type DerivedColumn =
   | "ready_for_interview"
   | "post_interview"
   | "chair_review"
+  | "on_hold"
+  | "waitlisted"
   | "decided"
   | "archive";
 
@@ -120,9 +122,12 @@ function getDerivedColumn(app: {
       return "post_interview";
     case "CHAIR_REVIEW":
       return "chair_review";
+    case "ON_HOLD":
+      return "on_hold";
+    case "WAITLISTED":
+      return "waitlisted";
     case "APPROVED":
     case "REJECTED":
-    case "ON_HOLD":
       return "decided";
     default:
       return "decided";
@@ -226,6 +231,8 @@ export async function getApplicantPipeline({
     ready_for_interview: [],
     post_interview: [],
     chair_review: [],
+    on_hold: [],
+    waitlisted: [],
     decided: [],
     archive: [],
   };
