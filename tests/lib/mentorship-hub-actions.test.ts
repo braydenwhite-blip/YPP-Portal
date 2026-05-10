@@ -32,6 +32,7 @@ import {
   promoteMentorshipResponseToResource,
   respondToMentorshipRequest,
   setMentorTag,
+  markKickoffComplete,
 } from "@/lib/mentorship-hub-actions";
 import { getMentorshipRoleFlags } from "@/lib/mentorship-hub";
 import { hasMentorshipMenteeAccess } from "@/lib/mentorship-access";
@@ -249,6 +250,57 @@ describe("mentorship-hub-actions", () => {
 
     await expect(
       setMentorTag("mentorship-9", null)
+    ).resolves.toBeUndefined();
+
+    expect((prisma as any).mentorship.update).toHaveBeenCalled();
+  });
+
+  it("blocks markKickoffComplete when caller is not mentor or chair on the pairing", async () => {
+    (prisma as any).mentorship.findUnique = vi.fn().mockResolvedValue({
+      mentorId: "someone-else",
+      chairId: "chair-x",
+    });
+
+    await expect(
+      markKickoffComplete("mentorship-77", "Notes")
+    ).rejects.toThrow("Unauthorized");
+
+    expect((prisma as any).mentorship.update).not.toHaveBeenCalled();
+  });
+
+  it("allows markKickoffComplete when caller is the mentor on the pairing", async () => {
+    (prisma as any).mentorship.findUnique = vi.fn().mockResolvedValue({
+      mentorId: "mentor-2",
+      chairId: null,
+    });
+    (prisma as any).mentorship.update.mockResolvedValue({ id: "mentorship-77" });
+
+    await expect(
+      markKickoffComplete("mentorship-77")
+    ).resolves.toBeUndefined();
+
+    expect((prisma as any).mentorship.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "mentorship-77" },
+        data: expect.objectContaining({
+          cycleStage: "REFLECTION_DUE",
+        }),
+      })
+    );
+  });
+
+  it("allows markKickoffComplete when caller is admin even if not the assigned mentor", async () => {
+    vi.mocked(getMentorshipRoleFlags).mockReturnValueOnce({
+      isAdmin: true,
+      isChapterLead: false,
+      isStudent: false,
+      isMentor: true,
+      canSupport: true,
+    });
+    (prisma as any).mentorship.update.mockResolvedValue({ id: "mentorship-77" });
+
+    await expect(
+      markKickoffComplete("mentorship-77")
     ).resolves.toBeUndefined();
 
     expect((prisma as any).mentorship.update).toHaveBeenCalled();
