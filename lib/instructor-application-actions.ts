@@ -2728,3 +2728,87 @@ export async function autoArchiveTerminalApplications(): Promise<{ archived: num
 
   return { archived };
 }
+
+/**
+ * Applicant-initiated withdraw. Allowed in any non-terminal status —
+ * applicants control their own data and can pull out at any point until
+ * the chair has finalised the decision.
+ *
+ * Records the optional reason in the timeline so reviewers can see why
+ * the application was withdrawn (and whether the applicant signalled
+ * intent to re-apply later).
+ */
+const NON_TERMINAL_STATUSES_FOR_WITHDRAW: InstructorApplicationStatus[] = [
+  InstructorApplicationStatus.SUBMITTED,
+  InstructorApplicationStatus.UNDER_REVIEW,
+  InstructorApplicationStatus.INFO_REQUESTED,
+  InstructorApplicationStatus.PRE_APPROVED,
+  InstructorApplicationStatus.INTERVIEW_SCHEDULED,
+  InstructorApplicationStatus.INTERVIEW_COMPLETED,
+  InstructorApplicationStatus.CHAIR_REVIEW,
+  InstructorApplicationStatus.ON_HOLD,
+  InstructorApplicationStatus.WAITLISTED,
+];
+
+export async function withdrawInstructorApplication(
+  prevState: FormState,
+  formData: FormData
+): Promise<FormState> {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) return { status: "error", message: "Unauthorized" };
+
+    const reason = String(formData.get("reason") ?? "").trim();
+    if (reason.length > 2_000) {
+      return { status: "error", message: "Withdraw reason must be 2,000 characters or fewer." };
+    }
+
+    const application = await prisma.instructorApplication.findFirst({
+      where: { applicantId: session.user.id, status: { not: InstructorApplicationStatus.WITHDRAWN } },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, applicantId: true, status: true },
+    });
+    if (!application) {
+      return { status: "error", message: "No active application found." };
+    }
+    if (!NON_TERMINAL_STATUSES_FOR_WITHDRAW.includes(application.status)) {
+      return {
+        status: "error",
+        message:
+          application.status === InstructorApplicationStatus.APPROVED
+            ? "Approved applications cannot be withdrawn from here."
+            : application.status === InstructorApplicationStatus.REJECTED
+              ? "This application has already been closed."
+              : "This application cannot be withdrawn right now.",
+      };
+    }
+
+    const now = new Date();
+    await prisma.$transaction(async (tx) => {
+      await tx.instructorApplication.update({
+        where: { id: application.id },
+        data: { status: InstructorApplicationStatus.WITHDRAWN },
+      });
+      await tx.instructorApplicationTimelineEvent.create({
+        data: {
+          applicationId: application.id,
+          kind: "APPLICANT_WITHDREW",
+          actorId: session.user.id,
+          payload: {
+            previousStatus: application.status,
+            reason: reason ? reason.slice(0, 500) : null,
+          },
+        },
+      });
+    });
+
+    await syncInstructorApplicationWorkflow(application.id);
+    revalidatePath("/admin/instructor-applicants");
+    revalidatePath("/chapter-lead/instructor-applicants");
+    revalidatePath("/application-status");
+    return { status: "success", message: "Application withdrawn." };
+  } catch (error) {
+    console.error("[withdrawInstructorApplication]", error);
+    return { status: "error", message: "Something went wrong. Please try again." };
+  }
+}
