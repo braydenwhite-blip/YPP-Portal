@@ -56,6 +56,8 @@ const libraryExampleWeek = {
 
 vi.mock("@/lib/curriculum-draft-actions", () => actionMocks);
 vi.mock("@/lib/curriculum-comment-actions", () => commentActionMocks);
+
+
 vi.mock("next/navigation", () => ({
   useRouter: () => routerMocks,
 }));
@@ -358,7 +360,10 @@ describe("StudioClient", () => {
         studioPhase="COURSE_MAP"
       />
     );
-    expect(screen.getByLabelText("Curriculum title")).toHaveValue("Code Your Future");
+    // StudioCourseMapStep is loaded via next/dynamic; wait for it to mount.
+    await waitFor(() =>
+      expect(screen.getByLabelText("Curriculum title")).toHaveValue("Code Your Future")
+    );
     },
     20_000
   );
@@ -381,7 +386,7 @@ describe("StudioClient", () => {
       />
     );
 
-    const titleInput = screen.getByLabelText("Curriculum title");
+    const titleInput = await screen.findByLabelText("Curriculum title");
     await user.clear(titleInput);
     await user.type(titleInput, "Updated Title");
     rerender(
@@ -393,7 +398,7 @@ describe("StudioClient", () => {
         studioPhase="REVIEW_LAUNCH"
       />
     );
-    await user.click(screen.getByRole("button", { name: "Export student view" }));
+    await user.click(await screen.findByRole("button", { name: "Export student view" }));
 
     await waitFor(() => {
       expect(actionMocks.saveCurriculumDraft).toHaveBeenCalledWith(
@@ -428,7 +433,7 @@ describe("StudioClient", () => {
       />
     );
 
-    const titleInput = screen.getByLabelText("Curriculum title");
+    const titleInput = await screen.findByLabelText("Curriculum title");
     await user.clear(titleInput);
     await user.type(titleInput, "Updated Title");
     rerender(
@@ -481,7 +486,7 @@ describe("StudioClient", () => {
       />
     );
 
-    expect(screen.getByText("Overall 0% / 80% needed")).toBeInTheDocument();
+    await screen.findByText("Overall 0% / 80% needed");
 
     const historyButton = await waitFor(() =>
       screen.getByRole("button", { name: "Draft history" })
@@ -558,7 +563,7 @@ describe("StudioClient", () => {
       />
     );
 
-    expect(screen.getByLabelText("Session title")).toHaveValue("Week 1");
+    expect(await screen.findByLabelText("Session title")).toHaveValue("Week 1");
 
     await user.click(screen.getByRole("button", { name: /Week 2Ready Week 2/i }));
 
@@ -578,7 +583,7 @@ describe("StudioClient", () => {
       />
     );
 
-    await user.click(screen.getByRole("button", { name: "Import example" }));
+    await user.click(await screen.findByRole("button", { name: "Import example" }));
     await user.click(screen.getByRole("button", { name: "Import Example" }));
 
     expect(screen.getByLabelText("Session title")).toHaveValue("Imported Week");
@@ -674,7 +679,7 @@ describe("StudioClient", () => {
     15_000
   );
 
-  it("does not save when a read-only draft receives a forced edit event", () => {
+  it("does not save when a read-only draft receives a forced edit event", async () => {
     render(
       <StudioClient
         userId="user-1"
@@ -687,7 +692,8 @@ describe("StudioClient", () => {
       />
     );
 
-    fireEvent.change(screen.getByLabelText("Curriculum title"), {
+    const titleInput = await screen.findByLabelText("Curriculum title");
+    fireEvent.change(titleInput, {
       target: { value: "Changed" },
     });
 

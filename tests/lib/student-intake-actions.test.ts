@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getServerSession } from "next-auth";
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
@@ -11,18 +10,37 @@ vi.mock("@/lib/notification-actions", () => ({
 }));
 
 vi.mock("@/lib/email-verification-actions", () => ({
-  sendVerificationEmail: vi.fn(),
+  sendVerificationEmail: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/lib/auth-supabase", () => ({
+  getSession: vi.fn(),
+}));
+
+vi.mock("@/lib/supabase/server", () => ({
+  createServiceClient: () => ({
+    auth: {
+      admin: {
+        createUser: vi.fn().mockResolvedValue({
+          data: { user: { id: "supabase-auth-1" } },
+          error: null,
+        }),
+        listUsers: vi.fn().mockResolvedValue({ data: { users: [] }, error: null }),
+      },
+    },
+  }),
 }));
 
 import { prisma } from "@/lib/prisma";
 import { approveStudentIntakeCase } from "@/lib/student-intake-actions";
 import { createSystemNotification } from "@/lib/notification-actions";
 import { sendVerificationEmail } from "@/lib/email-verification-actions";
+import { getSession } from "@/lib/auth-supabase";
 
 describe("student-intake-actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getServerSession).mockResolvedValue({
+    vi.mocked(getSession).mockResolvedValue({
       user: {
         id: "lead-1",
         roles: ["CHAPTER_PRESIDENT"],
