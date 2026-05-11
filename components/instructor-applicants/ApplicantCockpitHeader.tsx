@@ -1,6 +1,7 @@
 "use client";
 
-import type { InstructorApplicationStatus } from "@prisma/client";
+import type { ApplicationSource, InstructorApplicationStatus } from "@prisma/client";
+import ApplicationSourceBadge from "@/components/external-intake/ApplicationSourceBadge";
 
 interface Step {
   label: string;
@@ -51,6 +52,7 @@ interface Props {
     applicationTrack?: string | null;
     isReapplication?: boolean;
     previousApplicationId?: string | null;
+    source?: ApplicationSource | null;
     reviewer: { id: string; name: string | null } | null;
     interviewerAssignments: Array<{
       id: string;
@@ -127,6 +129,12 @@ export default function ApplicantCockpitHeader({ application }: Props) {
               >
                 Re-application
               </span>
+            )}
+            {application.source && (
+              <ApplicationSourceBadge
+                source={application.source}
+                className="cockpit-hero-chip"
+              />
             )}
             <StatusPill status={application.status} />
           </div>

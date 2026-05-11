@@ -2,7 +2,13 @@
 
 import { prisma } from "@/lib/prisma";
 import { createServiceClient } from "@/lib/supabase/server";
-import { InstructorApplicationStatus, RoleType, ApplicationTrack, InstructorSubtype } from "@prisma/client";
+import {
+  InstructorApplicationStatus,
+  RoleType,
+  ApplicationTrack,
+  InstructorSubtype,
+  ApplicationSource,
+} from "@prisma/client";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { syncInstructorApplicationWorkflow } from "@/lib/workflow";
 import { findDefaultInitialReviewerForChapter } from "@/lib/instructor-application-defaults";
@@ -344,6 +350,9 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
         application = await prisma.instructorApplication.create({
         data: {
           applicantId: newUser.id,
+          // Portal-native intake: explicitly mark the source so admin views
+          // can distinguish these from Google Forms / CSV / manual entries.
+          source: ApplicationSource.PORTAL,
           status: defaultInitialReviewer
             ? InstructorApplicationStatus.UNDER_REVIEW
             : InstructorApplicationStatus.SUBMITTED,
