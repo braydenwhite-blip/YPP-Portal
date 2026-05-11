@@ -37,6 +37,7 @@ import {
   assertCanAssignInterviewers,
   assertCanActAsChair,
   isAdmin,
+  isChapterLead,
   isHiringChair,
 } from "@/lib/chapter-hiring-permissions";
 import { ApplicantWorkflowError } from "@/lib/applicant-workflow-error";
@@ -79,10 +80,10 @@ async function assertReviewerCanManageApplicant(reviewerId: string, applicantId:
   ]);
   if (!reviewer || !applicant) throw new Error("Reviewer or applicant not found");
   const reviewerRoles = reviewer.roles.map((r) => r.role);
-  const isAdmin = reviewerRoles.includes("ADMIN");
-  const isChapterLead = reviewerRoles.includes("CHAPTER_PRESIDENT");
-  if (!isAdmin && !isChapterLead) throw new Error("Unauthorized");
-  if (isChapterLead && !isAdmin && reviewer.chapterId !== applicant.chapterId) {
+  const reviewerIsAdmin = reviewerRoles.includes("ADMIN");
+  const reviewerIsChapterLead = reviewerRoles.includes("CHAPTER_PRESIDENT");
+  if (!reviewerIsAdmin && !reviewerIsChapterLead) throw new Error("Unauthorized");
+  if (reviewerIsChapterLead && !reviewerIsAdmin && reviewer.chapterId !== applicant.chapterId) {
     throw new Error("Chapter Presidents can only review applicants in their own chapter.");
   }
 }
@@ -293,6 +294,42 @@ export async function holdInstructorApplication(
   revalidatePath("/application-status");
 }
 
+/**
+ * Internal guard for the exported approve/reject helpers. Both are
+ * `"use server"` exports and accept a `reviewerId` argument that the
+ * function previously trusted blindly — any future caller (or RSC form
+ * binding) that omitted the role/chapter check would silently let any
+ * signed-in user approve any application. Enforce in-function:
+ *
+ *  - require a session,
+ *  - the passed reviewerId MUST equal session.user.id (no impersonation),
+ *  - the session user must be admin or same-chapter Chapter President.
+ *
+ * All current callers pass session.user.id / actor.id, so this is
+ * non-breaking for legitimate callers.
+ */
+async function assertCanFinalizeApplication(
+  applicationId: string,
+  passedReviewerId: string,
+  applicantChapterId: string | null
+) {
+  const session = await getSession();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+  if (passedReviewerId !== session.user.id) {
+    throw new Error("Reviewer mismatch");
+  }
+  const actor = await getHiringActor(session.user.id);
+  if (isAdmin(actor)) return;
+  if (
+    isChapterLead(actor) &&
+    actor.chapterId &&
+    actor.chapterId === applicantChapterId
+  ) {
+    return;
+  }
+  throw new Error("Not authorized to finalize this application.");
+}
+
 export async function approveInstructorApplication(
   applicationId: string,
   reviewerId: string,
@@ -300,9 +337,10 @@ export async function approveInstructorApplication(
 ) {
   const application = await prisma.instructorApplication.findUnique({
     where: { id: applicationId },
-    include: { applicant: { select: { id: true, name: true, email: true } } },
+    include: { applicant: { select: { id: true, name: true, email: true, chapterId: true } } },
   });
   if (!application) throw new Error("Application not found");
+  await assertCanFinalizeApplication(applicationId, reviewerId, application.applicant.chapterId);
 
   await prisma.$transaction(async (tx) => {
     await tx.instructorApplication.update({
@@ -358,9 +396,10 @@ async function rejectInstructorApplicationInternal(
 ) {
   const application = await prisma.instructorApplication.findUnique({
     where: { id: applicationId },
-    include: { applicant: { select: { name: true, email: true } } },
+    include: { applicant: { select: { name: true, email: true, chapterId: true } } },
   });
   if (!application) throw new Error("Application not found");
+  await assertCanFinalizeApplication(applicationId, reviewerId, application.applicant.chapterId);
 
   await prisma.instructorApplication.update({
     where: { id: applicationId },
