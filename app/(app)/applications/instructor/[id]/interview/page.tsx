@@ -50,6 +50,8 @@ export default async function InterviewerWorkspacePage({
       preferredFirstName: true,
       legalName: true,
       reviewerId: true,
+      applicationTrack: true,
+      workshopOutline: true,
       applicant: {
         select: { id: true, name: true, chapterId: true },
       },
@@ -164,7 +166,16 @@ export default async function InterviewerWorkspacePage({
               Pre-Interview Brief (initial review)
             </summary>
             <InterviewerBriefCard
-              application={application}
+              application={{
+                ...application,
+                // Prisma returns JsonValue for the JSON column; the card knows
+                // the workshopOutline shape so we cast at the boundary.
+                workshopOutline:
+                  (application.workshopOutline as
+                    | import("@/lib/summer-workshop").WorkshopOutline
+                    | null
+                    | undefined) ?? null,
+              }}
               documents={application.documents}
               confirmedSlots={application.offeredSlots}
               reviewerNote={reviewerNote}
