@@ -266,6 +266,14 @@ export default async function ApplicationStatusPage() {
                 <InfoResponseForm />
               </>
             )}
+            {/* PRE_APPROVED is still set in some flows: the legacy admin
+                applicant-detail-panel calls preApproveApplication() and the
+                application-cohort batch action can set it via
+                statusByLegacyAction. Keep this UI even though the V1 chair
+                decide path no longer transitions through PRE_APPROVED — an
+                applicant could land here via either of those paths. If both
+                of those setters are removed in the future, this block can
+                go too (audit doc: docs/instructor-applicant-implementation-plan.md). */}
             {instructorApp.status === "PRE_APPROVED" && (
               <>
                 <h3 className="section-title" style={{ color: "#6b21c8" }}>You&apos;ve Been Pre-Approved!</h3>
