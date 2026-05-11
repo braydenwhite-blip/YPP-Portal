@@ -480,6 +480,17 @@ export async function scheduleInterview(
         reviewerNotes: notes ?? null,
       },
     });
+    // Drop any open (unconfirmed) OfferedInterviewSlot rows for this
+    // application. Without this the applicant /application-status page
+    // could still show a slot picker for stale offered times even though
+    // we've now hard-scheduled the interview, letting them confirm a slot
+    // that conflicts with the manual schedule.
+    await tx.offeredInterviewSlot.deleteMany({
+      where: {
+        instructorApplicationId: applicationId,
+        confirmedAt: null,
+      },
+    });
     await tx.instructorApplicationTimelineEvent.create({
       data: {
         applicationId,
