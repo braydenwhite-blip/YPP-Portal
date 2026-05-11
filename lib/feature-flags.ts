@@ -98,6 +98,18 @@ export function canBypassInstructorGate(opts: {
   const preview = (opts.adminPreviewParam ?? "").toLowerCase();
   if (preview === "1" || preview === "true" || preview === "yes") return true;
 
+  // Approved Full Instructors (subtype STANDARD with INSTRUCTOR role) keep
+  // access to /instructor/* surfaces even while the regular instructor
+  // program is "paused" for new applicants. The flag's intent is to hide
+  // in-flight features from APPLICANT users — not to lock out people who
+  // already legitimately have the INSTRUCTOR role.
+  if (
+    opts.instructorSubtype === "STANDARD" &&
+    (roles.includes("INSTRUCTOR") || opts.primaryRole === "INSTRUCTOR")
+  ) {
+    return true;
+  }
+
   // Summer Workshop subtype: allow the workshop studio + required training
   // surfaces even while the regular instructor program is paused.
   if (
