@@ -45,6 +45,12 @@ export interface NavLink {
   badgeKey?: NavBadgeKey;
   searchAliases?: string[];
   requiresAward?: boolean;
+  /**
+   * When true, only INSTRUCTOR-role users with `instructorSubtype === "SUMMER_WORKSHOP"`
+   * see this link. Used for SW-specific surfaces (e.g. Workshop Design Studio)
+   * that we do not want to expose to full-track instructors or to applicants.
+   */
+  requiresSummerWorkshopSubtype?: boolean;
   featureKey?: FeatureKey;
   dashboardDescription?: string;
   dashboardBadgeKey?: string;

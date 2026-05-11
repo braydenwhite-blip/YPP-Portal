@@ -555,6 +555,17 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
       if (!hasAwardAccess(item, roles, hasAward)) return false;
       if (!hasFeatureAccess(item, input.enabledFeatureKeys, roles)) return false;
       if (!hasAdminSubtypeAccess(item, roles, adminSubtypes)) return false;
+      // SW-subtype-only entries (e.g. Workshop Design Studio) stay hidden for
+      // anyone whose most-recent application is NOT on the Summer Workshop
+      // track. Admins still see them (they need to monitor the SW pathway).
+      if (
+        item.requiresSummerWorkshopSubtype &&
+        input.instructorSubtype !== "SUMMER_WORKSHOP" &&
+        !roles.includes("ADMIN") &&
+        primaryRole !== "ADMIN"
+      ) {
+        return false;
+      }
 
       // If unlock filtering is active, only include items whose group is visible
       // or whose group is not in the locked set (i.e. groups not managed by the

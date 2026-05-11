@@ -245,6 +245,19 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 17,
     },
     {
+      // Surfaced only for INSTRUCTOR-role users (resolveNavModel further
+      // restricts to subtype = SUMMER_WORKSHOP, so APPLICANT and full
+      // instructors don't see this in their sidebar).
+      href: "/instructor/workshop-design-studio",
+      label: "Workshop Design Studio",
+      icon: "🛠️",
+      roles: INSTRUCTOR_ROLES,
+      requiresSummerWorkshopSubtype: true,
+      dashboardDescription: "Propose the focused workshop you'll lead at camp — design your own or pick from the approved library.",
+      dashboardPriority: 17,
+      searchAliases: ["Workshop Proposal", "Workshop Outline"],
+    },
+    {
       href: "/lesson-plans",
       label: "Lesson Plans",
       icon: "📋",
