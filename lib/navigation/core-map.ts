@@ -71,7 +71,9 @@ export const CORE_NAV_MAP: Record<NavRole, string[]> = {
   CHAPTER_PRESIDENT: [
     "/",
     "/chapter-lead/dashboard",
-    "/chapter-lead/portal-rollout",
+    // /chapter-lead/portal-rollout was here but it's listed in
+    // ALWAYS_HIDDEN_HREFS in resolve-nav.ts, so pinning it silently
+    // dropped one of the 8 core slots. Removed.
     "/chapter-lead/instructor-applicants",
     "/chapter-lead/instructor-readiness",
     "/chapter",
