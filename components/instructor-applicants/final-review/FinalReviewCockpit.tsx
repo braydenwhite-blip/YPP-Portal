@@ -871,7 +871,12 @@ function CockpitSummerWorkshopCard({
   applicantDisplayName: string;
 }) {
   const outline = application.workshopOutline;
+  // Promotion is gated on (SW subtype) AND (status === APPROVED). Server
+  // action also enforces this; UI hides the panel when not eligible so we
+  // don't render a button that will fail.
   const isStillSummerWorkshop = application.instructorSubtype === "SUMMER_WORKSHOP";
+  const isApproved = application.status === "APPROVED";
+  const canPromoteNow = isStillSummerWorkshop && isApproved;
   return (
     <section
       style={{
@@ -1059,7 +1064,7 @@ function CockpitSummerWorkshopCard({
         </dl>
       ) : null}
 
-      {isStillSummerWorkshop && (
+      {canPromoteNow && (
         <div
           style={{
             marginTop: 16,

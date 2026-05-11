@@ -435,8 +435,12 @@ export default async function ApplicantCockpitPage({
               />
             )}
 
-            {/* Promote to Full Instructor (admins/chairs, summer workshop subtype only) */}
+            {/* Promote to Full Instructor (admins/chairs, summer workshop
+                subtype, AND only after chair-decide APPROVED — promotion
+                is meaningless before approval and the server action also
+                enforces this guard). */}
             {application.instructorSubtype === "SUMMER_WORKSHOP" &&
+              application.status === "APPROVED" &&
               (isAdmin(actor) || isHiringChair(actor)) && (
                 <section className="cockpit-panel">
                   <div className="cockpit-section-heading">
