@@ -57,8 +57,13 @@ Distinct from the mentee's own `/my-program/gr`:
 - Annual and multi-year goals appear lower and may be collapsed by default.
 - Includes a short "Latest review context" panel if a released review exists.
 - Empty state when no `GRDocument` exists: a single sentence + a single CTA.
-- Primary CTAs: **Edit G&R** (links to existing edit surface if one exists,
-  otherwise rendered disabled with a `TODO` helper) and **Back to mentee**.
+- Primary CTAs:
+  - **Propose change** — anchor link to an inline `<details>` panel
+    backed by `proposeGRGoalChange`. Supports ADD / EDIT / REMOVE
+    proposals; submissions land in the admin gr-assignments queue.
+  - **Edit G&R (admin)** — admin-only, links to the existing
+    gr-assignments admin surface.
+  - **Back to mentee** — secondary, in the header.
 
 Access control lives in `lib/mentorship-access.ts` already:
 `hasMentorshipMenteeAccess()` permits assigned mentor, chair, support-circle
@@ -133,7 +138,8 @@ Removed / consolidated entries in `lib/navigation/catalog.ts`:
 - The 688-line `app/(app)/mentorship-program/schedule/mentor-schedule-panel.tsx`
   is now orphaned (its `page.tsx` redirects to the canonical route and no
   other file imports the panel). Safe to delete in a focused cleanup commit.
-- Wire `proposeGRGoalChange` form on the new mentor G&R page's "Propose
-  change" button (currently disabled with a TODO).
 - Once nav has been stable for one cycle, redirect `/my-program/schedule`
   to `/mentorship/schedule` so there is exactly one schedule URL.
+- Auto-expand the "Propose a G&R change" `<details>` panel when the URL
+  hash is `#propose-change` (server component can't read the hash; needs
+  a small inline client-side helper).
