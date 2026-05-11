@@ -251,7 +251,39 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
       // a magic-link option. Their typed answers stay in the local draft so
       // the form repopulates after they sign in. We continue to avoid
       // confirming/denying the password.
+      //
+      // Account-enumeration mitigation: differentiating "exists" from
+      // "doesn't exist" is an enumeration signal. Combined with the per-IP
+      // signup rate limit above (10/hour) and a tighter per-IP limit on
+      // ACCOUNT_EXISTS responses specifically, the attacker can only probe
+      // a small number of emails per hour. Beyond that we fall back to the
+      // generic response so probing doesn't yield reliable signal.
       if (primaryRole === RoleType.APPLICANT) {
+        try {
+          const { headers } = await import("next/headers");
+          const h = await headers();
+          const ip =
+            h.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+            h.get("x-real-ip") ||
+            "unknown";
+          const enumRl = checkRateLimit(
+            `signup:exists-probe:ip:${ip}`,
+            3,
+            60 * 60 * 1000
+          );
+          if (!enumRl.success) {
+            // Probe budget exceeded — return the generic non-distinguishing
+            // response. Legitimate users hitting this are rare (they'd need
+            // to try 3+ different already-registered emails in an hour).
+            return {
+              status: "success",
+              message:
+                "If this email is not already registered, your account has been created. Please check your email or try signing in.",
+            };
+          }
+        } catch {
+          /* headers() unavailable — fall through */
+        }
         return {
           status: "error",
           message: "ACCOUNT_EXISTS_SIGNIN_REQUIRED",
