@@ -407,6 +407,58 @@ export default async function ApplicationStatusPage() {
             )}
           </div>
 
+          {/* Growth pathway card — only for approved Summer Workshop instructors.
+              Sets honest expectations: strong workshop instructors may quickly be
+              invited to take on full instructor work or to mentor other
+              instructors, based on readiness and leadership. No promises. */}
+          {instructorApp.status === "APPROVED" &&
+            instructorApp.instructorSubtype === "SUMMER_WORKSHOP" && (
+              <div
+                className="card"
+                style={{
+                  marginBottom: 16,
+                  background: "#f5f3ff",
+                  border: "1px solid #ddd6fe",
+                }}
+              >
+                <h3 className="section-title" style={{ color: "#5b21b6", marginTop: 0 }}>
+                  Your growth pathway
+                </h3>
+                <p style={{ fontSize: 14, color: "var(--muted)", margin: "0 0 12px", lineHeight: 1.55 }}>
+                  Summer Workshop Instructor is a focused, fast-start teaching role.
+                  As you lead workshops well, more responsibility opens up.
+                </p>
+                <ul
+                  style={{
+                    margin: "0 0 12px",
+                    paddingLeft: 18,
+                    fontSize: 13,
+                    color: "var(--muted)",
+                    lineHeight: 1.65,
+                  }}
+                >
+                  <li>
+                    <strong>Lead the room.</strong> Run your workshop with energy, clarity,
+                    and classroom presence.
+                  </li>
+                  <li>
+                    <strong>Strong performance may open the door to full instructor work.</strong>{" "}
+                    Admins and hiring chairs review readiness and leadership and can invite
+                    strong workshop instructors to expand into the full instructor role.
+                  </li>
+                  <li>
+                    <strong>High-performing instructors may mentor others.</strong> Once
+                    you&rsquo;ve shown strong teaching and leadership, you may be invited to
+                    mentor newer instructors.
+                  </li>
+                </ul>
+                <p style={{ fontSize: 12, color: "var(--muted)", margin: 0, fontStyle: "italic" }}>
+                  Decisions are made by YPP staff based on readiness, leadership, and review
+                  notes — nothing is automatic.
+                </p>
+              </div>
+            )}
+
           <details className="card">
             <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: 14, padding: "4px 0" }}>
               Your Application Details
