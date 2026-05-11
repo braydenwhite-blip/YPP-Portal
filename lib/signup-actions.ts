@@ -92,10 +92,34 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
         ? RoleType.INSTRUCTOR
         : RoleType.STUDENT;
 
-    // Rate limit: 5 signup attempts per email per 15 minutes
-    const rl = checkRateLimit(`signup:${email}`, 5, 15 * 60 * 1000);
+    // Per-email rate limit: 5 attempts per email per 15 minutes. Prevents
+    // someone from hammering signups against a specific email.
+    const rl = checkRateLimit(`signup:email:${email}`, 5, 15 * 60 * 1000);
     if (!rl.success) {
       return { status: "error", message: "Too many attempts. Please try again later.", fields: pickFormFields(formData) };
+    }
+    // Per-IP rate limit: 10 distinct-email signups per IP per hour. Without
+    // this, an attacker rotating emails could spam unlimited account
+    // creation, each of which fires reviewer notification emails and creates
+    // an InstructorApplication row.
+    try {
+      const { headers } = await import("next/headers");
+      const h = await headers();
+      const ip =
+        h.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+        h.get("x-real-ip") ||
+        "unknown";
+      const ipRl = checkRateLimit(`signup:ip:${ip}`, 10, 60 * 60 * 1000);
+      if (!ipRl.success) {
+        return {
+          status: "error",
+          message: "Too many signup attempts from this network. Please try again later.",
+          fields: pickFormFields(formData),
+        };
+      }
+    } catch {
+      // If headers() is unavailable (non-RSC context, edge cases), fall
+      // through — per-email rate limit is still in effect.
     }
 
     // M1: Stronger password policy (8+ chars, at least one number and one letter)
@@ -444,6 +468,24 @@ export async function submitInstructorApplicationForExistingUser(
     const session = await getSession();
     if (!session?.user?.id) {
       return { status: "error", message: "You need to be signed in to apply." };
+    }
+
+    // Per-user rate limit. Without this, a signed-in user can spam re-apply
+    // via the withdraw → re-apply loop. Each re-app sends notifications to
+    // reviewers + an applicant-confirmation email — an email-amplification
+    // vector against the org. 3 re-apply submissions per day is generous
+    // for legitimate retries while bounding abuse.
+    const reapplyRl = checkRateLimit(
+      `reapply:user:${session.user.id}`,
+      3,
+      24 * 60 * 60 * 1000
+    );
+    if (!reapplyRl.success) {
+      return {
+        status: "error",
+        message:
+          "You've submitted several applications recently. Please wait a day before submitting again.",
+      };
     }
 
     const userRow = await prisma.user.findUnique({
