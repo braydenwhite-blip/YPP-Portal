@@ -15,6 +15,7 @@ import {
 } from "@/lib/chapter-hiring-permissions";
 import {
   canBypassInstructorGate,
+  isFinalReviewV2EnabledForChapter,
   isInstructorApplicantWorkflowV1Enabled,
   isRegularInstructorEnabled,
 } from "@/lib/feature-flags";
@@ -669,6 +670,9 @@ export default async function ApplicantCockpitPage({
         canSendToChair={canSendToChair}
         isAdmin={actorIsAdmin}
         hidden={isHidden}
+        finalReviewV2Enabled={isFinalReviewV2EnabledForChapter(
+          application.applicant.chapterId
+        )}
       />
     </div>
   );
