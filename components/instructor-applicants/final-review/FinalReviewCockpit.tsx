@@ -338,8 +338,9 @@ function CockpitInner({
           >
             SW
           </span>
-          Summer Workshop Instructor — lighter pathway. Review focuses on the
-          single workshop outline below; full course materials are not required.
+          Summer Workshop Instructor — focused, fast-start teaching role.
+          Review focuses on the workshop outline below: classroom presence,
+          pacing, engagement, and ability to lead a focused session at camp.
         </div>
       )}
       <ApplicantSnapshotBar
@@ -912,9 +913,9 @@ function CockpitSummerWorkshopCard({
             padding: "2px 8px",
             borderRadius: 999,
           }}
-          title="Lighter pathway than the full Instructor program"
+          title="Summer Workshop track — focused, fast-start teaching role"
         >
-          LIGHTER REVIEW
+          FOCUSED WORKSHOP REVIEW
         </span>
       </div>
       <p
@@ -925,9 +926,10 @@ function CockpitSummerWorkshopCard({
           lineHeight: 1.5,
         }}
       >
-        Summer Workshop applicants run a single short workshop at a camp — review
-        focuses on safety, pacing, and age-appropriateness. They have not been
-        asked to design a full multi-week course.
+        Summer Workshop Instructors lead a focused, high-impact workshop at camp.
+        Review for energy, clarity, classroom presence, pacing, and age-appropriateness.
+        Strong workshop instructors may quickly be considered for full instructor
+        responsibilities and instructor mentorship based on readiness and leadership.
       </p>
 
       {!outline ? (

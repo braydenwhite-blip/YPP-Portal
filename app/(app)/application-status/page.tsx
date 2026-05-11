@@ -207,7 +207,7 @@ export default async function ApplicationStatusPage() {
                   fontWeight: 700,
                   letterSpacing: "0.04em",
                 }}
-                title="Summer Workshop track — lighter onboarding than the full Instructor program"
+                title="Summer Workshop Instructor — a focused, fast-start teaching role at YPP camps"
               >
                 Summer Workshop
               </span>
@@ -228,7 +228,7 @@ export default async function ApplicationStatusPage() {
                 </p>
                 <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 8 }}>
                   {isSummerWorkshopApp
-                    ? "This is a lighter review than the full Instructor program — reviewers focus on whether you can safely and effectively run a short workshop at a camp. The interview, if scheduled, is a quick two-way conversation."
+                    ? "Reviewers focus on classroom presence, pacing, and how you'd lead a focused workshop at camp. The interview, when scheduled, is a quick two-way conversation."
                     : "Review is about understanding how you teach — not a scored exam. The interview, when scheduled, is a two-way conversation, not a test."}
                 </p>
               </>
@@ -241,7 +241,7 @@ export default async function ApplicationStatusPage() {
                 </p>
                 <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 8 }}>
                   {isSummerWorkshopApp
-                    ? "Reviewers are reading your workshop outline and looking for clarity, safety, and fit for an in-person camp session — not a perfect plan. They may invite you to a short conversation."
+                    ? "Reviewers are reading your workshop outline for energy, clarity, classroom presence, and engagement — what it takes to lead a focused, high-impact session at camp. They may invite you to a short conversation."
                     : "We are looking for fit and clarity, not perfection. If we move forward, you will be invited to a short interview — a two-way discussion, not an audition."}
                 </p>
               </>
@@ -358,7 +358,7 @@ export default async function ApplicationStatusPage() {
                 {instructorApp.instructorSubtype === "SUMMER_WORKSHOP" ? (
                   <>
                     <p style={{ color: "var(--muted)", fontSize: 14, marginBottom: 16 }}>
-                      You&rsquo;re approved on the Summer Workshop Instructor track. Finish required training, then submit a workshop in the Workshop Design Studio — design your own or pick from the approved library.
+                      You&rsquo;re approved as a Summer Workshop Instructor — a focused, high-impact teaching role. Finish required training, then submit a workshop in the Workshop Design Studio (design your own or pick from the approved library). Strong workshop instructors may quickly be considered for full instructor responsibilities and instructor mentorship based on readiness and leadership.
                     </p>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                       <Link href="/instructor-training" className="button" style={{ textDecoration: "none" }}>

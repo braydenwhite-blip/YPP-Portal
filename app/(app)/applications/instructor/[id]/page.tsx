@@ -431,9 +431,11 @@ export default async function ApplicantCockpitPage({
                     <h2>Promotion</h2>
                   </div>
                   <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 12px", lineHeight: 1.55 }}>
-                    This applicant is on the Summer Workshop Instructor track. Promotion flips
-                    the subtype to Standard Instructor and preserves all history; outstanding
-                    requirements (e.g. Lesson Design Studio) become follow-ups, not waivers.
+                    This applicant is on the Summer Workshop Instructor track. Promotion to
+                    Full Instructor preserves all history; outstanding requirements (e.g.
+                    Lesson Design Studio) become follow-ups, not waivers. Use this when the
+                    applicant has demonstrated readiness and leadership beyond the focused
+                    workshop role.
                   </p>
                   <PromoteToFullInstructorButton
                     applicationId={application.id}

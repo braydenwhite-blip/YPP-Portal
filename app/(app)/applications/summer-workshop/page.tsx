@@ -73,16 +73,18 @@ export default async function SummerWorkshopLandingPage() {
           marginBottom: 24,
         }}
       >
-        Full Instructor Program coming soon — apply for Summer Workshops now.
+        Now hiring Summer Workshop Instructors — a fast-start teaching role.
       </div>
 
       <h1 style={{ fontSize: 28, fontWeight: 700, margin: "0 0 12px" }}>
         Summer Workshop Instructor Application
       </h1>
       <p style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.6, margin: "0 0 24px" }}>
-        We&apos;re focused on Summer Workshops right now. Run a short workshop at one
-        of our camps — share a single workshop outline so we can see how you&apos;d run
-        a session. Strong workshop instructors can later be promoted to full Instructor.
+        Summer Workshop Instructors lead focused, high-impact workshops at YPP camps.
+        Share a single workshop outline so we can see how you&apos;d lead the room.
+        Strong workshop instructors may quickly be considered for full instructor
+        responsibilities and, based on readiness and leadership, may also mentor
+        other instructors.
       </p>
 
       {summerOpen ? (

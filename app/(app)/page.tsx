@@ -385,10 +385,10 @@ function PublicSummerWorkshopHome({ firstName }: { firstName: string }) {
         Welcome{firstName ? `, ${firstName}` : ""} 👋
       </h1>
       <p style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.6, margin: "0 0 28px" }}>
-        We&apos;re focused on running an excellent Summer Workshop season this
-        year. Two flows are open today — applying to teach a workshop, and
-        proposing the workshop you&apos;d run. Everything else is still being
-        polished and will roll out as it&apos;s ready.
+        Summer Workshop Instructors lead focused, high-impact workshops at YPP
+        camps — a fast-start teaching role with real ownership of the room.
+        Two flows are open today: apply to teach a workshop, or propose the
+        workshop you&apos;d lead.
       </p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
         <Link
@@ -408,7 +408,8 @@ function PublicSummerWorkshopHome({ firstName }: { firstName: string }) {
           </div>
           <h2 style={{ margin: "0 0 6px", fontSize: 18 }}>Summer Workshop Application</h2>
           <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
-            Tell us who you are and why you&apos;d like to teach a Summer Workshop.
+            Apply to lead a focused, high-impact workshop. Strong workshop instructors
+            may quickly be considered for full instructor work and mentorship.
           </p>
         </Link>
         <Link

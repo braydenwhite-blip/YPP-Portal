@@ -94,7 +94,8 @@ export default function PromoteToFullInstructorButton({
             </h2>
             <p style={{ fontSize: 14, color: "var(--muted)", margin: "0 0 16px", lineHeight: 1.55 }}>
               Promote <strong>{applicantName}</strong> from Summer Workshop Instructor to
-              Standard Instructor. History (ratings, notes, interview reviews) is preserved.
+              Full Instructor based on demonstrated readiness and leadership. History
+              (ratings, notes, interview reviews) is preserved on the same record.
             </p>
 
             <div
