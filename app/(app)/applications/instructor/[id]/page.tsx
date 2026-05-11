@@ -216,20 +216,6 @@ export default async function ApplicantCockpitPage({
     redirect("/application-status");
   }
 
-  // Temporary gate: standard-track instructor applications are hidden while
-  // the regular Instructor program is paused. Summer Workshop applications
-  // remain accessible. Admins (and `?adminPreview=1`) bypass.
-  if (
-    !isRegularInstructorEnabled() &&
-    application.applicationTrack !== "SUMMER_WORKSHOP_INSTRUCTOR" &&
-    !canBypassInstructorGate({
-      roles: session.user.roles,
-      primaryRole: session.user.primaryRole,
-      adminPreviewParam: adminPreview ?? null,
-    })
-  ) {
-    redirect("/applications/summer-workshop");
-  }
   const currentInterviewerAssignments = application.interviewerAssignments.filter(
     (assignment) => assignment.round === application.interviewRound
   );
@@ -274,6 +260,32 @@ export default async function ApplicantCockpitPage({
   const actorIsChair = isHiringChair(actor);
   const actorIsReviewer = isAssignedReviewer(actor, appCtx);
   const actorIsInterviewer = isAssignedInterviewer(actor, appCtx);
+
+  // SW-only mode gate: while the Standard track is paused, public access to
+  // an in-flight Standard application is hidden. But anyone with a legitimate
+  // role-based reason to view this applicant — admin, hiring chair, same-
+  // chapter CP, assigned reviewer/interviewer — should still get through so
+  // they can finish work that pre-dates the gate. The applicant themselves
+  // is already redirected to /application-status earlier in this file.
+  const isLegitimateReviewer =
+    actorIsAdmin ||
+    actorIsChair ||
+    actorIsReviewer ||
+    actorIsInterviewer ||
+    isChapterLead(actor);
+  if (
+    !isRegularInstructorEnabled() &&
+    application.applicationTrack !== "SUMMER_WORKSHOP_INSTRUCTOR" &&
+    !isLegitimateReviewer &&
+    !canBypassInstructorGate({
+      roles: session.user.roles,
+      primaryRole: session.user.primaryRole,
+      adminPreviewParam: adminPreview ?? null,
+    })
+  ) {
+    redirect("/applications/summer-workshop");
+  }
+
   const actorIsLeadInterviewer = currentInterviewerAssignments.some(
     (assignment) =>
       assignment.role === "LEAD" &&
