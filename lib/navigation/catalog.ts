@@ -245,6 +245,19 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardPriority: 17,
     },
     {
+      // Surfaced only for INSTRUCTOR-role users (resolveNavModel further
+      // restricts to subtype = SUMMER_WORKSHOP, so APPLICANT and full
+      // instructors don't see this in their sidebar).
+      href: "/instructor/workshop-design-studio",
+      label: "Workshop Design Studio",
+      icon: "🛠️",
+      roles: INSTRUCTOR_ROLES,
+      requiresSummerWorkshopSubtype: true,
+      dashboardDescription: "Propose the focused workshop you'll lead at camp — design your own or pick from the approved library.",
+      dashboardPriority: 17,
+      searchAliases: ["Workshop Proposal", "Workshop Outline"],
+    },
+    {
       href: "/lesson-plans",
       label: "Lesson Plans",
       icon: "📋",
@@ -680,20 +693,22 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/chapter-lead/instructor-applicants",
-      label: "Instructor Applicants",
+      label: "Chapter Applicants",
       icon: "📝",
       roles: CHAPTER_PRESIDENT_ONLY,
-      dashboardDescription: "Review and manage instructor applications on the hiring board.",
+      dashboardDescription: "Review and manage instructor applications on your chapter's hiring board.",
       dashboardPriority: 6,
+      searchAliases: ["Instructor Applicants", "Chapter Instructor Applicants"],
     },
     {
       href: "/chapter-lead/instructor-readiness",
-      label: "Instructor Readiness",
+      label: "Chapter Readiness",
       icon: "✅",
       roles: CHAPTER_PRESIDENT_ONLY,
-      dashboardDescription: "Clear instructor training and interview blockers.",
+      dashboardDescription: "Clear instructor training and interview blockers for your chapter.",
       dashboardPriority: 7,
       dashboardBadgeKey: "instructor_readiness_blockers",
+      searchAliases: ["Instructor Readiness", "Chapter Instructor Readiness"],
     },
     {
       href: "/chapter-lead/portal-rollout",
@@ -767,21 +782,22 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/admin/instructor-applicants",
-      label: "Instructor Applicants",
+      label: "Network Applicants",
       icon: "📝",
-      roles: ADMIN_ONLY,
-      dashboardDescription: "Review and approve incoming instructor applications.",
+      roles: HIRING_CHAIR_ADMIN_ROLES,
+      dashboardDescription: "Review and approve incoming instructor applications across all chapters.",
       dashboardPriority: 4,
+      searchAliases: ["Instructor Applicants", "Network Instructor Applicants"],
       dashboardBadgeKey: "instructor_applicants",
     },
     {
       href: "/admin/instructor-applicants/chair-queue",
-      label: "Chair Queue",
+      label: "Hiring Chair Queue",
       icon: "⚖️",
       roles: HIRING_CHAIR_ADMIN_ROLES,
       badgeKey: "chairQueueCount",
-      dashboardDescription: "Review applications awaiting chair decision.",
-      searchAliases: ["chair", "hiring chair", "decisions"],
+      dashboardDescription: "Review applications awaiting hiring chair decision.",
+      searchAliases: ["chair", "hiring chair", "decisions", "Chair Queue"],
     },
     {
       href: "/admin/chapter-president-applicants",
@@ -811,12 +827,13 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/admin/instructor-readiness",
-      label: "Instructor Readiness",
+      label: "Network Readiness",
       icon: "✅",
       roles: ADMIN_ONLY,
-      dashboardDescription: "Resolve training, interview, and teaching-level readiness.",
+      dashboardDescription: "Resolve training, interview, and teaching-level readiness across all chapters.",
       dashboardPriority: 5,
       dashboardBadgeKey: "readiness_review_queue",
+      searchAliases: ["Instructor Readiness", "Network Instructor Readiness"],
     },
     {
       href: "/admin/portal-rollout",
@@ -828,13 +845,18 @@ export const NAV_CATALOG: NavLink[] = [
     },
     { href: "/admin/staff", label: "Staff Reflections", icon: "📝", roles: ADMIN_ONLY },
     {
+      // Legacy Position-based hiring pipeline (Application/Decision models).
+      // Distinct from the modern InstructorApplication board at
+      // /admin/instructor-applicants. Relabeled to reduce confusion for admins
+      // who saw two "Applications" entries side-by-side.
       href: "/admin/applications",
-      label: "Applications",
+      label: "Position Applications (Legacy)",
       icon: "📋",
       roles: ADMIN_ONLY,
-      dashboardDescription: "Review hiring pipeline and finalize pending decisions.",
+      dashboardDescription: "Legacy position-based hiring pipeline. Modern instructor applications live in Network Applicants.",
       dashboardPriority: 3,
       dashboardBadgeKey: "pending_app_decisions",
+      searchAliases: ["Applications", "Hiring Pipeline"],
     },
     {
       href: "/admin/recruiting",

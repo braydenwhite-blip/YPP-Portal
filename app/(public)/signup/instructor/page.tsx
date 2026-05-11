@@ -284,7 +284,7 @@ export default function InstructorSignupPage() {
         </h1>
         <p style={{ fontSize: 14, color: "var(--muted)", margin: "0 0 24px", lineHeight: 1.6 }}>
           {isSummerWorkshop
-            ? "Summer Workshop Instructors run short workshops at camps. You won't design a full course at this stage — share a single workshop outline so we can see how you'd run a session. Strong workshop instructors can later be promoted to full Instructor."
+            ? "Summer Workshop Instructors lead focused, high-impact workshops at camps — a fast-start teaching role where you run the room and own the session. Share a single workshop outline so we can see how you'd lead it. Strong workshop instructors may quickly be considered for full instructor responsibilities and, based on readiness and leadership, may also mentor other instructors."
             : "Share your background, availability, and a rough class plan so the review team can understand what you want to teach and whether an interview is the right next step."}
         </p>
 
@@ -303,9 +303,10 @@ export default function InstructorSignupPage() {
                 color: "#5b21b6",
               }}
             >
-              <strong>Full Instructor Program coming soon.</strong> Right now we&apos;re
-              only accepting Summer Workshop Instructor applications — short workshops
-              at camps with a path to full Instructor later.
+              <strong>Now hiring: Summer Workshop Instructors.</strong> We&apos;re focused on
+              staffing a strong summer cohort right now. Lead a focused, high-impact
+              workshop at camp; strong workshop instructors may quickly be considered
+              for full instructor work and instructor mentorship.
             </div>
           </div>
         ) : (
@@ -316,13 +317,13 @@ export default function InstructorSignupPage() {
               [
                 {
                   value: "STANDARD_INSTRUCTOR" as const,
-                  title: "Standard Instructor",
-                  blurb: "Design and teach a full YPP course. Includes a curriculum review and the full training pathway.",
+                  title: "Full Instructor",
+                  blurb: "Design and teach a full YPP course over a semester or year. Includes a curriculum review and the full training pathway.",
                 },
                 {
                   value: "SUMMER_WORKSHOP_INSTRUCTOR" as const,
                   title: "Summer Workshop Instructor",
-                  blurb: "Run short workshops at camps. Shorter application, lighter onboarding, and a possible path to full Instructor later.",
+                  blurb: "Lead a focused, high-impact workshop at camp. A fast-start teaching role — strong workshop instructors may quickly be considered for full instructor work and instructor mentorship.",
                 },
               ]
             ).map((opt) => {

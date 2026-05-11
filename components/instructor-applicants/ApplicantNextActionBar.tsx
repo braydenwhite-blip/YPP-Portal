@@ -25,6 +25,11 @@ interface Props {
   canSendToChair?: boolean;
   isAdmin: boolean;
   hidden?: boolean;
+  /** When true, the chair "Make Decision" action routes to the V2 Final
+   *  Review Cockpit (`/admin/instructor-applicants/[id]/review`). Otherwise
+   *  it falls back to the legacy V1 chair queue page. The parent server
+   *  component resolves `isFinalReviewV2EnabledForChapter(chapterId)`. */
+  finalReviewV2Enabled?: boolean;
 }
 
 export default function ApplicantNextActionBar({
@@ -38,6 +43,7 @@ export default function ApplicantNextActionBar({
   canSendToChair = false,
   isAdmin,
   hidden = false,
+  finalReviewV2Enabled = false,
 }: Props) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
@@ -117,10 +123,17 @@ export default function ApplicantNextActionBar({
         "All interviewer reviews aren't in yet, or the application is queued for the hiring chair. Nothing more to do from this view.",
     };
   } else if (status === "CHAIR_REVIEW" && canActAsChair) {
+    // Route chairs to the V2 Final Review Cockpit when enabled for the
+    // applicant's chapter; otherwise fall back to the legacy V1 chair
+    // queue workspace. Both call into the same `chairDecide` server
+    // action — only the UX shell differs.
+    const chairHref = finalReviewV2Enabled
+      ? `/admin/instructor-applicants/${application.id}/review`
+      : `/admin/instructor-applicants/chair-queue/${application.id}`;
     action = {
       label: "Make Decision",
       description: "Open the full chair review workspace and record your decision.",
-      href: `/admin/instructor-applicants/chair-queue/${application.id}`,
+      href: chairHref,
     };
   } else if (status === "CHAIR_REVIEW") {
     action = {

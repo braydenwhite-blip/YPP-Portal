@@ -611,14 +611,16 @@ export default async function InstructorTrainingPage({
         >
           <p style={{ margin: 0, fontSize: 13, color: "#5b21b6", lineHeight: 1.55 }}>
             <strong>Summer Workshop Instructor track.</strong>{" "}
-            Complete required training, then submit a workshop in the{" "}
+            Complete required training, then propose the focused workshop you&rsquo;ll
+            lead in the{" "}
             <Link href="/instructor/workshop-design-studio" className="link">
               Workshop Design Studio
             </Link>
-            . You can either design your own workshop or pick one from the
-            approved library — both submit into the same review queue. The
-            Lesson Design Studio capstone is hidden on this track and becomes
-            a follow-up only if you&rsquo;re later promoted to full Instructor.
+            . Design your own workshop or pick one from the approved library — both
+            submit into the same review queue. Strong workshop instructors may quickly
+            be considered for full instructor responsibilities and instructor
+            mentorship; the Lesson Design Studio capstone becomes a follow-up if and
+            when that happens.
           </p>
         </div>
       )}

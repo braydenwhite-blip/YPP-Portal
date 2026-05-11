@@ -10,6 +10,7 @@ import type {
   InterviewCommandCenterData,
   InterviewHubFilters,
   InterviewScope,
+  InterviewStage,
   InterviewStateFilter,
   InterviewTask,
   InterviewView,
@@ -261,6 +262,108 @@ export async function getInterviewCommandCenterData(
           })
         );
       }
+    }
+  }
+
+  // V1 InstructorApplication interview workflow. Hub previously surfaced
+  // only legacy Application + readiness gate tasks, so assigned LEAD/SECOND
+  // interviewers on the modern V1 pipeline had no entry here at all.
+  // Minimal-viable: emit a task per active interviewer assignment for the
+  // viewer, linking to the live interview workspace.
+  if (includeHiring) {
+    const v1Apps = await withPrismaFallback(
+      "interviews:instructor-v1",
+      () =>
+        prisma.instructorApplication.findMany({
+          where: {
+            archivedAt: null,
+            status: {
+              in: ["INTERVIEW_SCHEDULED", "INTERVIEW_COMPLETED"],
+            },
+            interviewerAssignments: {
+              some: { interviewerId: input.userId, removedAt: null },
+            },
+          },
+          select: {
+            id: true,
+            status: true,
+            interviewRound: true,
+            interviewScheduledAt: true,
+            preferredFirstName: true,
+            legalName: true,
+            applicationTrack: true,
+            applicant: {
+              select: {
+                name: true,
+                chapter: { select: { name: true } },
+              },
+            },
+            interviewerAssignments: {
+              where: { removedAt: null, interviewerId: input.userId },
+              select: { role: true, round: true },
+              take: 1,
+            },
+            interviewReviews: {
+              where: { reviewerId: input.userId, status: "SUBMITTED" },
+              select: { id: true },
+              take: 1,
+            },
+          },
+          orderBy: { interviewScheduledAt: "asc" },
+        }),
+      []
+    );
+
+    for (const app of v1Apps) {
+      const assignment = app.interviewerAssignments[0];
+      const isLead = assignment?.role === "LEAD";
+      const hasSubmittedReview = app.interviewReviews.length > 0;
+      const displayName =
+        app.preferredFirstName ??
+        app.legalName ??
+        app.applicant.name ??
+        "Applicant";
+      const trackBadge =
+        app.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR" ? " · SW" : "";
+
+      let stage: InterviewStage = "SCHEDULED";
+      if (app.status === "INTERVIEW_COMPLETED") {
+        stage = hasSubmittedReview ? "COMPLETED" : "NEEDS_ACTION";
+      } else if (app.status === "INTERVIEW_SCHEDULED") {
+        stage = app.interviewScheduledAt ? "SCHEDULED" : "BLOCKED";
+      }
+
+      tasks.push({
+        id: `instructor-v1:${app.id}`,
+        domain: "HIRING",
+        audience: filters.view === "team" ? "team" : "mine",
+        stage,
+        title: `${displayName} — Instructor interview${trackBadge}`,
+        subtitle: `${isLead ? "Lead" : "Second"} interviewer · ${app.applicant.chapter?.name ?? "Global"}`,
+        detail:
+          stage === "NEEDS_ACTION"
+            ? "Interview complete — submit your interview review."
+            : stage === "BLOCKED"
+              ? "Awaiting confirmed slot."
+              : "Interview scheduled.",
+        ownerName: displayName,
+        href: `/applications/instructor/${app.id}/interview`,
+        primaryAction: {
+          kind: "open_details",
+          label: hasSubmittedReview ? "View applicant" : "Open interview workspace",
+          href: `/applications/instructor/${app.id}/interview`,
+        },
+        secondaryLinks: [
+          {
+            label: "Applicant detail",
+            href: `/applications/instructor/${app.id}`,
+          },
+        ],
+        blockers: stage === "BLOCKED" ? ["No confirmed slot yet."] : [],
+        timestamps: {
+          scheduledAt: app.interviewScheduledAt ?? null,
+        },
+      });
     }
   }
 

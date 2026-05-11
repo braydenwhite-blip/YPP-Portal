@@ -1,5 +1,7 @@
 "use client";
 
+import type { WorkshopOutline } from "@/lib/summer-workshop";
+
 interface Document {
   id: string;
   kind: string;
@@ -33,6 +35,9 @@ interface Props {
     preferredFirstName: string | null;
     legalName: string | null;
     applicant: { name: string | null };
+    /** Optional — present for V1 interview workspace queries. */
+    applicationTrack?: string | null;
+    workshopOutline?: WorkshopOutline | null;
   };
   documents: Document[];
   confirmedSlots: OfferedSlot[];
@@ -93,6 +98,11 @@ export default function InterviewerBriefCard({
   const classIdea = application.courseIdea ?? application.textbook;
 
   const hasReviewerNote = Boolean(reviewerNote && (reviewerNote.summary || reviewerNote.notes));
+  // SW applicants are interviewed on workshop delivery (energy / clarity /
+  // pacing / classroom presence) — show them the workshop outline they
+  // submitted, not the empty course planning fields.
+  const isSummerWorkshop = application.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR";
+  const workshopOutline = application.workshopOutline ?? null;
 
   return (
     <article className="iv-card iv-brief" aria-label="Pre-interview brief">
@@ -151,14 +161,57 @@ export default function InterviewerBriefCard({
         </div>
       )}
 
-      <section className="iv-brief-section" aria-label="Rough course plan">
-        <p className="iv-brief-section-label">Rough course plan</p>
-        <div className="iv-brief-plan">
-          <PlanField label="Class idea" value={classIdea} />
-          <PlanField label="Rough outline" value={application.courseOutline} />
-          <PlanField label="First-session sketch" value={application.firstClassPlan} />
-        </div>
-      </section>
+      {isSummerWorkshop ? (
+        <section className="iv-brief-section" aria-label="Workshop outline">
+          <p className="iv-brief-section-label">Workshop outline</p>
+          {workshopOutline ? (
+            <div className="iv-brief-plan">
+              <PlanField label="Workshop title" value={workshopOutline.title || null} />
+              <PlanField
+                label="Audience"
+                value={
+                  [
+                    workshopOutline.ageRange,
+                    workshopOutline.durationMinutes
+                      ? `${workshopOutline.durationMinutes} min`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ") || null
+                }
+              />
+              <PlanField
+                label="Learning goals"
+                value={
+                  workshopOutline.learningGoals?.length
+                    ? workshopOutline.learningGoals.map((g) => `• ${g}`).join("\n")
+                    : null
+                }
+              />
+              <PlanField label="Activity flow" value={workshopOutline.activityFlow || null} />
+              <PlanField label="Engagement hook" value={workshopOutline.engagementHook || null} />
+              <PlanField
+                label="Adapting on the fly"
+                value={workshopOutline.adaptationNotes || null}
+              />
+            </div>
+          ) : (
+            <p className="iv-brief-plan-field-empty">
+              No workshop outline on file. Ask the applicant to walk you through
+              the workshop they&rsquo;d run.
+            </p>
+          )}
+        </section>
+      ) : (
+        <section className="iv-brief-section" aria-label="Rough course plan">
+          <p className="iv-brief-section-label">Rough course plan</p>
+          <div className="iv-brief-plan">
+            <PlanField label="Class idea" value={classIdea} />
+            <PlanField label="Rough outline" value={application.courseOutline} />
+            <PlanField label="First-session sketch" value={application.firstClassPlan} />
+          </div>
+        </section>
+      )}
 
       {hasReviewerNote ? (
         <section className="iv-brief-section" aria-label="Reviewer note">

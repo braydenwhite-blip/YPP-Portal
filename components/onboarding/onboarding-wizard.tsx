@@ -34,6 +34,10 @@ interface OnboardingWizardProps {
     detail: string;
     href: string;
   } | null;
+  /** When "SUMMER_WORKSHOP", the InstructorSteps wizard shows a short
+   *  fast-start welcome panel naming the role and the growth pathway.
+   *  Null / "STANDARD" / non-instructor users skip it. */
+  instructorSubtype?: string | null;
 }
 
 export default function OnboardingWizard({
@@ -44,6 +48,7 @@ export default function OnboardingWizard({
   initialStep,
   profileData,
   instructorNextAction,
+  instructorSubtype,
 }: OnboardingWizardProps) {
   const isInstructor = primaryRole === "INSTRUCTOR" || roles.includes("INSTRUCTOR");
   const totalSteps = isInstructor ? 5 : 3;
@@ -205,6 +210,7 @@ export default function OnboardingWizard({
               chapterName={chapterName}
               profileData={profileData}
               nextReadinessAction={instructorNextAction}
+              instructorSubtype={instructorSubtype ?? null}
               formError={formError}
               onNext={goNext}
               onBack={goBack}

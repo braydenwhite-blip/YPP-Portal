@@ -65,12 +65,12 @@ export default async function WorkshopDesignStudioPage({
 
       <div className="topbar">
         <div>
-          <p className="badge">Summer Workshop Instructor Application</p>
+          <p className="badge">Summer Workshop Instructor · Workshop Proposal</p>
           <h1 className="page-title">Workshop Design Studio</h1>
           <p className="page-subtitle">
-            Complete training, then submit or select a workshop. You can either
-            design your own workshop or choose an approved workshop from
-            YPP&rsquo;s library.
+            You&rsquo;re approved as a Summer Workshop Instructor — propose the
+            focused, high-impact workshop you&rsquo;ll lead at camp. Design your
+            own or pick from YPP&rsquo;s approved library.
           </p>
         </div>
       </div>

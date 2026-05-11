@@ -30,6 +30,7 @@ import {
 } from "@/lib/final-review-warnings";
 import { useCommitDecision } from "@/lib/use-commit-decision";
 import { trackCockpitEvent } from "@/lib/cockpit-analytics";
+import { workshopOutlineWarnings } from "@/lib/summer-workshop";
 
 import { FinalReviewProvider, useFinalReviewContext } from "./FinalReviewContext";
 import ApplicantSnapshotBar from "./ApplicantSnapshotBar";
@@ -338,8 +339,9 @@ function CockpitInner({
           >
             SW
           </span>
-          Summer Workshop Instructor — lighter pathway. Review focuses on the
-          single workshop outline below; full course materials are not required.
+          Summer Workshop Instructor — focused, fast-start teaching role.
+          Review focuses on the workshop outline below: classroom presence,
+          pacing, engagement, and ability to lead a focused session at camp.
         </div>
       )}
       <ApplicantSnapshotBar
@@ -869,7 +871,12 @@ function CockpitSummerWorkshopCard({
   applicantDisplayName: string;
 }) {
   const outline = application.workshopOutline;
+  // Promotion is gated on (SW subtype) AND (status === APPROVED). Server
+  // action also enforces this; UI hides the panel when not eligible so we
+  // don't render a button that will fail.
   const isStillSummerWorkshop = application.instructorSubtype === "SUMMER_WORKSHOP";
+  const isApproved = application.status === "APPROVED";
+  const canPromoteNow = isStillSummerWorkshop && isApproved;
   return (
     <section
       style={{
@@ -912,9 +919,9 @@ function CockpitSummerWorkshopCard({
             padding: "2px 8px",
             borderRadius: 999,
           }}
-          title="Lighter pathway than the full Instructor program"
+          title="Summer Workshop track — focused, fast-start teaching role"
         >
-          LIGHTER REVIEW
+          FOCUSED WORKSHOP REVIEW
         </span>
       </div>
       <p
@@ -925,9 +932,10 @@ function CockpitSummerWorkshopCard({
           lineHeight: 1.5,
         }}
       >
-        Summer Workshop applicants run a single short workshop at a camp — review
-        focuses on safety, pacing, and age-appropriateness. They have not been
-        asked to design a full multi-week course.
+        Summer Workshop Instructors lead a focused, high-impact workshop at camp.
+        Review for energy, clarity, classroom presence, pacing, and age-appropriateness.
+        Strong workshop instructors may quickly be considered for full instructor
+        responsibilities and instructor mentorship based on readiness and leadership.
       </p>
 
       {!outline ? (
@@ -946,7 +954,35 @@ function CockpitSummerWorkshopCard({
           with extra caution and consider asking them to share the outline before
           a final decision.
         </p>
-      ) : (
+      ) : (() => {
+        // Same soft-warning helper that V1 uses on WorkshopOutlinePanel, so
+        // reviewers on either cockpit see identical signal about outline gaps.
+        const warnings = workshopOutlineWarnings(outline);
+        return warnings.length > 0 ? (
+          <div
+            role="status"
+            style={{
+              padding: "10px 12px",
+              borderRadius: 8,
+              background: "#fffbeb",
+              border: "1px solid #fde68a",
+              color: "#92400e",
+              fontSize: 13,
+              lineHeight: 1.5,
+              marginBottom: 12,
+            }}
+          >
+            <strong>Soft warning:</strong> this outline has gaps. Reviewers may still proceed.
+            <ul style={{ margin: "6px 0 0 18px", padding: 0 }}>
+              {warnings.map((w) => (
+                <li key={w}>{w}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null;
+      })()}
+
+      {outline ? (
         <dl
           style={{
             margin: 0,
@@ -1026,9 +1062,9 @@ function CockpitSummerWorkshopCard({
             )}
           </dd>
         </dl>
-      )}
+      ) : null}
 
-      {isStillSummerWorkshop && (
+      {canPromoteNow && (
         <div
           style={{
             marginTop: 16,

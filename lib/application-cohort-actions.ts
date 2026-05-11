@@ -208,12 +208,40 @@ export async function batchUpdateStatus(
     const toEmail: Array<{ id: string; email: string; name: string }> = [];
     let updated = 0;
 
+    // Statuses that have no LegacyApplicationReviewAction mapping
+    // (deriveInstructorAction returns null): CHAIR_REVIEW, PRE_APPROVED,
+    // WAITLISTED, WITHDRAWN. Previously the loop simply skipped the
+    // legacy-transition validator for these, allowing the batch to set
+    // them from ANY source state — including terminal APPROVED/REJECTED,
+    // which would silently un-decide an approved instructor.
+    const TERMINAL_INSTRUCTOR_STATUSES: ReadonlySet<InstructorApplicationStatus> =
+      new Set([
+        InstructorApplicationStatus.APPROVED,
+        InstructorApplicationStatus.REJECTED,
+        InstructorApplicationStatus.WITHDRAWN,
+      ]);
     for (const app of apps) {
       // Skip apps that can't legally transition to the target status.
       if (action !== null) {
         const err = getLegacyApplicationTransitionError({ status: app.status, action });
         if (err !== null) {
           skipped.push({ id: app.id, reason: err });
+          continue;
+        }
+      } else {
+        // Action-less targets (CHAIR_REVIEW, PRE_APPROVED, WAITLISTED,
+        // WITHDRAWN): block transitions FROM terminal states. Use the
+        // applicant-controlled withdraw flow / chair-decide flow for the
+        // individual cases instead.
+        if (TERMINAL_INSTRUCTOR_STATUSES.has(app.status)) {
+          skipped.push({
+            id: app.id,
+            reason: `Cannot batch-transition from ${app.status} to ${toStatus}.`,
+          });
+          continue;
+        }
+        if (app.status === toStatus) {
+          skipped.push({ id: app.id, reason: "Already in target status." });
           continue;
         }
       }

@@ -15,6 +15,7 @@ import {
 } from "@/lib/chapter-hiring-permissions";
 import {
   canBypassInstructorGate,
+  isFinalReviewV2EnabledForChapter,
   isInstructorApplicantWorkflowV1Enabled,
   isRegularInstructorEnabled,
 } from "@/lib/feature-flags";
@@ -215,20 +216,6 @@ export default async function ApplicantCockpitPage({
     redirect("/application-status");
   }
 
-  // Temporary gate: standard-track instructor applications are hidden while
-  // the regular Instructor program is paused. Summer Workshop applications
-  // remain accessible. Admins (and `?adminPreview=1`) bypass.
-  if (
-    !isRegularInstructorEnabled() &&
-    application.applicationTrack !== "SUMMER_WORKSHOP_INSTRUCTOR" &&
-    !canBypassInstructorGate({
-      roles: session.user.roles,
-      primaryRole: session.user.primaryRole,
-      adminPreviewParam: adminPreview ?? null,
-    })
-  ) {
-    redirect("/applications/summer-workshop");
-  }
   const currentInterviewerAssignments = application.interviewerAssignments.filter(
     (assignment) => assignment.round === application.interviewRound
   );
@@ -273,6 +260,32 @@ export default async function ApplicantCockpitPage({
   const actorIsChair = isHiringChair(actor);
   const actorIsReviewer = isAssignedReviewer(actor, appCtx);
   const actorIsInterviewer = isAssignedInterviewer(actor, appCtx);
+
+  // SW-only mode gate: while the Standard track is paused, public access to
+  // an in-flight Standard application is hidden. But anyone with a legitimate
+  // role-based reason to view this applicant — admin, hiring chair, same-
+  // chapter CP, assigned reviewer/interviewer — should still get through so
+  // they can finish work that pre-dates the gate. The applicant themselves
+  // is already redirected to /application-status earlier in this file.
+  const isLegitimateReviewer =
+    actorIsAdmin ||
+    actorIsChair ||
+    actorIsReviewer ||
+    actorIsInterviewer ||
+    isChapterLead(actor);
+  if (
+    !isRegularInstructorEnabled() &&
+    application.applicationTrack !== "SUMMER_WORKSHOP_INSTRUCTOR" &&
+    !isLegitimateReviewer &&
+    !canBypassInstructorGate({
+      roles: session.user.roles,
+      primaryRole: session.user.primaryRole,
+      adminPreviewParam: adminPreview ?? null,
+    })
+  ) {
+    redirect("/applications/summer-workshop");
+  }
+
   const actorIsLeadInterviewer = currentInterviewerAssignments.some(
     (assignment) =>
       assignment.role === "LEAD" &&
@@ -422,8 +435,12 @@ export default async function ApplicantCockpitPage({
               />
             )}
 
-            {/* Promote to Full Instructor (admins/chairs, summer workshop subtype only) */}
+            {/* Promote to Full Instructor (admins/chairs, summer workshop
+                subtype, AND only after chair-decide APPROVED — promotion
+                is meaningless before approval and the server action also
+                enforces this guard). */}
             {application.instructorSubtype === "SUMMER_WORKSHOP" &&
+              application.status === "APPROVED" &&
               (isAdmin(actor) || isHiringChair(actor)) && (
                 <section className="cockpit-panel">
                   <div className="cockpit-section-heading">
@@ -431,9 +448,11 @@ export default async function ApplicantCockpitPage({
                     <h2>Promotion</h2>
                   </div>
                   <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 12px", lineHeight: 1.55 }}>
-                    This applicant is on the Summer Workshop Instructor track. Promotion flips
-                    the subtype to Standard Instructor and preserves all history; outstanding
-                    requirements (e.g. Lesson Design Studio) become follow-ups, not waivers.
+                    This applicant is on the Summer Workshop Instructor track. Promotion to
+                    Full Instructor preserves all history; outstanding requirements (e.g.
+                    Lesson Design Studio) become follow-ups, not waivers. Use this when the
+                    applicant has demonstrated readiness and leadership beyond the focused
+                    workshop role.
                   </p>
                   <PromoteToFullInstructorButton
                     applicationId={application.id}
@@ -667,6 +686,9 @@ export default async function ApplicantCockpitPage({
         canSendToChair={canSendToChair}
         isAdmin={actorIsAdmin}
         hidden={isHidden}
+        finalReviewV2Enabled={isFinalReviewV2EnabledForChapter(
+          application.applicant.chapterId
+        )}
       />
     </div>
   );

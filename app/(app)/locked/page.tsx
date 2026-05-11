@@ -96,8 +96,9 @@ export default async function LockedPage({
           </div>
           <h2 style={{ margin: "0 0 6px", fontSize: 18 }}>Summer Workshop Application</h2>
           <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
-            Submit your application to teach a Summer Workshop. Strong
-            instructors can later be promoted to the full Instructor program.
+            Apply to lead a focused, high-impact workshop at camp. Strong
+            workshop instructors may quickly be considered for full instructor
+            work and instructor mentorship based on readiness and leadership.
           </p>
         </Link>
 

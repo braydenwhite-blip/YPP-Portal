@@ -5,6 +5,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { submitInstructorApplicationForExistingUser } from "@/lib/signup-actions";
 import type { SignupFormState } from "@/lib/signup-form-utils";
+import {
+  clearInstructorSignupDraft,
+  loadInstructorSignupDraft,
+} from "@/lib/instructor-signup-draft";
 
 const initialState: SignupFormState = { status: "idle", message: "" };
 
@@ -60,10 +64,34 @@ export default function ReapplyForm({ isSummerWorkshop, prefill }: Props) {
   );
   const router = useRouter();
 
+  // If the applicant has no prior submitted application, the signed-out
+  // /signup/instructor banner promised "we kept everything you typed on
+  // this device" before bouncing them through sign-in. Honor that promise
+  // by reading the localStorage draft and applying it as fallback prefill.
+  // We never override server-side prefill from a real prior application.
+  const hasPriorApplication = Object.values(prefill).some(
+    (v) => v != null && v !== ""
+  );
+  const [localDraftFields, setLocalDraftFields] = useState<Record<string, string>>({});
+  // Form key bumps once the draft loads so `defaultValue` inputs remount with
+  // the draft values (DOM defaultValue only applies on initial mount).
+  const [formKey, setFormKey] = useState(0);
+  useEffect(() => {
+    if (hasPriorApplication) return;
+    const draft = loadInstructorSignupDraft();
+    if (draft && draft.fields && Object.keys(draft.fields).length > 0) {
+      setLocalDraftFields(draft.fields);
+      setFormKey((k) => k + 1);
+    }
+  }, [hasPriorApplication]);
+
   // After a successful submit, send the applicant to /application-status
   // (their account is already signed in — no auto-login dance needed).
+  // Clear the localStorage draft so we don't repopulate it on a subsequent
+  // re-application after this one is closed.
   useEffect(() => {
     if (state.status === "success" && state.message === "APPLICATION_SUBMITTED") {
+      clearInstructorSignupDraft();
       router.push("/application-status");
       router.refresh();
     }
@@ -71,14 +99,25 @@ export default function ReapplyForm({ isSummerWorkshop, prefill }: Props) {
 
   const sf = state.fields ?? {};
   const get = (key: string) => {
+    // Precedence: latest server submission > prior application prefill >
+    // localStorage draft (fallback for net-new users mid-flow).
     const v = sf[key];
     if (typeof v === "string" && v !== "") return v;
     const fromPrefill = prefill[key];
-    return fromPrefill == null ? undefined : String(fromPrefill);
+    if (fromPrefill != null && fromPrefill !== "") return String(fromPrefill);
+    const fromLocal = localDraftFields[key];
+    return typeof fromLocal === "string" && fromLocal !== "" ? fromLocal : undefined;
   };
 
   const [hearAbout, setHearAbout] = useState(() => get("hearAboutYPPOption") ?? "");
   const [hearAboutDetail, setHearAboutDetail] = useState(() => get("hearAboutYPPDetail") ?? "");
+  // Re-sync the hearAbout state when the local draft loads (after initial mount).
+  useEffect(() => {
+    if (Object.keys(localDraftFields).length === 0) return;
+    setHearAbout(get("hearAboutYPPOption") ?? "");
+    setHearAboutDetail(get("hearAboutYPPDetail") ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formKey]);
   const hearAboutNeedsName =
     hearAbout === "A YPP staff member" || hearAbout === "A YPP student";
   const hearAboutNeedsDetail = hearAbout === "Other";
@@ -87,7 +126,7 @@ export default function ReapplyForm({ isSummerWorkshop, prefill }: Props) {
     : hearAbout;
 
   return (
-    <form action={action}>
+    <form key={formKey} action={action}>
       <input
         type="hidden"
         name="applicationTrack"

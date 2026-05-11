@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { uploadFile } from "@/lib/storage";
+import { getSession } from "@/lib/auth-supabase";
 import {
   APPLICANT_VIDEO_ALLOWED_MIME_TYPES,
   APPLICANT_VIDEO_MAX_SIZE_BYTES,
@@ -26,6 +27,12 @@ function getBlobUploadMode() {
 }
 
 export async function GET() {
+  // Sensitive size / mode info — only authenticated users see it. Without
+  // auth this advertised the env config (mode + max size) to anyone.
+  const session = await getSession();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   return NextResponse.json({
     mode: getBlobUploadMode(),
     maxSizeBytes: APPLICANT_VIDEO_MAX_SIZE_BYTES,
@@ -33,12 +40,37 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const requestKey = getRequestKey(request);
-  const rateLimit = checkRateLimit(`applicant-video-upload:${requestKey}`, 20, 15 * 60 * 1000);
+  // Authentication: this endpoint accepts files up to 500MB and returns a
+  // public URL anyone can hot-link. Previously it had only IP-based rate
+  // limiting, leaving YPP storage open to anyone on the public internet
+  // (trivially evaded behind NAT/proxies). Require a session.
+  const session = await getSession();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Sign in to upload a video." }, { status: 401 });
+  }
 
-  if (!rateLimit.success) {
+  // Per-user rate limit AND per-IP rate limit. A logged-in attacker rotating
+  // requests is bounded by their userId; an unauthenticated rate-limit alone
+  // (IP) was bypassable. We keep the IP limit as defense-in-depth.
+  const userRateLimit = checkRateLimit(
+    `applicant-video-upload:user:${session.user.id}`,
+    20,
+    15 * 60 * 1000
+  );
+  if (!userRateLimit.success) {
     return NextResponse.json(
       { error: "Too many upload attempts. Please wait a few minutes and try again." },
+      { status: 429 }
+    );
+  }
+  const ipRateLimit = checkRateLimit(
+    `applicant-video-upload:ip:${getRequestKey(request)}`,
+    60,
+    15 * 60 * 1000
+  );
+  if (!ipRateLimit.success) {
+    return NextResponse.json(
+      { error: "Too many upload attempts from this network. Please try again later." },
       { status: 429 }
     );
   }

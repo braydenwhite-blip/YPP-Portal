@@ -207,7 +207,7 @@ export default async function ApplicationStatusPage() {
                   fontWeight: 700,
                   letterSpacing: "0.04em",
                 }}
-                title="Summer Workshop track — lighter onboarding than the full Instructor program"
+                title="Summer Workshop Instructor — a focused, fast-start teaching role at YPP camps"
               >
                 Summer Workshop
               </span>
@@ -228,7 +228,7 @@ export default async function ApplicationStatusPage() {
                 </p>
                 <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 8 }}>
                   {isSummerWorkshopApp
-                    ? "This is a lighter review than the full Instructor program — reviewers focus on whether you can safely and effectively run a short workshop at a camp. The interview, if scheduled, is a quick two-way conversation."
+                    ? "Reviewers focus on classroom presence, pacing, and how you'd lead a focused workshop at camp. The interview, when scheduled, is a quick two-way conversation."
                     : "Review is about understanding how you teach — not a scored exam. The interview, when scheduled, is a two-way conversation, not a test."}
                 </p>
               </>
@@ -241,7 +241,7 @@ export default async function ApplicationStatusPage() {
                 </p>
                 <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 8 }}>
                   {isSummerWorkshopApp
-                    ? "Reviewers are reading your workshop outline and looking for clarity, safety, and fit for an in-person camp session — not a perfect plan. They may invite you to a short conversation."
+                    ? "Reviewers are reading your workshop outline for energy, clarity, classroom presence, and engagement — what it takes to lead a focused, high-impact session at camp. They may invite you to a short conversation."
                     : "We are looking for fit and clarity, not perfection. If we move forward, you will be invited to a short interview — a two-way discussion, not an audition."}
                 </p>
               </>
@@ -266,6 +266,14 @@ export default async function ApplicationStatusPage() {
                 <InfoResponseForm />
               </>
             )}
+            {/* PRE_APPROVED is still set in some flows: the legacy admin
+                applicant-detail-panel calls preApproveApplication() and the
+                application-cohort batch action can set it via
+                statusByLegacyAction. Keep this UI even though the V1 chair
+                decide path no longer transitions through PRE_APPROVED — an
+                applicant could land here via either of those paths. If both
+                of those setters are removed in the future, this block can
+                go too (audit doc: docs/instructor-applicant-implementation-plan.md). */}
             {instructorApp.status === "PRE_APPROVED" && (
               <>
                 <h3 className="section-title" style={{ color: "#6b21c8" }}>You&apos;ve Been Pre-Approved!</h3>
@@ -358,7 +366,7 @@ export default async function ApplicationStatusPage() {
                 {instructorApp.instructorSubtype === "SUMMER_WORKSHOP" ? (
                   <>
                     <p style={{ color: "var(--muted)", fontSize: 14, marginBottom: 16 }}>
-                      You&rsquo;re approved on the Summer Workshop Instructor track. Finish required training, then submit a workshop in the Workshop Design Studio — design your own or pick from the approved library.
+                      You&rsquo;re approved as a Summer Workshop Instructor — a focused, high-impact teaching role. Finish required training, then submit a workshop in the Workshop Design Studio (design your own or pick from the approved library). Strong workshop instructors may quickly be considered for full instructor responsibilities and instructor mentorship based on readiness and leadership.
                     </p>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                       <Link href="/instructor-training" className="button" style={{ textDecoration: "none" }}>
@@ -406,6 +414,58 @@ export default async function ApplicationStatusPage() {
               </div>
             )}
           </div>
+
+          {/* Growth pathway card — only for approved Summer Workshop instructors.
+              Sets honest expectations: strong workshop instructors may quickly be
+              invited to take on full instructor work or to mentor other
+              instructors, based on readiness and leadership. No promises. */}
+          {instructorApp.status === "APPROVED" &&
+            instructorApp.instructorSubtype === "SUMMER_WORKSHOP" && (
+              <div
+                className="card"
+                style={{
+                  marginBottom: 16,
+                  background: "#f5f3ff",
+                  border: "1px solid #ddd6fe",
+                }}
+              >
+                <h3 className="section-title" style={{ color: "#5b21b6", marginTop: 0 }}>
+                  Your growth pathway
+                </h3>
+                <p style={{ fontSize: 14, color: "var(--muted)", margin: "0 0 12px", lineHeight: 1.55 }}>
+                  Summer Workshop Instructor is a focused, fast-start teaching role.
+                  As you lead workshops well, more responsibility opens up.
+                </p>
+                <ul
+                  style={{
+                    margin: "0 0 12px",
+                    paddingLeft: 18,
+                    fontSize: 13,
+                    color: "var(--muted)",
+                    lineHeight: 1.65,
+                  }}
+                >
+                  <li>
+                    <strong>Lead the room.</strong> Run your workshop with energy, clarity,
+                    and classroom presence.
+                  </li>
+                  <li>
+                    <strong>Strong performance may open the door to full instructor work.</strong>{" "}
+                    Admins and hiring chairs review readiness and leadership and can invite
+                    strong workshop instructors to expand into the full instructor role.
+                  </li>
+                  <li>
+                    <strong>High-performing instructors may mentor others.</strong> Once
+                    you&rsquo;ve shown strong teaching and leadership, you may be invited to
+                    mentor newer instructors.
+                  </li>
+                </ul>
+                <p style={{ fontSize: 12, color: "var(--muted)", margin: 0, fontStyle: "italic" }}>
+                  Decisions are made by YPP staff based on readiness, leadership, and review
+                  notes — nothing is automatic.
+                </p>
+              </div>
+            )}
 
           <details className="card">
             <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: 14, padding: "4px 0" }}>

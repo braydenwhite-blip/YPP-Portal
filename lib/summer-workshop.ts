@@ -119,11 +119,11 @@ export function subtypeForTrack(track: ApplicationTrack): InstructorSubtype {
 }
 
 export function trackLabel(track: ApplicationTrack | null | undefined): string {
-  return track === "SUMMER_WORKSHOP_INSTRUCTOR" ? "Summer Workshop" : "Standard";
+  return track === "SUMMER_WORKSHOP_INSTRUCTOR" ? "Summer Workshop" : "Full Instructor";
 }
 
 export function subtypeLabel(subtype: InstructorSubtype | null | undefined): string {
-  return subtype === "SUMMER_WORKSHOP" ? "Summer Workshop" : "Standard";
+  return subtype === "SUMMER_WORKSHOP" ? "Summer Workshop" : "Full Instructor";
 }
 
 export function subtypeBadge(subtype: InstructorSubtype | null | undefined): string | null {

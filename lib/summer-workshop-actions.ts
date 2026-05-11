@@ -22,7 +22,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
 import { getHiringActor, isAdmin, isHiringChair } from "@/lib/chapter-hiring-permissions";
-import { InstructorSubtype } from "@prisma/client";
+import { InstructorApplicationStatus, InstructorSubtype } from "@prisma/client";
 import {
   SUMMER_WORKSHOP_TIMELINE_KINDS,
   DEFAULT_PROMOTION_ELIGIBILITY,
@@ -52,6 +52,7 @@ export async function promoteToFullInstructor(
     where: { id: applicationId },
     select: {
       id: true,
+      status: true,
       instructorSubtype: true,
       applicationTrack: true,
       promotionEligibility: true,
@@ -61,6 +62,20 @@ export async function promoteToFullInstructor(
 
   if (application.instructorSubtype === InstructorSubtype.STANDARD) {
     return { ok: true };
+  }
+
+  // Guard: promotion is only meaningful after a chair decision has approved
+  // the applicant. Without this, an admin or hiring chair could promote a
+  // SUBMITTED/UNDER_REVIEW/INTERVIEW_SCHEDULED SW applicant directly to the
+  // STANDARD subtype, bypassing the entire review process. The UI also
+  // gates the button render, but enforcing here makes the contract
+  // server-side.
+  if (application.status !== InstructorApplicationStatus.APPROVED) {
+    return {
+      ok: false,
+      error:
+        "Approve this applicant via the chair decision first, then promote them to Full Instructor.",
+    };
   }
 
   const now = new Date();

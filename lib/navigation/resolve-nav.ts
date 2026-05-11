@@ -14,6 +14,10 @@ import {
   shouldApplyStudentV1NavFilter,
 } from "@/lib/navigation/student-v1-allowlist";
 import {
+  APPLICANT_ALLOWED_HREFS,
+  shouldApplyApplicantNavFilter,
+} from "@/lib/navigation/applicant-allowlist";
+import {
   isRegularInstructorEnabled,
   isRegularInstructorGatedPath,
   isSummerWorkshopPermittedPath,
@@ -555,6 +559,17 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
       if (!hasAwardAccess(item, roles, hasAward)) return false;
       if (!hasFeatureAccess(item, input.enabledFeatureKeys, roles)) return false;
       if (!hasAdminSubtypeAccess(item, roles, adminSubtypes)) return false;
+      // SW-subtype-only entries (e.g. Workshop Design Studio) stay hidden for
+      // anyone whose most-recent application is NOT on the Summer Workshop
+      // track. Admins still see them (they need to monitor the SW pathway).
+      if (
+        item.requiresSummerWorkshopSubtype &&
+        input.instructorSubtype !== "SUMMER_WORKSHOP" &&
+        !roles.includes("ADMIN") &&
+        primaryRole !== "ADMIN"
+      ) {
+        return false;
+      }
 
       // If unlock filtering is active, only include items whose group is visible
       // or whose group is not in the locked set (i.e. groups not managed by the
@@ -586,6 +601,14 @@ export function resolveNavModel(input: ResolveNavInput): NavViewModel & { locked
 
   if (shouldApplyInstructorV1NavFilter(primaryRole, input.instructorFullPortalExplorer)) {
     visible = visible.filter((item) => INSTRUCTOR_V1_ALLOWED_HREFS.has(item.href));
+  }
+
+  // Apply applicant-only allowlist for users whose primary role is APPLICANT
+  // and who don't hold a more-elevated role. Keeps the sidebar focused on
+  // application status / general portal pages instead of premature instructor
+  // tooling (e.g. Lesson Design Studio appearing before approval).
+  if (shouldApplyApplicantNavFilter(primaryRole, roles)) {
+    visible = visible.filter((item) => APPLICANT_ALLOWED_HREFS.has(item.href));
   }
 
   const studentMinimalSidebar =

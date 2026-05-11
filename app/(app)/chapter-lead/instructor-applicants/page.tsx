@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
+import { ApplicationTrack } from "@prisma/client";
 import { isInstructorApplicantWorkflowV1Enabled } from "@/lib/feature-flags";
 import {
   getApplicantPipeline,
@@ -78,12 +79,25 @@ export default async function ChapterLeadInstructorApplicantsPage({
   const overdueOnly = resolvedParams.overdueOnly === "1";
   const myCasesOnly = resolvedParams.myCasesOnly === "1";
 
+  // Subtype filter: ?track=summer_workshop | standard. Same shape as the
+  // admin page — mirrors the chip group rendered by
+  // InstructorApplicantsCommandCenter so CPs actually filter their pipeline
+  // when they click the chips (chapter scoping is still enforced below).
+  const applicationTrackParam = (resolvedParams.track as string | undefined)?.toLowerCase();
+  const applicationTrackFilter: ApplicationTrack | undefined =
+    applicationTrackParam === "summer_workshop"
+      ? ApplicationTrack.SUMMER_WORKSHOP_INSTRUCTOR
+      : applicationTrackParam === "standard"
+      ? ApplicationTrack.STANDARD_INSTRUCTOR
+      : undefined;
+
   const pipelineFilters = {
     reviewerId,
     interviewerId,
     materialsMissing,
     overdueOnly,
     myCasesActorId: myCasesOnly ? session!.user.id : undefined,
+    applicationTrack: applicationTrackFilter,
   };
 
   // The "filter by reviewer/interviewer" dropdown only needs people who could
