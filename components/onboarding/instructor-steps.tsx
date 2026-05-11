@@ -18,6 +18,9 @@ interface InstructorStepsProps {
     detail: string;
     href: string;
   } | null;
+  /** When "SUMMER_WORKSHOP", step 0 swaps to a Summer Workshop fast-start
+   *  welcome card naming the focused role + non-guaranteed growth pathway. */
+  instructorSubtype?: string | null;
   formError?: string | null;
   onNext: () => void;
   onBack: () => void;
@@ -32,6 +35,7 @@ export default function InstructorSteps({
   chapterName,
   profileData,
   nextReadinessAction,
+  instructorSubtype,
   formError,
   onNext,
   onBack,
@@ -41,6 +45,66 @@ export default function InstructorSteps({
 }: InstructorStepsProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const firstName = userName.split(" ")[0];
+  const isSummerWorkshop = instructorSubtype === "SUMMER_WORKSHOP";
+
+  if (currentStep === 0 && isSummerWorkshop) {
+    return (
+      <div className="onboarding-step">
+        <div className="onboarding-icon-large">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--ypp-purple)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2v6m0 0l-3-3m3 3l3-3" />
+            <rect x="3" y="9" width="18" height="12" rx="2" />
+            <path d="M8 13h8M8 17h5" />
+          </svg>
+        </div>
+        <h1 className="onboarding-title">Welcome, Summer Workshop Instructor {firstName}!</h1>
+        <p className="onboarding-subtitle">
+          You&rsquo;re joining a focused, fast-start teaching role at YPP. Summer
+          Workshop Instructors lead high-impact workshops at camps — full
+          ownership of the room, focused on energy, clarity, and engagement.
+        </p>
+
+        <div className="onboarding-features-grid">
+          <div className="onboarding-feature-card">
+            <div className="onboarding-feature-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+            </div>
+            <h3>Lead a focused workshop</h3>
+            <p>Run a focused, high-impact session at camp. Bring energy, clarity, and classroom presence — you own the room.</p>
+          </div>
+          <div className="onboarding-feature-card">
+            <div className="onboarding-feature-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>
+            </div>
+            <h3>Propose your workshop</h3>
+            <p>After required training, design your own workshop or pick from the approved library in the Workshop Design Studio.</p>
+          </div>
+          <div className="onboarding-feature-card">
+            <div className="onboarding-feature-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+            </div>
+            <h3>Grow into more</h3>
+            <p>Strong workshop instructors may quickly be considered for full instructor responsibilities and instructor mentorship, based on readiness and leadership. Nothing automatic — admins review.</p>
+          </div>
+        </div>
+
+        {chapterName && (
+          <p className="onboarding-chapter-note">
+            You&apos;re part of the <strong>{chapterName}</strong> chapter.
+          </p>
+        )}
+
+        <div className="onboarding-actions">
+          <button className="button" onClick={onNext} disabled={isPending}>
+            Get Started
+          </button>
+          <button className="onboarding-skip" onClick={onSkip} disabled={isPending}>
+            Skip onboarding
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (currentStep === 0) {
     return (

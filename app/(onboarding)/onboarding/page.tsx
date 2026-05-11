@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import OnboardingWizard from "@/components/onboarding/onboarding-wizard";
 import { getNextRequiredAction } from "@/lib/instructor-readiness";
 import { normalizeRoleList } from "@/lib/authorization";
+import { getApplicantSubtypeForUser } from "@/lib/workshop-proposal-access";
 
 export default async function OnboardingPage() {
   const session = await getSession();
@@ -64,6 +65,13 @@ export default async function OnboardingPage() {
   const instructorNextAction = isInstructor
     ? await getNextRequiredAction(user.id)
     : null;
+  // Subtype routing — Summer Workshop Instructors get a short fast-start
+  // welcome step in the wizard explaining the focused role, the workshop
+  // proposal next-step, and (non-guaranteed) growth pathway. Standard
+  // (Full Instructor) and non-instructor users skip it.
+  const instructorSubtype = isInstructor
+    ? (await getApplicantSubtypeForUser(user.id))?.instructorSubtype ?? null
+    : null;
 
   return (
     <OnboardingWizard
@@ -85,6 +93,7 @@ export default async function OnboardingPage() {
         curriculumUrl: user.profile.curriculumUrl,
       } : null}
       instructorNextAction={instructorNextAction}
+      instructorSubtype={instructorSubtype}
     />
   );
 }
