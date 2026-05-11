@@ -30,6 +30,7 @@ import {
 } from "@/lib/final-review-warnings";
 import { useCommitDecision } from "@/lib/use-commit-decision";
 import { trackCockpitEvent } from "@/lib/cockpit-analytics";
+import { workshopOutlineWarnings } from "@/lib/summer-workshop";
 
 import { FinalReviewProvider, useFinalReviewContext } from "./FinalReviewContext";
 import ApplicantSnapshotBar from "./ApplicantSnapshotBar";
@@ -948,7 +949,35 @@ function CockpitSummerWorkshopCard({
           with extra caution and consider asking them to share the outline before
           a final decision.
         </p>
-      ) : (
+      ) : (() => {
+        // Same soft-warning helper that V1 uses on WorkshopOutlinePanel, so
+        // reviewers on either cockpit see identical signal about outline gaps.
+        const warnings = workshopOutlineWarnings(outline);
+        return warnings.length > 0 ? (
+          <div
+            role="status"
+            style={{
+              padding: "10px 12px",
+              borderRadius: 8,
+              background: "#fffbeb",
+              border: "1px solid #fde68a",
+              color: "#92400e",
+              fontSize: 13,
+              lineHeight: 1.5,
+              marginBottom: 12,
+            }}
+          >
+            <strong>Soft warning:</strong> this outline has gaps. Reviewers may still proceed.
+            <ul style={{ margin: "6px 0 0 18px", padding: 0 }}>
+              {warnings.map((w) => (
+                <li key={w}>{w}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null;
+      })()}
+
+      {outline ? (
         <dl
           style={{
             margin: 0,
@@ -1028,7 +1057,7 @@ function CockpitSummerWorkshopCard({
             )}
           </dd>
         </dl>
-      )}
+      ) : null}
 
       {isStillSummerWorkshop && (
         <div
