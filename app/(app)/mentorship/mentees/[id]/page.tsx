@@ -86,6 +86,28 @@ export default async function MenteeDetailPage({
   const isSelfWorkspace = session.user.id === workspace.mentee.id;
   const canManageActionPlan = Boolean(workspace.mentorship || workspace.intakePlanLaunch) && !isSelfWorkspace;
   const canScheduleSessions = Boolean(workspace.mentorship) && !isSelfWorkspace;
+
+  // Pick which of the three header CTAs is primary based on cycle stage.
+  // The other two stay as secondaries so all paths are always one click away.
+  const cycleStage = workspace.mentorship?.cycleStage ?? null;
+  type HeaderCta = "checkIn" | "review" | "gr";
+  const primaryHeaderCta: HeaderCta = (() => {
+    if (!canScheduleSessions) return "gr";
+    switch (cycleStage) {
+      case "KICKOFF_PENDING":
+      case "REFLECTION_DUE":
+        return "checkIn";
+      case "REFLECTION_SUBMITTED":
+      case "CHANGES_REQUESTED":
+        return "review";
+      case "APPROVED":
+      case "COMPLETE":
+      case "PAUSED":
+        return "gr";
+      default:
+        return "checkIn";
+    }
+  })();
   const upcomingSessions = workspace.sessions.filter(
     (item) => !item.completedAt && item.scheduledAt.getTime() >= Date.now()
   );
@@ -107,16 +129,32 @@ export default async function MenteeDetailPage({
             Full mentee workspace: people, sessions, action plan, requests, resources, and progress signals.
           </p>
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {canScheduleSessions && (
-            <Link href={`/mentorship/reviews/${workspace.mentee.id}`} className="button primary small">
-              Open Monthly Review
+        {!isSelfWorkspace && (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Link
+              href="#session-form"
+              className={`button ${primaryHeaderCta === "checkIn" ? "primary" : "secondary"} small`}
+              aria-disabled={!canScheduleSessions}
+              style={!canScheduleSessions ? { opacity: 0.5, pointerEvents: "none" } : undefined}
+            >
+              Run Check-In
             </Link>
-          )}
-          <Link href="/mentor/feedback" className="button secondary small">
-            Feedback Queue
-          </Link>
-        </div>
+            <Link
+              href={`/mentorship/reviews/${workspace.mentee.id}`}
+              className={`button ${primaryHeaderCta === "review" ? "primary" : "secondary"} small`}
+              aria-disabled={!canScheduleSessions}
+              style={!canScheduleSessions ? { opacity: 0.5, pointerEvents: "none" } : undefined}
+            >
+              Write Review
+            </Link>
+            <Link
+              href={`/mentorship/mentees/${workspace.mentee.id}/gr`}
+              className={`button ${primaryHeaderCta === "gr" ? "primary" : "secondary"} small`}
+            >
+              Open G&amp;R
+            </Link>
+          </div>
+        )}
       </div>
 
       <MentorshipGuideCard
@@ -349,7 +387,7 @@ export default async function MenteeDetailPage({
       </section>
 
       <div className="grid two" style={{ marginBottom: 24 }}>
-        <section className="card">
+        <section id="session-form" className="card" style={{ scrollMarginTop: 80 }}>
           <div className="section-title">Schedule or Log a Session</div>
           {canScheduleSessions ? (
             <form action={createMentorshipSession} className="form-grid">
