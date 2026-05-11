@@ -320,7 +320,7 @@ export const NAV_CATALOG: NavLink[] = [
   ...groupLinks("Projects", 600, [
     { href: "/incubator", label: "Project Incubator", icon: "🚀" },
     { href: "/incubator/apply", label: "Apply", icon: "📩" },
-    { href: "/mentor/incubator", label: "Mentor Workspace", icon: "🧭", roles: MENTOR_ROLES },
+    { href: "/mentor/incubator", label: "Project Mentoring", icon: "🧭", roles: MENTOR_ROLES },
     { href: "/showcase", label: "Student Showcase", icon: "🎨" },
     { href: "/showcase/submit", label: "Share Your Work", icon: "📤" },
   ]),
@@ -378,20 +378,22 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/mentorship/reviews",
-      label: "Chair Reviews",
+      label: "Chair Queue",
       icon: "✅",
       roles: MENTOR_ROLES,
       dashboardDescription: "Approve or return monthly goal reviews waiting on chair action.",
       dashboardPriority: 6,
     },
     {
-      href: "/mentorship/unlock-sections",
-      label: "Unlock Sections",
-      icon: "🔓",
+      href: "/mentorship/schedule",
+      label: "Mentor Schedule",
+      icon: "📅",
       roles: MENTOR_ROLES,
-      dashboardDescription: "Manage which portal sections your mentees can access.",
-      dashboardPriority: 18,
+      dashboardDescription: "Manage availability and confirm session requests from your mentees.",
+      dashboardPriority: 8,
     },
+    // /mentorship/unlock-sections is intentionally not surfaced in top-level
+    // nav -- it's a rare, contextual action accessed from a mentee's workspace.
     {
       href: "/my-program",
       label: "My Program",
@@ -402,27 +404,21 @@ export const NAV_CATALOG: NavLink[] = [
     },
     {
       href: "/my-program/gr",
-      label: "My G&R",
+      label: "My Goals",
       icon: "📋",
       roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
       featureKey: "GR_SYSTEM",
+      searchAliases: ["My G&R", "Goals & Responsibilities"],
       dashboardDescription: "View your Goals & Responsibilities document, track progress, and update your plan of action.",
       dashboardPriority: 5,
     },
-    {
-      href: "/mentorship-program",
-      label: "Program Overview",
-      icon: "📋",
-      roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
-      dashboardDescription: "View all active mentees, cycle status, and program-wide actions at a glance.",
-    },
-    {
-      href: "/mentorship-program/reviews",
-      label: "Review Queue",
-      icon: "📝",
-      roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
-      dashboardDescription: "Write and submit monthly goal reviews for your assigned mentees.",
-    },
+    // Removed from nav:
+    //   /mentorship-program           -> redirects to /mentorship
+    //   /mentorship-program/reviews   -> mentor surface duplicates the per-
+    //                                    mentee "Write Review" CTA on the
+    //                                    mentee detail page; mentee surface
+    //                                    is the monthly self-reflection form
+    //                                    accessed from the mentee dashboard.
     {
       href: "/mentorship-program/chair",
       label: "Chair Queue",
@@ -474,19 +470,10 @@ export const NAV_CATALOG: NavLink[] = [
       roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
       dashboardDescription: "Request a meeting with your mentor or manage upcoming sessions.",
     },
-    {
-      href: "/mentorship-program/schedule",
-      label: "Meeting Requests",
-      icon: "📨",
-      roles: ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"] as NavRole[],
-      dashboardDescription: "Review and confirm incoming meeting requests from your mentees.",
-    },
-    {
-      href: "/mentorship/calendar",
-      label: "Program Calendar",
-      icon: "🗓",
-      dashboardDescription: "View reflection deadlines, review windows, sessions, and milestones.",
-    },
+    // Removed from nav:
+    //   /mentorship-program/schedule  -> redirects to /mentorship/schedule
+    //   /mentorship/calendar          -> redirects to /mentorship/schedule
+    // The canonical "Mentor Schedule" entry sits above next to "My Mentees".
     {
       href: "/peer-recognition",
       label: "Peer Recognition",
