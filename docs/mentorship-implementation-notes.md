@@ -117,3 +117,23 @@ Removed / consolidated entries in `lib/navigation/catalog.ts`:
    `/mentorship-program/schedule` and `/mentorship/calendar` redirect.
 5. **Nav cleanup** — labels and removals in `lib/navigation/catalog.ts`.
 6. **Typecheck / build / lint** — fix anything the above broke.
+
+## Verification
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` | **Pass.** Only the pre-existing `tsconfig.json baseUrl deprecation` warning, unrelated to this branch. |
+| `npm run lint` | Could not run in this sandbox: `node_modules` is not installed. Not blocked by changes in this branch. |
+| `npm run build` | Could not run for the same reason. |
+| `npm run nav:check` | Script errors at module-load (`Cannot find module 'typescript'` in `scripts/validate-nav.mjs`) — pre-existing env issue, not introduced here. |
+| Manual sanity | All new imports resolve to existing exports. No dangling references to removed nav labels in `app/`, `components/`, or `lib/`. |
+
+## Known follow-ups (out of scope for this pass)
+
+- The 688-line `app/(app)/mentorship-program/schedule/mentor-schedule-panel.tsx`
+  is now orphaned (its `page.tsx` redirects to the canonical route and no
+  other file imports the panel). Safe to delete in a focused cleanup commit.
+- Wire `proposeGRGoalChange` form on the new mentor G&R page's "Propose
+  change" button (currently disabled with a TODO).
+- Once nav has been stable for one cycle, redirect `/my-program/schedule`
+  to `/mentorship/schedule` so there is exactly one schedule URL.
