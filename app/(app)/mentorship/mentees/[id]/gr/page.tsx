@@ -5,6 +5,7 @@ import { hasMentorshipMenteeAccess } from "@/lib/mentorship-access";
 import { prisma } from "@/lib/prisma";
 import { formatEnum } from "@/lib/format-utils";
 import type { GoalRatingColor, GRTimePhase } from "@prisma/client";
+import { ProposeChangeForm } from "./propose-change-form";
 
 export const metadata = { title: "Mentee G&R — Mentor View" };
 
@@ -170,23 +171,19 @@ export default async function MentorMenteeGRPage({ params }: PageProps) {
           <Link href={backHref} className="button secondary small">
             Back to mentee
           </Link>
-          {isAdmin ? (
-            <Link href="/admin/mentorship-program/gr-assignments" className="button primary small">
+          {isAdmin && (
+            <Link href="/admin/mentorship-program/gr-assignments" className="button secondary small">
               Edit G&amp;R (admin) →
             </Link>
-          ) : (
-            // TODO: wire mentor-side "Propose G&R change" form once the change-proposal UI is built.
-            // Server action `proposeGRGoalChange` exists in lib/gr-actions.ts; needs a form component.
-            <button
-              type="button"
-              className="button secondary small"
-              disabled
-              title="Goal change proposals are coming soon. Use the monthly review's plan-of-action for now."
-              style={{ cursor: "not-allowed", opacity: 0.6 }}
-            >
-              Propose change (soon)
-            </button>
           )}
+          <Link
+            href="#propose-change"
+            className="button primary small"
+            aria-disabled={!doc}
+            style={!doc ? { opacity: 0.5, pointerEvents: "none" } : undefined}
+          >
+            Propose change
+          </Link>
         </div>
       </div>
 
@@ -383,6 +380,26 @@ export default async function MentorMenteeGRPage({ params }: PageProps) {
               )}
             </div>
           )}
+
+          {/* Propose a G&R change */}
+          <details id="propose-change" className="card" style={{ scrollMarginTop: 80 }}>
+            <summary style={{ cursor: "pointer", fontWeight: 700, fontSize: "0.95rem" }}>
+              Propose a G&amp;R change
+            </summary>
+            <p style={{ margin: "10px 0 0", fontSize: 13, color: "var(--muted)" }}>
+              Suggest a new goal, an edit to an existing one, or removal of a goal that's no
+              longer relevant. An admin reviews every proposal before it changes the document.
+            </p>
+            <ProposeChangeForm
+              documentId={doc.id}
+              goals={doc.goals.map((g) => ({
+                id: g.id,
+                title: g.title,
+                timePhase: TIME_PHASE_LABELS[g.timePhase] ?? g.timePhase,
+              }))}
+              sourceReviewId={latestReview?.id ?? null}
+            />
+          </details>
         </div>
       )}
 
