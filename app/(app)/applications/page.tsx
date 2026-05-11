@@ -8,6 +8,7 @@ import {
   isHiringDecisionPending,
   isHiringDecisionReturned,
 } from "@/lib/hiring-decision-utils";
+import { withPrismaFallback } from "@/lib/prisma-guard";
 
 const FINAL_STATUSES = ["ACCEPTED", "REJECTED", "WITHDRAWN"];
 const FILTER_OPTIONS = [
@@ -34,19 +35,57 @@ export default async function MyApplicationsPage({
     redirect("/login");
   }
 
-  const applications = await prisma.application.findMany({
-    where: { applicantId: session.user.id },
-    include: {
-      position: {
-        include: { chapter: { select: { name: true } } },
+  // Fetch the user's modern Instructor and Chapter President applications
+  // alongside the legacy Application records. The applicant-facing status
+  // page (/application-status) is the source of truth for the modern flow,
+  // so we surface a banner pointing there and (when appropriate) redirect
+  // applicants who have no legacy applications.
+  const [applications, latestInstructorApp, latestCpApp] = await Promise.all([
+    prisma.application.findMany({
+      where: { applicantId: session.user.id },
+      include: {
+        position: {
+          include: { chapter: { select: { name: true } } },
+        },
+        interviewSlots: {
+          orderBy: { scheduledAt: "asc" },
+        },
+        decision: true,
       },
-      interviewSlots: {
-        orderBy: { scheduledAt: "asc" },
-      },
-      decision: true,
-    },
-    orderBy: { submittedAt: "desc" },
-  });
+      orderBy: { submittedAt: "desc" },
+    }),
+    withPrismaFallback(
+      "my-applications:instructor",
+      () =>
+        prisma.instructorApplication.findFirst({
+          where: { applicantId: session.user.id },
+          orderBy: { createdAt: "desc" },
+          select: { id: true, status: true, applicationTrack: true, createdAt: true },
+        }),
+      null
+    ),
+    withPrismaFallback(
+      "my-applications:chapter-president",
+      () =>
+        prisma.chapterPresidentApplication.findUnique({
+          where: { applicantId: session.user.id },
+          select: { id: true, status: true, createdAt: true },
+        }),
+      null
+    ),
+  ]);
+
+  const hasInstructorApp = Boolean(latestInstructorApp);
+  const hasCpApp = Boolean(latestCpApp);
+  const hasModernApp = hasInstructorApp || hasCpApp;
+
+  // If the user has a modern instructor/CP application but no legacy position
+  // applications, the legacy list would only ever show an empty state — send
+  // them to the canonical status page instead. Users with both kinds keep
+  // both views (banner + legacy list).
+  if (hasModernApp && applications.length === 0) {
+    redirect("/application-status");
+  }
 
   const activeCount = applications.filter(
     (a) => !FINAL_STATUSES.includes(a.status)
@@ -106,6 +145,39 @@ export default async function MyApplicationsPage({
           </Link>
         </div>
       </div>
+
+      {hasModernApp && (
+        <div
+          className="card"
+          style={{
+            marginBottom: 16,
+            background: "#f5f3ff",
+            border: "1px solid #ddd6fe",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+            <div>
+              <strong style={{ fontSize: 14 }}>
+                {hasInstructorApp
+                  ? latestInstructorApp?.applicationTrack === "SUMMER_WORKSHOP_INSTRUCTOR"
+                    ? "Your Summer Workshop Instructor application"
+                    : "Your Instructor application"
+                  : "Your Chapter President application"}
+              </strong>
+              <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--muted)" }}>
+                Track its status, respond to reviewer questions, and pick interview times on your application status page.
+              </p>
+            </div>
+            <Link
+              href="/application-status"
+              className="button small"
+              style={{ textDecoration: "none", whiteSpace: "nowrap" }}
+            >
+              Open Application Status
+            </Link>
+          </div>
+        </div>
+      )}
 
       {applications.length === 0 ? (
         <div className="card">
