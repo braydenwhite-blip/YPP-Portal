@@ -782,7 +782,7 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/admin/instructor-applicants",
       label: "Instructor Applicants",
       icon: "📝",
-      roles: ADMIN_ONLY,
+      roles: HIRING_CHAIR_ADMIN_ROLES,
       dashboardDescription: "Review and approve incoming instructor applications.",
       dashboardPriority: 4,
       dashboardBadgeKey: "instructor_applicants",

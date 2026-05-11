@@ -26,9 +26,15 @@ export default async function AdminInstructorApplicantsPage({
   const roles = session?.user?.roles ?? [];
   const isAdmin = roles.includes("ADMIN");
   const isChapterPresident = roles.includes("CHAPTER_PRESIDENT");
+  // Hiring chairs need pipeline context (prior reviews, in-flight interview
+  // queues, chapter peers) before deciding applicants. Allow read access to
+  // the board; mutations remain gated on the role-specific assertions inside
+  // each server action (chairDecide, assignReviewer, etc.).
+  const isHiringChair = roles.includes("HIRING_CHAIR");
+
   const hiringDemoMode = isHiringDemoModeEnabled();
 
-  if (!isAdmin && !isChapterPresident) {
+  if (!isAdmin && !isChapterPresident && !isHiringChair) {
     redirect("/");
   }
 
@@ -58,9 +64,14 @@ export default async function AdminInstructorApplicantsPage({
     featureKeys: new Set<string>(),
   };
 
-  // Resolve chapter for scoped queries
+  // Resolve chapter for scoped queries.
+  //
+  // ADMIN and HIRING_CHAIR get network-wide visibility (chair-queue scope).
+  // Pure CHAPTER_PRESIDENTs (no admin/chair role) are auto-scoped to their
+  // own chapter and must have one assigned, otherwise the empty state.
   let chapterId: string | undefined;
-  if (isChapterPresident && !isAdmin) {
+  const needsChapterScope = isChapterPresident && !isAdmin && !isHiringChair;
+  if (needsChapterScope) {
     const user = await prisma.user.findUnique({
       where: { id: session!.user.id },
       select: { chapterId: true },
@@ -104,8 +115,12 @@ export default async function AdminInstructorApplicantsPage({
       ? ApplicationTrack.STANDARD_INSTRUCTOR
       : undefined;
 
-  const effectiveChapterId = isAdmin ? filterChapterId : chapterId;
-  const scope = isAdmin ? "admin" : "chapter";
+  // HIRING_CHAIRs share ADMIN's network-wide scope so they can see prior
+  // reviews and chapter peers before deciding. Pure CP scope still narrows
+  // to a single chapter via `chapterId` above.
+  const hasNetworkScope = isAdmin || isHiringChair;
+  const effectiveChapterId = hasNetworkScope ? filterChapterId : chapterId;
+  const scope: "admin" | "chapter" = hasNetworkScope ? "admin" : "chapter";
 
   // Determine chair queue visibility
   const showChairQueue = canSeeChairQueue(actor);
@@ -120,7 +135,7 @@ export default async function AdminInstructorApplicantsPage({
   };
 
   const loadChapters = () =>
-    isAdmin
+    hasNetworkScope
       ? prisma.chapter.findMany({
           select: { id: true, name: true },
           orderBy: { name: "asc" },
@@ -166,8 +181,10 @@ export default async function AdminInstructorApplicantsPage({
   let reviewerUsers: Awaited<ReturnType<typeof loadReviewerUsers>>;
   let interviewerUsers: Awaited<ReturnType<typeof loadInterviewerUsers>>;
 
-  // Funnel counts — separate query, no filters applied (global view of the funnel)
-  const funnelGroupBy = isAdmin
+  // Funnel counts — separate query, no filters applied (global view of the funnel).
+  // ADMIN and HIRING_CHAIR share the network-wide funnel; pure CPs see a
+  // chapter-scoped funnel.
+  const funnelGroupBy = hasNetworkScope
     ? prisma.instructorApplication.groupBy({
         by: ["status"],
         _count: true,
@@ -322,21 +339,31 @@ export default async function AdminInstructorApplicantsPage({
     <div className="page-shell applicant-command-page">
       <div className="page-header applicant-command-header">
         <div>
-          <span className="badge">{isAdmin ? "Admin" : "Chapter President"}</span>
+          <span className="badge">
+            {isAdmin
+              ? "Admin"
+              : isHiringChair
+                ? "Hiring Chair"
+                : "Chapter President"}
+          </span>
           <h1 className="page-title">Instructor Applicants</h1>
           <p className="page-subtitle">
             Pipeline, assignments, and decisions for all instructor applicants.
           </p>
         </div>
         <div className="applicant-command-header-actions">
-          <a
-            href="/api/admin/instructor-applicants/export.csv"
-            download
-            className="button secondary small"
-            aria-label="Download instructor applicants CSV export"
-          >
-            Download CSV
-          </a>
+          {/* CSV export is admin/hiring-chair only — hide for pure CPs so we
+              don't render a button that 403s for them. */}
+          {hasNetworkScope && (
+            <a
+              href="/api/admin/instructor-applicants/export.csv"
+              download
+              className="button secondary small"
+              aria-label="Download instructor applicants CSV export"
+            >
+              Download CSV
+            </a>
+          )}
         </div>
       </div>
 
@@ -351,7 +378,7 @@ export default async function AdminInstructorApplicantsPage({
       />
 
       <InstructorApplicantsCommandCenter
-        scope={isAdmin ? "global" : "chapter"}
+        scope={hasNetworkScope ? "global" : "chapter"}
         chapterId={chapterId}
         pipelineApps={serializedPipeline as any}
         archivedApps={serializedArchive as any}
