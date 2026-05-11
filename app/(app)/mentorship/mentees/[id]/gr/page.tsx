@@ -15,10 +15,16 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const TIME_PHASE_LABELS: Record<GRTimePhase, string> = {
-  NINETY_DAY: "90-day goals",
-  ANNUAL: "Annual goals",
-  MULTI_YEAR: "Multi-year goals",
+  MONTHLY: "This cycle (monthly)",
+  FIRST_MONTH: "First month",
+  FIRST_QUARTER: "First quarter (90 days)",
+  LONG_TERM: "Long-term",
+  FULL_YEAR: "Long-term",
 };
+
+// Which phases count as "near-term and primary" vs "long-term, collapsed".
+const PRIMARY_PHASES: GRTimePhase[] = ["MONTHLY", "FIRST_MONTH", "FIRST_QUARTER"];
+const LONG_TERM_PHASES: GRTimePhase[] = ["LONG_TERM", "FULL_YEAR"];
 
 const RATING_COLOR: Record<GoalRatingColor, string> = {
   BEHIND_SCHEDULE: "#ef4444",
@@ -128,15 +134,19 @@ export default async function MentorMenteeGRPage({ params }: PageProps) {
 
   type DocGoal = NonNullable<typeof doc>["goals"][number];
   const goalsByPhase: Record<GRTimePhase, DocGoal[]> = {
-    NINETY_DAY: [],
-    ANNUAL: [],
-    MULTI_YEAR: [],
+    MONTHLY: [],
+    FIRST_MONTH: [],
+    FIRST_QUARTER: [],
+    LONG_TERM: [],
+    FULL_YEAR: [],
   };
   if (doc) {
     for (const g of doc.goals) {
       goalsByPhase[g.timePhase].push(g);
     }
   }
+  const primaryGoals = PRIMARY_PHASES.flatMap((p) => goalsByPhase[p]);
+  const longTermGoals = LONG_TERM_PHASES.flatMap((p) => goalsByPhase[p]);
 
   const menteeRoleLabel = mentee.primaryRole ? ROLE_LABELS[mentee.primaryRole] ?? formatEnum(mentee.primaryRole) : "—";
   const menteeName = mentee.name ?? mentee.email ?? "this mentee";
@@ -237,38 +247,28 @@ export default async function MentorMenteeGRPage({ params }: PageProps) {
             </div>
           )}
 
-          {/* 90-day goals (primary focus) */}
+          {/* Near-term goals (monthly + first month + first quarter) — primary focus */}
           <GoalsBlock
-            heading={TIME_PHASE_LABELS.NINETY_DAY}
-            subtitle="What the mentee is working on right now."
-            goals={goalsByPhase.NINETY_DAY}
+            heading="Near-term goals"
+            subtitle="Monthly, first-month, and first-quarter goals -- what the mentee is working on right now."
+            goals={primaryGoals}
             ratingByGoalId={ratingByGoalId}
             primary
           />
 
-          {/* Annual + multi-year goals collapsed */}
-          {(goalsByPhase.ANNUAL.length > 0 || goalsByPhase.MULTI_YEAR.length > 0) && (
+          {/* Long-term goals collapsed */}
+          {longTermGoals.length > 0 && (
             <details className="card">
               <summary style={{ cursor: "pointer", fontWeight: 700, fontSize: "0.95rem" }}>
-                Annual &amp; multi-year goals ({goalsByPhase.ANNUAL.length + goalsByPhase.MULTI_YEAR.length})
+                Long-term goals ({longTermGoals.length})
               </summary>
-              <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 18 }}>
-                {goalsByPhase.ANNUAL.length > 0 && (
-                  <GoalsBlock
-                    heading={TIME_PHASE_LABELS.ANNUAL}
-                    goals={goalsByPhase.ANNUAL}
-                    ratingByGoalId={ratingByGoalId}
-                    flat
-                  />
-                )}
-                {goalsByPhase.MULTI_YEAR.length > 0 && (
-                  <GoalsBlock
-                    heading={TIME_PHASE_LABELS.MULTI_YEAR}
-                    goals={goalsByPhase.MULTI_YEAR}
-                    ratingByGoalId={ratingByGoalId}
-                    flat
-                  />
-                )}
+              <div style={{ marginTop: 14 }}>
+                <GoalsBlock
+                  heading="Long-term"
+                  goals={longTermGoals}
+                  ratingByGoalId={ratingByGoalId}
+                  flat
+                />
               </div>
             </details>
           )}
@@ -401,6 +401,7 @@ type GoalRow = {
   description: string;
   priority: string;
   progressState: string;
+  timePhase: GRTimePhase;
   dueDate: Date | null;
 };
 
@@ -476,6 +477,9 @@ function GoalsBlock({
                       {RATING_LABEL[r.rating]}
                     </span>
                   )}
+                  <span className="pill" style={{ fontSize: "0.65rem" }}>
+                    {TIME_PHASE_LABELS[g.timePhase] ?? g.timePhase}
+                  </span>
                   <span className="pill" style={{ fontSize: "0.65rem" }}>
                     {formatEnum(g.progressState)}
                   </span>
