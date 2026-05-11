@@ -699,7 +699,41 @@ export async function saveDecisionRecommendation(
   recommendation: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireAdminOrChapterLead();
+    const session = await requireAdminOrChapterLead();
+    // Sibling actions (assignReviewer, setActionDueDate, saveScoresAndNotes)
+    // all call assertCanManageApplication after the role gate so Chapter
+    // Presidents can only act on applicants in their own chapter. This action
+    // was missing that check, which let a CP overwrite the
+    // `decisionRecommendation` field on any application across chapters.
+    const application = await prisma.instructorApplication.findUnique({
+      where: { id: applicationId },
+      select: {
+        applicantId: true,
+        reviewerId: true,
+        interviewRound: true,
+        interviewerAssignments: {
+          where: { removedAt: null },
+          select: {
+            interviewerId: true,
+            round: true,
+            removedAt: true,
+          },
+        },
+        applicant: { select: { chapterId: true } },
+      },
+    });
+    if (!application) {
+      return { success: false, error: "Application not found." };
+    }
+    const actor = await getHiringActor(session.user.id);
+    assertCanManageApplication(actor, {
+      id: applicationId,
+      applicantId: application.applicantId,
+      reviewerId: application.reviewerId,
+      interviewRound: application.interviewRound,
+      applicantChapterId: application.applicant.chapterId,
+      interviewerAssignments: application.interviewerAssignments,
+    });
     await prisma.instructorApplication.update({
       where: { id: applicationId },
       data: { decisionRecommendation: recommendation },
