@@ -7,7 +7,11 @@
  */
 
 import { prisma } from "@/lib/prisma";
-import { InstructorApplicationStatus, ApplicationTrack } from "@prisma/client";
+import {
+  InstructorApplicationStatus,
+  ApplicationTrack,
+  ApplicationSource,
+} from "@prisma/client";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -24,6 +28,12 @@ export type PipelineFilters = {
    * applicants from both tracks. Used by the new admin board filter chip.
    */
   applicationTrack?: ApplicationTrack;
+  /**
+   * Optional filter on `source` — PORTAL, GOOGLE_FORMS, CSV_IMPORT, or
+   * MANUAL_ADMIN_ENTRY. Lets admins focus on portal-native vs externally-
+   * intaked applicants without disturbing the unified pipeline.
+   */
+  source?: ApplicationSource;
 };
 
 export type DerivedColumn =
@@ -57,6 +67,7 @@ const PIPELINE_SELECT = {
   workshopOutline: true,
   isReapplication: true,
   previousApplicationId: true,
+  source: true,
   offeredSlots: {
     select: { id: true, scheduledAt: true, confirmedAt: true },
   },
@@ -257,6 +268,10 @@ export async function getApplicantPipeline({
 
   if (filters.applicationTrack) {
     where.applicationTrack = filters.applicationTrack;
+  }
+
+  if (filters.source) {
+    where.source = filters.source;
   }
 
   if (filters.myCasesActorId) {
