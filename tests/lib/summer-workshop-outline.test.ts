@@ -216,8 +216,10 @@ describe("track + subtype helpers", () => {
   });
 
   it("trackLabel + subtypeBadge produce stable display values", () => {
+    // STANDARD copy reframed to "Full Instructor" so Summer Workshop
+    // doesn't read as a lesser role — see commit 39b0479.
     expect(trackLabel("SUMMER_WORKSHOP_INSTRUCTOR")).toBe("Summer Workshop");
-    expect(trackLabel("STANDARD_INSTRUCTOR")).toBe("Standard");
+    expect(trackLabel("STANDARD_INSTRUCTOR")).toBe("Full Instructor");
     expect(subtypeBadge("SUMMER_WORKSHOP")).toBe("SW");
     expect(subtypeBadge("STANDARD")).toBe(null);
   });
