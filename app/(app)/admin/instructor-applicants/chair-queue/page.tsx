@@ -182,7 +182,7 @@ export default async function ChairQueuePage() {
                     }}
                   >
                     <Link
-                      href={`/admin/instructor-applicants/chair-queue/${row.applicationId}`}
+                      href={`/admin/instructor-applicants/${row.applicationId}/review`}
                       style={{ color: "inherit", textDecoration: "none" }}
                     >
                       <strong>{displayName}</strong>

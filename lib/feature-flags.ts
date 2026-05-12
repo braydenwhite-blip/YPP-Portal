@@ -52,13 +52,14 @@ export const REGULAR_INSTRUCTOR_GATED_HREF_PREFIXES: readonly string[] = [
  * (subtype = SUMMER_WORKSHOP) are allowed into even while the regular
  * instructor program is paused. They need access to:
  *   - `/instructor/workshop-design-studio` to design and submit workshops
- *   - `/instructor-training` to complete required training
+ *   - `/instructor-training` and `/training/*` to complete required training
  * Other `/instructor/*` paths (curriculum builder, etc.) stay gated for
  * everyone except admins, since those are Standard-track surfaces.
  */
 export const SUMMER_WORKSHOP_PERMITTED_HREF_PREFIXES: readonly string[] = [
   "/instructor/workshop-design-studio",
   "/instructor-training",
+  "/training",
 ];
 
 /** Single source of truth for "is this path gated by the regular instructor flag?" */
@@ -83,7 +84,7 @@ export function isSummerWorkshopPermittedPath(pathname: string): boolean {
  *
  * Optionally accepts the user's `instructorSubtype` and the target
  * `pathname`. SUMMER_WORKSHOP-subtype users bypass the gate for paths in
- * `SUMMER_WORKSHOP_PERMITTED_HREF_PREFIXES` (workshop studio + training).
+    * `SUMMER_WORKSHOP_PERMITTED_HREF_PREFIXES` (workshop studio + training).
  */
 export function canBypassInstructorGate(opts: {
   roles?: readonly string[] | null;
@@ -139,25 +140,23 @@ export function getInstructorGateRedirect(opts: {
 }
 
 /**
- * Final Review Cockpit redesign — global on/off gate.
- * The legacy ChairDecisionWorkspace remains the default until this flips.
- *
- * When set to "true" the cockpit is available to all chairs. For staged
- * rollout per chapter use FINAL_REVIEW_V2_CHAPTER_ALLOWLIST (a comma-
- * separated list of chapter IDs) — checked by `isFinalReviewV2EnabledForChapter`.
+ * Historical rollout helpers for the Final Review Cockpit. Chair review
+ * application routes now use the cockpit as the canonical workspace, but these
+ * helpers remain available for older scripts/tests that still inspect rollout
+ * env vars.
  */
 export function isFinalReviewV2Enabled(): boolean {
   return process.env.ENABLE_FINAL_REVIEW_V2 === "true";
 }
 
 /**
- * Per-chapter rollout gate. Returns true when:
+ * Historical per-chapter rollout gate. Returns true when:
  *   - the global flag is on, OR
  *   - the chapter id is in FINAL_REVIEW_V2_CHAPTER_ALLOWLIST.
  *
  * Pass `null` for cross-chapter actors (admin / hiring chair without a
- * chapter assignment) — they always get the cockpit when the global flag
- * is on but never via the per-chapter gate alone.
+ * chapter assignment) — they count only when the global flag is on, not via
+ * the per-chapter allowlist.
  */
 export function isFinalReviewV2EnabledForChapter(chapterId: string | null): boolean {
   if (isFinalReviewV2Enabled()) return true;

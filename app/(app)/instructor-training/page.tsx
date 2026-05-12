@@ -261,7 +261,7 @@ export default async function InstructorTrainingPage({
   };
 
   // Look up the instructor's subtype (summer workshop vs standard) so we can
-  // route them to the lighter onboarding when applicable.
+  // route them to the right training path.
   // Best-effort: if the application can't be loaded, fall back to STANDARD.
   const instructorSubtype = await withPrismaFallback(
     "instructor-training:subtype",
@@ -458,9 +458,9 @@ export default async function InstructorTrainingPage({
     beatSet.add(attempt.beatId);
   }
 
-  // Summer workshop instructors don't need the Lesson Design Studio capstone
-  // at this stage — they run pre-scoped workshops, not full curriculum.
-  // Filter the LDS module out of their training feed (plan §8).
+  // Summer workshop instructors use Workshop Design Studio as their planning
+  // capstone at this stage, so keep the standard Lesson Design Studio module
+  // out of their training feed.
   const visibleModules = isSummerWorkshopInstructor
     ? modules.filter((m) => m.contentKey !== LESSON_DESIGN_STUDIO_MODULE_KEY)
     : modules;

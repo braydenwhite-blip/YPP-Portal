@@ -647,11 +647,10 @@ export default function InstructorSignupPage() {
               <div style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", marginTop: 12 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Workshop Outline</div>
                 <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 14px", lineHeight: 1.5 }}>
-                  Sketch one short workshop you&apos;d run at a camp. This replaces the
-                  full course outline — you do not need to design a multi-week
-                  curriculum. Most workshops happen in person, so use the
-                  &ldquo;Materials needed&rdquo; section to flag any space, supplies, or
-                  safety needs the review team should plan around.
+                  Sketch one focused workshop you&apos;d be ready to lead at camp.
+                  Give reviewers a clear goal, a strong opening hook, an activity
+                  flow, and any space, supply, or safety needs they should plan
+                  around.
                 </p>
 
                 <label className="form-label">

@@ -1,8 +1,7 @@
 /**
  * Avatar + name + role pill — used across the score matrix, activity feed,
  * consensus callout, and queue dropdown rows. Replaces ad-hoc owner-chip
- * markup that previously appeared in `ApplicantCockpitHeader.tsx` and the
- * legacy chair workspace.
+ * markup that previously appeared in `ApplicantCockpitHeader.tsx`.
  */
 
 import type { CSSProperties } from "react";
