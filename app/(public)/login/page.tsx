@@ -297,7 +297,6 @@ function LoginPageContent() {
             <span><strong style={{ color: "var(--ypp-ink)" }}>~20 min</strong> to apply</span>
             <span><strong style={{ color: "var(--ypp-ink)" }}>1 workshop outline</strong> required</span>
             <span><strong style={{ color: "var(--ypp-ink)" }}>Rolling</strong> review</span>
-            <span><strong style={{ color: "var(--ypp-ink)" }}>Paid</strong> teaching role</span>
           </div>
         </section>
 
