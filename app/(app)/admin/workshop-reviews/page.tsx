@@ -63,6 +63,8 @@ export default async function WorkshopReviewsPage({
   const search = pickString(sp.q).trim().toLowerCase();
   const statusParam = pickString(sp.status).trim().toUpperCase();
   const sourceParam = pickString(sp.source).trim().toUpperCase();
+  const categoryFilter = pickString(sp.category).trim();
+  const assignmentParam = pickString(sp.assignment).trim().toLowerCase();
   const statusFilter = VALID_STATUS_FILTER.has(
     statusParam as WorkshopProposalSubmissionStatus
   )
@@ -73,6 +75,10 @@ export default async function WorkshopReviewsPage({
   )
     ? (sourceParam as WorkshopProposalSourceType)
     : "";
+  const assignmentFilter: "assigned" | "unassigned" | "" =
+    assignmentParam === "assigned" || assignmentParam === "unassigned"
+      ? assignmentParam
+      : "";
 
   // Chapter scope for chapter leads. Mirrors the
   // assertReviewerCanReviewSubmission rule in workshop-proposal-actions.ts:
@@ -107,11 +113,73 @@ export default async function WorkshopReviewsPage({
         orderBy: [{ submittedAt: "asc" }, { updatedAt: "desc" }],
         include: {
           author: { select: { id: true, name: true, email: true, chapterId: true } },
-          template: { select: { id: true, title: true } },
+          template: { select: { id: true, title: true, category: true } },
+          // Pull the active assignment count so we can colour rows and
+          // gate the "assigned vs unassigned" admin filter without an
+          // extra round trip.
+          _count: {
+            select: {
+              assignments: {
+                where: {
+                  status: { in: ["SUGGESTED", "PENDING", "CONFIRMED", "COMPLETED"] },
+                },
+              },
+            },
+          },
         },
       }),
     []
   );
+
+  // Categories list comes from BOTH the selected templates (which have a
+  // strict `category` column) and the customWorkshop.category field stored
+  // on the JSON blob for CUSTOM_DESIGN rows. Deduped + sorted.
+  const allCategories = Array.from(
+    new Set(
+      submissions
+        .flatMap((s) => {
+          const fromTemplate = s.template?.category ?? "";
+          const fromCustom =
+            s.sourceType === "CUSTOM_DESIGN" &&
+            s.customWorkshop &&
+            typeof s.customWorkshop === "object"
+              ? String(
+                  (s.customWorkshop as Record<string, unknown>).category ?? ""
+                )
+              : "";
+          return [fromTemplate, fromCustom];
+        })
+        .map((c) => c.trim())
+        .filter(Boolean)
+    )
+  ).sort();
+
+  function submissionCategory(s: (typeof submissions)[number]): string {
+    if (s.template?.category) return s.template.category;
+    if (
+      s.sourceType === "CUSTOM_DESIGN" &&
+      s.customWorkshop &&
+      typeof s.customWorkshop === "object"
+    ) {
+      return String(
+        (s.customWorkshop as Record<string, unknown>).category ?? ""
+      ).trim();
+    }
+    return "";
+  }
+
+  function submissionAgeRange(s: (typeof submissions)[number]): string {
+    if (
+      s.sourceType === "CUSTOM_DESIGN" &&
+      s.customWorkshop &&
+      typeof s.customWorkshop === "object"
+    ) {
+      return String(
+        (s.customWorkshop as Record<string, unknown>).targetAgeGroup ?? ""
+      ).trim();
+    }
+    return "";
+  }
 
   // Counts come from the unfiltered set so the KPI tiles reflect the queue
   // as a whole, not the current view.
@@ -126,6 +194,9 @@ export default async function WorkshopReviewsPage({
     changesRequested: submissions.filter(
       (s) => s.status === "CHANGES_REQUESTED"
     ).length,
+    approvedUnplaced: submissions.filter(
+      (s) => s.status === "APPROVED" && s._count.assignments === 0
+    ).length,
   };
 
   // Apply the user's filters in-memory. Volumes here are small (per-chapter
@@ -135,11 +206,22 @@ export default async function WorkshopReviewsPage({
   const visible = submissions.filter((s) => {
     if (statusFilter && s.status !== statusFilter) return false;
     if (sourceFilter && s.sourceType !== sourceFilter) return false;
+    if (categoryFilter && submissionCategory(s) !== categoryFilter) return false;
+    if (assignmentFilter) {
+      // Assignment filter is only meaningful for APPROVED rows. Drop
+      // everything else when the admin scopes to placement state.
+      if (s.status !== "APPROVED") return false;
+      const placed = s._count.assignments > 0;
+      if (assignmentFilter === "assigned" && !placed) return false;
+      if (assignmentFilter === "unassigned" && placed) return false;
+    }
     if (search) {
       const haystack = [
         s.author.name ?? "",
         s.author.email ?? "",
         s.template?.title ?? "",
+        submissionCategory(s),
+        submissionAgeRange(s),
       ]
         .join(" ")
         .toLowerCase();
@@ -176,10 +258,6 @@ export default async function WorkshopReviewsPage({
 
       <div className="grid four" style={{ marginBottom: 20 }}>
         <div className="card">
-          <div className="kpi">{counts.total}</div>
-          <div className="kpi-label">Active submissions</div>
-        </div>
-        <div className="card">
           <div className="kpi">{counts.awaitingReview}</div>
           <div className="kpi-label">Awaiting review</div>
         </div>
@@ -188,8 +266,12 @@ export default async function WorkshopReviewsPage({
           <div className="kpi-label">Changes requested</div>
         </div>
         <div className="card">
-          <div className="kpi">{counts.decided}</div>
-          <div className="kpi-label">Approved or rejected</div>
+          <div className="kpi">{counts.approvedUnplaced}</div>
+          <div className="kpi-label">Approved · not yet placed</div>
+        </div>
+        <div className="card">
+          <div className="kpi">{counts.total}</div>
+          <div className="kpi-label">Active submissions</div>
         </div>
       </div>
 
@@ -197,6 +279,9 @@ export default async function WorkshopReviewsPage({
         currentSearch={search}
         currentStatus={statusFilter}
         currentSource={sourceFilter}
+        currentAssignment={assignmentFilter}
+        currentCategory={categoryFilter}
+        categories={allCategories}
         totalVisible={visible.length}
         totalAll={submissions.length}
       />
@@ -279,6 +364,25 @@ export default async function WorkshopReviewsPage({
                         {s.template ? ` · ${s.template.title}` : ""}
                       </p>
                       {(() => {
+                        const meta: string[] = [];
+                        const cat = submissionCategory(s);
+                        const age = submissionAgeRange(s);
+                        if (cat) meta.push(cat);
+                        if (age) meta.push(age);
+                        if (meta.length === 0) return null;
+                        return (
+                          <p
+                            style={{
+                              margin: "4px 0 0",
+                              fontSize: 11,
+                              color: "var(--muted)",
+                            }}
+                          >
+                            {meta.join(" · ")}
+                          </p>
+                        );
+                      })()}
+                      {(() => {
                         const tone = submissionStatusTone(s.status);
                         const toneStyle: Record<typeof tone, { bg: string; fg: string }> = {
                           neutral: { bg: "var(--surface-alt, #f3f4f6)", fg: "var(--ink, #111827)" },
@@ -303,6 +407,25 @@ export default async function WorkshopReviewsPage({
                           </span>
                         );
                       })()}
+                      {s.status === "APPROVED" ? (
+                        <span
+                          className="pill pill-small"
+                          style={{
+                            marginTop: 8,
+                            marginLeft: 6,
+                            display: "inline-block",
+                            background:
+                              s._count.assignments > 0 ? "#dcfce7" : "#fef3c7",
+                            color:
+                              s._count.assignments > 0 ? "#166534" : "#92400e",
+                            border: "1px solid currentColor",
+                          }}
+                        >
+                          {s._count.assignments > 0
+                            ? `Placed · ${s._count.assignments}`
+                            : "Not yet placed"}
+                        </span>
+                      ) : null}
                       {s.submittedAt ? (
                         <p
                           style={{
