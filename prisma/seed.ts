@@ -229,6 +229,12 @@ async function main() {
   // ── Instructor Applicant Workflow V1 seed ──────────────────────────────────
   await seedInstructorApplicantWorkflow(frisch.id, passwordHash, verifiedAt);
 
+  // ── Instructor Assignment System (Phase 1) seed ────────────────────────────
+  await seedInstructorAssignmentDemoData({
+    frischChapterId: frisch.id,
+    bostonChapterId: boston.id,
+  });
+
   const seedAlreadyPresent = await prisma.pathway.findFirst({
     where: { name: SEED_PATHWAY_NAME },
     select: { id: true },
@@ -1002,6 +1008,135 @@ async function seedInstructorApplicantWorkflow(
   }
 
   console.log("Seeded Instructor Applicant Workflow V1 demo data.");
+}
+
+// ── Instructor Assignment System (Phase 1) ────────────────────────────────────
+// Adds a few WorkshopOpportunity rows + sample InstructorAssignments so the
+// admin board has something to render out-of-the-box. Idempotent: re-running
+// the seed updates the same rows by deterministic title+partner.
+async function seedInstructorAssignmentDemoData(input: {
+  frischChapterId: string;
+  bostonChapterId: string;
+}) {
+  const adminOwner = await prisma.user.findUnique({
+    where: { email: "brayden.white@youthpassionproject.org" },
+    select: { id: true },
+  });
+  const instructorAvery = await prisma.user.findUnique({
+    where: { email: "avery.lin@youthpassionproject.org" },
+    select: { id: true },
+  });
+  if (!adminOwner || !instructorAvery) {
+    console.log("Skipping assignment-system seed (admin/instructor not found).");
+    return;
+  }
+
+  const opportunitySeeds = [
+    {
+      title: "Summer of Physics — Lincoln Academy",
+      partnerName: "Lincoln Summer Academy",
+      type: "SUMMER_CAMP" as const,
+      status: "OPEN" as const,
+      urgency: "HIGH" as const,
+      deliveryMode: "IN_PERSON" as const,
+      description:
+        "Two-week residential physics camp for rising 7th-9th graders. Need lead + assistant.",
+      locationName: "Lincoln Academy Campus",
+      locationCity: "Boston",
+      locationState: "MA",
+      locationCountry: "USA",
+      startDate: new Date("2026-07-13T13:00:00.000Z"),
+      endDate: new Date("2026-07-24T21:00:00.000Z"),
+      fillByDate: new Date("2026-06-15T00:00:00.000Z"),
+      slotsNeeded: 2,
+      ageGroup: "Grades 7-9",
+      topicTags: ["physics", "stem", "summer"],
+      chapterId: input.bostonChapterId,
+    },
+    {
+      title: "Code Together — Online Workshop Series",
+      partnerName: "YPP Internal",
+      type: "ONLINE_WORKSHOP" as const,
+      status: "OPEN" as const,
+      urgency: "NORMAL" as const,
+      deliveryMode: "VIRTUAL" as const,
+      description:
+        "Six-session evening online workshop teaching Python fundamentals. Need one instructor.",
+      locationCountry: "USA",
+      startDate: new Date("2026-06-08T00:00:00.000Z"),
+      endDate: new Date("2026-07-13T00:00:00.000Z"),
+      fillByDate: new Date("2026-05-25T00:00:00.000Z"),
+      slotsNeeded: 1,
+      ageGroup: "Ages 12-15",
+      topicTags: ["coding", "python", "online"],
+    },
+    {
+      title: "Frisch Maker Festival",
+      partnerName: "The Frisch School",
+      type: "ONE_TIME_WORKSHOP" as const,
+      status: "OPEN" as const,
+      urgency: "URGENT" as const,
+      deliveryMode: "IN_PERSON" as const,
+      description:
+        "One-day maker festival. Need three instructor leads for hands-on stations.",
+      locationName: "The Frisch School",
+      locationCity: "New York",
+      locationState: "NY",
+      locationCountry: "USA",
+      startDate: new Date("2026-05-30T14:00:00.000Z"),
+      endDate: new Date("2026-05-30T22:00:00.000Z"),
+      fillByDate: new Date("2026-05-20T00:00:00.000Z"),
+      slotsNeeded: 3,
+      ageGroup: "Grades 4-8",
+      topicTags: ["maker", "robotics", "engineering"],
+      chapterId: input.frischChapterId,
+    },
+  ];
+
+  for (const seed of opportunitySeeds) {
+    const existing = await prisma.workshopOpportunity.findFirst({
+      where: { title: seed.title },
+      select: { id: true },
+    });
+    if (existing) {
+      await prisma.workshopOpportunity.update({
+        where: { id: existing.id },
+        data: { ...seed, ownerId: adminOwner.id, createdById: adminOwner.id },
+      });
+    } else {
+      await prisma.workshopOpportunity.create({
+        data: { ...seed, ownerId: adminOwner.id, createdById: adminOwner.id },
+      });
+    }
+  }
+
+  // Sample assignment: put Avery as SUGGESTED on the Frisch festival so the
+  // admin board shows partial coverage out of the box.
+  const frischFestival = await prisma.workshopOpportunity.findFirst({
+    where: { title: "Frisch Maker Festival" },
+    select: { id: true },
+  });
+  if (frischFestival) {
+    await prisma.instructorAssignment.upsert({
+      where: {
+        opportunityId_instructorId: {
+          opportunityId: frischFestival.id,
+          instructorId: instructorAvery.id,
+        },
+      },
+      create: {
+        opportunityId: frischFestival.id,
+        instructorId: instructorAvery.id,
+        role: "LEAD_INSTRUCTOR",
+        status: "PENDING",
+        assignedById: adminOwner.id,
+        internalNotes: "Reached out via Slack DM 2 days ago — awaiting confirmation.",
+      },
+      update: {},
+    });
+  }
+
+  console.log("Seeded Instructor Assignment System Phase 1 demo data.");
 }
 
 main()
