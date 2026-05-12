@@ -5,6 +5,7 @@ import { useState } from "react";
 
 const QUICK_ACTIONS = [
   { href: "/admin/classes", label: "Class Operations", icon: "C" },
+  { href: "/admin/instructor-assignments", label: "Instructor Assignments", icon: "A" },
   { href: "/admin/classes?tab=review", label: "Class Review Queue", icon: "R" },
   { href: "/admin/chapters", label: "Chapters", icon: "D" },
   { href: "/admin/audit-log", label: "Audit Log", icon: "A" },

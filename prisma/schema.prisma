@@ -735,6 +735,7 @@ model Chapter {
   marketingGoals                 MarketingGoal[]
   chapterUpdates                 ChapterUpdate[]
   classTemplates                 ClassTemplate[]
+  regularInstructorAssignments   RegularInstructorAssignment[] @relation("RegularInstructorAssignmentsForChapter")
   launchTasks                    LaunchTask[]
   mentorshipTracks               MentorshipTrack[]
   rolloutCampaigns               RolloutCampaign[]
@@ -1058,6 +1059,9 @@ model User {
   classTemplatesCreated    ClassTemplate[]          @relation("ClassTemplatesCreated")
   classTemplatesReviewed   ClassTemplate[]          @relation("ClassTemplatesReviewed")
   classOfferingsInstructed ClassOffering[]          @relation("ClassOfferingsInstructed")
+  regularInstructorAssignments         RegularInstructorAssignment[] @relation("RegularInstructorAssignments")
+  regularInstructorAssignmentsCreated  RegularInstructorAssignment[] @relation("RegularInstructorAssignmentsCreated")
+  regularInstructorAssignmentsUpdated  RegularInstructorAssignment[] @relation("RegularInstructorAssignmentsUpdated")
   classEnrollments         ClassEnrollment[]        @relation("ClassEnrollments")
   classAttendanceRecords   ClassAttendanceRecord[]  @relation("ClassAttendanceRecords")
   classRemindersReceived   ClassReminder[]          @relation("ClassRemindersReceived")
@@ -6900,6 +6904,7 @@ model ClassTemplate {
   offerings    ClassOffering[]
   lessonPlans  LessonPlan[]
   pathwaySteps PathwayStep[]   @relation("ClassTemplateSteps")
+  regularInstructorAssignments RegularInstructorAssignment[] @relation("ClassTemplateAssignments")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -6969,6 +6974,7 @@ model ClassOffering {
   fallbackRequests PathwayFallbackRequest[]
   approval         ClassOfferingApproval?
   timeline         ClassOfferingTimelineEvent[]
+  regularInstructorAssignments RegularInstructorAssignment[] @relation("RegularInstructorAssignmentsForOffering")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -9739,6 +9745,7 @@ model CurriculumDraft {
   createdAt                    DateTime                      @default(now())
   updatedAt                    DateTime                      @updatedAt
   comments                     CurriculumComment[]
+  regularInstructorAssignments RegularInstructorAssignment[] @relation("CurriculumDraftAssignments")
 
   @@index([authorId])
   @@index([status])
@@ -11538,4 +11545,94 @@ model InstructorAssignment {
   @@index([status])
   @@index([proposalId])
   @@index([assignedById])
+}
+
+// ============================================
+// REGULAR INSTRUCTOR ASSIGNMENTS (MVP)
+// ============================================
+// First-class join between a ClassOffering and an instructor User.
+// Adds role + lifecycle status on top of the existing singular
+// ClassOffering.instructorId (which remains the canonical "lead pointer"
+// so downstream surfaces — reminders, attendance, my-classes, instructor
+// gating — keep working unchanged). Co-instructors, assistants, and
+// backups all live here.
+
+/// Role an instructor holds on a class offering.
+enum RegularInstructorAssignmentRole {
+  LEAD
+  CO_INSTRUCTOR
+  ASSISTANT
+  BACKUP
+}
+
+/// Lifecycle state for a regular instructor assignment.
+enum RegularInstructorAssignmentStatus {
+  SUGGESTED              // Admin shortlisted via matching, not yet acted on
+  PENDING_REVIEW         // Created, awaiting admin action
+  OFFERED                // Sent to instructor; awaiting their acceptance
+  INSTRUCTOR_CONFIRMED   // Instructor accepted; chapter not yet confirmed
+  CHAPTER_CONFIRMED      // Chapter confirmed; instructor not yet accepted
+  FULLY_CONFIRMED        // Both sides confirmed
+  NEEDS_TRAINING         // Blocked on training requirement
+  NEEDS_CURRICULUM       // Blocked on curriculum review
+  DECLINED               // Instructor declined the offer
+  REMOVED                // Admin removed the assignment
+  COMPLETED              // Class run finished
+}
+
+model RegularInstructorAssignment {
+  id           String        @id @default(cuid())
+  offeringId   String
+  offering     ClassOffering @relation("RegularInstructorAssignmentsForOffering", fields: [offeringId], references: [id], onDelete: Cascade)
+  instructorId String
+  instructor   User          @relation("RegularInstructorAssignments", fields: [instructorId], references: [id])
+
+  role   RegularInstructorAssignmentRole   @default(LEAD)
+  status RegularInstructorAssignmentStatus @default(PENDING_REVIEW)
+
+  // Optional chapter/region — denormalized for filtering. Defaults from
+  // the offering's chapter at create time.
+  chapterId String?
+  chapter   Chapter? @relation("RegularInstructorAssignmentsForChapter", fields: [chapterId], references: [id])
+
+  // Optional curriculum link. Either a draft (in-flight curriculum) or the
+  // template the offering was instantiated from. Both nullable so admins can
+  // make assignments before curriculum is finalized.
+  curriculumDraftId String?
+  curriculumDraft   CurriculumDraft? @relation("CurriculumDraftAssignments", fields: [curriculumDraftId], references: [id])
+  classTemplateId   String?
+  classTemplate     ClassTemplate?   @relation("ClassTemplateAssignments", fields: [classTemplateId], references: [id])
+
+  // Confirmation timestamps — null until each side confirms.
+  offeredAt             DateTime?
+  instructorConfirmedAt DateTime?
+  chapterConfirmedAt    DateTime?
+  declinedAt            DateTime?
+  removedAt             DateTime?
+  completedAt           DateTime?
+
+  // Notes. `adminNotes` is admin-only; `instructorNote` is shown to the
+  // assigned instructor on their assignment card.
+  adminNotes     String? @db.Text
+  instructorNote String? @db.Text
+
+  // Audit
+  createdById String?
+  createdBy   User?   @relation("RegularInstructorAssignmentsCreated", fields: [createdById], references: [id])
+  updatedById String?
+  updatedBy   User?   @relation("RegularInstructorAssignmentsUpdated", fields: [updatedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // One row per (offering, instructor, role) — an instructor can hold
+  // multiple distinct roles on the same offering only if we intentionally
+  // create them (e.g. mentor + assistant), which is rare. The unique
+  // constraint prevents accidental duplicate assignments.
+  @@unique([offeringId, instructorId, role])
+  @@index([offeringId])
+  @@index([instructorId])
+  @@index([status])
+  @@index([chapterId])
+  @@index([role])
 }
