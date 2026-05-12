@@ -918,6 +918,20 @@ export const NAV_CATALOG: NavLink[] = [
       dashboardDescription: "Score Summer Workshop Instructor proposals and committed decisions.",
       dashboardPriority: 9,
     },
+    {
+      href: "/admin/opportunities",
+      label: "Workshop & Camp Assignments",
+      icon: "🎯",
+      roles: ADMIN_ONLY,
+      dashboardDescription: "Manage partner camps and workshops, see uncovered slots, and assign instructors.",
+      dashboardPriority: 9,
+      searchAliases: [
+        "Opportunities",
+        "Camp Assignments",
+        "Instructor Assignments",
+        "Workshop Assignments",
+      ],
+    },
   ]),
 
   ...groupLinks("Admin Reports", 1300, [
