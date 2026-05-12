@@ -61,6 +61,7 @@ export default async function ActionCenterDashboardPage() {
           { label: "+ New task", href: "/admin/action-center/tasks?new=1", primary: true },
           { label: "Weekly digest", href: "/admin/action-center/weekly" },
           { label: "Import", href: "/admin/action-center/import" },
+          { label: "Download CSV", href: "/api/admin/action-center/export.csv" },
         ]}
       />
 
