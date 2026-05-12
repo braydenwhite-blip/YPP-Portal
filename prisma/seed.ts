@@ -69,6 +69,15 @@ async function main() {
     region: "Pacific Northwest",
   });
 
+  // Scarsdale is the only chapter currently exposed in the applicant signup
+  // flow (see app/api/chapters/route.ts). Ensure it exists in seeded
+  // environments so local testing of the applicant flow works.
+  await findOrCreateChapter({
+    name: "Scarsdale",
+    city: "Scarsdale",
+    region: "Northeast",
+  });
+
   const verifiedAt = new Date();
 
   const adminSubtypeSeeds = [
