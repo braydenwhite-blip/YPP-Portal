@@ -767,6 +767,9 @@ model Chapter {
   opsRules          OpsRule[]
   opsRuleViolations OpsRuleViolation[]
 
+  // Instructor assignment system
+  workshopOpportunities WorkshopOpportunity[] @relation("WorkshopOpportunityChapter")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -1268,6 +1271,12 @@ model User {
   workshopProposalSubmissions       WorkshopProposalSubmission[] @relation("WorkshopProposalSubmissionsAuthored")
   workshopProposalSubmissionsReviewed WorkshopProposalSubmission[] @relation("WorkshopProposalSubmissionsReviewed")
   workshopProposalReviews           WorkshopProposalReview[]     @relation("WorkshopProposalReviewsAuthored")
+
+  // Instructor-to-camp/workshop assignment system (admin operations layer)
+  workshopOpportunitiesOwned        WorkshopOpportunity[]        @relation("WorkshopOpportunityOwner")
+  workshopOpportunitiesCreated      WorkshopOpportunity[]        @relation("WorkshopOpportunityCreatedBy")
+  instructorAssignments             InstructorAssignment[]       @relation("InstructorAssignmentInstructor")
+  instructorAssignmentsAssigned     InstructorAssignment[]       @relation("InstructorAssignmentAssignedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -11214,6 +11223,10 @@ model WorkshopProposalSubmission {
 
   reviews         WorkshopProposalReview[]            @relation("WorkshopProposalReviewSubmission")
 
+  /// Camp/workshop assignments using this proposal as curriculum. One proposal
+  /// can power multiple assignments (reusable curriculum across opportunities).
+  assignments     InstructorAssignment[]              @relation("WorkshopProposalSubmissionAssignments")
+
   createdAt       DateTime                            @default(now())
   updatedAt       DateTime                            @updatedAt
 
@@ -11314,4 +11327,215 @@ model WorkshopProposalReview {
   @@index([submissionId])
   @@index([reviewerId])
   @@index([overallRecommendation])
+}
+
+// ============================================
+// INSTRUCTOR ASSIGNMENT SYSTEM (admin operations layer)
+//
+// Phase 1: admin-only operational tool that lets staff manage partner camps /
+// workshops / programs that need instructors and track who is staffed where.
+//
+// A `WorkshopOpportunity` represents one real-world placement (a partner camp,
+// a one-time workshop, a chapter program) that needs N instructor slots filled.
+// An `InstructorAssignment` links a User (instructor) to one WorkshopOpportunity
+// with a role + status + optional WorkshopProposalSubmission curriculum link.
+//
+// Out of scope for Phase 1 (deliberately):
+//   - Instructor-side accept/decline UI (admins manage statuses)
+//   - Email/notification dispatch
+//   - Hard conflict detection across overlapping date ranges
+//   - Calendar/Slack integration
+// ============================================
+
+/// Kind of placement an opportunity represents. Drives sort/filter on the
+/// admin board and lets us evolve specialized views later.
+enum OpportunityType {
+  SUMMER_CAMP
+  PARTNER_PROGRAM
+  ONE_TIME_WORKSHOP
+  MULTI_DAY_CAMP
+  CHAPTER_CLASS_SERIES
+  ONLINE_WORKSHOP
+  OTHER
+}
+
+/// Lifecycle of an opportunity from admin's perspective.
+///   DRAFT       — admin drafting, not yet visible as "open" on the board
+///   OPEN        — needs instructors (partially or fully unstaffed)
+///   CONFIRMED   — all required slots staffed and locked
+///   COMPLETED   — placement happened
+///   CANCELLED   — partner pulled out / never ran
+///   ARCHIVED    — closed out for historical reference
+enum OpportunityStatus {
+  DRAFT
+  OPEN
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  ARCHIVED
+}
+
+/// Urgency tag the admin sets manually to surface what needs attention first.
+enum OpportunityUrgency {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+/// Role an instructor plays on a given assignment.
+enum AssignmentRole {
+  LEAD_INSTRUCTOR
+  CO_INSTRUCTOR
+  ASSISTANT
+  SUBSTITUTE
+  MENTOR
+}
+
+/// Admin-driven assignment lifecycle. The dual confirmation timestamps
+/// (`instructorConfirmedAt` / `partnerConfirmedAt`) on the row let admins
+/// record fine-grained state without a status explosion.
+///
+///   SUGGESTED      — admin shortlisted internally, not yet offered
+///   PENDING        — offered to instructor (or partner), awaiting confirmation
+///   CONFIRMED      — instructor + partner both locked in
+///   WAITLISTED     — backup option
+///   DECLINED       — instructor declined or no longer available
+///   CANCELLED      — assignment voided
+///   COMPLETED      — assignment fulfilled
+enum AssignmentStatus {
+  SUGGESTED
+  PENDING
+  CONFIRMED
+  WAITLISTED
+  DECLINED
+  CANCELLED
+  COMPLETED
+}
+
+/// A real-world placement that needs instructors. Distinct from `ClassOffering`
+/// (which is a chapter class series with student enrollment) — opportunities
+/// support multi-instructor staffing, partner contacts, and external programs.
+model WorkshopOpportunity {
+  id              String              @id @default(cuid())
+  title           String
+  partnerName     String?
+  type            OpportunityType     @default(PARTNER_PROGRAM)
+  status          OpportunityStatus   @default(OPEN)
+  urgency         OpportunityUrgency  @default(NORMAL)
+
+  /// Free-text summary shown in the detail drawer. Keep short.
+  description     String?             @db.Text
+
+  /// Reuses the existing DeliveryMode enum (IN_PERSON | VIRTUAL | HYBRID).
+  deliveryMode    DeliveryMode        @default(IN_PERSON)
+
+  /// Location fields are optional so online programs can omit them.
+  locationName    String?
+  locationCity    String?
+  locationState   String?
+  locationCountry String?
+
+  /// Scheduling window. Both nullable so partial info can be drafted.
+  startDate       DateTime?
+  endDate         DateTime?
+  /// Deadline by which staffing should be finalized.
+  fillByDate      DateTime?
+
+  /// Number of instructor slots required. Coverage is derived from
+  /// `assignments` filtered to active statuses (CONFIRMED / PENDING).
+  slotsNeeded     Int                 @default(1)
+
+  /// Free-form audience descriptor (e.g. "Grades 6-8", "Ages 10-12").
+  ageGroup        String?
+
+  /// Topic tags used for matching (lowercased on write). E.g. ["physics", "coding"].
+  topicTags       String[]            @default([])
+
+  /// Optional required teaching level (links to existing CourseLevel enum).
+  requiredCourseLevel CourseLevel?
+
+  /// Chapter scope (optional). If set, chapter presidents can manage this row.
+  chapterId       String?
+  chapter         Chapter?            @relation("WorkshopOpportunityChapter", fields: [chapterId], references: [id], onDelete: SetNull)
+
+  /// Internal admin owner — the person on staff responsible for filling it.
+  ownerId         String?
+  owner           User?               @relation("WorkshopOpportunityOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  /// Partner-facing contact info (kept admin-private).
+  partnerContactName  String?
+  partnerContactEmail String?
+  partnerContactPhone String?
+
+  /// Internal admin notes (never shown to instructors).
+  internalNotes   String?             @db.Text
+
+  createdById     String
+  createdBy       User                @relation("WorkshopOpportunityCreatedBy", fields: [createdById], references: [id])
+
+  assignments     InstructorAssignment[] @relation("InstructorAssignmentOpportunity")
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  archivedAt      DateTime?
+
+  @@index([status])
+  @@index([urgency])
+  @@index([startDate])
+  @@index([fillByDate])
+  @@index([chapterId])
+  @@index([ownerId])
+  @@index([type])
+}
+
+/// Links an instructor to a WorkshopOpportunity. One row per
+/// (opportunity, instructor) pair — a single instructor cannot hold two
+/// active slots on the same opportunity.
+model InstructorAssignment {
+  id              String           @id @default(cuid())
+
+  opportunityId   String
+  opportunity     WorkshopOpportunity @relation("InstructorAssignmentOpportunity", fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  instructorId    String
+  instructor      User             @relation("InstructorAssignmentInstructor", fields: [instructorId], references: [id], onDelete: Cascade)
+
+  /// Optional pointer to the approved WorkshopProposalSubmission the
+  /// instructor will teach. Nullable so admins can stage assignments before
+  /// curriculum is finalized.
+  proposalId      String?
+  proposal        WorkshopProposalSubmission? @relation("WorkshopProposalSubmissionAssignments", fields: [proposalId], references: [id], onDelete: SetNull)
+
+  role            AssignmentRole   @default(LEAD_INSTRUCTOR)
+  status          AssignmentStatus @default(SUGGESTED)
+
+  assignedById    String?
+  assignedBy      User?            @relation("InstructorAssignmentAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  assignedAt      DateTime         @default(now())
+
+  instructorConfirmedAt DateTime?
+  partnerConfirmedAt    DateTime?
+  declinedAt            DateTime?
+  cancelledAt           DateTime?
+  completedAt           DateTime?
+
+  /// Override for this assignment when it differs from the parent opportunity
+  /// (e.g. one instructor covers a single day of a multi-day camp).
+  startTime       DateTime?
+  endTime         DateTime?
+
+  /// Internal admin notes (never shown to the instructor).
+  internalNotes   String?          @db.Text
+  /// Instructor-visible notes about expectations / prep.
+  instructorNotes String?          @db.Text
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@unique([opportunityId, instructorId])
+  @@index([instructorId])
+  @@index([status])
+  @@index([proposalId])
+  @@index([assignedById])
 }
