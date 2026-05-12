@@ -364,78 +364,119 @@ async function renderAdminWorkflowHome(params: {
 
 function PublicSummerWorkshopHome({ firstName }: { firstName: string }) {
   return (
-    <div style={{ maxWidth: 720, margin: "32px auto 64px", padding: "0 24px" }}>
+    <div style={{ maxWidth: 760, margin: "40px auto 72px", padding: "0 24px" }}>
       <div
         style={{
-          padding: "10px 14px",
-          borderRadius: 10,
+          display: "inline-block",
+          padding: "6px 12px",
+          borderRadius: 999,
           background: "#f5f3ff",
           border: "1px solid #ddd6fe",
-          fontSize: 12,
+          fontSize: 11,
           color: "#5b21b6",
-          marginBottom: 24,
-          letterSpacing: 0.4,
+          marginBottom: 18,
+          letterSpacing: 0.5,
           textTransform: "uppercase",
-          fontWeight: 600,
+          fontWeight: 700,
         }}
       >
-        Now open: Summer Workshop season
+        Summer 2026 · Now Accepting Applications
       </div>
-      <h1 style={{ fontSize: 30, fontWeight: 700, margin: "0 0 12px" }}>
-        Welcome{firstName ? `, ${firstName}` : ""} 👋
+
+      <h1 style={{ fontSize: 38, fontWeight: 800, margin: "0 0 14px", lineHeight: 1.15, letterSpacing: -0.5 }}>
+        Teach a Summer Workshop{firstName ? `, ${firstName}` : ""}.
       </h1>
-      <p style={{ fontSize: 15, color: "var(--muted)", lineHeight: 1.6, margin: "0 0 28px" }}>
-        Summer Workshop Instructors lead focused, high-impact workshops at YPP
-        camps — a fast-start teaching role with real ownership of the room.
-        Two flows are open today: apply to teach a workshop, or propose the
-        workshop you&apos;d lead.
+      <p style={{ fontSize: 17, color: "var(--muted)", lineHeight: 1.55, margin: "0 0 28px", maxWidth: 620 }}>
+        Lead a focused, high-impact workshop at a YPP summer camp. It&apos;s
+        a fast-start teaching role with real ownership of the room — and a
+        proven path into full instructor work and mentorship.
       </p>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
+
+      {/* Primary CTA card */}
+      <div
+        style={{
+          padding: "28px 28px 24px",
+          borderRadius: 18,
+          background: "linear-gradient(135deg, #faf5ff 0%, #f5f3ff 60%, #ede9fe 100%)",
+          border: "1px solid #ddd6fe",
+          boxShadow: "0 10px 30px rgba(107, 33, 200, 0.10)",
+          marginBottom: 18,
+        }}
+      >
+        <h2 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 700, color: "#3b0f6e" }}>
+          Summer Workshop Instructor Application
+        </h2>
+        <p style={{ margin: "0 0 18px", fontSize: 14, color: "#5b21b6", lineHeight: 1.55 }}>
+          Share one workshop outline so we can see how you&apos;d lead the room.
+          Most applicants finish in about 20 minutes.
+        </p>
+
         <Link
           href={SUMMER_WORKSHOP_APPLY_HREF}
-          className="card"
+          className="button"
           style={{
-            display: "block",
-            padding: "20px 22px",
-            borderRadius: 12,
-            border: "1px solid var(--border, #e5e7eb)",
-            textDecoration: "none",
-            color: "inherit",
+            display: "inline-flex",
+            width: "auto",
+            margin: 0,
+            padding: "14px 28px",
+            fontSize: 15,
+            fontWeight: 700,
           }}
         >
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#6b21c8", marginBottom: 6, letterSpacing: 0.3, textTransform: "uppercase" }}>
-            Apply
-          </div>
-          <h2 style={{ margin: "0 0 6px", fontSize: 18 }}>Summer Workshop Application</h2>
-          <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
-            Apply to lead a focused, high-impact workshop. Strong workshop instructors
-            may quickly be considered for full instructor work and mentorship.
-          </p>
+          Start Application →
         </Link>
-        <Link
-          href={SUMMER_WORKSHOP_PROPOSE_HREF}
-          className="card"
+
+        <div
           style={{
-            display: "block",
-            padding: "20px 22px",
-            borderRadius: 12,
-            border: "1px solid var(--border, #e5e7eb)",
-            textDecoration: "none",
-            color: "inherit",
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 18,
+            marginTop: 20,
+            paddingTop: 18,
+            borderTop: "1px solid rgba(107, 33, 200, 0.12)",
+            fontSize: 13,
+            color: "#5b21b6",
           }}
         >
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#6b21c8", marginBottom: 6, letterSpacing: 0.3, textTransform: "uppercase" }}>
-            Propose
-          </div>
-          <h2 style={{ margin: "0 0 6px", fontSize: 18 }}>Summer Workshop Proposal</h2>
-          <p style={{ margin: 0, fontSize: 13, color: "var(--muted)" }}>
-            Open the Workshop Design Studio and submit a proposed workshop outline.
-          </p>
-        </Link>
+          <span><strong style={{ color: "#3b0f6e" }}>~20 min</strong> to complete</span>
+          <span><strong style={{ color: "#3b0f6e" }}>1 workshop outline</strong> required</span>
+          <span><strong style={{ color: "#3b0f6e" }}>Rolling</strong> review</span>
+        </div>
       </div>
-      <p style={{ marginTop: 28, fontSize: 13, color: "var(--muted)" }}>
+
+      {/* Secondary path */}
+      <Link
+        href={SUMMER_WORKSHOP_PROPOSE_HREF}
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 16,
+          padding: "16px 20px",
+          borderRadius: 12,
+          border: "1px solid var(--border, #e5e7eb)",
+          background: "var(--surface, #fff)",
+          textDecoration: "none",
+          color: "inherit",
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#6b21c8", marginBottom: 4, letterSpacing: 0.4, textTransform: "uppercase" }}>
+            Have an idea first?
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 2 }}>
+            Propose a workshop in the Design Studio
+          </div>
+          <div style={{ fontSize: 13, color: "var(--muted)" }}>
+            Sketch an outline before applying — optional, but a strong proposal helps.
+          </div>
+        </div>
+        <span style={{ fontSize: 18, color: "#6b21c8", fontWeight: 700 }}>→</span>
+      </Link>
+
+      <p style={{ marginTop: 32, fontSize: 13, color: "var(--muted)", textAlign: "center" }}>
         Already applied?{" "}
-        <Link href="/application-status" style={{ color: "#6b21c8" }}>
+        <Link href="/application-status" style={{ color: "#6b21c8", fontWeight: 600 }}>
           Check your application status
         </Link>
         .
