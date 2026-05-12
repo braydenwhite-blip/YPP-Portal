@@ -6,7 +6,9 @@ import {
   listOpportunities,
   type OpportunityListFilters,
 } from "@/lib/workshop-opportunity-queries";
+import { listApprovedUnplacedCandidates } from "@/lib/workshop-proposal-pool";
 import OpportunityRow from "./opportunity-row";
+import { ApprovedPoolPanel } from "./approved-pool-panel";
 
 type SearchParams = {
   tab?: string;
@@ -50,9 +52,10 @@ export default async function AdminOpportunitiesPage({
     ...(params.q ? { search: params.q } : {}),
   };
 
-  const [summary, opportunities] = await Promise.all([
+  const [summary, opportunities, approvedPool] = await Promise.all([
     getAssignmentDashboardSummary(),
     listOpportunities(filters),
+    listApprovedUnplacedCandidates({ limit: 8 }),
   ]);
 
   // Tab-specific filtering: "needs_attention" should only include rows where
@@ -134,6 +137,8 @@ export default async function AdminOpportunitiesPage({
           href="?tab=drafts"
         />
       </div>
+
+      <ApprovedPoolPanel candidates={approvedPool} />
 
       <nav style={tabBarStyle}>
         <TabLink current={tab} value="needs_attention">

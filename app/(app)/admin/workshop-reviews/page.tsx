@@ -257,18 +257,35 @@ export default async function WorkshopReviewsPage({
       </div>
 
       <div className="grid four" style={{ marginBottom: 20 }}>
-        <div className="card">
+        <Link
+          href="?status=SUBMITTED"
+          className="card"
+          style={{ textDecoration: "none", color: "inherit", display: "block" }}
+        >
           <div className="kpi">{counts.awaitingReview}</div>
           <div className="kpi-label">Awaiting review</div>
-        </div>
-        <div className="card">
+        </Link>
+        <Link
+          href="?status=CHANGES_REQUESTED"
+          className="card"
+          style={{ textDecoration: "none", color: "inherit", display: "block" }}
+        >
           <div className="kpi">{counts.changesRequested}</div>
           <div className="kpi-label">Changes requested</div>
-        </div>
-        <div className="card">
+        </Link>
+        <Link
+          href="?status=APPROVED&assignment=unassigned"
+          className="card"
+          style={{
+            textDecoration: "none",
+            color: "inherit",
+            display: "block",
+            borderColor: counts.approvedUnplaced > 0 ? "#f59e0b" : undefined,
+          }}
+        >
           <div className="kpi">{counts.approvedUnplaced}</div>
           <div className="kpi-label">Approved · not yet placed</div>
-        </div>
+        </Link>
         <div className="card">
           <div className="kpi">{counts.total}</div>
           <div className="kpi-label">Active submissions</div>
