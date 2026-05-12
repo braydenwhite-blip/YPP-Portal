@@ -9,6 +9,11 @@ const INSTRUCTOR_AND_APPLICANT_ROLES: NavRole[] = ["APPLICANT", "INSTRUCTOR", "A
 const MENTOR_ROLES: NavRole[] = ["MENTOR", "CHAPTER_PRESIDENT", "ADMIN"];
 const MY_PROGRAM_ROLES: NavRole[] = ["STUDENT", "INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"];
 const APPLICANT_ROLES: NavRole[] = ["APPLICANT", "STUDENT", "INSTRUCTOR", "STAFF", "ADMIN"];
+// Like APPLICANT_ROLES but excludes APPLICANT — used for the broader
+// "My Applications" tracker, since applicants already have "My Application"
+// (singular) pointing at /application-status and the plural view would
+// redirect right back for them.
+const APPLICANT_ROLES_EXCLUDING_APPLICANT: NavRole[] = ["STUDENT", "INSTRUCTOR", "STAFF", "ADMIN"];
 const INTERVIEW_ROLES: NavRole[] = ["INSTRUCTOR", "STAFF", "ADMIN", "CHAPTER_PRESIDENT"];
 const ADMIN_ONLY: NavRole[] = ["ADMIN"];
 const HIRING_CHAIR_ADMIN_ROLES: NavRole[] = ["ADMIN", "HIRING_CHAIR"];
@@ -357,7 +362,7 @@ export const NAV_CATALOG: NavLink[] = [
       href: "/applications",
       label: "My Applications",
       icon: "📨",
-      roles: APPLICANT_ROLES,
+      roles: APPLICANT_ROLES_EXCLUDING_APPLICANT,
       dashboardDescription: "Track your submitted applications and interview status.",
       dashboardPriority: 8,
       dashboardBadgeKey: "active_applications",

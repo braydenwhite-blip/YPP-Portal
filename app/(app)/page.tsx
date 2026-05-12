@@ -35,7 +35,6 @@ import { cookies } from "next/headers";
 import {
   PREVIEW_COOKIE_NAME,
   SUMMER_WORKSHOP_APPLY_HREF,
-  SUMMER_WORKSHOP_PROPOSE_HREF,
   isAdminBypassRole,
   isPublicGateEnabled,
   verifyPreviewToken,
@@ -387,9 +386,10 @@ function PublicSummerWorkshopHome({ firstName }: { firstName: string }) {
         Teach a Summer Workshop{firstName ? `, ${firstName}` : ""}.
       </h1>
       <p style={{ fontSize: 17, color: "var(--muted)", lineHeight: 1.55, margin: "0 0 28px", maxWidth: 620 }}>
-        Lead a focused, high-impact workshop at a YPP summer camp. It&apos;s
-        a fast-start teaching role with real ownership of the room — and a
-        proven path into full instructor work and mentorship.
+        A focused teaching opportunity at a YPP summer camp. You design and lead
+        one workshop with real ownership of the room, and strong workshop
+        instructors are often considered for broader instructor and mentor
+        roles afterward.
       </p>
 
       {/* Primary CTA card */}
@@ -443,36 +443,6 @@ function PublicSummerWorkshopHome({ firstName }: { firstName: string }) {
           <span><strong style={{ color: "#3b0f6e" }}>Rolling</strong> review</span>
         </div>
       </div>
-
-      {/* Secondary path */}
-      <Link
-        href={SUMMER_WORKSHOP_PROPOSE_HREF}
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 16,
-          padding: "16px 20px",
-          borderRadius: 12,
-          border: "1px solid var(--border, #e5e7eb)",
-          background: "var(--surface, #fff)",
-          textDecoration: "none",
-          color: "inherit",
-        }}
-      >
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#6b21c8", marginBottom: 4, letterSpacing: 0.4, textTransform: "uppercase" }}>
-            Have an idea first?
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 2 }}>
-            Propose a workshop in the Design Studio
-          </div>
-          <div style={{ fontSize: 13, color: "var(--muted)" }}>
-            Sketch an outline before applying — optional, but a strong proposal helps.
-          </div>
-        </div>
-        <span style={{ fontSize: 18, color: "#6b21c8", fontWeight: 700 }}>→</span>
-      </Link>
 
       <p style={{ marginTop: 32, fontSize: 13, color: "var(--muted)", textAlign: "center" }}>
         Already applied?{" "}
