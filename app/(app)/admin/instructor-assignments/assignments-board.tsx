@@ -3,7 +3,12 @@ import {
   formatAssignmentRole,
   formatAssignmentStatus,
   assignmentStatusTone,
+  ASSIGNMENT_STATUSES,
 } from "@/lib/regular-instructor-assignments-display";
+import {
+  updateRegularInstructorAssignmentStatus,
+  deleteRegularInstructorAssignment,
+} from "@/lib/regular-instructor-assignments";
 import type { AssignmentDashboardRow } from "@/lib/regular-instructor-assignments";
 
 const TONE_COLORS: Record<string, { bg: string; color: string }> = {
@@ -158,6 +163,7 @@ function OfferingRow({ row }: { row: AssignmentDashboardRow }) {
                       alignItems: "center",
                       gap: 8,
                       fontSize: 12,
+                      flexWrap: "wrap",
                     }}
                   >
                     <span style={{ fontWeight: 600 }}>
@@ -168,7 +174,6 @@ function OfferingRow({ row }: { row: AssignmentDashboardRow }) {
                     </span>
                     <span
                       style={{
-                        marginLeft: "auto",
                         padding: "2px 8px",
                         borderRadius: 999,
                         fontSize: 10,
@@ -179,6 +184,67 @@ function OfferingRow({ row }: { row: AssignmentDashboardRow }) {
                     >
                       {formatAssignmentStatus(a.status)}
                     </span>
+                    <form
+                      action={updateRegularInstructorAssignmentStatus}
+                      style={{
+                        marginLeft: "auto",
+                        display: "flex",
+                        gap: 4,
+                        alignItems: "center",
+                      }}
+                    >
+                      <input type="hidden" name="assignmentId" value={a.id} />
+                      <select
+                        name="status"
+                        defaultValue={a.status}
+                        aria-label={`Status for ${a.instructor.name}`}
+                        style={{
+                          fontSize: 10,
+                          padding: "2px 4px",
+                          borderRadius: 4,
+                          border: "1px solid var(--border)",
+                          background: "var(--bg)",
+                        }}
+                      >
+                        {ASSIGNMENT_STATUSES.map((s) => (
+                          <option key={s} value={s}>
+                            {formatAssignmentStatus(s)}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="submit"
+                        style={{
+                          fontSize: 10,
+                          padding: "2px 8px",
+                          borderRadius: 4,
+                          border: "1px solid var(--border)",
+                          background: "var(--bg)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Update
+                      </button>
+                    </form>
+                    <form action={deleteRegularInstructorAssignment}>
+                      <input type="hidden" name="assignmentId" value={a.id} />
+                      <button
+                        type="submit"
+                        aria-label={`Remove ${a.instructor.name}`}
+                        title="Remove assignment"
+                        style={{
+                          fontSize: 10,
+                          padding: "2px 6px",
+                          borderRadius: 4,
+                          border: "1px solid var(--border)",
+                          background: "var(--bg)",
+                          cursor: "pointer",
+                          color: "#991b1b",
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </form>
                   </li>
                 );
               })}
