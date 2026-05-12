@@ -259,16 +259,6 @@ function LoginPageContent() {
           >
             Summer 2026 · Now Accepting Applications
           </span>
-          <h1 className="page-title mt-8" style={{ fontSize: 40, lineHeight: 1.1, letterSpacing: -0.5 }}>
-            Teach a Summer Workshop.
-          </h1>
-          <p className="hero-subtitle mt-12">
-            YPP is hiring Summer Workshop Instructors for camps this summer — a
-            fast-start teaching role with real ownership of the room. Share one
-            workshop outline so we can see how you&apos;d lead it. Most
-            applicants finish in about 20 minutes.
-          </p>
-
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", marginTop: 24 }}>
             <Link
               href="/signup/instructor"
@@ -282,7 +272,7 @@ function LoginPageContent() {
                 fontWeight: 700,
               }}
             >
-              Apply Now →
+              Apply Now
             </Link>
             <span style={{ fontSize: 13, color: "var(--muted)" }}>
               Already applied?{" "}
