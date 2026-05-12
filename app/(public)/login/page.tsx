@@ -488,13 +488,6 @@ function LoginPageContent() {
               >
                 Start Summer Workshop Application
               </Link>
-              <Link
-                className="button secondary login-card-signup-cta"
-                style={{ display: "block", textAlign: "center", marginTop: 0 }}
-                href="/signup"
-              >
-                Create Family Account
-              </Link>
             </div>
           </>}
         </div>

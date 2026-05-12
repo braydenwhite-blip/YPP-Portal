@@ -820,9 +820,6 @@ export default function InstructorSignupPage() {
         <div className="login-help" style={{ marginTop: 24 }}>
           Already have an account? <Link href="/login">Sign in</Link>
         </div>
-        <div className="login-help" style={{ marginTop: 8 }}>
-          Need the family signup instead? <Link href="/signup">Create a family account</Link>
-        </div>
       </div>
     </div>
   );
