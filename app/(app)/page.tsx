@@ -387,9 +387,10 @@ function PublicSummerWorkshopHome({ firstName }: { firstName: string }) {
         Teach a Summer Workshop{firstName ? `, ${firstName}` : ""}.
       </h1>
       <p style={{ fontSize: 17, color: "var(--muted)", lineHeight: 1.55, margin: "0 0 28px", maxWidth: 620 }}>
-        Lead a focused, high-impact workshop at a YPP summer camp. It&apos;s
-        a fast-start teaching role with real ownership of the room — and a
-        proven path into full instructor work and mentorship.
+        A focused teaching opportunity at a YPP summer camp. You design and lead
+        one workshop with real ownership of the room, and strong workshop
+        instructors are often considered for broader instructor and mentor
+        roles afterward.
       </p>
 
       {/* Primary CTA card */}

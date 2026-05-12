@@ -725,8 +725,14 @@ export default function InstructorSignupPage() {
             )}
 
             <label className="form-label">
-              {isSummerWorkshop ? "Optional motivation" : "Optional written motivation"}
-              <textarea className="input" name="motivation" rows={3} defaultValue={field(d, "motivation", sf)} />
+              Anything else you&apos;d like us to know? <span style={{ color: "var(--muted)", fontWeight: 400 }}>(optional)</span>
+              <textarea
+                className="input"
+                name="motivation"
+                rows={3}
+                placeholder="Why this opportunity matters to you, context the review team should consider, or anything you couldn't fit above."
+                defaultValue={field(d, "motivation", sf)}
+              />
             </label>
           </div>
 
