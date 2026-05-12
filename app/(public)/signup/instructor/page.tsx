@@ -282,33 +282,10 @@ export default function InstructorSignupPage() {
         <h1 style={{ fontSize: 26, fontWeight: 700, margin: "0 0 8px" }}>
           {isSummerWorkshop ? "Apply to be a YPP Summer Workshop Instructor." : "Apply to become a YPP instructor."}
         </h1>
-        <p style={{ fontSize: 14, color: "var(--muted)", margin: "0 0 24px", lineHeight: 1.6 }}>
-          {isSummerWorkshop
-            ? "Summer Workshop Instructors lead focused, high-impact workshops at camps — a fast-start teaching role where you run the room and own the session. Share a single workshop outline so we can see how you'd lead it. Strong workshop instructors may quickly be considered for full instructor responsibilities and, based on readiness and leadership, may also mentor other instructors."
-            : "Share your background, availability, and a rough class plan so the review team can understand what you want to teach and whether an interview is the right next step."}
-        </p>
 
         {/* Track selector */}
         {!REGULAR_INSTRUCTOR_ENABLED ? (
-          <div style={{ marginBottom: 24 }}>
-            <input type="hidden" name="applicationTrack" value="SUMMER_WORKSHOP_INSTRUCTOR" />
-            <div
-              style={{
-                padding: "12px 14px",
-                borderRadius: 10,
-                background: "#f5f3ff",
-                border: "1px solid #ddd6fe",
-                fontSize: 13,
-                lineHeight: 1.5,
-                color: "#5b21b6",
-              }}
-            >
-              <strong>Now hiring: Summer Workshop Instructors.</strong> We&apos;re focused on
-              staffing a strong summer cohort right now. Lead a focused, high-impact
-              workshop at camp; strong workshop instructors may quickly be considered
-              for full instructor work and instructor mentorship.
-            </div>
-          </div>
+          <input type="hidden" name="applicationTrack" value="SUMMER_WORKSHOP_INSTRUCTOR" />
         ) : (
         <div style={{ marginBottom: 24 }}>
           <div style={SECTION_STYLE}>What are you applying for?</div>
@@ -645,13 +622,7 @@ export default function InstructorSignupPage() {
 
             {isSummerWorkshop && (
               <div style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--background)", marginTop: 12 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Workshop Outline</div>
-                <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 14px", lineHeight: 1.5 }}>
-                  Sketch one focused workshop you&apos;d be ready to lead at camp.
-                  Give reviewers a clear goal, a strong opening hook, an activity
-                  flow, and any space, supply, or safety needs they should plan
-                  around.
-                </p>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14 }}>Workshop Outline</div>
 
                 <label className="form-label">
                   Workshop title
