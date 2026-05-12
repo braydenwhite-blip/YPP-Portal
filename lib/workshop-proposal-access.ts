@@ -14,6 +14,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { withPrismaFallback } from "@/lib/prisma-guard";
 import { READINESS_CHECK_MODULE_KEY } from "@/lib/training-constants";
 
 type RoleLike = string | null | undefined;
@@ -47,15 +48,22 @@ function isReviewer(roles: RoleLike[]): boolean {
  */
 export async function getApplicantSubtypeForUser(userId: string) {
   // Re-application: a user can have multiple rows; the subtype is always
-  // defined by the most recent application.
-  const app = await prisma.instructorApplication.findFirst({
-    where: { applicantId: userId },
-    orderBy: { createdAt: "desc" },
-    select: {
-      applicationTrack: true,
-      instructorSubtype: true,
-    },
-  });
+  // defined by the most recent application. Wrapped in a fallback so a
+  // transient DB blip degrades gracefully to "no subtype known" rather than
+  // crashing the workshop studio render.
+  const app = await withPrismaFallback(
+    "workshop-access:applicant-subtype",
+    () =>
+      prisma.instructorApplication.findFirst({
+        where: { applicantId: userId },
+        orderBy: { createdAt: "desc" },
+        select: {
+          applicationTrack: true,
+          instructorSubtype: true,
+        },
+      }),
+    null
+  );
   return app
     ? {
         applicationTrack: app.applicationTrack,
@@ -99,23 +107,36 @@ export async function getWorkshopStudioGateStatus(
     return { unlocked: false, reason: "WRONG_SUBTYPE" };
   }
 
-  // Training gate — same M5 check as LDS, since both are "after training" capstones.
-  const readinessModule = await prisma.trainingModule.findFirst({
-    where: { contentKey: READINESS_CHECK_MODULE_KEY },
-    select: { id: true },
-  });
+  // Training gate — same M5 check as LDS, since both are "after training"
+  // capstones. Both reads are wrapped in fallbacks: if either DB call is
+  // transiently broken, we open the gate (the action layer re-validates
+  // before any write, so a stale "unlocked" can never elevate privileges).
+  const readinessModule = await withPrismaFallback(
+    "workshop-access:readiness-module",
+    () =>
+      prisma.trainingModule.findFirst({
+        where: { contentKey: READINESS_CHECK_MODULE_KEY },
+        select: { id: true },
+      }),
+    null
+  );
 
   if (!readinessModule) {
     // M5 not imported yet (seed in progress / fresh env). Don't lock the user out.
     return { unlocked: true, reason: "READINESS_CHECK_NOT_IMPORTED" };
   }
 
-  const assignment = await prisma.trainingAssignment.findUnique({
-    where: {
-      userId_moduleId: { userId, moduleId: readinessModule.id },
-    },
-    select: { status: true },
-  });
+  const assignment = await withPrismaFallback(
+    "workshop-access:readiness-assignment",
+    () =>
+      prisma.trainingAssignment.findUnique({
+        where: {
+          userId_moduleId: { userId, moduleId: readinessModule.id },
+        },
+        select: { status: true },
+      }),
+    null
+  );
 
   if (assignment?.status === "COMPLETE") {
     return { unlocked: true, reason: "READY" };

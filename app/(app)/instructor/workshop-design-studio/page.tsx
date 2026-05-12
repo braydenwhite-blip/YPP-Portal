@@ -244,6 +244,7 @@ export default async function WorkshopDesignStudioPage({
               path="CUSTOM_DESIGN"
               continueHref="/instructor/workshop-design-studio/design"
               disabled={!editable}
+              isReviewerPreview={isReviewerPreview}
             />
           </article>
 
@@ -273,6 +274,7 @@ export default async function WorkshopDesignStudioPage({
               path="TEMPLATE_SELECTION"
               continueHref="/instructor/workshop-design-studio/library"
               disabled={!editable}
+              isReviewerPreview={isReviewerPreview}
             />
           </article>
         </div>
