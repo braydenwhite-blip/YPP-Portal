@@ -229,6 +229,13 @@ async function main() {
   // ── Instructor Applicant Workflow V1 seed ──────────────────────────────────
   await seedInstructorApplicantWorkflow(frisch.id, passwordHash, verifiedAt);
 
+  // ── Regular Instructor Assignments demo seed ───────────────────────────────
+  await seedRegularInstructorAssignments({
+    chapterId: frisch.id,
+    instructorId: instructor.id,
+    creatorId: instructor.id,
+  });
+
   const seedAlreadyPresent = await prisma.pathway.findFirst({
     where: { name: SEED_PATHWAY_NAME },
     select: { id: true },
@@ -1002,6 +1009,135 @@ async function seedInstructorApplicantWorkflow(
   }
 
   console.log("Seeded Instructor Applicant Workflow V1 demo data.");
+}
+
+// ── Regular Instructor Assignments demo seed ────────────────────────────────
+// Creates one ClassTemplate + two ClassOfferings + a couple of
+// RegularInstructorAssignment rows so /admin/instructor-assignments has
+// something to show on a fresh seed. Fully idempotent — skips records that
+// already exist.
+async function seedRegularInstructorAssignments(args: {
+  chapterId: string;
+  instructorId: string;
+  creatorId: string;
+}) {
+  const { chapterId, instructorId, creatorId } = args;
+
+  const templateTitle = "Demo: Behavioral Science Foundations";
+
+  const template = await prisma.classTemplate.upsert({
+    where: { id: `seed-template-${chapterId}` },
+    create: {
+      id: `seed-template-${chapterId}`,
+      title: templateTitle,
+      description:
+        "Demo template for /admin/instructor-assignments. Foundational behavioral science class for 7th–9th graders.",
+      interestArea: "Psychology",
+      targetAgeGroup: "12-14",
+      classDurationMin: 60,
+      durationWeeks: 6,
+      sessionsPerWeek: 1,
+      deliveryModes: ["VIRTUAL"],
+      isPublished: true,
+      createdById: creatorId,
+      chapterId,
+    },
+    update: {},
+  });
+
+  const offerings: { id: string; title: string }[] = [];
+  const offeringSeeds = [
+    {
+      id: `seed-offering-${chapterId}-1`,
+      title: "Behavioral Science Foundations — Spring Cohort A",
+      startDateOffsetDays: 7,
+      endDateOffsetDays: 49,
+    },
+    {
+      id: `seed-offering-${chapterId}-2`,
+      title: "Behavioral Science Foundations — Spring Cohort B",
+      startDateOffsetDays: 14,
+      endDateOffsetDays: 56,
+    },
+  ];
+
+  for (const seed of offeringSeeds) {
+    const now = Date.now();
+    const offering = await prisma.classOffering.upsert({
+      where: { id: seed.id },
+      create: {
+        id: seed.id,
+        templateId: template.id,
+        instructorId,
+        title: seed.title,
+        startDate: new Date(now + seed.startDateOffsetDays * 86_400_000),
+        endDate: new Date(now + seed.endDateOffsetDays * 86_400_000),
+        meetingDays: ["Tuesday"],
+        meetingTime: "16:00-17:00",
+        deliveryMode: "VIRTUAL",
+        capacity: 18,
+        status: "DRAFT",
+        chapterId,
+      },
+      update: {},
+    });
+    offerings.push({ id: offering.id, title: offering.title });
+  }
+
+  // First offering: instructor confirmed (LEAD). Second offering: pending
+  // review (LEAD) so admins see both lifecycle states on the dashboard.
+  if (offerings[0]) {
+    await prisma.regularInstructorAssignment.upsert({
+      where: {
+        offeringId_instructorId_role: {
+          offeringId: offerings[0].id,
+          instructorId,
+          role: "LEAD",
+        },
+      },
+      create: {
+        offeringId: offerings[0].id,
+        instructorId,
+        role: "LEAD",
+        status: "FULLY_CONFIRMED",
+        chapterId,
+        classTemplateId: template.id,
+        offeredAt: new Date(),
+        instructorConfirmedAt: new Date(),
+        chapterConfirmedAt: new Date(),
+        adminNotes: "Demo assignment: fully confirmed lead.",
+        instructorNote: "Welcome aboard — class kicks off next week.",
+        createdById: creatorId,
+        updatedById: creatorId,
+      },
+      update: {},
+    });
+  }
+  if (offerings[1]) {
+    await prisma.regularInstructorAssignment.upsert({
+      where: {
+        offeringId_instructorId_role: {
+          offeringId: offerings[1].id,
+          instructorId,
+          role: "LEAD",
+        },
+      },
+      create: {
+        offeringId: offerings[1].id,
+        instructorId,
+        role: "LEAD",
+        status: "PENDING_REVIEW",
+        chapterId,
+        classTemplateId: template.id,
+        adminNotes: "Demo assignment: pending admin review.",
+        createdById: creatorId,
+        updatedById: creatorId,
+      },
+      update: {},
+    });
+  }
+
+  console.log("Seeded regular instructor assignment demo data.");
 }
 
 main()
