@@ -3392,11 +3392,11 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
   },
   {
     pattern: "/admin/instructor-applicants/chair-queue/[applicationId]",
-    title: "Chair Decision Workspace",
+    title: "Chair Decision Redirect",
     content: {
-      purpose: "This admin page shows everything the chair needs to commit a decision on a single applicant.",
-      firstStep: "Read the materials, scores, and review history before drafting the decision.",
-      nextStep: "Commit the decision when you're ready; this notifies the applicant and closes their workflow."
+      purpose: "This old chair decision URL redirects to the final review cockpit.",
+      firstStep: "Let the redirect finish so the current cockpit can load the applicant.",
+      nextStep: "Use the final review cockpit to draft and commit the chair decision."
     }
   },
   {

@@ -596,7 +596,7 @@ function instructorApplicationHref(status: InstructorApplicationStatus, applicat
     case "INTERVIEW_COMPLETED":
       return `/applications/instructor/${applicationId}/interview`;
     case "CHAIR_REVIEW":
-      return "/admin/instructor-applicants/chair-queue";
+      return `/admin/instructor-applicants/${applicationId}/review`;
     default:
       return `/applications/instructor/${applicationId}`;
   }

@@ -156,7 +156,7 @@ export default function ChairQueueBoard({ applications }: Props) {
               <Link
                 key={app.id}
                 aria-label={`Open chair decision for ${displayName}`}
-                href={`/admin/instructor-applicants/chair-queue/${app.id}`}
+                href={`/admin/instructor-applicants/${app.id}/review`}
                 className="chair-queue-row"
               >
                 <div className="chair-queue-applicant">

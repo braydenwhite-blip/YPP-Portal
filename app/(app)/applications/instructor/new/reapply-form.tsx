@@ -339,9 +339,10 @@ export default function ReapplyForm({ isSummerWorkshop, prefill }: Props) {
               Workshop Outline
             </div>
             <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 14px", lineHeight: 1.5 }}>
-              Sketch one short workshop you&apos;d run at a camp. Replaces the full
-              course outline. Most workshops are in person — use the materials
-              section to note space, supply, or safety needs.
+              Sketch one focused workshop you&apos;d be ready to lead at camp.
+              Give reviewers a clear goal, a strong opening hook, an activity
+              flow, and any space, supply, or safety needs they should plan
+              around.
             </p>
 
             <label className="form-label">

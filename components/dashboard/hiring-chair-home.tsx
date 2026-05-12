@@ -4,6 +4,10 @@ import type { HiringChairHomeData } from "@/lib/hiring-chair-home";
 
 const CHAIR_QUEUE_HREF = "/admin/instructor-applicants/chair-queue";
 
+function finalReviewHref(applicationId: string): string {
+  return `/admin/instructor-applicants/${applicationId}/review`;
+}
+
 const ACTION_LABELS: Record<string, string> = {
   APPROVE: "Approved",
   APPROVE_WITH_CONDITIONS: "Approved (conditions)",
@@ -109,14 +113,14 @@ export default function HiringChairHome({
             <h2 style={{ margin: 0 }}>Next decision</h2>
             <p style={{ margin: "6px 0 0", color: "var(--muted)" }}>
               {hasPending
-                ? `Open the Chair Queue to review the oldest application waiting on your decision.`
+                ? `Open the final review cockpit for the oldest application waiting on your decision.`
                 : "There is nothing waiting on a chair decision right now."}
             </p>
           </div>
           <Link
             href={
               oldestWaiting
-                ? `${CHAIR_QUEUE_HREF}/${oldestWaiting.id}`
+                ? finalReviewHref(oldestWaiting.id)
                 : CHAIR_QUEUE_HREF
             }
             className="button"
@@ -181,7 +185,7 @@ export default function HiringChairHome({
               {pending.map((app) => (
                 <li key={app.id}>
                   <Link
-                    href={`${CHAIR_QUEUE_HREF}/${app.id}`}
+                    href={finalReviewHref(app.id)}
                     style={{
                       display: "flex",
                       justifyContent: "space-between",
@@ -249,7 +253,7 @@ export default function HiringChairHome({
                     }}
                   >
                     <Link
-                      href={`${CHAIR_QUEUE_HREF}/${decision.applicationId}`}
+                      href={finalReviewHref(decision.applicationId)}
                       style={{ color: "inherit", textDecoration: "none" }}
                     >
                       <strong>{decision.displayName}</strong>
