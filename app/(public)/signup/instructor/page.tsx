@@ -398,8 +398,11 @@ export default function InstructorSignupPage() {
             <div style={SECTION_STYLE}>Account</div>
 
             <label className="form-label" style={{ marginTop: 0 }}>
-              Full name
-              <input className="input" name="name" placeholder="Your full name" required defaultValue={field(d, "name", sf)} />
+              Preferred name
+              <input className="input" name="name" placeholder="What you'd like reviewers to call you" required defaultValue={field(d, "name", sf)} />
+              <span style={HELPER}>
+                This is the name we use across the portal. You&apos;ll provide your legal name separately in the next section.
+              </span>
             </label>
 
             <label className="form-label">
@@ -447,6 +450,9 @@ export default function InstructorSignupPage() {
             <label className="form-label">
               Legal name
               <input className="input" name="legalName" placeholder="First, middle, and last name" required defaultValue={field(d, "legalName", sf)} />
+              <span style={HELPER}>
+                The name as it appears on your government ID. We use this only for onboarding paperwork if you&apos;re hired — it isn&apos;t shown publicly.
+              </span>
             </label>
 
             <label className="form-label">
@@ -560,12 +566,17 @@ export default function InstructorSignupPage() {
 
             <label className="form-label">
               Teaching or mentoring experience
-              <textarea className="input" name="teachingExperience" rows={isSummerWorkshop ? 3 : 4} required defaultValue={field(d, "teachingExperience", sf)} />
-              {isSummerWorkshop && (
-                <span style={HELPER}>
-                  A short paragraph is fine — focus on classroom, camp, tutoring, or coaching experience.
-                </span>
-              )}
+              <textarea
+                className="input"
+                name="teachingExperience"
+                rows={isSummerWorkshop ? 4 : 4}
+                required
+                placeholder="Walk us through the most relevant teaching, tutoring, coaching, camp, or mentoring experience you have. What did you lead, who were you working with, and what worked well?"
+                defaultValue={field(d, "teachingExperience", sf)}
+              />
+              <span style={HELPER}>
+                Aim for 3–4 sentences (or a few bullets). Specific examples — a class, a club, a camp role, a tutoring streak — help reviewers more than general claims. You don&apos;t need to be polished; clear and concrete is what we&apos;re looking for.
+              </span>
             </label>
 
             {!isSummerWorkshop && (
@@ -666,12 +677,14 @@ export default function InstructorSignupPage() {
                   <textarea
                     className="input"
                     name="workshopLearningGoals"
-                    rows={3}
+                    rows={4}
                     required
-                    placeholder={"One per line. 1–3 short bullets are great.\nExample:\n- Identify a persuasive opening\n- Practice eye contact\n- Deliver a 60-second talk"}
+                    placeholder={"What should students be able to do or understand by the end? List 2–4 concrete goals, one per line.\n\nExample:\n- Identify a persuasive opening\n- Practice eye contact and pacing\n- Deliver a 60-second talk on a topic they care about"}
                     defaultValue={field(d, "workshopLearningGoals", sf)}
                   />
-                  <span style={HELPER}>One per line.</span>
+                  <span style={HELPER}>
+                    2–4 bullets, one per line. Focus on what the student walks away able to do, not what you&apos;ll cover.
+                  </span>
                 </label>
 
                 <label className="form-label">
@@ -679,23 +692,28 @@ export default function InstructorSignupPage() {
                   <textarea
                     className="input"
                     name="workshopActivityFlow"
-                    rows={4}
+                    rows={5}
                     required
-                    placeholder={"Bullet the rough flow of the workshop.\nExample:\n- Hook (5 min)\n- Mini-lesson (10 min)\n- Activity (20 min)\n- Share-outs (10 min)"}
+                    placeholder={"Walk us through the workshop from start to finish — opening, main activity, and closing. A short timestamped outline works well.\n\nExample:\n- Hook & intros (5 min)\n- Mini-lesson on persuasive openings (10 min)\n- Pair practice with feedback (20 min)\n- Share-outs and debrief (10 min)"}
                     defaultValue={field(d, "workshopActivityFlow", sf)}
                   />
+                  <span style={HELPER}>
+                    Roughly 4–6 steps with approximate times. We want to see how you pace the room from open to close.
+                  </span>
                 </label>
 
                 <label className="form-label">
-                  Materials needed
+                  Materials needed <span style={{ color: "var(--muted)", fontWeight: 400 }}>(optional)</span>
                   <textarea
                     className="input"
                     name="workshopMaterialsNeeded"
                     rows={2}
-                    placeholder={"Optional. One per line.\nExample:\n- Index cards\n- Markers"}
+                    placeholder={"Anything beyond chairs and a whiteboard. One per line.\n\nExample:\n- Index cards\n- Markers"}
                     defaultValue={field(d, "workshopMaterialsNeeded", sf)}
                   />
-                  <span style={HELPER}>Optional. One per line.</span>
+                  <span style={HELPER}>
+                    One per line. Leave blank if your workshop doesn&apos;t need anything special.
+                  </span>
                 </label>
 
                 <label className="form-label">
@@ -705,9 +723,12 @@ export default function InstructorSignupPage() {
                     name="workshopEngagementHook"
                     rows={3}
                     required
-                    placeholder="How will you grab attention in the first 5 minutes?"
+                    placeholder="How will you grab attention in the first 5 minutes? Tell us what you'd actually say or do — a story, a question, a quick demo, a challenge."
                     defaultValue={field(d, "workshopEngagementHook", sf)}
                   />
+                  <span style={HELPER}>
+                    A few sentences. The more specific the hook, the easier it is for us to picture you running the room.
+                  </span>
                 </label>
 
                 <label className="form-label">
@@ -717,9 +738,12 @@ export default function InstructorSignupPage() {
                     name="workshopAdaptationNotes"
                     rows={3}
                     required
-                    placeholder="If energy or skill levels are mixed, how do you adapt?"
+                    placeholder="If the energy dips, or a few students are way ahead while others are lost, how do you adjust in the moment?"
                     defaultValue={field(d, "workshopAdaptationNotes", sf)}
                   />
+                  <span style={HELPER}>
+                    3–4 sentences is plenty. A real example from past teaching, tutoring, or leading peers is great here.
+                  </span>
                 </label>
               </div>
             )}
@@ -765,8 +789,17 @@ export default function InstructorSignupPage() {
             </div>
 
             <label className="form-label">
-              Referral emails
-              <textarea className="input" name="referralEmails" rows={3} defaultValue={field(d, "referralEmails", sf)} />
+              References <span style={{ color: "var(--muted)", fontWeight: 400 }}>(optional)</span>
+              <textarea
+                className="input"
+                name="referralEmails"
+                rows={3}
+                placeholder="name@example.com — Teacher, How they know you"
+                defaultValue={field(d, "referralEmails", sf)}
+              />
+              <span style={HELPER}>
+                Emails of 1–2 people who can speak to your teaching, mentoring, or leadership — a teacher, coach, supervisor, club advisor, or chapter leader. Friends and family aren&apos;t a fit. We only reach out if we&apos;re moving forward with your application, and we&apos;ll let you know first.
+              </span>
             </label>
           </div>
 
