@@ -15,6 +15,7 @@ import {
 import {
   normalizeCustomWorkshop,
   normalizeReflection,
+  submissionIssues,
 } from "@/lib/workshop-proposal-validation";
 import type { WorkshopOutline } from "@/lib/summer-workshop";
 import { ReviewDecisionForm } from "./review-form";
@@ -150,6 +151,49 @@ export default async function WorkshopReviewDetailPage({
       ? normalizeCustomWorkshop(submission.customWorkshop)
       : null;
   const reflection = normalizeReflection(submission.reflection);
+  const incompleteIssues = submissionIssues({
+    sourceType: submission.sourceType,
+    custom,
+    reflection,
+    templateId: submission.templateId,
+  });
+
+  // Surface the live assignment state so admins know whether an approved
+  // proposal still needs a placement. Wrapped in withPrismaFallback so a
+  // transient pool blip never breaks the review page.
+  const assignments = await withPrismaFallback(
+    "workshop-review-detail:assignments",
+    () =>
+      prisma.instructorAssignment.findMany({
+        where: {
+          OR: [
+            { proposalId: submission.id },
+            { instructorId: submission.authorId },
+          ],
+          status: { in: ["SUGGESTED", "PENDING", "CONFIRMED", "COMPLETED"] },
+        },
+        orderBy: { assignedAt: "desc" },
+        include: {
+          opportunity: {
+            select: {
+              id: true,
+              title: true,
+              partnerName: true,
+              startDate: true,
+              endDate: true,
+              locationCity: true,
+              locationState: true,
+              status: true,
+            },
+          },
+        },
+      }),
+    () => [] as Awaited<
+      ReturnType<typeof prisma.instructorAssignment.findMany<{
+        include: { opportunity: { select: { id: true; title: true; partnerName: true; startDate: true; endDate: true; locationCity: true; locationState: true; status: true } } };
+      }>>
+    >
+  );
   // After the re-application schema change, `instructorApplications` is a
   // newest-first list (we `take: 1`); pull the active row out for legacy
   // callers below.
@@ -261,6 +305,57 @@ export default async function WorkshopReviewDetailPage({
           submissionId={submission.id}
           status={submission.status}
         />
+      ) : null}
+
+      {incompleteIssues.length > 0 &&
+      isSubmissionReviewable(submission.status) ? (
+        <div
+          className="card"
+          role="alert"
+          style={{
+            marginBottom: 16,
+            borderColor: "#f59e0b",
+            background: "#fffbeb",
+          }}
+        >
+          <p
+            style={{
+              margin: 0,
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#92400e",
+            }}
+          >
+            Proposal is missing {incompleteIssues.length} item
+            {incompleteIssues.length === 1 ? "" : "s"} the applicant should
+            still fix.
+          </p>
+          <ul
+            style={{
+              margin: "8px 0 0 18px",
+              fontSize: 12,
+              color: "#92400e",
+              lineHeight: 1.55,
+            }}
+          >
+            {incompleteIssues.slice(0, 6).map((i) => (
+              <li key={i}>{i}</li>
+            ))}
+            {incompleteIssues.length > 6 ? (
+              <li>…and {incompleteIssues.length - 6} more</li>
+            ) : null}
+          </ul>
+          <p
+            style={{
+              margin: "8px 0 0",
+              fontSize: 12,
+              color: "#92400e",
+            }}
+          >
+            Prefer <strong>Request changes</strong> over Approve so the
+            applicant fills these in before we commit.
+          </p>
+        </div>
       ) : null}
 
       <div
@@ -605,13 +700,140 @@ export default async function WorkshopReviewDetailPage({
           ) : null}
         </article>
 
-        <aside style={{ position: "sticky", top: 16, alignSelf: "start" }}>
+        <aside
+          style={{
+            position: "sticky",
+            top: 16,
+            alignSelf: "start",
+            display: "grid",
+            gap: 16,
+          }}
+        >
           <ReviewDecisionForm
             submissionId={submission.id}
             disabled={!isSubmissionReviewable(submission.status)}
+            incompleteIssues={incompleteIssues}
+          />
+          <AssignmentSidebar
+            submissionStatus={submission.status}
+            assignments={assignments}
           />
         </aside>
       </div>
+    </div>
+  );
+}
+
+function AssignmentSidebar({
+  submissionStatus,
+  assignments,
+}: {
+  submissionStatus: import("@prisma/client").WorkshopProposalSubmissionStatus;
+  assignments: Array<{
+    id: string;
+    status: string;
+    role: string;
+    opportunity: {
+      id: string;
+      title: string;
+      partnerName: string | null;
+      startDate: Date | null;
+      endDate: Date | null;
+      locationCity: string | null;
+      locationState: string | null;
+      status: string;
+    };
+  }>;
+}) {
+  if (submissionStatus !== "APPROVED") {
+    // Pre-approval, assignment isn't actionable; keep the sidebar
+    // focused on the decision form above.
+    return null;
+  }
+  return (
+    <div className="card">
+      <h3 style={{ marginTop: 0, fontSize: 14 }}>Placement</h3>
+      {assignments.length === 0 ? (
+        <>
+          <p
+            style={{
+              margin: 0,
+              fontSize: 13,
+              color: "var(--muted)",
+              lineHeight: 1.55,
+            }}
+          >
+            Approved — not yet matched with a workshop or camp.
+          </p>
+          <Link
+            href="/admin/instructor-assignments"
+            className="button small"
+            style={{
+              display: "inline-block",
+              marginTop: 10,
+              textDecoration: "none",
+            }}
+          >
+            Open assignment board →
+          </Link>
+        </>
+      ) : (
+        <ul
+          style={{
+            listStyle: "none",
+            padding: 0,
+            margin: 0,
+            display: "grid",
+            gap: 10,
+          }}
+        >
+          {assignments.map((a) => (
+            <li
+              key={a.id}
+              style={{
+                border: "1px solid var(--border)",
+                borderRadius: 8,
+                padding: 10,
+              }}
+            >
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>
+                {a.opportunity.title}
+              </p>
+              <p
+                style={{
+                  margin: "2px 0 0",
+                  fontSize: 11,
+                  color: "var(--muted)",
+                  lineHeight: 1.45,
+                }}
+              >
+                {a.opportunity.partnerName ?? ""}
+                {a.opportunity.partnerName &&
+                (a.opportunity.locationCity || a.opportunity.startDate)
+                  ? " · "
+                  : ""}
+                {[a.opportunity.locationCity, a.opportunity.locationState]
+                  .filter(Boolean)
+                  .join(", ")}
+                {a.opportunity.startDate
+                  ? ` · ${new Date(
+                      a.opportunity.startDate
+                    ).toLocaleDateString()}`
+                  : ""}
+              </p>
+              <p
+                style={{
+                  margin: "6px 0 0",
+                  fontSize: 11,
+                  color: "var(--muted)",
+                }}
+              >
+                {a.status} · {a.role}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

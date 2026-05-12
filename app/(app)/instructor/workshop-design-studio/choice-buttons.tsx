@@ -10,7 +10,15 @@ type ChooseWorkshopPathButtonsProps = {
   currentSource: WorkshopProposalSourceType | null;
   path: WorkshopProposalSourceType;
   continueHref: string;
+  /** True when the row is locked (in review, approved, rejected). */
   disabled?: boolean;
+  /**
+   * True when an admin/reviewer is previewing the applicant view. The action
+   * intentionally throws for reviewers, but in production Next.js masks
+   * that thrown message to the generic "Server Components render error"
+   * string. We short-circuit on the client to avoid surfacing that.
+   */
+  isReviewerPreview?: boolean;
 };
 
 export function ChooseWorkshopPathButtons({
@@ -18,6 +26,7 @@ export function ChooseWorkshopPathButtons({
   path,
   continueHref,
   disabled = false,
+  isReviewerPreview = false,
 }: ChooseWorkshopPathButtonsProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -25,7 +34,7 @@ export function ChooseWorkshopPathButtons({
   const isCurrent = currentSource === path;
 
   function handleSelect() {
-    if (disabled) return;
+    if (disabled || isReviewerPreview) return;
     setError(null);
     const fd = new FormData();
     fd.set("sourceType", path);
@@ -35,11 +44,40 @@ export function ChooseWorkshopPathButtons({
         router.push(continueHref);
         router.refresh();
       } catch (err) {
+        const message =
+          err instanceof Error && err.message
+            ? err.message
+            : "Could not switch paths.";
+        // In production, Next.js masks server-action errors to a generic
+        // digest string. Show the user something they can act on instead.
         setError(
-          err instanceof Error ? err.message : "Could not switch paths."
+          message.toLowerCase().includes("server components render")
+            ? "Something went wrong while saving. Refresh the page and try again."
+            : message
         );
       }
     });
+  }
+
+  // Reviewer preview: surface a clearly read-only state instead of a button
+  // that would call a server action that intentionally throws for reviewers.
+  if (isReviewerPreview) {
+    return (
+      <div style={{ marginTop: 8 }}>
+        <span
+          className="pill pill-small"
+          style={{
+            background: "#f5f3ff",
+            color: "#5b21b6",
+            border: "1px solid #c4b5fd",
+            display: "inline-block",
+            fontSize: 12,
+          }}
+        >
+          Applicant action — preview only
+        </span>
+      </div>
+    );
   }
 
   if (isCurrent) {

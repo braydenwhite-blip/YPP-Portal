@@ -359,6 +359,26 @@ export async function getOrCreateApplicantSubmission() {
 }
 
 /**
+ * Read-only page helper that returns the applicant's submission for display
+ * without throwing if auth/gate hiccups happen. Safe to call from server
+ * components for context — never use for writes (use the action-layer
+ * variants which re-validate the gate explicitly).
+ */
+export async function readApplicantSubmissionSafe() {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) return null;
+    const userId = session.user.id;
+    return await prisma.workshopProposalSubmission.findUnique({
+      where: { authorId: userId },
+    });
+  } catch (error) {
+    console.error("[workshop-studio] readApplicantSubmissionSafe failed", error);
+    return null;
+  }
+}
+
+/**
  * Applicant chooses a path. Switches the submission's sourceType, blanking
  * the unused payload so old data never leaks into the new flow.
  */
