@@ -233,6 +233,19 @@ async function main() {
   // ── Leadership Action Center seed ──────────────────────────────────────────
   await seedLeadershipActionCenter();
 
+  // ── Instructor Assignment System (Phase 1) seed ────────────────────────────
+  await seedInstructorAssignmentDemoData({
+    frischChapterId: frisch.id,
+    bostonChapterId: boston.id,
+  });
+
+  // ── Regular Instructor Assignments demo seed ───────────────────────────────
+  await seedRegularInstructorAssignments({
+    chapterId: frisch.id,
+    instructorId: instructor.id,
+    creatorId: instructor.id,
+  });
+
   const seedAlreadyPresent = await prisma.pathway.findFirst({
     where: { name: SEED_PATHWAY_NAME },
     select: { id: true },
@@ -1199,6 +1212,264 @@ async function seedLeadershipActionCenter() {
   }
 
   console.log("Seeded Leadership Action Center demo tasks + meetings.");
+}
+
+// ── Instructor Assignment System (Phase 1) ────────────────────────────────────
+// Adds a few WorkshopOpportunity rows + sample InstructorAssignments so the
+// admin board has something to render out-of-the-box. Idempotent: re-running
+// the seed updates the same rows by deterministic title+partner.
+async function seedInstructorAssignmentDemoData(input: {
+  frischChapterId: string;
+  bostonChapterId: string;
+}) {
+  const adminOwner = await prisma.user.findUnique({
+    where: { email: "brayden.white@youthpassionproject.org" },
+    select: { id: true },
+  });
+  const instructorAvery = await prisma.user.findUnique({
+    where: { email: "avery.lin@youthpassionproject.org" },
+    select: { id: true },
+  });
+  if (!adminOwner || !instructorAvery) {
+    console.log("Skipping assignment-system seed (admin/instructor not found).");
+    return;
+  }
+
+  const opportunitySeeds = [
+    {
+      title: "Summer of Physics — Lincoln Academy",
+      partnerName: "Lincoln Summer Academy",
+      type: "SUMMER_CAMP" as const,
+      status: "OPEN" as const,
+      urgency: "HIGH" as const,
+      deliveryMode: "IN_PERSON" as const,
+      description:
+        "Two-week residential physics camp for rising 7th-9th graders. Need lead + assistant.",
+      locationName: "Lincoln Academy Campus",
+      locationCity: "Boston",
+      locationState: "MA",
+      locationCountry: "USA",
+      startDate: new Date("2026-07-13T13:00:00.000Z"),
+      endDate: new Date("2026-07-24T21:00:00.000Z"),
+      fillByDate: new Date("2026-06-15T00:00:00.000Z"),
+      slotsNeeded: 2,
+      ageGroup: "Grades 7-9",
+      topicTags: ["physics", "stem", "summer"],
+      chapterId: input.bostonChapterId,
+    },
+    {
+      title: "Code Together — Online Workshop Series",
+      partnerName: "YPP Internal",
+      type: "ONLINE_WORKSHOP" as const,
+      status: "OPEN" as const,
+      urgency: "NORMAL" as const,
+      deliveryMode: "VIRTUAL" as const,
+      description:
+        "Six-session evening online workshop teaching Python fundamentals. Need one instructor.",
+      locationCountry: "USA",
+      startDate: new Date("2026-06-08T00:00:00.000Z"),
+      endDate: new Date("2026-07-13T00:00:00.000Z"),
+      fillByDate: new Date("2026-05-25T00:00:00.000Z"),
+      slotsNeeded: 1,
+      ageGroup: "Ages 12-15",
+      topicTags: ["coding", "python", "online"],
+    },
+    {
+      title: "Frisch Maker Festival",
+      partnerName: "The Frisch School",
+      type: "ONE_TIME_WORKSHOP" as const,
+      status: "OPEN" as const,
+      urgency: "URGENT" as const,
+      deliveryMode: "IN_PERSON" as const,
+      description:
+        "One-day maker festival. Need three instructor leads for hands-on stations.",
+      locationName: "The Frisch School",
+      locationCity: "New York",
+      locationState: "NY",
+      locationCountry: "USA",
+      startDate: new Date("2026-05-30T14:00:00.000Z"),
+      endDate: new Date("2026-05-30T22:00:00.000Z"),
+      fillByDate: new Date("2026-05-20T00:00:00.000Z"),
+      slotsNeeded: 3,
+      ageGroup: "Grades 4-8",
+      topicTags: ["maker", "robotics", "engineering"],
+      chapterId: input.frischChapterId,
+    },
+  ];
+
+  for (const seed of opportunitySeeds) {
+    const existing = await prisma.workshopOpportunity.findFirst({
+      where: { title: seed.title },
+      select: { id: true },
+    });
+    if (existing) {
+      await prisma.workshopOpportunity.update({
+        where: { id: existing.id },
+        data: { ...seed, ownerId: adminOwner.id, createdById: adminOwner.id },
+      });
+    } else {
+      await prisma.workshopOpportunity.create({
+        data: { ...seed, ownerId: adminOwner.id, createdById: adminOwner.id },
+      });
+    }
+  }
+
+  // Sample assignment: put Avery as SUGGESTED on the Frisch festival so the
+  // admin board shows partial coverage out of the box.
+  const frischFestival = await prisma.workshopOpportunity.findFirst({
+    where: { title: "Frisch Maker Festival" },
+    select: { id: true },
+  });
+  if (frischFestival) {
+    await prisma.instructorAssignment.upsert({
+      where: {
+        opportunityId_instructorId: {
+          opportunityId: frischFestival.id,
+          instructorId: instructorAvery.id,
+        },
+      },
+      create: {
+        opportunityId: frischFestival.id,
+        instructorId: instructorAvery.id,
+        role: "LEAD_INSTRUCTOR",
+        status: "PENDING",
+        assignedById: adminOwner.id,
+        internalNotes: "Reached out via Slack DM 2 days ago — awaiting confirmation.",
+      },
+      update: {},
+    });
+  }
+
+  console.log("Seeded Instructor Assignment System Phase 1 demo data.");
+}
+
+// ── Regular Instructor Assignments demo seed ────────────────────────────────
+// Creates one ClassTemplate + two ClassOfferings + a couple of
+// RegularInstructorAssignment rows so /admin/instructor-assignments has
+// something to show on a fresh seed. Fully idempotent — skips records that
+// already exist.
+async function seedRegularInstructorAssignments(args: {
+  chapterId: string;
+  instructorId: string;
+  creatorId: string;
+}) {
+  const { chapterId, instructorId, creatorId } = args;
+
+  const templateTitle = "Demo: Behavioral Science Foundations";
+
+  const template = await prisma.classTemplate.upsert({
+    where: { id: `seed-template-${chapterId}` },
+    create: {
+      id: `seed-template-${chapterId}`,
+      title: templateTitle,
+      description:
+        "Demo template for /admin/instructor-assignments. Foundational behavioral science class for 7th–9th graders.",
+      interestArea: "Psychology",
+      targetAgeGroup: "12-14",
+      classDurationMin: 60,
+      durationWeeks: 6,
+      sessionsPerWeek: 1,
+      deliveryModes: ["VIRTUAL"],
+      isPublished: true,
+      createdById: creatorId,
+      chapterId,
+    },
+    update: {},
+  });
+
+  const offerings: { id: string; title: string }[] = [];
+  const offeringSeeds = [
+    {
+      id: `seed-offering-${chapterId}-1`,
+      title: "Behavioral Science Foundations — Spring Cohort A",
+      startDateOffsetDays: 7,
+      endDateOffsetDays: 49,
+    },
+    {
+      id: `seed-offering-${chapterId}-2`,
+      title: "Behavioral Science Foundations — Spring Cohort B",
+      startDateOffsetDays: 14,
+      endDateOffsetDays: 56,
+    },
+  ];
+
+  for (const seed of offeringSeeds) {
+    const now = Date.now();
+    const offering = await prisma.classOffering.upsert({
+      where: { id: seed.id },
+      create: {
+        id: seed.id,
+        templateId: template.id,
+        instructorId,
+        title: seed.title,
+        startDate: new Date(now + seed.startDateOffsetDays * 86_400_000),
+        endDate: new Date(now + seed.endDateOffsetDays * 86_400_000),
+        meetingDays: ["Tuesday"],
+        meetingTime: "16:00-17:00",
+        deliveryMode: "VIRTUAL",
+        capacity: 18,
+        status: "DRAFT",
+        chapterId,
+      },
+      update: {},
+    });
+    offerings.push({ id: offering.id, title: offering.title });
+  }
+
+  // First offering: instructor confirmed (LEAD). Second offering: pending
+  // review (LEAD) so admins see both lifecycle states on the dashboard.
+  if (offerings[0]) {
+    await prisma.regularInstructorAssignment.upsert({
+      where: {
+        offeringId_instructorId_role: {
+          offeringId: offerings[0].id,
+          instructorId,
+          role: "LEAD",
+        },
+      },
+      create: {
+        offeringId: offerings[0].id,
+        instructorId,
+        role: "LEAD",
+        status: "FULLY_CONFIRMED",
+        chapterId,
+        classTemplateId: template.id,
+        offeredAt: new Date(),
+        instructorConfirmedAt: new Date(),
+        chapterConfirmedAt: new Date(),
+        adminNotes: "Demo assignment: fully confirmed lead.",
+        instructorNote: "Welcome aboard — class kicks off next week.",
+        createdById: creatorId,
+        updatedById: creatorId,
+      },
+      update: {},
+    });
+  }
+  if (offerings[1]) {
+    await prisma.regularInstructorAssignment.upsert({
+      where: {
+        offeringId_instructorId_role: {
+          offeringId: offerings[1].id,
+          instructorId,
+          role: "LEAD",
+        },
+      },
+      create: {
+        offeringId: offerings[1].id,
+        instructorId,
+        role: "LEAD",
+        status: "PENDING_REVIEW",
+        chapterId,
+        classTemplateId: template.id,
+        adminNotes: "Demo assignment: pending admin review.",
+        createdById: creatorId,
+        updatedById: creatorId,
+      },
+      update: {},
+    });
+  }
+
+  console.log("Seeded regular instructor assignment demo data.");
 }
 
 main()

@@ -769,6 +769,19 @@ export const NAV_CATALOG: NavLink[] = [
       icon: "👩‍🏫",
       roles: ADMIN_ONLY,
     },
+    {
+      href: "/admin/instructor-assignments",
+      label: "Instructor Assignments",
+      icon: "🧩",
+      roles: ADMIN_ONLY,
+      dashboardDescription: "Assign regular instructors to class offerings and track coverage.",
+      dashboardPriority: 5,
+      searchAliases: [
+        "Regular Instructor Assignments",
+        "Class Coverage",
+        "Instructor Coverage",
+      ],
+    },
     { href: "/admin/bulk-users", label: "Bulk Users", icon: "👥", roles: ADMIN_ONLY },
     {
       href: "/admin/parent-approvals",
@@ -904,6 +917,20 @@ export const NAV_CATALOG: NavLink[] = [
       roles: ["ADMIN", "CHAPTER_PRESIDENT"] as NavRole[],
       dashboardDescription: "Score Summer Workshop Instructor proposals and committed decisions.",
       dashboardPriority: 9,
+    },
+    {
+      href: "/admin/opportunities",
+      label: "Workshop & Camp Assignments",
+      icon: "🎯",
+      roles: ADMIN_ONLY,
+      dashboardDescription: "Manage partner camps and workshops, see uncovered slots, and assign instructors.",
+      dashboardPriority: 9,
+      searchAliases: [
+        "Opportunities",
+        "Camp Assignments",
+        "Instructor Assignments",
+        "Workshop Assignments",
+      ],
     },
   ]),
 
