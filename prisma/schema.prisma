@@ -1269,6 +1269,14 @@ model User {
   workshopProposalSubmissionsReviewed WorkshopProposalSubmission[] @relation("WorkshopProposalSubmissionsReviewed")
   workshopProposalReviews           WorkshopProposalReview[]     @relation("WorkshopProposalReviewsAuthored")
 
+  // Leadership Action Center
+  leadershipActionItemsOwned        LeadershipActionItem[]        @relation("LeadershipActionItemsOwned")
+  leadershipActionItemsCreated      LeadershipActionItem[]        @relation("LeadershipActionItemsCreated")
+  leadershipActionItemsUpdated      LeadershipActionItem[]        @relation("LeadershipActionItemsUpdated")
+  leadershipActionItemInputRoles    LeadershipActionItemInput[]   @relation("LeadershipActionItemInputUser")
+  leadershipActionItemUpdates       LeadershipActionItemUpdate[]  @relation("LeadershipActionItemUpdateAuthor")
+  leadershipMeetingsOwned           LeadershipMeeting[]           @relation("LeadershipMeetingsOwner")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -11314,4 +11322,183 @@ model WorkshopProposalReview {
   @@index([submissionId])
   @@index([reviewerId])
   @@index([overallRecommendation])
+}
+
+// ============================================
+// LEADERSHIP ACTION CENTER
+// Internal operating-rhythm tracker that turns the spreadsheet + weekly
+// email update into structured tasks the portal can read off of.
+// ============================================
+
+enum LeadershipActionCategory {
+  INSTRUCTION
+  TECHNOLOGY
+  COMMUNICATION
+  STAFF_MANAGEMENT
+}
+
+enum LeadershipActionStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  BLOCKED
+  COMPLETE
+}
+
+enum LeadershipActionPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum LeadershipActionSource {
+  MANUAL
+  SPREADSHEET
+  EMAIL
+  IMPORT
+}
+
+enum LeadershipMeetingKind {
+  OFFICERS
+  MARKETING
+  TECH
+  INSTRUCTION
+  STAFF
+  OTHER
+}
+
+enum LeadershipActionUpdateKind {
+  COMMENT
+  STATUS_CHANGE
+  ASSIGNEE_CHANGE
+  DEADLINE_CHANGE
+  CREATED
+  IMPORTED
+}
+
+/// Recurring or one-off leadership meeting (Officers, Marketing, Tech, etc.)
+/// Tasks attach to a meeting so the meeting prep view can surface them and
+/// build a suggested agenda from the live tracker.
+model LeadershipMeeting {
+  id          String                @id @default(cuid())
+  title       String
+  kind        LeadershipMeetingKind @default(OFFICERS)
+  scheduledAt DateTime?
+  notes       String?               @db.Text
+  ownerId     String?
+  owner       User?                 @relation("LeadershipMeetingsOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  archivedAt  DateTime?
+  actionItems LeadershipActionItem[] @relation("LeadershipActionItemMeeting")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([kind, scheduledAt])
+  @@index([scheduledAt])
+}
+
+/// One row per action item in the leadership tracker. Replaces the columns
+/// of the "Action Items Tracker" spreadsheet (Category, Item, Deadline,
+/// Primary Owners, Get Input From, Status, Needs Officer Discussion?,
+/// Officer Discussion Date) with structured fields the portal can query.
+///
+/// `weekStart` is the Monday of the operating week the task is attached to;
+/// the weekly digest groups by this date.
+model LeadershipActionItem {
+  id          String                  @id @default(cuid())
+  title       String
+  description String?                 @db.Text
+  category    LeadershipActionCategory @default(INSTRUCTION)
+  status      LeadershipActionStatus   @default(NOT_STARTED)
+  priority    LeadershipActionPriority @default(NORMAL)
+  source      LeadershipActionSource   @default(MANUAL)
+  /// Free-text label for the source row (spreadsheet row #, email subject, etc.)
+  sourceLabel String?
+  /// Free-text notes about how the row was imported.
+  sourceNotes String?                 @db.Text
+
+  /// Calendar deadline for the task. Used for due-today / due-this-week
+  /// filters and the weekly digest grouping.
+  dueDate     DateTime?
+  /// Monday of the operating week the task belongs to. Optional so backlog
+  /// items can exist without a week assignment.
+  weekStart   DateTime?
+
+  /// Officer-discussion flag + the meeting it should be discussed at.
+  needsOfficerDiscussion Boolean   @default(false)
+  officerDiscussionDate  DateTime?
+
+  /// Optional link to a structured meeting record (Officers, Tech, etc.).
+  meetingId   String?
+  meeting     LeadershipMeeting? @relation("LeadershipActionItemMeeting", fields: [meetingId], references: [id], onDelete: SetNull)
+
+  /// Primary owner is a single user (the row in the spreadsheet usually
+  /// names one accountable person). Additional owners can be tracked via
+  /// the secondaryOwners string list to avoid an extra join table for v1.
+  primaryOwnerId  String?
+  primaryOwner    User?    @relation("LeadershipActionItemsOwned", fields: [primaryOwnerId], references: [id], onDelete: SetNull)
+  /// Free-text fallback for owners that are not yet portal users.
+  ownerNames      String[] @default([])
+
+  /// Plain-text "input needed from" fallback when the people are not yet
+  /// portal users. Structured `inputNeededFrom` rows below cover users.
+  inputNeededNames String[] @default([])
+
+  /// Notes / blocker description shown in the table and digest.
+  notes        String? @db.Text
+  /// True when the task has been completed.
+  completedAt  DateTime?
+
+  createdById  String?
+  createdBy    User?  @relation("LeadershipActionItemsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById  String?
+  updatedBy    User?  @relation("LeadershipActionItemsUpdated", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  archivedAt DateTime?
+
+  inputNeededFrom LeadershipActionItemInput[]   @relation("LeadershipActionItemInputItem")
+  updates         LeadershipActionItemUpdate[]  @relation("LeadershipActionItemUpdateItem")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, dueDate])
+  @@index([category, status])
+  @@index([weekStart, status])
+  @@index([primaryOwnerId, status])
+  @@index([needsOfficerDiscussion, officerDiscussionDate])
+  @@index([meetingId])
+  @@index([archivedAt])
+}
+
+/// Many-to-many link between an action item and the users who should give
+/// input on it. Kept separate from `inputNeededNames` (free-text fallback)
+/// so structured users can be filtered/notified independently.
+model LeadershipActionItemInput {
+  id           String @id @default(cuid())
+  actionItemId String
+  actionItem   LeadershipActionItem @relation("LeadershipActionItemInputItem", fields: [actionItemId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User                  @relation("LeadershipActionItemInputUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([actionItemId, userId])
+  @@index([userId])
+}
+
+/// Activity log + comments for an action item. `kind` lets the UI render
+/// human comments differently from system events (status changes, etc.).
+model LeadershipActionItemUpdate {
+  id           String @id @default(cuid())
+  actionItemId String
+  actionItem   LeadershipActionItem @relation("LeadershipActionItemUpdateItem", fields: [actionItemId], references: [id], onDelete: Cascade)
+  authorId     String?
+  author       User?                @relation("LeadershipActionItemUpdateAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  kind         LeadershipActionUpdateKind @default(COMMENT)
+  body         String                     @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([actionItemId, createdAt])
 }
