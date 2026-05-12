@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { Prisma } from "@prisma/client";
+import { Prisma, RegularInstructorAssignmentStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { withPrismaFallback } from "@/lib/prisma-guard";
 import { requireAdmin } from "@/lib/authorization-helpers";
@@ -51,20 +51,20 @@ function revalidateAssignmentSurfaces(offeringId?: string) {
 }
 
 /** Statuses that count as "the offering is covered by this instructor". */
-const ACTIVE_COVERAGE_STATUSES = [
+const ACTIVE_COVERAGE_STATUSES: RegularInstructorAssignmentStatus[] = [
   "INSTRUCTOR_CONFIRMED",
   "CHAPTER_CONFIRMED",
   "FULLY_CONFIRMED",
   "OFFERED",
   "PENDING_REVIEW",
-] as const;
+];
 
 /** Statuses that count as "fully confirmed and counted toward load". */
-const CONFIRMED_STATUSES = [
+const CONFIRMED_STATUSES: RegularInstructorAssignmentStatus[] = [
   "INSTRUCTOR_CONFIRMED",
   "CHAPTER_CONFIRMED",
   "FULLY_CONFIRMED",
-] as const;
+];
 
 // Display labels live in lib/regular-instructor-assignments-display.ts —
 // "use server" modules cannot export synchronous helpers.
@@ -339,13 +339,13 @@ export async function getAssignmentDashboardRows(args?: {
 
   const rows = offerings.map((o) => {
     const activeAssignments = o.regularInstructorAssignments.filter((a) =>
-      (ACTIVE_COVERAGE_STATUSES as readonly string[]).includes(a.status)
+      ACTIVE_COVERAGE_STATUSES.includes(a.status)
     );
     const hasLead =
       activeAssignments.some((a) => a.role === "LEAD") ||
       Boolean(o.instructor); // legacy singular pointer counts as lead
     const confirmedCount = o.regularInstructorAssignments.filter((a) =>
-      (CONFIRMED_STATUSES as readonly string[]).includes(a.status)
+      CONFIRMED_STATUSES.includes(a.status)
     ).length;
     const coverageState: "UNCOVERED" | "PARTIAL" | "COVERED" = !hasLead
       ? "UNCOVERED"
@@ -493,7 +493,7 @@ export async function rankInstructorsForOffering(args: {
       by: ["instructorId"],
       where: {
         instructorId: { in: instructorIds },
-        status: { in: ACTIVE_COVERAGE_STATUSES as unknown as string[] },
+        status: { in: ACTIVE_COVERAGE_STATUSES },
       },
       _count: { _all: true },
     }),
@@ -501,7 +501,7 @@ export async function rankInstructorsForOffering(args: {
 
   const loadByInstructor = new Map<string, number>();
   for (const row of loadCounts) {
-    loadByInstructor.set(row.instructorId, row._count._all);
+    loadByInstructor.set(row.instructorId, row._count?._all ?? 0);
   }
 
   const matches: InstructorMatch[] = instructors.map((inst) => {
