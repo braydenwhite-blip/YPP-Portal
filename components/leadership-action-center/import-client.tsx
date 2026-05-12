@@ -303,7 +303,7 @@ export default function ImportClient({
             <div style={{ padding: 18 }}>
               <h3 style={{ margin: 0, fontSize: 15 }}>4 · Review {preview.rows.length} rows</h3>
               <p style={{ fontSize: 13, color: "#64748b", margin: "6px 0 0" }}>
-                Uncheck rows you don't want to import. Duplicates of existing tasks are
+                Uncheck rows you don&rsquo;t want to import. Duplicates of existing tasks are
                 pre-excluded. Rows with warnings are still safe to import.
               </p>
               {preview.duplicateRowNumbers.length > 0 && (

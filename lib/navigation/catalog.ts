@@ -986,5 +986,20 @@ export const NAV_CATALOG: NavLink[] = [
     },
     { href: "/admin/alumni", label: "Manage Alumni", icon: "🎓", roles: ADMIN_ONLY },
     { href: "/admin/unlock-approvals", label: "Unlock Approvals", icon: "🔓", roles: ADMIN_ONLY, dashboardDescription: "Review and approve section unlock recommendations from mentors." },
+    {
+      href: "/admin/action-center",
+      label: "Action Center",
+      icon: "🎯",
+      roles: ["ADMIN", "STAFF"] as NavRole[],
+      searchAliases: [
+        "Leadership Action Center",
+        "Officer Operations",
+        "Weekly Action Tracker",
+        "Action Items",
+      ],
+      dashboardDescription:
+        "Officer operating rhythm: tasks, weekly digest, meetings, and the live tracker that replaces the spreadsheet+email workflow.",
+      dashboardPriority: 3,
+    },
   ]),
 ];

@@ -1,6 +1,7 @@
 import "dotenv/config";
 import {
   PrismaClient,
+  Prisma,
   AdminSubtype,
   CourseFormat,
   CourseLevel,
@@ -228,6 +229,9 @@ async function main() {
 
   // ── Instructor Applicant Workflow V1 seed ──────────────────────────────────
   await seedInstructorApplicantWorkflow(frisch.id, passwordHash, verifiedAt);
+
+  // ── Leadership Action Center seed ──────────────────────────────────────────
+  await seedLeadershipActionCenter();
 
   const seedAlreadyPresent = await prisma.pathway.findFirst({
     where: { name: SEED_PATHWAY_NAME },
@@ -1002,6 +1006,199 @@ async function seedInstructorApplicantWorkflow(
   }
 
   console.log("Seeded Instructor Applicant Workflow V1 demo data.");
+}
+
+// ── Leadership Action Center demo data ────────────────────────────────────
+async function seedLeadershipActionCenter() {
+  const existing = await prisma.leadershipActionItem.count();
+  if (existing > 0) {
+    console.log("Leadership Action Center: existing tasks present, skipping seed.");
+    return;
+  }
+
+  const brayden = await prisma.user.findUnique({
+    where: { email: "brayden.white@youthpassionproject.org" },
+    select: { id: true, name: true },
+  });
+  const anthea = await prisma.user.findUnique({
+    where: { email: "anthea.zamir@youthpassionproject.org" },
+    select: { id: true, name: true },
+  });
+
+  // Use upcoming Monday as the operating week start so the "this week" view
+  // immediately shows the demo content regardless of when the seed runs.
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dayOfWeek = today.getDay();
+  const offsetToMonday = (dayOfWeek + 6) % 7;
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - offsetToMonday);
+
+  function dayOfWeekDate(weekdayIndex: number) {
+    // 0 = Mon, 6 = Sun
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + weekdayIndex);
+    return d;
+  }
+
+  // Meetings ----------------------------------------------------------------
+  const officersMeeting = await prisma.leadershipMeeting.create({
+    data: {
+      title: "Officers weekly sync",
+      kind: "OFFICERS",
+      scheduledAt: dayOfWeekDate(2), // Wednesday
+      ownerId: anthea?.id,
+      notes: "Standing officers meeting. Bring decisions, blockers, and items needing officer input.",
+    },
+  });
+  const marketingMeeting = await prisma.leadershipMeeting.create({
+    data: {
+      title: "Marketing & comms",
+      kind: "MARKETING",
+      scheduledAt: dayOfWeekDate(3), // Thursday
+      ownerId: brayden?.id,
+      notes: "Editorial review, social pipeline, newsletter cadence.",
+    },
+  });
+  await prisma.leadershipMeeting.create({
+    data: {
+      title: "Tech team standup",
+      kind: "TECH",
+      scheduledAt: dayOfWeekDate(1), // Tuesday
+      ownerId: brayden?.id,
+      notes: "Portal release planning, bug triage, infra updates.",
+    },
+  });
+
+  // Action items ------------------------------------------------------------
+  const items: Prisma.LeadershipActionItemUncheckedCreateInput[] = [
+    {
+      title: "Email all summer camps about partnership",
+      description: "Send the partnership pitch + scheduling form to the camp directors list.",
+      category: "COMMUNICATION",
+      status: "IN_PROGRESS",
+      priority: "HIGH",
+      source: "SPREADSHEET",
+      sourceLabel: "Action Items Tracker · Week of " + weekStart.toLocaleDateString(),
+      dueDate: dayOfWeekDate(1),
+      weekStart,
+      primaryOwnerId: brayden?.id,
+      ownerNames: brayden?.name ? [] : ["Brayden"],
+      inputNeededNames: ["Anthea"],
+      notes: "List is in the partnerships tracker; reuse last summer's template.",
+      meetingId: marketingMeeting.id,
+    },
+    {
+      title: "Find Scarsdale instructor applications",
+      category: "INSTRUCTION",
+      status: "NOT_STARTED",
+      priority: "HIGH",
+      source: "SPREADSHEET",
+      dueDate: dayOfWeekDate(2),
+      weekStart,
+      primaryOwnerId: anthea?.id,
+      ownerNames: anthea?.name ? [] : ["Anthea"],
+      needsOfficerDiscussion: true,
+      officerDiscussionDate: dayOfWeekDate(2),
+      notes: "Need to confirm if forms are still on the legacy Google Drive folder.",
+      meetingId: officersMeeting.id,
+    },
+    {
+      title: "Test the portal for instructor signup",
+      category: "TECHNOLOGY",
+      status: "IN_PROGRESS",
+      priority: "NORMAL",
+      source: "SPREADSHEET",
+      dueDate: dayOfWeekDate(3),
+      weekStart,
+      primaryOwnerId: brayden?.id,
+      inputNeededNames: ["Engineering team"],
+      notes: "Walk through every step end-to-end; capture any UX rough edges.",
+    },
+    {
+      title: "Create social media templates",
+      category: "COMMUNICATION",
+      status: "NOT_STARTED",
+      priority: "NORMAL",
+      source: "EMAIL",
+      sourceLabel: "Weekly update — May",
+      dueDate: dayOfWeekDate(5),
+      weekStart,
+      ownerNames: ["Comms team"],
+      meetingId: marketingMeeting.id,
+    },
+    {
+      title: "Centralize parent / student / instructor records",
+      category: "STAFF_MANAGEMENT",
+      status: "BLOCKED",
+      priority: "URGENT",
+      source: "SPREADSHEET",
+      dueDate: dayOfWeekDate(6),
+      weekStart,
+      primaryOwnerId: anthea?.id,
+      inputNeededNames: ["Brayden"],
+      needsOfficerDiscussion: true,
+      officerDiscussionDate: dayOfWeekDate(2),
+      notes: "Blocked on whether to consolidate inside the portal or stay on Airtable.",
+      meetingId: officersMeeting.id,
+    },
+    {
+      title: "Finalize interview questions",
+      category: "INSTRUCTION",
+      status: "IN_PROGRESS",
+      priority: "HIGH",
+      source: "SPREADSHEET",
+      dueDate: dayOfWeekDate(1),
+      weekStart,
+      ownerNames: ["Hiring chair"],
+      inputNeededNames: ["Anthea"],
+      meetingId: officersMeeting.id,
+    },
+    {
+      title: "Draft G&R templates",
+      category: "COMMUNICATION",
+      status: "NOT_STARTED",
+      priority: "HIGH",
+      source: "SPREADSHEET",
+      dueDate: dayOfWeekDate(4),
+      weekStart,
+      primaryOwnerId: brayden?.id,
+      needsOfficerDiscussion: true,
+      officerDiscussionDate: dayOfWeekDate(2),
+      meetingId: officersMeeting.id,
+      notes: "Draft for both the mentor and chapter-president roles.",
+    },
+    {
+      title: "Create newsletter templates",
+      category: "COMMUNICATION",
+      status: "NOT_STARTED",
+      priority: "NORMAL",
+      source: "EMAIL",
+      dueDate: dayOfWeekDate(5),
+      weekStart,
+      ownerNames: ["Comms team"],
+      meetingId: marketingMeeting.id,
+    },
+  ];
+
+  for (const data of items) {
+    await prisma.leadershipActionItem.create({
+      data: {
+        ...data,
+        createdById: brayden?.id ?? null,
+        updatedById: brayden?.id ?? null,
+        updates: {
+          create: {
+            authorId: brayden?.id ?? null,
+            kind: "CREATED",
+            body: "Imported from the seed dataset",
+          },
+        },
+      },
+    });
+  }
+
+  console.log("Seeded Leadership Action Center demo tasks + meetings.");
 }
 
 main()
