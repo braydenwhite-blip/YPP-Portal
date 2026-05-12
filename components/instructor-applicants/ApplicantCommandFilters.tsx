@@ -97,6 +97,20 @@ export default function ApplicantCommandFilters({
         </select>
       )}
 
+      {/* Source filter — PORTAL / GOOGLE_FORMS / CSV_IMPORT / MANUAL_ADMIN_ENTRY */}
+      <select
+        className="input applicant-command-select"
+        value={getParam("source")}
+        onChange={(e) => setParam("source", e.target.value)}
+        aria-label="Filter by application source"
+      >
+        <option value="">Any source</option>
+        <option value="portal">Portal</option>
+        <option value="google_forms">Google Forms</option>
+        <option value="csv_import">CSV Import</option>
+        <option value="manual">Manual Admin Entry</option>
+      </select>
+
       {/* Toggle chips */}
       <button
         type="button"

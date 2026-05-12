@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { prisma } from "@/lib/prisma";
-import { ApplicationTrack } from "@prisma/client";
+import { ApplicationTrack, ApplicationSource } from "@prisma/client";
 import { isInstructorApplicantWorkflowV1Enabled } from "@/lib/feature-flags";
 import { canSeeChairQueue } from "@/lib/chapter-hiring-permissions";
 import {
@@ -115,6 +115,20 @@ export default async function AdminInstructorApplicantsPage({
       ? ApplicationTrack.STANDARD_INSTRUCTOR
       : undefined;
 
+  // Source filter: ?source=portal | google_forms | csv_import | manual.
+  // Omit/invalid = all sources (PORTAL + every external channel).
+  const sourceParamRaw = (resolvedParams.source as string | undefined)?.toLowerCase();
+  const sourceFilter: ApplicationSource | undefined =
+    sourceParamRaw === "portal"
+      ? ApplicationSource.PORTAL
+      : sourceParamRaw === "google_forms"
+        ? ApplicationSource.GOOGLE_FORMS
+        : sourceParamRaw === "csv_import"
+          ? ApplicationSource.CSV_IMPORT
+          : sourceParamRaw === "manual" || sourceParamRaw === "manual_admin_entry"
+            ? ApplicationSource.MANUAL_ADMIN_ENTRY
+            : undefined;
+
   // HIRING_CHAIRs share ADMIN's network-wide scope so they can see prior
   // reviews and chapter peers before deciding. Pure CP scope still narrows
   // to a single chapter via `chapterId` above.
@@ -132,6 +146,7 @@ export default async function AdminInstructorApplicantsPage({
     overdueOnly,
     myCasesActorId: myCasesOnly ? session!.user.id : undefined,
     applicationTrack: applicationTrackFilter,
+    source: sourceFilter,
   };
 
   const loadChapters = () =>
@@ -270,6 +285,7 @@ export default async function AdminInstructorApplicantsPage({
       workshopDurationMinutes: outline?.durationMinutes ?? null,
       isReapplication: !!app.isReapplication,
       previousApplicationId: (app.previousApplicationId as string | null) ?? null,
+      source: (app.source as string | null) ?? "PORTAL",
       applicant: {
         id: app.applicant.id as string,
         name: app.applicant.name as string | null,
@@ -300,6 +316,7 @@ export default async function AdminInstructorApplicantsPage({
       archivedAt: app.archivedAt?.toISOString() ?? null,
       updatedAt: app.updatedAt.toISOString(),
       subjectsOfInterest: app.subjectsOfInterest ?? null,
+      source: ((app as { source?: string }).source ?? "PORTAL") as string,
       applicant: {
         id: app.applicant.id,
         name: app.applicant.name,
@@ -352,6 +369,13 @@ export default async function AdminInstructorApplicantsPage({
           </p>
         </div>
         <div className="applicant-command-header-actions">
+          <a
+            href="/admin/external-applicants/new"
+            className="button small"
+            aria-label="Add an external applicant (Google Forms or manual entry)"
+          >
+            Add External Applicant
+          </a>
           {/* CSV export is admin/hiring-chair only — hide for pure CPs so we
               don't render a button that 403s for them. */}
           {hasNetworkScope && (

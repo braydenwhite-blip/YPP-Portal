@@ -43,6 +43,7 @@ import {
 import { ApplicantWorkflowError } from "@/lib/applicant-workflow-error";
 import { shouldSendAssignmentNotification } from "@/lib/notification-policy";
 import { trackApplicantEvent } from "@/lib/telemetry";
+import { gateApplicantEmail } from "@/lib/applicant-email-gating";
 
 type FormState = {
   status: "idle" | "error" | "success";
@@ -337,7 +338,14 @@ export async function approveInstructorApplication(
 ) {
   const application = await prisma.instructorApplication.findUnique({
     where: { id: applicationId },
-    include: { applicant: { select: { id: true, name: true, email: true, chapterId: true } } },
+    select: {
+      id: true,
+      source: true,
+      applicationTrack: true,
+      applicantId: true,
+      status: true,
+      applicant: { select: { id: true, name: true, email: true, chapterId: true } },
+    },
   });
   if (!application) throw new Error("Application not found");
   await assertCanFinalizeApplication(applicationId, reviewerId, application.applicant.chapterId);
@@ -375,9 +383,19 @@ export async function approveInstructorApplication(
   });
 
   try {
-    await sendApplicationApprovedEmail({
-      to: application.applicant.email,
-      applicantName: application.applicant.name,
+    await gateApplicantEmail({
+      source: application.source,
+      kind: "ACCEPTANCE",
+      context: {
+        applicationId,
+        applicantName: application.applicant.name,
+        applicationTrack: application.applicationTrack,
+      },
+      send: () =>
+        sendApplicationApprovedEmail({
+          to: application.applicant.email,
+          applicantName: application.applicant.name,
+        }),
     });
   } catch (e) {
     console.error("[approveInstructorApplication] email failed:", e);
@@ -396,7 +414,12 @@ async function rejectInstructorApplicationInternal(
 ) {
   const application = await prisma.instructorApplication.findUnique({
     where: { id: applicationId },
-    include: { applicant: { select: { name: true, email: true, chapterId: true } } },
+    select: {
+      id: true,
+      source: true,
+      applicationTrack: true,
+      applicant: { select: { name: true, email: true, chapterId: true } },
+    },
   });
   if (!application) throw new Error("Application not found");
   await assertCanFinalizeApplication(applicationId, reviewerId, application.applicant.chapterId);
@@ -412,10 +435,21 @@ async function rejectInstructorApplicationInternal(
   });
 
   try {
-    await sendApplicationRejectedEmail({
-      to: application.applicant.email,
-      applicantName: application.applicant.name,
-      reason,
+    await gateApplicantEmail({
+      source: application.source,
+      kind: "REJECTION",
+      context: {
+        applicationId,
+        applicantName: application.applicant.name,
+        applicationTrack: application.applicationTrack,
+        contextNote: reason,
+      },
+      send: () =>
+        sendApplicationRejectedEmail({
+          to: application.applicant.email,
+          applicantName: application.applicant.name,
+          reason,
+        }),
     });
   } catch (e) {
     console.error("[rejectInstructorApplication] email failed:", e);
@@ -442,7 +476,12 @@ async function requestMoreInfoInternal(
 ) {
   const application = await prisma.instructorApplication.findUnique({
     where: { id: applicationId },
-    include: { applicant: { select: { name: true, email: true } } },
+    select: {
+      id: true,
+      source: true,
+      applicationTrack: true,
+      applicant: { select: { name: true, email: true } },
+    },
   });
   if (!application) throw new Error("Application not found");
 
@@ -469,11 +508,22 @@ async function requestMoreInfoInternal(
   const { getBaseUrl } = await import("@/lib/portal-auth-utils");
   const baseUrl = await getBaseUrl();
   try {
-    await sendInfoRequestEmail({
-      to: application.applicant.email,
-      applicantName: application.applicant.name,
-      message,
-      statusUrl: `${baseUrl}/application-status`,
+    await gateApplicantEmail({
+      source: application.source,
+      kind: "MISSING_INFORMATION_REQUEST",
+      context: {
+        applicationId,
+        applicantName: application.applicant.name,
+        applicationTrack: application.applicationTrack,
+        contextNote: message,
+      },
+      send: () =>
+        sendInfoRequestEmail({
+          to: application.applicant.email,
+          applicantName: application.applicant.name,
+          message,
+          statusUrl: `${baseUrl}/application-status`,
+        }),
     });
   } catch (e) {
     console.error("[requestMoreInfo] email failed:", e);
@@ -501,7 +551,13 @@ export async function scheduleInterview(
 ) {
   const application = await prisma.instructorApplication.findUnique({
     where: { id: applicationId },
-    include: { applicant: { select: { name: true, email: true } } },
+    select: {
+      id: true,
+      source: true,
+      applicationTrack: true,
+      interviewScheduledAt: true,
+      applicant: { select: { name: true, email: true } },
+    },
   });
   if (!application) throw new Error("Application not found");
 
@@ -548,12 +604,23 @@ export async function scheduleInterview(
   const { getBaseUrl } = await import("@/lib/portal-auth-utils");
   const baseUrl = await getBaseUrl();
   try {
-    await sendInterviewScheduledEmail({
-      to: application.applicant.email,
-      applicantName: application.applicant.name,
-      scheduledAt,
-      statusUrl: `${baseUrl}/application-status`,
-      variant: "instructor_application",
+    await gateApplicantEmail({
+      source: application.source,
+      kind: "INTERVIEW_CONFIRMATION",
+      context: {
+        applicationId,
+        applicantName: application.applicant.name,
+        applicationTrack: application.applicationTrack,
+        contextNote: notes ?? null,
+      },
+      send: () =>
+        sendInterviewScheduledEmail({
+          to: application.applicant.email,
+          applicantName: application.applicant.name,
+          scheduledAt,
+          statusUrl: `${baseUrl}/application-status`,
+          variant: "instructor_application",
+        }),
     });
   } catch (e) {
     console.error("[scheduleInterview] email failed:", e);
@@ -1049,7 +1116,13 @@ export async function preApproveApplication(
 
     const application = await prisma.instructorApplication.findUnique({
       where: { id: applicationId },
-      include: { applicant: { select: { name: true, email: true } } },
+      select: {
+        id: true,
+        status: true,
+        source: true,
+        applicationTrack: true,
+        applicant: { select: { name: true, email: true } },
+      },
     });
     if (!application) return { success: false, error: "Application not found." };
 
@@ -1069,10 +1142,20 @@ export async function preApproveApplication(
     const { getBaseUrl } = await import("@/lib/portal-auth-utils");
     const baseUrl = await getBaseUrl();
     if (application.applicant.email) {
-      await sendInstructorPreApprovedEmail({
-        to: application.applicant.email,
-        applicantName: application.applicant.name,
-        trainingUrl: `${baseUrl}/instructor-training`,
+      await gateApplicantEmail({
+        source: application.source,
+        kind: "REVIEW_UPDATE",
+        context: {
+          applicationId,
+          applicantName: application.applicant.name,
+          applicationTrack: application.applicationTrack,
+        },
+        send: () =>
+          sendInstructorPreApprovedEmail({
+            to: application.applicant.email,
+            applicantName: application.applicant.name,
+            trainingUrl: `${baseUrl}/instructor-training`,
+          }),
       }).catch((err) => console.error("[preApproveApplication] email failed:", err));
     } else {
       console.error(
@@ -1109,6 +1192,8 @@ export async function offerInterviewSlots(
         reviewerNotes: true,
         interviewRound: true,
         interviewScheduledAt: true,
+        source: true,
+        applicationTrack: true,
         applicant: { select: { name: true, email: true, chapterId: true } },
         interviewerAssignments: {
           where: { removedAt: null },
@@ -1258,14 +1343,25 @@ export async function offerInterviewSlots(
       { isolationLevel: "Serializable" }
     );
 
-    // Send "pick your time" email to the applicant
+    // Send "pick your time" email to the applicant (suppressed for non-portal
+    // intake — admin gets a manual email task instead).
     const { getBaseUrl } = await import("@/lib/portal-auth-utils");
     const baseUrl = await getBaseUrl();
-    await sendPickYourTimeEmail({
-      to: application.applicant.email,
-      applicantName: application.applicant.name,
-      slots: normalizedSlots,
-      statusUrl: `${baseUrl}/application-status`,
+    await gateApplicantEmail({
+      source: application.source,
+      kind: "INTERVIEW_INVITATION",
+      context: {
+        applicationId,
+        applicantName: application.applicant.name,
+        applicationTrack: application.applicationTrack,
+      },
+      send: () =>
+        sendPickYourTimeEmail({
+          to: application.applicant.email,
+          applicantName: application.applicant.name,
+          slots: normalizedSlots,
+          statusUrl: `${baseUrl}/application-status`,
+        }),
     }).catch((err) => console.error("[offerInterviewSlots] email failed:", err));
 
     if (shouldAdvanceToScheduling) {
@@ -1300,7 +1396,11 @@ export async function selectInterviewSlot(
       where: { id: slotId },
       include: {
         instructorApplication: {
-          include: {
+          select: {
+            id: true,
+            applicantId: true,
+            source: true,
+            applicationTrack: true,
             applicant: { select: { name: true, email: true } },
           },
         },
@@ -1361,16 +1461,26 @@ export async function selectInterviewSlot(
     });
 
     const applicant = slot.instructorApplication.applicant;
-    await sendInterviewConfirmedEmail({
-      to: applicant.email,
-      recipientName: applicant.name,
-      applicantName: applicant.name,
-      scheduledAt: slot.scheduledAt,
-      durationMinutes: slot.durationMinutes,
-      role: "applicant",
-      detailUrl: `${baseUrl}/application-status`,
-      meetingUrl: slot.meetingUrl,
-      icsContent,
+    await gateApplicantEmail({
+      source: slot.instructorApplication.source,
+      kind: "INTERVIEW_CONFIRMATION",
+      context: {
+        applicationId: slot.instructorApplicationId,
+        applicantName: applicant.name,
+        applicationTrack: slot.instructorApplication.applicationTrack,
+      },
+      send: () =>
+        sendInterviewConfirmedEmail({
+          to: applicant.email,
+          recipientName: applicant.name,
+          applicantName: applicant.name,
+          scheduledAt: slot.scheduledAt,
+          durationMinutes: slot.durationMinutes,
+          role: "applicant",
+          detailUrl: `${baseUrl}/application-status`,
+          meetingUrl: slot.meetingUrl,
+          icsContent,
+        }),
     }).catch((err) => console.error("[selectInterviewSlot] applicant email failed:", err));
 
     // Find all reviewers who offered slots for this application and notify them
@@ -2115,6 +2225,8 @@ export async function chairDecide(formData: FormData): Promise<ChairDecideResult
         applicantId: true,
         reviewerId: true,
         interviewRound: true,
+        source: true,
+        applicationTrack: true,
         applicant: { select: { id: true, name: true, email: true } },
         interviewerAssignments: {
           where: { removedAt: null },
@@ -2359,35 +2471,89 @@ export async function chairDecide(formData: FormData): Promise<ChairDecideResult
     }
 
     // Send the appropriate decision email and track any failure on the row.
+    // Non-portal sources skip the auto-send and seed a manual email task
+    // instead so the chair still has a clear "send manually" surface.
     let emailKind: string = action;
     let emailError: Error | null = null;
     try {
       if (action === "APPROVE") {
         emailKind = "APPROVE";
-        await sendApplicationApprovedEmail({
-          to: app.applicant.email,
-          applicantName: app.applicant.name,
+        await gateApplicantEmail({
+          source: app.source,
+          kind: "ACCEPTANCE",
+          context: {
+            applicationId,
+            applicantName: app.applicant.name,
+            applicationTrack: app.applicationTrack,
+          },
+          send: () =>
+            sendApplicationApprovedEmail({
+              to: app.applicant.email,
+              applicantName: app.applicant.name,
+            }),
         });
       } else if (action === "REJECT") {
         emailKind = "REJECT";
-        await sendApplicationRejectedEmail({
-          to: app.applicant.email,
-          applicantName: app.applicant.name,
-          reason: rationale ?? "The chair review did not result in approval.",
+        await gateApplicantEmail({
+          source: app.source,
+          kind: "REJECTION",
+          context: {
+            applicationId,
+            applicantName: app.applicant.name,
+            applicationTrack: app.applicationTrack,
+            contextNote: rationale ?? null,
+          },
+          send: () =>
+            sendApplicationRejectedEmail({
+              to: app.applicant.email,
+              applicantName: app.applicant.name,
+              reason: rationale ?? "The chair review did not result in approval.",
+            }),
         });
       } else if (action === "REQUEST_INFO") {
         emailKind = "REQUEST_INFO";
         const { getBaseUrl } = await import("@/lib/portal-auth-utils");
         const baseUrl = await getBaseUrl();
-        await sendInfoRequestEmail({
-          to: app.applicant.email,
-          applicantName: app.applicant.name,
-          message: rationale ?? "Please provide the requested follow-up information.",
-          statusUrl: `${baseUrl}/application-status`,
+        await gateApplicantEmail({
+          source: app.source,
+          kind: "MISSING_INFORMATION_REQUEST",
+          context: {
+            applicationId,
+            applicantName: app.applicant.name,
+            applicationTrack: app.applicationTrack,
+            contextNote: rationale ?? null,
+          },
+          send: () =>
+            sendInfoRequestEmail({
+              to: app.applicant.email,
+              applicantName: app.applicant.name,
+              message: rationale ?? "Please provide the requested follow-up information.",
+              statusUrl: `${baseUrl}/application-status`,
+            }),
         });
       } else {
         emailKind = action;
-        await sendChairDecisionEmail(app.applicant.email, applicationId, action);
+        // WAITLIST / HOLD / APPROVE_WITH_CONDITIONS / REQUEST_SECOND_INTERVIEW
+        // all flow through sendChairDecisionEmail. Map each to the closest
+        // manual-email kind for the suppression case so admins see a useful
+        // template; GENERAL_FOLLOWUP is the safe catch-all.
+        const manualKind =
+          action === "WAITLIST"
+            ? "WAITLIST"
+            : action === "APPROVE_WITH_CONDITIONS"
+              ? "ACCEPTANCE"
+              : "GENERAL_FOLLOWUP";
+        await gateApplicantEmail({
+          source: app.source,
+          kind: manualKind,
+          context: {
+            applicationId,
+            applicantName: app.applicant.name,
+            applicationTrack: app.applicationTrack,
+            contextNote: rationale ?? null,
+          },
+          send: () => sendChairDecisionEmail(app.applicant.email, applicationId, action),
+        });
       }
       // Email succeeded — clear any prior failure flags.
       await prisma.instructorApplication.update({

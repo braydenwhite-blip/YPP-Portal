@@ -1,6 +1,8 @@
 import type { CSSProperties, ReactNode } from "react";
+import type { ApplicationSource } from "@prisma/client";
 import { PROGRESS_RATING_OPTIONS } from "@/lib/instructor-review-config";
 import { formatScheduleDateTime } from "@/lib/scheduling/shared";
+import { describeApplicationSource } from "@/lib/application-source-config";
 
 type PipelineCardApp = {
   id: string;
@@ -31,6 +33,11 @@ type PipelineCardApp = {
   workshopTitle?: string | null;
   workshopAgeRange?: string | null;
   workshopDurationMinutes?: number | null;
+  /**
+   * Where the application came from. Defaults to PORTAL when the parent
+   * doesn't pass it (legacy callers / archive items missing the field).
+   */
+  source?: ApplicationSource | string | null;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -127,6 +134,25 @@ export default function ApplicantPipelineCard({
                 SW
               </span>
             )}
+
+            {app.source && app.source !== "PORTAL" && (() => {
+              const descriptor = describeApplicationSource(app.source as ApplicationSource);
+              return (
+                <span
+                  className="pill pill-small applicant-card-meta-pill"
+                  title={`Source: ${descriptor.longLabel}`}
+                  aria-label={`Application source: ${descriptor.longLabel}`}
+                  style={{
+                    background: "#eef2ff",
+                    color: "#3730a3",
+                    border: "1px solid #c7d2fe",
+                    fontWeight: 600,
+                  }}
+                >
+                  {descriptor.shortLabel}
+                </span>
+              );
+            })()}
 
             {app.interviewScheduledAt && (
               <span

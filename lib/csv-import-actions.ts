@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-supabase";
-import { InstructorApplicationStatus } from "@prisma/client";
+import { InstructorApplicationStatus, ApplicationSource } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { findDefaultInitialReviewerForChapter } from "@/lib/instructor-application-defaults";
 
@@ -47,6 +47,8 @@ export async function importApplicationsFromCSV(formData: FormData): Promise<{
   let imported = 0;
   let skipped = 0;
   const errors: string[] = [];
+  const importedById = session.user.id;
+  const externalImportedAt = new Date();
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
@@ -96,6 +98,12 @@ export async function importApplicationsFromCSV(formData: FormData): Promise<{
         await prisma.instructorApplication.create({
           data: {
             applicantId: user.id,
+            // CSV intake is an external channel — mark the source so admin
+            // dashboards can surface "Imported from CSV" alongside the
+            // applicant's record.
+            source: ApplicationSource.CSV_IMPORT,
+            importedById,
+            externalImportedAt,
             status: defaultInitialReviewer
               ? InstructorApplicationStatus.UNDER_REVIEW
               : InstructorApplicationStatus.SUBMITTED,
@@ -138,6 +146,9 @@ export async function importApplicationsFromCSV(formData: FormData): Promise<{
         await prisma.chapterPresidentApplication.create({
           data: {
             applicantId: user.id,
+            source: ApplicationSource.CSV_IMPORT,
+            importedById,
+            externalImportedAt,
             leadershipExperience: leadershipExperience || "",
             chapterVision: chapterVision || "",
             availability: availability || "",

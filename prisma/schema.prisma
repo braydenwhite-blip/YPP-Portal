@@ -311,6 +311,47 @@ enum ApplicationStatus {
   WITHDRAWN
 }
 
+/// Where an application originated. Defaults to PORTAL for portal-native
+/// applicants. Non-PORTAL values mean the applicant arrived through an
+/// external intake channel; the internal review workflow is identical
+/// regardless of source ("external intake, internal review").
+enum ApplicationSource {
+  PORTAL
+  GOOGLE_FORMS
+  CSV_IMPORT
+  MANUAL_ADMIN_ENTRY
+}
+
+/// Kind of manual email an admin may want to send to an applicant. Drives
+/// the suggested subject + body template rendered in the cockpit's email
+/// guidance panel. No email is auto-sent — this is tracking only.
+enum ManualEmailKind {
+  APPLICATION_CONFIRMATION
+  MISSING_INFORMATION_REQUEST
+  REVIEW_UPDATE
+  INTERVIEW_INVITATION
+  INTERVIEW_CONFIRMATION
+  INTERVIEW_REMINDER
+  POST_INTERVIEW_FOLLOWUP
+  ACCEPTANCE
+  WAITLIST
+  REJECTION
+  WITHDRAWAL_CONFIRMATION
+  GENERAL_FOLLOWUP
+}
+
+/// Lifecycle of a manual email task. PENDING = admin still owes the email.
+/// SENT = admin sent it through whatever channel (Gmail/Resend/etc) and
+/// marked it complete here. NOT_NEEDED = explicitly skipped (e.g. already
+/// covered by an automated portal email for a portal-native applicant).
+/// HANDLED_EXTERNALLY = sent outside the portal by another team member.
+enum ManualEmailStatus {
+  PENDING
+  SENT
+  NOT_NEEDED
+  HANDLED_EXTERNALLY
+}
+
 enum InstructorApplicationStatus {
   SUBMITTED
   UNDER_REVIEW
@@ -878,6 +919,13 @@ model User {
   attendanceSessionsCreated       AttendanceSession[]       @relation("AttendanceSessionsCreated")
   resourcesUploaded               Resource[]                @relation("ResourcesUploaded")
   passwordResetTokens             PasswordResetToken[]
+
+  // External applicant intake (Google Forms / CSV / manual admin entry)
+  instructorApplicationsImported       InstructorApplication[]       @relation("InstructorApplicationImportedBy")
+  chapterPresidentApplicationsImported ChapterPresidentApplication[] @relation("ChapterPresidentApplicationImportedBy")
+  genericApplicationsImported          Application[]                 @relation("GenericApplicationImportedBy")
+  manualEmailTasksCreated              ManualEmailTask[]             @relation("ManualEmailTasksCreated")
+  manualEmailTasksMarkedSent           ManualEmailTask[]             @relation("ManualEmailTasksMarkedSent")
 
   // File Uploads
   uploads FileUpload[]
@@ -1762,6 +1810,20 @@ model InstructorApplication {
   subtypeChangedById     String?
   subtypeChangedBy       User?             @relation("InstructorApplicationSubtypeChangedBy", fields: [subtypeChangedById], references: [id])
 
+  // --- External intake (Google Forms / CSV / manual admin entry) ---
+  // `source` defaults to PORTAL so existing rows are unaffected. Non-PORTAL
+  // values mark applications that came in through an external channel and
+  // are managed internally through the same review workflow.
+  source                 ApplicationSource @default(PORTAL)
+  externalSubmittedAt    DateTime?
+  externalImportedAt     DateTime?
+  externalResponseUrl    String?
+  externalAnswersCopy    String?           @db.Text
+  internalNotes          String?           @db.Text
+  importedById           String?
+  importedBy             User?             @relation("InstructorApplicationImportedBy", fields: [importedById], references: [id])
+  manualEmailTasks       ManualEmailTask[] @relation("ManualEmailTasksInstructorApplication")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1776,6 +1838,8 @@ model InstructorApplication {
   @@index([interviewRound])
   @@index([applicationTrack])
   @@index([instructorSubtype])
+  @@index([source])
+  @@index([importedById])
 }
 
 model InstructorApplicationReview {
@@ -2995,7 +3059,20 @@ model Application {
   submittedAt         DateTime                     @default(now())
   updatedAt           DateTime                     @updatedAt
 
+  // --- External intake (Google Forms / CSV / manual admin entry) ---
+  source              ApplicationSource            @default(PORTAL)
+  externalSubmittedAt DateTime?
+  externalImportedAt  DateTime?
+  externalResponseUrl String?
+  externalAnswersCopy String?                      @db.Text
+  internalNotes       String?                      @db.Text
+  importedById        String?
+  importedBy          User?                        @relation("GenericApplicationImportedBy", fields: [importedById], references: [id])
+  manualEmailTasks    ManualEmailTask[]            @relation("ManualEmailTasksGenericApplication")
+
   @@index([positionId, status, submittedAt])
+  @@index([source])
+  @@index([importedById])
 }
 
 model InterviewSlot {
@@ -9265,6 +9342,17 @@ model ChapterPresidentApplication {
   availabilityWindows ApplicantAvailabilityWindow[] @relation("CPAvailabilityWindows")
   schedulingNoMatchAt DateTime?
 
+  // --- External intake (Google Forms / CSV / manual admin entry) ---
+  source              ApplicationSource @default(PORTAL)
+  externalSubmittedAt DateTime?
+  externalImportedAt  DateTime?
+  externalResponseUrl String?
+  externalAnswersCopy String?           @db.Text
+  internalNotes       String?           @db.Text
+  importedById        String?
+  importedBy          User?             @relation("ChapterPresidentApplicationImportedBy", fields: [importedById], references: [id])
+  manualEmailTasks    ManualEmailTask[] @relation("ManualEmailTasksChapterPresidentApplication")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -9274,6 +9362,8 @@ model ChapterPresidentApplication {
   @@index([cohortId])
   @@index([graduationYear])
   @@index([stateProvince])
+  @@index([source])
+  @@index([importedById])
 }
 
 // ============================================
@@ -11137,6 +11227,60 @@ model WorkshopProposalSubmission {
 /// Per-reviewer scored review of a submission. Multiple reviewers can score
 /// the same submission; each row is preserved as audit history. The active
 /// "decision" surfaces on `WorkshopProposalSubmission.status` when a reviewer
+// ============================================
+// EXTERNAL INTAKE — MANUAL EMAIL TASKS
+// ============================================
+
+/// A checklist row representing an email an admin should send manually
+/// (outside the portal) for a given application. The portal does NOT
+/// auto-send these — it only surfaces "what to send / when / suggested
+/// copy", and tracks status when the admin marks it sent / not needed /
+/// handled externally.
+///
+/// Exactly one of `instructorApplicationId`, `chapterPresidentApplicationId`,
+/// or `genericApplicationId` is set per row, so the same model can attach
+/// to all three application types without duplicating workflow code.
+model ManualEmailTask {
+  id String @id @default(cuid())
+
+  // --- Polymorphic application link (exactly one set) ---
+  instructorApplicationId String?
+  instructorApplication   InstructorApplication? @relation("ManualEmailTasksInstructorApplication", fields: [instructorApplicationId], references: [id], onDelete: Cascade)
+
+  chapterPresidentApplicationId String?
+  chapterPresidentApplication   ChapterPresidentApplication? @relation("ManualEmailTasksChapterPresidentApplication", fields: [chapterPresidentApplicationId], references: [id], onDelete: Cascade)
+
+  genericApplicationId String?
+  genericApplication   Application? @relation("ManualEmailTasksGenericApplication", fields: [genericApplicationId], references: [id], onDelete: Cascade)
+
+  // --- Content ---
+  kind             ManualEmailKind
+  status           ManualEmailStatus @default(PENDING)
+  suggestedSubject String?           @db.Text
+  suggestedBody    String?           @db.Text
+  notes            String?           @db.Text
+
+  // --- Status transitions (audit) ---
+  markedSentAt    DateTime?
+  markedSentById  String?
+  markedSentBy    User?     @relation("ManualEmailTasksMarkedSent", fields: [markedSentById], references: [id])
+
+  // --- Creation ---
+  createdById String?
+  createdBy   User?    @relation("ManualEmailTasksCreated", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([instructorApplicationId, status])
+  @@index([chapterPresidentApplicationId, status])
+  @@index([genericApplicationId, status])
+  @@index([kind])
+  @@index([status])
+  @@index([markedSentById])
+  @@index([createdById])
+}
+
 /// commits.
 model WorkshopProposalReview {
   id                       String                                @id @default(cuid())

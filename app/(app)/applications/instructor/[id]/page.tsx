@@ -21,6 +21,10 @@ import {
 } from "@/lib/feature-flags";
 import { getCandidateReviewers, getCandidateInterviewers } from "@/lib/instructor-applicant-board-queries";
 import ApplicantCockpitHeader from "@/components/instructor-applicants/ApplicantCockpitHeader";
+import ExternalIntakePanel from "@/components/external-intake/ExternalIntakePanel";
+import ManualEmailGuidancePanel from "@/components/external-intake/ManualEmailGuidancePanel";
+import { listManualEmailTasksForInstructorApplication } from "@/lib/manual-email-tasks";
+import { suggestedEmailKindsForStatus } from "@/lib/application-source-config";
 import ApplicantCockpitSidebar from "@/components/instructor-applicants/ApplicantCockpitSidebar";
 import ApplicantNextActionBar from "@/components/instructor-applicants/ApplicantNextActionBar";
 import ApplicantTimelineFeed from "@/components/instructor-applicants/ApplicantTimelineFeed";
@@ -76,6 +80,13 @@ async function fetchCockpitData(applicationId: string) {
       archivedAt: true,
       lastNotificationError: true,
       lastNotificationErrorAt: true,
+      source: true,
+      externalSubmittedAt: true,
+      externalImportedAt: true,
+      externalResponseUrl: true,
+      externalAnswersCopy: true,
+      internalNotes: true,
+      importedBy: { select: { id: true, name: true } },
       applicant: {
         select: {
           id: true,
@@ -348,6 +359,20 @@ export default async function ApplicantCockpitPage({
     }
   }
 
+  // Manual email tracking — non-blocking. Failures here must not stop the
+  // cockpit from rendering (the rest of the workflow is more critical).
+  let manualEmailTasks: Awaited<
+    ReturnType<typeof listManualEmailTasksForInstructorApplication>
+  > = [];
+  try {
+    manualEmailTasks = await listManualEmailTasksForInstructorApplication(id);
+  } catch (err) {
+    console.error("[applicant-cockpit] manual email task query failed", err);
+  }
+  const manualEmailSuggestedKinds = suggestedEmailKindsForStatus(application.status);
+  const canEditManualEmail =
+    actorIsAdmin || isChapterLead(actor) || isHiringChair(actor);
+
   return (
     <div className="applicant-cockpit-page">
       <div className="applicant-cockpit-backbar">
@@ -361,6 +386,16 @@ export default async function ApplicantCockpitPage({
 
       <div className="applicant-cockpit-container">
         <ApplicantCockpitHeader application={application} />
+
+        <ExternalIntakePanel
+          source={application.source}
+          externalSubmittedAt={application.externalSubmittedAt?.toISOString() ?? null}
+          externalImportedAt={application.externalImportedAt?.toISOString() ?? null}
+          externalResponseUrl={application.externalResponseUrl}
+          externalAnswersCopy={application.externalAnswersCopy}
+          internalNotes={application.internalNotes}
+          importedBy={application.importedBy}
+        />
 
         {application.isReapplication && application.previousApplicationId && (
           <div
@@ -641,6 +676,15 @@ export default async function ApplicantCockpitPage({
                 </Link>
               </aside>
             )}
+
+            {/* Manual Email Tracking (read-only visible to reviewers/interviewers;
+                editable for admins, chapter leads, hiring chairs) */}
+            <ManualEmailGuidancePanel
+              applicationId={application.id}
+              tasks={manualEmailTasks}
+              suggestedKinds={manualEmailSuggestedKinds}
+              canEdit={canEditManualEmail}
+            />
 
             {/* Full Timeline */}
             <section id="section-timeline" className="cockpit-panel">
