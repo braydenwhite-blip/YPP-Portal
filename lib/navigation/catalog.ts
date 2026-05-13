@@ -377,6 +377,34 @@ export const NAV_CATALOG: NavLink[] = [
 
   ...groupLinks("People & Support", 800, [
     {
+      href: "/leadership-pathway",
+      label: "Leadership Pathway",
+      icon: "🪜",
+      roles: ["INSTRUCTOR", "MENTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
+      searchAliases: [
+        "Role",
+        "Roles",
+        "Senior Instructor",
+        "Lead Instructor",
+        "Promotion",
+        "Career",
+        "Growth Pathway",
+      ],
+      dashboardDescription:
+        "See the YPP instructor leadership pathway, what each role means, and where you fit on the journey.",
+      dashboardPriority: 4,
+    },
+    {
+      href: "/my-mentor",
+      label: "My Mentor",
+      icon: "🧭",
+      roles: ["INSTRUCTOR", "CHAPTER_PRESIDENT", "ADMIN", "STAFF"] as NavRole[],
+      searchAliases: ["Mentor", "My Mentor Page", "Mentor Card"],
+      dashboardDescription:
+        "Your mentor, your role, and how mentorship flows at YPP.",
+      dashboardPriority: 4,
+    },
+    {
       href: "/mentorship",
       label: "Mentorship",
       icon: "🤝",

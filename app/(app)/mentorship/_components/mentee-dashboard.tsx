@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getGoalsForMentee } from "@/lib/mentorship-gr-binding";
 import { MENTORSHIP_RESOURCE_TYPE_META } from "@/lib/mentorship-hub";
 import { nextActionForInstructorMentee } from "@/lib/instructor-mentee-next-action";
+import { getLeadershipContext } from "@/lib/leadership-context";
+import { LEADERSHIP_STAGES } from "@/lib/leadership-pathway";
 
 const TIER_THRESHOLDS = [
   { tier: "BRONZE", pts: 175, label: "Bronze", color: "#92400e", bg: "#fef3c7" },
@@ -175,20 +177,36 @@ function AwardBar({ totalPoints, currentTier }: { totalPoints: number; currentTi
 }
 
 export async function MenteeDashboard({ userId }: Props) {
-  const { mentorship, pointSummary, goals, resourcesToMe, resourcesByMe } = await loadMenteeDashboardData(userId);
+  const [{ mentorship, pointSummary, goals, resourcesToMe, resourcesByMe }, leadership] =
+    await Promise.all([
+      loadMenteeDashboardData(userId),
+      getLeadershipContext(userId),
+    ]);
 
   if (!mentorship) {
     return (
       <div className="card" style={{ textAlign: "center", padding: "2.5rem 1.5rem" }}>
         <h3 style={{ marginTop: 0 }}>No mentor assigned yet</h3>
-        <p style={{ color: "var(--muted)", maxWidth: 480, margin: "0 auto" }}>
-          You haven't been paired with an instructor mentor yet. Reach out to
-          your chapter leadership and they can match you. Once paired, your
+        <p style={{ color: "var(--muted)", maxWidth: 480, margin: "0 auto", lineHeight: 1.55 }}>
+          You haven&apos;t been paired with an instructor mentor yet. Reach out
+          to your chapter leadership and they can match you. Once paired, your
           goals, reflections, and feedback will appear here.
         </p>
+        <div style={{ marginTop: 16, display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+          <Link href="/leadership-pathway" className="button secondary small">
+            See the leadership pathway →
+          </Link>
+          <Link href="/my-mentor" className="button secondary small">
+            Open my mentor page →
+          </Link>
+        </div>
       </div>
     );
   }
+
+  const stageTone = leadership?.stageId
+    ? LEADERSHIP_STAGES[leadership.stageId].color
+    : null;
 
   const latestReflection = mentorship.selfReflections[0] ?? null;
   const latestApprovedReview = mentorship.goalReviews[0] ?? null;
@@ -211,6 +229,66 @@ export async function MenteeDashboard({ userId }: Props) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {leadership && leadership.stageId && stageTone && (
+        <div
+          className="card"
+          style={{
+            background: stageTone.bg,
+            border: `1.5px solid ${stageTone.border}`,
+            padding: "12px 14px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flex: "1 1 220px", minWidth: 0 }}>
+            <span
+              aria-hidden
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: 999,
+                background: stageTone.accent,
+                flex: "0 0 auto",
+              }}
+            />
+            <div style={{ minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  color: stageTone.text,
+                  opacity: 0.85,
+                }}
+              >
+                Your role at YPP
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: stageTone.text }}>
+                {LEADERSHIP_STAGES[leadership.stageId].label}
+                {leadership.nextStageId && (
+                  <span style={{ color: "var(--muted)", fontWeight: 500, fontSize: 12 }}>
+                    {" "}
+                    · next: {LEADERSHIP_STAGES[leadership.nextStageId].label}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <Link href="/my-mentor" className="button secondary small">
+              My mentor →
+            </Link>
+            <Link href="/leadership-pathway" className="button secondary small">
+              Pathway →
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Next action card */}
       <div
         className="card"
