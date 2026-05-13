@@ -40,11 +40,16 @@ export default async function InstructorGrowthPage() {
             A private recognition system built around teaching consistency, visible progress, and a real path toward deeper YPP leadership.
           </p>
         </div>
-        {canAccessReview ? (
-          <Link href="/instructor-growth/review" className="button secondary small">
-            Open review board
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Link href="/leadership-pathway" className="button secondary small">
+            Leadership pathway →
           </Link>
-        ) : null}
+          {canAccessReview ? (
+            <Link href="/instructor-growth/review" className="button secondary small">
+              Open review board
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       <InstructorGrowthDashboard
