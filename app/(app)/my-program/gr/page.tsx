@@ -2,7 +2,11 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-supabase";
 import { getMyGRDocument } from "@/lib/gr-actions";
 import { toMenteeRoleType } from "@/lib/mentee-role-utils";
+import { getLeadershipContext } from "@/lib/leadership-context";
 import GRDocumentView from "@/components/gr/gr-document-view";
+import { RoleIdentityCard } from "@/components/leadership-pathway/role-identity-card";
+import { ExpectationsMatrix } from "@/components/leadership-pathway/expectations-matrix";
+import { StageRibbon } from "@/components/leadership-pathway/stage-ribbon";
 import Link from "next/link";
 import type { GoalRatingColor } from "@prisma/client";
 
@@ -16,7 +20,10 @@ export default async function MyGRPage() {
   const menteeRoleType = toMenteeRoleType(primaryRole);
   if (!menteeRoleType) redirect("/");
 
-  const doc = await getMyGRDocument();
+  const [doc, leadership] = await Promise.all([
+    getMyGRDocument(),
+    getLeadershipContext(session.user.id),
+  ]);
 
   if (!doc) {
     return (
@@ -24,19 +31,68 @@ export default async function MyGRPage() {
         <div className="topbar">
           <div>
             <p className="badge">Mentorship Program</p>
-            <h1 className="page-title">My Goals & Resources</h1>
+            <h1 className="page-title">My Goals &amp; Resources</h1>
+            <p className="page-subtitle">
+              How YPP turns your role into a focused, supported growth plan.
+            </p>
           </div>
-        </div>
-        <div className="card" style={{ padding: "2rem", textAlign: "center" }}>
-          <p style={{ fontSize: "1.1rem", color: "var(--muted)", marginBottom: "1rem" }}>
-            Your G&R document hasn&apos;t been assigned yet.
-          </p>
-          <p style={{ color: "var(--muted)" }}>
-            Your program administrator will set up your Goals &amp; Resources document once your mentorship pairing is established.
-          </p>
-          <Link href="/my-program" className="button primary" style={{ marginTop: "1.5rem" }}>
-            Back to My Program
+          <Link href="/leadership-pathway" className="button secondary small">
+            View leadership pathway →
           </Link>
+        </div>
+        <div style={{ display: "grid", gap: 16 }}>
+          {leadership && (
+            <RoleIdentityCard
+              stageId={leadership.stageId}
+              nextStageId={leadership.nextStageId}
+            />
+          )}
+          <div className="card" style={{ padding: "1.5rem", textAlign: "center" }}>
+            <p
+              style={{
+                fontSize: "1.05rem",
+                color: "var(--muted)",
+                marginBottom: "0.5rem",
+              }}
+            >
+              Your G&amp;R document hasn&apos;t been assigned yet.
+            </p>
+            <p style={{ color: "var(--muted)", margin: 0 }}>
+              Your program administrator will set up your Goals &amp; Resources
+              document once your mentorship pairing is established.
+            </p>
+            <Link
+              href="/my-program"
+              className="button primary"
+              style={{ marginTop: "1.5rem" }}
+            >
+              Back to My Program
+            </Link>
+          </div>
+          {leadership?.stageId && (
+            <section className="card" style={{ padding: 18 }}>
+              <div style={{ marginBottom: 12 }}>
+                <h2 className="section-title" style={{ margin: 0, fontSize: 16 }}>
+                  What you&apos;ll be growing toward
+                </h2>
+                <p
+                  style={{
+                    margin: "4px 0 0",
+                    fontSize: 13,
+                    color: "var(--muted)",
+                  }}
+                >
+                  These are the five YPP growth areas — and what they look like
+                  for a{" "}
+                  <strong>{leadership.stageId.replace(/_/g, " ").toLowerCase()}</strong>.
+                </p>
+              </div>
+              <ExpectationsMatrix
+                highlightStageId={leadership.stageId}
+                singleColumn
+              />
+            </section>
+          )}
         </div>
       </div>
     );
@@ -217,9 +273,52 @@ export default async function MyGRPage() {
           <h1 className="page-title">My Goals &amp; Resources</h1>
           <p className="page-subtitle">{doc.template.title}</p>
         </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Link href="/my-mentor" className="button secondary small">
+            My mentor →
+          </Link>
+          <Link href="/leadership-pathway" className="button secondary small">
+            Leadership pathway →
+          </Link>
+        </div>
       </div>
 
+      {leadership && (
+        <div style={{ display: "grid", gap: 14, marginBottom: 18 }}>
+          <StageRibbon currentStageId={leadership.stageId} compact />
+          <RoleIdentityCard
+            stageId={leadership.stageId}
+            nextStageId={leadership.nextStageId}
+            compact
+          />
+        </div>
+      )}
+
       <GRDocumentView document={serialized} isOwner={true} />
+
+      {leadership?.stageId && (
+        <section style={{ marginTop: 28, display: "grid", gap: 10 }}>
+          <div style={{ marginBottom: 4 }}>
+            <h2 className="section-title" style={{ margin: 0 }}>
+              What growth looks like at your role
+            </h2>
+            <p
+              style={{
+                margin: "4px 0 0",
+                fontSize: 13,
+                color: "var(--muted)",
+                lineHeight: 1.5,
+              }}
+            >
+              These are YPP&apos;s five growth areas. Your goals and your
+              mentor&apos;s feedback ladder up to this rubric so promotion
+              decisions are transparent — and so you always know what
+              you&apos;re working toward.
+            </p>
+          </div>
+          <ExpectationsMatrix highlightStageId={leadership.stageId} />
+        </section>
+      )}
     </div>
   );
 }
