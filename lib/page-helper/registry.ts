@@ -2096,6 +2096,15 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
     }
   },
   {
+    pattern: "/leadership-pathway",
+    title: "Leadership Pathway",
+    content: {
+      purpose: "This page explains the YPP instructor pathway — what each role means, who mentors whom, and what growth looks like at every stage.",
+      firstStep: "Start at the stage ribbon — find where you are today and read the role-detail card for your current stage.",
+      nextStep: "Open your G&R or My Mentor page when you're ready to act on the growth areas the rubric calls out."
+    }
+  },
+  {
     pattern: "/learn",
     title: "Self-Paced Learning",
     content: {
