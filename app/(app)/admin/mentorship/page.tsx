@@ -205,6 +205,9 @@ export default async function AdminMentorshipPage({
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Link href="/leadership-pathway" className="button secondary small">
+            Leadership pathway →
+          </Link>
           <Link href="/admin/mentorship-program" className="button secondary small">
             Full Command Center →
           </Link>
