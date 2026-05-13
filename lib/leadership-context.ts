@@ -70,8 +70,14 @@ export interface LeadershipContext {
     isCommitteeChair: boolean;
     isOrgLeader: boolean;
   };
+  /** Full stage record (color tokens, mission, focus areas). */
   stage: LeadershipStage | null;
+  /** Stage id — convenience for callers that only need the discriminator. */
+  stageId: LeadershipStageId | null;
+  /** Full next-stage record (if applicable). */
   nextStage: LeadershipStage | null;
+  /** Next stage id — convenience for callers that only need the discriminator. */
+  nextStageId: LeadershipStageId | null;
   mentorshipPattern: string | null;
   /** The primary mentor for this user (if they're being mentored). */
   primaryMentor: LeadershipMentorView | null;
@@ -243,6 +249,7 @@ export async function getLeadershipContext(
   });
   const stage = stageId ? LEADERSHIP_STAGES[stageId] : null;
   const nextStage = getNextStage(stageId);
+  const nextStageId = nextStage?.id ?? null;
   const mentorshipPattern = stageId ? MENTORSHIP_PATTERN[stageId] : null;
 
   return {
@@ -257,7 +264,9 @@ export async function getLeadershipContext(
     },
     signals,
     stage,
+    stageId,
     nextStage,
+    nextStageId,
     mentorshipPattern,
     primaryMentor,
     mentees,
