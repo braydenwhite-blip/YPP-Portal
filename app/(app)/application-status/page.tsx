@@ -223,13 +223,8 @@ export default async function ApplicationStatusPage() {
             {instructorApp.status === "SUBMITTED" && (
               <>
                 <h3 className="section-title">Application Received</h3>
-                <p style={{ color: "var(--muted)", fontSize: 14 }}>
-                  Your application is in the queue. We typically send a first update within <strong>3–5 business days</strong>. If you need anything sooner, contact your chapter.
-                </p>
-                <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 8 }}>
-                  {isSummerWorkshopApp
-                    ? "Reviewers focus on classroom presence, pacing, and how you'd lead a focused workshop at camp. The interview, when scheduled, is a quick two-way conversation."
-                    : "Review is about understanding how you teach — not a scored exam. The interview, when scheduled, is a two-way conversation, not a test."}
+                <p style={{ color: "var(--muted)", fontSize: 14, margin: 0 }}>
+                  <strong>Next:</strong> a reviewer will be assigned and you&apos;ll hear back within <strong>3–5 business days</strong>. No action needed from you right now — contact your chapter if you need something sooner.
                 </p>
               </>
             )}

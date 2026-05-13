@@ -60,7 +60,7 @@ const HEAR_ABOUT_OPTIONS = [
 
 function timeHint(section: number): string {
   const hints: Record<number, string> = {
-    1: "About 8–12 minutes left from here. You can leave and come back — we save your answers on this device (except your password).",
+    1: "About 8–12 minutes left from here. You can leave and come back — we save your answers on this device.",
     2: "About 6–9 minutes left.",
     3: "About 4–6 minutes left.",
     4: "About 3–5 minutes left.",
@@ -120,6 +120,7 @@ export default function InstructorSignupPage() {
 
   const emailRef = useRef("");
   const passwordRef = useRef("");
+  const [password, setPassword] = useState("");
 
   const scheduleSave = useCallback(() => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -426,7 +427,12 @@ export default function InstructorSignupPage() {
                 type="password"
                 placeholder="Min 8 characters, letter + number"
                 required
-                onInput={(e) => { passwordRef.current = (e.target as HTMLInputElement).value; }}
+                value={password}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setPassword(next);
+                  passwordRef.current = next;
+                }}
               />
             </label>
 
@@ -840,9 +846,29 @@ export default function InstructorSignupPage() {
               </div>
             </div>
           ) : state.message && state.message !== "APPLICATION_SUBMITTED" ? (
-            <div className={state.status === "error" ? "form-error" : "form-success"} style={{ marginTop: 16 }}>
-              {state.message}
-            </div>
+            (() => {
+              const lines = state.message.split("\n").filter((line) => line.trim().length > 0);
+              const className = state.status === "error" ? "form-error" : "form-success";
+              if (lines.length <= 1) {
+                return (
+                  <div className={className} style={{ marginTop: 16 }}>
+                    {state.message}
+                  </div>
+                );
+              }
+              return (
+                <div className={className} role="alert" style={{ marginTop: 16 }}>
+                  <strong style={{ display: "block", marginBottom: 6 }}>
+                    Please fix the following before submitting:
+                  </strong>
+                  <ul style={{ margin: 0, paddingLeft: 18 }}>
+                    {lines.map((line, i) => (
+                      <li key={i} style={{ marginBottom: 2 }}>{line}</li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })()
           ) : null}
 
           <SubmitButton
