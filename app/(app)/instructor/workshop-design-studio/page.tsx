@@ -16,6 +16,7 @@ import { ChooseWorkshopPathButtons } from "./choice-buttons";
 import { ReviewerFeedbackCard } from "./reviewer-feedback";
 import { ApplicantStatusTimeline } from "./status-timeline";
 import { ReviewerExpectationsCard } from "./reviewer-expectations-card";
+import { WorkshopPathwayCallout } from "@/components/leadership-pathway/workshop-pathway-callout";
 
 export default async function WorkshopDesignStudioPage({
   searchParams,
@@ -97,7 +98,21 @@ export default async function WorkshopDesignStudioPage({
             same review queue.
           </p>
         </div>
+        {!isReviewerPreview && (
+          <Link
+            href="/leadership-pathway"
+            className="button secondary small"
+          >
+            View leadership pathway →
+          </Link>
+        )}
       </div>
+
+      {!isReviewerPreview && (
+        <div style={{ marginBottom: 16 }}>
+          <WorkshopPathwayCallout isCurrentWorkshopInstructor />
+        </div>
+      )}
 
       {isReviewerPreview ? (
         <div
