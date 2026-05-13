@@ -425,23 +425,6 @@ function PublicSummerWorkshopHome({ firstName }: { firstName: string }) {
         >
           Start Application →
         </Link>
-
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 18,
-            marginTop: 20,
-            paddingTop: 18,
-            borderTop: "1px solid rgba(107, 33, 200, 0.12)",
-            fontSize: 13,
-            color: "#5b21b6",
-          }}
-        >
-          <span><strong style={{ color: "#3b0f6e" }}>~20 min</strong> to complete</span>
-          <span><strong style={{ color: "#3b0f6e" }}>1 workshop outline</strong> required</span>
-          <span><strong style={{ color: "#3b0f6e" }}>Rolling</strong> review</span>
-        </div>
       </div>
 
       <p style={{ marginTop: 32, fontSize: 13, color: "var(--muted)", textAlign: "center" }}>

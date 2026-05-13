@@ -226,7 +226,9 @@ export async function signUp(prevState: FormState, formData: FormData): Promise<
       if (!validation.success) {
         return {
           status: "error",
-          message: validation.error.issues[0]?.message || "Please review your application and try again.",
+          message:
+            validation.error.issues.map((issue) => issue.message).join("\n") ||
+            "Please review your application and try again.",
           fields: pickFormFields(formData),
         };
       }
@@ -623,7 +625,9 @@ export async function submitInstructorApplicationForExistingUser(
     if (!validation.success) {
       return {
         status: "error",
-        message: validation.error.issues[0]?.message || "Please review your application and try again.",
+        message:
+          validation.error.issues.map((issue) => issue.message).join("\n") ||
+          "Please review your application and try again.",
         fields: pickFormFields(formData),
       };
     }

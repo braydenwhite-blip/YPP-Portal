@@ -773,10 +773,11 @@ export const PAGE_HELP_ENTRIES: PageHelperEntry[] = [
   {
     pattern: "/application-status",
     title: "Your Applications",
+    hidden: true,
     content: {
-      purpose: "This page helps you review your applications and move each item to the right next step.",
-      firstStep: "Open the item that is newest, overdue, or blocked so you can confirm the current status before changing anything.",
-      nextStep: "After you approve, return, score, or update the record, the workflow reflects the change for the next person automatically."
+      purpose: "",
+      firstStep: "",
+      nextStep: ""
     }
   },
   {

@@ -282,22 +282,6 @@ function LoginPageContent() {
             </span>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 20,
-              marginTop: 22,
-              paddingTop: 20,
-              borderTop: "1px solid var(--border)",
-              fontSize: 13,
-              color: "var(--muted)",
-            }}
-          >
-            <span><strong style={{ color: "var(--ypp-ink)" }}>~20 min</strong> to apply</span>
-            <span><strong style={{ color: "var(--ypp-ink)" }}>1 workshop outline</strong> required</span>
-            <span><strong style={{ color: "var(--ypp-ink)" }}>Rolling</strong> review</span>
-          </div>
         </section>
 
         <div className="login-card login-card--brand">
