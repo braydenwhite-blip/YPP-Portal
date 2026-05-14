@@ -225,7 +225,7 @@ async function buildDashboardData(userId: string, requestedPrimaryRole: string |
         },
       }),
       prisma.incubatorApplication.count({
-        where: { status: { in: ["SUBMITTED", "UNDER_REVIEW"] } },
+        where: { status: { in: ["SUBMITTED", "UNDER_REVIEW"] }, archivedAt: null },
       }).catch(() => 0),
       prisma.challenge.count({ where: { status: "DRAFT" } }).catch(() => 0),
       prisma.challenge.count({

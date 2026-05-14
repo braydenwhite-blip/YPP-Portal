@@ -1292,6 +1292,8 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([archivedAt])
 }
 
 model TwoFactorRecovery {
@@ -3079,6 +3081,7 @@ model Application {
   decision            Decision?
   submittedAt         DateTime                     @default(now())
   updatedAt           DateTime                     @updatedAt
+  archivedAt          DateTime?
 
   // --- External intake (Google Forms / CSV / manual admin entry) ---
   source              ApplicationSource            @default(PORTAL)
@@ -3094,6 +3097,7 @@ model Application {
   @@index([positionId, status, submittedAt])
   @@index([source])
   @@index([importedById])
+  @@index([archivedAt])
 }
 
 model InterviewSlot {
@@ -8264,14 +8268,16 @@ model IncubatorApplication {
   reviewedAt      DateTime?
   acceptedProject IncubatorProject?  @relation("IncubatorAcceptedFrom")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  archivedAt DateTime?
 
   @@unique([cohortId, studentId])
   @@index([studentId])
   @@index([status])
   @@index([passionId])
   @@index([reviewedById])
+  @@index([archivedAt])
 }
 
 // An active project within the incubator (wraps ProjectTracker with incubator context)
@@ -8595,12 +8601,14 @@ model InternshipApplication {
   status      ApplicationState @default(APPLIED)
   reviewNotes String?
 
-  appliedAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  appliedAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  archivedAt DateTime?
 
   @@unique([listingId, studentId])
   @@index([studentId])
   @@index([status])
+  @@index([archivedAt])
 }
 
 // Service Projects (Community Impact)
@@ -9376,8 +9384,9 @@ model ChapterPresidentApplication {
   importedBy          User?             @relation("ChapterPresidentApplicationImportedBy", fields: [importedById], references: [id])
   manualEmailTasks    ManualEmailTask[] @relation("ManualEmailTasksChapterPresidentApplication")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  archivedAt DateTime?
 
   @@index([status])
   @@index([reviewerId])
@@ -9387,6 +9396,7 @@ model ChapterPresidentApplication {
   @@index([stateProvince])
   @@index([source])
   @@index([importedById])
+  @@index([archivedAt])
 }
 
 // ============================================

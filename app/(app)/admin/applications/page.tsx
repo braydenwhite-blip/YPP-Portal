@@ -41,6 +41,7 @@ export default async function AdminApplicationsPage({
 
   const applications = await prisma.application.findMany({
     where: {
+      archivedAt: null,
       ...(selectedType ? { position: { type: selectedType } } : {}),
       ...(chapterProposalOnly
         ? {
